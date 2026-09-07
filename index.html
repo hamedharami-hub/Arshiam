@@ -33,12 +33,9 @@
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#0F172A">
 
-  <!-- Preconnect to font CDNs to shorten the critical request chain -->
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-
-  <!-- Preload most-used Vazirmatn weights to shorten the critical chain (CSS -> font) -->
-  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Regular.woff2">
-  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Bold.woff2">
+  <!-- Preload most-used local Vazirmatn weights for instant offline typography -->
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/Vazirmatn-Regular.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/Vazirmatn-Bold.woff2">
 
   <!-- Inline critical styles for the initial shell so FCP fires before the JS bundle parses -->
   <style>

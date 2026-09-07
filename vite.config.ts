@@ -211,11 +211,27 @@ export default defineConfig(({ mode }) => {
     target: "es2020",
     cssCodeSplit: true,
     sourcemap: false,
-    chunkSizeWarningLimit: 1500,
-    // NOTE: Custom manualChunks was removed — it caused Radix to load before
-    // React in production, breaking the app with "Cannot read properties of
-    // undefined (reading 'forwardRef')". Vite's default chunking is safe and
-    // already splits per-route via the lazy() dynamic imports in App.tsx.
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("@tiptap") || id.includes("prosemirror")) {
+              return "vendor-editor";
+            }
+            if (id.includes("recharts") || id.includes("d3-")) {
+              return "vendor-charts";
+            }
+            if (id.includes("firebase")) {
+              return "vendor-firebase";
+            }
+            if (id.includes("lucide-react")) {
+              return "vendor-icons";
+            }
+          }
+        },
+      },
+    },
   },
   define: {
     "import.meta.env.VITE_APP_VERSION": JSON.stringify(version),
