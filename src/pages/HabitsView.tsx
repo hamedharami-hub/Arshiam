@@ -37,37 +37,83 @@ export default function HabitsView() {
 
   const load = async () => {
     if (!user) return;
-    const [h, l] = await Promise.all([
-      supabase.from("habits").select("*"),
-      supabase.from("habit_logs").select("habit_id, log_date, note").gte("log_date", format(subDays(new Date(), 60), "yyyy-MM-dd")),
-    ]);
-    setHabits((h.data || []) as any);
-    setLogs((l.data || []) as any);
+    // 1. Primary: load from Firebase Firestore
+    try {
+      const { collection, getDocs } = await import("firebase/firestore");
+      const { db } = await import("@/lib/firebase");
+      const [hSnap, lSnap] = await Promise.all([
+        getDocs(collection(db, "users", user.id, "habits")),
+        getDocs(collection(db, "users", user.id, "habit_logs")),
+      ]);
+      if (!hSnap.empty) {
+        const hItems: any[] = [];
+        hSnap.forEach((doc) => hItems.push({ id: doc.id, ...doc.data() }));
+        setHabits(hItems);
+      }
+      if (!lSnap.empty) {
+        const lItems: any[] = [];
+        lSnap.forEach((doc) => lItems.push({ id: doc.id, ...doc.data() }));
+        setLogs(lItems);
+      }
+    } catch {}
+
+    // 2. Secondary fallback: check Supabase
+    try {
+      const [h, l] = await Promise.all([
+        supabase.from("habits").select("*"),
+        supabase.from("habit_logs").select("habit_id, log_date, note").gte("log_date", format(subDays(new Date(), 60), "yyyy-MM-dd")),
+      ]);
+      if (h.data && h.data.length > 0) setHabits(h.data as any);
+      if (l.data && l.data.length > 0) setLogs(l.data as any);
+    } catch {}
   };
   useEffect(() => { load(); }, [user]);
 
   const add = async () => {
     if (!name.trim() || !user) return;
-    const { error } = await supabase.from("habits").insert({
+    const habitId = crypto.randomUUID();
+    const newHabit = {
+      id: habitId,
       user_id: user.id,
       name,
       frequency,
       target_per_week: frequency === "daily" ? 7 : Math.max(1, Math.min(7, target)),
-    } as any);
-    if (error) toast.error(error.message);
-    else { setName(""); load(); }
+      created_at: new Date().toISOString(),
+    };
+    try {
+      const { upsertHabit } = await import("@/lib/firestoreDataService");
+      await upsertHabit(user.id, newHabit as any);
+    } catch {}
+    try {
+      await supabase.from("habits").insert(newHabit as any);
+    } catch {}
+    setName("");
+    load();
   };
 
   const toggle = async (habit_id: string, date: Date) => {
     if (!user) return;
     const d = format(date, "yyyy-MM-dd");
     const exists = logs.find((l) => l.habit_id === habit_id && l.log_date === d);
-    if (exists) {
-      await supabase.from("habit_logs").delete().eq("habit_id", habit_id).eq("log_date", d);
-    } else {
-      await supabase.from("habit_logs").insert({ habit_id, user_id: user.id, log_date: d });
-      awardWaterDrops(15, "ثبت موفق عادت روزانه");
-    }
+    try {
+      const { doc, setDoc, deleteDoc } = await import("firebase/firestore");
+      const { db } = await import("@/lib/firebase");
+      const logDocId = `${habit_id}_${d}`;
+      const logRef = doc(db, "users", user.id, "habit_logs", logDocId);
+      if (exists) {
+        await deleteDoc(logRef);
+      } else {
+        await setDoc(logRef, { habit_id, user_id: user.id, log_date: d, created_at: new Date().toISOString() });
+        awardWaterDrops(15, "ثبت موفق عادت روزانه");
+      }
+    } catch {}
+    try {
+      if (exists) {
+        await supabase.from("habit_logs").delete().eq("habit_id", habit_id).eq("log_date", d);
+      } else {
+        await supabase.from("habit_logs").insert({ habit_id, user_id: user.id, log_date: d });
+      }
+    } catch {}
     load();
   };
 

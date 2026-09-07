@@ -8,6 +8,7 @@ import { FolderDeleteDialog } from "@/components/FolderDeleteDialog";
 import ProcrastinationBusterModal from "@/components/ProcrastinationBusterModal";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { subscribeTasks, upsertTask, deleteTask as fsDeleteTask } from "@/lib/firestoreDataService";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { BidiText } from "@/components/BidiText";
@@ -319,22 +320,53 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     if (inflightRef.current) return inflightRef.current;
     lastLoadRef.current = now;
     const p = (async () => {
+      // 1. Primary: load from Firebase Firestore
       try {
-        const { data: allData } = await supabase.from("tasks")
+        const { collection, getDocs } = await import("firebase/firestore");
+        const { db } = await import("@/lib/firebase");
+        const tasksCol = collection(db, "users", user.id, "tasks");
+        const snap = await getDocs(tasksCol);
+        if (!snap.empty) {
+          const items: Task[] = [];
+          snap.forEach((d) => items.push({ id: d.id, ...(d.data() as any) }));
+          items.sort((a, b) => {
+            if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+            const posA = a.position ?? 0;
+            const posB = b.position ?? 0;
+            if (posA !== posB) return posA - posB;
+            return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+          });
+          cache.set(user.id, items);
+          setAllTasks(items);
+          await cacheSet(TASKS_CACHE_KEY(user.id), items);
+          return;
+        }
+      } catch (err) {
+        console.warn("[TasksView] Firestore tasks fetch warning:", err);
+      }
+
+      // 2. Secondary fallback: check Supabase (only if valid rows returned without error)
+      try {
+        const { data: allData, error } = await supabase.from("tasks")
           .select("*")
           .order("position").order("created_at", { ascending: false })
           .limit(2000);
-        const all = ((allData || []) as unknown) as Task[];
-        cache.set(user.id, all);
-        setAllTasks(all);
-        await cacheSet(TASKS_CACHE_KEY(user.id), all);
-      } catch {
-        // Offline/network error: keep cache and persisted IndexedDB list
-        const persisted = await cacheGet<Task[]>(TASKS_CACHE_KEY(user.id));
-        if (persisted) {
-          cache.set(user.id, persisted);
-          setAllTasks(persisted);
+        if (!error && allData && allData.length > 0) {
+          const all = ((allData || []) as unknown) as Task[];
+          cache.set(user.id, all);
+          setAllTasks(all);
+          await cacheSet(TASKS_CACHE_KEY(user.id), all);
+          return;
         }
+      } catch {
+        // Ignore Supabase errors
+      }
+
+      // 3. Offline / cache fallback
+      const persisted = await cacheGet<Task[]>(TASKS_CACHE_KEY(user.id));
+      if (persisted && persisted.length > 0) {
+        cache.set(user.id, persisted);
+        setAllTasks(persisted);
       }
     })();
     inflightRef.current = p;
@@ -412,6 +444,12 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     document.addEventListener("visibilitychange", onVisible);
     const onTasksChanged = () => load();
     window.addEventListener("tasks-changed", onTasksChanged);
+    const fsUnsub = subscribeTasks(user.id, (tasks) => {
+      if (tasks && tasks.length > 0) {
+        cache.set(user.id, tasks);
+        setAllTasks(tasks);
+      }
+    });
     const ch = supabase.channel(`tasks-rt-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, scheduleLoad)
       .on("postgres_changes", { event: "*", schema: "public", table: "subtasks" }, scheduleLoad)
@@ -420,6 +458,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       if (pending != null) window.clearTimeout(pending);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("tasks-changed", onTasksChanged);
+      fsUnsub();
       supabase.removeChannel(ch);
     };
   }, [user]);
@@ -580,8 +619,12 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       return;
     }
 
-    const { error } = await supabase.from("tasks").update(patch).eq("id", t.id);
-    if (error) { toast.error(error.message); return; }
+    if (user) {
+      await upsertTask(user.id, { id: t.id, ...patch });
+    }
+    try {
+      await supabase.from("tasks").update(patch).eq("id", t.id);
+    } catch {}
     if (!isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } as Task : x));
     if (user) await logTaskActivity(t.id, user.id, "completed", { ...patch, outcome_id: outcome?.id } as Record<string, unknown>);
   };
@@ -620,8 +663,12 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       return;
     }
 
-    const { error } = await supabase.from("tasks").update(patch).eq("id", t.id);
-    if (error) { toast.error(error.message); return; }
+    if (user) {
+      await upsertTask(user.id, { id: t.id, ...patch });
+    }
+    try {
+      await supabase.from("tasks").update(patch).eq("id", t.id);
+    } catch {}
     if (!isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } as Task : x));
     if (user) await logTaskActivity(t.id, user.id, "reopened", patch as Record<string, unknown>);
   };
@@ -726,7 +773,12 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       return;
     }
 
-    await supabase.from("tasks").delete().eq("id", id);
+    if (user) {
+      await fsDeleteTask(user.id, id);
+    }
+    try {
+      await supabase.from("tasks").delete().eq("id", id);
+    } catch {}
     const title = snaps.find(s => s.id === id)?.title || "";
     const restore = async () => {
       await supabase.from("tasks").insert(snaps as never);

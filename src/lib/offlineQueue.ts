@@ -129,44 +129,49 @@ export async function flushQueue(): Promise<{ ok: number; failed: number }> {
     for (const item of items) {
       if (item.nextRetryAt && item.nextRetryAt > now) continue;
       try {
-        const q = (supabase.from as (t: string) => ReturnType<typeof supabase.from>)(item.table);
-        let res;
-        if (item.op === "insert") {
-          res = await q.insert(item.payload as Record<string, unknown>);
-        } else if (item.op === "upsert") {
-          res = await q.upsert(item.payload as Record<string, unknown>, item.upsertOptions);
-        } else if (item.op === "update") {
-          let b = q.update(item.payload as Record<string, unknown>);
-          for (const [k, v] of Object.entries(item.match || {})) b = b.eq(k, v);
-          res = await b;
-        } else if (item.op === "delete") {
-          let b = q.delete();
-          for (const [k, v] of Object.entries(item.match || {})) b = b.eq(k, v);
-          res = await b;
-        }
-        if (res?.error) throw res.error;
-
-        // Dual-write to Firestore for cloud persistence
+        // 1. Primary cloud write: Firebase Firestore (Google AI Studio backend)
+        let firestoreOk = false;
         try {
-          const { data: authSession } = await supabase.auth.getSession();
-          const userId = authSession?.session?.user?.id;
-          if (userId && (item.table === "tasks" || item.table === "notes" || item.table === "habits")) {
+          const { auth } = await import("./firebase");
+          const { getStoredUser } = await import("./authService");
+          const userId = auth.currentUser?.uid || getStoredUser()?.id;
+          if (userId && (item.table === "tasks" || item.table === "notes" || item.table === "habits" || item.table === "folders" || item.table === "tags")) {
             const { saveEntityToFirestore, deleteEntityFromFirestore } = await import("./firestoreSync");
             if (item.op === "insert" || item.op === "upsert" || item.op === "update") {
               const p = (item.payload || {}) as Record<string, any>;
               const docId = (p.id || item.match?.id) as string;
               if (docId) {
-                await saveEntityToFirestore(userId, item.table as any, docId, p);
+                firestoreOk = await saveEntityToFirestore(userId, item.table as any, docId, p);
               }
             } else if (item.op === "delete") {
               const docId = item.match?.id as string;
               if (docId) {
-                await deleteEntityFromFirestore(userId, item.table as any, docId);
+                firestoreOk = await deleteEntityFromFirestore(userId, item.table as any, docId);
               }
             }
           }
+        } catch (e) {
+          console.warn("[offlineQueue] Firestore persistence warning:", e);
+        }
+
+        // 2. Secondary/Legacy mirror: Supabase (best-effort, non-blocking)
+        try {
+          const q = (supabase.from as (t: string) => ReturnType<typeof supabase.from>)(item.table);
+          if (item.op === "insert") {
+            await q.insert(item.payload as Record<string, unknown>);
+          } else if (item.op === "upsert") {
+            await q.upsert(item.payload as Record<string, unknown>, item.upsertOptions);
+          } else if (item.op === "update") {
+            let b = q.update(item.payload as Record<string, unknown>);
+            for (const [k, v] of Object.entries(item.match || {})) b = b.eq(k, v);
+            await b;
+          } else if (item.op === "delete") {
+            let b = q.delete();
+            for (const [k, v] of Object.entries(item.match || {})) b = b.eq(k, v);
+            await b;
+          }
         } catch {
-          // Non-blocking Firestore sync
+          // Ignore Supabase RLS / session errors
         }
 
         await db.delete(STORE, item.id!);

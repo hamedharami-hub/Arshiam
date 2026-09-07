@@ -7,6 +7,7 @@ import SwipeableRow from "@/components/gestures/SwipeableRow";
 import { MoveToDialog } from "@/components/MoveToDialog";
 import { startItemDrag } from "@/lib/dragToFolder";
 import { supabase } from "@/integrations/supabase/client";
+import { subscribeNotes, upsertNote, deleteNote as fsDeleteNote } from "@/lib/firestoreDataService";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -128,25 +129,52 @@ export default function NotesView() {
   const load = async () => {
     if (!user) return;
     let base = (await cacheGet<Note[]>(NOTES_CACHE_KEY)) || [];
+    // 1. Try Firebase Firestore
     try {
-      const { data } = await supabase.from("notes").select("*")
-        .is("task_id", null)
-        .order("pinned", { ascending: false }).order("updated_at", { ascending: false });
-      base = ((data || []) as unknown) as Note[];
-      await cacheSet(NOTES_CACHE_KEY, base);
+      const { collection, getDocs } = await import("firebase/firestore");
+      const { db } = await import("@/lib/firebase");
+      const snap = await getDocs(collection(db, "users", user.id, "notes"));
+      if (!snap.empty) {
+        const items: Note[] = [];
+        snap.forEach((d) => items.push({ id: d.id, ...(d.data() as any) }));
+        items.sort((a, b) => {
+          if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+          return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
+        });
+        base = items;
+        await cacheSet(NOTES_CACHE_KEY, base);
+      }
     } catch {
-      // Use cached base
-      void 0;
+      // 2. Try Supabase fallback
+      try {
+        const { data, error } = await supabase.from("notes").select("*")
+          .is("task_id", null)
+          .order("pinned", { ascending: false }).order("updated_at", { ascending: false });
+        if (!error && data && data.length) {
+          base = ((data || []) as unknown) as Note[];
+          await cacheSet(NOTES_CACHE_KEY, base);
+        }
+      } catch {}
     }
     const merged = await applyNoteQueue(base);
     setNotes(merged);
   };
 
-  useEffect(() => { if (user) load(); }, [user]);
   useEffect(() => {
+    if (!user) return;
+    load();
+    const fsUnsub = subscribeNotes(user.id, (fsNotes) => {
+      if (fsNotes && fsNotes.length > 0) {
+        setNotes(fsNotes as Note[]);
+        cacheSet(NOTES_CACHE_KEY, fsNotes);
+      }
+    });
     const ch = supabase.channel("notes-list")
       .on("postgres_changes", { event: "*", schema: "public", table: "notes" }, load).subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      fsUnsub();
+      supabase.removeChannel(ch);
+    };
   }, [user]);
 
   const preselectId = searchParams.get("select");
@@ -188,20 +216,28 @@ export default function NotesView() {
       return;
     }
 
-    const { data, error } = await supabase.from("notes").insert({
-      user_id: user.id, title: note.title, content: "",
-    }).select().single();
-    if (error) {
-      toast.error(error.message);
-      setNotes(prev => prev.filter(n => n.id !== note.id));
-      return;
-    }
-    if (data) {
-      const saved = data as Note;
-      setNotes(prev => [saved, ...prev.filter(n => n.id !== note.id)]);
-      setSelected(saved);
-      await cacheSet(NOTES_CACHE_KEY, [saved, ...notes.filter(n => n.id !== note.id)]);
-    }
+    // 1. Primary write to Firestore
+    try {
+      await upsertNote(user.id, note);
+    } catch {}
+
+    // 2. Best-effort mirror to Supabase
+    try {
+      const { data } = await supabase.from("notes").insert({
+        id: note.id,
+        user_id: user.id,
+        title: note.title,
+        content: "",
+      }).select().single();
+      if (data) {
+        const saved = data as Note;
+        setNotes(prev => [saved, ...prev.filter(n => n.id !== note.id)]);
+        setSelected(saved);
+        await cacheSet(NOTES_CACHE_KEY, [saved, ...notes.filter(n => n.id !== note.id)]);
+        return;
+      }
+    } catch {}
+    await cacheSet(NOTES_CACHE_KEY, [note, ...notes.filter(n => n.id !== note.id)]);
   };
 
   const save = async (patch: Partial<Note>) => {
@@ -216,7 +252,13 @@ export default function NotesView() {
       await enqueueOp({ table: "notes", op: "update", payload: patch, match: { id: selected.id } });
       return;
     }
-    await supabase.from("notes").update(patch).eq("id", selected.id);
+
+    if (user) {
+      await upsertNote(user.id, updated);
+    }
+    try {
+      await supabase.from("notes").update(patch).eq("id", selected.id);
+    } catch {}
   };
 
   useEffect(() => {
@@ -247,7 +289,12 @@ export default function NotesView() {
       return;
     }
 
-    await supabase.from("notes").delete().eq("id", id);
+    if (user) {
+      await fsDeleteNote(user.id, id);
+    }
+    try {
+      await supabase.from("notes").delete().eq("id", id);
+    } catch {}
     if (selected?.id === id) { setSelected(null); setDraft(null); }
     if (note) {
       const restore = async () => {

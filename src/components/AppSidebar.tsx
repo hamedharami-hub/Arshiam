@@ -357,33 +357,72 @@ export function AppSidebar() {
 
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
 
+    // 1. Primary: load folders & tags from Firebase Firestore
     try {
-      const [f, t] = await Promise.all([
-        supabase.from("folders").select("*").order("position"),
-        supabase.from("tags").select("*").order("name"),
+      const { collection, getDocs } = await import("firebase/firestore");
+      const { db } = await import("@/lib/firebase");
+      const [foldersSnap, tagsSnap] = await Promise.all([
+        getDocs(collection(db, "users", user.id, "folders")),
+        getDocs(collection(db, "users", user.id, "tags")),
       ]);
-      if (f.data) {
-        setFolders(f.data);
-        await cacheSet(FOLDERS_KEY, f.data);
+      if (!foldersSnap.empty) {
+        const fList: Folder[] = [];
+        foldersSnap.forEach((d) => fList.push({ id: d.id, ...(d.data() as any) }));
+        fList.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+        setFolders(fList);
+        await cacheSet(FOLDERS_KEY, fList);
       }
-      if (t.data) {
-        setTags(t.data);
-        await cacheSet(TAGS_KEY, t.data);
+      if (!tagsSnap.empty) {
+        const tList: TagT[] = [];
+        tagsSnap.forEach((d) => tList.push({ id: d.id, ...(d.data() as any) }));
+        tList.sort((a, b) => a.name.localeCompare(b.name));
+        setTags(tList);
+        await cacheSet(TAGS_KEY, tList);
       }
     } catch {
-      // Keep cached lists while offline
-      void 0;
+      // 2. Secondary fallback: check Supabase
+      try {
+        const [f, t] = await Promise.all([
+          supabase.from("folders").select("*").order("position"),
+          supabase.from("tags").select("*").order("name"),
+        ]);
+        if (f.data && f.data.length > 0) {
+          setFolders(f.data);
+          await cacheSet(FOLDERS_KEY, f.data);
+        }
+        if (t.data && t.data.length > 0) {
+          setTags(t.data);
+          await cacheSet(TAGS_KEY, t.data);
+        }
+      } catch {
+        void 0;
+      }
     }
   };
 
   useEffect(() => {
+    if (!user) return;
     load();
+    let fsUnsubF = () => {};
+    let fsUnsubT = () => {};
+    import("@/lib/firestoreDataService").then(({ subscribeFolders, subscribeTags }) => {
+      fsUnsubF = subscribeFolders(user.id, (flist) => {
+        if (flist && flist.length > 0) setFolders(flist as Folder[]);
+      });
+      fsUnsubT = subscribeTags(user.id, (tlist) => {
+        if (tlist && tlist.length > 0) setTags(tlist as TagT[]);
+      });
+    });
     const ch = supabase
       .channel("sidebar")
       .on("postgres_changes", { event: "*", schema: "public", table: "folders" }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "tags" }, load)
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      fsUnsubF();
+      fsUnsubT();
+      supabase.removeChannel(ch);
+    };
   }, [user]);
 
   const closeOnMobile = () => { if (isMobile) setOpenMobile(false); };
@@ -401,14 +440,20 @@ export function AppSidebar() {
       return;
     }
 
-    const { error } = await supabase.from("folders").insert({ name: newFolder, user_id: user.id });
-    if (error) {
-      toast.error(error.message);
-      setFolders(prev => prev.filter(x => x.id !== folder.id));
-    } else {
-      toast.success(t("folders.created")); setNewFolder(""); setOpenFolderDlg(false);
-      load();
-    }
+    // 1. Primary: save folder to Firebase Firestore
+    try {
+      const { upsertFolder } = await import("@/lib/firestoreDataService");
+      await upsertFolder(user.id, folder);
+    } catch {}
+
+    // 2. Best-effort mirror to Supabase
+    try {
+      await supabase.from("folders").insert({ id: folder.id, name: newFolder, user_id: user.id });
+    } catch {}
+
+    toast.success(t("folders.created"));
+    setNewFolder("");
+    setOpenFolderDlg(false);
   };
 
   const createTag = async () => {
@@ -424,14 +469,20 @@ export function AppSidebar() {
       return;
     }
 
-    const { error } = await supabase.from("tags").insert({ name: newTag, user_id: user.id });
-    if (error) {
-      toast.error(error.message);
-      setTags(prev => prev.filter(x => x.id !== tag.id));
-    } else {
-      toast.success(t("tags.created")); setNewTag(""); setOpenTagDlg(false);
-      load();
-    }
+    // 1. Primary: save tag to Firebase Firestore
+    try {
+      const { upsertTag } = await import("@/lib/firestoreDataService");
+      await upsertTag(user.id, tag);
+    } catch {}
+
+    // 2. Best-effort mirror to Supabase
+    try {
+      await supabase.from("tags").insert({ id: tag.id, name: newTag, user_id: user.id });
+    } catch {}
+
+    toast.success(t("tags.created"));
+    setNewTag("");
+    setOpenTagDlg(false);
   };
 
   const renderTree = (parentId: string | null, depth = 0) => {

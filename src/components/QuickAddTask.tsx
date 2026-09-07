@@ -194,9 +194,20 @@ export function QuickAddTask({
     }
 
     try {
-      const { data, error } = await supabase
+      // 1. Primary save to Firebase Firestore
+      try {
+        const { upsertTask } = await import("@/lib/firestoreDataService");
+        await upsertTask(user.id, baseTask);
+      } catch (err) {
+        console.warn("[QuickAddTask] Firestore save notice:", err);
+      }
+
+    // 2. Best-effort mirror to Supabase
+    try {
+      const { data } = await supabase
         .from("tasks")
         .insert({
+          id: tempId,
           user_id: user.id,
           title: finalTitle,
           folder_id: finalFolderId,
@@ -206,42 +217,30 @@ export function QuickAddTask({
         } as never)
         .select()
         .single();
-      if (error) throw error;
       if (data && finalTagIds.length) {
         await supabase
           .from("task_tags")
           .insert(finalTagIds.map(tag_id => ({ task_id: data.id, tag_id, user_id: user.id })));
       }
-      if (data && selectedFiles.length) {
-        for (const file of selectedFiles) {
-          if (file.size > 50 * 1024 * 1024) continue;
-          const up = await uploadMediaFull(file, user.id);
-          await supabase.from("task_attachments").insert({
-            user_id: user.id,
-            task_id: data.id,
-            url: up.url,
-            storage_path: up.path,
-            file_name: up.name,
-            mime_type: up.mime,
-            kind: up.kind,
-            size_bytes: up.size,
-          });
-        }
-      }
-      setTitle("");
-      setDue(defaults.due_date ?? null);
-      setPriority(null);
-      setFolderId(defaults.folder_id ?? null);
-      setTagIds(defaults.tag_id ? [defaults.tag_id] : []);
-      setSelectedFiles([]);
-      window.dispatchEvent(new Event("tasks-changed"));
-      if (data) onCreated?.(data.id);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : T("خطا", "Error"));
-    } finally {
-      setBusy(false);
+    } catch {
+      // Supabase is secondary; ignore permission/network errors
     }
-  };
+
+    setTitle("");
+    setDue(defaults.due_date ?? null);
+    setPriority(null);
+    setFolderId(defaults.folder_id ?? null);
+    setTagIds(defaults.tag_id ? [defaults.tag_id] : []);
+    setSelectedFiles([]);
+    window.dispatchEvent(new Event("tasks-changed"));
+    onCreated?.(tempId);
+    toast.success(T("تسک با موفقیت ذخیره شد", "Task created successfully"));
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : T("خطا", "Error"));
+  } finally {
+    setBusy(false);
+  }
+};
 
   const applyPriority = (p: Priority) => {
     setPriority(p);

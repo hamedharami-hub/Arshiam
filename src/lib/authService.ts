@@ -392,6 +392,20 @@ export async function loginWithGoogleDirect(
 export async function loginAsGuest(
   name: string = "کاربر مهمان"
 ): Promise<{ success: boolean; user: AppUser }> {
+  try {
+    const { signInAnonymously } = await import("firebase/auth");
+    const cred = await signInAnonymously(auth);
+    if (cred.user) {
+      const appUser = mapFirebaseUser(cred.user);
+      appUser.displayName = name;
+      saveLocalSession(appUser);
+      await syncUserProfileToFirestore(appUser);
+      return { success: true, user: appUser };
+    }
+  } catch (err) {
+    console.warn("Anonymous sign-in notice, using local guest fallback:", err);
+  }
+
   const uid = "guest_" + Math.random().toString(36).substring(2, 9);
   const appUser: AppUser = {
     id: uid,
