@@ -8,6 +8,7 @@ import { ensureNotificationPermission } from "@/lib/reminders";
 import { toast } from "sonner";
 
 import { addDays, format, startOfDay } from "date-fns";
+import { formatDate } from "@/lib/jalali";
 
 /**
  * Compact smart due-date picker.
@@ -78,11 +79,20 @@ export function DueDatePicker({
     if (onReminderChange) { setReminderOn(false); onReminderChange(null); }
   };
 
+  const jalaliPreview = datePart ? formatDate(new Date(`${datePart}T12:00:00`), "EEEE d MMMM", "jalali") : "";
+
   return (
     <div className="space-y-2">
       {label && (
-        <label className="text-xs text-muted-foreground flex items-center gap-1">
-          <Calendar className="w-3 h-3" /> {labelText}
+        <label className="text-xs text-muted-foreground flex items-center justify-between gap-1">
+          <span className="flex items-center gap-1">
+            <Calendar className="w-3 h-3" /> {labelText}
+          </span>
+          {jalaliPreview && (
+            <span className="text-[11px] font-medium text-primary">
+              {jalaliPreview}
+            </span>
+          )}
         </label>
       )}
 
@@ -109,6 +119,12 @@ export function DueDatePicker({
           </Button>
         )}
       </div>
+
+      {!label && jalaliPreview && (
+        <div className="text-[11px] font-medium text-primary text-end">
+          {jalaliPreview}
+        </div>
+      )}
 
       {/* Time toggle + time input on one row */}
       <div className="flex items-center gap-2">
