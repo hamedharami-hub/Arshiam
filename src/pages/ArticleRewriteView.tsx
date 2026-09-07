@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -132,7 +132,7 @@ export default function ArticleRewriteView() {
     }
     setSaving(true);
     try {
-      const { error } = await supabase.from("notes").insert({
+      const { error } = await firebaseStore.from("notes").insert({
         user_id: user.id,
         title: title.trim(),
         content: content.trim(),

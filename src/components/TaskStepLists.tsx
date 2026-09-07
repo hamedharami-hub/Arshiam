@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,7 @@ export function TaskStepLists({ taskId }: { taskId: string }) {
   const [newStep, setNewStep] = useState<Record<string, string>>({});
 
   const load = async () => {
-    const { data: ls } = await supabase
+    const { data: ls } = await firebaseStore
       .from("task_step_lists" as any)
       .select("*")
       .eq("task_id", taskId)
@@ -53,7 +53,7 @@ export function TaskStepLists({ taskId }: { taskId: string }) {
     const lists = (ls || []) as unknown as StepList[];
     setLists(lists);
     if (lists.length) {
-      const { data: st } = await supabase
+      const { data: st } = await firebaseStore
         .from("task_steps" as any)
         .select("*")
         .in("list_id", lists.map((l) => l.id))
@@ -69,7 +69,7 @@ export function TaskStepLists({ taskId }: { taskId: string }) {
   const addList = async () => {
     if (!user) return;
     const title = newListTitle.trim() || "مراحل";
-    const { data, error } = await supabase
+    const { data, error } = await firebaseStore
       .from("task_step_lists" as any)
       .insert({
         user_id: user.id,
@@ -87,13 +87,13 @@ export function TaskStepLists({ taskId }: { taskId: string }) {
 
   const updateList = async (id: string, patch: Partial<StepList>) => {
     setLists((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
-    await supabase.from("task_step_lists" as any).update(patch).eq("id", id);
+    await firebaseStore.from("task_step_lists" as any).update(patch).eq("id", id);
   };
 
   const deleteList = async (id: string) => {
     setLists((prev) => prev.filter((l) => l.id !== id));
     setSteps((prev) => prev.filter((s) => s.list_id !== id));
-    await supabase.from("task_step_lists" as any).delete().eq("id", id);
+    await firebaseStore.from("task_step_lists" as any).delete().eq("id", id);
   };
 
   const addStep = async (listId: string) => {
@@ -101,7 +101,7 @@ export function TaskStepLists({ taskId }: { taskId: string }) {
     const text = (newStep[listId] || "").trim();
     if (!text) return;
     const listSteps = steps.filter((s) => s.list_id === listId);
-    const { data, error } = await supabase
+    const { data, error } = await firebaseStore
       .from("task_steps" as any)
       .insert({
         user_id: user.id,
@@ -118,12 +118,12 @@ export function TaskStepLists({ taskId }: { taskId: string }) {
 
   const updateStep = async (id: string, patch: Partial<Step>) => {
     setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
-    await supabase.from("task_steps" as any).update(patch).eq("id", id);
+    await firebaseStore.from("task_steps" as any).update(patch).eq("id", id);
   };
 
   const deleteStep = async (id: string) => {
     setSteps((prev) => prev.filter((s) => s.id !== id));
-    await supabase.from("task_steps" as any).delete().eq("id", id);
+    await firebaseStore.from("task_steps" as any).delete().eq("id", id);
   };
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -142,7 +142,7 @@ export function TaskStepLists({ taskId }: { taskId: string }) {
     });
     await Promise.all(
       reordered.map((s, i) =>
-        supabase.from("task_steps" as any).update({ position: i }).eq("id", s.id)
+        firebaseStore.from("task_steps" as any).update({ position: i }).eq("id", s.id)
       )
     );
   };

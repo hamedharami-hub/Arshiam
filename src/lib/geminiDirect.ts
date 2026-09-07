@@ -1,5 +1,5 @@
 // Direct Google Gemini REST API Client
-// Allows full AI capability without requiring Supabase Edge Functions.
+// Allows full AI capability without requiring Firebase Edge Functions.
 
 import { loadAISettings, type AIOperation } from "./aiSettings";
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -104,8 +104,8 @@ export default function ScreenerView() {
     };
 
     const saved = await upsertAssessmentResult(user.id, payload);
-    // Mirror to Supabase if accessible
-    supabase.from("assessment_results").insert({
+    // Mirror to firebaseStore if accessible
+    firebaseStore.from("assessment_results").insert({
       user_id: user.id,
       ...payload,
     }).catch(() => {});

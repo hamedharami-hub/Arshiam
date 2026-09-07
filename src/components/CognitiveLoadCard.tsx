@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Brain, ChevronDown, ChevronUp } from "lucide-react";
@@ -20,11 +20,11 @@ export default function CognitiveLoadCard() {
       const todayDate = new Date().toISOString().slice(0, 10);
 
       const [tasks, checkin] = await Promise.all([
-        supabase.from("tasks").select("id,title,description,priority,folder_id,quadrant,due_date,completed")
+        firebaseStore.from("tasks").select("id,title,description,priority,folder_id,quadrant,due_date,completed")
           .eq("user_id", user.id).eq("completed", false)
           .or(`due_date.gte.${todayStart.toISOString()},due_date.is.null`)
           .lte("due_date", todayEnd.toISOString()),
-        supabase.from("daily_checkins").select("sleep_hours,sleep_quality,stress").eq("user_id", user.id).eq("checkin_date", todayDate).maybeSingle(),
+        firebaseStore.from("daily_checkins").select("sleep_hours,sleep_quality,stress").eq("user_id", user.id).eq("checkin_date", todayDate).maybeSingle(),
       ]);
 
       const todayTasks = (tasks.data || []).filter((t) => {

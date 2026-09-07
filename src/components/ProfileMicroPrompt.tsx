@@ -1,7 +1,7 @@
 // Progressive Profiling — micro-prompt that surfaces 1 question at idle moments.
 // Triggers: after a Pomodoro session ends, on Check-in save, or when user lingers on Today >2min.
 import { useEffect, useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ export default function ProfileMicroPrompt({ trigger }: { trigger?: string }) {
     const last = Number(localStorage.getItem(COOLDOWN_KEY) || 0);
     if (Date.now() - last < COOLDOWN_MS) return null;
 
-    const { data: queue } = await supabase
+    const { data: queue } = await firebaseStore
       .from("profile_questions_queue")
       .select("id,question_key,question_text")
       .eq("user_id", user.id)
@@ -33,7 +33,7 @@ export default function ProfileMicroPrompt({ trigger }: { trigger?: string }) {
     if (queue && queue.length > 0) return queue[0];
 
     // Seed Mini-IPIP if user has no queue yet
-    const { data: any_existing } = await supabase
+    const { data: any_existing } = await firebaseStore
       .from("profile_questions_queue")
       .select("id")
       .eq("user_id", user.id)
@@ -51,8 +51,8 @@ export default function ProfileMicroPrompt({ trigger }: { trigger?: string }) {
         trait: it.trait,
         status: "pending",
       }));
-      await supabase.from("profile_questions_queue").insert(rows);
-      const { data: first } = await supabase
+      await firebaseStore.from("profile_questions_queue").insert(rows);
+      const { data: first } = await firebaseStore
         .from("profile_questions_queue")
         .select("id,question_key,question_text")
         .eq("user_id", user.id)
@@ -78,7 +78,7 @@ export default function ProfileMicroPrompt({ trigger }: { trigger?: string }) {
 
   async function answer(value: number) {
     if (!item || !user) return;
-    await supabase.from("profile_questions_queue")
+    await firebaseStore.from("profile_questions_queue")
       .update({ status: "answered", answer: value, answered_at: new Date().toISOString(), trigger_context: trigger || null })
       .eq("id", item.id);
     setOpen(false);
@@ -87,7 +87,7 @@ export default function ProfileMicroPrompt({ trigger }: { trigger?: string }) {
 
   async function skip() {
     if (!item) return;
-    await supabase.from("profile_questions_queue")
+    await firebaseStore.from("profile_questions_queue")
       .update({ status: "skipped", asked_at: new Date().toISOString() })
       .eq("id", item.id);
     setOpen(false);

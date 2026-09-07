@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Trash2, UserPlus, Loader2, Eye, MessageSquare, Pencil, Users } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -61,7 +61,7 @@ export default function ShareDialog({ open, onOpenChange, resourceType, resource
   const load = async () => {
     if (!open || !user) return;
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await firebaseStore
       .from("shares")
       .select("id,recipient_email,recipient_id,permission,accepted_at,created_at")
       .eq("resource_type", resourceType)
@@ -74,7 +74,7 @@ export default function ShareDialog({ open, onOpenChange, resourceType, resource
     const ids = Array.from(new Set(rows.map((s) => s.recipient_id).filter(Boolean)));
     const names: Record<string, string> = {};
     if (ids.length) {
-      const { data: profs } = await supabase.from("profiles").select("id,display_name").in("id", ids);
+      const { data: profs } = await firebaseStore.from("profiles").select("id,display_name").in("id", ids);
       (profs || []).forEach((p: { id: string; display_name?: string | null }) => { names[p.id] = p.display_name || ""; });
     }
     setShares(rows.map((s) => ({ ...s, display_name: s.recipient_id ? names[s.recipient_id] : undefined })));
@@ -94,7 +94,7 @@ export default function ShareDialog({ open, onOpenChange, resourceType, resource
       toast.error(T("نمی‌توانی با خودت share کنی", "Can't share with yourself")); return;
     }
     setAdding(true);
-    const { error } = await supabase.from("shares").insert({
+    const { error } = await firebaseStore.from("shares").insert({
       owner_id: user.id,
       recipient_email: parsed.data,
       resource_type: resourceType,
@@ -114,7 +114,7 @@ export default function ShareDialog({ open, onOpenChange, resourceType, resource
 
   const updatePerm = async (id: string, newPerm: SharePermission) => {
     setShares((prev) => prev.map((s) => s.id === id ? { ...s, permission: newPerm } : s));
-    const { error } = await supabase.from("shares").update({ permission: newPerm }).eq("id", id);
+    const { error } = await firebaseStore.from("shares").update({ permission: newPerm }).eq("id", id);
     if (error) {
       toast.error(error.message);
       load();
@@ -123,7 +123,7 @@ export default function ShareDialog({ open, onOpenChange, resourceType, resource
 
   const remove = async (id: string) => {
     setShares((prev) => prev.filter((s) => s.id !== id));
-    const { error } = await supabase.from("shares").delete().eq("id", id);
+    const { error } = await firebaseStore.from("shares").delete().eq("id", id);
     if (error) {
       toast.error(error.message);
       load();

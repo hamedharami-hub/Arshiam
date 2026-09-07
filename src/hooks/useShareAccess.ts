@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 
 export type ShareableType = "task" | "note" | "folder";
@@ -57,12 +57,12 @@ export function useShareAccess(
     let cancelled = false;
     const load = async () => {
       const [{ data: perm }, { data: rows }] = await Promise.all([
-        supabase.rpc("get_effective_share_permission", {
+        firebaseStore.rpc("get_effective_share_permission", {
           _user_id: user.id,
           _resource_type: resourceType,
           _resource_id: resourceId,
         }),
-        supabase
+        firebaseStore
           .from("shares")
           .select("id,owner_id,recipient_id,recipient_email,permission,accepted_at,created_at")
           .eq("resource_type", resourceType)
@@ -99,7 +99,7 @@ export function useShareAccess(
 
     load();
 
-    const channel = supabase
+    const channel = firebaseStore
       .channel(`share-access-${resourceType}-${resourceId}`)
       .on(
         "postgres_changes",
@@ -110,7 +110,7 @@ export function useShareAccess(
 
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
+      firebaseStore.removeChannel(channel);
     };
   }, [user, resourceType, resourceId, isOwner]);
 

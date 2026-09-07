@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { PRIORITY_META, PRIORITY_ORDER, type Priority } from "@/lib/priority";
 import type { TaskDefaults } from "@/lib/reminders";
@@ -73,10 +73,10 @@ export function TaskDefaultSettings({ value, onChange }: Props) {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("folders").select("id,name,parent_id").eq("user_id", user.id).order("position").then(({ data }) => {
+    firebaseStore.from("folders").select("id,name,parent_id").eq("user_id", user.id).order("position").then(({ data }) => {
       setFolders((data || []) as unknown as typeof folders);
     });
-    supabase.from("tags").select("id,name,color").eq("user_id", user.id).order("name").then(({ data }) => {
+    firebaseStore.from("tags").select("id,name,color").eq("user_id", user.id).order("name").then(({ data }) => {
       setTags((data || []) as unknown as typeof tags);
     });
   }, [user]);

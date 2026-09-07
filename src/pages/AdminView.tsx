@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,7 @@ export default function AdminView() {
   useEffect(() => {
     if (!isAdmin) return;
     (async () => {
-      const { data, error } = await (supabase as any).rpc("admin_user_list");
+      const { data, error } = await (firebaseStore as any).rpc("admin_user_list");
       if (!error) setUsers((data || []) as AdminUser[]);
       setBusy(false);
     })();

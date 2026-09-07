@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { getOpConfig, type AIOperation } from "@/lib/aiSettings";
 
 export type AIMode = AIOperation;
@@ -18,11 +18,11 @@ async function isCurrentUserAdmin(): Promise<boolean> {
     const local = getStoredUser();
     let uid = local?.id;
     if (!uid) {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await firebaseStore.auth.getUser();
       uid = user?.id;
     }
     if (!uid) return false;
-    const { data } = await (supabase as any)
+    const { data } = await (firebaseStore as any)
       .from("user_roles").select("role")
       .eq("user_id", uid).eq("role", "admin").maybeSingle();
     return !!data;
@@ -72,13 +72,13 @@ export async function callAI(
     const local = getStoredUser();
     let uid = local?.id;
     if (!uid) {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await firebaseStore.auth.getUser();
       uid = user?.id;
     }
     if (uid) {
       const [{ data: mh }, { data: am }] = await Promise.all([
-        supabase.from("mh_profile").select("*").eq("user_id", uid).maybeSingle(),
-        supabase.from("about_me" as any).select("answers, free_text, ai_analysis").eq("user_id", uid).maybeSingle(),
+        firebaseStore.from("mh_profile").select("*").eq("user_id", uid).maybeSingle(),
+        firebaseStore.from("about_me" as any).select("answers, free_text, ai_analysis").eq("user_id", uid).maybeSingle(),
       ]);
       if (mh) mhProfile = mh;
       if (am) aboutMe = am;
@@ -105,12 +105,12 @@ export async function callAI(
       });
       return res;
     } catch (directErr: any) {
-      console.warn("[AI] Direct Gemini call error, attempting Supabase edge fallback:", directErr?.message || directErr);
+      console.warn("[AI] Direct Gemini call error, attempting firebaseStore edge fallback:", directErr?.message || directErr);
     }
   }
 
-  // 2. Supabase Edge Function fallback
-  const { data, error } = await supabase.functions.invoke("ai-assistant", {
+  // 2. firebaseStore Edge Function fallback
+  const { data, error } = await firebaseStore.functions.invoke("ai-assistant", {
     body: { mode, input, context, settings, action, language, mhProfile, aboutMe, webSearch: opts?.webSearch === true, timezone },
   });
   if (error) throw error;

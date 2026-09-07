@@ -4,7 +4,7 @@ import { useState, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { toast } from "sonner";
 import ShareDialog from "@/components/ShareDialog";
 import { useShareAccess } from "@/hooks/useShareAccess";
@@ -61,14 +61,14 @@ export default function SidebarItemSheet({ item, kind, onOpenChange, onDelete, o
     if (!owns) { toast(T("فقط صاحب می‌تواند نام را تغییر دهد", "Only the owner can rename")); return; }
     const v = name.trim();
     if (!v) return;
-    const { error } = await supabase.from(table).update({ name: v }).eq("id", item.id);
+    const { error } = await firebaseStore.from(table).update({ name: v }).eq("id", item.id);
     if (error) toast.error(error.message);
     else { toast.success(T("تغییر نام شد", "Renamed")); setRenaming(false); onChanged?.(); onOpenChange(false); }
   };
 
   const setColor = async (c: string) => {
     if (!owns) { toast(T("فقط صاحب می‌تواند رنگ را تغییر دهد", "Only the owner can change color")); return; }
-    const { error } = await supabase.from(table).update({ color: c }).eq("id", item.id);
+    const { error } = await firebaseStore.from(table).update({ color: c }).eq("id", item.id);
     if (error) toast.error(error.message);
     else { onChanged?.(); }
   };

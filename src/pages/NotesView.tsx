@@ -7,7 +7,7 @@ import ShareDialog from "@/components/ShareDialog";
 import SwipeableRow from "@/components/gestures/SwipeableRow";
 import { MoveToDialog } from "@/components/MoveToDialog";
 import { startItemDrag } from "@/lib/dragToFolder";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { subscribeNotes, upsertNote, deleteNote as fsDeleteNote } from "@/lib/firestoreDataService";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -146,9 +146,9 @@ export default function NotesView() {
         await cacheSet(NOTES_CACHE_KEY, base);
       }
     } catch {
-      // 2. Try Supabase fallback
+      // 2. Try firebaseStore fallback
       try {
-        const { data, error } = await supabase.from("notes").select("*")
+        const { data, error } = await firebaseStore.from("notes").select("*")
           .is("task_id", null)
           .order("pinned", { ascending: false }).order("updated_at", { ascending: false });
         if (!error && data && data.length) {
@@ -170,11 +170,11 @@ export default function NotesView() {
         cacheSet(NOTES_CACHE_KEY, fsNotes);
       }
     });
-    const ch = supabase.channel("notes-list")
+    const ch = firebaseStore.channel("notes-list")
       .on("postgres_changes", { event: "*", schema: "public", table: "notes" }, load).subscribe();
     return () => {
       fsUnsub();
-      supabase.removeChannel(ch);
+      firebaseStore.removeChannel(ch);
     };
   }, [user]);
 
@@ -222,9 +222,9 @@ export default function NotesView() {
       await upsertNote(user.id, note);
     } catch {}
 
-    // 2. Best-effort mirror to Supabase
+    // 2. Best-effort mirror to firebaseStore
     try {
-      const { data } = await supabase.from("notes").insert({
+      const { data } = await firebaseStore.from("notes").insert({
         id: note.id,
         user_id: user.id,
         title: note.title,
@@ -258,7 +258,7 @@ export default function NotesView() {
       await upsertNote(user.id, updated);
     }
     try {
-      await supabase.from("notes").update(patch).eq("id", selected.id);
+      await firebaseStore.from("notes").update(patch).eq("id", selected.id);
     } catch {}
   };
 
@@ -294,12 +294,12 @@ export default function NotesView() {
       await fsDeleteNote(user.id, id);
     }
     try {
-      await supabase.from("notes").delete().eq("id", id);
+      await firebaseStore.from("notes").delete().eq("id", id);
     } catch {}
     if (selected?.id === id) { setSelected(null); setDraft(null); }
     if (note) {
       const restore = async () => {
-        await supabase.from("notes").insert(note as never);
+        await firebaseStore.from("notes").insert(note as never);
         load();
       };
       pushUndo({ label: T(`نوت «${note.title || T("بدون عنوان", "Untitled")}» حذف شد`, `Note "${note.title || T("بدون عنوان", "Untitled")}" deleted`), undo: restore });
@@ -337,7 +337,7 @@ export default function NotesView() {
       await enqueueOp({ table: "notes", op: "update", payload: patch, match: { id: n.id } });
       return;
     }
-    await supabase.from("notes").update(patch).eq("id", n.id);
+    await firebaseStore.from("notes").update(patch).eq("id", n.id);
     load();
   };
 

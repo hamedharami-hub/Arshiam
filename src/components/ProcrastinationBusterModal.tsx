@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Zap, Sparkles, CheckCircle2, Plus, Trash2, Play } from "lucide-react";
 import { toast } from "sonner";
 import { callAI } from "@/lib/ai";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { awardWaterDrops } from "@/lib/garden";
 import { haptic } from "@/lib/haptics";
@@ -139,7 +139,7 @@ export default function ProcrastinationBusterModal({
         position: i,
       }));
 
-      const { error } = await supabase.from("tasks").insert(inserts as any);
+      const { error } = await firebaseStore.from("tasks").insert(inserts as any);
       if (error) throw error;
 
       awardWaterDrops(15, "شکستن سد اهمال‌کاری و ایجاد ریزگام‌های اجرایی ⚡");

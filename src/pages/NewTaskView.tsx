@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Loader2, Check } from "lucide-react";
@@ -39,7 +39,7 @@ export default function NewTaskView() {
     const initialTitle = params.get("title") || "";
     const initialDescription = params.get("description") || "";
     (async () => {
-      const { data, error } = await supabase
+      const { data, error } = await firebaseStore
         .from("tasks")
         .insert({
           user_id: user.id,
@@ -54,7 +54,7 @@ export default function NewTaskView() {
         .single();
       if (error) { toast.error(error.message); return; }
       if (data && tagId) {
-        await supabase.from("task_tags").insert({ task_id: data.id, tag_id: tagId, user_id: user.id });
+        await firebaseStore.from("task_tags").insert({ task_id: data.id, tag_id: tagId, user_id: user.id });
       }
       setDraft(data as any);
     })();
@@ -67,7 +67,7 @@ export default function NewTaskView() {
       const d = draftRef.current;
       if (!d) return;
       if (!d.title?.trim()) {
-        supabase.from("tasks").delete().eq("id", d.id).then(() => {});
+        firebaseStore.from("tasks").delete().eq("id", d.id).then(() => {});
       }
     };
   }, []);
@@ -101,7 +101,7 @@ export default function NewTaskView() {
     const d = draftRef.current;
     if (d) {
       savedRef.current = true; // prevent cleanup double-delete
-      await supabase.from("tasks").delete().eq("id", d.id);
+      await firebaseStore.from("tasks").delete().eq("id", d.id);
     }
     setBackAsk(false);
     navigate(-1);
@@ -145,7 +145,7 @@ export default function NewTaskView() {
         mode="page"
         onClose={handleBack}
         onChanged={() => {
-          supabase.from("tasks").select("*").eq("id", draft.id).single()
+          firebaseStore.from("tasks").select("*").eq("id", draft.id).single()
             .then(({ data }) => { if (data) setDraft(data as any); });
         }}
         setConfirm={setConfirm}

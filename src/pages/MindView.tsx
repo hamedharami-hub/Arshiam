@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Activity, BookOpen, Zap, MessageCircleQuestion,
@@ -148,13 +148,13 @@ export default function MindView() {
       const since90 = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
       const since30iso = new Date(Date.now() - 30 * 86400000).toISOString();
       const [{ data: ck }, { data: tr }, { count: ac }, { data: scr }] = await Promise.all([
-        supabase.from("daily_checkins").select("checkin_date,mood,energy,focus,stress,sleep_quality")
+        firebaseStore.from("daily_checkins").select("checkin_date,mood,energy,focus,stress,sleep_quality")
           .eq("user_id", user.id).gte("checkin_date", since90).order("checkin_date"),
-        supabase.from("thought_records").select("distortions,created_at")
+        firebaseStore.from("thought_records").select("distortions,created_at")
           .eq("user_id", user.id).gte("created_at", since30iso),
-        supabase.from("abc_records").select("*", { count: "exact", head: true })
+        firebaseStore.from("abc_records").select("*", { count: "exact", head: true })
           .eq("user_id", user.id).gte("created_at", since30iso),
-        supabase.from("assessment_results")
+        firebaseStore.from("assessment_results")
           .select("assessment_type, scores, analysis, completed_at")
           .eq("user_id", user.id)
           .in("assessment_type", ["phq9", "gad7", "who5", "burnout"])

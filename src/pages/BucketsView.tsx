@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,7 @@ export default function BucketsView() {
   useEffect(() => {
     if (!user) return;
     setTasks(null);
-    supabase
+    firebaseStore
       .from("tasks")
       .select("id,title,priority,completed,due_date")
       .eq("user_id", user.id)

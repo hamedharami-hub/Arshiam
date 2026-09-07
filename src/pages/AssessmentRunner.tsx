@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, Save } from "lucide-react";
@@ -60,8 +60,8 @@ export default function AssessmentRunner() {
         setResponses(progress.responses || {});
         setIndex(progress.currentIndex || 0);
       } else {
-        // Fallback check Supabase
-        const { data } = await supabase
+        // Fallback check firebaseStore
+        const { data } = await firebaseStore
           .from("assessment_responses")
           .select("*")
           .eq("user_id", user.id)
@@ -83,7 +83,7 @@ export default function AssessmentRunner() {
   async function persist(newResp: Record<number, number>, newIdx: number, completed = false) {
     if (!user || !type) return;
     await saveAssessmentProgress(user.id, type, newResp, newIdx, completed);
-    supabase.from("assessment_responses").upsert({
+    firebaseStore.from("assessment_responses").upsert({
       user_id: user.id,
       assessment_type: type,
       responses: newResp,
@@ -127,8 +127,8 @@ export default function AssessmentRunner() {
         analysis,
       });
 
-      // Mirror to Supabase if accessible
-      supabase.from("assessment_results").insert({
+      // Mirror to firebaseStore if accessible
+      firebaseStore.from("assessment_results").insert({
         user_id: user.id,
         assessment_type: type,
         scores,
@@ -148,7 +148,7 @@ export default function AssessmentRunner() {
       } else if (type === "ecr") {
         profileUpdate.attachment_quadrant = analysis.quadrant ?? null;
       }
-      await supabase.from("mh_profile").upsert(profileUpdate, { onConflict: "user_id" }).catch(() => {});
+      await firebaseStore.from("mh_profile").upsert(profileUpdate, { onConflict: "user_id" }).catch(() => {});
 
       toast.success("تست تکمیل شد ✨");
       navigate(`/app/self/result/${type}`);

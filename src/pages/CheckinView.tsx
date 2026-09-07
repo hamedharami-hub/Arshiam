@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -110,8 +110,8 @@ export default function CheckinView() {
     // Save to Firestore primary store
     const ok = await upsertDailyCheckin(user.id, payload);
     
-    // Also try to mirror to Supabase in background
-    supabase
+    // Also try to mirror to firebaseStore in background
+    firebaseStore
       .from("daily_checkins")
       .upsert(payload as any, { onConflict: "user_id,checkin_date" })
       .catch(() => {});

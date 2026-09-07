@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import fs from "fs";
@@ -9,13 +9,6 @@ import { VitePWA } from "vite-plugin-pwa";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-const CLOUD_DEFAULTS = {
-  VITE_SUPABASE_PROJECT_ID: "aeyhgdlacoqsabsbrzia",
-  VITE_SUPABASE_URL: "https://aeyhgdlacoqsabsbrzia.supabase.co",
-  VITE_SUPABASE_PUBLISHABLE_KEY:
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFleWhnZGxhY29xc2Fic2JyemlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MDQ4MjMsImV4cCI6MjA5MjI4MDgyM30.s9ht6_cvQYmvkSlhhU5re-JbSlsv637cTe72lghRSco",
-};
 
 function getGitInfo() {
   try {
@@ -69,17 +62,6 @@ function versionJsonPlugin() {
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
-  const cloudEnv = {
-    VITE_SUPABASE_PROJECT_ID:
-      env.VITE_SUPABASE_PROJECT_ID || CLOUD_DEFAULTS.VITE_SUPABASE_PROJECT_ID,
-    VITE_SUPABASE_URL: env.VITE_SUPABASE_URL || CLOUD_DEFAULTS.VITE_SUPABASE_URL,
-    VITE_SUPABASE_PUBLISHABLE_KEY:
-      env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-      env.VITE_SUPABASE_ANON_KEY ||
-      CLOUD_DEFAULTS.VITE_SUPABASE_PUBLISHABLE_KEY,
-  };
-
   return ({
   server: {
     host: "0.0.0.0",
@@ -172,27 +154,6 @@ export default defineConfig(({ mode }) => {
               expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 7 },
             },
           },
-          {
-            urlPattern: ({ url }) =>
-              url.hostname.endsWith("supabase.co") && url.pathname.includes("/rest/"),
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "supabase-rest",
-              networkTimeoutSeconds: 5,
-              expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 7 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            urlPattern: ({ url }) =>
-              url.hostname.endsWith("supabase.co") && url.pathname.includes("/storage/"),
-            handler: "CacheFirst",
-            options: {
-              cacheName: "supabase-storage",
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 30 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
         ],
       },
     }),
@@ -240,10 +201,6 @@ export default defineConfig(({ mode }) => {
     "import.meta.env.VITE_BUILD_NUMBER": JSON.stringify(buildNumber),
     "import.meta.env.VITE_GIT_COMMIT": JSON.stringify(commit),
     "import.meta.env.VITE_FULL_VERSION": JSON.stringify(fullVersion),
-    "import.meta.env.VITE_SUPABASE_PROJECT_ID": JSON.stringify(cloudEnv.VITE_SUPABASE_PROJECT_ID),
-    "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(cloudEnv.VITE_SUPABASE_URL),
-    "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(cloudEnv.VITE_SUPABASE_PUBLISHABLE_KEY),
-    "import.meta.env.VITE_SUPABASE_ANON_KEY": JSON.stringify(cloudEnv.VITE_SUPABASE_PUBLISHABLE_KEY),
   },
 });
 });

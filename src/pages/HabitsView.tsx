@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Plus, Flame, Trash2, Target, StickyNote, Trophy } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,11 +58,11 @@ export default function HabitsView() {
       }
     } catch {}
 
-    // 2. Secondary fallback: check Supabase
+    // 2. Secondary fallback: check firebaseStore
     try {
       const [h, l] = await Promise.all([
-        supabase.from("habits").select("*"),
-        supabase.from("habit_logs").select("habit_id, log_date, note").gte("log_date", format(subDays(new Date(), 60), "yyyy-MM-dd")),
+        firebaseStore.from("habits").select("*"),
+        firebaseStore.from("habit_logs").select("habit_id, log_date, note").gte("log_date", format(subDays(new Date(), 60), "yyyy-MM-dd")),
       ]);
       if (h.data && h.data.length > 0) setHabits(h.data as any);
       if (l.data && l.data.length > 0) setLogs(l.data as any);
@@ -86,7 +86,7 @@ export default function HabitsView() {
       await upsertHabit(user.id, newHabit as any);
     } catch {}
     try {
-      await supabase.from("habits").insert(newHabit as any);
+      await firebaseStore.from("habits").insert(newHabit as any);
     } catch {}
     setName("");
     load();
@@ -110,9 +110,9 @@ export default function HabitsView() {
     } catch {}
     try {
       if (exists) {
-        await supabase.from("habit_logs").delete().eq("habit_id", habit_id).eq("log_date", d);
+        await firebaseStore.from("habit_logs").delete().eq("habit_id", habit_id).eq("log_date", d);
       } else {
-        await supabase.from("habit_logs").insert({ habit_id, user_id: user.id, log_date: d });
+        await firebaseStore.from("habit_logs").insert({ habit_id, user_id: user.id, log_date: d });
       }
     } catch {}
     load();
@@ -207,9 +207,9 @@ export default function HabitsView() {
     const { habit_id, note } = noteDialog;
     const exists = logs.find((l) => l.habit_id === habit_id && l.log_date === d);
     if (exists) {
-      await supabase.from("habit_logs").update({ note }).eq("habit_id", habit_id).eq("log_date", d);
+      await firebaseStore.from("habit_logs").update({ note }).eq("habit_id", habit_id).eq("log_date", d);
     } else {
-      await supabase.from("habit_logs").insert({ habit_id, user_id: user.id, log_date: d, note });
+      await firebaseStore.from("habit_logs").insert({ habit_id, user_id: user.id, log_date: d, note });
     }
     setNoteDialog(null);
     haptic("success");
@@ -303,7 +303,7 @@ export default function HabitsView() {
                   </div>
                 </div>
                 <Button size="icon" variant="ghost" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={async () => {
-                  await supabase.from("habits").delete().eq("id", h.id);
+                  await firebaseStore.from("habits").delete().eq("id", h.id);
                   load();
                 }}><Trash2 className="w-4 h-4" /></Button>
               </div>

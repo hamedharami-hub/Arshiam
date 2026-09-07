@@ -9,7 +9,7 @@ import { MoveToDialog } from "@/components/MoveToDialog";
 import { FolderDeleteDialog } from "@/components/FolderDeleteDialog";
 import ProcrastinationBusterModal from "@/components/ProcrastinationBusterModal";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { subscribeTasks, upsertTask, deleteTask as fsDeleteTask } from "@/lib/firestoreDataService";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -131,7 +131,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const [layout, setLayout] = useState<"compact" | "comfortable">("compact");
   useEffect(() => {
     if (!user) return;
-    supabase.from("user_settings").select("task_card_layout").eq("user_id", user.id).maybeSingle()
+    firebaseStore.from("user_settings").select("task_card_layout").eq("user_id", user.id).maybeSingle()
       .then(({ data }) => { if (data?.task_card_layout) setLayout(data.task_card_layout as any); });
   }, [user]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
@@ -208,7 +208,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       return;
     }
 
-    const { error } = await supabase.from("tasks").update(patch as any).eq("id", id);
+    const { error } = await firebaseStore.from("tasks").update(patch as any).eq("id", id);
     if (error) { toast.error(error.message); if (!owner) return; }
     if (!owner && !error) setAllTasks(prev => prev.map(x => x.id === id ? { ...x, ...patch } as Task : x));
   };
@@ -257,7 +257,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   // Load task->tags mapping for tag filtering
   useEffect(() => {
     if (!user) return;
-    supabase.from("task_tags").select("task_id,tag_id").then(({ data }) => {
+    firebaseStore.from("task_tags").select("task_id,tag_id").then(({ data }) => {
       const m: Record<string, string[]> = {};
       (data || []).forEach((row: any) => {
         (m[row.task_id] ||= []).push(row.tag_id);
@@ -273,8 +273,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     if (parentIds.length === 0) return;
     (async () => {
       const [{ data: outcomesData }, { data: execsData }] = await Promise.all([
-        supabase.from("task_outcomes").select("id,label,color,icon,task_id").in("task_id", parentIds),
-        supabase.from("outcome_executions").select("outcome_id,created_task_ids,task_id").in("task_id", parentIds),
+        firebaseStore.from("task_outcomes").select("id,label,color,icon,task_id").in("task_id", parentIds),
+        firebaseStore.from("outcome_executions").select("outcome_id,created_task_ids,task_id").in("task_id", parentIds),
       ]);
       const byId: Record<string, { label: string; color?: string | null; icon?: string | null }> = {};
       (outcomesData || []).forEach((o: any) => {
@@ -346,9 +346,9 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         console.warn("[TasksView] Firestore tasks fetch warning:", err);
       }
 
-      // 2. Secondary fallback: check Supabase (only if valid rows returned without error)
+      // 2. Secondary fallback: check firebaseStore (only if valid rows returned without error)
       try {
-        const { data: allData, error } = await supabase.from("tasks")
+        const { data: allData, error } = await firebaseStore.from("tasks")
           .select("*")
           .order("position").order("created_at", { ascending: false })
           .limit(2000);
@@ -360,7 +360,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           return;
         }
       } catch {
-        // Ignore Supabase errors
+        // Ignore firebaseStore errors
       }
 
       // 3. Offline / cache fallback
@@ -410,10 +410,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
     if (typeof navigator !== "undefined" && navigator.onLine) {
       if (scope === "folder" && params.id) {
-        const { data: f } = await supabase.from("folders").select("name").eq("id", params.id).single();
+        const { data: f } = await firebaseStore.from("folders").select("name").eq("id", params.id).single();
         if (f) setFolderName(f.name);
       } else if (scope === "tag" && params.id) {
-        const { data: tg } = await supabase.from("tags").select("name").eq("id", params.id).single();
+        const { data: tg } = await firebaseStore.from("tags").select("name").eq("id", params.id).single();
         if (tg) setTagName(tg.name);
       }
     }
@@ -451,7 +451,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         setAllTasks(tasks);
       }
     });
-    const ch = supabase.channel(`tasks-rt-${user.id}`)
+    const ch = firebaseStore.channel(`tasks-rt-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, scheduleLoad)
       .on("postgres_changes", { event: "*", schema: "public", table: "subtasks" }, scheduleLoad)
       .subscribe();
@@ -460,7 +460,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("tasks-changed", onTasksChanged);
       fsUnsub();
-      supabase.removeChannel(ch);
+      firebaseStore.removeChannel(ch);
     };
   }, [user]);
 
@@ -624,7 +624,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       await upsertTask(user.id, { id: t.id, ...patch });
     }
     try {
-      await supabase.from("tasks").update(patch).eq("id", t.id);
+      await firebaseStore.from("tasks").update(patch).eq("id", t.id);
     } catch {}
     if (!isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } as Task : x));
     if (user) await logTaskActivity(t.id, user.id, "completed", { ...patch, outcome_id: outcome?.id } as Record<string, unknown>);
@@ -668,7 +668,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       await upsertTask(user.id, { id: t.id, ...patch });
     }
     try {
-      await supabase.from("tasks").update(patch).eq("id", t.id);
+      await firebaseStore.from("tasks").update(patch).eq("id", t.id);
     } catch {}
     if (!isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } as Task : x));
     if (user) await logTaskActivity(t.id, user.id, "reopened", patch as Record<string, unknown>);
@@ -714,7 +714,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           return;
         }
 
-        const { error } = await supabase.from("tasks").update(patch).eq("id", t.id);
+        const { error } = await firebaseStore.from("tasks").update(patch).eq("id", t.id);
         if (error) { toast.error(error.message); return; }
         if (t.user_id !== user?.id) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } : x));
         toast.success(T(`نمونه بعدی به ${format(next, "yyyy-MM-dd HH:mm")} منتقل شد 🔁`, `Next instance moved to ${format(next, "yyyy-MM-dd HH:mm")} 🔁`));
@@ -757,7 +757,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     }
     let tagLinks: Record<string, unknown>[] | null = null;
     if (typeof navigator === "undefined" || navigator.onLine) {
-      const { data } = await supabase.from("task_tags").select("*").in("task_id", ids);
+      const { data } = await firebaseStore.from("task_tags").select("*").in("task_id", ids);
       tagLinks = (data as Record<string, unknown>[] | null) || null;
     }
     setAllTasks(prev => prev.filter(t => !ids.includes(t.id)));
@@ -778,12 +778,12 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       await fsDeleteTask(user.id, id);
     }
     try {
-      await supabase.from("tasks").delete().eq("id", id);
+      await firebaseStore.from("tasks").delete().eq("id", id);
     } catch {}
     const title = snaps.find(s => s.id === id)?.title || "";
     const restore = async () => {
-      await supabase.from("tasks").insert(snaps as never);
-      if (tagLinks?.length) await supabase.from("task_tags").insert(tagLinks as never);
+      await firebaseStore.from("tasks").insert(snaps as never);
+      if (tagLinks?.length) await firebaseStore.from("task_tags").insert(tagLinks as never);
       load();
     };
     pushUndo({ label: T(`تسک «${title}» حذف شد`, `Task "${title}" deleted`), undo: restore });
@@ -856,14 +856,14 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       }
       setAllTasks(prev => prev.map(t => t.id === activeId ? { ...t, parent_id: newParent } : t));
       setExpanded(s => ({ ...s, [newParent]: true }));
-      const { error } = await supabase.from("tasks").update({ parent_id: newParent }).eq("id", activeId);
+      const { error } = await firebaseStore.from("tasks").update({ parent_id: newParent }).eq("id", activeId);
       if (error) toast.error(error.message);
       return;
     }
     if (overId === "root") {
       const patch = scopeRootPatch();
       setAllTasks(prev => prev.map(t => t.id === activeId ? { ...t, ...patch } as Task : t));
-      const { error } = await supabase.from("tasks").update(patch as any).eq("id", activeId);
+      const { error } = await firebaseStore.from("tasks").update(patch as any).eq("id", activeId);
       if (error) toast.error(error.message);
       return;
     }
@@ -884,7 +884,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       }
       setAllTasks(prev => prev.map(t => t.id === activeId ? { ...t, parent_id: overId } : t));
       setExpanded(s => ({ ...s, [overId]: true }));
-      const { error } = await supabase.from("tasks").update({ parent_id: overId }).eq("id", activeId);
+      const { error } = await firebaseStore.from("tasks").update({ parent_id: overId }).eq("id", activeId);
       if (error) toast.error(error.message);
       return;
     }
@@ -901,13 +901,13 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         ? { parent_id: overTask.parent_id }
         : scopeRootPatch();
       setAllTasks(prev => prev.map(t => t.id === activeId ? { ...t, ...patch } as Task : t));
-      await supabase.from("tasks").update(patch as any).eq("id", activeId);
+      await firebaseStore.from("tasks").update(patch as any).eq("id", activeId);
       return;
     }
     if (fromIdx < 0 || toIdx < 0) return;
     const reordered = arrayMove(siblings, fromIdx, toIdx);
     const updates = reordered.map((s, i) =>
-      supabase.from("tasks").update({ position: i }).eq("id", s.id)
+      firebaseStore.from("tasks").update({ position: i }).eq("id", s.id)
     );
     setAllTasks(prev => {
       const map = new Map(reordered.map((s, i) => [s.id, i]));
@@ -929,7 +929,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const map = new Map(reordered.map((s, i) => [s.id, i]));
     setAllTasks(prev => prev.map(x => map.has(x.id) ? { ...x, position: map.get(x.id)! } : x));
     await Promise.all(reordered.map((s, i) =>
-      supabase.from("tasks").update({ position: i }).eq("id", s.id)
+      firebaseStore.from("tasks").update({ position: i }).eq("id", s.id)
     ));
   };
 

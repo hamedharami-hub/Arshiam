@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 
 export type AboutAnswer = string | string[] | number | null;
 
@@ -68,12 +68,12 @@ export const ABOUT_SECTIONS: { id: string; title: string; emoji: string; questio
 ];
 
 export async function loadAboutMe(userId: string): Promise<AboutMeRow | null> {
-  const { data } = await supabase.from("about_me" as any).select("*").eq("user_id", userId).maybeSingle();
+  const { data } = await firebaseStore.from("about_me" as any).select("*").eq("user_id", userId).maybeSingle();
   return (data as any) || null;
 }
 
 export async function saveAboutMe(userId: string, patch: Partial<AboutMeRow>) {
-  const { error } = await supabase
+  const { error } = await firebaseStore
     .from("about_me" as any)
     .upsert({ user_id: userId, ...patch }, { onConflict: "user_id" });
   if (error) throw error;

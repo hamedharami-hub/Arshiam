@@ -1,17 +1,17 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Loader2 } from "lucide-react";
 
-// Narrow local typing for the beta supabase.auth.oauth namespace.
+// Narrow local typing for the beta firebaseStore.auth.oauth namespace.
 type OAuthNs = {
   getAuthorizationDetails: (id: string) => Promise<{ data: any; error: any }>;
   approveAuthorization: (id: string) => Promise<{ data: any; error: any }>;
   denyAuthorization: (id: string) => Promise<{ data: any; error: any }>;
 };
-const oauthNs = () => (supabase.auth as any).oauth as OAuthNs;
+const oauthNs = () => (firebaseStore.auth as any).oauth as OAuthNs;
 
 export default function OAuthConsent() {
   const [params] = useSearchParams();
@@ -24,7 +24,7 @@ export default function OAuthConsent() {
     let active = true;
     (async () => {
       if (!authorizationId) { setError("Missing authorization_id"); return; }
-      const { data: sess } = await supabase.auth.getSession();
+      const { data: sess } = await firebaseStore.auth.getSession();
       if (!sess.session) {
         const next = window.location.pathname + window.location.search;
         window.location.href = "/auth?next=" + encodeURIComponent(next);

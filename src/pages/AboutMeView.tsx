@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,7 +54,7 @@ export default function AboutMeView() {
     setBusy(true);
     try {
       await persist();
-      const { data, error } = await supabase.functions.invoke("about-me-analyze", {
+      const { data, error } = await firebaseStore.functions.invoke("about-me-analyze", {
         body: { answers, freeText, language: getAILanguage() },
       });
       if (error) throw error;
@@ -78,7 +78,7 @@ export default function AboutMeView() {
   const createFolder = async (name: string) => {
     if (!user) return;
     setApplying("folder:" + name);
-    const { error } = await supabase.from("folders").insert({ user_id: user.id, name });
+    const { error } = await firebaseStore.from("folders").insert({ user_id: user.id, name });
     setApplying(null);
     if (error) toast.error(error.message);
     else toast.success("فولدر «" + name + "» ساخته شد");
@@ -87,7 +87,7 @@ export default function AboutMeView() {
   const createTag = async (name: string) => {
     if (!user) return;
     setApplying("tag:" + name);
-    const { error } = await supabase.from("tags").insert({ user_id: user.id, name });
+    const { error } = await firebaseStore.from("tags").insert({ user_id: user.id, name });
     setApplying(null);
     if (error) toast.error(error.message);
     else toast.success("تگ «" + name + "» ساخته شد");
@@ -98,14 +98,14 @@ export default function AboutMeView() {
     setApplying("task:" + t.title);
     let folder_id: string | null = null;
     if (t.folder) {
-      const { data: f } = await supabase.from("folders").select("id").eq("name", t.folder).maybeSingle();
+      const { data: f } = await firebaseStore.from("folders").select("id").eq("name", t.folder).maybeSingle();
       if (f) folder_id = (f as any).id;
       else {
-        const { data: created } = await supabase.from("folders").insert({ user_id: user.id, name: t.folder }).select().maybeSingle();
+        const { data: created } = await firebaseStore.from("folders").insert({ user_id: user.id, name: t.folder }).select().maybeSingle();
         if (created) folder_id = (created as any).id;
       }
     }
-    const { error } = await supabase.from("tasks").insert({
+    const { error } = await firebaseStore.from("tasks").insert({
       user_id: user.id, title: t.title, folder_id, priority: (t.priority as any) || "none",
     });
     setApplying(null);

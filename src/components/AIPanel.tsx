@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Sparkles, Send, Loader2 } from "lucide-react";
 import { callAI, getAILanguage, type AILanguage } from "@/lib/ai";
 import { AILangToggle } from "@/components/AILangToggle";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
@@ -35,7 +35,7 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
     try {
       const r = await callAI("parse_task", input, undefined, undefined, aiLang);
       if (!r.data?.title) throw new Error("نتوانست تسک بسازد");
-      const { error } = await supabase.from("tasks").insert({
+      const { error } = await firebaseStore.from("tasks").insert({
         user_id: user.id,
         title: r.data.title,
         description: r.data.description || null,
@@ -56,7 +56,7 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
     setLoading(true);
     try {
       const r = await callAI("generate_note", input, undefined, undefined, aiLang);
-      const { error } = await supabase.from("notes").insert({
+      const { error } = await firebaseStore.from("notes").insert({
         user_id: user.id,
         title: input.slice(0, 60),
         content: r.text,
@@ -83,7 +83,7 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
     const sel = suggestions.filter((_, i) => picked[i]);
     if (!sel.length) return toast.error("چیزی انتخاب نشده");
     const rows = sel.map((s) => ({ user_id: user.id, title: s.title, description: s.description || null }));
-    const { error } = await supabase.from("tasks").insert(rows);
+    const { error } = await firebaseStore.from("tasks").insert(rows);
     if (error) toast.error(error.message);
     else { toast.success(`${sel.length} تسک اضافه شد`); setSuggestions([]); setPicked({}); setInput(""); }
   };
@@ -96,7 +96,7 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
     setLoading(true);
     try {
       // Build minimal context
-      const { data: tasks } = await supabase.from("tasks").select("title,priority,due_date,completed").limit(20);
+      const { data: tasks } = await firebaseStore.from("tasks").select("title,priority,due_date,completed").limit(20);
       const ctx = `Recent tasks: ${JSON.stringify(tasks || [])}`;
       const r = await callAI("chat", [...chat, newMsg], ctx, undefined, aiLang);
       setChat((c) => [...c, { role: "assistant", content: r.text }]);

@@ -1,1 +1,0 @@
-ALTER TYPE public.task_priority ADD VALUE IF NOT EXISTS 'urgent' BEFORE 'high';

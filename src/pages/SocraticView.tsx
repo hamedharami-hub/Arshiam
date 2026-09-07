@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { Brain, Send, AlertCircle, BookOpen } from "lucide-react";
 import { detectCrisis } from "@/lib/crisisDetection";
 
@@ -47,7 +47,7 @@ export default function SocraticView() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("ai-assistant", {
+      const { data, error } = await firebaseStore.functions.invoke("ai-assistant", {
         body: {
           mode: "chat",
           input: [{ role: "system", content: SYSTEM }, ...newMsgs.map((m) => ({ role: m.role, content: m.content }))],

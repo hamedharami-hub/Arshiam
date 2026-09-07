@@ -2,7 +2,7 @@
 // Queues mutations while offline and replays them when back online.
 
 import { openDB, type IDBPDatabase } from "idb";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { toast } from "sonner";
 
 export type QueuedOp = {
@@ -154,9 +154,9 @@ export async function flushQueue(): Promise<{ ok: number; failed: number }> {
           console.warn("[offlineQueue] Firestore persistence warning:", e);
         }
 
-        // 2. Secondary/Legacy mirror: Supabase (best-effort, non-blocking)
+        // 2. Secondary/Legacy mirror: firebaseStore (best-effort, non-blocking)
         try {
-          const q = (supabase.from as (t: string) => ReturnType<typeof supabase.from>)(item.table);
+          const q = (firebaseStore.from as (t: string) => ReturnType<typeof firebaseStore.from>)(item.table);
           if (item.op === "insert") {
             await q.insert(item.payload as Record<string, unknown>);
           } else if (item.op === "upsert") {
@@ -171,7 +171,7 @@ export async function flushQueue(): Promise<{ ok: number; failed: number }> {
             await b;
           }
         } catch {
-          // Ignore Supabase RLS / session errors
+          // Ignore firebaseStore RLS / session errors
         }
 
         await db.delete(STORE, item.id!);

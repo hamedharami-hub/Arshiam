@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -76,8 +76,8 @@ export default function WorryView() {
     };
 
     const ok = await upsertTask(user.id, newTask);
-    // Mirror to Supabase
-    supabase.from("tasks").insert(newTask).catch(() => {});
+    // Mirror to firebaseStore
+    firebaseStore.from("tasks").insert(newTask).catch(() => {});
 
     if (ok) {
       toast.success("به Task فردا اضافه شد ✨");
@@ -100,8 +100,8 @@ export default function WorryView() {
       distortions: [],
     };
     const savedId = await upsertThoughtRecord(user.id, payload);
-    // Mirror to Supabase
-    supabase.from("thought_records").insert({ ...payload, id: savedId }).catch(() => {});
+    // Mirror to firebaseStore
+    firebaseStore.from("thought_records").insert({ ...payload, id: savedId }).catch(() => {});
 
     if (savedId) {
       toast.success("در Thought Records ثبت شد ✨");

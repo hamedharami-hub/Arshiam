@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -60,8 +60,8 @@ export default function SelfKnowledgeView() {
     if (!user) return;
     (async () => {
       const [{ data: pr }, { data: rs }] = await Promise.all([
-        supabase.from("assessment_responses").select("assessment_type, current_index, completed").eq("user_id", user.id),
-        supabase.from("assessment_results").select("assessment_type").eq("user_id", user.id),
+        firebaseStore.from("assessment_responses").select("assessment_type, current_index, completed").eq("user_id", user.id),
+        firebaseStore.from("assessment_results").select("assessment_type").eq("user_id", user.id),
       ]);
       const p: typeof progress = {};
       pr?.forEach((r: any) => { p[r.assessment_type] = { idx: r.current_index, completed: r.completed }; });

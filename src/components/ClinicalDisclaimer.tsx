@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -17,7 +17,7 @@ export default function ClinicalDisclaimer() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("clinical_consent").eq("id", user.id).maybeSingle()
+    firebaseStore.from("profiles").select("clinical_consent").eq("id", user.id).maybeSingle()
       .then(({ data }) => {
         if (data && !(data as any).clinical_consent) setOpen(true);
       });
@@ -26,7 +26,7 @@ export default function ClinicalDisclaimer() {
   const accept = async () => {
     if (!user || !agreed) return;
     setSaving(true);
-    const { error } = await supabase.from("profiles").update({
+    const { error } = await firebaseStore.from("profiles").update({
       clinical_consent: true, clinical_consent_at: new Date().toISOString(),
     } as any).eq("id", user.id);
     setSaving(false);

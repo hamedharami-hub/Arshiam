@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { callAI } from "@/lib/ai";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 
 type Msg = { role: "user" | "assistant"; content: string };
@@ -111,7 +111,7 @@ export default function FolderAIChat({
       // Ensure kanban columns exist if kanban output
       let columnMap: Record<string, string | null> = { todo: null, doing: null, done: null };
       if (output === "kanban") {
-        const { data: existing } = await supabase
+        const { data: existing } = await firebaseStore
           .from("folder_columns")
           .select("*")
           .eq("folder_id", folderId)
@@ -119,13 +119,13 @@ export default function FolderAIChat({
         const have = new Set((existing || []).map((c: any) => c.name.toLowerCase()));
         const toCreate = (["todo", "doing", "done"] as const).filter(n => !have.has(n));
         if (toCreate.length) {
-          await supabase.from("folder_columns").insert(
+          await firebaseStore.from("folder_columns").insert(
             toCreate.map((n, i) => ({
               folder_id: folderId, user_id: user.id, name: n, position: (existing?.length || 0) + i,
             }))
           );
         }
-        const { data: cols } = await supabase
+        const { data: cols } = await firebaseStore
           .from("folder_columns").select("*").eq("folder_id", folderId);
         for (const c of cols || []) columnMap[c.name.toLowerCase()] = c.id;
       }
@@ -140,7 +140,7 @@ export default function FolderAIChat({
         kanban_column_id: output === "kanban" ? columnMap[t.kanban_column || "todo"] : null,
         position: i,
       }));
-      const { error } = await supabase.from("tasks").insert(rows);
+      const { error } = await firebaseStore.from("tasks").insert(rows);
       if (error) throw error;
       toast.success(`${rows.length} تسک ساخته شد`);
       setProposed(null);

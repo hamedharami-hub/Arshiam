@@ -73,10 +73,10 @@ npx cap open android
 
 ## توسعه آینده ویجت
 
-برای اتصال ویجت به Supabase و نمایش داده واقعی:
+برای اتصال ویجت به Firebase و نمایش داده واقعی:
 
 ۱. در `ArshnazWidgetProvider.java`، یک Retrofit client اضافه کنید
-۲. از Supabase REST API برای دریافت تعداد تسک‌ها استفاده کنید
+۲. از Firebase REST API برای دریافت تعداد تسک‌ها استفاده کنید
 ۳. داده را در SharedPreferences ذخیره کنید
 ۴. ویجت را هر ۱۵ دقیقه به‌روز کنید
 

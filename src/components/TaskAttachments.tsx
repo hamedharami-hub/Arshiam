@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -44,7 +44,7 @@ export function TaskAttachments({ taskId }: { taskId: string }) {
   const [pickAccept, setPickAccept] = useState<string>(ACCEPT);
 
   const load = async () => {
-    const { data } = await supabase
+    const { data } = await firebaseStore
       .from("task_attachments")
       .select("*")
       .eq("task_id", taskId)
@@ -82,7 +82,7 @@ export function TaskAttachments({ taskId }: { taskId: string }) {
           continue;
         }
         const up = await uploadMediaFull(file, user.id);
-        const { data, error } = await supabase.from("task_attachments").insert({
+        const { data, error } = await firebaseStore.from("task_attachments").insert({
           user_id: user.id,
           task_id: taskId,
           url: up.url,
@@ -106,7 +106,7 @@ export function TaskAttachments({ taskId }: { taskId: string }) {
   };
 
   const removeItem = async (a: Attachment) => {
-    await supabase.from("task_attachments").delete().eq("id", a.id);
+    await firebaseStore.from("task_attachments").delete().eq("id", a.id);
     await deleteMediaPath(a.storage_path).catch(() => {});
     setItems((prev) => prev.filter((x) => x.id !== a.id));
   };
@@ -129,7 +129,7 @@ export function TaskAttachments({ taskId }: { taskId: string }) {
         const tasks = (res.data?.tasks || []) as any[];
         if (!tasks.length) { toast.error("تسکی پیدا نشد"); return; }
         for (const t of tasks) {
-          await supabase.from("tasks").insert({
+          await firebaseStore.from("tasks").insert({
             user_id: user.id,
             title: t.title,
             description: t.description || null,
@@ -151,7 +151,7 @@ export function TaskAttachments({ taskId }: { taskId: string }) {
         });
         const content = res.text || "";
         if (!content.trim()) { toast.error("نتیجه‌ای دریافت نشد"); return; }
-        const { error } = await supabase.from("notes").insert({
+        const { error } = await firebaseStore.from("notes").insert({
           user_id: user.id,
           task_id: taskId,
           title: titles[action] || "نوت تصویر",

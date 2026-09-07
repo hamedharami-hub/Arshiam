@@ -7,7 +7,7 @@ import { Plus, Loader2, Calendar as CalendarIcon, Tag, Folder, Flag, Check } fro
 import { parseNaturalDate } from "@/lib/nlDate";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DueDatePicker } from "@/components/DueDatePicker";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { PRIORITY_META, PRIORITY_SELECTABLE, type Priority } from "@/lib/priority";
@@ -75,8 +75,8 @@ export function QuickAddTask({
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("folders").select("id,name").order("name").then(({ data }) => setFolders(data || []));
-    supabase.from("tags").select("id,name,color").order("name").then(({ data }) => setTags(data || []));
+    firebaseStore.from("folders").select("id,name").order("name").then(({ data }) => setFolders(data || []));
+    firebaseStore.from("tags").select("id,name,color").order("name").then(({ data }) => setTags(data || []));
     listTaskTemplates(user.id).then((tpls) => {
       setTemplates(tpls.map(t => buildTaskFromTemplate(t)));
     }).catch(() => {});
@@ -202,9 +202,9 @@ export function QuickAddTask({
         console.warn("[QuickAddTask] Firestore save notice:", err);
       }
 
-    // 2. Best-effort mirror to Supabase
+    // 2. Best-effort mirror to firebaseStore
     try {
-      const { data } = await supabase
+      const { data } = await firebaseStore
         .from("tasks")
         .insert({
           id: tempId,
@@ -218,12 +218,12 @@ export function QuickAddTask({
         .select()
         .single();
       if (data && finalTagIds.length) {
-        await supabase
+        await firebaseStore
           .from("task_tags")
           .insert(finalTagIds.map(tag_id => ({ task_id: data.id, tag_id, user_id: user.id })));
       }
     } catch {
-      // Supabase is secondary; ignore permission/network errors
+      // firebaseStore is secondary; ignore permission/network errors
     }
 
     setTitle("");
@@ -309,7 +309,7 @@ export function QuickAddTask({
         navigate("/app/notes");
         return;
       }
-      const { error } = await supabase.from("notes").insert({
+      const { error } = await firebaseStore.from("notes").insert({
         user_id: user.id,
         title: finalTitle,
         content: "",
@@ -343,7 +343,7 @@ export function QuickAddTask({
         setMoreOpen(false);
         return;
       }
-      await supabase.from("task_templates").insert(payload as never);
+      await firebaseStore.from("task_templates").insert(payload as never);
       toast.success(T("ذخیره شد در تمپلیت‌ها", "Saved to templates"));
       setMoreOpen(false);
     } catch (e) {

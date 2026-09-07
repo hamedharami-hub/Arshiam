@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 
 export type StreakStats = {
   /** Consecutive days (ending today or yesterday) with at least one completed task. */
@@ -29,7 +29,7 @@ export async function computeStreak(userId: string): Promise<StreakStats> {
   since.setHours(0, 0, 0, 0);
   since.setDate(since.getDate() - 60);
 
-  const { data, error } = await supabase
+  const { data, error } = await firebaseStore
     .from("tasks")
     .select("completed_at")
     .eq("user_id", userId)

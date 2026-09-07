@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -138,12 +138,12 @@ export default function KanbanView() {
     }
   }, [user]);
 
-  // Load tasks from Supabase
+  // Load tasks from firebaseStore
   const loadTasks = async () => {
     if (!user) return;
     const [parentsRes, subsRes] = await Promise.all([
-      supabase.from("tasks").select("*").is("parent_id", null).order("position"),
-      supabase.from("tasks").select("*").not("parent_id", "is", null).order("position"),
+      firebaseStore.from("tasks").select("*").is("parent_id", null).order("position"),
+      firebaseStore.from("tasks").select("*").not("parent_id", "is", null).order("position"),
     ]);
     setAllTasks(((parentsRes.data || []) as unknown) as Task[]);
     setSubtasks(((subsRes.data || []) as unknown) as Task[]);
@@ -155,12 +155,12 @@ export default function KanbanView() {
 
   useEffect(() => {
     if (!user) return;
-    const ch = supabase
+    const ch = firebaseStore
       .channel(`kanban-goals-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, loadTasks)
       .subscribe();
     return () => {
-      supabase.removeChannel(ch);
+      firebaseStore.removeChannel(ch);
     };
   }, [user]);
 
@@ -207,7 +207,7 @@ export default function KanbanView() {
       prev.map((t) => (t.id === task.id ? { ...t, completed: newCompleted, status: newStatus } : t))
     );
     if (newCompleted) awardWaterDrops(10, "تکمیل تسک");
-    const { error } = await supabase
+    const { error } = await firebaseStore
       .from("tasks")
       .update({
         completed: newCompleted,
@@ -222,7 +222,7 @@ export default function KanbanView() {
     if (!title.trim() || !user) return;
     const completed = status === "done";
     const validColumnId = isValidUUID(activeGoalId) ? activeGoalId : null;
-    const { data, error } = await supabase
+    const { data, error } = await firebaseStore
       .from("tasks")
       .insert({
         user_id: user.id,
@@ -248,7 +248,7 @@ export default function KanbanView() {
       prev.map((x) => (x.id === taskId ? { ...x, status: newStatus, completed } : x))
     );
     if (newStatus === "done" && t.status !== "done") awardWaterDrops(10, "تکمیل تسک");
-    const { error } = await supabase
+    const { error } = await firebaseStore
       .from("tasks")
       .update({
         status: newStatus,

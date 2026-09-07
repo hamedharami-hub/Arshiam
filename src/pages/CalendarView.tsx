@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, subDays } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -35,7 +35,7 @@ export default function CalendarView() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data: s } = await supabase
+      const { data: s } = await firebaseStore
         .from("user_settings")
         .select("cycle_overlay_enabled, active_cycle_profile_id")
         .eq("user_id", user.id).maybeSingle();
@@ -44,8 +44,8 @@ export default function CalendarView() {
       }
       const pid = (s as any).active_cycle_profile_id;
       const [{ data: prof }, { data: logs }] = await Promise.all([
-        supabase.from("cycle_profiles").select("*").eq("id", pid).maybeSingle(),
-        supabase.from("cycle_logs").select("*").eq("profile_id", pid).order("log_date", { ascending: false }),
+        firebaseStore.from("cycle_profiles").select("*").eq("id", pid).maybeSingle(),
+        firebaseStore.from("cycle_logs").select("*").eq("profile_id", pid).order("log_date", { ascending: false }),
       ]);
       setCycleProfile(prof as any);
       setCycleLogs((logs || []) as any);
@@ -62,7 +62,7 @@ export default function CalendarView() {
     else if (view === "week") { start = startOfWeek(date); end = endOfWeek(date); }
     else if (view === "day") { start = new Date(date); start.setHours(0,0,0,0); end = new Date(date); end.setHours(23,59,59,999); }
     else { start = startOfMonth(date); end = endOfMonth(date); }
-    supabase.from("tasks").select("*")
+    firebaseStore.from("tasks").select("*")
       .or(`and(due_date.gte.${start.toISOString()},due_date.lte.${end.toISOString()}),and(start_at.gte.${start.toISOString()},start_at.lte.${end.toISOString()})`)
       .then(({ data }) => setTasks(data || []));
     getHolidaysForRange(start, end, ["IR", "AU"]).then(setHolidays);

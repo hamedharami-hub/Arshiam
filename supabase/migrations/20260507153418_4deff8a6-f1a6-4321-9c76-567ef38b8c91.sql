@@ -1,1 +1,0 @@
-ALTER TABLE public.habit_logs ADD COLUMN IF NOT EXISTS note text;

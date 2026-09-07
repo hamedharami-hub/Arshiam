@@ -1,7 +1,7 @@
 import { useEffect, useState, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,7 @@ export default function SharedWithMeView() {
     if (!user) return;
     setLoading(true);
     const email = (user.email || "").toLowerCase();
-    const { data: shares } = await supabase.from("shares")
+    const { data: shares } = await firebaseStore.from("shares")
       .select("*")
       .or(`recipient_id.eq.${user.id},recipient_email.ilike.${email}`)
       .neq("owner_id", user.id)
@@ -58,10 +58,10 @@ export default function SharedWithMeView() {
     const ownerIds = Array.from(new Set(list.map((s) => s.owner_id)));
 
     const [t, n, f, p] = await Promise.all([
-      groups.task.length ? supabase.from("tasks").select("id,title").in("id", groups.task) : Promise.resolve({ data: [] }),
-      groups.note.length ? supabase.from("notes").select("id,title").in("id", groups.note) : Promise.resolve({ data: [] }),
-      groups.folder.length ? supabase.from("folders").select("id,name").in("id", groups.folder) : Promise.resolve({ data: [] }),
-      ownerIds.length ? supabase.from("profiles").select("id,display_name").in("id", ownerIds) : Promise.resolve({ data: [] }),
+      groups.task.length ? firebaseStore.from("tasks").select("id,title").in("id", groups.task) : Promise.resolve({ data: [] }),
+      groups.note.length ? firebaseStore.from("notes").select("id,title").in("id", groups.note) : Promise.resolve({ data: [] }),
+      groups.folder.length ? firebaseStore.from("folders").select("id,name").in("id", groups.folder) : Promise.resolve({ data: [] }),
+      ownerIds.length ? firebaseStore.from("profiles").select("id,display_name").in("id", ownerIds) : Promise.resolve({ data: [] }),
     ]);
 
     type Named = { id: string; title?: string | null; name?: string | null; display_name?: string | null };
@@ -88,18 +88,18 @@ export default function SharedWithMeView() {
 
   useEffect(() => {
     load();
-    const ch = supabase
+    const ch = firebaseStore
       .channel("shared-with-me")
       .on("postgres_changes", { event: "*", schema: "public", table: "shares" }, load)
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => { firebaseStore.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const accept = async (id: string) => {
     setActingId(id);
     try {
-      const { error } = await supabase.rpc("accept_share", { _share_id: id });
+      const { error } = await firebaseStore.rpc("accept_share", { _share_id: id });
       if (error) throw error;
       toast.success(T("پذیرفته شد", "Accepted"));
     } catch (e) {
@@ -113,7 +113,7 @@ export default function SharedWithMeView() {
   const decline = async (id: string) => {
     setActingId(id);
     try {
-      const { error } = await supabase.rpc("decline_share", { _share_id: id });
+      const { error } = await firebaseStore.rpc("decline_share", { _share_id: id });
       if (error) throw error;
       toast.success(T("رد شد", "Declined"));
     } catch (e) {

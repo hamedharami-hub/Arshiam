@@ -4,7 +4,7 @@ import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput,
   CommandItem, CommandList, CommandSeparator,
 } from "@/components/ui/command";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { cacheGet } from "@/lib/offlineQueue";
 import {
@@ -39,7 +39,7 @@ const NAV = [
   { label: "چت سقراطی", to: "/app/socratic", icon: Brain, keywords: "socratic سقراط" },
   { label: "تمرین تنفس", to: "/app/breathing", icon: Heart, keywords: "breath breathing تنفس مدیتیشن" },
   { label: "معمار زندگی", to: "/app/life-architect", icon: Compass, keywords: "life architect معمار زندگی برنامه ریزی هدف اهداف" },
-  { label: "تنظیمات و پشتیبان‌گیری", to: "/app/settings", icon: Settings, keywords: "settings تنظیمات بکاپ firestore supabase" },
+  { label: "تنظیمات و پشتیبان‌گیری", to: "/app/settings", icon: Settings, keywords: "settings تنظیمات بکاپ firestore firebaseStore" },
 ];
 
 export default function CommandPalette() {
@@ -143,10 +143,10 @@ export default function CommandPalette() {
       try {
         const pattern = `%${term}%`;
         const [tasksRes, notesRes, foldersRes, tagsRes] = await Promise.all([
-          supabase.from("tasks").select("id,title,description").eq("user_id", user.id).or(`title.ilike.${pattern},description.ilike.${pattern}`).limit(8),
-          supabase.from("notes").select("id,title").eq("user_id", user.id).or(`title.ilike.${pattern},content.ilike.${pattern}`).limit(6),
-          supabase.from("folders").select("id,name").eq("user_id", user.id).ilike("name", pattern).limit(4),
-          supabase.from("tags").select("id,name").eq("user_id", user.id).ilike("name", pattern).limit(4),
+          firebaseStore.from("tasks").select("id,title,description").eq("user_id", user.id).or(`title.ilike.${pattern},description.ilike.${pattern}`).limit(8),
+          firebaseStore.from("notes").select("id,title").eq("user_id", user.id).or(`title.ilike.${pattern},content.ilike.${pattern}`).limit(6),
+          firebaseStore.from("folders").select("id,name").eq("user_id", user.id).ilike("name", pattern).limit(4),
+          firebaseStore.from("tags").select("id,name").eq("user_id", user.id).ilike("name", pattern).limit(4),
         ]);
 
         const remoteMap = new Map<string, Hit>();

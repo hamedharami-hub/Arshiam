@@ -15,7 +15,7 @@ import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
@@ -380,11 +380,11 @@ export function AppSidebar() {
         await cacheSet(TAGS_KEY, tList);
       }
     } catch {
-      // 2. Secondary fallback: check Supabase
+      // 2. Secondary fallback: check firebaseStore
       try {
         const [f, t] = await Promise.all([
-          supabase.from("folders").select("*").order("position"),
-          supabase.from("tags").select("*").order("name"),
+          firebaseStore.from("folders").select("*").order("position"),
+          firebaseStore.from("tags").select("*").order("name"),
         ]);
         if (f.data && f.data.length > 0) {
           setFolders(f.data);
@@ -413,7 +413,7 @@ export function AppSidebar() {
         if (tlist && tlist.length > 0) setTags(tlist as TagT[]);
       });
     });
-    const ch = supabase
+    const ch = firebaseStore
       .channel("sidebar")
       .on("postgres_changes", { event: "*", schema: "public", table: "folders" }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "tags" }, load)
@@ -421,7 +421,7 @@ export function AppSidebar() {
     return () => {
       fsUnsubF();
       fsUnsubT();
-      supabase.removeChannel(ch);
+      firebaseStore.removeChannel(ch);
     };
   }, [user]);
 
@@ -446,9 +446,9 @@ export function AppSidebar() {
       await upsertFolder(user.id, folder);
     } catch {}
 
-    // 2. Best-effort mirror to Supabase
+    // 2. Best-effort mirror to firebaseStore
     try {
-      await supabase.from("folders").insert({ id: folder.id, name: newFolder, user_id: user.id });
+      await firebaseStore.from("folders").insert({ id: folder.id, name: newFolder, user_id: user.id });
     } catch {}
 
     toast.success(t("folders.created"));
@@ -475,9 +475,9 @@ export function AppSidebar() {
       await upsertTag(user.id, tag);
     } catch {}
 
-    // 2. Best-effort mirror to Supabase
+    // 2. Best-effort mirror to firebaseStore
     try {
-      await supabase.from("tags").insert({ id: tag.id, name: newTag, user_id: user.id });
+      await firebaseStore.from("tags").insert({ id: tag.id, name: newTag, user_id: user.id });
     } catch {}
 
     toast.success(t("tags.created"));

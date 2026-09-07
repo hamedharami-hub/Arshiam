@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CornerUpLeft, Search } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { toast } from "sonner";
 import type { Task } from "@/lib/taskTypes";
 
@@ -41,7 +41,7 @@ export function MakeChildDialog({
   }, [allTasks, forbidden, q]);
 
   const apply = async (newParentId: string | null) => {
-    const { error } = await supabase.from("tasks").update({ parent_id: newParentId }).eq("id", task.id);
+    const { error } = await firebaseStore.from("tasks").update({ parent_id: newParentId }).eq("id", task.id);
     if (error) return toast.error(error.message);
     toast.success(newParentId ? "زیرتسک شد" : "به ریشه منتقل شد");
     onDone(newParentId);

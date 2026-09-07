@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import type { Task } from "@/lib/taskTypes";
 import ShareDialog from "@/components/ShareDialog";
 import { TaskActivities } from "@/components/TaskActivities";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useShareAccess } from "@/hooks/useShareAccess";
 import { logTaskActivity } from "@/lib/taskActivity";
@@ -67,7 +67,7 @@ export default function TaskActionSheet({
     if (onPatch) {
       await onPatch(patch);
     } else {
-      const { error } = await supabase.from("tasks").update(patch as never).eq("id", task.id);
+      const { error } = await firebaseStore.from("tasks").update(patch as never).eq("id", task.id);
       if (error) { toast.error(error.message); return; }
     }
     if (activityAction && user) {
@@ -141,7 +141,7 @@ export default function TaskActionSheet({
     if (!user || !subtaskTitle.trim()) return;
     setBusy(true);
     try {
-      const { error } = await supabase.from("subtasks").insert({
+      const { error } = await firebaseStore.from("subtasks").insert({
         user_id: user.id,
         task_id: task.id,
         title: subtaskTitle.trim(),
@@ -163,7 +163,7 @@ export default function TaskActionSheet({
     if (!user || !canEdit) return;
     setBusy(true);
     try {
-      const { data, error } = await supabase.from("notes").insert({
+      const { data, error } = await firebaseStore.from("notes").insert({
         user_id: user.id,
         task_id: task.id,
         title: task.title,
@@ -193,7 +193,7 @@ export default function TaskActionSheet({
     };
     setBusy(true);
     try {
-      const { data, error } = await supabase.from("tasks").insert(insert as never).select().single();
+      const { data, error } = await firebaseStore.from("tasks").insert(insert as never).select().single();
       if (error) throw error;
       const newId = (data as { id: string } | null)?.id;
       await logTaskActivity(task.id, user.id, "duplicated", { new_task_id: newId });

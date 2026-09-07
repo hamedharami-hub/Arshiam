@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useShareAccess } from "@/hooks/useShareAccess";
 import { Button } from "@/components/ui/button";
@@ -119,12 +119,12 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     let cancelled = false;
     (async () => {
       const [notesRes, tagsRes, subRes, stepListsRes, attachRes, outcomesRes] = await Promise.all([
-        supabase.from("notes").select("id,title,content").eq("task_id", task.id).order("updated_at", { ascending: false }),
-        supabase.from("task_tags").select("tag_id").eq("task_id", task.id),
-        supabase.from("tasks").select("id", { count: "exact", head: true }).eq("parent_id", task.id),
-        supabase.from("task_step_lists").select("id", { count: "exact", head: true }).eq("task_id", task.id),
-        supabase.from("task_attachments").select("id", { count: "exact", head: true }).eq("task_id", task.id),
-        supabase.from("task_outcomes").select("id", { count: "exact", head: true }).eq("task_id", task.id),
+        firebaseStore.from("notes").select("id,title,content").eq("task_id", task.id).order("updated_at", { ascending: false }),
+        firebaseStore.from("task_tags").select("tag_id").eq("task_id", task.id),
+        firebaseStore.from("tasks").select("id", { count: "exact", head: true }).eq("parent_id", task.id),
+        firebaseStore.from("task_step_lists").select("id", { count: "exact", head: true }).eq("task_id", task.id),
+        firebaseStore.from("task_attachments").select("id", { count: "exact", head: true }).eq("task_id", task.id),
+        firebaseStore.from("task_outcomes").select("id", { count: "exact", head: true }).eq("task_id", task.id),
       ]);
       if (cancelled) return;
       const list = (notesRes.data || []) as any;
@@ -156,20 +156,20 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     loadCached();
 
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
-    supabase.from("folders").select("id,name,parent_id,color").order("position").then(({ data }) => {
+    firebaseStore.from("folders").select("id,name,parent_id,color").order("position").then(({ data }) => {
       setFolders((data || []) as any);
     });
-    supabase.from("tags").select("id,name,color").order("name").then(({ data }) => {
+    firebaseStore.from("tags").select("id,name,color").order("name").then(({ data }) => {
       setTags((data || []) as any);
     });
-    supabase.from("tasks").select("id,title,parent_id").order("title").then(({ data }) => {
+    firebaseStore.from("tasks").select("id,title,parent_id").order("title").then(({ data }) => {
       setAllTasks((data || []) as unknown as typeof allTasks);
     });
   }, [user]);
 
   useEffect(() => {
     if (!t.parent_id) { setParentTitle(""); return; }
-    supabase.from("tasks").select("title").eq("id", t.parent_id).maybeSingle().then(({ data }) => {
+    firebaseStore.from("tasks").select("title").eq("id", t.parent_id).maybeSingle().then(({ data }) => {
       setParentTitle((data?.title as string) || "—");
     });
   }, [t.parent_id]);
@@ -207,21 +207,21 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
         await enqueueOp({ table: "task_tags", op: "delete", match: { task_id: t.id, tag_id: tagId } });
         return;
       }
-      try { await supabase.from("task_tags").delete().eq("task_id", t.id).eq("tag_id", tagId); } catch { void 0; }
+      try { await firebaseStore.from("task_tags").delete().eq("task_id", t.id).eq("tag_id", tagId); } catch { void 0; }
     } else {
       setTaskTagIds([...taskTagIds, tagId]);
       if (typeof navigator !== "undefined" && !navigator.onLine) {
         await enqueueOp({ table: "task_tags", op: "insert", payload: { task_id: t.id, tag_id: tagId, user_id: user.id } });
         return;
       }
-      try { await supabase.from("task_tags").insert({ task_id: t.id, tag_id: tagId, user_id: user.id }); } catch { void 0; }
+      try { await firebaseStore.from("task_tags").insert({ task_id: t.id, tag_id: tagId, user_id: user.id }); } catch { void 0; }
     }
   };
 
   const refreshTask = async () => {
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
     try {
-      const { data } = await supabase.from("tasks").select("*").eq("id", task.id).single();
+      const { data } = await firebaseStore.from("tasks").select("*").eq("id", task.id).single();
       if (data) setT(data as any);
       onChanged();
     } catch {
@@ -232,7 +232,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   const refreshOutcomeCount = async () => {
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
     try {
-      const { count } = await supabase.from("task_outcomes").select("id", { count: "exact", head: true }).eq("task_id", task.id);
+      const { count } = await firebaseStore.from("task_outcomes").select("id", { count: "exact", head: true }).eq("task_id", task.id);
       setOutcomeCount(count || 0);
       if ((count || 0) > 0) setShowOutcomes(true);
       setOutcomeRefresh(n => n + 1);
@@ -259,7 +259,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       return;
     }
     try {
-      await supabase.from("tasks").update(patch as any).eq("id", t.id);
+      await firebaseStore.from("tasks").update(patch as any).eq("id", t.id);
     } catch (e) {
       // If the network call fails, queue the update so the edit isn't lost
       await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: t.id } });
@@ -283,7 +283,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           return;
         }
         try {
-          await supabase.from("tasks").delete().eq("id", t.id);
+          await firebaseStore.from("tasks").delete().eq("id", t.id);
         } catch {
           await enqueueOp({ table: "tasks", op: "delete", match: { id: t.id } });
         }
@@ -303,7 +303,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
 
   const addNote = async () => {
     if (!user || !canEdit) return;
-    const { data, error } = await supabase.from("notes").insert({
+    const { data, error } = await firebaseStore.from("notes").insert({
       user_id: user.id, task_id: t.id, title: T("نوت جدید", "New note"), content: "",
     }).select().single();
     if (error) return toast.error(error.message);
@@ -318,23 +318,23 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     if (!canEdit) return;
     setTaskNotes(taskNotes.map(n => n.id === id ? { ...n, ...patch } : n));
     if (activeNote?.id === id) setActiveNote({ ...activeNote, ...patch });
-    await supabase.from("notes").update(patch).eq("id", id);
+    await firebaseStore.from("notes").update(patch).eq("id", id);
   };
 
   const askDelNote = (n: TaskNote) => {
     setConfirm({
       kind: "note", id: n.id, title: n.title || T("بدون عنوان", "Untitled"),
       onConfirm: async () => {
-        const { data: snap } = await supabase.from("notes").select("*").eq("id", n.id).maybeSingle();
-        await supabase.from("notes").delete().eq("id", n.id);
+        const { data: snap } = await firebaseStore.from("notes").select("*").eq("id", n.id).maybeSingle();
+        await firebaseStore.from("notes").delete().eq("id", n.id);
         setTaskNotes(prev => prev.filter(x => x.id !== n.id));
         if (activeNote?.id === n.id) setActiveNote(null);
         if (snap) {
           pushUndo({
             label: T(`نوت «${snap.title || "بدون عنوان"}» حذف شد`, `Note "${snap.title || "Untitled"}" deleted`),
             undo: async () => {
-              await supabase.from("notes").insert(snap as any);
-              const { data } = await supabase.from("notes").select("id,title,content").eq("task_id", task.id)
+              await firebaseStore.from("notes").insert(snap as any);
+              const { data } = await firebaseStore.from("notes").select("id,title,content").eq("task_id", task.id)
                 .order("updated_at", { ascending: false });
               setTaskNotes((data || []) as any);
             },
@@ -610,7 +610,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       return;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await firebaseStore
       .from("folders")
       .insert({ user_id: user.id, name: newFolderName.trim(), color: newFolderColor })
       .select().single();
@@ -636,14 +636,14 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       return;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await firebaseStore
       .from("tags")
       .insert({ user_id: user.id, name: newTagName.trim(), color: newTagColor })
       .select().single();
     if (error) return toast.error(error.message);
     setTags((tg) => [...tg, data as any]);
     setNewTagName("");
-    await supabase.from("task_tags").insert({ task_id: t.id, tag_id: (data as any).id, user_id: user.id });
+    await firebaseStore.from("task_tags").insert({ task_id: t.id, tag_id: (data as any).id, user_id: user.id });
     setTaskTagIds([...taskTagIds, (data as any).id]);
     toast.success(T("تگ ساخته شد", "Tag created"));
   };
@@ -651,7 +651,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   const attachLink = async () => {
     if (!user || !canEdit || !linkUrl.trim()) return;
     const url = linkUrl.trim();
-    const { error } = await supabase.from("task_attachments").insert({
+    const { error } = await firebaseStore.from("task_attachments").insert({
       user_id: user.id,
       task_id: t.id,
       url,
@@ -1150,7 +1150,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           taskId={t.id}
           readOnly={!canEdit}
           onOpenSubtask={(id) => {
-            supabase.from("tasks").select("*").eq("id", id).single().then(({ data }) => {
+            firebaseStore.from("tasks").select("*").eq("id", id).single().then(({ data }) => {
               if (data) { onChanged(); setT(data as any); }
             });
           }}

@@ -1,4 +1,4 @@
-﻿import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { callAI } from "@/lib/ai";
 import { generateUUID, type GoalKanban, type TimeHorizon, type GoalPriority } from "@/lib/kanbanGoals";
 
@@ -520,9 +520,9 @@ ${JSON.stringify(baseBlueprint, null, 2)}
 
 export async function auditExistingSystem(userId: string): Promise<SystemAuditResult> {
   const [tasksRes, foldersRes, habitsRes] = await Promise.all([
-    supabase.from("tasks").select("id,title,completed,folder_id,due_date,created_at").eq("user_id", userId),
-    supabase.from("folders").select("id,name,color").eq("user_id", userId),
-    supabase.from("habits").select("id,name,frequency").eq("user_id", userId),
+    firebaseStore.from("tasks").select("id,title,completed,folder_id,due_date,created_at").eq("user_id", userId),
+    firebaseStore.from("folders").select("id,name,color").eq("user_id", userId),
+    firebaseStore.from("habits").select("id,name,frequency").eq("user_id", userId),
   ]);
 
   const tasks = tasksRes.data || [];
@@ -671,7 +671,7 @@ export async function deployLifeBlueprint(
   // 1. Insert Folders
   for (const f of blueprint.folders) {
     if (selectedFolderIds && !selectedFolderIds.has(f.id)) continue;
-    const { data } = await supabase
+    const { data } = await firebaseStore
       .from("folders")
       .insert({
         user_id: userId,
@@ -714,7 +714,7 @@ export async function deployLifeBlueprint(
   // 3. Insert Habits
   for (const h of blueprint.habits) {
     if (selectedHabitNames && !selectedHabitNames.has(h.name)) continue;
-    const { error } = await supabase.from("habits").insert({
+    const { error } = await firebaseStore.from("habits").insert({
       user_id: userId,
       name: h.name,
       description: h.description || "",
@@ -732,7 +732,7 @@ export async function deployLifeBlueprint(
     const due = new Date();
     if (t.dueDaysOffset) due.setDate(due.getDate() + t.dueDaysOffset);
 
-    const { error } = await supabase.from("tasks").insert({
+    const { error } = await firebaseStore.from("tasks").insert({
       user_id: userId,
       title: t.title,
       description: t.description || "",

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Activity, ListChecks, ListTodo } from "lucide-react";
 import { formatDate, toPersianDigits, type CalendarSystem } from "@/lib/jalali";
 import { isHoliday, type Holiday } from "@/lib/holidays";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
@@ -47,7 +47,7 @@ export default function DayDetailSheet({
       getDailyCheckin(user.id, ds).then((data) => {
         if (data) setCheckin(data);
         else {
-          supabase.from("daily_checkins").select("*").eq("checkin_date", ds).maybeSingle()
+          firebaseStore.from("daily_checkins").select("*").eq("checkin_date", ds).maybeSingle()
             .then(({ data }) => setCheckin(data)).catch(() => {});
         }
       });
@@ -84,7 +84,7 @@ export default function DayDetailSheet({
 
     const { upsertTask } = await import("@/lib/firestoreDataService");
     const ok = await upsertTask(user.id, newTask);
-    supabase.from("tasks").insert(newTask).catch(() => {});
+    firebaseStore.from("tasks").insert(newTask).catch(() => {});
 
     if (ok) {
       toast.success("تسک ثبت شد ✨");

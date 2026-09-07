@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { getStoredUser } from "./authService";
 import type { Task, TaskOutcome, OutcomeAction, OutcomeExecution } from "@/lib/taskTypes";
 import { addHours } from "date-fns";
@@ -17,7 +17,7 @@ function toOutcome(row: unknown): TaskOutcome {
 }
 
 export async function listTaskOutcomes(taskId: string): Promise<TaskOutcome[]> {
-  const { data, error } = await supabase
+  const { data, error } = await firebaseStore
     .from("task_outcomes")
     .select("*")
     .eq("task_id", taskId)
@@ -29,7 +29,7 @@ export async function listTaskOutcomes(taskId: string): Promise<TaskOutcome[]> {
 export async function saveTaskOutcome(outcome: Partial<TaskOutcome>): Promise<TaskOutcome> {
   if (outcome.id) {
     const { id: _id, user_id: _u, ...rest } = outcome;
-    const { data, error } = await supabase
+    const { data, error } = await firebaseStore
       .from("task_outcomes")
       .update(rest as never)
       .eq("id", outcome.id)
@@ -41,20 +41,20 @@ export async function saveTaskOutcome(outcome: Partial<TaskOutcome>): Promise<Ta
   let uid = getStoredUser()?.id;
   if (!uid) {
     try {
-      const { data: auth } = await supabase.auth.getUser();
+      const { data: auth } = await firebaseStore.auth.getUser();
       uid = auth.user?.id;
     } catch {}
   }
   if (!uid) throw new Error("Not signed in");
   const { id: _ignore, ...rest } = outcome;
   const payload = { ...rest, user_id: uid };
-  const { data, error } = await supabase.from("task_outcomes").insert(payload as never).select().single();
+  const { data, error } = await firebaseStore.from("task_outcomes").insert(payload as never).select().single();
   if (error) throw error;
   return toOutcome(data as unknown);
 }
 
 export async function deleteTaskOutcome(id: string) {
-  const { error } = await supabase.from("task_outcomes").delete().eq("id", id);
+  const { error } = await firebaseStore.from("task_outcomes").delete().eq("id", id);
   if (error) throw error;
 }
 
@@ -81,19 +81,19 @@ export async function executeTaskOutcome(
     let payload: Record<string, unknown> = outcomeColumnExists
       ? { ...baseInsert, outcome_id: outcome.id }
       : baseInsert;
-    let res = await supabase.from("tasks").insert(payload as never).select("id").single();
+    let res = await firebaseStore.from("tasks").insert(payload as never).select("id").single();
     if (res.error && !outcomeColumnExists) throw res.error;
     if (res.error && isMissingColumnError(res.error, "outcome_id")) {
       outcomeColumnExists = false;
       payload = baseInsert;
-      res = await supabase.from("tasks").insert(payload as never).select("id").single();
+      res = await firebaseStore.from("tasks").insert(payload as never).select("id").single();
     }
     if (res.error) throw res.error;
     const createdId = (res.data as unknown as { id?: string } | null)?.id;
     if (createdId) {
       createdIds.push(createdId);
       if (action.tag_ids?.length) {
-        await supabase.from("task_tags").insert(
+        await firebaseStore.from("task_tags").insert(
           action.tag_ids.map((tagId) => ({ user_id: userId, task_id: createdId, tag_id: tagId })) as never,
         );
       }
@@ -106,7 +106,7 @@ export async function executeTaskOutcome(
     outcome_id: outcome.id,
     created_task_ids: createdIds,
   };
-  const { data, error } = await supabase
+  const { data, error } = await firebaseStore
     .from("outcome_executions")
     .insert(executionInsert as never)
     .select()
@@ -123,7 +123,7 @@ function toExecution(row: unknown): OutcomeExecution {
 }
 
 export async function listOutcomeExecutions(taskId: string): Promise<OutcomeExecution[]> {
-  const { data, error } = await supabase
+  const { data, error } = await firebaseStore
     .from("outcome_executions")
     .select("*")
     .eq("task_id", taskId)

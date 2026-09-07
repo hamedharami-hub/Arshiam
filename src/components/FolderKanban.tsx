@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -159,8 +159,8 @@ export function FolderKanban({
   const loadTasks = async () => {
     if (!user || !folderId) return;
     const [parentsRes, subsRes] = await Promise.all([
-      supabase.from("tasks").select("*").eq("folder_id", folderId).is("parent_id", null).order("position"),
-      supabase.from("tasks").select("*").eq("folder_id", folderId).not("parent_id", "is", null).order("position"),
+      firebaseStore.from("tasks").select("*").eq("folder_id", folderId).is("parent_id", null).order("position"),
+      firebaseStore.from("tasks").select("*").eq("folder_id", folderId).not("parent_id", "is", null).order("position"),
     ]);
     setAllTasks(((parentsRes.data || []) as unknown) as Task[]);
     setSubtasks(((subsRes.data || []) as unknown) as Task[]);
@@ -172,12 +172,12 @@ export function FolderKanban({
 
   useEffect(() => {
     if (!user || !folderId) return;
-    const ch = supabase
+    const ch = firebaseStore
       .channel(`folder-kanban-goals-${folderId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "tasks", filter: `folder_id=eq.${folderId}` }, loadTasks)
       .subscribe();
     return () => {
-      supabase.removeChannel(ch);
+      firebaseStore.removeChannel(ch);
     };
   }, [user, folderId]);
 
@@ -227,7 +227,7 @@ export function FolderKanban({
       prev.map((t) => (t.id === task.id ? { ...t, completed: newCompleted, status: newStatus } : t))
     );
     if (newCompleted) awardWaterDrops(10, "تکمیل تسک");
-    const { error } = await supabase
+    const { error } = await firebaseStore
       .from("tasks")
       .update({
         completed: newCompleted,
@@ -242,7 +242,7 @@ export function FolderKanban({
     if (!title.trim() || !user) return;
     const completed = status === "done";
     const validColumnId = isValidUUID(activeGoalId) ? activeGoalId : null;
-    const { data, error } = await supabase
+    const { data, error } = await firebaseStore
       .from("tasks")
       .insert({
         user_id: user.id,
@@ -269,7 +269,7 @@ export function FolderKanban({
       prev.map((x) => (x.id === taskId ? { ...x, status: newStatus, completed } : x))
     );
     if (newStatus === "done" && t.status !== "done") awardWaterDrops(10, "تکمیل تسک");
-    const { error } = await supabase
+    const { error } = await firebaseStore
       .from("tasks")
       .update({
         status: newStatus,

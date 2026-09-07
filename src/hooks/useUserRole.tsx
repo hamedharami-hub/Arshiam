@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 
 export function useUserRole() {
@@ -11,7 +11,7 @@ export function useUserRole() {
     if (!user) { setIsAdmin(false); setLoading(false); return; }
     let mounted = true;
     (async () => {
-      const { data } = await (supabase as any)
+      const { data } = await (firebaseStore as any)
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)

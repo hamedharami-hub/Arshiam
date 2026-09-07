@@ -1,1 +1,0 @@
-ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS is_avoidance BOOLEAN NOT NULL DEFAULT false;

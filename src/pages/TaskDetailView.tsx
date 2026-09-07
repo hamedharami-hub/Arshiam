@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { TaskDetail } from "@/components/TaskDetail";
 import type { Task, ConfirmState } from "@/lib/taskTypes";
@@ -33,7 +33,7 @@ export default function TaskDetailView() {
       return;
     }
     try {
-      const { data } = await supabase.from("tasks").select("*").eq("id", id).maybeSingle();
+      const { data } = await firebaseStore.from("tasks").select("*").eq("id", id).maybeSingle();
       if (data) setTask(data as unknown as Task);
       else setTask(null);
     } catch {

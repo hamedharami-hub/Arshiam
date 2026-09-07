@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,8 +47,8 @@ export default function ABCView() {
       regret_level: form.regret_level,
     };
     const savedId = await upsertAbcRecord(user.id, payload);
-    // Mirror to Supabase in background
-    supabase.from("abc_records").insert({ ...payload, id: savedId }).catch(() => {});
+    // Mirror to firebaseStore in background
+    firebaseStore.from("abc_records").insert({ ...payload, id: savedId }).catch(() => {});
 
     if (savedId) {
       toast.success("ثبت شد ✨");

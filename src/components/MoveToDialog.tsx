@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,7 @@ export function MoveToDialog({
 
   useEffect(() => {
     if (!user || !open) return;
-    supabase.from("folders").select("id,name,color").order("position").then(({ data }) => {
+    firebaseStore.from("folders").select("id,name,color").order("position").then(({ data }) => {
       setFolders((data || []) as any);
     });
   }, [user, open]);
@@ -36,7 +36,7 @@ export function MoveToDialog({
     setBusy(true);
     try {
       const table = kind === "task" ? "tasks" : "notes";
-      const { error } = await supabase.from(table as any).update({ folder_id: pick }).eq("id", itemId);
+      const { error } = await firebaseStore.from(table as any).update({ folder_id: pick }).eq("id", itemId);
       if (error) throw error;
       toast.success("منتقل شد");
       onMoved?.(pick);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -20,7 +20,7 @@ export function TagDeleteDialog({
   useEffect(() => {
     if (!open) return;
     setUsage(null);
-    supabase
+    firebaseStore
       .from("task_tags")
       .select("task_id", { count: "exact", head: true })
       .eq("tag_id", tagId)
@@ -29,9 +29,9 @@ export function TagDeleteDialog({
 
   const onDelete = async () => {
     // Remove links first, then the tag itself
-    await supabase.from("task_tags").delete().eq("tag_id", tagId);
-    await supabase.from("note_tags").delete().eq("tag_id", tagId);
-    const { error } = await supabase.from("tags").delete().eq("id", tagId);
+    await firebaseStore.from("task_tags").delete().eq("tag_id", tagId);
+    await firebaseStore.from("note_tags").delete().eq("tag_id", tagId);
+    const { error } = await firebaseStore.from("tags").delete().eq("id", tagId);
     if (error) { toast.error(error.message); return; }
     toast.success("تگ حذف شد");
     onOpenChange(false);

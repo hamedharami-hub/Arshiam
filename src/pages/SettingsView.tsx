@@ -26,7 +26,7 @@ import {
   type Provider, type ProviderConfig, type AIPerOpSettings, type OperationMeta, type OpStrategy, type AIOperation,
 } from "@/lib/aiSettings";
 import { fetchProviderModels, getMergedModels, getAllKnownModels } from "@/lib/fetchModels";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { logoutUser } from "@/lib/authService";
 import { useAuth } from "@/hooks/useAuth";
 import { loadSettings, saveSettings, ensureNotificationPermission, type UserSettings } from "@/lib/reminders";
@@ -894,7 +894,7 @@ export default function SettingsView() {
   };
 
   // Dynamic table access for export/import/delete where table names are runtime strings.
-  const fromTable = (table: string) => (supabase as any).from(table);
+  const fromTable = (table: string) => (firebaseStore as any).from(table);
 
   async function exportAll() {
     if (!user) {
@@ -916,7 +916,7 @@ export default function SettingsView() {
         } catch {}
       }
 
-      // 3. Gather from Supabase if reachable
+      // 3. Gather from firebaseStore if reachable
       const tables = [
         "profiles", "tasks", "subtasks", "folders", "tags", "task_tags", "notes", "note_tags",
         "habits", "habit_logs", "pomodoro_sessions", "folder_columns",
@@ -1003,7 +1003,7 @@ export default function SettingsView() {
         };
         // 1. Save to Firestore
         await saveEntityToFirestore(user.id, "tasks", t.id, taskObj);
-        // 2. Also save to Supabase if possible
+        // 2. Also save to firebaseStore if possible
         try {
           await fromTable("tasks").upsert(taskObj);
         } catch {}
@@ -1076,7 +1076,7 @@ export default function SettingsView() {
         await fromTable(tbl).delete().eq("user_id", user.id);
       }
       await logoutUser();
-      try { await supabase.auth.signOut(); } catch {}
+      try { await firebaseStore.auth.signOut(); } catch {}
       localStorage.clear();
       toast.success(isEn ? "All data deleted" : "همه داده‌ها حذف شد");
       window.location.href = "/auth";

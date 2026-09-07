@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 
 export type Holiday = {
   id: string;
@@ -28,7 +28,7 @@ export async function getHolidaysForRange(start: Date, end: Date, countries: str
     }
   }
 
-  const { data } = await supabase
+  const { data } = await firebaseStore
     .from("holidays")
     .select("*")
     .in("country_code", countries)
@@ -47,7 +47,7 @@ async function ensureYearLoaded(year: number, country: string) {
   if (seededYears.has(key)) return;
   seededYears.add(key);
   // Check if any rows exist for that year/country
-  const { count } = await supabase
+  const { count } = await firebaseStore
     .from("holidays")
     .select("id", { count: "exact", head: true })
     .eq("country_code", country)
@@ -56,7 +56,7 @@ async function ensureYearLoaded(year: number, country: string) {
   if ((count || 0) > 0) return;
   // Trigger fetch from edge function
   try {
-    await supabase.functions.invoke("fetch-holidays", {
+    await firebaseStore.functions.invoke("fetch-holidays", {
       body: { year, country },
     });
   } catch (e) {

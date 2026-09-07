@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Sparkles, Loader2, Send, Check, Timer } from "lucide-react";
 import PomodoroTimer from "@/components/PomodoroTimer";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { callAI, getAILanguage, type AILanguage } from "@/lib/ai";
 import { AILangToggle } from "@/components/AILangToggle";
@@ -68,8 +68,8 @@ export function TaskAIPanel({
     let ctx = `Current task:\nTitle: ${task.title}\nDescription: ${task.description || "(none)"}\nPriority: ${task.priority}\nDue: ${task.due_date || "(none)"}\nRecurrence: ${describeRule(task.recurrence_rule || null, true)}`;
     if (globalCtx && user) {
       const [{ data: tasks }, { data: notes }] = await Promise.all([
-        supabase.from("tasks").select("title,priority,due_date,completed").limit(40),
-        supabase.from("notes").select("title").limit(20),
+        firebaseStore.from("tasks").select("title,priority,due_date,completed").limit(40),
+        firebaseStore.from("notes").select("title").limit(20),
       ]);
       ctx += `\n\nAll tasks: ${JSON.stringify(tasks || [])}`;
       ctx += `\nAll notes: ${JSON.stringify(notes || [])}`;
@@ -112,7 +112,7 @@ export function TaskAIPanel({
     const rows = picked.map((title) => ({
       user_id: user.id, title, parent_id: task.id, priority: "none" as Priority,
     }));
-    const { error } = await supabase.from("tasks").insert(rows);
+    const { error } = await firebaseStore.from("tasks").insert(rows);
     if (error) toast.error(error.message);
     else {
       toast.success(T(`${picked.length} زیرتسک اضافه شد ✨`, `${picked.length} subtasks added ✨`));
@@ -139,7 +139,7 @@ export function TaskAIPanel({
     if (meta.priority) patch.priority = meta.priority;
     if (meta.due_date) patch.due_date = meta.due_date;
     if (meta.recurrence_rule) patch.recurrence_rule = meta.recurrence_rule;
-    const { error } = await supabase.from("tasks").update(patch).eq("id", task.id);
+    const { error } = await firebaseStore.from("tasks").update(patch).eq("id", task.id);
     if (error) toast.error(error.message);
     else { toast.success(T("اعمال شد ✨", "Applied ✨")); onMetaApplied?.(); setMeta(null); }
   };
@@ -151,7 +151,7 @@ export function TaskAIPanel({
     try {
       const ctx = await buildContext();
       const r = await callAI("generate_note", task.title, ctx, undefined, aiLang);
-      const { error } = await supabase.from("notes").insert({
+      const { error } = await firebaseStore.from("notes").insert({
         user_id: user.id, task_id: task.id, title: task.title, content: r.text,
       });
       if (error) throw error;

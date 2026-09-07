@@ -10,7 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Droplet, Heart, Trash2, Sparkles, CalendarRange } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import {
   type CycleProfile, type CycleLog, computePhase, predictNextPeriod,
@@ -34,9 +34,9 @@ export default function CycleView() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data: ps } = await supabase.from("cycle_profiles").select("*").order("created_at");
+      const { data: ps } = await firebaseStore.from("cycle_profiles").select("*").order("created_at");
       setProfiles((ps || []) as any);
-      const { data: s } = await supabase
+      const { data: s } = await firebaseStore
         .from("user_settings").select("cycle_overlay_enabled, active_cycle_profile_id")
         .eq("user_id", user.id).maybeSingle();
       setOverlayEnabled(!!(s as any)?.cycle_overlay_enabled);
@@ -48,7 +48,7 @@ export default function CycleView() {
   // Load logs for active profile
   useEffect(() => {
     if (!activeId) { setLogs([]); return; }
-    supabase.from("cycle_logs").select("*").eq("profile_id", activeId)
+    firebaseStore.from("cycle_logs").select("*").eq("profile_id", activeId)
       .order("log_date", { ascending: false })
       .then(({ data }) => setLogs((data || []) as any));
   }, [activeId]);
@@ -82,7 +82,7 @@ export default function CycleView() {
 
   const createProfile = async () => {
     if (!user || !newLabel.trim()) return;
-    const { data, error } = await supabase.from("cycle_profiles")
+    const { data, error } = await firebaseStore.from("cycle_profiles")
       .insert({ user_id: user.id, label: newLabel.trim(), is_self: profiles.length === 0 })
       .select().single();
     if (error) return toast.error(error.message);
@@ -95,13 +95,13 @@ export default function CycleView() {
   const updateProfile = async (patch: Partial<CycleProfile>) => {
     if (!active) return;
     setProfiles((ps) => ps.map((p) => p.id === active.id ? { ...p, ...patch } as any : p));
-    await supabase.from("cycle_profiles").update(patch).eq("id", active.id);
+    await firebaseStore.from("cycle_profiles").update(patch).eq("id", active.id);
   };
 
   const deleteProfile = async () => {
     if (!active) return;
     if (!confirm(`حذف «${active.label}»؟ همه‌ی لاگ‌ها هم پاک می‌شن.`)) return;
-    await supabase.from("cycle_profiles").delete().eq("id", active.id);
+    await firebaseStore.from("cycle_profiles").delete().eq("id", active.id);
     setProfiles((ps) => ps.filter((p) => p.id !== active.id));
     setActiveId(profiles.find((p) => p.id !== active.id)?.id || null);
   };
@@ -109,25 +109,25 @@ export default function CycleView() {
   const setActive = async (id: string) => {
     setActiveId(id);
     if (user) {
-      await supabase.from("user_settings").update({ active_cycle_profile_id: id }).eq("user_id", user.id);
+      await firebaseStore.from("user_settings").update({ active_cycle_profile_id: id }).eq("user_id", user.id);
     }
   };
 
   const toggleOverlay = async (v: boolean) => {
     setOverlayEnabled(v);
     if (user) {
-      await supabase.from("user_settings").update({ cycle_overlay_enabled: v }).eq("user_id", user.id);
+      await firebaseStore.from("user_settings").update({ cycle_overlay_enabled: v }).eq("user_id", user.id);
     }
   };
 
   const logPeriodStart = async () => {
     if (!user || !active) return;
     const ds = format(today, "yyyy-MM-dd");
-    const { error } = await supabase.from("cycle_logs").upsert({
+    const { error } = await firebaseStore.from("cycle_logs").upsert({
       user_id: user.id, profile_id: active.id, log_date: ds, event: "period_start", flow: Math.max(flow, 2),
     }, { onConflict: "profile_id,log_date" }).select();
     if (error) return toast.error(error.message);
-    const { data } = await supabase.from("cycle_logs").select("*").eq("profile_id", active.id).order("log_date", { ascending: false });
+    const { data } = await firebaseStore.from("cycle_logs").select("*").eq("profile_id", active.id).order("log_date", { ascending: false });
     setLogs((data || []) as any);
     toast.success("شروع پریود ثبت شد");
   };
@@ -140,10 +140,10 @@ export default function CycleView() {
       event: todayLog?.event ?? null,
       pain, mood, energy, flow, symptoms, notes,
     };
-    const { error } = await supabase.from("cycle_logs").upsert(payload, { onConflict: "profile_id,log_date" });
+    const { error } = await firebaseStore.from("cycle_logs").upsert(payload, { onConflict: "profile_id,log_date" });
     if (error) return toast.error(error.message);
     toast.success("ذخیره شد");
-    const { data } = await supabase.from("cycle_logs").select("*").eq("profile_id", active.id).order("log_date", { ascending: false });
+    const { data } = await firebaseStore.from("cycle_logs").select("*").eq("profile_id", active.id).order("log_date", { ascending: false });
     setLogs((data || []) as any);
   };
 

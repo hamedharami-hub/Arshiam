@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { format, startOfDay, subDays, isSameDay, isWithinInterval } from "date-fns";
 import { getCalendarSystem, formatDate, toPersianDigits, jalaliDayOfWeek, WEEKDAY_SHORT_FA, type CalendarSystem } from "@/lib/jalali";
@@ -44,13 +44,13 @@ export default function StatsView() {
     const isoStart = start.toISOString();
     const isoEnd = end.toISOString();
 
-    supabase.from("tasks")
+    firebaseStore.from("tasks")
       .select("id,title,completed,completed_at,due_date,priority")
       .eq("user_id", user.id)
       .or(`and(completed.eq.true,completed_at.gte.${isoStart},completed_at.lte.${isoEnd}),and(completed.eq.false,due_date.lt.${todayStart.toISOString()})`)
       .then(({ data }) => setTasks((data as TaskRow[] | null) || []));
 
-    supabase.from("pomodoro_sessions")
+    firebaseStore.from("pomodoro_sessions")
       .select("duration_minutes,started_at")
       .eq("user_id", user.id)
       .eq("completed", true)
@@ -59,7 +59,7 @@ export default function StatsView() {
       .order("started_at", { ascending: true })
       .then(({ data }) => setPomSessions((data as PomRow[] | null) || []));
 
-    supabase.from("habit_logs")
+    firebaseStore.from("habit_logs")
       .select("habit_id, log_date, habits(name, target_per_week, frequency)")
       .eq("user_id", user.id)
       .gte("log_date", format(start, "yyyy-MM-dd"))

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { AMBIENT_SOUNDS, SOUND_CATEGORY_META, type SoundCategory } from "@/lib/ambientSounds";
@@ -90,7 +90,7 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
     if (mode === "work") {
       const dur = Math.round(totalSecRef.current / 60);
       if (user) {
-        await supabase.from("pomodoro_sessions").insert({
+        await firebaseStore.from("pomodoro_sessions").insert({
           user_id: user.id,
           task_id: taskId || null,
           duration_minutes: dur,

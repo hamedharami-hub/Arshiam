@@ -1,1 +1,0 @@
-DROP POLICY IF EXISTS "Authenticated can insert holidays" ON public.holidays;

@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 
 export type MediaKind = "image" | "audio" | "video" | "file";
 
@@ -12,13 +12,13 @@ export async function uploadMediaFull(file: File, userId: string): Promise<{
 }> {
   const ext = file.name.split(".").pop() || "bin";
   const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const { error } = await supabase.storage.from("note-media").upload(path, file, {
+  const { error } = await firebaseStore.storage.from("note-media").upload(path, file, {
     cacheControl: "3600",
     upsert: false,
     contentType: file.type || undefined,
   });
   if (error) throw error;
-  const { data } = await supabase.storage.from("note-media").createSignedUrl(path, 60 * 60 * 24 * 365);
+  const { data } = await firebaseStore.storage.from("note-media").createSignedUrl(path, 60 * 60 * 24 * 365);
   if (!data?.signedUrl) throw new Error("نتوانست URL بسازد");
   return {
     url: data.signedUrl,
@@ -39,5 +39,5 @@ export function detectMediaKind(file: File | { type: string }): MediaKind {
 }
 
 export async function deleteMediaPath(path: string) {
-  await supabase.storage.from("note-media").remove([path]);
+  await firebaseStore.storage.from("note-media").remove([path]);
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,7 @@ export default function NewNoteView() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    supabase.from("folders").select("id,name").order("position")
+    firebaseStore.from("folders").select("id,name").order("position")
       .then(({ data }) => setFolders((data || []) as any));
   }, [user]);
 
@@ -39,7 +39,7 @@ export default function NewNoteView() {
     }
     setBusy(true);
     try {
-      const { error } = await supabase.from("notes").insert({
+      const { error } = await firebaseStore.from("notes").insert({
         user_id: user.id,
         title: title.trim(),
         content,

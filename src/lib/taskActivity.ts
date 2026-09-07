@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import type { TaskActivity } from "@/lib/taskTypes";
 
 export async function logTaskActivity(
@@ -7,14 +7,14 @@ export async function logTaskActivity(
   action: string,
   payload: Record<string, unknown> = {},
 ) {
-  const { error } = await supabase
+  const { error } = await firebaseStore
     .from("task_activities")
     .insert({ task_id: taskId, user_id: userId, action, payload } as never);
   if (error) console.error("logTaskActivity", error);
 }
 
 export async function listTaskActivities(taskId: string) {
-  const { data, error } = await supabase
+  const { data, error } = await firebaseStore
     .from("task_activities")
     .select("*")
     .eq("task_id", taskId)

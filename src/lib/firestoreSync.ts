@@ -98,10 +98,10 @@ export async function backupAllToFirestore(
       }
     }
 
-    // If still empty and online, try fetching from Supabase
+    // If still empty and online, try fetching from firebaseStore
     if (!tasksToSync.length && typeof navigator !== "undefined" && navigator.onLine) {
       try {
-        const { data: supaTasks } = await (supabase.from("tasks") as any)
+        const { data: supaTasks } = await (firebaseStore.from("tasks") as any)
           .select("*")
           .eq("user_id", user.id)
           .limit(2000);
@@ -131,10 +131,10 @@ export async function backupAllToFirestore(
       }
     }
 
-    // If still empty and online, try fetching notes from Supabase
+    // If still empty and online, try fetching notes from firebaseStore
     if (!notesToSync.length && typeof navigator !== "undefined" && navigator.onLine) {
       try {
-        const { data: supaNotes } = await (supabase.from("notes") as any)
+        const { data: supaNotes } = await (firebaseStore.from("notes") as any)
           .select("*")
           .eq("user_id", user.id)
           .limit(1000);

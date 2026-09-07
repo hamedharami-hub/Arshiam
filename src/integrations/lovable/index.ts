@@ -2,7 +2,7 @@
 
 import { createLovableAuth } from "@lovable.dev/cloud-auth-js";
 import type { OAuthProvider } from "@lovable.dev/cloud-auth-js";
-import { supabase } from "../supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 const lovableAuth = createLovableAuth();
 
 type SignInOptions = {
@@ -29,7 +29,7 @@ export const lovable = {
       }
 
       try {
-        await supabase.auth.setSession(result.tokens);
+        await firebaseStore.auth.setSession(result.tokens);
       } catch (e) {
         return { error: e instanceof Error ? e : new Error(String(e)) };
       }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -24,16 +24,16 @@ export function FolderDeleteDialog({
     try {
       if (mode === "move") {
         // Move tasks & notes & subfolders to root, then delete the folder
-        await supabase.from("tasks").update({ folder_id: null }).eq("folder_id", folderId);
-        await supabase.from("notes").update({ folder_id: null }).eq("folder_id", folderId);
-        await supabase.from("folders").update({ parent_id: null }).eq("parent_id", folderId);
+        await firebaseStore.from("tasks").update({ folder_id: null }).eq("folder_id", folderId);
+        await firebaseStore.from("notes").update({ folder_id: null }).eq("folder_id", folderId);
+        await firebaseStore.from("folders").update({ parent_id: null }).eq("parent_id", folderId);
         // folder_columns belong to this folder; delete them along with the folder
-        await supabase.from("folder_columns").delete().eq("folder_id", folderId);
+        await firebaseStore.from("folder_columns").delete().eq("folder_id", folderId);
       } else {
         // Delete tasks (cascade subtasks via parent_id), notes, columns, and subfolders recursively
         await deleteCascade(folderId);
       }
-      const { error } = await supabase.from("folders").delete().eq("id", folderId);
+      const { error } = await firebaseStore.from("folders").delete().eq("id", folderId);
       if (error) throw error;
       toast.success(mode === "move" ? "فولدر حذف شد، محتوا منتقل شد" : "فولدر و محتوا حذف شد");
       onDone?.();
@@ -87,21 +87,21 @@ export function FolderDeleteDialog({
 
 async function deleteCascade(folderId: string) {
   // Recurse into subfolders
-  const { data: subs } = await supabase.from("folders").select("id").eq("parent_id", folderId);
+  const { data: subs } = await firebaseStore.from("folders").select("id").eq("parent_id", folderId);
   for (const s of subs || []) {
     await deleteCascade((s as any).id);
-    await supabase.from("folders").delete().eq("id", (s as any).id);
+    await firebaseStore.from("folders").delete().eq("id", (s as any).id);
   }
   // Get task ids in this folder
-  const { data: tasks } = await supabase.from("tasks").select("id").eq("folder_id", folderId);
+  const { data: tasks } = await firebaseStore.from("tasks").select("id").eq("folder_id", folderId);
   const taskIds = (tasks || []).map((t: any) => t.id);
   if (taskIds.length) {
     // Delete subtasks (children referencing parent_id)
-    await supabase.from("tasks").delete().in("parent_id", taskIds);
-    await supabase.from("tasks").delete().in("id", taskIds);
+    await firebaseStore.from("tasks").delete().in("parent_id", taskIds);
+    await firebaseStore.from("tasks").delete().in("id", taskIds);
   }
   // Notes belonging to folder
-  await supabase.from("notes").delete().eq("folder_id", folderId);
+  await firebaseStore.from("notes").delete().eq("folder_id", folderId);
   // Kanban columns belonging to folder
-  await supabase.from("folder_columns").delete().eq("folder_id", folderId);
+  await firebaseStore.from("folder_columns").delete().eq("folder_id", folderId);
 }

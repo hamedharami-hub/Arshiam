@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,7 +36,7 @@ export function TaskSubtasksInline({
   const writeTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const load = async () => {
-    const { data } = await supabase
+    const { data } = await firebaseStore
       .from("tasks")
       .select("id,title,completed,position")
       .eq("parent_id", taskId)
@@ -57,13 +57,13 @@ export function TaskSubtasksInline({
 
   useEffect(() => {
     if (!user) return;
-    const ch = supabase
+    const ch = firebaseStore
       .channel(`subs-rt-${taskId}`)
       .on("postgres_changes",
         { event: "*", schema: "public", table: "tasks", filter: `parent_id=eq.${taskId}` },
         load)
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => { firebaseStore.removeChannel(ch); };
   }, [user, taskId]);
 
 
@@ -71,7 +71,7 @@ export function TaskSubtasksInline({
     if (readOnly) return;
     const title = newTitle.trim();
     if (!title || !user) return;
-    const { data, error } = await supabase
+    const { data, error } = await firebaseStore
       .from("tasks")
       .insert({
         user_id: user.id,
@@ -91,7 +91,7 @@ export function TaskSubtasksInline({
     if (readOnly) return;
     const next = !s.completed;
     setSubs((prev) => prev.map((x) => (x.id === s.id ? { ...x, completed: next } : x)));
-    await supabase
+    await firebaseStore
       .from("tasks")
       .update({ completed: next, completed_at: next ? new Date().toISOString() : null })
       .eq("id", s.id);
@@ -103,7 +103,7 @@ export function TaskSubtasksInline({
     setSubs((prev) => prev.map((x) => (x.id === id ? { ...x, title } : x)));
     if (writeTimers.current[id]) clearTimeout(writeTimers.current[id]);
     writeTimers.current[id] = setTimeout(async () => {
-      await supabase.from("tasks").update({ title }).eq("id", id);
+      await firebaseStore.from("tasks").update({ title }).eq("id", id);
       // release the editing lock shortly after the realtime echo arrives
       setTimeout(() => editingRef.current.delete(id), 800);
     }, 500);
@@ -112,7 +112,7 @@ export function TaskSubtasksInline({
   const remove = async (id: string) => {
     if (readOnly) return;
     setSubs((prev) => prev.filter((x) => x.id !== id));
-    await supabase.from("tasks").delete().eq("id", id);
+    await firebaseStore.from("tasks").delete().eq("id", id);
   };
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -125,7 +125,7 @@ export function TaskSubtasksInline({
     const reordered = arrayMove(subs, fromIdx, toIdx).map((s, i) => ({ ...s, position: i }));
     setSubs(reordered);
     await Promise.all(
-      reordered.map((s, i) => supabase.from("tasks").update({ position: i }).eq("id", s.id)),
+      reordered.map((s, i) => firebaseStore.from("tasks").update({ position: i }).eq("id", s.id)),
     );
   };
 

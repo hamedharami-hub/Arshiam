@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Clock, ListChecks, TrendingUp, Target } from "lucide-react";
 import PomodoroTimer from "@/components/PomodoroTimer";
@@ -27,21 +27,21 @@ export default function PomodoroView() {
     if (!user) return;
     const start = new Date(); start.setHours(0, 0, 0, 0);
     const weekStart = startOfDay(subDays(new Date(), 6));
-    supabase.from("pomodoro_sessions")
+    firebaseStore.from("pomodoro_sessions")
       .select("duration_minutes, task_id, ended_at, tasks(title)")
       .eq("user_id", user.id)
       .eq("completed", true)
       .gte("started_at", start.toISOString())
       .order("ended_at", { ascending: false })
       .then(({ data }) => setToday((data as SessionRow[] | null) || []));
-    supabase.from("pomodoro_sessions")
+    firebaseStore.from("pomodoro_sessions")
       .select("duration_minutes, started_at")
       .eq("user_id", user.id)
       .eq("completed", true)
       .gte("started_at", weekStart.toISOString())
       .order("started_at", { ascending: true })
       .then(({ data }) => setWeekSessions((data as WeekRow[] | null) || []));
-    supabase.from("tasks")
+    firebaseStore.from("tasks")
       .select("id,title,due_date")
       .eq("user_id", user.id)
       .eq("completed", false)

@@ -1,1 +1,0 @@
-GRANT EXECUTE ON FUNCTION public.admin_user_list() TO authenticated;

@@ -1,7 +1,7 @@
 // Helpers to convert mental-health artifacts (Thought records, ABC, Decision)
 // into actionable Tasks — one of the main "integration" points between Mind and Tasks.
 
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 
 export async function createTaskFromMind(opts: {
   user_id: string;
@@ -12,7 +12,7 @@ export async function createTaskFromMind(opts: {
   const due = opts.due_in_days != null
     ? new Date(Date.now() + opts.due_in_days * 86400000).toISOString()
     : null;
-  const { error } = await supabase.from("tasks").insert({
+  const { error } = await firebaseStore.from("tasks").insert({
     user_id: opts.user_id,
     title: opts.title.slice(0, 200),
     description: opts.description?.slice(0, 2000) || null,

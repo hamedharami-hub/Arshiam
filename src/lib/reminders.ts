@@ -1,5 +1,5 @@
 // Reminders engine — Web Notifications + auto daily task creation
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { cacheGet, cacheSet, enqueueOp } from "@/lib/offlineQueue";
 import { fireNotification, hasNotificationPermission } from "@/lib/notify";
 export { ensureNotificationPermission } from "@/lib/notify";
@@ -66,7 +66,7 @@ export async function checkTaskReminders(userId: string, s: UserSettings) {
   if (!s.notifications_enabled) return;
   if (!(await hasNotificationPermission())) return;
   const nowIso = new Date().toISOString();
-  const { data } = await supabase
+  const { data } = await firebaseStore
     .from("tasks")
     .select("id,title,reminder_at")
     .eq("user_id", userId)
@@ -135,7 +135,7 @@ export async function ensureDailyTasks(userId: string, s: UserSettings) {
 
   // Avoid duplicates: check for tasks today with these titles
   const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
-  const { data: existing } = await supabase
+  const { data: existing } = await firebaseStore
     .from("tasks")
     .select("title")
     .eq("user_id", userId)
@@ -154,7 +154,7 @@ export async function ensureDailyTasks(userId: string, s: UserSettings) {
     }));
 
   if (toInsert.length > 0) {
-    await supabase.from("tasks").insert(toInsert);
+    await firebaseStore.from("tasks").insert(toInsert);
   }
   localStorage.setItem(LAST_TASK_KEY, today);
 }
@@ -189,13 +189,13 @@ export async function loadSettings(userId: string): Promise<UserSettings | null>
     }
 
     try {
-      const { data } = await supabase.from("user_settings").select("*").eq("user_id", userId).maybeSingle();
+      const { data } = await firebaseStore.from("user_settings").select("*").eq("user_id", userId).maybeSingle();
       if (data) {
         const settings = { ...DEFAULT_SETTINGS, task_defaults: data.task_defaults || DEFAULT_SETTINGS.task_defaults, ...(data as unknown as Partial<UserSettings>), user_id: userId } as UserSettings;
         await cacheSet(SETTINGS_CACHE_KEY(userId), settings);
         return settings;
       }
-      const { data: created } = await supabase
+      const { data: created } = await firebaseStore
         .from("user_settings")
         .insert({ user_id: userId })
         .select()
@@ -227,7 +227,7 @@ export async function saveSettings(userId: string, patch: Partial<UserSettings>)
     });
     return;
   }
-  const { error } = await supabase
+  const { error } = await firebaseStore
     .from("user_settings")
     .upsert({ user_id: userId, ...patch } as never, { onConflict: "user_id" });
   if (error) throw error;

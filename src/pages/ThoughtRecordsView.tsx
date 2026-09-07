@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -109,8 +109,8 @@ export default function ThoughtRecordsView() {
       distortions: form.distortions,
     };
     const savedId = await upsertThoughtRecord(user.id, payload);
-    // Mirror to Supabase if accessible
-    supabase.from("thought_records").insert({ ...payload, id: savedId }).catch(() => {});
+    // Mirror to firebaseStore if accessible
+    firebaseStore.from("thought_records").insert({ ...payload, id: savedId }).catch(() => {});
 
     if (savedId) {
       toast.success("ثبت شد ✨");

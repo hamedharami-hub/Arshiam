@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Clock } from "lucide-react";
 import PomodoroTimer from "@/components/PomodoroTimer";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { formatDate, getCalendarSystem } from "@/lib/jalali";
 
@@ -27,7 +27,7 @@ export default function PomodoroSheet({ task, open, onOpenChange }: Props) {
 
   const load = useCallback(async () => {
     if (!user || !task) return;
-    const { data } = await supabase
+    const { data } = await firebaseStore
       .from("pomodoro_sessions")
       .select("id,duration_minutes,started_at,ended_at,completed")
       .eq("user_id", user.id)

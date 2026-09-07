@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { subscribeFolders, upsertNote, upsertTask } from "@/lib/firestoreDataService";
 import { parseNaturalDate } from "@/lib/nlDate";
 import { PRIORITY_META, PRIORITY_SELECTABLE, type Priority } from "@/lib/priority";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
@@ -89,8 +89,8 @@ export default function QuickCaptureDialog() {
     setFolderId(initialFolderId);
 
     if (!user) return;
-    supabase.from("folders").select("id,name,color").eq("user_id", user.id).order("name").then(({ data }) => {
-      setFolders((data || []) as { id: string; name: string; color: string | null }[]);
+    return subscribeFolders(user.id, (items) => {
+      setFolders(items.map(({ id, name, color }) => ({ id, name, color: color || null })));
     });
   }, [open, user]);
 
@@ -160,29 +160,35 @@ export default function QuickCaptureDialog() {
     setBusy(true);
     try {
       if (tab === "task") {
-        const { data, error } = await supabase
-          .from("tasks")
-          .insert({
-            user_id: user.id,
-            title: finalTitle,
-            due_date: finalDue,
-            priority: finalPriority,
-            folder_id: finalFolderId,
-          })
-          .select()
-          .single();
-        if (error) throw error;
+        const id = crypto.randomUUID();
+        const createdAt = new Date().toISOString();
+        const task = {
+          id,
+          user_id: user.id,
+          title: finalTitle,
+          description: null,
+          due_date: finalDue,
+          priority: finalPriority,
+          folder_id: finalFolderId,
+          completed: false,
+          status: "todo" as const,
+          created_at: createdAt,
+          position: 0,
+        };
+        const saved = await upsertTask(user.id, task);
+        if (!saved) throw new Error(T("ذخیره‌سازی تسک ممکن نشد", "Unable to save task"));
+
         toast.success(finalDue ? T("تسک با تاریخ ساخته شد", "Task created with date") : T("تسک ساخته شد", "Task created"));
         window.dispatchEvent(new Event("tasks-changed"));
         setOpen(false);
-        if (data) navigate(`/app/tasks/${data.id}`);
+        navigate(`/app/tasks/${id}`);
       } else {
-        const { data, error } = await supabase
-          .from("notes")
-          .insert({ user_id: user.id, title: finalTitle, content: "" })
-          .select()
-          .single();
-        if (error) throw error;
+        const id = crypto.randomUUID();
+        const createdAt = new Date().toISOString();
+        const note = { id, user_id: user.id, title: finalTitle, content: "", pinned: false, created_at: createdAt, updated_at: createdAt };
+        const saved = await upsertNote(user.id, note);
+        if (!saved) throw new Error(T("ذخیره‌سازی نوت ممکن نشد", "Unable to save note"));
+
         toast.success(T("نوت ساخته شد", "Note created"));
         setOpen(false);
         navigate("/app/notes");

@@ -2,7 +2,7 @@
 // onto sidebar folder rows. Uses native HTML5 drag events so it works across
 // independent React trees without coordinating a single dnd-kit context.
 
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { toast } from "sonner";
 
 export type DragPayload = { kind: "task" | "note"; id: string; title?: string };
@@ -28,7 +28,7 @@ export function readItemDrag(e: React.DragEvent): DragPayload | null {
 
 export async function moveItemToFolder(payload: DragPayload, folderId: string | null) {
   const table = payload.kind === "task" ? "tasks" : "notes";
-  const { error } = await supabase.from(table as any).update({ folder_id: folderId }).eq("id", payload.id);
+  const { error } = await firebaseStore.from(table as any).update({ folder_id: folderId }).eq("id", payload.id);
   if (error) { toast.error(error.message); return false; }
   toast.success(folderId ? "منتقل شد" : "به Inbox منتقل شد");
   return true;

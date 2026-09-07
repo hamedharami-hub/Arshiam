@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Filter, Save, Trash2, ArrowUp, ArrowDown } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
@@ -120,10 +120,10 @@ export function TaskFilterSheet({
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("folders").select("id,name").order("position").then(({ data }) => {
+    firebaseStore.from("folders").select("id,name").order("position").then(({ data }) => {
       setFolders((data || []) as any);
     });
-    supabase.from("tags").select("id,name").then(({ data }) => {
+    firebaseStore.from("tags").select("id,name").then(({ data }) => {
       setTags((data || []) as any);
     });
     try {

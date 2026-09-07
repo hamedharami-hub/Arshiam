@@ -1,9 +1,9 @@
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import type { Task, TaskTemplate } from "@/lib/taskTypes";
 import { addHours } from "date-fns";
 
 export async function saveTaskTemplate(userId: string, task: Task, title?: string): Promise<TaskTemplate | null> {
-  const { data, error } = await supabase
+  const { data, error } = await firebaseStore
     .from("task_templates")
     .insert({
       user_id: userId,
@@ -26,7 +26,7 @@ export async function saveTaskTemplate(userId: string, task: Task, title?: strin
 }
 
 export async function listTaskTemplates(userId: string): Promise<TaskTemplate[]> {
-  const { data, error } = await supabase
+  const { data, error } = await firebaseStore
     .from("task_templates")
     .select("*")
     .eq("user_id", userId)
@@ -36,7 +36,7 @@ export async function listTaskTemplates(userId: string): Promise<TaskTemplate[]>
 }
 
 export async function deleteTaskTemplate(userId: string, id: string) {
-  const { error } = await supabase.from("task_templates").delete().eq("id", id).eq("user_id", userId);
+  const { error } = await firebaseStore.from("task_templates").delete().eq("id", id).eq("user_id", userId);
   if (error) throw error;
 }
 
@@ -61,7 +61,7 @@ export async function createTaskFromTemplate(
   overrides: Partial<Task> = {},
 ): Promise<Task | null> {
   const base = buildTaskFromTemplate(template);
-  const { data, error } = await supabase
+  const { data, error } = await firebaseStore
     .from("tasks")
     .insert({ user_id: userId, ...base, ...overrides } as never)
     .select()

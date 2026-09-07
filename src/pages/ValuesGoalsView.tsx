@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -110,7 +110,7 @@ export default function ValuesGoalsView() {
     const days = HORIZONS[g.horizon].days;
     const due = days === 0 ? null : new Date(Date.now() + days * 86400000).toISOString();
     const domainLabel = DOMAINS.find((d) => d.key === g.domain)?.label || "";
-    const { error } = await supabase.from("tasks").insert({
+    const { error } = await firebaseStore.from("tasks").insert({
       user_id: user.id,
       title: g.text,
       description: `هدف ارزش‌محور · ${domainLabel}`,
