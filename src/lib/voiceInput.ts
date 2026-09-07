@@ -1,7 +1,6 @@
 // Web Speech API for voice input (tasks and notes)
 // Supports Persian (fa-IR) and English (en-US)
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 type VoiceInputOptions = {
   onTranscript: (text: string) => void;

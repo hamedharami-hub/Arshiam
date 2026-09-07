@@ -84,7 +84,7 @@ export default function NotesView() {
         { key: "translate_en", label: T("🇬🇧 ترجمه به انگلیسی", "🇬🇧 Translate to English") },
       ],
     },
-  ], [isEn, T]);
+  ], [T]);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [notes, setNotes] = useState<Note[]>([]);

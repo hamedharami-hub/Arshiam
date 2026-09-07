@@ -304,7 +304,6 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   // Module-scoped cache so navigating between scopes (or remounts) reuses
   // the last task list instantly instead of waiting on a roundtrip.
   // Keyed by user.id; survives unmount but resets on page reload.
-  // eslint-disable-next-line @typescript-eslint/no-use-before-define
   const cache = tasksCache;
 
   const lastLoadRef = (TasksView as any)._lastLoadRef ||= { current: 0 };

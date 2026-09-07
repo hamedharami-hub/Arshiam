@@ -894,7 +894,6 @@ export default function SettingsView() {
   };
 
   // Dynamic table access for export/import/delete where table names are runtime strings.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fromTable = (table: string) => (supabase as any).from(table);
 
   async function exportAll() {
