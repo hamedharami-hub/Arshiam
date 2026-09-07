@@ -374,10 +374,10 @@ export default function MindView() {
               <Link
                 key={t.to}
                 to={t.to}
-                className="group rounded-2xl border border-border/60 bg-card/50 p-4 hover:bg-accent/30 transition"
+                className="group rounded-2xl border border-border/60 bg-card/50 p-4 hover:bg-accent/30 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
               >
                 <div className="flex items-start gap-3">
-                  <div className="grid place-items-center h-10 w-10 rounded-xl bg-primary/10 text-primary shrink-0">
+                  <div className={`grid place-items-center h-10 w-10 rounded-xl bg-gradient-to-tr ${t.gradient} text-white shrink-0 shadow-sm`}>
                     <Icon className="w-5 h-5" />
                   </div>
                   <div className="min-w-0">

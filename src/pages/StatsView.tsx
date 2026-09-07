@@ -208,17 +208,30 @@ export default function StatsView() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {habitStats.map((h) => (
+          {(() => {
+            const COLORS = [
+              "from-emerald-500 to-teal-500",
+              "from-violet-500 to-purple-500",
+              "from-amber-500 to-orange-500",
+              "from-sky-500 to-blue-500",
+              "from-rose-500 to-pink-500",
+              "from-cyan-500 to-sky-500",
+            ];
+            return habitStats.map((h, i) => (
               <div key={h.id} className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-medium truncate flex-1">{h.name}</span>
                   <span className="text-muted-foreground tabular-nums">{toPersianDigits(h.logs)}/{toPersianDigits(h.target)} • {toPersianDigits(h.rate)}%</span>
                 </div>
                 <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.min(100, h.rate)}%` }} />
+                  <div
+                    className={`h-full bg-gradient-to-r ${COLORS[i % COLORS.length]} rounded-full transition-all duration-700`}
+                    style={{ width: `${Math.min(100, h.rate)}%` }}
+                  />
                 </div>
               </div>
-            ))}
+            ));
+          })()}
           </CardContent>
         </Card>
       )}

@@ -1089,12 +1089,12 @@ export default function SettingsView() {
 
   const currentTheme = reminders?.theme || theme || "system";
   const themeOptions = [
-    { value: "system", label: t("settings.themeSystem"), icon: Settings2 },
-    { value: "light", label: t("settings.themeLight"), icon: Sun },
-    { value: "dark", label: t("settings.themeDark"), icon: Moon },
-    { value: "ticktick-light", label: t("settings.themeTickTick"), icon: CheckCircle2 },
-    { value: "arshnaz-light", label: t("settings.themeArshnaz"), icon: Heart },
-    { value: "arshnaz-dark", label: t("settings.themeArshnazDark"), icon: Moon },
+    { value: "system", label: t("settings.themeSystem"), icon: Settings2, swatch: ["#94a3b8", "#cbd5e1", "#475569"] },
+    { value: "light", label: t("settings.themeLight"), icon: Sun, swatch: ["#ffffff", "#f1f5f9", "#6366f1"] },
+    { value: "dark", label: t("settings.themeDark"), icon: Moon, swatch: ["#0f172a", "#1e293b", "#818cf8"] },
+    { value: "ticktick-light", label: t("settings.themeTickTick"), icon: CheckCircle2, swatch: ["#ffffff", "#f0fdf4", "#4ade80"] },
+    { value: "arshnaz-light", label: t("settings.themeArshnaz"), icon: Heart, swatch: ["#fff7ed", "#fef3c7", "#f59e0b"] },
+    { value: "arshnaz-dark", label: t("settings.themeArshnazDark"), icon: Moon, swatch: ["#1c1917", "#292524", "#fb923c"] },
   ];
 
   const fontSizeOptions = [
@@ -1183,28 +1183,38 @@ export default function SettingsView() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-xs">{t("settings.theme")}</Label>
-                <div className="flex flex-wrap gap-2">
-                  {themeOptions.slice(0, 3).map((opt) => (
-                    <Button
-                      key={opt.value}
-                      size="sm"
-                      variant={currentTheme === opt.value ? "default" : "outline"}
-                      onClick={() => setAppTheme(opt.value)}
-                      className="gap-1.5"
-                    >
-                      <opt.icon className="w-3.5 h-3.5" />
-                      {opt.label}
-                    </Button>
-                  ))}
+                <div className="grid grid-cols-3 gap-2">
+                  {themeOptions.map((opt) => {
+                    const Icon = opt.icon;
+                    const active = currentTheme === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        onClick={() => setAppTheme(opt.value)}
+                        className={`group relative flex flex-col items-center gap-2 rounded-xl border-2 p-3 transition-all duration-200 hover:scale-[1.03] hover:shadow-md ${
+                          active
+                            ? "border-primary shadow-sm bg-primary/5"
+                            : "border-border/60 bg-card/60 hover:border-primary/40"
+                        }`}
+                      >
+                        {/* Color swatches */}
+                        <div className="flex gap-1 h-7 w-full rounded-lg overflow-hidden">
+                          {opt.swatch.map((color, i) => (
+                            <div key={i} className="flex-1 h-full" style={{ background: color }} />
+                          ))}
+                        </div>
+                        {/* Icon + label */}
+                        <div className="flex items-center gap-1 text-[11px] font-medium text-foreground">
+                          <Icon className="w-3 h-3" />
+                          <span className="truncate">{opt.label}</span>
+                        </div>
+                        {active && (
+                          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary" />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
-                <Select value={currentTheme} onValueChange={(v) => setAppTheme(v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {themeOptions.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
 
               {reminders && (
