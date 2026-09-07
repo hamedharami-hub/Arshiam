@@ -43,8 +43,15 @@ export default function DayDetailSheet({
   useEffect(() => {
     if (!date || !user || !open) return;
     const ds = format(date, "yyyy-MM-dd");
-    supabase.from("daily_checkins").select("*").eq("checkin_date", ds).maybeSingle()
-      .then(({ data }) => setCheckin(data));
+    import("@/lib/firestoreDataService").then(({ getDailyCheckin }) => {
+      getDailyCheckin(user.id, ds).then((data) => {
+        if (data) setCheckin(data);
+        else {
+          supabase.from("daily_checkins").select("*").eq("checkin_date", ds).maybeSingle()
+            .then(({ data }) => setCheckin(data)).catch(() => {});
+        }
+      });
+    });
   }, [date, user, open]);
 
   if (!date) return null;
@@ -63,14 +70,28 @@ export default function DayDetailSheet({
     if (!newTitle.trim() || !user) return;
     const dt = new Date(date);
     dt.setHours(newHour, 0, 0, 0);
-    const { error } = await supabase.from("tasks").insert({
-      title: newTitle, user_id: user.id, due_date: dt.toISOString(),
-    });
-    if (error) toast.error(error.message);
-    else {
-      toast.success("تسک ثبت شد");
+
+    const newTask = {
+      id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      user_id: user.id,
+      title: newTitle.trim(),
+      due_date: dt.toISOString(),
+      completed: false,
+      priority: "medium" as const,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { upsertTask } = await import("@/lib/firestoreDataService");
+    const ok = await upsertTask(user.id, newTask);
+    supabase.from("tasks").insert(newTask).catch(() => {});
+
+    if (ok) {
+      toast.success("تسک ثبت شد ✨");
       setNewTitle("");
       onTaskCreated?.();
+    } else {
+      toast.error("خطا در ثبت تسک");
     }
   };
 

@@ -12,6 +12,7 @@ import { QUADRANT_LABELS, QUADRANT_DESC, type AttachmentQuadrant } from "@/lib/a
 import { markdownToHtml } from "@/lib/markdown";
 import { streamAI } from "@/lib/aiStream";
 import { toast } from "sonner";
+import { subscribeAssessmentResults } from "@/lib/firestoreDataService";
 
 export default function AssessmentResult() {
   const { type } = useParams<{ type: string }>();
@@ -23,21 +24,15 @@ export default function AssessmentResult() {
 
   useEffect(() => {
     if (!user || !type) return;
-    (async () => {
-      const { data } = await supabase
-        .from("assessment_results")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("assessment_type", type)
-        .order("completed_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      setData(data);
-      // Restore cached AI analysis if any
-      const cachedKey = `assessment_ai_${type}_${data?.id}`;
-      const cached = localStorage.getItem(cachedKey);
-      if (cached) setAiAnalysis(cached);
-    })();
+    const unsub = subscribeAssessmentResults(user.id, type, (results) => {
+      if (results && results.length > 0) {
+        setData(results[0]);
+        const cachedKey = `assessment_ai_${type}_${results[0].id}`;
+        const cached = localStorage.getItem(cachedKey);
+        if (cached) setAiAnalysis(cached);
+      }
+    });
+    return () => unsub();
   }, [user, type]);
 
   async function generateAiAnalysis() {

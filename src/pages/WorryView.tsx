@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Brain, Lightbulb, Wind, CheckCircle2, Save, Plus, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { callAI } from "@/lib/ai";
+import { upsertTask, upsertThoughtRecord } from "@/lib/firestoreDataService";
 
 type Stage = "intake" | "triage" | "solve" | "accept" | "done";
 
@@ -61,22 +62,34 @@ export default function WorryView() {
       `مسئله قابل‌حل: ${problem}`,
       chosen != null ? `راه‌حل انتخابی: ${solutions[chosen]}` : "",
     ].filter(Boolean).join("\n\n");
-    const { error } = await supabase.from("tasks").insert({
+
+    const newTask = {
+      id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       user_id: user.id,
       title,
       description: desc,
       due_date: new Date(Date.now() + 86400000).toISOString(),
-    });
-    if (error) toast.error(error.message);
-    else {
-      toast.success("به Task فردا اضافه شد");
+      completed: false,
+      priority: "medium" as const,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const ok = await upsertTask(user.id, newTask);
+    // Mirror to Supabase
+    supabase.from("tasks").insert(newTask).catch(() => {});
+
+    if (ok) {
+      toast.success("به Task فردا اضافه شد ✨");
       setStage("done");
+    } else {
+      toast.error("خطا در افزودن وظیفه");
     }
   }
 
   async function saveAcceptance() {
     if (!user) return;
-    const { error } = await supabase.from("thought_records").insert({
+    const payload = {
       user_id: user.id,
       situation: `نگرانی غیرقابل‌حل: ${worry}`,
       automatic_thought: worry,
@@ -85,11 +98,16 @@ export default function WorryView() {
       emotions: ["اضطراب"],
       alternative_thought: acceptanceText || "این موضوع خارج از کنترل من است؛ انرژی‌ام را به آنچه می‌توانم تغییر دهم می‌دهم.",
       distortions: [],
-    });
-    if (error) toast.error(error.message);
-    else {
-      toast.success("در Thought Records ثبت شد");
+    };
+    const savedId = await upsertThoughtRecord(user.id, payload);
+    // Mirror to Supabase
+    supabase.from("thought_records").insert({ ...payload, id: savedId }).catch(() => {});
+
+    if (savedId) {
+      toast.success("در Thought Records ثبت شد ✨");
       setStage("done");
+    } else {
+      toast.error("خطا در ذخیره یادداشت پذیرش");
     }
   }
 

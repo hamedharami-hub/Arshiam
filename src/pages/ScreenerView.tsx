@@ -14,6 +14,12 @@ import {
   LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea,
 } from "recharts";
 
+import {
+  subscribeAssessmentResults,
+  upsertAssessmentResult,
+  type AssessmentResultItem,
+} from "@/lib/firestoreDataService";
+
 export default function ScreenerView() {
   const { type } = useParams<{ type: ScreenerType }>();
   const navigate = useNavigate();
@@ -22,25 +28,19 @@ export default function ScreenerView() {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [index, setIndex] = useState(0);
   const [stage, setStage] = useState<"intro" | "run" | "result">("intro");
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<AssessmentResultItem[]>([]);
   const [latestResult, setLatestResult] = useState<any>(null);
 
   useEffect(() => {
     if (!user || !type) return;
-    (async () => {
-      const { data } = await supabase
-        .from("assessment_results")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("assessment_type", type)
-        .order("completed_at", { ascending: false })
-        .limit(30);
-      setHistory(data || []);
-    })();
+    const unsub = subscribeAssessmentResults(user.id, type, (items) => {
+      setHistory(items);
+    });
+    return () => unsub();
   }, [user, type, stage]);
 
   const trend = useMemo(() => history.slice().reverse().map((h: any) => ({
-    date: new Date(h.completed_at).toLocaleDateString("fa-IR", { month: "short", day: "numeric" }),
+    date: new Date(h.completed_at || h.created_at || Date.now()).toLocaleDateString("fa-IR", { month: "short", day: "numeric" }),
     score: h.scores?.normalized ?? 0,
   })), [history]);
 
@@ -63,8 +63,7 @@ export default function ScreenerView() {
   async function finish(final: Record<number, number>) {
     if (!user || !type) return;
     const result = scoreScreener(type, final);
-    const { data, error } = await supabase.from("assessment_results").insert({
-      user_id: user.id,
+    const payload = {
       assessment_type: type,
       scores: { raw: result.raw, normalized: result.normalized, answers: final },
       analysis: {
@@ -73,14 +72,22 @@ export default function ScreenerView() {
         recommendation: result.recommendation,
         flags: result.flags,
       },
-    }).select().single();
-    if (error) {
-      toast.error(error.message);
-      return;
+    };
+
+    const saved = await upsertAssessmentResult(user.id, payload);
+    // Mirror to Supabase if accessible
+    supabase.from("assessment_results").insert({
+      user_id: user.id,
+      ...payload,
+    }).catch(() => {});
+
+    if (saved) {
+      setLatestResult(saved);
+      setStage("result");
+      toast.success("نتیجه ذخیره شد ✨");
+    } else {
+      toast.error("خطا در ذخیره نتیجه ارزیابی");
     }
-    setLatestResult(data);
-    setStage("result");
-    toast.success("نتیجه ذخیره شد");
   }
 
   const lastResult = latestResult || history[0];

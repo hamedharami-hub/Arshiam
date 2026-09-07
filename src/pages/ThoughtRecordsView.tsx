@@ -14,12 +14,18 @@ import { Plus, X, Sparkles, Brain, BookOpen, Loader2, ListPlus } from "lucide-re
 import { DISTORTION_LABELS, DISTORTION_HINTS, type Distortion } from "@/lib/distortions";
 import { callAI } from "@/lib/ai";
 import { createTaskFromMind } from "@/lib/taskFromMind";
+import {
+  subscribeThoughtRecords,
+  upsertThoughtRecord,
+  deleteThoughtRecord,
+  type ThoughtRecordItem,
+} from "@/lib/firestoreDataService";
 
 const EMOTIONS = ["اضطراب", "خشم", "غم", "شرم", "گناه", "ترس", "نومیدی", "سرخوردگی"];
 
 export default function ThoughtRecordsView() {
   const { user } = useAuth();
-  const [records, setRecords] = useState<any[]>([]);
+  const [records, setRecords] = useState<ThoughtRecordItem[]>([]);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<any>(initial());
   const [aiBusy, setAiBusy] = useState(false);
@@ -37,13 +43,13 @@ export default function ThoughtRecordsView() {
     };
   }
 
-  useEffect(() => { if (user) load(); }, [user]);
-
-  async function load() {
-    const { data } = await supabase.from("thought_records").select("*")
-      .eq("user_id", user!.id).order("created_at", { ascending: false }).limit(20);
-    setRecords(data || []);
-  }
+  useEffect(() => {
+    if (!user) return;
+    const unsub = subscribeThoughtRecords(user.id, (data) => {
+      setRecords(data);
+    });
+    return () => unsub();
+  }, [user]);
 
   async function detect() {
     if (!form.automatic_thought.trim()) {
@@ -102,11 +108,16 @@ export default function ThoughtRecordsView() {
       alternative_thought: form.alternative_thought || null,
       distortions: form.distortions,
     };
-    const { error } = await supabase.from("thought_records").insert(payload);
-    if (error) toast.error(error.message);
-    else {
-      toast.success("ثبت شد");
-      setEditing(false); setForm(initial()); load();
+    const savedId = await upsertThoughtRecord(user.id, payload);
+    // Mirror to Supabase if accessible
+    supabase.from("thought_records").insert({ ...payload, id: savedId }).catch(() => {});
+
+    if (savedId) {
+      toast.success("ثبت شد ✨");
+      setEditing(false);
+      setForm(initial());
+    } else {
+      toast.error("خطا در ذخیره رکورد");
     }
   }
 

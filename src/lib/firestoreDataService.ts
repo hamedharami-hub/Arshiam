@@ -4,6 +4,7 @@ import {
   doc,
   setDoc,
   deleteDoc,
+  getDoc,
   getDocs,
   onSnapshot,
 } from "./firebase";
@@ -50,12 +51,70 @@ export interface HabitItem {
   [key: string]: any;
 }
 
+export interface DailyCheckinItem {
+  id: string;
+  user_id?: string;
+  checkin_date: string;
+  mood: number | null;
+  energy: number | null;
+  focus: number | null;
+  sleep_quality: number | null;
+  stress: number | null;
+  sleep_hours: number | null;
+  notes: string | null;
+  created_at?: string;
+  [key: string]: any;
+}
+
+export interface ThoughtRecordItem {
+  id: string;
+  user_id?: string;
+  situation: string;
+  automatic_thought: string;
+  emotion_intensity_before?: number;
+  emotion_intensity_after?: number | null;
+  emotions?: string[];
+  evidence_for?: string[];
+  evidence_against?: string[];
+  alternative_thought?: string | null;
+  distortions?: string[];
+  created_at?: string;
+  [key: string]: any;
+}
+
+export interface AbcRecordItem {
+  id: string;
+  user_id?: string;
+  trigger: string;
+  belief: string;
+  consequences?: string[];
+  duration_minutes?: number | null;
+  regret_level?: number;
+  created_at?: string;
+  [key: string]: any;
+}
+
+export interface AssessmentResultItem {
+  id: string;
+  user_id?: string;
+  assessment_type: string;
+  scores: any;
+  analysis: any;
+  completed_at?: string;
+  created_at?: string;
+  [key: string]: any;
+}
+
 const CACHE_KEYS = {
   tasks: (uid: string) => `tasks:all:${uid}`,
   folders: (uid: string) => `folders:all:${uid}`,
   tags: (uid: string) => `tags:all:${uid}`,
   notes: (uid: string) => `notes:all:${uid}`,
   habits: (uid: string) => `habits:all:${uid}`,
+  checkins: (uid: string) => `checkins:all:${uid}`,
+  thoughtRecords: (uid: string) => `thoughtRecords:all:${uid}`,
+  abcRecords: (uid: string) => `abcRecords:all:${uid}`,
+  assessmentResults: (uid: string, type?: string) => `assessmentResults:${type || "all"}:${uid}`,
 };
 
 // ==================== TASKS ====================
@@ -431,6 +490,329 @@ export async function deleteHabit(userId: string, habitId: string): Promise<bool
     return true;
   } catch (err) {
     console.warn("[FirestoreData] deleteHabit error:", err);
+    return false;
+  }
+}
+
+// ==================== DAILY CHECKINS ====================
+
+export function subscribeDailyCheckins(
+  userId: string,
+  onUpdate: (checkins: DailyCheckinItem[]) => void
+): () => void {
+  if (!userId) {
+    onUpdate([]);
+    return () => {};
+  }
+
+  cacheGet<DailyCheckinItem[]>(CACHE_KEYS.checkins(userId)).then((cached) => {
+    if (cached && Array.isArray(cached)) onUpdate(cached);
+  });
+
+  try {
+    const colRef = collection(db, "users", userId, "daily_checkins");
+    const unsub = onSnapshot(
+      colRef,
+      (snap) => {
+        const items: DailyCheckinItem[] = [];
+        snap.forEach((d) => {
+          items.push({ id: d.id, ...(d.data() as any) });
+        });
+        items.sort((a, b) => (b.checkin_date || "").localeCompare(a.checkin_date || ""));
+        cacheSet(CACHE_KEYS.checkins(userId), items);
+        onUpdate(items);
+      },
+      async () => {
+        const cached = await cacheGet<DailyCheckinItem[]>(CACHE_KEYS.checkins(userId));
+        if (cached) onUpdate(cached);
+      }
+    );
+    return unsub;
+  } catch {
+    return () => {};
+  }
+}
+
+export async function getDailyCheckin(userId: string, date: string): Promise<DailyCheckinItem | null> {
+  if (!userId || !date) return null;
+  try {
+    const docRef = doc(db, "users", userId, "daily_checkins", date);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      return { id: snap.id, ...(snap.data() as any) };
+    }
+  } catch (err) {
+    console.warn("[FirestoreData] getDailyCheckin error:", err);
+  }
+  // Check local cache
+  const cachedList = await cacheGet<DailyCheckinItem[]>(CACHE_KEYS.checkins(userId));
+  return cachedList?.find((c) => c.checkin_date === date || c.id === date) || null;
+}
+
+export async function upsertDailyCheckin(userId: string, checkin: Partial<DailyCheckinItem> & { checkin_date: string }): Promise<boolean> {
+  if (!userId || !checkin.checkin_date) return false;
+  const docId = checkin.checkin_date;
+  try {
+    const docRef = doc(db, "users", userId, "daily_checkins", docId);
+    await setDoc(docRef, { ...checkin, id: docId, user_id: userId, updated_at: new Date().toISOString() }, { merge: true });
+    return true;
+  } catch (err) {
+    console.warn("[FirestoreData] upsertDailyCheckin error:", err);
+    return false;
+  }
+}
+
+// ==================== THOUGHT RECORDS (CBT) ====================
+
+export function subscribeThoughtRecords(
+  userId: string,
+  onUpdate: (records: ThoughtRecordItem[]) => void
+): () => void {
+  if (!userId) {
+    onUpdate([]);
+    return () => {};
+  }
+
+  cacheGet<ThoughtRecordItem[]>(CACHE_KEYS.thoughtRecords(userId)).then((cached) => {
+    if (cached && Array.isArray(cached)) onUpdate(cached);
+  });
+
+  try {
+    const colRef = collection(db, "users", userId, "thought_records");
+    const unsub = onSnapshot(
+      colRef,
+      (snap) => {
+        const items: ThoughtRecordItem[] = [];
+        snap.forEach((d) => {
+          items.push({ id: d.id, ...(d.data() as any) });
+        });
+        items.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+        cacheSet(CACHE_KEYS.thoughtRecords(userId), items);
+        onUpdate(items);
+      },
+      async () => {
+        const cached = await cacheGet<ThoughtRecordItem[]>(CACHE_KEYS.thoughtRecords(userId));
+        if (cached) onUpdate(cached);
+      }
+    );
+    return unsub;
+  } catch {
+    return () => {};
+  }
+}
+
+export async function upsertThoughtRecord(userId: string, record: Partial<ThoughtRecordItem>): Promise<string | null> {
+  if (!userId) return null;
+  const id = record.id || `thought_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  try {
+    const docRef = doc(db, "users", userId, "thought_records", id);
+    const now = new Date().toISOString();
+    await setDoc(
+      docRef,
+      {
+        ...record,
+        id,
+        user_id: userId,
+        created_at: record.created_at || now,
+        updated_at: now,
+      },
+      { merge: true }
+    );
+    return id;
+  } catch (err) {
+    console.warn("[FirestoreData] upsertThoughtRecord error:", err);
+    return null;
+  }
+}
+
+export async function deleteThoughtRecord(userId: string, id: string): Promise<boolean> {
+  if (!userId || !id) return false;
+  try {
+    const docRef = doc(db, "users", userId, "thought_records", id);
+    await deleteDoc(docRef);
+    return true;
+  } catch (err) {
+    console.warn("[FirestoreData] deleteThoughtRecord error:", err);
+    return false;
+  }
+}
+
+// ==================== ABC RECORDS ====================
+
+export function subscribeAbcRecords(
+  userId: string,
+  onUpdate: (records: AbcRecordItem[]) => void
+): () => void {
+  if (!userId) {
+    onUpdate([]);
+    return () => {};
+  }
+
+  cacheGet<AbcRecordItem[]>(CACHE_KEYS.abcRecords(userId)).then((cached) => {
+    if (cached && Array.isArray(cached)) onUpdate(cached);
+  });
+
+  try {
+    const colRef = collection(db, "users", userId, "abc_records");
+    const unsub = onSnapshot(
+      colRef,
+      (snap) => {
+        const items: AbcRecordItem[] = [];
+        snap.forEach((d) => {
+          items.push({ id: d.id, ...(d.data() as any) });
+        });
+        items.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+        cacheSet(CACHE_KEYS.abcRecords(userId), items);
+        onUpdate(items);
+      },
+      async () => {
+        const cached = await cacheGet<AbcRecordItem[]>(CACHE_KEYS.abcRecords(userId));
+        if (cached) onUpdate(cached);
+      }
+    );
+    return unsub;
+  } catch {
+    return () => {};
+  }
+}
+
+export async function upsertAbcRecord(userId: string, record: Partial<AbcRecordItem>): Promise<string | null> {
+  if (!userId) return null;
+  const id = record.id || `abc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  try {
+    const docRef = doc(db, "users", userId, "abc_records", id);
+    const now = new Date().toISOString();
+    await setDoc(
+      docRef,
+      {
+        ...record,
+        id,
+        user_id: userId,
+        created_at: record.created_at || now,
+        updated_at: now,
+      },
+      { merge: true }
+    );
+    return id;
+  } catch (err) {
+    console.warn("[FirestoreData] upsertAbcRecord error:", err);
+    return null;
+  }
+}
+
+// ==================== ASSESSMENTS & SCREENERS ====================
+
+export function subscribeAssessmentResults(
+  userId: string,
+  type: string | undefined,
+  onUpdate: (results: AssessmentResultItem[]) => void
+): () => void {
+  if (!userId) {
+    onUpdate([]);
+    return () => {};
+  }
+
+  cacheGet<AssessmentResultItem[]>(CACHE_KEYS.assessmentResults(userId, type)).then((cached) => {
+    if (cached && Array.isArray(cached)) onUpdate(cached);
+  });
+
+  try {
+    const colRef = collection(db, "users", userId, "assessment_results");
+    const unsub = onSnapshot(
+      colRef,
+      (snap) => {
+        let items: AssessmentResultItem[] = [];
+        snap.forEach((d) => {
+          items.push({ id: d.id, ...(d.data() as any) });
+        });
+        if (type) {
+          items = items.filter((x) => x.assessment_type === type);
+        }
+        items.sort((a, b) => new Date(b.completed_at || b.created_at || 0).getTime() - new Date(a.completed_at || a.created_at || 0).getTime());
+        cacheSet(CACHE_KEYS.assessmentResults(userId, type), items);
+        onUpdate(items);
+      },
+      async () => {
+        const cached = await cacheGet<AssessmentResultItem[]>(CACHE_KEYS.assessmentResults(userId, type));
+        if (cached) onUpdate(cached);
+      }
+    );
+    return unsub;
+  } catch {
+    return () => {};
+  }
+}
+
+export async function upsertAssessmentResult(
+  userId: string,
+  result: Partial<AssessmentResultItem>
+): Promise<AssessmentResultItem | null> {
+  if (!userId || !result.assessment_type) return null;
+  const id = result.id || `result_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const now = new Date().toISOString();
+  const payload: AssessmentResultItem = {
+    id,
+    user_id: userId,
+    assessment_type: result.assessment_type,
+    scores: result.scores || {},
+    analysis: result.analysis || {},
+    completed_at: result.completed_at || now,
+    created_at: result.created_at || now,
+    ...result,
+  };
+
+  try {
+    const docRef = doc(db, "users", userId, "assessment_results", id);
+    await setDoc(docRef, payload, { merge: true });
+    return payload;
+  } catch (err) {
+    console.warn("[FirestoreData] upsertAssessmentResult error:", err);
+    return null;
+  }
+}
+
+export async function getAssessmentProgress(
+  userId: string,
+  type: string
+): Promise<{ responses: Record<number, number>; currentIndex: number; completed: boolean } | null> {
+  if (!userId || !type) return null;
+  try {
+    const docRef = doc(db, "users", userId, "assessment_progress", type);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      return snap.data() as any;
+    }
+  } catch (err) {
+    console.warn("[FirestoreData] getAssessmentProgress error:", err);
+  }
+  return null;
+}
+
+export async function saveAssessmentProgress(
+  userId: string,
+  type: string,
+  responses: Record<number, number>,
+  currentIndex: number,
+  completed: boolean
+): Promise<boolean> {
+  if (!userId || !type) return false;
+  try {
+    const docRef = doc(db, "users", userId, "assessment_progress", type);
+    await setDoc(
+      docRef,
+      {
+        user_id: userId,
+        assessment_type: type,
+        responses,
+        current_index: currentIndex,
+        completed,
+        updated_at: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+    return true;
+  } catch (err) {
+    console.warn("[FirestoreData] saveAssessmentProgress error:", err);
     return false;
   }
 }

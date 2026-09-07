@@ -13,35 +13,50 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { toast } from "sonner";
 import { Plus, TrendingUp, BookOpen, ListPlus } from "lucide-react";
 import { createTaskFromMind } from "@/lib/taskFromMind";
+import {
+  subscribeAbcRecords,
+  upsertAbcRecord,
+  type AbcRecordItem,
+} from "@/lib/firestoreDataService";
 
 const TRIGGERS = ["دریافت پیام", "خستگی فیزیکی", "گیر کردن روی مسئله", "گرسنگی", "نویز", "فکر مزاحم", "کافئین", "کمبود خواب", "سایر"];
 const CONSEQUENCES = ["باز کردن شبکه اجتماعی", "خوردن ناسالم", "تعویق", "خشم", "گریه", "ترک میز", "خوابیدن بی‌موقع", "سایر"];
 
 export default function ABCView() {
   const { user } = useAuth();
-  const [records, setRecords] = useState<any[]>([]);
+  const [records, setRecords] = useState<AbcRecordItem[]>([]);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ trigger: "", belief: "", consequences: [] as string[], duration_minutes: "", regret_level: 5 });
 
-  useEffect(() => { if (user) load(); }, [user]);
-
-  async function load() {
-    const { data } = await supabase.from("abc_records").select("*").eq("user_id", user!.id)
-      .gte("created_at", new Date(Date.now() - 30 * 86400000).toISOString())
-      .order("created_at", { ascending: false });
-    setRecords(data || []);
-  }
+  useEffect(() => {
+    if (!user) return;
+    const unsub = subscribeAbcRecords(user.id, (data) => {
+      setRecords(data);
+    });
+    return () => unsub();
+  }, [user]);
 
   async function save() {
     if (!user || !form.trigger || !form.belief) { toast.error("محرک و باور را پر کن"); return; }
-    const { error } = await supabase.from("abc_records").insert({
+    const payload = {
       user_id: user.id,
-      trigger: form.trigger, belief: form.belief, consequences: form.consequences,
+      trigger: form.trigger,
+      belief: form.belief,
+      consequences: form.consequences,
       duration_minutes: form.duration_minutes ? Number(form.duration_minutes) : null,
       regret_level: form.regret_level,
-    });
-    if (error) toast.error(error.message);
-    else { toast.success("ثبت شد"); setEditing(false); setForm({ trigger: "", belief: "", consequences: [], duration_minutes: "", regret_level: 5 }); load(); }
+    };
+    const savedId = await upsertAbcRecord(user.id, payload);
+    // Mirror to Supabase in background
+    supabase.from("abc_records").insert({ ...payload, id: savedId }).catch(() => {});
+
+    if (savedId) {
+      toast.success("ثبت شد ✨");
+      setEditing(false);
+      setForm({ trigger: "", belief: "", consequences: [], duration_minutes: "", regret_level: 5 });
+    } else {
+      toast.error("خطا در ذخیره رکورد ABC");
+    }
   }
 
   // Pattern Detection v2 — threshold ≥7 samples & frequency ≥0.6

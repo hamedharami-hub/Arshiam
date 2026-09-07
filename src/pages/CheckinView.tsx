@@ -9,6 +9,14 @@ import { toast } from "sonner";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import ProfileMicroPrompt from "@/components/ProfileMicroPrompt";
 import { awardWaterDrops } from "@/lib/garden";
+import {
+  subscribeDailyCheckins,
+  getDailyCheckin,
+  upsertDailyCheckin,
+  type DailyCheckinItem,
+} from "@/lib/firestoreDataService";
+import { cacheGet } from "@/lib/offlineQueue";
+import type { Task } from "@/lib/taskTypes";
 
 function Slider10({ label, value, onChange }: { label: string; value: number | null; onChange: (v: number) => void }) {
   return (
@@ -37,55 +45,83 @@ export default function CheckinView() {
   const { user } = useAuth();
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState<any>({ mood: null, energy: null, focus: null, sleep_quality: null, stress: null, sleep_hours: "", notes: "" });
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<DailyCheckinItem[]>([]);
   const [savedTick, setSavedTick] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [todayLoad, setTodayLoad] = useState<number | null>(null);
   const isEvening = new Date().getHours() >= 17;
 
-  useEffect(() => { if (user) load(); }, [user]);
+  useEffect(() => {
+    if (!user) return;
+    let unsubCheckins: (() => void) | undefined;
 
-  async function load() {
-    const [{ data: today_data }, { data: hist }, { data: tasks }] = await Promise.all([
-      supabase.from("daily_checkins").select("*").eq("user_id", user!.id).eq("checkin_date", today).maybeSingle(),
-      supabase.from("daily_checkins").select("*").eq("user_id", user!.id).gte("checkin_date", new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)).order("checkin_date"),
-      supabase.from("tasks").select("id,title,description,priority,folder_id,quadrant").eq("user_id", user!.id).eq("completed", false),
-    ]);
-    if (today_data) setForm({
-      mood: today_data.mood, energy: today_data.energy, focus: today_data.focus,
-      sleep_quality: today_data.sleep_quality, stress: today_data.stress,
-      sleep_hours: today_data.sleep_hours ?? "", notes: today_data.notes ?? "",
-    });
-    setHistory(hist || []);
-    const { computeCognitiveLoad } = await import("@/lib/cognitiveLoad");
-    const r = computeCognitiveLoad({
-      tasks: tasks || [],
-      sleepHours: today_data?.sleep_hours ?? null,
-      sleepQuality: today_data?.sleep_quality ?? null,
-      stress: today_data?.stress ?? null,
-    });
-    setTodayLoad(r.load);
-    setLoading(false);
-  }
+    async function init() {
+      // 1. Listen to checkins from Firestore
+      unsubCheckins = subscribeDailyCheckins(user!.id, async (items) => {
+        setHistory(items);
+        const todayDoc = items.find((i) => i.checkin_date === today || i.id === today);
+        if (todayDoc) {
+          setForm({
+            mood: todayDoc.mood,
+            energy: todayDoc.energy,
+            focus: todayDoc.focus,
+            sleep_quality: todayDoc.sleep_quality,
+            stress: todayDoc.stress,
+            sleep_hours: todayDoc.sleep_hours ?? "",
+            notes: todayDoc.notes ?? "",
+          });
+        }
 
+        // Calculate cognitive load
+        const cachedTasks = (await cacheGet<Task[]>(`tasks:all:${user!.id}`)) || [];
+        const { computeCognitiveLoad } = await import("@/lib/cognitiveLoad");
+        const r = computeCognitiveLoad({
+          tasks: cachedTasks.filter((t) => !t.completed),
+          sleepHours: todayDoc?.sleep_hours ?? null,
+          sleepQuality: todayDoc?.sleep_quality ?? null,
+          stress: todayDoc?.stress ?? null,
+        });
+        setTodayLoad(r.load);
+        setLoading(false);
+      });
+    }
+
+    init();
+    return () => {
+      if (unsubCheckins) unsubCheckins();
+    };
+  }, [user, today]);
 
   async function save() {
     if (!user) return;
-    const payload: any = {
+    const payload: DailyCheckinItem = {
+      id: today,
       user_id: user.id,
       checkin_date: today,
-      mood: form.mood, energy: form.energy, focus: form.focus,
-      sleep_quality: form.sleep_quality, stress: form.stress,
+      mood: form.mood,
+      energy: form.energy,
+      focus: form.focus,
+      sleep_quality: form.sleep_quality,
+      stress: form.stress,
       sleep_hours: form.sleep_hours ? Number(form.sleep_hours) : null,
       notes: form.notes || null,
     };
-    const { error } = await supabase.from("daily_checkins").upsert(payload, { onConflict: "user_id,checkin_date" });
-    if (error) toast.error(error.message);
-    else {
+
+    // Save to Firestore primary store
+    const ok = await upsertDailyCheckin(user.id, payload);
+    
+    // Also try to mirror to Supabase in background
+    supabase
+      .from("daily_checkins")
+      .upsert(payload as any, { onConflict: "user_id,checkin_date" })
+      .catch(() => {});
+
+    if (ok) {
       awardWaterDrops(20, "ثبت چک‌این روزانه");
       toast.success("ثبت شد ✨");
       setSavedTick(Date.now());
-      load();
+    } else {
+      toast.error("خطا در ذخیره چک‌این");
     }
   }
 

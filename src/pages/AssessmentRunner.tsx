@@ -34,6 +34,12 @@ const META: Record<Type, { title: string; scale: number; labels: string[]; items
   },
 };
 
+import {
+  getAssessmentProgress,
+  saveAssessmentProgress,
+  upsertAssessmentResult,
+} from "@/lib/firestoreDataService";
+
 export default function AssessmentRunner() {
   const { type } = useParams<{ type: Type }>();
   const navigate = useNavigate();
@@ -48,15 +54,23 @@ export default function AssessmentRunner() {
   useEffect(() => {
     if (!user || !type) return;
     (async () => {
-      const { data } = await supabase
-        .from("assessment_responses")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("assessment_type", type)
-        .maybeSingle();
-      if (data && !data.completed) {
-        setResponses((data.responses as Record<number, number>) || {});
-        setIndex(data.current_index || 0);
+      // Check Firestore progress
+      const progress = await getAssessmentProgress(user.id, type);
+      if (progress && !progress.completed) {
+        setResponses(progress.responses || {});
+        setIndex(progress.currentIndex || 0);
+      } else {
+        // Fallback check Supabase
+        const { data } = await supabase
+          .from("assessment_responses")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("assessment_type", type)
+          .maybeSingle();
+        if (data && !data.completed) {
+          setResponses((data.responses as Record<number, number>) || {});
+          setIndex(data.current_index || 0);
+        }
       }
       setLoading(false);
     })();
@@ -68,13 +82,14 @@ export default function AssessmentRunner() {
 
   async function persist(newResp: Record<number, number>, newIdx: number, completed = false) {
     if (!user || !type) return;
-    await supabase.from("assessment_responses").upsert({
+    await saveAssessmentProgress(user.id, type, newResp, newIdx, completed);
+    supabase.from("assessment_responses").upsert({
       user_id: user.id,
       assessment_type: type,
       responses: newResp,
       current_index: newIdx,
       completed,
-    }, { onConflict: "user_id,assessment_type" });
+    }, { onConflict: "user_id,assessment_type" }).catch(() => {});
   }
 
   async function answer(val: number) {
@@ -106,12 +121,20 @@ export default function AssessmentRunner() {
         analysis = { quadrant: attachmentQuadrant(scores) };
       }
 
-      await supabase.from("assessment_results").insert({
-        user_id: user.id,
+      await upsertAssessmentResult(user.id, {
         assessment_type: type,
         scores,
         analysis,
       });
+
+      // Mirror to Supabase if accessible
+      supabase.from("assessment_results").insert({
+        user_id: user.id,
+        assessment_type: type,
+        scores,
+        analysis,
+      }).catch(() => {});
+
       await persist(final, total - 1, true);
 
       // Update mh_profile
@@ -125,7 +148,7 @@ export default function AssessmentRunner() {
       } else if (type === "ecr") {
         profileUpdate.attachment_quadrant = analysis.quadrant ?? null;
       }
-      await supabase.from("mh_profile").upsert(profileUpdate, { onConflict: "user_id" });
+      await supabase.from("mh_profile").upsert(profileUpdate, { onConflict: "user_id" }).catch(() => {});
 
       toast.success("تست تکمیل شد ✨");
       navigate(`/app/self/result/${type}`);
