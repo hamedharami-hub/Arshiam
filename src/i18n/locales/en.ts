@@ -64,6 +64,7 @@ export default {
   nav: {
     home: "Home",
     tasks: "Tasks",
+    today: "Today",
     notes: "Notes",
     calendar: "Calendar",
     pomodoro: "Pomodoro",

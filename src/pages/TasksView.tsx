@@ -2,6 +2,8 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
+import { formatDate } from "@/lib/jalali";
+import { EmptyState } from "@/components/EmptyState";
 import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, Ban, Pin, Clock, FolderInput, Check, X, GitBranch, MoreVertical, Zap, Columns2, CheckSquare } from "lucide-react";
 import { MoveToDialog } from "@/components/MoveToDialog";
 import { FolderDeleteDialog } from "@/components/FolderDeleteDialog";
@@ -1006,7 +1008,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                 },
               ] as SwipeAction[]}
             >
-            <Card className={`rounded-lg ${layout === "compact" ? "p-1.5" : "p-2"} border-s-[3px] ${pm.borderClass} ${t.is_avoidance ? "bg-amber-500/[0.04] border-amber-500/30" : ""} ${depth > 0 ? "bg-muted/20" : "bg-card/50"} hover:bg-accent/20 transition-colors ${selectedTask?.id === t.id && splitView ? "ring-2 ring-primary/80 bg-primary/10 shadow-sm" : ""}`}>
+            <Card className={`rounded-xl ${layout === "compact" ? "p-1.5" : "p-2 sm:p-2.5"} border-s-[3.5px] ${pm.borderClass} ${t.is_avoidance ? "bg-amber-500/[0.04] border-amber-500/30" : ""} ${depth > 0 ? "bg-muted/20" : "bg-card/60 backdrop-blur-xs"} hover:bg-accent/25 hover:border-primary/30 transition-all duration-150 shadow-2xs ${selectedTask?.id === t.id && splitView ? "ring-2 ring-primary/80 bg-primary/10 shadow-sm" : ""}`}>
               {depth > 0 && parent && (
                 <div className="flex items-center gap-1 mb-1 text-[10px] text-muted-foreground/80">
                   <CornerDownRight className="w-2.5 h-2.5 shrink-0" />
@@ -1064,7 +1066,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                     <Ban className="w-3 h-3" />
                   </button>
                 ) : (
-                  <Checkbox checked={t.completed} onCheckedChange={() => toggleTask(t)} className="mt-1 shrink-0" />
+                  <Checkbox checked={t.completed} onCheckedChange={() => toggleTask(t)} className="mt-0.5 shrink-0 rounded-md transition-transform duration-200 active:scale-75 data-[state=checked]:scale-110" />
                 )}
               </div>
 
@@ -1083,7 +1085,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                     <PopoverTrigger asChild>
                       <button
                         onClick={(e) => e.stopPropagation()}
-                        className={`text-[10px] gap-0.5 px-1.5 py-0 h-[18px] inline-flex items-center rounded border ${pm.bgClass} ${pm.textClass}`}
+                        className={`text-[10px] gap-1 px-2 py-0 h-[20px] font-medium inline-flex items-center rounded-full border shadow-2xs transition hover:opacity-90 ${pm.bgClass} ${pm.textClass}`}
                         title={T("تغییر اولویت", "Change priority")}
                       >
                         <Flag className="w-2.5 h-2.5" /> {T(pm.label, pm.labelEn)}
@@ -1114,11 +1116,11 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                     <PopoverTrigger asChild>
                       <button
                         onClick={(e) => e.stopPropagation()}
-                        className="text-[10px] gap-0.5 px-1.5 py-0 h-[18px] inline-flex items-center rounded border bg-secondary text-secondary-foreground"
+                        className="text-[10px] gap-1 px-2 py-0 h-[20px] font-medium inline-flex items-center rounded-full border bg-secondary/80 text-secondary-foreground shadow-2xs hover:bg-secondary transition"
                         title={T("تغییر تاریخ", "Change date")}
                       >
-                        <Calendar className="w-2.5 h-2.5" />
-                        {format(new Date(t.due_date), "MMM d, HH:mm")}
+                        <Calendar className="w-2.5 h-2.5 opacity-70" />
+                        {formatDate(new Date(t.due_date), "d MMM، HH:mm")}
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-72 p-3" align="start" onClick={(e) => e.stopPropagation()}>
@@ -1137,7 +1139,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                     <PopoverTrigger asChild>
                       <button
                         onClick={(e) => e.stopPropagation()}
-                        className="text-[10px] gap-0.5 px-1.5 py-0 h-[18px] inline-flex items-center rounded border bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/25"
+                        className="text-[10px] gap-1 px-2 py-0 h-[20px] font-medium inline-flex items-center rounded-full border bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/25 shadow-2xs hover:bg-violet-500/20 transition"
                         title={T("تغییر تکرار", "Change repeat")}
                       >
                         <Repeat className="w-2.5 h-2.5" /> {describeRule(t.recurrence_rule, isEn)}
@@ -1273,7 +1275,27 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           >
             <div className="space-y-1 mt-1">
               {isEmpty && (
-                <Card className="p-5 text-center text-muted-foreground text-sm border-dashed">{T("هیچ تسکی نیست", "No tasks")}</Card>
+                <EmptyState
+                  icon={CheckSquare}
+                  title={
+                    scope === "today"
+                      ? T("همه کارهای امروز انجام شده یا هنوز تسکی ثبت نشده!", "All tasks for today completed or none yet!")
+                      : T("هیچ تسکی در این لیست نیست", "No tasks in this list")
+                  }
+                  description={
+                    scope === "today"
+                      ? T("می‌تونی یک تسک جدید اضافه کنی و روزت رو با انگیزه برنامه‌ریزی کنی ✨", "You can add a new task and plan your day with intention ✨")
+                      : T("برای شروع، یک تسک جدید ثبت کن تا کارهات رو منظم دنبال کنی.", "Add a task to start tracking your progress.")
+                  }
+                  action={{
+                    label: T("افزودن تسک جدید", "Add new task"),
+                    icon: Plus,
+                    onClick: () => {
+                      window.dispatchEvent(new Event("lov:open-quick-capture"));
+                    },
+                  }}
+                  className="my-3"
+                />
               )}
               <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
                 {groupedTasks ? (

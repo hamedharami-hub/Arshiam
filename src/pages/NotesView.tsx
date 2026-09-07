@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Plus, Pin, Trash2, Search, Sparkles, Loader2, FolderInput, PinOff, Share2, X, Maximize2 } from "lucide-react";
+import { Plus, Pin, Trash2, Search, Sparkles, Loader2, FolderInput, PinOff, Share2, X, Maximize2, FileText } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import ShareDialog from "@/components/ShareDialog";
 import SwipeableRow from "@/components/gestures/SwipeableRow";
 import { MoveToDialog } from "@/components/MoveToDialog";
@@ -349,8 +350,18 @@ export default function NotesView() {
   const stripMd = (s: string) => (s || "").replace(/[#*`>_![\]()~-]+/g, "").replace(/\n+/g, " ").slice(0, 80);
 
   const emptyState = (
-    <div className="flex items-center justify-center h-full text-muted-foreground">
-      {T("یک نوت انتخاب کن یا جدید بساز", "Select a note or create a new one")}
+    <div className="flex items-center justify-center h-full p-8">
+      <EmptyState
+        icon={FileText}
+        title={T("یک نوت انتخاب کن یا جدید بساز", "Select a note or create a new one")}
+        description={T("ایده‌ها، یادداشت‌های کاری، چک‌لیست‌ها و افکارت رو ثبت و سازماندهی کن.", "Capture and organize ideas, work notes, checklists and thoughts.")}
+        action={{
+          label: T("نوت جدید", "New note"),
+          icon: Plus,
+          onClick: create,
+        }}
+        className="max-w-md w-full"
+      />
     </div>
   );
 
@@ -438,6 +449,13 @@ export default function NotesView() {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
+          {filtered.length === 0 && (
+            <div className="p-6 text-center text-muted-foreground text-xs leading-relaxed">
+              {search
+                ? T("نوتی با این مشخصات یافت نشد.", "No notes found matching search.")
+                : T("هنوز نوتی ننوشتی. با دکمه + بالا اولین نوتت رو بساز!", "No notes yet. Click + above to create your first note!")}
+            </div>
+          )}
           {filtered.map((n) => (
             <SwipeableRow
               key={n.id}

@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { ListTodo, Calendar, Plus, Brain, PanelRight } from "lucide-react";
+import { ListTodo, FileText, Plus, Brain, PanelRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { haptic } from "@/lib/haptics";
@@ -32,32 +32,49 @@ export function BottomTabBar() {
     window.dispatchEvent(new Event("lov:open-quick-capture"));
   };
 
-  const tabs: Tab[] = [
-    { key: "mind", to: "/app/mind", icon: Brain, match: (p) => p === "/app/mind" || p.startsWith("/app/checkin") || p.startsWith("/app/thoughts") || p.startsWith("/app/abc") || p.startsWith("/app/worry") || p.startsWith("/app/values") || p.startsWith("/app/breathing") || p.startsWith("/app/socratic") || p.startsWith("/app/screener") || p.startsWith("/app/self") },
-    { key: "calendar", to: "/app/calendar", icon: Calendar, match: (p) => p.startsWith("/app/calendar") },
+  const leftTabs: Tab[] = [
     { key: "today", to: "/app/today", icon: ListTodo, match: (p) => p === "/app/today" || p === "/app" },
+    { key: "notes", to: "/app/notes", icon: FileText, match: (p) => p.startsWith("/app/notes") },
   ];
 
-  const go = (to: string) => { haptic("light"); navigate(to); };
+  const rightTabs: Tab[] = [
+    {
+      key: "mind",
+      to: "/app/mind",
+      icon: Brain,
+      match: (p) =>
+        p === "/app/mind" ||
+        p.startsWith("/app/checkin") ||
+        p.startsWith("/app/thoughts") ||
+        p.startsWith("/app/abc") ||
+        p.startsWith("/app/worry") ||
+        p.startsWith("/app/values") ||
+        p.startsWith("/app/breathing") ||
+        p.startsWith("/app/socratic") ||
+        p.startsWith("/app/screener") ||
+        p.startsWith("/app/self"),
+    },
+  ];
+
+  const go = (to: string) => {
+    haptic("light");
+    navigate(to);
+  };
 
   const itemClass = (active: boolean) =>
-    `h-full flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] select-none active:scale-95 transition ${
-      active ? "text-primary" : "text-foreground/60"
+    `relative h-full flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium select-none active:scale-90 transition-all duration-150 ${
+      active ? "text-primary" : "text-muted-foreground/75 hover:text-foreground"
     }`;
-
-  // Split tabs so the Add button sits in the center.
-  const left = tabs.slice(0, 2);
-  const right = tabs.slice(2);
 
   return (
     <>
       <nav
         dir={dir}
-        className="md:hidden fixed inset-x-0 z-50 bg-card/95 backdrop-blur border-t border-border flex items-stretch h-14"
+        className="md:hidden fixed inset-x-0 z-50 bg-card/95 backdrop-blur-md border-t border-border/70 flex items-stretch h-14 shadow-xs"
         style={{ bottom: 0, paddingBottom: "env(safe-area-inset-bottom)" }}
         aria-label={t("nav.menu", "Bottom bar")}
       >
-        {left.map((tab) => {
+        {leftTabs.map((tab) => {
           const Icon = tab.icon;
           const active = tab.match(loc.pathname);
           return (
@@ -69,8 +86,15 @@ export function BottomTabBar() {
               aria-current={active ? "page" : undefined}
               onClick={() => go(tab.to)}
             >
-              <Icon className="w-5 h-5" />
-              <span dir={dir}>{t(`nav.${tab.key}`)}</span>
+              <div className="relative flex items-center justify-center">
+                <Icon className={`w-5 h-5 transition-transform duration-200 ${active ? "scale-105" : ""}`} />
+                {active && (
+                  <span className="absolute -bottom-1 w-1 h-1 rounded-full bg-primary" />
+                )}
+              </div>
+              <span dir={dir} className={active ? "font-semibold text-primary" : ""}>
+                {t(`nav.${tab.key}`)}
+              </span>
             </button>
           );
         })}
@@ -80,13 +104,13 @@ export function BottomTabBar() {
             type="button"
             onClick={openQuickCapture}
             aria-label={t("nav.quickAdd")}
-            className="-mt-6 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center active:scale-95 transition ring-4 ring-background"
+            className="-mt-6 h-13 w-13 rounded-full bg-gradient-to-tr from-primary to-primary/85 text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center active:scale-90 hover:scale-105 transition-all duration-200 ring-4 ring-background"
           >
-            <Plus className="w-6 h-6" />
+            <Plus className="w-6 h-6 stroke-[2.5]" />
           </button>
         </div>
 
-        {right.map((tab) => {
+        {rightTabs.map((tab) => {
           const Icon = tab.icon;
           const active = tab.match(loc.pathname);
           return (
@@ -98,8 +122,15 @@ export function BottomTabBar() {
               aria-current={active ? "page" : undefined}
               onClick={() => go(tab.to)}
             >
-              <Icon className="w-5 h-5" />
-              <span dir={dir}>{t(`nav.${tab.key}`)}</span>
+              <div className="relative flex items-center justify-center">
+                <Icon className={`w-5 h-5 transition-transform duration-200 ${active ? "scale-105" : ""}`} />
+                {active && (
+                  <span className="absolute -bottom-1 w-1 h-1 rounded-full bg-primary" />
+                )}
+              </div>
+              <span dir={dir} className={active ? "font-semibold text-primary" : ""}>
+                {t(`nav.${tab.key}`)}
+              </span>
             </button>
           );
         })}
@@ -108,7 +139,10 @@ export function BottomTabBar() {
           type="button"
           className={itemClass(false)}
           aria-label={t("nav.menu")}
-          onClick={() => { haptic("light"); toggleSidebar(); }}
+          onClick={() => {
+            haptic("light");
+            toggleSidebar();
+          }}
         >
           <PanelRight className="w-5 h-5" />
           <span dir={dir}>{t("nav.menu")}</span>

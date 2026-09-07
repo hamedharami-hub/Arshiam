@@ -64,6 +64,7 @@ export default {
   nav: {
     home: "خانه",
     tasks: "تسک‌ها",
+    today: "امروز",
     notes: "نوت‌ها",
     calendar: "تقویم",
     pomodoro: "پومودورو",

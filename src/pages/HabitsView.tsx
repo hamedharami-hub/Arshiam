@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/EmptyState";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { format, subDays, isSameDay, startOfWeek, differenceInDays, parseISO } from "date-fns";
@@ -331,7 +332,19 @@ export default function HabitsView() {
             </Card>
           );
         })}
-        {habits.length === 0 && <Card className="p-8 text-center text-muted-foreground border-dashed border-border/60 bg-card/40">هنوز عادتی نداری</Card>}
+        {habits.length === 0 && (
+          <EmptyState
+            icon={Target}
+            title="هنوز عادتی ثبت نکردی"
+            description="عادت‌های کوچک و روزمره، نتایج بزرگ در زندگی می‌سازند. اولین عادتت رو بساز و زنجیره پیوستگی‌ات رو آغاز کن!"
+            action={{
+              label: "افزودن اولین عادت",
+              icon: Plus,
+              onClick: () => setOpen(true),
+            }}
+            className="my-4"
+          />
+        )}
       </div>
 
       <Dialog open={!!noteDialog} onOpenChange={(v) => !v && setNoteDialog(null)}>
