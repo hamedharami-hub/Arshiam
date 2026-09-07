@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ARSHNAZ" />
+    <meta name="theme-color" content="#0F172A" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>ARSHNAZ - Task & Notes</title>
+    <meta name="description" content="Task, notes, habits, and wellness tracker with Persian and English support.">
+    <meta name="author" content="ARSHNAZ" />
+
+    
+    
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://arshnaz.life/pwa-512x512.png">
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@arshnaz" />
+    <meta name="twitter:image" content="https://arshnaz.life/pwa-512x512.png">
+    <meta property="og:title" content="ARSHNAZ - Task & Notes">
+  <meta name="twitter:title" content="ARSHNAZ - Task & Notes">
+  <meta property="og:description" content="Task, notes, habits, and wellness tracker with Persian and English support.">
+  <meta name="twitter:description" content="Task, notes, habits, and wellness tracker with Persian and English support.">
+  <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/pwa-512x512.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0F172A">
+
+  <!-- Preconnect to font CDNs to shorten the critical request chain -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+
+  <!-- Preload most-used Vazirmatn weights to shorten the critical chain (CSS -> font) -->
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Regular.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Bold.woff2">
+
+  <!-- Inline critical styles for the initial shell so FCP fires before the JS bundle parses -->
+  <style>
+    html, body { margin: 0; padding: 0; background-color: #0F172A; color: #e2e8f0; font-family: Vazirmatn, system-ui, -apple-system, sans-serif; }
+    #root { min-height: 100vh; }
+    .app-boot { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .app-boot__spinner { width: 32px; height: 32px; border-radius: 50%; border: 3px solid rgba(226,232,240,0.2); border-top-color: #ec4899; animation: app-boot-spin 0.8s linear infinite; }
+    @keyframes app-boot-spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+
+  <body>
+    <div id="root">
+      <div class="app-boot" aria-hidden="true"><div class="app-boot__spinner"></div></div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

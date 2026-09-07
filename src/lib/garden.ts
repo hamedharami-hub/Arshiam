@@ -1,0 +1,381 @@
+import { toast } from "sonner";
+
+export type PlantType = "rose" | "bonsai" | "orchid" | "lotus" | "palm" | "bamboo";
+
+export type PlantStage = 1 | 2 | 3 | 4 | 5; // 1: Seed, 2: Sprout, 3: Sapling, 4: Bud, 5: Full Bloom
+
+export interface PlantMetadata {
+  id: PlantType;
+  name: string;
+  latinName: string;
+  description: string;
+  affinity: string; // e.g. "تسک‌های مهم", "تمرکز", "عادات"
+  color: string;
+  glowColor: string;
+  pointsToBloom: number;
+  badge: string;
+}
+
+export interface ActivePlant {
+  id: string;
+  type: PlantType;
+  name: string;
+  plantedAt: string;
+  currentPoints: number;
+  stage: PlantStage;
+  bloomedAt?: string;
+  waterLogCount: number;
+  contributions: { reason: string; points: number; date: string }[];
+}
+
+export interface GardenHerbariumItem {
+  id: string;
+  type: PlantType;
+  name: string;
+  plantedAt: string;
+  bloomedAt: string;
+  totalPoints: number;
+  contributionsCount: number;
+}
+
+export type TimeOfDay = "morning" | "day" | "sunset" | "night";
+
+export function getCurrentTimeOfDay(): TimeOfDay {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 9) return "morning";
+  if (hour >= 9 && hour < 17) return "day";
+  if (hour >= 17 && hour < 20) return "sunset";
+  return "night";
+}
+
+export interface GardenState {
+  waterDrops: number;
+  sunEnergy: number;
+  totalHarvests: number;
+  focusBlossoms: number;
+  activePlant: ActivePlant | null;
+  herbarium: GardenHerbariumItem[];
+  gardenLevel: number;
+  soundEnabled: boolean;
+  timeOfDayMode: "auto" | TimeOfDay;
+}
+
+export const PLANT_SPECIES: Record<PlantType, PlantMetadata> = {
+  rose: {
+    id: "rose",
+    name: "گل سرخ عشق",
+    latinName: "Rosa Arshnazia",
+    description: "نماد عشق جاودان، انگیزه پرشور و تعهد به هدف‌های قلبی.",
+    affinity: "تسک‌های مهم و اولویت بالا",
+    color: "#f43f5e",
+    glowColor: "rgba(244, 63, 94, 0.4)",
+    pointsToBloom: 100,
+    badge: "🌹",
+  },
+  bonsai: {
+    id: "bonsai",
+    name: "بنسای خرد و استراتژی",
+    latinName: "Bonsai Sapientia",
+    description: "نماد صبوری، عمق اندیشه، مدیریت منظم و رشد پیوسته.",
+    affinity: "یادداشت‌ها، مدل ABC و ثبت افکار CBT",
+    color: "#10b981",
+    glowColor: "rgba(16, 185, 129, 0.4)",
+    pointsToBloom: 120,
+    badge: "🪴",
+  },
+  orchid: {
+    id: "orchid",
+    name: "ارکیده تمرکز",
+    latinName: "Orchis Focus",
+    description: "گیاهی شکوهمند که فقط با جلسات عمیق تمرکز و حضور در لحظه رشد می‌کند.",
+    affinity: "جلسات پومودورو و زمان کار عمیق",
+    color: "#d946ef",
+    glowColor: "rgba(217, 70, 239, 0.4)",
+    pointsToBloom: 90,
+    badge: "🌸",
+  },
+  lotus: {
+    id: "lotus",
+    name: "نیلوفر ذهن‌آرام",
+    latinName: "Nelumbo Serenitas",
+    description: "نماد رهایی از استرس، آرامش درونی و شفافیت ذهن.",
+    affinity: "چک‌این روزانه و تمرین تنفس ۳بعدی",
+    color: "#06b6d4",
+    glowColor: "rgba(6, 182, 212, 0.4)",
+    pointsToBloom: 80,
+    badge: "🪷",
+  },
+  palm: {
+    id: "palm",
+    name: "نخل استقامت",
+    latinName: "Phoenix Constantia",
+    description: "استوار در برابر طوفان‌ها، نماد پایداری و حفظ زنجیره عادات.",
+    affinity: "زنجیره عادات روزانه (Streaks)",
+    color: "#f59e0b",
+    glowColor: "rgba(245, 158, 11, 0.4)",
+    pointsToBloom: 110,
+    badge: "🌴",
+  },
+  bamboo: {
+    id: "bamboo",
+    name: "بامبوی شکوفایی سریع",
+    latinName: "Bambusoideae Vita",
+    description: "انعطاف‌پذیر و سریع‌الرشد؛ یادآور اینکه هر تسک کوچک گامی بزرگ است.",
+    affinity: "تکمیل تسک‌های روزمره",
+    color: "#84cc16",
+    glowColor: "rgba(132, 204, 22, 0.4)",
+    pointsToBloom: 75,
+    badge: "🎋",
+  },
+};
+
+const GARDEN_STORAGE_KEY = "arshnaz_mind_garden_v1";
+const GARDEN_USER_KEY = "arshnaz_garden_user";
+let currentGardenUserId: string | null = (() => {
+  try {
+    return localStorage.getItem(GARDEN_USER_KEY);
+  } catch {
+    return null;
+  }
+})();
+
+const DEFAULT_STATE: GardenState = {
+  waterDrops: 30,
+  sunEnergy: 10,
+  totalHarvests: 0,
+  focusBlossoms: 0,
+  gardenLevel: 1,
+  soundEnabled: true,
+  timeOfDayMode: "auto",
+  herbarium: [],
+  activePlant: {
+    id: "plant-default-1",
+    type: "rose",
+    name: "گل سرخ عشق",
+    plantedAt: new Date().toISOString(),
+    currentPoints: 20,
+    stage: 2,
+    waterLogCount: 2,
+    contributions: [
+      { reason: "خوش‌آمدگویی به گلخانه", points: 20, date: new Date().toISOString() },
+    ],
+  },
+};
+
+export function setTimeOfDayMode(mode: "auto" | TimeOfDay) {
+  const current = getGardenState();
+  const next = { ...current, timeOfDayMode: mode };
+  saveGardenState(next);
+}
+
+export function recordPomodoroFocusSession(minutes: number): { dropsAwarded: number; newBlossoms: number } {
+  const current = getGardenState();
+  const dropsAwarded = Math.max(10, Math.floor(minutes * 0.8));
+  const newBlossoms = (current.focusBlossoms || 0) + 1;
+  const newSun = current.sunEnergy + Math.ceil(minutes / 2);
+  const newDrops = current.waterDrops + dropsAwarded;
+
+  let updatedPlant = current.activePlant;
+  if (updatedPlant) {
+    updatedPlant = {
+      ...updatedPlant,
+      contributions: [
+        { reason: `جلسه تمرکز عمیق (${minutes} دقیقه)`, points: dropsAwarded, date: new Date().toISOString() },
+        ...updatedPlant.contributions.slice(0, 19),
+      ],
+    };
+  }
+
+  const nextState: GardenState = {
+    ...current,
+    waterDrops: newDrops,
+    sunEnergy: newSun,
+    focusBlossoms: newBlossoms,
+    activePlant: updatedPlant,
+  };
+
+  saveGardenState(nextState);
+  toast.success(`🌸 شکوفه تمرکز جدید باز شد! (+${dropsAwarded} قطره آب)`, {
+    description: `${minutes} دقیقه کار عمیق و تمرکز ارزشمند با پومودورو`,
+    duration: 4000,
+  });
+
+  return { dropsAwarded, newBlossoms };
+}
+
+function gardenKey() {
+  return currentGardenUserId ? `${GARDEN_STORAGE_KEY}_${currentGardenUserId}` : GARDEN_STORAGE_KEY;
+}
+
+function defaultGardenState(): GardenState {
+  return {
+    ...DEFAULT_STATE,
+    herbarium: [...DEFAULT_STATE.herbarium],
+    activePlant: DEFAULT_STATE.activePlant
+      ? {
+          ...DEFAULT_STATE.activePlant,
+          contributions: [...DEFAULT_STATE.activePlant.contributions],
+        }
+      : null,
+  };
+}
+
+export function setGardenUser(userId: string | null) {
+  currentGardenUserId = userId;
+  try {
+    if (userId) localStorage.setItem(GARDEN_USER_KEY, userId);
+    else localStorage.removeItem(GARDEN_USER_KEY);
+  } catch { /* ignore */ }
+  window.dispatchEvent(new CustomEvent("arshnaz-garden-updated", { detail: getGardenState() }));
+}
+
+export function getGardenState(): GardenState {
+  try {
+    const key = gardenKey();
+    let raw = localStorage.getItem(key);
+    if (!raw && currentGardenUserId) {
+      const legacyRaw = localStorage.getItem(GARDEN_STORAGE_KEY);
+      if (legacyRaw) {
+        localStorage.setItem(key, legacyRaw);
+        raw = legacyRaw;
+      }
+    }
+    if (!raw) return defaultGardenState();
+    const parsed = JSON.parse(raw);
+    const defaults = defaultGardenState();
+    return { ...defaults, ...parsed };
+  } catch {
+    return defaultGardenState();
+  }
+}
+
+export function saveGardenState(state: GardenState) {
+  try {
+    localStorage.setItem(gardenKey(), JSON.stringify(state));
+    window.dispatchEvent(new CustomEvent("arshnaz-garden-updated", { detail: state }));
+  } catch (e) {
+    console.error("Failed to save garden state:", e);
+  }
+}
+
+export function awardWaterDrops(amount: number, reason: string): number {
+  const current = getGardenState();
+  const newDrops = current.waterDrops + amount;
+  const newSun = current.sunEnergy + Math.ceil(amount / 2);
+  
+  const updated: GardenState = {
+    ...current,
+    waterDrops: newDrops,
+    sunEnergy: newSun,
+  };
+
+  saveGardenState(updated);
+  
+  toast.success(`+${amount} قطره آب برای گلخانه 🌱`, {
+    description: reason,
+    duration: 3500,
+  });
+
+  return newDrops;
+}
+
+export function waterActivePlant(amount = 15): { success: boolean; stageUp: boolean; bloomed: boolean } {
+  const current = getGardenState();
+  if (!current.activePlant) {
+    toast.error("هنوز گیاهی در گلدان کاشته نشده است!");
+    return { success: false, stageUp: false, bloomed: false };
+  }
+
+  if (current.waterDrops < amount) {
+    toast.error("قطرات آب کافی نیست!", {
+      description: "با تکمیل تسک‌ها و عادات، قطره آب جدید جمع‌آوری کن.",
+    });
+    return { success: false, stageUp: false, bloomed: false };
+  }
+
+  const plantMeta = PLANT_SPECIES[current.activePlant.type];
+  const prevStage = current.activePlant.stage;
+  const newPoints = current.activePlant.currentPoints + amount;
+  const maxPoints = plantMeta.pointsToBloom;
+
+  // Calculate new stage (1 to 5)
+  let newStage: PlantStage = 1;
+  const ratio = newPoints / maxPoints;
+  if (ratio >= 1) newStage = 5;
+  else if (ratio >= 0.75) newStage = 4;
+  else if (ratio >= 0.45) newStage = 3;
+  else if (ratio >= 0.15) newStage = 2;
+  else newStage = 1;
+
+  const isBloomed = newStage === 5 && prevStage < 5;
+  const isStageUp = newStage > prevStage;
+
+  const updatedPlant: ActivePlant = {
+    ...current.activePlant,
+    currentPoints: Math.min(newPoints, maxPoints),
+    stage: newStage,
+    waterLogCount: current.activePlant.waterLogCount + 1,
+    bloomedAt: isBloomed ? new Date().toISOString() : current.activePlant.bloomedAt,
+    contributions: [
+      { reason: "آبیاری و مهر", points: amount, date: new Date().toISOString() },
+      ...current.activePlant.contributions.slice(0, 19),
+    ],
+  };
+
+  const newHerbarium = [...current.herbarium];
+  let newHarvests = current.totalHarvests;
+  let newLevel = current.gardenLevel;
+
+  if (isBloomed) {
+    newHarvests += 1;
+    newLevel = Math.floor(newHarvests / 2) + 1;
+    newHerbarium.unshift({
+      id: updatedPlant.id,
+      type: updatedPlant.type,
+      name: updatedPlant.name,
+      plantedAt: updatedPlant.plantedAt,
+      bloomedAt: new Date().toISOString(),
+      totalPoints: updatedPlant.currentPoints,
+      contributionsCount: updatedPlant.contributions.length,
+    });
+  }
+
+  const nextState: GardenState = {
+    ...current,
+    waterDrops: current.waterDrops - amount,
+    totalHarvests: newHarvests,
+    gardenLevel: newLevel,
+    activePlant: updatedPlant,
+    herbarium: newHerbarium,
+  };
+
+  saveGardenState(nextState);
+  return { success: true, stageUp: isStageUp, bloomed: isBloomed };
+}
+
+export function plantNewSeed(type: PlantType): ActivePlant {
+  const current = getGardenState();
+  const meta = PLANT_SPECIES[type];
+
+  const newPlant: ActivePlant = {
+    id: `plant-${Date.now()}`,
+    type,
+    name: meta.name,
+    plantedAt: new Date().toISOString(),
+    currentPoints: 0,
+    stage: 1,
+    waterLogCount: 0,
+    contributions: [
+      { reason: "کاشت بذر جدید", points: 0, date: new Date().toISOString() },
+    ],
+  };
+
+  const nextState: GardenState = {
+    ...current,
+    activePlant: newPlant,
+  };
+
+  saveGardenState(nextState);
+  toast.success(`بذر «${meta.name}» با موفقیت در خاک کاشته شد 🌱`);
+  return newPlant;
+}

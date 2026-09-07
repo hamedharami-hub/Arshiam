@@ -1,0 +1,500 @@
+/* Inlined Vazirmatn @font-face declarations to remove a render-blocking CSS request.
+   Font files still load from jsDelivr (preconnected in index.html) with font-display: swap. */
+@font-face { font-family: Vazirmatn; src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Thin.woff2') format('woff2'); font-weight: 100; font-style: normal; font-display: swap; }
+@font-face { font-family: Vazirmatn; src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-ExtraLight.woff2') format('woff2'); font-weight: 200; font-style: normal; font-display: swap; }
+@font-face { font-family: Vazirmatn; src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Light.woff2') format('woff2'); font-weight: 300; font-style: normal; font-display: swap; }
+@font-face { font-family: Vazirmatn; src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Regular.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: Vazirmatn; src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Medium.woff2') format('woff2'); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: Vazirmatn; src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-SemiBold.woff2') format('woff2'); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: Vazirmatn; src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Bold.woff2') format('woff2'); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: Vazirmatn; src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-ExtraBold.woff2') format('woff2'); font-weight: 800; font-style: normal; font-display: swap; }
+@font-face { font-family: Vazirmatn; src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Black.woff2') format('woff2'); font-weight: 900; font-style: normal; font-display: swap; }
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ===== Neural Expressive (Gemini-inspired) — Light =====
+       Fluid blue→purple→pink spectrum, soft glass surfaces,
+       generous radii, expressive gradient accents. */
+    --background: 230 60% 99%;
+    --foreground: 240 30% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 30% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 30% 12%;
+
+    --primary: 248 90% 62%;          /* indigo-violet core */
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 280 92% 72%;     /* magenta glow */
+
+    --secondary: 250 60% 97%;
+    --secondary-foreground: 248 40% 22%;
+
+    --muted: 240 40% 96%;
+    --muted-foreground: 240 12% 45%;
+
+    --accent: 280 90% 96%;
+    --accent-foreground: 270 70% 38%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 160 75% 42%;
+    --warning: 35 95% 55%;
+
+    --priority-high: 340 85% 58%;
+    --priority-medium: 35 95% 55%;
+    --priority-low: 210 95% 62%;
+    --priority-none: 240 10% 60%;
+
+    --border: 245 35% 92%;
+    --input: 245 35% 92%;
+    --ring: 270 90% 65%;
+
+    --radius: 1rem;
+
+    --sidebar-background: 245 70% 98%;
+    --sidebar-foreground: 248 30% 22%;
+    --sidebar-primary: 270 90% 62%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 280 90% 96%;
+    --sidebar-accent-foreground: 270 70% 38%;
+    --sidebar-border: 245 35% 92%;
+    --sidebar-ring: 270 90% 65%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(210 100% 62%) 0%, hsl(258 92% 64%) 45%, hsl(310 90% 66%) 78%, hsl(340 92% 68%) 100%);
+    --gradient-mesh: radial-gradient(at 12% 18%, hsl(210 100% 70% / 0.35) 0px, transparent 50%),
+                     radial-gradient(at 82% 8%, hsl(280 95% 72% / 0.32) 0px, transparent 55%),
+                     radial-gradient(at 75% 88%, hsl(340 92% 72% / 0.28) 0px, transparent 50%),
+                     radial-gradient(at 18% 92%, hsl(190 95% 70% / 0.28) 0px, transparent 55%);
+    --shadow-soft: 0 2px 10px -2px hsl(260 50% 40% / 0.08), 0 1px 3px hsl(260 30% 30% / 0.04);
+    --shadow-elegant: 0 20px 50px -20px hsl(270 90% 60% / 0.35), 0 8px 24px -12px hsl(210 90% 60% / 0.25);
+  }
+
+
+
+  .dark {
+    /* Neural Expressive — Dark: deep midnight with vivid aurora accents */
+    --background: 250 35% 7%;
+    --foreground: 250 25% 96%;
+    --card: 250 30% 10%;
+    --card-foreground: 250 25% 96%;
+    --popover: 250 30% 10%;
+    --popover-foreground: 250 25% 96%;
+    --primary: 270 92% 70%;
+    --primary-foreground: 250 35% 8%;
+    --primary-glow: 310 95% 75%;
+    --secondary: 250 25% 15%;
+    --secondary-foreground: 250 25% 96%;
+    --muted: 250 25% 15%;
+    --muted-foreground: 250 15% 68%;
+    --accent: 280 45% 22%;
+    --accent-foreground: 290 95% 88%;
+    --destructive: 0 75% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 250 25% 18%;
+    --input: 250 25% 18%;
+    --ring: 280 95% 70%;
+    --sidebar-background: 250 35% 9%;
+    --sidebar-foreground: 250 20% 88%;
+    --sidebar-primary: 270 92% 70%;
+    --sidebar-primary-foreground: 250 35% 8%;
+    --sidebar-accent: 250 30% 16%;
+    --sidebar-accent-foreground: 290 95% 88%;
+    --sidebar-border: 250 25% 18%;
+    --sidebar-ring: 280 95% 70%;
+    --gradient-primary: linear-gradient(135deg, hsl(210 100% 65%) 0%, hsl(258 95% 68%) 45%, hsl(310 92% 70%) 78%, hsl(340 95% 72%) 100%);
+    --gradient-mesh: radial-gradient(at 15% 20%, hsl(220 100% 55% / 0.35) 0px, transparent 55%),
+                     radial-gradient(at 85% 10%, hsl(285 95% 60% / 0.32) 0px, transparent 55%),
+                     radial-gradient(at 78% 85%, hsl(330 95% 60% / 0.28) 0px, transparent 50%),
+                     radial-gradient(at 18% 90%, hsl(190 95% 55% / 0.25) 0px, transparent 55%);
+    --shadow-elegant: 0 20px 60px -20px hsl(280 95% 55% / 0.55), 0 8px 24px -12px hsl(210 95% 55% / 0.35);
+  }
+
+
+  /* ========== ARSHNAZ THEME — Light (روز) ========== */
+  /* Romantic pink-purple-blue palette dedicated to Arshnaz ❤️ */
+  .theme-arshnaz {
+    --background: 340 60% 99%;
+    --foreground: 280 30% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 280 30% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 280 30% 15%;
+
+    --primary: 330 81% 60%;       /* pink-500 */
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 320 85% 72%;
+
+    --secondary: 320 60% 96%;
+    --secondary-foreground: 280 30% 20%;
+
+    --muted: 320 40% 96%;
+    --muted-foreground: 280 15% 45%;
+
+    --accent: 280 90% 95%;
+    --accent-foreground: 280 70% 35%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+
+    --priority-high: 340 82% 55%;
+    --priority-medium: 38 92% 50%;
+    --priority-low: 260 80% 65%;
+    --priority-none: 280 10% 60%;
+
+    --border: 320 40% 90%;
+    --input: 320 40% 90%;
+    --ring: 330 81% 60%;
+
+    --sidebar-background: 340 70% 98%;
+    --sidebar-foreground: 280 30% 20%;
+    --sidebar-primary: 330 81% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 320 70% 94%;
+    --sidebar-accent-foreground: 280 70% 35%;
+    --sidebar-border: 320 40% 90%;
+    --sidebar-ring: 330 81% 60%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(330 81% 60%), hsl(270 81% 65%), hsl(217 91% 60%));
+    --shadow-soft: 0 1px 3px 0 hsl(330 50% 50% / 0.08), 0 1px 2px -1px hsl(330 50% 50% / 0.06);
+    --shadow-elegant: 0 10px 40px -10px hsl(330 81% 60% / 0.35);
+  }
+
+  /* ========== ARSHNAZ THEME — Dark (شب) ========== */
+  .theme-arshnaz.dark,
+  .dark.theme-arshnaz {
+    --background: 280 30% 7%;
+    --foreground: 340 30% 96%;
+
+    --card: 280 28% 11%;
+    --card-foreground: 340 30% 96%;
+
+    --popover: 280 28% 11%;
+    --popover-foreground: 340 30% 96%;
+
+    --primary: 330 85% 65%;
+    --primary-foreground: 280 30% 10%;
+    --primary-glow: 320 90% 75%;
+
+    --secondary: 280 25% 16%;
+    --secondary-foreground: 340 30% 96%;
+
+    --muted: 280 25% 16%;
+    --muted-foreground: 320 20% 70%;
+
+    --accent: 280 50% 25%;
+    --accent-foreground: 320 90% 85%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 280 25% 20%;
+    --input: 280 25% 20%;
+    --ring: 330 85% 65%;
+
+    --sidebar-background: 280 32% 9%;
+    --sidebar-foreground: 340 25% 88%;
+    --sidebar-primary: 330 85% 65%;
+    --sidebar-primary-foreground: 280 30% 10%;
+    --sidebar-accent: 280 30% 18%;
+    --sidebar-accent-foreground: 320 90% 85%;
+    --sidebar-border: 280 25% 20%;
+    --sidebar-ring: 330 85% 65%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(330 85% 65%), hsl(270 85% 70%), hsl(217 91% 65%));
+    --shadow-elegant: 0 10px 40px -10px hsl(330 85% 50% / 0.5);
+  }
+
+  /* ========== TICKTICK LIGHT — clean, minimal, white & red ========== */
+  .theme-ticktick {
+    --background: 0 0% 100%;
+    --foreground: 220 15% 18%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 18%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 18%;
+
+    --primary: 354 70% 54%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 354 70% 60%;
+
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 15% 22%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 10% 48%;
+
+    --accent: 354 70% 96%;
+    --accent-foreground: 354 70% 40%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+
+    --priority-high: 354 75% 55%;
+    --priority-medium: 35 95% 55%;
+    --priority-low: 210 95% 62%;
+    --priority-none: 220 10% 60%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 354 70% 54%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 15% 22%;
+    --sidebar-primary: 354 70% 54%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 220 15% 22%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 354 70% 54%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(354 70% 54%), hsl(354 70% 60%));
+    --gradient-mesh: none;
+    --shadow-soft: 0 1px 2px 0 hsl(220 20% 40% / 0.05), 0 1px 2px -1px hsl(220 20% 40% / 0.04);
+    --shadow-elegant: 0 10px 30px -10px hsl(220 20% 40% / 0.12);
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  html { direction: rtl; }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    font-family: "Vazirmatn", "IRANSansX", "Tahoma", system-ui, -apple-system, sans-serif;
+  }
+  /* Mixed Persian/English digits and inline LTR fragments */
+  .ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+  .rtl { direction: rtl; unicode-bidi: isolate; }
+  /* Numbers and code stay LTR inside RTL flow */
+  code, pre, kbd, samp, .font-mono, [class*="tabular-nums"] {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+  /* Make form inputs respect RTL by default but allow LTR for emails/urls */
+  input[type="email"], input[type="url"], input[type="tel"], input[type="number"] {
+    direction: ltr;
+    text-align: right;
+  }
+}
+
+/* ===== Neural Expressive ambient layer =====
+   A soft, animated gradient mesh living behind every page —
+   the signature Gemini "aurora" feel without hurting readability. */
+body {
+  background-image: var(--gradient-mesh), linear-gradient(to bottom, hsl(var(--background)), hsl(var(--background)));
+  background-attachment: fixed;
+  background-size: 180% 180%, 100% 100%;
+  animation: aurora-drift 28s ease-in-out infinite alternate;
+}
+@keyframes aurora-drift {
+  0%   { background-position: 0% 0%, 0 0; }
+  100% { background-position: 100% 100%, 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body { animation: none; }
+}
+
+/* Glass cards — translucent surfaces over the aurora mesh */
+.card, [data-radix-popper-content-wrapper] > * {
+  backdrop-filter: saturate(140%) blur(8px);
+  -webkit-backdrop-filter: saturate(140%) blur(8px);
+}
+
+/* Expressive gradient text utility (for hero titles, AI labels, etc.) */
+.text-gradient-neural {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Soft glow ring used on primary CTAs */
+.ring-neural {
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.25), var(--shadow-elegant);
+}
+
+
+
+
+
+/* Markdown preview — bidi-safe so Persian + English mix correctly per paragraph */
+.prose-note { max-width: none !important; width: 100%; unicode-bidi: plaintext; }
+.prose-note h1, .prose-note h2, .prose-note h3, .prose-note h4,
+.prose-note p, .prose-note li, .prose-note blockquote, .prose-note td, .prose-note th {
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+.prose-note h1 { @apply text-2xl font-bold mt-4 mb-2; }
+.prose-note h2 { @apply text-xl font-semibold mt-3 mb-2; }
+.prose-note h3 { @apply text-lg font-semibold mt-2 mb-1; }
+.prose-note p { @apply my-2 leading-relaxed; }
+.prose-note ul { @apply list-disc ps-6 my-2; }
+.prose-note ol { @apply list-decimal ps-6 my-2; }
+.prose-note code { @apply bg-muted px-1.5 py-0.5 rounded text-sm; }
+.prose-note pre { @apply bg-muted p-3 rounded-md overflow-x-auto my-2; }
+.prose-note pre code { @apply bg-transparent p-0; }
+.prose-note blockquote { @apply border-s-4 border-primary ps-4 italic my-2 text-muted-foreground; }
+.prose-note a { @apply text-primary underline; }
+.prose-note input[type="checkbox"] { @apply me-2; }
+
+/* Generic mixed-direction text helper */
+.bidi-auto { unicode-bidi: plaintext; text-align: start; }
+
+/* Smooth, snappy global transitions for buttons / cards / interactive surfaces */
+@media (prefers-reduced-motion: no-preference) {
+  button, a, [role="button"], .card, [data-radix-popper-content-wrapper] > * {
+    transition-property: transform, background-color, border-color, color, box-shadow, opacity;
+    transition-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
+    transition-duration: 160ms;
+  }
+  button:active, [role="button"]:active { transform: scale(0.97); }
+}
+
+/* Subtle dividers between top-level sections of TaskDetail body */
+.task-detail-sections > * + * {
+  position: relative;
+}
+.task-detail-sections > * + *::before {
+  content: "";
+  display: block;
+  height: 1px;
+  margin: -10px 8px 14px;
+  background: linear-gradient(to left, transparent, hsl(var(--border) / 0.55), transparent);
+}
+
+/* =========================================================
+   Mobile & foldable polish
+   ========================================================= */
+
+/* Safe-area helpers for notch / home-indicator / Android nav bar */
+.safe-pt { padding-top: env(safe-area-inset-top); }
+.safe-pb { padding-bottom: env(safe-area-inset-bottom); }
+.safe-px { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+
+/* Edge-to-edge status bar: paint the notch area with the app background so the
+   system status bar blends into the app header instead of showing a black band. */
+html, body {
+  background-color: hsl(var(--background));
+}
+@supports (padding-top: env(safe-area-inset-top)) {
+  body { padding-top: 0; }
+  /* Any element opting in gets the notch/clock clearance */
+  .status-bar-safe { padding-top: env(safe-area-inset-top); }
+}
+
+/* Skip rendering offscreen sections — frees the main thread on long pages. */
+.cv-auto { content-visibility: auto; contain-intrinsic-size: 1px 120px; }
+
+/* Foldable phones (Surface Duo, Galaxy Fold opened) — when the viewport is
+   split into two segments, hide the mobile-only bottom bar so the user gets
+   the desktop sidebar/master-detail layout. */
+@media (horizontal-viewport-segments: 2) {
+  nav[aria-label="نوار پایین"],
+  nav[aria-label="Bottom bar"] { display: none !important; }
+}
+
+/* Honor reduced-motion everywhere */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Prevent iOS double-tap-zoom on interactive surfaces (keeps gestures snappy). */
+button, [role="button"], a { touch-action: manipulation; }
+
+/* Hide scrollbar (used by TaskDetail bottom icon rail) */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Notification-shade sidebar styling — only on mobile drawer */
+[data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="group"] {
+  padding: 0.5rem 0.25rem;
+}
+[data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="group-label"] {
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+  padding-inline: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+[data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="menu"] {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  padding-inline: 0.25rem;
+}
+[data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="menu-item"] {
+  width: 100%;
+}
+[data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="menu-button"] {
+  flex-direction: column;
+  height: auto !important;
+  min-height: 4.5rem;
+  padding: 0.75rem 0.5rem !important;
+  border-radius: 1rem;
+  background: hsl(var(--sidebar-accent) / 0.35);
+  border: 1px solid hsl(var(--sidebar-border) / 0.5);
+  text-align: center;
+  gap: 0.35rem !important;
+  font-size: 0.7rem;
+  line-height: 1.1;
+  white-space: normal;
+  transition: transform 0.15s ease, background 0.2s ease;
+}
+[data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="menu-button"]:active {
+  transform: scale(0.96);
+  background: hsl(var(--sidebar-accent) / 0.65);
+}
+[data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="menu-button"] svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+[data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="menu-button"] > span {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Hide Lovable watermark / Edit with Lovable popup badge */
+#lovable-badge,
+lovable-badge,
+[id*="lovable-badge"],
+[class*="lovable-badge"],
+[data-lovable-badge],
+#lovable-tagger,
+#lovable-tagger-badge,
+a[href*="lovable.dev"],
+a[href*="lovable.app"],
+button[aria-label*="Lovable" i],
+[id^="__lovable"],
+[class^="__lovable"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

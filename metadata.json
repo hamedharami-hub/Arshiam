@@ -1,0 +1,6 @@
+{
+  "name": "ARSHNAZ - Task & Notes",
+  "description": "Task, notes, habits, and wellness tracker with Persian and English support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

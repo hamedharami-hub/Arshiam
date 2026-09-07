@@ -1,0 +1,188 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.0",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://aeyhgdlacoqsabsbrzia.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "arshnaz-mcp",
+      "version": "0.1.0",
+      "title": "ARSHNAZ"
+    },
+    "tools": [
+      {
+        "name": "list_tasks",
+        "title": "List tasks",
+        "description": "List the signed-in user's tasks. Optionally filter by completion status.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "completed": {
+              "type": "boolean",
+              "description": "Filter by completion status."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_task",
+        "title": "Create task",
+        "description": "Create a new task for the signed-in user.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Task title."
+            },
+            "description": {
+              "type": "string"
+            },
+            "priority": {
+              "type": "string",
+              "enum": [
+                "none",
+                "low",
+                "medium",
+                "high"
+              ],
+              "default": "none"
+            },
+            "due_date": {
+              "type": "string",
+              "description": "ISO date (YYYY-MM-DD) or full ISO timestamp."
+            },
+            "start_at": {
+              "type": "string",
+              "description": "ISO 8601 start timestamp."
+            },
+            "end_at": {
+              "type": "string",
+              "description": "ISO 8601 end timestamp."
+            }
+          },
+          "required": [
+            "title"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "complete_task",
+        "title": "Complete task",
+        "description": "Mark a task as completed (or uncompleted).",
+        "annotations": {
+          "readOnlyHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Task id."
+            },
+            "completed": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_notes",
+        "title": "List notes",
+        "description": "List the signed-in user's notes. Optional keyword search on title.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Case-insensitive substring match on title."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_note",
+        "title": "Create note",
+        "description": "Create a new Markdown note for the signed-in user.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "content": {
+              "type": "string",
+              "default": "",
+              "description": "Markdown body."
+            }
+          },
+          "required": [
+            "title"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
