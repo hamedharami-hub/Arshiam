@@ -4,7 +4,7 @@ android {
     namespace = "app.lovable.d7e345911914455da5aa800df1140813"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "app.lovable.d7e345911914455da5aa800df1140813"
+        applicationId "life.arshnaz.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

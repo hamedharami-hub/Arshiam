@@ -43,8 +43,50 @@ export function fireNotification(title: string, body: string, tag: string) {
   }
   if (!("Notification" in window) || Notification.permission !== "granted") return;
   try {
-    new Notification(title, { body, tag, icon: "/icon-192.png" });
+    new Notification(title, { body, tag, icon: "/pwa-192x192.png" });
   } catch {
     /* ignore */
   }
+}
+
+export async function scheduleNotificationAt(
+  title: string,
+  body: string,
+  tag: string,
+  at: Date
+): Promise<boolean> {
+  if (at.getTime() <= Date.now()) return false;
+  const id = hashTag(tag);
+  if (isNative) {
+    try {
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            id,
+            title,
+            body,
+            schedule: { at },
+            sound: "default",
+          },
+        ],
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
+export async function cancelNotification(tag: string): Promise<boolean> {
+  const id = hashTag(tag);
+  if (isNative) {
+    try {
+      await LocalNotifications.cancel({ notifications: [{ id }] });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return false;
 }
