@@ -177,12 +177,23 @@ export default function StatsView() {
                 <YAxis yAxisId="left" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                 <Tooltip
-                  contentStyle={{ borderRadius: "0.75rem" }}
-                  formatter={(value: number, name: string) => [name === "minutes" ? `${value} دقیقه` : value, name === "minutes" ? "تمرکز" : "تسک"]}
+                  contentStyle={{
+                    borderRadius: "1rem",
+                    background: "hsl(var(--popover) / 0.95)",
+                    backdropFilter: "blur(12px)",
+                    border: "1px solid hsl(var(--border))",
+                    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
+                    fontSize: "12px",
+                    direction: "rtl",
+                  }}
+                  formatter={(value: number, name: string) => [
+                    name === "minutes" ? `${toPersianDigits(value)} دقیقه` : toPersianDigits(value),
+                    name === "minutes" ? "تمرکز" : "تسک",
+                  ]}
                   labelFormatter={(label: string) => label}
                 />
-                <Bar yAxisId="left" dataKey="tasks" radius={[4, 4, 0, 0]} fill="hsl(var(--primary) / 0.7)" />
-                <Line yAxisId="right" type="monotone" dataKey="minutes" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                <Bar yAxisId="left" dataKey="tasks" radius={[6, 6, 0, 0]} fill="hsl(var(--primary) / 0.75)" />
+                <Line yAxisId="right" type="monotone" dataKey="minutes" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3, fill: "#f59e0b" }} activeDot={{ r: 5 }} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>

@@ -11,14 +11,37 @@ import { toast } from "sonner";
 import { SCREENERS, scoreScreener, severityColor, type ScreenerType } from "@/lib/assessments/screeners";
 import { CRISIS_RESOURCES } from "@/lib/crisisDetection";
 import {
-  LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea,
+  LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea, Area, AreaChart,
 } from "recharts";
+import { formatDate, toPersianDigits } from "@/lib/jalali";
 
 import {
   subscribeAssessmentResults,
   upsertAssessmentResult,
   type AssessmentResultItem,
 } from "@/lib/firestoreDataService";
+
+function ScreenerTrendTooltip({ active, payload }: any) {
+  if (!active || !payload || !payload.length) return null;
+  const data = payload[0]?.payload;
+  if (!data) return null;
+
+  return (
+    <div className="rounded-2xl border border-border/80 bg-popover/95 backdrop-blur-md p-3 shadow-xl text-xs space-y-1 min-w-[150px]" dir="rtl">
+      <div className="font-semibold text-foreground border-b border-border/60 pb-1 text-[13px]">{data.fullDate || data.date}</div>
+      <div className="flex items-center justify-between gap-3 text-muted-foreground pt-1">
+        <span>نمره خام:</span>
+        <span className="font-bold text-foreground font-mono">{toPersianDigits(data.raw)}</span>
+      </div>
+      {data.severity && (
+        <div className="flex items-center justify-between gap-3 text-muted-foreground">
+          <span>شدت:</span>
+          <span className="font-bold text-primary">{data.severity}</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ScreenerView() {
   const { type } = useParams<{ type: ScreenerType }>();
@@ -39,10 +62,16 @@ export default function ScreenerView() {
     return () => unsub();
   }, [user, type, stage]);
 
-  const trend = useMemo(() => history.slice().reverse().map((h: any) => ({
-    date: new Date(h.completed_at || h.created_at || Date.now()).toLocaleDateString("fa-IR", { month: "short", day: "numeric" }),
-    score: h.scores?.normalized ?? 0,
-  })), [history]);
+  const trend = useMemo(() => history.slice().reverse().map((h: any) => {
+    const d = new Date(h.completed_at || h.created_at || Date.now());
+    return {
+      date: formatDate(d, "d MMM"),
+      fullDate: formatDate(d, "EEEE d MMMM yyyy"),
+      score: h.scores?.normalized ?? 0,
+      raw: h.scores?.raw ?? 0,
+      severity: h.analysis?.severityLabel ?? "",
+    };
+  }), [history]);
 
   if (!meta) return <div className="p-8 text-center text-muted-foreground">تست نامعتبر</div>;
   const item = meta.items[index];
@@ -128,12 +157,26 @@ export default function ScreenerView() {
               <CardContent>
                 {trend.length >= 2 ? (
                   <ResponsiveContainer width="100%" height={180}>
-                    <LineChart data={trend}>
+                    <AreaChart data={trend}>
+                      <defs>
+                        <linearGradient id="screenerG" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
+                          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
                       <XAxis dataKey="date" fontSize={10} tickLine={false} axisLine={false} />
                       <YAxis domain={[0, 100]} fontSize={10} tickLine={false} axisLine={false} width={28} />
-                      <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                      <Line type="monotone" dataKey="score" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
-                    </LineChart>
+                      <Tooltip content={<ScreenerTrendTooltip />} />
+                      <Area
+                        type="monotone"
+                        dataKey="score"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={2.5}
+                        fill="url(#screenerG)"
+                        dot={{ r: 3.5, fill: "hsl(var(--primary))" }}
+                        activeDot={{ r: 5 }}
+                      />
+                    </AreaChart>
                   </ResponsiveContainer>
                 ) : (
                   <p className="text-sm text-muted-foreground">حداقل ۲ ثبت برای نمودار لازم است.</p>

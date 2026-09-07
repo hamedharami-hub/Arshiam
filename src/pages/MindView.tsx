@@ -14,6 +14,7 @@ import { DISTORTION_LABELS } from "@/lib/distortions";
 import { SCREENERS, severityColor, type ScreenerType } from "@/lib/assessments/screeners";
 import { loadSettings, type UserSettings } from "@/lib/reminders";
 import { Card } from "@/components/ui/card";
+import { formatDate, toPersianDigits } from "@/lib/jalali";
 
 type Checkin = {
   checkin_date: string; mood: number | null; energy: number | null;
@@ -72,12 +73,56 @@ function StatCard({ label, value, icon: Icon, tone }: { label: string; value: st
 
 function HeatmapCell({ intensity }: { intensity: number }) {
   // 0..1 → background opacity
-  const op = intensity === 0 ? 0.06 : 0.25 + intensity * 0.65;
+  const op = intensity === 0 ? 0.08 : 0.25 + intensity * 0.7;
   return (
     <div
-      className="aspect-square rounded-sm transition-transform hover:scale-125"
+      className="aspect-square rounded-md transition-all duration-200 hover:scale-135 hover:z-10 shadow-2xs hover:shadow-sm ring-1 ring-border/20 cursor-pointer"
       style={{ background: `hsl(var(--primary) / ${op})` }}
     />
+  );
+}
+
+function MindTrendTooltip({ active, payload }: any) {
+  if (!active || !payload || !payload.length) return null;
+  const data = payload[0]?.payload;
+  if (!data) return null;
+
+  return (
+    <div className="rounded-2xl border border-border/80 bg-popover/95 backdrop-blur-md p-3.5 shadow-xl text-xs space-y-2 min-w-[170px]" dir="rtl">
+      <div className="font-semibold text-foreground border-b border-border/60 pb-1.5 text-[13px]">{data.fullDate || data.date}</div>
+      {data.mood != null && (
+        <div className="flex items-center justify-between gap-3 text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-primary shadow-2xs" /> خلق
+          </span>
+          <span className="font-bold text-foreground font-mono">{toPersianDigits(data.mood)} / ۱۰</span>
+        </div>
+      )}
+      {data.energy != null && (
+        <div className="flex items-center justify-between gap-3 text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full shadow-2xs" style={{ background: "hsl(200 80% 55%)" }} /> انرژی
+          </span>
+          <span className="font-bold text-foreground font-mono">{toPersianDigits(data.energy)} / ۱۰</span>
+        </div>
+      )}
+      {data.focus != null && (
+        <div className="flex items-center justify-between gap-3 text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full shadow-2xs" style={{ background: "hsl(30 90% 55%)" }} /> تمرکز
+          </span>
+          <span className="font-bold text-foreground font-mono">{toPersianDigits(data.focus)} / ۱۰</span>
+        </div>
+      )}
+      {data.stress != null && (
+        <div className="flex items-center justify-between gap-3 text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full shadow-2xs" style={{ background: "hsl(0 75% 60%)" }} /> استرس
+          </span>
+          <span className="font-bold text-foreground font-mono">{toPersianDigits(data.stress)} / ۱۰</span>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -141,10 +186,18 @@ export default function MindView() {
   const todayStr = new Date().toISOString().slice(0, 10);
   const isToday = today?.checkin_date === todayStr;
 
-  const trend = useMemo(() => checkins.slice(-30).map((c) => ({
-    date: c.checkin_date.slice(5),
-    mood: c.mood, energy: c.energy, focus: c.focus, stress: c.stress,
-  })), [checkins]);
+  const trend = useMemo(() => checkins.slice(-30).map((c) => {
+    const d = new Date(c.checkin_date);
+    return {
+      rawDate: c.checkin_date,
+      date: formatDate(d, "d MMM"),
+      fullDate: formatDate(d, "EEEE d MMMM yyyy"),
+      mood: c.mood,
+      energy: c.energy,
+      focus: c.focus,
+      stress: c.stress,
+    };
+  }), [checkins]);
 
   // 90-day heatmap aligned to weeks
   const heatmap = useMemo(() => {
@@ -154,10 +207,15 @@ export default function MindView() {
       const v = avg.length ? avg.reduce((a, b) => a + b, 0) / avg.length / 10 : 0.4;
       map.set(c.checkin_date, v);
     });
-    const days: { date: string; intensity: number }[] = [];
+    const days: { date: string; jalaliDate: string; intensity: number }[] = [];
     for (let i = 89; i >= 0; i--) {
-      const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
-      days.push({ date: d, intensity: map.get(d) ?? 0 });
+      const dStr = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+      const dObj = new Date(dStr);
+      days.push({
+        date: dStr,
+        jalaliDate: formatDate(dObj, "EEEE d MMMM"),
+        intensity: map.get(dStr) ?? 0,
+      });
     }
     return days;
   }, [checkins]);
@@ -165,7 +223,7 @@ export default function MindView() {
   return (
     <div className="max-w-5xl mx-auto p-4 md:p-8 space-y-6 pb-20 animate-fade-in" dir="rtl">
       {/* Hero */}
-      <Card className="p-6 md:p-8 border-border/60 bg-card/60 shadow-sm">
+      <Card className="p-6 md:p-8 border-border/70 bg-card/60 backdrop-blur-xs shadow-xs">
         <div className="flex items-start gap-4">
           <div className="grid place-items-center h-12 w-12 rounded-2xl bg-primary/10 text-primary shrink-0">
             <Brain className="w-6 h-6" />
@@ -183,7 +241,7 @@ export default function MindView() {
               </div>
             )}
             {!isToday && settings?.show_daily_checkin !== false && (
-              <Link to="/app/checkin" className="inline-flex items-center gap-2 mt-4 bg-primary text-primary-foreground font-medium rounded-full px-4 py-2 text-sm hover:bg-primary/90 transition">
+              <Link to="/app/checkin" className="inline-flex items-center gap-2 mt-4 bg-primary text-primary-foreground font-medium rounded-full px-4 py-2 text-sm hover:bg-primary/90 transition shadow-xs active:scale-95">
                 ثبت Check-in امروز <ArrowLeft className="w-4 h-4" />
               </Link>
             )}
@@ -201,7 +259,7 @@ export default function MindView() {
 
       {/* Trend chart */}
       {trend.length > 1 && (
-        <Card className="p-5 border-border/60 bg-card/60 shadow-sm">
+        <Card className="p-5 border-border/70 bg-card/60 backdrop-blur-xs shadow-xs">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-semibold flex items-center gap-2 text-foreground"><TrendingUp className="w-4 h-4 text-primary" /> روند ۳۰ روز اخیر</h3>
@@ -213,16 +271,16 @@ export default function MindView() {
               <defs>
                 <linearGradient id="moodG" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
-                  <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.01} />
                 </linearGradient>
               </defs>
               <XAxis dataKey="date" fontSize={10} tickLine={false} axisLine={false} />
               <YAxis domain={[0, 10]} fontSize={10} tickLine={false} axisLine={false} width={24} />
-              <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12, background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))" }} />
-              <Area type="monotone" dataKey="mood" stroke="hsl(var(--primary))" fill="url(#moodG)" strokeWidth={2} />
-              <Line type="monotone" dataKey="energy" stroke="hsl(200 80% 55%)" strokeWidth={1.5} dot={false} />
-              <Line type="monotone" dataKey="focus" stroke="hsl(30 90% 55%)" strokeWidth={1.5} dot={false} />
-              <Line type="monotone" dataKey="stress" stroke="hsl(0 75% 60%)" strokeWidth={1.5} dot={false} strokeDasharray="3 3" />
+              <Tooltip content={<MindTrendTooltip />} />
+              <Area type="monotone" dataKey="mood" stroke="hsl(var(--primary))" fill="url(#moodG)" strokeWidth={2.5} />
+              <Line type="monotone" dataKey="energy" stroke="hsl(200 80% 55%)" strokeWidth={1.75} dot={false} />
+              <Line type="monotone" dataKey="focus" stroke="hsl(30 90% 55%)" strokeWidth={1.75} dot={false} />
+              <Line type="monotone" dataKey="stress" stroke="hsl(0 75% 60%)" strokeWidth={1.75} dot={false} strokeDasharray="3 3" />
             </AreaChart>
           </ResponsiveContainer>
           <div className="flex flex-wrap gap-3 mt-2 text-[11px] text-muted-foreground">
@@ -235,10 +293,10 @@ export default function MindView() {
       )}
 
       {/* Heatmap */}
-      <Card className="p-5 border-border/60 bg-card/60 shadow-sm">
+      <Card className="p-5 border-border/70 bg-card/60 backdrop-blur-xs shadow-xs">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="font-semibold flex items-center gap-2 text-foreground"><Calendar className="w-4 h-4 text-primary" /> heatmap ۹۰ روز</h3>
+            <h3 className="font-semibold flex items-center gap-2 text-foreground"><Calendar className="w-4 h-4 text-primary" /> تقویم حرارتی ۹۰ روزه</h3>
             <p className="text-xs text-muted-foreground mt-0.5">میانگین خلق/انرژی/تمرکز در هر روز</p>
           </div>
           <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -247,9 +305,9 @@ export default function MindView() {
             <span>زیاد</span>
           </div>
         </div>
-        <div className="grid grid-cols-[repeat(15,_minmax(0,_1fr))] gap-1">
+        <div className="grid grid-cols-[repeat(15,_minmax(0,_1fr))] gap-1.5 p-1">
           {heatmap.map((d) => (
-            <div key={d.date} title={`${d.date} · ${(d.intensity * 10).toFixed(1)}/10`}>
+            <div key={d.date} title={`${d.jalaliDate} · ${toPersianDigits((d.intensity * 10).toFixed(1))}/۱۰`}>
               <HeatmapCell intensity={d.intensity} />
             </div>
           ))}
