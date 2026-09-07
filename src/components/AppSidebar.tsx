@@ -597,7 +597,12 @@ export function AppSidebar() {
           <img src="/favicon.png" alt="ARSHNAZ" className="w-8 h-8 rounded-lg shrink-0" loading="lazy" width={32} height={32} />
           {!collapsed && (
             <div className="flex flex-col leading-tight">
-              <span className="font-bold text-base bg-gradient-to-l from-pink-500 via-purple-500 to-blue-500 bg-clip-text text-transparent">ARSHNAZ</span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-base bg-gradient-to-l from-pink-500 via-purple-500 to-blue-500 bg-clip-text text-transparent">ARSHNAZ</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-semibold">
+                  Sync Test ✨
+                </span>
+              </div>
               <span className="text-[9px] text-muted-foreground">{t("app.tagline")}</span>
             </div>
           )}

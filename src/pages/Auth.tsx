@@ -188,6 +188,10 @@ export default function Auth() {
           <h1 className="text-3xl font-black tracking-wide bg-gradient-to-l from-pink-500 via-purple-500 to-blue-500 bg-clip-text text-transparent">
             ARSHNAZ
           </h1>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 my-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            تست سینک هوش مصنوعی (AI Studio Sync Test ✨)
+          </div>
           <p className="text-xs text-muted-foreground mt-1 font-medium">
             {isEn ? "Arshnaz · Manage tasks with love" : "ارشناز · هوشمند، بالینی و متمرکز"}
           </p>
