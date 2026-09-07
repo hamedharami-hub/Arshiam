@@ -88,6 +88,28 @@ export async function callAI(
   let timezone = "UTC";
   try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch {}
 
+  // 1. Direct Google Gemini REST API support
+  const { getGeminiApiKey, callDirectGemini, GEMINI_SYSTEM_PROMPTS } = await import("./geminiDirect");
+  const geminiKey = (settings?.provider === "gemini" && settings.apiKey) ? settings.apiKey : getGeminiApiKey();
+  if (geminiKey) {
+    try {
+      const systemPrompt = GEMINI_SYSTEM_PROMPTS[mode] || GEMINI_SYSTEM_PROMPTS.chat;
+      let promptText = typeof input === "string" ? input : JSON.stringify(input);
+      if (context) promptText = `زمینه (Context):\n${context}\n\nورودی:\n${promptText}`;
+      if (action) promptText = `دستور (Action): ${action}\n\n${promptText}`;
+      const res = await callDirectGemini({
+        prompt: promptText,
+        systemPrompt,
+        model: settings?.model || "gemini-2.5-flash",
+        apiKey: geminiKey,
+      });
+      return res;
+    } catch (directErr: any) {
+      console.warn("[AI] Direct Gemini call error, attempting Supabase edge fallback:", directErr?.message || directErr);
+    }
+  }
+
+  // 2. Supabase Edge Function fallback
   const { data, error } = await supabase.functions.invoke("ai-assistant", {
     body: { mode, input, context, settings, action, language, mhProfile, aboutMe, webSearch: opts?.webSearch === true, timezone },
   });

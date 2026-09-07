@@ -11,6 +11,28 @@ export type StreamChatOptions = {
 };
 
 export async function streamAI(opts: StreamChatOptions): Promise<void> {
+  // 1. Direct Gemini SSE streaming
+  try {
+    const { getGeminiApiKey, streamDirectGemini, GEMINI_SYSTEM_PROMPTS } = await import("./geminiDirect");
+    const geminiKey = getGeminiApiKey();
+    if (geminiKey) {
+      const promptText = typeof opts.input === "string" ? opts.input : JSON.stringify(opts.input);
+      const systemPrompt = GEMINI_SYSTEM_PROMPTS[opts.mode] || GEMINI_SYSTEM_PROMPTS.chat;
+      await streamDirectGemini({
+        prompt: promptText,
+        systemPrompt,
+        apiKey: geminiKey,
+        onDelta: opts.onDelta,
+        onDone: opts.onDone,
+        signal: opts.signal,
+      });
+      return;
+    }
+  } catch (directErr: any) {
+    console.warn("[AIStream] Direct Gemini streaming error, attempting Supabase edge fallback:", directErr?.message || directErr);
+  }
+
+  // 2. Supabase Edge Function fallback
   const resp = await fetch(STREAM_URL, {
     method: "POST",
     headers: {
