@@ -12,12 +12,32 @@ import {
   upsertTask as upsertFirestoreTask,
 } from "@/lib/firestoreDataService";
 import type { Task } from "@/lib/taskTypes";
+import {
+  createTaskCacheEnvelope,
+  isTaskCacheFresh,
+  readTaskCacheEnvelope,
+} from "./taskCache";
+import { applyTaskOperations } from "./taskOperations";
 
 const TASKS_CACHE_PREFIX = "tasks:all:";
 const taskCache = new Map<string, Task[]>();
+const taskCacheTimestamps = new Map<string, number>();
 
 export const taskCacheKey = (userId: string) => `${TASKS_CACHE_PREFIX}${userId}`;
 export const taskMemoryCache = taskCache;
+
+function setTaskCache(userId: string, tasks: Task[], cachedAt = Date.now()): void {
+  taskCache.set(userId, tasks);
+  taskCacheTimestamps.set(userId, cachedAt);
+}
+
+export function isTaskCacheFreshForUser(userId: string): boolean {
+  return isTaskCacheFresh(taskCacheTimestamps.get(userId));
+}
+
+function persistTaskCache(userId: string, tasks: Task[]): Promise<void> {
+  return cacheSet(taskCacheKey(userId), createTaskCacheEnvelope(tasks));
+}
 
 function sortTasks(tasks: Task[]): Task[] {
   return [...tasks].sort((a, b) => {
@@ -33,37 +53,16 @@ function sortTasks(tasks: Task[]): Task[] {
 export async function getCachedTasks(userId: string): Promise<Task[]> {
   const memory = taskCache.get(userId);
   if (memory) return memory;
-  const persisted = await cacheGet<Task[]>(taskCacheKey(userId));
-  const tasks = persisted || [];
-  taskCache.set(userId, tasks);
+  const persisted = await cacheGet<unknown>(taskCacheKey(userId));
+  const envelope = readTaskCacheEnvelope(persisted);
+  const tasks = envelope?.tasks || [];
+  setTaskCache(userId, tasks, envelope?.cachedAt);
   return tasks;
 }
 
 export async function applyPendingTaskOperations(base: Task[]): Promise<Task[]> {
   const operations = await getPendingOps("tasks");
-  const inserts = new Map<string, Task>();
-  const deletes = new Set<string>();
-  const updates = new Map<string, Partial<Task>>();
-
-  for (const operation of operations) {
-    if (operation.op === "insert" && operation.payload) {
-      const task = operation.payload as Task;
-      if (task.id) inserts.set(task.id, task);
-    } else if (operation.op === "delete" && operation.match?.id) {
-      deletes.add(operation.match.id as string);
-    } else if (operation.op === "update" && operation.match?.id && operation.payload) {
-      const id = operation.match.id as string;
-      updates.set(id, { ...(updates.get(id) || {}), ...(operation.payload as Partial<Task>) });
-    }
-  }
-
-  let next = base.filter((task) => !deletes.has(task.id));
-  for (const task of inserts.values()) {
-    if (!next.some((item) => item.id === task.id)) next = [task, ...next];
-  }
-  return next.map((task) => updates.has(task.id)
-    ? { ...task, ...updates.get(task.id) }
-    : task);
+  return applyTaskOperations(base, operations);
 }
 
 export async function fetchTasks(userId: string): Promise<Task[]> {
@@ -74,8 +73,8 @@ export async function fetchTasks(userId: string): Promise<Task[]> {
         id: item.id,
         ...(item.data() as Task),
       })));
-      taskCache.set(userId, tasks);
-      await cacheSet(taskCacheKey(userId), tasks);
+      setTaskCache(userId, tasks);
+      await persistTaskCache(userId, tasks);
       return tasks;
     }
   } catch (error) {
@@ -90,8 +89,8 @@ export async function fetchTasks(userId: string): Promise<Task[]> {
       .limit(2000);
     if (!error && data?.length) {
       const tasks = sortTasks(data as unknown as Task[]);
-      taskCache.set(userId, tasks);
-      await cacheSet(taskCacheKey(userId), tasks);
+      setTaskCache(userId, tasks);
+      await persistTaskCache(userId, tasks);
       return tasks;
     }
   } catch (error) {
@@ -103,7 +102,8 @@ export async function fetchTasks(userId: string): Promise<Task[]> {
 
 export function subscribeToTasks(userId: string, onUpdate: (tasks: Task[]) => void): () => void {
   return subscribeFirestoreTasks(userId, (tasks) => {
-    taskCache.set(userId, tasks);
+    setTaskCache(userId, tasks);
+    void persistTaskCache(userId, tasks);
     onUpdate(tasks);
   });
 }

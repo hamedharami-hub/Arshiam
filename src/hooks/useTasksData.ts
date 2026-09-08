@@ -5,6 +5,7 @@ import {
   applyPendingTaskOperations,
   fetchTasks,
   getCachedTasks,
+  isTaskCacheFreshForUser,
   subscribeToTasks,
   taskMemoryCache,
 } from "@/features/tasks/taskService";
@@ -32,7 +33,7 @@ export function useTasksData({ user, scope, scopeId }: UseTasksDataOptions) {
   const fetchAll = useCallback(async (force = false): Promise<void> => {
     if (!user) return;
     const now = Date.now();
-    if (!force && now - lastLoadRef.current < MIN_INTERVAL_MS && taskMemoryCache.get(user.id)) return;
+    if (!force && now - lastLoadRef.current < MIN_INTERVAL_MS && isTaskCacheFreshForUser(user.id)) return;
     if (inflightRef.current) return inflightRef.current;
     lastLoadRef.current = now;
     const request = (async () => {
@@ -53,7 +54,7 @@ export function useTasksData({ user, scope, scopeId }: UseTasksDataOptions) {
     base = await applyPendingTaskOperations(base);
     taskMemoryCache.set(user.id, base);
     setAllTasks(base);
-    await fetchAll(!taskMemoryCache.get(user.id));
+    await fetchAll(!isTaskCacheFreshForUser(user.id));
 
     if (typeof navigator !== "undefined" && navigator.onLine) {
       if (scope === "folder" && scopeId) {
