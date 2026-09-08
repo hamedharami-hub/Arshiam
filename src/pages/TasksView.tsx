@@ -1178,8 +1178,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                       setBusterTask(t);
                       setBusterOpen(true);
                     }}
+                    title={T("موتور هوشمند ضد اهمال‌کاری و شناخت‌درمانی (CBT)", "Smart Procrastination & CBT Engine")}
                     className="text-[9px] gap-1 px-2 py-0 h-[18px] inline-flex items-center rounded-full border bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/20 transition-colors shadow-2xs font-semibold"
-                    title={T("کپسول ضد اهمال‌کاری (تقسیم به ۳ قدم ۲ دقیقه‌ای با هوش مصنوعی)", "Procrastination Buster (Break into 3 two-minute steps with AI)")}
                   >
                     <Zap className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
                     <span>{T("ضد اهمال‌کاری", "Buster")}</span>
