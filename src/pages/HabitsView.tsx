@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Flame, Trash2, Target, StickyNote, Trophy } from "lucide-react";
+import { Plus, Flame, Trash2, Target, StickyNote, Trophy, Check, Sparkles } from "lucide-react";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { format, subDays, isSameDay, startOfWeek, differenceInDays, parseISO } from "date-fns";
-import { getCalendarSystem, formatDate, jalaliDayOfWeek, WEEKDAY_SHORT_FA, type CalendarSystem } from "@/lib/jalali";
+import { getCalendarSystem, formatDate, toPersianDigits, jalaliDayOfWeek, WEEKDAY_SHORT_FA, type CalendarSystem } from "@/lib/jalali";
 import { toast } from "sonner";
 import { useTapGestures } from "@/lib/useTapGestures";
 import { haptic } from "@/lib/haptics";
@@ -277,40 +277,86 @@ export default function HabitsView() {
 
       <div className="space-y-4">
         {habits.map((h) => {
-          const wp = weekProgress(h);
-          const met = wp.count >= wp.target;
-          const s = streak(h);
-          const best = bestStreak(h);
-          const streakUnit = h.frequency === "weekly" ? "هفته" : "روز";
+          const todayLog = logs.find((l) => l.habit_id === h.id && isSameDay(new Date(l.log_date), new Date()));
+          const isTodayDone = !!todayLog;
+
           return (
-            <Card key={h.id} className="p-4 bg-card/60 border-border/60">
-              <div className="flex items-center justify-between mb-3 gap-2">
-                <div className="flex items-center gap-3 flex-wrap min-w-0">
-                  <span className="text-2xl">{h.icon}</span>
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">{h.name}</div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                      <span className="flex items-center gap-1">
-                        <Flame className={`w-3 h-3 ${s > 0 ? "text-orange-500" : "text-muted-foreground"}`} /> {s} {streakUnit} پیاپی
+            <div key={h.id} className="rounded-2xl border border-border/60 bg-card/60 p-4.5 shadow-2xs hover:shadow-xs hover:border-border transition-all duration-200">
+              <div className="flex items-center justify-between mb-3.5 gap-3">
+                <div className="flex items-center gap-3.5 flex-1 min-w-0">
+                  <div className="grid place-items-center h-11 w-11 rounded-2xl bg-primary/10 text-primary text-xl shrink-0 shadow-2xs">
+                    {h.icon || "🌱"}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-bold text-base text-foreground truncate">{h.name}</h3>
+                      {s > 0 && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25 animate-pulse">
+                          <Flame className="w-3.5 h-3.5 fill-amber-500" />
+                          <span>{toPersianDigits(s)} {streakUnit}</span>
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1 flex-wrap">
+                      {best > 0 && (
+                        <span className="flex items-center gap-1 font-medium">
+                          <Trophy className="w-3.5 h-3.5 text-yellow-500" />
+                          <span>بهترین: {toPersianDigits(best)}</span>
+                        </span>
+                      )}
+                      <span className="text-border/80">•</span>
+                      <span className="font-medium">
+                        {met ? (
+                          <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5" /> هدف هفتگی تأمین‌شد
+                          </span>
+                        ) : (
+                          `${toPersianDigits(wp.count)} از ${toPersianDigits(wp.target)} روز هفته`
+                        )}
                       </span>
-                      <span className="text-border">|</span>
-                      <span className="flex items-center gap-1">
-                        <Trophy className={`w-3 h-3 ${best > s ? "text-yellow-500" : "text-muted-foreground"}`} /> بهترین: {best}
-                      </span>
-                      <span className="text-border">|</span>
-                      <span>{met ? "هدف هفتگی تأمین‌شد" : `${wp.count}/${wp.target} هفته`}</span>
                     </div>
                   </div>
                 </div>
-                <Button size="icon" variant="ghost" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={async () => {
-                  await firebaseStore.from("habits").delete().eq("id", h.id);
-                  load();
-                }}><Trash2 className="w-4 h-4" /></Button>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Quick toggle today button */}
+                  <button
+                    type="button"
+                    onClick={() => toggle(h.id, new Date())}
+                    className={`h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all duration-150 active:scale-90 ${
+                      isTodayDone
+                        ? "bg-emerald-500 text-white shadow-xs"
+                        : "bg-muted/80 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                    }`}
+                  >
+                    <Check className={`w-3.5 h-3.5 ${isTodayDone ? "stroke-[2.5]" : ""}`} />
+                    <span>{isTodayDone ? "انجام شد" : "امروز"}</span>
+                  </button>
+
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-9 w-9 text-muted-foreground hover:text-destructive rounded-xl"
+                    onClick={async () => {
+                      await firebaseStore.from("habits").delete().eq("id", h.id);
+                      load();
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
-              <div className="h-1.5 w-full bg-muted rounded-full mb-3 overflow-hidden">
-                <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.min(100, (wp.count / wp.target) * 100)}%` }} />
+
+              {/* Progress bar */}
+              <div className="h-2 w-full bg-muted/80 rounded-full mb-3.5 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-primary to-primary/80 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, (wp.count / wp.target) * 100)}%` }}
+                />
               </div>
-              <div className={view === "week" ? "flex gap-1 justify-between" : "grid grid-cols-7 gap-1"}>
+
+              {/* Day cells grid */}
+              <div className={view === "week" ? "flex gap-1.5 justify-between" : "grid grid-cols-7 gap-1"}>
                 {days.map((d) => {
                   const log = logs.find((l) => l.habit_id === h.id && isSameDay(new Date(l.log_date), d));
                   const done = !!log;
@@ -329,7 +375,7 @@ export default function HabitsView() {
                   );
                 })}
               </div>
-            </Card>
+            </div>
           );
         })}
         {habits.length === 0 && (
@@ -398,18 +444,25 @@ function DayCell({
       {...(isTouch ? handlers : {})}
       onClick={isTouch ? undefined : onTap}
       onContextMenu={(e) => { e.preventDefault(); onLongPress(); }}
-      className={`relative aspect-square rounded-lg flex flex-col items-center justify-center transition select-none border
-        ${compact ? "text-[10px] p-0.5" : "flex-1 text-xs"}
-        ${done ? "bg-primary/15 text-primary border-primary/40" : "bg-muted/50 border-transparent hover:border-primary/30 hover:bg-accent/30"}`}
+      className={`relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all duration-150 select-none border active:scale-85 ${
+        compact ? "text-[10px] p-0.5" : "flex-1 text-xs py-1"
+      } ${
+        done
+          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 shadow-2xs"
+          : "bg-muted/40 border-border/40 text-muted-foreground hover:border-primary/40 hover:bg-accent/30"
+      }`}
     >
       {!compact && (
-        <span className="text-[10px] text-muted-foreground">
+        <span className="text-[10px] text-muted-foreground/80 mb-0.5">
           {system === "jalali" ? WEEKDAY_SHORT_FA[jalaliDayOfWeek(date)] : format(date, "EEE")[0]}
         </span>
       )}
-      <span className="font-semibold">{system === "jalali" ? formatDate(date, "d", "jalali") : format(date, "d")}</span>
+      <span className="font-bold tabular-nums">{system === "jalali" ? formatDate(date, "d", "jalali") : format(date, "d")}</span>
+      {done && (
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-0.5" />
+      )}
       {hasNote && (
-        <StickyNote className={`${compact ? "w-1.5 h-1.5" : "w-2.5 h-2.5"} absolute top-1 end-1 text-primary opacity-80`} />
+        <StickyNote className={`${compact ? "w-2 h-2" : "w-2.5 h-2.5"} absolute top-1 end-1 text-primary opacity-80`} />
       )}
     </button>
   );

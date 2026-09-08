@@ -187,7 +187,7 @@ function FolderRow({ folder: f, depth, hasChildren, open, collapsed, onToggle, o
     <SidebarMenuItem>
       <SidebarMenuButton asChild>
         <div
-          className="flex items-center w-full gap-1.5 rounded-xl transition cursor-pointer select-none group data-[drag-over=true]:bg-primary/15 data-[drag-over=true]:ring-1 data-[drag-over=true]:ring-primary"
+          className="flex items-center w-full gap-1.5 rounded-xl px-1.5 py-1 transition-all duration-150 cursor-pointer select-none group hover:bg-sidebar-accent/50 data-[drag-over=true]:bg-primary/15 data-[drag-over=true]:ring-1 data-[drag-over=true]:ring-primary"
           style={{ paddingInlineStart: depth * 12 }}
           {...lp.handlers}
           onContextMenu={(e) => {
@@ -213,10 +213,10 @@ function FolderRow({ folder: f, depth, hasChildren, open, collapsed, onToggle, o
           {hasChildren && (
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggle(); }}
-              className="p-0.5 hover:bg-muted rounded shrink-0"
+              className="p-1 hover:bg-sidebar-accent rounded-md shrink-0 transition-colors"
               title={open ? "بستن" : "باز کردن"}
             >
-              {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+              {open ? <ChevronDown className="w-3 h-3 text-muted-foreground" /> : <ChevronRight className="w-3 h-3 text-muted-foreground" />}
             </button>
           )}
           <NavLink
@@ -228,14 +228,14 @@ function FolderRow({ folder: f, depth, hasChildren, open, collapsed, onToggle, o
               }
               onNav();
             }}
-            className="flex items-center justify-center gap-1.5 flex-1 w-full truncate"
-            activeClassName="text-primary font-bold"
+            className="flex items-center gap-2 flex-1 w-full truncate text-sidebar-foreground"
+            activeClassName="text-primary font-bold bg-primary/10"
           >
             <FolderIcon
               className="w-4 h-4 shrink-0 transition-transform group-hover:scale-110"
               style={{ color: f.color || "hsl(var(--primary))" }}
             />
-            {!collapsed && <span className="truncate text-xs">{f.name}</span>}
+            {!collapsed && <span className="truncate text-xs font-medium">{f.name}</span>}
           </NavLink>
         </div>
       </SidebarMenuButton>
