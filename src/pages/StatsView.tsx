@@ -156,10 +156,10 @@ export default function StatsView() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <SummaryCard icon={CheckCircle2} label="تسک انجام‌شده" value={toPersianDigits(completedTasks.length)} color="text-emerald-500" />
-        <SummaryCard icon={Clock} label="دقیقه تمرکز" value={toPersianDigits(focusMinutes)} color="text-amber-500" />
-        <SummaryCard icon={Flame} label="عادت موفق" value={bestHabit ? toPersianDigits(bestHabit.rate) + "%" : "—"} color="text-orange-500" />
-        <SummaryCard icon={AlertCircle} label="تسک عقب‌افتاده" value={toPersianDigits(overdueTasks.length)} color="text-rose-500" />
+        <SummaryCard icon={CheckCircle2} label="تسک انجام‌شده" value={toPersianDigits(completedTasks.length)} gradient="from-emerald-500 to-teal-600" />
+        <SummaryCard icon={Clock} label="دقیقه تمرکز" value={toPersianDigits(focusMinutes)} gradient="from-amber-500 to-orange-600" />
+        <SummaryCard icon={Flame} label="عادت موفق" value={bestHabit ? toPersianDigits(bestHabit.rate) + "%" : "—"} gradient="from-violet-500 to-purple-600" />
+        <SummaryCard icon={AlertCircle} label="تسک عقب‌افتاده" value={toPersianDigits(overdueTasks.length)} gradient="from-rose-500 to-red-600" />
       </div>
 
       <Card>
@@ -259,14 +259,28 @@ export default function StatsView() {
   );
 }
 
-function SummaryCard({ icon: Icon, label, value, color }: { icon: typeof CheckCircle2; label: string; value: string; color: string }) {
+function SummaryCard({
+  icon: Icon,
+  label,
+  value,
+  gradient,
+}: {
+  icon: typeof CheckCircle2;
+  label: string;
+  value: string;
+  gradient: string;
+}) {
   return (
-    <Card className="p-4 bg-card/60 border-border/60">
-      <div className="flex items-center gap-2 mb-1">
-        <Icon className={`w-4 h-4 ${color}`} />
-        <span className="text-[10px] text-muted-foreground">{label}</span>
+    <div className="group rounded-2xl border border-border/50 bg-card/60 p-4 shadow-2xs hover:shadow-sm hover:border-border transition-all duration-200">
+      <div className="flex items-center gap-3">
+        <div className={`grid place-items-center h-9 w-9 rounded-xl bg-gradient-to-tr ${gradient} text-white shrink-0 shadow-xs transition-transform group-hover:scale-105`}>
+          <Icon className="w-4 h-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] font-medium text-muted-foreground truncate">{label}</div>
+          <div className="text-xl md:text-2xl font-bold tabular-nums text-foreground mt-0.5">{value}</div>
+        </div>
       </div>
-      <div className="text-2xl font-bold tabular-nums">{value}</div>
-    </Card>
+    </div>
   );
 }
