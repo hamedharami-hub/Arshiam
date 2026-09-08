@@ -40,6 +40,7 @@ import { BucketPickerBody } from "@/components/BucketPickerInline";
 import { bucketLabel, kindLabel } from "@/lib/timeBuckets";
 import { describeRule } from "@/lib/recurrence";
 import { addDays, endOfDay } from "date-fns";
+import { addTaskToAndroidCalendar } from "@/lib/androidNative";
 
 import { Switch } from "@/components/ui/switch";
 import { pushUndo } from "@/lib/undoStack";
@@ -1235,6 +1236,13 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     </div>
   );
 
+  const addToAndroidCalendar = async () => {
+    try {
+      const added = await addTaskToAndroidCalendar(t);
+      if (added) toast.success(T("رویداد در تقویم Android آماده شد", "Event prepared in Android Calendar"));
+    } catch { toast.error(T("بازکردن تقویم ممکن نشد", "Could not open Android Calendar")); }
+  };
+
   const drawerHeader = (snap === 1 && isMobile) ? null : (
     <div className="flex items-center justify-between px-3 pt-3 pb-1 shrink-0">
       <span className="sr-only">{activeNote ? T("ویرایش نوت", "Edit note") : T("جزئیات تسک", "Task")}</span>
@@ -1250,6 +1258,9 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           title={snap === 1 ? T("کوچک‌نمایی", "Collapse") : T("فول اسکرین", "Full screen")}
         >
           {snap === 1 ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+        </Button>
+        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={addToAndroidCalendar} title={T("افزودن به تقویم Android", "Add to Android Calendar")}>
+          <CalendarDays className="w-4 h-4" />
         </Button>
       </div>
     </div>
@@ -1350,4 +1361,3 @@ function AttachTypeBtn({ icon: Icon, label, onClick }: { icon: any; label: strin
     </button>
   );
 }
-

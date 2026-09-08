@@ -3,6 +3,38 @@ import { LocalNotifications } from "@capacitor/local-notifications";
 
 const isNative = Capacitor.isNativePlatform();
 
+let nativeActionsRegistered = false;
+let nativeActionListenerRegistered = false;
+async function registerNativeActions() {
+  if (!isNative || nativeActionsRegistered) return;
+  try {
+    await LocalNotifications.registerActionTypes({
+      types: [{
+        id: "ARSHNAZ_TASK_REMINDER",
+        actions: [
+          { id: "complete", title: "انجام شد", foreground: true },
+          { id: "snooze10", title: "تعویق ۱۰ دقیقه" },
+        ],
+      }],
+    });
+    nativeActionsRegistered = true;
+    if (!nativeActionListenerRegistered) {
+      nativeActionListenerRegistered = true;
+      await LocalNotifications.addListener("localNotificationActionPerformed", (event) => {
+        if (event.actionId !== "snooze10") return;
+        const extra = event.notification.extra as { tag?: string } | undefined;
+        const tag = extra?.tag || `notification-${event.notification.id}`;
+        void scheduleNotificationAt(
+          event.notification.title || "یادآور ARSHNAZ",
+          event.notification.body || "",
+          `${tag}-snooze`,
+          new Date(Date.now() + 10 * 60 * 1000),
+        );
+      });
+    }
+  } catch {}
+}
+
 function hashTag(tag: string): number {
   let h = 0;
   for (let i = 0; i < tag.length; i++) h = (Math.imul(31, h) + tag.charCodeAt(i)) | 0;
@@ -11,6 +43,7 @@ function hashTag(tag: string): number {
 
 export async function ensureNotificationPermission(): Promise<boolean> {
   if (isNative) {
+    await registerNativeActions();
     const status = await LocalNotifications.checkPermissions();
     if (status.display === "granted") return true;
     if (status.display === "denied") return false;
@@ -59,6 +92,7 @@ export async function scheduleNotificationAt(
   const id = hashTag(tag);
   if (isNative) {
     try {
+      await registerNativeActions();
       await LocalNotifications.schedule({
         notifications: [
           {
@@ -67,6 +101,8 @@ export async function scheduleNotificationAt(
             body,
             schedule: { at },
             sound: "default",
+            actionTypeId: "ARSHNAZ_TASK_REMINDER",
+            extra: { tag },
           },
         ],
       });
