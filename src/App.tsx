@@ -106,21 +106,29 @@ function CapacitorUrlHandler() {
 
     if (!isNative) return;
 
+    const navigateForUrl = (rawUrl: string) => {
+      const url = rawUrl.toLowerCase();
+      if (url.includes("add_task") || url.includes("new-task")) {
+        navigate("/app/new/task");
+      } else if (url.includes("today")) {
+        navigate("/app/today");
+      } else if (url.includes("checkin")) {
+        navigate("/app/checkin");
+      } else if (url.includes("garden")) {
+        navigate("/app/garden");
+      } else if (url.includes("pomodoro")) {
+        navigate("/app/pomodoro");
+      }
+    };
     let handle: any = null;
     try {
+      CapApp.getLaunchUrl()
+        .then((launch) => {
+          if (launch?.url) navigateForUrl(launch.url);
+        })
+        .catch((e) => console.warn("Capacitor launch URL notice:", e));
       CapApp.addListener("appUrlOpen", (event) => {
-        const url = event.url || "";
-        if (url.includes("add_task") || url.includes("new-task")) {
-          navigate("/app/new-task");
-        } else if (url.includes("today")) {
-          navigate("/app/today");
-        } else if (url.includes("checkin")) {
-          navigate("/app/checkin");
-        } else if (url.includes("garden")) {
-          navigate("/app/garden");
-        } else if (url.includes("pomodoro")) {
-          navigate("/app/pomodoro");
-        }
+        navigateForUrl(event.url || "");
       })
         .then((h) => {
           handle = h;

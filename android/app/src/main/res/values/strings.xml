@@ -4,4 +4,10 @@
     <string name="title_activity_main">ARSHNAZ</string>
     <string name="package_name">life.arshnaz.app</string>
     <string name="custom_url_scheme">arshnaz</string>
+    <string name="shortcut_new_task_short">تسک جدید</string>
+    <string name="shortcut_new_task_long">ساخت تسک جدید در ARSHNAZ</string>
+    <string name="shortcut_today_short">امروز</string>
+    <string name="shortcut_today_long">نمایش وظایف امروز</string>
+    <string name="shortcut_checkin_short">چک‌این</string>
+    <string name="shortcut_checkin_long">چک‌این روزانه</string>
 </resources>
