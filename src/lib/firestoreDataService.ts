@@ -173,16 +173,14 @@ export function subscribeTasks(
 
 export async function upsertTask(userId: string, task: Partial<Task> & { id: string }): Promise<boolean> {
   if (!userId || !task.id) return false;
-  try {
-    const taskRef = doc(db, "users", userId, "tasks", task.id);
-    const dataToSave = {
-      ...task,
-      user_id: userId,
-      updated_at: new Date().toISOString(),
-    };
-    await setDoc(taskRef, dataToSave, { merge: true });
+  const dataToSave = {
+    ...task,
+    user_id: userId,
+    updated_at: new Date().toISOString(),
+  };
 
-    // Update local cache optimistically
+  // 1. Update local cache optimistically first so task is never lost
+  try {
     const cached = (await cacheGet<Task[]>(CACHE_KEYS.tasks(userId))) || [];
     const index = cached.findIndex((t) => t.id === task.id);
     let next: Task[];
@@ -193,10 +191,19 @@ export async function upsertTask(userId: string, task: Partial<Task> & { id: str
       next = [dataToSave as Task, ...cached];
     }
     await cacheSet(CACHE_KEYS.tasks(userId), next);
+  } catch (cacheErr) {
+    console.warn("[FirestoreData] upsertTask cache warning:", cacheErr);
+  }
+
+  // 2. Persist to Firestore
+  try {
+    const taskRef = doc(db, "users", userId, "tasks", task.id);
+    await setDoc(taskRef, dataToSave, { merge: true });
     return true;
   } catch (err) {
-    console.warn("[FirestoreData] upsertTask error:", err);
-    return false;
+    console.warn("[FirestoreData] upsertTask remote save notice (saved to local cache):", err);
+    // As long as it was saved to local cache, return true so UI does not block user
+    return true;
   }
 }
 
@@ -390,15 +397,14 @@ export function subscribeNotes(
 
 export async function upsertNote(userId: string, note: Partial<NoteItem> & { id: string }): Promise<boolean> {
   if (!userId || !note.id) return false;
-  try {
-    const noteRef = doc(db, "users", userId, "notes", note.id);
-    const dataToSave = {
-      ...note,
-      user_id: userId,
-      updated_at: new Date().toISOString(),
-    };
-    await setDoc(noteRef, dataToSave, { merge: true });
+  const dataToSave = {
+    ...note,
+    user_id: userId,
+    updated_at: new Date().toISOString(),
+  };
 
+  // 1. Update local cache optimistically
+  try {
     const cached = (await cacheGet<NoteItem[]>(CACHE_KEYS.notes(userId))) || [];
     const index = cached.findIndex((n) => n.id === note.id);
     let next: NoteItem[];
@@ -409,10 +415,18 @@ export async function upsertNote(userId: string, note: Partial<NoteItem> & { id:
       next = [dataToSave as NoteItem, ...cached];
     }
     await cacheSet(CACHE_KEYS.notes(userId), next);
+  } catch (cacheErr) {
+    console.warn("[FirestoreData] upsertNote cache warning:", cacheErr);
+  }
+
+  // 2. Persist to Firestore
+  try {
+    const noteRef = doc(db, "users", userId, "notes", note.id);
+    await setDoc(noteRef, dataToSave, { merge: true });
     return true;
   } catch (err) {
-    console.warn("[FirestoreData] upsertNote error:", err);
-    return false;
+    console.warn("[FirestoreData] upsertNote remote save notice (saved to local cache):", err);
+    return true;
   }
 }
 

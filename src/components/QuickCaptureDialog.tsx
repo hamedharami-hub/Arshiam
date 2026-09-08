@@ -156,7 +156,10 @@ export default function QuickCaptureDialog() {
   };
 
   const submit = async () => {
-    if (!user || !finalTitle) return;
+    const taskTitle = finalTitle.trim();
+    if (!taskTitle) return;
+
+    const currentUserId = user?.id || "guest";
     setBusy(true);
     try {
       if (tab === "task") {
@@ -164,7 +167,7 @@ export default function QuickCaptureDialog() {
         const createdAt = new Date().toISOString();
         const task = {
           id,
-          user_id: user.id,
+          user_id: currentUserId,
           title: finalTitle,
           description: null,
           due_date: finalDue,
@@ -175,7 +178,7 @@ export default function QuickCaptureDialog() {
           created_at: createdAt,
           position: 0,
         };
-        const saved = await upsertTask(user.id, task);
+        const saved = await upsertTask(currentUserId, task);
         if (!saved) throw new Error(T("ذخیره‌سازی تسک ممکن نشد", "Unable to save task"));
 
         toast.success(finalDue ? T("تسک با تاریخ ساخته شد", "Task created with date") : T("تسک ساخته شد", "Task created"));
@@ -185,8 +188,8 @@ export default function QuickCaptureDialog() {
       } else {
         const id = crypto.randomUUID();
         const createdAt = new Date().toISOString();
-        const note = { id, user_id: user.id, title: finalTitle, content: "", pinned: false, created_at: createdAt, updated_at: createdAt };
-        const saved = await upsertNote(user.id, note);
+        const note = { id, user_id: currentUserId, title: finalTitle, content: "", pinned: false, created_at: createdAt, updated_at: createdAt };
+        const saved = await upsertNote(currentUserId, note);
         if (!saved) throw new Error(T("ذخیره‌سازی نوت ممکن نشد", "Unable to save note"));
 
         toast.success(T("نوت ساخته شد", "Note created"));
