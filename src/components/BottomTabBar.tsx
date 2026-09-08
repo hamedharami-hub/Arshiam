@@ -33,11 +33,6 @@ export function BottomTabBar() {
   };
 
   const leftTabs: Tab[] = [
-    { key: "today", to: "/app/today", icon: ListTodo, match: (p) => p === "/app/today" || p === "/app" },
-    { key: "notes", to: "/app/notes", icon: FileText, match: (p) => p.startsWith("/app/notes") },
-  ];
-
-  const rightTabs: Tab[] = [
     {
       key: "mind",
       to: "/app/mind",
@@ -54,6 +49,11 @@ export function BottomTabBar() {
         p.startsWith("/app/screener") ||
         p.startsWith("/app/self"),
     },
+    { key: "notes", to: "/app/notes", icon: FileText, match: (p) => p.startsWith("/app/notes") },
+  ];
+
+  const rightTabs: Tab[] = [
+    { key: "today", to: "/app/today", icon: ListTodo, match: (p) => p === "/app/today" || p === "/app" },
   ];
 
   const go = (to: string) => {
