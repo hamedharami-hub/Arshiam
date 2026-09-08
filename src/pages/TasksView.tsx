@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
@@ -10,8 +10,17 @@ import { FolderDeleteDialog } from "@/components/FolderDeleteDialog";
 import ProcrastinationBusterModal from "@/components/ProcrastinationBusterModal";
 import { useNavigate } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
-import { subscribeTasks, upsertTask, deleteTask as fsDeleteTask } from "@/lib/firestoreDataService";
+import {
+  removeTask,
+  saveTask,
+} from "@/features/tasks/taskService";
+import {
+  buildTaskChildrenMap,
+  collectTaskDescendantIds,
+  getTaskProgress,
+} from "@/features/tasks/taskTree";
 import { useAuth } from "@/hooks/useAuth";
+import { useTasksData } from "@/hooks/useTasksData";
 import { Button } from "@/components/ui/button";
 import { BidiText } from "@/components/BidiText";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
@@ -24,7 +33,7 @@ import { PRIORITY_META } from "@/lib/priority";
 import { FolderKanban } from "@/components/FolderKanban";
 import { pushUndo } from "@/lib/undoStack";
 import { pushDeleted } from "@/lib/recentlyDeleted";
-import { enqueueOp, cacheGet, cacheSet, getPendingOps, type QueuedOp } from "@/lib/offlineQueue";
+import { enqueueOp } from "@/lib/offlineQueue";
 import { logTaskActivity } from "@/lib/taskActivity";
 import {
   DropdownMenu,
@@ -69,9 +78,6 @@ import type { RecurrenceRule } from "@/lib/recurrence";
 import { awardWaterDrops } from "@/lib/garden";
 import { DEFAULT_FOLDER_PREFS, getFolderPrefs, saveFolderPrefs, type FolderPrefs } from "@/lib/folderPrefs";
 
-// Module-level cache shared across mounts: instantly hydrate from last fetch.
-const tasksCache = new Map<string, Task[]>();
-const TASKS_CACHE_KEY = (userId: string) => `tasks:all:${userId}`;
 const FOLDER_BG_COLORS = [
   { label: "رز", value: "hsl(350 80% 96%)" },
   { label: "کهربایی", value: "hsl(42 90% 94%)" },
@@ -134,7 +140,16 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     firebaseStore.from("user_settings").select("task_card_layout").eq("user_id", user.id).maybeSingle()
       .then(({ data }) => { if (data?.task_card_layout) setLayout(data.task_card_layout as any); });
   }, [user]);
-  const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const {
+    allTasks,
+    setAllTasks,
+    taskTagsMap,
+    outcomeById,
+    outcomeByTaskId,
+    folderName,
+    tagName,
+    load,
+  } = useTasksData({ user, scope, scopeId: params.id });
   // Soft-completed / soft-deleted tasks are kept visible for a short grace period
   // so users see the strikethrough before the item disappears.
   const [graceTasks, setGraceTasks] = useState<Record<string, Task & { _graceUntil: number }>>({});
@@ -149,9 +164,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   }, [allTasks, graceTasks, graceMap]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   // selected task removed — clicks navigate to /app/tasks/:id
-  const [folderName, setFolderName] = useState("");
   const [folderPrefs, setFolderPrefs] = useState<FolderPrefs>(DEFAULT_FOLDER_PREFS);
-  const [tagName, setTagName] = useState("");
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [moveTask, setMoveTask] = useState<Task | null>(null);
@@ -174,8 +187,6 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const [outcomeTask, setOutcomeTask] = useState<Task | null>(null);
   const [outcomes, setOutcomes] = useState<TaskOutcome[]>([]);
   const [outcomeOpen, setOutcomeOpen] = useState(false);
-  const [outcomeById, setOutcomeById] = useState<Record<string, { label: string; color?: string | null; icon?: string | null }>>({});
-  const [outcomeByTaskId, setOutcomeByTaskId] = useState<Record<string, string>>({});
   const [busterTask, setBusterTask] = useState<Task | null>(null);
   const [busterOpen, setBusterOpen] = useState(false);
   const navigate = useNavigate();
@@ -252,222 +263,13 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       localStorage.setItem(SORT_KEY, JSON.stringify(obj));
     } catch { void 0; }
   }, [filters, scopeKey]);
-  const [taskTagsMap, setTaskTagsMap] = useState<Record<string, string[]>>({});
-
-  // Load task->tags mapping for tag filtering
-  useEffect(() => {
-    if (!user) return;
-    firebaseStore.from("task_tags").select("task_id,tag_id").then(({ data }) => {
-      const m: Record<string, string[]> = {};
-      (data || []).forEach((row: any) => {
-        (m[row.task_id] ||= []).push(row.tag_id);
-      });
-      setTaskTagsMap(m);
-    });
-  }, [user, allTasks.length]);
-
-  // Load outcome labels and task→outcome mappings so branch subtasks show their branch
-  useEffect(() => {
-    if (!user || effectiveAllTasks.length === 0) return;
-    const parentIds = [...new Set(effectiveAllTasks.filter(t => !t.parent_id).map(t => t.id))];
-    if (parentIds.length === 0) return;
-    (async () => {
-      const [{ data: outcomesData }, { data: execsData }] = await Promise.all([
-        firebaseStore.from("task_outcomes").select("id,label,color,icon,task_id").in("task_id", parentIds),
-        firebaseStore.from("outcome_executions").select("outcome_id,created_task_ids,task_id").in("task_id", parentIds),
-      ]);
-      const byId: Record<string, { label: string; color?: string | null; icon?: string | null }> = {};
-      (outcomesData || []).forEach((o: any) => {
-        byId[o.id] = { label: o.label, color: o.color, icon: o.icon };
-      });
-      const byTaskId: Record<string, string> = {};
-      (execsData || []).forEach((e: any) => {
-        (e.created_task_ids || []).forEach((tid: string) => { byTaskId[tid] = e.outcome_id; });
-      });
-      setOutcomeById(byId);
-      setOutcomeByTaskId(byTaskId);
-    })();
-  }, [effectiveAllTasks, user]);
-
   const title = {
     inbox: T("صندوق ورودی", "Inbox"), today: T("امروز", "Today"), tomorrow: T("فردا", "Tomorrow"), next7: T("۷ روز آینده", "Next 7 Days"),
     smart: T("لیست‌های هوشمند", "Smart Lists"), folder: folderName || T("فولدر", "Folder"), tag: `#${tagName || T("تگ", "Tag")}`,
   }[scope];
 
   // Build children map
-  const childrenMap = useMemo(() => {
-    const m: Record<string, Task[]> = {};
-    effectiveAllTasks.forEach(t => {
-      if (t.parent_id) (m[t.parent_id] ||= []).push(t);
-    });
-    return m;
-  }, [effectiveAllTasks]);
-
-  // Module-scoped cache so navigating between scopes (or remounts) reuses
-  // the last task list instantly instead of waiting on a roundtrip.
-  // Keyed by user.id; survives unmount but resets on page reload.
-  const cache = tasksCache;
-
-  const lastLoadRef = (TasksView as any)._lastLoadRef ||= { current: 0 };
-  const inflightRef = (TasksView as any)._inflightRef ||= { current: null as Promise<void> | null };
-  const MIN_INTERVAL_MS = 1500; // throttle: at most one fetch per 1.5s
-
-  const fetchAll = async (force = false): Promise<void> => {
-    if (!user) return;
-    const now = Date.now();
-    if (!force && now - lastLoadRef.current < MIN_INTERVAL_MS && cache.get(user.id)) {
-      return; // recent fetch + cache → skip
-    }
-    if (inflightRef.current) return inflightRef.current;
-    lastLoadRef.current = now;
-    const p = (async () => {
-      // 1. Primary: load from Firebase Firestore
-      try {
-        const { collection, getDocs } = await import("firebase/firestore");
-        const { db } = await import("@/lib/firebase");
-        const tasksCol = collection(db, "users", user.id, "tasks");
-        const snap = await getDocs(tasksCol);
-        if (!snap.empty) {
-          const items: Task[] = [];
-          snap.forEach((d) => items.push({ id: d.id, ...(d.data() as any) }));
-          items.sort((a, b) => {
-            if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-            const posA = a.position ?? 0;
-            const posB = b.position ?? 0;
-            if (posA !== posB) return posA - posB;
-            return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-          });
-          cache.set(user.id, items);
-          setAllTasks(items);
-          await cacheSet(TASKS_CACHE_KEY(user.id), items);
-          return;
-        }
-      } catch (err) {
-        console.warn("[TasksView] Firestore tasks fetch warning:", err);
-      }
-
-      // 2. Secondary fallback: check firebaseStore (only if valid rows returned without error)
-      try {
-        const { data: allData, error } = await firebaseStore.from("tasks")
-          .select("*")
-          .order("position").order("created_at", { ascending: false })
-          .limit(2000);
-        if (!error && allData && allData.length > 0) {
-          const all = ((allData || []) as unknown) as Task[];
-          cache.set(user.id, all);
-          setAllTasks(all);
-          await cacheSet(TASKS_CACHE_KEY(user.id), all);
-          return;
-        }
-      } catch {
-        // Ignore firebaseStore errors
-      }
-
-      // 3. Offline / cache fallback
-      const persisted = await cacheGet<Task[]>(TASKS_CACHE_KEY(user.id));
-      if (persisted && persisted.length > 0) {
-        cache.set(user.id, persisted);
-        setAllTasks(persisted);
-      }
-    })();
-    inflightRef.current = p;
-    try { await p; } finally { inflightRef.current = null; }
-  };
-
-  const applyTaskQueue = async (base: Task[]): Promise<Task[]> => {
-    const ops = await getPendingOps("tasks");
-    const inserts = new Map<string, Task>();
-    const deletes = new Set<string>();
-    const updates = new Map<string, Partial<Task>>();
-    for (const op of ops) {
-      if (op.op === "insert" && op.payload) {
-        const p = op.payload as Task;
-        if (p && p.id) inserts.set(p.id, p);
-      } else if (op.op === "delete" && op.match?.id) {
-        deletes.add(op.match.id as string);
-      } else if (op.op === "update" && op.match?.id && op.payload) {
-        const id = op.match.id as string;
-        updates.set(id, { ...(updates.get(id) || {}), ...(op.payload as Partial<Task>) });
-      }
-    }
-    let next = base.filter(t => !deletes.has(t.id));
-    for (const t of inserts.values()) {
-      if (!next.some(x => x.id === t.id)) next = [t, ...next];
-    }
-    next = next.map(t => updates.has(t.id) ? { ...t, ...updates.get(t.id) } : t);
-    return next;
-  };
-
-  const load = async () => {
-    if (!user) return;
-    // Serve cached list synchronously on mount/scope-switch — refetch in background
-    const cached = cache.get(user.id);
-    let base = cached || (await cacheGet<Task[]>(TASKS_CACHE_KEY(user.id))) || [];
-    base = await applyTaskQueue(base);
-    cache.set(user.id, base);
-    setAllTasks(base);
-    await fetchAll(!cache.get(user.id));
-
-    if (typeof navigator !== "undefined" && navigator.onLine) {
-      if (scope === "folder" && params.id) {
-        const { data: f } = await firebaseStore.from("folders").select("name").eq("id", params.id).single();
-        if (f) setFolderName(f.name);
-      } else if (scope === "tag" && params.id) {
-        const { data: tg } = await firebaseStore.from("tags").select("name").eq("id", params.id).single();
-        if (tg) setTagName(tg.name);
-      }
-    }
-  };
-
-  useEffect(() => { load(); }, [user, scope, params.id]);
-
-  useEffect(() => {
-    if (!user) return;
-    // Coalesce bursty realtime events + enforce min interval between fetches.
-    // - debounce 600ms: many rows in one bulk-update collapse into 1 fetch
-    // - throttle 1.5s: prevents thrash if events keep streaming
-    // - pause while tab hidden: refetch once on visibility return
-    let pending: number | null = null;
-    let dirty = false;
-    const flush = () => {
-      pending = null;
-      if (document.hidden) { dirty = true; return; }
-      dirty = false;
-      fetchAll();
-    };
-    const scheduleLoad = () => {
-      if (pending != null) window.clearTimeout(pending);
-      pending = window.setTimeout(flush, 600);
-    };
-    const onVisible = () => {
-      if (!document.hidden && dirty) { dirty = false; fetchAll(true); }
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    const onTasksChanged = () => load();
-    window.addEventListener("tasks-changed", onTasksChanged);
-    const fsUnsub = subscribeTasks(user.id, (tasks) => {
-      if (tasks && tasks.length > 0) {
-        cache.set(user.id, tasks);
-        setAllTasks(tasks);
-      }
-    });
-    const ch = firebaseStore.channel(`tasks-rt-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, scheduleLoad)
-      .on("postgres_changes", { event: "*", schema: "public", table: "subtasks" }, scheduleLoad)
-      .subscribe();
-    return () => {
-      if (pending != null) window.clearTimeout(pending);
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("tasks-changed", onTasksChanged);
-      fsUnsub();
-      firebaseStore.removeChannel(ch);
-    };
-  }, [user]);
-
-  // Keep cache in sync when optimistic local edits change the in-memory list
-  useEffect(() => {
-    if (user && allTasks.length) cache.set(user.id, allTasks);
-  }, [allTasks, user]);
+  const childrenMap = useMemo(() => buildTaskChildrenMap(effectiveAllTasks), [effectiveAllTasks]);
 
   // Filter top-level visible tasks per scope
   const topLevel = useMemo(() => {
@@ -621,7 +423,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     }
 
     if (user) {
-      await upsertTask(user.id, { id: t.id, ...patch });
+      await saveTask(user.id, { id: t.id, ...patch });
     }
     try {
       await firebaseStore.from("tasks").update(patch).eq("id", t.id);
@@ -665,7 +467,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     }
 
     if (user) {
-      await upsertTask(user.id, { id: t.id, ...patch });
+      await saveTask(user.id, { id: t.id, ...patch });
     }
     try {
       await firebaseStore.from("tasks").update(patch).eq("id", t.id);
@@ -741,13 +543,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const target = effectiveAllTasks.find(t => t.id === id);
     if (target && target.user_id !== user?.id) { toast(T("فقط صاحب تسک می‌تواند حذف کند", "Only the task owner can delete")); return; }
     // snapshot task + descendants + tag links for undo
-    const collectIds = (rid: string): string[] => {
-      const out = [rid];
-      const kids = effectiveAllTasks.filter(t => t.parent_id === rid);
-      kids.forEach(k => out.push(...collectIds(k.id)));
-      return out;
-    };
-    const ids = collectIds(id);
+    const ids = collectTaskDescendantIds(id, childrenMap);
     const snaps = allTasks.filter(t => ids.includes(t.id));
     const until = Date.now() + GRACE_MS;
     // Keep deleted task(s) visible with strikethrough for a short grace period
@@ -775,7 +571,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     }
 
     if (user) {
-      await fsDeleteTask(user.id, id);
+      await removeTask(user.id, id);
     }
     try {
       await firebaseStore.from("tasks").delete().eq("id", id);
@@ -803,20 +599,9 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     (window as any).__lastChildCount = childCount;
   };
 
-  // Compute progress including nested descendants
-  const getProgress = (id: string): { done: number; total: number } => {
-    const subs = childrenMap[id] || [];
-    if (!subs.length) return { done: 0, total: 0 };
-    let done = 0, total = 0;
-    for (const s of subs) {
-      total += 1;
-      if (s.completed) done += 1;
-      const child = getProgress(s.id);
-      done += child.done;
-      total += child.total;
-    }
-    return { done, total };
-  };
+  // Compute progress including nested descendants.
+  const getProgress = (id: string): { done: number; total: number } =>
+    getTaskProgress(id, childrenMap);
 
   // Drag & drop: drop a task onto another → set as child; drop in same parent zone → reorder
   const onDragEnd = async (e: DragEndEvent) => {

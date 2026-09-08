@@ -11,7 +11,6 @@ import { Card } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import GoogleDirectDialog from "@/components/auth/GoogleDirectDialog";
 
 const DISCLAIMER_KEY = "clinical_disclaimer_accepted_v1";
 
@@ -24,7 +23,6 @@ export default function Auth() {
     signInWithEmail,
     signUpWithEmail,
     signInWithGoogle,
-    signInWithGoogleDirect,
     signInAsGuest,
   } = useAuth();
   const { t, i18n } = useTranslation();
@@ -41,7 +39,6 @@ export default function Auth() {
       return false;
     }
   });
-  const [showGoogleDialog, setShowGoogleDialog] = useState(false);
   const [highlightDisclaimer, setHighlightDisclaimer] = useState(false);
 
   // Next URL redirect handling
@@ -125,30 +122,11 @@ export default function Auth() {
       if (res.success) {
         toast.success("ورود با حساب گوگل با موفقیت انجام شد.");
         navigate(returnTo, { replace: true });
-      } else if (res.fallbackNeeded) {
-        // Show seamless direct Google account dialog
-        setShowGoogleDialog(true);
       } else {
         toast.error(res.error || "ورود با گوگل انجام نشد.");
       }
     } catch (err: any) {
-      setShowGoogleDialog(true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSelectGoogleAccount = async (accountEmail: string, accountName?: string) => {
-    setLoading(true);
-    try {
-      const res = await signInWithGoogleDirect(accountEmail, accountName);
-      if (res.success) {
-        setShowGoogleDialog(false);
-        toast.success("ورود با حساب گوگل تأیید شد!");
-        navigate(returnTo, { replace: true });
-      }
-    } catch (e: any) {
-      toast.error(e?.message || "خطا در ورود.");
+      toast.error(err?.message || "ورود با گوگل انجام نشد.");
     } finally {
       setLoading(false);
     }
@@ -162,6 +140,8 @@ export default function Auth() {
       if (res.success) {
         toast.success("ورود سریع به عنوان مهمان انجام شد.");
         navigate(returnTo, { replace: true });
+      } else {
+        toast.error(res.error || "ورود مهمان انجام نشد.");
       }
     } catch (e: any) {
       toast.error(e?.message || "خطا در ورود سریع.");
@@ -401,13 +381,6 @@ export default function Auth() {
         </div>
       </Card>
 
-      {/* Google Direct Sign-In Dialog */}
-      <GoogleDirectDialog
-        open={showGoogleDialog}
-        onOpenChange={setShowGoogleDialog}
-        onSelectAccount={handleSelectGoogleAccount}
-        loading={loading}
-      />
     </main>
   );
 }

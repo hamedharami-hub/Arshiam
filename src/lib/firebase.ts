@@ -87,10 +87,19 @@ export async function testFirebaseConnection(): Promise<{
 }> {
   const start = performance.now();
   try {
-    const testDocRef = doc(db, "_health", "connection-test");
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      return {
+        success: false,
+        message: "برای بررسی اتصال ابتدا باید وارد حساب کاربری شوید.",
+      };
+    }
+
+    const testDocRef = doc(db, "users", currentUser.uid, "_health", "connection-test");
     const payload = {
       ping: "pong",
       app: "ARSHNAZ",
+      userId: currentUser.uid,
       timestamp: new Date().toISOString(),
       verifiedAt: Date.now(),
     };

@@ -7,12 +7,11 @@ import {
 import {
   AppUser,
   AppSession,
-  getStoredUser,
+  clearLegacyAuthStorage,
   logoutUser,
   registerWithEmail,
   loginWithEmail,
   loginWithGoogle,
-  loginWithGoogleDirect,
   loginAsGuest,
 } from "@/lib/authService";
 import { setGardenUser } from "@/lib/garden";
@@ -26,8 +25,7 @@ interface AuthContextType {
   signInWithEmail: (email: string, pass: string) => Promise<{ success: boolean; user?: AppUser; error?: string }>;
   signUpWithEmail: (email: string, pass: string, name?: string) => Promise<{ success: boolean; user?: AppUser; error?: string }>;
   signInWithGoogle: () => Promise<{ success: boolean; user?: AppUser; error?: string; fallbackNeeded?: boolean }>;
-  signInWithGoogleDirect: (email?: string, name?: string) => Promise<{ success: boolean; user: AppUser }>;
-  signInAsGuest: (name?: string) => Promise<{ success: boolean; user: AppUser }>;
+  signInAsGuest: (name?: string) => Promise<{ success: boolean; user?: AppUser; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -39,49 +37,20 @@ const AuthContext = createContext<AuthContextType>({
   signInWithEmail: async () => ({ success: false, error: "Not initialized" }),
   signUpWithEmail: async () => ({ success: false, error: "Not initialized" }),
   signInWithGoogle: async () => ({ success: false, error: "Not initialized" }),
-  signInWithGoogleDirect: async () => ({
-    success: true,
-    user: {
-      id: "guest",
-      uid: "guest",
-      email: null,
-      displayName: null,
-      photoURL: null,
-      user_metadata: {},
-      app_metadata: { provider: "guest" },
-    },
-  }),
-  signInAsGuest: async () => ({
-    success: true,
-    user: {
-      id: "guest",
-      uid: "guest",
-      email: null,
-      displayName: null,
-      photoURL: null,
-      user_metadata: {},
-      app_metadata: { provider: "guest" },
-    },
-  }),
+  signInAsGuest: async () => ({ success: false, error: "Not initialized" }),
 });
 
 function createSessionForUser(appUser: AppUser): AppSession {
-  return {
-    user: appUser,
-    access_token: "fb_token_" + appUser.id,
-    expires_at: Date.now() + 7 * 24 * 3600 * 1000,
-  };
+  return { user: appUser };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AppUser | null>(() => getStoredUser());
-  const [session, setSession] = useState<AppSession | null>(() => {
-    const u = getStoredUser();
-    return u ? createSessionForUser(u) : null;
-  });
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [session, setSession] = useState<AppSession | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    clearLegacyAuthStorage();
     setGardenUser(user?.id ?? null);
   }, [user?.id]);
 
@@ -107,19 +76,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         setUser(appUser);
         setSession(createSessionForUser(appUser));
-        try {
-          localStorage.setItem("arshnaz_current_user_v1", JSON.stringify(appUser));
-        } catch {}
       } else {
-        // If not in Firebase Auth, check local persisted user
-        const stored = getStoredUser();
-        if (stored) {
-          setUser(stored);
-          setSession(createSessionForUser(stored));
-        } else {
-          setUser(null);
-          setSession(null);
-        }
+        // Never trust a user object from localStorage as authentication.
+        setUser(null);
+        setSession(null);
       }
       setLoading(false);
     });
@@ -168,15 +128,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return res;
   };
 
-  const handleSignInGoogleDirect = async (email?: string, name?: string) => {
-    const res = await loginWithGoogleDirect(email, name);
-    if (res.success && res.user) {
-      setUser(res.user);
-      setSession(createSessionForUser(res.user));
-    }
-    return res;
-  };
-
   const handleSignInAsGuest = async (name?: string) => {
     const res = await loginAsGuest(name);
     if (res.success && res.user) {
@@ -197,7 +148,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithEmail: handleSignInEmail,
         signUpWithEmail: handleSignUpEmail,
         signInWithGoogle: handleSignInGoogle,
-        signInWithGoogleDirect: handleSignInGoogleDirect,
         signInAsGuest: handleSignInAsGuest,
       }}
     >

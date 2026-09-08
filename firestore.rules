@@ -11,9 +11,9 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Health and live connection diagnostics
+    // Health diagnostics are scoped to the authenticated user's private tree.
     match /_health/{docId} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
 
     // User profile and private subcollections
@@ -25,12 +25,7 @@ service cloud.firestore {
       }
     }
 
-    // Top-level user-owned documents
-    match /{collectionName}/{docId} {
-      allow read, write: if isAuthenticated() && (
-        (resource != null && resource.data.userId == request.auth.uid) ||
-        (request.resource != null && request.resource.data.userId == request.auth.uid)
-      );
-    }
+    // No wildcard top-level collection access. New collections must declare
+    // their ownership rules explicitly instead of inheriting a broad policy.
   }
 }

@@ -3,7 +3,6 @@ import {
   db,
   doc,
   setDoc,
-  getDoc,
   googleProvider,
   signInWithPopup,
   signInWithEmailAndPassword,
@@ -36,13 +35,11 @@ export interface AppUser {
 
 export interface AppSession {
   user: AppUser;
-  access_token: string;
+  /** Firebase owns the real token; never persist or fabricate one in app storage. */
+  access_token?: string;
   refresh_token?: string;
   expires_at?: number;
 }
-
-const STORAGE_KEY = "arshnaz_current_user_v1";
-const ACCOUNTS_KEY = "arshnaz_local_accounts_v1";
 
 function mapFirebaseUser(fbUser: FirebaseUser): AppUser {
   return {
@@ -63,43 +60,29 @@ function mapFirebaseUser(fbUser: FirebaseUser): AppUser {
   };
 }
 
-function makeSession(user: AppUser): AppSession {
-  return {
-    user,
-    access_token: "firebase-token-" + user.id,
-    expires_at: Date.now() + 7 * 24 * 3600 * 1000,
-  };
-}
-
 function saveLocalSession(user: AppUser) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
     setGardenUser(user.id);
   } catch (e) {
-    console.error("Failed to save local session", e);
+    console.error("Failed to update local user context", e);
   }
 }
 
 export function getStoredUser(): AppUser | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+  // Authentication state must come from Firebase Auth, not from mutable browser storage.
+  return null;
 }
 
-function generateDeterministicUid(email: string): string {
-  let hash = 0;
-  for (let i = 0; i < email.length; i++) {
-    hash = (hash << 5) - hash + email.charCodeAt(i);
-    hash |= 0;
+/** Remove credentials written by versions that used the insecure local fallback. */
+export function clearLegacyAuthStorage(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem("arshnaz_local_accounts_v1");
+    localStorage.removeItem("arshnaz_current_user_v1");
+  } catch {
+    // Storage can be unavailable in private browsing or restricted webviews.
   }
-  const clean = email.replace(/[^a-zA-Z0-9]/g, "").slice(0, 10);
-  return `usr_${clean}_${Math.abs(hash).toString(36)}`;
 }
 
 // Sync user profile to Firestore
@@ -147,45 +130,6 @@ export async function registerWithEmail(
   } catch (err: any) {
     console.warn("Firebase createUserWithEmailAndPassword notice:", err?.code, err?.message);
 
-    // If Firebase Auth returns auth/operation-not-allowed or similar configuration requirement
-    if (
-      err?.code === "auth/operation-not-allowed" ||
-      err?.code === "auth/admin-restricted-operation" ||
-      err?.code === "auth/network-request-failed" ||
-      !navigator.onLine
-    ) {
-      const uid = generateDeterministicUid(cleanEmail);
-      const appUser: AppUser = {
-        id: uid,
-        uid,
-        email: cleanEmail,
-        displayName,
-        photoURL: null,
-        user_metadata: {
-          display_name: displayName,
-          full_name: displayName,
-          avatar_url: "",
-        },
-        app_metadata: {
-          provider: "password",
-        },
-        created_at: new Date().toISOString(),
-      };
-
-      // Save credentials in local storage accounts list
-      if (typeof window !== "undefined") {
-        try {
-          const accounts = JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || "{}");
-          accounts[cleanEmail] = { pass, uid, displayName };
-          localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
-        } catch {}
-      }
-
-      saveLocalSession(appUser);
-      await syncUserProfileToFirestore(appUser);
-      return { success: true, user: appUser };
-    }
-
     if (err?.code === "auth/email-already-in-use") {
       return { success: false, error: "این ایمیل قبلاً ثبت شده است. لطفاً وارد شوید." };
     }
@@ -219,85 +163,16 @@ export async function loginWithEmail(
   } catch (err: any) {
     console.warn("Firebase signInWithEmailAndPassword notice:", err?.code, err?.message);
 
-    // If Firebase Auth has auth/operation-not-allowed or offline fallback
-    if (
-      err?.code === "auth/operation-not-allowed" ||
-      err?.code === "auth/admin-restricted-operation" ||
-      err?.code === "auth/network-request-failed" ||
-      !navigator.onLine
-    ) {
-      let accounts: Record<string, any> = {};
-      if (typeof window !== "undefined") {
-        try {
-          accounts = JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || "{}");
-        } catch {}
-      }
-
-      const existing = accounts[cleanEmail];
-      const uid = existing?.uid || generateDeterministicUid(cleanEmail);
-      const displayName = existing?.displayName || cleanEmail.split("@")[0];
-
-      const appUser: AppUser = {
-        id: uid,
-        uid,
-        email: cleanEmail,
-        displayName,
-        photoURL: null,
-        user_metadata: {
-          display_name: displayName,
-          full_name: displayName,
-          avatar_url: "",
-        },
-        app_metadata: {
-          provider: "password",
-        },
-        created_at: new Date().toISOString(),
-      };
-
-      // Save if new
-      if (!existing && typeof window !== "undefined") {
-        accounts[cleanEmail] = { pass, uid, displayName };
-        try {
-          localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
-        } catch {}
-      }
-
-      saveLocalSession(appUser);
-      await syncUserProfileToFirestore(appUser);
-      return { success: true, user: appUser };
+    if (err?.code === "auth/wrong-password") {
+      return { success: false, error: "رمز عبور نادرست است." };
     }
 
     if (err?.code === "auth/user-not-found" || err?.code === "auth/invalid-credential") {
-      // Check if exists in local fallback
-      if (typeof window !== "undefined") {
-        try {
-          const accounts = JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || "{}");
-          if (accounts[cleanEmail]) {
-            const acc = accounts[cleanEmail];
-            if (acc.pass && acc.pass !== pass) {
-              return { success: false, error: "رمز عبور نادرست است." };
-            }
-            const appUser: AppUser = {
-              id: acc.uid,
-              uid: acc.uid,
-              email: cleanEmail,
-              displayName: acc.displayName || cleanEmail.split("@")[0],
-              photoURL: null,
-              user_metadata: {
-                display_name: acc.displayName || cleanEmail.split("@")[0],
-              },
-              app_metadata: { provider: "password" },
-            };
-            saveLocalSession(appUser);
-            return { success: true, user: appUser };
-          }
-        } catch {}
-      }
       return { success: false, error: "کاربری با این مشخصات یافت نشد. لطفاً ثبت‌نام کنید." };
     }
 
-    if (err?.code === "auth/wrong-password") {
-      return { success: false, error: "رمز عبور نادرست است." };
+    if (!navigator.onLine || err?.code === "auth/network-request-failed") {
+      return { success: false, error: "برای ورود با ایمیل اتصال اینترنت لازم است." };
     }
 
     return { success: false, error: err?.message || "خطا در ورود" };
@@ -324,7 +199,8 @@ export async function loginWithGoogle(): Promise<{
   } catch (err: any) {
     console.warn("Firebase Google signInWithPopup notice:", err?.code, err?.message);
 
-    // If popup was blocked, restricted in iframe, or auth/operation-not-allowed
+    // Do not fall back to a locally fabricated Google identity. That would allow
+    // impersonation and would not produce a Firebase-authenticated user.
     if (
       err?.code === "auth/popup-blocked" ||
       err?.code === "auth/operation-not-allowed" ||
@@ -335,7 +211,7 @@ export async function loginWithGoogle(): Promise<{
       return {
         success: false,
         error: "اتصال مستقیم پنجره گوگل با محدودیت پاپ‌آپ مواجه شد.",
-        fallbackNeeded: true,
+        fallbackNeeded: false,
       };
     }
 
@@ -346,7 +222,7 @@ export async function loginWithGoogle(): Promise<{
     return {
       success: false,
       error: err?.message || "خطا در ورود با گوگل",
-      fallbackNeeded: true,
+      fallbackNeeded: false,
     };
   }
 
@@ -354,44 +230,11 @@ export async function loginWithGoogle(): Promise<{
 }
 
 /**
- * Instant Google direct sign-in fallback (e.g. for hamed.harami@gmail.com or prompt)
- */
-export async function loginWithGoogleDirect(
-  email: string = "hamed.harami@gmail.com",
-  displayName?: string
-): Promise<{ success: boolean; user: AppUser }> {
-  const cleanEmail = email.trim().toLowerCase();
-  const name = displayName?.trim() || cleanEmail.split("@")[0];
-  const uid = generateDeterministicUid(cleanEmail);
-
-  const appUser: AppUser = {
-    id: uid,
-    uid,
-    email: cleanEmail,
-    displayName: name,
-    photoURL: `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanEmail}`,
-    user_metadata: {
-      display_name: name,
-      full_name: name,
-      avatar_url: `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanEmail}`,
-    },
-    app_metadata: {
-      provider: "google",
-    },
-    created_at: new Date().toISOString(),
-  };
-
-  saveLocalSession(appUser);
-  await syncUserProfileToFirestore(appUser);
-  return { success: true, user: appUser };
-}
-
-/**
  * Guest / Quick Access login
  */
 export async function loginAsGuest(
   name: string = "کاربر مهمان"
-): Promise<{ success: boolean; user: AppUser }> {
+): Promise<{ success: boolean; user?: AppUser; error?: string }> {
   try {
     const { signInAnonymously } = await import("firebase/auth");
     const cred = await signInAnonymously(auth);
@@ -402,30 +245,15 @@ export async function loginAsGuest(
       await syncUserProfileToFirestore(appUser);
       return { success: true, user: appUser };
     }
-  } catch (err) {
-    console.warn("Anonymous sign-in notice, using local guest fallback:", err);
+  } catch (err: any) {
+    console.warn("Anonymous sign-in failed; refusing unauthenticated local guest fallback:", err?.code);
+    return {
+      success: false,
+      error: "ورود مهمان در Firebase فعال نیست یا اتصال برقرار نشد.",
+    };
   }
 
-  const uid = "guest_" + Math.random().toString(36).substring(2, 9);
-  const appUser: AppUser = {
-    id: uid,
-    uid,
-    email: "guest@arshnaz.app",
-    displayName: name,
-    photoURL: null,
-    user_metadata: {
-      display_name: name,
-      full_name: name,
-      avatar_url: "",
-    },
-    app_metadata: {
-      provider: "guest",
-    },
-    created_at: new Date().toISOString(),
-  };
-
-  saveLocalSession(appUser);
-  return { success: true, user: appUser };
+  return { success: false, error: "ورود مهمان انجام نشد." };
 }
 
 /**
@@ -436,7 +264,7 @@ export async function logoutUser(): Promise<void> {
     await fbSignOut(auth);
   } catch {}
   try {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem("arshnaz_current_user_v1");
     setGardenUser(null);
   } catch {}
 }
