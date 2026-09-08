@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
 import { formatDate } from "@/lib/jalali";
@@ -21,6 +21,8 @@ import {
 } from "@/features/tasks/taskTree";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasksData } from "@/hooks/useTasksData";
+import { syncAndroidWidget } from "@/lib/androidWidget";
+import { syncNativeTaskReminder } from "@/lib/reminders";
 import { Button } from "@/components/ui/button";
 import { BidiText } from "@/components/BidiText";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
@@ -134,6 +136,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
   const params = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [layout, setLayout] = useState<"compact" | "comfortable">("compact");
   useEffect(() => {
     if (!user) return;
@@ -162,6 +165,13 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     );
     return activeGhosts.length ? [...allTasks, ...activeGhosts] : allTasks;
   }, [allTasks, graceTasks, graceMap]);
+  useEffect(() => {
+    void syncAndroidWidget(effectiveAllTasks);
+    void Promise.all(effectiveAllTasks
+      .filter((task) => task.reminder_at || task.completed)
+      .slice(0, 100)
+      .map((task) => syncNativeTaskReminder(task)));
+  }, [effectiveAllTasks]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   // selected task removed — clicks navigate to /app/tasks/:id
   const [folderPrefs, setFolderPrefs] = useState<FolderPrefs>(DEFAULT_FOLDER_PREFS);
@@ -223,6 +233,16 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     if (error) { toast.error(error.message); if (!owner) return; }
     if (!owner && !error) setAllTasks(prev => prev.map(x => x.id === id ? { ...x, ...patch } as Task : x));
   };
+  useEffect(() => {
+    const taskId = searchParams.get("completeTaskId");
+    if (!taskId) return;
+    const target = effectiveAllTasks.find((task) => task.id === taskId);
+    if (!target || target.completed) return;
+    void patchTask(taskId, { completed: true, status: "done" });
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("completeTaskId");
+    setSearchParams(nextParams, { replace: true });
+  }, [effectiveAllTasks, searchParams, setSearchParams]);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),

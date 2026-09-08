@@ -110,6 +110,9 @@ function CapacitorUrlHandler() {
       const url = rawUrl.toLowerCase();
       if (url.includes("add_task") || url.includes("new-task")) {
         navigate("/app/new/task");
+      } else if (url.includes("complete-task")) {
+        const taskId = rawUrl.split("taskId=")[1]?.split("&")[0] || "";
+        navigate(`/app/today${taskId ? `?completeTaskId=${encodeURIComponent(taskId)}` : ""}`);
       } else if (url.includes("today")) {
         navigate("/app/today");
       } else if (url.includes("checkin")) {

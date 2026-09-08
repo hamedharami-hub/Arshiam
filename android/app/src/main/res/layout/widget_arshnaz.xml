@@ -74,6 +74,17 @@
                 android:textStyle="bold"
                 android:textColor="#f8fafc"
                 android:layout_marginTop="2dp" />
+
+            <TextView
+                android:id="@+id/widget_next_task"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="تسک فعالی برای امروز نیست"
+                android:textSize="10sp"
+                android:textColor="#cbd5e1"
+                android:layout_marginTop="4dp" />
         </LinearLayout>
 
         <View
@@ -139,6 +150,19 @@
             android:textSize="12sp"
             android:textStyle="bold"
             android:textColor="#e2e8f0"
+            android:background="@drawable/widget_card_background"
+            android:stateListAnimator="@null"
+            android:layout_marginStart="4dp" />
+
+        <Button
+            android:id="@+id/widget_complete_task"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:text="✓ انجام شد"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textColor="#a7f3d0"
             android:background="@drawable/widget_card_background"
             android:stateListAnimator="@null"
             android:layout_marginStart="4dp" />

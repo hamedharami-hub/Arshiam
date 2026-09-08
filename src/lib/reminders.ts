@@ -2,7 +2,16 @@
 import { firebaseStore } from "@/lib/firebaseStore";
 import { cacheGet, cacheSet, enqueueOp } from "@/lib/offlineQueue";
 import { fireNotification, hasNotificationPermission } from "@/lib/notify";
+import { cancelNotification, scheduleNotificationAt } from "@/lib/notify";
+import type { Task } from "@/lib/taskTypes";
 export { ensureNotificationPermission } from "@/lib/notify";
+
+export async function syncNativeTaskReminder(task: Pick<Task, "id" | "title" | "reminder_at" | "completed">) {
+  const tag = `task-reminder-${task.id}`;
+  await cancelNotification(tag);
+  if (task.completed || !task.reminder_at) return false;
+  return scheduleNotificationAt("⏰ یادآور تسک", task.title, tag, new Date(task.reminder_at));
+}
 
 export type TaskDefaults = {
   default_date?: "none" | "today" | "tomorrow" | "next7" | null;
