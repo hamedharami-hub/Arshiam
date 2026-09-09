@@ -4,8 +4,7 @@
     android:minHeight="120dp"
     android:updatePeriodMillis="1800000"
     android:initialLayout="@layout/widget_arshnaz"
-    android:resizeMode="horizontal|vertical"
-    android:widgetFeatures="reconfigurable">
+    android:resizeMode="horizontal|vertical">
     
     <intent-filter>
         <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

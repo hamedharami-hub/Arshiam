@@ -18,6 +18,7 @@ import {
   readTaskCacheEnvelope,
 } from "./taskCache";
 import { applyTaskOperations } from "./taskOperations";
+import { syncAndroidWidget } from "@/lib/androidWidget";
 
 const TASKS_CACHE_PREFIX = "tasks:all:";
 const taskCache = new Map<string, Task[]>();
@@ -75,6 +76,7 @@ export async function fetchTasks(userId: string): Promise<Task[]> {
       })));
       setTaskCache(userId, tasks);
       await persistTaskCache(userId, tasks);
+      void syncAndroidWidget(tasks).catch(() => {});
       return tasks;
     }
   } catch (error) {
@@ -91,19 +93,23 @@ export async function fetchTasks(userId: string): Promise<Task[]> {
       const tasks = sortTasks(data as unknown as Task[]);
       setTaskCache(userId, tasks);
       await persistTaskCache(userId, tasks);
+      void syncAndroidWidget(tasks).catch(() => {});
       return tasks;
     }
   } catch (error) {
     console.warn("[TaskService] Firebase store fallback warning:", error);
   }
 
-  return getCachedTasks(userId);
+  const cachedTasks = await getCachedTasks(userId);
+  void syncAndroidWidget(cachedTasks).catch(() => {});
+  return cachedTasks;
 }
 
 export function subscribeToTasks(userId: string, onUpdate: (tasks: Task[]) => void): () => void {
   return subscribeFirestoreTasks(userId, (tasks) => {
     setTaskCache(userId, tasks);
     void persistTaskCache(userId, tasks);
+    void syncAndroidWidget(tasks).catch(() => {});
     onUpdate(tasks);
   });
 }

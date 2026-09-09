@@ -167,4 +167,49 @@
             android:stateListAnimator="@null"
             android:layout_marginStart="4dp" />
     </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="6dp">
+
+        <Button
+            android:id="@+id/widget_pomodoro"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="1"
+            android:text="تمرکز"
+            android:textSize="11sp"
+            android:textColor="#fbcfe8"
+            android:background="@drawable/widget_card_background"
+            android:stateListAnimator="@null"
+            android:layout_marginEnd="4dp" />
+
+        <Button
+            android:id="@+id/widget_notes"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="1"
+            android:text="یادداشت‌ها"
+            android:textSize="11sp"
+            android:textColor="#bae6fd"
+            android:background="@drawable/widget_card_background"
+            android:stateListAnimator="@null"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp" />
+
+        <Button
+            android:id="@+id/widget_refresh"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="1"
+            android:text="به‌روزرسانی"
+            android:textSize="11sp"
+            android:textColor="#cbd5e1"
+            android:background="@drawable/widget_card_background"
+            android:stateListAnimator="@null"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
 </LinearLayout>
