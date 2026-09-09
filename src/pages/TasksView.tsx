@@ -230,7 +230,11 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     }
 
     const { error } = await firebaseStore.from("tasks").update(patch as any).eq("id", id);
-    if (error) { toast.error(error.message); if (!owner) return; }
+    if (error) {
+      toast.error(error.message);
+      if (owner && target) setAllTasks(prev => prev.map(x => x.id === id ? target : x));
+      return;
+    }
     if (!owner && !error) setAllTasks(prev => prev.map(x => x.id === id ? { ...x, ...patch } as Task : x));
   };
   useEffect(() => {

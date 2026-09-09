@@ -164,11 +164,11 @@ export default function NotesView() {
   useEffect(() => {
     if (!user) return;
     load();
-    const fsUnsub = subscribeNotes(user.id, (fsNotes) => {
-      if (fsNotes && fsNotes.length > 0) {
-        setNotes(fsNotes as Note[]);
-        cacheSet(NOTES_CACHE_KEY, fsNotes);
-      }
+    const fsUnsub = subscribeNotes(user.id, async (fsNotes) => {
+      // An empty remote snapshot is meaningful: it must clear stale local data.
+      const merged = await applyNoteQueue((fsNotes || []) as Note[]);
+      setNotes(merged);
+      await cacheSet(NOTES_CACHE_KEY, merged);
     });
     const ch = firebaseStore.channel("notes-list")
       .on("postgres_changes", { event: "*", schema: "public", table: "notes" }, load).subscribe();
@@ -247,7 +247,8 @@ export default function NotesView() {
     const updated = { ...selected, ...patch, updated_at: new Date().toISOString() };
     setSelected(updated);
     setNotes(prev => prev.map(n => n.id === selected.id ? updated : n));
-    await cacheSet(NOTES_CACHE_KEY, notes.map(n => n.id === selected.id ? updated : n));
+    const nextNotes = notes.map(n => n.id === selected.id ? updated : n);
+    await cacheSet(NOTES_CACHE_KEY, nextNotes);
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       await enqueueOp({ table: "notes", op: "update", payload: patch, match: { id: selected.id } });

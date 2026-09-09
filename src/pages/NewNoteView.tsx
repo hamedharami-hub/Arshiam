@@ -28,7 +28,8 @@ export default function NewNoteView() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    firebaseStore.from("folders").select("id,name").order("position")
+    if (!user) return;
+    firebaseStore.from("folders").select("id,name").eq("user_id", user.id).order("position")
       .then(({ data }) => setFolders((data || []) as any));
   }, [user]);
 

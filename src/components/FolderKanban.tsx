@@ -235,7 +235,10 @@ export function FolderKanban({
         completed_at: newCompleted ? new Date().toISOString() : null,
       } as any)
       .eq("id", task.id);
-    if (error) toast.error(error.message);
+    if (error) {
+      setAllTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)));
+      toast.error(error.message);
+    }
   };
 
   const addQuickTask = async (title: string, status: Status = "todo") => {
@@ -277,7 +280,10 @@ export function FolderKanban({
         completed_at: completed ? new Date().toISOString() : null,
       } as any)
       .eq("id", taskId);
-    if (error) toast.error(error.message);
+    if (error) {
+      setAllTasks((prev) => prev.map((x) => (x.id === taskId ? t : x)));
+      toast.error(error.message);
+    }
   };
 
   const onDragEnd = (e: DragEndEvent) => {
