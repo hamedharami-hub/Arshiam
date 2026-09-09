@@ -1,0 +1,291 @@
+{
+  "schema_version": "1.0",
+  "purpose": "Machine-readable master-engine bank for future PTE Sentence Map integration. Source cards remain unchanged.",
+  "editorial_corrections": [
+    {
+      "source_card_id": "CORE-01",
+      "status": "edited_engine",
+      "original_text": "A major benefit of this approach is that it can widen access to opportunities for people who are otherwise excluded by cost, distance or circumstance.",
+      "replacement": "By improving access to [SERVICE_OR_OPPORTUNITY], [POLICY_OR_DEVELOPMENT] can benefit [TARGET_GROUP], particularly those constrained by [BARRIER].",
+      "engine_id": "M01",
+      "reason_fa": "عبارت this approach باید با موضوع واقعی سؤال جایگزین شود."
+    },
+    {
+      "source_card_id": "CORE-02",
+      "status": "edited_engine",
+      "original_text": "However, unequal access to resources can cause the policy to reinforce rather than reduce existing inequality.",
+      "replacement": "Nevertheless, [POLICY_OR_DEVELOPMENT] may widen existing inequalities if access to [RESOURCE] remains determined by [BARRIER_1], [BARRIER_2] or [BARRIER_3].",
+      "engine_id": "M02",
+      "reason_fa": "the policy و resources باید به عبارت‌های اسمی مشخص و مرتبط با سؤال تبدیل شوند."
+    },
+    {
+      "source_card_id": "CORE-03",
+      "status": "edited_engine",
+      "original_text": "In the long term, this issue affects not only individuals but also the productivity and cohesion of society as a whole.",
+      "replacement": "In the long term, [ISSUE_OR_DEVELOPMENT] affects not only [DIRECTLY_AFFECTED_GROUP] but also [BROADER_OUTCOME_1] and [BROADER_OUTCOME_2].",
+      "engine_id": "M13",
+      "reason_fa": "this issue و افراد/پیامدها باید به موضوع سؤال متصل شوند."
+    },
+    {
+      "source_card_id": "CORE-05",
+      "status": "edited_engine",
+      "original_text": "The most effective policy is usually a balanced one that preserves the benefits of innovation while limiting predictable harm.",
+      "replacement": "The most effective approach is usually a balanced one that preserves the benefits of [POSITIVE_ELEMENT] while limiting [PREDICTABLE_RISK].",
+      "engine_id": "M04",
+      "reason_fa": "innovation نباید برای تمام موضوع‌ها ثابت بماند؛ منفعت و ریسک باید یک جفت سازگار باشند."
+    },
+    {
+      "source_card_id": "CORE-17",
+      "status": "edited_engine",
+      "original_text": "The policy should be judged by its long-term outcomes, not merely by its immediate convenience or popularity.",
+      "replacement": "[POLICY_OR_PROPOSAL] should be assessed according to its long-term outcomes rather than its immediate convenience or popularity.",
+      "engine_id": "M18",
+      "reason_fa": "the policy باید به یک Policy/Proposal مشخص تبدیل شود."
+    },
+    {
+      "source_card_id": "CORE-19",
+      "status": "edited_engine",
+      "original_text": "Well-designed rules can protect the public without preventing responsible innovation.",
+      "replacement": "Well-designed [RULES_OR_SAFEGUARDS] can protect [AFFECTED_GROUP] without preventing [LEGITIMATE_ACTIVITY_OR_BENEFIT].",
+      "engine_id": "M14",
+      "reason_fa": "public و responsible innovation برای همهٔ موضوع‌ها مناسب نیستند."
+    }
+  ],
+  "engines": [
+    {
+      "id": "M01",
+      "name_fa": "دسترسی و شمول",
+      "template": "By improving access to [SERVICE_OR_OPPORTUNITY], [POLICY_OR_DEVELOPMENT] can benefit [TARGET_GROUP], particularly those constrained by [BARRIER].",
+      "essay_roles": ["benefit", "mechanism"],
+      "archetypes": ["ARC-ACCESS", "ARC-EQUITY"],
+      "question_type_fit": ["AGREE", "ADVDIS", "POSNEG", "DIRECT"],
+      "slots": ["SERVICE_OR_OPPORTUNITY", "POLICY_OR_DEVELOPMENT", "TARGET_GROUP", "BARRIER"],
+      "source_card_ids": ["CORE-01", "SRC-AI-01", "FAM-URB-01", "SRC-EDT-01", "SRC-ATT-01"],
+      "status": "wave_1_ready"
+    },
+    {
+      "id": "M02",
+      "name_fa": "خطر نابرابری",
+      "template": "Nevertheless, [POLICY_OR_DEVELOPMENT] may widen existing inequalities if access to [RESOURCE] remains determined by [BARRIER_1], [BARRIER_2] or [BARRIER_3].",
+      "essay_roles": ["drawback", "counterargument"],
+      "archetypes": ["ARC-EQUITY", "ARC-ACCESS"],
+      "question_type_fit": ["DISCUSS", "ADVDIS", "POSNEG"],
+      "slots": ["POLICY_OR_DEVELOPMENT", "RESOURCE", "BARRIER_1", "BARRIER_2", "BARRIER_3"],
+      "source_card_ids": ["CORE-02", "SENT-ONL-05", "SRC-EDT-03", "SRC-ABR-04", "SRC-GLB-02"],
+      "status": "wave_1_ready"
+    },
+    {
+      "id": "M03",
+      "name_fa": "ارزیابی بلندمدت",
+      "template": "Although [APPROACH] may provide [SHORT_TERM_BENEFIT], its long-term value should be judged by its effects on [OUTCOME_1] and [OUTCOME_2].",
+      "plural_template": "Although [APPROACH_PLURAL] may provide [SHORT_TERM_BENEFIT], their long-term value should be judged by their effects on [OUTCOME_1] and [OUTCOME_2].",
+      "essay_roles": ["evaluation", "counterargument"],
+      "archetypes": ["ARC-TIME", "ARC-TRADEOFF", "ARC-IMPLEMENT"],
+      "question_type_fit": ["AGREE", "DISCUSS", "ADVDIS", "POSNEG", "DIRECT"],
+      "slots": ["APPROACH", "APPROACH_PLURAL", "SHORT_TERM_BENEFIT", "OUTCOME_1", "OUTCOME_2"],
+      "source_card_ids": ["SRC-TV-02", "SRC-SPC-03", "SRC-ABR-04", "SRC-PRT-05", "CORE-06"],
+      "status": "wave_1_ready"
+    },
+    {
+      "id": "M04",
+      "name_fa": "سیاست متعادل",
+      "template": "The most effective approach is usually a balanced one that preserves the benefits of [POSITIVE_ELEMENT] while limiting [PREDICTABLE_RISK].",
+      "essay_roles": ["balanced_solution", "evaluation"],
+      "archetypes": ["ARC-TRADEOFF", "ARC-IMPLEMENT"],
+      "question_type_fit": ["DISCUSS", "ADVDIS", "POSNEG", "AGREE"],
+      "slots": ["POSITIVE_ELEMENT", "PREDICTABLE_RISK"],
+      "source_card_ids": ["CORE-05", "SRC-RCY-04", "SRC-REM-05", "FAM-XOV-05", "SRC-ATT-05"],
+      "status": "wave_1_ready"
+    },
+    {
+      "id": "M05",
+      "name_fa": "مدیریت تغییر مفید",
+      "template": "The central question is not whether [MANAGEABLE_CHANGE] should occur, but how it can be managed to maximise [BENEFIT] while minimising [RISK].",
+      "essay_roles": ["thesis", "evaluation"],
+      "archetypes": ["ARC-CHANGE", "ARC-TRADEOFF", "ARC-IMPLEMENT"],
+      "question_type_fit": ["AGREE", "POSNEG", "DIRECT"],
+      "slots": ["MANAGEABLE_CHANGE", "BENEFIT", "RISK"],
+      "restrictions": ["Not for intrinsically harmful problems."],
+      "source_card_ids": ["SRC-PRT-03", "SRC-TV-04", "SRC-AUT-03", "SRC-GLB-05", "SRC-OIL-05"],
+      "status": "wave_2_pending"
+    },
+    {
+      "id": "M06",
+      "name_fa": "کاهش مشکل زیان‌بار",
+      "template": "The central question is how [PROBLEM] can be reduced without creating [SECONDARY_HARM].",
+      "essay_roles": ["problem_framing", "solution"],
+      "archetypes": ["ARC-PREVENT", "ARC-IMPLEMENT"],
+      "question_type_fit": ["PROBSOL", "AGREE", "DIRECT"],
+      "slots": ["PROBLEM", "SECONDARY_HARM"],
+      "source_card_ids": ["SRC-SUR-04", "SRC-CRM-02", "SRC-TRF-05", "SRC-RCY-03"],
+      "status": "wave_2_pending"
+    },
+    {
+      "id": "M07",
+      "name_fa": "پاسخ هماهنگ",
+      "template": "A sustainable response requires coordinated action from [ACTOR_1], [ACTOR_2] and [ACTOR_3], since no single group can address [PROBLEM] effectively on its own.",
+      "essay_roles": ["solution"],
+      "archetypes": ["ARC-RESP", "ARC-COOP", "ARC-IMPLEMENT"],
+      "question_type_fit": ["PROBSOL", "AGREE", "DIRECT"],
+      "slots": ["ACTOR_1", "ACTOR_2", "ACTOR_3", "PROBLEM"],
+      "source_card_ids": ["CORE-04", "SRC-CRM-03", "SRC-AUT-04", "SRC-ABR-05", "SRC-CLM-05"],
+      "status": "wave_2_pending"
+    },
+    {
+      "id": "M08",
+      "name_fa": "قانون، حمایت و جایگزین",
+      "template": "Policies are most effective when they combine [CLEAR_STANDARD] with [PRACTICAL_SUPPORT] and [REALISTIC_ALTERNATIVE].",
+      "essay_roles": ["solution"],
+      "archetypes": ["ARC-REG", "ARC-SUPPORT", "ARC-IMPLEMENT"],
+      "question_type_fit": ["PROBSOL", "AGREE", "DISCUSS", "DIRECT"],
+      "slots": ["CLEAR_STANDARD", "PRACTICAL_SUPPORT", "REALISTIC_ALTERNATIVE"],
+      "source_card_ids": ["SRC-CLM-05", "SRC-SMK-03", "SRC-HEA-04", "SRC-REM-04", "SRC-EDT-05"],
+      "status": "wave_1_ready"
+    },
+    {
+      "id": "M09",
+      "name_fa": "پیشگیری",
+      "template": "Investing in prevention is often more cost-effective and humane than responding after [PROBLEM] has become widespread or severe.",
+      "essay_roles": ["reason", "solution"],
+      "archetypes": ["ARC-PREVENT", "ARC-TIME"],
+      "question_type_fit": ["PROBSOL", "AGREE", "DIRECT"],
+      "slots": ["PROBLEM"],
+      "source_card_ids": ["CORE-16", "SRC-HEA-05", "SRC-SUR-04", "SRC-CRM-03", "CORE-08"],
+      "status": "wave_2_pending"
+    },
+    {
+      "id": "M10",
+      "name_fa": "انتخاب آگاهانه",
+      "template": "Giving people greater [CHOICE_OR_FLEXIBILITY] is valuable only when they also receive sufficient [INFORMATION], [TRAINING] and [SUPPORT] to make informed decisions.",
+      "essay_roles": ["qualification", "mechanism"],
+      "archetypes": ["ARC-FREEDOM", "ARC-SUPPORT", "ARC-IMPLEMENT"],
+      "question_type_fit": ["AGREE", "DISCUSS", "DIRECT"],
+      "slots": ["CHOICE_OR_FLEXIBILITY", "INFORMATION", "TRAINING", "SUPPORT"],
+      "source_card_ids": ["SRC-ATT-02", "SRC-REM-04", "SRC-EDT-05", "SRC-SMK-03", "FAM-TEC-04"],
+      "status": "wave_3_pending"
+    },
+    {
+      "id": "M11",
+      "name_fa": "سازگارکردن دو اولویت",
+      "template": "Rather than treating [OPTION_A] and [OPTION_B] as mutually exclusive, [DECISION_MAKER] should adopt an approach that allows them to reinforce one another.",
+      "essay_roles": ["synthesis", "solution"],
+      "archetypes": ["ARC-COOP", "ARC-CHANGE", "ARC-IMPLEMENT"],
+      "question_type_fit": ["DISCUSS", "AGREE", "DIRECT"],
+      "slots": ["OPTION_A", "OPTION_B", "DECISION_MAKER"],
+      "source_card_ids": ["FAM-URB-03", "FAM-EDU-04", "SRC-LNG-05", "SRC-AID-05", "FAM-XOV-04"],
+      "status": "wave_2_pending"
+    },
+    {
+      "id": "M12",
+      "name_fa": "پاسخ به مخالفت",
+      "template": "Critics may reasonably argue that [COUNTERARGUMENT]; however, this concern can be reduced through [SAFEGUARD_OR_POLICY].",
+      "essay_roles": ["counterargument", "rebuttal"],
+      "archetypes": ["ARC-REG", "ARC-TRADEOFF", "ARC-IMPLEMENT"],
+      "question_type_fit": ["AGREE", "DISCUSS", "ADVDIS", "DIRECT"],
+      "slots": ["COUNTERARGUMENT", "SAFEGUARD_OR_POLICY"],
+      "source_card_ids": ["SRC-SUR-02", "SRC-SUR-03", "SRC-HEA-04", "SRC-SPC-02", "SRC-ABR-04"],
+      "status": "wave_1_ready"
+    },
+    {
+      "id": "M13",
+      "name_fa": "اثر فردی و اجتماعی",
+      "template": "In the long term, [ISSUE_OR_DEVELOPMENT] affects not only [DIRECTLY_AFFECTED_GROUP] but also [BROADER_OUTCOME_1] and [BROADER_OUTCOME_2].",
+      "essay_roles": ["effect", "consequence"],
+      "archetypes": ["ARC-LEVELS", "ARC-TIME"],
+      "question_type_fit": ["AGREE", "DISCUSS", "ADVDIS", "POSNEG", "DIRECT"],
+      "slots": ["ISSUE_OR_DEVELOPMENT", "DIRECTLY_AFFECTED_GROUP", "BROADER_OUTCOME_1", "BROADER_OUTCOME_2"],
+      "source_card_ids": ["CORE-03", "SRC-CLM-02", "SRC-SMK-02", "SRC-ADV-04", "SRC-TRF-01"],
+      "status": "wave_2_pending"
+    },
+    {
+      "id": "M14",
+      "name_fa": "مقررات مسئولانه",
+      "template": "Well-designed [RULES_OR_SAFEGUARDS] can protect [AFFECTED_GROUP] without preventing [LEGITIMATE_ACTIVITY_OR_BENEFIT].",
+      "essay_roles": ["balanced_solution"],
+      "archetypes": ["ARC-REG", "ARC-FREEDOM", "ARC-IMPLEMENT"],
+      "question_type_fit": ["AGREE", "DISCUSS", "PROBSOL", "DIRECT"],
+      "slots": ["RULES_OR_SAFEGUARDS", "AFFECTED_GROUP", "LEGITIMATE_ACTIVITY_OR_BENEFIT"],
+      "source_card_ids": ["SRC-ADV-05", "SRC-PHN-05", "SRC-SUR-03", "SRC-PRT-04", "SRC-SPC-05"],
+      "status": "wave_2_pending"
+    },
+    {
+      "id": "M15",
+      "name_fa": "محدودیت نسخه واحد",
+      "template": "A one-size-fits-all solution is unlikely to succeed because [GROUPS_OR_COMMUNITIES] differ in their needs and resources, as well as in [RELEVANT_CIRCUMSTANCE].",
+      "essay_roles": ["qualification"],
+      "archetypes": ["ARC-IMPLEMENT", "ARC-EQUITY"],
+      "question_type_fit": ["AGREE", "DISCUSS", "PROBSOL", "DIRECT"],
+      "slots": ["GROUPS_OR_COMMUNITIES", "RELEVANT_CIRCUMSTANCE"],
+      "source_card_ids": ["SRC-ATT-02", "SRC-REM-05", "SRC-ABR-04", "SRC-RCY-03", "SRC-SPC-02"],
+      "status": "wave_3_pending"
+    },
+    {
+      "id": "M16",
+      "name_fa": "سازگاری با تغییر",
+      "template": "When [AFFECTED_GROUP] receive [INFORMATION_OR_TRAINING], they are more likely to adapt to [CHANGE] without experiencing [RISK].",
+      "essay_roles": ["mechanism", "solution"],
+      "archetypes": ["ARC-CHANGE", "ARC-SUPPORT", "ARC-IMPLEMENT"],
+      "question_type_fit": ["AGREE", "PROBSOL", "DIRECT"],
+      "slots": ["AFFECTED_GROUP", "INFORMATION_OR_TRAINING", "CHANGE", "RISK"],
+      "source_card_ids": ["SRC-AUT-04", "FAM-WOR-04", "SRC-ABR-05", "SRC-EDT-05", "SRC-LNG-02"],
+      "status": "wave_3_pending"
+    },
+    {
+      "id": "M17",
+      "name_fa": "وابستگی بیش از حد",
+      "template": "Excessive reliance on [SYSTEM_OR_APPROACH] can weaken [HUMAN_SKILL_OR_ALTERNATIVE_SYSTEM] and leave [AFFECTED_GROUP] vulnerable when no effective alternative is available.",
+      "essay_roles": ["drawback"],
+      "archetypes": ["ARC-INNOVATION", "ARC-TRADEOFF", "ARC-TIME"],
+      "question_type_fit": ["AGREE", "DISCUSS", "ADVDIS", "POSNEG", "DIRECT"],
+      "slots": ["SYSTEM_OR_APPROACH", "HUMAN_SKILL_OR_ALTERNATIVE_SYSTEM", "AFFECTED_GROUP"],
+      "source_card_ids": ["SRC-PHN-03", "SRC-EDT-04", "CORE-09", "SRC-AID-02", "SRC-EXM-04"],
+      "status": "wave_1_ready"
+    },
+    {
+      "id": "M18",
+      "name_fa": "داوری بر اساس پیامد",
+      "template": "[POLICY_OR_PROPOSAL] should be assessed on the basis of its long-term outcomes, not merely its immediate effects.",
+      "essay_roles": ["evaluation", "conclusion"],
+      "archetypes": ["ARC-TIME", "ARC-TRADEOFF"],
+      "question_type_fit": ["AGREE", "DISCUSS", "ADVDIS", "POSNEG", "DIRECT"],
+      "slots": ["POLICY_OR_PROPOSAL"],
+      "source_card_ids": ["CORE-17", "SRC-PRT-05", "SRC-SPC-04", "SRC-TV-04", "SRC-SUC-01"],
+      "status": "wave_3_pending"
+    },
+    {
+      "id": "M19",
+      "name_fa": "مثال علّی",
+      "template": "For example, [SPECIFIC_MEASURE] can [IMMEDIATE_EFFECT], which in turn may [BROADER_CONSEQUENCE].",
+      "essay_roles": ["example", "mechanism"],
+      "archetypes": ["ARC-CAUSE", "ARC-IMPLEMENT", "ARC-LEVELS"],
+      "question_type_fit": ["AGREE", "DISCUSS", "ADVDIS", "PROBSOL", "DIRECT"],
+      "slots": ["SPECIFIC_MEASURE", "IMMEDIATE_EFFECT", "BROADER_CONSEQUENCE"],
+      "source_card_ids": ["SRC-REM-02", "SRC-CLM-04", "SRC-RCY-01", "SRC-SMK-02", "SRC-AUT-01"],
+      "status": "wave_1_ready"
+    },
+    {
+      "id": "M20",
+      "name_fa": "نتیجه‌گیری مشروط",
+      "template": "Overall, [POLICY_OR_DEVELOPMENT] is likely to produce greater benefits than costs, provided that [SAFEGUARD] and [PRACTICAL_SUPPORT] are in place.",
+      "essay_roles": ["conclusion"],
+      "archetypes": ["ARC-TRADEOFF", "ARC-IMPLEMENT"],
+      "question_type_fit": ["AGREE", "POSNEG", "DIRECT"],
+      "stance_fit": ["positive", "qualified"],
+      "slots": ["POLICY_OR_DEVELOPMENT", "SAFEGUARD", "PRACTICAL_SUPPORT"],
+      "restrictions": ["Not for a negative stance or a neutral discussion without judgement."],
+      "source_card_ids": ["CORE-05", "SRC-SPC-02", "SRC-EDT-02", "SRC-GLB-05", "SRC-PRT-03"],
+      "status": "wave_3_pending"
+    },
+    {
+      "id": "M21",
+      "name_fa": "توضیح سازوکار و نتیجه",
+      "template": "[POLICY_OR_DEVELOPMENT] can improve [OUTCOME] because it [MECHANISM], enabling [TARGET_GROUP] to [PRACTICAL_RESULT].",
+      "essay_roles": ["mechanism", "effect"],
+      "archetypes": ["ARC-CAUSE", "ARC-IMPLEMENT", "ARC-LEVELS"],
+      "question_type_fit": ["AGREE", "DISCUSS", "ADVDIS", "POSNEG", "PROBSOL", "DIRECT"],
+      "slots": ["POLICY_OR_DEVELOPMENT", "OUTCOME", "MECHANISM", "TARGET_GROUP", "PRACTICAL_RESULT"],
+      "source_card_ids": ["SRC-REM-02", "SRC-AUT-04", "SRC-PRT-03", "SRC-SMK-02", "SRC-PHN-05"],
+      "status": "wave_4_ready"
+    }
+  ]
+}

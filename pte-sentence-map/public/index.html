@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="بانک جمله‌های موضوعی و پرکاربرد برای PTE Essay">
+    <meta property="og:title" content="جمله‌یار PTE">
+    <meta property="og:description" content="بانک جمله‌های موضوعی و پرکاربرد برای PTE Essay">
+    <title>جمله‌یار PTE</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=2.5">
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <div class="brand-wrap">
+          <a class="brand" href="#" aria-label="صفحهٔ اصلی جمله‌یار"><i aria-hidden="true">✦</i><span>جمله‌یار<small>PTE Sentence Map</small></span></a>
+          <div id="authBox" class="auth-box">
+            <button type="button" id="loginBtn" class="btn-auth" aria-label="ورود با حساب گوگل برای همگام‌سازی ابری">
+              <span class="auth-icon" aria-hidden="true">☁</span>
+              <span id="authLabel">همگام‌سازی ابری با گوگل</span>
+            </button>
+            <div id="userInfo" class="user-info" hidden>
+              <span id="syncStatus" class="sync-badge">همگام با ابر</span>
+              <span id="userName" class="user-name"></span>
+              <button type="button" id="logoutBtn" class="btn-logout" aria-label="خروج از حساب">خروج</button>
+            </div>
+          </div>
+        </div>
+        <nav role="tablist" aria-label="بخش‌های برنامه">
+          <button type="button" class="tab active" data-view="engines" role="tab">موتور جمله</button>
+          <button type="button" class="tab" data-view="topics" role="tab">موضوع‌ها</button>
+          <button type="button" class="tab" data-view="starred" role="tab">منتخب من <b id="starCount">۰</b></button>
+          <button type="button" class="tab" data-view="flagged" role="tab">مرور حفظی <b id="flagCount">۰</b></button>
+          <button type="button" class="tab" data-view="practice" role="tab">تمرین حفظ</button>
+        </nav>
+      </header>
+      <section class="intro"><h1>جمله‌های <em id="titleText">هوشمند و تأییدشده</em></h1><p id="subtitle">یک خانواده جمله را انتخاب کن؛ فقط جای‌خالی‌ها و نسخه‌های سازگار نمایش داده می‌شوند.</p></section>
+      <section id="engineWorkspace" class="engine-workspace" aria-label="ساخت جمله با موتورهای تأییدشده"></section>
+      <section id="practiceWorkspace" class="practice-workspace" aria-label="تمرین حفظ جمله" hidden></section>
+      <div id="topicWorkspace">
+        <div id="topics" class="topics" aria-label="موضوع‌های اصلی"></div>
+        <div id="subtopics" class="subtopics" aria-label="زیرموضوع‌ها"></div>
+        <label class="search" for="search"><span aria-hidden="true">⌕</span><input id="search" type="search" autocomplete="off" placeholder="جست‌وجو در جمله‌های انگلیسی…"><button id="clearSearch" type="button" aria-label="پاک‌کردن جست‌وجو" hidden>×</button></label>
+      </div>
+      <div id="listHead" class="list-head">
+        <span id="resultCount" aria-live="polite">در حال بارگذاری…</span>
+        <div class="list-head-actions">
+          <button id="exportPdfBtn" type="button" class="btn-export-pdf" aria-label="خروجی PDF جمله‌های منتخب برای مطالعه آفلاین" hidden>
+            <span class="export-icon" aria-hidden="true">🖨</span>
+            <span class="export-text">خروجی PDF و چاپ</span>
+          </button>
+          <button id="onlyP1" type="button" class="filter" aria-pressed="false">فقط P1</button>
+        </div>
+      </div>
+      <section id="cards" class="cards" aria-label="جمله‌ها"></section>
+      <p id="loading" class="empty">در حال آماده‌کردن جمله‌ها…</p><p id="empty" class="empty" hidden></p><p id="loadError" class="empty error" hidden>داده‌ها بارگذاری نشد. لطفاً صفحه را دوباره باز کن.</p>
+      <p id="status" class="sr-only" aria-live="polite"></p>
+
+      <!-- Print & PDF Export Modal -->
+      <div id="printModal" class="print-modal" hidden role="dialog" aria-modal="true" aria-labelledby="printModalTitle">
+        <div id="printModalBackdrop" class="print-modal-backdrop"></div>
+        <div class="print-modal-card">
+          <div class="print-modal-header">
+            <div class="print-modal-header-info">
+              <h2 id="printModalTitle" class="print-modal-title">خروجی PDF و چاپ جمله‌های منتخب</h2>
+              <span class="print-modal-count">تعداد جملات: <strong id="printCount">۰</strong> جمله</span>
+            </div>
+            <button type="button" id="printModalClose" class="btn-close" aria-label="بستن پنجره">×</button>
+          </div>
+          <div class="print-modal-toolbar">
+            <button type="button" id="printDirectBtn" class="btn-print-action primary">
+              <span aria-hidden="true">🖨</span>
+              <span>چاپ مستقیم یا ذخیره به عنوان PDF</span>
+            </button>
+            <button type="button" id="printDownloadBtn" class="btn-print-action secondary">
+              <span aria-hidden="true">📥</span>
+              <span>دانلود فایل مستقل (HTML)</span>
+            </button>
+            <p class="print-hint">نکته: در پنجرهٔ چاپ مرورگر، مقصد (Destination) را روی <strong>Save as PDF</strong> بگذارید تا نسخهٔ PDF تمیز ذخیره شود.</p>
+          </div>
+          <div class="print-preview-scroll">
+            <div id="printContainer" class="print-container"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      window.escapeHtml = function(str) {
+        return String(str ?? '').replace(/[&<>'"]/g, function(tag) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag;
+        });
+      };
+    </script>
+    <script type="module" src="app.js?v=2.5"></script>
+  </body>
+</html>

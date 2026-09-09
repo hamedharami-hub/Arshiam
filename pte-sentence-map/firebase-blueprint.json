@@ -1,0 +1,60 @@
+{
+  "entities": {
+    "UserStudyState": {
+      "title": "UserStudyState",
+      "description": "User's study state including starred cards, flagged cards for review, and spaced repetition data",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "User UID matching auth.uid",
+          "maxLength": 128
+        },
+        "starred": {
+          "type": "array",
+          "description": "List of starred sentence card IDs"
+        },
+        "flagged": {
+          "type": "array",
+          "description": "List of flagged sentence card IDs for memorization"
+        },
+        "review": {
+          "type": "object",
+          "description": "Spaced repetition review map keyed by card ID"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp string of last update",
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "userId",
+        "starred",
+        "flagged",
+        "updatedAt"
+      ]
+    },
+    "TestConnection": {
+      "title": "TestConnection",
+      "description": "Connection probe document",
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "description": "Probe status"
+        }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}/user_data/study_state": {
+      "schema": "UserStudyState",
+      "description": "Stores user's starred sentences, flags, and review status"
+    },
+    "/test/{testId}": {
+      "schema": "TestConnection",
+      "description": "Connection test probe"
+    }
+  }
+}

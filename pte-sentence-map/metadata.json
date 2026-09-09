@@ -1,0 +1,8 @@
+{
+  "name": "جمله‌یار PTE",
+  "description": "بانک جمله‌های موضوعی و پرکاربرد برای PTE Essay",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
