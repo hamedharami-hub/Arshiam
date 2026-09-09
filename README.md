@@ -23,3 +23,20 @@ npm run build
 ## زیرپروژه PTE Sentence Map
 
 ابزار مطالعهٔ جمله‌های نوشتاری PTE در مسیر [`pte-sentence-map/`](./pte-sentence-map/) به‌صورت مستقل وارد شده است. برای اجرای آن به همان مسیر بروید و دستورهای README آن را اجرا کنید.
+
+## زیرپروژه Pharmacy
+
+اپلیکیشن مستقل مطالعه و آموزش داروسازی از مخزن [`hamedharami-hub/pharmacy`](https://github.com/hamedharami-hub/pharmacy) در مسیر [`pharmacy/`](./pharmacy/) وارد شده است. این زیرپروژه با Next.js اجرا می‌شود و وابستگی‌ها و پیکربندی مستقل خود را دارد:
+
+```bash
+cd pharmacy
+npm install
+npm run dev
+```
+
+برای ساخت production:
+
+```bash
+cd pharmacy
+npm run build
+```

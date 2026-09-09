@@ -1,0 +1,67 @@
+{
+  "id": "/",
+  "name": "شبیه‌ساز جامع داروخانه استرالیا | AU Pharmacy Practice Simulator",
+  "short_name": "AU Pharmacy",
+  "description": "شبیه‌ساز جامع تریاژ سرپایی بالینی، قفسه داروهای S2/S3، نسخه‌پیچی نرم‌افزار Fred، جعبه لایتنر و نقشه مفهومی ذهنی",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#09090B",
+  "theme_color": "#09090B",
+  "lang": "fa",
+  "dir": "rtl",
+  "categories": ["medical", "education", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "ماژول ۱: تریاژ سرپایی و پروتکل‌های WWHAM",
+      "short_name": "تریاژ OTC",
+      "description": "پروتکل‌های بالینی WWHAM، پرچم‌های قرمز ارجاع و سناریوهای سرپایی",
+      "url": "/?module=1",
+      "icons": [{ "src": "/icons/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "ماژول ۲: قفسه داروهای S2/S3 و مانیتورینگ SafeScript",
+      "short_name": "قفسه داروها",
+      "description": "بررسی محصولات دارویی، استعلام هویت سودوافدرین و پروتکل‌های S3",
+      "url": "/?module=2",
+      "icons": [{ "src": "/icons/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "ماژول ۳: شبیه‌ساز نسخه پیچی Fred و Z Dispense",
+      "short_name": "نسخه‌پیچی",
+      "description": "نرم‌افزار Fred، کدهای PBS، شورت‌کات‌های تکرار و قوانین Reg 24",
+      "url": "/?module=3",
+      "icons": [{ "src": "/icons/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "ماژول ۴: دانشنامه بالینی و ماتریس تداخلات CYP450",
+      "short_name": "دانش بالینی",
+      "description": "سرفصل‌های ۶ گانه آزمون استرالیا، جدول آنزیم‌ها و برچسب‌های CAL",
+      "url": "/?module=4",
+      "icons": [{ "src": "/icons/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "ماژول ۵: جعبه لایتنر هوشمند و نقشه مفهومی ذهنی",
+      "short_name": "لایتنر و نقشه ذهنی",
+      "description": "مرور فاصله‌دار علمی ۵ جعبه و درخت دانش سلسله‌مراتبی",
+      "url": "/?module=5",
+      "icons": [{ "src": "/icons/icon-192.svg", "sizes": "192x192" }]
+    }
+  ]
+}

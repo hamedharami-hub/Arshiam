@@ -1,0 +1,457 @@
+steps {
+  type: CORTEX_STEP_TYPE_USER_INPUT
+  status: CORTEX_STEP_STATUS_DONE
+  metadata {
+    created_at {
+      seconds: 1787630581
+      nanos: 641056000
+    }
+    source: CORTEX_STEP_SOURCE_SYSTEM
+    completed_at {
+      seconds: 1787630581
+      nanos: 641056000
+    }
+  }
+  user_input {
+    user_response: "Here is the full initial file tree for the application:\n/.env.example\n/.eslintrc.json\n/.gitignore\n/app/api/ai/models/route.ts\n/app/api/ai/test/route.ts\n/app/api/gemini/generate-flashcards/route.ts\n/app/api/gemini/tutor/route.ts\n/app/globals.css\n/app/layout.tsx\n/app/page.tsx\n/assets/.aistudio/.gitignore\n/bun.lock\n/components/AiLeitnerModal.tsx\n/components/AiTutorDrawer.tsx\n/components/AuthModal.tsx\n/components/ClinicalHandbookDrawer.tsx\n/components/ClinicalKnowledgeModule.tsx\n/components/ClinicalMatricesPanel.tsx\n/components/DiseaseCategoryExplorer.tsx\n/components/DiseaseDetailModal.tsx\n/components/DispensingDeskLabelingPanel.tsx\n/components/DocumentRetentionSortingPanel.tsx\n/components/EditModal.tsx\n/components/FlashcardView.tsx\n/components/FloatingStudyProgressPill.tsx\n/components/Footer.tsx\n/components/FredDispenseModule.tsx\n/components/FredShortcutCheatSheet.tsx\n/components/Header.tsx\n/components/HotspotDetailModal.tsx\n/components/LearningToolsModule.tsx\n/components/LeitnerBoxModal.tsx\n/components/LeitnerDeckModule.tsx\n/components/LeitnerMindMapPanel.tsx\n/components/MechanismPopover.tsx\n/components/ModuleFilter.tsx\n/components/OdtDosingLogPanel.tsx\n/components/OtcHandbookViewer.tsx\n/components/OtcTriageModule.tsx\n/components/PbsClaimingArchivePanel.tsx\n/components/PbsSafetyNetCalculatorPanel.tsx\n/components/PharmacistFinalCheckModal.tsx\n/components/ProductShelfModule.tsx\n/components/ScriptVisualizerPanel.tsx\n/components/SettingsModal.tsx\n/components/SidebarNav.tsx\n/components/StatsBar.tsx\n/components/StudyCard.tsx\n/components/TextSelectionLeitnerTrigger.tsx\n/components/mindmap/BranchStudyRunnerModal.tsx\n/components/mindmap/MindMapCanvas.tsx\n/components/mindmap/MindMapModals.tsx\n/components/shelf/CalInfoModal.tsx\n/components/shelf/ConceptDetailModal.tsx\n/components/shelf/DrugComparisonModal.tsx\n/components/shelf/DrugMechanismModal.tsx\n/components/shelf/FormattedClinicalText.tsx\n/components/shelf/ProjectStopModal.tsx\n/components/shelf/ShelfCommonMechanismAccordion.tsx\n/components/shelf/ShelfDomainSelector.tsx\n/components/shelf/ShelfDrugCard.tsx\n/components/shelf/ShelfGroupingAccordion.tsx\n/components/shelf/ShelfSearchDrawer.tsx\n/components/shelf/ShelfStateStorageTester.tsx\n/components/shelf/ShelfSubcategoriesAccordion.tsx\n/components/study/ResumeStudyBanner.tsx\n/components/study/StudyStatusBadge.tsx\n/components/study/StudyTrackerContext.tsx\n/components/triage/AussieContextCard.tsx\n/components/triage/ChatFeed.tsx\n/components/triage/FormattedClinicalText.tsx\n/components/triage/FrameworkTabs.tsx\n/components/triage/ModeSelectorBar.tsx\n/components/triage/OutcomeFeedbackCard.tsx\n/components/triage/PatientDemographicsCard.tsx\n/components/triage/RedFlagsChecklistCard.tsx\n/components/triage/RedFlagsModal.tsx\n/components/triage/ReferralLetterModal.tsx\n/components/triage/StarredPhrasesModal.tsx\n/components/triage/WwhamQuestionModal.tsx\n/components/triage/index.ts\n/components/triage/types.ts\n/data/diseasesRegistry.ts\n/data/handbook/index.ts\n/data/mechanismsRegistry.ts\n/data/otcClinicalTranslations.ts\n/data/otcHandbookData.ts\n/data/otcScenarios.ts\n/data/realisticScriptsData.ts\n/data/scenarios/adminScenarios.ts\n/data/scenarios/clinicalScenarios.ts\n/data/scenarios/index.ts\n/data/scenarios/slangScenarios.ts\n/data/scenarios/types.ts\n/data/scriptTypesData.ts\n/data/shelf/calLabels.ts\n/data/shelf/clinicalConcepts.ts\n/data/shelf/clinicalDomains.ts\n/data/shelf/diseaseHelpers.ts\n/data/shelf/shelfProducts.ts\n/data/shelf/stateStorageRules.ts\n/data/studyTracksData.ts\n/eslint.config.mjs\n/firebase-applet-config.json\n/firestore.rules\n/hooks/use-mobile.ts\n/hooks/useStudyTracker.ts\n/lib/aiConfigStorage.ts\n/lib/aiService.ts\n/lib/firebase.ts\n/lib/i18n.ts\n/lib/mindmapLayout.ts\n/lib/pharmacy-data.ts\n/lib/robustJsonParser.ts\n/lib/sample-leitner-cards.ts\n/lib/studyTracker.ts\n/lib/utils.ts\n/metadata.json\n/next-env.d.ts\n/next.config.ts\n/package.json\n/postcss.config.mjs\n/src/data/handbook/index.ts\n/src/data/handbook/matcher.ts\n/src/data/handbook/part1.ts\n/src/data/handbook/part2.ts\n/src/data/handbook/part3.ts\n/src/data/handbook/types.ts\n/src/data/otcHandbookData.ts\n/tsconfig.json\n/tsconfig.tsbuildinfo\n/types/leitner.ts\n/types/mindmap.ts\n/types/pharmacy.ts\n/types/shelf.ts\n/types/studyTrack.ts\n\nThe following dependencies are installed:\n@google/genai: ^2.4.0\n@hookform/resolvers: ^5.2.1\nautoprefixer: ^10.4.21\nclass-variance-authority: ^0.7.1\nclsx: ^2.1.1\nfirebase: ^12.17.1\nlucide-react: ^0.553.0\nmotion: ^12.23.24\nnext: ^15.4.9\npostcss: ^8.5.6\nreact: ^19.2.1\nreact-dom: ^19.2.1\ntailwind-merge: ^3.3.1\n\nThe following devDependencies are installed:\n@tailwindcss/postcss: 4.1.11\n@tailwindcss/typography: ^0.5.19\n@types/node: ^20\n@types/react: ^19\n@types/react-dom: ^19\neslint: 9.39.1\neslint-config-next: 16.0.8\nfirebase-tools: ^15.0.0\ntailwindcss: 4.1.11\ntw-animate-css: ^1.4.0\ntypescript: 5.9.3\n\nKey file contents:\n\n--- /.env.example ---\n```\n# GEMINI_API_KEY: Required for Gemini AI API calls.\n# AI Studio automatically injects this at runtime from user secrets.\n# Users configure this via the Secrets panel in the AI Studio UI.\nGEMINI_API_KEY=\"MY_GEMINI_API_KEY\"\n\n# GROQ_API_KEY: Optional custom key for ultra-fast Llama/DeepSeek inferences via Groq.\nGROQ_API_KEY=\"\"\n\n# APP_URL: The URL where this applet is hosted.\n# AI Studio automatically injects this at runtime with the Cloud Run service URL.\n# Used for self-referential links, OAuth callbacks, and API endpoints.\nAPP_URL=\"MY_APP_URL\"\n\n```\n\n--- /app/globals.css ---\n```css\n@import \"tailwindcss\";\n\n@layer base {\n  :root {\n    --bg-main: #0f172a;\n    --card-bg: #1e293b;\n    --card-hover: #334155;\n    --border-color: rgba(51, 65, 85, 0.85);\n    --text-main: #f8fafc;\n    --text-muted: #94a3b8;\n    --font-scale: 15.5px;\n    --primary-color: #38bdf8;\n    --elevation-1: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);\n    --elevation-2: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);\n    --elevation-3: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5);\n  }\n\n  /* Root Font Size Scaling for Full App Reactivity */\n  html {\n    font-size: var(--font-scale, 15.5px);\n    transition: font-size 0.2s ease;\n  }\n\n  html.font-size-sm {\n    --font-scale: 13.5px;\n    font-size: 13.5px !important;\n  }\n  html.font-size-sm [class*=\"text-[9px]\"], html.font-size-sm [class*=\"text-[10px]\"] { font-size: 9px !important; }\n  html.font-size-sm [class*=\"text-[11px]\"] { font-size: 10px !important; }\n  html.font-size-sm [class*=\"text-[12px]\"] { font-size: 11px !important; }\n  html.font-size-sm [class*=\"text-[13px]\"] { font-size: 12px !important; }\n  html.font-size-sm [class*=\"text-[14px]\"] { font-size: 13px !important; }\n  html.font-size-sm [class*=\"text-[15px]\"] { font-size: 14px !important; }\n  html.font-size-sm .text-xs { font-size: 11px !important; }\n  html.font-size-sm .text-sm { font-size: 12.5px !important; }\n  html.font-size-sm .text-base { font-size: 14px !important; }\n\n  html.font-size-md {\n    --font-scale: 15.5px;\n    font-size: 15.5px !important;\n  }\n\n  html.font-size-lg {\n    --font-scale: 18px;\n    font-size: 18px !important;\n  }\n  html.font-size-lg [class*=\"text-[9px]\"], html.font-size-lg [class*=\"text-[10px]\"] { font-size: 12px !important; }\n  html.font-size-lg [class*=\"text-[11px]\"] { font-size: 13.5px !important; }\n  html.font-size-lg [class*=\"text-[12px]\"] { font-size: 14.5px !important; }\n  html.font-size-lg [class*=\"text-[13px]\"] { font-size: 15.5px !important; }\n  html.font-size-lg [class*=\"text-[14px]\"] { font-size: 16.5px !important; }\n  html.font-size-lg [class*=\"text-[15px]\"] { font-size: 17.5px !important; }\n  html.font-size-lg .text-xs { font-size: 14px !important; }\n  html.font-size-lg .text-sm { font-size: 16px !important; }\n  html.font-size-lg .text-base { font-size: 18px !important; }\n  html.font-size-lg .text-lg { font-size: 20px !important; }\n\n  html.font-size-xl {\n    --font-scale: 21px;\n    font-size: 21px !important;\n  }\n  html.font-size-xl [class*=\"text-[9px]\"], html.font-size-xl [class*=\"text-[10px]\"] { font-size: 14px !important; }\n  html.font-size-xl [class*=\"text-[11px]\"] { font-size: 15.5px !important; }\n  html.font-size-xl [class*=\"text-[12px]\"] { font-size: 17px !important; }\n  html.font-size-xl [class*=\"text-[13px]\"] { font-size: 18.5px !important; }\n  html.font-size-xl [class*=\"text-[14px]\"] { font-size: 20px !important; }\n  html.font-size-xl [class*=\"text-[15px]\"] { font-size: 21px !important; }\n  html.font-size-xl .text-xs { font-size: 16px !important; }\n  html.font-size-xl .text-sm { font-size: 18.5px !important; }\n  html.font-size-xl .text-base { font-size: 21px !important; }\n  html.font-size-xl .text-lg { font-size: 24px !important; }\n\n  body.theme-light {\n    --bg-main: #f8fafc;\n    --card-bg: #ffffff;\n    --card-hover: #f1f5f9;\n    --border-color: #e2e8f0;\n    --text-main: #0f172a;\n    --text-muted: #475569;\n    --primary-color: #0284c7;\n    --elevation-1: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);\n    --elevation-2: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.08);\n    --elevation-3: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);\n  }\n\n  /* Eye-Care Warm Paper Day Study Theme */\n  body.theme-reading-day {\n    --bg-main: #f5efe6;\n    --card-bg: #fdfbf7;\n    --card-hover: #f0e7dc;\n    --border-color: #dfd5c6;\n    --text-main: #1f1b18;\n    --text-muted: #5c5347;\n    --primary-color: #0284c7;\n    --elevation-1: 0 1px 3px 0 rgb(45 35 25 / 0.05), 0 1px 2px -1px rgb(45 35 25 / 0.05);\n    --elevation-2: 0 4px 6px -1px rgb(45 35 25 / 0.07), 0 2px 4px -2px rgb(45 35 25 / 0.07);\n    --elevation-3: 0 10px 15px -3px rgb(45 35 25 / 0.09), 0 4px 6px -4px rgb(45 35 25 / 0.09);\n  }\n\n  /* Eye-Care Ergonomic Night Study Theme (Anti-Blue Light) */\n  body.theme-reading-night {\n    --bg-main: #11141b;\n    --card-bg: #181c25;\n    --card-hover: #222734;\n    --border-color: #282f3e;\n    --text-main: #e6e2d6;\n    --text-muted: #9c9586;\n    --primary-color: #38bdf8;\n    --elevation-1: 0 1px 3px 0 rgb(0 0 0 / 0.35), 0 1px 2px -1px rgb(0 0 0 / 0.35);\n    --elevation-2: 0 4px 6px -1px rgb(0 0 0 / 0.45), 0 2px 4px -2px rgb(0 0 0 / 0.45);\n    --elevation-3: 0 10px 15px -3px rgb(0 0 0 / 0.55), 0 4px 6px -4px rgb(0 0 0 / 0.55);\n  }\n\n  body.theme-sepia {\n    --bg-main: #fbf0d9;\n    --card-bg: #f4e4c1;\n    --card-hover: #ebd9b0;\n    --border-color: #d7c29e;\n    --text-main: #261608;\n    --text-muted: #5e3b1c;\n    --primary-color: #b45309;\n    --elevation-1: 0 1px 3px 0 rgb(60 30 10 / 0.08);\n    --elevation-2: 0 4px 6px -1px rgb(60 30 10 / 0.12);\n    --elevation-3: 0 10px 15px -3px rgb(60 30 10 / 0.16);\n  }\n\n  /* Dedicated High-Contrast E-Reader Book Theme (E-Ink Matte Paper) */\n  body.theme-ereader {\n    --bg-main: #e8e6de;\n    --card-bg: #f7f6f0;\n    --card-hover: #dedbd0;\n    --border-color: #b5b1a2;\n    --text-main: #050505;\n    --text-muted: #383838;\n    --primary-color: #0284c7;\n    --elevation-1: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);\n    --elevation-2: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.08);\n    --elevation-3: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);\n  }\n\n  *, ::before, ::after {\n    border-color: var(--border-color);\n  }\n\n  html, body {\n    max-width: 100vw;\n    overflow-x: hidden;\n    width: 100%;\n  }\n\n  body {\n    background-color: var(--bg-main);\n    color: var(--text-main);\n    font-size: var(--font-scale);\n    transition: background-color 0.2s ease, color 0.2s ease;\n    font-family: system-ui, -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Oxygen, Ubuntu, Cantarell, \'Open Sans\', \'Helvetica Neue\', sans-serif;\n  }\n}\n\n.app-bg {\n  background-color: var(--bg-main) !important;\n}\n.app-card {\n  background-color: var(--card-bg) !important;\n  box-shadow: var(--elevation-1);\n}\n.app-card-hover:hover {\n  background-color: var(--card-hover) !important;\n}\n.app-border {\n  border-color: var(--border-color) !important;\n}\n.app-text {\n  color: var(--text-main) !important;\n}\n.app-muted {\n  color: var(--text-muted) !important;\n}\n\n/* ========================================================================= */\n/* ================= GOOGLE MATERIAL DESIGN 3 LIGHT THEME ================= */\n/* ========================================================================= */\n\n/* Surface & Containers */\nbody.theme-light .app-card,\nbody.theme-light .bg-slate-900,\nbody.theme-light .bg-slate-900\\/95,\nbody.theme-light .bg-slate-900\\/90,\nbody.theme-light .bg-slate-900\\/80,\nbody.theme-light .bg-slate-900\\/70,\nbody.theme-light .bg-slate-900\\/60,\nbody.theme-light .bg-slate-900\\/50,\nbody.theme-light .bg-slate-950,\nbody.theme-light .bg-slate-950\\/95,\nbody.theme-light .bg-slate-950\\/90,\nbody.theme-light .bg-slate-950\\/80,\nbody.theme-light .bg-slate-950\\/70,\nbody.theme-light .bg-slate-950\\/60,\nbody.theme-light .bg-zinc-900,\nbody.theme-light .bg-zinc-950,\n... (truncated)\n```\n\n--- /app/layout.tsx ---\n```typescript\nimport type {Metadata} from \'next\';\nimport \'./globals.css\'; // Global styles\n\nexport const metadata: Metadata = {\n  title: \'My Google AI Studio App\',\n  description: \'My Google AI Studio App\',\n};\n\nexport default function RootLayout({children}: {children: React.ReactNode}) {\n  return (\n    <html lang=\"en\">\n      <body suppressHydrationWarning>{children}</body>\n    </html>\n  );\n}\n\n```\n\n--- /app/page.tsx ---\n```typescript\n\'use client\';\n\nimport React, { useState, useEffect } from \'react\';\nimport dynamic from \'next/dynamic\';\nimport {\n  Language,\n  VisualTheme,\n  FontSize,\n  DisplayMode,\n  StudyMode,\n  LayoutMode,\n  ModuleId,\n  FlagColor,\n  CustomCardEdit,\n  UserProgress,\n  UserAiConfig,\n} from \'@/types/pharmacy\';\nimport { getClientAiConfig, saveClientAiConfig } from \'@/lib/aiConfigStorage\';\nimport { ALL_PHARMACY_CARDS } from \'@/lib/pharmacy-data\';\nimport {\n  auth,\n  onAuthStateChanged,\n  User,\n  saveUserDataToFirestore,\n  loadUserDataFromFirestore,\n  saveLeitnerCardsToFirestore,\n  doc,\n  db,\n  onSnapshot,\n} from \'@/lib/firebase\';\nimport { LeitnerCard } from \'@/types/leitner\';\nimport { Network, Layers } from \'lucide-react\';\nimport { Header } from \'@/components/Header\';\nimport { ModuleFilter } from \'@/components/ModuleFilter\';\nimport { StudyCard } from \'@/components/StudyCard\';\nimport { FlashcardView } from \'@/components/FlashcardView\';\nimport { SidebarNav } from \'@/components/SidebarNav\';\nimport { Footer } from \'@/components/Footer\';\nimport { INITIAL_SAMPLE_LEITNER_CARDS } from \'@/lib/sample-leitner-cards\';\nimport { StudyTrackerProvider } from \'@/components/study/StudyTrackerContext\';\nimport { ResumeStudyBanner } from \'@/components/study/ResumeStudyBanner\';\nimport { FolderOpen, Bot, Sparkles } from \'lucide-react\';\n\n// Dynamic lazy-loaded modules for optimized initial bundle loading\nconst OtcTriageModule = dynamic(\n  () => import(\'@/components/OtcTriageModule\').then((mod) => mod.OtcTriageModule),\n  { ssr: false }\n);\n\nconst ProductShelfModule = dynamic(\n  () => import(\'@/components/ProductShelfModule\').then((mod) => mod.ProductShelfModule),\n  { ssr: false }\n);\n\nconst FredDispenseModule = dynamic(\n  () => import(\'@/components/FredDispenseModule\').then((mod) => mod.FredDispenseModule),\n  { ssr: false }\n);\n\nconst ClinicalKnowledgeModule = dynamic(\n  () => import(\'@/components/ClinicalKnowledgeModule\').then((mod) => mod.ClinicalKnowledgeModule),\n  { ssr: false }\n);\n\nconst LearningToolsModule = dynamic(\n  () => import(\'@/components/LearningToolsModule\').then((mod) => mod.LearningToolsModule),\n  { ssr: false }\n);\n\nconst TextSelectionLeitnerTrigger = dynamic(\n  () => import(\'@/components/TextSelectionLeitnerTrigger\').then((mod) => mod.TextSelectionLeitnerTrigger),\n  { ssr: false }\n);\n\n// Modals and Drawers loaded on-demand\nconst EditModal = dynamic(\n  () => import(\'@/components/EditModal\').then((mod) => mod.EditModal),\n  { ssr: false }\n);\n\nconst SettingsModal = dynamic(\n  () => import(\'@/components/SettingsModal\').then((mod) => mod.SettingsModal),\n  { ssr: false }\n);\n\nconst AuthModal = dynamic(\n  () => import(\'@/components/AuthModal\').then((mod) => mod.AuthModal),\n  { ssr: false }\n);\n\nconst AiLeitnerModal = dynamic(\n  () => import(\'@/components/AiLeitnerModal\').then((mod) => mod.AiLeitnerModal),\n  { ssr: false }\n);\n\nconst LeitnerBoxModal = dynamic(\n  () => import(\'@/components/LeitnerBoxModal\').then((mod) => mod.LeitnerBoxModal),\n  { ssr: false }\n);\n\nconst AiTutorDrawer = dynamic(\n  () => import(\'@/components/AiTutorDrawer\').then((mod) => mod.AiTutorDrawer),\n  { ssr: false }\n);\n\nconst STORAGE_KEY = \'AU_PHARMACY_STUDY_STATE_V4\';\nconst LEITNER_STORAGE_KEY = \'AU_PHARMACY_LEITNER_CARDS_V1\';\n\nexport default function Home() {\n  const [isMounted, setIsMounted] = useState(false);\n  const [language, setLanguage] = useState<Language>(\'fa\');\n  const [theme, setTheme] = useState<VisualTheme>(\'dark\');\n  const [fontSize, setFontSize] = useState<FontSize>(\'md\');\n  const [displayMode, setDisplayMode] = useState<DisplayMode>(\'both\');\n  const [layoutMode, setLayoutMode] = useState<LayoutMode>(\'window-grid\');\n\n  const [activeMainModule, setActiveMainModule] = useState<1 | 2 | 3 | 4 | 5>(4);\n  const [leitnerInitialTab, setLeitnerInitialTab] = useState<\'leitner\' | \'mindmap\'>(\'leitner\');\n  const [activeMode, setActiveMode] = useState<StudyMode>(\'accordion\');\n  const [activeModule, setActiveModule] = useState<ModuleId>(\'ALL\');\n  const [activeCategory, setActiveCategory] = useState<string>(\'ALL\');\n  const [flagFilter, setFlagFilter] = useState<FlagColor | \'ALL\'>(\'ALL\');\n  const [searchQuery, setSearchQuery] = useState(\'\');\n\n  // User Progress State\n  const [flags, setFlags] = useState<Record<string, FlagColor>>({});\n  const [deleted, setDeleted] = useState<string[]>([]);\n  const [customEdits, setCustomEdits] = useState<Record<string, CustomCardEdit>>({});\n  const [reviewedCards, setReviewedCards] = useState<Record<string, boolean>>({});\n  const [quizScores, setQuizScores] = useState<Record<string, { total: number; correct: number }>>({\n    main: { total: 0, correct: 0 },\n  });\n  const [savedNotes, setSavedNotes] = useState<Record<string, string[]>>({});\n\n  // Modal States\n  const [editingCardId, setEditingCardId] = useState<string | null>(null);\n  const [isSettingsOpen, setIsSettingsOpen] = useState(false);\n  const [aiConfig, setAiConfig] = useState<UserAiConfig>(() => getClientAiConfig());\n\n  // Leitner Spaced Repetition Box State\n  const [leitnerCards, setLeitnerCards] = useState<LeitnerCard[]>([]);\n  const [isLeitnerBoxOpen, setIsLeitnerBoxOpen] = useState(false);\n  const [isAiLeitnerModalOpen, setIsAiLeitnerModalOpen] = useState(false);\n  const [aiLeitnerParams, setAiLeitnerParams] = useState<{\n    text: string;\n    module: 1 | 2 | 3 | 4;\n    category?: string;\n    topic?: string;\n  }>({\n    text: \'\',\n    module: 1,\n  });\n\n  // AI Clinical Tutor Drawer State\n  const [isAiTutorOpen, setIsAiTutorOpen] = useState(false);\n  const [aiTutorPrompt, setAiTutorPrompt] = useState(\'\');\n\n  // User Account & Cloud Sync States\n  const [user, setUser] = useState<User | null>(null);\n  const [isAuthOpen, setIsAuthOpen] = useState(false);\n  const [isSyncing, setIsSyncing] = useState(false);\n  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);\n  const [isInitialCloudLoad, setIsInitialCloudLoad] = useState(false);\n\n  // 1. Firebase Auth listener\n  useEffect(() => {\n    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {\n      setUser(currentUser);\n      if (currentUser) {\n        setIsInitialCloudLoad(true);\n      }\n    });\n    return () => unsubscribe();\n  }, []);\n\n  // 2. Load Cloud Data when user logs in or on initial auth load\n  useEffect(() => {\n    if (!user) return;\n\n    // Study state subscription\n    const userDocRef = doc(db, \'users\', user.uid, \'data\', \'studyState\');\n    const unsubscribeStudy = onSnapshot(\n      userDocRef,\n      (docSnap) => {\n        if (docSnap.exists()) {\n          const cloudData = docSnap.data();\n          if (cloudData) {\n            if (cloudData.language) setLanguage(cloudData.language as Language);\n            if (cloudData.theme) setTheme(cloudData.theme as VisualTheme);\n            if (cloudData.fontSize) setFontSize(cloudData.fontSize as FontSize);\n            if (cloudData.displayMode) setDisplayMode(cloudData.displayMode as DisplayMode);\n            if (cloudData.layoutMode) setLayoutMode(cloudData.layoutMode as LayoutMode);\n            if (cloudData.flags) setFlags(cloudData.flags);\n            if (cloudData.deleted) setDeleted(cloudData.deleted);\n            if (cloudData.customEdits) setCustomEdits(cloudData.customEdits);\n            if (cloudData.reviewedCards) setReviewedCards(cloudData.reviewedCards);\n            if (cloudData.quizScores) setQuizScores(cloudData.quizScores);\n            if (cloudData.savedNotes) setSavedNotes(cloudData.savedNotes);\n            if (cloudData.updatedAt) setLastSyncedAt(cloudData.updatedAt);\n          }\n... (truncated)\n```\n\n--- /firebase-applet-config.json ---\n```json\n{\n  \"projectId\": \"gen-lang-client-0845891098\",\n  \"appId\": \"1:627668608593:web:3f428bfec5245ac9887a70\",\n  \"apiKey\": \"AIzaSyBWVJ7J4xjgnxZ5mrCozVWUKWTTemGBggk\",\n  \"authDomain\": \"gen-lang-client-0845891098.firebaseapp.com\",\n  \"firestoreDatabaseId\": \"ai-studio-remixremix-2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4\",\n  \"storageBucket\": \"gen-lang-client-0845891098.firebasestorage.app\",\n  \"messagingSenderId\": \"627668608593\",\n  \"measurementId\": \"\",\n  \"oAuthClientId\": \"627668608593-0h2dn0j2cklpi65r9nksjuouop7eggge.apps.googleusercontent.com\",\n  \"recaptchaSiteKey\": \"\"\n}\n```\n\n--- /metadata.json ---\n```json\n{\n  \"name\": \"Remix Remix \330\254\330\247\331\205\330\271 \330\257\330\247\330\261\331\210\330\263\330\247\330\262\333\214 \330\247\330\263\330\252\330\261\330\247\331\204\333\214\330\247\",\n  \"description\": \"\331\276\331\204\330\252\331\201\330\261\331\205 \331\207\331\210\330\264\331\205\331\206\330\257 \331\205\330\267\330\247\331\204\330\271\331\207 \331\210 \331\205\330\261\331\210\330\261 \330\254\330\247\331\205\330\271 \331\202\331\210\330\247\331\206\333\214\331\206 \331\210 \330\271\331\205\331\204\332\251\330\261\330\257 \330\257\330\247\330\261\331\210\330\263\330\247\330\262\333\214 \330\247\330\263\330\252\330\261\330\247\331\204\333\214\330\247 \331\207\331\205\330\261\330\247\331\207 \330\250\330\247 \330\257\330\263\330\252\333\214\330\247\330\261 \331\207\331\210\330\264\331\205\331\206\330\257 \331\207\331\210\330\264 \331\205\330\265\331\206\331\210\330\271\333\214 (Gemini)\",\n  \"requestFramePermissions\": [],\n  \"majorCapabilities\": [\n    \"MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API\"\n  ]\n}\n```\n\n--- /next.config.ts ---\n```typescript\nimport type {NextConfig} from \'next\';\n\nconst nextConfig: NextConfig = {\n  reactStrictMode: true,\n  eslint: {\n    ignoreDuringBuilds: true,\n  },\n  typescript: {\n    ignoreBuildErrors: false,\n  },\n  // Allow access to remote image placeholder.\n  images: {\n    remotePatterns: [\n      {\n        protocol: \'https\',\n        hostname: \'picsum.photos\',\n        port: \'\',\n        pathname: \'/**\', // This allows any path under the hostname\n      },\n    ],\n  },\n  output: \'standalone\',\n  transpilePackages: [\'motion\'],\n  webpack: (config, {dev}) => {\n    // HMR is disabled in AI Studio via DISABLE_HMR env var.\n    if (dev && process.env.DISABLE_HMR === \'true\') {\n      config.watchOptions = {\n        ignored: /.*/,\n      };\n    }\n    return config;\n  },\n};\n\nexport default nextConfig;\n\n```\n\n--- /tsconfig.json ---\n```json\n{\n  \"compilerOptions\": {\n    \"target\": \"ES2017\",\n    \"lib\": [\"dom\", \"dom.iterable\", \"esnext\"],\n    \"allowJs\": true,\n    \"skipLibCheck\": true,\n    \"strict\": true,\n    \"noEmit\": true,\n    \"esModuleInterop\": true,\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"resolveJsonModule\": true,\n    \"isolatedModules\": true,\n    \"jsx\": \"preserve\",\n    \"incremental\": true,\n    \"plugins\": [\n      {\n        \"name\": \"next\"\n      }\n    ],\n    \"baseUrl\": \".\",\n    \"paths\": {\n      \"@/*\": [\"./*\"]\n    }\n  },\n  \"include\": [\"next-env.d.ts\", \"**/*.ts\", \"**/*.tsx\", \".next/types/**/*.ts\"],\n  \"exclude\": [\"node_modules\"]\n}\n\n```"
+    items {
+      text: "Here is the full initial file tree for the application:\n/.env.example\n/.eslintrc.json\n/.gitignore\n/app/api/ai/models/route.ts\n/app/api/ai/test/route.ts\n/app/api/gemini/generate-flashcards/route.ts\n/app/api/gemini/tutor/route.ts\n/app/globals.css\n/app/layout.tsx\n/app/page.tsx\n/assets/.aistudio/.gitignore\n/bun.lock\n/components/AiLeitnerModal.tsx\n/components/AiTutorDrawer.tsx\n/components/AuthModal.tsx\n/components/ClinicalHandbookDrawer.tsx\n/components/ClinicalKnowledgeModule.tsx\n/components/ClinicalMatricesPanel.tsx\n/components/DiseaseCategoryExplorer.tsx\n/components/DiseaseDetailModal.tsx\n/components/DispensingDeskLabelingPanel.tsx\n/components/DocumentRetentionSortingPanel.tsx\n/components/EditModal.tsx\n/components/FlashcardView.tsx\n/components/FloatingStudyProgressPill.tsx\n/components/Footer.tsx\n/components/FredDispenseModule.tsx\n/components/FredShortcutCheatSheet.tsx\n/components/Header.tsx\n/components/HotspotDetailModal.tsx\n/components/LearningToolsModule.tsx\n/components/LeitnerBoxModal.tsx\n/components/LeitnerDeckModule.tsx\n/components/LeitnerMindMapPanel.tsx\n/components/MechanismPopover.tsx\n/components/ModuleFilter.tsx\n/components/OdtDosingLogPanel.tsx\n/components/OtcHandbookViewer.tsx\n/components/OtcTriageModule.tsx\n/components/PbsClaimingArchivePanel.tsx\n/components/PbsSafetyNetCalculatorPanel.tsx\n/components/PharmacistFinalCheckModal.tsx\n/components/ProductShelfModule.tsx\n/components/ScriptVisualizerPanel.tsx\n/components/SettingsModal.tsx\n/components/SidebarNav.tsx\n/components/StatsBar.tsx\n/components/StudyCard.tsx\n/components/TextSelectionLeitnerTrigger.tsx\n/components/mindmap/BranchStudyRunnerModal.tsx\n/components/mindmap/MindMapCanvas.tsx\n/components/mindmap/MindMapModals.tsx\n/components/shelf/CalInfoModal.tsx\n/components/shelf/ConceptDetailModal.tsx\n/components/shelf/DrugComparisonModal.tsx\n/components/shelf/DrugMechanismModal.tsx\n/components/shelf/FormattedClinicalText.tsx\n/components/shelf/ProjectStopModal.tsx\n/components/shelf/ShelfCommonMechanismAccordion.tsx\n/components/shelf/ShelfDomainSelector.tsx\n/components/shelf/ShelfDrugCard.tsx\n/components/shelf/ShelfGroupingAccordion.tsx\n/components/shelf/ShelfSearchDrawer.tsx\n/components/shelf/ShelfStateStorageTester.tsx\n/components/shelf/ShelfSubcategoriesAccordion.tsx\n/components/study/ResumeStudyBanner.tsx\n/components/study/StudyStatusBadge.tsx\n/components/study/StudyTrackerContext.tsx\n/components/triage/AussieContextCard.tsx\n/components/triage/ChatFeed.tsx\n/components/triage/FormattedClinicalText.tsx\n/components/triage/FrameworkTabs.tsx\n/components/triage/ModeSelectorBar.tsx\n/components/triage/OutcomeFeedbackCard.tsx\n/components/triage/PatientDemographicsCard.tsx\n/components/triage/RedFlagsChecklistCard.tsx\n/components/triage/RedFlagsModal.tsx\n/components/triage/ReferralLetterModal.tsx\n/components/triage/StarredPhrasesModal.tsx\n/components/triage/WwhamQuestionModal.tsx\n/components/triage/index.ts\n/components/triage/types.ts\n/data/diseasesRegistry.ts\n/data/handbook/index.ts\n/data/mechanismsRegistry.ts\n/data/otcClinicalTranslations.ts\n/data/otcHandbookData.ts\n/data/otcScenarios.ts\n/data/realisticScriptsData.ts\n/data/scenarios/adminScenarios.ts\n/data/scenarios/clinicalScenarios.ts\n/data/scenarios/index.ts\n/data/scenarios/slangScenarios.ts\n/data/scenarios/types.ts\n/data/scriptTypesData.ts\n/data/shelf/calLabels.ts\n/data/shelf/clinicalConcepts.ts\n/data/shelf/clinicalDomains.ts\n/data/shelf/diseaseHelpers.ts\n/data/shelf/shelfProducts.ts\n/data/shelf/stateStorageRules.ts\n/data/studyTracksData.ts\n/eslint.config.mjs\n/firebase-applet-config.json\n/firestore.rules\n/hooks/use-mobile.ts\n/hooks/useStudyTracker.ts\n/lib/aiConfigStorage.ts\n/lib/aiService.ts\n/lib/firebase.ts\n/lib/i18n.ts\n/lib/mindmapLayout.ts\n/lib/pharmacy-data.ts\n/lib/robustJsonParser.ts\n/lib/sample-leitner-cards.ts\n/lib/studyTracker.ts\n/lib/utils.ts\n/metadata.json\n/next-env.d.ts\n/next.config.ts\n/package.json\n/postcss.config.mjs\n/src/data/handbook/index.ts\n/src/data/handbook/matcher.ts\n/src/data/handbook/part1.ts\n/src/data/handbook/part2.ts\n/src/data/handbook/part3.ts\n/src/data/handbook/types.ts\n/src/data/otcHandbookData.ts\n/tsconfig.json\n/tsconfig.tsbuildinfo\n/types/leitner.ts\n/types/mindmap.ts\n/types/pharmacy.ts\n/types/shelf.ts\n/types/studyTrack.ts\n\nThe following dependencies are installed:\n@google/genai: ^2.4.0\n@hookform/resolvers: ^5.2.1\nautoprefixer: ^10.4.21\nclass-variance-authority: ^0.7.1\nclsx: ^2.1.1\nfirebase: ^12.17.1\nlucide-react: ^0.553.0\nmotion: ^12.23.24\nnext: ^15.4.9\npostcss: ^8.5.6\nreact: ^19.2.1\nreact-dom: ^19.2.1\ntailwind-merge: ^3.3.1\n\nThe following devDependencies are installed:\n@tailwindcss/postcss: 4.1.11\n@tailwindcss/typography: ^0.5.19\n@types/node: ^20\n@types/react: ^19\n@types/react-dom: ^19\neslint: 9.39.1\neslint-config-next: 16.0.8\nfirebase-tools: ^15.0.0\ntailwindcss: 4.1.11\ntw-animate-css: ^1.4.0\ntypescript: 5.9.3\n\nKey file contents:\n\n--- /.env.example ---\n```\n# GEMINI_API_KEY: Required for Gemini AI API calls.\n# AI Studio automatically injects this at runtime from user secrets.\n# Users configure this via the Secrets panel in the AI Studio UI.\nGEMINI_API_KEY=\"MY_GEMINI_API_KEY\"\n\n# GROQ_API_KEY: Optional custom key for ultra-fast Llama/DeepSeek inferences via Groq.\nGROQ_API_KEY=\"\"\n\n# APP_URL: The URL where this applet is hosted.\n# AI Studio automatically injects this at runtime with the Cloud Run service URL.\n# Used for self-referential links, OAuth callbacks, and API endpoints.\nAPP_URL=\"MY_APP_URL\"\n\n```\n\n--- /app/globals.css ---\n```css\n@import \"tailwindcss\";\n\n@layer base {\n  :root {\n    --bg-main: #0f172a;\n    --card-bg: #1e293b;\n    --card-hover: #334155;\n    --border-color: rgba(51, 65, 85, 0.85);\n    --text-main: #f8fafc;\n    --text-muted: #94a3b8;\n    --font-scale: 15.5px;\n    --primary-color: #38bdf8;\n    --elevation-1: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);\n    --elevation-2: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);\n    --elevation-3: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5);\n  }\n\n  /* Root Font Size Scaling for Full App Reactivity */\n  html {\n    font-size: var(--font-scale, 15.5px);\n    transition: font-size 0.2s ease;\n  }\n\n  html.font-size-sm {\n    --font-scale: 13.5px;\n    font-size: 13.5px !important;\n  }\n  html.font-size-sm [class*=\"text-[9px]\"], html.font-size-sm [class*=\"text-[10px]\"] { font-size: 9px !important; }\n  html.font-size-sm [class*=\"text-[11px]\"] { font-size: 10px !important; }\n  html.font-size-sm [class*=\"text-[12px]\"] { font-size: 11px !important; }\n  html.font-size-sm [class*=\"text-[13px]\"] { font-size: 12px !important; }\n  html.font-size-sm [class*=\"text-[14px]\"] { font-size: 13px !important; }\n  html.font-size-sm [class*=\"text-[15px]\"] { font-size: 14px !important; }\n  html.font-size-sm .text-xs { font-size: 11px !important; }\n  html.font-size-sm .text-sm { font-size: 12.5px !important; }\n  html.font-size-sm .text-base { font-size: 14px !important; }\n\n  html.font-size-md {\n    --font-scale: 15.5px;\n    font-size: 15.5px !important;\n  }\n\n  html.font-size-lg {\n    --font-scale: 18px;\n    font-size: 18px !important;\n  }\n  html.font-size-lg [class*=\"text-[9px]\"], html.font-size-lg [class*=\"text-[10px]\"] { font-size: 12px !important; }\n  html.font-size-lg [class*=\"text-[11px]\"] { font-size: 13.5px !important; }\n  html.font-size-lg [class*=\"text-[12px]\"] { font-size: 14.5px !important; }\n  html.font-size-lg [class*=\"text-[13px]\"] { font-size: 15.5px !important; }\n  html.font-size-lg [class*=\"text-[14px]\"] { font-size: 16.5px !important; }\n  html.font-size-lg [class*=\"text-[15px]\"] { font-size: 17.5px !important; }\n  html.font-size-lg .text-xs { font-size: 14px !important; }\n  html.font-size-lg .text-sm { font-size: 16px !important; }\n  html.font-size-lg .text-base { font-size: 18px !important; }\n  html.font-size-lg .text-lg { font-size: 20px !important; }\n\n  html.font-size-xl {\n    --font-scale: 21px;\n    font-size: 21px !important;\n  }\n  html.font-size-xl [class*=\"text-[9px]\"], html.font-size-xl [class*=\"text-[10px]\"] { font-size: 14px !important; }\n  html.font-size-xl [class*=\"text-[11px]\"] { font-size: 15.5px !important; }\n  html.font-size-xl [class*=\"text-[12px]\"] { font-size: 17px !important; }\n  html.font-size-xl [class*=\"text-[13px]\"] { font-size: 18.5px !important; }\n  html.font-size-xl [class*=\"text-[14px]\"] { font-size: 20px !important; }\n  html.font-size-xl [class*=\"text-[15px]\"] { font-size: 21px !important; }\n  html.font-size-xl .text-xs { font-size: 16px !important; }\n  html.font-size-xl .text-sm { font-size: 18.5px !important; }\n  html.font-size-xl .text-base { font-size: 21px !important; }\n  html.font-size-xl .text-lg { font-size: 24px !important; }\n\n  body.theme-light {\n    --bg-main: #f8fafc;\n    --card-bg: #ffffff;\n    --card-hover: #f1f5f9;\n    --border-color: #e2e8f0;\n    --text-main: #0f172a;\n    --text-muted: #475569;\n    --primary-color: #0284c7;\n    --elevation-1: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);\n    --elevation-2: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.08);\n    --elevation-3: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);\n  }\n\n  /* Eye-Care Warm Paper Day Study Theme */\n  body.theme-reading-day {\n    --bg-main: #f5efe6;\n    --card-bg: #fdfbf7;\n    --card-hover: #f0e7dc;\n    --border-color: #dfd5c6;\n    --text-main: #1f1b18;\n    --text-muted: #5c5347;\n    --primary-color: #0284c7;\n    --elevation-1: 0 1px 3px 0 rgb(45 35 25 / 0.05), 0 1px 2px -1px rgb(45 35 25 / 0.05);\n    --elevation-2: 0 4px 6px -1px rgb(45 35 25 / 0.07), 0 2px 4px -2px rgb(45 35 25 / 0.07);\n    --elevation-3: 0 10px 15px -3px rgb(45 35 25 / 0.09), 0 4px 6px -4px rgb(45 35 25 / 0.09);\n  }\n\n  /* Eye-Care Ergonomic Night Study Theme (Anti-Blue Light) */\n  body.theme-reading-night {\n    --bg-main: #11141b;\n    --card-bg: #181c25;\n    --card-hover: #222734;\n    --border-color: #282f3e;\n    --text-main: #e6e2d6;\n    --text-muted: #9c9586;\n    --primary-color: #38bdf8;\n    --elevation-1: 0 1px 3px 0 rgb(0 0 0 / 0.35), 0 1px 2px -1px rgb(0 0 0 / 0.35);\n    --elevation-2: 0 4px 6px -1px rgb(0 0 0 / 0.45), 0 2px 4px -2px rgb(0 0 0 / 0.45);\n    --elevation-3: 0 10px 15px -3px rgb(0 0 0 / 0.55), 0 4px 6px -4px rgb(0 0 0 / 0.55);\n  }\n\n  body.theme-sepia {\n    --bg-main: #fbf0d9;\n    --card-bg: #f4e4c1;\n    --card-hover: #ebd9b0;\n    --border-color: #d7c29e;\n    --text-main: #261608;\n    --text-muted: #5e3b1c;\n    --primary-color: #b45309;\n    --elevation-1: 0 1px 3px 0 rgb(60 30 10 / 0.08);\n    --elevation-2: 0 4px 6px -1px rgb(60 30 10 / 0.12);\n    --elevation-3: 0 10px 15px -3px rgb(60 30 10 / 0.16);\n  }\n\n  /* Dedicated High-Contrast E-Reader Book Theme (E-Ink Matte Paper) */\n  body.theme-ereader {\n    --bg-main: #e8e6de;\n    --card-bg: #f7f6f0;\n    --card-hover: #dedbd0;\n    --border-color: #b5b1a2;\n    --text-main: #050505;\n    --text-muted: #383838;\n    --primary-color: #0284c7;\n    --elevation-1: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);\n    --elevation-2: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.08);\n    --elevation-3: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);\n  }\n\n  *, ::before, ::after {\n    border-color: var(--border-color);\n  }\n\n  html, body {\n    max-width: 100vw;\n    overflow-x: hidden;\n    width: 100%;\n  }\n\n  body {\n    background-color: var(--bg-main);\n    color: var(--text-main);\n    font-size: var(--font-scale);\n    transition: background-color 0.2s ease, color 0.2s ease;\n    font-family: system-ui, -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Oxygen, Ubuntu, Cantarell, \'Open Sans\', \'Helvetica Neue\', sans-serif;\n  }\n}\n\n.app-bg {\n  background-color: var(--bg-main) !important;\n}\n.app-card {\n  background-color: var(--card-bg) !important;\n  box-shadow: var(--elevation-1);\n}\n.app-card-hover:hover {\n  background-color: var(--card-hover) !important;\n}\n.app-border {\n  border-color: var(--border-color) !important;\n}\n.app-text {\n  color: var(--text-main) !important;\n}\n.app-muted {\n  color: var(--text-muted) !important;\n}\n\n/* ========================================================================= */\n/* ================= GOOGLE MATERIAL DESIGN 3 LIGHT THEME ================= */\n/* ========================================================================= */\n\n/* Surface & Containers */\nbody.theme-light .app-card,\nbody.theme-light .bg-slate-900,\nbody.theme-light .bg-slate-900\\/95,\nbody.theme-light .bg-slate-900\\/90,\nbody.theme-light .bg-slate-900\\/80,\nbody.theme-light .bg-slate-900\\/70,\nbody.theme-light .bg-slate-900\\/60,\nbody.theme-light .bg-slate-900\\/50,\nbody.theme-light .bg-slate-950,\nbody.theme-light .bg-slate-950\\/95,\nbody.theme-light .bg-slate-950\\/90,\nbody.theme-light .bg-slate-950\\/80,\nbody.theme-light .bg-slate-950\\/70,\nbody.theme-light .bg-slate-950\\/60,\nbody.theme-light .bg-zinc-900,\nbody.theme-light .bg-zinc-950,\n... (truncated)\n```\n\n--- /app/layout.tsx ---\n```typescript\nimport type {Metadata} from \'next\';\nimport \'./globals.css\'; // Global styles\n\nexport const metadata: Metadata = {\n  title: \'My Google AI Studio App\',\n  description: \'My Google AI Studio App\',\n};\n\nexport default function RootLayout({children}: {children: React.ReactNode}) {\n  return (\n    <html lang=\"en\">\n      <body suppressHydrationWarning>{children}</body>\n    </html>\n  );\n}\n\n```\n\n--- /app/page.tsx ---\n```typescript\n\'use client\';\n\nimport React, { useState, useEffect } from \'react\';\nimport dynamic from \'next/dynamic\';\nimport {\n  Language,\n  VisualTheme,\n  FontSize,\n  DisplayMode,\n  StudyMode,\n  LayoutMode,\n  ModuleId,\n  FlagColor,\n  CustomCardEdit,\n  UserProgress,\n  UserAiConfig,\n} from \'@/types/pharmacy\';\nimport { getClientAiConfig, saveClientAiConfig } from \'@/lib/aiConfigStorage\';\nimport { ALL_PHARMACY_CARDS } from \'@/lib/pharmacy-data\';\nimport {\n  auth,\n  onAuthStateChanged,\n  User,\n  saveUserDataToFirestore,\n  loadUserDataFromFirestore,\n  saveLeitnerCardsToFirestore,\n  doc,\n  db,\n  onSnapshot,\n} from \'@/lib/firebase\';\nimport { LeitnerCard } from \'@/types/leitner\';\nimport { Network, Layers } from \'lucide-react\';\nimport { Header } from \'@/components/Header\';\nimport { ModuleFilter } from \'@/components/ModuleFilter\';\nimport { StudyCard } from \'@/components/StudyCard\';\nimport { FlashcardView } from \'@/components/FlashcardView\';\nimport { SidebarNav } from \'@/components/SidebarNav\';\nimport { Footer } from \'@/components/Footer\';\nimport { INITIAL_SAMPLE_LEITNER_CARDS } from \'@/lib/sample-leitner-cards\';\nimport { StudyTrackerProvider } from \'@/components/study/StudyTrackerContext\';\nimport { ResumeStudyBanner } from \'@/components/study/ResumeStudyBanner\';\nimport { FolderOpen, Bot, Sparkles } from \'lucide-react\';\n\n// Dynamic lazy-loaded modules for optimized initial bundle loading\nconst OtcTriageModule = dynamic(\n  () => import(\'@/components/OtcTriageModule\').then((mod) => mod.OtcTriageModule),\n  { ssr: false }\n);\n\nconst ProductShelfModule = dynamic(\n  () => import(\'@/components/ProductShelfModule\').then((mod) => mod.ProductShelfModule),\n  { ssr: false }\n);\n\nconst FredDispenseModule = dynamic(\n  () => import(\'@/components/FredDispenseModule\').then((mod) => mod.FredDispenseModule),\n  { ssr: false }\n);\n\nconst ClinicalKnowledgeModule = dynamic(\n  () => import(\'@/components/ClinicalKnowledgeModule\').then((mod) => mod.ClinicalKnowledgeModule),\n  { ssr: false }\n);\n\nconst LearningToolsModule = dynamic(\n  () => import(\'@/components/LearningToolsModule\').then((mod) => mod.LearningToolsModule),\n  { ssr: false }\n);\n\nconst TextSelectionLeitnerTrigger = dynamic(\n  () => import(\'@/components/TextSelectionLeitnerTrigger\').then((mod) => mod.TextSelectionLeitnerTrigger),\n  { ssr: false }\n);\n\n// Modals and Drawers loaded on-demand\nconst EditModal = dynamic(\n  () => import(\'@/components/EditModal\').then((mod) => mod.EditModal),\n  { ssr: false }\n);\n\nconst SettingsModal = dynamic(\n  () => import(\'@/components/SettingsModal\').then((mod) => mod.SettingsModal),\n  { ssr: false }\n);\n\nconst AuthModal = dynamic(\n  () => import(\'@/components/AuthModal\').then((mod) => mod.AuthModal),\n  { ssr: false }\n);\n\nconst AiLeitnerModal = dynamic(\n  () => import(\'@/components/AiLeitnerModal\').then((mod) => mod.AiLeitnerModal),\n  { ssr: false }\n);\n\nconst LeitnerBoxModal = dynamic(\n  () => import(\'@/components/LeitnerBoxModal\').then((mod) => mod.LeitnerBoxModal),\n  { ssr: false }\n);\n\nconst AiTutorDrawer = dynamic(\n  () => import(\'@/components/AiTutorDrawer\').then((mod) => mod.AiTutorDrawer),\n  { ssr: false }\n);\n\nconst STORAGE_KEY = \'AU_PHARMACY_STUDY_STATE_V4\';\nconst LEITNER_STORAGE_KEY = \'AU_PHARMACY_LEITNER_CARDS_V1\';\n\nexport default function Home() {\n  const [isMounted, setIsMounted] = useState(false);\n  const [language, setLanguage] = useState<Language>(\'fa\');\n  const [theme, setTheme] = useState<VisualTheme>(\'dark\');\n  const [fontSize, setFontSize] = useState<FontSize>(\'md\');\n  const [displayMode, setDisplayMode] = useState<DisplayMode>(\'both\');\n  const [layoutMode, setLayoutMode] = useState<LayoutMode>(\'window-grid\');\n\n  const [activeMainModule, setActiveMainModule] = useState<1 | 2 | 3 | 4 | 5>(4);\n  const [leitnerInitialTab, setLeitnerInitialTab] = useState<\'leitner\' | \'mindmap\'>(\'leitner\');\n  const [activeMode, setActiveMode] = useState<StudyMode>(\'accordion\');\n  const [activeModule, setActiveModule] = useState<ModuleId>(\'ALL\');\n  const [activeCategory, setActiveCategory] = useState<string>(\'ALL\');\n  const [flagFilter, setFlagFilter] = useState<FlagColor | \'ALL\'>(\'ALL\');\n  const [searchQuery, setSearchQuery] = useState(\'\');\n\n  // User Progress State\n  const [flags, setFlags] = useState<Record<string, FlagColor>>({});\n  const [deleted, setDeleted] = useState<string[]>([]);\n  const [customEdits, setCustomEdits] = useState<Record<string, CustomCardEdit>>({});\n  const [reviewedCards, setReviewedCards] = useState<Record<string, boolean>>({});\n  const [quizScores, setQuizScores] = useState<Record<string, { total: number; correct: number }>>({\n    main: { total: 0, correct: 0 },\n  });\n  const [savedNotes, setSavedNotes] = useState<Record<string, string[]>>({});\n\n  // Modal States\n  const [editingCardId, setEditingCardId] = useState<string | null>(null);\n  const [isSettingsOpen, setIsSettingsOpen] = useState(false);\n  const [aiConfig, setAiConfig] = useState<UserAiConfig>(() => getClientAiConfig());\n\n  // Leitner Spaced Repetition Box State\n  const [leitnerCards, setLeitnerCards] = useState<LeitnerCard[]>([]);\n  const [isLeitnerBoxOpen, setIsLeitnerBoxOpen] = useState(false);\n  const [isAiLeitnerModalOpen, setIsAiLeitnerModalOpen] = useState(false);\n  const [aiLeitnerParams, setAiLeitnerParams] = useState<{\n    text: string;\n    module: 1 | 2 | 3 | 4;\n    category?: string;\n    topic?: string;\n  }>({\n    text: \'\',\n    module: 1,\n  });\n\n  // AI Clinical Tutor Drawer State\n  const [isAiTutorOpen, setIsAiTutorOpen] = useState(false);\n  const [aiTutorPrompt, setAiTutorPrompt] = useState(\'\');\n\n  // User Account & Cloud Sync States\n  const [user, setUser] = useState<User | null>(null);\n  const [isAuthOpen, setIsAuthOpen] = useState(false);\n  const [isSyncing, setIsSyncing] = useState(false);\n  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);\n  const [isInitialCloudLoad, setIsInitialCloudLoad] = useState(false);\n\n  // 1. Firebase Auth listener\n  useEffect(() => {\n    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {\n      setUser(currentUser);\n      if (currentUser) {\n        setIsInitialCloudLoad(true);\n      }\n    });\n    return () => unsubscribe();\n  }, []);\n\n  // 2. Load Cloud Data when user logs in or on initial auth load\n  useEffect(() => {\n    if (!user) return;\n\n    // Study state subscription\n    const userDocRef = doc(db, \'users\', user.uid, \'data\', \'studyState\');\n    const unsubscribeStudy = onSnapshot(\n      userDocRef,\n      (docSnap) => {\n        if (docSnap.exists()) {\n          const cloudData = docSnap.data();\n          if (cloudData) {\n            if (cloudData.language) setLanguage(cloudData.language as Language);\n            if (cloudData.theme) setTheme(cloudData.theme as VisualTheme);\n            if (cloudData.fontSize) setFontSize(cloudData.fontSize as FontSize);\n            if (cloudData.displayMode) setDisplayMode(cloudData.displayMode as DisplayMode);\n            if (cloudData.layoutMode) setLayoutMode(cloudData.layoutMode as LayoutMode);\n            if (cloudData.flags) setFlags(cloudData.flags);\n            if (cloudData.deleted) setDeleted(cloudData.deleted);\n            if (cloudData.customEdits) setCustomEdits(cloudData.customEdits);\n            if (cloudData.reviewedCards) setReviewedCards(cloudData.reviewedCards);\n            if (cloudData.quizScores) setQuizScores(cloudData.quizScores);\n            if (cloudData.savedNotes) setSavedNotes(cloudData.savedNotes);\n            if (cloudData.updatedAt) setLastSyncedAt(cloudData.updatedAt);\n          }\n... (truncated)\n```\n\n--- /firebase-applet-config.json ---\n```json\n{\n  \"projectId\": \"gen-lang-client-0845891098\",\n  \"appId\": \"1:627668608593:web:3f428bfec5245ac9887a70\",\n  \"apiKey\": \"AIzaSyBWVJ7J4xjgnxZ5mrCozVWUKWTTemGBggk\",\n  \"authDomain\": \"gen-lang-client-0845891098.firebaseapp.com\",\n  \"firestoreDatabaseId\": \"ai-studio-remixremix-2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4\",\n  \"storageBucket\": \"gen-lang-client-0845891098.firebasestorage.app\",\n  \"messagingSenderId\": \"627668608593\",\n  \"measurementId\": \"\",\n  \"oAuthClientId\": \"627668608593-0h2dn0j2cklpi65r9nksjuouop7eggge.apps.googleusercontent.com\",\n  \"recaptchaSiteKey\": \"\"\n}\n```\n\n--- /metadata.json ---\n```json\n{\n  \"name\": \"Remix Remix \330\254\330\247\331\205\330\271 \330\257\330\247\330\261\331\210\330\263\330\247\330\262\333\214 \330\247\330\263\330\252\330\261\330\247\331\204\333\214\330\247\",\n  \"description\": \"\331\276\331\204\330\252\331\201\330\261\331\205 \331\207\331\210\330\264\331\205\331\206\330\257 \331\205\330\267\330\247\331\204\330\271\331\207 \331\210 \331\205\330\261\331\210\330\261 \330\254\330\247\331\205\330\271 \331\202\331\210\330\247\331\206\333\214\331\206 \331\210 \330\271\331\205\331\204\332\251\330\261\330\257 \330\257\330\247\330\261\331\210\330\263\330\247\330\262\333\214 \330\247\330\263\330\252\330\261\330\247\331\204\333\214\330\247 \331\207\331\205\330\261\330\247\331\207 \330\250\330\247 \330\257\330\263\330\252\333\214\330\247\330\261 \331\207\331\210\330\264\331\205\331\206\330\257 \331\207\331\210\330\264 \331\205\330\265\331\206\331\210\330\271\333\214 (Gemini)\",\n  \"requestFramePermissions\": [],\n  \"majorCapabilities\": [\n    \"MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API\"\n  ]\n}\n```\n\n--- /next.config.ts ---\n```typescript\nimport type {NextConfig} from \'next\';\n\nconst nextConfig: NextConfig = {\n  reactStrictMode: true,\n  eslint: {\n    ignoreDuringBuilds: true,\n  },\n  typescript: {\n    ignoreBuildErrors: false,\n  },\n  // Allow access to remote image placeholder.\n  images: {\n    remotePatterns: [\n      {\n        protocol: \'https\',\n        hostname: \'picsum.photos\',\n        port: \'\',\n        pathname: \'/**\', // This allows any path under the hostname\n      },\n    ],\n  },\n  output: \'standalone\',\n  transpilePackages: [\'motion\'],\n  webpack: (config, {dev}) => {\n    // HMR is disabled in AI Studio via DISABLE_HMR env var.\n    if (dev && process.env.DISABLE_HMR === \'true\') {\n      config.watchOptions = {\n        ignored: /.*/,\n      };\n    }\n    return config;\n  },\n};\n\nexport default nextConfig;\n\n```\n\n--- /tsconfig.json ---\n```json\n{\n  \"compilerOptions\": {\n    \"target\": \"ES2017\",\n    \"lib\": [\"dom\", \"dom.iterable\", \"esnext\"],\n    \"allowJs\": true,\n    \"skipLibCheck\": true,\n    \"strict\": true,\n    \"noEmit\": true,\n    \"esModuleInterop\": true,\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"resolveJsonModule\": true,\n    \"isolatedModules\": true,\n    \"jsx\": \"preserve\",\n    \"incremental\": true,\n    \"plugins\": [\n      {\n        \"name\": \"next\"\n      }\n    ],\n    \"baseUrl\": \".\",\n    \"paths\": {\n      \"@/*\": [\"./*\"]\n    }\n  },\n  \"include\": [\"next-env.d.ts\", \"**/*.ts\", \"**/*.tsx\", \".next/types/**/*.ts\"],\n  \"exclude\": [\"node_modules\"]\n}\n\n```"
+    }
+  }
+}
+steps {
+  type: CORTEX_STEP_TYPE_USER_INPUT
+  status: CORTEX_STEP_STATUS_DONE
+  metadata {
+    created_at {
+      seconds: 1787630581
+      nanos: 753480000
+    }
+    completed_at {
+      seconds: 1787630581
+      nanos: 753480000
+    }
+  }
+  user_input {
+    items {
+      text: "Remixed \"Remix \330\254\330\247\331\205\330\271 \330\257\330\247\330\261\331\210\330\263\330\247\330\262\333\214 \330\247\330\263\330\252\330\261\330\247\331\204\333\214\330\247\""
+    }
+  }
+}
+steps {
+  type: CORTEX_STEP_TYPE_USER_INPUT
+  status: CORTEX_STEP_STATUS_DONE
+  metadata {
+    created_at {
+      seconds: 1787630584
+      nanos: 688529709
+    }
+    source: CORTEX_STEP_SOURCE_USER_EXPLICIT
+  }
+  user_input {
+    user_response: "\332\206\330\261\330\247 \330\250\330\261\331\206\330\247\331\205\331\207 \330\247\330\254\330\261\330\247 \331\206\331\205\333\214\330\264\331\207 \330\237\n"
+    items {
+      text: "\332\206\330\261\330\247 \330\250\330\261\331\206\330\247\331\205\331\207 \330\247\330\254\330\261\330\247 \331\206\331\205\333\214\330\264\331\207 \330\237\n"
+    }
+  }
+}
+steps {
+  type: CORTEX_STEP_TYPE_PLANNER_RESPONSE
+  status: CORTEX_STEP_STATUS_DONE
+  metadata {
+    created_at {
+      seconds: 1787630584
+      nanos: 689077856
+    }
+    source: CORTEX_STEP_SOURCE_MODEL
+    viewable_at {
+      seconds: 1787630586
+      nanos: 94913978
+    }
+    finished_generating_at {
+      seconds: 1787630586
+      nanos: 110455632
+    }
+    completed_at {
+      seconds: 1787630586
+      nanos: 110455632
+    }
+    model_usage {
+      input_tokens: 36389
+      output_tokens: 154
+      message_id: "-BONapaSMM2hz7IPpNbGgAY"
+      thinking_output_tokens: 123
+      response_output_tokens: 31
+      response_id: "-BONapaSMM2hz7IPpNbGgAY"
+      prompt_tokens_details {
+        modality: TEXT
+        token_count: 36389
+      }
+    }
+    generator_model: MODEL_GOOGLE_GEMINI_INTERNAL_BYOM
+    execution_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+    source_trajectory_step_info {
+      trajectory_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+      step_index: 3
+      cascade_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+    }
+    step_generation_version: 1
+    model_info {
+      model_name: "gemini-3.7-flash"
+      thinking_budget: 4000
+    }
+    started_at {
+      seconds: 1787630586
+      nanos: 110455632
+    }
+  }
+  planner_response {
+    stop_reason: STOP_REASON_STOP_PATTERN
+  }
+}
+steps {
+  type: CORTEX_STEP_TYPE_SYSTEM_MESSAGE
+  status: CORTEX_STEP_STATUS_DONE
+  metadata {
+    created_at {
+      seconds: 1787630586
+      nanos: 94970088
+    }
+    source: CORTEX_STEP_SOURCE_SYSTEM
+    arguments_order: "toolAction"
+    arguments_order: "toolSummary"
+    viewable_at {
+      seconds: 1787630586
+      nanos: 110310225
+    }
+    finished_generating_at {
+      seconds: 1787630586
+      nanos: 110309452
+    }
+    completed_at {
+      seconds: 1787630669
+      nanos: 187535605
+    }
+    generator_model: MODEL_GOOGLE_GEMINI_INTERNAL_BYOM
+    execution_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+    source_trajectory_step_info {
+      trajectory_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+      step_index: 4
+      cascade_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+    }
+    step_generation_version: 1
+    last_completed_chunk_at {
+      seconds: 1787630586
+      nanos: 110303535
+    }
+    tool_call_output_tokens: 20
+    model_info {
+      model_name: "gemini-3.7-flash"
+      thinking_budget: 4000
+    }
+    tool_summary: "Run lint tool"
+    tool_action: "Checking codebase for lint errors"
+    started_at {
+      seconds: 1787630586
+      nanos: 110549457
+    }
+  }
+  system_message {
+    message: "Ran linter"
+  }
+}
+steps {
+  type: CORTEX_STEP_TYPE_CHECKPOINT
+  status: CORTEX_STEP_STATUS_DONE
+  metadata {
+    created_at {
+      seconds: 1787630669
+      nanos: 187678703
+    }
+    source: CORTEX_STEP_SOURCE_SYSTEM
+    completed_at {
+      seconds: 1787630671
+      nanos: 728528422
+    }
+    model_usage {
+      input_tokens: 8710
+      output_tokens: 341
+      message_id: "TRSNaoTMEayDz7IP6ZL-sAU"
+      thinking_output_tokens: 334
+      response_output_tokens: 7
+      response_id: "TRSNaoTMEayDz7IP6ZL-sAU"
+      prompt_tokens_details {
+        modality: TEXT
+        token_count: 8710
+      }
+    }
+    execution_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+    source_trajectory_step_info {
+      trajectory_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+      step_index: 5
+      metadata_index: 1
+      cascade_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+    }
+    retry_infos {
+      usage {
+        input_tokens: 8710
+        output_tokens: 341
+        message_id: "TRSNaoTMEayDz7IP6ZL-sAU"
+        thinking_output_tokens: 334
+        response_output_tokens: 7
+        response_id: "TRSNaoTMEayDz7IP6ZL-sAU"
+        prompt_tokens_details {
+          modality: TEXT
+          token_count: 8710
+        }
+      }
+    }
+    started_at {
+      seconds: 1787630669
+      nanos: 187896936
+    }
+  }
+  checkpoint {
+  }
+}
+steps {
+  type: CORTEX_STEP_TYPE_PLANNER_RESPONSE
+  status: CORTEX_STEP_STATUS_DONE
+  metadata {
+    created_at {
+      seconds: 1787630669
+      nanos: 190261098
+    }
+    source: CORTEX_STEP_SOURCE_MODEL
+    viewable_at {
+      seconds: 1787630670
+      nanos: 17409820
+    }
+    finished_generating_at {
+      seconds: 1787630670
+      nanos: 32390484
+    }
+    completed_at {
+      seconds: 1787630670
+      nanos: 32390484
+    }
+    model_usage {
+      input_tokens: 3999
+      output_tokens: 72
+      cache_read_tokens: 32645
+      message_id: "TRSNarW3EeuHz7IPxrmGuA0"
+      thinking_output_tokens: 39
+      response_output_tokens: 33
+      response_id: "TRSNarW3EeuHz7IPxrmGuA0"
+      prompt_tokens_details {
+        modality: TEXT
+        token_count: 36644
+      }
+      cache_tokens_details {
+        modality: TEXT
+        token_count: 32645
+      }
+    }
+    generator_model: MODEL_GOOGLE_GEMINI_INTERNAL_BYOM
+    execution_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+    source_trajectory_step_info {
+      trajectory_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+      step_index: 6
+      metadata_index: 1
+      cascade_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+    }
+    step_generation_version: 1
+    model_info {
+      model_name: "gemini-3.7-flash"
+      thinking_budget: 4000
+    }
+    started_at {
+      seconds: 1787630670
+      nanos: 32390484
+    }
+  }
+  planner_response {
+    stop_reason: STOP_REASON_STOP_PATTERN
+  }
+}
+steps {
+  type: CORTEX_STEP_TYPE_SYSTEM_MESSAGE
+  status: CORTEX_STEP_STATUS_DONE
+  metadata {
+    created_at {
+      seconds: 1787630670
+      nanos: 17462297
+    }
+    source: CORTEX_STEP_SOURCE_SYSTEM
+    arguments_order: "toolAction"
+    arguments_order: "toolSummary"
+    viewable_at {
+      seconds: 1787630670
+      nanos: 32280706
+    }
+    finished_generating_at {
+      seconds: 1787630670
+      nanos: 32279959
+    }
+    completed_at {
+      seconds: 1787630705
+      nanos: 704734938
+    }
+    generator_model: MODEL_GOOGLE_GEMINI_INTERNAL_BYOM
+    execution_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+    source_trajectory_step_info {
+      trajectory_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+      step_index: 7
+      metadata_index: 1
+      cascade_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+    }
+    step_generation_version: 1
+    last_completed_chunk_at {
+      seconds: 1787630670
+      nanos: 32263149
+    }
+    tool_call_output_tokens: 20
+    model_info {
+      model_name: "gemini-3.7-flash"
+      thinking_budget: 4000
+    }
+    tool_summary: "Compile applet"
+    tool_action: "Compiling applet to verify build"
+    started_at {
+      seconds: 1787630671
+      nanos: 728647157
+    }
+  }
+  system_message {
+    message: "Compiled application"
+  }
+}
+steps {
+  type: CORTEX_STEP_TYPE_PLANNER_RESPONSE
+  status: CORTEX_STEP_STATUS_DONE
+  metadata {
+    created_at {
+      seconds: 1787630705
+      nanos: 705889173
+    }
+    source: CORTEX_STEP_SOURCE_MODEL
+    viewable_at {
+      seconds: 1787630712
+      nanos: 670784715
+    }
+    finished_generating_at {
+      seconds: 1787630712
+      nanos: 683083652
+    }
+    completed_at {
+      seconds: 1787630712
+      nanos: 683083652
+    }
+    model_usage {
+      input_tokens: 4309
+      output_tokens: 119
+      cache_read_tokens: 32637
+      message_id: "cRSNapyPMbGGz7IPqZPViAs"
+      thinking_output_tokens: 88
+      response_output_tokens: 31
+      response_id: "cRSNapyPMbGGz7IPqZPViAs"
+      prompt_tokens_details {
+        modality: TEXT
+        token_count: 36946
+      }
+      cache_tokens_details {
+        modality: TEXT
+        token_count: 32637
+      }
+    }
+    generator_model: MODEL_GOOGLE_GEMINI_INTERNAL_BYOM
+    execution_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+    source_trajectory_step_info {
+      trajectory_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+      step_index: 8
+      metadata_index: 2
+      cascade_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+    }
+    step_generation_version: 1
+    model_info {
+      model_name: "gemini-3.7-flash"
+      thinking_budget: 4000
+    }
+    started_at {
+      seconds: 1787630712
+      nanos: 683083652
+    }
+  }
+  planner_response {
+    stop_reason: STOP_REASON_STOP_PATTERN
+  }
+}
+steps {
+  type: CORTEX_STEP_TYPE_SYSTEM_MESSAGE
+  status: CORTEX_STEP_STATUS_CANCELED
+  metadata {
+    created_at {
+      seconds: 1787630712
+      nanos: 670822162
+    }
+    source: CORTEX_STEP_SOURCE_SYSTEM
+    arguments_order: "toolAction"
+    arguments_order: "toolSummary"
+    viewable_at {
+      seconds: 1787630712
+      nanos: 682987768
+    }
+    finished_generating_at {
+      seconds: 1787630712
+      nanos: 682986807
+    }
+    generator_model: MODEL_GOOGLE_GEMINI_INTERNAL_BYOM
+    execution_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+    source_trajectory_step_info {
+      trajectory_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+      step_index: 9
+      metadata_index: 2
+      cascade_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+    }
+    step_generation_version: 1
+    last_completed_chunk_at {
+      seconds: 1787630712
+      nanos: 682981110
+    }
+    tool_call_output_tokens: 20
+    model_info {
+      model_name: "gemini-3.7-flash"
+      thinking_budget: 4000
+    }
+    tool_summary: "Restart dev server"
+    tool_action: "Restarting development server"
+    started_at {
+      seconds: 1787630712
+      nanos: 683136298
+    }
+  }
+  system_message {
+    message: "Restarted dev server"
+  }
+}
+generator_metadata {
+  step_indices: 8
+  step_indices: 9
+  planner_config {
+  }
+  execution_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+}
+generator_metadata {
+  step_indices: 6
+  step_indices: 7
+  planner_config {
+  }
+  execution_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+}
+generator_metadata {
+  step_indices: 3
+  step_indices: 4
+  planner_config {
+  }
+  execution_id: "2efe8ef8-d3fc-4014-8fd8-6f8d8d9398c4"
+}
