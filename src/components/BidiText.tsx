@@ -34,16 +34,19 @@ export function BidiText({
  * Minimal inline markdown parser → React nodes.
  * Handles ** **, __ __, * *, _ _, ` `, ~~ ~~ without pulling a full MD lib.
  */
-export function parseInlineMarkdown(input: string): React.ReactNode[] {
+function parseInlineMarkdown(input: string): React.ReactNode[] {
   if (!input) return [];
-  // Order matters: bold (**, __) before italic (*, _)
+
+  // Order matters: triple asterisk before double, double before single
   const patterns: { re: RegExp; render: (m: string) => React.ReactNode }[] = [
-    { re: /\*\*([^*\n]+)\*\*/, render: (m) => <strong>{m}</strong> },
-    { re: /__([^_\n]+)__/, render: (m) => <strong>{m}</strong> },
-    { re: /~~([^~\n]+)~~/, render: (m) => <s>{m}</s> },
-    { re: /`([^`\n]+)`/, render: (m) => <code className="px-1 rounded bg-muted text-[0.9em]">{m}</code> },
-    { re: /(?<![*\w])\*([^*\n]+)\*(?!\*)/, render: (m) => <em>{m}</em> },
-    { re: /(?<![_\w])_([^_\n]+)_(?!_)/, render: (m) => <em>{m}</em> },
+    { re: /\*\*\*([^*\n]+?)\*\*\*/, render: (m) => <strong><em>{m}</em></strong> },
+    { re: /\*\*([^*\n]+?)\*\*/, render: (m) => <strong className="font-bold text-foreground">{m}</strong> },
+    { re: /__([^_\n]+?)__/, render: (m) => <strong className="font-bold text-foreground">{m}</strong> },
+    { re: /==([^=\n]+?)==/, render: (m) => <mark className="px-1 py-0.5 rounded bg-amber-400/30 dark:bg-amber-400/20 text-foreground font-medium">{m}</mark> },
+    { re: /~~([^~\n]+?)~~/, render: (m) => <s className="line-through opacity-75">{m}</s> },
+    { re: /`([^`\n]+?)`/, render: (m) => <code className="px-1.5 py-0.5 rounded bg-muted font-mono text-[0.88em] border border-border/50 ltr inline-block">{m}</code> },
+    { re: /(?<!\*)\*(?!\*)([^*\n]+?)(?<!\*)\*(?!\*)/, render: (m) => <em className="italic">{m}</em> },
+    { re: /(?<!_)_(?!_)([^_\n]+?)(?<!_)_(?!_)/, render: (m) => <em className="italic">{m}</em> },
   ];
 
   // Recursive walker
