@@ -1,4 +1,3 @@
-// Offline-first mutation queue using IndexedDB.
 // Queues mutations while offline and replays them when back online.
 
 import { openDB, type IDBPDatabase } from "idb";
@@ -15,11 +14,14 @@ export type QueuedOp = {
   createdAt: number;
   attempts: number;
   nextRetryAt?: number;
+  lastError?: string;
 };
 
 const DB_NAME = "taskflow-offline";
 const STORE = "outbox";
 const CACHE_STORE = "cache";
+const MAX_RETRY_DELAY_MS = 300_000;
+const MAX_ATTEMPTS_BEFORE_ALERT = 10;
 
 let dbPromise: Promise<IDBPDatabase | null> | null = null;
 async function getDB(): Promise<IDBPDatabase | null> {
@@ -42,7 +44,9 @@ async function getDB(): Promise<IDBPDatabase | null> {
   return dbPromise;
 }
 
-export async function enqueueOp(op: Omit<QueuedOp, "id" | "createdAt" | "attempts" | "nextRetryAt">) {
+export async function enqueueOp(
+  op: Omit<QueuedOp, "id" | "createdAt" | "attempts" | "nextRetryAt" | "lastError">
+) {
   try {
     const db = await getDB();
     if (db) {
@@ -53,31 +57,22 @@ export async function enqueueOp(op: Omit<QueuedOp, "id" | "createdAt" | "attempt
   }
   notifyChange();
   if (typeof navigator !== "undefined" && navigator.onLine) {
-    setTimeout(() => {
-      flushQueue().catch(() => {});
-    }, 50);
+    setTimeout(() => void flushQueue(), 50);
   }
 }
 
 export async function getQueue(): Promise<QueuedOp[]> {
   try {
     const db = await getDB();
-    if (!db) return [];
-    return await db.getAll(STORE);
+    return db ? await db.getAll(STORE) : [];
   } catch {
     return [];
   }
 }
 
 export async function getPendingOps(table?: string): Promise<QueuedOp[]> {
-  try {
-    const db = await getDB();
-    if (!db) return [];
-    const all = await db.getAll(STORE);
-    return table ? all.filter((op) => op.table === table) : all;
-  } catch {
-    return [];
-  }
+  const all = await getQueue();
+  return table ? all.filter((op) => op.table === table) : all;
 }
 
 export async function clearQueue() {
@@ -98,8 +93,7 @@ export async function cacheSet(key: string, value: unknown) {
 export async function cacheGet<T = unknown>(key: string): Promise<T | undefined> {
   try {
     const db = await getDB();
-    if (!db) return undefined;
-    return (await db.get(CACHE_STORE, key)) as T | undefined;
+    return db ? ((await db.get(CACHE_STORE, key)) as T | undefined) : undefined;
   } catch {
     return undefined;
   }
@@ -111,91 +105,122 @@ export function onQueueChange(cb: () => void) {
   return () => listeners.delete(cb);
 }
 function notifyChange() {
-  listeners.forEach((l) => l());
+  listeners.forEach((listener) => listener());
+}
+
+function responseHasError(response: unknown): boolean {
+  return Boolean(
+    response &&
+      typeof response === "object" &&
+      "error" in response &&
+      (response as { error?: unknown }).error
+  );
+}
+
+async function replayWithLegacyStore(item: QueuedOp): Promise<boolean> {
+  try {
+    const q = firebaseStore.from(item.table);
+    let response: unknown;
+    if (item.op === "insert") {
+      response = await q.insert(item.payload as Record<string, unknown>);
+    } else if (item.op === "upsert") {
+      response = await q.upsert(item.payload as Record<string, unknown>, item.upsertOptions);
+    } else if (item.op === "update") {
+      let builder = q.update(item.payload as Record<string, unknown>);
+      for (const [key, value] of Object.entries(item.match || {})) builder = builder.eq(key, value);
+      response = await builder;
+    } else {
+      let builder = q.delete();
+      for (const [key, value] of Object.entries(item.match || {})) builder = builder.eq(key, value);
+      response = await builder;
+    }
+    return !responseHasError(response);
+  } catch (error) {
+    console.warn(`[offlineQueue] Legacy replay failed for ${item.table}:`, error);
+    return false;
+  }
+}
+
+async function replayItem(item: QueuedOp): Promise<boolean> {
+  let firestoreAttempted = false;
+  let firestoreSucceeded = false;
+  try {
+    const { auth } = await import("./firebase");
+    const { getStoredUser } = await import("./authService");
+    const userId = auth.currentUser?.uid || getStoredUser()?.id;
+    const firestoreTables = ["tasks", "notes", "habits", "folders", "tags"];
+    if (userId && firestoreTables.includes(item.table)) {
+      firestoreAttempted = true;
+      const { saveEntityToFirestore, deleteEntityFromFirestore } = await import("./firestoreSync");
+      if (item.op === "delete") {
+        const docId = item.match?.id as string;
+        firestoreSucceeded = Boolean(
+          docId && await deleteEntityFromFirestore(userId, item.table as "tasks" | "notes" | "habits", docId)
+        );
+      } else {
+        const payload = (item.payload || {}) as Record<string, any>;
+        const docId = (payload.id || item.match?.id) as string;
+        firestoreSucceeded = Boolean(
+          docId && await saveEntityToFirestore(userId, item.table as "tasks" | "notes" | "habits", docId, payload)
+        );
+      }
+    }
+  } catch (error) {
+    console.warn("[offlineQueue] Firestore replay warning:", error);
+  }
+
+  // For supported entities, the direct Firestore path is authoritative. The legacy
+  // mirror is used only if the direct path was not attempted or failed.
+  if (firestoreSucceeded) return true;
+  if (firestoreAttempted || !firestoreSucceeded) return replayWithLegacyStore(item);
+  return false;
 }
 
 let syncing = false;
 export async function flushQueue(): Promise<{ ok: number; failed: number }> {
-  if (syncing || typeof navigator === "undefined" || !navigator.onLine) return { ok: 0, failed: 0 };
+  if (syncing || typeof navigator === "undefined" || !navigator.onLine) {
+    return { ok: 0, failed: 0 };
+  }
   syncing = true;
   let ok = 0;
   let failed = 0;
-  let notifiedDrop = false;
+  let notifiedFailure = false;
   try {
     const db = await getDB();
     if (!db) return { ok: 0, failed: 0 };
     const items = await db.getAll(STORE);
     const now = Date.now();
+
     for (const item of items) {
       if (item.nextRetryAt && item.nextRetryAt > now) continue;
       try {
-        // 1. Primary cloud write: Firebase Firestore (Google AI Studio backend)
-        let firestoreOk = false;
-        try {
-          const { auth } = await import("./firebase");
-          const { getStoredUser } = await import("./authService");
-          const userId = auth.currentUser?.uid || getStoredUser()?.id;
-          if (userId && (item.table === "tasks" || item.table === "notes" || item.table === "habits" || item.table === "folders" || item.table === "tags")) {
-            const { saveEntityToFirestore, deleteEntityFromFirestore } = await import("./firestoreSync");
-            if (item.op === "insert" || item.op === "upsert" || item.op === "update") {
-              const p = (item.payload || {}) as Record<string, any>;
-              const docId = (p.id || item.match?.id) as string;
-              if (docId) {
-                firestoreOk = await saveEntityToFirestore(userId, item.table as any, docId, p);
-              }
-            } else if (item.op === "delete") {
-              const docId = item.match?.id as string;
-              if (docId) {
-                firestoreOk = await deleteEntityFromFirestore(userId, item.table as any, docId);
-              }
-            }
-          }
-        } catch (e) {
-          console.warn("[offlineQueue] Firestore persistence warning:", e);
-        }
-
-        // 2. Secondary/Legacy mirror: firebaseStore (best-effort, non-blocking)
-        try {
-          const q = (firebaseStore.from as (t: string) => ReturnType<typeof firebaseStore.from>)(item.table);
-          if (item.op === "insert") {
-            await q.insert(item.payload as Record<string, unknown>);
-          } else if (item.op === "upsert") {
-            await q.upsert(item.payload as Record<string, unknown>, item.upsertOptions);
-          } else if (item.op === "update") {
-            let b = q.update(item.payload as Record<string, unknown>);
-            for (const [k, v] of Object.entries(item.match || {})) b = b.eq(k, v);
-            await b;
-          } else if (item.op === "delete") {
-            let b = q.delete();
-            for (const [k, v] of Object.entries(item.match || {})) b = b.eq(k, v);
-            await b;
-          }
-        } catch {
-          // Ignore firebaseStore RLS / session errors
-        }
-
+        const succeeded = await replayItem(item);
+        if (!succeeded) throw new Error("Cloud write was not confirmed");
         await db.delete(STORE, item.id!);
         ok++;
-      } catch {
+      } catch (error) {
         failed++;
-        item.attempts++;
-        const backoff = Math.min(2 ** item.attempts * 1000, 300_000);
-        item.nextRetryAt = Date.now() + backoff;
-        if (item.attempts >= 10) {
-          await db.delete(STORE, item.id!);
-          if (!notifiedDrop) {
-            toast.error("برخی تغییرات آفلاین سینک نشدند", {
-              description: `تغییر روی «${item.table}» پس از چند تلاش ذخیره نشد.`,
-            });
-            notifiedDrop = true;
-          }
-        } else {
-          await db.put(STORE, item);
+        const attempts = (item.attempts || 0) + 1;
+        const message = error instanceof Error ? error.message : "خطای نامشخص در همگام‌سازی";
+        const updated: QueuedOp = {
+          ...item,
+          attempts,
+          lastError: message,
+          nextRetryAt: Date.now() + Math.min(2 ** attempts * 1000, MAX_RETRY_DELAY_MS),
+        };
+        // Never discard user data automatically. After repeated failures, keep the
+        // operation in the outbox and alert the user so it can be diagnosed/retried.
+        await db.put(STORE, updated);
+        if (attempts >= MAX_ATTEMPTS_BEFORE_ALERT && !notifiedFailure) {
+          toast.error("برخی تغییرات هنوز همگام نشده‌اند", {
+            description: "تغییرات شما حفظ شده‌اند و بعداً دوباره تلاش می‌شود.",
+          });
+          notifiedFailure = true;
         }
       }
     }
-  } catch (err) {
-    console.warn("flushQueue encountered error:", err);
+  } catch (error) {
+    console.warn("flushQueue encountered error:", error);
   } finally {
     syncing = false;
     notifyChange();
@@ -203,28 +228,18 @@ export async function flushQueue(): Promise<{ ok: number; failed: number }> {
   return { ok, failed };
 }
 
+let syncCleanup: (() => void) | null = null;
 export function initOfflineSync() {
-  if (typeof window === "undefined") return;
-
-  try {
-    window.addEventListener("online", () => {
-      flushQueue().catch(() => {});
-    });
-
-    // try once on startup
-    if (typeof navigator !== "undefined" && navigator.onLine) {
-      setTimeout(() => {
-        flushQueue().catch(() => {});
-      }, 1500);
-    }
-
-    // periodic retry — the queue itself skips items that are not due yet
-    setInterval(() => {
-      if (typeof navigator !== "undefined" && navigator.onLine) {
-        flushQueue().catch(() => {});
-      }
-    }, 15_000);
-  } catch (e) {
-    console.warn("initOfflineSync setup notice:", e);
-  }
+  if (typeof window === "undefined" || syncCleanup) return;
+  const onOnline = () => void flushQueue();
+  window.addEventListener("online", onOnline);
+  const timer = window.setInterval(() => {
+    if (navigator.onLine) void flushQueue();
+  }, 15_000);
+  if (navigator.onLine) window.setTimeout(() => void flushQueue(), 1_500);
+  syncCleanup = () => {
+    window.removeEventListener("online", onOnline);
+    window.clearInterval(timer);
+    syncCleanup = null;
+  };
 }
