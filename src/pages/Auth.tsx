@@ -11,8 +11,10 @@ import { Card } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { safeInternalPath } from "@/lib/safeNavigation";
 
 const DISCLAIMER_KEY = "clinical_disclaimer_accepted_v1";
+const GUEST_LOGIN_ENABLED = import.meta.env.DEV && import.meta.env.VITE_ENABLE_GUEST_LOGIN === "true";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -43,8 +45,7 @@ export default function Auth() {
 
   // Next URL redirect handling
   const rawNext = params.get("next") || "";
-  const safeNext = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "";
-  const returnTo = safeNext || "/app/today";
+  const returnTo = safeInternalPath(rawNext);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -153,9 +154,9 @@ export default function Auth() {
   return (
     <main
       dir={isEn ? "ltr" : "rtl"}
-      className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50/70 via-background to-purple-50/70 dark:from-pink-950/20 dark:via-background dark:to-purple-950/20 p-4 sm:p-6"
+      className="min-h-screen flex items-start justify-center overflow-y-auto bg-gradient-to-br from-pink-50/70 via-background to-purple-50/70 dark:from-pink-950/20 dark:via-background dark:to-purple-950/20 p-4 sm:p-6"
     >
-      <Card className="w-full max-w-md p-6 sm:p-8 shadow-xl border border-border/70 rounded-2xl bg-card backdrop-blur-sm">
+      <Card className="w-full max-w-md my-auto p-6 sm:p-8 shadow-xl border border-border/70 rounded-2xl bg-card backdrop-blur-sm">
         {/* App Branding */}
         <div className="flex flex-col items-center mb-6 text-center">
           <img
@@ -170,7 +171,7 @@ export default function Auth() {
           </h1>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 my-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-sm">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            تست سینک هوش مصنوعی (AI Studio Sync Test ✨)
+            آماده برای برنامه‌ریزی و تمرکز
           </div>
           <p className="text-xs text-muted-foreground mt-1 font-medium">
             {isEn ? "Arshnaz · Manage tasks with love" : "ارشناز · هوشمند، بالینی و متمرکز"}
@@ -365,20 +366,21 @@ export default function Auth() {
           ادامه با حساب Google
         </Button>
 
-        {/* Direct Guest Access Button */}
-        <div className="mt-3 pt-3 border-t border-dashed border-border/70 flex items-center justify-center">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleGuestLogin}
-            disabled={loading}
-            className="text-xs text-muted-foreground hover:text-foreground font-medium gap-1.5"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            ورود آزمایشی و سریع (بدون نیاز به رمز)
-          </Button>
-        </div>
+        {GUEST_LOGIN_ENABLED && (
+          <div className="mt-3 pt-3 border-t border-dashed border-border/70 flex items-center justify-center">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleGuestLogin}
+              disabled={loading}
+              className="text-xs text-muted-foreground hover:text-foreground font-medium gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              ورود آزمایشی و سریع (بدون نیاز به رمز)
+            </Button>
+          </div>
+        )}
       </Card>
 
     </main>
