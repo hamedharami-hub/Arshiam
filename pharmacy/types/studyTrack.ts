@@ -9,6 +9,14 @@ export type StudyTrackId =
   | 'track_4_otc_pharma'
   | 'track_5_laws_dispense';
 
+export interface StudyCatalogItem {
+  id: string;
+  type: 'topic' | 'otc-scenario' | 'shelf-product' | 'fred-case' | 'leitner';
+  moduleId: MainStudyModuleId;
+  title: { fa: string; en: string };
+  category?: { fa: string; en: string };
+}
+
 export interface LastStudiedItem {
   itemId: string;
   moduleId: MainStudyModuleId;

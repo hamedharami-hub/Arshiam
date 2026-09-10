@@ -29,6 +29,7 @@ import { Language, UserProgress } from '@/types/pharmacy';
 import { LeitnerCard } from '@/types/leitner';
 import { useStudyTracker } from '@/components/study/StudyTrackerContext';
 import { StudyPlannerPanel } from './StudyPlannerPanel';
+import { getCatalogStats } from '@/data/studyCatalog';
 
 interface StudyMasteryDashboardProps {
   language: Language;
@@ -72,17 +73,16 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
 
   const totalLeitnerCards = leitnerCards.length;
 
-  // Breakdown by clinical modules
+  // Breakdown by the real central study catalog, including OTC scenarios and Shelf products.
   const moduleMasteryData = useMemo(() => {
-    const completedMap = tracker?.studyState?.completedMap || {};
+    const state = tracker?.studyState || { viewedMap: {}, completedMap: {}, flagMap: {} };
+    const catalogStats = getCatalogStats(state);
     const modulesDef = [
       {
         id: 'mod1',
         num: 1,
         nameFa: 'تریاژ سرپایی و علائم خطر',
         nameEn: 'OTC Triage & Red Flags',
-        prefix: 'scenario-',
-        estimatedTotal: 35,
         color: '#059669',
       },
       {
@@ -90,8 +90,6 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
         num: 2,
         nameFa: 'قفسه داروها و زمانبندی SUSMP',
         nameEn: 'Product Shelf & Scheduling',
-        prefix: 'drug-',
-        estimatedTotal: 40,
         color: '#0284c7',
       },
       {
@@ -99,8 +97,6 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
         num: 3,
         nameFa: 'نسخه‌پیچی فرد و برچسب‌های CAL',
         nameEn: 'FRED Dispense & Legal CALs',
-        prefix: 'fred-',
-        estimatedTotal: 30,
         color: '#0d9488',
       },
       {
@@ -108,8 +104,6 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
         num: 4,
         nameFa: 'فارماکولوژی بالینی',
         nameEn: 'Clinical Pharmacology',
-        prefix: 'card-',
-        estimatedTotal: 65,
         color: '#4f46e5',
       },
       {
@@ -117,23 +111,19 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
         num: 5,
         nameFa: 'جعبه لایتنر و تکرار فاصله‌دار',
         nameEn: 'Leitner Spaced Repetition',
-        prefix: 'leitner-',
-        estimatedTotal: Math.max(totalLeitnerCards, 25),
         color: '#7c3aed',
       },
     ];
 
     return modulesDef.map((m) => {
-      let completed = Object.keys(completedMap).filter((k) => k.startsWith(m.prefix)).length;
+      const central = catalogStats.find((stat) => stat.moduleId === m.num);
+      let completed = central?.completed || 0;
+      let target = central?.total || 0;
       if (m.num === 5) {
         completed = leitnerCards.filter((c) => c.box >= 4).length;
+        target = Math.max(totalLeitnerCards, completed);
       }
-      if (m.num === 4) {
-        const reviewedCount = Object.values(userProgress.reviewedCards || {}).filter(Boolean).length;
-        completed = Math.max(completed, reviewedCount);
-      }
-
-      const total = Math.max(m.estimatedTotal, completed);
+      const total = Math.max(target, completed);
       const masteryPct = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0;
 
       return {
@@ -142,11 +132,13 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
         shortName: isFa ? `ماژول ${m.num}` : `Mod ${m.num}`,
         completed,
         target: total,
+        viewed: central?.viewed || 0,
+        flagged: central?.flagged || 0,
         masteryPct,
         fill: m.color,
       };
     });
-  }, [isFa, leitnerCards, totalLeitnerCards, tracker?.studyState?.completedMap, userProgress.reviewedCards]);
+  }, [isFa, leitnerCards, totalLeitnerCards, tracker?.studyState]);
 
   // Overall study mastery percentage calculation
   const overallMasteryPct = useMemo(() => {
@@ -270,7 +262,7 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
   }
 
   return (
-    <div className="space-y-4 text-start">
+    <div className="space-y-4 text-start min-w-0">
       {/* 1. Header Banner & High-Level KPIs */}
       <div className="p-4 rounded-3xl bg-slate-900/90 border border-slate-700/80 shadow-lg space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
@@ -483,7 +475,7 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
             </div>
           </div>
 
-          <div className="h-64 sm:h-72 w-full pt-2">
+          <div className="h-64 sm:h-72 w-full pt-2 min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={filteredQuizHistory}
@@ -586,7 +578,7 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
             </span>
           </div>
 
-          <div className="h-64 sm:h-72 w-full pt-2">
+          <div className="h-64 sm:h-72 w-full pt-2 min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={moduleMasteryData}
@@ -630,6 +622,10 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
                             <span className="font-mono">
                               {data.completed} / {data.target}
                             </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-4 text-slate-400 text-[10px]">
+                            <span>{isFa ? 'مشاهده / فلگ:' : 'Viewed / Flagged:'}</span>
+                            <span className="font-mono">{data.viewed} / {data.flagged}</span>
                           </div>
                         </div>
                       );
@@ -679,7 +675,7 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
             )}
           </div>
 
-          <div className="h-64 sm:h-72 w-full pt-2">
+          <div className="h-64 sm:h-72 w-full pt-2 min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={leitnerDistributionData}

@@ -44,6 +44,7 @@ import { StudyTrackerProvider } from '@/components/study/StudyTrackerContext';
 import { ResumeStudyBanner } from '@/components/study/ResumeStudyBanner';
 import { StatsBar } from '@/components/StatsBar';
 import { Footer } from '@/components/Footer';
+import { StudyMasteryDashboard } from '@/components/analytics/StudyMasteryDashboard';
 import { FolderOpen, Bot, Sparkles } from 'lucide-react';
 
 // Large learning modules are loaded only when a learner opens them.
@@ -125,6 +126,7 @@ export default function Home() {
   const [flagFilter, setFlagFilter] = useState<FlagColor | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [shelfTargetContext, setShelfTargetContext] = useState<string | null>(null);
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
 
   // Sync module query parameter on mount without hydration mismatch
   useEffect(() => {
@@ -180,8 +182,7 @@ export default function Home() {
   }, []);
 
   const handleOpenAnalytics = () => {
-    setSettingsInitialTab('analytics');
-    setIsSettingsOpen(true);
+    setIsDashboardOpen(true);
   };
 
   const handleOpenSettings = (tab: 'general' | 'ai' | 'about' | 'analytics' = 'general') => {
@@ -803,7 +804,34 @@ export default function Home() {
           onOpenAnalytics={handleOpenAnalytics}
         />
 
+        {isDashboardOpen && (
+          <section className="space-y-3 animate-fadeIn" aria-label={language === 'fa' ? 'داشبورد پیشرفت' : 'Progress dashboard'}>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm sm:text-base font-black app-text">
+                {language === 'fa' ? 'داشبورد پیشرفت مطالعه' : 'Study Progress Dashboard'}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setIsDashboardOpen(false)}
+                className="px-2.5 py-1.5 rounded-xl border app-border app-bg app-muted hover:app-text text-xs font-bold transition"
+              >
+                {language === 'fa' ? 'بازگشت به اپ' : 'Back to app'}
+              </button>
+            </div>
+            <StudyMasteryDashboard
+              language={language}
+              userProgress={{ flags, deleted, customEdits, reviewedCards, quizScores, savedNotes }}
+              leitnerCards={leitnerCards}
+              onOpenLeitnerBox={() => {
+                setIsDashboardOpen(false);
+                setActiveMainModule(5);
+              }}
+            />
+          </section>
+        )}
+
         {/* Dynamic Main Module View Router */}
+        <div className={isDashboardOpen ? 'hidden' : 'contents'}>
         {activeMainModule === 1 && (
           <OtcTriageModule
             language={language}
@@ -897,13 +925,19 @@ export default function Home() {
             onOpenAiLeitner={handleOpenAiLeitner}
           />
         )}
+        </div>
       </main>
 
       {/* Mobile Bottom Navigation Bar (Fixed for Ergonomic Touch) */}
       <BottomNav
         language={language}
         activeModule={activeMainModule}
-        onSelectModule={setActiveMainModule}
+        onSelectModule={(module) => {
+          setIsDashboardOpen(false);
+          setActiveMainModule(module);
+        }}
+        onOpenDashboard={() => setIsDashboardOpen(true)}
+        isDashboardOpen={isDashboardOpen}
         leitnerDueCount={isMounted ? leitnerDueCount : 0}
         onOpenAiTutor={() => {
           setAiTutorPrompt('');
