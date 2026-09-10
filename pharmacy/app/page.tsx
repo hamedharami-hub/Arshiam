@@ -44,7 +44,6 @@ import { StudyTrackerProvider } from '@/components/study/StudyTrackerContext';
 import { ResumeStudyBanner } from '@/components/study/ResumeStudyBanner';
 import { StatsBar } from '@/components/StatsBar';
 import { Footer } from '@/components/Footer';
-import { StudyMasteryDashboard } from '@/components/analytics/StudyMasteryDashboard';
 import { FolderOpen, Bot, Sparkles } from 'lucide-react';
 
 // Large learning modules are loaded only when a learner opens them.
@@ -53,6 +52,18 @@ const ProductShelfModule = dynamic(() => import('@/components/ProductShelfModule
 const FredDispenseModule = dynamic(() => import('@/components/FredDispenseModule').then((mod) => mod.FredDispenseModule));
 const ClinicalKnowledgeModule = dynamic(() => import('@/components/ClinicalKnowledgeModule').then((mod) => mod.ClinicalKnowledgeModule));
 const LearningToolsModule = dynamic(() => import('@/components/LearningToolsModule').then((mod) => mod.LearningToolsModule));
+const StudyMasteryDashboard = dynamic(
+  () => import('@/components/analytics/StudyMasteryDashboard').then((mod) => mod.StudyMasteryDashboard),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="p-6 text-center app-card border app-border rounded-2xl">
+        <div className="w-6 h-6 mx-auto border-2 border-sky-400 border-t-transparent rounded-full animate-spin" />
+        <p className="mt-2 text-xs app-muted">Loading dashboard…</p>
+      </div>
+    ),
+  }
+);
 
 const TextSelectionLeitnerTrigger = dynamic(
   () => import('@/components/TextSelectionLeitnerTrigger').then((mod) => mod.TextSelectionLeitnerTrigger),

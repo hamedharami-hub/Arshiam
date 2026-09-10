@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useSyncExternalStore } from 'react';
+import dynamic from 'next/dynamic';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -28,8 +29,13 @@ import {
 import { Language, UserProgress } from '@/types/pharmacy';
 import { LeitnerCard } from '@/types/leitner';
 import { useStudyTracker } from '@/components/study/StudyTrackerContext';
-import { StudyPlannerPanel } from './StudyPlannerPanel';
 import { getCatalogStats } from '@/data/studyCatalog';
+import { useIsMobile } from '@/hooks/use-mobile';
+
+const StudyPlannerPanel = dynamic(
+  () => import('./StudyPlannerPanel').then((mod) => mod.StudyPlannerPanel),
+  { ssr: false, loading: () => <div className="h-16 rounded-2xl bg-slate-900/50 animate-pulse" /> }
+);
 
 interface StudyMasteryDashboardProps {
   language: Language;
@@ -61,6 +67,7 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
   onOpenLeitnerBox,
 }) => {
   const isFa = language === 'fa';
+  const isMobile = useIsMobile();
   const tracker = useStudyTracker();
   const isMounted = useSyncExternalStore(
     () => () => {},
@@ -321,9 +328,9 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
         </div>
 
         {/* 4 Summary Stat Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <div className="grid grid-cols-1 min-[380px]:grid-cols-2 sm:grid-cols-4 gap-2.5">
           {/* Card 1: Overall Mastery */}
-          <div className="p-3 rounded-2xl bg-black/40 border border-slate-800 flex items-center justify-between">
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-black/40 border border-slate-800 flex items-center justify-between gap-2 min-w-0">
             <div className="space-y-0.5">
               <span className="text-[10px] font-bold text-slate-400 block">
                 {isFa ? 'میزان تسلط کل' : 'Overall Mastery'}
@@ -343,7 +350,7 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
           </div>
 
           {/* Card 2: Average Quiz Accuracy */}
-          <div className="p-3 rounded-2xl bg-black/40 border border-slate-800 flex items-center justify-between">
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-black/40 border border-slate-800 flex items-center justify-between gap-2 min-w-0">
             <div className="space-y-0.5">
               <span className="text-[10px] font-bold text-slate-400 block">
                 {isFa ? 'میانگین نمرات آزمون' : 'Avg Quiz Score'}
@@ -361,7 +368,7 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
           </div>
 
           {/* Card 3: Questions Answered */}
-          <div className="p-3 rounded-2xl bg-black/40 border border-slate-800 flex items-center justify-between">
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-black/40 border border-slate-800 flex items-center justify-between gap-2 min-w-0">
             <div className="space-y-0.5">
               <span className="text-[10px] font-bold text-slate-400 block">
                 {isFa ? 'تست‌های پاسخ‌داده' : 'Questions Tested'}
@@ -379,7 +386,7 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
           </div>
 
           {/* Card 4: Leitner Retained Cards */}
-          <div className="p-3 rounded-2xl bg-black/40 border border-slate-800 flex items-center justify-between">
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-black/40 border border-slate-800 flex items-center justify-between gap-2 min-w-0">
             <div className="space-y-0.5">
               <span className="text-[10px] font-bold text-slate-400 block">
                 {isFa ? 'کارت‌های تثبیت‌شده' : 'Permanent Leitner'}
@@ -475,7 +482,7 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
             </div>
           </div>
 
-          <div className="h-64 sm:h-72 w-full pt-2 min-w-0">
+          <div className="h-52 min-[380px]:h-60 sm:h-72 w-full pt-2 min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={filteredQuizHistory}
@@ -491,13 +498,13 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
                 <XAxis
                   dataKey="displayDate"
                   stroke="#94a3b8"
-                  fontSize={10}
+                  fontSize={isMobile ? 9 : 10}
                   tickLine={false}
                   axisLine={{ stroke: '#475569' }}
                 />
                 <YAxis
                   stroke="#94a3b8"
-                  fontSize={10}
+                  fontSize={isMobile ? 9 : 10}
                   domain={[0, 100]}
                   ticks={[0, 25, 50, 75, 100]}
                   tickFormatter={(val) => `${val}%`}
@@ -552,6 +559,7 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
                   fill="url(#scoreTrendGradient)"
                   dot={{ r: 4, fill: '#38bdf8', stroke: '#0f172a', strokeWidth: 2 }}
                   activeDot={{ r: 6, fill: '#0284c7', stroke: '#ffffff', strokeWidth: 2 }}
+                  isAnimationActive={!isMobile}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -578,7 +586,7 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
             </span>
           </div>
 
-          <div className="h-64 sm:h-72 w-full pt-2 min-w-0">
+          <div className="h-52 min-[380px]:h-60 sm:h-72 w-full pt-2 min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={moduleMasteryData}
@@ -592,17 +600,17 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
                   ticks={[0, 25, 50, 75, 100]}
                   tickFormatter={(val) => `${val}%`}
                   stroke="#94a3b8"
-                  fontSize={10}
+                  fontSize={isMobile ? 9 : 10}
                   axisLine={{ stroke: '#475569' }}
                 />
                 <YAxis
                   type="category"
                   dataKey="shortName"
                   stroke="#94a3b8"
-                  fontSize={11}
+                  fontSize={isMobile ? 9 : 11}
                   tickLine={false}
                   axisLine={{ stroke: '#475569' }}
-                  width={60}
+                  width={isMobile ? 48 : 60}
                 />
                 <Tooltip
                   content={({ active, payload }) => {
@@ -637,6 +645,7 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
                   dataKey="masteryPct"
                   name={isFa ? 'درصد تسلط' : 'Mastery %'}
                   radius={[0, 8, 8, 0]}
+                  isAnimationActive={!isMobile}
                 >
                   {moduleMasteryData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -675,7 +684,7 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
             )}
           </div>
 
-          <div className="h-64 sm:h-72 w-full pt-2 min-w-0">
+          <div className="h-52 min-[380px]:h-60 sm:h-72 w-full pt-2 min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={leitnerDistributionData}
@@ -685,13 +694,13 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
                 <XAxis
                   dataKey="shortLabel"
                   stroke="#94a3b8"
-                  fontSize={11}
+                  fontSize={isMobile ? 9 : 11}
                   tickLine={false}
                   axisLine={{ stroke: '#475569' }}
                 />
                 <YAxis
                   stroke="#94a3b8"
-                  fontSize={10}
+                  fontSize={isMobile ? 9 : 10}
                   allowDecimals={false}
                   tickLine={false}
                   axisLine={{ stroke: '#475569' }}
@@ -724,6 +733,7 @@ export const StudyMasteryDashboard: React.FC<StudyMasteryDashboardProps> = ({
                   dataKey="cards"
                   name={isFa ? 'تعداد کارت' : 'Card Count'}
                   radius={[8, 8, 0, 0]}
+                  isAnimationActive={!isMobile}
                 >
                   {leitnerDistributionData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.fill} />
