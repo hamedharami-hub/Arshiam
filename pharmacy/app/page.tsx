@@ -836,6 +836,7 @@ export default function Home() {
             onSelectCategory={setActiveCategory}
             flagFilter={flagFilter}
             onSelectFlagFilter={setFlagFilter}
+            activeMode={activeMode}
             flags={flags}
             deleted={deleted}
             customEdits={customEdits}
@@ -874,6 +875,7 @@ export default function Home() {
             onSelectCategory={setActiveCategory}
             flagFilter={flagFilter}
             onSelectFlagFilter={setFlagFilter}
+            activeMode={activeMode}
             flags={flags}
             deleted={deleted}
             customEdits={customEdits}

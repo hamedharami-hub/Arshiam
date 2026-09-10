@@ -55,6 +55,7 @@ interface ClinicalKnowledgeModuleProps {
   onSelectCategory: (cat: string) => void;
   flagFilter: FlagColor | 'ALL';
   onSelectFlagFilter: (f: FlagColor | 'ALL') => void;
+  activeMode?: 'accordion' | 'speed' | 'flagged';
   flags: Record<string, FlagColor>;
   deleted: string[];
   customEdits: Record<string, CustomCardEdit>;
@@ -117,6 +118,10 @@ export const ClinicalKnowledgeModule: React.FC<ClinicalKnowledgeModuleProps> = (
   searchQuery,
   onSearchChange,
   activeCategory,
+  onSelectCategory,
+  flagFilter,
+  onSelectFlagFilter,
+  activeMode = 'accordion',
   flags,
   deleted,
   customEdits,
@@ -160,6 +165,8 @@ export const ClinicalKnowledgeModule: React.FC<ClinicalKnowledgeModuleProps> = (
     if (deleted.includes(item.id)) return false;
     if (activeModule !== 'ALL' && activeModule !== 'software' && activeModule !== 'cyp_matrix' && item.module !== activeModule) return false;
     if (activeCategory !== 'ALL' && item.category[language] !== activeCategory) return false;
+    if (flagFilter !== 'ALL' && flags[item.id] !== flagFilter) return false;
+    if (activeMode === 'flagged' && !flags[item.id]) return false;
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -244,6 +251,28 @@ export const ClinicalKnowledgeModule: React.FC<ClinicalKnowledgeModuleProps> = (
                 ✕
               </button>
             )}
+          </div>
+        )}
+
+        {activeModule !== 'software' && activeModule !== 'cyp_matrix' && (
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar text-[10px]">
+            <span className="app-muted font-semibold whitespace-nowrap">{isFa ? 'فلگ:' : 'Flags:'}</span>
+            {(['ALL', 'red', 'yellow', 'green', 'blue'] as const).map((color) => {
+              const selected = flagFilter === color;
+              const colorClass = color === 'red' ? 'bg-rose-500' : color === 'yellow' ? 'bg-amber-400' : color === 'green' ? 'bg-emerald-500' : 'bg-sky-400';
+              return (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => onSelectFlagFilter(color)}
+                  aria-pressed={selected}
+                  aria-label={color === 'ALL' ? (isFa ? 'نمایش همه کارت‌ها' : 'Show all cards') : `${color} flag`}
+                  className={`shrink-0 rounded-full border transition ${color === 'ALL' ? 'px-2 py-1 app-bg app-muted' : `w-5 h-5 ${colorClass}`} ${selected ? 'ring-2 ring-indigo-400 ring-offset-1 ring-offset-transparent scale-105' : 'border-white/20 opacity-75 hover:opacity-100'}`}
+                >
+                  {color === 'ALL' ? (isFa ? 'همه' : 'All') : <span className="sr-only">{color}</span>}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -362,4 +391,3 @@ export const ClinicalKnowledgeModule: React.FC<ClinicalKnowledgeModuleProps> = (
   </div>
 );
 };
-
