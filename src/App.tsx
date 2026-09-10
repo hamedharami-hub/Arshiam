@@ -12,6 +12,8 @@ import { installUndoShortcuts } from "@/lib/undoStack";
 import { toast } from "sonner";
 import { ThemeProvider } from "next-themes";
 import { getStoredTheme, getBaseTheme } from "@/lib/theme";
+import { nativeRoute } from "@/lib/nativeRoutes";
+import { auth } from "@/lib/firebase";
 
 function usePwaUpdateToast() {
   useEffect(() => {
@@ -106,22 +108,12 @@ function CapacitorUrlHandler() {
 
     if (!isNative) return;
 
+    let disposed = false;
     const navigateForUrl = (rawUrl: string) => {
-      const url = rawUrl.toLowerCase();
-      if (url.includes("add_task") || url.includes("new-task")) {
-        navigate("/app/new/task");
-      } else if (url.includes("complete-task")) {
-        const taskId = rawUrl.split("taskId=")[1]?.split("&")[0] || "";
-        navigate(`/app/today${taskId ? `?completeTaskId=${encodeURIComponent(taskId)}` : ""}`);
-      } else if (url.includes("today")) {
-        navigate("/app/today");
-      } else if (url.includes("checkin")) {
-        navigate("/app/checkin");
-      } else if (url.includes("garden")) {
-        navigate("/app/garden");
-      } else if (url.includes("pomodoro")) {
-        navigate("/app/pomodoro");
-      }
+      void auth.authStateReady().then(() => {
+        const path = nativeRoute(rawUrl, auth.currentUser?.uid);
+        if (path && !disposed) navigate(path);
+      }).catch(() => {});
     };
     let handle: any = null;
     try {
@@ -143,6 +135,7 @@ function CapacitorUrlHandler() {
       console.warn("Capacitor appUrlOpen error:", e);
     }
     return () => {
+      disposed = true;
       try {
         handle?.remove?.();
       } catch {}

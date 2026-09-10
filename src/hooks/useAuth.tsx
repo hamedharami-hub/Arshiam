@@ -15,6 +15,7 @@ import {
   loginAsGuest,
 } from "@/lib/authService";
 import { setGardenUser } from "@/lib/garden";
+import { startWidgetSessionSync } from "@/lib/androidWidget";
 
 interface AuthContextType {
   user: AppUser | null;
@@ -45,6 +46,7 @@ function createSessionForUser(appUser: AppUser): AppSession {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  useEffect(() => startWidgetSessionSync(), []);
   const [user, setUser] = useState<AppUser | null>(null);
   const [session, setSession] = useState<AppSession | null>(null);
   const [loading, setLoading] = useState(true);

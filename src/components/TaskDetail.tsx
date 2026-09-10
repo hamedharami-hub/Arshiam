@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo, useRef } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -19,6 +19,7 @@ import {
   Flag, Repeat, ListTree, Paperclip, X, Image as ImageIcon, Music, Link as LinkIcon,
   CheckSquare, ListChecks, CalendarDays, Mic, MicOff, Pin, PinOff, Maximize2, Minimize2,
   GitBranch, Zap,
+  Save, ExternalLink, Loader2,
 } from "lucide-react";
 import ProcrastinationBusterModal from "@/components/ProcrastinationBusterModal";
 import { VoiceInput } from "@/lib/voiceInput";
@@ -47,6 +48,14 @@ import { pushUndo } from "@/lib/undoStack";
 import { enqueueOp, cacheGet, cacheSet } from "@/lib/offlineQueue";
 import type { Task, TaskNote, ConfirmState } from "@/lib/taskTypes";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+function clearTaskDraft(taskId: string) {
+  try { localStorage.removeItem(`arshnaz-task-draft:${taskId}`); } catch { /* storage can be unavailable */ }
+}
 
 export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet", allowDelete = false }: {
   task: Task;
@@ -92,9 +101,31 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   const [outcomeOpen, setOutcomeOpen] = useState(false);
   const [outcomeCount, setOutcomeCount] = useState(0);
   const [outcomeRefresh, setOutcomeRefresh] = useState(0);
+  const [saveState, setSaveState] = useState<"saved" | "dirty" | "saving" | "queued" | "error">("saved");
+  const [closePromptOpen, setClosePromptOpen] = useState(false);
+  const latestTaskRef = useRef(task);
+  const savedDescriptionRef = useRef(task.description || "");
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 
-  useEffect(() => { setT(task); }, [task.id]);
+  useEffect(() => {
+    let restored = task;
+    try {
+      const raw = localStorage.getItem(`arshnaz-task-draft:${task.id}`);
+      if (raw) {
+        const draft = JSON.parse(raw) as { description?: string };
+        if (typeof draft.description === "string" && draft.description !== (task.description || "")) {
+          restored = { ...task, description: draft.description };
+        }
+      }
+    } catch { /* corrupted drafts are ignored */ }
+    setT(restored);
+    latestTaskRef.current = restored;
+    savedDescriptionRef.current = task.description || "";
+    setSaveState(restored === task ? "saved" : "dirty");
+  }, [task.id]);
+
+  useEffect(() => { latestTaskRef.current = t; }, [t]);
 
   // Initialize voice input
   useEffect(() => {
@@ -242,30 +273,98 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     }
   };
 
-  const save = async (patch: Partial<Task>) => {
+  const save = useCallback(async (patch: Partial<Task>) => {
     if (!canEdit) return;
-    const next = { ...t, ...patch };
+    const current = latestTaskRef.current;
+    const next = { ...current, ...patch };
+    latestTaskRef.current = next;
     setT(next);
-    onChanged();
+    setSaveState("saving");
 
     if (user) {
       const cached = await cacheGet<Task[]>(`tasks:all:${user.id}`);
       if (cached) {
-        await cacheSet(`tasks:all:${user.id}`, cached.map(x => x.id === t.id ? { ...x, ...patch } : x));
+        await cacheSet(`tasks:all:${user.id}`, cached.map(x => x.id === current.id ? { ...x, ...patch } : x));
       }
     }
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
-      await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: t.id } });
+      await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: current.id } });
+      if (Object.prototype.hasOwnProperty.call(patch, "description")) savedDescriptionRef.current = String(patch.description || "");
+      if (Object.prototype.hasOwnProperty.call(patch, "description")) clearTaskDraft(current.id);
+      setSaveState("queued");
+      onChanged();
       return;
     }
     try {
-      await firebaseStore.from("tasks").update(patch as any).eq("id", t.id);
+      const { error } = await firebaseStore.from("tasks").update(patch as any).eq("id", current.id);
+      if (error) throw error;
+      if (Object.prototype.hasOwnProperty.call(patch, "description")) savedDescriptionRef.current = String(patch.description || "");
+      if (Object.prototype.hasOwnProperty.call(patch, "description")) clearTaskDraft(current.id);
+      setSaveState("saved");
+      onChanged();
     } catch (e) {
       // If the network call fails, queue the update so the edit isn't lost
-      await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: t.id } });
+      try {
+        await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: current.id } });
+        if (Object.prototype.hasOwnProperty.call(patch, "description")) savedDescriptionRef.current = String(patch.description || "");
+        if (Object.prototype.hasOwnProperty.call(patch, "description")) clearTaskDraft(current.id);
+        setSaveState("queued");
+        onChanged();
+      } catch {
+        setSaveState("error");
+        throw e;
+      }
     }
+  }, [canEdit, onChanged, user]);
+
+  const descriptionDirty = (t.description || "") !== savedDescriptionRef.current;
+
+  const savePendingDescription = useCallback(async () => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = null;
+    const description = latestTaskRef.current.description || "";
+    if (description === savedDescriptionRef.current) return;
+    await save({ description });
+  }, [save]);
+
+  useEffect(() => {
+    if (!canEdit || !descriptionDirty) return;
+    setSaveState("dirty");
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => { void savePendingDescription(); }, 1200);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [canEdit, descriptionDirty, t.description, savePendingDescription]);
+
+  useEffect(() => {
+    const flushWhenHidden = () => {
+      if (document.visibilityState === "hidden") void savePendingDescription();
+    };
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      if ((latestTaskRef.current.description || "") === savedDescriptionRef.current) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    document.addEventListener("visibilitychange", flushWhenHidden);
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => {
+      document.removeEventListener("visibilitychange", flushWhenHidden);
+      window.removeEventListener("beforeunload", warnBeforeUnload);
+    };
+  }, [savePendingDescription]);
+
+  const requestClose = () => {
+    if (descriptionDirty || saveState === "saving" || saveState === "error") setClosePromptOpen(true);
+    else onClose();
   };
+
+  useEffect(() => {
+    const request = () => requestClose();
+    window.addEventListener("arshnaz:request-task-close", request);
+    return () => window.removeEventListener("arshnaz:request-task-close", request);
+  }, [descriptionDirty, saveState]);
 
   const deleteTask = () => {
     setConfirm({
@@ -464,7 +563,12 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
         <TaskDescriptionEditor
           taskId={t.id}
           value={t.description || ""}
-          onChange={(v) => setT({ ...t, description: v })}
+          onChange={(v) => {
+            const next = { ...latestTaskRef.current, description: v };
+            latestTaskRef.current = next;
+            setT(next);
+            try { localStorage.setItem(`arshnaz-task-draft:${t.id}`, JSON.stringify({ description: v, updatedAt: Date.now() })); } catch { /* storage can be unavailable */ }
+          }}
           onSave={(v) => save({ description: v })}
           readOnly={!canEdit}
         />
@@ -1247,7 +1351,17 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     <div className="flex items-center justify-between px-3 pt-3 pb-1 shrink-0">
       <span className="sr-only">{activeNote ? T("ویرایش نوت", "Edit note") : T("جزئیات تسک", "Task")}</span>
       <div className="flex items-center gap-1">
-        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onClose} title={T("بستن", "Close")}>
+        <Button
+          size="sm"
+          variant={descriptionDirty || saveState === "error" ? "default" : "outline"}
+          disabled={!canEdit || saveState === "saving"}
+          onClick={() => void savePendingDescription()}
+          className="h-8 gap-1"
+        >
+          {saveState === "saving" ? <Loader2 className="animate-spin" /> : <Save />}
+          {T("ذخیره", "Save")}
+        </Button>
+        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={requestClose} title={T("بستن", "Close")}>
           <X className="w-4 h-4" />
         </Button>
         <Button
@@ -1266,6 +1380,46 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     </div>
   );
 
+  const saveLabel = saveState === "saving"
+    ? T("در حال ذخیره…", "Saving…")
+    : saveState === "dirty"
+      ? T("تغییرات ذخیره‌نشده", "Unsaved changes")
+      : saveState === "queued"
+        ? T("آفلاین؛ برای همگام‌سازی نگه داشته شد", "Saved offline; waiting to sync")
+        : saveState === "error"
+          ? T("ذخیره ناموفق", "Save failed")
+          : T("ذخیره شد", "Saved");
+
+  const editorActions = (
+    <div className="flex items-center gap-2">
+      <span className={`hidden xl:inline text-[11px] ${saveState === "dirty" || saveState === "error" ? "text-destructive" : "text-muted-foreground"}`} aria-live="polite">
+        {saveLabel}
+      </span>
+      <Button
+        size="sm"
+        variant={descriptionDirty || saveState === "error" ? "default" : "outline"}
+        disabled={!canEdit || saveState === "saving"}
+        onClick={() => void savePendingDescription()}
+        className="gap-1.5"
+      >
+        {saveState === "saving" ? <Loader2 className="animate-spin" /> : <Save />}
+        {T("ذخیره", "Save")}
+      </Button>
+      {mode !== "page" && (
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => navigate(`/app/tasks/${t.id}`)}
+          className="gap-1.5"
+          title={T("بازکردن در صفحهٔ کامل", "Open full page")}
+        >
+          <ExternalLink />
+          <span className="hidden 2xl:inline">{T("تمام صفحه", "Full page")}</span>
+        </Button>
+      )}
+    </div>
+  );
+
   return (
     <>
       {mode === "embedded" ? (
@@ -1281,22 +1435,27 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
               variant="ghost"
               size="icon"
               className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
-              onClick={onClose}
+              onClick={requestClose}
               title={T("بستن پنل جزئیات", "Close details panel")}
             >
               <X className="w-4 h-4" />
             </Button>
+            {editorActions}
           </div>
           <div className="flex-1 overflow-y-auto min-h-0 p-3.5 space-y-3">
             {activeNote ? noteEditorBody : body}
           </div>
         </div>
       ) : mode === "page" ? (
-        <div className="w-full max-w-3xl mx-auto px-2 sm:px-3 md:px-4 py-2 pb-4 min-h-screen flex flex-col">
+        <div className="w-full max-w-[1180px] mx-auto px-3 sm:px-5 lg:px-8 py-3 pb-8 min-h-screen flex flex-col">
+          <div className="sticky top-12 z-10 -mx-3 sm:-mx-5 lg:-mx-8 px-3 sm:px-5 lg:px-8 py-2 mb-3 border-b bg-background/90 backdrop-blur flex items-center justify-between gap-3">
+            <span className={`text-xs ${saveState === "dirty" || saveState === "error" ? "text-destructive" : "text-muted-foreground"}`} aria-live="polite">{saveLabel}</span>
+            {editorActions}
+          </div>
           {activeNote ? noteEditorBody : body}
         </div>
       ) : mode === "drawer" && isMobile ? (
-        <Drawer open={true} onOpenChange={(v) => !v && onClose()} snapPoints={[0.5, 1]} activeSnapPoint={snap} setActiveSnapPoint={setSnap} shouldScaleBackground={false} dismissible>
+        <Drawer open={true} onOpenChange={(v) => !v && requestClose()} snapPoints={[0.5, 1]} activeSnapPoint={snap} setActiveSnapPoint={setSnap} shouldScaleBackground={false} dismissible>
           <DrawerContent className={`h-screen max-h-screen flex flex-col !mt-0 ${snap === 1 ? "!m-0 !rounded-none" : "min-h-[55vh]"}`} aria-describedby="task-drawer-desc">
             <DrawerHeader className="px-4 pt-4 pb-1 text-center">
               <DrawerTitle className="text-base font-semibold truncate" dir="auto">
@@ -1311,12 +1470,13 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           </DrawerContent>
         </Drawer>
       ) : (
-        <Sheet open={true} onOpenChange={(v) => !v && onClose()}>
+        <Sheet open={true} onOpenChange={(v) => !v && requestClose()}>
           <SheetContent className="w-full sm:max-w-xl md:max-w-2xl overflow-y-auto p-3 sm:p-4 flex flex-col">
-            <SheetHeader className="mb-1">
-              <SheetTitle className="text-base font-semibold truncate" dir="auto">
+            <SheetHeader className="mb-1 flex-row items-center justify-between gap-3 pe-8">
+              <SheetTitle className="text-base font-semibold truncate text-start" dir="auto">
                 {activeNote ? T("ویرایش نوت", "Edit note") : (t.title || T("بدون عنوان", "Untitled"))}
               </SheetTitle>
+              {editorActions}
             </SheetHeader>
             <div className="flex-1 overflow-y-auto min-h-0">
               {activeNote ? noteEditorBody : body}
@@ -1345,6 +1505,41 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
         onOpenChange={setBusterOpen}
         onSuccess={refreshTask}
       />
+
+      <AlertDialog open={closePromptOpen} onOpenChange={(open) => {
+        setClosePromptOpen(open);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{T("تغییرات ذخیره نشده‌اند", "Changes are not saved")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {T("قبل از خروج، توضیحات و تغییرات این تسک ذخیره شوند؟", "Save this task's description and changes before leaving?")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-2">
+            <AlertDialogCancel>{T("ادامهٔ ویرایش", "Keep editing")}</AlertDialogCancel>
+            <Button variant="ghost" onClick={() => {
+              setClosePromptOpen(false);
+              onClose();
+            }}>
+              {T("خروج بدون ذخیره", "Leave without saving")}
+            </Button>
+            <AlertDialogAction onClick={async (event) => {
+              event.preventDefault();
+              try {
+                await savePendingDescription();
+                setClosePromptOpen(false);
+                onClose();
+              } catch {
+                toast.error(T("ذخیره انجام نشد؛ تغییرات همچنان باز هستند", "Save failed; your changes are still open"));
+              }
+            }}>
+              <Save />
+              {T("ذخیره و خروج", "Save and leave")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

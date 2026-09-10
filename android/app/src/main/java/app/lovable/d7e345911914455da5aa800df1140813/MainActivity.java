@@ -6,6 +6,8 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(android.os.Bundle savedInstanceState) {
         registerPlugin(ArshnazWidgetPlugin.class);
+        registerPlugin(ArshnazGoogleAuthPlugin.class);
+        registerPlugin(NativeExperiencePlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

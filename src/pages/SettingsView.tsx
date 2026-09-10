@@ -41,6 +41,7 @@ import { saveEntityToFirestore, fetchFromFirestore } from "@/lib/firestoreSync";
 import { cacheGet, cacheSet } from "@/lib/offlineQueue";
 import type { TaskDefaults } from "@/lib/reminders";
 import { cn } from "@/lib/utils";
+import AndroidSettings from "@/components/AndroidSettings";
 
 type LucideIcon = React.ComponentType<{ className?: string }>;
 
@@ -1277,6 +1278,7 @@ export default function SettingsView() {
         </TabsContent>
 
         <TabsContent value="notifications" className="space-y-5 mt-5">
+          <AndroidSettings />
           {reminders && (
             <SectionCard
               icon={Bell}

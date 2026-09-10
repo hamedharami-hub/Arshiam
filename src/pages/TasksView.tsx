@@ -166,12 +166,12 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     return activeGhosts.length ? [...allTasks, ...activeGhosts] : allTasks;
   }, [allTasks, graceTasks, graceMap]);
   useEffect(() => {
-    void syncAndroidWidget(effectiveAllTasks);
-    void Promise.all(effectiveAllTasks
+    void syncAndroidWidget(allTasks, user?.id).catch(() => {});
+    void Promise.all(allTasks
       .filter((task) => task.reminder_at || task.completed)
       .slice(0, 100)
       .map((task) => syncNativeTaskReminder(task)));
-  }, [effectiveAllTasks]);
+  }, [allTasks, user?.id]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   // selected task removed — clicks navigate to /app/tasks/:id
   const [folderPrefs, setFolderPrefs] = useState<FolderPrefs>(DEFAULT_FOLDER_PREFS);
@@ -193,6 +193,11 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       return next;
     });
   };
+  useEffect(() => {
+    if (!selectedTask) return;
+    const current = allTasks.find((item) => item.id === selectedTask.id);
+    if (current && current !== selectedTask) setSelectedTask(current);
+  }, [allTasks, selectedTask]);
   const [pomoTask, setPomoTask] = useState<Task | null>(null);
   const [outcomeTask, setOutcomeTask] = useState<Task | null>(null);
   const [outcomes, setOutcomes] = useState<TaskOutcome[]>([]);
@@ -1157,7 +1162,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
   return (
     <div
-      className={`p-2 sm:p-3 md:p-4 lg:py-6 w-full max-w-5xl lg:max-w-none mx-auto relative${isFolder ? " min-h-screen" : ""}`}
+      className={`p-2 sm:p-3 md:p-4 lg:px-5 xl:px-7 lg:py-5 w-full mx-auto relative${isFolder ? " min-h-screen" : ""}`}
       style={isFolder ? {
         backgroundColor: folderPrefs.bgColor ?? undefined,
         backgroundImage: folderPrefs.bgImage ?? undefined,
@@ -1255,8 +1260,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           </div>
         )}
 
-        <div className="flex flex-col lg:flex-row items-start gap-4 w-full">
-          <div className={`w-full transition-all duration-200 min-w-0 ${selectedTask && splitView ? "lg:flex-1" : "w-full"}`}>
+        <div className={`w-full items-start gap-4 xl:gap-5 ${splitView ? "flex flex-col lg:grid lg:grid-cols-[minmax(420px,1fr)_minmax(500px,1.18fr)] 2xl:grid-cols-[minmax(480px,0.92fr)_minmax(640px,1.35fr)]" : "flex flex-col"}`}>
+          <section className="w-full min-w-0 rounded-2xl border border-border/60 bg-card/35 p-2 sm:p-3 lg:p-4 shadow-sm">
             {isFolder ? (
               folderPrefs.view === "list" ? (
                 listView
@@ -1275,11 +1280,11 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
             ) : (
               listView
             )}
-          </div>
+          </section>
 
           {/* Desktop Split-View Details Panel */}
           {splitView && (
-            <div className="hidden lg:block lg:w-[440px] xl:w-[480px] shrink-0 sticky top-20 h-[calc(100vh-6rem)] overflow-hidden transition-all duration-200">
+            <aside className="hidden lg:block w-full min-w-0 sticky top-[4.25rem] h-[calc(100dvh-5.5rem)] overflow-hidden transition-all duration-200">
               {selectedTask ? (
                 <TaskDetail
                   task={selectedTask}
@@ -1300,7 +1305,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                   </p>
                 </div>
               )}
-            </div>
+            </aside>
           )}
         </div>
 

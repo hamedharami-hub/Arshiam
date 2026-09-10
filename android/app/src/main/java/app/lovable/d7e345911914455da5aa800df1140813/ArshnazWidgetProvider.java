@@ -30,6 +30,9 @@ public class ArshnazWidgetProvider extends AppWidgetProvider {
         if (intent != null && ACTION_REFRESH.equals(intent.getAction())) {
             AppWidgetManager manager = AppWidgetManager.getInstance(context);
             int[] ids = manager.getAppWidgetIds(new ComponentName(context, ArshnazWidgetProvider.class));
+            ArshnazWidgetWorker.enqueue(context);
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .putString("syncStatus", "در انتظار دریافت اطلاعات…").apply();
             updateAll(context, manager, ids);
         }
     }
@@ -40,10 +43,15 @@ public class ArshnazWidgetProvider extends AppWidgetProvider {
         String nextTaskId = preferences.getString("nextTaskId", "");
         String nextTaskTitle = preferences.getString("nextTaskTitle", "");
         String date = new SimpleDateFormat("EEEE dd MMMM", new Locale("fa")).format(new Date());
+        long updatedAt = preferences.getLong("updatedAt", 0);
+        String status = preferences.getString("syncStatus", "برای نمایش تسک‌ها وارد برنامه شوید");
+        if (updatedAt > 0) status += " · آخرین داده: " +
+            new SimpleDateFormat("MM/dd HH:mm", new Locale("fa")).format(new Date(updatedAt));
 
         for (int appWidgetId : ids) {
             RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_arshnaz);
             views.setTextViewText(R.id.widget_date, date);
+            views.setTextViewText(R.id.widget_sync_status, status);
             views.setTextViewText(R.id.widget_task_count, String.valueOf(activeCount));
             views.setTextViewText(R.id.widget_next_task,
                 nextTaskTitle == null || nextTaskTitle.isEmpty()
@@ -69,6 +77,13 @@ public class ArshnazWidgetProvider extends AppWidgetProvider {
 
             manager.updateAppWidget(appWidgetId, views);
         }
+    }
+
+    static void redraw(Context context) {
+        AppWidgetManager manager = AppWidgetManager.getInstance(context);
+        updateAll(context, manager, manager.getAppWidgetIds(new ComponentName(context, ArshnazWidgetProvider.class)));
+        AgendaWidgetProvider.redraw(context);
+        NativeReminders.reconcile(context);
     }
 
     private static void setActivityClick(RemoteViews views, Context context, int viewId,

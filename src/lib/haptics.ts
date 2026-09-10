@@ -1,12 +1,15 @@
-// Lightweight haptic feedback wrapper.
+import { isAndroid, nativeExperience } from "./nativeExperience";
+// Native feedback honors Android's system haptic setting; web uses vibration.
 // Uses navigator.vibrate when available (Android Chrome / many WebViews).
 // Silently no-ops on iOS Safari (which doesn't support Vibration API).
 // Respects reduced-motion preference and a user opt-out flag in localStorage.
 
-type HapticKind = "light" | "medium" | "success" | "warning" | "error";
+type HapticKind = "light" | "medium" | "heavy" | "selection" | "success" | "warning" | "error";
 
 const PATTERNS: Record<HapticKind, number | number[]> = {
   light: 8,
+  selection: 8,
+  heavy: 24,
   medium: 14,
   success: [10, 40, 18],
   warning: [16, 60, 16],
@@ -18,7 +21,7 @@ function isEnabled() {
   try {
     if (localStorage.getItem("haptics_off") === "1") return false;
   } catch {}
-  if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") return false;
+  if (!isAndroid() && (typeof navigator === "undefined" || typeof navigator.vibrate !== "function")) return false;
   try {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return false;
   } catch {}
@@ -27,6 +30,10 @@ function isEnabled() {
 
 export function haptic(kind: HapticKind = "light") {
   if (!isEnabled()) return;
+  if (isAndroid()) {
+    void nativeExperience.haptic({ kind }).catch(() => {});
+    return;
+  }
   try {
     navigator.vibrate(PATTERNS[kind]);
   } catch {}

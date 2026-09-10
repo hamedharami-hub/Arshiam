@@ -76,7 +76,7 @@ export async function fetchTasks(userId: string): Promise<Task[]> {
       })));
       setTaskCache(userId, tasks);
       await persistTaskCache(userId, tasks);
-      void syncAndroidWidget(tasks).catch(() => {});
+      void syncAndroidWidget(tasks, userId).catch(() => {});
       return tasks;
     }
   } catch (error) {
@@ -93,7 +93,7 @@ export async function fetchTasks(userId: string): Promise<Task[]> {
       const tasks = sortTasks(data as unknown as Task[]);
       setTaskCache(userId, tasks);
       await persistTaskCache(userId, tasks);
-      void syncAndroidWidget(tasks).catch(() => {});
+      void syncAndroidWidget(tasks, userId).catch(() => {});
       return tasks;
     }
   } catch (error) {
@@ -101,7 +101,7 @@ export async function fetchTasks(userId: string): Promise<Task[]> {
   }
 
   const cachedTasks = await getCachedTasks(userId);
-  void syncAndroidWidget(cachedTasks).catch(() => {});
+  void syncAndroidWidget(cachedTasks, userId).catch(() => {});
   return cachedTasks;
 }
 
@@ -109,7 +109,7 @@ export function subscribeToTasks(userId: string, onUpdate: (tasks: Task[]) => vo
   return subscribeFirestoreTasks(userId, (tasks) => {
     setTaskCache(userId, tasks);
     void persistTaskCache(userId, tasks);
-    void syncAndroidWidget(tasks).catch(() => {});
+    void syncAndroidWidget(tasks, userId).catch(() => {});
     onUpdate(tasks);
   });
 }

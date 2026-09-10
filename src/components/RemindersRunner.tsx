@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { loadSettings, checkAndFireReminders, ensureDailyTasks, checkTaskReminders } from "@/lib/reminders";
 import { applyFontSize, applyUIScale, type FontSize } from "@/lib/uiScale";
+import { isAndroid, nativeExperience } from "@/lib/nativeExperience";
+import { LocalNotifications } from "@capacitor/local-notifications";
 
 /**
  * Mounts globally inside AppLayout.
@@ -16,11 +18,17 @@ export default function RemindersRunner() {
     if (!user) return;
     let stopped = false;
     let intervalId: number | null = null;
+    // Remove only legacy task alarms from the prior engine; preserve other notifications.
+    if (isAndroid()) void LocalNotifications.getPending().then(({ notifications }) => {
+      const legacy = notifications.filter(n => String(n.extra?.tag || "").startsWith("task-reminder-"));
+      if (legacy.length) return LocalNotifications.cancel({ notifications: legacy.map(({ id }) => ({ id })) });
+    }).catch(() => {});
 
     const tick = async () => {
       if (stopped || document.visibilityState !== "visible") return;
       const s = await loadSettings(user.id);
       if (!s || stopped) return;
+      if (isAndroid()) await nativeExperience.configure({ remindersEnabled: s.notifications_enabled }).catch(() => {});
       if ((s as any).font_size) applyFontSize((s as any).font_size as FontSize);
       if ((s as any).ui_scale) applyUIScale((s as any).ui_scale);
       await ensureDailyTasks(user.id, s);

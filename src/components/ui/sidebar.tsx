@@ -8,7 +8,9 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { isAndroid } from "@/lib/nativeExperience";
+import { haptic } from "@/lib/haptics";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -141,6 +143,7 @@ const Sidebar = React.forwardRef<
   const swipe = React.useRef<{ x: number; y: number; active: boolean } | null>(null);
 
   const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (isAndroid()) return; // One native gesture coordinator owns dragging.
     const t = e.targetTouches[0];
     const rect = contentRef.current?.getBoundingClientRect();
     if (!rect || !t) return;
@@ -185,6 +188,7 @@ const Sidebar = React.forwardRef<
           ref={contentRef}
           data-sidebar="sidebar"
           data-mobile="true"
+          style={{ "--sidebar-width-mobile": `min(${SIDEBAR_WIDTH_MOBILE}, calc(100vw - 48px))` } as React.CSSProperties}
           className="h-[100dvh] w-[--sidebar-width-mobile] max-w-[--sidebar-width-mobile] p-0 border-0 rounded-none
             bg-gradient-to-b from-sidebar via-sidebar to-sidebar/95
             backdrop-blur-xl shadow-2xl [&>button]:top-3 [&>button]:left-3 [&>button]:right-auto
@@ -194,6 +198,8 @@ const Sidebar = React.forwardRef<
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
+          <SheetTitle className="sr-only">پوشه‌ها و بخش‌های برنامه</SheetTitle>
+          <SheetDescription className="sr-only">انتخاب فهرست و جابه‌جایی در برنامه</SheetDescription>
           <div className="relative flex h-full w-full flex-col overflow-hidden">
             {/* Drawer edge drag handle */}
             <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10 pointer-events-none">
@@ -265,14 +271,10 @@ const SidebarTrigger = React.forwardRef<React.ElementRef<typeof Button>, React.C
         data-sidebar="trigger"
         variant="ghost"
         size="icon"
-        className={cn("h-7 w-7", className)}
+        className={cn("size-11", className)}
         onClick={(event) => {
           onClick?.(event);
-          try {
-            if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
-              navigator.vibrate(10);
-            }
-          } catch {}
+          haptic("light");
           toggleSidebar();
         }}
         {...props}

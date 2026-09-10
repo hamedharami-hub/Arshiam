@@ -3,8 +3,6 @@ import {
   db,
   doc,
   setDoc,
-  googleProvider,
-  signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updateProfile,
@@ -13,6 +11,8 @@ import {
   type FirebaseUser,
 } from "./firebase";
 import { setGardenUser } from "./garden";
+import { signInGoogleCredential, googleSignInError } from "./googleSignIn";
+import { clearAndroidWidget } from "./androidWidget";
 
 export interface AppUser {
   id: string;
@@ -189,7 +189,7 @@ export async function loginWithGoogle(): Promise<{
   fallbackNeeded?: boolean;
 }> {
   try {
-    const res = await signInWithPopup(auth, googleProvider);
+    const res = await signInGoogleCredential();
     if (res?.user) {
       const appUser = mapFirebaseUser(res.user);
       saveLocalSession(appUser);
@@ -197,33 +197,8 @@ export async function loginWithGoogle(): Promise<{
       return { success: true, user: appUser };
     }
   } catch (err: any) {
-    console.warn("Firebase Google signInWithPopup notice:", err?.code, err?.message);
+    return { success: false, error: googleSignInError(err?.code || ""), fallbackNeeded: false };
 
-    // Do not fall back to a locally fabricated Google identity. That would allow
-    // impersonation and would not produce a Firebase-authenticated user.
-    if (
-      err?.code === "auth/popup-blocked" ||
-      err?.code === "auth/operation-not-allowed" ||
-      err?.code === "auth/admin-restricted-operation" ||
-      err?.code === "auth/unauthorized-domain" ||
-      err?.code === "auth/cancelled-popup-request"
-    ) {
-      return {
-        success: false,
-        error: "اتصال مستقیم پنجره گوگل با محدودیت پاپ‌آپ مواجه شد.",
-        fallbackNeeded: false,
-      };
-    }
-
-    if (err?.code === "auth/popup-closed-by-user") {
-      return { success: false, error: "پنجره ورود توسط کاربر بسته شد." };
-    }
-
-    return {
-      success: false,
-      error: err?.message || "خطا در ورود با گوگل",
-      fallbackNeeded: false,
-    };
   }
 
   return { success: false, error: "ورود با گوگل انجام نشد." };
@@ -260,9 +235,8 @@ export async function loginAsGuest(
  * Sign Out
  */
 export async function logoutUser(): Promise<void> {
-  try {
-    await fbSignOut(auth);
-  } catch {}
+  await fbSignOut(auth);
+  await clearAndroidWidget();
   try {
     localStorage.removeItem("arshnaz_current_user_v1");
     setGardenUser(null);

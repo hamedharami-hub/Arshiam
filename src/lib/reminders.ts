@@ -4,9 +4,11 @@ import { cacheGet, cacheSet, enqueueOp } from "@/lib/offlineQueue";
 import { fireNotification, hasNotificationPermission } from "@/lib/notify";
 import { cancelNotification, scheduleNotificationAt } from "@/lib/notify";
 import type { Task } from "@/lib/taskTypes";
+import { isAndroid, nativeExperience } from "./nativeExperience";
 export { ensureNotificationPermission } from "@/lib/notify";
 
 export async function syncNativeTaskReminder(task: Pick<Task, "id" | "title" | "reminder_at" | "completed">) {
+  if (isAndroid()) return false; // Android AlarmManager reconciles the complete snapshot.
   const tag = `task-reminder-${task.id}`;
   await cancelNotification(tag);
   if (task.completed || !task.reminder_at) return false;
@@ -72,6 +74,7 @@ function playBeep() {
 }
 
 export async function checkTaskReminders(userId: string, s: UserSettings) {
+  if (isAndroid()) return; // Avoid a second notification when the app reopens.
   if (!s.notifications_enabled) return;
   if (!(await hasNotificationPermission())) return;
   const nowIso = new Date().toISOString();
@@ -226,6 +229,9 @@ export async function saveSettings(userId: string, patch: Partial<UserSettings>)
   const current = (await cacheGet<UserSettings>(SETTINGS_CACHE_KEY(userId))) || { ...DEFAULT_SETTINGS, user_id: userId };
   const next = { ...current, ...patch, user_id: userId };
   await cacheSet(SETTINGS_CACHE_KEY(userId), next);
+  if (isAndroid() && patch.notifications_enabled !== undefined) {
+    await nativeExperience.configure({ remindersEnabled: patch.notifications_enabled });
+  }
 
   if (typeof navigator !== "undefined" && !navigator.onLine) {
     await enqueueOp({

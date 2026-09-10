@@ -26,6 +26,10 @@ import { useTwoFingerSwipe } from "@/lib/useTwoFingerSwipe";
 import { useThreeFingerGestures } from "@/lib/useThreeFingerGestures";
 import { applyTheme, getStoredTheme, getBaseTheme } from "@/lib/theme";
 import { useTheme } from "next-themes";
+import AndroidGestures from "@/components/AndroidGestures";
+import AndroidBackButton from "@/components/AndroidBackButton";
+import AndroidTaskSync from "@/components/AndroidTaskSync";
+import { isAndroid } from "@/lib/nativeExperience";
 
 export default function AppLayout() {
   const [aiOpen, setAiOpen] = useState(false);
@@ -99,11 +103,11 @@ export default function AppLayout() {
           </header>
           <main
             id="main-scroll"
-            className="flex-1 overflow-auto pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-20 lg:px-6 xl:px-10"
+            className="flex-1 overflow-auto pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-20"
           >
             <div
               key={loc.pathname}
-              className="animate-fade-in motion-reduce:animate-none w-full mx-auto lg:max-w-[1100px] xl:max-w-[1280px] 2xl:max-w-[1440px]"
+              className="animate-fade-in motion-reduce:animate-none w-full min-h-full"
             >
               <Outlet />
             </div>
@@ -112,12 +116,11 @@ export default function AppLayout() {
         <AIPanel open={aiOpen} onOpenChange={setAiOpen} />
         <OfflineIndicator />
         <InstallPrompt />
-        <EdgeSwipeHandler />
-        <EdgePanBack />
-        <SwipeNavigator />
+        {isAndroid() ? <AndroidGestures /> : <><EdgeSwipeHandler /><EdgePanBack /><SwipeNavigator /></>}
         <ClinicalDisclaimer />
         <RemindersRunner />
-        <BackButtonHandler />
+        {isAndroid() ? <AndroidTaskSync /> : null}
+        {isAndroid() ? <AndroidBackButton /> : <BackButtonHandler />}
         <CommandPalette />
         <QuickCaptureDialog />
         <KeyboardShortcutsDialog />

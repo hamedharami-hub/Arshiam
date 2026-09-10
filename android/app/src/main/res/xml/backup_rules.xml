@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <exclude domain="sharedpref" path="arshnaz_secure_widget.xml" />
+    <exclude domain="sharedpref" path="arshnaz_widget_data.xml" />
+    <exclude domain="sharedpref" path="arshnaz_native_reminders.xml" />
+</full-backup-content>

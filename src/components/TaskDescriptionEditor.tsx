@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -24,7 +24,7 @@ export function TaskDescriptionEditor({
   taskId: string;
   value: string;
   onChange: (v: string) => void;
-  onSave: (v: string) => void;
+  onSave: (v: string) => void | Promise<void>;
   readOnly?: boolean;
 }) {
   const { i18n } = useTranslation();
@@ -34,6 +34,9 @@ export function TaskDescriptionEditor({
   const [editing, setEditing] = useState(false);
   const [full, setFull] = useState(false);
   const [draft, setDraft] = useState(value);
+  const latestValue = useRef(value);
+
+  useEffect(() => { latestValue.current = value; }, [value]);
 
   const hasContent = (value || "").trim().length > 0;
 
@@ -46,7 +49,12 @@ export function TaskDescriptionEditor({
           disabled={readOnly}
           onFocus={() => !readOnly && setEditing(true)}
           onChange={(e) => onChange(e.target.value)}
-          onBlur={() => { setEditing(false); onSave(value || ""); }}
+          onBlur={(event) => {
+            const latest = event.currentTarget.value;
+            latestValue.current = latest;
+            setEditing(false);
+            void onSave(latest);
+          }}
           minHeight={32}
           maxHeight={360}
           dir="auto"

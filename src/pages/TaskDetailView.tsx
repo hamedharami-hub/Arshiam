@@ -56,7 +56,7 @@ export default function TaskDetailView() {
   return (
     <>
       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b flex items-center justify-between gap-2 p-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1">
+        <Button variant="ghost" size="sm" onClick={() => window.dispatchEvent(new Event("arshnaz:request-task-close"))} className="gap-1">
           <ArrowRight className="w-4 h-4" /> {T("برگشت", "Back")}
         </Button>
         <h1 className="text-base font-bold flex-1 text-center truncate px-2" dir="auto">

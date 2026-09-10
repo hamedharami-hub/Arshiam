@@ -87,9 +87,10 @@
                 android:layout_marginTop="4dp" />
         </LinearLayout>
 
-        <View
+        <ImageView
             android:layout_width="1dp"
             android:layout_height="28dp"
+            android:importantForAccessibility="no"
             android:background="#334155" />
 
         <LinearLayout
@@ -111,13 +112,22 @@
                 android:id="@+id/widget_garden_status"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="شاداب و سبز"
+                android:text="مشاهده باغچه"
                 android:textSize="13sp"
                 android:textStyle="bold"
                 android:textColor="#a7f3d0"
                 android:layout_marginTop="2dp" />
         </LinearLayout>
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/widget_sync_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="برای نمایش تسک‌ها وارد برنامه شوید"
+        android:textSize="10sp"
+        android:textColor="#cbd5e1"
+        android:paddingBottom="4dp" />
 
     <!-- Quick Action Buttons Row -->
     <LinearLayout
