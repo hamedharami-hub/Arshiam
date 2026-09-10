@@ -42,6 +42,7 @@ import { cacheGet, cacheSet } from "@/lib/offlineQueue";
 import type { TaskDefaults } from "@/lib/reminders";
 import { cn } from "@/lib/utils";
 import AndroidSettings from "@/components/AndroidSettings";
+import { OfflineIntelligenceSettings } from "@/components/OfflineIntelligenceSettings";
 
 type LucideIcon = React.ComponentType<{ className?: string }>;
 
@@ -1325,6 +1326,14 @@ export default function SettingsView() {
         </TabsContent>
 
         <TabsContent value="ai" className="space-y-5 mt-5">
+          <SectionCard
+            icon={Cpu}
+            title={isEn ? "Offline voice & assistant" : "صدا و دستیار آفلاین"}
+            description={isEn ? "Optional on-device models for private Persian and English speech." : "مدل‌های اختیاری روی دستگاه برای دریافت صوت خصوصی فارسی و انگلیسی."}
+          >
+            <OfflineIntelligenceSettings isEn={isEn} />
+          </SectionCard>
+
           <SectionCard
             icon={Languages}
             title={t("settings.aiResponseLang")}

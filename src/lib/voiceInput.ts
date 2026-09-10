@@ -1,5 +1,7 @@
 // Native Android speech recognition with a Web Speech API fallback.
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { loadOfflineModelSettings, type OfflineSpeechModelId } from "./offlineModels";
+import { isOfflineSpeechRecording, startOfflineSpeech, stopOfflineSpeech } from "./offlineSpeech";
 
 type VoiceLang = "fa-IR" | "en-US";
 type NativeSpeechResult = { transcript: string; confidence?: number };
@@ -89,6 +91,19 @@ export class VoiceInput {
   }
 
   start(lang: VoiceLang = "fa-IR") {
+    const offlineModel = this.offlineSpeechModel();
+    if (offlineModel) {
+      if (this.isListening) this.stop();
+      this.isListening = true;
+      this.options.onListeningChange?.(true);
+      void startOfflineSpeech(offlineModel, lang)
+        .catch((error) => {
+          this.isListening = false;
+          this.options.onListeningChange?.(false);
+          this.options.onError?.(error instanceof Error ? error.message : "Offline speech failed");
+        });
+      return;
+    }
     if (this.nativeAndroid) {
       if (this.isListening) this.stop();
       this.isListening = true;
@@ -120,6 +135,13 @@ export class VoiceInput {
   }
 
   stop() {
+    if (isOfflineSpeechRecording()) {
+      void stopOfflineSpeech()
+        .then((transcript) => { if (transcript.trim()) this.options.onTranscript(transcript.trim()); })
+        .catch((error) => this.options.onError?.(error instanceof Error ? error.message : "Offline speech failed"))
+        .finally(() => { this.isListening = false; this.options.onListeningChange?.(false); });
+      return;
+    }
     if (this.nativeAndroid) {
       if (this.isListening) void nativeSpeech.stop().catch(() => undefined);
       this.isListening = false;
@@ -152,5 +174,10 @@ export class VoiceInput {
       case "BUSY": return "Speech recognition is busy; please try again";
       default: return error?.message || "Voice input failed";
     }
+  }
+
+  private offlineSpeechModel(): OfflineSpeechModelId | null {
+    const mode = loadOfflineModelSettings().speechMode;
+    return mode === "whisper-tiny" || mode === "whisper-base" ? mode : null;
   }
 }

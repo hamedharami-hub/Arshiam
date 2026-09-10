@@ -1,0 +1,17 @@
+import { beforeEach, describe, expect, it } from "vitest";
+import { offlineAssistant } from "./offlineAssistant";
+
+beforeEach(() => localStorage.setItem("arshnaz_offline_models_v1", JSON.stringify({ assistantEnabled: true })));
+
+describe("offline assistant", () => {
+  it("extracts a Persian task date without making a network request", () => {
+    const result = offlineAssistant("parse_task", "فردا ساعت ۸ به دکتر زنگ بزن", "fa");
+    expect(result?.offline).toBe(true);
+    expect(result?.data).toMatchObject({ priority: "none", source: "offline-deterministic" });
+    expect(String(result?.data?.title)).toContain("دکتر");
+  });
+  it("flags an urgent bilingual task and produces reviewable subtasks", () => {
+    expect(offlineAssistant("parse_task", "urgent: Finish Firebase setup", "en")?.data).toMatchObject({ priority: "high" });
+    expect(offlineAssistant("task_subtasks", "Finish Firebase setup", "en")?.text).toContain("1.");
+  });
+});

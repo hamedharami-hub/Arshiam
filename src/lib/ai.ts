@@ -1,5 +1,6 @@
 import { firebaseStore } from "@/lib/firebaseStore";
 import { getOpConfig, type AIOperation } from "@/lib/aiSettings";
+import { offlineAssistant } from "@/lib/offlineAssistant";
 
 export type AIMode = AIOperation;
 
@@ -51,18 +52,26 @@ export async function callAI(
   langOverride?: AILanguage,
   opts?: { webSearch?: boolean },
 ) {
+  const lang = langOverride ?? getAILanguage();
+  // An enabled offline assistant never uploads the current request. It is used
+  // automatically while offline and as a private fallback when no API key exists.
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    const local = offlineAssistant(mode, input, lang);
+    if (local) return local;
+  }
   const settings = getAISettings(mode);
   // Enforce per-user API key: if no personal key configured (i.e. provider=lovable),
   // only allow if the current user is admin (the app owner).
   if (!settings) {
     const admin = await isCurrentUserAdmin();
+    const local = offlineAssistant(mode, input, lang);
+    if (local) return local;
     if (!admin) {
       throw new Error(
         "برای استفاده از قابلیت‌های هوش مصنوعی، باید کلید API شخصی خود را از تنظیمات → AI وارد کنی. این برنامه از کلید مالک استفاده نمی‌کند."
       );
     }
   }
-  const lang = langOverride ?? getAILanguage();
   const language = lang === "auto" ? undefined : lang;
 
   // Fetch mental-health profile + about-me for personalization (best-effort)
