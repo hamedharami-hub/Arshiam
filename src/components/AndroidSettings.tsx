@@ -70,7 +70,7 @@ export default function AndroidSettings() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <CardTitle className="flex items-center gap-2"><Smartphone className="h-5 w-5 text-primary" />امکانات اندروید</CardTitle>
-            <CardDescription className="mt-1">مرکز کنترل ویجت‌ها، اعلان‌ها، لمس و یادآورهای بومی · نسخهٔ ۱.۵</CardDescription>
+            <CardDescription className="mt-1">مرکز کنترل ویجت‌ها، اعلان‌ها، لمس و یادآورهای بومی · نسخهٔ ۱.۶</CardDescription>
           </div>
           <Badge variant="secondary" className="gap-1 whitespace-nowrap"><Sparkles className="h-3.5 w-3.5" />قابلیت بومی</Badge>
         </div>
