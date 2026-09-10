@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Mic, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VoiceInput } from "@/lib/voiceInput";
+import { toast } from "sonner";
 
 type VoiceLang = "fa-IR" | "en-US";
 const LS_KEY = "voice_input_lang";
@@ -57,6 +58,14 @@ export function VoiceInputButton({
       onInterim: (text) => callbacksRef.current.onInterim?.(text),
       onError: (error) => {
         console.warn("Voice input error:", error);
+        const messages: Record<string, string> = {
+          "Microphone permission denied": t("اجازهٔ میکروفون داده نشده است", "Microphone permission was denied"),
+          "No speech detected": t("صدایی تشخیص داده نشد؛ دوباره تلاش کنید", "No speech was detected; please try again"),
+          "Speech service needs internet or an installed offline language pack": t("برای تشخیص آفلاین، بستهٔ زبان فارسی یا انگلیسی را در تنظیمات گفتار گوشی نصب کنید", "Install the English/Persian offline speech pack or connect to the internet"),
+          "Speech recognition service unavailable": t("سرویس تشخیص گفتار روی این گوشی در دسترس نیست", "Speech recognition is unavailable on this device"),
+          "Speech recognition is busy; please try again": t("میکروفون مشغول است؛ چند لحظهٔ دیگر تلاش کنید", "Speech recognition is busy; please try again"),
+        };
+        toast.error(messages[error] || t("دریافت صوت ناموفق بود؛ دوباره تلاش کنید", "Voice input failed; please try again"));
       },
       onListeningChange: (isListening) => setListening(isListening),
       continuous,
