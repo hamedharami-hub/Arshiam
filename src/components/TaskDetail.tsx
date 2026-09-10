@@ -47,15 +47,12 @@ import { Switch } from "@/components/ui/switch";
 import { pushUndo } from "@/lib/undoStack";
 import { enqueueOp, cacheGet, cacheSet } from "@/lib/offlineQueue";
 import type { Task, TaskNote, ConfirmState } from "@/lib/taskTypes";
+import { clearTaskDraft, taskPatch, writeTaskDraft } from "@/lib/taskDraft";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-function clearTaskDraft(taskId: string) {
-  try { localStorage.removeItem(`arshnaz-task-draft:${taskId}`); } catch { /* storage can be unavailable */ }
-}
 
 export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet", allowDelete = false }: {
   task: Task;
@@ -104,7 +101,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   const [saveState, setSaveState] = useState<"saved" | "dirty" | "saving" | "queued" | "error">("saved");
   const [closePromptOpen, setClosePromptOpen] = useState(false);
   const latestTaskRef = useRef(task);
-  const savedDescriptionRef = useRef(task.description || "");
+  const savedTaskRef = useRef(task);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 
@@ -113,16 +110,15 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     try {
       const raw = localStorage.getItem(`arshnaz-task-draft:${task.id}`);
       if (raw) {
-        const draft = JSON.parse(raw) as { description?: string };
-        if (typeof draft.description === "string" && draft.description !== (task.description || "")) {
-          restored = { ...task, description: draft.description };
-        }
+        const draft = JSON.parse(raw) as { task?: Partial<Task>; description?: string };
+        const recovered = draft.task || (typeof draft.description === "string" ? { description: draft.description } : null);
+        if (recovered) restored = { ...task, ...recovered, id: task.id };
       }
     } catch { /* corrupted drafts are ignored */ }
     setT(restored);
     latestTaskRef.current = restored;
-    savedDescriptionRef.current = task.description || "";
-    setSaveState(restored === task ? "saved" : "dirty");
+    savedTaskRef.current = task;
+    setSaveState(Object.keys(taskPatch(restored, task)).length ? "dirty" : "saved");
   }, [task.id]);
 
   useEffect(() => { latestTaskRef.current = t; }, [t]);
@@ -275,6 +271,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
 
   const save = useCallback(async (patch: Partial<Task>) => {
     if (!canEdit) return;
+    if (!Object.keys(patch).length) return;
     const current = latestTaskRef.current;
     const next = { ...current, ...patch };
     latestTaskRef.current = next;
@@ -290,8 +287,8 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: current.id } });
-      if (Object.prototype.hasOwnProperty.call(patch, "description")) savedDescriptionRef.current = String(patch.description || "");
-      if (Object.prototype.hasOwnProperty.call(patch, "description")) clearTaskDraft(current.id);
+      savedTaskRef.current = { ...savedTaskRef.current, ...patch };
+      if (!Object.keys(taskPatch(latestTaskRef.current, savedTaskRef.current)).length) clearTaskDraft(current.id);
       setSaveState("queued");
       onChanged();
       return;
@@ -299,16 +296,16 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     try {
       const { error } = await firebaseStore.from("tasks").update(patch as any).eq("id", current.id);
       if (error) throw error;
-      if (Object.prototype.hasOwnProperty.call(patch, "description")) savedDescriptionRef.current = String(patch.description || "");
-      if (Object.prototype.hasOwnProperty.call(patch, "description")) clearTaskDraft(current.id);
+      savedTaskRef.current = { ...savedTaskRef.current, ...patch };
+      if (!Object.keys(taskPatch(latestTaskRef.current, savedTaskRef.current)).length) clearTaskDraft(current.id);
       setSaveState("saved");
       onChanged();
     } catch (e) {
       // If the network call fails, queue the update so the edit isn't lost
       try {
         await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: current.id } });
-        if (Object.prototype.hasOwnProperty.call(patch, "description")) savedDescriptionRef.current = String(patch.description || "");
-        if (Object.prototype.hasOwnProperty.call(patch, "description")) clearTaskDraft(current.id);
+        savedTaskRef.current = { ...savedTaskRef.current, ...patch };
+        if (!Object.keys(taskPatch(latestTaskRef.current, savedTaskRef.current)).length) clearTaskDraft(current.id);
         setSaveState("queued");
         onChanged();
       } catch {
@@ -318,32 +315,34 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     }
   }, [canEdit, onChanged, user]);
 
-  const descriptionDirty = (t.description || "") !== savedDescriptionRef.current;
+  const pendingPatch = taskPatch(t, savedTaskRef.current);
+  const hasPendingChanges = Object.keys(pendingPatch).length > 0;
 
-  const savePendingDescription = useCallback(async () => {
+  const savePendingChanges = useCallback(async () => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = null;
-    const description = latestTaskRef.current.description || "";
-    if (description === savedDescriptionRef.current) return;
-    await save({ description });
+    const patch = taskPatch(latestTaskRef.current, savedTaskRef.current);
+    if (!Object.keys(patch).length) return;
+    await save(patch);
   }, [save]);
 
   useEffect(() => {
-    if (!canEdit || !descriptionDirty) return;
+    if (!canEdit || !hasPendingChanges) return;
     setSaveState("dirty");
+    writeTaskDraft(t);
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => { void savePendingDescription(); }, 1200);
+    saveTimerRef.current = setTimeout(() => { void savePendingChanges(); }, 1200);
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [canEdit, descriptionDirty, t.description, savePendingDescription]);
+  }, [canEdit, hasPendingChanges, t, savePendingChanges]);
 
   useEffect(() => {
     const flushWhenHidden = () => {
-      if (document.visibilityState === "hidden") void savePendingDescription();
+      if (document.visibilityState === "hidden") void savePendingChanges();
     };
     const warnBeforeUnload = (event: BeforeUnloadEvent) => {
-      if ((latestTaskRef.current.description || "") === savedDescriptionRef.current) return;
+      if (!Object.keys(taskPatch(latestTaskRef.current, savedTaskRef.current)).length) return;
       event.preventDefault();
       event.returnValue = "";
     };
@@ -353,10 +352,10 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       document.removeEventListener("visibilitychange", flushWhenHidden);
       window.removeEventListener("beforeunload", warnBeforeUnload);
     };
-  }, [savePendingDescription]);
+  }, [savePendingChanges]);
 
   const requestClose = () => {
-    if (descriptionDirty || saveState === "saving" || saveState === "error") setClosePromptOpen(true);
+    if (hasPendingChanges || saveState === "saving" || saveState === "error") setClosePromptOpen(true);
     else onClose();
   };
 
@@ -364,7 +363,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     const request = () => requestClose();
     window.addEventListener("arshnaz:request-task-close", request);
     return () => window.removeEventListener("arshnaz:request-task-close", request);
-  }, [descriptionDirty, saveState]);
+  }, [hasPendingChanges, saveState]);
 
   const deleteTask = () => {
     setConfirm({
@@ -567,7 +566,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
             const next = { ...latestTaskRef.current, description: v };
             latestTaskRef.current = next;
             setT(next);
-            try { localStorage.setItem(`arshnaz-task-draft:${t.id}`, JSON.stringify({ description: v, updatedAt: Date.now() })); } catch { /* storage can be unavailable */ }
+            writeTaskDraft(next);
           }}
           onSave={(v) => save({ description: v })}
           readOnly={!canEdit}
@@ -1353,9 +1352,9 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       <div className="flex items-center gap-1">
         <Button
           size="sm"
-          variant={descriptionDirty || saveState === "error" ? "default" : "outline"}
+          variant={hasPendingChanges || saveState === "error" ? "default" : "outline"}
           disabled={!canEdit || saveState === "saving"}
-          onClick={() => void savePendingDescription()}
+          onClick={() => void savePendingChanges()}
           className="h-8 gap-1"
         >
           {saveState === "saving" ? <Loader2 className="animate-spin" /> : <Save />}
@@ -1397,9 +1396,9 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       </span>
       <Button
         size="sm"
-        variant={descriptionDirty || saveState === "error" ? "default" : "outline"}
+        variant={hasPendingChanges || saveState === "error" ? "default" : "outline"}
         disabled={!canEdit || saveState === "saving"}
-        onClick={() => void savePendingDescription()}
+        onClick={() => void savePendingChanges()}
         className="gap-1.5"
       >
         {saveState === "saving" ? <Loader2 className="animate-spin" /> : <Save />}
@@ -1519,6 +1518,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           <AlertDialogFooter className="gap-2 sm:gap-2">
             <AlertDialogCancel>{T("ادامهٔ ویرایش", "Keep editing")}</AlertDialogCancel>
             <Button variant="ghost" onClick={() => {
+              clearTaskDraft(t.id);
               setClosePromptOpen(false);
               onClose();
             }}>
@@ -1527,7 +1527,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
             <AlertDialogAction onClick={async (event) => {
               event.preventDefault();
               try {
-                await savePendingDescription();
+                await savePendingChanges();
                 setClosePromptOpen(false);
                 onClose();
               } catch {

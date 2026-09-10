@@ -92,7 +92,7 @@ function useLabel() {
   };
 }
 
-type Folder = { id: string; user_id?: string; name: string; parent_id: string | null; color: string };
+type Folder = { id: string; user_id?: string; name: string; description?: string | null; parent_id: string | null; color: string };
 type TagT = { id: string; user_id?: string; name: string; color: string };
 
 type NavItem = { url: string; icon: any; label: string };
@@ -184,11 +184,11 @@ function FolderRow({ folder: f, depth, hasChildren, open, collapsed, onToggle, o
 }) {
   const lp = useLongPress({ onLongPress, delay: 420 });
   return (
-    <SidebarMenuItem>
-      <SidebarMenuButton asChild>
+    <SidebarMenuItem className="mb-1">
+      <SidebarMenuButton asChild className="h-auto min-h-[58px] rounded-2xl p-0">
         <div
-          className="flex items-center w-full gap-1.5 rounded-xl px-1.5 py-1 transition-all duration-150 cursor-pointer select-none group hover:bg-sidebar-accent/50 data-[drag-over=true]:bg-primary/15 data-[drag-over=true]:ring-1 data-[drag-over=true]:ring-primary"
-          style={{ paddingInlineStart: depth * 12 }}
+          className="flex items-center w-full gap-2 rounded-2xl border border-transparent px-2 py-2.5 transition-all duration-150 cursor-pointer select-none group hover:border-sidebar-border hover:bg-sidebar-accent/70 data-[drag-over=true]:bg-primary/15 data-[drag-over=true]:ring-1 data-[drag-over=true]:ring-primary"
+          style={{ paddingInlineStart: 8 + depth * 14 }}
           {...lp.handlers}
           onContextMenu={(e) => {
             e.preventDefault();
@@ -228,14 +228,21 @@ function FolderRow({ folder: f, depth, hasChildren, open, collapsed, onToggle, o
               }
               onNav();
             }}
-            className="flex items-center gap-2 flex-1 w-full truncate text-sidebar-foreground"
-            activeClassName="text-primary font-bold bg-primary/10"
+            className="flex items-center gap-3 flex-1 w-full min-w-0 text-sidebar-foreground"
+            activeClassName="text-primary font-bold bg-primary/10 rounded-xl"
           >
             <FolderIcon
-              className="w-4 h-4 shrink-0 transition-transform group-hover:scale-110"
+              className="w-5 h-5 shrink-0 transition-transform group-hover:scale-110"
               style={{ color: f.color || "hsl(var(--primary))" }}
             />
-            {!collapsed && <span className="truncate text-xs font-medium">{f.name}</span>}
+            {!collapsed && (
+              <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5 py-0.5">
+                <span className="w-full truncate text-sm font-semibold leading-5">{f.name}</span>
+                <span className="w-full text-start text-[11px] font-normal leading-4 text-muted-foreground line-clamp-2">
+                  {f.description?.trim() || (hasChildren ? "شامل زیرفولدرها" : "برای مشاهدهٔ کارهای این پوشه لمس کنید")}
+                </span>
+              </span>
+            )}
           </NavLink>
         </div>
       </SidebarMenuButton>

@@ -17,7 +17,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 const SIDEBAR_COOKIE_NAME = "sidebar:state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = "16rem";
-const SIDEBAR_WIDTH_MOBILE = "18rem";
+const SIDEBAR_WIDTH_MOBILE = "24rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 
@@ -188,7 +188,7 @@ const Sidebar = React.forwardRef<
           ref={contentRef}
           data-sidebar="sidebar"
           data-mobile="true"
-          style={{ "--sidebar-width-mobile": `min(${SIDEBAR_WIDTH_MOBILE}, calc(100vw - 48px))` } as React.CSSProperties}
+          style={{ "--sidebar-width-mobile": `min(${SIDEBAR_WIDTH_MOBILE}, calc(100vw - 20px))` } as React.CSSProperties}
           className="h-[100dvh] w-[--sidebar-width-mobile] max-w-[--sidebar-width-mobile] p-0 border-0 rounded-none
             bg-gradient-to-b from-sidebar via-sidebar to-sidebar/95
             backdrop-blur-xl shadow-2xl [&>button]:top-3 [&>button]:left-3 [&>button]:right-auto
@@ -205,7 +205,7 @@ const Sidebar = React.forwardRef<
             <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10 pointer-events-none">
               <span className="block h-8 w-1 rounded-full bg-foreground/20" />
             </div>
-            <div className="flex-1 overflow-y-auto px-2 pb-6 pt-[calc(env(safe-area-inset-top)+0.5rem)]">
+            <div className="flex-1 overflow-y-auto px-3 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)]">
               {children}
             </div>
           </div>
