@@ -46,11 +46,13 @@ async function getDB(): Promise<IDBPDatabase | null> {
 
 export async function enqueueOp(
   op: Omit<QueuedOp, "id" | "createdAt" | "attempts" | "nextRetryAt" | "lastError">
-) {
+): Promise<boolean> {
+  let queued = false;
   try {
     const db = await getDB();
     if (db) {
       await db.add(STORE, { ...op, createdAt: Date.now(), attempts: 0 });
+      queued = true;
     }
   } catch (err) {
     console.warn("Could not enqueue offline op:", err);
@@ -59,6 +61,7 @@ export async function enqueueOp(
   if (typeof navigator !== "undefined" && navigator.onLine) {
     setTimeout(() => void flushQueue(), 50);
   }
+  return queued;
 }
 
 export async function getQueue(): Promise<QueuedOp[]> {

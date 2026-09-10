@@ -8,7 +8,7 @@ import {
   getDocs,
   onSnapshot,
 } from "./firebase";
-import { cacheGet, cacheSet } from "./offlineQueue";
+import { cacheGet, cacheSet, enqueueOp } from "./offlineQueue";
 import type { Task } from "./taskTypes";
 
 export interface FolderItem {
@@ -171,8 +171,17 @@ export function subscribeTasks(
   }
 }
 
-export async function upsertTask(userId: string, task: Partial<Task> & { id: string }): Promise<boolean> {
-  if (!userId || !task.id) return false;
+export type TaskPersistenceStatus = "saved" | "queued" | "failed";
+
+/**
+ * Saves a task to Firestore and reports whether the cloud write completed now
+ * or has been safely placed in the device outbox for a later retry.
+ */
+export async function persistTask(
+  userId: string,
+  task: Partial<Task> & { id: string }
+): Promise<TaskPersistenceStatus> {
+  if (!userId || !task.id) return "failed";
   const dataToSave = {
     ...task,
     user_id: userId,
@@ -199,12 +208,23 @@ export async function upsertTask(userId: string, task: Partial<Task> & { id: str
   try {
     const taskRef = doc(db, "users", userId, "tasks", task.id);
     await setDoc(taskRef, dataToSave, { merge: true });
-    return true;
+    return "saved";
   } catch (err) {
-    console.warn("[FirestoreData] upsertTask remote save notice (saved to local cache):", err);
-    // As long as it was saved to local cache, return true so UI does not block user
-    return true;
+    console.warn("[FirestoreData] task write deferred to offline outbox:", err);
+    const queued = await enqueueOp({
+      table: "tasks",
+      op: "upsert",
+      payload: dataToSave,
+      match: { id: task.id },
+    });
+    return queued ? "queued" : "failed";
   }
+}
+
+// Existing creation flows only need a success/failure result. Keep that public
+// contract while TaskDetail uses persistTask to display the precise state.
+export async function upsertTask(userId: string, task: Partial<Task> & { id: string }): Promise<boolean> {
+  return (await persistTask(userId, task)) !== "failed";
 }
 
 export async function deleteTask(userId: string, taskId: string): Promise<boolean> {

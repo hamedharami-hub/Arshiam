@@ -46,6 +46,7 @@ import { addTaskToAndroidCalendar } from "@/lib/androidNative";
 import { Switch } from "@/components/ui/switch";
 import { pushUndo } from "@/lib/undoStack";
 import { enqueueOp, cacheGet, cacheSet } from "@/lib/offlineQueue";
+import { persistTask } from "@/lib/firestoreDataService";
 import type { Task, TaskNote, ConfirmState } from "@/lib/taskTypes";
 import { clearTaskDraft, taskPatch, writeTaskDraft } from "@/lib/taskDraft";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
@@ -278,40 +279,36 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     setT(next);
     setSaveState("saving");
 
-    if (user) {
-      const cached = await cacheGet<Task[]>(`tasks:all:${user.id}`);
-      if (cached) {
-        await cacheSet(`tasks:all:${user.id}`, cached.map(x => x.id === current.id ? { ...x, ...patch } : x));
-      }
-    }
-
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: current.id } });
+    const finish = (state: "saved" | "queued") => {
       savedTaskRef.current = { ...savedTaskRef.current, ...patch };
       if (!Object.keys(taskPatch(latestTaskRef.current, savedTaskRef.current)).length) clearTaskDraft(current.id);
-      setSaveState("queued");
-      onChanged();
+      setSaveState(state);
+      // Refreshing a parent list is helpful, but must never turn a successful
+      // persistence operation into a visible save failure.
+      try { void Promise.resolve(onChanged()).catch((error) => console.warn("Task refresh after save failed:", error)); }
+      catch (error) { console.warn("Task refresh after save failed:", error); }
+    };
+
+    // The Firestore task service is the authoritative path. It writes the
+    // local cache first, then persists to /users/{uid}/tasks/{id}; a temporary
+    // cloud failure never discards an edit or traps the user in the close prompt.
+    if (user) {
+      const result = await persistTask(user.id, next);
+      if (result === "failed") throw new Error("Task could not be saved on this device");
+      finish(result);
       return;
     }
+
     try {
-      const { error } = await firebaseStore.from("tasks").update(patch as any).eq("id", current.id);
-      if (error) throw error;
-      savedTaskRef.current = { ...savedTaskRef.current, ...patch };
-      if (!Object.keys(taskPatch(latestTaskRef.current, savedTaskRef.current)).length) clearTaskDraft(current.id);
-      setSaveState("saved");
-      onChanged();
+      // This is reachable only while the authentication state is temporarily
+      // unavailable. Keep the edit locally instead of attempting a write with
+      // no owner; the normal authenticated path above will persist it.
+      const queued = await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: current.id } });
+      if (!queued) throw new Error("Task could not be queued on this device");
+      finish("queued");
     } catch (e) {
-      // If the network call fails, queue the update so the edit isn't lost
-      try {
-        await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: current.id } });
-        savedTaskRef.current = { ...savedTaskRef.current, ...patch };
-        if (!Object.keys(taskPatch(latestTaskRef.current, savedTaskRef.current)).length) clearTaskDraft(current.id);
-        setSaveState("queued");
-        onChanged();
-      } catch {
-        setSaveState("error");
-        throw e;
-      }
+      setSaveState("error");
+      throw e;
     }
   }, [canEdit, onChanged, user]);
 
