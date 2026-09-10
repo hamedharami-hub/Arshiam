@@ -83,11 +83,11 @@ export const OP_RECOMMENDED: Record<AIOperation, { provider: Provider; model: st
 
 export const PROVIDER_INFO: Record<Provider, { label: string; defaultModel: string; baseUrl: string; help: string; models: string[] }> = {
   offline: {
-    label: "هوش مصنوعی آفلاین",
+    label: "هوش مصنوعی آفلاین (معماری سه‌لایه)",
     defaultModel: "deterministic-v1",
     baseUrl: "",
-    help: "بدون کلید و بدون ارسال داده؛ در نسخهٔ فعلی برای کارهای ساختاری از منطق آفلاین استفاده می‌کند.",
-    models: ["deterministic-v1"],
+    help: "بدون نیاز به کلید و ۱۰۰٪ خصوصی روی دستگاه. شامل موتور هوشمند NLP محلی (حجم صفر) و مدل‌های زبانی مولد قابل دانلود (Qwen 2.5 / SmolLM2).",
+    models: ["deterministic-v1", "qwen-0.5b", "smollm-135m"],
   },
   openai: {
     label: "OpenAI",
