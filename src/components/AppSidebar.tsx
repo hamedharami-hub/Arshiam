@@ -237,10 +237,17 @@ function FolderRow({ folder: f, depth, hasChildren, open, collapsed, onToggle, o
             />
             {!collapsed && (
               <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5 py-0.5">
-                <span className="w-full truncate text-sm font-semibold leading-5">{f.name}</span>
-                <span className="w-full text-start text-[11px] font-normal leading-4 text-muted-foreground line-clamp-2">
-                  {f.description?.trim() || (hasChildren ? "شامل زیرفولدرها" : "برای مشاهدهٔ کارهای این پوشه لمس کنید")}
+                <span
+                  dir="auto"
+                  className="w-full whitespace-normal break-words text-start text-sm font-semibold leading-5"
+                >
+                  {f.name}
                 </span>
+                {f.description?.trim() && (
+                  <span className="w-full whitespace-normal break-words text-start text-[11px] font-normal leading-4 text-muted-foreground">
+                    {f.description.trim()}
+                  </span>
+                )}
               </span>
             )}
           </NavLink>
