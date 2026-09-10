@@ -38,7 +38,7 @@ export default function NotesView() {
   const { i18n } = useTranslation();
   const isMobile = useIsMobile();
   const isEn = (i18n.language || "fa").startsWith("en");
-  const T = (fa: string, en: string) => (isEn ? en : fa);
+  const T = useCallback((fa: string, en: string) => (isEn ? en : fa), [isEn]);
 
   const aiGroups = useMemo(() => [
     {

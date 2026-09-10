@@ -28,7 +28,7 @@ export default function BucketsView() {
 
   useEffect(() => {
     setParams((p) => { p.set("kind", kind); return p; }, { replace: true });
-  }, [kind]);
+  }, [kind, setParams]);
 
   useEffect(() => {
     if (!user) return;

@@ -35,7 +35,7 @@ export function TaskSubtasksInline({
   const editingRef = useRef<Set<string>>(new Set());
   const writeTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const { data } = await firebaseStore
       .from("tasks")
       .select("id,title,completed,position")
@@ -51,9 +51,9 @@ export function TaskSubtasksInline({
           : row,
       );
     });
-  };
+  }, [taskId]);
 
-  useEffect(() => { load(); }, [taskId]);
+  useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
     if (!user) return;
@@ -64,7 +64,7 @@ export function TaskSubtasksInline({
         load)
       .subscribe();
     return () => { firebaseStore.removeChannel(ch); };
-  }, [user, taskId]);
+  }, [user, taskId, load]);
 
 
   const add = async () => {

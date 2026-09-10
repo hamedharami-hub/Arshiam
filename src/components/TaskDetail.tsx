@@ -168,7 +168,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       setOutcomeCount(outcomesRes.count || 0);
     })();
     return () => { cancelled = true; };
-  }, [task.id]);
+  }, [task.id, hasTimeBlock]);
 
   useEffect(() => {
     if (!user) return;
@@ -351,16 +351,16 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     };
   }, [savePendingChanges]);
 
-  const requestClose = () => {
+  const requestClose = useCallback(() => {
     if (hasPendingChanges || saveState === "saving" || saveState === "error") setClosePromptOpen(true);
     else onClose();
-  };
+  }, [hasPendingChanges, saveState, onClose]);
 
   useEffect(() => {
     const request = () => requestClose();
     window.addEventListener("arshnaz:request-task-close", request);
     return () => window.removeEventListener("arshnaz:request-task-close", request);
-  }, [hasPendingChanges, saveState]);
+  }, [requestClose]);
 
   const deleteTask = () => {
     setConfirm({

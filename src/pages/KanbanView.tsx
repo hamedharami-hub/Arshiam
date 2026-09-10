@@ -139,7 +139,7 @@ export default function KanbanView() {
   }, [user]);
 
   // Load tasks from firebaseStore
-  const loadTasks = async () => {
+  const loadTasks = useCallback(async () => {
     if (!user) return;
     const [parentsRes, subsRes] = await Promise.all([
       firebaseStore.from("tasks").select("*").is("parent_id", null).order("position"),
@@ -147,11 +147,11 @@ export default function KanbanView() {
     ]);
     setAllTasks(((parentsRes.data || []) as unknown) as Task[]);
     setSubtasks(((subsRes.data || []) as unknown) as Task[]);
-  };
+  }, [user]);
 
   useEffect(() => {
     loadTasks();
-  }, [user]);
+  }, [loadTasks]);
 
   useEffect(() => {
     if (!user) return;
@@ -162,7 +162,7 @@ export default function KanbanView() {
     return () => {
       firebaseStore.removeChannel(ch);
     };
-  }, [user]);
+  }, [user, loadTasks]);
 
   // Identify Active Goal (Tier 3 > Tier 2 > Tier 1)
   const activeGoalId = selectedTier3Id || selectedTier2Id || selectedTier1Id;

@@ -80,6 +80,37 @@ export default function ProcrastinationBusterModal({
   const [timerSeconds, setTimerSeconds] = useState(300); // 5 minutes
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const handleGenerate = useCallback(async (selectedBarrier: ProcrastinationBarrier) => {
+    if (!task) return;
+    setLoading(true);
+    haptic("light");
+
+    // 1. Generate smart local heuristic first (immediate & always available)
+    const localResult = generateLocalBuster(task.title, task.description || "", selectedBarrier);
+    setBusterData(localResult);
+
+    // 2. Try calling AI for deep personalized CBT reframing & tailored steps
+    try {
+      const prompt = buildAIBusterPrompt(task.title, task.description || "", selectedBarrier);
+      const res = await callAI("task_subtasks", prompt, "شکستن سد اهمال‌کاری با اصول روانشناسی CBT");
+      if (res && res.text) {
+        const enriched = parseAIBusterResponse(res.text, localResult);
+        setBusterData(enriched);
+      }
+    } catch (err) {
+      // Graceful degradation: local heuristic already set and tailored!
+      console.log("[Buster] Using smart local heuristic engine.");
+    } finally {
+      setLoading(false);
+    }
+  }, [task]);
+
+  const handleBarrierChange = (newBarrier: ProcrastinationBarrier) => {
+    setBarrier(newBarrier);
+    haptic("selection");
+    handleGenerate(newBarrier);
+  };
+
   useEffect(() => {
     if (open && task) {
       setTimerActive(false);
@@ -88,8 +119,7 @@ export default function ProcrastinationBusterModal({
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
     }
-  }, [open, task?.id]);
-
+  }, [open, task, barrier, handleGenerate]);
   // Sprint timer interval
   useEffect(() => {
     if (timerActive) {
@@ -116,37 +146,6 @@ export default function ProcrastinationBusterModal({
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [timerActive]);
-
-  const handleBarrierChange = (newBarrier: ProcrastinationBarrier) => {
-    setBarrier(newBarrier);
-    haptic("selection");
-    handleGenerate(newBarrier);
-  };
-
-  const handleGenerate = async (selectedBarrier: ProcrastinationBarrier) => {
-    if (!task) return;
-    setLoading(true);
-    haptic("light");
-
-    // 1. Generate smart local heuristic first (immediate & always available)
-    const localResult = generateLocalBuster(task.title, task.description || "", selectedBarrier);
-    setBusterData(localResult);
-
-    // 2. Try calling AI for deep personalized CBT reframing & tailored steps
-    try {
-      const prompt = buildAIBusterPrompt(task.title, task.description || "", selectedBarrier);
-      const res = await callAI("task_subtasks", prompt, "شکستن سد اهمال‌کاری با اصول روانشناسی CBT");
-      if (res && res.text) {
-        const enriched = parseAIBusterResponse(res.text, localResult);
-        setBusterData(enriched);
-      }
-    } catch (err) {
-      // Graceful degradation: local heuristic already set and tailored!
-      console.log("[Buster] Using smart local heuristic engine.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleStepChange = (index: number, val: string) => {
     if (!busterData) return;

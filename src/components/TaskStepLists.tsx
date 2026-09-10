@@ -44,7 +44,7 @@ export function TaskStepLists({ taskId }: { taskId: string }) {
   const [newListStyle, setNewListStyle] = useState<StepStyle>("checkbox");
   const [newStep, setNewStep] = useState<Record<string, string>>({});
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const { data: ls } = await firebaseStore
       .from("task_step_lists" as any)
       .select("*")
@@ -62,9 +62,9 @@ export function TaskStepLists({ taskId }: { taskId: string }) {
     } else {
       setSteps([]);
     }
-  };
+  }, [taskId]);
 
-  useEffect(() => { load(); }, [taskId]);
+  useEffect(() => { load(); }, [load]);
 
   const addList = async () => {
     if (!user) return;

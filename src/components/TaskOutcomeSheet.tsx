@@ -24,7 +24,7 @@ export function TaskOutcomeSheet({
 }) {
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
-  const T = (fa: string, en: string) => (isEn ? en : fa);
+  const T = useCallback((fa: string, en: string) => (isEn ? en : fa), [isEn]);
 
   const [outcomes, setOutcomes] = useState<TaskOutcome[]>([]);
   const [removedIds, setRemovedIds] = useState<string[]>([]);
@@ -39,7 +39,7 @@ export function TaskOutcomeSheet({
       .catch((e: unknown) => toast.error(T("خطا در بارگذاری شاخه‌ها", "Failed to load branches") + ": " + (e instanceof Error ? e.message : String(e))))
       .finally(() => setLoading(false));
     setRemovedIds([]);
-  }, [open, task.id]);
+  }, [open, task.id, T]);
 
   const addOutcome = () => {
     setOutcomes((prev) => [

@@ -36,7 +36,7 @@ export default function HabitsView() {
   const [system, setSystem] = useState<CalendarSystem>(getCalendarSystem());
   const [view, setView] = useState<"week" | "month">("week");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!user) return;
     // 1. Primary: load from Firebase Firestore
     try {
@@ -67,8 +67,8 @@ export default function HabitsView() {
       if (h.data && h.data.length > 0) setHabits(h.data as any);
       if (l.data && l.data.length > 0) setLogs(l.data as any);
     } catch {}
-  };
-  useEffect(() => { load(); }, [user]);
+  }, [user]);
+  useEffect(() => { load(); }, [load]);
 
   const add = async () => {
     if (!name.trim() || !user) return;

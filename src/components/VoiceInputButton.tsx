@@ -74,7 +74,7 @@ export function VoiceInputButton({
     return () => {
       voice.stop();
     };
-  }, [continuous]);
+  }, [continuous, t]);
 
   const handleClick = () => {
     voiceRef.current?.toggle(lang);

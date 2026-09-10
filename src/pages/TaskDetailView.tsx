@@ -21,34 +21,53 @@ export default function TaskDetailView() {
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
   const [task, setTask] = useState<Task | null>(null);
+  const [loading, setLoading] = useState(true);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
 
-  const load = async () => {
-    if (!id) return;
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      const cached = user ? await cacheGet<Task[]>(`tasks:all:${user.id}`) : null;
-      const match = cached?.find(t => t.id === id);
-      if (match) { setTask(match); return; }
-      setTask(null);
+  const load = useCallback(async () => {
+    if (!id) {
+      setLoading(false);
       return;
     }
+    setLoading(true);
     try {
-      const { data } = await firebaseStore.from("tasks").select("*").eq("id", id).maybeSingle();
-      if (data) setTask(data as unknown as Task);
-      else setTask(null);
-    } catch {
-      const cached = user ? await cacheGet<Task[]>(`tasks:all:${user.id}`) : null;
-      const match = cached?.find(t => t.id === id);
-      setTask(match || null);
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        const cached = user ? await cacheGet<Task[]>(`tasks:all:${user.id}`) : null;
+        const match = cached?.find(t => t.id === id);
+        setTask(match || null);
+        return;
+      }
+      try {
+        const { data } = await firebaseStore.from("tasks").select("*").eq("id", id).maybeSingle();
+        if (data) setTask(data as unknown as Task);
+        else setTask(null);
+      } catch {
+        const cached = user ? await cacheGet<Task[]>(`tasks:all:${user.id}`) : null;
+        const match = cached?.find(t => t.id === id);
+        setTask(match || null);
+      }
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [id, user]);
 
-  useEffect(() => { load(); }, [id, user]);
+  useEffect(() => { load(); }, [load]);
 
-  if (!task) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh] text-muted-foreground">
         <Loader2 className="w-6 h-6 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!task) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-muted-foreground p-4 text-center space-y-4">
+        <p className="text-base font-medium">{T("تسک مورد نظر پیدا نشد یا حذف شده است.", "Task not found or has been deleted.")}</p>
+        <Button variant="outline" onClick={() => navigate("/app/today")} className="gap-1.5">
+          <ArrowRight className="w-4 h-4" /> {T("بازگشت به تسک‌ها", "Back to tasks")}
+        </Button>
       </div>
     );
   }

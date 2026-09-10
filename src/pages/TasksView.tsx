@@ -134,7 +134,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const { user } = useAuth();
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
-  const T = (fa: string, en: string) => (isEn ? en : fa);
+  const T = useCallback((fa: string, en: string) => (isEn ? en : fa), [isEn]);
   const params = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [layout, setLayout] = useState<"compact" | "comfortable">("compact");
@@ -223,7 +223,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   }, [params.id, user?.id]);
 
   // Patch a task field optimistically + persist
-  const patchTask = async (id: string, patch: Partial<Task>) => {
+  const patchTask = useCallback(async (id: string, patch: Partial<Task>) => {
     const target = effectiveAllTasks.find(t => t.id === id);
     const owner = target ? target.user_id === user?.id : true;
     if (owner) setAllTasks(prev => prev.map(x => x.id === id ? { ...x, ...patch } as Task : x));
@@ -241,7 +241,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       return;
     }
     if (!owner && !error) setAllTasks(prev => prev.map(x => x.id === id ? { ...x, ...patch } as Task : x));
-  };
+  }, [effectiveAllTasks, user?.id, setAllTasks, T]);
+
   useEffect(() => {
     const taskId = searchParams.get("completeTaskId");
     if (!taskId) return;
@@ -251,7 +252,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete("completeTaskId");
     setSearchParams(nextParams, { replace: true });
-  }, [effectiveAllTasks, searchParams, setSearchParams]);
+  }, [effectiveAllTasks, searchParams, setSearchParams, patchTask]);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
@@ -431,7 +432,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       .sort()
       .forEach(k => orderedKeys.push(k));
     return orderedKeys.map(k => groups.get(k)!);
-  }, [topLevel, scope]);
+  }, [topLevel, scope, isEn, T]);
 
   const completeTaskCore = async (t: Task, outcome: TaskOutcome | null, isOwner: boolean) => {
     const patch = { completed: true, status: "done" as const, completed_at: new Date().toISOString() };

@@ -41,7 +41,7 @@ export function BottomTabBar() {
         switch (e.key) {
           case "1":
             e.preventDefault();
-            navigate("/app/today");
+            navigate("/app/mind");
             break;
           case "2":
             e.preventDefault();
@@ -53,7 +53,7 @@ export function BottomTabBar() {
             break;
           case "4":
             e.preventDefault();
-            navigate("/app/mind");
+            navigate("/app/today");
             break;
           case "5":
             e.preventDefault();
@@ -80,14 +80,24 @@ export function BottomTabBar() {
   // Tab configurations
   const tabs = useMemo<BottomTabItemConfig[]>(() => [
     {
-      key: "today",
-      labelFa: "امروز",
-      labelEn: "Today",
-      to: "/app/today",
-      icon: ListTodo,
+      key: "mind",
+      labelFa: "ذهن",
+      labelEn: "Mind",
+      to: "/app/mind",
+      icon: Brain,
       shortcutKey: "1",
       shortcutLabel: "Alt+1",
-      match: (p) => p === "/app/today" || p === "/app",
+      match: (p) =>
+        p === "/app/mind" ||
+        p.startsWith("/app/checkin") ||
+        p.startsWith("/app/thoughts") ||
+        p.startsWith("/app/abc") ||
+        p.startsWith("/app/worry") ||
+        p.startsWith("/app/values") ||
+        p.startsWith("/app/breathing") ||
+        p.startsWith("/app/socratic") ||
+        p.startsWith("/app/screener") ||
+        p.startsWith("/app/self"),
     },
     {
       key: "notes",
@@ -110,24 +120,14 @@ export function BottomTabBar() {
       match: (p) => p.startsWith("/app/habits"),
     },
     {
-      key: "mind",
-      labelFa: "ذهن",
-      labelEn: "Mind",
-      to: "/app/mind",
-      icon: Brain,
+      key: "today",
+      labelFa: "امروز",
+      labelEn: "Today",
+      to: "/app/today",
+      icon: ListTodo,
       shortcutKey: "4",
       shortcutLabel: "Alt+4",
-      match: (p) =>
-        p === "/app/mind" ||
-        p.startsWith("/app/checkin") ||
-        p.startsWith("/app/thoughts") ||
-        p.startsWith("/app/abc") ||
-        p.startsWith("/app/worry") ||
-        p.startsWith("/app/values") ||
-        p.startsWith("/app/breathing") ||
-        p.startsWith("/app/socratic") ||
-        p.startsWith("/app/screener") ||
-        p.startsWith("/app/self"),
+      match: (p) => p === "/app/today" || p === "/app",
     },
     {
       key: "calendar",

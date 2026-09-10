@@ -78,7 +78,15 @@ export default function CycleView() {
     setFlow(todayLog?.flow ?? 0);
     setSymptoms(todayLog?.symptoms ?? []);
     setNotes(todayLog?.notes ?? "");
-  }, [todayLog?.id]);
+  }, [
+    todayLog?.id,
+    todayLog?.pain,
+    todayLog?.mood,
+    todayLog?.energy,
+    todayLog?.flow,
+    todayLog?.symptoms,
+    todayLog?.notes,
+  ]);
 
   const createProfile = async () => {
     if (!user || !newLabel.trim()) return;

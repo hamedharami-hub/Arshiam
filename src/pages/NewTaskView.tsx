@@ -58,7 +58,7 @@ export default function NewTaskView() {
       }
       setDraft(data as any);
     })();
-  }, [user]);
+  }, [user, params]);
 
   // Cleanup: if unmounted with empty title and not saved, delete the draft.
   useEffect(() => {

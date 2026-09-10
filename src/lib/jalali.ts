@@ -22,23 +22,40 @@ export function toPersianDigits(s: string | number): string {
   return String(s).replace(/\d/g, (d) => FA_DIGITS[+d]);
 }
 
-export function formatDate(date: Date, fmt: string, system: CalendarSystem = getCalendarSystem()): string {
-  const out = system === "jalali" ? formatJalali(date, fmt) : formatGregorian(date, fmt);
-  return system === "jalali" ? toPersianDigits(out) : out;
+export function formatDate(date: Date | string | number | null | undefined, fmt: string, system: CalendarSystem = getCalendarSystem()): string {
+  if (!date) return "";
+  const d = date instanceof Date ? date : new Date(date);
+  if (isNaN(d.getTime())) return "";
+  try {
+    const out = system === "jalali" ? formatJalali(d, fmt) : formatGregorian(d, fmt);
+    return system === "jalali" ? toPersianDigits(out) : out;
+  } catch {
+    return "";
+  }
 }
 
-export function formatDual(date: Date, fmt = "yyyy/MM/dd"): string {
-  const j = toPersianDigits(formatJalali(date, fmt));
-  const g = formatGregorian(date, fmt);
-  const sys = getCalendarSystem();
-  return sys === "jalali" ? `${j} (${g})` : `${g} (${j})`;
+export function formatDual(date: Date | string | number | null | undefined, fmt = "yyyy/MM/dd"): string {
+  if (!date) return "";
+  const d = date instanceof Date ? date : new Date(date);
+  if (isNaN(d.getTime())) return "";
+  try {
+    const j = toPersianDigits(formatJalali(d, fmt));
+    const g = formatGregorian(d, fmt);
+    const sys = getCalendarSystem();
+    return sys === "jalali" ? `${j} (${g})` : `${g} (${j})`;
+  } catch {
+    return "";
+  }
 }
 
 export const WEEKDAY_NAMES_FA = ["شنبه","یکشنبه","دوشنبه","سه‌شنبه","چهارشنبه","پنج‌شنبه","جمعه"];
 export const WEEKDAY_SHORT_FA = ["ش","ی","د","س","چ","پ","ج"];
 
 // Jalali week starts Saturday. JS getDay(): 0=Sun..6=Sat
-export function jalaliDayOfWeek(date: Date): number {
+export function jalaliDayOfWeek(date: Date | string | number | null | undefined): number {
+  if (!date) return 0;
+  const d = date instanceof Date ? date : new Date(date);
+  if (isNaN(d.getTime())) return 0;
   // 0 = Saturday in jalali order
-  return (date.getDay() + 1) % 7;
+  return (d.getDay() + 1) % 7;
 }
