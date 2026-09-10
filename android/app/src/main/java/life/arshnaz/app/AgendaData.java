@@ -52,6 +52,7 @@ final class AgendaData {
                 case "next7": include = d != null && !d.isBefore(today) && d.isBefore(today.plusDays(7)); break;
                 case "overdue": include = d != null && d.isBefore(today); break;
                 case "undated": include = t.optString("due_date").isEmpty(); break;
+                case "high": include = "high".equals(t.optString("priority")) || "urgent".equals(t.optString("priority")); break;
                 case "all": include = true; break;
                 default: include = today.equals(d);
             }
@@ -71,6 +72,7 @@ final class AgendaData {
             case "next7": return "هفت روز آینده";
             case "overdue": return "عقب‌افتاده";
             case "undated": return "بدون تاریخ";
+            case "high": return "تمرکز · اولویت بالا";
             case "all": return "همهٔ تسک‌ها";
             default: return "امروز";
         }

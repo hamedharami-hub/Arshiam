@@ -61,11 +61,11 @@ export function TaskAttachments({ taskId }: { taskId: string }) {
       setTimeout(() => fileRef.current?.click(), 30);
     };
     const onRefresh = () => load();
-    window.addEventListener(`lov:attach-pick:${taskId}`, onPick as any);
-    window.addEventListener(`lov:attach-refresh:${taskId}`, onRefresh as any);
+    window.addEventListener(`arshnaz:attach-pick:${taskId}`, onPick as any);
+    window.addEventListener(`arshnaz:attach-refresh:${taskId}`, onRefresh as any);
     return () => {
-      window.removeEventListener(`lov:attach-pick:${taskId}`, onPick as any);
-      window.removeEventListener(`lov:attach-refresh:${taskId}`, onRefresh as any);
+      window.removeEventListener(`arshnaz:attach-pick:${taskId}`, onPick as any);
+      window.removeEventListener(`arshnaz:attach-refresh:${taskId}`, onRefresh as any);
     };
   }, [taskId]);
 

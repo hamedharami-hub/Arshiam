@@ -35,14 +35,17 @@ final class TaskPanel {
         String status=AgendaData.prefs(c).getString("syncStatus","برای تازه‌سازی برنامه را باز کنید");
         Notification publicVersion=new NotificationCompat.Builder(c,"arshnaz_task_panel")
             .setSmallIcon(R.drawable.ic_stat_tasks).setContentTitle("ARSHNAZ").setContentText("برای دیدن تسک‌ها قفل را باز کنید").build();
-        return new NotificationCompat.Builder(c,"arshnaz_task_panel").setSmallIcon(R.drawable.ic_stat_tasks)
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(c,"arshnaz_task_panel").setSmallIcon(R.drawable.ic_stat_tasks)
             .setContentTitle(subtitle).setContentText(title).setStyle(new NotificationCompat.BigTextStyle().bigText(title+"\n"+status))
             .setContentIntent(AgendaWidgetProvider.activity(c,route,880010))
             .setOngoing(true).setOnlyAlertOnce(true).setSilent(true).setShowWhen(false)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setPublicVersion(publicVersion)
             .addAction(0,"قبلی",AndroidActionsReceiver.pending(c,"panelPrev",0))
             .addAction(0,"بعدی",AndroidActionsReceiver.pending(c,"panelNext",0))
-            .addAction(0,"امروز / فردا",AndroidActionsReceiver.pending(c,"panelScope",0)).build();
+            .addAction(0,"امروز / فردا",AndroidActionsReceiver.pending(c,"panelScope",0));
+        if (selected != null) builder.addAction(0,"انجام شد",AgendaWidgetProvider.activity(c,
+            "complete-task?taskId="+android.net.Uri.encode(selected.optString("id"))+"&owner="+android.net.Uri.encode(owner),880011));
+        return builder.build();
     }
     static void update(Context c) {
         NotificationManagerCompat manager=NotificationManagerCompat.from(c);

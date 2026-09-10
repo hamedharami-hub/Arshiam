@@ -7,7 +7,7 @@ import android.widget.*;
 import android.view.View;
 
 public class WidgetConfigureActivity extends Activity {
-    static final String[] SCOPES={"today","tomorrow","next7","overdue","undated","all"};
+    static final String[] SCOPES={"today","tomorrow","next7","overdue","undated","all","high"};
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         setResult(RESULT_CANCELED);

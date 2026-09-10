@@ -54,7 +54,7 @@ public class AndroidExperienceTest {
         login();TaskPanel.channel(c);
         Notification n=TaskPanel.build(c);
         assertEquals(Notification.VISIBILITY_PRIVATE,n.visibility);assertNotNull(n.publicVersion);
-        assertEquals(3,n.actions.length);
+        assertEquals(4,n.actions.length);
         assertEquals("Today test",n.extras.getString(Notification.EXTRA_TEXT));
         new AndroidActionsReceiver().onReceive(c,new Intent().setAction("panelScope"));
         assertEquals("today",AgendaData.options(c).getString("panelScope","today")); // disabled: ignore

@@ -32,6 +32,7 @@ public class AgendaListService extends RemoteViewsService {
             row.setTextViewText(R.id.row_meta, AgendaData.dueLabel(t.optString("due_date")) + ("high".equals(t.optString("priority"))||"urgent".equals(t.optString("priority"))?" · اولویت بالا":""));
             row.setTextViewTextSize(R.id.row_title,android.util.TypedValue.COMPLEX_UNIT_SP,AgendaData.options(c).getBoolean("widget."+id+".large",false)?18:14);
             row.setOnClickFillInIntent(R.id.row_root,new Intent().setData(Uri.parse("arshnaz://task?taskId="+Uri.encode(t.optString("id"))+"&owner="+Uri.encode(owner))));
+            row.setOnClickFillInIntent(R.id.row_done,new Intent().setData(Uri.parse("arshnaz://complete-task?taskId="+Uri.encode(t.optString("id"))+"&owner="+Uri.encode(owner))));
             return row;
         }
         public RemoteViews getLoadingView() { return null; }

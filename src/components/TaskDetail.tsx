@@ -766,14 +766,14 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     setLinkUrl("");
     setShowAttachments(true);
     toast.success(T("لینک افزوده شد", "Link added"));
-    window.dispatchEvent(new CustomEvent(`lov:attach-refresh:${t.id}`));
+    window.dispatchEvent(new CustomEvent(`arshnaz:attach-refresh:${t.id}`));
   };
 
   const pickFileType = (accept: string) => {
     setShowAttachments(true);
     // Defer so the section mounts first
     setTimeout(() => {
-      window.dispatchEvent(new CustomEvent(`lov:attach-pick:${t.id}`, { detail: { accept } }));
+      window.dispatchEvent(new CustomEvent(`arshnaz:attach-pick:${t.id}`, { detail: { accept } }));
     }, 50);
   };
 

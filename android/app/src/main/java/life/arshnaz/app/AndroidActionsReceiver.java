@@ -22,7 +22,7 @@ public class AndroidActionsReceiver extends BroadcastReceiver {
         }
         int id=intent.getIntExtra("widgetId",-1);
         if(action.equals("scope") && AppWidgetManager.getInstance(c).getAppWidgetInfo(id)!=null) {
-            String next=AgendaWidgetProvider.scope(c,id).equals("today")?"tomorrow":"today";
+            String next=AgendaWidgetProvider.nextScope(AgendaWidgetProvider.scope(c,id));
             AgendaData.options(c).edit().putString("widget."+id+".scope",next).apply();
             AgendaWidgetProvider.update(c,AppWidgetManager.getInstance(c),id);
         } else if(action.equals("refresh")) {

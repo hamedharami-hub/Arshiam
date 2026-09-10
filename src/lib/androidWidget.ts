@@ -9,6 +9,7 @@ type WidgetPlugin = {
   setSession(options: { userId: string; idToken?: string; refreshToken?: string; expiresAt?: number;
     apiKey?: string; projectId?: string; databaseId?: string }): Promise<void>;
   syncWidgetData(options: { activeCount: number; nextTaskId: string; nextTaskTitle: string; userId: string; pendingChanges: boolean; tasks: object[] }): Promise<void>;
+  refreshWidgets(): Promise<{ agendaWidgets: number; dashboardWidgets: number }>;
 };
 const widget = registerPlugin<WidgetPlugin>("ArshnazWidget");
 let queue: Promise<void> = Promise.resolve();
@@ -77,6 +78,12 @@ export async function syncAndroidWidget(tasks: Task[], ownerId = auth.currentUse
     if (auth.currentUser?.uid !== ownerId || readyUid !== ownerId) return;
     await sendTasks(tasks, ownerId);
   });
+}
+
+/** Redraw every native widget without requiring a full app restart. */
+export async function refreshAndroidWidgets(): Promise<void> {
+  if (Capacitor.getPlatform() !== "android") return;
+  await enqueue(async () => { await widget.refreshWidgets(); });
 }
 
 async function sendTasks(tasks: Task[], ownerId: string): Promise<void> {

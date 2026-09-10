@@ -11,14 +11,16 @@ import java.util.List;
 import org.json.JSONObject;
 
 public class AgendaWidgetProvider extends AppWidgetProvider {
-    static final Class<?>[] TYPES = {AgendaWidgetProvider.class, TomorrowWidgetProvider.class, WeekWidgetProvider.class, CompactWidgetProvider.class};
+    static final Class<?>[] TYPES = {AgendaWidgetProvider.class, TomorrowWidgetProvider.class, WeekWidgetProvider.class, CompactWidgetProvider.class, FocusWidgetProvider.class};
     static String defaultScope(Class<?> type) {
-        return type == TomorrowWidgetProvider.class ? "tomorrow" : type == WeekWidgetProvider.class ? "next7" : "today";
+        return type == TomorrowWidgetProvider.class ? "tomorrow" : type == WeekWidgetProvider.class ? "next7"
+            : type == FocusWidgetProvider.class ? "high" : "today";
     }
     static String scope(Context c, int id) {
         AppWidgetProviderInfo info = AppWidgetManager.getInstance(c).getAppWidgetInfo(id);
         String fallback = info != null && info.provider.getClassName().endsWith("TomorrowWidgetProvider") ? "tomorrow"
-            : info != null && info.provider.getClassName().endsWith("WeekWidgetProvider") ? "next7" : "today";
+            : info != null && info.provider.getClassName().endsWith("WeekWidgetProvider") ? "next7"
+            : info != null && info.provider.getClassName().endsWith("FocusWidgetProvider") ? "high" : "today";
         return AgendaData.options(c).getString("widget."+id+".scope", fallback);
     }
     @Override public void onUpdate(Context c, AppWidgetManager m, int[] ids) {
@@ -43,16 +45,21 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
         int fg = Color.parseColor(light ? "#172033" : "#F1F5F9");
         v.setInt(R.id.agenda_root,"setBackgroundColor",Color.parseColor(light ? "#F1F5F9" : "#172033"));
         v.setTextColor(R.id.agenda_title, fg);
-        List<JSONObject> tasks = AgendaData.select(c,scope,p.getBoolean(prefix+"done",false),p.getBoolean(prefix+"high",false));
+        boolean showDone = p.getBoolean(prefix+"done",false), highOnly = p.getBoolean(prefix+"high",false);
+        List<JSONObject> tasks = AgendaData.select(c,scope,showDone,highOnly);
+        int activeCount = AgendaData.select(c,scope,false,highOnly).size();
+        int totalCount = AgendaData.select(c,scope,true,highOnly).size();
         v.setTextViewText(R.id.agenda_title, AgendaData.label(scope)+" · "+tasks.size());
         String status = !AgendaData.prefs(c).getBoolean("sessionReady",false) ? "برای نمایش تسک‌ها وارد برنامه شوید"
-            : AgendaData.prefs(c).getString("syncStatus","برنامه را باز کنید");
+            : activeCount+" فعال · "+Math.max(0,totalCount-activeCount)+" انجام‌شده · "+AgendaData.prefs(c).getString("syncStatus","برنامه را باز کنید");
         long updated = AgendaData.prefs(c).getLong("updatedAt",0);
         if (updated > 0) status += " · " + new java.text.SimpleDateFormat("MM/dd HH:mm",new java.util.Locale("fa")).format(new java.util.Date(updated));
         v.setTextViewText(R.id.agenda_status,status);
         v.setTextColor(R.id.agenda_status,fg);
         if (compact) {
-            v.setTextViewText(R.id.agenda_summary, tasks.isEmpty() ? "تسکی در این نما نیست" : tasks.get(0).optString("title"));
+            String summary = tasks.isEmpty() ? "تسکی در این نما نیست" : tasks.get(0).optString("title");
+            if (tasks.size() > 1) summary += "\n+ "+(tasks.size()-1)+" تسک دیگر";
+            v.setTextViewText(R.id.agenda_summary, summary);
             v.setTextColor(R.id.agenda_summary,fg);
         } else {
             Intent service = new Intent(c,AgendaListService.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id)
@@ -75,6 +82,11 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
         v.setOnClickPendingIntent(R.id.agenda_refresh,AndroidActionsReceiver.pending(c,"refresh",id));
         v.setOnClickPendingIntent(R.id.agenda_scope,AndroidActionsReceiver.pending(c,"scope",id));
         return v;
+    }
+    static String nextScope(String current) {
+        String[] scopes = {"today","tomorrow","next7","overdue","undated","all","high"};
+        for (int i=0;i<scopes.length;i++) if (scopes[i].equals(current)) return scopes[(i+1)%scopes.length];
+        return scopes[0];
     }
     static PendingIntent activity(Context c,String route,int code) {
         return PendingIntent.getActivity(c,code,new Intent(c,MainActivity.class).setAction(Intent.ACTION_VIEW)

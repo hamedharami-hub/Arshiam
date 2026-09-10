@@ -2,4 +2,5 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/row_root" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp" android:padding="8dp" android:orientation="vertical" android:layoutDirection="rtl">
 <TextView android:id="@+id/row_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="2" android:ellipsize="end" android:textSize="14sp"/>
 <TextView android:id="@+id/row_meta" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1" android:textColor="#64748B" android:textSize="10sp"/>
+<Button android:id="@+id/row_done" android:layout_width="wrap_content" android:layout_height="32dp" android:minHeight="32dp" android:minWidth="0dp" android:paddingStart="10dp" android:paddingEnd="10dp" android:text="✓ انجام شد" android:textSize="10sp" android:contentDescription="انجام‌شده" android:background="@android:color/transparent"/>
 </LinearLayout>

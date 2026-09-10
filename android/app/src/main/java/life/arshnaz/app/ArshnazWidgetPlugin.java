@@ -133,6 +133,24 @@ public class ArshnazWidgetPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void refreshWidgets(PluginCall call) {
+        try {
+            AppWidgetManager manager = AppWidgetManager.getInstance(getContext());
+            int agendaWidgets = 0;
+            for (Class<?> type : AgendaWidgetProvider.TYPES) {
+                agendaWidgets += manager.getAppWidgetIds(new ComponentName(getContext(), type)).length;
+            }
+            int dashboardWidgets = manager.getAppWidgetIds(
+                new ComponentName(getContext(), ArshnazWidgetProvider.class)).length;
+            ArshnazWidgetProvider.redraw(getContext());
+            call.resolve(new JSObject().put("agendaWidgets", agendaWidgets)
+                .put("dashboardWidgets", dashboardWidgets));
+        } catch (Exception e) {
+            call.reject("Widget refresh unavailable");
+        }
+    }
+
+    @PluginMethod
     public void addCalendarEvent(PluginCall call) {
         String title = call.getString("title", "ARSHNAZ task");
         Long start = call.getLong("startMillis");
