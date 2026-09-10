@@ -17,6 +17,7 @@ import {
   Tag,
   Pill,
   BookOpen,
+  Flag,
 } from 'lucide-react';
 import { haptic } from '@/lib/haptics';
 
@@ -36,6 +37,8 @@ export interface ShelfDrugCardProps {
   onCloseExpand?: () => void;
   onToggleCompare?: (e?: React.MouseEvent) => void;
   onNavigateToModule?: (moduleNumber: 1 | 2 | 3 | 4 | 5 | 6, contextId?: string) => void;
+  flag?: 'red' | 'yellow' | 'green' | 'blue' | null;
+  onSetFlag?: (flag: 'red' | 'yellow' | 'green' | 'blue' | null) => void;
 }
 
 export const ShelfDrugCard: React.FC<ShelfDrugCardProps> = ({
@@ -53,6 +56,8 @@ export const ShelfDrugCard: React.FC<ShelfDrugCardProps> = ({
   onToggleExpand: externalOnToggleExpand,
   onToggleCompare,
   onNavigateToModule,
+  flag = null,
+  onSetFlag,
 }) => {
   const isFa = language === 'fa';
   const prodMech = getProductMechanism(prod);
@@ -69,6 +74,13 @@ export const ShelfDrugCard: React.FC<ShelfDrugCardProps> = ({
     } else {
       setInternalExpanded((prev) => !prev);
     }
+  };
+
+  const cycleFlag = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onSetFlag) return;
+    const colors = [null, 'red', 'yellow', 'green', 'blue'] as const;
+    onSetFlag(colors[(colors.indexOf(flag) + 1) % colors.length]);
   };
 
   const getScheduleBadge = (isCompact = false) => {
@@ -187,6 +199,17 @@ export const ShelfDrugCard: React.FC<ShelfDrugCardProps> = ({
 
         {/* Actions: AI Card Generator & Expand / Collapse Button */}
         <div className="flex items-center gap-1.5 shrink-0">
+          {onSetFlag && (
+            <button
+              type="button"
+              onClick={cycleFlag}
+              className={`p-1 sm:p-1.5 rounded-lg border transition cursor-pointer ${flag ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'}`}
+              title={isFa ? 'تغییر فلگ محصول' : 'Cycle product flag'}
+              aria-label={isFa ? 'تغییر فلگ محصول' : 'Cycle product flag'}
+            >
+              <Flag className="w-3.5 h-3.5" />
+            </button>
+          )}
           {onOpenAiLeitner && (
             <button
               type="button"
@@ -525,4 +548,3 @@ export const ShelfDrugCard: React.FC<ShelfDrugCardProps> = ({
     </div>
   );
 };
-

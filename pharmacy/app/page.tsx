@@ -15,9 +15,12 @@ import {
   UserProgress,
   UserAiConfig,
 } from '@/types/pharmacy';
+import { UserStudyState } from '@/types/studyTrack';
 import { getClientAiConfig, saveClientAiConfig, syncAiConfigFromCloud } from '@/lib/aiConfigStorage';
 import { DEFAULT_AI_CONFIG } from '@/lib/aiService';
 import { ALL_PHARMACY_CARDS } from '@/lib/pharmacy-data';
+import { OTC_SCENARIOS } from '@/data/otcScenarios';
+import { SHELF_PRODUCTS } from '@/data/shelf/shelfProducts';
 import {
   auth,
   onAuthStateChanged,
@@ -227,6 +230,7 @@ export default function Home() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [isInitialCloudLoad, setIsInitialCloudLoad] = useState(false);
+  const [initialCloudStudyState, setInitialCloudStudyState] = useState<UserStudyState | null>(null);
 
   // 1. Firebase Auth listener
   useEffect(() => {
@@ -259,6 +263,7 @@ export default function Home() {
         if (docSnap.exists()) {
           const cloudData = docSnap.data();
           if (cloudData) {
+            if (cloudData.studyTracker) setInitialCloudStudyState(cloudData.studyTracker as UserStudyState);
             if (cloudData.language) setLanguage(cloudData.language as Language);
             if (cloudData.theme) setTheme(cloudData.theme as VisualTheme);
             if (cloudData.fontSize) setFontSize(cloudData.fontSize as FontSize);
@@ -736,7 +741,7 @@ export default function Home() {
     : 0;
 
   return (
-    <StudyTrackerProvider userUid={user?.uid}>
+    <StudyTrackerProvider user={user} userUid={user?.uid} initialCloudState={initialCloudStudyState}>
       <div className="min-h-screen flex flex-col justify-between w-full max-w-full overflow-x-clip">
         {/* Notch / Status Bar Glass Shield for Mobile PWA */}
         <div className="app-notch-glass-shield" aria-hidden="true" />
@@ -791,7 +796,7 @@ export default function Home() {
         {/* Real-time Study & Quiz Summary Bar with Quick Analytics Access */}
         <StatsBar
           language={language}
-          totalCards={ALL_PHARMACY_CARDS.length}
+          totalCards={ALL_PHARMACY_CARDS.length + OTC_SCENARIOS.length + SHELF_PRODUCTS.length}
           reviewedCount={reviewedCount}
           flaggedCount={flaggedCount}
           quizScorePct={quizMasteryPct}

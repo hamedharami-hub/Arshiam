@@ -343,6 +343,13 @@ export const ProductShelfModule: React.FC<ProductShelfModuleProps> = ({
 
   const handleSelectProduct = (prod: Product) => {
     setActiveProduct(prod);
+    markItemViewed(
+      2,
+      `shelf:${prod.id}`,
+      { fa: prod.brandName, en: prod.brandName },
+      { fa: activeSubCat.titleFa, en: activeSubCat.titleEn },
+      { domainId: activeDomain.id, subcategoryId: activeSubCat.id }
+    );
     if (prod.requiresProjectStop) {
       setIsProjectStopOpen(true);
       setIsApproved(null);
@@ -484,7 +491,7 @@ export const ProductShelfModule: React.FC<ProductShelfModuleProps> = ({
 
   const isMobile = useIsMobile();
   const [isMobileSelectorCollapsed, setIsMobileSelectorCollapsed] = useState(false);
-  const { studyState } = useStudyTrackerContext();
+  const { studyState, markItemViewed, getItemFlag, setItemFlag } = useStudyTrackerContext();
   const activeSearchValue =
     activeShelfView === 'shelf'
       ? searchQuery
@@ -940,6 +947,8 @@ export const ProductShelfModule: React.FC<ProductShelfModuleProps> = ({
                           }}
                           onOpenAiLeitner={onOpenAiLeitner}
                           onNavigateToModule={onNavigateToModule}
+                          flag={getItemFlag(`shelf:${prod.id}`)}
+                          onSetFlag={(flag) => setItemFlag(`shelf:${prod.id}`, flag)}
                         />
                       ))}
                     </div>

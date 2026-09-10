@@ -6,6 +6,7 @@ export const STUDY_TRACKER_STORAGE_KEY = 'AU_PHARMACY_STUDY_TRACKER_V1';
 export const DEFAULT_USER_STUDY_STATE: UserStudyState = {
   viewedMap: {},
   completedMap: {},
+  flagMap: {},
   itemRecords: {},
   lastStudiedGlobal: null,
   lastStudiedByModule: {},
@@ -24,6 +25,7 @@ export function getLocalStudyState(): UserStudyState {
     return {
       viewedMap: parsed.viewedMap || {},
       completedMap: parsed.completedMap || {},
+      flagMap: parsed.flagMap || {},
       itemRecords: parsed.itemRecords || {},
       lastStudiedGlobal: parsed.lastStudiedGlobal || null,
       lastStudiedByModule: parsed.lastStudiedByModule || {},

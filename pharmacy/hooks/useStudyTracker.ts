@@ -14,6 +14,7 @@ import {
   DEFAULT_USER_STUDY_STATE,
   calculateTrackProgress,
 } from '@/lib/studyTracker';
+import { FlagColor } from '@/types/pharmacy';
 import { User, saveUserDataToFirestore } from '@/lib/firebase';
 
 interface UseStudyTrackerProps {
@@ -43,6 +44,7 @@ export function useStudyTracker({ user, initialCloudState }: UseStudyTrackerProp
       // Merge strategy: newer timestamp or union of completed items
       const mergedViewed = { ...prev.viewedMap, ...(initialCloudState.viewedMap || {}) };
       const mergedCompleted = { ...prev.completedMap, ...(initialCloudState.completedMap || {}) };
+      const mergedFlags = { ...prev.flagMap, ...(initialCloudState.flagMap || {}) };
       const mergedRecords = { ...prev.itemRecords, ...(initialCloudState.itemRecords || {}) };
       const mergedByModule = {
         ...prev.lastStudiedByModule,
@@ -52,6 +54,7 @@ export function useStudyTracker({ user, initialCloudState }: UseStudyTrackerProp
       const newState: UserStudyState = {
         viewedMap: mergedViewed,
         completedMap: mergedCompleted,
+        flagMap: mergedFlags,
         itemRecords: mergedRecords,
         lastStudiedGlobal: initialCloudState.lastStudiedGlobal || prev.lastStudiedGlobal,
         lastStudiedByModule: mergedByModule,
@@ -301,6 +304,24 @@ export function useStudyTracker({ user, initialCloudState }: UseStudyTrackerProp
     [studyState.completedMap]
   );
 
+  const setItemFlag = useCallback(
+    (itemId: string, flag: FlagColor) => {
+      if (!itemId) return;
+      commitState((prev) => {
+        const nextFlags = { ...prev.flagMap };
+        if (flag) nextFlags[itemId] = flag;
+        else delete nextFlags[itemId];
+        return { ...prev, flagMap: nextFlags, updatedAt: new Date().toISOString() };
+      });
+    },
+    [commitState]
+  );
+
+  const getItemFlag = useCallback(
+    (itemId: string): FlagColor => studyState.flagMap[itemId] || null,
+    [studyState.flagMap]
+  );
+
   /**
    * Get the last studied item (global or module-specific)
    */
@@ -333,6 +354,7 @@ export function useStudyTracker({ user, initialCloudState }: UseStudyTrackerProp
     return {
       viewedCount,
       completedCount,
+      flaggedCount: Object.keys(studyState.flagMap).length,
     };
   }, [studyState]);
 
@@ -354,6 +376,8 @@ export function useStudyTracker({ user, initialCloudState }: UseStudyTrackerProp
     setItemCompleted,
     isViewed,
     isCompleted,
+    setItemFlag,
+    getItemFlag,
     getLastStudied,
     getTrackStats,
     getOverallStats,

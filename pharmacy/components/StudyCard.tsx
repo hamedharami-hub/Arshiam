@@ -76,7 +76,7 @@ export const StudyCard: React.FC<StudyCardProps> = ({
 
   const isFa = language === 'fa';
 
-  const { markItemViewed, toggleItemCompleted, isViewed, isCompleted } = useStudyTrackerContext();
+  const { markItemViewed, toggleItemCompleted, isViewed, isCompleted, setItemFlag } = useStudyTrackerContext();
   const viewed = isViewed(item.id);
   const completed = isCompleted(item.id) || isReviewed;
 
@@ -214,6 +214,7 @@ export const StudyCard: React.FC<StudyCardProps> = ({
 
   const handleSelectFlag = (col: FlagColor) => {
     onSetFlag(item.id, col);
+    setItemFlag(item.id, col);
     setShowFlagPicker(false);
   };
 

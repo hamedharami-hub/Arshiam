@@ -34,6 +34,7 @@ const DEFAULT_FALLBACK_TRACKER: StudyTrackerContextValue = {
   studyState: {
     viewedMap: {},
     completedMap: {},
+    flagMap: {},
     itemRecords: {},
     lastStudiedGlobal: null,
     lastStudiedByModule: {},
@@ -45,6 +46,8 @@ const DEFAULT_FALLBACK_TRACKER: StudyTrackerContextValue = {
   setItemCompleted: () => {},
   isViewed: () => false,
   isCompleted: () => false,
+  setItemFlag: () => {},
+  getItemFlag: () => null,
   getLastStudied: () => null,
   getTrackStats: () => ({
     totalTargetItems: 0,
@@ -54,7 +57,7 @@ const DEFAULT_FALLBACK_TRACKER: StudyTrackerContextValue = {
     percentViewed: 0,
     milestonesProgress: [],
   }),
-  getOverallStats: () => ({ viewedCount: 0, completedCount: 0 }),
+  getOverallStats: () => ({ viewedCount: 0, completedCount: 0, flaggedCount: 0 }),
   resetStudyProgress: () => {},
 };
 

@@ -13,6 +13,8 @@ import {
   TriageStepDeck,
 } from './triage';
 import { haptic } from '@/lib/haptics';
+import { Flag } from 'lucide-react';
+import { useStudyTrackerContext } from './study/StudyTrackerContext';
 
 const DiseaseDetailModal = dynamic(
   () => import('./DiseaseDetailModal').then((mod) => mod.DiseaseDetailModal),
@@ -46,6 +48,7 @@ export const OtcTriageModule: React.FC<OtcTriageModuleProps> = ({
   onOpenAiLeitner,
 }) => {
   const isFa = language === 'fa';
+  const { markItemViewed, setItemCompleted, getItemFlag, setItemFlag } = useStudyTrackerContext();
 
   // Mode and scenario state
   const [selectedConversationMode, setSelectedConversationMode] = useState<ConversationMode | 'ALL'>('MODE_B_SLANG');
@@ -58,6 +61,11 @@ export const OtcTriageModule: React.FC<OtcTriageModuleProps> = ({
   const scenario = useMemo(() => {
     return OTC_SCENARIOS.find((s) => s.id === selectedScenarioId) || OTC_SCENARIOS[0];
   }, [selectedScenarioId]);
+  const scenarioStudyId = `otc:${scenario.id}`;
+
+  useEffect(() => {
+    markItemViewed(1, scenarioStudyId, scenario.title, { fa: 'تریاژ OTC', en: 'OTC Triage' }, { mode: getScenarioMode(scenario) });
+  }, [markItemViewed, scenario, scenarioStudyId]);
 
   // Triage state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => [
@@ -184,6 +192,7 @@ export const OtcTriageModule: React.FC<OtcTriageModuleProps> = ({
   const handleSelectScenario = (id: string) => {
     setSelectedScenarioId(id);
     const target = OTC_SCENARIOS.find((s) => s.id === id) || OTC_SCENARIOS[0];
+    markItemViewed(1, `otc:${target.id}`, target.title, { fa: 'تریاژ OTC', en: 'OTC Triage' }, { mode: getScenarioMode(target) });
     resetScenarioState(target);
   };
 
@@ -404,6 +413,9 @@ export const OtcTriageModule: React.FC<OtcTriageModuleProps> = ({
     }
     setSelectedDialogueId(opt.id);
     setShowOutcome(true);
+    if (opt.isCorrectAdvice) {
+      setItemCompleted(1, scenarioStudyId, true, scenario.title, { fa: 'تریاژ OTC', en: 'OTC Triage' });
+    }
 
     const optMsg: ChatMessage = {
       id: `rx-decision-${opt.id}-${Date.now()}`,
@@ -496,6 +508,7 @@ REFERRING PHARMACIST:
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
       {/* 1. Mode Selector Bar & Scenario Switcher */}
+      <div className="space-y-2">
       <ModeSelectorBar
         language={language}
         selectedConversationMode={selectedConversationMode}
@@ -514,6 +527,24 @@ REFERRING PHARMACIST:
         modeBCount={modeBCount}
         modeCCount={modeCCount}
       />
+      <div className="flex items-center justify-between gap-2 px-1 text-[11px]">
+        <span className="app-muted">{isFa ? 'وضعیت سناریو' : 'Scenario status'}</span>
+        <button
+          type="button"
+          onClick={() => {
+            const colors = [null, 'red', 'yellow', 'green', 'blue'] as const;
+            const current = getItemFlag(scenarioStudyId);
+            const next = colors[(colors.indexOf(current) + 1) % colors.length];
+            setItemFlag(scenarioStudyId, next);
+          }}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border app-border app-bg hover:app-text transition"
+          title={isFa ? 'تغییر فلگ سناریو' : 'Cycle scenario flag'}
+        >
+          <Flag className="w-3.5 h-3.5" />
+          <span>{getItemFlag(scenarioStudyId) || (isFa ? 'بدون فلگ' : 'No flag')}</span>
+        </button>
+      </div>
+      </div>
 
       {browseOpen && (
         <TriageStepDeck
