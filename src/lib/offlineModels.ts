@@ -4,7 +4,7 @@
  * browser/Android WebView for later offline use.
  */
 export type OfflineSpeechModelId = "whisper-tiny" | "whisper-base";
-export type OfflineAssistantModelId = "deterministic-v1";
+export type OfflineAssistantModelId = "deterministic-v1" | "qwen-0.5b" | "smollm-135m";
 export type OfflineSpeechMode = "system" | OfflineSpeechModelId;
 
 export type OfflineModelSettings = {
@@ -28,18 +28,56 @@ export const OFFLINE_SPEECH_MODELS: Record<OfflineSpeechModelId, {
 };
 
 export const OFFLINE_ASSISTANT_MODELS: Record<OfflineAssistantModelId, {
-  labelFa: string; labelEn: string; model: string; estimatedMB: number; minMemoryGB: number;
+  labelFa: string;
+  labelEn: string;
+  model: string;
+  estimatedMB: number;
+  minMemoryGB: number;
+  isGenerative: boolean;
+  tier: 2 | 3;
 }> = {
-  "deterministic-v1": { labelFa: "دستیار ساختاری آفلاین", labelEn: "Deterministic offline assistant", model: "built-in", estimatedMB: 0, minMemoryGB: 0 },
+  "deterministic-v1": {
+    labelFa: "موتور هوشمند محلی NLP (حجم صفر، بدون دانلود)",
+    labelEn: "Smart Local NLP Engine (0 MB, Instant)",
+    model: "built-in",
+    estimatedMB: 0,
+    minMemoryGB: 0,
+    isGenerative: false,
+    tier: 3,
+  },
+  "qwen-0.5b": {
+    labelFa: "مدل هوشمند Qwen 2.5 (فهم عمیق فارسی و انگلیسی)",
+    labelEn: "Qwen 2.5 0.5B (Deep Persian & English comprehension)",
+    model: "onnx-community/Qwen2.5-0.5B-Instruct",
+    estimatedMB: 380,
+    minMemoryGB: 3,
+    isGenerative: true,
+    tier: 2,
+  },
+  "smollm-135m": {
+    labelFa: "مدل فوق‌سبک SmolLM2 (بسیار سریع)",
+    labelEn: "SmolLM2 135M (Ultra Fast & Lightweight)",
+    model: "HuggingFaceTB/SmolLM2-135M-Instruct",
+    estimatedMB: 140,
+    minMemoryGB: 2,
+    isGenerative: true,
+    tier: 2,
+  },
 };
+
+export function isGenerativeAssistantModel(id: OfflineAssistantModelId): boolean {
+  return OFFLINE_ASSISTANT_MODELS[id]?.isGenerative === true;
+}
 
 export function loadOfflineModelSettings(): OfflineModelSettings {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) || "{}") as Partial<OfflineModelSettings>;
+    const model = raw.assistantModel;
+    const validModel = model && model in OFFLINE_ASSISTANT_MODELS ? model : "deterministic-v1";
     return {
       speechMode: raw.speechMode === "whisper-tiny" || raw.speechMode === "whisper-base" ? raw.speechMode : "system",
       assistantEnabled: raw.assistantEnabled === true,
-      assistantModel: raw.assistantModel === "deterministic-v1" ? raw.assistantModel : "deterministic-v1",
+      assistantModel: validModel,
     };
   } catch { return { ...defaults }; }
 }

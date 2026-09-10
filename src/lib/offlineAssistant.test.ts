@@ -14,4 +14,20 @@ describe("offline assistant", () => {
     expect(offlineAssistant("parse_task", "urgent: Finish Firebase setup", "en")?.data).toMatchObject({ priority: "high" });
     expect(offlineAssistant("task_subtasks", "Finish Firebase setup", "en")?.text).toContain("1.");
   });
+
+  it("generates domain-specific subtasks for coding and study tasks", () => {
+    const codeSubtasks = offlineAssistant("task_subtasks", "رفع باگ لاگین در فرانت‌اند", "fa");
+    expect(codeSubtasks?.text).toContain("1.");
+    expect(codeSubtasks?.text).toMatch(/(کد|باگ|برنچ|لاجیک)/);
+
+    const studySubtasks = offlineAssistant("task_subtasks", "مطالعه فصل ۴ کتاب فارماکولوژی", "fa");
+    expect(studySubtasks?.text).toContain("1.");
+    expect(studySubtasks?.text).toMatch(/(فهرست|منبع|مطالعه|نکته)/);
+  });
+
+  it("handles offline chat with empathy and actionable advice", () => {
+    const chatResult = offlineAssistant("chat", "خیلی استرس دارم و کارها سنگین شده", "fa");
+    expect(chatResult?.offline).toBe(true);
+    expect(chatResult?.text).toContain("۵ دقیقه");
+  });
 });
