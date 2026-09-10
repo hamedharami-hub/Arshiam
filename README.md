@@ -16,7 +16,7 @@ npm run build
 
 راهنمای اصلاحات ورود گوگل، ویجت و تست اندروید: [ANDROID_FIXES_FA.md](./ANDROID_FIXES_FA.md).
 
-پس از push روی شاخهٔ `main`، اتصال GitHub پروژهٔ Lovable نسخهٔ جدید را deploy می‌کند. برای فعال‌شدن قوانین جدید یا تنظیمات Storage، همان پروژهٔ Firebase را از Firebase Console deploy کنید.
+پس از push روی شاخهٔ `main`، workflow انتشار نسخهٔ جدید را اجرا می‌کند. برای فعال‌شدن قوانین جدید یا تنظیمات Storage، همان پروژهٔ Firebase را از Firebase Console deploy کنید.
 
 ## هوش مصنوعی و فایل‌ها
 

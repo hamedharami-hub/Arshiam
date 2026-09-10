@@ -4,7 +4,6 @@ import path from "path";
 import fs from "fs";
 import { execSync } from "child_process";
 import { fileURLToPath } from "url";
-import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -73,7 +72,6 @@ export default defineConfig(({ mode }) => {
   },
   plugins: [
     react(),
-    mode === "development" && componentTagger(),
     versionJsonPlugin(),
     VitePWA({
       registerType: "autoUpdate",

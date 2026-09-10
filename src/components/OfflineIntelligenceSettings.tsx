@@ -87,15 +87,23 @@ export function OfflineIntelligenceSettings({ isEn }: { isEn: boolean }) {
         <div className="flex items-center justify-between gap-4">
           <div className="space-y-1"><div className="flex items-center gap-2 font-medium text-sm"><Bot className="w-4 h-4 text-primary" />{isEn ? "Offline assistant" : "دستیار آفلاین"}</div>
             <p className="text-xs text-muted-foreground leading-6">{isEn
-              ? "Uses an optional small model for suggestions. It never changes or deletes tasks without your confirmation."
-              : "برای پیشنهادها از مدل کوچک اختیاری استفاده می‌کند و هیچ تسکی را بدون تأیید شما تغییر یا حذف نمی‌کند."}</p></div>
+              ? "A private, deterministic helper for task parsing, dates, priorities, subtasks and short summaries. It never changes or deletes tasks without your confirmation."
+              : "یک دستیار خصوصی و ساختاری برای تبدیل متن به تسک، تاریخ، اولویت، زیرتسک و خلاصهٔ کوتاه است و هیچ تسکی را بدون تأیید شما تغییر یا حذف نمی‌کند."}</p></div>
           <Switch checked={settings.assistantEnabled} onCheckedChange={(assistantEnabled) => persist({ ...settings, assistantEnabled })} />
         </div>
         {settings.assistantEnabled && <div className="rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2.5 text-xs leading-6 text-muted-foreground">
           <div className="flex items-center gap-1.5 text-foreground font-medium"><Sparkles className="w-3.5 h-3.5 text-amber-600" />{isEn ? "Assistant model preparation" : "آماده‌سازی مدل دستیار"}</div>
-          <p className="mt-1">{isEn
-            ? `The selected local assistant needs an optional download of about ${OFFLINE_ASSISTANT_MODELS[settings.assistantModel].estimatedMB} MB and works best with ${OFFLINE_ASSISTANT_MODELS[settings.assistantModel].minMemoryGB} GB+ RAM. The first ARSHNAZ release keeps task parsing deterministic; the conversational local model is introduced only after device benchmarking.`
-            : `مدل دستیار انتخاب‌شده حدود ${OFFLINE_ASSISTANT_MODELS[settings.assistantModel].estimatedMB} مگابایت دانلود اختیاری دارد و با RAM حداقل ${OFFLINE_ASSISTANT_MODELS[settings.assistantModel].minMemoryGB} گیگابایت بهتر کار می‌کند. در نسخهٔ فعلی، تبدیل متن به تسک به‌صورت قطعی و قابل‌اعتماد انجام می‌شود؛ مدل گفت‌وگویی پس از سنجش واقعی روی گوشی فعال می‌شود.`}</p>
+          <Select value={settings.assistantModel} onValueChange={(assistantModel) => persist({ ...settings, assistantModel: assistantModel as typeof settings.assistantModel })}>
+            <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Object.entries(OFFLINE_ASSISTANT_MODELS).map(([id, model]) => (
+                <SelectItem key={id} value={id}>{isEn ? model.labelEn : model.labelFa}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="mt-2">{isEn
+            ? "This current model is built into the app, needs no download, and does not generate open-ended answers. A local generative model will be added only after a real-device benchmark."
+            : "این مدل فعلی داخل برنامه است، دانلودی ندارد و پاسخ‌های آزاد و گفت‌وگویی تولید نمی‌کند. مدل مولد آفلاین بعد از سنجش واقعی روی گوشی اضافه خواهد شد."}</p>
         </div>}
       </div>
 

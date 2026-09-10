@@ -40,7 +40,6 @@ function usePwaUpdateToast() {
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
-const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 
 // Lazy-load everything else — each page becomes its own chunk, slashing initial JS
 const AppLayout = lazy(() => import("@/layouts/AppLayout"));
@@ -174,8 +173,6 @@ const App = () => {
                     <Route path="/index.html" element={<Index />} />
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/auth/callback" element={<AuthCallback />} />
-                    <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
-
                     {/* Root shortcut aliases */}
                     <Route path="/today" element={<Navigate to="/app/today" replace />} />
                     <Route path="/inbox" element={<Navigate to="/app/inbox" replace />} />

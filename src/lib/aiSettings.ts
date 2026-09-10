@@ -2,11 +2,11 @@
 // Each AI operation can have its own provider+model.
 // Stored in localStorage. Sent to edge function on every call.
 
-export type Provider = "lovable" | "openai" | "anthropic" | "gemini" | "groq" | "openrouter" | "custom";
+export type Provider = "offline" | "openai" | "anthropic" | "gemini" | "groq" | "openrouter" | "custom";
 
 export type ProviderConfig = {
   provider: Provider;
-  apiKey: string;     // ignored for "lovable"
+  apiKey: string;     // unused for "offline"
   model: string;
   baseUrl?: string;   // only for "custom"
 };
@@ -65,49 +65,29 @@ export const OPERATIONS: OperationMeta[] = [
 // These are *smart defaults* — picked for quality/cost/latency per task type.
 // Users can override per-operation in Settings → AI.
 export const OP_RECOMMENDED: Record<AIOperation, { provider: Provider; model: string; whyFa: string; whyEn: string }> = {
-  parse_task:            { provider: "lovable", model: "google/gemini-3-flash-preview",       whyFa: "سریع و دقیق برای استخراج ساختار",            whyEn: "Fast & accurate at structured extraction" },
-  breakdown:             { provider: "lovable", model: "openai/gpt-5-mini",                    whyFa: "استدلال مرحله‌ای بهتر",                       whyEn: "Better step-by-step reasoning" },
-  task_subtasks:         { provider: "lovable", model: "openai/gpt-5-mini",                    whyFa: "تقسیم منطقی کار",                              whyEn: "Logical work breakdown" },
-  task_metadata_suggest: { provider: "lovable", model: "google/gemini-2.5-flash-lite",         whyFa: "کار سبک، بسیار سریع",                          whyEn: "Lightweight & very fast" },
-  task_chat:             { provider: "lovable", model: "google/gemini-3-flash-preview",       whyFa: "متعادل — سریع و خوب",                          whyEn: "Balanced — fast and capable" },
-  folder_chat:           { provider: "lovable", model: "google/gemini-2.5-pro",                whyFa: "context طولانی برای پروژه",                    whyEn: "Long context for whole projects" },
-  generate_note:         { provider: "lovable", model: "openai/gpt-5",                          whyFa: "کیفیت نوشتاری بالا",                           whyEn: "High writing quality" },
-  summarize_note:        { provider: "lovable", model: "google/gemini-2.5-flash",              whyFa: "خلاصه‌سازی سریع و وفادار",                     whyEn: "Fast, faithful summaries" },
-  improve_note:          { provider: "lovable", model: "openai/gpt-5-mini",                    whyFa: "بازنویسی طبیعی",                               whyEn: "Natural rewriting" },
-  inline_edit:           { provider: "lovable", model: "openai/gpt-5-mini",                    whyFa: "ویرایش دقیق محدوده انتخاب‌شده",                whyEn: "Precise edits on selected text" },
-  suggest:               { provider: "lovable", model: "google/gemini-3-flash-preview",       whyFa: "پیشنهاد متنوع و سریع",                         whyEn: "Diverse suggestions, fast" },
-  chat:                  { provider: "lovable", model: "openai/gpt-5-mini",                    whyFa: "همه‌کاره و متعادل",                            whyEn: "Versatile & balanced" },
-  socratic:              { provider: "lovable", model: "openai/gpt-5",                          whyFa: "سوال‌پرسی عمیق و درست",                        whyEn: "Deep, well-aimed questions" },
-  distortion_detect:     { provider: "lovable", model: "openai/gpt-5.2",                        whyFa: "reasoning قوی برای تحلیل CBT",                 whyEn: "Strong reasoning for CBT analysis" },
+  parse_task:            { provider: "gemini", model: "gemini-2.5-flash",       whyFa: "سریع و دقیق برای استخراج ساختار",            whyEn: "Fast & accurate at structured extraction" },
+  breakdown:             { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "استدلال مرحله‌ای بهتر",                       whyEn: "Better step-by-step reasoning" },
+  task_subtasks:         { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "تقسیم منطقی کار",                              whyEn: "Logical work breakdown" },
+  task_metadata_suggest: { provider: "gemini", model: "gemini-2.5-flash-lite",         whyFa: "کار سبک، بسیار سریع",                          whyEn: "Lightweight & very fast" },
+  task_chat:             { provider: "gemini", model: "gemini-2.5-flash",       whyFa: "متعادل — سریع و خوب",                          whyEn: "Balanced — fast and capable" },
+  folder_chat:           { provider: "gemini", model: "gemini-2.5-pro",                whyFa: "context طولانی برای پروژه",                    whyEn: "Long context for whole projects" },
+  generate_note:         { provider: "gemini", model: "gemini-2.5-pro",                          whyFa: "کیفیت نوشتاری بالا",                           whyEn: "High writing quality" },
+  summarize_note:        { provider: "gemini", model: "gemini-2.5-flash",              whyFa: "خلاصه‌سازی سریع و وفادار",                     whyEn: "Fast, faithful summaries" },
+  improve_note:          { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "بازنویسی طبیعی",                               whyEn: "Natural rewriting" },
+  inline_edit:           { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "ویرایش دقیق محدوده انتخاب‌شده",                whyEn: "Precise edits on selected text" },
+  suggest:               { provider: "gemini", model: "gemini-2.5-flash",       whyFa: "پیشنهاد متنوع و سریع",                         whyEn: "Diverse suggestions, fast" },
+  chat:                  { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "همه‌کاره و متعادل",                            whyEn: "Versatile & balanced" },
+  socratic:              { provider: "gemini", model: "gemini-2.5-pro",                          whyFa: "سوال‌پرسی عمیق و درست",                        whyEn: "Deep, well-aimed questions" },
+  distortion_detect:     { provider: "gemini", model: "gemini-2.5-pro",                        whyFa: "reasoning قوی برای تحلیل CBT",                 whyEn: "Strong reasoning for CBT analysis" },
 };
 
 export const PROVIDER_INFO: Record<Provider, { label: string; defaultModel: string; baseUrl: string; help: string; models: string[] }> = {
-  lovable: {
-    label: "Lovable AI (پیش‌فرض، رایگان)",
-    defaultModel: "google/gemini-3-flash-preview",
+  offline: {
+    label: "هوش مصنوعی آفلاین",
+    defaultModel: "deterministic-v1",
     baseUrl: "",
-    help: "بدون نیاز به کلید — از طریق Lovable Cloud.",
-    models: [
-      "google/gemini-3.1-pro-preview",
-      "google/gemini-3.1-flash-lite-preview",
-      "google/gemini-3.1-flash-image-preview",
-      "google/gemini-3-pro-image-preview",
-      "google/gemini-3-flash-preview",
-      "google/gemini-2.5-pro",
-      "google/gemini-2.5-flash",
-      "google/gemini-2.5-flash-lite",
-      "google/gemini-2.5-flash-image",
-      "openai/gpt-5.5",
-      "openai/gpt-5.5-pro",
-      "openai/gpt-5.4",
-      "openai/gpt-5.4-pro",
-      "openai/gpt-5.4-mini",
-      "openai/gpt-5.4-nano",
-      "openai/gpt-5.2",
-      "openai/gpt-5",
-      "openai/gpt-5-mini",
-      "openai/gpt-5-nano",
-    ],
+    help: "بدون کلید و بدون ارسال داده؛ در نسخهٔ فعلی برای کارهای ساختاری از منطق آفلاین استفاده می‌کند.",
+    models: ["deterministic-v1"],
   },
   openai: {
     label: "OpenAI",
@@ -180,7 +160,7 @@ export type AIPerOpSettings = {
 };
 
 export function defaultConfig(): ProviderConfig {
-  return { provider: "lovable", apiKey: "", model: "google/gemini-3-flash-preview", baseUrl: "" };
+  return { provider: "gemini", apiKey: "", model: "gemini-2.5-flash", baseUrl: PROVIDER_INFO.gemini.baseUrl };
 }
 
 export function recommendedConfig(op: AIOperation): ProviderConfig {
@@ -226,6 +206,19 @@ export function loadAISettings(): AIPerOpSettings {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (raw) {
       const parsed: AIPerOpSettings = JSON.parse(raw);
+      const isKnownProvider = (value: unknown): value is Provider =>
+        typeof value === "string" && Object.prototype.hasOwnProperty.call(PROVIDER_INFO, value);
+      const migrateProvider = (cfg?: ProviderConfig): ProviderConfig | undefined => {
+        if (!cfg) return undefined;
+        if (!isKnownProvider(cfg.provider)) {
+          return { ...cfg, provider: "gemini", model: "gemini-2.5-flash", baseUrl: PROVIDER_INFO.gemini.baseUrl };
+        }
+        return cfg;
+      };
+      parsed.default = migrateProvider(parsed.default) || defaultConfig();
+      parsed.perOp = Object.fromEntries(
+        Object.entries(parsed.perOp || {}).map(([key, cfg]) => [key, migrateProvider(cfg)])
+      ) as AIPerOpSettings["perOp"];
       if (typeof parsed.useRecommended !== "boolean") parsed.useRecommended = true;
       if (!parsed.opStrategies) {
         // Migrate from the old boolean override model to explicit strategies.
@@ -242,11 +235,14 @@ export function loadAISettings(): AIPerOpSettings {
     const legacy = localStorage.getItem(LEGACY_KEY);
     if (legacy) {
       const old = JSON.parse(legacy);
+      const migratedProvider: Provider = Object.prototype.hasOwnProperty.call(PROVIDER_INFO, old.provider)
+        ? old.provider
+        : "gemini";
       const cfg: ProviderConfig = {
-        provider: old.provider || "lovable",
+        provider: migratedProvider,
         apiKey: old.apiKey || "",
-        model: old.model || PROVIDER_INFO[old.provider as Provider]?.defaultModel || "google/gemini-2.5-flash",
-        baseUrl: old.baseUrl || "",
+        model: old.model || PROVIDER_INFO[migratedProvider]?.defaultModel || "gemini-2.5-flash",
+        baseUrl: old.baseUrl || PROVIDER_INFO[migratedProvider].baseUrl,
       };
       const strategies: Partial<Record<AIOperation, OpStrategy>> = {};
       for (const op of OPERATIONS) strategies[op.key] = "recommended";
@@ -271,7 +267,7 @@ export function resolveOpStrategy(s: AIPerOpSettings, op: AIOperation): OpStrate
 
 function resolveRecommendedWithKey(s: AIPerOpSettings, op: AIOperation): ProviderConfig {
   const rec = recommendedConfig(op);
-  if (rec.provider === "lovable") return rec;
+  if (rec.provider === "offline") return rec;
   if (s.default.provider === rec.provider && s.default.apiKey) {
     return { ...rec, apiKey: s.default.apiKey, baseUrl: s.default.baseUrl };
   }
@@ -294,8 +290,8 @@ export function resolveOpConfig(s: AIPerOpSettings, op: AIOperation): ProviderCo
  * Resolve which provider+model is used for a given operation.
  * Priority:
  *   1) explicit per-operation custom strategy
- *   2) recommended (if strategy is recommended) — but only if it's a Lovable model
- *      OR the user has a personal key for that provider as the global default
+ *   2) recommended (if strategy is recommended) — or the user's personal key
+ *      when the recommended provider is the configured global provider
  *   3) global default
  */
 export function getOpConfig(op: AIOperation): ProviderConfig {

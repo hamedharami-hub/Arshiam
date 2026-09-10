@@ -4,7 +4,7 @@
  * browser/Android WebView for later offline use.
  */
 export type OfflineSpeechModelId = "whisper-tiny" | "whisper-base";
-export type OfflineAssistantModelId = "qwen-0.5b";
+export type OfflineAssistantModelId = "deterministic-v1";
 export type OfflineSpeechMode = "system" | OfflineSpeechModelId;
 
 export type OfflineModelSettings = {
@@ -17,7 +17,7 @@ const KEY = "arshnaz_offline_models_v1";
 const defaults: OfflineModelSettings = {
   speechMode: "system",
   assistantEnabled: false,
-  assistantModel: "qwen-0.5b",
+  assistantModel: "deterministic-v1",
 };
 
 export const OFFLINE_SPEECH_MODELS: Record<OfflineSpeechModelId, {
@@ -30,7 +30,7 @@ export const OFFLINE_SPEECH_MODELS: Record<OfflineSpeechModelId, {
 export const OFFLINE_ASSISTANT_MODELS: Record<OfflineAssistantModelId, {
   labelFa: string; labelEn: string; model: string; estimatedMB: number; minMemoryGB: number;
 }> = {
-  "qwen-0.5b": { labelFa: "دستیار سبک Qwen", labelEn: "Qwen Lite Assistant", model: "onnx-community/Qwen2.5-0.5B-Instruct", estimatedMB: 420, minMemoryGB: 6 },
+  "deterministic-v1": { labelFa: "دستیار ساختاری آفلاین", labelEn: "Deterministic offline assistant", model: "built-in", estimatedMB: 0, minMemoryGB: 0 },
 };
 
 export function loadOfflineModelSettings(): OfflineModelSettings {
@@ -39,7 +39,7 @@ export function loadOfflineModelSettings(): OfflineModelSettings {
     return {
       speechMode: raw.speechMode === "whisper-tiny" || raw.speechMode === "whisper-base" ? raw.speechMode : "system",
       assistantEnabled: raw.assistantEnabled === true,
-      assistantModel: raw.assistantModel === "qwen-0.5b" ? raw.assistantModel : "qwen-0.5b",
+      assistantModel: raw.assistantModel === "deterministic-v1" ? raw.assistantModel : "deterministic-v1",
     };
   } catch { return { ...defaults }; }
 }

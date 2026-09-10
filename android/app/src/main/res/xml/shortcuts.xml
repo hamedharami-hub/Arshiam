@@ -9,7 +9,7 @@
         <intent
             android:action="android.intent.action.VIEW"
             android:targetPackage="life.arshnaz.app"
-            android:targetClass="app.lovable.d7e345911914455da5aa800df1140813.MainActivity"
+            android:targetClass="life.arshnaz.app.MainActivity"
             android:data="arshnaz://new-task" />
     </shortcut>
     <shortcut
@@ -21,7 +21,7 @@
         <intent
             android:action="android.intent.action.VIEW"
             android:targetPackage="life.arshnaz.app"
-            android:targetClass="app.lovable.d7e345911914455da5aa800df1140813.MainActivity"
+            android:targetClass="life.arshnaz.app.MainActivity"
             android:data="arshnaz://today" />
     </shortcut>
     <shortcut
@@ -33,7 +33,7 @@
         <intent
             android:action="android.intent.action.VIEW"
             android:targetPackage="life.arshnaz.app"
-            android:targetClass="app.lovable.d7e345911914455da5aa800df1140813.MainActivity"
+            android:targetClass="life.arshnaz.app.MainActivity"
             android:data="arshnaz://checkin" />
     </shortcut>
 </shortcuts>

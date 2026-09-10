@@ -68,9 +68,10 @@ export async function fetchProviderModels(provider: Provider, apiKey: string, ba
       if (!baseUrl) throw new Error("Base URL لازم است");
       models = await fetchOpenAICompat(`${baseUrl.replace(/\/$/, "")}/models`, { Authorization: `Bearer ${apiKey}` });
       break;
-    case "lovable":
-      // Lovable AI Gateway models are managed centrally — no public listing endpoint.
-      throw new Error("Lovable AI: لیست مدل‌ها توسط برنامه به‌روز می‌شود.");
+    case "offline":
+      // On-device models are declared locally and never fetched from a provider.
+      models = [];
+      break;
   }
   models = Array.from(new Set(models)).sort();
   const c = readCache();

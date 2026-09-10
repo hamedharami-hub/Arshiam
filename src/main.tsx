@@ -35,10 +35,8 @@ const isInIframe = (() => {
 const host = typeof window !== "undefined" ? window.location.hostname : "";
 const isPreviewHost =
   host.includes("id-preview--") ||
-  host.includes("lovableproject.com") ||
   host.includes("run.app") ||
-  host.includes("googleusercontent.com") ||
-  (host.includes("lovable.app") && host.includes("id-preview"));
+  host.includes("googleusercontent.com");
 
 const capacitor =
   typeof window !== "undefined"

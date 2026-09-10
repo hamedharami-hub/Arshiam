@@ -6,29 +6,12 @@ export type AIMode = AIOperation;
 
 function getAISettings(mode: AIMode) {
   const cfg = getOpConfig(mode);
-  if (!cfg.provider || cfg.provider === "lovable") return null;
-  if (!cfg.apiKey) return null;
+  if (!cfg.provider) return null;
+  if (cfg.provider !== "offline" && !cfg.apiKey) return null;
   return cfg;
 }
 
 import { getStoredUser } from "./authService";
-
-// Check whether the current user is allowed to use the built-in Lovable AI (admin only).
-async function isCurrentUserAdmin(): Promise<boolean> {
-  try {
-    const local = getStoredUser();
-    let uid = local?.id;
-    if (!uid) {
-      const { data: { user } } = await firebaseStore.auth.getUser();
-      uid = user?.id;
-    }
-    if (!uid) return false;
-    const { data } = await (firebaseStore as any)
-      .from("user_roles").select("role")
-      .eq("user_id", uid).eq("role", "admin").maybeSingle();
-    return !!data;
-  } catch { return false; }
-}
 
 export type AILanguage = "fa" | "en" | "auto";
 
@@ -53,24 +36,24 @@ export async function callAI(
   opts?: { webSearch?: boolean },
 ) {
   const lang = langOverride ?? getAILanguage();
+  const settings = getAISettings(mode);
+
+  if (settings?.provider === "offline") {
+    const local = offlineAssistant(mode, input, lang);
+    if (local) return local;
+    throw new Error("این عملیات در موتور آفلاین فعلی پشتیبانی نمی‌شود؛ برای آن یک سرویس آنلاین انتخاب کن.");
+  }
+
   // An enabled offline assistant never uploads the current request. It is used
   // automatically while offline and as a private fallback when no API key exists.
   if (typeof navigator !== "undefined" && !navigator.onLine) {
     const local = offlineAssistant(mode, input, lang);
     if (local) return local;
   }
-  const settings = getAISettings(mode);
-  // Enforce per-user API key: if no personal key configured (i.e. provider=lovable),
-  // only allow if the current user is admin (the app owner).
   if (!settings) {
-    const admin = await isCurrentUserAdmin();
     const local = offlineAssistant(mode, input, lang);
     if (local) return local;
-    if (!admin) {
-      throw new Error(
-        "برای استفاده از قابلیت‌های هوش مصنوعی، باید کلید API شخصی خود را از تنظیمات → AI وارد کنی. این برنامه از کلید مالک استفاده نمی‌کند."
-      );
-    }
+    throw new Error("برای استفاده از این قابلیت، یک سرویس آنلاین و کلید API شخصی را در تنظیمات → AI وارد کن؛ یا برای عملیات پشتیبانی‌شده، هوش مصنوعی آفلاین را انتخاب کن.");
   }
   const language = lang === "auto" ? undefined : lang;
 

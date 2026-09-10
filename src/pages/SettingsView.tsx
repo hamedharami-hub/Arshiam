@@ -158,8 +158,8 @@ function ProviderEditor({
   };
 
   const refresh = async () => {
-    if (value.provider === "lovable") {
-      toast.info(isEn ? "Lovable AI model list is updated by the app." : "لیست مدل‌های Lovable AI توسط برنامه به‌روز می‌شود.");
+    if (value.provider === "offline") {
+      toast.info(isEn ? "On-device models are managed locally." : "مدل‌های روی دستگاه از داخل برنامه مدیریت می‌شوند.");
       return;
     }
     if (!value.apiKey) { toast.error(t("settings.enterKey")); return; }
@@ -230,7 +230,7 @@ function ProviderEditor({
           <Input value={value.model} onChange={(e) => onChange({ ...value, model: e.target.value })} placeholder={t("settings.modelName")} />
         )}
       </div>
-      {value.provider !== "lovable" && (
+      {value.provider !== "offline" && (
         <div className="space-y-1.5">
           <Label className="text-xs">API Key</Label>
           <Input type="password" value={value.apiKey} placeholder="sk-..." onChange={(e) => onChange({ ...value, apiKey: e.target.value })} autoComplete="off" />
@@ -319,8 +319,8 @@ function ProviderModelManager({
   });
 
   const refresh = async (p: Provider) => {
-    if (p === "lovable") {
-      toast.info(isEn ? "Lovable AI models are managed by the app." : "مدل‌های Lovable AI توسط برنامه مدیریت می‌شوند.");
+    if (p === "offline") {
+      toast.info(isEn ? "On-device models are managed locally." : "مدل‌های روی دستگاه از داخل برنامه مدیریت می‌شوند.");
       return;
     }
     const input = inputs[p] || { apiKey: "", baseUrl: PROVIDER_INFO[p].baseUrl };
@@ -360,7 +360,7 @@ function ProviderModelManager({
                 <Badge variant="secondary" className="text-[10px]">{visible}/{all || info.models.length}</Badge>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="h-7 text-[11px] flex-1" onClick={() => refresh(p)} disabled={refreshing[p] || p === "lovable"}>
+                <Button size="sm" variant="outline" className="h-7 text-[11px] flex-1" onClick={() => refresh(p)} disabled={refreshing[p] || p === "offline"}>
                   <RefreshCw className={`w-3 h-3 me-1 ${refreshing[p] ? "animate-spin" : ""}`} />
                   {t("ai.updateModels")}
                 </Button>
@@ -386,7 +386,7 @@ function ProviderModelManager({
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 overflow-y-auto py-2">
-              {activeProvider !== "lovable" && (
+              {activeProvider !== "offline" && (
                 <>
                   <div className="space-y-1.5">
                     <Label className="text-xs">API Key</Label>

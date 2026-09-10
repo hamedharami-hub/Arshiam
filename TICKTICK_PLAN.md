@@ -97,7 +97,7 @@
 
 - **RTL**: TickTick معمولاً LTR است؛ برای نسخه‌ی فارسی باید چک‌باکس در راست، متن در چپ قرار گیرد (`flex-row-reverse` با کلاس‌های مناسب).
 - **دیتابیس**: تغییرات جدولی نیاز نیست؛ فیلدها (folder/tag/priority/due_date) موجودند. ممکن است برای streak/wallet theme یک ستون در `user_settings` اضافه شود.
-- **Lovable sync**: هر تغییر UI باید با Lovable sync شود؛ فایل‌های `.tsx` اصلی را در PRهای کوچک و جداگانه ارسال کن تا conflict کمتر شود.
+- **UI sync**: هر تغییر UI باید با GitHub sync شود؛ فایل‌های `.tsx` اصلی را در PRهای کوچک و جداگانه ارسال کن تا conflict کمتر شود.
 - **Performance**: از `memo` و `virtualized list` برای لیست بلند تسک استفاده شود.
 
 ## ریسک‌ها و تصمیمات باز
