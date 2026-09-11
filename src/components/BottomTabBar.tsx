@@ -69,6 +69,11 @@ export function BottomTabBar() {
             e.preventDefault();
             toggleSidebar();
             break;
+          case "d":
+          case "D":
+            e.preventDefault();
+            window.dispatchEvent(new Event("lov:toggle-dock"));
+            break;
         }
       }
     };
@@ -141,18 +146,22 @@ export function BottomTabBar() {
     },
   ], []);
 
-  // For mobile view, we take the primary tabs and secondary tabs
+  // For mobile view, we take the primary tabs, secondary tabs, and foldable extra tabs
   const mobilePrimaryTabs = useMemo(() => [tabs[0], tabs[1]], [tabs]);
   const mobileSecondaryTabs = useMemo(() => [tabs[3]], [tabs]);
+  const foldableExtraLeftTab = useMemo(() => tabs[2], [tabs]); // Habits
+  const foldableExtraRightTab = useMemo(() => tabs[4], [tabs]); // Calendar
 
   if (!loc.pathname.startsWith("/app")) return null;
 
   return (
     <>
-      {/* Mobile view: Phone & tablet bottom navigation bar */}
+      {/* Mobile view: Phone & foldable tablet bottom navigation bar */}
       <MobileBottomBar
         primaryTabs={mobilePrimaryTabs}
         secondaryTabs={mobileSecondaryTabs}
+        foldableExtraLeftTab={foldableExtraLeftTab}
+        foldableExtraRightTab={foldableExtraRightTab}
         currentPath={loc.pathname}
         dir={dir}
       />

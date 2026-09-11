@@ -406,12 +406,18 @@ html, body {
 /* Skip rendering offscreen sections — frees the main thread on long pages. */
 .cv-auto { content-visibility: auto; contain-intrinsic-size: 1px 120px; }
 
-/* Foldable phones (Surface Duo, Galaxy Fold opened) — when the viewport is
-   split into two segments, hide the mobile-only bottom bar so the user gets
-   the desktop sidebar/master-detail layout. */
+/* Foldable phones (Galaxy Fold, Pixel Fold, Surface Duo opened) —
+   Hinge awareness, dual-screen segments, and fluid ergonomics. */
 @media (horizontal-viewport-segments: 2) {
-  nav[aria-label="نوار پایین"],
-  nav[aria-label="Bottom bar"] { display: none !important; }
+  [data-bottom-bar="true"] {
+    max-width: min(calc(env(viewport-segment-width 0 0, 50vw) - 2rem), 520px) !important;
+    left: calc(env(viewport-segment-width 0 0, 50vw) / 2) !important;
+  }
+}
+@media (screen-spanning: single-fold-vertical) {
+  [data-bottom-bar="true"] {
+    max-width: min(calc(env(fold-left, 50vw) - 2rem), 520px) !important;
+  }
 }
 
 /* Honor reduced-motion everywhere */
