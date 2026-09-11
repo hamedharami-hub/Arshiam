@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { offlineAssistant } from "./offlineAssistant";
+import { loadOfflineModelSettings } from "./offlineModels";
 
 beforeEach(() => localStorage.setItem("arshnaz_offline_models_v1", JSON.stringify({ assistantEnabled: true })));
 
@@ -29,5 +30,17 @@ describe("offline assistant", () => {
     const chatResult = offlineAssistant("chat", "خیلی استرس دارم و کارها سنگین شده", "fa");
     expect(chatResult?.offline).toBe(true);
     expect(chatResult?.text).toContain("۵ دقیقه");
+  });
+
+  it("keeps the built-in assistant enabled when a legacy generative model choice is stored", () => {
+    localStorage.setItem("arshnaz_offline_models_v1", JSON.stringify({
+      assistantEnabled: true,
+      assistantModel: "qwen-0.5b",
+    }));
+
+    expect(loadOfflineModelSettings()).toEqual({ speechMode: "system", assistantEnabled: true });
+    expect(offlineAssistant("parse_task", "Call Ali tomorrow", "en")?.data).toMatchObject({
+      source: "offline-deterministic",
+    });
   });
 });

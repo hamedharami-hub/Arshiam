@@ -83,11 +83,11 @@ export const OP_RECOMMENDED: Record<AIOperation, { provider: Provider; model: st
 
 export const PROVIDER_INFO: Record<Provider, { label: string; defaultModel: string; baseUrl: string; help: string; models: string[] }> = {
   offline: {
-    label: "هوش مصنوعی آفلاین (معماری سه‌لایه)",
+    label: "دستیار خصوصی آفلاین",
     defaultModel: "deterministic-v1",
     baseUrl: "",
-    help: "بدون نیاز به کلید و ۱۰۰٪ خصوصی روی دستگاه. شامل موتور هوشمند NLP محلی (حجم صفر) و مدل‌های زبانی مولد قابل دانلود (Qwen 2.5 / SmolLM2).",
-    models: ["deterministic-v1", "qwen-0.5b", "smollm-135m"],
+    help: "بدون نیاز به کلید و ۱۰۰٪ خصوصی روی دستگاه. منطق داخلی، فوری و بدون دانلود مدل برای تسک، تاریخ، اولویت، زیرتسک، خلاصه و پیشنهاد.",
+    models: ["deterministic-v1"],
   },
   openai: {
     label: "OpenAI",

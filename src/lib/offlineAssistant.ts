@@ -1,7 +1,6 @@
 import { parseNaturalDate } from "./nlDate";
 import type { AIOperation } from "./aiSettings";
-import { loadOfflineModelSettings, isGenerativeAssistantModel } from "./offlineModels";
-import { generateOfflineLLM, isOfflineLLMCached } from "./offlineLLM";
+import { loadOfflineModelSettings } from "./offlineModels";
 import { scoreDistortions, DISTORTION_HINTS, DISTORTION_LABELS, type Distortion } from "./distortions";
 
 export type OfflineResult = {
@@ -510,88 +509,6 @@ export function offlineAssistant(
     data: { source: "offline-deterministic" },
     text: responseText,
   };
-}
-
-/**
- * 3-Tier Hybrid AI Runner:
- * Tier 2: Tries on-device generative LLM (Qwen 2.5 / SmolLM2) if selected and cached.
- * Tier 3: Seamlessly falls back to Smart NLP Engine if LLM not downloaded or on error.
- */
-export async function runHybridOfflineAI(
-  mode: AIOperation | string,
-  input: unknown,
-  language: "fa" | "en" | "auto" = "fa",
-  action?: string,
-  context?: string
-): Promise<OfflineResult | null> {
-  const settings = loadOfflineModelSettings();
-  if (!settings.assistantEnabled) return null;
-
-  const raw = textOf(input);
-  const fa = language !== "en";
-
-  // Tier 2: Check if an on-device generative LLM is chosen and ready
-  if (isGenerativeAssistantModel(settings.assistantModel) && isOfflineLLMCached(settings.assistantModel)) {
-    try {
-      const systemPrompt = fa
-        ? "شما دستیار هوشمند، دانا و همدل ARSHNAZ هستید که به صورت کاملاً آفلاین روی دستگاه کاربر اجرا می‌شوید. پاسخ‌های دقیق، مفید و به زبان فارسی شیوا ارائه دهید."
-        : "You are the smart, on-device AI assistant for ARSHNAZ. Provide concise, helpful, and thoughtful responses.";
-
-      let userPrompt = raw;
-      if (mode === "parse_task") {
-        userPrompt = fa
-          ? `این متن را به تسک تبدیل کن و خروجی JSON با فیلدهای title, priority, due_date بده: "${raw}"`
-          : `Parse this task into JSON with keys title, priority, due_date: "${raw}"`;
-      } else if (mode === "task_subtasks" || mode === "breakdown") {
-        userPrompt = fa
-          ? `برای تسک «${raw}»، ۳ الی ۴ زیرتسک عملیاتی و کوتاه به صورت شماره‌دار بنویس.`
-          : `Generate 3 to 4 actionable numbered subtasks for: "${raw}".`;
-      } else if (mode === "generate_note") {
-        userPrompt = fa
-          ? `یک یادداشت کامل و ساختاریافته به فرمت مارک‌داون درباره این موضوع بنویس: "${raw}"`
-          : `Write a complete structured Markdown note about: "${raw}".`;
-      } else if (mode === "summarize_note") {
-        userPrompt = fa
-          ? `این یادداشت را در چند بولت خلاصه کن:\n${raw}`
-          : `Summarize this note in bullet points:\n${raw}`;
-      } else if (mode === "inline_edit") {
-        userPrompt = fa
-          ? `متن زیر را طبق دستور «${action || "بهبود"}» ویرایش کن و فقط متن نهایی را برگردان:\n${raw}`
-          : `Edit this text according to action "${action || "improve"}":\n${raw}`;
-      } else if (mode === "suggest") {
-        userPrompt = fa
-          ? `۵ پیشنهاد عملی و مفید درباره این موضوع ارائه بده: "${raw}"`
-          : `Provide 5 actionable suggestions for: "${raw}".`;
-      } else if (mode === "socratic") {
-        userPrompt = fa
-          ? `به عنوان یک راهنمای سقراطی، فقط ۲ تا ۳ سوال تفکربرانگیز بپرس تا کاربر خودش به پاسخ برسد:\n${raw}`
-          : `As a Socratic guide, ask 2 to 3 reflective questions:\n${raw}`;
-      }
-
-      const generated = await generateOfflineLLM(
-        [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        settings.assistantModel,
-        { maxNewTokens: 256, temperature: 0.3 }
-      );
-
-      if (generated && generated.trim().length > 0) {
-        return {
-          offline: true,
-          tier: 2,
-          text: generated.trim(),
-          data: { source: "offline-llm", model: settings.assistantModel },
-        };
-      }
-    } catch (llmErr) {
-      console.warn("[OfflineAI] Generative on-device LLM error, falling back to Smart NLP Engine:", llmErr);
-    }
-  }
-
-  // Tier 3: Instant Smart NLP Engine
-  return offlineAssistant(mode, input, language, action, context);
 }
 
 

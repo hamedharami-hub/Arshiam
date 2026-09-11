@@ -1,6 +1,6 @@
 import { firebaseStore } from "@/lib/firebaseStore";
 import { getOpConfig, type AIOperation } from "@/lib/aiSettings";
-import { offlineAssistant, runHybridOfflineAI } from "@/lib/offlineAssistant";
+import { offlineAssistant } from "@/lib/offlineAssistant";
 
 export type AIMode = AIOperation;
 
@@ -39,7 +39,7 @@ export async function callAI(
   const settings = getAISettings(mode);
 
   if (settings?.provider === "offline") {
-    const local = (await runHybridOfflineAI(mode, input, lang, action, context)) || offlineAssistant(mode, input, lang, action, context);
+    const local = offlineAssistant(mode, input, lang, action, context);
     if (local) return local;
     throw new Error("این عملیات در موتور آفلاین فعلی پشتیبانی نمی‌شود؛ برای آن یک سرویس آنلاین انتخاب کن.");
   }
@@ -47,11 +47,11 @@ export async function callAI(
   // An enabled offline assistant never uploads the current request. It is used
   // automatically while offline and as a private fallback when no API key exists.
   if (typeof navigator !== "undefined" && !navigator.onLine) {
-    const local = (await runHybridOfflineAI(mode, input, lang, action, context)) || offlineAssistant(mode, input, lang, action, context);
+    const local = offlineAssistant(mode, input, lang, action, context);
     if (local) return local;
   }
   if (!settings) {
-    const local = (await runHybridOfflineAI(mode, input, lang, action, context)) || offlineAssistant(mode, input, lang, action, context);
+    const local = offlineAssistant(mode, input, lang, action, context);
     if (local) return local;
     throw new Error("برای استفاده از این قابلیت، یک سرویس آنلاین و کلید API شخصی را در تنظیمات → AI وارد کن؛ یا برای عملیات پشتیبانی‌شده، هوش مصنوعی آفلاین را انتخاب کن.");
   }
