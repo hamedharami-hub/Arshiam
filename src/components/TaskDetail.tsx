@@ -21,7 +21,6 @@ import {
   GitBranch, Zap,
   Save, ExternalLink, Loader2,
 } from "lucide-react";
-import ProcrastinationBusterModal from "@/components/ProcrastinationBusterModal";
 import { VoiceInput } from "@/lib/voiceInput";
 import { PRIORITY_META, PRIORITY_ORDER, type Priority } from "@/lib/priority";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -75,7 +74,6 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   const [taskNotes, setTaskNotes] = useState<TaskNote[]>([]);
   const [activeNote, setActiveNote] = useState<TaskNote | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
-  const [busterOpen, setBusterOpen] = useState(false);
   const [snap, setSnap] = useState<number | string>(0.5);
   const [folders, setFolders] = useState<{ id: string; name: string; parent_id: string | null; color: string | null }[]>([]);
   const [tags, setTags] = useState<{ id: string; name: string; color: string | null }[]>([]);
@@ -501,17 +499,19 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   const Chip = ({ icon: Icon, children, onClick, onClear, color, disabled }: any) => (
     <span
       onClick={disabled ? undefined : onClick}
-      className={`inline-flex items-center gap-1 px-2 h-6 rounded-full text-[10px] transition ${
+      className={`inline-flex items-center gap-1.5 px-2.5 h-6 rounded-lg text-[11px] font-medium transition-all duration-150 border ${
         disabled
-          ? "text-muted-foreground/50"
-          : color || "bg-muted/60 text-foreground/80 hover:bg-muted cursor-pointer"
+          ? "text-muted-foreground/50 border-transparent"
+          : color
+            ? `${color} border-current/20 shadow-2xs`
+            : "bg-muted/40 text-foreground/80 hover:bg-muted/80 border-border/50 cursor-pointer shadow-2xs"
       }`}
     >
-      {Icon && <Icon className="w-3 h-3" />}
-      <span className="truncate max-w-[120px]">{children}</span>
+      {Icon && <Icon className="w-3 h-3 shrink-0" />}
+      <span className="truncate max-w-[130px]">{children}</span>
       {onClear && !disabled && (
         <X
-          className="w-3 h-3 opacity-60 hover:opacity-100"
+          className="w-3 h-3 opacity-60 hover:opacity-100 hover:text-destructive cursor-pointer ms-0.5"
           onClick={(e) => { e.stopPropagation(); onClear(); }}
         />
       )}
@@ -520,14 +520,16 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
 
   // ── Hero (title + description) ─────────────────────────────────────
   const hero = (
-    <div className="px-1 pb-2">
-      <div className="flex items-start gap-1.5">
+    <div className="px-1 pb-2 space-y-2">
+      <div className="flex items-center gap-2 bg-card/50 dark:bg-card/30 rounded-2xl p-1.5 border border-border/50 hover:border-border/80 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all duration-200">
         <Button
           size="icon"
-          variant="ghost"
+          variant={t.pinned ? "secondary" : "ghost"}
           disabled={!canEdit}
           onClick={() => save({ pinned: !t.pinned })}
-          className={`h-9 w-9 shrink-0 ${t.pinned ? "text-primary" : "text-muted-foreground/60 hover:text-foreground"}`}
+          className={`h-9 w-9 shrink-0 rounded-xl transition-all ${
+            t.pinned ? "bg-primary/15 text-primary border border-primary/30 shadow-xs" : "text-muted-foreground/60 hover:text-foreground"
+          }`}
           title={t.pinned ? T("حذف پین", "Unpin") : T("پین", "Pin")}
         >
           <Pin className={`w-4 h-4 ${t.pinned ? "fill-primary" : ""}`} />
@@ -537,19 +539,21 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           onChange={(e) => setT({ ...t, title: e.target.value })}
           onBlur={() => save({ title: t.title })}
           readOnly={!canEdit}
-          minHeight={44}
+          minHeight={42}
           maxHeight={220}
           rows={1}
           dir="auto"
           placeholder={T("عنوان تسک را اینجا بنویس…", "Write the task title here…")}
-          className="text-lg md:text-xl font-semibold leading-snug bg-muted/40 border border-dashed border-primary/40 rounded-md px-2 py-1.5 focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary focus-visible:bg-background break-words whitespace-pre-wrap tracking-tight placeholder:text-primary/60 placeholder:font-medium flex-1 min-h-[40px]"
+          className="text-lg md:text-xl font-bold leading-relaxed bg-transparent border-0 focus-visible:ring-0 focus-visible:bg-transparent px-2 py-1 text-foreground placeholder:text-muted-foreground/45 break-words whitespace-pre-wrap tracking-tight flex-1"
         />
         <Button
           size="icon"
           variant={voiceListening ? "default" : "ghost"}
           disabled={!canEdit}
           onClick={() => voiceInstance?.toggle(i18n.language === "en" ? "en-US" : "fa-IR")}
-          className="h-9 w-9 shrink-0"
+          className={`h-9 w-9 shrink-0 rounded-xl transition-all ${
+            voiceListening ? "bg-red-500 hover:bg-red-600 text-white animate-pulse" : "text-muted-foreground/60 hover:text-foreground"
+          }`}
           title={T("ضبط صوتی", "Voice input")}
         >
           {voiceListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
@@ -569,7 +573,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           readOnly={!canEdit}
         />
       </div>
-      <div className="flex items-center gap-2 mt-1 px-0">
+      <div className="flex items-center gap-2 mt-1 px-1">
         {canEdit && (
           <Button
             size="sm"
@@ -779,20 +783,20 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
 
   // ── Top controls (folder / priority / schedule) ─────────────────────────────────────────────────
   const topControls = (
-    <div className="mx-auto max-w-3xl px-1 pb-2">
-      <div className="flex flex-wrap gap-2" dir="ltr">
+    <div className="mx-auto max-w-3xl w-full px-1 pt-1 pb-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {/* 1. Schedule (Date + Time block + Repeat + Bucket) */}
-        <div className="w-full order-3">
+        <div>
         <Sheet open={scheduleOpen} onOpenChange={setScheduleOpen}>
           <SheetTrigger asChild>
             <Button
               type="button"
               variant="outline"
               disabled={!canEdit}
-              className={`w-full h-11 rounded-xl text-sm font-medium gap-2 justify-center ${isScheduled ? "bg-primary/15 text-primary border-primary/40" : "bg-muted/40 text-foreground hover:bg-muted"}`}
+              className={`w-full h-10 rounded-xl text-xs font-medium gap-2 justify-start px-3 transition-all duration-150 ${isScheduled ? "bg-primary/15 text-primary border-primary/35 shadow-xs font-semibold" : "bg-muted/30 text-foreground/85 hover:bg-muted/60 border-border/60"}`}
             >
-              <Clock className="w-4 h-4" />
-              <span className="truncate">{scheduleLabel ?? T("زمان‌بندی", "Schedule")}</span>
+              <Clock className={`w-4 h-4 shrink-0 ${isScheduled ? "text-primary" : "text-muted-foreground"}`} />
+              <span className="truncate flex-1 text-start">{scheduleLabel ?? T("زمان‌بندی", "Schedule")}</span>
             </Button>
           </SheetTrigger>
           <SheetContent side="bottom" className="w-full max-w-2xl mx-auto rounded-t-2xl p-4 max-h-[85vh] overflow-y-auto" aria-describedby="schedule-sheet-desc">
@@ -911,17 +915,17 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
         </div>
 
         {/* 2. Priority */}
-        <div className="flex-1 order-2 min-w-0">
+        <div>
         <Popover>
           <PopoverTrigger asChild>
             <Button
               type="button"
               variant="outline"
               disabled={!canEdit}
-              className={`w-full h-11 rounded-xl text-sm font-medium gap-2 justify-start px-3 ${t.priority !== "none" ? `${priorityMeta.bgClass} ${priorityMeta.textClass}` : "bg-muted/40 text-foreground hover:bg-muted"}`}
+              className={`w-full h-10 rounded-xl text-xs font-medium gap-2 justify-start px-3 transition-all duration-150 ${t.priority !== "none" ? `${priorityMeta.bgClass} ${priorityMeta.textClass} border-border/80 shadow-xs font-semibold` : "bg-muted/30 text-foreground/85 hover:bg-muted/60 border-border/60"}`}
             >
-              <Flag className={`w-4 h-4 ${t.priority !== "none" ? priorityMeta.textClass : "text-muted-foreground"}`} />
-              <span className="truncate">{t.priority !== "none" ? T(priorityMeta.label, priorityMeta.labelEn) : T("اولویت", "Priority")}</span>
+              <Flag className={`w-4 h-4 shrink-0 ${t.priority !== "none" ? priorityMeta.textClass : "text-muted-foreground"}`} />
+              <span className="truncate flex-1 text-start">{t.priority !== "none" ? T(priorityMeta.label, priorityMeta.labelEn) : T("اولویت", "Priority")}</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-60 p-2" align="start" side="top">
@@ -954,17 +958,17 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
         </div>
 
         {/* 3. Folder + quick-create */}
-        <div className="flex-1 order-1 min-w-0">
+        <div>
         <Popover>
           <PopoverTrigger asChild>
             <Button
               type="button"
               variant="outline"
               disabled={!canEdit}
-              className={`w-full h-11 rounded-xl text-sm font-medium gap-2 justify-start px-3 ${t.folder_id ? "bg-primary/15 text-primary border-primary/40" : "bg-muted/40 text-foreground hover:bg-muted"}`}
+              className={`w-full h-10 rounded-xl text-xs font-medium gap-2 justify-start px-3 transition-all duration-150 ${t.folder_id ? "bg-primary/10 text-primary border-primary/30 shadow-xs font-semibold" : "bg-muted/30 text-foreground/85 hover:bg-muted/60 border-border/60"}`}
             >
-              <FolderIcon className="w-4 h-4" style={{ color: t.folder_id ? folders.find(f => f.id === t.folder_id)?.color || undefined : undefined }} />
-              <span className="truncate">{t.folder_id ? folderName(t.folder_id) : T("فولدر", "Folder")}</span>
+              <FolderIcon className="w-4 h-4 shrink-0" style={{ color: t.folder_id ? folders.find(f => f.id === t.folder_id)?.color || undefined : undefined }} />
+              <span className="truncate flex-1 text-start">{t.folder_id ? folderName(t.folder_id) : T("فولدر", "Folder")}</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-72 p-2 max-h-[55vh] overflow-y-auto" align="start" side="top">
@@ -1041,9 +1045,9 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
 
   // ── Bottom action rail ──────────────────────────────────────────────
   const bottomRail = (
-    <div className="mx-auto max-w-3xl px-1 py-2 border-t border-border/40 bg-background/95 backdrop-blur">
-      <div className="flex items-center justify-between gap-0.5 overflow-x-auto no-scrollbar" dir="rtl">
-        <div className="w-full order-4 flex items-center gap-0.5 overflow-x-auto no-scrollbar py-1" dir="rtl">
+    <div className="mx-auto max-w-3xl w-full px-2 py-2 border-t border-border/50 bg-card/70 dark:bg-card/80 backdrop-blur-xl rounded-b-2xl">
+      <div className="flex items-center justify-between gap-1 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
                 {/* 4. Tags + quick-create */}
                 <Popover>
                   <PopoverTrigger asChild>
@@ -1207,15 +1211,6 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
                   </PopoverContent>
                 </Popover>
 
-                {/* Procrastination Buster */}
-                <RailButton
-                  icon={Zap}
-                  label={T("ضد اهمال‌کاری", "Buster")}
-                  onClick={() => setBusterOpen(true)}
-                  disabled={!canEdit}
-                  className="text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
-                />
-
                 {/* AI */}
                 <RailButton
                   icon={Sparkles}
@@ -1224,19 +1219,18 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
                   onClick={() => setAiOpen(true)}
                   disabled={!canEdit}
                 />
+              </div>
 
-                {allowDelete && canEdit && (
-                  <>
-                    <span className="w-px h-5 bg-border/60 mx-0.5" />
-                    <RailButton
-                      icon={Trash2}
-                      label={T("حذف", "Delete")}
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={deleteTask}
-                    />
-                  </>
-                )}
+              {allowDelete && canEdit && (
+                <div className="flex items-center ps-1 border-s border-border/50 shrink-0">
+                  <RailButton
+                    icon={Trash2}
+                    label={T("حذف", "Delete")}
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={deleteTask}
+                  />
                 </div>
+              )}
       </div>
     </div>
   );
@@ -1343,39 +1337,6 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     } catch { toast.error(T("بازکردن تقویم ممکن نشد", "Could not open Android Calendar")); }
   };
 
-  const drawerHeader = (snap === 1 && isMobile) ? null : (
-    <div className="flex items-center justify-between px-3 pt-3 pb-1 shrink-0">
-      <span className="sr-only">{activeNote ? T("ویرایش نوت", "Edit note") : T("جزئیات تسک", "Task")}</span>
-      <div className="flex items-center gap-1">
-        <Button
-          size="sm"
-          variant={hasPendingChanges || saveState === "error" ? "default" : "outline"}
-          disabled={!canEdit || saveState === "saving"}
-          onClick={() => void savePendingChanges()}
-          className="h-8 gap-1"
-        >
-          {saveState === "saving" ? <Loader2 className="animate-spin" /> : <Save />}
-          {T("ذخیره", "Save")}
-        </Button>
-        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={requestClose} title={T("بستن", "Close")}>
-          <X className="w-4 h-4" />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-8 w-8"
-          onClick={() => { setSnap(snap === 1 ? 0.5 : 1); }}
-          title={snap === 1 ? T("کوچک‌نمایی", "Collapse") : T("فول اسکرین", "Full screen")}
-        >
-          {snap === 1 ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-        </Button>
-        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={addToAndroidCalendar} title={T("افزودن به تقویم Android", "Add to Android Calendar")}>
-          <CalendarDays className="w-4 h-4" />
-        </Button>
-      </div>
-    </div>
-  );
-
   const saveLabel = saveState === "saving"
     ? T("در حال ذخیره…", "Saving…")
     : saveState === "dirty"
@@ -1385,6 +1346,46 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
         : saveState === "error"
           ? T("ذخیره ناموفق", "Save failed")
           : T("ذخیره شد", "Saved");
+
+  const drawerHeader = (snap === 1 && isMobile) ? null : (
+    <div className="flex items-center justify-between px-3 pt-2 pb-1 shrink-0">
+      <div className="flex items-center gap-1.5 ps-1">
+        <span className={`w-2 h-2 rounded-full shrink-0 ${
+          saveState === "saving" ? "bg-amber-500 animate-ping" :
+          saveState === "dirty" ? "bg-amber-500" :
+          saveState === "error" ? "bg-destructive" : "bg-emerald-500"
+        }`} />
+        <span className="text-[11px] font-medium text-muted-foreground">{saveLabel}</span>
+      </div>
+      <div className="flex items-center gap-1">
+        <Button
+          size="sm"
+          variant={hasPendingChanges || saveState === "error" ? "default" : "outline"}
+          disabled={!canEdit || saveState === "saving"}
+          onClick={() => void savePendingChanges()}
+          className="h-8 gap-1.5 rounded-xl text-xs"
+        >
+          {saveState === "saving" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+          {T("ذخیره", "Save")}
+        </Button>
+        <Button size="icon" variant="ghost" className="h-8 w-8 rounded-xl" onClick={requestClose} title={T("بستن", "Close")}>
+          <X className="w-4 h-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8 rounded-xl"
+          onClick={() => { setSnap(snap === 1 ? 0.5 : 1); }}
+          title={snap === 1 ? T("کوچک‌نمایی", "Collapse") : T("فول اسکرین", "Full screen")}
+        >
+          {snap === 1 ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+        </Button>
+        <Button size="icon" variant="ghost" className="h-8 w-8 rounded-xl" onClick={addToAndroidCalendar} title={T("افزودن به تقویم Android", "Add to Android Calendar")}>
+          <CalendarDays className="w-4 h-4" />
+        </Button>
+      </div>
+    </div>
+  );
 
   const editorActions = (
     <div className="flex items-center gap-2">
@@ -1396,9 +1397,9 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
         variant={hasPendingChanges || saveState === "error" ? "default" : "outline"}
         disabled={!canEdit || saveState === "saving"}
         onClick={() => void savePendingChanges()}
-        className="gap-1.5"
+        className="gap-1.5 rounded-xl text-xs font-medium"
       >
-        {saveState === "saving" ? <Loader2 className="animate-spin" /> : <Save />}
+        {saveState === "saving" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
         {T("ذخیره", "Save")}
       </Button>
       {mode !== "page" && (
@@ -1406,10 +1407,10 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           size="sm"
           variant="ghost"
           onClick={() => navigate(`/app/tasks/${t.id}`)}
-          className="gap-1.5"
+          className="gap-1.5 rounded-xl text-xs"
           title={T("بازکردن در صفحهٔ کامل", "Open full page")}
         >
-          <ExternalLink />
+          <ExternalLink className="w-3.5 h-3.5" />
           <span className="hidden 2xl:inline">{T("تمام صفحه", "Full page")}</span>
         </Button>
       )}
@@ -1443,9 +1444,16 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           </div>
         </div>
       ) : mode === "page" ? (
-        <div className="w-full max-w-[1180px] mx-auto px-3 sm:px-5 lg:px-8 py-3 pb-8 min-h-screen flex flex-col">
-          <div className="sticky top-12 z-10 -mx-3 sm:-mx-5 lg:-mx-8 px-3 sm:px-5 lg:px-8 py-2 mb-3 border-b bg-background/90 backdrop-blur flex items-center justify-between gap-3">
-            <span className={`text-xs ${saveState === "dirty" || saveState === "error" ? "text-destructive" : "text-muted-foreground"}`} aria-live="polite">{saveLabel}</span>
+        <div className="w-full max-w-4xl mx-auto px-3 sm:px-6 py-2 pb-12 min-h-screen flex flex-col">
+          <div className="sticky top-14 z-10 px-3 py-1.5 mb-3 rounded-2xl bg-card/80 dark:bg-card/85 backdrop-blur-xl border border-border/50 shadow-xs flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground" aria-live="polite">
+              <span className={`w-2 h-2 rounded-full ${
+                saveState === "saving" ? "bg-amber-500 animate-ping" :
+                saveState === "dirty" ? "bg-amber-500" :
+                saveState === "error" ? "bg-destructive" : "bg-emerald-500"
+              }`} />
+              {saveLabel}
+            </span>
             {editorActions}
           </div>
           {activeNote ? noteEditorBody : body}
@@ -1493,13 +1501,6 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
         open={outcomeOpen}
         onOpenChange={(open) => { setOutcomeOpen(open); if (!open) { refreshTask(); refreshOutcomeCount(); } }}
         folders={folders.map((f) => ({ id: f.id, name: f.name }))}
-      />
-
-      <ProcrastinationBusterModal
-        task={t}
-        open={busterOpen}
-        onOpenChange={setBusterOpen}
-        onSuccess={refreshTask}
       />
 
       <AlertDialog open={closePromptOpen} onOpenChange={(open) => {

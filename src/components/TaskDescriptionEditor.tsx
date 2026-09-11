@@ -41,7 +41,33 @@ export function TaskDescriptionEditor({
   const hasContent = (value || "").trim().length > 0;
 
   return (
-    <div className="relative group">
+    <div className="relative group mt-2 rounded-2xl border border-border/50 bg-muted/20 dark:bg-card/20 hover:border-border/80 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all duration-200 p-3">
+      {/* Action buttons toolbar (voice, fullscreen markdown) */}
+      {!readOnly && (
+        <div className="flex items-center gap-1 absolute top-2.5 end-2.5 z-10">
+          <VoiceInputButton
+            continuous
+            onTranscript={(text) => {
+              const next = (value || "").trimEnd() + " " + text;
+              onChange(next);
+              onSave(next);
+            }}
+            size="sm"
+            className="h-7 w-7 text-muted-foreground/70 hover:text-foreground hover:bg-accent/60 rounded-lg transition"
+            title={T("ضبط صوتی", "Voice input")}
+          />
+          <button
+            type="button"
+            onClick={() => { setDraft(value || ""); setFull(true); }}
+            aria-label={T("تمام صفحه", "Fullscreen")}
+            title={T("ویرایشگر پیشرفته / تمام صفحه", "Advanced markdown / fullscreen")}
+            className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground/70 hover:text-foreground hover:bg-accent/60 transition"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {editing || !hasContent ? (
         <AutoTextarea
           placeholder={T("توضیحات…", "Description…")}
@@ -55,10 +81,10 @@ export function TaskDescriptionEditor({
             setEditing(false);
             void onSave(latest);
           }}
-          minHeight={32}
+          minHeight={40}
           maxHeight={360}
           dir="auto"
-          className={`border-none bg-transparent focus-visible:ring-0 px-0 text-[14px] text-foreground/90 placeholder:text-muted-foreground/70 ${hasContent ? "pe-[5.5rem]" : "pe-14"}`}
+          className="border-none bg-transparent focus-visible:ring-0 px-0 pt-0 text-[14px] leading-relaxed text-foreground/90 placeholder:text-muted-foreground/60 w-full pe-16"
         />
       ) : (
         <button
@@ -66,47 +92,12 @@ export function TaskDescriptionEditor({
           onClick={() => !readOnly && setEditing(true)}
           disabled={readOnly}
           dir="auto"
-          className={`w-full text-start px-0 py-1 text-[14px] text-foreground/90 rounded transition ${readOnly ? "pe-14" : "pe-[5.5rem] hover:bg-accent/30"}`}
+          className={`w-full text-start px-0 pt-0 text-[14px] leading-relaxed text-foreground/90 rounded transition pe-16 ${readOnly ? "" : "hover:opacity-90"}`}
         >
           <div className="prose-note prose-sm max-w-none">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
           </div>
         </button>
-      )}
-
-      {!readOnly && (
-        <>
-          {hasContent && (
-            <button
-              type="button"
-              onClick={() => { onChange(""); onSave(""); setDraft(""); setEditing(true); }}
-              aria-label={T("پاک کردن متن", "Clear text")}
-              title={T("پاک کردن کامل متن", "Clear all text")}
-              className="absolute top-1 end-[3.25rem] p-1 rounded-md text-muted-foreground/70 hover:text-destructive hover:bg-accent/50 transition opacity-70 group-hover:opacity-100"
-            >
-              <Eraser className="w-3.5 h-3.5" />
-            </button>
-          )}
-          <VoiceInputButton
-            continuous
-            onTranscript={(text) => {
-              const next = (value || "").trimEnd() + " " + text;
-              onChange(next);
-              onSave(next);
-            }}
-            size="sm"
-            className="absolute top-1 end-7 h-7 w-7 text-muted-foreground/70 hover:text-foreground hover:bg-accent/50 opacity-70 group-hover:opacity-100"
-            title={T("ضبط صوتی", "Voice input")}
-          />
-          <button
-            type="button"
-            onClick={() => { setDraft(value || ""); setFull(true); }}
-            aria-label={T("تمام صفحه", "Fullscreen")}
-            className="absolute top-1 end-0 p-1 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-accent/50 transition opacity-70 group-hover:opacity-100"
-          >
-            <Maximize2 className="w-3.5 h-3.5" />
-          </button>
-        </>
       )}
 
       <Sheet open={full} onOpenChange={setFull}>

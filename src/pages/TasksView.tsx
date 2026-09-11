@@ -7,7 +7,6 @@ import { EmptyState } from "@/components/EmptyState";
 import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, Ban, Pin, Clock, FolderInput, Check, X, GitBranch, MoreVertical, Zap, Columns2, CheckSquare } from "lucide-react";
 import { MoveToDialog } from "@/components/MoveToDialog";
 import { FolderDeleteDialog } from "@/components/FolderDeleteDialog";
-import ProcrastinationBusterModal from "@/components/ProcrastinationBusterModal";
 import { useNavigate } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
 import {
@@ -202,8 +201,6 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const [outcomeTask, setOutcomeTask] = useState<Task | null>(null);
   const [outcomes, setOutcomes] = useState<TaskOutcome[]>([]);
   const [outcomeOpen, setOutcomeOpen] = useState(false);
-  const [busterTask, setBusterTask] = useState<Task | null>(null);
-  const [busterOpen, setBusterOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -986,20 +983,6 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                     </span>
                   );
                 })()}
-                {!t.completed && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setBusterTask(t);
-                      setBusterOpen(true);
-                    }}
-                    title={T("موتور هوشمند ضد اهمال‌کاری و شناخت‌درمانی (CBT)", "Smart Procrastination & CBT Engine")}
-                    className="text-[9px] gap-1 px-2 py-0 h-[18px] inline-flex items-center rounded-full border bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/20 transition-colors shadow-2xs font-semibold"
-                  >
-                    <Zap className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
-                    <span>{T("ضد اهمال‌کاری", "Buster")}</span>
-                  </button>
-                )}
               </div>
             </Card>
             </SwipeableRow>
@@ -1415,17 +1398,6 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
             if (outcome) completeTask(outcomeTask, outcome);
             else completeTask(outcomeTask);
           }
-        }}
-      />
-
-      <ProcrastinationBusterModal
-        task={busterTask}
-        open={busterOpen}
-        onOpenChange={setBusterOpen}
-        onSuccess={load}
-        onStartFocus={(taskId, min) => {
-          const t = allTasks.find(x => x.id === taskId) || null;
-          setPomoTask(t);
         }}
       />
       </div>
