@@ -1,26 +1,7 @@
 {
-  "version": 2,
-  "framework": "vite",
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm install --legacy-peer-deps",
-  "routes": [
-    {
-      "src": "^/[^.]+\\.[^.]+$",
-      "dest": "/$1"
-    },
-    {
-      "src": "^/[^.]+$",
-      "dest": "/index.html"
-    }
-  ],
   "rewrites": [
     {
-      "source": "/app/:path*",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/:path*",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
