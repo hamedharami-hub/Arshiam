@@ -40,11 +40,11 @@
         <activity android:name=".WidgetConfigureActivity" android:exported="true" android:theme="@android:style/Theme.Material.Light.NoActionBar">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_CONFIGURE"/></intent-filter>
         </activity>
-        <receiver android:name=".AgendaWidgetProvider" android:exported="false" android:label="ARSHNAZ · امروز"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_today_info"/></receiver>
-        <receiver android:name=".TomorrowWidgetProvider" android:exported="false" android:label="ARSHNAZ · فردا"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_tomorrow_info"/></receiver>
-        <receiver android:name=".WeekWidgetProvider" android:exported="false" android:label="ARSHNAZ · هفته"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_week_info"/></receiver>
-        <receiver android:name=".FocusWidgetProvider" android:exported="false" android:label="ARSHNAZ · تمرکز"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_focus_info"/></receiver>
-        <receiver android:name=".CompactWidgetProvider" android:exported="false" android:label="ARSHNAZ · جمع‌وجور"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_compact_info"/></receiver>
+        <receiver android:name=".AgendaWidgetProvider" android:exported="false" android:label="ARSHNAZ · Today"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_today_info"/></receiver>
+        <receiver android:name=".TomorrowWidgetProvider" android:exported="false" android:label="ARSHNAZ · Tomorrow"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_tomorrow_info"/></receiver>
+        <receiver android:name=".WeekWidgetProvider" android:exported="false" android:label="ARSHNAZ · Upcoming"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_week_info"/></receiver>
+        <receiver android:name=".FocusWidgetProvider" android:exported="false" android:label="ARSHNAZ · Focus"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_focus_info"/></receiver>
+        <receiver android:name=".CompactWidgetProvider" android:exported="false" android:label="ARSHNAZ · Compact"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_compact_info"/></receiver>
         <service android:name=".AgendaListService" android:exported="false" android:permission="android.permission.BIND_REMOTEVIEWS"/>
         <receiver android:name=".AndroidActionsReceiver" android:exported="false"/>
         <receiver android:name=".ReminderReceiver" android:exported="false"/>
@@ -58,7 +58,7 @@
                 <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED"/>
             </intent-filter>
         </receiver>
-        <service android:name=".QuickTaskTileService" android:label="ARSHNAZ · تسک جدید" android:icon="@drawable/ic_stat_tasks" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
+        <service android:name=".QuickTaskTileService" android:label="ARSHNAZ · New Task" android:icon="@drawable/ic_stat_tasks" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE"/></intent-filter>
         </service>
         <!-- Widget Provider -->

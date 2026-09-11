@@ -48,7 +48,8 @@ public class AndroidExperienceTest {
     @Test public void providerBuildsRealCollectionRemoteViews() throws Exception {
         login();
         View view=AgendaWidgetProvider.views(c,1).apply(c,new FrameLayout(c));
-        assertEquals("امروز · 1",((TextView)view.findViewById(R.id.agenda_title)).getText().toString());
+        assertEquals("Today",((TextView)view.findViewById(R.id.agenda_title)).getText().toString());
+        assertEquals("1 active",((TextView)view.findViewById(R.id.agenda_count)).getText().toString());
     }
     @Test public void notificationIsPrivateAndHasNavigationActions() throws Exception {
         login();TaskPanel.channel(c);
@@ -93,14 +94,20 @@ public class AndroidExperienceTest {
         WidgetConfigureActivity activity=Robolectric.buildActivity(WidgetConfigureActivity.class,
             new Intent().putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_ID,20)).setup().get();
         android.view.ViewGroup root=(android.view.ViewGroup)((ScrollView)((android.view.ViewGroup)activity.findViewById(android.R.id.content)).getChildAt(0)).getChildAt(0);
-        Spinner spinner=(Spinner)root.getChildAt(2);
+        Spinner spinner=null; CheckBox high=null;
+        for(int i=0;i<root.getChildCount();i++) {
+            View child=root.getChildAt(i);
+            if(child instanceof Spinner && spinner==null) spinner=(Spinner)child;
+            if(child instanceof CheckBox && ((CheckBox)child).getText().toString().contains("High priority")) high=(CheckBox)child;
+        }
+        assertNotNull(spinner); assertNotNull(high);
         assertEquals(1,spinner.getSelectedItemPosition());
-        spinner.setSelection(3);((CheckBox)root.getChildAt(3)).setChecked(true);
+        spinner.setSelection(3);high.setChecked(true);
         ((Button)root.getChildAt(root.getChildCount()-1)).performClick();
         assertEquals(Activity.RESULT_OK,Shadows.shadowOf(activity).getResultCode());
         assertEquals("overdue",AgendaWidgetProvider.scope(c,20));
         assertEquals("today",AgendaWidgetProvider.scope(c,21));
-        assertTrue(AgendaData.options(c).getBoolean("widget.20.light",false));
+        assertTrue(AgendaData.options(c).getBoolean("widget.20.high",false));
     }
     @Test public void compactProviderRendersCorrectSummary() throws Exception {
         login();
@@ -112,7 +119,7 @@ public class AndroidExperienceTest {
         assertEquals("Today test",((TextView)view.findViewById(R.id.agenda_summary)).getText().toString());
         AgendaData.prefs(c).edit().putBoolean("sessionReady",false).commit();
         View cleared=AgendaWidgetProvider.views(c,30).apply(c,new FrameLayout(c));
-        assertEquals("تسکی در این نما نیست",((TextView)cleared.findViewById(R.id.agenda_summary)).getText().toString());
+        assertEquals("No tasks in this view",((TextView)cleared.findViewById(R.id.agenda_summary)).getText().toString());
     }
     @Test public void rebootRestoresSnoozedAlarmWithoutWebView() throws Exception {
         login();AgendaData.options(c).edit().putBoolean("remindersEnabled",true).commit();

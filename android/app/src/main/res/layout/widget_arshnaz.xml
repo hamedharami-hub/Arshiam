@@ -27,7 +27,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginStart="8dp"
-            android:text="ارشناز"
+            android:text="ARSHNAZ"
             android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="#ec4899" />
@@ -36,7 +36,7 @@
             android:id="@+id/widget_date"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="امروز"
+            android:text="Today"
             android:textSize="11sp"
             android:textColor="#94a3b8" />
     </LinearLayout>
@@ -61,7 +61,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="تسک‌های امروز"
+                android:text="TODAY'S TASKS"
                 android:textSize="11sp"
                 android:textColor="#94a3b8" />
 
@@ -69,7 +69,7 @@
                 android:id="@+id/widget_task_count"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="وظایف فعال"
+                android:text="0"
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:textColor="#f8fafc"
@@ -81,7 +81,7 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="3"
-                android:text="تسک فعالی برای امروز نیست"
+                android:text="No active tasks for today"
                 android:textSize="10sp"
                 android:textColor="#cbd5e1"
                 android:layout_marginTop="4dp" />
@@ -104,7 +104,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="باغچه رشد 🌱"
+                android:text="GROWTH"
                 android:textSize="11sp"
                 android:textColor="#38bdf8" />
 
@@ -112,7 +112,7 @@
                 android:id="@+id/widget_garden_status"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="مشاهده باغچه"
+                android:text="Open Garden"
                 android:textSize="13sp"
                 android:textStyle="bold"
                 android:textColor="#a7f3d0"
@@ -124,7 +124,7 @@
         android:id="@+id/widget_sync_status"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="برای نمایش تسک‌ها وارد برنامه شوید"
+        android:text="Open ARSHNAZ to show your tasks"
         android:textSize="10sp"
         android:textColor="#cbd5e1"
         android:paddingBottom="4dp" />
@@ -142,7 +142,7 @@
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_weight="1"
-            android:text="+ تسک جدید"
+            android:text="+ Add task"
             android:textSize="12sp"
             android:textStyle="bold"
             android:textColor="#ffffff"
@@ -156,7 +156,7 @@
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_weight="1"
-            android:text="چک‌این ✨"
+            android:text="Check-in"
             android:textSize="12sp"
             android:textStyle="bold"
             android:textColor="#e2e8f0"
@@ -169,7 +169,7 @@
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_weight="1"
-            android:text="✓ انجام شد"
+            android:text="✓ Complete"
             android:textSize="11sp"
             android:textStyle="bold"
             android:textColor="#a7f3d0"
@@ -190,7 +190,7 @@
             android:layout_width="0dp"
             android:layout_height="36dp"
             android:layout_weight="1"
-            android:text="تمرکز"
+            android:text="Focus"
             android:textSize="11sp"
             android:textColor="#fbcfe8"
             android:background="@drawable/widget_card_background"
@@ -202,7 +202,7 @@
             android:layout_width="0dp"
             android:layout_height="36dp"
             android:layout_weight="1"
-            android:text="یادداشت‌ها"
+            android:text="Notes"
             android:textSize="11sp"
             android:textColor="#bae6fd"
             android:background="@drawable/widget_card_background"
@@ -215,7 +215,7 @@
             android:layout_width="0dp"
             android:layout_height="36dp"
             android:layout_weight="1"
-            android:text="به‌روزرسانی"
+            android:text="Refresh"
             android:textSize="11sp"
             android:textColor="#cbd5e1"
             android:background="@drawable/widget_card_background"

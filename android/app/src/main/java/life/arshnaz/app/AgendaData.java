@@ -68,18 +68,18 @@ final class AgendaData {
     }
     static String label(String scope) {
         switch(scope) {
-            case "tomorrow": return "فردا";
-            case "next7": return "هفت روز آینده";
-            case "overdue": return "عقب‌افتاده";
-            case "undated": return "بدون تاریخ";
-            case "high": return "تمرکز · اولویت بالا";
-            case "all": return "همهٔ تسک‌ها";
-            default: return "امروز";
+            case "tomorrow": return "Tomorrow";
+            case "next7": return "Next 7 Days";
+            case "overdue": return "Overdue";
+            case "undated": return "No Date";
+            case "high": return "Focus";
+            case "all": return "All Tasks";
+            default: return "Today";
         }
     }
     static String dueLabel(String raw) {
         try {
-            if(raw.isEmpty())return "بدون تاریخ";
+            if(raw.isEmpty())return "No date";
             if(raw.length()==10)return LocalDate.parse(raw).format(java.time.format.DateTimeFormatter.ofPattern("MM/dd"));
             return OffsetDateTime.parse(raw).atZoneSameInstant(ZoneId.systemDefault())
                 .format(java.time.format.DateTimeFormatter.ofPattern("MM/dd HH:mm"));

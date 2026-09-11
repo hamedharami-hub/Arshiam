@@ -11,11 +11,12 @@ import { haptic } from "@/lib/haptics";
 import { toast } from "sonner";
 
 const WIDGETS = [
-  { name: "امروز", description: "فهرست زندهٔ کارهای امروز", icon: ListChecks },
-  { name: "فردا", description: "آماده‌سازی روز بعد", icon: CalendarClock },
-  { name: "هفت روز آینده", description: "نمای هفتگی برای برنامه‌ریزی", icon: Clock3 },
-  { name: "تمرکز", description: "فقط تسک‌های High و Urgent", icon: Zap },
-  { name: "جمع‌وجور", description: "یک نگاه سریع با کمترین فضا", icon: LayoutGrid },
+  { name: "Today", description: "Live agenda with quick completion", icon: ListChecks },
+  { name: "Tomorrow", description: "Prepare your next day", icon: CalendarClock },
+  { name: "Upcoming", description: "Seven-day planning view", icon: Clock3 },
+  { name: "Focus", description: "High and urgent tasks only", icon: Zap },
+  { name: "Compact", description: "One focused task in minimal space", icon: LayoutGrid },
+  { name: "Quick Actions", description: "Add, check-in, focus and notes", icon: Sparkles },
 ] as const;
 
 function StatusTile({ icon: Icon, label, value, good }: { icon: typeof BellRing; label: string; value: string; good?: boolean }) {
@@ -70,7 +71,7 @@ export default function AndroidSettings() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <CardTitle className="flex items-center gap-2"><Smartphone className="h-5 w-5 text-primary" />امکانات اندروید</CardTitle>
-            <CardDescription className="mt-1">مرکز کنترل ویجت‌ها، اعلان‌ها، لمس و یادآورهای بومی · نسخهٔ ۱.۶.۱</CardDescription>
+            <CardDescription className="mt-1">مرکز کنترل ویجت‌ها، اعلان‌ها، لمس و یادآورهای بومی · نسخهٔ ۱.۷</CardDescription>
           </div>
           <Badge variant="secondary" className="gap-1 whitespace-nowrap"><Sparkles className="h-3.5 w-3.5" />قابلیت بومی</Badge>
         </div>
@@ -85,11 +86,11 @@ export default function AndroidSettings() {
 
         <section aria-labelledby="android-widgets-title" className="space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <div><h3 id="android-widgets-title" className="flex items-center gap-2 text-sm font-semibold"><LayoutGrid className="h-4 w-4 text-primary" />خانوادهٔ ویجت‌ها</h3><p className="mt-1 text-xs text-muted-foreground">هر ویجت تنظیمات مستقل، فیلتر، تازه‌سازی و بازکردن مستقیم تسک دارد.</p></div>
+            <div><h3 id="android-widgets-title" className="flex items-center gap-2 text-sm font-semibold"><LayoutGrid className="h-4 w-4 text-primary" />خانوادهٔ ویجت‌ها</h3><p className="mt-1 text-xs text-muted-foreground">ویجت‌ها انگلیسی‌اند و هرکدام تنظیمات مستقلِ View، Theme، filter، sort، text size و task limit دارند.</p></div>
             <Button size="sm" variant="outline" onClick={() => void refreshWidgets()} disabled={widgetBusy} className="gap-2"><RefreshCw className={`h-4 w-4 ${widgetBusy ? "animate-spin" : ""}`} />تازه‌سازی همه</Button>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
-            {WIDGETS.map(({ name, description, icon: Icon }) => <div key={name} className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 p-3"><div className="rounded-xl bg-primary/10 p-2 text-primary"><Icon className="h-4 w-4" /></div><div className="min-w-0 flex-1"><div className="text-sm font-medium">ویجت {name}</div><div className="truncate text-xs text-muted-foreground">{description}</div></div><Badge variant="outline" className="gap-1 whitespace-nowrap text-[10px]"><CheckCircle2 className="h-3 w-3 text-emerald-500" />قابل افزودن</Badge></div>)}
+            {WIDGETS.map(({ name, description, icon: Icon }) => <div key={name} className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 p-3"><div className="rounded-xl bg-primary/10 p-2 text-primary"><Icon className="h-4 w-4" /></div><div className="min-w-0 flex-1"><div className="text-sm font-medium">{name}</div><div className="truncate text-xs text-muted-foreground">{description}</div></div><Badge variant="outline" className="gap-1 whitespace-nowrap text-[10px]"><CheckCircle2 className="h-3 w-3 text-emerald-500" />Ready</Badge></div>)}
           </div>
           <Button variant="ghost" size="sm" onClick={() => setShowGuide((value) => !value)} className="w-full justify-between px-2">راهنمای نصب و تنظیم ویجت‌ها<ChevronDown className={`h-4 w-4 transition-transform ${showGuide ? "rotate-180" : ""}`} /></Button>
           {showGuide && <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm leading-7">روی صفحهٔ اصلی گوشی لمس طولانی کن، از بخش ویجت‌ها ARSHNAZ را انتخاب کن و یکی از نماها را اضافه کن. از دکمهٔ «تنظیم» داخل هر ویجت می‌توانی بازه، نمایش انجام‌شده‌ها، فقط اولویت‌های بالا، اندازهٔ متن و ظاهر روشن را مستقل تغییر بدهی. دکمهٔ «✓ انجام شد» نیز تسک را از همان ردیف برای تکمیل به برنامه می‌فرستد.</div>}

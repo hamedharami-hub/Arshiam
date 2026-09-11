@@ -31,7 +31,7 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
     @Override public void onDeleted(Context c, int[] ids) {
         for (int id : ids) {
             SharedPreferences.Editor edit = AgendaData.options(c).edit();
-            for (String key : new String[]{"scope","light","done","high","large"}) edit.remove("widget."+id+"."+key);
+            for (String key : new String[]{"scope","light","done","high","large","textSize","sort","limit"}) edit.remove("widget."+id+"."+key);
             edit.apply();
         }
     }
@@ -49,16 +49,18 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
         List<JSONObject> tasks = AgendaData.select(c,scope,showDone,highOnly);
         int activeCount = AgendaData.select(c,scope,false,highOnly).size();
         int totalCount = AgendaData.select(c,scope,true,highOnly).size();
-        v.setTextViewText(R.id.agenda_title, AgendaData.label(scope)+" · "+tasks.size());
-        String status = !AgendaData.prefs(c).getBoolean("sessionReady",false) ? "برای نمایش تسک‌ها وارد برنامه شوید"
-            : activeCount+" فعال · "+Math.max(0,totalCount-activeCount)+" انجام‌شده · "+AgendaData.prefs(c).getString("syncStatus","برنامه را باز کنید");
+        v.setTextViewText(R.id.agenda_title, AgendaData.label(scope));
+        v.setTextViewText(R.id.agenda_count, activeCount + " active");
+        v.setTextViewText(R.id.agenda_subtitle, tasks.size() + " shown · " + Math.max(0,totalCount-activeCount) + " completed");
+        String status = !AgendaData.prefs(c).getBoolean("sessionReady",false) ? "Open ARSHNAZ to show your tasks"
+            : AgendaData.prefs(c).getString("syncStatus","Up to date");
         long updated = AgendaData.prefs(c).getLong("updatedAt",0);
         if (updated > 0) status += " · " + new java.text.SimpleDateFormat("MM/dd HH:mm",new java.util.Locale("fa")).format(new java.util.Date(updated));
-        v.setTextViewText(R.id.agenda_status,status);
+        v.setTextViewText(R.id.agenda_status,"Last sync · " + status);
         v.setTextColor(R.id.agenda_status,fg);
         if (compact) {
-            String summary = tasks.isEmpty() ? "تسکی در این نما نیست" : tasks.get(0).optString("title");
-            if (tasks.size() > 1) summary += "\n+ "+(tasks.size()-1)+" تسک دیگر";
+            String summary = tasks.isEmpty() ? "No tasks in this view" : tasks.get(0).optString("title");
+            if (tasks.size() > 1) summary += "\n+ "+(tasks.size()-1)+" more tasks";
             v.setTextViewText(R.id.agenda_summary, summary);
             v.setTextColor(R.id.agenda_summary,fg);
         } else {

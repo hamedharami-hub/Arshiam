@@ -42,11 +42,11 @@ public class ArshnazWidgetProvider extends AppWidgetProvider {
         int activeCount = preferences.getInt("activeCount", 0);
         String nextTaskId = preferences.getString("nextTaskId", "");
         String nextTaskTitle = preferences.getString("nextTaskTitle", "");
-        String date = new SimpleDateFormat("EEEE dd MMMM", new Locale("fa")).format(new Date());
+        String date = new SimpleDateFormat("EEEE, MMM d", Locale.US).format(new Date());
         long updatedAt = preferences.getLong("updatedAt", 0);
-        String status = preferences.getString("syncStatus", "برای نمایش تسک‌ها وارد برنامه شوید");
-        if (updatedAt > 0) status += " · آخرین داده: " +
-            new SimpleDateFormat("MM/dd HH:mm", new Locale("fa")).format(new Date(updatedAt));
+        String status = preferences.getString("syncStatus", "Open ARSHNAZ to show your tasks");
+        if (updatedAt > 0) status += " · Updated " +
+            new SimpleDateFormat("MMM d, HH:mm", Locale.US).format(new Date(updatedAt));
 
         for (int appWidgetId : ids) {
             RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_arshnaz);
@@ -55,7 +55,7 @@ public class ArshnazWidgetProvider extends AppWidgetProvider {
             views.setTextViewText(R.id.widget_task_count, String.valueOf(activeCount));
             views.setTextViewText(R.id.widget_next_task,
                 nextTaskTitle == null || nextTaskTitle.isEmpty()
-                    ? "تسک فعالی برای امروز نیست"
+                    ? "No active tasks for today"
                     : nextTaskTitle);
 
             setActivityClick(views, context, R.id.widget_container, "today", 101);

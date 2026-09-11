@@ -228,3 +228,11 @@ Google Cloud نیز ایجاد خودکار OAuth client اندروید را ن�
 - import گمشدهٔ `useCallback` در ۹ component که در commit بازبینی قبلی به callback پایدار تبدیل شده بودند، اضافه شد.
 - build اکنون پیش از Vite ابتدا `tsc --noEmit` را اجرا می‌کند؛ بنابراین خطاهای نام‌های React hook دیگر نمی‌توانند وارد APK یا نسخهٔ وب شوند.
 - نسخهٔ Android برابر `1.6.1` و کد نسخه برابر `17` است.
+
+## نسخهٔ 1.7.0 — ویجت‌های حرفه‌ای انگلیسی
+
+- خانوادهٔ ویجت‌ها با ظاهر native مدرن‌تر، header حرفه‌ای، شمارندهٔ تسک فعال، priority indicator، Quick Add، تغییر سریع View، refresh و تکمیل مستقیم تسک ارتقا یافت.
+- عنوان‌ها، buttonها، statusها، task metadata و launcher widgetها کاملاً انگلیسی شدند: Today، Tomorrow، Upcoming، Focus، Compact و Quick Actions.
+- هر widget به‌طور مستقل قابل تنظیم است: View، Theme روشن/تیره، Show completed، High priority only، Text size، Sort by و تعداد taskهای قابل نمایش.
+- ترتیب تسک‌ها در خود widget می‌تواند بر اساس Time، Priority یا Title تغییر کند و برای هر widget جداگانه حفظ می‌شود.
+- نسخهٔ Android برابر `1.7.0` و کد نسخه برابر `18` است.
