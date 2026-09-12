@@ -103,7 +103,7 @@ export default function AppLayout() {
           </header>
           <main
             id="main-scroll"
-            className="flex-1 overflow-auto pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-20"
+            className="flex-1 overflow-auto pb-[calc(5rem+env(safe-area-inset-bottom))] xl:pb-24"
           >
             <div
               key={loc.pathname}

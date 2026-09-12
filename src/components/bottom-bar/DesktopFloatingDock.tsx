@@ -51,7 +51,7 @@ export function DesktopFloatingDock({
   // If user has collapsed the dock on desktop, show a subtle floating trigger
   if (collapsed) {
     return (
-      <div className="hidden md:flex fixed bottom-3.5 left-1/2 -translate-x-1/2 z-40">
+      <div className="hidden xl:flex fixed bottom-4 left-1/2 -translate-x-1/2 z-40">
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -80,7 +80,7 @@ export function DesktopFloatingDock({
   return (
     <aside
       dir={dir}
-      className="hidden md:flex fixed bottom-4 left-1/2 -translate-x-1/2 z-40 items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-card/80 dark:bg-card/85 backdrop-blur-3xl border border-white/25 dark:border-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.14),0_1px_3px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.3)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.08)] select-none animate-in fade-in-0 slide-in-from-bottom-2 duration-200 ring-1 ring-black/5 dark:ring-white/5"
+      className="hidden xl:flex fixed bottom-4 left-1/2 -translate-x-1/2 z-40 items-center gap-1 px-2.5 py-1.5 rounded-2xl bg-card/90 dark:bg-card/90 backdrop-blur-3xl border border-border/70 shadow-[0_16px_40px_rgba(0,0,0,0.14),0_1px_3px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.3)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.08)] select-none animate-in fade-in-0 slide-in-from-bottom-2 duration-200"
       aria-label={t("nav.desktopDock", "ناوبری شناور دسکتاپ")}
     >
       {/* Navigation tabs */}

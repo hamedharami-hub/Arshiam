@@ -1035,7 +1035,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                 variant={splitView ? "secondary" : "outline"}
                 size="sm"
                 onClick={toggleSplitView}
-                className="hidden lg:inline-flex items-center gap-1.5 text-xs h-8 px-2.5 rounded-lg border border-border/60 font-medium"
+                className="hidden md:inline-flex items-center gap-1.5 text-xs h-8 px-2.5 rounded-lg border border-border/60 font-medium"
                 title={splitView ? T("حالت تمام‌صفحه", "Full width") : T("نمای دوپنله دسکتاپ", "Desktop split view")}
               >
                 <Columns2 className="w-3.5 h-3.5" />
@@ -1244,8 +1244,42 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           </div>
         )}
 
-        <div className={`w-full items-start gap-4 xl:gap-5 ${splitView ? "flex flex-col lg:grid lg:grid-cols-[minmax(420px,1fr)_minmax(500px,1.18fr)] 2xl:grid-cols-[minmax(480px,0.92fr)_minmax(640px,1.35fr)]" : "flex flex-col"}`}>
-          <section className="w-full min-w-0 rounded-2xl border border-border/60 bg-card/35 p-2 sm:p-3 lg:p-4 shadow-sm">
+        <div
+          data-task-split={splitView ? "true" : "false"}
+          dir="ltr"
+          className={`w-full items-start gap-4 xl:gap-5 ${splitView ? "flex flex-col md:grid md:grid-cols-[minmax(320px,0.78fr)_minmax(420px,1.22fr)] 2xl:grid-cols-[minmax(390px,0.82fr)_minmax(620px,1.3fr)]" : "flex flex-col"}`}
+        >
+          {/* Explicit LTR grid placement keeps the inspector on the physical left:
+              sidebar/folders live on the right, the list remains central/right. */}
+          {splitView && (
+            <aside
+              dir={isEn ? "ltr" : "rtl"}
+              className="hidden md:block md:col-start-1 w-full min-w-0 sticky top-[4.25rem] h-[calc(100dvh-6.5rem)] overflow-hidden transition-all duration-200"
+            >
+              {selectedTask ? (
+                <TaskDetail
+                  task={selectedTask}
+                  mode="embedded"
+                  onClose={() => setSelectedTask(null)}
+                  onChanged={load}
+                  setConfirm={setConfirm}
+                  allowDelete
+                />
+              ) : (
+                <div className="h-full rounded-2xl border border-dashed border-border/70 bg-card/40 flex flex-col items-center justify-center p-6 text-center text-muted-foreground shadow-sm">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3">
+                    <CheckSquare className="w-6 h-6" />
+                  </div>
+                  <p className="text-sm font-semibold text-foreground">{T("یک تسک را انتخاب کنید", "Select a task")}</p>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-[260px] leading-5">
+                    {T("جزئیات و ویرایش در پنل سمت چپ باز می‌شود؛ فهرست کارها در مرکز باقی می‌ماند.", "Details open in the left panel while the task list remains central.")}
+                  </p>
+                </div>
+              )}
+            </aside>
+          )}
+
+          <section dir={isEn ? "ltr" : "rtl"} className={`w-full min-w-0 rounded-2xl border border-border/60 bg-card/35 p-2 sm:p-3 lg:p-4 shadow-sm ${splitView ? "md:col-start-2" : ""}`}>
             {isFolder ? (
               folderPrefs.view === "list" ? (
                 listView
@@ -1266,31 +1300,6 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
             )}
           </section>
 
-          {/* Desktop Split-View Details Panel */}
-          {splitView && (
-            <aside className="hidden lg:block w-full min-w-0 sticky top-[4.25rem] h-[calc(100dvh-5.5rem)] overflow-hidden transition-all duration-200">
-              {selectedTask ? (
-                <TaskDetail
-                  task={selectedTask}
-                  mode="embedded"
-                  onClose={() => setSelectedTask(null)}
-                  onChanged={load}
-                  setConfirm={setConfirm}
-                  allowDelete
-                />
-              ) : (
-                <div className="h-full rounded-2xl border border-dashed border-border/70 bg-card/40 flex flex-col items-center justify-center p-6 text-center text-muted-foreground shadow-sm">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3">
-                    <CheckSquare className="w-6 h-6" />
-                  </div>
-                  <p className="text-sm font-semibold text-foreground">{T("یک تسک را انتخاب کنید", "Select a task")}</p>
-                  <p className="text-xs text-muted-foreground mt-1 max-w-[260px] leading-5">
-                    {T("برای مشاهده، ویرایش، یادداشت‌ها، چک‌لیست و زیرتسک‌ها روی هر تسک کلیک کنید.", "Click on any task to view and edit details, subtasks, notes and checklists.")}
-                  </p>
-                </div>
-              )}
-            </aside>
-          )}
         </div>
 
       <AlertDialog open={!!confirm} onOpenChange={(v) => !v && setConfirm(null)}>
@@ -1357,7 +1366,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       )}
 
       {selectedTask && (
-        <div className={splitView ? "lg:hidden" : ""}>
+        <div className={splitView ? "md:hidden" : ""}>
           <TaskDetail
             task={selectedTask}
             mode="drawer"

@@ -93,21 +93,21 @@ export function BottomTabItem({
       onClick={handleClick}
       aria-label={label}
       aria-current={isActive ? "page" : undefined}
-      className={`relative h-full flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium select-none active:scale-95 transition-all duration-200 min-w-0 ${
+      className={`relative h-full flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium select-none active:scale-95 transition-all duration-200 min-w-0 ${
         isActive
           ? "text-primary font-bold"
           : "text-muted-foreground/75 hover:text-foreground"
       } ${className}`}
     >
       <div
-        className={`relative flex items-center justify-center px-3 py-1 rounded-full transition-all duration-200 ${
+        className={`relative flex items-center justify-center h-8 min-w-9 px-2.5 rounded-xl transition-all duration-200 ${
           isActive
             ? "bg-primary/15 shadow-[0_0_12px_hsl(var(--primary)/0.25)]"
             : "hover:bg-accent/40"
         }`}
       >
         <Icon
-          className={`w-5 h-5 transition-transform duration-200 ${
+          className={`w-[1.15rem] h-[1.15rem] transition-transform duration-200 ${
             isActive ? "scale-110 stroke-[2.2] text-primary" : "stroke-[1.8]"
           }`}
         />
@@ -117,12 +117,12 @@ export function BottomTabItem({
           </span>
         ) : null}
         {isActive && (
-          <span className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+          <span className="absolute -bottom-1 h-0.5 w-4 rounded-full bg-primary" />
         )}
       </div>
       <span
         dir={dir}
-        className={`tracking-tight truncate max-w-full px-0.5 transition-colors duration-150 ${
+        className={`tracking-tight truncate max-w-full px-1 transition-colors duration-150 leading-none ${
           isActive ? "font-bold text-primary" : "text-muted-foreground/90 font-medium"
         }`}
       >

@@ -9,8 +9,6 @@ import { BottomQuickAddButton } from "./BottomQuickAddButton";
 interface MobileBottomBarProps {
   primaryTabs: BottomTabItemConfig[];
   secondaryTabs: BottomTabItemConfig[];
-  foldableExtraLeftTab?: BottomTabItemConfig;
-  foldableExtraRightTab?: BottomTabItemConfig;
   currentPath: string;
   dir: "rtl" | "ltr";
 }
@@ -18,8 +16,6 @@ interface MobileBottomBarProps {
 export function MobileBottomBar({
   primaryTabs,
   secondaryTabs,
-  foldableExtraLeftTab,
-  foldableExtraRightTab,
   currentPath,
   dir,
 }: MobileBottomBarProps) {
@@ -30,7 +26,7 @@ export function MobileBottomBar({
     <nav
       dir={dir}
       data-bottom-bar="true"
-      className="md:hidden fixed z-40 transition-all duration-300 ease-out select-none inset-x-0 bottom-0 h-15 bg-card/90 dark:bg-card/95 backdrop-blur-2xl border-t border-border/60 flex items-stretch shadow-[0_-8px_25px_rgba(0,0,0,0.06)] dark:shadow-[0_-8px_25px_rgba(0,0,0,0.35)] min-[520px]:bottom-3.5 min-[520px]:inset-x-auto min-[520px]:left-1/2 min-[520px]:-translate-x-1/2 min-[520px]:w-[calc(100%-2rem)] min-[520px]:max-w-xl min-[520px]:h-16 min-[520px]:rounded-3xl min-[520px]:border min-[520px]:border-border/70 min-[520px]:px-2 min-[520px]:shadow-[0_16px_40px_rgba(0,0,0,0.18),0_0_0_1px_rgba(255,255,255,0.12)_inset] dark:min-[520px]:shadow-[0_20px_50px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.06)_inset]"
+      className="xl:hidden fixed z-40 transition-all duration-300 ease-out select-none inset-x-0 bottom-0 h-[4.5rem] bg-card/95 dark:bg-card/95 backdrop-blur-2xl border-t border-border/70 flex items-stretch shadow-[0_-8px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_-8px_25px_rgba(0,0,0,0.35)] min-[600px]:bottom-4 min-[600px]:inset-x-auto min-[600px]:left-1/2 min-[600px]:-translate-x-1/2 min-[600px]:w-[min(34rem,calc(100%-3rem))] min-[600px]:h-[4.5rem] min-[600px]:rounded-[1.45rem] min-[600px]:border min-[600px]:border-border/80 min-[600px]:px-2 min-[600px]:shadow-[0_16px_40px_rgba(0,0,0,0.16),0_0_0_1px_rgba(255,255,255,0.12)_inset] dark:min-[600px]:shadow-[0_20px_50px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.06)_inset]"
       style={{
         paddingBottom: "max(env(safe-area-inset-bottom, 0px), 4px)",
       }}
@@ -47,18 +43,6 @@ export function MobileBottomBar({
         />
       ))}
 
-      {/* Extra tab for foldable / wide mobile screens (Habits) */}
-      {foldableExtraLeftTab && (
-        <BottomTabItem
-          key={foldableExtraLeftTab.key}
-          tab={foldableExtraLeftTab}
-          isActive={foldableExtraLeftTab.match(currentPath)}
-          mode="mobile"
-          dir={dir}
-          className="hidden min-[520px]:flex"
-        />
-      )}
-
       {/* Elevated center Quick Add action */}
       <div className="flex-1 flex items-center justify-center">
         <BottomQuickAddButton mode="mobile" />
@@ -74,18 +58,6 @@ export function MobileBottomBar({
           dir={dir}
         />
       ))}
-
-      {/* Extra tab for foldable / wide mobile screens (Calendar) */}
-      {foldableExtraRightTab && (
-        <BottomTabItem
-          key={foldableExtraRightTab.key}
-          tab={foldableExtraRightTab}
-          isActive={foldableExtraRightTab.match(currentPath)}
-          mode="mobile"
-          dir={dir}
-          className="hidden min-[520px]:flex"
-        />
-      )}
 
       {/* Menu / Sidebar toggle button */}
       <button

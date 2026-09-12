@@ -146,11 +146,11 @@ export function BottomTabBar() {
     },
   ], []);
 
-  // For mobile view, we take the primary tabs, secondary tabs, and foldable extra tabs
+  // A predictable five-slot mobile rail is more usable than squeezing seven
+  // destinations into the foldable layout. Habits and Calendar remain one tap
+  // away from the Menu, while the primary daily workflow stays thumb-friendly.
   const mobilePrimaryTabs = useMemo(() => [tabs[0], tabs[1]], [tabs]);
   const mobileSecondaryTabs = useMemo(() => [tabs[3]], [tabs]);
-  const foldableExtraLeftTab = useMemo(() => tabs[2], [tabs]); // Habits
-  const foldableExtraRightTab = useMemo(() => tabs[4], [tabs]); // Calendar
 
   if (!loc.pathname.startsWith("/app")) return null;
 
@@ -160,8 +160,6 @@ export function BottomTabBar() {
       <MobileBottomBar
         primaryTabs={mobilePrimaryTabs}
         secondaryTabs={mobileSecondaryTabs}
-        foldableExtraLeftTab={foldableExtraLeftTab}
-        foldableExtraRightTab={foldableExtraRightTab}
         currentPath={loc.pathname}
         dir={dir}
       />

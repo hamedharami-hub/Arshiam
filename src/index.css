@@ -410,8 +410,12 @@ html, body {
    Hinge awareness, dual-screen segments, and fluid ergonomics. */
 @media (horizontal-viewport-segments: 2) {
   [data-bottom-bar="true"] {
-    max-width: min(calc(env(viewport-segment-width 0 0, 50vw) - 2rem), 520px) !important;
+    max-width: min(calc(env(viewport-segment-width 0 0, 50vw) - 2rem), 34rem) !important;
     left: calc(env(viewport-segment-width 0 0, 50vw) / 2) !important;
+  }
+
+  [data-task-split="true"] {
+    column-gap: max(1rem, env(viewport-segment-right 0 0, 0px));
   }
 }
 @media (screen-spanning: single-fold-vertical) {
