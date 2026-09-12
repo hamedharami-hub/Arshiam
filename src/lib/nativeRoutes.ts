@@ -15,6 +15,6 @@ export function nativeRoute(raw: string, currentUid?: string | null): string | n
       const id = url.searchParams.get("taskId");
       return "/app/today" + (id ? "?completeTaskId=" + encodeURIComponent(id) : "");
     }
-    return ["today","tomorrow","next7","inbox","notes","checkin","garden","pomodoro","settings"].includes(route) ? "/app/" + route : null;
+    return ["today","tomorrow","next7","inbox","notes","checkin","garden","pomodoro","settings","mind","thoughts","abc","socratic","breathing","worry","life-architect"].includes(route) ? "/app/" + route : null;
   } catch { return null; }
 }

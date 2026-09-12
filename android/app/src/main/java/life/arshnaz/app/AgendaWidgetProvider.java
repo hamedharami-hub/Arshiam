@@ -69,14 +69,15 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
             v.setRemoteAdapter(R.id.agenda_list, service);
             v.setEmptyView(R.id.agenda_list,R.id.agenda_empty);
             v.setTextColor(R.id.agenda_empty,fg);
-            // Mutability is required only for framework collection fill-in; target is explicit.
-            Intent template = new Intent(c,MainActivity.class).setAction(Intent.ACTION_VIEW)
-                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            v.setPendingIntentTemplate(R.id.agenda_list,PendingIntent.getActivity(c,50000+id,template,
+            // A collection has one template intent. The receiver dispatches each row's explicit
+            // fill-in action, so its checkmark can save directly while the row still opens a task.
+            Intent template = new Intent(c,AndroidActionsReceiver.class).setAction("widgetTask")
+                .setData(Uri.parse("arshnaz://widget-action/template/" + id));
+            v.setPendingIntentTemplate(R.id.agenda_list,PendingIntent.getBroadcast(c,50000+id,template,
                 PendingIntent.FLAG_UPDATE_CURRENT | (android.os.Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0)));
         }
         v.setOnClickPendingIntent(R.id.agenda_title,activity(c,AgendaData.route(scope),70000+id));
-        v.setOnClickPendingIntent(R.id.agenda_add,activity(c,"new-task",71000+id));
+        v.setOnClickPendingIntent(R.id.agenda_add,quickCreate(c,71000+id));
         if (compact) v.setOnClickPendingIntent(R.id.agenda_summary,activity(c,AgendaData.route(scope),72000+id));
         Intent config = new Intent(c,WidgetConfigureActivity.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id)
             .setData(Uri.parse("arshnaz://configure/"+id));
@@ -91,9 +92,17 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
         return scopes[0];
     }
     static PendingIntent activity(Context c,String route,int code) {
-        return PendingIntent.getActivity(c,code,new Intent(c,MainActivity.class).setAction(Intent.ACTION_VIEW)
-            .setData(Uri.parse("arshnaz://"+route)).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP),
+        return PendingIntent.getActivity(c,code,appIntent(c,route),
             PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+    }
+    static Intent appIntent(Context c, String route) {
+        return new Intent(c,MainActivity.class).setAction(Intent.ACTION_VIEW)
+            .setData(Uri.parse("arshnaz://"+route)).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);
+    }
+    static PendingIntent quickCreate(Context c, int code) {
+        Intent intent = new Intent(c, WidgetTaskActionActivity.class).putExtra("create", true)
+            .setData(Uri.parse("arshnaz://widget-action/create/" + code));
+        return PendingIntent.getActivity(c, code, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
     static void update(Context c,AppWidgetManager m,int id) { m.updateAppWidget(id,views(c,id)); m.notifyAppWidgetViewDataChanged(id,R.id.agenda_list); }
     static void redraw(Context c) {

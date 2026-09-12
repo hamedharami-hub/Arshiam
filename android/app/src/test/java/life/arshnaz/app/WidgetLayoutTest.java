@@ -27,4 +27,13 @@ public class WidgetLayoutTest {
         assertNotNull(view.findViewById(R.id.widget_add_task));
         assertNotNull(view.findViewById(R.id.widget_notes));
     }
+    @Test public void actionHubHasAPrimaryAndThreeDedicatedActions() {
+        Context context = RuntimeEnvironment.getApplication();
+        View view = new RemoteViews(context.getPackageName(), R.layout.widget_action_hub)
+            .apply(context, new FrameLayout(context));
+        assertNotNull(view.findViewById(R.id.hub_primary));
+        assertNotNull(view.findViewById(R.id.hub_action_one));
+        assertNotNull(view.findViewById(R.id.hub_action_two));
+        assertNotNull(view.findViewById(R.id.hub_action_three));
+    }
 }

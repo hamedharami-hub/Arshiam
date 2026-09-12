@@ -59,7 +59,7 @@ public class ArshnazWidgetProvider extends AppWidgetProvider {
                     : nextTaskTitle);
 
             setActivityClick(views, context, R.id.widget_container, "today", 101);
-            setActivityClick(views, context, R.id.widget_add_task, "new-task", 102);
+            views.setOnClickPendingIntent(R.id.widget_add_task, AgendaWidgetProvider.quickCreate(context, 102));
             setActivityClick(views, context, R.id.widget_checkin, "checkin", 103);
             setActivityClick(views, context, R.id.widget_garden_btn, "garden", 104);
             setActivityClick(views, context, R.id.widget_pomodoro, "pomodoro", 106);

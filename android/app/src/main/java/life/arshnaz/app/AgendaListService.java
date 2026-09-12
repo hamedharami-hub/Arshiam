@@ -40,8 +40,10 @@ public class AgendaListService extends RemoteViewsService {
             row.setTextColor(R.id.row_priority,android.graphics.Color.parseColor(priority?"#FBBF24":"#64748B"));
             String size=AgendaData.options(c).getString("widget."+id+".textSize",AgendaData.options(c).getBoolean("widget."+id+".large",false)?"large":"medium");
             row.setTextViewTextSize(R.id.row_title,android.util.TypedValue.COMPLEX_UNIT_SP,"large".equals(size)?18:"small".equals(size)?12:15);
-            row.setOnClickFillInIntent(R.id.row_root,new Intent().setData(Uri.parse("arshnaz://task?taskId="+Uri.encode(t.optString("id"))+"&owner="+Uri.encode(owner))));
-            row.setOnClickFillInIntent(R.id.row_done,new Intent().setData(Uri.parse("arshnaz://complete-task?taskId="+Uri.encode(t.optString("id"))+"&owner="+Uri.encode(owner))));
+            String taskId=Uri.encode(t.optString("id"));
+            row.setOnClickFillInIntent(R.id.row_root,new Intent().setData(Uri.parse("arshnaz://widget-action/open?taskId="+taskId+"&owner="+Uri.encode(owner))));
+            row.setOnClickFillInIntent(R.id.row_done,new Intent().setData(Uri.parse("arshnaz://widget-action/complete?taskId="+taskId+"&owner="+Uri.encode(owner))));
+            row.setOnClickFillInIntent(R.id.row_edit,new Intent().setData(Uri.parse("arshnaz://widget-action/edit?taskId="+taskId+"&owner="+Uri.encode(owner))));
             return row;
         }
         public RemoteViews getLoadingView() { return null; }

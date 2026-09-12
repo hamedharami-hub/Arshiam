@@ -17,4 +17,9 @@ describe("Android deep links", () => {
     );
     expect(nativeRoute("arshnaz://nottoday")).toBeNull();
   });
+  it("allows the native mind and problem-solving widget routes", () => {
+    expect(nativeRoute("arshnaz://mind")).toBe("/app/mind");
+    expect(nativeRoute("arshnaz://socratic")).toBe("/app/socratic");
+    expect(nativeRoute("arshnaz://life-architect")).toBe("/app/life-architect");
+  });
 });

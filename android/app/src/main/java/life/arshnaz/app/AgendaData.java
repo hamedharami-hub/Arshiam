@@ -66,6 +66,15 @@ final class AgendaData {
     static List<JSONObject> select(Context c, String scope, boolean done, boolean high) {
         return select(read(c), scope, done, high, LocalDate.now(), ZoneId.systemDefault());
     }
+    static JSONObject task(Context c, String id) {
+        if (id == null || id.isEmpty()) return null;
+        JSONArray rows = read(c);
+        for (int i = 0; i < rows.length(); i++) {
+            JSONObject row = rows.optJSONObject(i);
+            if (row != null && id.equals(row.optString("id"))) return row;
+        }
+        return null;
+    }
     static String label(String scope) {
         switch(scope) {
             case "tomorrow": return "Tomorrow";

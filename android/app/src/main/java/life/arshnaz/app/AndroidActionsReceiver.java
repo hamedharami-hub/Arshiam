@@ -13,6 +13,29 @@ public class AndroidActionsReceiver extends BroadcastReceiver {
     @Override public void onReceive(Context c,Intent intent) {
         String action=intent.getAction();
         if(action==null) return;
+        if ("widgetTask".equals(action)) {
+            Uri data = intent.getData();
+            if (data == null || !"widget-action".equals(data.getHost())) return;
+            String owner = data.getQueryParameter("owner");
+            String activeOwner = AgendaData.prefs(c).getString("dataUserId", "");
+            if (!owner.isEmpty() && !owner.equals(activeOwner)) return;
+            String taskId = data.getQueryParameter("taskId");
+            String operation = data.getPathSegments().isEmpty() ? "" : data.getPathSegments().get(0);
+            if ("open".equals(operation) && taskId != null) {
+                Intent open = AgendaWidgetProvider.appIntent(c, "task?taskId=" + Uri.encode(taskId) + "&owner=" + Uri.encode(activeOwner));
+                open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                c.startActivity(open);
+            } else if ("complete".equals(operation) && taskId != null) {
+                AgendaData.prefs(c).edit().putString("syncStatus", "Saving completion from widget…").apply();
+                WidgetTaskActionWorker.enqueue(c, "complete", taskId, "", "", "");
+                AgendaWidgetProvider.redraw(c);
+            } else if ("edit".equals(operation) && taskId != null) {
+                Intent edit = new Intent(c, WidgetTaskActionActivity.class).putExtra("taskId", taskId)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                c.startActivity(edit);
+            }
+            return;
+        }
         if(action.startsWith("panel")) {
             if(!AgendaData.options(c).getBoolean("panelEnabled",false) || !AgendaData.prefs(c).getBoolean("sessionReady",false)) return;
             SharedPreferences p=AgendaData.options(c);
