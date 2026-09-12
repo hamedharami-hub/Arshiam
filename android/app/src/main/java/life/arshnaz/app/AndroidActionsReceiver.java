@@ -10,6 +10,12 @@ public class AndroidActionsReceiver extends BroadcastReceiver {
             .setAction(action).putExtra("widgetId",id).setData(Uri.parse("arshnaz://action/"+action+"/"+id)),
             PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
     }
+    static PendingIntent taskPending(Context c, String taskId, int requestCode) {
+        Intent intent = new Intent(c, AndroidActionsReceiver.class).setAction("completeDirect")
+            .putExtra("taskId", taskId == null ? "" : taskId)
+            .setData(Uri.parse("arshnaz://action/complete/" + Uri.encode(taskId == null ? "" : taskId)));
+        return PendingIntent.getBroadcast(c, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
     @Override public void onReceive(Context c,Intent intent) {
         String action=intent.getAction();
         if(action==null) return;
@@ -34,6 +40,14 @@ public class AndroidActionsReceiver extends BroadcastReceiver {
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 c.startActivity(edit);
             }
+            return;
+        }
+        if ("completeDirect".equals(action)) {
+            String taskId = intent.getStringExtra("taskId");
+            if (taskId == null || taskId.isEmpty()) return;
+            AgendaData.prefs(c).edit().putString("syncStatus", "Saving completion from widget…").apply();
+            WidgetTaskActionWorker.enqueue(c, "complete", taskId, "", "", "");
+            AgendaWidgetProvider.redraw(c);
             return;
         }
         if(action.startsWith("panel")) {

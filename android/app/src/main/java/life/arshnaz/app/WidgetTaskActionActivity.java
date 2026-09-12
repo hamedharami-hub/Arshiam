@@ -23,14 +23,14 @@ public class WidgetTaskActionActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(pad, pad * 2, pad, pad); root.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
         scroll.addView(root); setContentView(scroll);
-        TextView heading = new TextView(this); heading.setText(create ? "Quick add task" : "Quick task edit"); heading.setTextSize(24); root.addView(heading);
+        TextView heading = new TextView(this); heading.setTag("widget-action-heading"); heading.setText(create ? "Quick add task" : "Quick task edit"); heading.setTextSize(24); root.addView(heading);
         TextView help = new TextView(this); help.setText(create ? "Add a task with its priority and date. You can open full details afterwards." : "Update title, priority or date without leaving your home screen."); root.addView(help);
-        EditText title = new EditText(this); title.setHint("Task title"); title.setSingleLine(true); title.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES); title.setText(task == null ? "" : task.optString("title")); root.addView(labeled("Title", title));
+        EditText title = new EditText(this); title.setTag("widget-action-title"); title.setHint("Task title"); title.setSingleLine(true); title.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES); title.setText(task == null ? "" : task.optString("title")); root.addView(labeled("Title", title));
         Spinner priority = spinner(PRIORITY_LABELS, indexOf(PRIORITIES, task == null ? "none" : task.optString("priority", "none"))); root.addView(labeled("Priority", priority));
         String due = task == null ? "" : task.optString("due_date", "");
         int dueIndex = due.startsWith(java.time.LocalDate.now().toString()) ? 1 : due.startsWith(java.time.LocalDate.now().plusDays(1).toString()) ? 2 : 0;
         Spinner dueDate = spinner(DUE_LABELS, dueIndex); root.addView(labeled("Due date", dueDate));
-        Button save = new Button(this); save.setText(create ? "Add task" : "Save quick changes"); root.addView(save);
+        Button save = new Button(this); save.setTag("widget-action-save"); save.setText(create ? "Add task" : "Save quick changes"); root.addView(save);
         save.setOnClickListener(v -> {
             String value = title.getText().toString().trim();
             if (value.isEmpty()) { title.setError("A title is required"); return; }

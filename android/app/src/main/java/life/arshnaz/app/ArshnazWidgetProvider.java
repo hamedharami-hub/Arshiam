@@ -64,8 +64,12 @@ public class ArshnazWidgetProvider extends AppWidgetProvider {
             setActivityClick(views, context, R.id.widget_garden_btn, "garden", 104);
             setActivityClick(views, context, R.id.widget_pomodoro, "pomodoro", 106);
             setActivityClick(views, context, R.id.widget_notes, "notes", 107);
-            setActivityClick(views, context, R.id.widget_complete_task,
-                "complete-task?taskId=" + Uri.encode(nextTaskId), 105);
+            if (nextTaskId == null || nextTaskId.isEmpty()) {
+                setActivityClick(views, context, R.id.widget_complete_task, "today", 105);
+            } else {
+                views.setOnClickPendingIntent(R.id.widget_complete_task,
+                    AndroidActionsReceiver.taskPending(context, nextTaskId, 105));
+            }
 
             Intent refresh = new Intent(context, ArshnazWidgetProvider.class)
                 .setAction(ACTION_REFRESH)

@@ -23,4 +23,11 @@
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
     </style>
+
+    <!-- Native widget forms must not inherit the one-shot splash screen theme. -->
+    <style name="AppTheme.WidgetAction" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowBackground">#F8FAFC</item>
+        <item name="android:colorAccent">@color/colorPrimary</item>
+    </style>
 </resources>
