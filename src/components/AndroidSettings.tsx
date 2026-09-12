@@ -11,7 +11,7 @@ import { haptic } from "@/lib/haptics";
 import { toast } from "sonner";
 
 const WIDGETS = [
-  { name: "Today", description: "Live agenda with quick completion", icon: ListChecks },
+  { name: "Today", description: "Tasks, subtasks, open and toggle completion", icon: ListChecks },
   { name: "Tomorrow", description: "Prepare your next day", icon: CalendarClock },
   { name: "Upcoming", description: "Seven-day planning view", icon: Clock3 },
   { name: "Focus", description: "High and urgent tasks only", icon: Zap },
@@ -89,7 +89,7 @@ export default function AndroidSettings() {
 
         <section aria-labelledby="android-widgets-title" className="space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <div><h3 id="android-widgets-title" className="flex items-center gap-2 text-sm font-semibold"><LayoutGrid className="h-4 w-4 text-primary" />خانوادهٔ ویجت‌ها</h3><p className="mt-1 text-xs text-muted-foreground">ویجت‌ها انگلیسی‌اند؛ نماهای تسک تنظیمات مستقل دارند و از خود ویجت می‌توانی تسک را کامل، باز، سریع ویرایش یا اضافه کنی.</p></div>
+            <div><h3 id="android-widgets-title" className="flex items-center gap-2 text-sm font-semibold"><LayoutGrid className="h-4 w-4 text-primary" />خانوادهٔ ویجت‌ها</h3><p className="mt-1 text-xs text-muted-foreground">ویجت‌ها انگلیسی‌اند؛ دو نما را می‌توانی با هم ترکیب کنی، زیرتسک‌ها را ببینی، وضعیت انجام را تغییر بدهی و با لمس عنوان وارد خود تسک شوی.</p></div>
             <Button size="sm" variant="outline" onClick={() => void refreshWidgets()} disabled={widgetBusy} className="gap-2"><RefreshCw className={`h-4 w-4 ${widgetBusy ? "animate-spin" : ""}`} />تازه‌سازی همه</Button>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">

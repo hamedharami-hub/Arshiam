@@ -47,7 +47,7 @@ public final class WidgetTaskActionWorker extends Worker {
             String action = getInputData().getString("action");
             String taskId = getInputData().getString("taskId");
             if ("create".equals(action)) create(project, database, uid, token);
-            else if (validId(taskId) && "complete".equals(action)) complete(project, database, uid, taskId, token);
+            else if (validId(taskId) && ("complete".equals(action) || "reopen".equals(action))) setCompleted(project, database, uid, taskId, token, "complete".equals(action));
             else if (validId(taskId) && "edit".equals(action)) edit(project, database, uid, taskId, token);
             else throw new IllegalArgumentException("Unsupported widget action");
             c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("syncStatus", "Widget change saved").apply();
@@ -73,8 +73,8 @@ public final class WidgetTaskActionWorker extends Worker {
         String url = endpoint(project, database, uid, id, false);
         request("POST", url, new JSONObject().put("fields", fields).toString(), token);
     }
-    private void complete(String project, String database, String uid, String id, String token) throws Exception {
-        JSONObject fields = new JSONObject().put("completed", bool(true)).put("status", string("done")).put("updated_at", timestamp());
+    private void setCompleted(String project, String database, String uid, String id, String token, boolean completed) throws Exception {
+        JSONObject fields = new JSONObject().put("completed", bool(completed)).put("status", string(completed ? "done" : "todo")).put("updated_at", timestamp());
         request("PATCH", endpoint(project, database, uid, id, true, "completed", "status", "updated_at"), new JSONObject().put("fields", fields).toString(), token);
     }
     private void edit(String project, String database, String uid, String id, String token) throws Exception {

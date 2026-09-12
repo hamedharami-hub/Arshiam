@@ -26,4 +26,21 @@ public class AgendaDataTest {
         assertEquals(0,AgendaData.select(rows,"today",false,false,today,zone).size());
         assertEquals(1,AgendaData.select(rows,"undated",false,false,today,zone).size());
     }
+    @Test public void includesSubtasksAndPreservesHierarchy() throws Exception {
+        JSONArray rows=new JSONArray().put(task("parent","2026-09-10"))
+            .put(task("child","").put("parent_id","parent"))
+            .put(task("grandchild","").put("parent_id","child"));
+        java.util.List<JSONObject> selected=AgendaData.select(rows,"today",false,false,today,zone);
+        assertEquals(3,selected.size());
+        assertEquals("parent",selected.get(0).getString("id"));
+        assertEquals(1,selected.get(1).getInt("_widgetDepth"));
+        assertEquals(2,selected.get(2).getInt("_widgetDepth"));
+    }
+    @Test public void combinesTwoIndependentViewsWithoutDuplicates() throws Exception {
+        JSONArray rows=new JSONArray().put(task("today","2026-09-10"))
+            .put(task("tomorrow","2026-09-11")).put(task("both","2026-09-10").put("priority","high"));
+        java.util.List<JSONObject> selected=AgendaData.select(rows,"today","high",false,false,today,zone);
+        assertEquals(2,selected.size());
+        assertTrue(selected.stream().anyMatch(t->"both".equals(t.optString("id"))));
+    }
 }

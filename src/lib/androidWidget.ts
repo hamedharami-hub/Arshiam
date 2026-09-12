@@ -91,6 +91,7 @@ async function sendTasks(tasks: Task[], ownerId: string): Promise<void> {
     const pendingChanges = (await getPendingOps("tasks")).length > 0;
     if (auth.currentUser?.uid !== ownerId || readyUid !== ownerId) return;
     await widget.syncWidgetData({ ...widgetPayload(tasks), userId: ownerId, pendingChanges,
-      tasks: tasks.map(({ id, title, due_date, completed, status, priority, reminder_at, folder_id }) =>
-        ({ id, title, due_date: due_date || "", completed, status, priority, reminder_at: reminder_at || "", folder_id: folder_id || "" })) });
+      tasks: tasks.map(({ id, title, due_date, completed, status, priority, reminder_at, folder_id, parent_id }) =>
+        ({ id, title, due_date: due_date || "", completed, status, priority, reminder_at: reminder_at || "",
+          folder_id: folder_id || "", parent_id: parent_id || "" })) });
 }

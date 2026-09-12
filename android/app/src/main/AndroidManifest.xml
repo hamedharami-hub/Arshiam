@@ -41,6 +41,7 @@
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_CONFIGURE"/></intent-filter>
         </activity>
         <activity android:name=".WidgetTaskActionActivity" android:exported="false" android:theme="@style/AppTheme.WidgetAction"/>
+        <activity android:name=".WidgetRouterActivity" android:exported="false" android:excludeFromRecents="true" android:noHistory="true" android:theme="@android:style/Theme.NoDisplay"/>
         <receiver android:name=".AgendaWidgetProvider" android:exported="false" android:label="ARSHNAZ · Today"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_today_info"/></receiver>
         <receiver android:name=".TomorrowWidgetProvider" android:exported="false" android:label="ARSHNAZ · Tomorrow"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_tomorrow_info"/></receiver>
         <receiver android:name=".WeekWidgetProvider" android:exported="false" android:label="ARSHNAZ · Upcoming"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_week_info"/></receiver>

@@ -23,6 +23,9 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
             : info != null && info.provider.getClassName().endsWith("FocusWidgetProvider") ? "high" : "today";
         return AgendaData.options(c).getString("widget."+id+".scope", fallback);
     }
+    static String secondaryScope(Context c,int id) {
+        return AgendaData.options(c).getString("widget."+id+".secondaryScope","none");
+    }
     @Override public void onUpdate(Context c, AppWidgetManager m, int[] ids) {
         for (int id : ids) update(c, m, id);
         if (AgendaData.prefs(c).getBoolean("sessionReady", false)) ArshnazWidgetWorker.enqueue(c);
@@ -31,25 +34,26 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
     @Override public void onDeleted(Context c, int[] ids) {
         for (int id : ids) {
             SharedPreferences.Editor edit = AgendaData.options(c).edit();
-            for (String key : new String[]{"scope","light","done","high","large","textSize","sort","limit"}) edit.remove("widget."+id+"."+key);
+            for (String key : new String[]{"scope","secondaryScope","light","done","high","large","textSize","sort","limit"}) edit.remove("widget."+id+"."+key);
             edit.apply();
         }
     }
     static RemoteViews views(Context c, int id) {
         SharedPreferences p = AgendaData.options(c);
-        String prefix = "widget."+id+".", scope = scope(c,id);
+        String prefix = "widget."+id+".", scope = scope(c,id), secondary = secondaryScope(c,id);
         boolean light = p.getBoolean(prefix+"light", false);
         AppWidgetProviderInfo info = AppWidgetManager.getInstance(c).getAppWidgetInfo(id);
         boolean compact = info != null && info.provider.getClassName().endsWith("CompactWidgetProvider");
         RemoteViews v = new RemoteViews(c.getPackageName(), compact ? R.layout.widget_compact : R.layout.widget_agenda);
         int fg = Color.parseColor(light ? "#172033" : "#F1F5F9");
-        v.setInt(R.id.agenda_root,"setBackgroundColor",Color.parseColor(light ? "#F1F5F9" : "#172033"));
+        v.setInt(R.id.agenda_root,"setBackgroundResource",light ? R.drawable.widget_background_light : R.drawable.widget_background);
         v.setTextColor(R.id.agenda_title, fg);
         boolean showDone = p.getBoolean(prefix+"done",false), highOnly = p.getBoolean(prefix+"high",false);
-        List<JSONObject> tasks = AgendaData.select(c,scope,showDone,highOnly);
-        int activeCount = AgendaData.select(c,scope,false,highOnly).size();
-        int totalCount = AgendaData.select(c,scope,true,highOnly).size();
-        v.setTextViewText(R.id.agenda_title, AgendaData.label(scope));
+        List<JSONObject> tasks = AgendaData.select(c,scope,secondary,showDone,highOnly);
+        int activeCount = AgendaData.select(c,scope,secondary,false,highOnly).size();
+        int totalCount = AgendaData.select(c,scope,secondary,true,highOnly).size();
+        String title=AgendaData.label(scope)+("none".equals(secondary)?"":" + "+AgendaData.label(secondary));
+        v.setTextViewText(R.id.agenda_title,title);
         v.setTextViewText(R.id.agenda_count, activeCount + " active");
         v.setTextViewText(R.id.agenda_subtitle, tasks.size() + " shown · " + Math.max(0,totalCount-activeCount) + " completed");
         String status = !AgendaData.prefs(c).getBoolean("sessionReady",false) ? "Open ARSHNAZ to show your tasks"
@@ -69,15 +73,14 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
             v.setRemoteAdapter(R.id.agenda_list, service);
             v.setEmptyView(R.id.agenda_list,R.id.agenda_empty);
             v.setTextColor(R.id.agenda_empty,fg);
-            // A collection has one template intent. The receiver dispatches each row's explicit
-            // fill-in action, so its checkmark can save directly while the row still opens a task.
-            Intent template = new Intent(c,AndroidActionsReceiver.class).setAction("widgetTask")
+            // Collection rows share one Activity template. The fill-in URI chooses open/toggle/edit.
+            Intent template = new Intent(c,WidgetRouterActivity.class).setAction(Intent.ACTION_VIEW)
                 .setData(Uri.parse("arshnaz://widget-action/template/" + id));
-            v.setPendingIntentTemplate(R.id.agenda_list,PendingIntent.getBroadcast(c,50000+id,template,
+            v.setPendingIntentTemplate(R.id.agenda_list,PendingIntent.getActivity(c,50000+id,template,
                 PendingIntent.FLAG_UPDATE_CURRENT | (android.os.Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0)));
         }
         v.setOnClickPendingIntent(R.id.agenda_title,activity(c,AgendaData.route(scope),70000+id));
-        v.setOnClickPendingIntent(R.id.agenda_add,quickCreate(c,71000+id));
+        v.setOnClickPendingIntent(R.id.agenda_add,activity(c,"new-task",71000+id));
         if (compact) v.setOnClickPendingIntent(R.id.agenda_summary,activity(c,AgendaData.route(scope),72000+id));
         Intent config = new Intent(c,WidgetConfigureActivity.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id)
             .setData(Uri.parse("arshnaz://configure/"+id));
@@ -97,7 +100,8 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
     }
     static Intent appIntent(Context c, String route) {
         return new Intent(c,MainActivity.class).setAction(Intent.ACTION_VIEW)
-            .setData(Uri.parse("arshnaz://"+route)).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            .setData(Uri.parse("arshnaz://"+route)).putExtra("arshnaz_route",route)
+            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);
     }
     static PendingIntent quickCreate(Context c, int code) {
         Intent intent = new Intent(c, WidgetTaskActionActivity.class).putExtra("create", true)
