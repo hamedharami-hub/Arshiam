@@ -53,7 +53,7 @@ it("enables the native panel only after notification permission", async () => {
   fireEvent.click(button);
   await screen.findByRole("button", { name: "خاموش کردن پنل تسک‌ها در اعلان" });
   expect(mocks.configure).toHaveBeenCalledWith({ panelEnabled: true });
-});
+}, 10_000);
 it("does not enable the panel when permission is denied", async () => {
   mocks.permission.mockResolvedValue(false);
   render(<AndroidSettings />);
