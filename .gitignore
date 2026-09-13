@@ -33,3 +33,6 @@ ARSHNAZ-debug.apk
 artifacts/
 *.jks
 *.keystore
+
+# Local Lovable workspace integration (never part of ARSHNAZ)
+.lovable/
