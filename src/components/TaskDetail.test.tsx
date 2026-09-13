@@ -32,7 +32,8 @@ describe("TaskDetail initial render", () => {
     expect(html).toContain("Plan tomorrow");
     expect(html).not.toContain("Task progress");
     expect(html).not.toContain('aria-label="Subtasks"');
-    expect(html).toContain("Description");
+    expect(html).toContain('aria-label="Task notes"');
+    expect(html).not.toContain('id="task-description-heading"');
     expect(html).toContain('data-task-action-rail="true"');
     expect(html).toContain("bottom-[4.5rem]");
     expect((html.match(/data-task-action-rail/g) || []).length).toBe(1);

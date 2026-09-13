@@ -52,6 +52,7 @@ import { deleteTask as deletePersistedTask, persistTask } from "@/lib/firestoreD
 import type { Task, TaskNote, ConfirmState } from "@/lib/taskTypes";
 import { clearTaskDraft, taskPatch, writeTaskDraft } from "@/lib/taskDraft";
 import { shouldShowTaskSection } from "@/lib/taskSectionVisibility";
+import { descriptionLines } from "@/lib/descriptionLines";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -131,9 +132,17 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [outcomeRefresh, setOutcomeRefresh] = useState(0);
   const [saveState, setSaveState] = useState<"saved" | "dirty" | "saving" | "queued" | "error">("saved");
   const [closePromptOpen, setClosePromptOpen] = useState(false);
+  const [convertOpen, setConvertOpen] = useState(false);
+  const [convertMode, setConvertMode] = useState<"task" | "subtask" | "checklist">("subtask");
+  const [converting, setConverting] = useState(false);
+  const [conversionRevision, setConversionRevision] = useState(0);
+  const [conversionUndo, setConversionUndo] = useState<{
+    mode: "task" | "subtask" | "checklist"; source: string; ids: string[]; listId?: string; restored?: boolean;
+  } | null>(null);
   const latestTaskRef = useRef(task);
   const savedTaskRef = useRef(task);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inFlightSavesRef = useRef(new Set<Promise<void>>());
 
 
   useEffect(() => {
@@ -150,6 +159,9 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     setSubtaskCount(0);
     setStepListCount(0);
     setOutcomeCount(0);
+    setConversionUndo(null);
+    setConvertOpen(false);
+    setConversionRevision(0);
     latestTaskRef.current = restored;
     savedTaskRef.current = task;
     setSaveState(Object.keys(taskPatch(restored, task)).length ? "dirty" : "saved");
@@ -335,7 +347,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     }
   };
 
-  const save = useCallback(async (patch: Partial<Task>, force = false) => {
+  const saveTask = useCallback(async (patch: Partial<Task>, force = false) => {
     if (!canEdit) return;
     if (!force && !Object.keys(patch).length) return;
     const current = latestTaskRef.current;
@@ -382,6 +394,13 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     }
   }, [canEdit, onChanged, user]);
 
+  const save = useCallback((patch: Partial<Task>, force = false) => {
+    const operation = saveTask(patch, force);
+    inFlightSavesRef.current.add(operation);
+    void operation.finally(() => inFlightSavesRef.current.delete(operation)).catch(() => {});
+    return operation;
+  }, [saveTask]);
+
   const pendingPatch = taskPatch(t, savedTaskRef.current);
   const hasPendingChanges = Object.keys(pendingPatch).length > 0;
 
@@ -392,6 +411,129 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     if (!force && !Object.keys(patch).length) return;
     await save(patch, force);
   }, [save]);
+
+  const convertDescription = async () => {
+    if (!user || !canEdit || converting) return;
+    const source = latestTaskRef.current.description || "";
+    const lines = descriptionLines(source);
+    if (!lines.length || lines.length > 50) {
+      toast.error(T("تعداد خط‌ها باید بین ۱ تا ۵۰ باشد", "Enter between 1 and 50 nonempty lines"));
+      return;
+    }
+    if (!latestTaskRef.current.title.trim()) {
+      toast.error(T("ابتدا عنوان تسک را وارد کن", "Add a task title first"));
+      return;
+    }
+    if (convertMode === "checklist" && typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error(T("ساخت چک‌لیست به اینترنت نیاز دارد؛ متن شما باقی می‌ماند", "Checklist creation needs a connection; your text is unchanged"));
+      return;
+    }
+    setConverting(true);
+    const ids: string[] = [];
+    let listId: string | undefined;
+    try {
+      // Leaving the textarea starts an immediate save; wait for that write so
+      // it cannot finish after the new empty description is persisted.
+      await Promise.all([...inFlightSavesRef.current]);
+      await savePendingChanges(true);
+      if (convertMode === "checklist") {
+        listId = generateId();
+        const list = await firebaseStore.from("task_step_lists").insert({
+          id: listId, user_id: user.id, task_id: t.id,
+          title: T("چک‌لیست", "Checklist"), style: "checkbox", position: stepListCount,
+        });
+        if (list.error) throw list.error;
+        for (const [position, line] of lines.entries()) {
+          const id = generateId();
+          ids.push(id);
+          const result = await firebaseStore.from("task_steps").insert({
+            id, user_id: user.id, list_id: listId, text: line, completed: false, position,
+          });
+          if (result.error) throw result.error;
+        }
+      } else {
+        for (const [position, title] of lines.entries()) {
+          const id = generateId();
+          ids.push(id);
+          const result = await persistTask(user.id, {
+            id, user_id: user.id, title, description: null, completed: false,
+            status: "todo", priority: "none", folder_id: latestTaskRef.current.folder_id,
+            parent_id: convertMode === "subtask" ? t.id : null,
+            due_date: null, reminder_at: null, recurrence: "none", recurrence_rule: null,
+            pinned: false, start_at: null, end_at: null, estimated_minutes: null,
+            position,
+          } as Task & { position: number });
+          if (result === "failed") throw new Error("Task could not be saved on this device");
+        }
+      }
+      await save({
+        description: "",
+        ...(convertMode === "subtask" ? { show_subtasks: true } : {}),
+        ...(convertMode === "checklist" ? { show_step_lists: true } : {}),
+      });
+      setConversionUndo({ mode: convertMode, source, ids, listId });
+      if (convertMode === "subtask") setSubtaskCount((count) => count + lines.length);
+      if (convertMode === "checklist") setStepListCount((count) => count + 1);
+      setConversionRevision((revision) => revision + 1);
+      setConvertOpen(false);
+      toast.success(T(`${lines.length} مورد ساخته شد`, `${lines.length} items created`));
+    } catch (error) {
+      // A partially successful batch must never consume the source text.
+      if (convertMode === "checklist") {
+        for (const id of ids) await firebaseStore.from("task_steps").delete().eq("id", id);
+        if (listId) await firebaseStore.from("task_step_lists").delete().eq("id", listId);
+      } else {
+        for (const id of ids) await deletePersistedTask(user.id, id);
+      }
+      const restored = { ...latestTaskRef.current, description: source };
+      latestTaskRef.current = restored;
+      setT(restored);
+      writeTaskDraft(restored);
+      toast.error(T("تبدیل انجام نشد؛ متن اصلی حفظ شد", "Conversion failed; your original text is preserved"));
+      console.error("Task description conversion failed:", error);
+    } finally {
+      setConverting(false);
+    }
+  };
+
+  const undoDescriptionConversion = async () => {
+    if (!user || !conversionUndo || converting) return;
+    setConverting(true);
+    try {
+      // Restore the source before removing generated items. A failed delete
+      // can leave duplicates, but it can never make the user's text vanish.
+      if (!conversionUndo.restored) {
+        const currentText = latestTaskRef.current.description || "";
+        const restoredText = currentText.trim() ? `${conversionUndo.source.trimEnd()}\n\n${currentText}` : conversionUndo.source;
+        await save({ description: restoredText });
+        setConversionUndo({ ...conversionUndo, restored: true });
+      }
+      if (conversionUndo.mode === "checklist") {
+        for (const id of conversionUndo.ids) {
+          const result = await firebaseStore.from("task_steps").delete().eq("id", id);
+          if (result.error) throw result.error;
+        }
+        if (conversionUndo.listId) {
+          const result = await firebaseStore.from("task_step_lists").delete().eq("id", conversionUndo.listId);
+          if (result.error) throw result.error;
+        }
+      } else {
+        for (const id of conversionUndo.ids) {
+          if (!await deletePersistedTask(user.id, id)) throw new Error("Could not remove converted task");
+        }
+      }
+      setConversionUndo(null);
+      if (conversionUndo.mode === "subtask") setSubtaskCount((count) => Math.max(0, count - conversionUndo.ids.length));
+      if (conversionUndo.mode === "checklist") setStepListCount((count) => Math.max(0, count - 1));
+      setConversionRevision((revision) => revision + 1);
+      toast.success(T("متن توضیحات بازگردانده شد", "Description restored"));
+    } catch (error) {
+      console.error("Task description conversion undo failed:", error);
+      toast.error(T("بازگردانی کامل نشد؛ دوباره تلاش کن", "Undo was incomplete; please retry"));
+    } finally {
+      setConverting(false);
+    }
+  };
 
   // A full-page creation screen owns its Back/Save buttons. Giving it one
   // awaited save boundary prevents navigation from racing the editor's debounce.
@@ -656,14 +798,14 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     );
 
   const descriptionSection = (
-    <section className="mx-1 rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4" aria-labelledby="task-description-heading">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <h2 id="task-description-heading" className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-          <FileText className="h-4 w-4 text-primary" />
-          {T("توضیحات", "Description")}
-        </h2>
-        <span className="text-[11px] text-muted-foreground">{T("متن اصلی تسک", "Task brief")}</span>
-      </div>
+    <section className="mx-1 rounded-2xl border border-border/50 bg-card/45 p-2.5 sm:p-3" aria-label={T("متن تسک", "Task notes")}>
+      {canEdit && !!descriptionLines(t.description || "").length && (
+        <div className="mb-2 flex justify-end">
+          <Button size="sm" variant="ghost" className="h-8 gap-1.5 rounded-lg text-xs text-muted-foreground" onClick={() => setConvertOpen(true)}>
+            <ListChecks className="h-3.5 w-3.5" />{T("تبدیل خط‌ها", "Convert lines")}
+          </Button>
+        </div>
+      )}
       <div data-rich-selection onContextMenu={(e) => e.preventDefault()} style={{ WebkitTouchCallout: "none" } as any}>
         <TaskDescriptionEditor
           taskId={t.id}
@@ -678,6 +820,12 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           readOnly={!canEdit}
         />
       </div>
+      {conversionUndo && (
+        <div className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-primary/5 px-3 py-2 text-xs">
+          <span>{T("خط‌ها تبدیل شدند؛ می‌توانی متن تازه بنویسی", "Lines converted; you can write new notes")}</span>
+          <Button size="sm" variant="outline" disabled={converting} onClick={() => void undoDescriptionConversion()}>{T("بازگردانی", "Undo")}</Button>
+        </div>
+      )}
       </section>
     );
 
@@ -1302,6 +1450,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       {showSubtasks && (
         <section className="rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4" aria-label={T("زیرتسک‌ها", "Subtasks")}>
           <TaskSubtasksInline
+            key={`subtasks-${conversionRevision}`}
             taskId={t.id}
             onProgressChange={handleSubtaskProgress}
             readOnly={!canEdit}
@@ -1313,7 +1462,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         </section>
       )}
 
-      {showSteps && <TaskStepLists taskId={t.id} onCountChange={setStepListCount} />}
+      {showSteps && <TaskStepLists key={`steps-${conversionRevision}`} taskId={t.id} onCountChange={setStepListCount} />}
 
       {showOutcomes && <TaskOutcomesInline taskId={t.id} refreshKey={outcomeRefresh} onEdit={() => setOutcomeOpen(true)} />}
 
@@ -1523,6 +1672,36 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
   return (
     <>
+      <AlertDialog open={convertOpen} onOpenChange={(open) => !converting && setConvertOpen(open)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{T("تبدیل خط‌های توضیحات", "Convert description lines")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {T(`هر خط غیرخالی یک مورد می‌شود (${descriptionLines(t.description || "").length} مورد). پس از ساخت موفق، توضیحات خالی می‌شود و می‌توانی متن تازه بنویسی.`,
+                `Each nonempty line becomes one item (${descriptionLines(t.description || "").length} items). After successful creation, the notes clear for new writing.`)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid gap-2" role="radiogroup" aria-label={T("نوع تبدیل", "Conversion type")}>
+            {(["checklist", "subtask", "task"] as const).map((modeOption) => (
+              <button key={modeOption} type="button" role="radio" aria-checked={convertMode === modeOption}
+                onClick={() => setConvertMode(modeOption)}
+                className={`rounded-xl border px-4 py-3 text-start text-sm ${convertMode === modeOption ? "border-primary bg-primary/10 font-semibold" : "border-border hover:bg-muted/50"}`}>
+                {modeOption === "checklist" ? T("چک‌لیست تیک‌دار", "Checklist items")
+                  : modeOption === "subtask" ? T("زیرتسک‌های این تسک", "Subtasks of this task")
+                    : T("تسک‌های مستقل در همین فولدر", "Separate tasks in this folder")}
+              </button>
+            ))}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={converting}>{T("انصراف", "Cancel")}</AlertDialogCancel>
+            <Button disabled={converting || !descriptionLines(t.description || "").length || descriptionLines(t.description || "").length > 50}
+              onClick={() => void convertDescription()}>
+              {converting && <Loader2 className="me-1.5 h-4 w-4 animate-spin" />}
+              {T("تبدیل", "Convert")}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <TaskActionSheet
         task={t}
         open={actionMenuOpen}

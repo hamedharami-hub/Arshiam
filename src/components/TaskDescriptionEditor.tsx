@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Maximize2, Check, Eraser } from "lucide-react";
+import { Maximize2, Check } from "lucide-react";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -41,7 +41,7 @@ export function TaskDescriptionEditor({
   const hasContent = (value || "").trim().length > 0;
 
   return (
-    <div className="relative group mt-2 rounded-2xl border border-border/50 bg-muted/20 dark:bg-card/20 hover:border-border/80 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all duration-200 p-3">
+    <div className="relative group rounded-2xl border border-border/50 bg-muted/20 dark:bg-card/20 hover:border-border/80 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all duration-200 p-3">
       {/* Action buttons toolbar (voice, fullscreen markdown) */}
       {!readOnly && (
         <div className="flex items-center gap-1 absolute top-2.5 end-2.5 z-10">
@@ -70,7 +70,7 @@ export function TaskDescriptionEditor({
 
       {editing || !hasContent ? (
         <AutoTextarea
-          placeholder={T("توضیحات…", "Description…")}
+          aria-label={T("متن تسک", "Task notes")}
           value={value || ""}
           disabled={readOnly}
           onFocus={() => !readOnly && setEditing(true)}
@@ -81,8 +81,8 @@ export function TaskDescriptionEditor({
             setEditing(false);
             void onSave(latest);
           }}
-          minHeight={40}
-          maxHeight={360}
+          minHeight={180}
+          maxHeight={720}
           dir="auto"
           className="border-none bg-transparent focus-visible:ring-0 px-0 pt-0 text-[14px] leading-relaxed text-foreground/90 placeholder:text-muted-foreground/60 w-full pe-16"
         />
