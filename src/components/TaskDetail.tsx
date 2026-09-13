@@ -1082,18 +1082,66 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           </PopoverContent>
         </Popover>
         </div>}
-        <Button type="button" variant="outline" onClick={() => setTagOpen(true)} disabled={!canEdit}
-          className={`order-2 w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-3 ${taskTagIds.length ? "bg-primary/10 text-primary border-primary/30" : "bg-muted/30 border-border/60"}`}>
-          <TagIcon className="w-4 h-4 shrink-0" />
-          <span className="truncate">{taskTagIds.length ? `${taskTagIds.length} ${T("تگ", "tags")}` : T("تگ", "Tags")}</span>
-        </Button>
+        <div className="order-2 min-w-0">
+        <Popover open={tagOpen} onOpenChange={setTagOpen}>
+          <PopoverTrigger asChild>
+            <Button type="button" variant="outline" disabled={!canEdit}
+              className={`w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-3 ${taskTagIds.length ? "bg-primary/10 text-primary border-primary/30" : "bg-muted/30 border-border/60"}`}>
+              <TagIcon className="w-4 h-4 shrink-0" />
+              <span className="truncate">{taskTagIds.length ? `${taskTagIds.length} ${T("تگ", "tags")}` : T("تگ", "Tags")}</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 p-2 max-h-[55vh] overflow-y-auto" align="start" side="bottom">
+            {!showTagCreate ? (
+              <button onClick={() => setShowTagCreate(true)} className="w-full flex items-center gap-2 p-2 mb-1 rounded-xl bg-muted/40 hover:bg-accent text-sm text-muted-foreground">
+                <Plus className="w-4 h-4" /> {T("ساخت تگ جدید", "Create new tag")}
+              </button>
+            ) : (
+              <>
+                <div className="flex items-center gap-1.5 mb-2 p-1.5 rounded-xl bg-muted/40">
+                  <span className="w-3 h-3 rounded-full shrink-0 ms-1" style={{ background: newTagColor }} />
+                  <Input autoFocus value={newTagName} onChange={(e) => setNewTagName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") { void createTagAndAssign(); setShowTagCreate(false); }
+                      if (e.key === "Escape") setShowTagCreate(false);
+                    }}
+                    placeholder={T("نام تگ جدید…", "New tag name…")} className="h-8 text-xs border-0 bg-transparent focus-visible:ring-0" />
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={async () => { await createTagAndAssign(); setShowTagCreate(false); }} disabled={!newTagName.trim()}>
+                    <Plus className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+                <div className="flex gap-1 mb-2 px-1">
+                  {TAG_COLORS.map(c => (
+                    <button key={c} onClick={() => setNewTagColor(c)}
+                      className={`w-5 h-5 rounded-full border-2 ${newTagColor === c ? "border-foreground" : "border-transparent"}`}
+                      style={{ background: c }} />
+                  ))}
+                </div>
+              </>
+            )}
+            {tags.map(tg => {
+              const active = taskTagIds.includes(tg.id);
+              return (
+                <button key={tg.id} onClick={() => toggleTag(tg.id)}
+                  className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent flex items-center justify-between gap-2 ${active ? "bg-accent" : ""}`}>
+                  <span className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: tg.color || "hsl(var(--muted-foreground))" }} />
+                    {tg.name}
+                  </span>
+                  {active && <Check className="w-3.5 h-3.5" />}
+                </button>
+              );
+            })}
+          </PopoverContent>
+        </Popover>
+        </div>
       </div>
     </div>
   );
 
   // ── Bottom action rail ──────────────────────────────────────────────
   const bottomRail = (
-    <div className="mx-auto max-w-3xl w-full px-2 py-2 border-t border-border/50 bg-card/70 dark:bg-card/80 backdrop-blur-xl rounded-b-2xl">
+    <div data-task-action-rail="true" className={`mx-auto max-w-3xl px-2 py-2 border border-border/60 bg-card/95 dark:bg-card/95 backdrop-blur-xl shadow-[0_-8px_24px_rgba(0,0,0,0.12)] ${mode === "page" ? "fixed z-30 left-2 right-2 w-auto bottom-[4.5rem] min-[600px]:bottom-[5.5rem] xl:bottom-4 rounded-2xl" : "relative z-10 shrink-0 w-full rounded-b-2xl"}`}>
       <div className="flex items-center justify-between gap-1 overflow-x-auto no-scrollbar">
         <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
                 <RailButton
@@ -1111,66 +1159,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                   onClick={() => setShowNotes(true)}
                   disabled={!canEdit}
                 />
-                {/* 4. Tags + quick-create */}
-                <Popover open={tagOpen} onOpenChange={setTagOpen}>
-                  <PopoverTrigger asChild>
-                    <span>
-                      <RailButton icon={TagIcon} label={T("تگ", "Tags")} active={taskTagIds.length > 0} badge={taskTagIds.length || undefined} />
-                    </span>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-72 p-2 max-h-[55vh] overflow-y-auto" align="start" side="top">
-                    {!showTagCreate ? (
-                      <button
-                        onClick={() => setShowTagCreate(true)}
-                        className="w-full flex items-center gap-2 p-2 mb-1 rounded-xl bg-muted/40 hover:bg-accent text-sm text-muted-foreground"
-                      >
-                        <Plus className="w-4 h-4" /> {T("ساخت تگ جدید", "Create new tag")}
-                      </button>
-                    ) : (
-                      <>
-                        <div className="flex items-center gap-1.5 mb-2 p-1.5 rounded-xl bg-muted/40">
-                          <span className="w-3 h-3 rounded-full shrink-0 ms-1" style={{ background: newTagColor }} />
-                          <Input
-                            autoFocus
-                            value={newTagName}
-                            onChange={(e) => setNewTagName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") { createTagAndAssign(); setShowTagCreate(false); }
-                              if (e.key === "Escape") setShowTagCreate(false);
-                            }}
-                            placeholder={T("نام تگ جدید…", "New tag name…")}
-                            className="h-8 text-xs border-0 bg-transparent focus-visible:ring-0"
-                          />
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={async () => { await createTagAndAssign(); setShowTagCreate(false); }} disabled={!newTagName.trim()}>
-                            <Plus className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                        <div className="flex gap-1 mb-2 px-1">
-                          {TAG_COLORS.map(c => (
-                            <button key={c} onClick={() => setNewTagColor(c)}
-                              className={`w-5 h-5 rounded-full border-2 ${newTagColor === c ? "border-foreground" : "border-transparent"}`}
-                              style={{ background: c }} />
-                          ))}
-                        </div>
-                      </>
-                    )}
-                    {tags.map(tg => {
-                      const active = taskTagIds.includes(tg.id);
-                      return (
-                        <button key={tg.id} onClick={() => toggleTag(tg.id)}
-                          className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent flex items-center justify-between gap-2 ${active ? "bg-accent" : ""}`}>
-                          <span className="flex items-center gap-2">
-                            <span className="w-2.5 h-2.5 rounded-full" style={{ background: tg.color || "hsl(var(--muted-foreground))" }} />
-                            {tg.name}
-                          </span>
-                          {active && <Check className="w-3.5 h-3.5" />}
-                        </button>
-                      );
-                    })}
-                  </PopoverContent>
-                </Popover>
-
-                {/* 5. Attachments — pick file type first */}
+                {/* Attachments — pick file type first */}
                 <Popover>
                   <PopoverTrigger asChild>
                     <span>
@@ -1397,7 +1386,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         <div className="min-w-0">{descriptionSection}</div>
         <div className="min-w-0 mt-3 min-[820px]:mt-0">{expandables}</div>
       </div>
-      {bottomRail}
     </div>
   );
 
@@ -1542,6 +1530,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         onComplete={toggleCompletion}
         onDelete={deleteTask}
         onMove={() => onRequestFolderPicker ? onRequestFolderPicker() : setFolderOpen(true)}
+        onTags={() => setTagOpen(true)}
         onMakeChild={() => setParentOpen(true)}
         onEdit={() => document.querySelector<HTMLTextAreaElement>("[data-task-title]")?.focus()}
         onPin={() => void save({ pinned: !t.pinned })}
@@ -1574,9 +1563,10 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           <div className="flex-1 overflow-y-auto min-h-0 p-3.5 space-y-3">
             {activeNote ? noteEditorBody : body}
           </div>
+          {bottomRail}
         </div>
       ) : mode === "page" ? (
-        <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-2 pb-12 min-h-screen flex flex-col">
+        <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-2 pb-16 xl:pb-8 min-h-screen flex flex-col">
           {!hidePageToolbar && <div className="sticky top-14 z-10 px-3 sm:px-4 py-2 mb-3 rounded-2xl bg-card/80 dark:bg-card/85 backdrop-blur-xl border border-border/50 shadow-xs flex items-center justify-between gap-3">
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground" aria-live="polite">
               <span className={`w-2 h-2 rounded-full ${
@@ -1589,6 +1579,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             {editorActions}
           </div>}
           {activeNote ? noteEditorBody : body}
+          {bottomRail}
         </div>
       ) : mode === "drawer" && isMobile ? (
         <Drawer open={true} onOpenChange={(v) => !v && requestClose()} snapPoints={[0.5, 1]} activeSnapPoint={snap} setActiveSnapPoint={setSnap} shouldScaleBackground={false} dismissible>
@@ -1602,12 +1593,13 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             <div className={`flex-1 overflow-y-auto min-h-0 px-3 pb-4 ${snap === 1 ? "" : "max-h-[50vh]"}`}>
               {activeNote ? noteEditorBody : body}
             </div>
+            {bottomRail}
             <p id="task-drawer-desc" className="sr-only">{T("جزئیات و ویرایش تسک", "Task details and editing")}</p>
           </DrawerContent>
         </Drawer>
       ) : (
         <Sheet open={true} onOpenChange={(v) => !v && requestClose()}>
-          <SheetContent className="w-full sm:max-w-xl md:max-w-2xl overflow-y-auto p-3 sm:p-4 flex flex-col">
+          <SheetContent className="w-full sm:max-w-xl md:max-w-2xl overflow-hidden p-3 sm:p-4 flex flex-col">
             <SheetHeader className="mb-1 flex-row items-center justify-between gap-3 pe-8">
               <SheetTitle className="text-base font-semibold truncate text-start" dir="auto">
                 {activeNote ? T("ویرایش نوت", "Edit note") : (t.title || T("بدون عنوان", "Untitled"))}
@@ -1617,6 +1609,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             <div className="flex-1 overflow-y-auto min-h-0">
               {activeNote ? noteEditorBody : body}
             </div>
+            {bottomRail}
           </SheetContent>
         </Sheet>
       )}

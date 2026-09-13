@@ -33,6 +33,10 @@ describe("TaskDetail initial render", () => {
     expect(html).not.toContain("Task progress");
     expect(html).not.toContain('aria-label="Subtasks"');
     expect(html).toContain("Description");
+    expect(html).toContain('data-task-action-rail="true"');
+    expect(html).toContain("bottom-[4.5rem]");
+    expect((html.match(/data-task-action-rail/g) || []).length).toBe(1);
+    expect(html).not.toContain('aria-label="Tags"');
   });
 
   it("renders the selected subtask section on that task", () => {

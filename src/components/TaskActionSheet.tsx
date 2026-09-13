@@ -33,6 +33,7 @@ interface Props {
   onMakeChild: () => void;
   onEdit: () => void;
   onPin?: () => void;
+  onTags?: () => void;
   onToggleProgress?: () => Promise<void> | void;
   onPomodoro?: () => void;
   onPatch?: (patch: Partial<Task>) => Promise<void> | void;
@@ -40,7 +41,7 @@ interface Props {
 }
 
 export default function TaskActionSheet({
-  task, open, onOpenChange, onComplete, onDelete, onMove, onMakeChild, onEdit, onPin, onToggleProgress, onPomodoro, onPatch, onRefresh,
+  task, open, onOpenChange, onComplete, onDelete, onMove, onMakeChild, onEdit, onPin, onTags, onToggleProgress, onPomodoro, onPatch, onRefresh,
 }: Props) {
   const { i18n } = useTranslation();
   const { user } = useAuth();
@@ -295,7 +296,7 @@ export default function TaskActionSheet({
         <Row icon={Network} label={T("لینک به تسک والد", "Link Parent Task")} onClick={() => { onMakeChild(); close(); }} disabled={!canEdit} />
         <Row icon={StickyNote} label={T("تبدیل به نوت", "Convert to Note")} onClick={convertToNote} disabled={!canEdit || busy} />
         <Row icon={Paperclip} label={T("ضمیمه", "Attachment")} onClick={() => { onEdit(); close(); }} disabled={!canEdit} />
-        <Row icon={TagIcon} label={T("تگ", "Tags")} onClick={() => { onEdit(); close(); }} disabled={!isOwner} />
+        <Row icon={TagIcon} label={T("تگ", "Tags")} onClick={() => { if (onTags) onTags(); else onEdit(); close(); }} disabled={!isOwner} />
         <Row icon={History} label={T("فعالیت‌ها", "Activities")} onClick={() => setView("activities")} />
         <Row icon={MoreHorizontal} label={T("بیشتر", "More")} onClick={() => setView("more")} />
       </div>

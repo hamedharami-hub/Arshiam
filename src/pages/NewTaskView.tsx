@@ -215,7 +215,7 @@ export default function NewTaskView() {
   const parentId = headerContext?.parentId ?? draft.parent_id;
 
   return (
-    <div dir="rtl" className="w-full pb-40">
+    <div dir="rtl" className="w-full">
       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b px-3 py-2.5 space-y-1.5">
         <div className="flex items-center justify-between gap-2">
           <Button variant="ghost" size="sm" onClick={handleBack} className="gap-1 shrink-0">
