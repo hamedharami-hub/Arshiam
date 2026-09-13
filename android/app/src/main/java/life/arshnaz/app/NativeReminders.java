@@ -104,6 +104,7 @@ final class NativeReminders {
                 .setAutoCancel(true).setVisibility(androidx.core.app.NotificationCompat.VISIBILITY_PRIVATE).setPublicVersion(publicVersion)
                 .setContentIntent(AgendaWidgetProvider.activity(c,route,row.optInt("notificationId")))
                 .addAction(0,"۱۰ دقیقه بعد",snoozeAction)
+                .addAction(0,"انجام شد",AndroidActionsReceiver.taskPending(c,id,false,row.optInt("notificationId")+1))
                 .addAction(0,"باز کردن تسک",AgendaWidgetProvider.activity(c,route,row.optInt("notificationId"))).build();
             try{manager.notify(row.optInt("notificationId"),notification);}catch(SecurityException ignored){}
         }

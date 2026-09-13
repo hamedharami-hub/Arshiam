@@ -43,8 +43,8 @@ final class TaskPanel {
             .addAction(0,"قبلی",AndroidActionsReceiver.pending(c,"panelPrev",0))
             .addAction(0,"بعدی",AndroidActionsReceiver.pending(c,"panelNext",0))
             .addAction(0,"امروز / فردا",AndroidActionsReceiver.pending(c,"panelScope",0));
-        if (selected != null) builder.addAction(0,"انجام شد",AgendaWidgetProvider.activity(c,
-            "complete-task?taskId="+android.net.Uri.encode(selected.optString("id"))+"&owner="+android.net.Uri.encode(owner),880011));
+        if (selected != null) builder.addAction(0,"انجام شد",
+            AndroidActionsReceiver.taskPending(c,selected.optString("id"),false,880011));
         return builder.build();
     }
     static void update(Context c) {

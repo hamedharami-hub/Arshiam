@@ -99,6 +99,16 @@ public class AndroidExperienceTest {
         AgendaData.prefs(c).edit().putString("agendaTasks","[]").commit();
         NativeReminders.reconcile(c);assertEquals(0,NativeReminders.count(c));
     }
+    @Test public void reminderOffersSnoozeCompleteAndOpenActions() throws Exception {
+        Shadows.shadowOf((Application)c).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS);
+        login();AgendaData.options(c).edit().putBoolean("remindersEnabled",true).commit();
+        NativeReminders.reconcile(c);
+        NativeReminders.deliver(c,"today-task","userA",false);
+        int notificationId=NativeReminders.ledger(c).getJSONObject("today-task").getInt("notificationId");
+        Notification delivered=Shadows.shadowOf(c.getSystemService(NotificationManager.class)).getNotification(notificationId);
+        assertNotNull(delivered); assertEquals(3,delivered.actions.length);
+        assertEquals("انجام شد",delivered.actions[1].title);
+    }
     @Test public void nativeConfigurationSavesOnlyItsWidget() throws Exception {
         android.appwidget.AppWidgetManager manager=android.appwidget.AppWidgetManager.getInstance(c);
         android.appwidget.AppWidgetProviderInfo info=new android.appwidget.AppWidgetProviderInfo();
