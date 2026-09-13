@@ -7,9 +7,11 @@ export type NativeStatus = {
   remindersEnabled: boolean;
   scheduledCount: number;
 };
+export type NativeAppInfo = { versionName: string; versionCode: number };
 export const nativeExperience = registerPlugin<{
   haptic(options: { kind: string }): Promise<{ performed: boolean }>;
   status(): Promise<NativeStatus>;
+  appInfo(): Promise<NativeAppInfo>;
   configure(options: {
     panelEnabled?: boolean;
     remindersEnabled?: boolean;

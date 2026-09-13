@@ -43,6 +43,7 @@ import type { TaskDefaults } from "@/lib/reminders";
 import { cn } from "@/lib/utils";
 import AndroidSettings from "@/components/AndroidSettings";
 import { OfflineIntelligenceSettings } from "@/components/OfflineIntelligenceSettings";
+import { isAndroid, nativeExperience, type NativeAppInfo } from "@/lib/nativeExperience";
 
 type LucideIcon = React.ComponentType<{ className?: string }>;
 
@@ -447,8 +448,9 @@ type PwaGlobals = {
 function AppUpdateCard({ isEn }: { isEn: boolean }) {
   const { t } = useTranslation();
   const [checking, setChecking] = useState(false);
-  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [updateState, setUpdateState] = useState<"unknown" | "checking" | "current" | "available">("unknown");
   const [pwaReady, setPwaReady] = useState(false);
+  const [nativeApp, setNativeApp] = useState<NativeAppInfo | null>(null);
   const [lastChecked, setLastChecked] = useState<number | null>(() => {
     try {
       const v = localStorage.getItem("arshnaz_update_last_checked");
@@ -471,6 +473,8 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
   const buildNumber = (import.meta.env.VITE_BUILD_NUMBER as string) || "";
   const commit = (import.meta.env.VITE_GIT_COMMIT as string) || "";
   const fullVersion = (import.meta.env.VITE_FULL_VERSION as string) || version;
+  const nativeAndroid = isAndroid();
+  const updateAvailable = updateState === "available";
 
   const forceReload = useCallback(async () => {
     try {
@@ -534,28 +538,33 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
   };
 
   useEffect(() => {
+    if (!nativeAndroid) return;
+    nativeExperience.appInfo().then(setNativeApp).catch(() => setNativeApp(null));
+  }, [nativeAndroid]);
+
+  useEffect(() => {
     (async () => {
       if (!("serviceWorker" in navigator)) return;
       const reg = await navigator.serviceWorker.getRegistration();
       setPwaReady(!!reg);
       if (reg?.waiting || reg?.installing) {
-        setUpdateAvailable(true);
-        if (autoUpdate) {
+        setUpdateState("available");
+        if (!nativeAndroid && autoUpdate) {
           toast.info(isEn ? "New version found — installing now…" : "نسخه‌ی جدید پیدا شد — در حال نصب…");
           setTimeout(applyUpdate, 800);
         }
       }
     })();
     const onUpdate = () => {
-      setUpdateAvailable(true);
-      if (autoUpdate) {
+      setUpdateState("available");
+      if (!nativeAndroid && autoUpdate) {
         toast.info(isEn ? "New version found — installing now…" : "نسخه‌ی جدید پیدا شد — در حال نصب…");
         setTimeout(applyUpdate, 800);
       }
     };
     window.addEventListener("pwa-update-available", onUpdate);
     return () => window.removeEventListener("pwa-update-available", onUpdate);
-  }, [autoUpdate, isEn, applyUpdate]);
+  }, [autoUpdate, isEn, applyUpdate, nativeAndroid]);
 
   useEffect(() => {
     if (!lastChecked) return;
@@ -566,6 +575,7 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
 
   const check = async () => {
     setChecking(true);
+    setUpdateState("checking");
     const hardTimeout = setTimeout(() => {
       setChecking(false);
       toast.info(isEn ? "Check timed out. Try again with internet on." : "بررسی طولانی شد. اتصال اینترنت را بررسی کن.");
@@ -573,20 +583,24 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
     try {
       const hasSwUpdate = await swHashCheck();
       if (hasSwUpdate) {
-        setUpdateAvailable(true);
+        setUpdateState("available");
         setLastChecked(Date.now());
-        toast.success(isEn ? "New version found — applying…" : "نسخه‌ی جدید پیدا شد — در حال اعمال…");
-        if (autoUpdate) applyUpdate();
+        toast.success(nativeAndroid
+          ? (isEn ? "A newer build was found. Install a newer APK to update Android." : "نسخهٔ جدید پیدا شد؛ برای به‌روزرسانی اندروید APK جدید نصب کن.")
+          : (isEn ? "New version found — applying…" : "نسخه‌ی جدید پیدا شد — در حال اعمال…"));
+        if (!nativeAndroid && autoUpdate) applyUpdate();
         return;
       }
 
       const currentBuild = Number(buildNumber || buildId) || 0;
       const currentCommit = commit;
+      let verified = false;
       const res = await fetch("/version.json", {
         cache: "no-store",
         headers: { Accept: "application/json" },
       });
       if (res.ok) {
+        verified = true;
         const remote = (await res.json().catch(() => ({}))) as Record<string, unknown>;
         const remoteBuild = Number(String(remote.buildNumber || remote.buildId || 0));
         const remoteCommit = String(remote.commit || "");
@@ -594,10 +608,12 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
           ? remoteBuild > currentBuild
           : Boolean(remoteCommit && remoteCommit !== currentCommit);
         if (isNewer) {
-          setUpdateAvailable(true);
+          setUpdateState("available");
           setLastChecked(Date.now());
-          toast.success(isEn ? "Update available — reloading…" : "نسخه‌ی جدید پیدا شد — در حال نصب…");
-          applyUpdate();
+          toast.success(nativeAndroid
+            ? (isEn ? "A newer build was found. Install a newer APK to update Android." : "نسخهٔ جدید پیدا شد؛ برای به‌روزرسانی اندروید APK جدید نصب کن.")
+            : (isEn ? "Update available — reloading…" : "نسخه‌ی جدید پیدا شد — در حال نصب…"));
+          if (!nativeAndroid) applyUpdate();
           return;
         }
       } else {
@@ -605,26 +621,30 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
         const origin = window.location.origin;
         const htmlRes = await fetch(`${origin}/?_v=${Date.now()}`, { cache: "no-store" });
         if (htmlRes.ok) {
+          verified = true;
           const html = await htmlRes.text();
           const match = html.match(/<script[^>]+type=["']module["'][^>]+src=["']([^"']+)["']/i);
           const remoteSrc = match ? match[1] : "";
           const remoteHash = remoteSrc.split("/").pop() || "";
           if (remoteHash && currentHash && remoteHash !== currentHash) {
-            setUpdateAvailable(true);
+            setUpdateState("available");
             setLastChecked(Date.now());
-            toast.success(isEn ? "Update available — reloading…" : "نسخه‌ی جدید پیدا شد — در حال نصب…");
-            forceReload();
+            toast.success(nativeAndroid
+              ? (isEn ? "A newer build was found. Install a newer APK to update Android." : "نسخهٔ جدید پیدا شد؛ برای به‌روزرسانی اندروید APK جدید نصب کن.")
+              : (isEn ? "Update available — reloading…" : "نسخه‌ی جدید پیدا شد — در حال نصب…"));
+            if (!nativeAndroid) forceReload();
             return;
           }
         }
       }
 
-      setUpdateAvailable(false);
+      if (!verified) throw new Error("update-check-unavailable");
+      setUpdateState("current");
       setLastChecked(Date.now());
       toast.success(isEn ? "You're on the latest version." : "نسخه‌ی شما به‌روز است.");
     } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      toast.error((isEn ? "Update check failed: " : "بررسی به‌روزرسانی ناموفق: ") + message);
+      setUpdateState("unknown");
+      toast.error(isEn ? "Could not verify updates. Check your internet and try again." : "وضعیت به‌روزرسانی قابل بررسی نیست؛ اینترنت را بررسی و دوباره تلاش کن.");
     } finally {
       clearTimeout(hardTimeout);
       setChecking(false);
@@ -655,11 +675,21 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
       title={isEn ? "App version & updates" : "نسخه و به‌روزرسانی"}
     >
       <div className="flex items-center justify-between">
-        <Badge variant={updateAvailable ? "default" : "secondary"} className="gap-1 text-[10px]">
+        <Badge variant={updateAvailable ? "default" : updateState === "unknown" ? "outline" : "secondary"} className="gap-1 text-[10px]">
           {updateAvailable ? (
             <>
               <AlertCircle className="w-3 h-3" />
               {isEn ? "Update available" : "نسخه جدید آماده"}
+            </>
+          ) : updateState === "unknown" ? (
+            <>
+              <AlertCircle className="w-3 h-3" />
+              {isEn ? "Update status unknown" : "وضعیت به‌روزرسانی نامشخص"}
+            </>
+          ) : updateState === "checking" ? (
+            <>
+              <RotateCw className="w-3 h-3 animate-spin" />
+              {isEn ? "Checking" : "در حال بررسی"}
             </>
           ) : (
             <>
@@ -691,8 +721,14 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
         )}
         <div className="flex items-center gap-1">
           <RefreshCw className="w-3 h-3" />
-          {pwaReady ? (isEn ? "PWA installed" : "PWA نصب شده") : (isEn ? "Web app" : "نسخه وب")}
+          {nativeAndroid ? (isEn ? "Android app · web content is bundled" : "برنامه اندروید · محتوای وب داخل APK است") : pwaReady ? (isEn ? "PWA installed" : "PWA نصب شده") : (isEn ? "Web app" : "نسخه وب")}
         </div>
+        {nativeAndroid && (
+          <div className="flex items-center gap-1">
+            <Package className="w-3 h-3" />
+            {isEn ? "Installed APK" : "APK نصب‌شده"}: <span className="ltr inline-block font-mono">{nativeApp ? `${nativeApp.versionName} · #${nativeApp.versionCode}` : (isEn ? "Reading…" : "در حال خواندن…")}</span>
+          </div>
+        )}
         {lastChecked && (
           <div className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
@@ -701,16 +737,27 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
         )}
       </div>
 
-      <div className="flex items-center justify-between rounded-xl border border-border/60 bg-card/40 p-3">
-        <div className="flex items-center gap-2">
-          <Zap className="w-4 h-4 text-primary" />
-          <div className="text-sm">{isEn ? "Auto-install updates" : "نصب خودکار به‌روزرسانی"}</div>
+      {!nativeAndroid ? (
+        <div className="flex items-center justify-between rounded-xl border border-border/60 bg-card/40 p-3">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-primary" />
+            <div className="text-sm">{isEn ? "Auto-refresh web updates" : "بارگذاری خودکار به‌روزرسانی وب"}</div>
+          </div>
+          <Switch checked={autoUpdate} onCheckedChange={toggleAutoUpdate} />
         </div>
-        <Switch checked={autoUpdate} onCheckedChange={toggleAutoUpdate} />
-      </div>
+      ) : (
+        <div className="rounded-xl border border-border/60 bg-card/40 p-3 text-xs leading-6 text-muted-foreground">
+          {isEn ? "Android APKs cannot be silently installed by this app. Install a newer verified APK through Android's package installer." : "APK اندروید را برنامه نمی‌تواند بی‌صدا نصب کند. نسخهٔ جدیدِ تأییدشده باید با نصب‌کنندهٔ خود اندروید نصب شود."}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
-        {updateAvailable ? (
+        {updateAvailable && nativeAndroid ? (
+          <Button size="sm" disabled className="gap-2">
+            <Package className="w-4 h-4" />
+            {isEn ? "New APK needed" : "APK جدید لازم است"}
+          </Button>
+        ) : updateAvailable ? (
           <Button size="sm" onClick={applyUpdate} className="gap-2">
             <Download className="w-4 h-4" />
             {isEn ? "Install update" : "نصب به‌روزرسانی"}
@@ -720,7 +767,7 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
             <RotateCw className={`w-4 h-4 ${checking ? "animate-spin" : ""}`} />
             {checking
               ? isEn ? "Checking…" : "در حال بررسی…"
-              : isEn ? "Check for updates" : "بررسی به‌روزرسانی"}
+              : nativeAndroid ? (isEn ? "Check web content" : "بررسی محتوای وب") : (isEn ? "Check for updates" : "بررسی به‌روزرسانی")}
           </Button>
         )}
         <Button size="sm" variant="outline" onClick={forceReload} className="gap-2">

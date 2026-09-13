@@ -87,6 +87,8 @@ offlineSpeech از Worker و Transformers در محیط وب استفاده می
 
 ### F10 — P2: به‌روزرسانی وب و APK در UI تفکیک نشده
 
+**پیشرفت ثبت‌شده:** صفحهٔ نسخه اکنون چهار وضعیت صریح `Unknown / Checking / Current / Available` دارد؛ پاسخ ناموفق شبکه دیگر «Up to date» نمایش نمی‌دهد. در Android نسخه و versionCode واقعی APK نصب‌شده از bridge native خوانده می‌شود. Auto-refresh فقط برای Web/PWA نشان داده می‌شود. نسخهٔ Android روشن می‌گوید که APK را نمی‌تواند بی‌صدا نصب کند و در صورت build جدید، «APK جدید لازم است» نمایش می‌دهد؛ reload به‌عنوان نصب APK جا زده نمی‌شود.
+
 versionCheck.ts فایل نسبی /version.json را می‌خواند و رویداد PWA تولید می‌کند؛ SettingsView عبارت Auto-install updates و Web app/PWA را نشان می‌دهد. این مسیر به‌تنهایی دانلود و نصب APK جدید را انجام نمی‌دهد. همچنین false بودن نتیجه می‌تواند خطای شبکه باشد، ولی UI ممکن است Up to date نشان دهد. clearAllAppCaches تمام CacheStorage همان origin را حذف می‌کند؛ احتمال پاک‌شدن مدل‌های صوت آفلاین باید بررسی شود.
 
 اصلاح: دو بخش نسخهٔ native و بستهٔ وب؛ وضعیت Unknown/Checking/Current/Available/Error؛ لینک انتشار APK با نسخه/امضای مشخص؛ پاکسازی انتخابی cache به‌همراه حفظ draft و مدل‌های دانلودی.

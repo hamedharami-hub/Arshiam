@@ -35,6 +35,13 @@ public class NativeExperiencePlugin extends Plugin {
             .put("remindersEnabled",AgendaData.options(getContext()).getBoolean("remindersEnabled",false))
             .put("scheduledCount",NativeReminders.count(getContext())));
     }
+    @PluginMethod public void appInfo(PluginCall call) {
+        try {
+            android.content.pm.PackageInfo info=getContext().getPackageManager().getPackageInfo(getContext().getPackageName(),0);
+            long code=Build.VERSION.SDK_INT>=28 ? info.getLongVersionCode() : info.versionCode;
+            call.resolve(new JSObject().put("versionName",info.versionName==null?"":info.versionName).put("versionCode",code));
+        } catch(Exception e) { call.reject("Unable to read installed app version",e); }
+    }
     @PluginMethod public void openNotificationSettings(PluginCall call) {
         Intent i=new Intent(Build.VERSION.SDK_INT>=26?Settings.ACTION_APP_NOTIFICATION_SETTINGS:Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
         if(Build.VERSION.SDK_INT>=26)i.putExtra(Settings.EXTRA_APP_PACKAGE,getContext().getPackageName());
