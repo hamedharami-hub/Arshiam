@@ -6,6 +6,7 @@ import android.content.*;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.RemoteViews;
 import java.util.List;
 import org.json.JSONObject;
@@ -49,7 +50,7 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
         v.setInt(R.id.agenda_root,"setBackgroundResource",light ? R.drawable.widget_background_light : R.drawable.widget_background);
         v.setTextColor(R.id.agenda_title, fg);
         boolean showDone = p.getBoolean(prefix+"done",false), highOnly = p.getBoolean(prefix+"high",false);
-        List<JSONObject> tasks = AgendaData.select(c,scope,secondary,showDone,highOnly);
+        List<JSONObject> tasks = AgendaData.select(c,scope,secondary,showDone,highOnly,p.getString(prefix+"sort","time"));
         int activeCount = AgendaData.select(c,scope,secondary,false,highOnly).size();
         int totalCount = AgendaData.select(c,scope,secondary,true,highOnly).size();
         int shownCount = Math.min(tasks.size(), AgendaListService.Factory.configuredLimit(p,id));
@@ -64,9 +65,22 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
         v.setTextViewText(R.id.agenda_status,"Last sync · " + status);
         v.setTextColor(R.id.agenda_status,fg);
         if (compact) {
-            String summary = tasks.isEmpty() ? "No tasks in this view" : tasks.get(0).optString("title");
-            if (tasks.size() > 1) summary += "\n+ "+(tasks.size()-1)+" more tasks";
-            v.setTextViewText(R.id.agenda_summary, summary);
+            JSONObject primary = tasks.isEmpty() ? null : tasks.get(0);
+            if (primary == null) {
+                v.setTextViewText(R.id.agenda_summary,"No tasks in this view\nTap here to add one");
+                v.setOnClickPendingIntent(R.id.agenda_summary,activity(c,"new-task",72000+id));
+                v.setViewVisibility(R.id.agenda_compact_done,View.INVISIBLE);
+            } else {
+                boolean completed = primary.optBoolean("completed") || "done".equals(primary.optString("status"));
+                String summary = primary.optString("title","Untitled task");
+                if (tasks.size() > 1) summary += "\n+ "+(tasks.size()-1)+" more tasks";
+                v.setTextViewText(R.id.agenda_summary,summary);
+                v.setTextViewText(R.id.agenda_compact_done,completed ? "☑" : "☐");
+                v.setTextColor(R.id.agenda_compact_done,Color.parseColor(completed ? "#A78BFA" : "#C4B5FD"));
+                v.setViewVisibility(R.id.agenda_compact_done,View.VISIBLE);
+                v.setOnClickPendingIntent(R.id.agenda_summary,taskOpen(c,primary.optString("id"),72000+id));
+                v.setOnClickPendingIntent(R.id.agenda_compact_done,AndroidActionsReceiver.taskPending(c,primary.optString("id"),completed,72010+id));
+            }
             v.setTextColor(R.id.agenda_summary,fg);
         } else {
             Intent service = new Intent(c,AgendaListService.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id)
@@ -74,16 +88,12 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
             v.setRemoteAdapter(R.id.agenda_list, service);
             v.setEmptyView(R.id.agenda_list,R.id.agenda_empty);
             v.setTextColor(R.id.agenda_empty,fg);
-            // Do not pre-fill data here. A collection row contributes the full action URI using
-            // setOnClickFillInIntent; pre-filling data would prevent the task-specific URI from
-            // replacing it on some launcher implementations.
             Intent template = new Intent(c,WidgetRouterActivity.class).setAction(Intent.ACTION_VIEW);
             v.setPendingIntentTemplate(R.id.agenda_list,PendingIntent.getActivity(c,50000+id,template,
                 PendingIntent.FLAG_UPDATE_CURRENT | (android.os.Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0)));
         }
         v.setOnClickPendingIntent(R.id.agenda_title,activity(c,AgendaData.route(scope),70000+id));
         v.setOnClickPendingIntent(R.id.agenda_add,activity(c,"new-task",71000+id));
-        if (compact) v.setOnClickPendingIntent(R.id.agenda_summary,activity(c,AgendaData.route(scope),72000+id));
         Intent config = new Intent(c,WidgetConfigureActivity.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id)
             .setData(Uri.parse("arshnaz://configure/"+id));
         v.setOnClickPendingIntent(R.id.agenda_settings,PendingIntent.getActivity(c,73000+id,config,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
@@ -97,8 +107,13 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
         return scopes[0];
     }
     static PendingIntent activity(Context c,String route,int code) {
-        return PendingIntent.getActivity(c,code,appIntent(c,route),
-            PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        return PendingIntent.getActivity(c,code,appIntent(c,route),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+    }
+    static PendingIntent taskOpen(Context c,String taskId,int code) {
+        String owner=AgendaData.prefs(c).getString("dataUserId","");
+        Intent intent=new Intent(c,WidgetRouterActivity.class).setAction(Intent.ACTION_VIEW)
+            .setData(Uri.parse("arshnaz://widget-action/open?taskId="+Uri.encode(taskId)+"&owner="+Uri.encode(owner)));
+        return PendingIntent.getActivity(c,code,intent,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
     }
     static Intent appIntent(Context c, String route) {
         return new Intent(c,MainActivity.class).setAction(Intent.ACTION_VIEW)

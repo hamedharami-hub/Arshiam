@@ -10,20 +10,22 @@ public class AndroidActionsReceiver extends BroadcastReceiver {
             .setAction(action).putExtra("widgetId",id).setData(Uri.parse("arshnaz://action/"+action+"/"+id)),
             PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
     }
-    static PendingIntent taskPending(Context c, String taskId, int requestCode) {
-        Intent intent = new Intent(c, AndroidActionsReceiver.class).setAction("completeDirect")
+    static PendingIntent taskPending(Context c, String taskId, boolean completed, int requestCode) {
+        Intent intent = new Intent(c, AndroidActionsReceiver.class).setAction("toggleDirect")
             .putExtra("taskId", taskId == null ? "" : taskId)
-            .setData(Uri.parse("arshnaz://action/complete/" + Uri.encode(taskId == null ? "" : taskId)));
+            .putExtra("completed",completed)
+            .setData(Uri.parse("arshnaz://action/toggle/" + Uri.encode(taskId == null ? "" : taskId) + "/" + (completed ? "1" : "0")));
         return PendingIntent.getBroadcast(c, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
     @Override public void onReceive(Context c,Intent intent) {
         String action=intent.getAction();
         if(action==null) return;
-        if ("completeDirect".equals(action)) {
+        if ("toggleDirect".equals(action)) {
             String taskId = intent.getStringExtra("taskId");
             if (taskId == null || taskId.isEmpty()) return;
-            AgendaData.prefs(c).edit().putString("syncStatus", "Saving completion from widget…").apply();
-            WidgetTaskActionWorker.enqueue(c, "complete", taskId, "", "", "");
+            boolean completed=intent.getBooleanExtra("completed",false);
+            AgendaData.prefs(c).edit().putString("syncStatus", completed ? "Reopening task from widget…" : "Saving completion from widget…").apply();
+            WidgetTaskActionWorker.enqueue(c, completed ? "reopen" : "complete", taskId, "", "", "");
             AgendaWidgetProvider.redraw(c);
             return;
         }

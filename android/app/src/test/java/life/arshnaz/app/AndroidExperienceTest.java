@@ -130,9 +130,11 @@ public class AndroidExperienceTest {
         Shadows.shadowOf(manager).addBoundWidget(30,info);
         View view=AgendaWidgetProvider.views(c,30).apply(c,new FrameLayout(c));
         assertEquals("Today test",((TextView)view.findViewById(R.id.agenda_summary)).getText().toString());
+        assertEquals("☐",((Button)view.findViewById(R.id.agenda_compact_done)).getText().toString());
         AgendaData.prefs(c).edit().putBoolean("sessionReady",false).commit();
         View cleared=AgendaWidgetProvider.views(c,30).apply(c,new FrameLayout(c));
-        assertEquals("No tasks in this view",((TextView)cleared.findViewById(R.id.agenda_summary)).getText().toString());
+        assertEquals("No tasks in this view\nTap here to add one",((TextView)cleared.findViewById(R.id.agenda_summary)).getText().toString());
+        assertEquals(View.INVISIBLE,cleared.findViewById(R.id.agenda_compact_done).getVisibility());
     }
     @Test public void rebootRestoresSnoozedAlarmWithoutWebView() throws Exception {
         login();AgendaData.options(c).edit().putBoolean("remindersEnabled",true).commit();

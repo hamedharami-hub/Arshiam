@@ -68,7 +68,7 @@ public class ArshnazWidgetProvider extends AppWidgetProvider {
                 setActivityClick(views, context, R.id.widget_complete_task, "today", 105);
             } else {
                 views.setOnClickPendingIntent(R.id.widget_complete_task,
-                    AndroidActionsReceiver.taskPending(context, nextTaskId, 105));
+                    AndroidActionsReceiver.taskPending(context, nextTaskId, false, 105));
             }
 
             Intent refresh = new Intent(context, ArshnazWidgetProvider.class)
