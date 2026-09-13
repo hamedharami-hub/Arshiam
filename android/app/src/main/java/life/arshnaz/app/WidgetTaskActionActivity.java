@@ -18,17 +18,22 @@ public class WidgetTaskActionActivity extends Activity {
         super.onCreate(state);
         String taskId = getIntent().getStringExtra("taskId");
         boolean create = getIntent().getBooleanExtra("create", false);
+        String prefillTitle = getIntent().getStringExtra("prefillTitle");
+        boolean prefillToday = getIntent().getBooleanExtra("prefillToday",false);
+        String quickSource = getIntent().getStringExtra("quickSource");
         JSONObject task = create ? null : AgendaData.task(this, taskId);
         if (!create && task == null) { Toast.makeText(this, "Task is no longer available. Refresh the widget.", Toast.LENGTH_LONG).show(); finish(); return; }
         int pad = (int) (20 * getResources().getDisplayMetrics().density);
         ScrollView scroll = new ScrollView(this);
         LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(pad, pad * 2, pad, pad); root.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
         scroll.addView(root); setContentView(scroll);
-        TextView heading = new TextView(this); heading.setTag("widget-action-heading"); heading.setText(create ? "Quick add task" : "Quick task edit"); heading.setTextSize(24); root.addView(heading);
-        TextView help = new TextView(this); help.setText(create ? "Add a task with its priority and date. You can open full details afterwards." : "Update title, priority or date without leaving your home screen."); root.addView(help);
-        EditText title = new EditText(this); title.setTag("widget-action-title"); title.setHint("Task title"); title.setSingleLine(true); title.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES); title.setText(task == null ? "" : task.optString("title")); root.addView(labeled("Title", title));
+        String sourceHeading="mind".equals(quickSource)?"Add a gentle next step":"problem".equals(quickSource)?"Add the next smallest step":"Quick add task";
+        String sourceHelp="mind".equals(quickSource)?"Keep it practical and private. You can edit the suggested text before saving.":"problem".equals(quickSource)?"Choose one concrete action. You can edit the suggested text before saving.":"Add a task with its priority and date. You can open full details afterwards.";
+        TextView heading = new TextView(this); heading.setTag("widget-action-heading"); heading.setText(create ? sourceHeading : "Quick task edit"); heading.setTextSize(24); root.addView(heading);
+        TextView help = new TextView(this); help.setText(create ? sourceHelp : "Update title, priority or date without leaving your home screen."); root.addView(help);
+        EditText title = new EditText(this); title.setTag("widget-action-title"); title.setHint("Task title"); title.setSingleLine(true); title.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES); title.setText(task == null ? (prefillTitle == null ? "" : prefillTitle) : task.optString("title")); root.addView(labeled("Title", title));
         Spinner priority = spinner(PRIORITY_LABELS, indexOf(PRIORITIES, task == null ? "none" : task.optString("priority", "none"))); root.addView(labeled("Priority", priority));
-        Spinner dueDate = spinner(create ? CREATE_DUE_LABELS : EDIT_DUE_LABELS, 0); root.addView(labeled("Due date", dueDate));
+        Spinner dueDate = spinner(create ? CREATE_DUE_LABELS : EDIT_DUE_LABELS, create && prefillToday ? 1 : 0); dueDate.setTag("widget-action-due"); root.addView(labeled("Due date", dueDate));
         Button save = new Button(this); save.setTag("widget-action-save"); save.setText(create ? "Add task" : "Save quick changes"); root.addView(save);
         save.setOnClickListener(v -> {
             String value = title.getText().toString().trim();

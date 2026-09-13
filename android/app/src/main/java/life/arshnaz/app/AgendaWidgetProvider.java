@@ -121,7 +121,11 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
             .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);
     }
     static PendingIntent quickCreate(Context c, int code) {
+        return quickCreate(c,code,"",false,"");
+    }
+    static PendingIntent quickCreate(Context c, int code, String prefillTitle, boolean prefillToday, String source) {
         Intent intent = new Intent(c, WidgetTaskActionActivity.class).putExtra("create", true)
+            .putExtra("prefillTitle",prefillTitle).putExtra("prefillToday",prefillToday).putExtra("quickSource",source)
             .setData(Uri.parse("arshnaz://widget-action/create/" + code));
         return PendingIntent.getActivity(c, code, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }

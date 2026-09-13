@@ -17,15 +17,19 @@ public abstract class ActionHubWidgetProvider extends AppWidgetProvider {
             views.setTextViewText(R.id.hub_symbol, symbol());
             views.setTextViewText(R.id.hub_title, title()); views.setTextViewText(R.id.hub_subtitle, subtitle());
             views.setViewVisibility(R.id.hub_timer, View.GONE);
-            views.setTextViewText(R.id.hub_primary, primaryLabel()); views.setOnClickPendingIntent(R.id.hub_primary, AgendaWidgetProvider.activity(c, primaryRoute(), id * 10 + 1));
+            views.setTextViewText(R.id.hub_primary, primaryLabel()); views.setOnClickPendingIntent(R.id.hub_primary, action(c,primaryRoute(),id * 10 + 1));
             int[] buttons = {R.id.hub_action_one, R.id.hub_action_two, R.id.hub_action_three}; String[] labels = labels(), routes = routes();
             for (int i = 0; i < buttons.length; i++) {
                 views.setTextViewText(buttons[i], labels[i]);
-                PendingIntent action = "quick-add".equals(routes[i]) ? AgendaWidgetProvider.activity(c, "new-task", id * 10 + i + 2)
-                    : AgendaWidgetProvider.activity(c, routes[i], id * 10 + i + 2);
-                views.setOnClickPendingIntent(buttons[i], action);
+                views.setOnClickPendingIntent(buttons[i], action(c,routes[i],id * 10 + i + 2));
             }
             manager.updateAppWidget(id, views);
         }
+    }
+    private static PendingIntent action(Context c,String route,int code) {
+        if ("quick-add".equals(route)) return AgendaWidgetProvider.activity(c,"new-task",code);
+        if ("quick-mind-step".equals(route)) return AgendaWidgetProvider.quickCreate(c,code,"Take one kind step",true,"mind");
+        if ("quick-problem-step".equals(route)) return AgendaWidgetProvider.quickCreate(c,code,"Define the next smallest step",true,"problem");
+        return AgendaWidgetProvider.activity(c,route,code);
     }
 }
