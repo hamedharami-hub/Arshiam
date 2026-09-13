@@ -543,7 +543,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     </span>
   );
 
-  // ── Hero (title + description) ─────────────────────────────────────
+  // ── Hero (task state + title) ──────────────────────────────────────
   const hero = (
     <div className="px-1 pb-2 space-y-2">
       <div className="flex items-center gap-2 bg-card/50 dark:bg-card/30 rounded-2xl p-1.5 border border-border/50 hover:border-border/80 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all duration-200">
@@ -585,6 +585,18 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           {voiceListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
         </Button>
       </div>
+      </div>
+    );
+
+  const descriptionSection = (
+    <section className="mx-1 rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4" aria-labelledby="task-description-heading">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h2 id="task-description-heading" className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+          <FileText className="h-4 w-4 text-primary" />
+          {T("توضیحات", "Description")}
+        </h2>
+        <span className="text-[11px] text-muted-foreground">{T("متن اصلی تسک", "Task brief")}</span>
+      </div>
       <div data-rich-selection onContextMenu={(e) => e.preventDefault()} style={{ WebkitTouchCallout: "none" } as any}>
         <TaskDescriptionEditor
           taskId={t.id}
@@ -599,8 +611,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           readOnly={!canEdit}
         />
       </div>
-    </div>
-  );
+      </section>
+    );
 
   // ── Quick-info chips row (only what's set) ──────────────────────────
   const quickChips = (
@@ -1038,6 +1050,21 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     <div className="mx-auto max-w-3xl w-full px-2 py-2 border-t border-border/50 bg-card/70 dark:bg-card/80 backdrop-blur-xl rounded-b-2xl">
       <div className="flex items-center justify-between gap-1 overflow-x-auto no-scrollbar">
         <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
+                <RailButton
+                  icon={Zap}
+                  label={T("تمرکز", "Focus")}
+                  accent
+                  onClick={() => setFocusOpen(true)}
+                  disabled={!canEdit}
+                />
+                <RailButton
+                  icon={FileText}
+                  label={T("نوت‌ها", "Notes")}
+                  active={showNotes || taskNotes.length > 0}
+                  badge={taskNotes.length || undefined}
+                  onClick={() => setShowNotes(true)}
+                  disabled={!canEdit}
+                />
                 {/* 4. Tags + quick-create */}
                 <Popover open={tagOpen} onOpenChange={setTagOpen}>
                   <PopoverTrigger asChild>
@@ -1209,6 +1236,11 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                   onClick={() => setAiOpen(true)}
                   disabled={!canEdit}
                 />
+                <RailButton
+                  icon={MoreHorizontal}
+                  label={T("بیشتر", "More")}
+                  onClick={() => setActionMenuOpen(true)}
+                />
               </div>
 
               {allowDelete && canEdit && (
@@ -1231,26 +1263,33 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
 
       {showSubtasks && (
-        <TaskSubtasksInline
-          taskId={t.id}
-          onProgressChange={handleSubtaskProgress}
-          readOnly={!canEdit}
-          onOpenSubtask={(id) => {
-            firebaseStore.from("tasks").select("*").eq("id", id).single().then(({ data }) => {
-              if (data) { onChanged(); setT(data as any); }
-            });
-          }}
-        />
+        <section className="rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4" aria-label={T("زیرتسک‌ها", "Subtasks")}>
+          <TaskSubtasksInline
+            taskId={t.id}
+            onProgressChange={handleSubtaskProgress}
+            readOnly={!canEdit}
+            onOpenSubtask={(id) => {
+              firebaseStore.from("tasks").select("*").eq("id", id).single().then(({ data }) => {
+                if (data) { onChanged(); setT(data as any); }
+              });
+            }}
+          />
+        </section>
       )}
 
       {showSteps && <TaskStepLists taskId={t.id} />}
 
       {showOutcomes && <TaskOutcomesInline taskId={t.id} refreshKey={outcomeRefresh} onEdit={() => setOutcomeOpen(true)} />}
 
-      {showAttachments && <TaskAttachments taskId={t.id} />}
+      {showAttachments && (
+        <section className="rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4">
+          <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold"><Paperclip className="h-4 w-4 text-primary" /> {T("پیوست‌ها", "Attachments")}</div>
+          <TaskAttachments taskId={t.id} />
+        </section>
+      )}
 
       {(showNotes || taskNotes.length === 0) && (
-        <div>
+        <section className="rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4">
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-sm font-medium flex items-center gap-1.5">
               <FileText className="w-3.5 h-3.5" /> {T("نوت‌ها", "Notes")} ({taskNotes.length})
@@ -1273,7 +1312,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
               </Card>
             ))}
           </div>
-        </div>
+        </section>
       )}
     </div>
   );
@@ -1284,7 +1323,13 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       {topControls}
       {quickChips}
       {progressPanel}
-      <div className="flex-1">{expandables}</div>
+      {/* On a wide desktop or unfolded device, keep the writing surface and
+          task structure adjacent.  The narrow layout remains a single calm
+          reading flow instead of squeezing either section into a tiny column. */}
+      <div className={`flex-1 min-w-0 ${mode === "page" ? "min-[820px]:grid min-[820px]:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.85fr)] min-[820px]:items-start min-[820px]:gap-4" : "flex flex-col"}`}>
+        <div className="min-w-0">{descriptionSection}</div>
+        <div className="min-w-0 mt-3 min-[820px]:mt-0">{expandables}</div>
+      </div>
       {bottomRail}
     </div>
   );
@@ -1483,8 +1528,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           </div>
         </div>
       ) : mode === "page" ? (
-        <div className="w-full max-w-4xl mx-auto px-3 sm:px-6 py-2 pb-12 min-h-screen flex flex-col">
-          <div className="sticky top-14 z-10 px-3 py-1.5 mb-3 rounded-2xl bg-card/80 dark:bg-card/85 backdrop-blur-xl border border-border/50 shadow-xs flex items-center justify-between gap-3">
+        <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-2 pb-12 min-h-screen flex flex-col">
+          <div className="sticky top-14 z-10 px-3 sm:px-4 py-2 mb-3 rounded-2xl bg-card/80 dark:bg-card/85 backdrop-blur-xl border border-border/50 shadow-xs flex items-center justify-between gap-3">
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground" aria-live="polite">
               <span className={`w-2 h-2 rounded-full ${
                 saveState === "saving" ? "bg-amber-500 animate-ping" :
