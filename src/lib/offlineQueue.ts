@@ -11,6 +11,8 @@ export type QueuedOp = {
   payload?: unknown;
   match?: Record<string, unknown>;
   upsertOptions?: { onConflict?: string };
+  /** Firebase user that owned the operation when it was created. */
+  ownerId?: string;
   createdAt: number;
   attempts: number;
   nextRetryAt?: number;
@@ -51,7 +53,8 @@ export async function enqueueOp(
   try {
     const db = await getDB();
     if (db) {
-      await db.add(STORE, { ...op, createdAt: Date.now(), attempts: 0 });
+      const ownerId = await getAuthenticatedUserId();
+      await db.add(STORE, { ...op, ownerId, createdAt: Date.now(), attempts: 0 });
       queued = true;
     }
   } catch (err) {
@@ -62,6 +65,20 @@ export async function enqueueOp(
     setTimeout(() => void flushQueue(), 50);
   }
   return queued;
+}
+
+async function getAuthenticatedUserId(): Promise<string | undefined> {
+  try {
+    const { auth } = await import("./firebase");
+    return auth.currentUser?.uid || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** A queued mutation must never cross the account boundary that created it. */
+export function canReplayForOwner(item: Pick<QueuedOp, "ownerId">, activeOwnerId: string | undefined): boolean {
+  return Boolean(activeOwnerId && item.ownerId && item.ownerId === activeOwnerId);
 }
 
 export async function getQueue(): Promise<QueuedOp[]> {
@@ -144,13 +161,10 @@ async function replayWithLegacyStore(item: QueuedOp): Promise<boolean> {
   }
 }
 
-async function replayItem(item: QueuedOp): Promise<boolean> {
+async function replayItem(item: QueuedOp, userId: string): Promise<boolean> {
   let firestoreAttempted = false;
   let firestoreSucceeded = false;
   try {
-    const { auth } = await import("./firebase");
-    const { getStoredUser } = await import("./authService");
-    const userId = auth.currentUser?.uid || getStoredUser()?.id;
     const firestoreTables = ["tasks", "notes", "habits", "folders", "tags"];
     if (userId && firestoreTables.includes(item.table)) {
       firestoreAttempted = true;
@@ -191,13 +205,18 @@ export async function flushQueue(): Promise<{ ok: number; failed: number }> {
   try {
     const db = await getDB();
     if (!db) return { ok: 0, failed: 0 };
+    const activeOwnerId = await getAuthenticatedUserId();
+    if (!activeOwnerId) return { ok: 0, failed: 0 };
     const items = await db.getAll(STORE);
     const now = Date.now();
 
     for (const item of items) {
       if (item.nextRetryAt && item.nextRetryAt > now) continue;
+      // Keep old/unattributable records intact for recovery, but never replay
+      // them under whichever account happens to sign in later.
+      if (!canReplayForOwner(item, activeOwnerId)) continue;
       try {
-        const succeeded = await replayItem(item);
+        const succeeded = await replayItem(item, activeOwnerId);
         if (!succeeded) throw new Error("Cloud write was not confirmed");
         await db.delete(STORE, item.id!);
         ok++;
