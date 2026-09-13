@@ -66,6 +66,9 @@
         <service android:name=".QuickTaskTileService" android:label="ARSHNAZ · New Task" android:icon="@drawable/ic_stat_tasks" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE"/></intent-filter>
         </service>
+        <service android:name=".FocusTimerTileService" android:label="ARSHNAZ · Focus Timer" android:icon="@drawable/ic_stat_tasks" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE"/></intent-filter>
+        </service>
         <!-- Widget Provider -->
         <receiver
             android:name=".ArshnazWidgetProvider"
