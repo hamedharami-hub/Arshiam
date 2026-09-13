@@ -16,12 +16,9 @@ public class AgendaListService extends RemoteViewsService {
         public void onCreate() { onDataSetChanged(); }
         public void onDataSetChanged() {
             SharedPreferences p=AgendaData.options(c);
-            tasks=AgendaData.select(c,AgendaWidgetProvider.scope(c,id),AgendaWidgetProvider.secondaryScope(c,id),
-                p.getBoolean("widget."+id+".done",false),p.getBoolean("widget."+id+".high",false));
             String sort=p.getString("widget."+id+".sort","time");
-            boolean hierarchical=false; for(JSONObject task:tasks) if(task.optInt("_widgetDepth",0)>0) { hierarchical=true; break; }
-            if(!hierarchical && "priority".equals(sort)) Collections.sort(tasks,(a,b)->Integer.compare(priorityRank(b),priorityRank(a)));
-            else if(!hierarchical && "title".equals(sort)) Collections.sort(tasks,(a,b)->a.optString("title").compareToIgnoreCase(b.optString("title")));
+            tasks=AgendaData.select(c,AgendaWidgetProvider.scope(c,id),AgendaWidgetProvider.secondaryScope(c,id),
+                p.getBoolean("widget."+id+".done",false),p.getBoolean("widget."+id+".high",false),sort);
             int limit=configuredLimit(p,id);
             if(tasks.size()>limit) tasks=new java.util.ArrayList<>(tasks.subList(0,limit));
             owner=AgendaData.prefs(c).getString("dataUserId","");
@@ -65,6 +62,5 @@ public class AgendaListService extends RemoteViewsService {
             return normalizeLimit(options.getInt("widget."+widgetId+".limit",4));
         }
         static int normalizeLimit(int requested) { return Math.max(1,Math.min(100,requested)); }
-        private int priorityRank(JSONObject task) { String value=task.optString("priority"); return "urgent".equals(value)?3:"high".equals(value)?2:"medium".equals(value)?1:0; }
     }
 }

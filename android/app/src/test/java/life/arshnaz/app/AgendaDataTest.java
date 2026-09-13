@@ -36,6 +36,23 @@ public class AgendaDataTest {
         assertEquals(1,selected.get(1).getInt("_widgetDepth"));
         assertEquals(2,selected.get(2).getInt("_widgetDepth"));
     }
+    @Test public void priorityAndTitleSortingKeepEachSubtaskWithItsParent() throws Exception {
+        JSONArray rows=new JSONArray()
+            .put(task("later-parent","2026-09-10").put("title","Zebra").put("priority","low"))
+            .put(task("later-child","2026-09-10").put("parent_id","later-parent").put("title","Alpha").put("priority","urgent"))
+            .put(task("first-parent","2026-09-10").put("title","Apple").put("priority","urgent"))
+            .put(task("first-child","2026-09-10").put("parent_id","first-parent").put("title","Zebra").put("priority","low"));
+        java.util.List<JSONObject> priority=AgendaData.select(rows,"today","none",false,false,"priority",today,zone);
+        assertEquals("first-parent",priority.get(0).getString("id"));
+        assertEquals("first-child",priority.get(1).getString("id"));
+        assertEquals("later-parent",priority.get(2).getString("id"));
+        assertEquals("later-child",priority.get(3).getString("id"));
+        java.util.List<JSONObject> title=AgendaData.select(rows,"today","none",false,false,"title",today,zone);
+        assertEquals("first-parent",title.get(0).getString("id"));
+        assertEquals("first-child",title.get(1).getString("id"));
+        assertEquals("later-parent",title.get(2).getString("id"));
+        assertEquals("later-child",title.get(3).getString("id"));
+    }
     @Test public void combinesTwoIndependentViewsWithoutDuplicates() throws Exception {
         JSONArray rows=new JSONArray().put(task("today","2026-09-10"))
             .put(task("tomorrow","2026-09-11")).put(task("both","2026-09-10").put("priority","high"));

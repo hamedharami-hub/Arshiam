@@ -39,10 +39,14 @@ final class AgendaData {
     }
     static List<JSONObject> select(JSONArray rows, String scope, boolean showDone, boolean highOnly,
                                     LocalDate today, ZoneId zone) {
-        return select(rows, scope, "none", showDone, highOnly, today, zone);
+        return select(rows, scope, "none", showDone, highOnly, "time", today, zone);
     }
     static List<JSONObject> select(JSONArray rows, String primary, String secondary, boolean showDone,
                                     boolean highOnly, LocalDate today, ZoneId zone) {
+        return select(rows, primary, secondary, showDone, highOnly, "time", today, zone);
+    }
+    static List<JSONObject> select(JSONArray rows, String primary, String secondary, boolean showDone,
+                                    boolean highOnly, String sort, LocalDate today, ZoneId zone) {
         Map<String,JSONObject> eligible = new LinkedHashMap<>();
         Set<String> selected = new LinkedHashSet<>();
         for (int i=0; i<rows.length(); i++) {
@@ -72,13 +76,23 @@ final class AgendaData {
             if(parent.isEmpty() || !selected.contains(parent)) roots.add(t);
             else children.computeIfAbsent(parent,k->new ArrayList<>()).add(t);
         }
-        Comparator<JSONObject> order=Comparator.comparing((JSONObject t)->t.optBoolean("completed"))
-            .thenComparing(t->t.optString("due_date").isEmpty()?"9999":t.optString("due_date"))
-            .thenComparing(t->t.optString("id"));
+        Comparator<JSONObject> order=order(sort);
         roots.sort(order); for(List<JSONObject> group:children.values()) group.sort(order);
         List<JSONObject> result=new ArrayList<>();
         for(JSONObject root:roots) flatten(root,0,children,result,new HashSet<>());
         return result;
+    }
+    private static Comparator<JSONObject> order(String sort) {
+        Comparator<JSONObject> value;
+        if ("priority".equals(sort)) value=Comparator.comparingInt(AgendaData::priorityRank).reversed();
+        else if ("title".equals(sort)) value=Comparator.comparing(t->t.optString("title"),String.CASE_INSENSITIVE_ORDER);
+        else value=Comparator.comparing(t->t.optString("due_date").isEmpty()?"9999":t.optString("due_date"));
+        return Comparator.comparing((JSONObject t)->t.optBoolean("completed")).thenComparing(value)
+            .thenComparing(t->t.optString("id"));
+    }
+    private static int priorityRank(JSONObject task) {
+        String value=task.optString("priority");
+        return "urgent".equals(value)?3:"high".equals(value)?2:"medium".equals(value)?1:0;
     }
     private static boolean matches(JSONObject t,String scope,LocalDate today,ZoneId zone) {
             LocalDate d=date(t.optString("due_date"),zone);
@@ -106,6 +120,9 @@ final class AgendaData {
     }
     static List<JSONObject> select(Context c, String primary, String secondary, boolean done, boolean high) {
         return select(read(c), primary, secondary, done, high, LocalDate.now(), ZoneId.systemDefault());
+    }
+    static List<JSONObject> select(Context c, String primary, String secondary, boolean done, boolean high, String sort) {
+        return select(read(c), primary, secondary, done, high, sort, LocalDate.now(), ZoneId.systemDefault());
     }
     static JSONObject task(Context c, String id) {
         if (id == null || id.isEmpty()) return null;

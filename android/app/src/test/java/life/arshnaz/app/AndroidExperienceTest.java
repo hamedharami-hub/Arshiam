@@ -20,6 +20,7 @@ public class AndroidExperienceTest {
         AgendaData.prefs(c).edit().clear().commit();
         AgendaData.options(c).edit().clear().commit();
         NativeReminders.prefs(c).edit().clear().commit();
+        PomodoroWidgetProvider.prefs(c).edit().clear().commit();
     }
     JSONArray tasks() throws Exception {
         return new JSONArray().put(new JSONObject().put("id","today-task").put("title","Today test")
@@ -28,9 +29,21 @@ public class AndroidExperienceTest {
     }
     void login() throws Exception {AgendaData.prefs(c).edit().putBoolean("sessionReady",true).putString("dataUserId","userA").putString("agendaTasks",tasks().toString()).commit();}
     @Test public void allRemoteLayoutsInflate() {
-        for(int layout:new int[]{R.layout.widget_agenda,R.layout.widget_compact,R.layout.widget_task_row,R.layout.widget_arshnaz}) {
+        for(int layout:new int[]{R.layout.widget_agenda,R.layout.widget_compact,R.layout.widget_task_row,R.layout.widget_arshnaz,R.layout.widget_action_hub}) {
             View view=new RemoteViews(c.getPackageName(),layout).apply(c,new FrameLayout(c));assertNotNull(view);
         }
+    }
+    @Test public void pomodoroPersistsStartPauseResumeAndFinish() {
+        PomodoroWidgetProvider.reset(c);
+        assertFalse(PomodoroWidgetProvider.state(c).hasStarted);
+        assertEquals("25:00",PomodoroWidgetProvider.format(PomodoroWidgetProvider.state(c).remainingMs));
+        View initial=PomodoroWidgetProvider.views(c,1).apply(c,new FrameLayout(c));
+        assertEquals("Start 25 min",((TextView)initial.findViewById(R.id.hub_primary)).getText().toString());
+        PomodoroWidgetProvider.start(c); assertTrue(PomodoroWidgetProvider.state(c).running);
+        PomodoroWidgetProvider.pause(c); PomodoroWidgetProvider.State paused=PomodoroWidgetProvider.state(c);
+        assertFalse(paused.running); assertTrue(paused.remainingMs > 0 && paused.remainingMs <= PomodoroWidgetProvider.SESSION_MS);
+        PomodoroWidgetProvider.finish(c); assertTrue(PomodoroWidgetProvider.state(c).complete());
+        assertEquals("00:00",PomodoroWidgetProvider.format(PomodoroWidgetProvider.state(c).remainingMs));
     }
     @Test public void independentWidgetFiltersAndRowRendering() throws Exception {
         login();
