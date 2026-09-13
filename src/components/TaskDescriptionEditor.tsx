@@ -6,6 +6,15 @@ import { Maximize2, Check } from "lucide-react";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { NoteEditorTabs } from "@/components/NoteEditorTabs";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
 
@@ -34,11 +43,60 @@ export function TaskDescriptionEditor({
   const [editing, setEditing] = useState(false);
   const [full, setFull] = useState(false);
   const [draft, setDraft] = useState(value);
+  const [fullscreenInitialValue, setFullscreenInitialValue] = useState(value || "");
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [savingFullscreen, setSavingFullscreen] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const latestValue = useRef(value);
 
   useEffect(() => { latestValue.current = value; }, [value]);
 
   const hasContent = (value || "").trim().length > 0;
+  const hasFullscreenChanges = draft !== fullscreenInitialValue;
+
+  const openFullscreen = () => {
+    const initialValue = value || "";
+    setDraft(initialValue);
+    setFullscreenInitialValue(initialValue);
+    setConfirmDiscard(false);
+    setSaveError(null);
+    setFull(true);
+  };
+
+  const closeFullscreen = () => {
+    if (savingFullscreen) return;
+    if (!hasFullscreenChanges) {
+      setFull(false);
+      return;
+    }
+    setConfirmDiscard(true);
+  };
+
+  const saveFullscreen = async () => {
+    if (savingFullscreen) return;
+    setSavingFullscreen(true);
+    setSaveError(null);
+    try {
+      await onSave(draft);
+      onChange(draft);
+      setConfirmDiscard(false);
+      setFull(false);
+    } catch {
+      setSaveError(T(
+        "ذخیره‌سازی انجام نشد. اتصال را بررسی کنید و دوباره تلاش کنید.",
+        "Saving did not complete. Check your connection and try again.",
+      ));
+    } finally {
+      setSavingFullscreen(false);
+    }
+  };
+
+  const discardFullscreenChanges = () => {
+    setDraft(fullscreenInitialValue);
+    setConfirmDiscard(false);
+    setSaveError(null);
+    setFull(false);
+  };
 
   return (
     <div className="relative group rounded-2xl border border-border/50 bg-muted/20 dark:bg-card/20 hover:border-border/80 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all duration-200 p-3">
@@ -58,7 +116,7 @@ export function TaskDescriptionEditor({
           />
           <button
             type="button"
-            onClick={() => { setDraft(value || ""); setFull(true); }}
+            onClick={openFullscreen}
             aria-label={T("تمام صفحه", "Fullscreen")}
             title={T("ویرایشگر پیشرفته / تمام صفحه", "Advanced markdown / fullscreen")}
             className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground/70 hover:text-foreground hover:bg-accent/60 transition"
@@ -100,20 +158,28 @@ export function TaskDescriptionEditor({
         </button>
       )}
 
-      <Sheet open={full} onOpenChange={setFull}>
+      <Sheet
+        open={full}
+        onOpenChange={(open) => {
+          if (open) setFull(true);
+          else closeFullscreen();
+        }}
+      >
         <SheetContent side="bottom" className="h-[95vh] p-0 flex flex-col">
-          <SheetHeader className="px-4 py-3 border-b flex-row items-center justify-between space-y-0">
+          <SheetHeader className="px-4 pe-14 py-3 border-b flex-row items-center justify-between space-y-0">
             <SheetTitle className="text-base">{T("توضیحات تسک", "Task description")}</SheetTitle>
             <Button
               size="sm"
-              onClick={() => { onChange(draft); onSave(draft); setFull(false); }}
+              disabled={savingFullscreen}
+              onClick={() => { void saveFullscreen(); }}
               className="gap-1"
             >
               <Check className="w-4 h-4" />
-              {T("ذخیره", "Save")}
+              {savingFullscreen ? T("در حال ذخیره…", "Saving…") : T("ذخیره", "Save")}
             </Button>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-3 py-3">
+            {saveError && <p role="alert" className="mb-3 text-sm text-destructive">{saveError}</p>}
             <NoteEditorTabs
               noteId={`task-desc-${taskId}`}
               markdown={draft}
@@ -122,6 +188,42 @@ export function TaskDescriptionEditor({
           </div>
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
+        <AlertDialogContent dir={isEn ? "ltr" : "rtl"}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{T("تغییرات ذخیره نشده‌اند", "Unsaved changes")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {T(
+                "پیش از بستن توضیحات، تغییرات را ذخیره می‌کنید یا بدون ذخیره خارج می‌شوید؟",
+                "Would you like to save your changes before closing the description?",
+              )}
+            </AlertDialogDescription>
+            {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-2">
+            <AlertDialogCancel disabled={savingFullscreen}>
+              {T("ادامهٔ ویرایش", "Keep editing")}
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={savingFullscreen}
+              onClick={discardFullscreenChanges}
+            >
+              {T("خروج بدون ذخیره", "Discard changes")}
+            </Button>
+            <Button
+              type="button"
+              disabled={savingFullscreen}
+              onClick={() => { void saveFullscreen(); }}
+            >
+              <Check className="w-4 h-4" />
+              {savingFullscreen ? T("در حال ذخیره…", "Saving…") : T("ذخیره و بستن", "Save and close")}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
