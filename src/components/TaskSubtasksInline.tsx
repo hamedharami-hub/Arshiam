@@ -23,10 +23,11 @@ type Sub = {
 };
 
 export function TaskSubtasksInline({
-  taskId, onOpenSubtask, readOnly = false,
+  taskId, onOpenSubtask, onProgressChange, readOnly = false,
 }: {
   taskId: string;
   onOpenSubtask?: (id: string) => void;
+  onProgressChange?: (completed: number, total: number) => void;
   readOnly?: boolean;
 }) {
   const { user } = useAuth();
@@ -141,6 +142,8 @@ export function TaskSubtasksInline({
   };
 
   const done = subs.filter((s) => s.completed).length;
+
+  useEffect(() => { onProgressChange?.(done, subs.length); }, [done, subs.length, onProgressChange]);
 
   return (
     <div className="space-y-2">

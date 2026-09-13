@@ -6,6 +6,7 @@ import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useShareAccess } from "@/hooks/useShareAccess";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { BidiText } from "@/components/BidiText";
@@ -19,7 +20,7 @@ import {
   Flag, Repeat, ListTree, Paperclip, X, Image as ImageIcon, Music, Link as LinkIcon,
   CheckSquare, ListChecks, CalendarDays, Mic, MicOff, Pin, PinOff, Maximize2, Minimize2,
   GitBranch, Zap,
-  Save, ExternalLink, Loader2,
+  Save, ExternalLink, Loader2, Circle, CheckCircle2, MoreHorizontal,
 } from "lucide-react";
 import { VoiceInput } from "@/lib/voiceInput";
 import { PRIORITY_META, PRIORITY_ORDER, type Priority } from "@/lib/priority";
@@ -33,6 +34,8 @@ import { TaskStepLists } from "@/components/TaskStepLists";
 import { TaskSubtasksInline } from "@/components/TaskSubtasksInline";
 import { TaskAttachments } from "@/components/TaskAttachments";
 import { TaskDescriptionEditor } from "@/components/TaskDescriptionEditor";
+import TaskActionSheet from "@/components/TaskActionSheet";
+import PomodoroSheet from "@/components/PomodoroSheet";
 import { TaskOutcomeSheet } from "@/components/TaskOutcomeSheet";
 import { TaskOutcomesInline } from "@/components/TaskOutcomesInline";
 import { DueDatePicker } from "@/components/DueDatePicker";
@@ -94,7 +97,11 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [showSteps, setShowSteps] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [subtaskProgress, setSubtaskProgress] = useState({ completed: 0, total: 0 });
   const [tagOpen, setTagOpen] = useState(false);
+  const [folderOpen, setFolderOpen] = useState(false);
+  const [actionMenuOpen, setActionMenuOpen] = useState(false);
+  const [focusOpen, setFocusOpen] = useState(false);
   const [showTimeBlock, setShowTimeBlock] = useState(hasTimeBlock);
   const [showOutcomes, setShowOutcomes] = useState(false);
   const [voiceListening, setVoiceListening] = useState(false);
@@ -402,6 +409,11 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     toast(T(`تسک به ${days} روز دیگر موکول شد`, `Task postponed by ${days} day(s)`));
   };
 
+  const toggleCompletion = () => {
+    const nextCompleted = !t.completed;
+    void save({ completed: nextCompleted, status: nextCompleted ? "done" : "todo" });
+  };
+
   const addNote = async () => {
     if (!user || !canEdit) return;
     const { data, error } = await firebaseStore.from("notes").insert({
@@ -474,6 +486,12 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     if (t.start_at || t.end_at) return T("تایم‌بلاک", "Time block");
     return null;
   })();
+  const progressPercent = t.completed ? 100 : subtaskProgress.total
+    ? Math.round((subtaskProgress.completed / subtaskProgress.total) * 100) : 0;
+  const handleSubtaskProgress = useCallback((completed: number, total: number) => {
+    setSubtaskProgress((current) => current.completed === completed && current.total === total
+      ? current : { completed, total });
+  }, []);
 
   // ── Rail icon button (MD3 tonal) ────────────────────────────────────
   const RailButton = ({
@@ -531,15 +549,15 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       <div className="flex items-center gap-2 bg-card/50 dark:bg-card/30 rounded-2xl p-1.5 border border-border/50 hover:border-border/80 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all duration-200">
         <Button
           size="icon"
-          variant={t.pinned ? "secondary" : "ghost"}
+          variant="ghost"
           disabled={!canEdit}
-          onClick={() => save({ pinned: !t.pinned })}
-          className={`h-9 w-9 shrink-0 rounded-xl transition-all ${
-            t.pinned ? "bg-primary/15 text-primary border border-primary/30 shadow-xs" : "text-muted-foreground/60 hover:text-foreground"
+          onClick={toggleCompletion}
+          className={`h-10 w-10 shrink-0 rounded-xl transition-all border ${
+            t.completed ? "bg-emerald-500 text-white border-emerald-500 shadow-sm" : "text-muted-foreground hover:text-primary border-border/70 hover:border-primary/50 hover:bg-primary/5"
           }`}
-          title={t.pinned ? T("حذف پین", "Unpin") : T("پین", "Pin")}
+          title={t.completed ? T("بازکردن تسک", "Reopen task") : T("تکمیل تسک", "Complete task")}
         >
-          <Pin className={`w-4 h-4 ${t.pinned ? "fill-primary" : ""}`} />
+          {t.completed ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
         </Button>
         <AutoTextarea
           value={t.title}
@@ -551,6 +569,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           rows={1}
           dir="auto"
           placeholder={T("عنوان تسک را اینجا بنویس…", "Write the task title here…")}
+          data-task-title
           className="text-lg md:text-xl font-bold leading-relaxed bg-transparent border-0 focus-visible:ring-0 focus-visible:bg-transparent px-2 py-1 text-foreground placeholder:text-muted-foreground/45 break-words whitespace-pre-wrap tracking-tight flex-1"
         />
         <Button
@@ -882,7 +901,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
         {/* 2. Priority */}
         <div>
-        <Popover>
+        <Popover open={folderOpen} onOpenChange={setFolderOpen}>
           <PopoverTrigger asChild>
             <Button
               type="button"
@@ -1214,6 +1233,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       {showSubtasks && (
         <TaskSubtasksInline
           taskId={t.id}
+          onProgressChange={handleSubtaskProgress}
           readOnly={!canEdit}
           onOpenSubtask={(id) => {
             firebaseStore.from("tasks").select("*").eq("id", id).single().then(({ data }) => {
@@ -1263,6 +1283,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       {hero}
       {topControls}
       {quickChips}
+      {progressPanel}
       <div className="flex-1">{expandables}</div>
       {bottomRail}
     </div>
@@ -1354,6 +1375,9 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         <Button size="icon" variant="ghost" className="h-8 w-8 rounded-xl" onClick={addToAndroidCalendar} title={T("افزودن به تقویم Android", "Add to Android Calendar")}>
           <CalendarDays className="w-4 h-4" />
         </Button>
+        <Button size="icon" variant="ghost" className="h-8 w-8 rounded-xl" onClick={() => setActionMenuOpen(true)} title={T("گزینه‌های بیشتر", "More actions")}>
+          <MoreHorizontal className="w-4 h-4" />
+        </Button>
       </div>
     </div>
   );
@@ -1385,11 +1409,55 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           <span className="hidden 2xl:inline">{T("تمام صفحه", "Full page")}</span>
         </Button>
       )}
+      <Button
+        size="icon"
+        variant="ghost"
+        onClick={() => setActionMenuOpen(true)}
+        className="h-8 w-8 rounded-xl"
+        title={T("گزینه‌های بیشتر", "More actions")}
+      >
+        <MoreHorizontal className="w-4 h-4" />
+      </Button>
+    </div>
+  );
+
+  const progressPanel = (
+    <div className="mx-1 mb-3 rounded-2xl border border-border/50 bg-muted/25 px-3 py-2.5">
+      <div className="mb-2 flex items-center justify-between gap-3 text-xs">
+        <span className="flex items-center gap-1.5 font-medium text-foreground/85">
+          <ListChecks className="h-3.5 w-3.5 text-primary" />
+          {T("پیشرفت تسک", "Task progress")}
+        </span>
+        <span className="tabular-nums text-muted-foreground">
+          {subtaskProgress.total
+            ? T(`${subtaskProgress.completed} از ${subtaskProgress.total} زیرتسک`, `${subtaskProgress.completed} of ${subtaskProgress.total} subtasks`)
+            : t.completed ? T("تکمیل شد", "Completed") : T("آمادهٔ شروع", "Ready to start")}
+        </span>
+      </div>
+      <div className="flex items-center gap-3">
+        <Progress value={progressPercent} className="h-2 flex-1" />
+        <span className="w-9 text-end text-xs font-semibold tabular-nums text-primary">{progressPercent}%</span>
+      </div>
     </div>
   );
 
   return (
     <>
+      <TaskActionSheet
+        task={t}
+        open={actionMenuOpen}
+        onOpenChange={setActionMenuOpen}
+        onComplete={toggleCompletion}
+        onDelete={deleteTask}
+        onMove={() => setFolderOpen(true)}
+        onMakeChild={() => setParentOpen(true)}
+        onEdit={() => document.querySelector<HTMLTextAreaElement>("[data-task-title]")?.focus()}
+        onPin={() => void save({ pinned: !t.pinned })}
+        onPomodoro={() => setFocusOpen(true)}
+        onPatch={(patch) => save(patch)}
+        onRefresh={refreshTask}
+      />
+      <PomodoroSheet task={t} open={focusOpen} onOpenChange={setFocusOpen} />
       {mode === "embedded" ? (
         <div className="w-full h-full flex flex-col bg-card/90 border border-border/70 rounded-2xl shadow-sm overflow-hidden animate-in fade-in duration-200">
           <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between gap-2 bg-muted/30">

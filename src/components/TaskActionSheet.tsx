@@ -25,6 +25,7 @@ type View = "main" | "more" | "activities" | "subtask" | "comment" | "location";
 
 interface Props {
   task: Task | null;
+  open?: boolean;
   onOpenChange: (open: boolean) => void;
   onComplete: () => void;
   onDelete: () => void;
@@ -38,7 +39,7 @@ interface Props {
 }
 
 export default function TaskActionSheet({
-  task, onOpenChange, onComplete, onDelete, onMove, onMakeChild, onEdit, onPin, onPomodoro, onPatch, onRefresh,
+  task, open, onOpenChange, onComplete, onDelete, onMove, onMakeChild, onEdit, onPin, onPomodoro, onPatch, onRefresh,
 }: Props) {
   const { i18n } = useTranslation();
   const { user } = useAuth();
@@ -395,7 +396,7 @@ export default function TaskActionSheet({
 
   return (
     <>
-      <Sheet open={!!task && !shareOpen} onOpenChange={onOpenChange}>
+      <Sheet open={(open ?? !!task) && !shareOpen} onOpenChange={onOpenChange}>
         <SheetContent side="bottom" className="rounded-t-2xl pb-5 px-3 pt-4 max-h-[85vh] overflow-y-auto">
           {renderView()}
         </SheetContent>
