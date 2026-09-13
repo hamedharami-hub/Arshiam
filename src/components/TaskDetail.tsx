@@ -62,6 +62,16 @@ export type TaskDetailHandle = {
   savePendingChanges: (force?: boolean) => Promise<void>;
   hasPendingChanges: () => boolean;
   getCurrentTask: () => Task;
+  openActions: () => void;
+  setFolderId: (id: string | null) => Promise<void>;
+};
+
+export type TaskHeaderContext = {
+  folderId: string | null;
+  parentId: string | null;
+  parentTitle: string;
+  parentFolderId: string | null;
+  folders: { id: string; name: string; parent_id: string | null; color: string | null }[];
 };
 
 export const TaskDetail = forwardRef<TaskDetailHandle, {
@@ -71,7 +81,11 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   setConfirm: (c: ConfirmState) => void;
   mode?: "sheet" | "page" | "drawer" | "embedded";
   allowDelete?: boolean;
-}>(function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet", allowDelete = false }, ref) {
+  /** The new-task route owns its sole Save/More toolbar. */
+  hidePageToolbar?: boolean;
+  onHeaderContextChange?: (context: TaskHeaderContext) => void;
+  onRequestFolderPicker?: () => void;
+}>(function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet", allowDelete = false, hidePageToolbar = false, onHeaderContextChange, onRequestFolderPicker }, ref) {
   const { user } = useAuth();
   const { i18n } = useTranslation();
   const navigate = useNavigate();
@@ -109,7 +123,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [parentOpen, setParentOpen] = useState(false);
   const [parentTitle, setParentTitle] = useState("");
-  const [allTasks, setAllTasks] = useState<{ id: string; title: string; parent_id: string | null }[]>([]);
+  const [parentFolderId, setParentFolderId] = useState<string | null>(null);
+  const [allTasks, setAllTasks] = useState<{ id: string; title: string; parent_id: string | null; folder_id: string | null }[]>([]);
   const [outcomeOpen, setOutcomeOpen] = useState(false);
   const [outcomeCount, setOutcomeCount] = useState(0);
   const [outcomeRefresh, setOutcomeRefresh] = useState(0);
@@ -201,11 +216,11 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       const [cf, ct, ca] = await Promise.all([
         cacheGet<any[]>(`folders:${user.id}`),
         cacheGet<any[]>(`tags:${user.id}`),
-        cacheGet<{ id: string; title: string; parent_id: string | null }[]>(`tasks:all:${user.id}`),
+        cacheGet<{ id: string; title: string; parent_id: string | null; folder_id: string | null }[]>(`tasks:all:${user.id}`),
       ]);
       if (cf) setFolders(cf);
       if (ct) setTags(ct);
-      if (ca) setAllTasks(ca.map(t => ({ id: t.id, title: t.title, parent_id: t.parent_id ?? null })));
+      if (ca) setAllTasks(ca.map(t => ({ id: t.id, title: t.title, parent_id: t.parent_id ?? null, folder_id: t.folder_id ?? null })));
     };
     loadCached();
 
@@ -216,17 +231,30 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     firebaseStore.from("tags").select("id,name,color").order("name").then(({ data }) => {
       setTags((data || []) as any);
     });
-    firebaseStore.from("tasks").select("id,title,parent_id").order("title").then(({ data }) => {
+    firebaseStore.from("tasks").select("id,title,parent_id,folder_id").order("title").then(({ data }) => {
       setAllTasks((data || []) as unknown as typeof allTasks);
     });
   }, [user]);
 
   useEffect(() => {
-    if (!t.parent_id) { setParentTitle(""); return; }
-    firebaseStore.from("tasks").select("title").eq("id", t.parent_id).maybeSingle().then(({ data }) => {
-      setParentTitle((data?.title as string) || "—");
+    if (!t.parent_id) { setParentTitle(""); setParentFolderId(null); return; }
+    const cachedParent = allTasks.find(candidate => candidate.id === t.parent_id);
+    setParentTitle(cachedParent?.title || "");
+    setParentFolderId(cachedParent?.folder_id || null);
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    let cancelled = false;
+    firebaseStore.from("tasks").select("title,folder_id").eq("id", t.parent_id).maybeSingle().then(({ data }) => {
+      if (!cancelled) {
+        setParentTitle((data?.title as string) || "");
+        setParentFolderId((data?.folder_id as string) || null);
+      }
     });
-  }, [t.parent_id]);
+    return () => { cancelled = true; };
+  }, [t.parent_id, allTasks]);
+
+  useEffect(() => {
+    onHeaderContextChange?.({ folderId: t.folder_id, parentId: t.parent_id, parentTitle, parentFolderId, folders });
+  }, [t.folder_id, t.parent_id, parentTitle, parentFolderId, folders, onHeaderContextChange]);
 
   const parentCandidates = useMemo(() => {
     const id = t.id;
@@ -359,7 +387,9 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     savePendingChanges,
     hasPendingChanges: () => Object.keys(taskPatch(latestTaskRef.current, savedTaskRef.current)).length > 0,
     getCurrentTask: () => latestTaskRef.current,
-  }), [savePendingChanges]);
+    openActions: () => setActionMenuOpen(true),
+    setFolderId: (id) => save({ folder_id: id }),
+  }), [savePendingChanges, save]);
 
   useEffect(() => {
     if (!canEdit || !hasPendingChanges) return;
@@ -653,7 +683,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           </Tooltip>
         </TooltipProvider>
       )}
-      {t.parent_id && (
+      {t.parent_id && !hidePageToolbar && (
         <Chip
           icon={ListTree}
           color="bg-amber-500/10 text-amber-600 dark:text-amber-400"
@@ -949,7 +979,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         </div>
 
         {/* 3. Folder + quick-create */}
-        <div className="order-first col-span-3">
+        {!hidePageToolbar && <div className="order-first col-span-3">
         <Popover open={folderOpen} onOpenChange={setFolderOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -1029,7 +1059,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             })}
           </PopoverContent>
         </Popover>
-        </div>
+        </div>}
         <Button type="button" variant="outline" onClick={() => setTagOpen(true)} disabled={!canEdit}
           className={`order-2 w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-3 ${taskTagIds.length ? "bg-primary/10 text-primary border-primary/30" : "bg-muted/30 border-border/60"}`}>
           <TagIcon className="w-4 h-4 shrink-0" />
@@ -1487,7 +1517,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         onOpenChange={setActionMenuOpen}
         onComplete={toggleCompletion}
         onDelete={deleteTask}
-        onMove={() => setFolderOpen(true)}
+        onMove={() => onRequestFolderPicker ? onRequestFolderPicker() : setFolderOpen(true)}
         onMakeChild={() => setParentOpen(true)}
         onEdit={() => document.querySelector<HTMLTextAreaElement>("[data-task-title]")?.focus()}
         onPin={() => void save({ pinned: !t.pinned })}
@@ -1522,7 +1552,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         </div>
       ) : mode === "page" ? (
         <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-2 pb-12 min-h-screen flex flex-col">
-          <div className="sticky top-14 z-10 px-3 sm:px-4 py-2 mb-3 rounded-2xl bg-card/80 dark:bg-card/85 backdrop-blur-xl border border-border/50 shadow-xs flex items-center justify-between gap-3">
+          {!hidePageToolbar && <div className="sticky top-14 z-10 px-3 sm:px-4 py-2 mb-3 rounded-2xl bg-card/80 dark:bg-card/85 backdrop-blur-xl border border-border/50 shadow-xs flex items-center justify-between gap-3">
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground" aria-live="polite">
               <span className={`w-2 h-2 rounded-full ${
                 saveState === "saving" ? "bg-amber-500 animate-ping" :
@@ -1532,7 +1562,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
               {saveLabel}
             </span>
             {editorActions}
-          </div>
+          </div>}
           {activeNote ? noteEditorBody : body}
         </div>
       ) : mode === "drawer" && isMobile ? (

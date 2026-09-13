@@ -33,4 +33,18 @@ describe("TaskDetail initial render", () => {
     expect(html).toContain("Task progress");
     expect(html).toContain("Description");
   });
+
+  it("lets the new-task route own the only visible save toolbar", () => {
+    const task = {
+      id: "draft-1", user_id: "owner-1", title: "", description: null,
+      completed: false, status: "todo", priority: "none",
+      folder_id: null, parent_id: null, due_date: null,
+    } as Task;
+    const html = renderToString(
+      <TaskDetail task={task} mode="page" hidePageToolbar onClose={() => {}} onChanged={() => {}} setConfirm={() => {}} />,
+    );
+    expect(html).toContain("Task progress");
+    expect(html).not.toContain("Save</button>");
+    expect(html).not.toContain("Saved</span>");
+  });
 });

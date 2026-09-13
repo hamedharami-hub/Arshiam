@@ -1,14 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Loader2, Check } from "lucide-react";
+import { ArrowRight, Loader2, Check, MoreHorizontal, Folder as FolderIcon, ChevronDown, ListTree } from "lucide-react";
 import { toast } from "sonner";
-import { TaskDetail, type TaskDetailHandle } from "@/components/TaskDetail";
+import { TaskDetail, type TaskDetailHandle, type TaskHeaderContext } from "@/components/TaskDetail";
 import type { Task, ConfirmState } from "@/lib/taskTypes";
 import { deleteTask } from "@/lib/firestoreDataService";
 import { enqueueOp } from "@/lib/offlineQueue";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -27,12 +28,16 @@ export default function NewTaskView() {
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [backAsk, setBackAsk] = useState(false);
+  const [leaveDestination, setLeaveDestination] = useState<string | null>(null);
+  const [folderOpen, setFolderOpen] = useState(false);
+  const [headerContext, setHeaderContext] = useState<TaskHeaderContext | null>(null);
   const createdRef = useRef(false);
   const savedRef = useRef(false);
   const persistedRef = useRef(false);
   const initialTagSavedRef = useRef(false);
   const draftRef = useRef<Task | null>(null);
   const detailRef = useRef<TaskDetailHandle>(null);
+  const onHeaderContextChange = useCallback((context: TaskHeaderContext) => setHeaderContext(context), []);
   useEffect(() => { draftRef.current = draft; }, [draft]);
 
   useEffect(() => {
@@ -80,14 +85,30 @@ export default function NewTaskView() {
   }, [user]);
 
   const hasContent = () => {
-    const d = draftRef.current;
+    const d = detailRef.current?.getCurrentTask() || draftRef.current;
     if (!d) return false;
     return !!(d.title?.trim() || d.description?.trim());
   };
 
   const handleBack = () => {
+    setLeaveDestination(null);
     if (detailRef.current?.hasPendingChanges() || hasContent()) setBackAsk(true);
     else navigate(-1);
+  };
+
+  const goToParent = () => {
+    const parentId = headerContext?.parentId || detailRef.current?.getCurrentTask()?.parent_id;
+    if (!parentId) return;
+    const destination = `/app/tasks/${encodeURIComponent(parentId)}`;
+    if (detailRef.current?.hasPendingChanges() || hasContent()) {
+      setLeaveDestination(destination);
+      setBackAsk(true);
+    } else navigate(destination);
+  };
+
+  const selectFolder = (folderId: string | null) => {
+    setFolderOpen(false);
+    void detailRef.current?.setFolderId(folderId).catch(() => toast.error("تغییر فولدر ذخیره نشد"));
   };
 
   const persistInitialTag = async (taskId: string) => {
@@ -139,7 +160,8 @@ export default function NewTaskView() {
       }
     }
     setBackAsk(false);
-    navigate(-1);
+    if (leaveDestination) navigate(leaveDestination);
+    else navigate(-1);
   };
 
   const saveAndBack = async () => {
@@ -156,7 +178,8 @@ export default function NewTaskView() {
       if (!await persistInitialTag(current.id)) toast.error("تسک ذخیره شد، اما برچسب هنوز ذخیره نشده است");
       setBackAsk(false);
       toast.success("تسک ذخیره شد");
-      navigate(-1);
+      if (leaveDestination) navigate(leaveDestination);
+      else navigate(-1);
     } catch {
       toast.error("ذخیره انجام نشد؛ تغییرات همچنان باز هستند");
     } finally {
@@ -180,23 +203,77 @@ export default function NewTaskView() {
     );
   }
 
+  const folderId = headerContext
+    ? (headerContext.folderId ?? (headerContext.parentId ? headerContext.parentFolderId : null))
+    : draft.folder_id;
+  const folders = headerContext?.folders || [];
+  const selectedFolder = folders.find(folder => folder.id === folderId);
+  const parentFolder = selectedFolder?.parent_id ? folders.find(folder => folder.id === selectedFolder.parent_id) : null;
+  const folderLabel = folderId
+    ? selectedFolder ? `${parentFolder ? `${parentFolder.name} / ` : ""}${selectedFolder.name}` : "فولدر…"
+    : "صندوق ورودی";
+  const parentId = headerContext?.parentId ?? draft.parent_id;
+
   return (
     <div dir="rtl" className="w-full pb-40">
-      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b flex items-center justify-between gap-2 p-3">
-        <Button variant="ghost" size="sm" onClick={handleBack} className="gap-1">
-          <ArrowRight className="w-4 h-4" /> برگشت
-        </Button>
-        <h1 className="text-base font-bold flex-1 text-center">تسک جدید</h1>
-        <Button onClick={finish} disabled={busy} size="sm" className="gap-1">
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-          ذخیره
-        </Button>
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b px-3 py-2.5 space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <Button variant="ghost" size="sm" onClick={handleBack} className="gap-1 shrink-0">
+            <ArrowRight className="w-4 h-4" /> برگشت
+          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" onClick={() => detailRef.current?.openActions()} disabled={busy} aria-label="گزینه‌های بیشتر" title="گزینه‌های بیشتر">
+              <MoreHorizontal className="w-5 h-5" />
+            </Button>
+            <Button onClick={finish} disabled={busy} size="sm" className="gap-1.5 min-w-20 rounded-xl font-semibold">
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              {busy ? "در حال ذخیره…" : "ذخیره"}
+            </Button>
+          </div>
+        </div>
+        <nav aria-label="مسیر تسک" className="flex min-w-0 items-center gap-1.5 text-xs sm:text-sm">
+          <Popover open={folderOpen} onOpenChange={setFolderOpen}>
+            <PopoverTrigger asChild>
+              <button type="button" className="inline-flex min-w-0 max-w-[60%] items-center gap-1.5 rounded-lg px-2 py-1.5 font-semibold text-foreground hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={`تغییر فولدر: ${folderLabel}`}>
+                <FolderIcon className="h-4 w-4 shrink-0 text-primary" style={{ color: selectedFolder?.color || undefined }} />
+                <span className="truncate">{folderLabel}</span>
+                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-72 max-h-[55vh] overflow-y-auto p-2">
+              <button type="button" onClick={() => selectFolder(null)} className="w-full rounded-lg px-2.5 py-2 text-start text-sm hover:bg-accent">{parentId && headerContext?.parentFolderId ? "استفاده از فولدر والد" : "صندوق ورودی"}</button>
+              {folders.filter(folder => !folder.parent_id).map(folder => (
+                <div key={folder.id}>
+                  <button type="button" onClick={() => selectFolder(folder.id)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-start text-sm hover:bg-accent">
+                    <FolderIcon className="h-4 w-4 shrink-0" style={{ color: folder.color || undefined }} />{folder.name}
+                  </button>
+                  {folders.filter(child => child.parent_id === folder.id).map(child => (
+                    <button key={child.id} type="button" onClick={() => selectFolder(child.id)} className="flex w-full items-center gap-2 rounded-lg py-2 pe-2.5 ps-8 text-start text-sm hover:bg-accent">
+                      <FolderIcon className="h-3.5 w-3.5 shrink-0" style={{ color: child.color || undefined }} />{child.name}
+                    </button>
+                  ))}
+                </div>
+              ))}
+              {!folders.length && <p className="px-2.5 py-2 text-xs text-muted-foreground">فولدری برای نمایش پیدا نشد.</p>}
+            </PopoverContent>
+          </Popover>
+          {parentId && <>
+            <span className="text-muted-foreground" aria-hidden="true">/</span>
+            <button type="button" onClick={goToParent} className="inline-flex min-w-0 items-center gap-1 rounded-lg px-2 py-1.5 text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" title={headerContext?.parentTitle || "تسک والد"}>
+              <ListTree className="h-4 w-4 shrink-0" />
+              <span className="truncate">{headerContext?.parentTitle || "تسک والد"}</span>
+            </button>
+          </>}
+        </nav>
       </div>
 
       <TaskDetail
         ref={detailRef}
         task={draft}
         mode="page"
+        hidePageToolbar
+        onHeaderContextChange={onHeaderContextChange}
+        onRequestFolderPicker={() => setFolderOpen(true)}
         onClose={handleBack}
         onChanged={() => { persistedRef.current = true; }}
         setConfirm={setConfirm}
