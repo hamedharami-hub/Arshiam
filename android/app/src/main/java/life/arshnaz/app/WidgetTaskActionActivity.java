@@ -11,7 +11,8 @@ import org.json.JSONObject;
 public class WidgetTaskActionActivity extends Activity {
     private static final String[] PRIORITIES = {"none", "low", "medium", "high", "urgent"};
     private static final String[] PRIORITY_LABELS = {"No priority", "Low", "Medium", "High", "Urgent"};
-    private static final String[] DUE_LABELS = {"No date", "Today", "Tomorrow"};
+    private static final String[] CREATE_DUE_LABELS = {"No date", "Today", "Tomorrow"};
+    private static final String[] EDIT_DUE_LABELS = {"Keep current date & time", "No date", "Today", "Tomorrow"};
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -27,16 +28,17 @@ public class WidgetTaskActionActivity extends Activity {
         TextView help = new TextView(this); help.setText(create ? "Add a task with its priority and date. You can open full details afterwards." : "Update title, priority or date without leaving your home screen."); root.addView(help);
         EditText title = new EditText(this); title.setTag("widget-action-title"); title.setHint("Task title"); title.setSingleLine(true); title.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES); title.setText(task == null ? "" : task.optString("title")); root.addView(labeled("Title", title));
         Spinner priority = spinner(PRIORITY_LABELS, indexOf(PRIORITIES, task == null ? "none" : task.optString("priority", "none"))); root.addView(labeled("Priority", priority));
-        String due = task == null ? "" : task.optString("due_date", "");
-        int dueIndex = due.startsWith(java.time.LocalDate.now().toString()) ? 1 : due.startsWith(java.time.LocalDate.now().plusDays(1).toString()) ? 2 : 0;
-        Spinner dueDate = spinner(DUE_LABELS, dueIndex); root.addView(labeled("Due date", dueDate));
+        Spinner dueDate = spinner(create ? CREATE_DUE_LABELS : EDIT_DUE_LABELS, 0); root.addView(labeled("Due date", dueDate));
         Button save = new Button(this); save.setTag("widget-action-save"); save.setText(create ? "Add task" : "Save quick changes"); root.addView(save);
         save.setOnClickListener(v -> {
             String value = title.getText().toString().trim();
             if (value.isEmpty()) { title.setError("A title is required"); return; }
-            String resolvedDue = dueDate.getSelectedItemPosition() == 1 ? java.time.LocalDate.now().toString()
-                : dueDate.getSelectedItemPosition() == 2 ? java.time.LocalDate.now().plusDays(1).toString() : "";
-            WidgetTaskActionWorker.enqueue(this, create ? "create" : "edit", taskId, value, PRIORITIES[priority.getSelectedItemPosition()], resolvedDue);
+            int selection = dueDate.getSelectedItemPosition();
+            boolean preserveDue = !create && selection == 0;
+            int dateChoice = create ? selection : selection - 1;
+            String resolvedDue = dateChoice == 1 ? java.time.LocalDate.now().toString()
+                : dateChoice == 2 ? java.time.LocalDate.now().plusDays(1).toString() : "";
+            WidgetTaskActionWorker.enqueue(this, create ? "create" : "edit", taskId, value, PRIORITIES[priority.getSelectedItemPosition()], resolvedDue, preserveDue);
             Toast.makeText(this, "Saving from widget…", Toast.LENGTH_SHORT).show(); finish();
         });
         if (!create) {

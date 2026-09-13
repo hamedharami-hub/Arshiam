@@ -73,9 +73,10 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
             v.setRemoteAdapter(R.id.agenda_list, service);
             v.setEmptyView(R.id.agenda_list,R.id.agenda_empty);
             v.setTextColor(R.id.agenda_empty,fg);
-            // Collection rows share one Activity template. The fill-in URI chooses open/toggle/edit.
-            Intent template = new Intent(c,WidgetRouterActivity.class).setAction(Intent.ACTION_VIEW)
-                .setData(Uri.parse("arshnaz://widget-action/template/" + id));
+            // Do not pre-fill data here. A collection row contributes the full action URI using
+            // setOnClickFillInIntent; pre-filling data would prevent the task-specific URI from
+            // replacing it on some launcher implementations.
+            Intent template = new Intent(c,WidgetRouterActivity.class).setAction(Intent.ACTION_VIEW);
             v.setPendingIntentTemplate(R.id.agenda_list,PendingIntent.getActivity(c,50000+id,template,
                 PendingIntent.FLAG_UPDATE_CURRENT | (android.os.Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0)));
         }

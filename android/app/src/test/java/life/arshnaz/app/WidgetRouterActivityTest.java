@@ -6,6 +6,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
 import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
 import static org.junit.Assert.*;
@@ -31,5 +32,13 @@ public class WidgetRouterActivityTest {
         AgendaData.prefs(activity).edit().putString("dataUserId","user-1").commit();
         activity.onCreate(null);
         assertNull(Shadows.shadowOf(activity).getNextStartedActivity());
+    }
+
+    @Test public void collectionTemplateAcceptsTheTaskSpecificFillInUri() {
+        Intent template = new Intent(RuntimeEnvironment.getApplication(), WidgetRouterActivity.class)
+            .setAction(Intent.ACTION_VIEW);
+        Intent row = new Intent().setData(Uri.parse("arshnaz://widget-action/open?taskId=task-1&owner=user-1"));
+        template.fillIn(row, 0);
+        assertEquals("arshnaz://widget-action/open?taskId=task-1&owner=user-1", template.getDataString());
     }
 }

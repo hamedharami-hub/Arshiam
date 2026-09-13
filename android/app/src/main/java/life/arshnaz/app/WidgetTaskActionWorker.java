@@ -22,9 +22,22 @@ public final class WidgetTaskActionWorker extends Worker {
     public WidgetTaskActionWorker(@NonNull Context context, @NonNull WorkerParameters params) { super(context, params); }
 
     static void enqueue(Context c, String action, String taskId, String title, String priority, String dueDate) {
+        enqueue(c, action, taskId, title, priority, dueDate, false);
+    }
+    static void enqueue(Context c, String action, String taskId, String title, String priority, String dueDate, boolean preserveDueDate) {
+        SharedPreferences state = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        long sessionGeneration = -1L;
+        try {
+            sessionGeneration = ArshnazSecureStore.open(c).getLong("generation", 0);
+        } catch (Exception ignored) {
+            // Do not enqueue a mutation that cannot be bound to the current secure session.
+            state.edit().putString("syncStatus", "Open ARSHNAZ before editing from a widget").apply();
+        }
         Data input = new Data.Builder().putString("action", action).putString("taskId", taskId == null ? "" : taskId)
             .putString("title", title == null ? "" : title).putString("priority", priority == null ? "none" : priority)
-            .putString("dueDate", dueDate == null ? "" : dueDate).build();
+            .putString("dueDate", dueDate == null ? "" : dueDate).putBoolean("preserveDueDate", preserveDueDate)
+            .putString("ownerId", state.getString("dataUserId", ""))
+            .putLong("sessionGeneration", sessionGeneration).build();
         WorkManager.getInstance(c).enqueueUniqueWork(WORK, ExistingWorkPolicy.APPEND_OR_REPLACE,
             new OneTimeWorkRequest.Builder(WidgetTaskActionWorker.class).setInputData(input)
                 .setConstraints(new Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build());
@@ -44,11 +57,16 @@ public final class WidgetTaskActionWorker extends Worker {
             String project = secure.getString("projectId", ""), database = secure.getString("databaseId", "");
             String token = freshToken(secure);
             if (uid.isEmpty() || project.isEmpty() || database.isEmpty() || token.isEmpty()) throw new AuthExpired();
+            if (!belongsToSession(getInputData(), uid, secure.getLong("generation", 0))) {
+                status(c, "Widget change belongs to a previous ARSHNAZ session");
+                return Result.failure();
+            }
             String action = getInputData().getString("action");
             String taskId = getInputData().getString("taskId");
             if ("create".equals(action)) create(project, database, uid, token);
             else if (validId(taskId) && ("complete".equals(action) || "reopen".equals(action))) setCompleted(project, database, uid, taskId, token, "complete".equals(action));
-            else if (validId(taskId) && "edit".equals(action)) edit(project, database, uid, taskId, token);
+            else if (validId(taskId) && "edit".equals(action)) edit(project, database, uid, taskId, token,
+                getInputData().getBoolean("preserveDueDate", false));
             else throw new IllegalArgumentException("Unsupported widget action");
             c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("syncStatus", "Widget change saved").apply();
             ArshnazWidgetWorker.enqueue(c);
@@ -77,20 +95,25 @@ public final class WidgetTaskActionWorker extends Worker {
         JSONObject fields = new JSONObject().put("completed", bool(completed)).put("status", string(completed ? "done" : "todo")).put("updated_at", timestamp());
         request("PATCH", endpoint(project, database, uid, id, true, "completed", "status", "updated_at"), new JSONObject().put("fields", fields).toString(), token);
     }
-    private void edit(String project, String database, String uid, String id, String token) throws Exception {
+    private void edit(String project, String database, String uid, String id, String token, boolean preserveDueDate) throws Exception {
         String title = getInputData().getString("title");
         if (title == null || title.trim().isEmpty()) throw new IllegalArgumentException("Title required");
-        JSONObject fields = common(title.trim(), getInputData().getString("priority"), getInputData().getString("dueDate"));
+        JSONObject fields = new JSONObject().put("title", string(title.trim()))
+            .put("priority", string(validPriority(getInputData().getString("priority"))));
+        if (!preserveDueDate) fields.put("due_date", dueValue(getInputData().getString("dueDate")));
         fields.put("updated_at", timestamp());
-        request("PATCH", endpoint(project, database, uid, id, true, "title", "priority", "due_date", "updated_at"), new JSONObject().put("fields", fields).toString(), token);
+        request("PATCH", endpoint(project, database, uid, id, true,
+            preserveDueDate ? new String[]{"title", "priority", "updated_at"} : new String[]{"title", "priority", "due_date", "updated_at"}),
+            new JSONObject().put("fields", fields).toString(), token);
     }
     private JSONObject common(String title, String priority, String due) throws Exception {
         JSONObject fields = new JSONObject().put("title", string(title));
-        String validPriority = "low".equals(priority) || "medium".equals(priority) || "high".equals(priority) || "urgent".equals(priority) ? priority : "none";
-        fields.put("priority", string(validPriority));
-        fields.put("due_date", due == null || due.isEmpty() ? nil() : string(due));
+        fields.put("priority", string(validPriority(priority)));
+        fields.put("due_date", dueValue(due));
         return fields;
     }
+    private String validPriority(String priority) { return "low".equals(priority) || "medium".equals(priority) || "high".equals(priority) || "urgent".equals(priority) ? priority : "none"; }
+    private JSONObject dueValue(String due) throws Exception { return due == null || due.isEmpty() ? nil() : string(due); }
     private String freshToken(SharedPreferences secure) throws Exception {
         String token = secure.getString("idToken", "");
         if (!token.isEmpty() && secure.getLong("expiresAt", 0) > System.currentTimeMillis() + 60000) return token;
@@ -111,6 +134,10 @@ public final class WidgetTaskActionWorker extends Worker {
         return url.toString();
     }
     private static boolean validId(String id) { return id != null && id.matches("[A-Za-z0-9_-]{1,128}"); }
+    static boolean belongsToSession(Data input, String uid, long generation) {
+        String queuedOwner = input.getString("ownerId");
+        return queuedOwner != null && queuedOwner.equals(uid) && input.getLong("sessionGeneration", -1) == generation;
+    }
     private static JSONObject string(String value) throws Exception { return new JSONObject().put("stringValue", value); }
     private static JSONObject bool(boolean value) throws Exception { return new JSONObject().put("booleanValue", value); }
     private static JSONObject nil() throws Exception { return new JSONObject().put("nullValue", JSONObject.NULL); }
