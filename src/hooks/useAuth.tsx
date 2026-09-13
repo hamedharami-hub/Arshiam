@@ -86,14 +86,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    // Safety timeout in case onAuthStateChanged takes long
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1000);
-
     return () => {
       unsubscribe();
-      clearTimeout(timer);
     };
   }, []);
 

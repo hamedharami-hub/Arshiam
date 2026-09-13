@@ -11,4 +11,15 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(NativeExperiencePlugin.class);
         super.onCreate(savedInstanceState);
     }
+
+    /**
+     * Widget taps can arrive while this singleTask activity is already showing
+     * a different screen. Forward the replacement intent to Capacitor instead
+     * of silently resuming the old WebView route.
+     */
+    @Override
+    public void onNewIntent(android.content.Intent intent) {
+        setIntent(intent);
+        super.onNewIntent(intent);
+    }
 }
