@@ -43,4 +43,9 @@ public class AgendaDataTest {
         assertEquals(2,selected.size());
         assertTrue(selected.stream().anyMatch(t->"both".equals(t.optString("id"))));
     }
+    @Test public void widgetListSupportsAllAvailableTasksWithALauncherSafetyCap() {
+        assertEquals(100,AgendaListService.Factory.normalizeLimit(100));
+        assertEquals(100,AgendaListService.Factory.normalizeLimit(10000));
+        assertEquals(1,AgendaListService.Factory.normalizeLimit(0));
+    }
 }

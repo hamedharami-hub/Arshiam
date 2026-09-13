@@ -41,7 +41,7 @@ public class WidgetConfigureActivity extends Activity {
         CheckBox high=check(root,"High priority only",p.getBoolean(prefix+"high",false));
         Spinner textSize=spinner(new String[]{"Small","Medium","Large"},indexOf(new String[]{"small","medium","large"},p.getString(prefix+"textSize",p.getBoolean(prefix+"large",false)?"large":"medium"))); root.addView(labeled("Text size",textSize));
         Spinner sort=spinner(new String[]{"Time","Priority","Title"},indexOf(new String[]{"time","priority","title"},p.getString(prefix+"sort","time"))); root.addView(labeled("Sort by",sort));
-        Spinner limit=spinner(new String[]{"3 tasks","4 tasks","6 tasks","8 tasks"},indexOf(new String[]{"3","4","6","8"},String.valueOf(p.getInt(prefix+"limit",4)))); root.addView(labeled("Tasks shown",limit));
+        Spinner limit=spinner(new String[]{"3 tasks","4 tasks","6 tasks","8 tasks","12 tasks","All available tasks"},indexOf(new String[]{"3","4","6","8","12","100"},String.valueOf(p.getInt(prefix+"limit",4)))); root.addView(labeled("Tasks shown",limit));
         Button save=new Button(this); save.setText("Save widget"); root.addView(save);
         save.setOnClickListener(v->{
             p.edit().putString(prefix+"scope",SCOPES[scope.getSelectedItemPosition()])
@@ -50,7 +50,7 @@ public class WidgetConfigureActivity extends Activity {
               .putBoolean(prefix+"high",high.isChecked()).putBoolean(prefix+"large",textSize.getSelectedItemPosition()==2)
               .putString(prefix+"textSize",new String[]{"small","medium","large"}[textSize.getSelectedItemPosition()])
               .putString(prefix+"sort",new String[]{"time","priority","title"}[sort.getSelectedItemPosition()])
-              .putInt(prefix+"limit",new int[]{3,4,6,8}[limit.getSelectedItemPosition()]).commit();
+              .putInt(prefix+"limit",new int[]{3,4,6,8,12,100}[limit.getSelectedItemPosition()]).commit();
             AgendaWidgetProvider.update(this,AppWidgetManager.getInstance(this),id);
             if(AgendaData.prefs(this).getBoolean("sessionReady",false)) ArshnazWidgetWorker.enqueue(this);
             setResult(RESULT_OK,new Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id)); finish();

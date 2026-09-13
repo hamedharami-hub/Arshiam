@@ -52,10 +52,11 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
         List<JSONObject> tasks = AgendaData.select(c,scope,secondary,showDone,highOnly);
         int activeCount = AgendaData.select(c,scope,secondary,false,highOnly).size();
         int totalCount = AgendaData.select(c,scope,secondary,true,highOnly).size();
+        int shownCount = Math.min(tasks.size(), AgendaListService.Factory.configuredLimit(p,id));
         String title=AgendaData.label(scope)+("none".equals(secondary)?"":" + "+AgendaData.label(secondary));
         v.setTextViewText(R.id.agenda_title,title);
         v.setTextViewText(R.id.agenda_count, activeCount + " active");
-        v.setTextViewText(R.id.agenda_subtitle, tasks.size() + " shown · " + Math.max(0,totalCount-activeCount) + " completed");
+        v.setTextViewText(R.id.agenda_subtitle, shownCount + " of " + tasks.size() + " shown · " + Math.max(0,totalCount-activeCount) + " completed");
         String status = !AgendaData.prefs(c).getBoolean("sessionReady",false) ? "Open ARSHNAZ to show your tasks"
             : AgendaData.prefs(c).getString("syncStatus","Up to date");
         long updated = AgendaData.prefs(c).getLong("updatedAt",0);
