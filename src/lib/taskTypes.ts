@@ -22,6 +22,8 @@ export type Task = {
   start_at: string | null;
   end_at: string | null;
   estimated_minutes: number | null;
+  /** Per-task preference: keep the progress panel out of ordinary task details. */
+  show_progress?: boolean;
   is_avoidance?: boolean;
   location?: string | null;
   bucket_kind?: "day" | "week" | "month" | "quarter" | "year" | null;

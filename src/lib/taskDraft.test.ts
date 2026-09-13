@@ -30,4 +30,9 @@ describe("taskPatch", () => {
   it("returns an empty payload when nothing changed", () => {
     expect(taskPatch({ ...savedTask }, savedTask)).toEqual({});
   });
+
+  it("persists the per-task progress preference in either direction", () => {
+    expect(taskPatch({ ...savedTask, show_progress: true }, savedTask)).toEqual({ show_progress: true });
+    expect(taskPatch({ ...savedTask, show_progress: false }, { ...savedTask, show_progress: true })).toEqual({ show_progress: false });
+  });
 });

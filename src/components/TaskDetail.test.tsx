@@ -20,7 +20,7 @@ vi.mock("@/components/TaskAIPanel", () => ({ TaskAIPanel: () => null }));
 import { TaskDetail } from "./TaskDetail";
 
 describe("TaskDetail initial render", () => {
-  it("opens the full task page with its progress and editor without a reference error", () => {
+  it("opens an ordinary task without taking space for progress", () => {
     const task = {
       id: "task-1", user_id: "owner-1", title: "Plan tomorrow",
       description: "A clear next step", completed: false, status: "todo",
@@ -30,8 +30,21 @@ describe("TaskDetail initial render", () => {
       <TaskDetail task={task} mode="page" onClose={() => {}} onChanged={() => {}} setConfirm={() => {}} />,
     );
     expect(html).toContain("Plan tomorrow");
-    expect(html).toContain("Task progress");
+    expect(html).not.toContain("Task progress");
     expect(html).toContain("Description");
+  });
+
+  it("shows progress only for a task that opted in", () => {
+    const task = {
+      id: "task-2", user_id: "owner-1", title: "Project",
+      description: null, completed: false, status: "todo",
+      priority: "none", folder_id: null, parent_id: null, due_date: null,
+      show_progress: true,
+    } as Task;
+    const html = renderToString(
+      <TaskDetail task={task} mode="page" onClose={() => {}} onChanged={() => {}} setConfirm={() => {}} />,
+    );
+    expect(html).toContain("Task progress");
   });
 
   it("lets the new-task route own the only visible save toolbar", () => {
@@ -43,7 +56,7 @@ describe("TaskDetail initial render", () => {
     const html = renderToString(
       <TaskDetail task={task} mode="page" hidePageToolbar onClose={() => {}} onChanged={() => {}} setConfirm={() => {}} />,
     );
-    expect(html).toContain("Task progress");
+    expect(html).not.toContain("Task progress");
     expect(html).not.toContain("Save</button>");
     expect(html).not.toContain("Saved</span>");
   });

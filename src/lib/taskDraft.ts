@@ -5,6 +5,7 @@ export const EDITABLE_TASK_FIELDS: (keyof Task)[] = [
   "reminder_at", "recurrence", "recurrence_rule", "parent_id", "outcome_id", "pinned",
   "start_at", "end_at", "estimated_minutes", "is_avoidance", "location", "bucket_kind",
   "bucket_calendar", "bucket_anchor",
+  "show_progress",
 ];
 
 export function taskPatch(current: Task, saved: Task): Partial<Task> {

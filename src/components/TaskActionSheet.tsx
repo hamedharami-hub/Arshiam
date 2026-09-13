@@ -17,7 +17,7 @@ import { saveTaskTemplate } from "@/lib/taskTemplates";
 import {
   Check, Trash2, FolderInput, Network, Pencil, Copy, Share2,
   Sparkles, CopyPlus, Pin, PinOff, Timer, ListTree, Paperclip,
-  Tag as TagIcon, MoreHorizontal, MessageSquare, MapPin, X,
+  Tag as TagIcon, MoreHorizontal, MessageSquare, MapPin, X, ListChecks,
   ArrowRight, Loader2, Save, StickyNote, LayoutList, History,
 } from "lucide-react";
 
@@ -33,13 +33,14 @@ interface Props {
   onMakeChild: () => void;
   onEdit: () => void;
   onPin?: () => void;
+  onToggleProgress?: () => Promise<void> | void;
   onPomodoro?: () => void;
   onPatch?: (patch: Partial<Task>) => Promise<void> | void;
   onRefresh?: () => void;
 }
 
 export default function TaskActionSheet({
-  task, open, onOpenChange, onComplete, onDelete, onMove, onMakeChild, onEdit, onPin, onPomodoro, onPatch, onRefresh,
+  task, open, onOpenChange, onComplete, onDelete, onMove, onMakeChild, onEdit, onPin, onToggleProgress, onPomodoro, onPatch, onRefresh,
 }: Props) {
   const { i18n } = useTranslation();
   const { user } = useAuth();
@@ -279,6 +280,17 @@ export default function TaskActionSheet({
         <Row icon={Sparkles} label="AI" onClick={() => { navigate(`/app/tasks/${task.id}?ai=1`); close(); }} disabled={!canEdit} />
         <Row icon={Timer} label={T("پومودورو", "Pomodoro")} onClick={() => { onPomodoro?.(); close(); }} />
         <Row icon={FolderInput} label={T("انتقال", "Move")} onClick={() => { onMove(); close(); }} disabled={!canEdit} />
+        {onToggleProgress && <Row
+          icon={ListChecks}
+          label={task.show_progress ? T("پنهان کردن پیشرفت تسک", "Hide task progress") : T("نمایش پیشرفت تسک", "Show task progress")}
+          onClick={() => {
+            if (!onToggleProgress) return;
+            void Promise.resolve(onToggleProgress())
+              .then(close)
+              .catch(() => toast.error(T("تغییر نمایش پیشرفت ذخیره نشد", "Could not save the progress display setting")));
+          }}
+          disabled={!canEdit}
+        />}
         <Row icon={ListTree} label={T("افزودن زیرتسک", "Add Subtask")} onClick={() => setView("subtask")} disabled={!canEdit} />
         <Row icon={Network} label={T("لینک به تسک والد", "Link Parent Task")} onClick={() => { onMakeChild(); close(); }} disabled={!canEdit} />
         <Row icon={StickyNote} label={T("تبدیل به نوت", "Convert to Note")} onClick={convertToNote} disabled={!canEdit || busy} />

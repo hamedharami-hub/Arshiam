@@ -1365,7 +1365,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       {topControls}
       {hero}
       {quickChips}
-      {progressPanel}
+      {t.show_progress === true && progressPanel}
       {/* On a wide desktop or unfolded device, keep the writing surface and
           task structure adjacent.  The narrow layout remains a single calm
           reading flow instead of squeezing either section into a tiny column. */}
@@ -1521,6 +1521,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         onMakeChild={() => setParentOpen(true)}
         onEdit={() => document.querySelector<HTMLTextAreaElement>("[data-task-title]")?.focus()}
         onPin={() => void save({ pinned: !t.pinned })}
+        onToggleProgress={() => save({ show_progress: !t.show_progress })}
         onPomodoro={() => setFocusOpen(true)}
         onPatch={(patch) => save(patch)}
         onRefresh={refreshTask}
