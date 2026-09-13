@@ -18,7 +18,8 @@ public class AgendaListService extends RemoteViewsService {
             SharedPreferences p=AgendaData.options(c);
             String sort=p.getString("widget."+id+".sort","time");
             tasks=AgendaData.select(c,AgendaWidgetProvider.scope(c,id),AgendaWidgetProvider.secondaryScope(c,id),
-                p.getBoolean("widget."+id+".done",false),p.getBoolean("widget."+id+".high",false),sort);
+                p.getBoolean("widget."+id+".done",false),p.getBoolean("widget."+id+".high",false),sort,
+                p.getString("widget."+id+".thenSort","none"),p.getString("widget."+id+".matchMode","any"));
             int limit=configuredLimit(p,id);
             if(tasks.size()>limit) tasks=new java.util.ArrayList<>(tasks.subList(0,limit));
             owner=AgendaData.prefs(c).getString("dataUserId","");

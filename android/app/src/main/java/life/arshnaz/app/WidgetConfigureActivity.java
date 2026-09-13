@@ -24,7 +24,7 @@ public class WidgetConfigureActivity extends Activity {
             return insets;
         });
         TextView title=new TextView(this); title.setText("ARSHNAZ Widget Settings"); title.setTextSize(24); root.addView(title);
-        TextView help=new TextView(this); help.setText("Combine two views, tap a task to open it, or tap its checkbox to complete and reopen it."); root.addView(help);
+        TextView help=new TextView(this); help.setText("Choose one or two views, decide whether a task needs either or both views, then set its first and second sort order. Tap a task to open it, or tap its checkbox to complete and reopen it."); root.addView(help);
         Spinner scope=new Spinner(this);
         String[] labels=new String[SCOPES.length]; for(int i=0;i<labels.length;i++) labels[i]=AgendaData.label(SCOPES[i]);
         scope.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,labels));
@@ -36,20 +36,28 @@ public class WidgetConfigureActivity extends Activity {
         String savedSecondary=AgendaWidgetProvider.secondaryScope(this,id);
         for(int i=0;i<SCOPES.length;i++) if(SCOPES[i].equals(savedSecondary)) secondary.setSelection(i+1);
         secondary.setContentDescription("Optional combined task view"); root.addView(labeled("View 2 (optional combined view)",secondary));
+        Spinner matchMode=spinner(new String[]{"Match either view (OR)","Require both views (AND)"},
+            "all".equals(p.getString(prefix+"matchMode","any"))?1:0);
+        root.addView(labeled("When View 2 is on",matchMode));
         Spinner theme=spinner(new String[]{"Dark","Light"},p.getBoolean(prefix+"light",false)?1:0); root.addView(labeled("Theme",theme));
         CheckBox done=check(root,"Show completed tasks",p.getBoolean(prefix+"done",false));
         CheckBox high=check(root,"High priority only",p.getBoolean(prefix+"high",false));
         Spinner textSize=spinner(new String[]{"Small","Medium","Large"},indexOf(new String[]{"small","medium","large"},p.getString(prefix+"textSize",p.getBoolean(prefix+"large",false)?"large":"medium"))); root.addView(labeled("Text size",textSize));
         Spinner sort=spinner(new String[]{"Time","Priority","Title"},indexOf(new String[]{"time","priority","title"},p.getString(prefix+"sort","time"))); root.addView(labeled("Sort by",sort));
+        Spinner thenSort=spinner(new String[]{"No second sort","Time","Priority","Title"},
+            indexOf(new String[]{"none","time","priority","title"},p.getString(prefix+"thenSort","none")));
+        root.addView(labeled("Then by",thenSort));
         Spinner limit=spinner(new String[]{"3 tasks","4 tasks","6 tasks","8 tasks","12 tasks","All available tasks"},indexOf(new String[]{"3","4","6","8","12","100"},String.valueOf(p.getInt(prefix+"limit",4)))); root.addView(labeled("Tasks shown",limit));
         Button save=new Button(this); save.setText("Save widget"); root.addView(save);
         save.setOnClickListener(v->{
             p.edit().putString(prefix+"scope",SCOPES[scope.getSelectedItemPosition()])
               .putString(prefix+"secondaryScope",secondary.getSelectedItemPosition()==0?"none":SCOPES[secondary.getSelectedItemPosition()-1])
+              .putString(prefix+"matchMode",secondary.getSelectedItemPosition()==0?"any":new String[]{"any","all"}[matchMode.getSelectedItemPosition()])
               .putBoolean(prefix+"light",theme.getSelectedItemPosition()==1).putBoolean(prefix+"done",done.isChecked())
               .putBoolean(prefix+"high",high.isChecked()).putBoolean(prefix+"large",textSize.getSelectedItemPosition()==2)
               .putString(prefix+"textSize",new String[]{"small","medium","large"}[textSize.getSelectedItemPosition()])
               .putString(prefix+"sort",new String[]{"time","priority","title"}[sort.getSelectedItemPosition()])
+              .putString(prefix+"thenSort",new String[]{"none","time","priority","title"}[thenSort.getSelectedItemPosition()])
               .putInt(prefix+"limit",new int[]{3,4,6,8,12,100}[limit.getSelectedItemPosition()]).commit();
             AgendaWidgetProvider.update(this,AppWidgetManager.getInstance(this),id);
             if(AgendaData.prefs(this).getBoolean("sessionReady",false)) ArshnazWidgetWorker.enqueue(this);

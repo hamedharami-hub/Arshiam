@@ -7,13 +7,16 @@ import { ArrowRight, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { TaskDetail, type TaskDetailHandle } from "@/components/TaskDetail";
 import type { Task, ConfirmState } from "@/lib/taskTypes";
+import { deleteTask } from "@/lib/firestoreDataService";
+import { enqueueOp } from "@/lib/offlineQueue";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
 /**
- * Full-screen "new task" page. Creates an empty draft on mount.
+ * Full-screen "new task" page. Keeps a local draft until a real save boundary,
+ * so a slow connection never leaves the editor on a permanent spinner.
  * On back-press: if anything was entered, ask save / discard / continue.
  */
 export default function NewTaskView() {
@@ -26,6 +29,8 @@ export default function NewTaskView() {
   const [backAsk, setBackAsk] = useState(false);
   const createdRef = useRef(false);
   const savedRef = useRef(false);
+  const persistedRef = useRef(false);
+  const initialTagSavedRef = useRef(false);
   const draftRef = useRef<Task | null>(null);
   const detailRef = useRef<TaskDetailHandle>(null);
   useEffect(() => { draftRef.current = draft; }, [draft]);
@@ -39,39 +44,40 @@ export default function NewTaskView() {
     const dueDate = params.get("due_date");
     const initialTitle = params.get("title") || "";
     const initialDescription = params.get("description") || "";
-    (async () => {
-      const { data, error } = await firebaseStore
-        .from("tasks")
-        .insert({
-          user_id: user.id,
-          title: initialTitle,
-          description: initialDescription || null,
-          folder_id: parentId ? null : folderId,
-          parent_id: parentId,
-          due_date: dueDate,
-          priority: "none" as const,
-        })
-        .select()
-        .single();
-      if (error) { toast.error(error.message); return; }
-      if (data && tagId) {
-        await firebaseStore.from("task_tags").insert({ task_id: data.id, tag_id: tagId, user_id: user.id });
-      }
-      setDraft(data as any);
+    const id = (() => {
+      try { return crypto.randomUUID(); }
+      catch { return `task-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`; }
     })();
+    setDraft({
+      id,
+      user_id: user.id,
+      title: initialTitle,
+      description: initialDescription || null,
+      folder_id: parentId ? null : folderId,
+      parent_id: parentId,
+      due_date: dueDate,
+      priority: "none",
+      completed: false,
+      status: "todo",
+      reminder_at: null,
+      recurrence: "none",
+      recurrence_rule: null,
+      pinned: false,
+      start_at: null,
+      end_at: null,
+      estimated_minutes: null,
+    } as Task);
   }, [user, params]);
 
-  // Cleanup: if unmounted with empty title and not saved, delete the draft.
+  // Never send an empty local-only draft to the cloud. If an autosave had
+  // already happened and the title was later cleared, queue a reliable delete.
   useEffect(() => {
     return () => {
       if (savedRef.current) return;
       const d = draftRef.current;
-      if (!d) return;
-      if (!d.title?.trim()) {
-        firebaseStore.from("tasks").delete().eq("id", d.id).then(() => {});
-      }
+      if (d && persistedRef.current && !d.title?.trim() && user) void deleteTask(user.id, d.id);
     };
-  }, []);
+  }, [user]);
 
   const hasContent = () => {
     const d = draftRef.current;
@@ -84,6 +90,22 @@ export default function NewTaskView() {
     else navigate(-1);
   };
 
+  const persistInitialTag = async (taskId: string) => {
+    const tagId = params.get("tag_id");
+    if (!user || !tagId || initialTagSavedRef.current) return true;
+    const payload = { task_id: taskId, tag_id: tagId, user_id: user.id };
+    try {
+      const response = await firebaseStore.from("task_tags").insert(payload);
+      if (response?.error) throw response.error;
+      initialTagSavedRef.current = true;
+      return true;
+    } catch {
+      const queued = await enqueueOp({ table: "task_tags", op: "insert", payload });
+      if (queued) initialTagSavedRef.current = true;
+      return queued;
+    }
+  };
+
   const finish = async () => {
     const d = draftRef.current;
     if (!d) return;
@@ -94,8 +116,9 @@ export default function NewTaskView() {
     }
     setBusy(true);
     try {
-      await detailRef.current?.savePendingChanges();
+      await detailRef.current?.savePendingChanges(true);
       savedRef.current = true;
+      if (!await persistInitialTag(current.id)) toast.error("تسک ذخیره شد، اما برچسب هنوز ذخیره نشده است");
       toast.success("تسک ذخیره شد");
       navigate(-1);
     } catch {
@@ -109,7 +132,11 @@ export default function NewTaskView() {
     const d = draftRef.current;
     if (d) {
       savedRef.current = true; // prevent cleanup double-delete
-      await firebaseStore.from("tasks").delete().eq("id", d.id);
+      if (user && persistedRef.current && !await deleteTask(user.id, d.id)) {
+        toast.error("حذف روی این دستگاه ذخیره نشد");
+        savedRef.current = false;
+        return;
+      }
     }
     setBackAsk(false);
     navigate(-1);
@@ -124,8 +151,9 @@ export default function NewTaskView() {
     }
     setBusy(true);
     try {
-      await detailRef.current?.savePendingChanges();
+      await detailRef.current?.savePendingChanges(true);
       savedRef.current = true;
+      if (!await persistInitialTag(current.id)) toast.error("تسک ذخیره شد، اما برچسب هنوز ذخیره نشده است");
       setBackAsk(false);
       toast.success("تسک ذخیره شد");
       navigate(-1);
@@ -135,6 +163,14 @@ export default function NewTaskView() {
       setBusy(false);
     }
   };
+
+  if (!user) {
+    return (
+      <div className="p-12 text-center text-muted-foreground">
+        برای ساخت تسک، ابتدا وارد حساب خودت شو.
+      </div>
+    );
+  }
 
   if (!draft) {
     return (
@@ -162,10 +198,7 @@ export default function NewTaskView() {
         task={draft}
         mode="page"
         onClose={handleBack}
-        onChanged={() => {
-          firebaseStore.from("tasks").select("*").eq("id", draft.id).single()
-            .then(({ data }) => { if (data) setDraft(data as any); });
-        }}
+        onChanged={() => { persistedRef.current = true; }}
         setConfirm={setConfirm}
       />
 

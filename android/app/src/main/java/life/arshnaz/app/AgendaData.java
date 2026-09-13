@@ -47,6 +47,11 @@ final class AgendaData {
     }
     static List<JSONObject> select(JSONArray rows, String primary, String secondary, boolean showDone,
                                     boolean highOnly, String sort, LocalDate today, ZoneId zone) {
+        return select(rows, primary, secondary, showDone, highOnly, sort, "none", "any", today, zone);
+    }
+    static List<JSONObject> select(JSONArray rows, String primary, String secondary, boolean showDone,
+                                    boolean highOnly, String sort, String thenSort, String matchMode,
+                                    LocalDate today, ZoneId zone) {
         Map<String,JSONObject> eligible = new LinkedHashMap<>();
         Set<String> selected = new LinkedHashSet<>();
         for (int i=0; i<rows.length(); i++) {
@@ -55,7 +60,11 @@ final class AgendaData {
             if (!showDone && (t.optBoolean("completed") || "done".equals(t.optString("status")))) continue;
             if (highOnly && !"high".equals(t.optString("priority")) && !"urgent".equals(t.optString("priority"))) continue;
             eligible.put(t.optString("id"), t);
-            if (matches(t, primary, today, zone) || (!"none".equals(secondary) && matches(t, secondary, today, zone)))
+            boolean inPrimary = matches(t, primary, today, zone);
+            boolean inSecondary = !"none".equals(secondary) && matches(t, secondary, today, zone);
+            boolean include = "all".equals(matchMode) && !"none".equals(secondary)
+                ? inPrimary && inSecondary : inPrimary || inSecondary;
+            if (include)
                 selected.add(t.optString("id"));
         }
         // A selected parent brings its descendants; a selected child brings its visible ancestors for context.
@@ -76,7 +85,7 @@ final class AgendaData {
             if(parent.isEmpty() || !selected.contains(parent)) roots.add(t);
             else children.computeIfAbsent(parent,k->new ArrayList<>()).add(t);
         }
-        Comparator<JSONObject> order=order(sort);
+        Comparator<JSONObject> order=order(sort,thenSort);
         roots.sort(order); for(List<JSONObject> group:children.values()) group.sort(order);
         List<JSONObject> result=new ArrayList<>();
         for(JSONObject root:roots) flatten(root,0,children,result,new HashSet<>());
@@ -93,13 +102,19 @@ final class AgendaData {
         }
         return result;
     }
-    private static Comparator<JSONObject> order(String sort) {
+    private static Comparator<JSONObject> order(String sort, String thenSort) {
+        Comparator<JSONObject> primary=orderValue(sort);
+        Comparator<JSONObject> secondary=sort.equals(thenSort) || "none".equals(thenSort)
+            ? Comparator.comparing(t->t.optString("id")) : orderValue(thenSort);
+        return Comparator.comparing((JSONObject t)->t.optBoolean("completed")).thenComparing(primary)
+            .thenComparing(secondary).thenComparing(t->t.optString("id"));
+    }
+    private static Comparator<JSONObject> orderValue(String sort) {
         Comparator<JSONObject> value;
         if ("priority".equals(sort)) value=Comparator.comparingInt(AgendaData::priorityRank).reversed();
         else if ("title".equals(sort)) value=Comparator.comparing(t->t.optString("title"),String.CASE_INSENSITIVE_ORDER);
         else value=Comparator.comparing(t->t.optString("due_date").isEmpty()?"9999":t.optString("due_date"));
-        return Comparator.comparing((JSONObject t)->t.optBoolean("completed")).thenComparing(value)
-            .thenComparing(t->t.optString("id"));
+        return value;
     }
     private static int priorityRank(JSONObject task) {
         String value=task.optString("priority");
@@ -134,6 +149,11 @@ final class AgendaData {
     }
     static List<JSONObject> select(Context c, String primary, String secondary, boolean done, boolean high, String sort) {
         return select(read(c), primary, secondary, done, high, sort, LocalDate.now(), ZoneId.systemDefault());
+    }
+    static List<JSONObject> select(Context c, String primary, String secondary, boolean done, boolean high,
+                                    String sort, String thenSort, String matchMode) {
+        return select(read(c), primary, secondary, done, high, sort, thenSort, matchMode,
+            LocalDate.now(), ZoneId.systemDefault());
     }
     static JSONObject task(Context c, String id) {
         if (id == null || id.isEmpty()) return null;

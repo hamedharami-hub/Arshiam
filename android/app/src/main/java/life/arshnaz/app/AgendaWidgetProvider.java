@@ -35,7 +35,7 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
     @Override public void onDeleted(Context c, int[] ids) {
         for (int id : ids) {
             SharedPreferences.Editor edit = AgendaData.options(c).edit();
-            for (String key : new String[]{"scope","secondaryScope","light","done","high","large","textSize","sort","limit"}) edit.remove("widget."+id+"."+key);
+            for (String key : new String[]{"scope","secondaryScope","matchMode","light","done","high","large","textSize","sort","thenSort","limit"}) edit.remove("widget."+id+"."+key);
             edit.apply();
         }
     }
@@ -50,11 +50,12 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
         v.setInt(R.id.agenda_root,"setBackgroundResource",light ? R.drawable.widget_background_light : R.drawable.widget_background);
         v.setTextColor(R.id.agenda_title, fg);
         boolean showDone = p.getBoolean(prefix+"done",false), highOnly = p.getBoolean(prefix+"high",false);
-        List<JSONObject> tasks = AgendaData.select(c,scope,secondary,showDone,highOnly,p.getString(prefix+"sort","time"));
+        List<JSONObject> tasks = AgendaData.select(c,scope,secondary,showDone,highOnly,p.getString(prefix+"sort","time"),
+            p.getString(prefix+"thenSort","none"),p.getString(prefix+"matchMode","any"));
         int activeCount = AgendaData.select(c,scope,secondary,false,highOnly).size();
         int totalCount = AgendaData.select(c,scope,secondary,true,highOnly).size();
         int shownCount = Math.min(tasks.size(), AgendaListService.Factory.configuredLimit(p,id));
-        String title=AgendaData.label(scope)+("none".equals(secondary)?"":" + "+AgendaData.label(secondary));
+        String title=AgendaData.label(scope)+("none".equals(secondary)?"":("all".equals(p.getString(prefix+"matchMode","any"))?" & ":" + ")+AgendaData.label(secondary));
         v.setTextViewText(R.id.agenda_title,title);
         v.setTextViewText(R.id.agenda_count, activeCount + " active");
         v.setTextViewText(R.id.agenda_subtitle, shownCount + " of " + tasks.size() + " shown · " + Math.max(0,totalCount-activeCount) + " completed");

@@ -229,18 +229,21 @@ export async function upsertTask(userId: string, task: Partial<Task> & { id: str
 
 export async function deleteTask(userId: string, taskId: string): Promise<boolean> {
   if (!userId || !taskId) return false;
+  // Keep the device view coherent first. If cloud deletion is unavailable, the
+  // owner-bound outbox below retains the deletion for a later replay.
+  try {
+    const cached = (await cacheGet<Task[]>(CACHE_KEYS.tasks(userId))) || [];
+    await cacheSet(CACHE_KEYS.tasks(userId), cached.filter((task) => task.id !== taskId));
+  } catch (cacheErr) {
+    console.warn("[FirestoreData] deleteTask cache warning:", cacheErr);
+  }
   try {
     const taskRef = doc(db, "users", userId, "tasks", taskId);
     await deleteDoc(taskRef);
-
-    // Update local cache
-    const cached = (await cacheGet<Task[]>(CACHE_KEYS.tasks(userId))) || [];
-    const next = cached.filter((t) => t.id !== taskId);
-    await cacheSet(CACHE_KEYS.tasks(userId), next);
     return true;
   } catch (err) {
-    console.warn("[FirestoreData] deleteTask error:", err);
-    return false;
+    console.warn("[FirestoreData] task delete deferred to offline outbox:", err);
+    return enqueueOp({ table: "tasks", op: "delete", match: { id: taskId } });
   }
 }
 

@@ -69,6 +69,18 @@ public class AgendaDataTest {
         assertEquals(2,selected.size());
         assertTrue(selected.stream().anyMatch(t->"both".equals(t.optString("id"))));
     }
+    @Test public void supportsExplicitAndMatchingAndSecondSort() throws Exception {
+        JSONArray rows=new JSONArray()
+            .put(task("today-low","2026-09-10").put("priority","low").put("title","Zebra"))
+            .put(task("today-high-b","2026-09-10").put("priority","high").put("title","Beta"))
+            .put(task("today-high-a","2026-09-10").put("priority","high").put("title","Alpha"))
+            .put(task("tomorrow-high","2026-09-11").put("priority","high").put("title","Later"));
+        java.util.List<JSONObject> intersection=AgendaData.select(rows,"today","high",false,false,
+            "priority","title","all",today,zone);
+        assertEquals(2,intersection.size());
+        assertEquals("today-high-a",intersection.get(0).getString("id"));
+        assertEquals("today-high-b",intersection.get(1).getString("id"));
+    }
     @Test public void widgetListSupportsAllAvailableTasksWithALauncherSafetyCap() {
         assertEquals(100,AgendaListService.Factory.normalizeLimit(100));
         assertEquals(100,AgendaListService.Factory.normalizeLimit(10000));

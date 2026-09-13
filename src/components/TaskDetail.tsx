@@ -45,7 +45,7 @@ import { addTaskToAndroidCalendar } from "@/lib/androidNative";
 import { Switch } from "@/components/ui/switch";
 import { pushUndo } from "@/lib/undoStack";
 import { enqueueOp, cacheGet, cacheSet } from "@/lib/offlineQueue";
-import { persistTask } from "@/lib/firestoreDataService";
+import { deleteTask as deletePersistedTask, persistTask } from "@/lib/firestoreDataService";
 import type { Task, TaskNote, ConfirmState } from "@/lib/taskTypes";
 import { clearTaskDraft, taskPatch, writeTaskDraft } from "@/lib/taskDraft";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
@@ -56,7 +56,7 @@ import {
 
 export type TaskDetailHandle = {
   /** Flushes the current editor state before a parent route is allowed to leave. */
-  savePendingChanges: () => Promise<void>;
+  savePendingChanges: (force?: boolean) => Promise<void>;
   hasPendingChanges: () => boolean;
   getCurrentTask: () => Task;
 };
@@ -275,9 +275,9 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     }
   };
 
-  const save = useCallback(async (patch: Partial<Task>) => {
+  const save = useCallback(async (patch: Partial<Task>, force = false) => {
     if (!canEdit) return;
-    if (!Object.keys(patch).length) return;
+    if (!force && !Object.keys(patch).length) return;
     const current = latestTaskRef.current;
     const next = { ...current, ...patch };
     latestTaskRef.current = next;
@@ -320,12 +320,12 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const pendingPatch = taskPatch(t, savedTaskRef.current);
   const hasPendingChanges = Object.keys(pendingPatch).length > 0;
 
-  const savePendingChanges = useCallback(async () => {
+  const savePendingChanges = useCallback(async (force = false) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = null;
     const patch = taskPatch(latestTaskRef.current, savedTaskRef.current);
-    if (!Object.keys(patch).length) return;
-    await save(patch);
+    if (!force && !Object.keys(patch).length) return;
+    await save(patch, force);
   }, [save]);
 
   // A full-page creation screen owns its Back/Save buttons. Giving it one
@@ -381,20 +381,9 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       id: t.id,
       title: t.title || T("بدون عنوان", "Untitled"),
       onConfirm: async () => {
-        if (user) {
-          const cached = await cacheGet<Task[]>(`tasks:all:${user.id}`);
-          if (cached) await cacheSet(`tasks:all:${user.id}`, cached.filter(x => x.id !== t.id));
-        }
-        if (typeof navigator !== "undefined" && !navigator.onLine) {
-          await enqueueOp({ table: "tasks", op: "delete", match: { id: t.id } });
-          onClose();
-          onChanged();
+        if (!user || !await deletePersistedTask(user.id, t.id)) {
+          toast.error(T("حذف روی این دستگاه ذخیره نشد", "Delete could not be saved on this device"));
           return;
-        }
-        try {
-          await firebaseStore.from("tasks").delete().eq("id", t.id);
-        } catch {
-          await enqueueOp({ table: "tasks", op: "delete", match: { id: t.id } });
         }
         onClose();
         onChanged();
