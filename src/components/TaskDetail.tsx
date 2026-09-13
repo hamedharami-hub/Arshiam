@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useMemo, useRef } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -54,14 +54,21 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet", allowDelete = false }: {
+export type TaskDetailHandle = {
+  /** Flushes the current editor state before a parent route is allowed to leave. */
+  savePendingChanges: () => Promise<void>;
+  hasPendingChanges: () => boolean;
+  getCurrentTask: () => Task;
+};
+
+export const TaskDetail = forwardRef<TaskDetailHandle, {
   task: Task;
   onClose: () => void;
   onChanged: () => void;
   setConfirm: (c: ConfirmState) => void;
   mode?: "sheet" | "page" | "drawer" | "embedded";
   allowDelete?: boolean;
-}) {
+}>(function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet", allowDelete = false }, ref) {
   const { user } = useAuth();
   const { i18n } = useTranslation();
   const navigate = useNavigate();
@@ -320,6 +327,14 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     if (!Object.keys(patch).length) return;
     await save(patch);
   }, [save]);
+
+  // A full-page creation screen owns its Back/Save buttons. Giving it one
+  // awaited save boundary prevents navigation from racing the editor's debounce.
+  useImperativeHandle(ref, () => ({
+    savePendingChanges,
+    hasPendingChanges: () => Object.keys(taskPatch(latestTaskRef.current, savedTaskRef.current)).length > 0,
+    getCurrentTask: () => latestTaskRef.current,
+  }), [savePendingChanges]);
 
   useEffect(() => {
     if (!canEdit || !hasPendingChanges) return;
@@ -1540,7 +1555,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       </AlertDialog>
     </>
   );
-}
+});
 
 function AttachTypeBtn({ icon: Icon, label, onClick }: { icon: any; label: string; onClick: () => void }) {
   return (

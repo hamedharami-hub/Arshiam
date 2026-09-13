@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
-import { TaskDetail } from "@/components/TaskDetail";
+import { TaskDetail, type TaskDetailHandle } from "@/components/TaskDetail";
 import type { Task, ConfirmState } from "@/lib/taskTypes";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -27,6 +27,7 @@ export default function NewTaskView() {
   const createdRef = useRef(false);
   const savedRef = useRef(false);
   const draftRef = useRef<Task | null>(null);
+  const detailRef = useRef<TaskDetailHandle>(null);
   useEffect(() => { draftRef.current = draft; }, [draft]);
 
   useEffect(() => {
@@ -79,22 +80,29 @@ export default function NewTaskView() {
   };
 
   const handleBack = () => {
-    if (hasContent()) setBackAsk(true);
+    if (detailRef.current?.hasPendingChanges() || hasContent()) setBackAsk(true);
     else navigate(-1);
   };
 
   const finish = async () => {
     const d = draftRef.current;
     if (!d) return;
-    if (!d.title?.trim()) {
+    const current = detailRef.current?.getCurrentTask() || d;
+    if (!current.title?.trim()) {
       toast.error("عنوان تسک را وارد کن");
       return;
     }
     setBusy(true);
-    savedRef.current = true;
-    setBusy(false);
-    toast.success("تسک ذخیره شد");
-    navigate(-1);
+    try {
+      await detailRef.current?.savePendingChanges();
+      savedRef.current = true;
+      toast.success("تسک ذخیره شد");
+      navigate(-1);
+    } catch {
+      toast.error("ذخیره انجام نشد؛ تغییرات همچنان باز هستند");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const discardAndBack = async () => {
@@ -109,14 +117,23 @@ export default function NewTaskView() {
 
   const saveAndBack = async () => {
     const d = draftRef.current;
-    if (!d?.title?.trim()) {
+    const current = detailRef.current?.getCurrentTask() || d;
+    if (!current?.title?.trim()) {
       toast.error("برای ذخیره، عنوان لازم است");
       return;
     }
-    savedRef.current = true;
-    setBackAsk(false);
-    toast.success("تسک ذخیره شد");
-    navigate(-1);
+    setBusy(true);
+    try {
+      await detailRef.current?.savePendingChanges();
+      savedRef.current = true;
+      setBackAsk(false);
+      toast.success("تسک ذخیره شد");
+      navigate(-1);
+    } catch {
+      toast.error("ذخیره انجام نشد؛ تغییرات همچنان باز هستند");
+    } finally {
+      setBusy(false);
+    }
   };
 
   if (!draft) {
@@ -141,6 +158,7 @@ export default function NewTaskView() {
       </div>
 
       <TaskDetail
+        ref={detailRef}
         task={draft}
         mode="page"
         onClose={handleBack}
@@ -161,7 +179,7 @@ export default function NewTaskView() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row-reverse gap-2">
-            <AlertDialogAction onClick={saveAndBack}>ذخیره</AlertDialogAction>
+            <AlertDialogAction onClick={(event) => { event.preventDefault(); void saveAndBack(); }} disabled={busy}>ذخیره</AlertDialogAction>
             <AlertDialogAction
               onClick={discardAndBack}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"

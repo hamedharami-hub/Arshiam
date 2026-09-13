@@ -10,8 +10,13 @@ export type OfflineResult = {
   tier?: 2 | 3;
 };
 
-const highPriority = /\b(urgent|asap|important|critical|vital|immediate|فوری|مهم|ضروری|اورژانسی|حیاتی|سریع|در اسرع وقت)\b/i;
-const lowPriority = /\b(whenever|low priority|not urgent|someday|فرصت شد|اولویت پایین|سر فرصت|اگر شد)\b/i;
+// JavaScript's \b is based on ASCII word characters and therefore cannot
+// reliably recognize Persian word boundaries. Keep the language-specific
+// expressions separate so Persian task input gets the same priority behavior.
+const highPriorityEnglish = /\b(urgent|asap|important|critical|vital|immediate)\b/i;
+const highPriorityPersian = /(فوری|مهم|ضروری|اورژانسی|حیاتی|سریع|در\s+اسرع\s+وقت)/;
+const lowPriorityEnglish = /\b(whenever|low priority|not urgent|someday)\b/i;
+const lowPriorityPersian = /(فرصت\s+شد|اولویت\s+پایین|سر\s+فرصت|اگر\s+شد)/;
 
 function textOf(input: unknown): string {
   if (typeof input === "string") return input.trim();
@@ -364,8 +369,8 @@ export function offlineAssistant(
   if (!loadOfflineModelSettings().assistantEnabled) return null;
   const raw = textOf(input);
   const parsed = parseNaturalDate(raw);
-  const isHigh = highPriority.test(raw);
-  const isLow = lowPriority.test(raw);
+  const isHigh = highPriorityEnglish.test(raw) || highPriorityPersian.test(raw);
+  const isLow = lowPriorityEnglish.test(raw) || lowPriorityPersian.test(raw);
   const priority = isHigh ? "high" : isLow ? "low" : "none";
   const fa = language !== "en";
 

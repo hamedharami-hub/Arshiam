@@ -92,16 +92,13 @@ public final class WidgetTaskActionWorker extends Worker {
         request("POST", url, new JSONObject().put("fields", fields).toString(), token);
     }
     private void setCompleted(String project, String database, String uid, String id, String token, boolean completed) throws Exception {
-        JSONObject fields = new JSONObject().put("completed", bool(completed)).put("status", string(completed ? "done" : "todo")).put("updated_at", timestamp());
-        request("PATCH", endpoint(project, database, uid, id, true, "completed", "status", "updated_at"), new JSONObject().put("fields", fields).toString(), token);
+        JSONObject fields = completionFields(completed);
+        request("PATCH", endpoint(project, database, uid, id, true, "completed", "status", "completed_at", "updated_at"), new JSONObject().put("fields", fields).toString(), token);
     }
     private void edit(String project, String database, String uid, String id, String token, boolean preserveDueDate) throws Exception {
         String title = getInputData().getString("title");
         if (title == null || title.trim().isEmpty()) throw new IllegalArgumentException("Title required");
-        JSONObject fields = new JSONObject().put("title", string(title.trim()))
-            .put("priority", string(validPriority(getInputData().getString("priority"))));
-        if (!preserveDueDate) fields.put("due_date", dueValue(getInputData().getString("dueDate")));
-        fields.put("updated_at", timestamp());
+        JSONObject fields = editFields(title, getInputData().getString("priority"), getInputData().getString("dueDate"), preserveDueDate);
         request("PATCH", endpoint(project, database, uid, id, true,
             preserveDueDate ? new String[]{"title", "priority", "updated_at"} : new String[]{"title", "priority", "due_date", "updated_at"}),
             new JSONObject().put("fields", fields).toString(), token);
@@ -112,8 +109,18 @@ public final class WidgetTaskActionWorker extends Worker {
         fields.put("due_date", dueValue(due));
         return fields;
     }
-    private String validPriority(String priority) { return "low".equals(priority) || "medium".equals(priority) || "high".equals(priority) || "urgent".equals(priority) ? priority : "none"; }
-    private JSONObject dueValue(String due) throws Exception { return due == null || due.isEmpty() ? nil() : string(due); }
+    static JSONObject completionFields(boolean completed) throws Exception {
+        return new JSONObject().put("completed", bool(completed)).put("status", string(completed ? "done" : "todo"))
+            .put("completed_at", completed ? timestamp() : nil()).put("updated_at", timestamp());
+    }
+    static JSONObject editFields(String title, String priority, String dueDate, boolean preserveDueDate) throws Exception {
+        JSONObject fields = new JSONObject().put("title", string(title.trim()))
+            .put("priority", string(validPriority(priority)));
+        if (!preserveDueDate) fields.put("due_date", dueValue(dueDate));
+        return fields.put("updated_at", timestamp());
+    }
+    private static String validPriority(String priority) { return "low".equals(priority) || "medium".equals(priority) || "high".equals(priority) || "urgent".equals(priority) ? priority : "none"; }
+    private static JSONObject dueValue(String due) throws Exception { return due == null || due.isEmpty() ? nil() : string(due); }
     private String freshToken(SharedPreferences secure) throws Exception {
         String token = secure.getString("idToken", "");
         if (!token.isEmpty() && secure.getLong("expiresAt", 0) > System.currentTimeMillis() + 60000) return token;

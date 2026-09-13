@@ -13,6 +13,8 @@ describe("offline assistant", () => {
   });
   it("flags an urgent bilingual task and produces reviewable subtasks", () => {
     expect(offlineAssistant("parse_task", "urgent: Finish Firebase setup", "en")?.data).toMatchObject({ priority: "high" });
+    expect(offlineAssistant("parse_task", "این کار فوری و مهم است", "fa")?.data).toMatchObject({ priority: "high" });
+    expect(offlineAssistant("parse_task", "اگر شد خرید روزانه را انجام بده", "fa")?.data).toMatchObject({ priority: "low" });
     expect(offlineAssistant("task_subtasks", "Finish Firebase setup", "en")?.text).toContain("1.");
   });
 
