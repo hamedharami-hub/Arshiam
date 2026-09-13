@@ -119,22 +119,20 @@ function CapacitorUrlHandler() {
     };
     let handle: any = null;
     try {
-      CapApp.getLaunchUrl()
-        .then((launch) => {
-          // A live widget tap wins over the (possibly stale) launch URL.
-          if (launch?.url && !receivedLiveUrl) navigateForUrl(launch.url);
-        })
-        .catch((e) => console.warn("Capacitor launch URL notice:", e));
+      // Subscribe before reading the cold-start URL. Otherwise a warm widget
+      // tap can be missed and an older launch URL wins when the WebView resumes.
       CapApp.addListener("appUrlOpen", (event) => {
         receivedLiveUrl = true;
         navigateForUrl(event.url || "");
       })
         .then((h) => {
           handle = h;
+          if (disposed) { void h.remove(); return; }
+          return CapApp.getLaunchUrl().then((launch) => {
+            if (launch?.url && !receivedLiveUrl && !disposed) navigateForUrl(launch.url);
+          });
         })
-        .catch((e) => {
-          console.warn("Capacitor appUrlOpen listener notice:", e);
-        });
+        .catch((e) => console.warn("Capacitor widget route notice:", e));
     } catch (e) {
       console.warn("Capacitor appUrlOpen error:", e);
     }

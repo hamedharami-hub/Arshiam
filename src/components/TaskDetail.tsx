@@ -137,6 +137,16 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     setSaveState(Object.keys(taskPatch(restored, task)).length ? "dirty" : "saved");
   }, [task.id]);
 
+  useEffect(() => {
+    // A widget route shows an account-scoped cached task first. Adopt the
+    // authoritative network refresh only while this editor is clean.
+    if (task.id !== latestTaskRef.current.id) return;
+    if (Object.keys(taskPatch(latestTaskRef.current, savedTaskRef.current)).length) return;
+    savedTaskRef.current = task;
+    latestTaskRef.current = task;
+    setT(task);
+  }, [task]);
+
   useEffect(() => { latestTaskRef.current = t; }, [t]);
 
   // Initialize voice input
@@ -622,17 +632,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   // ── Quick-info chips row (only what's set) ──────────────────────────
   const quickChips = (
     <div className="flex flex-wrap gap-1 px-1 pb-2">
-      {dueLabel && (
-        <Chip
-          icon={CalendarIcon}
-          onClick={() => setScheduleOpen(true)}
-          onClear={() => save({ due_date: null, reminder_at: null })}
-          disabled={!canEdit}
-          color="bg-primary/10 text-primary"
-        >
-          {dueLabel}
-        </Chip>
-      )}
       {t.bucket_kind && t.bucket_anchor && (
         <TooltipProvider>
           <Tooltip>
@@ -653,16 +652,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-      )}
-      {recLabel && (
-        <Chip
-          icon={Repeat}
-          onClear={() => save({ recurrence_rule: null } as any)}
-          disabled={!canEdit}
-          color="bg-violet-500/10 text-violet-600 dark:text-violet-400"
-        >
-          {recLabel}
-        </Chip>
       )}
       {t.parent_id && (
         <Chip
@@ -783,12 +772,12 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     }, 50);
   };
 
-  // ── Top controls (folder / priority / schedule) ─────────────────────────────────────────────────
+  // ── Folder breadcrumb followed by compact task metadata ───────────
   const topControls = (
     <div className="mx-auto max-w-3xl w-full px-1 pt-1 pb-2">
-      <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+      <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
         {/* 1. Schedule (Date + Time block + Repeat + Bucket) */}
-        <div>
+        <div className="order-2">
         <Sheet open={scheduleOpen} onOpenChange={setScheduleOpen}>
           <SheetTrigger asChild>
             <Button
@@ -917,7 +906,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         </div>
 
         {/* 2. Priority */}
-        <div>
+        <div className="order-2">
         <Popover>
           <PopoverTrigger asChild>
             <Button
@@ -960,17 +949,17 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         </div>
 
         {/* 3. Folder + quick-create */}
-        <div>
+        <div className="order-first col-span-3">
         <Popover open={folderOpen} onOpenChange={setFolderOpen}>
           <PopoverTrigger asChild>
             <Button
               type="button"
               variant="outline"
               disabled={!canEdit}
-              className={`w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-3 transition-all duration-150 ${t.folder_id ? "bg-primary/10 text-primary border-primary/30 shadow-xs font-semibold" : "bg-muted/30 text-foreground/85 hover:bg-muted/60 border-border/60"}`}
+              className="w-auto max-w-full h-8 rounded-lg border-0 bg-transparent text-xs text-muted-foreground hover:bg-muted/50 gap-1.5 px-2 justify-start"
             >
               <FolderIcon className="w-4 h-4 shrink-0" style={{ color: t.folder_id ? folders.find(f => f.id === t.folder_id)?.color || undefined : undefined }} />
-              <span className="truncate flex-1 text-start">{t.folder_id ? folderName(t.folder_id) : T("فولدر", "Folder")}</span>
+              <span className="truncate text-start">{t.folder_id ? folderName(t.folder_id) : T("صندوق ورودی", "Inbox")}</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-72 p-2 max-h-[55vh] overflow-y-auto" align="start" side="top">
@@ -1042,7 +1031,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         </Popover>
         </div>
         <Button type="button" variant="outline" onClick={() => setTagOpen(true)} disabled={!canEdit}
-          className={`w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-3 ${taskTagIds.length ? "bg-primary/10 text-primary border-primary/30" : "bg-muted/30 border-border/60"}`}>
+          className={`order-2 w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-3 ${taskTagIds.length ? "bg-primary/10 text-primary border-primary/30" : "bg-muted/30 border-border/60"}`}>
           <TagIcon className="w-4 h-4 shrink-0" />
           <span className="truncate">{taskTagIds.length ? `${taskTagIds.length} ${T("تگ", "tags")}` : T("تگ", "Tags")}</span>
         </Button>
@@ -1343,8 +1332,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
   const body = (
     <div className="mt-1 task-detail-sections flex flex-col min-h-[40vh]">
-      {hero}
       {topControls}
+      {hero}
       {quickChips}
       {progressPanel}
       {/* On a wide desktop or unfolded device, keep the writing surface and

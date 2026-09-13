@@ -162,8 +162,10 @@ public class AndroidExperienceTest {
         AgendaListService.Factory widget=new AgendaListService.Factory(c,1);
         widget.onCreate();
         assertEquals(2,widget.getCount());
-        assertEquals("↳ A small step",((TextView)widget.getViewAt(1).apply(c,new FrameLayout(c))
+        assertEquals("A small step",((TextView)widget.getViewAt(1).apply(c,new FrameLayout(c))
             .findViewById(R.id.row_title)).getText().toString());
+        assertTrue(((TextView)widget.getViewAt(1).apply(c,new FrameLayout(c))
+            .findViewById(R.id.row_meta)).getText().toString().startsWith("↳ SUBTASK"));
         AgendaData.options(c).edit().putBoolean("widget.1.collapsed.today-task",true).commit();
         widget.onDataSetChanged();
         assertEquals(1,widget.getCount());

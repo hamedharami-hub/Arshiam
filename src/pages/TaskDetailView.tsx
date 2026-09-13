@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,38 +22,61 @@ export default function TaskDetailView() {
   const T = (fa: string, en: string) => (isEn ? en : fa);
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadedId, setLoadedId] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
+  const loadGeneration = useRef(0);
 
   const load = useCallback(async () => {
+    const generation = ++loadGeneration.current;
     if (!id) {
+      setTask(null);
       setLoading(false);
+      setLoadedId(null);
       return;
     }
     setLoading(true);
+    let cachedTask: Task | null = null;
     try {
+      // The account-scoped cache gives a widget tap an immediate task screen.
+      // The network result still refreshes it once available.
+      if (user) {
+        try {
+          const cached = await cacheGet<Task[]>(`tasks:all:${user.id}`);
+          cachedTask = cached?.find(t => t.id === id) || null;
+        } catch { /* Network fetch below still runs if cache is unavailable. */ }
+        if (generation !== loadGeneration.current) return;
+        if (cachedTask) {
+          setTask(cachedTask);
+          setLoading(false);
+          setLoadedId(id);
+        }
+      }
       if (typeof navigator !== "undefined" && !navigator.onLine) {
-        const cached = user ? await cacheGet<Task[]>(`tasks:all:${user.id}`) : null;
-        const match = cached?.find(t => t.id === id);
-        setTask(match || null);
+        if (!cachedTask) setTask(null);
         return;
       }
       try {
         const { data } = await firebaseStore.from("tasks").select("*").eq("id", id).maybeSingle();
-        if (data) setTask(data as unknown as Task);
-        else setTask(null);
+        if (generation === loadGeneration.current) setTask(data ? data as unknown as Task : null);
       } catch {
-        const cached = user ? await cacheGet<Task[]>(`tasks:all:${user.id}`) : null;
-        const match = cached?.find(t => t.id === id);
-        setTask(match || null);
+        if (generation === loadGeneration.current && !cachedTask) setTask(null);
       }
     } finally {
-      setLoading(false);
+      if (generation === loadGeneration.current) {
+        setLoadedId(id);
+        setLoading(false);
+      }
     }
   }, [id, user]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    void load();
+    return () => { loadGeneration.current++; };
+  }, [load]);
 
-  if (loading) {
+  const visibleTask = task?.id === id ? task : null;
+
+  if ((loading || loadedId !== id) && !visibleTask) {
     return (
       <div className="flex items-center justify-center h-[60vh] text-muted-foreground">
         <Loader2 className="w-6 h-6 animate-spin" />
@@ -61,7 +84,7 @@ export default function TaskDetailView() {
     );
   }
 
-  if (!task) {
+  if (!visibleTask) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-muted-foreground p-4 text-center space-y-4">
         <p className="text-base font-medium">{T("تسک مورد نظر پیدا نشد یا حذف شده است.", "Task not found or has been deleted.")}</p>
@@ -78,13 +101,14 @@ export default function TaskDetailView() {
         <Button variant="ghost" size="sm" onClick={() => window.dispatchEvent(new Event("arshnaz:request-task-close"))} className="gap-1">
           <ArrowRight className="w-4 h-4" /> {T("برگشت", "Back")}
         </Button>
-        <h1 className="text-base font-bold flex-1 text-center truncate px-2" dir="auto">
-          {task.title || T("بدون عنوان", "Untitled")}
+        <h1 className="text-sm font-semibold flex-1 text-center truncate px-2">
+          {T("جزئیات تسک", "Task details")}
         </h1>
         <div className="w-20" />
       </div>
       <TaskDetail
-        task={task}
+        key={visibleTask.id}
+        task={visibleTask}
         onClose={() => navigate(-1)}
         onChanged={load}
         setConfirm={setConfirm}
