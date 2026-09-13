@@ -24,6 +24,7 @@ public class AndroidActionsReceiver extends BroadcastReceiver {
             String taskId = intent.getStringExtra("taskId");
             if (taskId == null || taskId.isEmpty()) return;
             boolean completed=intent.getBooleanExtra("completed",false);
+            AgendaData.setCompleted(c, taskId, !completed);
             AgendaData.prefs(c).edit().putString("syncStatus", completed ? "Reopening task from widget…" : "Saving completion from widget…").apply();
             WidgetTaskActionWorker.enqueue(c, completed ? "reopen" : "complete", taskId, "", "", "");
             AgendaWidgetProvider.redraw(c);

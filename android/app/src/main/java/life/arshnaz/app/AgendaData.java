@@ -164,6 +164,29 @@ final class AgendaData {
         }
         return null;
     }
+    /**
+     * Updates the launcher snapshot before its background Firestore action runs.
+     * A widget tap must feel immediate even when the network is slow.  The worker
+     * remains the authoritative writer and will reconcile this optimistic value.
+     */
+    static boolean setCompleted(Context c, String id, boolean completed) {
+        if (id == null || id.isEmpty() || !prefs(c).getBoolean("sessionReady", false)) return false;
+        JSONArray rows = read(c);
+        boolean changed = false;
+        for (int i = 0; i < rows.length(); i++) {
+            JSONObject row = rows.optJSONObject(i);
+            if (row == null || !id.equals(row.optString("id"))) continue;
+            try {
+                row.put("completed", completed);
+                row.put("status", completed ? "done" : "todo");
+                changed = true;
+            } catch (JSONException ignored) { }
+            break;
+        }
+        if (changed) prefs(c).edit().putString("agendaTasks", rows.toString())
+            .putLong("updatedAt", System.currentTimeMillis()).apply();
+        return changed;
+    }
     static String label(String scope) {
         switch(scope) {
             case "tomorrow": return "Tomorrow";

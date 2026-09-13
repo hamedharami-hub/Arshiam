@@ -86,10 +86,11 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [tags, setTags] = useState<{ id: string; name: string; color: string | null }[]>([]);
   const [taskTagIds, setTaskTagIds] = useState<string[]>([]);
 
-  // Section reveal flags – hidden by default; auto-revealed only when data exists
+  // The subtask editor is always visible: a task's hierarchy must never be hidden
+  // behind a secondary rail control, including while the app is offline.
   const hasTimeBlock = !!(t.start_at || t.end_at || t.estimated_minutes);
   const isScheduled = !!t.due_date || !!t.reminder_at || !!t.recurrence_rule || !!t.bucket_kind || hasTimeBlock;
-  const [showSubtasks, setShowSubtasks] = useState(false);
+  const [showSubtasks, setShowSubtasks] = useState(true);
   const [showSteps, setShowSteps] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
@@ -122,6 +123,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       }
     } catch { /* corrupted drafts are ignored */ }
     setT(restored);
+    setShowSubtasks(true);
     latestTaskRef.current = restored;
     savedTaskRef.current = task;
     setSaveState(Object.keys(taskPatch(restored, task)).length ? "dirty" : "saved");

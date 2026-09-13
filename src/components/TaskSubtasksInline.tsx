@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { firebaseStore } from "@/lib/firebaseStore";
+import { cacheGet } from "@/lib/offlineQueue";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,23 +36,33 @@ export function TaskSubtasksInline({
   const editingRef = useRef<Set<string>>(new Set());
   const writeTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
+  const replaceRows = useCallback((rows: Sub[]) => {
+    // Preserve titles for rows the user is actively editing (avoid clobbering input/focus on mobile)
+    setSubs((prev) => {
+      const prevMap = new Map(prev.map((p) => [p.id, p]));
+      return rows.map((row) =>
+        editingRef.current.has(row.id) && prevMap.has(row.id)
+          ? { ...row, title: prevMap.get(row.id)!.title }
+          : row,
+      );
+    });
+  }, []);
+
   const load = useCallback(async () => {
+    // Render the account cache first. This keeps direct child tasks visible when
+    // opening a task offline or while Firestore is reconnecting.
+    if (user) {
+      const cached = await cacheGet<Array<Sub & { parent_id?: string | null }>>(`tasks:all:${user.id}`);
+      if (cached) replaceRows(cached.filter((row) => row.parent_id === taskId));
+    }
     const { data } = await firebaseStore
       .from("tasks")
       .select("id,title,completed,position")
       .eq("parent_id", taskId)
       .order("position")
       .order("created_at", { ascending: true });
-    // Preserve titles for rows the user is actively editing (avoid clobbering input/focus on mobile)
-    setSubs((prev) => {
-      const prevMap = new Map(prev.map((p) => [p.id, p]));
-      return ((data || []) as Sub[]).map((row) =>
-        editingRef.current.has(row.id) && prevMap.has(row.id)
-          ? { ...row, title: prevMap.get(row.id)!.title }
-          : row,
-      );
-    });
-  }, [taskId]);
+    if (data) replaceRows(data as Sub[]);
+  }, [taskId, user, replaceRows]);
 
   useEffect(() => { load(); }, [load]);
 

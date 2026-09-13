@@ -21,12 +21,14 @@ public class WidgetTaskActionActivity extends Activity {
         String prefillTitle = getIntent().getStringExtra("prefillTitle");
         boolean prefillToday = getIntent().getBooleanExtra("prefillToday",false);
         String quickSource = getIntent().getStringExtra("quickSource");
+        boolean menu = "menu".equals(getIntent().getStringExtra("mode"));
         JSONObject task = create ? null : AgendaData.task(this, taskId);
         if (!create && task == null) { Toast.makeText(this, "Task is no longer available. Refresh the widget.", Toast.LENGTH_LONG).show(); finish(); return; }
         int pad = (int) (20 * getResources().getDisplayMetrics().density);
         ScrollView scroll = new ScrollView(this);
         LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(pad, pad * 2, pad, pad); root.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
         scroll.addView(root); setContentView(scroll);
+        if (menu) { showTaskMenu(root, taskId, task); return; }
         String sourceHeading="mind".equals(quickSource)?"Add a gentle next step":"problem".equals(quickSource)?"Add the next smallest step":"Quick add task";
         String sourceHelp="mind".equals(quickSource)?"Keep it practical and private. You can edit the suggested text before saving.":"problem".equals(quickSource)?"Choose one concrete action. You can edit the suggested text before saving.":"Add a task with its priority and date. You can open full details afterwards.";
         TextView heading = new TextView(this); heading.setTag("widget-action-heading"); heading.setText(create ? sourceHeading : "Quick task edit"); heading.setTextSize(24); root.addView(heading);
@@ -47,11 +49,23 @@ public class WidgetTaskActionActivity extends Activity {
             Toast.makeText(this, "Saving from widget…", Toast.LENGTH_SHORT).show(); finish();
         });
         if (!create) {
-            Button complete = new Button(this); complete.setText("Mark complete"); root.addView(complete);
-            complete.setOnClickListener(v -> { WidgetTaskActionWorker.enqueue(this, "complete", taskId, "", "", ""); Toast.makeText(this, "Saving completion…", Toast.LENGTH_SHORT).show(); finish(); });
+            Button complete = new Button(this); boolean done=task.optBoolean("completed") || "done".equals(task.optString("status")); complete.setText(done ? "Mark not complete" : "Mark complete"); root.addView(complete);
+            complete.setOnClickListener(v -> { AgendaData.setCompleted(this, taskId, !done); WidgetTaskActionWorker.enqueue(this, done ? "reopen" : "complete", taskId, "", "", ""); Toast.makeText(this, "Saving completion…", Toast.LENGTH_SHORT).show(); finish(); });
             Button full = new Button(this); full.setText("Open full task details"); root.addView(full);
             full.setOnClickListener(v -> { startActivity(AgendaWidgetProvider.appIntent(this, "task?taskId=" + android.net.Uri.encode(taskId) + "&owner=" + android.net.Uri.encode(AgendaData.prefs(this).getString("dataUserId", "")))); finish(); });
         }
+    }
+    private void showTaskMenu(LinearLayout root, String taskId, JSONObject task) {
+        TextView heading = new TextView(this); heading.setTag("widget-action-heading"); heading.setText("Task actions"); heading.setTextSize(24); root.addView(heading);
+        TextView title = new TextView(this); title.setText(task.optString("title")); title.setTextSize(18); root.addView(title);
+        TextView help = new TextView(this); help.setText("Choose an action without losing your place in the widget."); root.addView(help);
+        Button open = new Button(this); open.setText("Open full task details"); root.addView(open);
+        open.setOnClickListener(v -> { startActivity(AgendaWidgetProvider.appIntent(this, "task?taskId=" + android.net.Uri.encode(taskId) + "&owner=" + android.net.Uri.encode(AgendaData.prefs(this).getString("dataUserId", "")))); finish(); });
+        boolean done = task.optBoolean("completed") || "done".equals(task.optString("status"));
+        Button complete = new Button(this); complete.setText(done ? "Mark not complete" : "Mark complete"); root.addView(complete);
+        complete.setOnClickListener(v -> { AgendaData.setCompleted(this, taskId, !done); WidgetTaskActionWorker.enqueue(this, done ? "reopen" : "complete", taskId, "", "", ""); Toast.makeText(this, "Saving completion…", Toast.LENGTH_SHORT).show(); finish(); });
+        Button edit = new Button(this); edit.setText("Edit title, priority or date"); root.addView(edit);
+        edit.setOnClickListener(v -> { startActivity(new android.content.Intent(this, WidgetTaskActionActivity.class).putExtra("taskId", taskId).putExtra("mode", "edit")); finish(); });
     }
     private Spinner spinner(String[] values, int selected) { Spinner s = new Spinner(this); s.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, values)); s.setSelection(Math.max(0, selected)); return s; }
     private LinearLayout labeled(String label, View child) { LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.VERTICAL); TextView text = new TextView(this); text.setText(label); row.addView(text); row.addView(child); return row; }

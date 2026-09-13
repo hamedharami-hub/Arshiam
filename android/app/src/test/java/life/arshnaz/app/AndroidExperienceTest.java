@@ -146,6 +146,14 @@ public class AndroidExperienceTest {
         assertEquals("No tasks in this view\nTap here to add one",((TextView)cleared.findViewById(R.id.agenda_summary)).getText().toString());
         assertEquals(View.INVISIBLE,cleared.findViewById(R.id.agenda_compact_done).getVisibility());
     }
+    @Test public void widgetCompletionUpdatesTheLocalSnapshotBeforeSync() throws Exception {
+        login();
+        new AndroidActionsReceiver().onReceive(c, new Intent(c, AndroidActionsReceiver.class)
+            .setAction("toggleDirect").putExtra("taskId", "today-task").putExtra("completed", false));
+        JSONObject changed=AgendaData.task(c,"today-task");
+        assertTrue(changed.optBoolean("completed"));
+        assertEquals("done",changed.optString("status"));
+    }
     @Test public void rebootRestoresSnoozedAlarmWithoutWebView() throws Exception {
         login();AgendaData.options(c).edit().putBoolean("remindersEnabled",true).commit();
         NativeReminders.reconcile(c);NativeReminders.deliver(c,"today-task","userA",true);

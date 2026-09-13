@@ -24,12 +24,15 @@ public final class WidgetRouterActivity extends Activity {
             startActivity(open);
         } else if ("toggle".equals(operation)) {
             boolean completed = "1".equals(data.getQueryParameter("completed"));
+            AgendaData.setCompleted(this, taskId, !completed);
             AgendaData.prefs(this).edit().putString("syncStatus",
                 completed ? "Reopening task from widget…" : "Completing task from widget…").apply();
             WidgetTaskActionWorker.enqueue(this, completed ? "reopen" : "complete", taskId, "", "", "");
             AgendaWidgetProvider.redraw(this);
+        } else if ("menu".equals(operation)) {
+            startActivity(new Intent(this, WidgetTaskActionActivity.class).putExtra("taskId", taskId).putExtra("mode", "menu"));
         } else if ("edit".equals(operation)) {
-            startActivity(new Intent(this, WidgetTaskActionActivity.class).putExtra("taskId", taskId));
+            startActivity(new Intent(this, WidgetTaskActionActivity.class).putExtra("taskId", taskId).putExtra("mode", "edit"));
         }
         finish();
     }
