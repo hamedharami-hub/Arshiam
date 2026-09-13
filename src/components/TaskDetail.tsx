@@ -308,10 +308,15 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     // local cache first, then persists to /users/{uid}/tasks/{id}; a temporary
     // cloud failure never discards an edit or traps the user in the close prompt.
     if (user) {
-      const result = await persistTask(user.id, next);
-      if (result === "failed") throw new Error("Task could not be saved on this device");
-      finish(result);
-      return;
+      try {
+        const result = await persistTask(user.id, next);
+        if (result === "failed") throw new Error("Task could not be saved on this device");
+        finish(result);
+        return;
+      } catch (error) {
+        setSaveState("error");
+        throw error;
+      }
     }
 
     try {
@@ -913,7 +918,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
         {/* 2. Priority */}
         <div>
-        <Popover open={folderOpen} onOpenChange={setFolderOpen}>
+        <Popover>
           <PopoverTrigger asChild>
             <Button
               type="button"
@@ -956,7 +961,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
         {/* 3. Folder + quick-create */}
         <div>
-        <Popover>
+        <Popover open={folderOpen} onOpenChange={setFolderOpen}>
           <PopoverTrigger asChild>
             <Button
               type="button"
@@ -1269,9 +1274,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             onProgressChange={handleSubtaskProgress}
             readOnly={!canEdit}
             onOpenSubtask={(id) => {
-              firebaseStore.from("tasks").select("*").eq("id", id).single().then(({ data }) => {
-                if (data) { onChanged(); setT(data as any); }
-              });
+              void savePendingChanges().then(() => navigate(`/app/tasks/${encodeURIComponent(id)}`))
+                .catch(() => toast.error(T("ابتدا تغییرات تسک فعلی را ذخیره کن", "Save the current task before opening a subtask")));
             }}
           />
         </section>
@@ -1288,7 +1292,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         </section>
       )}
 
-      {(showNotes || taskNotes.length === 0) && (
+      {(showNotes || taskNotes.length > 0) && (
         <section className="rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4">
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-sm font-medium flex items-center gap-1.5">
@@ -1314,6 +1318,26 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           </div>
         </section>
       )}
+    </div>
+  );
+
+  const progressPanel = (
+    <div className="mx-1 mb-3 rounded-2xl border border-border/50 bg-muted/25 px-3 py-2.5">
+      <div className="mb-2 flex items-center justify-between gap-3 text-xs">
+        <span className="flex items-center gap-1.5 font-medium text-foreground/85">
+          <ListChecks className="h-3.5 w-3.5 text-primary" />
+          {T("پیشرفت تسک", "Task progress")}
+        </span>
+        <span className="tabular-nums text-muted-foreground">
+          {subtaskProgress.total
+            ? T(`${subtaskProgress.completed} از ${subtaskProgress.total} زیرتسک`, `${subtaskProgress.completed} of ${subtaskProgress.total} subtasks`)
+            : t.completed ? T("تکمیل شد", "Completed") : T("آمادهٔ شروع", "Ready to start")}
+        </span>
+      </div>
+      <div className="flex items-center gap-3">
+        <Progress value={progressPercent} className="h-2 flex-1" />
+        <span className="w-9 text-end text-xs font-semibold tabular-nums text-primary">{progressPercent}%</span>
+      </div>
     </div>
   );
 
@@ -1463,26 +1487,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       >
         <MoreHorizontal className="w-4 h-4" />
       </Button>
-    </div>
-  );
-
-  const progressPanel = (
-    <div className="mx-1 mb-3 rounded-2xl border border-border/50 bg-muted/25 px-3 py-2.5">
-      <div className="mb-2 flex items-center justify-between gap-3 text-xs">
-        <span className="flex items-center gap-1.5 font-medium text-foreground/85">
-          <ListChecks className="h-3.5 w-3.5 text-primary" />
-          {T("پیشرفت تسک", "Task progress")}
-        </span>
-        <span className="tabular-nums text-muted-foreground">
-          {subtaskProgress.total
-            ? T(`${subtaskProgress.completed} از ${subtaskProgress.total} زیرتسک`, `${subtaskProgress.completed} of ${subtaskProgress.total} subtasks`)
-            : t.completed ? T("تکمیل شد", "Completed") : T("آمادهٔ شروع", "Ready to start")}
-        </span>
-      </div>
-      <div className="flex items-center gap-3">
-        <Progress value={progressPercent} className="h-2 flex-1" />
-        <span className="w-9 text-end text-xs font-semibold tabular-nums text-primary">{progressPercent}%</span>
-      </div>
     </div>
   );
 
