@@ -35,9 +35,15 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
     @Override public void onDeleted(Context c, int[] ids) {
         for (int id : ids) {
             SharedPreferences.Editor edit = AgendaData.options(c).edit();
-            for (String key : new String[]{"scope","secondaryScope","matchMode","light","done","high","large","textSize","sort","thenSort","limit"}) edit.remove("widget."+id+"."+key);
+            for (String key : pKeys(c,id)) edit.remove(key);
             edit.apply();
         }
+    }
+    private static java.util.Set<String> pKeys(Context c,int id) {
+        java.util.Set<String> keys=new java.util.HashSet<>();
+        String prefix="widget."+id+".";
+        for(String key:AgendaData.options(c).getAll().keySet()) if(key.startsWith(prefix)) keys.add(key);
+        return keys;
     }
     static RemoteViews views(Context c, int id) {
         SharedPreferences p = AgendaData.options(c);

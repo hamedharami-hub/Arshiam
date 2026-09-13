@@ -108,20 +108,25 @@ function CapacitorUrlHandler() {
     if (!isNative) return;
 
     let disposed = false;
+    let receivedLiveUrl = false;
+    let routeGeneration = 0;
     const navigateForUrl = (rawUrl: string) => {
+      const generation = ++routeGeneration;
       void auth.authStateReady().then(() => {
         const path = nativeRoute(rawUrl, auth.currentUser?.uid);
-        if (path && !disposed) navigate(path);
+        if (path && !disposed && generation === routeGeneration) navigate(path);
       }).catch(() => {});
     };
     let handle: any = null;
     try {
       CapApp.getLaunchUrl()
         .then((launch) => {
-          if (launch?.url) navigateForUrl(launch.url);
+          // A live widget tap wins over the (possibly stale) launch URL.
+          if (launch?.url && !receivedLiveUrl) navigateForUrl(launch.url);
         })
         .catch((e) => console.warn("Capacitor launch URL notice:", e));
       CapApp.addListener("appUrlOpen", (event) => {
+        receivedLiveUrl = true;
         navigateForUrl(event.url || "");
       })
         .then((h) => {

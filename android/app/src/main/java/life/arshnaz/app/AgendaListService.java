@@ -20,8 +20,14 @@ public class AgendaListService extends RemoteViewsService {
             tasks=AgendaData.select(c,AgendaWidgetProvider.scope(c,id),AgendaWidgetProvider.secondaryScope(c,id),
                 p.getBoolean("widget."+id+".done",false),p.getBoolean("widget."+id+".high",false),sort,
                 p.getString("widget."+id+".thenSort","none"),p.getString("widget."+id+".matchMode","any"));
+            tasks=visibleHierarchy(tasks,p,id);
             int limit=configuredLimit(p,id);
-            if(tasks.size()>limit) tasks=new java.util.ArrayList<>(tasks.subList(0,limit));
+            // Never cut a parent's visible children off at the configured row count.
+            if(tasks.size()>limit) {
+                int end=limit;
+                while(end<tasks.size() && tasks.get(end).optInt("_widgetDepth",0)>0) end++;
+                tasks=new java.util.ArrayList<>(tasks.subList(0,end));
+            }
             owner=AgendaData.prefs(c).getString("dataUserId","");
         }
         public void onDestroy() { tasks=Collections.emptyList(); }
@@ -37,19 +43,26 @@ public class AgendaListService extends RemoteViewsService {
             row.setTextColor(R.id.row_title,android.graphics.Color.parseColor(light?"#172033":"#F1F5F9"));
             boolean completed=t.optBoolean("completed")||"done".equals(t.optString("status"));
             int depth=Math.max(0,Math.min(3,t.optInt("_widgetDepth",0)));
+            boolean hasChildren=hasChildren(c,t.optString("id"));
+            boolean collapsed=AgendaData.options(c).getBoolean("widget."+id+".collapsed."+t.optString("id"),false);
             row.setTextViewText(R.id.row_title,(depth>0?"↳ ":"")+t.optString("title"));
+            row.setTextViewText(R.id.row_expand,hasChildren?(collapsed?"›":"⌄"):" ");
+            row.setViewVisibility(R.id.row_expand,hasChildren?android.view.View.VISIBLE:android.view.View.GONE);
+            row.setTextViewText(R.id.row_meta,(depth>0?"Subtask · ":hasChildren?"Task group · ":"Task · ")+AgendaData.dueLabel(t.optString("due_date")));
             row.setTextViewText(R.id.row_done,completed?"☑":"☐");
             row.setTextColor(R.id.row_done,android.graphics.Color.parseColor(completed?"#A78BFA":"#94A3B8"));
             row.setViewPadding(R.id.row_root,8+depth*14,5,6,5);
             boolean priority="high".equals(t.optString("priority"))||"urgent".equals(t.optString("priority"));
-            row.setTextViewText(R.id.row_meta, AgendaData.dueLabel(t.optString("due_date")) + (priority?" · High priority":""));
+            if(priority) row.setTextViewText(R.id.row_meta,(depth>0?"Subtask · ":hasChildren?"Task group · ":"Task · ")+AgendaData.dueLabel(t.optString("due_date"))+" · High priority");
             row.setTextViewText(R.id.row_priority,priority?"●":"○");
             row.setTextColor(R.id.row_priority,android.graphics.Color.parseColor(priority?"#FBBF24":"#64748B"));
             String size=AgendaData.options(c).getString("widget."+id+".textSize",AgendaData.options(c).getBoolean("widget."+id+".large",false)?"large":"medium");
             row.setTextViewTextSize(R.id.row_title,android.util.TypedValue.COMPLEX_UNIT_SP,"large".equals(size)?18:"small".equals(size)?12:15);
             String taskId=Uri.encode(t.optString("id"));
             row.setOnClickFillInIntent(R.id.row_root,new Intent().setData(Uri.parse("arshnaz://widget-action/open?taskId="+taskId+"&owner="+Uri.encode(owner))));
+            row.setOnClickFillInIntent(R.id.row_title,new Intent().setData(Uri.parse("arshnaz://widget-action/open?taskId="+taskId+"&owner="+Uri.encode(owner))));
             row.setOnClickFillInIntent(R.id.row_done,new Intent().setData(Uri.parse("arshnaz://widget-action/toggle?taskId="+taskId+"&completed="+(completed?"1":"0")+"&owner="+Uri.encode(owner))));
+            if(hasChildren) row.setOnClickFillInIntent(R.id.row_expand,new Intent().setData(Uri.parse("arshnaz://widget-action/collapse?taskId="+taskId+"&widgetId="+id+"&owner="+Uri.encode(owner))));
             // Android launchers do not consistently deliver long-presses for RemoteViews.
             // The visible overflow control is the reliable equivalent and opens a menu.
             row.setOnClickFillInIntent(R.id.row_edit,new Intent().setData(Uri.parse("arshnaz://widget-action/menu?taskId="+taskId+"&owner="+Uri.encode(owner))));
@@ -59,6 +72,28 @@ public class AgendaListService extends RemoteViewsService {
         public int getViewTypeCount() { return 1; }
         public long getItemId(int position) { return position; }
         public boolean hasStableIds() { return false; }
+        static boolean hasChildren(Context c,String parentId) {
+            org.json.JSONArray rows=AgendaData.read(c);
+            for(int i=0;i<rows.length();i++) {
+                JSONObject row=rows.optJSONObject(i);
+                if(row!=null && parentId.equals(row.optString("parent_id"))) return true;
+            }
+            return false;
+        }
+        static List<JSONObject> visibleHierarchy(List<JSONObject> rows,SharedPreferences options,int widgetId) {
+            List<JSONObject> shown=new ArrayList<>();
+            int hiddenBelow=-1;
+            for(JSONObject task:rows) {
+                int depth=task.optInt("_widgetDepth",0);
+                if(hiddenBelow>=0) {
+                    if(depth>hiddenBelow) continue;
+                    hiddenBelow=-1;
+                }
+                shown.add(task);
+                if(options.getBoolean("widget."+widgetId+".collapsed."+task.optString("id"),false)) hiddenBelow=depth;
+            }
+            return shown;
+        }
         static int configuredLimit(SharedPreferences options,int widgetId) {
             // ListView can scroll. "All available tasks" is represented by a
             // bounded high limit so a malformed or huge snapshot cannot freeze a launcher.

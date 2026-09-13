@@ -29,6 +29,15 @@ public final class WidgetRouterActivity extends Activity {
                 completed ? "Reopening task from widget…" : "Completing task from widget…").apply();
             WidgetTaskActionWorker.enqueue(this, completed ? "reopen" : "complete", taskId, "", "", "");
             AgendaWidgetProvider.redraw(this);
+        } else if ("collapse".equals(operation)) {
+            int widgetId = -1;
+            try { widgetId=Integer.parseInt(data.getQueryParameter("widgetId")); } catch (Exception ignored) { }
+            if (widgetId >= 0) {
+                String key="widget."+widgetId+".collapsed."+taskId;
+                android.content.SharedPreferences options=AgendaData.options(this);
+                options.edit().putBoolean(key,!options.getBoolean(key,false)).apply();
+                AgendaWidgetProvider.update(this,android.appwidget.AppWidgetManager.getInstance(this),widgetId);
+            }
         } else if ("menu".equals(operation)) {
             startActivity(new Intent(this, WidgetTaskActionActivity.class).putExtra("taskId", taskId).putExtra("mode", "menu"));
         } else if ("edit".equals(operation)) {

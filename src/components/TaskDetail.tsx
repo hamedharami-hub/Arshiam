@@ -94,6 +94,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [showSteps, setShowSteps] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [tagOpen, setTagOpen] = useState(false);
   const [showTimeBlock, setShowTimeBlock] = useState(hasTimeBlock);
   const [showOutcomes, setShowOutcomes] = useState(false);
   const [voiceListening, setVoiceListening] = useState(false);
@@ -579,29 +580,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           readOnly={!canEdit}
         />
       </div>
-      <div className="flex items-center gap-2 mt-1 px-1">
-        {canEdit && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={async () => { await addNote(); }}
-            className="h-6 gap-1 text-[11px] text-muted-foreground hover:text-foreground rounded-full px-2"
-          >
-            <Plus className="w-3 h-3" />
-            <FileText className="w-3.5 h-3.5" />
-            {T("افزودن نوت با عنوان", "Add titled note")}
-          </Button>
-        )}
-        {taskNotes.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowNotes(s => !s)}
-            className="text-[11px] text-muted-foreground hover:text-foreground"
-          >
-            {taskNotes.length} {T("نوت", "notes")} {showNotes ? "▴" : "▾"}
-          </button>
-        )}
-      </div>
     </div>
   );
 
@@ -640,16 +618,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           </Tooltip>
         </TooltipProvider>
       )}
-      {t.priority !== "none" && (
-        <Chip
-          icon={Flag}
-          onClick={() => save({ priority: "none" as Priority })}
-          disabled={!canEdit}
-          color={`${priorityMeta.bgClass} ${priorityMeta.textClass}`}
-        >
-          {T(priorityMeta.label, priorityMeta.labelEn)}
-        </Chip>
-      )}
       {recLabel && (
         <Chip
           icon={Repeat}
@@ -659,9 +627,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         >
           {recLabel}
         </Chip>
-      )}
-      {t.folder_id && (
-        <Chip icon={FolderIcon}>{folderName(t.folder_id)}</Chip>
       )}
       {t.parent_id && (
         <Chip
@@ -677,11 +642,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       {t.pinned && (
         <Chip icon={Pin} color="bg-primary/10 text-primary">
           {T("پین شده", "Pinned")}
-        </Chip>
-      )}
-      {taskTagIds.length > 0 && (
-        <Chip icon={TagIcon}>
-          {taskTagIds.length} {T("تگ", "tags")}
         </Chip>
       )}
       {t.is_avoidance && (
@@ -790,7 +750,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   // ── Top controls (folder / priority / schedule) ─────────────────────────────────────────────────
   const topControls = (
     <div className="mx-auto max-w-3xl w-full px-1 pt-1 pb-2">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
         {/* 1. Schedule (Date + Time block + Repeat + Bucket) */}
         <div>
         <Sheet open={scheduleOpen} onOpenChange={setScheduleOpen}>
@@ -799,7 +759,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
               type="button"
               variant="outline"
               disabled={!canEdit}
-              className={`w-full h-10 rounded-xl text-xs font-medium gap-2 justify-start px-3 transition-all duration-150 ${isScheduled ? "bg-primary/15 text-primary border-primary/35 shadow-xs font-semibold" : "bg-muted/30 text-foreground/85 hover:bg-muted/60 border-border/60"}`}
+              className={`w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-3 transition-all duration-150 ${isScheduled ? "bg-primary/15 text-primary border-primary/35 shadow-xs font-semibold" : "bg-muted/30 text-foreground/85 hover:bg-muted/60 border-border/60"}`}
             >
               <Clock className={`w-4 h-4 shrink-0 ${isScheduled ? "text-primary" : "text-muted-foreground"}`} />
               <span className="truncate flex-1 text-start">{scheduleLabel ?? T("زمان‌بندی", "Schedule")}</span>
@@ -928,7 +888,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
               type="button"
               variant="outline"
               disabled={!canEdit}
-              className={`w-full h-10 rounded-xl text-xs font-medium gap-2 justify-start px-3 transition-all duration-150 ${t.priority !== "none" ? `${priorityMeta.bgClass} ${priorityMeta.textClass} border-border/80 shadow-xs font-semibold` : "bg-muted/30 text-foreground/85 hover:bg-muted/60 border-border/60"}`}
+              className={`w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-3 transition-all duration-150 ${t.priority !== "none" ? `${priorityMeta.bgClass} ${priorityMeta.textClass} border-border/80 shadow-xs font-semibold` : "bg-muted/30 text-foreground/85 hover:bg-muted/60 border-border/60"}`}
             >
               <Flag className={`w-4 h-4 shrink-0 ${t.priority !== "none" ? priorityMeta.textClass : "text-muted-foreground"}`} />
               <span className="truncate flex-1 text-start">{t.priority !== "none" ? T(priorityMeta.label, priorityMeta.labelEn) : T("اولویت", "Priority")}</span>
@@ -971,7 +931,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
               type="button"
               variant="outline"
               disabled={!canEdit}
-              className={`w-full h-10 rounded-xl text-xs font-medium gap-2 justify-start px-3 transition-all duration-150 ${t.folder_id ? "bg-primary/10 text-primary border-primary/30 shadow-xs font-semibold" : "bg-muted/30 text-foreground/85 hover:bg-muted/60 border-border/60"}`}
+              className={`w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-3 transition-all duration-150 ${t.folder_id ? "bg-primary/10 text-primary border-primary/30 shadow-xs font-semibold" : "bg-muted/30 text-foreground/85 hover:bg-muted/60 border-border/60"}`}
             >
               <FolderIcon className="w-4 h-4 shrink-0" style={{ color: t.folder_id ? folders.find(f => f.id === t.folder_id)?.color || undefined : undefined }} />
               <span className="truncate flex-1 text-start">{t.folder_id ? folderName(t.folder_id) : T("فولدر", "Folder")}</span>
@@ -1045,6 +1005,11 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           </PopoverContent>
         </Popover>
         </div>
+        <Button type="button" variant="outline" onClick={() => setTagOpen(true)} disabled={!canEdit}
+          className={`w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-3 ${taskTagIds.length ? "bg-primary/10 text-primary border-primary/30" : "bg-muted/30 border-border/60"}`}>
+          <TagIcon className="w-4 h-4 shrink-0" />
+          <span className="truncate">{taskTagIds.length ? `${taskTagIds.length} ${T("تگ", "tags")}` : T("تگ", "Tags")}</span>
+        </Button>
       </div>
     </div>
   );
@@ -1055,7 +1020,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       <div className="flex items-center justify-between gap-1 overflow-x-auto no-scrollbar">
         <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
                 {/* 4. Tags + quick-create */}
-                <Popover>
+                <Popover open={tagOpen} onOpenChange={setTagOpen}>
                   <PopoverTrigger asChild>
                     <span>
                       <RailButton icon={TagIcon} label={T("تگ", "Tags")} active={taskTagIds.length > 0} badge={taskTagIds.length || undefined} />
@@ -1264,7 +1229,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
       {showAttachments && <TaskAttachments taskId={t.id} />}
 
-      {showNotes && (
+      {(showNotes || taskNotes.length === 0) && (
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-sm font-medium flex items-center gap-1.5">

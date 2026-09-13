@@ -148,11 +148,30 @@ public class AndroidExperienceTest {
     }
     @Test public void widgetCompletionUpdatesTheLocalSnapshotBeforeSync() throws Exception {
         login();
-        new AndroidActionsReceiver().onReceive(c, new Intent(c, AndroidActionsReceiver.class)
-            .setAction("toggleDirect").putExtra("taskId", "today-task").putExtra("completed", false));
+        assertTrue(AgendaData.setCompleted(c,"today-task",true));
         JSONObject changed=AgendaData.task(c,"today-task");
         assertTrue(changed.optBoolean("completed"));
         assertEquals("done",changed.optString("status"));
+    }
+    @Test public void widgetHierarchyCanCollapseAndReopenChildren() throws Exception {
+        login();
+        JSONArray rows=tasks();
+        rows.put(new JSONObject().put("id","child-task").put("title","A small step")
+            .put("parent_id","today-task").put("due_date",""));
+        AgendaData.prefs(c).edit().putString("agendaTasks",rows.toString()).commit();
+        AgendaListService.Factory widget=new AgendaListService.Factory(c,1);
+        widget.onCreate();
+        assertEquals(2,widget.getCount());
+        assertEquals("↳ A small step",((TextView)widget.getViewAt(1).apply(c,new FrameLayout(c))
+            .findViewById(R.id.row_title)).getText().toString());
+        AgendaData.options(c).edit().putBoolean("widget.1.collapsed.today-task",true).commit();
+        widget.onDataSetChanged();
+        assertEquals(1,widget.getCount());
+        assertEquals("›",((TextView)widget.getViewAt(0).apply(c,new FrameLayout(c))
+            .findViewById(R.id.row_expand)).getText().toString());
+        AgendaData.options(c).edit().putBoolean("widget.1.collapsed.today-task",false).commit();
+        widget.onDataSetChanged();
+        assertEquals(2,widget.getCount());
     }
     @Test public void rebootRestoresSnoozedAlarmWithoutWebView() throws Exception {
         login();AgendaData.options(c).edit().putBoolean("remindersEnabled",true).commit();
