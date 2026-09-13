@@ -53,6 +53,15 @@ public class AgendaDataTest {
         assertEquals("later-parent",title.get(2).getString("id"));
         assertEquals("later-child",title.get(3).getString("id"));
     }
+    @Test public void parentCyclesAreRecoveredInsteadOfBeingHidden() throws Exception {
+        JSONArray rows=new JSONArray()
+            .put(task("first","2026-09-10").put("parent_id","second"))
+            .put(task("second","2026-09-10").put("parent_id","first"));
+        java.util.List<JSONObject> selected=AgendaData.select(rows,"today",false,false,today,zone);
+        assertEquals(2,selected.size());
+        assertTrue(selected.stream().anyMatch(t->"first".equals(t.optString("id"))));
+        assertTrue(selected.stream().anyMatch(t->"second".equals(t.optString("id"))));
+    }
     @Test public void combinesTwoIndependentViewsWithoutDuplicates() throws Exception {
         JSONArray rows=new JSONArray().put(task("today","2026-09-10"))
             .put(task("tomorrow","2026-09-11")).put(task("both","2026-09-10").put("priority","high"));

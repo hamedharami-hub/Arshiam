@@ -80,6 +80,17 @@ final class AgendaData {
         roots.sort(order); for(List<JSONObject> group:children.values()) group.sort(order);
         List<JSONObject> result=new ArrayList<>();
         for(JSONObject root:roots) flatten(root,0,children,result,new HashSet<>());
+        // Broken parent references and cycles must never make a task disappear
+        // from a launcher widget. Append any unvisited component as its own root;
+        // flatten's local visited set still prevents infinite recursion.
+        Set<String> rendered=new HashSet<>();
+        for(JSONObject task:result) rendered.add(task.optString("id"));
+        for(String id:selected) {
+            if(rendered.contains(id)) continue;
+            List<JSONObject> recovered=new ArrayList<>();
+            flatten(eligible.get(id),0,children,recovered,new HashSet<>());
+            for(JSONObject task:recovered) if(rendered.add(task.optString("id"))) result.add(task);
+        }
         return result;
     }
     private static Comparator<JSONObject> order(String sort) {
