@@ -36,7 +36,7 @@ type Step = {
   id: string; list_id: string; text: string; completed: boolean; position: number;
 };
 
-export function TaskStepLists({ taskId }: { taskId: string }) {
+export function TaskStepLists({ taskId, onCountChange }: { taskId: string; onCountChange?: (count: number) => void }) {
   const { user } = useAuth();
   const [lists, setLists] = useState<StepList[]>([]);
   const [steps, setSteps] = useState<Step[]>([]);
@@ -52,6 +52,7 @@ export function TaskStepLists({ taskId }: { taskId: string }) {
       .order("position");
     const lists = (ls || []) as unknown as StepList[];
     setLists(lists);
+    if (ls) onCountChange?.(lists.length);
     if (lists.length) {
       const { data: st } = await firebaseStore
         .from("task_steps" as any)
@@ -62,7 +63,7 @@ export function TaskStepLists({ taskId }: { taskId: string }) {
     } else {
       setSteps([]);
     }
-  }, [taskId]);
+  }, [taskId, onCountChange]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -82,6 +83,7 @@ export function TaskStepLists({ taskId }: { taskId: string }) {
       .single();
     if (error) return toast.error(error.message);
     setLists((prev) => [...prev, data as any]);
+    onCountChange?.(lists.length + 1);
     setNewListTitle("");
   };
 
@@ -92,6 +94,7 @@ export function TaskStepLists({ taskId }: { taskId: string }) {
 
   const deleteList = async (id: string) => {
     setLists((prev) => prev.filter((l) => l.id !== id));
+    onCountChange?.(Math.max(0, lists.length - 1));
     setSteps((prev) => prev.filter((s) => s.list_id !== id));
     await firebaseStore.from("task_step_lists" as any).delete().eq("id", id);
   };

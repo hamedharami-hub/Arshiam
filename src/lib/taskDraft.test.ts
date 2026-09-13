@@ -35,4 +35,12 @@ describe("taskPatch", () => {
     expect(taskPatch({ ...savedTask, show_progress: true }, savedTask)).toEqual({ show_progress: true });
     expect(taskPatch({ ...savedTask, show_progress: false }, { ...savedTask, show_progress: true })).toEqual({ show_progress: false });
   });
+
+  it("saves the three selected item sections on that task", () => {
+    expect(taskPatch({
+      ...savedTask, show_subtasks: true, show_step_lists: true, show_outcomes: true,
+    }, savedTask)).toEqual({
+      show_subtasks: true, show_step_lists: true, show_outcomes: true,
+    });
+  });
 });

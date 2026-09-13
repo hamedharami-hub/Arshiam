@@ -24,6 +24,10 @@ export type Task = {
   estimated_minutes: number | null;
   /** Per-task preference: keep the progress panel out of ordinary task details. */
   show_progress?: boolean;
+  /** Per-task item sections selected from the task's Items menu. */
+  show_subtasks?: boolean;
+  show_step_lists?: boolean;
+  show_outcomes?: boolean;
   is_avoidance?: boolean;
   location?: string | null;
   bucket_kind?: "day" | "week" | "month" | "quarter" | "year" | null;

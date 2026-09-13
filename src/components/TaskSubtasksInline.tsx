@@ -33,6 +33,7 @@ export function TaskSubtasksInline({
   const { user } = useAuth();
   const [subs, setSubs] = useState<Sub[]>([]);
   const [newTitle, setNewTitle] = useState("");
+  const [loadedTaskId, setLoadedTaskId] = useState<string | null>(null);
 
   const editingRef = useRef<Set<string>>(new Set());
   const writeTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -54,7 +55,11 @@ export function TaskSubtasksInline({
     // opening a task offline or while Firestore is reconnecting.
     if (user) {
       const cached = await cacheGet<Array<Sub & { parent_id?: string | null }>>(`tasks:all:${user.id}`);
-      if (cached) replaceRows(cached.filter((row) => row.parent_id === taskId));
+      if (cached) {
+        const cachedSubs = cached.filter((row) => row.parent_id === taskId);
+        replaceRows(cachedSubs);
+        if (cachedSubs.length > 0) setLoadedTaskId(taskId);
+      }
     }
     const { data } = await firebaseStore
       .from("tasks")
@@ -62,7 +67,10 @@ export function TaskSubtasksInline({
       .eq("parent_id", taskId)
       .order("position")
       .order("created_at", { ascending: true });
-    if (data) replaceRows(data as Sub[]);
+    if (data) {
+      replaceRows(data as Sub[]);
+      setLoadedTaskId(taskId);
+    }
   }, [taskId, user, replaceRows]);
 
   useEffect(() => { load(); }, [load]);
@@ -143,7 +151,9 @@ export function TaskSubtasksInline({
 
   const done = subs.filter((s) => s.completed).length;
 
-  useEffect(() => { onProgressChange?.(done, subs.length); }, [done, subs.length, onProgressChange]);
+  useEffect(() => {
+    if (loadedTaskId === taskId) onProgressChange?.(done, subs.length);
+  }, [done, subs.length, loadedTaskId, taskId, onProgressChange]);
 
   return (
     <div className="space-y-2">

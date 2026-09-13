@@ -31,7 +31,21 @@ describe("TaskDetail initial render", () => {
     );
     expect(html).toContain("Plan tomorrow");
     expect(html).not.toContain("Task progress");
+    expect(html).not.toContain('aria-label="Subtasks"');
     expect(html).toContain("Description");
+  });
+
+  it("renders the selected subtask section on that task", () => {
+    const task = {
+      id: "task-3", user_id: "owner-1", title: "Project",
+      description: null, completed: false, status: "todo",
+      priority: "none", folder_id: null, parent_id: null, due_date: null,
+      show_subtasks: true,
+    } as Task;
+    const html = renderToString(
+      <TaskDetail task={task} mode="page" onClose={() => {}} onChanged={() => {}} setConfirm={() => {}} />,
+    );
+    expect(html).toContain('aria-label="Subtasks"');
   });
 
   it("shows progress only for a task that opted in", () => {

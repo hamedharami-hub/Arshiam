@@ -6,6 +6,7 @@ export const EDITABLE_TASK_FIELDS: (keyof Task)[] = [
   "start_at", "end_at", "estimated_minutes", "is_avoidance", "location", "bucket_kind",
   "bucket_calendar", "bucket_anchor",
   "show_progress",
+  "show_subtasks", "show_step_lists", "show_outcomes",
 ];
 
 export function taskPatch(current: Task, saved: Task): Partial<Task> {

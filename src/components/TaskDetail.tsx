@@ -51,6 +51,7 @@ import { enqueueOp, cacheGet, cacheSet } from "@/lib/offlineQueue";
 import { deleteTask as deletePersistedTask, persistTask } from "@/lib/firestoreDataService";
 import type { Task, TaskNote, ConfirmState } from "@/lib/taskTypes";
 import { clearTaskDraft, taskPatch, writeTaskDraft } from "@/lib/taskDraft";
+import { shouldShowTaskSection } from "@/lib/taskSectionVisibility";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -103,12 +104,10 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [tags, setTags] = useState<{ id: string; name: string; color: string | null }[]>([]);
   const [taskTagIds, setTaskTagIds] = useState<string[]>([]);
 
-  // The subtask editor is always visible: a task's hierarchy must never be hidden
-  // behind a secondary rail control, including while the app is offline.
   const hasTimeBlock = !!(t.start_at || t.end_at || t.estimated_minutes);
   const isScheduled = !!t.due_date || !!t.reminder_at || !!t.recurrence_rule || !!t.bucket_kind || hasTimeBlock;
-  const [showSubtasks, setShowSubtasks] = useState(true);
-  const [showSteps, setShowSteps] = useState(false);
+  const [subtaskCount, setSubtaskCount] = useState(0);
+  const [stepListCount, setStepListCount] = useState(0);
   const [showAttachments, setShowAttachments] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [subtaskProgress, setSubtaskProgress] = useState({ completed: 0, total: 0 });
@@ -117,7 +116,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [focusOpen, setFocusOpen] = useState(false);
   const [showTimeBlock, setShowTimeBlock] = useState(hasTimeBlock);
-  const [showOutcomes, setShowOutcomes] = useState(false);
   const [voiceListening, setVoiceListening] = useState(false);
   const [voiceInstance, setVoiceInstance] = useState<VoiceInput | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -127,6 +125,9 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [allTasks, setAllTasks] = useState<{ id: string; title: string; parent_id: string | null; folder_id: string | null }[]>([]);
   const [outcomeOpen, setOutcomeOpen] = useState(false);
   const [outcomeCount, setOutcomeCount] = useState(0);
+  const showSubtasks = shouldShowTaskSection(t.show_subtasks, subtaskCount);
+  const showSteps = shouldShowTaskSection(t.show_step_lists, stepListCount);
+  const showOutcomes = shouldShowTaskSection(t.show_outcomes, outcomeCount);
   const [outcomeRefresh, setOutcomeRefresh] = useState(0);
   const [saveState, setSaveState] = useState<"saved" | "dirty" | "saving" | "queued" | "error">("saved");
   const [closePromptOpen, setClosePromptOpen] = useState(false);
@@ -146,7 +147,9 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       }
     } catch { /* corrupted drafts are ignored */ }
     setT(restored);
-    setShowSubtasks(true);
+    setSubtaskCount(0);
+    setStepListCount(0);
+    setOutcomeCount(0);
     latestTaskRef.current = restored;
     savedTaskRef.current = task;
     setSaveState(Object.keys(taskPatch(restored, task)).length ? "dirty" : "saved");
@@ -200,15 +203,25 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       setTaskNotes(list);
       if (list.length > 0) setShowNotes(true);
       setTaskTagIds((tagsRes.data || []).map((r: any) => r.tag_id));
-      if ((subRes.count || 0) > 0) setShowSubtasks(true);
-      if ((stepListsRes.count || 0) > 0) setShowSteps(true);
+      if (subRes.count !== null && subRes.count !== undefined) setSubtaskCount(subRes.count);
+      if (stepListsRes.count !== null && stepListsRes.count !== undefined) setStepListCount(stepListsRes.count);
       if ((attachRes.count || 0) > 0) setShowAttachments(true);
       if (hasTimeBlock) setShowTimeBlock(true);
-      if ((outcomesRes.count || 0) > 0) setShowOutcomes(true);
       setOutcomeCount(outcomesRes.count || 0);
     })();
     return () => { cancelled = true; };
   }, [task.id, hasTimeBlock]);
+
+  // The parent-task cache makes existing child tasks visible even before an
+  // online count query finishes, including when this page opens offline.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void cacheGet<Task[]>(`tasks:all:${user.id}`).then((rows) => {
+      if (!cancelled && rows) setSubtaskCount(rows.filter(row => row.parent_id === task.id).length);
+    });
+    return () => { cancelled = true; };
+  }, [task.id, user?.id]);
 
   useEffect(() => {
     if (!user) return;
@@ -316,7 +329,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     try {
       const { count } = await firebaseStore.from("task_outcomes").select("id", { count: "exact", head: true }).eq("task_id", task.id);
       setOutcomeCount(count || 0);
-      if ((count || 0) > 0) setShowOutcomes(true);
       setOutcomeRefresh(n => n + 1);
     } catch {
       // ignore network errors while offline
@@ -536,7 +548,17 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const handleSubtaskProgress = useCallback((completed: number, total: number) => {
     setSubtaskProgress((current) => current.completed === completed && current.total === total
       ? current : { completed, total });
+    setSubtaskCount(total);
   }, []);
+
+  const toggleItemSection = (field: "show_subtasks" | "show_step_lists" | "show_outcomes", visible: boolean, count: number) => {
+    if (visible && count > 0) {
+      toast.info(T("این بخش محتوا دارد و همیشه نمایش داده می‌شود", "This section has content and stays visible"));
+      return;
+    }
+    void save({ [field]: !visible } as Partial<Task>)
+      .catch(() => toast.error(T("انتخاب این بخش ذخیره نشد", "Could not save this section choice")));
+  };
 
   // ── Rail icon button (MD3 tonal) ────────────────────────────────────
   const RailButton = ({
@@ -1222,7 +1244,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                   </PopoverTrigger>
                   <PopoverContent className="w-56 p-1.5" align="start" side="top">
                     <button
-                      onClick={() => setShowSubtasks(s => !s)}
+                      onClick={() => toggleItemSection("show_subtasks", showSubtasks, subtaskCount)}
+                      disabled={!canEdit}
                       className={`w-full flex items-center gap-2 p-2.5 rounded-lg text-sm hover:bg-accent ${showSubtasks ? "bg-accent" : ""}`}
                     >
                       <ListTree className="w-4 h-4 text-primary" />
@@ -1230,7 +1253,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                       {showSubtasks && <Check className="w-3.5 h-3.5" />}
                     </button>
                     <button
-                      onClick={() => setShowSteps(s => !s)}
+                      onClick={() => toggleItemSection("show_step_lists", showSteps, stepListCount)}
+                      disabled={!canEdit}
                       className={`w-full flex items-center gap-2 p-2.5 rounded-lg text-sm hover:bg-accent ${showSteps ? "bg-accent" : ""}`}
                     >
                       <CheckSquare className="w-4 h-4 text-emerald-500" />
@@ -1238,7 +1262,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                       {showSteps && <Check className="w-3.5 h-3.5" />}
                     </button>
                     <button
-                      onClick={() => setShowOutcomes(s => !s)}
+                      onClick={() => toggleItemSection("show_outcomes", showOutcomes, outcomeCount)}
                       disabled={!canEdit}
                       className={`w-full flex items-center gap-2 p-2.5 rounded-lg text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${showOutcomes ? "bg-accent" : ""}`}
                     >
@@ -1300,7 +1324,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         </section>
       )}
 
-      {showSteps && <TaskStepLists taskId={t.id} />}
+      {showSteps && <TaskStepLists taskId={t.id} onCountChange={setStepListCount} />}
 
       {showOutcomes && <TaskOutcomesInline taskId={t.id} refreshKey={outcomeRefresh} onEdit={() => setOutcomeOpen(true)} />}
 
@@ -1369,7 +1393,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       {/* On a wide desktop or unfolded device, keep the writing surface and
           task structure adjacent.  The narrow layout remains a single calm
           reading flow instead of squeezing either section into a tiny column. */}
-      <div className={`flex-1 min-w-0 ${mode === "page" ? "min-[820px]:grid min-[820px]:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.85fr)] min-[820px]:items-start min-[820px]:gap-4" : "flex flex-col"}`}>
+      <div className={`flex-1 min-w-0 ${mode === "page" && (showSubtasks || showSteps || showOutcomes || showAttachments || showNotes || taskNotes.length > 0) ? "min-[820px]:grid min-[820px]:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.85fr)] min-[820px]:items-start min-[820px]:gap-4" : "flex flex-col"}`}>
         <div className="min-w-0">{descriptionSection}</div>
         <div className="min-w-0 mt-3 min-[820px]:mt-0">{expandables}</div>
       </div>
