@@ -28,7 +28,9 @@ export const DEFAULT_FILTERS: TaskFilters = {
   folder_ids: [],
   tag_ids: [],
   priorities: [],
-  show_completed: false,
+  // Completed tasks stay visible by default so their checkbox remains an
+  // immediate, reversible action instead of making the task disappear.
+  show_completed: true,
   sort_primary: { key: "due", dir: "asc" },
   sort_secondary: { key: "priority", dir: "asc" },
   sort: "priority",

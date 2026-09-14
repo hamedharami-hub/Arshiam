@@ -4,6 +4,7 @@ import android.app.*;
 import android.appwidget.*;
 import android.content.*;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
@@ -55,7 +56,7 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
         int fg = Color.parseColor(light ? "#172033" : "#F1F5F9");
         v.setInt(R.id.agenda_root,"setBackgroundResource",light ? R.drawable.widget_background_light : R.drawable.widget_background);
         v.setTextColor(R.id.agenda_title, fg);
-        boolean showDone = p.getBoolean(prefix+"done",false), highOnly = p.getBoolean(prefix+"high",false);
+        boolean showDone = AgendaData.showCompleted(c, id), highOnly = p.getBoolean(prefix+"high",false);
         List<JSONObject> tasks = AgendaData.select(c,scope,secondary,showDone,highOnly,p.getString(prefix+"sort","time"),
             p.getString(prefix+"thenSort","none"),p.getString(prefix+"matchMode","any"));
         int activeCount = AgendaData.select(c,scope,secondary,false,highOnly).size();
@@ -82,6 +83,8 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
                 String summary = primary.optString("title","Untitled task");
                 if (tasks.size() > 1) summary += "\n+ "+(tasks.size()-1)+" more tasks";
                 v.setTextViewText(R.id.agenda_summary,summary);
+                v.setInt(R.id.agenda_summary, "setPaintFlags", completed
+                    ? Paint.ANTI_ALIAS_FLAG | Paint.STRIKE_THRU_TEXT_FLAG : Paint.ANTI_ALIAS_FLAG);
                 v.setTextViewText(R.id.agenda_compact_done,completed ? "☑" : "☐");
                 v.setTextColor(R.id.agenda_compact_done,Color.parseColor(completed ? "#A78BFA" : "#C4B5FD"));
                 v.setViewVisibility(R.id.agenda_compact_done,View.VISIBLE);

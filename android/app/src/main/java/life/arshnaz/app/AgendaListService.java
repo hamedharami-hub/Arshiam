@@ -2,6 +2,7 @@ package life.arshnaz.app;
 import android.appwidget.AppWidgetManager;
 import android.content.*;
 import android.net.Uri;
+import android.graphics.Paint;
 import android.widget.*;
 import java.util.*;
 import org.json.JSONObject;
@@ -18,7 +19,7 @@ public class AgendaListService extends RemoteViewsService {
             SharedPreferences p=AgendaData.options(c);
             String sort=p.getString("widget."+id+".sort","time");
             tasks=AgendaData.select(c,AgendaWidgetProvider.scope(c,id),AgendaWidgetProvider.secondaryScope(c,id),
-                p.getBoolean("widget."+id+".done",false),p.getBoolean("widget."+id+".high",false),sort,
+                AgendaData.showCompleted(c,id),p.getBoolean("widget."+id+".high",false),sort,
                 p.getString("widget."+id+".thenSort","none"),p.getString("widget."+id+".matchMode","any"));
             tasks=visibleHierarchy(tasks,p,id);
             int limit=configuredLimit(p,id);
@@ -49,6 +50,8 @@ public class AgendaListService extends RemoteViewsService {
             boolean hasChildren=hasChildren(c,t.optString("id"));
             boolean collapsed=AgendaData.options(c).getBoolean("widget."+id+".collapsed."+t.optString("id"),false);
             row.setTextViewText(R.id.row_title,t.optString("title"));
+            row.setInt(R.id.row_title,"setPaintFlags",completed
+                ? Paint.ANTI_ALIAS_FLAG | Paint.STRIKE_THRU_TEXT_FLAG : Paint.ANTI_ALIAS_FLAG);
             row.setTextViewText(R.id.row_expand,hasChildren?(collapsed?"›":"⌄"):" ");
             row.setViewVisibility(R.id.row_expand,hasChildren?android.view.View.VISIBLE:android.view.View.GONE);
             row.setTextViewText(R.id.row_meta,(depth>0?"↳ SUBTASK · ":hasChildren?"TASK GROUP · ":"TASK · ")+AgendaData.dueLabel(t.optString("due_date")));

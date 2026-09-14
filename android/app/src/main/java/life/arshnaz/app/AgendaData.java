@@ -11,6 +11,22 @@ final class AgendaData {
     static final String PREFS = "arshnaz_widget_data";
     static SharedPreferences prefs(Context c) { return c.getSharedPreferences(PREFS, 0); }
     static SharedPreferences options(Context c) { return c.getSharedPreferences("arshnaz_android_options", 0); }
+    /**
+     * Completed rows must remain visible after a widget toggle so the same
+     * checkbox can immediately reopen the task.  Existing widgets are upgraded
+     * once; users can still disable this later in widget settings.
+     */
+    static boolean showCompleted(Context c, int widgetId) {
+        SharedPreferences p = options(c);
+        String prefix = "widget." + widgetId + ".";
+        String migrated = prefix + "completedVisibilityV2";
+        String key = prefix + "done";
+        if (!p.getBoolean(migrated, false)) {
+            p.edit().putBoolean(key, true).putBoolean(migrated, true).apply();
+            return true;
+        }
+        return p.getBoolean(key, true);
+    }
     static JSONArray read(Context c) {
         if (!prefs(c).getBoolean("sessionReady", false)) return new JSONArray();
         try { return new JSONArray(prefs(c).getString("agendaTasks", "[]")); }

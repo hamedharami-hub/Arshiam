@@ -255,12 +255,24 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
   );
   const SORT_KEY = "task_sort_v2";
+  // Versioned because older releases hid a completed task after a five-second
+  // grace period.  Upgrade existing saved views once, while preserving the
+  // user's ability to turn the filter off afterwards.
+  const COMPLETED_VISIBILITY_VERSION = "arshnaz_completed_tasks_visible_v1";
   const scopeKey = `${scope}:${params.id || "_"}`;
   const loadSavedFilters = (): TaskFilters => {
     try {
       const raw = localStorage.getItem(SORT_KEY);
       if (raw) {
         const obj = JSON.parse(raw);
+        const needsCompletedMigration = localStorage.getItem(COMPLETED_VISIBILITY_VERSION) !== "1";
+        if (needsCompletedMigration) {
+          Object.values(obj).forEach((saved: any) => {
+            if (saved && typeof saved === "object") saved.show_completed = true;
+          });
+          localStorage.setItem(SORT_KEY, JSON.stringify(obj));
+          localStorage.setItem(COMPLETED_VISIBILITY_VERSION, "1");
+        }
         if (obj && obj[scopeKey]) {
           const saved = obj[scopeKey];
           // Merge into defaults so newly added fields are present

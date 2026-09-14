@@ -1,6 +1,7 @@
 package life.arshnaz.app;
 import android.app.*;
 import android.content.*;
+import android.graphics.Paint;
 import android.widget.*;
 import android.view.View;
 import org.junit.*;
@@ -152,6 +153,21 @@ public class AndroidExperienceTest {
         JSONObject changed=AgendaData.task(c,"today-task");
         assertTrue(changed.optBoolean("completed"));
         assertEquals("done",changed.optString("status"));
+    }
+    @Test public void completedWidgetTaskStaysVisibleStruckThroughAndCanReopen() throws Exception {
+        login();
+        assertTrue(AgendaData.setCompleted(c,"today-task",true));
+        AgendaListService.Factory widget=new AgendaListService.Factory(c,1);
+        widget.onCreate();
+        assertEquals(1,widget.getCount());
+        TextView completed=(TextView)widget.getViewAt(0).apply(c,new FrameLayout(c)).findViewById(R.id.row_title);
+        assertTrue((completed.getPaintFlags() & Paint.STRIKE_THRU_TEXT_FLAG) != 0);
+        assertTrue(AgendaData.setCompleted(c,"today-task",false));
+        widget.onDataSetChanged();
+        TextView reopened=(TextView)widget.getViewAt(0).apply(c,new FrameLayout(c)).findViewById(R.id.row_title);
+        assertEquals(0,reopened.getPaintFlags() & Paint.STRIKE_THRU_TEXT_FLAG);
+        assertFalse(AgendaData.task(c,"today-task").optBoolean("completed"));
+        assertEquals("todo",AgendaData.task(c,"today-task").optString("status"));
     }
     @Test public void widgetHierarchyCanCollapseAndReopenChildren() throws Exception {
         login();

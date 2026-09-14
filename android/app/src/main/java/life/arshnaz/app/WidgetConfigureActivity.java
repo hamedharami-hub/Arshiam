@@ -40,7 +40,7 @@ public class WidgetConfigureActivity extends Activity {
             "all".equals(p.getString(prefix+"matchMode","any"))?1:0);
         root.addView(labeled("When View 2 is on",matchMode));
         Spinner theme=spinner(new String[]{"Dark","Light"},p.getBoolean(prefix+"light",false)?1:0); root.addView(labeled("Theme",theme));
-        CheckBox done=check(root,"Show completed tasks",p.getBoolean(prefix+"done",false));
+        CheckBox done=check(root,"Show completed tasks",AgendaData.showCompleted(this,id));
         CheckBox high=check(root,"High priority only",p.getBoolean(prefix+"high",false));
         Spinner textSize=spinner(new String[]{"Small","Medium","Large"},indexOf(new String[]{"small","medium","large"},p.getString(prefix+"textSize",p.getBoolean(prefix+"large",false)?"large":"medium"))); root.addView(labeled("Text size",textSize));
         Spinner sort=spinner(new String[]{"Time","Priority","Title"},indexOf(new String[]{"time","priority","title"},p.getString(prefix+"sort","time"))); root.addView(labeled("Sort by",sort));
