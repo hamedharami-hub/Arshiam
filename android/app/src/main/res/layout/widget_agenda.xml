@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/agenda_root" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:layoutDirection="ltr" android:padding="16dp" android:background="#111827">
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/agenda_root" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:layoutDirection="ltr" android:padding="16dp" android:background="@drawable/widget_background">
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
             <TextView android:id="@+id/agenda_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Today" android:textSize="21sp" android:textStyle="bold" android:textColor="#F8FAFC"/>

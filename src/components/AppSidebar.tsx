@@ -76,6 +76,7 @@ const EN_LABELS: Record<string, string> = {
   "تمرین تنفس ۳بعدی": "3D Breathing",
   "معمار زندگی": "Life Architect",
   "صندوق ورودی": "Inbox",
+  "ویجت‌ها": "Widgets",
 };
 const FA_LABELS: Record<string, string> = {
   "Inbox": "صندوق ورودی",
@@ -107,6 +108,7 @@ const SECTIONS: Section[] = [
       { url: "/app/tomorrow", icon: Sun, label: "فردا" },
       { url: "/app/next7", icon: CalendarDays, label: "۷ روز آینده" },
       { url: "/app/calendar", icon: Calendar, label: "تقویم" },
+      { url: "/app/widgets", icon: LayoutGrid, label: "ویجت‌ها" },
       { url: "/app/buckets", icon: CalendarDays, label: "بازه‌های کلی" },
       { url: "/app/smart", icon: Filter, label: "Smart Lists" },
       { url: "/app/pomodoro", icon: Timer, label: "Pomodoro" },

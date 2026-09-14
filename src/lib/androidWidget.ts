@@ -15,15 +15,31 @@ const widget = registerPlugin<WidgetPlugin>("ArshnazWidget");
 let queue: Promise<void> = Promise.resolve();
 let readyUid = "";
 let latestTasks: { ownerId: string; tasks: Task[] } | undefined;
+let lastSyncTimestamp: number | null = null;
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
 function enqueue(action: () => Promise<void>): Promise<void> {
   const next = queue.then(action);
   queue = next.catch(() => { console.warn("Android widget update unavailable"); });
   return next;
 }
 
+export function getWidgetDiagnostics() {
+  return {
+    isNative: Capacitor.getPlatform() === "android",
+    platform: Capacitor.getPlatform(),
+    readyUid,
+    hasSession: Boolean(readyUid),
+    lastSyncTimestamp,
+    cachedCount: latestTasks?.tasks.length ?? 0,
+  };
+}
+
 export async function clearAndroidWidget(): Promise<void> {
   readyUid = "";
   latestTasks = undefined;
+  lastSyncTimestamp = null;
+  if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; }
   if (Capacitor.getPlatform() === "android") await enqueue(() => widget.setSession({ userId: "" }));
 }
 
@@ -83,7 +99,10 @@ export async function syncAndroidWidget(tasks: Task[], ownerId = auth.currentUse
 /** Redraw every native widget without requiring a full app restart. */
 export async function refreshAndroidWidgets(): Promise<void> {
   if (Capacitor.getPlatform() !== "android") return;
-  await enqueue(async () => { await widget.refreshWidgets(); });
+  await enqueue(async () => {
+    await widget.refreshWidgets();
+    lastSyncTimestamp = Date.now();
+  });
 }
 
 async function sendTasks(tasks: Task[], ownerId: string): Promise<void> {
@@ -94,4 +113,5 @@ async function sendTasks(tasks: Task[], ownerId: string): Promise<void> {
       tasks: tasks.map(({ id, title, due_date, completed, status, priority, reminder_at, folder_id, parent_id }) =>
         ({ id, title, due_date: due_date || "", completed, status, priority, reminder_at: reminder_at || "",
           folder_id: folder_id || "", parent_id: parent_id || "" })) });
+    lastSyncTimestamp = Date.now();
 }

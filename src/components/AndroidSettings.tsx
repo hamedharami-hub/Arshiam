@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { App as CapApp } from "@capacitor/app";
-import { Activity, BellRing, CalendarClock, CheckCircle2, ChevronDown, Clock3, LayoutGrid, ListChecks, RefreshCw, Smartphone, Sparkles, TimerReset, Zap } from "lucide-react";
+import { Activity, BellRing, CalendarClock, CheckCircle2, ChevronDown, Clock3, ExternalLink, LayoutGrid, ListChecks, RefreshCw, Smartphone, Sparkles, TimerReset, Zap } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -91,6 +91,22 @@ export default function AndroidSettings() {
           <div className="flex items-center justify-between gap-3">
             <div><h3 id="android-widgets-title" className="flex items-center gap-2 text-sm font-semibold"><LayoutGrid className="h-4 w-4 text-primary" />خانوادهٔ ویجت‌ها</h3><p className="mt-1 text-xs text-muted-foreground">ویجت‌ها انگلیسی‌اند؛ دو نما را می‌توانی با هم ترکیب کنی، زیرتسک‌ها را ببینی، وضعیت انجام را تغییر بدهی و با لمس عنوان وارد خود تسک شوی.</p></div>
             <Button size="sm" variant="outline" onClick={() => void refreshWidgets()} disabled={widgetBusy} className="gap-2"><RefreshCw className={`h-4 w-4 ${widgetBusy ? "animate-spin" : ""}`} />تازه‌سازی همه</Button>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/10 p-3.5">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-primary p-2 text-primary-foreground">
+                <LayoutGrid className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-foreground">استودیوی پیش‌نمایش و شخصی‌سازی ویجت‌ها</h4>
+                <p className="text-[11px] text-muted-foreground">شبیه‌ساز زنده روی گوشی، تم‌های رنگی، و تست در لحظه</p>
+              </div>
+            </div>
+            <Button size="sm" onClick={() => window.location.assign("/app/widgets")} className="gap-1.5 rounded-xl text-xs shrink-0">
+              <span>ورود به استودیو</span>
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             {WIDGETS.map(({ name, description, icon: Icon }) => <div key={name} className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 p-3"><div className="rounded-xl bg-primary/10 p-2 text-primary"><Icon className="h-4 w-4" /></div><div className="min-w-0 flex-1"><div className="text-sm font-medium">{name}</div><div className="truncate text-xs text-muted-foreground">{description}</div></div><Badge variant="outline" className="gap-1 whitespace-nowrap text-[10px]"><CheckCircle2 className="h-3 w-3 text-emerald-500" />Ready</Badge></div>)}

@@ -78,6 +78,7 @@ const SharedWithMeView = lazy(() => import("./pages/SharedWithMeView"));
 const ShareTargetView = lazy(() => import("./pages/ShareTargetView"));
 const BucketsView = lazy(() => import("./pages/BucketsView"));
 const ArticleRewriteView = lazy(() => import("./pages/ArticleRewriteView"));
+const WidgetsView = lazy(() => import("./pages/WidgetsView"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -243,8 +244,8 @@ const App = () => {
                       <Route path="share-target" element={<ShareTargetView />} />
                       <Route path="rewrite-article" element={<ArticleRewriteView />} />
                       <Route path="tasks/:id" element={<TaskDetailView />} />
-                      <Route path="widgets" element={<Navigate to="/app/today" replace />} />
-                      <Route path="widget/:id" element={<Navigate to="/app/today" replace />} />
+                      <Route path="widgets" element={<WidgetsView />} />
+                      <Route path="widget/:id" element={<WidgetsView />} />
                     </Route>
                     <Route path="*" element={<NotFound />} />
                   </Routes>
