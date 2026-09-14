@@ -20,7 +20,7 @@ vi.mock("@/components/TaskAIPanel", () => ({ TaskAIPanel: () => null }));
 import { TaskDetail } from "./TaskDetail";
 
 describe("TaskDetail initial render", () => {
-  it("opens the full task page with its progress and editor without a reference error", () => {
+  it("opens the full task page with its editor without a reference error", () => {
     const task = {
       id: "task-1", user_id: "owner-1", title: "Plan tomorrow",
       description: "A clear next step", completed: false, status: "todo",
@@ -30,7 +30,7 @@ describe("TaskDetail initial render", () => {
       <TaskDetail task={task} mode="page" onClose={() => {}} onChanged={() => {}} setConfirm={() => {}} />,
     );
     expect(html).toContain("Plan tomorrow");
-    expect(html).toContain("Task progress");
+    expect(html).not.toContain("Task progress");
     expect(html).toContain("Description");
   });
 });

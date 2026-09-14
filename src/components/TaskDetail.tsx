@@ -559,40 +559,10 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     if (t.start_at || t.end_at) return T("تایم‌بلاک", "Time block");
     return null;
   })();
-  const progressPercent = t.completed ? 100 : subtaskProgress.total
-    ? Math.round((subtaskProgress.completed / subtaskProgress.total) * 100) : 0;
   const handleSubtaskProgress = useCallback((completed: number, total: number) => {
     setSubtaskProgress((current) => current.completed === completed && current.total === total
       ? current : { completed, total });
   }, []);
-
-  // ── Rail icon button (MD3 tonal) ────────────────────────────────────
-  const RailButton = ({
-    icon: Icon, label, active, badge, onClick, accent, className, disabled,
-  }: any) => (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={label}
-      aria-label={label}
-      className={`relative flex flex-col items-center justify-center gap-0 min-w-[52px] h-11 rounded-xl transition active:scale-95 disabled:opacity-50 disabled:cursor-default ${
-        active
-          ? accent
-            ? "bg-primary/15 text-primary"
-            : "bg-secondary text-secondary-foreground"
-          : "text-muted-foreground hover:bg-muted/60"
-      } ${className || ""}`}
-    >
-      <Icon className="w-4 h-4" />
-      {badge != null && badge !== 0 && (
-        <span className="absolute top-0.5 end-0.5 min-w-[13px] h-[13px] px-0.5 rounded-full bg-primary text-primary-foreground text-[8px] font-medium flex items-center justify-center">
-          {badge}
-        </span>
-      )}
-      <span className="text-[9px] mt-0.5 leading-none line-clamp-1 px-1 text-center">{label}</span>
-    </button>
-  );
 
   const Chip = ({ icon: Icon, children, onClick, onClear, color, disabled }: any) => (
     <span
@@ -794,7 +764,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState<string>(TAG_COLORS[3]);
   const [showTagCreate, setShowTagCreate] = useState(false);
-  const [linkUrl, setLinkUrl] = useState("");
 
   const createFolderAndAssign = async () => {
     if (!user || !isOwner || !newFolderName.trim()) return;
@@ -846,34 +815,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     await firebaseStore.from("task_tags").insert({ task_id: t.id, tag_id: (data as any).id, user_id: user.id });
     setTaskTagIds([...taskTagIds, (data as any).id]);
     toast.success(T("تگ ساخته شد", "Tag created"));
-  };
-
-  const attachLink = async () => {
-    if (!user || !canEdit || !linkUrl.trim()) return;
-    const url = linkUrl.trim();
-    const { error } = await firebaseStore.from("task_attachments").insert({
-      user_id: user.id,
-      task_id: t.id,
-      url,
-      storage_path: "",
-      file_name: url.replace(/^https?:\/\//, "").slice(0, 80),
-      mime_type: "text/uri-list",
-      kind: "file" as any,
-      size_bytes: 0,
-    } as any);
-    if (error) return toast.error(error.message);
-    setLinkUrl("");
-    setShowAttachments(true);
-    toast.success(T("لینک افزوده شد", "Link added"));
-    window.dispatchEvent(new CustomEvent(`arshnaz:attach-refresh:${t.id}`));
-  };
-
-  const pickFileType = (accept: string) => {
-    setShowAttachments(true);
-    // Defer so the section mounts first
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent(`arshnaz:attach-pick:${t.id}`, { detail: { accept } }));
-    }, 50);
   };
 
   // ── 4 Metadata tabs: Inbox/Folder, Schedule, Priority, Tags ──────
@@ -1221,217 +1162,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     </div>
   );
 
-  // ── Bottom action rail ──────────────────────────────────────────────
-  const bottomRail = (
-    <div className="mx-auto max-w-3xl w-full px-2 py-2 border-t border-border/50 bg-card/70 dark:bg-card/80 backdrop-blur-xl rounded-b-2xl">
-      <div className="flex items-center justify-between gap-1 overflow-x-auto no-scrollbar">
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
-                <RailButton
-                  icon={Zap}
-                  label={T("تمرکز", "Focus")}
-                  accent
-                  onClick={() => setFocusOpen(true)}
-                  disabled={!canEdit}
-                />
-                <RailButton
-                  icon={FileText}
-                  label={T("نوت‌ها", "Notes")}
-                  active={showNotes || taskNotes.length > 0}
-                  badge={taskNotes.length || undefined}
-                  onClick={() => setShowNotes(true)}
-                  disabled={!canEdit}
-                />
-                {/* 4. Tags + quick-create */}
-                <Popover open={tagOpen} onOpenChange={setTagOpen}>
-                  <PopoverTrigger asChild>
-                    <span>
-                      <RailButton icon={TagIcon} label={T("تگ", "Tags")} active={taskTagIds.length > 0} badge={taskTagIds.length || undefined} />
-                    </span>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-72 p-2 max-h-[55vh] overflow-y-auto" align="start" side="top">
-                    {!showTagCreate ? (
-                      <button
-                        onClick={() => setShowTagCreate(true)}
-                        className="w-full flex items-center gap-2 p-2 mb-1 rounded-xl bg-muted/40 hover:bg-accent text-sm text-muted-foreground"
-                      >
-                        <Plus className="w-4 h-4" /> {T("ساخت تگ جدید", "Create new tag")}
-                      </button>
-                    ) : (
-                      <>
-                        <div className="flex items-center gap-1.5 mb-2 p-1.5 rounded-xl bg-muted/40">
-                          <span className="w-3 h-3 rounded-full shrink-0 ms-1" style={{ background: newTagColor }} />
-                          <Input
-                            autoFocus
-                            value={newTagName}
-                            onChange={(e) => setNewTagName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") { createTagAndAssign(); setShowTagCreate(false); }
-                              if (e.key === "Escape") setShowTagCreate(false);
-                            }}
-                            placeholder={T("نام تگ جدید…", "New tag name…")}
-                            className="h-8 text-xs border-0 bg-transparent focus-visible:ring-0"
-                          />
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={async () => { await createTagAndAssign(); setShowTagCreate(false); }} disabled={!newTagName.trim()}>
-                            <Plus className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                        <div className="flex gap-1 mb-2 px-1">
-                          {TAG_COLORS.map(c => (
-                            <button key={c} onClick={() => setNewTagColor(c)}
-                              className={`w-5 h-5 rounded-full border-2 ${newTagColor === c ? "border-foreground" : "border-transparent"}`}
-                              style={{ background: c }} />
-                          ))}
-                        </div>
-                      </>
-                    )}
-                    {tags.map(tg => {
-                      const active = taskTagIds.includes(tg.id);
-                      return (
-                        <button key={tg.id} onClick={() => toggleTag(tg.id)}
-                          className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent flex items-center justify-between gap-2 ${active ? "bg-accent" : ""}`}>
-                          <span className="flex items-center gap-2">
-                            <span className="w-2.5 h-2.5 rounded-full" style={{ background: tg.color || "hsl(var(--muted-foreground))" }} />
-                            {tg.name}
-                          </span>
-                          {active && <Check className="w-3.5 h-3.5" />}
-                        </button>
-                      );
-                    })}
-                  </PopoverContent>
-                </Popover>
-
-                {/* 5. Attachments — pick file type first */}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <span>
-                      <RailButton icon={Paperclip} label={T("ضمیمه", "Attach")} active={showAttachments} disabled={!canEdit} />
-                    </span>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 p-2" align="start" side="top">
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <AttachTypeBtn icon={ImageIcon} label={T("تصویر", "Image")} onClick={() => pickFileType("image/*")} />
-                      <AttachTypeBtn icon={Music} label={T("صدا", "Audio")} onClick={() => pickFileType("audio/*")} />
-                      <AttachTypeBtn icon={FileText} label={T("سند", "Document")} onClick={() => pickFileType("application/pdf,.doc,.docx,.txt")} />
-                      <AttachTypeBtn icon={Paperclip} label={T("هر فایلی", "Any file")} onClick={() => pickFileType("*/*")} />
-                    </div>
-                    <div className="mt-2 pt-2 border-t border-border/40 flex items-center gap-1.5">
-                      <LinkIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                      <Input
-                        value={linkUrl}
-                        onChange={(e) => setLinkUrl(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && attachLink()}
-                        placeholder={T("https://…", "https://…")}
-                        className="h-8 text-xs"
-                        dir="ltr"
-                      />
-                      <Button size="sm" variant="outline" className="h-8 text-xs" onClick={attachLink} disabled={!linkUrl.trim()}>
-                        {T("افزودن", "Add")}
-                      </Button>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-
-                {/* Link parent task */}
-                <Popover open={parentOpen} onOpenChange={setParentOpen}>
-                  <PopoverTrigger asChild>
-                    <span>
-                      <RailButton icon={ListTree} label={T("تسک والد", "Parent")} active={!!t.parent_id} disabled={!canEdit} />
-                    </span>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-72 p-2 max-h-[55vh] overflow-y-auto" align="start" side="top">
-                    <button
-                      disabled={!isOwner || t.parent_id === null}
-                      onClick={() => { save({ parent_id: null }); setParentOpen(false); }}
-                      className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${t.parent_id === null ? "bg-accent" : ""}`}
-                    >
-                      {T("بدون والد (سطح بالا)", "No parent (top-level)")}
-                    </button>
-                    {parentCandidates.map((c) => (
-                      <button
-                        key={c.id}
-                        disabled={!canEdit || c.id === t.parent_id}
-                        onClick={() => { save({ parent_id: c.id }); setParentOpen(false); }}
-                        className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent truncate disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${t.parent_id === c.id ? "bg-accent" : ""}`}
-                      >
-                        {c.title || T("بدون عنوان", "Untitled")}
-                      </button>
-                    ))}
-                  </PopoverContent>
-                </Popover>
-
-                {/* 6. Items: Subtasks, Steps or Branches */}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <span>
-                      <RailButton
-                        icon={ListChecks}
-                        label={T("آیتم‌ها", "Items")}
-                        active={showSubtasks || showSteps || showOutcomes}
-                        badge={outcomeCount || undefined}
-                        disabled={!(canEdit || canComment)}
-                      />
-                    </span>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-56 p-1.5" align="start" side="top">
-                    <button
-                      onClick={() => setShowSubtasks(s => !s)}
-                      className={`w-full flex items-center gap-2 p-2.5 rounded-lg text-sm hover:bg-accent ${showSubtasks ? "bg-accent" : ""}`}
-                    >
-                      <ListTree className="w-4 h-4 text-primary" />
-                      <span className="flex-1 text-start">{T("زیرتسک", "Subtask")}</span>
-                      {showSubtasks && <Check className="w-3.5 h-3.5" />}
-                    </button>
-                    <button
-                      onClick={() => setShowSteps(s => !s)}
-                      className={`w-full flex items-center gap-2 p-2.5 rounded-lg text-sm hover:bg-accent ${showSteps ? "bg-accent" : ""}`}
-                    >
-                      <CheckSquare className="w-4 h-4 text-emerald-500" />
-                      <span className="flex-1 text-start">{T("مرحله / چک‌لیست", "Step / checklist")}</span>
-                      {showSteps && <Check className="w-3.5 h-3.5" />}
-                    </button>
-                    <button
-                      onClick={() => setShowOutcomes(s => !s)}
-                      disabled={!canEdit}
-                      className={`w-full flex items-center gap-2 p-2.5 rounded-lg text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${showOutcomes ? "bg-accent" : ""}`}
-                    >
-                      <GitBranch className="w-4 h-4 text-amber-500" />
-                      <span className="flex-1 text-start">{T("شاخه‌ها", "Branches")}</span>
-                      {outcomeCount > 0 && (
-                        <span className="text-[10px] text-muted-foreground tabular-nums">{outcomeCount}</span>
-                      )}
-                      {showOutcomes && <Check className="w-3.5 h-3.5" />}
-                    </button>
-                  </PopoverContent>
-                </Popover>
-
-                {/* AI */}
-                <RailButton
-                  icon={Sparkles}
-                  label="AI"
-                  accent
-                  onClick={() => setAiOpen(true)}
-                  disabled={!canEdit}
-                />
-                <RailButton
-                  icon={MoreHorizontal}
-                  label={T("بیشتر", "More")}
-                  onClick={() => setActionMenuOpen(true)}
-                />
-              </div>
-
-              {allowDelete && canEdit && (
-                <div className="flex items-center ps-1 border-s border-border/50 shrink-0">
-                  <RailButton
-                    icon={Trash2}
-                    label={T("حذف", "Delete")}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={deleteTask}
-                  />
-                </div>
-              )}
-      </div>
-    </div>
-  );
 
   // ── Expandable inline blocks (only when toggled) ────────────────────
   const expandables = (
@@ -1603,135 +1333,70 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           </div>
         </section>
       )}
-    </div>
-  );
 
-  const progressPanel = (
-    <div className="mx-1 mb-3 rounded-2xl border border-border/50 bg-muted/25 px-3 py-2.5">
-      <div className="mb-2 flex items-center justify-between gap-3 text-xs">
-        <span className="flex items-center gap-1.5 font-medium text-foreground/85">
-          <ListChecks className="h-3.5 w-3.5 text-primary" />
-          {T("پیشرفت تسک", "Task progress")}
-        </span>
-        <span className="tabular-nums text-muted-foreground">
-          {subtaskProgress.total
-            ? T(`${subtaskProgress.completed} از ${subtaskProgress.total} زیرتسک`, `${subtaskProgress.completed} of ${subtaskProgress.total} subtasks`)
-            : t.completed ? T("تکمیل شد", "Completed") : T("آمادهٔ شروع", "Ready to start")}
-        </span>
-      </div>
-      <div className="flex items-center gap-3">
-        <Progress value={progressPercent} className="h-2 flex-1" />
-        <span className="w-9 text-end text-xs font-semibold tabular-nums text-primary">{progressPercent}%</span>
-      </div>
-    </div>
-  );
-
-  const structurePills = (
-    <div className="mx-1 mb-3 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 text-xs">
-      {/* 1. Subtasks Pill */}
-      <button
-        type="button"
-        onClick={() => setShowSubtasks((s) => !s)}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-medium whitespace-nowrap shrink-0 ${
-          showSubtasks
-            ? "bg-primary/15 text-primary border-primary/30 shadow-2xs"
-            : "bg-card/60 text-muted-foreground hover:text-foreground border-border/50 hover:bg-muted/60"
-        }`}
-      >
-        <ListTree className="w-3.5 h-3.5 text-primary" />
-        <span>{T("زیرتسک‌ها", "Subtasks")}</span>
-        <span className={`px-1.5 py-0.5 rounded-full text-[10px] tabular-nums font-semibold ${
-          showSubtasks ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-        }`}>
-          {subtaskProgress.total ? `${subtaskProgress.completed}/${subtaskProgress.total}` : 0}
-        </span>
-      </button>
-
-      {/* 2. Checklists & Steps Pill */}
-      <button
-        type="button"
-        onClick={() => setShowSteps((s) => !s)}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-medium whitespace-nowrap shrink-0 ${
-          showSteps
-            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shadow-2xs"
-            : "bg-card/60 text-muted-foreground hover:text-foreground border-border/50 hover:bg-muted/60"
-        }`}
-      >
-        <CheckSquare className="w-3.5 h-3.5 text-emerald-500" />
-        <span>{T("چک‌لیست و مراحل", "Checklists & Steps")}</span>
-        <span className={`px-1.5 py-0.5 rounded-full text-[10px] tabular-nums font-semibold ${
-          showSteps ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"
-        }`}>
-          {stepListCount}
-        </span>
-      </button>
-
-      {/* 3. Branches & Outcomes Pill */}
-      <button
-        type="button"
-        onClick={() => setShowOutcomes((s) => !s)}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-medium whitespace-nowrap shrink-0 ${
-          showOutcomes
-            ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 shadow-2xs"
-            : "bg-card/60 text-muted-foreground hover:text-foreground border-border/50 hover:bg-muted/60"
-        }`}
-      >
-        <GitBranch className="w-3.5 h-3.5 text-amber-500" />
-        <span>{T("شاخه‌ها و تصمیمات", "Branches & Outcomes")}</span>
-        <span className={`px-1.5 py-0.5 rounded-full text-[10px] tabular-nums font-semibold ${
-          showOutcomes ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"
-        }`}>
-          {outcomeCount}
-        </span>
-      </button>
-
-      {/* 4. Notes Pill */}
-      <button
-        type="button"
-        onClick={() => setShowNotes((s) => !s)}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-medium whitespace-nowrap shrink-0 ${
-          showNotes || taskNotes.length > 0
-            ? "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 shadow-2xs"
-            : "bg-card/60 text-muted-foreground hover:text-foreground border-border/50 hover:bg-muted/60"
-        }`}
-      >
-        <FileText className="w-3.5 h-3.5 text-blue-500" />
-        <span>{T("نوت‌ها", "Notes")}</span>
-        {taskNotes.length > 0 && (
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] tabular-nums font-semibold bg-blue-500 text-white">
-            {taskNotes.length}
-          </span>
-        )}
-      </button>
-
-      {/* 5. Attachments Pill */}
-      <button
-        type="button"
-        onClick={() => setShowAttachments((s) => !s)}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-medium whitespace-nowrap shrink-0 ${
-          showAttachments
-            ? "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30 shadow-2xs"
-            : "bg-card/60 text-muted-foreground hover:text-foreground border-border/50 hover:bg-muted/60"
-        }`}
-      >
-        <Paperclip className="w-3.5 h-3.5 text-purple-500" />
-        <span>{T("پیوست‌ها", "Attachments")}</span>
-        {attachmentCount > 0 && (
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] tabular-nums font-semibold bg-purple-500 text-white">
-            {attachmentCount}
-          </span>
-        )}
-      </button>
+      {/* Subtle add buttons for sections if not yet added */}
+      {(!showSubtasks || !showSteps || !showAttachments || (!showNotes && taskNotes.length === 0) || !showOutcomes) && (
+        <div className="flex items-center gap-1.5 flex-wrap pt-1 text-xs">
+          {!showSubtasks && (
+            <button
+              type="button"
+              onClick={() => setShowSubtasks(true)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-dashed border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/40 text-xs transition"
+            >
+              <Plus className="w-3 h-3 text-primary" />
+              <span>{T("زیرتسک", "Subtask")}</span>
+            </button>
+          )}
+          {!showSteps && (
+            <button
+              type="button"
+              onClick={() => setShowSteps(true)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-dashed border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/40 text-xs transition"
+            >
+              <Plus className="w-3 h-3 text-emerald-500" />
+              <span>{T("چک‌لیست", "Checklist")}</span>
+            </button>
+          )}
+          {!showNotes && taskNotes.length === 0 && (
+            <button
+              type="button"
+              onClick={() => { setShowNotes(true); void addNote(); }}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-dashed border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/40 text-xs transition"
+            >
+              <Plus className="w-3 h-3 text-blue-500" />
+              <span>{T("یادداشت", "Note")}</span>
+            </button>
+          )}
+          {!showAttachments && (
+            <button
+              type="button"
+              onClick={() => setShowAttachments(true)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-dashed border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/40 text-xs transition"
+            >
+              <Plus className="w-3 h-3 text-purple-500" />
+              <span>{T("پیوست", "Attachment")}</span>
+            </button>
+          )}
+          {!showOutcomes && (
+            <button
+              type="button"
+              onClick={() => setShowOutcomes(true)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-dashed border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/40 text-xs transition"
+            >
+              <Plus className="w-3 h-3 text-amber-500" />
+              <span>{T("شاخه‌ها", "Branches")}</span>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 
   const body = (
-    <div className="mt-1 task-detail-sections flex flex-col min-h-[40vh]">
+    <div className="mt-1 task-detail-sections flex flex-col min-h-[40vh] space-y-3">
       {hero}
       {topControls}
       {quickChips}
-      {progressPanel}
-      {structurePills}
       {/* On a wide desktop or unfolded device, keep the writing surface and
           task structure adjacent.  The narrow layout remains a single calm
           reading flow instead of squeezing either section into a tiny column. */}
@@ -1739,7 +1404,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         <div className="min-w-0">{descriptionSection}</div>
         <div className="min-w-0 mt-3 min-[820px]:mt-0">{expandables}</div>
       </div>
-      {bottomRail}
     </div>
   );
 
@@ -1889,6 +1553,42 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         >
           <Copy className="w-4 h-4 text-muted-foreground" />
           <span>{T("تکثیر تسک", "Duplicate task")}</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator className="my-1 border-border/50" />
+        <DropdownMenuItem
+          onClick={() => setAiOpen(true)}
+          className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-accent focus:bg-accent"
+        >
+          <Sparkles className="w-4 h-4 text-purple-500" />
+          <span>{T("دستیار هوش مصنوعی", "AI Assistant")}</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => setShowSteps(true)}
+          className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-accent focus:bg-accent"
+        >
+          <CheckSquare className="w-4 h-4 text-emerald-500" />
+          <span>{T("افزودن چک‌لیست و مراحل", "Add checklist & steps")}</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => { setShowNotes(true); void addNote(); }}
+          className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-accent focus:bg-accent"
+        >
+          <FileText className="w-4 h-4 text-blue-500" />
+          <span>{T("افزودن یادداشت", "Add note")}</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => setShowAttachments(true)}
+          className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-accent focus:bg-accent"
+        >
+          <Paperclip className="w-4 h-4 text-purple-500" />
+          <span>{T("افزودن پیوست", "Add attachment")}</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => setOutcomeOpen(true)}
+          className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-accent focus:bg-accent"
+        >
+          <GitBranch className="w-4 h-4 text-amber-500" />
+          <span>{T("شاخه‌ها و تصمیمات", "Branches & outcomes")}</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator className="my-1 border-border/50" />
         <DropdownMenuItem
@@ -2140,16 +1840,3 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     </>
   );
 });
-
-function AttachTypeBtn({ icon: Icon, label, onClick }: { icon: any; label: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex flex-col items-center justify-center gap-0.5 p-2 rounded-lg bg-muted/40 hover:bg-accent active:scale-95 transition"
-    >
-      <Icon className="w-4 h-4 text-primary" />
-      <span className="text-[10px] font-medium">{label}</span>
-    </button>
-  );
-}
