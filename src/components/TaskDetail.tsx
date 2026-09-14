@@ -76,7 +76,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   setConfirm: (c: ConfirmState) => void;
   mode?: "sheet" | "page" | "drawer" | "embedded";
   allowDelete?: boolean;
-}>(function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet", allowDelete = false }, ref) {
+  onSave?: () => Promise<void> | void;
+}>(function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet", allowDelete = false, onSave }, ref) {
   const { user } = useAuth();
   const { i18n } = useTranslation();
   const navigate = useNavigate();
@@ -124,6 +125,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [outcomeCount, setOutcomeCount] = useState(0);
   const [outcomeRefresh, setOutcomeRefresh] = useState(0);
   const [saveState, setSaveState] = useState<"saved" | "dirty" | "saving" | "queued" | "error">("saved");
+  const [saveBusy, setSaveBusy] = useState(false);
   const [closePromptOpen, setClosePromptOpen] = useState(false);
   const latestTaskRef = useRef(task);
   const savedTaskRef = useRef(task);
@@ -461,11 +463,40 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     else onClose();
   }, [hasPendingChanges, saveState, onClose]);
 
+  const handleSaveClick = useCallback(async () => {
+    if (onSave) {
+      try {
+        setSaveBusy(true);
+        await onSave();
+      } finally {
+        setSaveBusy(false);
+      }
+    } else {
+      try {
+        setSaveBusy(true);
+        await savePendingChanges(true);
+        toast.success(T("تغییرات ذخیره شد", "Changes saved"));
+      } catch {
+        // error already handled in savePendingChanges
+      } finally {
+        setSaveBusy(false);
+      }
+    }
+  }, [onSave, savePendingChanges, T]);
+
+  const handleBackClick = useCallback(() => {
+    if (onSave) {
+      onClose();
+    } else {
+      requestClose();
+    }
+  }, [onSave, onClose, requestClose]);
+
   useEffect(() => {
-    const request = () => requestClose();
+    const request = () => handleBackClick();
     window.addEventListener("arshnaz:request-task-close", request);
     return () => window.removeEventListener("arshnaz:request-task-close", request);
-  }, [requestClose]);
+  }, [handleBackClick]);
 
   const deleteTask = () => {
     setConfirm({
@@ -1838,11 +1869,11 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         <Button
           size="sm"
           variant={hasPendingChanges || saveState === "error" ? "default" : "outline"}
-          disabled={!canEdit || saveState === "saving"}
-          onClick={() => void savePendingChanges()}
+          disabled={!canEdit || saveState === "saving" || saveBusy}
+          onClick={() => void handleSaveClick()}
           className="h-8 gap-1.5 rounded-xl text-xs"
         >
-          {saveState === "saving" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+          {saveBusy || saveState === "saving" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
           {T("ذخیره", "Save")}
         </Button>
         <Button size="icon" variant="ghost" className="h-8 w-8 rounded-xl" onClick={requestClose} title={T("بستن", "Close")}>
@@ -1873,11 +1904,11 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       <Button
         size="sm"
         variant={hasPendingChanges || saveState === "error" ? "default" : "outline"}
-        disabled={!canEdit || saveState === "saving"}
-        onClick={() => void savePendingChanges()}
+        disabled={!canEdit || saveState === "saving" || saveBusy}
+        onClick={() => void handleSaveClick()}
         className="gap-1.5 rounded-xl text-xs font-medium"
       >
-        {saveState === "saving" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+        {saveBusy || saveState === "saving" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
         {T("ذخیره", "Save")}
       </Button>
       {mode !== "page" && (
@@ -1952,17 +1983,62 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           )}
         </div>
       ) : mode === "page" ? (
-        <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-2 min-h-screen flex flex-col justify-between">
-          <div className="sticky top-14 z-10 px-3 sm:px-4 py-2 mb-3 rounded-2xl bg-card/80 dark:bg-card/85 backdrop-blur-xl border border-border/50 shadow-xs flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground" aria-live="polite">
-              <span className={`w-2 h-2 rounded-full ${
-                saveState === "saving" ? "bg-amber-500 animate-ping" :
-                saveState === "dirty" ? "bg-amber-500" :
-                saveState === "error" ? "bg-destructive" : "bg-emerald-500"
-              }`} />
-              {saveLabel}
-            </span>
-            {editorActions}
+        <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 min-h-screen flex flex-col justify-between">
+          {/* Unified single-row top header replacing the 3 old stacked rows */}
+          <div
+            className="sticky top-0 z-30 -mx-3 sm:-mx-6 lg:-mx-8 px-3 sm:px-6 lg:px-8 py-2 mb-3 bg-background/95 dark:bg-background/95 backdrop-blur-xl border-b border-border/50 shadow-xs flex items-center justify-between gap-2"
+            style={{ paddingTop: "max(env(safe-area-inset-top), 0.5rem)" }}
+          >
+            {/* Leading: Back button + Saved status indicator */}
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBackClick}
+                className="gap-1 px-2.5 h-8.5 rounded-xl font-medium"
+              >
+                <ArrowRight className={`w-4 h-4 ${isEn ? "rotate-180" : ""}`} />
+                <span className="text-xs">{T("برگشت", "Back")}</span>
+              </Button>
+              <div className="flex items-center gap-1.5 ps-1 text-xs text-muted-foreground" aria-live="polite">
+                <span className={`w-2 h-2 rounded-full ${
+                  saveBusy || saveState === "saving" ? "bg-amber-500 animate-ping" :
+                  saveState === "dirty" ? "bg-amber-500" :
+                  saveState === "error" ? "bg-destructive" : "bg-emerald-500"
+                }`} />
+                <span className="hidden sm:inline text-[11px] font-medium">{saveLabel}</span>
+              </div>
+            </div>
+
+            {/* Center: Empty / clean breathing room - no "New Task" or "جزئیات تسک" text */}
+            <div className="flex-1 min-w-0" />
+
+            {/* Trailing: Save button, Calendar button, and More actions dropdown */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Button
+                size="sm"
+                disabled={!canEdit || saveBusy || saveState === "saving"}
+                onClick={() => void handleSaveClick()}
+                className="h-8.5 px-3.5 gap-1.5 rounded-xl text-xs font-medium shadow-xs"
+              >
+                {saveBusy || saveState === "saving" ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Check className="w-3.5 h-3.5" />
+                )}
+                <span>{T("ذخیره", "Save")}</span>
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8.5 w-8.5 rounded-xl text-muted-foreground hover:text-foreground"
+                onClick={addToAndroidCalendar}
+                title={T("افزودن به تقویم Android", "Add to Android Calendar")}
+              >
+                <CalendarDays className="w-4 h-4" />
+              </Button>
+              {moreActionsDropdown}
+            </div>
           </div>
           <div className="flex-1 min-h-0">
             {activeNote ? noteEditorBody : body}

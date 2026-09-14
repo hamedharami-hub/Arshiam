@@ -185,22 +185,12 @@ export default function NewTaskView() {
 
   return (
     <div dir={isEn ? "ltr" : "rtl"} className="w-full pb-40">
-      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b flex items-center justify-between gap-2 p-3">
-        <Button variant="ghost" size="sm" onClick={handleBack} className="gap-1">
-          <ArrowRight className={`w-4 h-4 ${isEn ? "rotate-180" : ""}`} /> {T("برگشت", "Back")}
-        </Button>
-        <h1 className="text-base font-bold flex-1 text-center">{T("تسک جدید", "New Task")}</h1>
-        <Button onClick={finish} disabled={busy} size="sm" className="gap-1">
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-          {T("ذخیره", "Save")}
-        </Button>
-      </div>
-
       <TaskDetail
         ref={detailRef}
         task={draft}
         mode="page"
         onClose={handleBack}
+        onSave={finish}
         onChanged={() => { persistedRef.current = true; }}
         setConfirm={setConfirm}
       />
