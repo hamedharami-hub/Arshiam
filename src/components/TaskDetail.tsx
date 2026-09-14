@@ -103,6 +103,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [showAttachments, setShowAttachments] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [subtaskProgress, setSubtaskProgress] = useState({ completed: 0, total: 0 });
+  const [loadedSubtasks, setLoadedSubtasks] = useState<Array<{ id: string; title: string; completed: boolean; position: number }>>([]);
   const [tagOpen, setTagOpen] = useState(false);
   const [topTagOpen, setTopTagOpen] = useState(false);
   const [folderOpen, setFolderOpen] = useState(false);
@@ -184,7 +185,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       const [notesRes, tagsRes, subRes, stepListsRes, attachRes, outcomesRes] = await Promise.all([
         firebaseStore.from("notes").select("id,title,content").eq("task_id", task.id).order("updated_at", { ascending: false }),
         firebaseStore.from("task_tags").select("tag_id").eq("task_id", task.id),
-        firebaseStore.from("tasks").select("id,completed").eq("parent_id", task.id),
+        firebaseStore.from("tasks").select("id,title,completed,position").eq("parent_id", task.id),
         firebaseStore.from("task_step_lists").select("id", { count: "exact", head: true }).eq("task_id", task.id),
         firebaseStore.from("task_attachments").select("id", { count: "exact", head: true }).eq("task_id", task.id),
         firebaseStore.from("task_outcomes").select("id", { count: "exact", head: true }).eq("task_id", task.id),
@@ -195,17 +196,24 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       if (list.length > 0) setShowNotes(true);
       setTaskTagIds((tagsRes.data || []).map((r: any) => r.tag_id));
 
-      const subs = (subRes.data || []) as Array<{ id: string; completed: boolean }>;
+      const subs = (subRes.data || []) as Array<{ id: string; title: string; completed: boolean; position: number }>;
       if (subs.length > 0) {
+        setLoadedSubtasks(subs);
         setShowSubtasks(true);
         const done = subs.filter((s) => s.completed).length;
         setSubtaskProgress({ completed: done, total: subs.length });
       } else if (user) {
         // Fallback to offline cached tasks
-        const cachedTasks = await cacheGet<Array<{ id: string; parent_id?: string | null; completed?: boolean }>>(`tasks:all:${user.id}`);
+        const cachedTasks = await cacheGet<Array<{ id: string; title?: string; parent_id?: string | null; completed?: boolean; position?: number }>>(`tasks:all:${user.id}`);
         if (cachedTasks && !cancelled) {
-          const cachedSubs = cachedTasks.filter((ct) => ct.parent_id === task.id);
+          const cachedSubs = cachedTasks.filter((ct) => ct.parent_id === task.id).map((ct, i) => ({
+            id: ct.id,
+            title: ct.title || "",
+            completed: !!ct.completed,
+            position: ct.position ?? i,
+          }));
           if (cachedSubs.length > 0) {
+            setLoadedSubtasks(cachedSubs);
             setShowSubtasks(true);
             setSubtaskProgress({ completed: cachedSubs.filter((s) => s.completed).length, total: cachedSubs.length });
           }
@@ -1183,6 +1191,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           </div>
           <TaskSubtasksInline
             taskId={t.id}
+            initialSubs={loadedSubtasks}
             onProgressChange={handleSubtaskProgress}
             readOnly={!canEdit}
             onOpenSubtask={(id) => {

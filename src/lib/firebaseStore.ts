@@ -30,10 +30,19 @@ const makeId = () => typeof crypto !== "undefined" && crypto.randomUUID
 function matches(row: Row, filters: Filter[]) {
   return filters.every(({ field, operator, value }) => {
     const actual = row[field];
-    if (operator === "eq") return actual === value;
-    if (operator === "neq") return actual !== value;
+    if (operator === "eq") {
+      if (value === null || value === undefined) return actual === null || actual === undefined;
+      return actual === value;
+    }
+    if (operator === "neq") {
+      if (value === null || value === undefined) return actual !== null && actual !== undefined;
+      return actual !== value;
+    }
     if (operator === "in") return Array.isArray(value) && value.includes(actual);
-    if (operator === "is") return actual === value;
+    if (operator === "is") {
+      if (value === null || value === undefined) return actual === null || actual === undefined;
+      return actual === value;
+    }
     if (operator === "gte") return actual >= value;
     if (operator === "gt") return actual > value;
     if (operator === "lte") return actual <= value;
@@ -129,7 +138,11 @@ class FirestoreQuery {
         }
       }
 
-      if (this.sort && !hasClientOnlyFilter) {
+      // Only push orderBy to Firestore server when there are no conflicting filters on other fields,
+      // because Firestore requires manual composite indexes for any query combining where() and orderBy() on different fields.
+      // Reliable in-memory sorting below (lines 160-170) always sorts accurately!
+      const hasFilterOnDifferentField = this.sort && this.filters.some((f) => f.field !== this.sort!.field);
+      if (this.sort && !hasClientOnlyFilter && !hasFilterOnDifferentField) {
         constraints.push(fsOrderBy(this.sort.field, this.sort.ascending ? "asc" : "desc"));
       }
 
@@ -220,7 +233,14 @@ class FirestoreQuery {
           }
         }
         id ||= makeId();
-        const row = { ...raw, id, user_id: raw.user_id || userId, updated_at: raw.updated_at || new Date().toISOString() };
+        const now = new Date().toISOString();
+        const row = {
+          created_at: raw.created_at || now,
+          updated_at: raw.updated_at || now,
+          ...raw,
+          id,
+          user_id: raw.user_id || userId,
+        };
         await setDoc(doc(db, "users", userId, this.table, id), row, { merge: true });
         saved.push(row);
       }

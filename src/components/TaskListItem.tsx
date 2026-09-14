@@ -323,9 +323,21 @@ const TaskListItemComponent = ({
                   </Popover>
                 )}
                 {subs.length > 0 && (
-                  <span className="text-[10px] text-muted-foreground inline-flex items-center gap-0.5">
-                    <CornerDownRight className="w-3 h-3" /> {progress.done}/{progress.total}
-                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleExpand(t.id);
+                    }}
+                    className="text-[10px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md hover:bg-accent/40 transition cursor-pointer"
+                    title={open ? T("بستن زیرتسک‌ها", "Collapse subtasks") : T("نمایش زیرتسک‌ها", "Expand subtasks")}
+                  >
+                    <CornerDownRight className="w-3 h-3 text-primary" />
+                    <span>{progress.done}/{progress.total}</span>
+                    <span className="text-[9px] text-muted-foreground/70">
+                      {open ? `(${T("بستن", "hide")})` : `(${T("نمایش", "show")})`}
+                    </span>
+                  </button>
                 )}
                 {(() => {
                   const ometa = outcomeMeta(t, outcomeByTaskId, outcomeById);

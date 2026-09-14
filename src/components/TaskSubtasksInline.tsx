@@ -23,19 +23,34 @@ type Sub = {
 };
 
 export function TaskSubtasksInline({
-  taskId, onOpenSubtask, onProgressChange, readOnly = false,
+  taskId, onOpenSubtask, onProgressChange, readOnly = false, initialSubs,
 }: {
   taskId: string;
   onOpenSubtask?: (id: string) => void;
   onProgressChange?: (completed: number, total: number) => void;
   readOnly?: boolean;
+  initialSubs?: Sub[];
 }) {
   const { user } = useAuth();
-  const [subs, setSubs] = useState<Sub[]>([]);
+  const [subs, setSubs] = useState<Sub[]>(initialSubs || []);
   const [newTitle, setNewTitle] = useState("");
 
   const editingRef = useRef<Set<string>>(new Set());
   const writeTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  useEffect(() => {
+    if (initialSubs && initialSubs.length > 0) {
+      setSubs((prev) => {
+        if (prev.length === 0) return initialSubs;
+        const prevMap = new Map(prev.map((p) => [p.id, p]));
+        return initialSubs.map((row) =>
+          editingRef.current.has(row.id) && prevMap.has(row.id)
+            ? { ...row, title: prevMap.get(row.id)!.title }
+            : row,
+        );
+      });
+    }
+  }, [initialSubs]);
 
   const replaceRows = useCallback((rows: Sub[]) => {
     // Preserve titles for rows the user is actively editing (avoid clobbering input/focus on mobile)
@@ -60,8 +75,7 @@ export function TaskSubtasksInline({
       .from("tasks")
       .select("id,title,completed,position")
       .eq("parent_id", taskId)
-      .order("position")
-      .order("created_at", { ascending: true });
+      .order("position");
     if (data) replaceRows(data as Sub[]);
   }, [taskId, user, replaceRows]);
 
@@ -147,10 +161,6 @@ export function TaskSubtasksInline({
 
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium flex items-center gap-1">
-        <ListTree className="w-4 h-4" /> زیرتسک‌ها ({done}/{subs.length})
-      </label>
-
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -256,7 +266,7 @@ function SortableSubtaskRow({
           size="sm"
           variant="ghost"
           onClick={onOpen}
-          className="h-6 px-2 text-[10px] opacity-0 group-hover:opacity-100"
+          className="h-6 px-2 text-[10px] opacity-70 sm:opacity-0 group-hover:opacity-100"
         >
           باز کردن
         </Button>
@@ -266,7 +276,7 @@ function SortableSubtaskRow({
           size="icon"
           variant="ghost"
           onClick={onDelete}
-          className="h-6 w-6 opacity-0 group-hover:opacity-100"
+          className="h-6 w-6 opacity-70 sm:opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
         >
           <Trash2 className="w-3 h-3" />
         </Button>

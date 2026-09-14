@@ -150,10 +150,13 @@ export default function TaskActionSheet({
     if (!user || !subtaskTitle.trim()) return;
     setBusy(true);
     try {
-      const { error } = await firebaseStore.from("subtasks").insert({
+      const { error } = await firebaseStore.from("tasks").insert({
         user_id: user.id,
-        task_id: task.id,
+        parent_id: task.id,
         title: subtaskTitle.trim(),
+        priority: "none",
+        completed: false,
+        status: "todo",
       });
       if (error) throw error;
       await logTaskActivity(task.id, user.id, "updated", { subtask_added: subtaskTitle.trim() });
