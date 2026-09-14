@@ -676,14 +676,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   );
 
   const descriptionSection = (
-    <section className="mx-1 rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4" aria-labelledby="task-description-heading">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <h2 id="task-description-heading" className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-          <FileText className="h-4 w-4 text-primary" />
-          {T("توضیحات", "Description")}
-        </h2>
-        <span className="text-[11px] text-muted-foreground">{T("متن اصلی تسک", "Task brief")}</span>
-      </div>
+    <section className="mx-1">
       <div data-rich-selection onContextMenu={(e) => e.preventDefault()} style={{ WebkitTouchCallout: "none" } as any}>
         <TaskDescriptionEditor
           taskId={t.id}
@@ -698,8 +691,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           readOnly={!canEdit}
         />
       </div>
-      </section>
-    );
+    </section>
+  );
 
   // ── Quick-info chips row (only what's set) ──────────────────────────
   const quickChips = (

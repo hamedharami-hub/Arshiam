@@ -18,7 +18,7 @@ describe("TaskDescriptionEditor", () => {
     const { rerender } = render(
       <TaskDescriptionEditor taskId="task-1" value={current} onChange={onChange} onSave={onSave} />,
     );
-    const editor = screen.getByPlaceholderText("توضیحات…");
+    const editor = screen.getByRole("textbox", { name: "توضیحات" });
     fireEvent.focus(editor);
     fireEvent.change(editor, { target: { value: "متن جدید و کامل" } });
     current = "متن جدید و کامل";

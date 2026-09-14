@@ -31,6 +31,6 @@ describe("TaskDetail initial render", () => {
     );
     expect(html).toContain("Plan tomorrow");
     expect(html).not.toContain("Task progress");
-    expect(html).toContain("Description");
+    expect(html).not.toContain("Description");
   });
 });
