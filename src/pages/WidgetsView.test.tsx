@@ -36,10 +36,13 @@ vi.mock("@/lib/haptics", () => ({
   haptic: vi.fn(),
 }));
 
+import i18n, { LANGUAGE_STORAGE_KEY } from "@/i18n";
+
 describe("WidgetsView Studio", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
-    localStorage.clear();
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, "fa");
+    await i18n.changeLanguage("fa");
   });
 
   it("renders the Widgets Studio title and header", async () => {

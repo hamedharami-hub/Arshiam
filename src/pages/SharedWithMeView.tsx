@@ -125,7 +125,7 @@ export default function SharedWithMeView() {
   };
 
   return (
-    <div className="p-4 max-w-3xl mx-auto">
+    <div dir={isEn ? "ltr" : "rtl"} className="p-4 max-w-3xl mx-auto page-enter">
       <header className="mb-4 flex items-center gap-2">
         <Users className="w-5 h-5 text-primary" />
         <h1 className="text-xl font-bold">{T("به اشتراک گذاشته‌شده با من", "Shared with me")}</h1>

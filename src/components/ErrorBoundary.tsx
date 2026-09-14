@@ -14,7 +14,6 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    // eslint-disable-next-line no-console
     console.error("[ErrorBoundary]", error, info);
 
     // Stale chunk after a new deploy — force a one-time hard reload so the
@@ -59,16 +58,29 @@ export class ErrorBoundary extends React.Component<Props, State> {
     if (!this.state.hasError) return this.props.children;
     if (this.props.fallback) return this.props.fallback;
 
+    const isEn = (() => {
+      try {
+        const saved = localStorage.getItem("arshnaz_app_language") || localStorage.getItem("i18nextLng");
+        return Boolean(saved?.startsWith("en"));
+      } catch {
+        return false;
+      }
+    })();
+
     return (
-      <div dir="rtl" className="min-h-[60vh] flex items-center justify-center p-6">
+      <div dir={isEn ? "ltr" : "rtl"} className="min-h-[60vh] flex items-center justify-center p-6 page-enter">
         <Card className="max-w-md w-full p-6 space-y-4 text-center">
           <div className="mx-auto w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
             <AlertTriangle className="w-6 h-6 text-destructive" />
           </div>
           <div>
-            <h2 className="text-lg font-bold">یک خطای غیرمنتظره رخ داد</h2>
+            <h2 className="text-lg font-bold">
+              {isEn ? "An unexpected error occurred" : "یک خطای غیرمنتظره رخ داد"}
+            </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              نگران نباشید — داده‌های شما در امن است. می‌توانید این بخش را دوباره بارگذاری کنید.
+              {isEn
+                ? "Don't worry — your data is safe. You can reload this section."
+                : "نگران نباشید — داده‌های شما در امن است. می‌توانید این بخش را دوباره بارگذاری کنید."}
             </p>
           </div>
           {this.state.error?.message && (
@@ -78,10 +90,11 @@ export class ErrorBoundary extends React.Component<Props, State> {
           )}
           <div className="flex gap-2 justify-center">
             <Button onClick={this.reset} variant="outline" size="sm">
-              <RefreshCw className="w-4 h-4 me-2" /> تلاش مجدد
+              <RefreshCw className="w-4 h-4 me-2" />
+              {isEn ? "Try again" : "تلاش مجدد"}
             </Button>
             <Button onClick={() => window.location.reload()} size="sm">
-              بارگذاری کامل صفحه
+              {isEn ? "Reload page" : "بارگذاری کامل صفحه"}
             </Button>
           </div>
         </Card>

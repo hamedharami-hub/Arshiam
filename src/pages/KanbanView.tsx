@@ -347,7 +347,7 @@ export default function KanbanView() {
   const activeTaskObj = activeId ? allTasks.find((t) => t.id === activeId) : null;
 
   return (
-    <div dir="rtl" className="max-w-5xl mx-auto p-3 md:p-6 space-y-4 pb-24 animate-fade-in relative min-h-screen">
+    <div dir={isEn ? "ltr" : "rtl"} className="max-w-5xl mx-auto p-3 md:p-6 space-y-4 pb-24 page-enter relative min-h-screen">
       {/* 1. TOP HEADER (Title matching screenshot & controls) */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2.5">
@@ -355,15 +355,19 @@ export default function KanbanView() {
             type="button"
             onDoubleClick={() => activeGoal && openEditForGoal(activeGoal)}
             className="flex items-center gap-2 text-xl md:text-2xl font-black text-foreground hover:text-primary transition-colors text-start"
-            title="دوبار کلیک یا تاچ برای ویرایش این هدف"
+            title={T("دوبار کلیک یا تاچ برای ویرایش این هدف", "Double click or tap to edit this goal")}
           >
             <span>{activeGoal?.icon || "🎯"}</span>
-            <span>{activeGoal?.title || "آموزش و خودآگاهی"}</span>
+            <span>{activeGoal?.title || T("آموزش و خودآگاهی", "Education & Self-awareness")}</span>
           </button>
 
           {activeGoal && (
             <Badge variant="outline" className="text-[11px] font-mono gap-1 border-primary/30 text-primary">
-              <span>{TIME_HORIZONS.find((th) => th.id === activeGoal.timeHorizon)?.labelFa || "ماهانه"}</span>
+              <span>
+                {isEn
+                  ? TIME_HORIZONS.find((th) => th.id === activeGoal.timeHorizon)?.labelEn || "Monthly"
+                  : TIME_HORIZONS.find((th) => th.id === activeGoal.timeHorizon)?.labelFa || "ماهانه"}
+              </span>
             </Badge>
           )}
         </div>
@@ -378,7 +382,7 @@ export default function KanbanView() {
               className={`p-1.5 rounded-lg text-xs transition ${
                 layoutMode === "stream" ? "bg-background shadow-xs text-primary font-bold" : "text-muted-foreground"
               }`}
-              title="نمای استریم تمام‌صفحه"
+              title={T("نمای استریم تمام‌صفحه", "Fullscreen stream view")}
             >
               <List className="w-4 h-4" />
             </button>
@@ -388,7 +392,7 @@ export default function KanbanView() {
               className={`p-1.5 rounded-lg text-xs transition ${
                 layoutMode === "columns" ? "bg-background shadow-xs text-primary font-bold" : "text-muted-foreground"
               }`}
-              title="ستون‌های کلاسیک کانبان"
+              title={T("ستون‌های کلاسیک کانبان", "Classic Kanban columns")}
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
@@ -400,28 +404,34 @@ export default function KanbanView() {
               <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl gap-1.5 bg-card/60">
                 <SlidersHorizontal className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">
-                  {viewMode === "hierarchy" ? "ساختار درختی" : viewMode === "time" ? "بر اساس زمان" : "بر اساس اهمیت"}
+                  {viewMode === "hierarchy"
+                    ? T("ساختار درختی", "Hierarchy")
+                    : viewMode === "time"
+                    ? T("بر اساس زمان", "By Time")
+                    : T("بر اساس اهمیت", "By Priority")}
                 </span>
                 <ChevronDown className="w-3 h-3 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="text-xs w-48">
-              <DropdownMenuLabel className="text-[11px] text-muted-foreground">حالت نمایش کانبان</DropdownMenuLabel>
+            <DropdownMenuContent align="end" className="text-xs w-48" dir={isEn ? "ltr" : "rtl"}>
+              <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+                {T("حالت نمایش کانبان", "Kanban View Mode")}
+              </DropdownMenuLabel>
               <DropdownMenuItem onClick={() => setViewMode("hierarchy")} className="gap-2 font-medium">
-                <FolderTree className="w-3.5 h-3.5 text-primary" /> ساختار درختی و چندسطحی
+                <FolderTree className="w-3.5 h-3.5 text-primary" /> {T("ساختار درختی و چندسطحی", "Multi-tier hierarchy")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setViewMode("time")} className="gap-2 font-medium">
-                <Calendar className="w-3.5 h-3.5 text-amber-500" /> مرتب‌سازی بر اساس زمان (افق)
+                <Calendar className="w-3.5 h-3.5 text-amber-500" /> {T("مرتب‌سازی بر اساس زمان (افق)", "Sort by time horizon")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setViewMode("priority")} className="gap-2 font-medium">
-                <Flag className="w-3.5 h-3.5 text-rose-500" /> مرتب‌سازی بر اساس اهمیت
+                <Flag className="w-3.5 h-3.5 text-rose-500" /> {T("مرتب‌سازی بر اساس اهمیت", "Sort by priority")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => activeGoal && openEditForGoal(activeGoal)} className="gap-2">
-                <Edit2 className="w-3.5 h-3.5 text-muted-foreground" /> ویرایش هدف فعلی
+                <Edit2 className="w-3.5 h-3.5 text-muted-foreground" /> {T("ویرایش هدف فعلی", "Edit current goal")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => openAddNewGoal(null)} className="gap-2">
-                <Plus className="w-3.5 h-3.5 text-emerald-500" /> ایجاد هدف اصلی جدید
+                <Plus className="w-3.5 h-3.5 text-emerald-500" /> {T("ایجاد هدف اصلی جدید", "Create new primary goal")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -437,17 +447,17 @@ export default function KanbanView() {
               {activeGoal && (
                 <>
                   <DropdownMenuItem onClick={() => openEditForGoal(activeGoal)} className="gap-2">
-                    <Edit2 className="w-3.5 h-3.5" /> ویرایش تنظیمات این کانبان
+                    <Edit2 className="w-3.5 h-3.5" /> {T("ویرایش تنظیمات این کانبان", "Edit Kanban settings")}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => openAddNewGoal(activeGoal.id)} className="gap-2">
-                    <Plus className="w-3.5 h-3.5 text-primary" /> افزودن زیرمجموعه به این هدف
+                    <Plus className="w-3.5 h-3.5 text-primary" /> {T("افزودن زیرمجموعه به این هدف", "Add sub-goal")}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => handleDeleteGoal(activeGoal.id)}
                     className="gap-2 text-destructive focus:bg-destructive/10"
                   >
-                    حذف این کانبان
+                    {T("حذف این کانبان", "Delete this Kanban")}
                   </DropdownMenuItem>
                 </>
               )}
@@ -487,13 +497,18 @@ export default function KanbanView() {
               value={quickTitle}
               onChange={(e) => setQuickTitle(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addQuickTask(quickTitle)}
-              placeholder={`+ افزودن تسک جدید به «${activeGoal?.title || "این کانبان"}»...`}
+              placeholder={
+                isEn
+                  ? `+ Add new task to "${activeGoal?.title || "this Kanban"}"...`
+                  : `+ افزودن تسک جدید به «${activeGoal?.title || "این کانبان"}»...`
+              }
               className="bg-card/70 border-border/70 text-sm h-11 rounded-2xl shadow-xs"
             />
             <Button
               onClick={() => addQuickTask(quickTitle)}
               disabled={!quickTitle.trim()}
               className="h-11 px-4 rounded-2xl bg-primary text-primary-foreground font-bold shadow-xs shrink-0"
+              title={T("افزودن تسک", "Add task")}
             >
               <Plus className="w-4 h-4" />
             </Button>
@@ -570,8 +585,12 @@ export default function KanbanView() {
             {incompleteTasks.length === 0 && (
               <div className="text-center py-12 border border-dashed rounded-3xl bg-muted/20 space-y-2">
                 <div className="text-3xl">✨</div>
-                <h4 className="text-sm font-bold text-foreground">همه کارهای این هدف انجام شده‌اند!</h4>
-                <p className="text-xs text-muted-foreground">می‌توانید تسک جدیدی برای ادامه مسیر اضافه کنید.</p>
+                <h4 className="text-sm font-bold text-foreground">
+                  {T("همه کارهای این هدف انجام شده‌اند!", "All tasks in this goal are completed!")}
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  {T("می‌توانید تسک جدیدی برای ادامه مسیر اضافه کنید.", "You can add new tasks to keep going.")}
+                </p>
               </div>
             )}
           </div>
@@ -584,8 +603,8 @@ export default function KanbanView() {
                 onClick={() => setCompletedOpen((prev) => !prev)}
                 className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors px-1"
               >
-                <span>Completed</span>
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 rounded-full">
+                <span>{T("انجام‌شده", "Completed")}</span>
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 rounded-full font-mono">
                   {completedTasks.length}
                 </Badge>
                 {completedOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -661,7 +680,7 @@ export default function KanbanView() {
           else quickInputRef.current?.focus();
         }}
         className="fixed bottom-6 start-6 md:bottom-8 md:start-8 w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white flex items-center justify-center shadow-xl shadow-blue-500/30 transition-transform z-30"
-        title="افزودن تسک سریع"
+        title={T("افزودن تسک سریع", "Quick add task")}
       >
         <Plus className="w-7 h-7 stroke-[2.5]" />
       </button>

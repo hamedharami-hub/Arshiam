@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Shield, Users, CheckSquare, FileText, Search, Loader2 } from "lucide-react";
 import { Navigate } from "react-router-dom";
+import { useBilingual } from "@/hooks/useBilingual";
 
 interface AdminUser {
   user_id: string;
@@ -21,6 +22,7 @@ interface AdminUser {
 
 export default function AdminView() {
   const { isAdmin, loading } = useUserRole();
+  const { T, isEn } = useBilingual();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [busy, setBusy] = useState(true);
   const [q, setQ] = useState("");
@@ -49,30 +51,43 @@ export default function AdminView() {
   const totalNotes = users.reduce((s, u) => s + Number(u.note_count || 0), 0);
 
   return (
-    <div dir="rtl" className="p-4 md:p-6 space-y-4 max-w-6xl mx-auto">
+    <div dir={isEn ? "ltr" : "rtl"} className="p-4 md:p-6 space-y-4 max-w-6xl mx-auto page-enter">
       <div className="flex items-center gap-2">
         <Shield className="w-6 h-6 text-primary" />
-        <h1 className="text-2xl font-bold">پنل مدیریت ARSHNAZ</h1>
+        <h1 className="text-2xl font-bold">
+          {T("پنل مدیریت ARSHNAZ", "ARSHNAZ Admin Panel")}
+        </h1>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
         <Card className="p-4">
-          <div className="flex items-center gap-2 text-muted-foreground text-xs"><Users className="w-4 h-4" /> کاربران</div>
+          <div className="flex items-center gap-2 text-muted-foreground text-xs">
+            <Users className="w-4 h-4" /> {T("کاربران", "Users")}
+          </div>
           <div className="text-2xl font-bold mt-1">{users.length}</div>
         </Card>
         <Card className="p-4">
-          <div className="flex items-center gap-2 text-muted-foreground text-xs"><CheckSquare className="w-4 h-4" /> تسک‌ها</div>
+          <div className="flex items-center gap-2 text-muted-foreground text-xs">
+            <CheckSquare className="w-4 h-4" /> {T("تسک‌ها", "Tasks")}
+          </div>
           <div className="text-2xl font-bold mt-1">{totalTasks}</div>
         </Card>
         <Card className="p-4">
-          <div className="flex items-center gap-2 text-muted-foreground text-xs"><FileText className="w-4 h-4" /> نوت‌ها</div>
+          <div className="flex items-center gap-2 text-muted-foreground text-xs">
+            <FileText className="w-4 h-4" /> {T("نوت‌ها", "Notes")}
+          </div>
           <div className="text-2xl font-bold mt-1">{totalNotes}</div>
         </Card>
       </div>
 
       <div className="relative">
-        <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو ایمیل یا نام..." className="pr-9" />
+        <Search className={`w-4 h-4 absolute ${isEn ? "left-3" : "right-3"} top-1/2 -translate-y-1/2 text-muted-foreground`} />
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={T("جستجو ایمیل یا نام...", "Search email or name...")}
+          className={isEn ? "pl-9" : "pr-9"}
+        />
       </div>
 
       {busy ? (
@@ -91,17 +106,25 @@ export default function AdminView() {
                 </div>
                 <div className="text-xs text-muted-foreground truncate">{u.email}</div>
                 <div className="text-[10px] text-muted-foreground mt-0.5">
-                  ثبت‌نام: {new Date(u.created_at).toLocaleDateString("fa-IR")} ·
-                  آخرین ورود: {u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString("fa-IR") : "هرگز"}
+                  {T("ثبت‌نام: ", "Joined: ")}
+                  {new Date(u.created_at).toLocaleDateString(isEn ? "en-US" : "fa-IR")} ·{" "}
+                  {T("آخرین ورود: ", "Last seen: ")}
+                  {u.last_sign_in_at
+                    ? new Date(u.last_sign_in_at).toLocaleDateString(isEn ? "en-US" : "fa-IR")
+                    : T("هرگز", "Never")}
                 </div>
               </div>
               <div className="text-end text-xs">
-                <div>{u.task_count} تسک</div>
-                <div className="text-muted-foreground">{u.note_count} نوت</div>
+                <div>{u.task_count} {T("تسک", "tasks")}</div>
+                <div className="text-muted-foreground">{u.note_count} {T("نوت", "notes")}</div>
               </div>
             </Card>
           ))}
-          {filtered.length === 0 && <p className="text-center text-muted-foreground py-8 text-sm">کاربری یافت نشد</p>}
+          {filtered.length === 0 && (
+            <p className="text-center text-muted-foreground py-8 text-sm">
+              {T("کاربری یافت نشد", "No users found")}
+            </p>
+          )}
         </div>
       )}
     </div>

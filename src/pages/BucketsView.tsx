@@ -13,10 +13,12 @@ import {
 import { getCalendarSystem, setCalendarSystem, type CalendarSystem } from "@/lib/jalali";
 import { Clock, CalendarRange, ListTodo, Sun, Sparkles } from "lucide-react";
 import { haptic } from "@/lib/haptics";
+import { useBilingual } from "@/hooks/useBilingual";
 
 export default function BucketsView() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { T, isEn, lang } = useBilingual();
   const [params, setParams] = useSearchParams();
   const enabled = getEnabledBuckets().filter((k) => k !== "day"); // day = today/tomorrow handled elsewhere
   const initial = (params.get("kind") as BucketKind) || enabled[0] || "week";
@@ -54,20 +56,20 @@ export default function BucketsView() {
   };
 
   return (
-    <div dir="rtl" className="max-w-3xl mx-auto p-4 md:p-8 space-y-4 pb-20">
+    <div dir={isEn ? "ltr" : "rtl"} className="max-w-3xl mx-auto p-4 md:p-8 space-y-4 pb-20 page-enter">
       <header className="flex items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <CalendarRange className="w-6 h-6 text-primary" />
-            دسته‌بندی زمانی
+            {T("دسته‌بندی زمانی", "Time Buckets")}
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            بدون زمان دقیق — فقط بازه‌ای که کار باید انجام بشه.
+            {T("بدون زمان دقیق — فقط بازه‌ای که کار باید انجام بشه.", "Fuzzy windows without exact clock times — plan by scope.")}
           </p>
         </div>
         <Button size="sm" variant="outline" onClick={toggleCal} className="text-xs gap-1">
           <Sun className="w-3.5 h-3.5" />
-          {calendar === "jalali" ? "شمسی" : "میلادی"}
+          {calendar === "jalali" ? T("شمسی", "Jalali") : T("میلادی", "Gregorian")}
         </Button>
       </header>
 
@@ -75,7 +77,7 @@ export default function BucketsView() {
         <TabsList className="w-full grid grid-cols-2 sm:grid-cols-4 gap-1 h-auto">
           {ALL_BUCKET_KINDS.filter((k) => k !== "day" && enabled.includes(k)).map((k) => (
             <TabsTrigger key={k} value={k} className="text-xs py-2">
-              {kindLabel(k)}
+              {kindLabel(k, lang)}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -85,7 +87,7 @@ export default function BucketsView() {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-primary" />
-            {bucketLabel(kind, calendar, anchor)}
+            {bucketLabel(kind, calendar, anchor, lang)}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -93,7 +95,10 @@ export default function BucketsView() {
             <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
           ) : tasks.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-8 border border-dashed rounded-lg">
-              هیچ کاری در این بازه ثبت نکرده‌ای. از داخل تسک‌ها بازه‌ی زمانی را انتخاب کن.
+              {T(
+                "هیچ کاری در این بازه ثبت نکرده‌ای. از داخل تسک‌ها بازه‌ی زمانی را انتخاب کن.",
+                "No tasks scheduled in this bucket. Assign a time bucket inside any task."
+              )}
             </p>
           ) : (
             <ul className="space-y-1.5">
@@ -101,7 +106,7 @@ export default function BucketsView() {
                 <li key={t.id}>
                   <button
                     onClick={() => { haptic("light"); navigate(`/app/tasks/${t.id}`); }}
-                    className="w-full flex items-center gap-2 p-2.5 rounded-lg border border-border/60 hover:bg-accent/30 transition text-end"
+                    className="w-full flex items-center gap-2 p-2.5 rounded-lg border border-border/60 hover:bg-accent/30 transition text-start"
                   >
                     <ListTodo className="w-4 h-4 text-blue-500 shrink-0" />
                     <span className="flex-1 text-sm font-medium break-words line-clamp-2">{t.title}</span>

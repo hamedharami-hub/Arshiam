@@ -8,8 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { streamAI } from "@/lib/aiStream";
+import { useBilingual } from "@/hooks/useBilingual";
 import {
   ArrowRight,
+  ArrowLeft,
   Loader2,
   Wand2,
   Copy,
@@ -33,6 +35,9 @@ export default function ArticleRewriteView() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const { T, isEn } = useBilingual();
+  const BackIcon = isEn ? ArrowLeft : ArrowRight;
+
   const initialUrl = params.get("url") || "";
   const initialText = params.get("text") || "";
 
@@ -73,7 +78,7 @@ export default function ArticleRewriteView() {
   const rewrite = async (fromUrl?: string) => {
     const targetUrl = fromUrl || url || source;
     if (!targetUrl) {
-      toast.error("ابتدا یک لینک وارد کنید.");
+      toast.error(T("ابتدا یک لینک وارد کنید.", "Please enter a URL first."));
       return;
     }
     abortRef.current?.abort();
@@ -86,7 +91,7 @@ export default function ArticleRewriteView() {
       await streamAI({
         mode: "article_rewrite",
         input: { url: targetUrl, text: text || undefined },
-        language: "fa",
+        language: isEn ? "en" : "fa",
         signal: ctrl.signal,
         onDelta: (chunk) => setContent((prev) => prev + chunk),
         onDone: () => {
@@ -98,7 +103,9 @@ export default function ArticleRewriteView() {
         },
       });
     } catch (e) {
-      if (!isAbortError(e)) toast.error(getErrorMessage(e) || "خطا در بازنویسی");
+      if (!isAbortError(e)) {
+        toast.error(getErrorMessage(e) || T("خطا در بازنویسی", "Error during rewrite"));
+      }
     } finally {
       setLoading(false);
       abortRef.current = null;
@@ -117,17 +124,17 @@ export default function ArticleRewriteView() {
         setText(s);
       }
     } catch {
-      toast.error("دسترسی به کلیپ‌بورد داده نشد.");
+      toast.error(T("دسترسی به کلیپ‌بورد داده نشد.", "Clipboard access denied."));
     }
   };
 
   const saveNote = async () => {
     if (!user) {
-      toast.error("ابتدا وارد شوید.");
+      toast.error(T("ابتدا وارد شوید.", "Please sign in first."));
       return;
     }
     if (!title.trim()) {
-      toast.error("عنوان الزامی است.");
+      toast.error(T("عنوان الزامی است.", "Title is required."));
       return;
     }
     setSaving(true);
@@ -138,10 +145,10 @@ export default function ArticleRewriteView() {
         content: content.trim(),
       });
       if (error) throw error;
-      toast.success("نوت ذخیره شد.");
+      toast.success(T("نوت ذخیره شد.", "Note saved."));
       navigate("/app/notes");
     } catch (e) {
-      toast.error(getErrorMessage(e) || "خطا در ذخیره");
+      toast.error(getErrorMessage(e) || T("خطا در ذخیره", "Error saving"));
     } finally {
       setSaving(false);
     }
@@ -149,7 +156,7 @@ export default function ArticleRewriteView() {
 
   const saveTask = () => {
     const qp = new URLSearchParams();
-    qp.set("title", title.trim() || "خبر");
+    qp.set("title", title.trim() || T("خبر", "Article"));
     qp.set("description", content.trim());
     navigate(`/app/new/task?${qp.toString()}`);
   };
@@ -157,28 +164,28 @@ export default function ArticleRewriteView() {
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(content);
-      toast.success("کپی شد.");
+      toast.success(T("کپی شد.", "Copied."));
     } catch {
-      toast.error("کپی نشد.");
+      toast.error(T("کپی نشد.", "Failed to copy."));
     }
   };
 
   return (
-    <div dir="rtl" className="min-h-screen bg-background p-4 pb-24">
+    <div dir={isEn ? "ltr" : "rtl"} className="min-h-screen bg-background p-4 pb-24 page-enter">
       <div className="max-w-3xl mx-auto space-y-4">
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1">
-            <ArrowRight className="w-4 h-4" /> برگشت
+            <BackIcon className="w-4 h-4" /> {T("برگشت", "Back")}
           </Button>
           <h1 className="text-lg font-bold flex items-center gap-2">
-            <Wand2 className="w-5 h-5 text-primary" /> بازنویسی خبر/مقاله
+            <Wand2 className="w-5 h-5 text-primary" /> {T("بازنویسی خبر/مقاله", "Article / News Rewrite")}
           </h1>
           <span className="w-12" />
         </div>
 
         <Card className="p-4 space-y-3">
           <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">لینک</label>
+            <label className="text-xs text-muted-foreground">{T("لینک", "URL")}</label>
             <div className="flex gap-2">
               <Input
                 dir="ltr"
@@ -187,16 +194,16 @@ export default function ArticleRewriteView() {
                 onChange={(e) => setUrl(e.target.value)}
                 className="flex-1 text-sm"
               />
-              <Button type="button" size="icon" variant="outline" onClick={paste} title="چسباندن از کلیپ‌بورد">
+              <Button type="button" size="icon" variant="outline" onClick={paste} title={T("چسباندن از کلیپ‌بورد", "Paste from clipboard")}>
                 <ClipboardPaste className="w-4 h-4" />
               </Button>
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">متن همراه (اختیاری)</label>
+            <label className="text-xs text-muted-foreground">{T("متن همراه (اختیاری)", "Accompanying text (optional)")}</label>
             <Textarea
-              placeholder="متن share شده یا توضیحات..."
+              placeholder={T("متن share شده یا توضیحات...", "Shared text or comments...")}
               value={text}
               onChange={(e) => setText(e.target.value)}
               dir="auto"
@@ -211,16 +218,16 @@ export default function ArticleRewriteView() {
             className="w-full gap-2"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-            {loading ? "در حال بازنویسی..." : "بازنویسی کن"}
+            {loading ? T("در حال بازنویسی...", "Rewriting...") : T("بازنویسی کن", "Rewrite")}
           </Button>
         </Card>
 
         {content && (
           <Card className="p-4 space-y-3">
             <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">عنوان</label>
+              <label className="text-xs text-muted-foreground">{T("عنوان", "Title")}</label>
               <Input
-                placeholder="عنوان بازنویسی‌شده"
+                placeholder={T("عنوان بازنویسی‌شده", "Rewritten title")}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="text-base font-semibold"
@@ -228,7 +235,7 @@ export default function ArticleRewriteView() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">متن</label>
+              <label className="text-xs text-muted-foreground">{T("متن", "Content")}</label>
               <Textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
@@ -241,16 +248,16 @@ export default function ArticleRewriteView() {
             <div className="flex flex-wrap gap-2">
               <Button onClick={saveNote} disabled={saving || !title.trim()} className="gap-1 flex-1 sm:flex-none">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                ذخیره نوت
+                {T("ذخیره نوت", "Save Note")}
               </Button>
               <Button variant="secondary" onClick={saveTask} className="gap-1 flex-1 sm:flex-none">
-                <ListTodo className="w-4 h-4" /> تسک
+                <ListTodo className="w-4 h-4" /> {T("تسک", "Task")}
               </Button>
               <Button variant="outline" onClick={copy} className="gap-1 flex-1 sm:flex-none">
-                <Copy className="w-4 h-4" /> کپی
+                <Copy className="w-4 h-4" /> {T("کپی", "Copy")}
               </Button>
               <Button variant="outline" onClick={() => rewrite()} disabled={!source} className="gap-1 flex-1 sm:flex-none">
-                <RotateCw className="w-4 h-4" /> دوباره
+                <RotateCw className="w-4 h-4" /> {T("دوباره", "Retry")}
               </Button>
             </div>
           </Card>

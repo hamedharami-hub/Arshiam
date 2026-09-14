@@ -148,7 +148,7 @@ export default function ProcrastinationBusterModal({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [timerActive]);
+  }, [timerActive, T]);
 
   const handleStepChange = (index: number, val: string) => {
     if (!busterData) return;
