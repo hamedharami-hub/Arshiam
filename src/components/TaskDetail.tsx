@@ -104,6 +104,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [showNotes, setShowNotes] = useState(false);
   const [subtaskProgress, setSubtaskProgress] = useState({ completed: 0, total: 0 });
   const [tagOpen, setTagOpen] = useState(false);
+  const [topTagOpen, setTopTagOpen] = useState(false);
   const [folderOpen, setFolderOpen] = useState(false);
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [focusOpen, setFocusOpen] = useState(false);
@@ -877,8 +878,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
   // ── 4 Metadata tabs: Inbox/Folder, Schedule, Priority, Tags ──────
   const topControls = (
-    <div className="mx-auto max-w-3xl w-full px-1 pt-1 pb-2">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
+    <div className="mx-auto max-w-3xl w-full px-1 pt-0.5 pb-1.5">
+      <div className="grid grid-cols-4 gap-1.5">
         {/* 1. Folder / Inbox */}
         <div>
         <Popover open={folderOpen} onOpenChange={setFolderOpen}>
@@ -887,10 +888,14 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
               type="button"
               variant="outline"
               disabled={!canEdit}
-              className={`w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-2.5 transition-all duration-150 ${t.folder_id ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30 shadow-xs font-semibold" : "bg-muted/30 text-foreground/85 hover:bg-muted/60 border-border/60"}`}
+              title={t.folder_id ? folderName(t.folder_id) : T("صندوق ورودی", "Inbox")}
+              aria-label={t.folder_id ? folderName(t.folder_id) : T("صندوق ورودی", "Inbox")}
+              className={`w-full min-w-0 h-9 rounded-xl relative flex items-center justify-center px-1 transition-all duration-150 ${t.folder_id ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30 shadow-2xs font-semibold" : "bg-muted/30 text-foreground/80 hover:bg-muted/60 border-border/60"}`}
             >
               <FolderIcon className="w-4 h-4 shrink-0" style={{ color: t.folder_id ? folders.find(f => f.id === t.folder_id)?.color || undefined : undefined }} />
-              <span className="truncate flex-1 text-start">{t.folder_id ? folderName(t.folder_id) : T("صندوق ورودی", "Inbox")}</span>
+              {t.folder_id && (
+                <span className="absolute top-1.5 end-1.5 w-1.5 h-1.5 rounded-full" style={{ background: folders.find(f => f.id === t.folder_id)?.color || "rgb(59 130 246)" }} />
+              )}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-72 p-2 max-h-[55vh] overflow-y-auto" align="start" side="top">
@@ -970,10 +975,14 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
               type="button"
               variant="outline"
               disabled={!canEdit}
-              className={`w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-2.5 transition-all duration-150 ${isScheduled ? "bg-primary/15 text-primary border-primary/35 shadow-xs font-semibold" : "bg-muted/30 text-foreground/85 hover:bg-muted/60 border-border/60"}`}
+              title={scheduleLabel ?? T("زمان‌بندی", "Schedule")}
+              aria-label={scheduleLabel ?? T("زمان‌بندی", "Schedule")}
+              className={`w-full min-w-0 h-9 rounded-xl relative flex items-center justify-center px-1 transition-all duration-150 ${isScheduled ? "bg-primary/15 text-primary border-primary/35 shadow-2xs font-semibold" : "bg-muted/30 text-foreground/80 hover:bg-muted/60 border-border/60"}`}
             >
               <Clock className={`w-4 h-4 shrink-0 ${isScheduled ? "text-primary" : "text-muted-foreground"}`} />
-              <span className="truncate flex-1 text-start">{scheduleLabel ?? T("زمان‌بندی", "Schedule")}</span>
+              {isScheduled && (
+                <span className="absolute top-1.5 end-1.5 w-1.5 h-1.5 rounded-full bg-primary" />
+              )}
             </Button>
           </SheetTrigger>
           <SheetContent side="bottom" className="w-full max-w-2xl mx-auto rounded-t-2xl p-4 max-h-[85vh] overflow-y-auto" aria-describedby="schedule-sheet-desc">
@@ -1099,13 +1108,17 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
               type="button"
               variant="outline"
               disabled={!canEdit}
-              className={`w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-2.5 transition-all duration-150 ${t.priority !== "none" ? `${priorityMeta.bgClass} ${priorityMeta.textClass} border-border/80 shadow-xs font-semibold` : "bg-muted/30 text-foreground/85 hover:bg-muted/60 border-border/60"}`}
+              title={t.priority !== "none" ? T(priorityMeta.label, priorityMeta.labelEn) : T("اولویت", "Priority")}
+              aria-label={t.priority !== "none" ? T(priorityMeta.label, priorityMeta.labelEn) : T("اولویت", "Priority")}
+              className={`w-full min-w-0 h-9 rounded-xl relative flex items-center justify-center px-1 transition-all duration-150 ${t.priority !== "none" ? `${priorityMeta.bgClass} ${priorityMeta.textClass} border-border/80 shadow-2xs font-semibold` : "bg-muted/30 text-foreground/80 hover:bg-muted/60 border-border/60"}`}
             >
               <Flag className={`w-4 h-4 shrink-0 ${t.priority !== "none" ? priorityMeta.textClass : "text-muted-foreground"}`} />
-              <span className="truncate flex-1 text-start">{t.priority !== "none" ? T(priorityMeta.label, priorityMeta.labelEn) : T("اولویت", "Priority")}</span>
+              {t.priority !== "none" && (
+                <span className="absolute top-1.5 end-1.5 w-1.5 h-1.5 rounded-full bg-current opacity-80" />
+              )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-60 p-2" align="start" side="top">
+          <PopoverContent className="w-60 p-2" align="center" side="top">
             <div className="grid grid-cols-2 gap-1.5">
               {PRIORITY_ORDER.map((p) => {
                 const m = PRIORITY_META[p];
@@ -1136,11 +1149,73 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
         {/* 4. Tags */}
         <div>
-        <Button type="button" variant="outline" onClick={() => setTagOpen(true)} disabled={!canEdit}
-          className={`w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-2.5 transition-all duration-150 ${taskTagIds.length ? "bg-primary/10 text-primary border-primary/30 font-semibold" : "bg-muted/30 text-foreground/85 hover:bg-muted/60 border-border/60"}`}>
-          <TagIcon className="w-4 h-4 shrink-0" />
-          <span className="truncate flex-1 text-start">{taskTagIds.length ? `${taskTagIds.length} ${T("تگ", "tags")}` : T("تگ", "Tags")}</span>
-        </Button>
+        <Popover open={topTagOpen} onOpenChange={setTopTagOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!canEdit}
+              title={taskTagIds.length ? `${taskTagIds.length} ${T("تگ", "tags")}` : T("تگ", "Tags")}
+              aria-label={taskTagIds.length ? `${taskTagIds.length} ${T("تگ", "tags")}` : T("تگ", "Tags")}
+              className={`w-full min-w-0 h-9 rounded-xl relative flex items-center justify-center px-1 transition-all duration-150 ${taskTagIds.length ? "bg-primary/10 text-primary border-primary/30 font-semibold shadow-2xs" : "bg-muted/30 text-foreground/80 hover:bg-muted/60 border-border/60"}`}
+            >
+              <TagIcon className={`w-4 h-4 shrink-0 ${taskTagIds.length ? "text-primary" : "text-muted-foreground"}`} />
+              {taskTagIds.length > 0 && (
+                <span className="text-[10px] font-bold tabular-nums ms-1">{taskTagIds.length}</span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 p-2 max-h-[55vh] overflow-y-auto" align="end" side="top">
+            {!showTagCreate ? (
+              <button
+                onClick={() => setShowTagCreate(true)}
+                className="w-full flex items-center gap-2 p-2 mb-1 rounded-xl bg-muted/40 hover:bg-accent text-sm text-muted-foreground"
+              >
+                <Plus className="w-4 h-4" /> {T("ساخت تگ جدید", "Create new tag")}
+              </button>
+            ) : (
+              <>
+                <div className="flex items-center gap-1.5 mb-2 p-1.5 rounded-xl bg-muted/40">
+                  <span className="w-3 h-3 rounded-full shrink-0 ms-1" style={{ background: newTagColor }} />
+                  <Input
+                    autoFocus
+                    value={newTagName}
+                    onChange={(e) => setNewTagName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") { createTagAndAssign(); setShowTagCreate(false); }
+                      if (e.key === "Escape") setShowTagCreate(false);
+                    }}
+                    placeholder={T("نام تگ جدید…", "New tag name…")}
+                    className="h-8 text-xs border-0 bg-transparent focus-visible:ring-0"
+                  />
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={async () => { await createTagAndAssign(); setShowTagCreate(false); }} disabled={!newTagName.trim()}>
+                    <Plus className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+                <div className="flex gap-1 mb-2 px-1">
+                  {TAG_COLORS.map(c => (
+                    <button key={c} onClick={() => setNewTagColor(c)}
+                      className={`w-5 h-5 rounded-full border-2 ${newTagColor === c ? "border-foreground" : "border-transparent"}`}
+                      style={{ background: c }} />
+                  ))}
+                </div>
+              </>
+            )}
+            {tags.map(tg => {
+              const active = taskTagIds.includes(tg.id);
+              return (
+                <button key={tg.id} onClick={() => toggleTag(tg.id)}
+                  className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent flex items-center justify-between gap-2 ${active ? "bg-accent" : ""}`}>
+                  <span className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: tg.color || "hsl(var(--muted-foreground))" }} />
+                    {tg.name}
+                  </span>
+                  {active && <Check className="w-3.5 h-3.5" />}
+                </button>
+              );
+            })}
+          </PopoverContent>
+        </Popover>
         </div>
       </div>
     </div>
