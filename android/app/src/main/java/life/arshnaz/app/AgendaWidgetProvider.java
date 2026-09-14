@@ -82,8 +82,11 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
                 String summary = primary.optString("title","Untitled task");
                 if (tasks.size() > 1) summary += "\n+ "+(tasks.size()-1)+" more tasks";
                 v.setTextViewText(R.id.agenda_summary,summary);
-                v.setTextViewText(R.id.agenda_compact_done,completed ? "☑" : "☐");
-                v.setTextColor(R.id.agenda_compact_done,Color.parseColor(completed ? "#A78BFA" : "#C4B5FD"));
+                v.setInt(R.id.agenda_compact_done,"setBackgroundResource",completed
+                    ? (light?R.drawable.widget_checkbox_checked_light:R.drawable.widget_checkbox_checked)
+                    : (light?R.drawable.widget_checkbox_background_light:R.drawable.widget_checkbox_background));
+                v.setTextViewText(R.id.agenda_compact_done,completed ? "✓" : "");
+                v.setTextColor(R.id.agenda_compact_done,Color.parseColor(completed ? "#FFFFFF" : "#C4B5FD"));
                 v.setViewVisibility(R.id.agenda_compact_done,View.VISIBLE);
                 v.setOnClickPendingIntent(R.id.agenda_summary,taskOpen(c,primary.optString("id"),72000+id));
                 v.setOnClickPendingIntent(R.id.agenda_compact_done,AndroidActionsReceiver.taskPending(c,primary.optString("id"),completed,72010+id));

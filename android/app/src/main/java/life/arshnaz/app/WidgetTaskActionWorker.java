@@ -67,6 +67,7 @@ public final class WidgetTaskActionWorker extends Worker {
             else if (validId(taskId) && ("complete".equals(action) || "reopen".equals(action))) setCompleted(project, database, uid, taskId, token, "complete".equals(action));
             else if (validId(taskId) && "edit".equals(action)) edit(project, database, uid, taskId, token,
                 getInputData().getBoolean("preserveDueDate", false));
+            else if (validId(taskId) && "delete".equals(action)) delete(project, database, uid, taskId, token);
             else throw new IllegalArgumentException("Unsupported widget action");
             c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("syncStatus", "Widget change saved").apply();
             ArshnazWidgetWorker.enqueue(c);
@@ -102,6 +103,10 @@ public final class WidgetTaskActionWorker extends Worker {
         request("PATCH", endpoint(project, database, uid, id, true,
             preserveDueDate ? new String[]{"title", "priority", "updated_at"} : new String[]{"title", "priority", "due_date", "updated_at"}),
             new JSONObject().put("fields", fields).toString(), token);
+    }
+    private void delete(String project, String database, String uid, String id, String token) throws Exception {
+        String url = endpoint(project, database, uid, id, false);
+        request("DELETE", url, "", token);
     }
     private JSONObject common(String title, String priority, String due) throws Exception {
         JSONObject fields = new JSONObject().put("title", string(title));

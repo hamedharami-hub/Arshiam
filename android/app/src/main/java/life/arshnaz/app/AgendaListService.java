@@ -38,22 +38,28 @@ public class AgendaListService extends RemoteViewsService {
             JSONObject t=tasks.get(position);
             RemoteViews row=new RemoteViews(c.getPackageName(),R.layout.widget_task_row);
             boolean light=AgendaData.options(c).getBoolean("widget."+id+".light",false);
-            row.setInt(R.id.row_done,"setBackgroundResource",light?R.drawable.widget_checkbox_background_light:R.drawable.widget_checkbox_background);
             boolean completed=t.optBoolean("completed")||"done".equals(t.optString("status"));
             int depth=Math.max(0,Math.min(3,t.optInt("_widgetDepth",0)));
             row.setInt(R.id.row_root,"setBackgroundResource",depth>0
                 ? (light?R.drawable.widget_subtask_background_light:R.drawable.widget_subtask_background)
                 : (light?R.drawable.widget_row_background_light:R.drawable.widget_row_background));
-            row.setTextColor(R.id.row_title,android.graphics.Color.parseColor(depth>0
-                ? (light?"#4338A6":"#DDD6FE") : (light?"#172033":"#F1F5F9")));
+            row.setInt(R.id.row_done,"setBackgroundResource",completed
+                ? (light?R.drawable.widget_checkbox_checked_light:R.drawable.widget_checkbox_checked)
+                : (light?R.drawable.widget_checkbox_background_light:R.drawable.widget_checkbox_background));
+            row.setTextViewText(R.id.row_done,completed?"✓":"");
+            row.setTextColor(R.id.row_done,android.graphics.Color.parseColor(completed?"#FFFFFF":"#94A3B8"));
+            if(completed) {
+                row.setTextColor(R.id.row_title,android.graphics.Color.parseColor(light?"#94A3B8":"#64748B"));
+            } else {
+                row.setTextColor(R.id.row_title,android.graphics.Color.parseColor(depth>0
+                    ? (light?"#4338A6":"#DDD6FE") : (light?"#172033":"#F1F5F9")));
+            }
             boolean hasChildren=hasChildren(c,t.optString("id"));
             boolean collapsed=AgendaData.options(c).getBoolean("widget."+id+".collapsed."+t.optString("id"),false);
             row.setTextViewText(R.id.row_title,t.optString("title"));
             row.setTextViewText(R.id.row_expand,hasChildren?(collapsed?"›":"⌄"):" ");
             row.setViewVisibility(R.id.row_expand,hasChildren?android.view.View.VISIBLE:android.view.View.GONE);
             row.setTextViewText(R.id.row_meta,(depth>0?"↳ SUBTASK · ":hasChildren?"TASK GROUP · ":"TASK · ")+AgendaData.dueLabel(t.optString("due_date")));
-            row.setTextViewText(R.id.row_done,completed?"☑":"☐");
-            row.setTextColor(R.id.row_done,android.graphics.Color.parseColor(completed?"#A78BFA":"#94A3B8"));
             row.setViewPadding(R.id.row_root,8+depth*20,5,8,5);
             boolean priority="high".equals(t.optString("priority"))||"urgent".equals(t.optString("priority"));
             if(priority) row.setTextViewText(R.id.row_meta,(depth>0?"↳ SUBTASK · ":hasChildren?"TASK GROUP · ":"TASK · ")+AgendaData.dueLabel(t.optString("due_date"))+" · High priority");

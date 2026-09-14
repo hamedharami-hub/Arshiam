@@ -23,13 +23,26 @@ import {
   Check,
   Wind,
   HelpCircle,
+  MoreHorizontal,
+  Trash2,
+  Calendar,
+  ArrowUpRight,
+  Edit3,
+  Mic,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
-import { fetchTasks, saveTask } from "@/features/tasks/taskService";
+import { fetchTasks, saveTask, deleteTask } from "@/features/tasks/taskService";
 import type { Task } from "@/lib/taskTypes";
 import { refreshAndroidWidgets, getWidgetDiagnostics } from "@/lib/androidWidget";
 import { isAndroid } from "@/lib/nativeExperience";
@@ -185,6 +198,40 @@ export default function WidgetsView() {
         toast.success(nextCompleted ? "تسک در ویجت انجام شد" : "تسک دوباره فعال شد");
       } catch {
         toast.error("خطا در ذخیره وضعیت تسک");
+      }
+    }
+  };
+
+  const handlePostponeTask = async (task: Task) => {
+    haptic("light");
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split("T")[0];
+    const updated = {
+      ...task,
+      due_date: tomorrowStr,
+      updated_at: new Date().toISOString(),
+    };
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
+    if (user?.uid && task.id && !task.id.startsWith("s")) {
+      try {
+        await saveTask(user.uid, updated);
+        toast.success("موعد تسک به فردا منتقل شد 📅");
+      } catch {
+        toast.error("خطا در به‌روزرسانی موعد تسک");
+      }
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    haptic("warning");
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    if (user?.uid && !taskId.startsWith("s")) {
+      try {
+        await deleteTask(user.uid, taskId);
+        toast.success("تسک حذف شد 🗑️");
+      } catch {
+        toast.error("خطا در حذف تسک");
       }
     }
   };
@@ -483,13 +530,17 @@ export default function WidgetsView() {
                               {/* Checkbox */}
                               <button
                                 onClick={() => void handleToggleTask(t)}
+                                title={t.completed ? "علامت‌گذاری به عنوان انجام‌نشده" : "انجام شد (تیک زدن)"}
                                 className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-primary/40 text-primary transition-all hover:scale-105"
                               >
                                 {t.completed ? <CheckCircle2 className="h-4 w-4 text-emerald-500 fill-emerald-500/20" /> : <Circle className="h-4 w-4" />}
                               </button>
 
                               {/* Task Content */}
-                              <div className="min-w-0 flex-1">
+                              <div
+                                className="min-w-0 flex-1 cursor-pointer"
+                                onClick={() => navigate(`/app/tasks/${t.id}`)}
+                              >
                                 <p className={`truncate text-xs font-medium ${t.completed ? "line-through text-muted-foreground" : ""}`}>
                                   {t.title}
                                 </p>
@@ -498,6 +549,51 @@ export default function WidgetsView() {
                                   {t.due_date ? t.due_date.slice(5) : "بدون تاریخ"}
                                 </span>
                               </div>
+
+                              {/* Three Dots Menu (⋯) */}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/60 transition shrink-0 opacity-80 group-hover:opacity-100"
+                                    title="عملیات تسک در ویجت"
+                                  >
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48 text-xs">
+                                  <DropdownMenuItem onClick={() => void handleToggleTask(t)}>
+                                    {t.completed ? (
+                                      <>
+                                        <Circle className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                                        <span>علامت به عنوان انجام‌نشده</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-500" />
+                                        <span>انجام شد (تیک زدن)</span>
+                                      </>
+                                    )}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => void handlePostponeTask(t)}>
+                                    <Calendar className="h-3.5 w-3.5 mr-2 text-primary" />
+                                    <span>انتقال موعد به فردا</span>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => navigate(`/app/tasks/${t.id}`)}>
+                                    <ArrowUpRight className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                                    <span>مشاهده در برنامه اصلی</span>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => void handleDeleteTask(t.id)}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5 mr-2" />
+                                    <span>حذف تسک</span>
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           ))
                         )}
@@ -513,7 +609,7 @@ export default function WidgetsView() {
                         >
                           <Plus className="h-3.5 w-3.5" /> افزودن تسک
                         </Button>
-                        <span className="text-[10px] text-muted-foreground">لمس تیک برای انجام</span>
+                        <span className="text-[10px] text-muted-foreground">لمس تیک برای انجام · لمس ⋯ برای منو</span>
                       </div>
                     </div>
                   )}
@@ -527,17 +623,65 @@ export default function WidgetsView() {
                       </div>
 
                       {filteredTasks[0] ? (
-                        <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-3">
+                        <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-3 group">
                           <button
                             onClick={() => void handleToggleTask(filteredTasks[0])}
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-card border border-primary/40 text-primary"
+                            title={filteredTasks[0].completed ? "علامت‌گذاری به عنوان انجام‌نشده" : "انجام شد (تیک زدن)"}
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-card border border-primary/40 text-primary transition-all hover:scale-105"
                           >
                             {filteredTasks[0].completed ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <Circle className="h-5 w-5" />}
                           </button>
-                          <div className="min-w-0 flex-1">
-                            <h4 className="truncate text-xs font-bold">{filteredTasks[0].title}</h4>
+                          <div
+                            className="min-w-0 flex-1 cursor-pointer"
+                            onClick={() => navigate(`/app/tasks/${filteredTasks[0].id}`)}
+                          >
+                            <h4 className={`truncate text-xs font-bold ${filteredTasks[0].completed ? "line-through text-muted-foreground" : ""}`}>
+                              {filteredTasks[0].title}
+                            </h4>
                             <p className="text-[10px] text-muted-foreground mt-0.5">برای بازکردن تسک لمس کنید</p>
                           </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/60 transition shrink-0"
+                                title="عملیات تسک در ویجت"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48 text-xs">
+                              <DropdownMenuItem onClick={() => void handleToggleTask(filteredTasks[0])}>
+                                {filteredTasks[0].completed ? (
+                                  <>
+                                    <Circle className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                                    <span>علامت به عنوان انجام‌نشده</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-500" />
+                                    <span>انجام شد (تیک زدن)</span>
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => void handlePostponeTask(filteredTasks[0])}>
+                                <Calendar className="h-3.5 w-3.5 mr-2 text-primary" />
+                                <span>انتقال موعد به فردا</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => navigate(`/app/tasks/${filteredTasks[0].id}`)}>
+                                <ArrowUpRight className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                                <span>مشاهده در برنامه اصلی</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => void handleDeleteTask(filteredTasks[0].id)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="h-3.5 w-3.5 mr-2" />
+                                <span>حذف تسک</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       ) : (
                         <div className="py-4 text-center text-xs text-muted-foreground">
@@ -622,6 +766,15 @@ export default function WidgetsView() {
                         <Button
                           variant="outline"
                           size="sm"
+                          onClick={() => navigate("/app/new/task?voice=1")}
+                          className="h-12 flex-col gap-0.5 rounded-xl border-primary/40 bg-primary/5 text-[11px]"
+                        >
+                          <Mic className="h-4 w-4 text-primary animate-pulse" />
+                          <span>ویس / حرف من</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => navigate("/app/checkin")}
                           className="h-12 flex-col gap-0.5 rounded-xl border-border/50 text-[11px]"
                         >
@@ -641,10 +794,10 @@ export default function WidgetsView() {
                           variant="outline"
                           size="sm"
                           onClick={() => navigate("/app/pomodoro")}
-                          className="h-12 flex-col gap-0.5 rounded-xl border-border/50 text-[11px]"
+                          className="col-span-2 h-10 flex-row gap-2 rounded-xl border-border/50 text-[11px]"
                         >
                           <TimerReset className="h-4 w-4 text-violet-400" />
-                          <span>پومودورو</span>
+                          <span>پومودورو و تمرکز عمیق</span>
                         </Button>
                       </div>
                     </div>

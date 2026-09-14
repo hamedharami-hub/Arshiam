@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Plus, Pin, Trash2, Search, Sparkles, Loader2, FolderInput, PinOff, Share2, X, Maximize2, FileText } from "lucide-react";
+import { Plus, Pin, Trash2, Search, Sparkles, Loader2, FolderInput, PinOff, Share2, X, Maximize2, FileText, MoreHorizontal } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
 import ShareDialog from "@/components/ShareDialog";
 import SwipeableRow from "@/components/gestures/SwipeableRow";
@@ -474,14 +474,83 @@ export default function NotesView() {
                 className="border-b bg-card"
                 title={T("Drag روی فولدر سایدبار برای انتقال", "Drag onto a folder in the sidebar to move")}
               >
-                <button onClick={() => { setSelected(n); setDraft({ html: markdownToHtml(n.content || ""), md: n.content || "" }); }}
-                  className={`w-full text-end p-3 hover:bg-accent/40 transition cursor-grab active:cursor-grabbing ${selected?.id === n.id ? "bg-accent/60" : ""}`}>
-                  <div className="flex items-center gap-1">
-                    {n.pinned && <Pin className="w-3 h-3 text-primary" />}
-                    <BidiText as="span" text={n.title} className="font-medium text-sm truncate flex-1" />
-                  </div>
-                  <BidiText as="p" text={stripMd(n.content)} className="text-xs text-muted-foreground mt-1 line-clamp-3 whitespace-pre-wrap break-words" />
-                </button>
+                <div
+                  className={`w-full text-end p-3 hover:bg-accent/40 transition flex items-start justify-between gap-2 ${
+                    selected?.id === n.id ? "bg-accent/60" : ""
+                  }`}
+                >
+                  <button
+                    onClick={() => {
+                      setSelected(n);
+                      setDraft({ html: markdownToHtml(n.content || ""), md: n.content || "" });
+                    }}
+                    className="flex-1 min-w-0 text-right cursor-grab active:cursor-grabbing"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      {n.pinned && <Pin className="w-3.5 h-3.5 text-primary shrink-0" />}
+                      <BidiText as="span" text={n.title} className="font-medium text-sm truncate flex-1" />
+                    </div>
+                    <BidiText
+                      as="p"
+                      text={stripMd(n.content)}
+                      className="text-xs text-muted-foreground mt-1 line-clamp-3 whitespace-pre-wrap break-words"
+                    />
+                  </button>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/70 transition shrink-0"
+                        title={T("عملیات نوت", "Note actions")}
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void togglePin(n);
+                        }}
+                      >
+                        {n.pinned ? (
+                          <>
+                            <PinOff className="w-4 h-4 mr-2 text-muted-foreground" />
+                            <span>{T("برداشتن سنجاق", "Unpin note")}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Pin className="w-4 h-4 mr-2 text-primary" />
+                            <span>{T("سنجاق کردن", "Pin note")}</span>
+                          </>
+                        )}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelected(n);
+                          setMoveOpen(true);
+                        }}
+                      >
+                        <FolderInput className="w-4 h-4 mr-2 text-muted-foreground" />
+                        <span>{T("انتقال به پوشه", "Move to folder")}</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmDel(n);
+                        }}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        <span>{T("حذف نوت", "Delete note")}</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
             </SwipeableRow>
           ))}

@@ -66,6 +66,9 @@ public class ArshnazSpeechPlugin extends Plugin implements RecognitionListener {
             intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
             intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
             intent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, preferOffline);
+            intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 3500L);
+            intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2000L);
+            intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2000L);
             recognizer.startListening(intent);
         });
     }
@@ -145,7 +148,16 @@ public class ArshnazSpeechPlugin extends Plugin implements RecognitionListener {
     @Override public void onBufferReceived(byte[] buffer) {}
     @Override public void onEndOfSpeech() {}
     @Override public void onEvent(int eventType, Bundle params) {}
-    @Override public void onPartialResults(Bundle partialResults) {}
+    @Override public void onPartialResults(Bundle partialResults) {
+        if (partialResults != null) {
+            ArrayList<String> matches = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+            if (matches != null && !matches.isEmpty()) {
+                JSObject obj = new JSObject();
+                obj.put("interim", matches.get(0));
+                notifyListeners("partialResult", obj);
+            }
+        }
+    }
     @Override public void onResults(Bundle results) { resolveResults(results); }
     @Override public void onError(int error) { rejectActive("Speech recognition failed", errorCode(error)); }
 

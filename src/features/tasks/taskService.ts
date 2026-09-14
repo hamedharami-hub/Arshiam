@@ -116,3 +116,4 @@ export function subscribeToTasks(userId: string, onUpdate: (tasks: Task[]) => vo
 
 export const saveTask = upsertFirestoreTask;
 export const removeTask = deleteFirestoreTask;
+export const deleteTask = deleteFirestoreTask;

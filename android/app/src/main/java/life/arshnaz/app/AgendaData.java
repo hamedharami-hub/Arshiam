@@ -187,6 +187,23 @@ final class AgendaData {
             .putLong("updatedAt", System.currentTimeMillis()).apply();
         return changed;
     }
+    static boolean deleteTask(Context c, String id) {
+        if (id == null || id.isEmpty() || !prefs(c).getBoolean("sessionReady", false)) return false;
+        JSONArray rows = read(c);
+        JSONArray next = new JSONArray();
+        boolean changed = false;
+        for (int i = 0; i < rows.length(); i++) {
+            JSONObject row = rows.optJSONObject(i);
+            if (row != null && id.equals(row.optString("id"))) {
+                changed = true;
+                continue;
+            }
+            if (row != null) next.put(row);
+        }
+        if (changed) prefs(c).edit().putString("agendaTasks", next.toString())
+            .putLong("updatedAt", System.currentTimeMillis()).apply();
+        return changed;
+    }
     static String label(String scope) {
         switch(scope) {
             case "tomorrow": return "Tomorrow";
