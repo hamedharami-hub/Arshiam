@@ -58,6 +58,7 @@ afterEach(() => { cleanup(); mocks.navigate.mockClear(); });
 it("shows the inherited folder, updates the header after moving, and protects a parent jump", async () => {
   render(<NewTaskView />);
   expect(await screen.findByTestId("editor")).toBeInTheDocument();
+  expect(screen.getAllByRole("button", { name: "ذخیره" })).toHaveLength(1);
   expect(await screen.findByRole("button", { name: "تغییر فولدر: Work" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /Parent task/ })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "تغییر فولدر: Work" }));

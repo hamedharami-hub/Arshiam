@@ -1747,14 +1747,19 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       ) : mode === "page" ? (
         <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-2 pb-16 xl:pb-8 min-h-screen flex flex-col">
           {!hidePageToolbar && <div className="sticky top-14 z-10 px-3 sm:px-4 py-2 mb-3 rounded-2xl bg-card/80 dark:bg-card/85 backdrop-blur-xl border border-border/50 shadow-xs flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground" aria-live="polite">
-              <span className={`w-2 h-2 rounded-full ${
-                saveState === "saving" ? "bg-amber-500 animate-ping" :
-                saveState === "dirty" ? "bg-amber-500" :
-                saveState === "error" ? "bg-destructive" : "bg-emerald-500"
-              }`} />
-              {saveLabel}
-            </span>
+            <div className="flex min-w-0 items-center gap-2">
+              <Button size="icon" variant="ghost" onClick={requestClose} className="h-8 w-8 shrink-0 rounded-xl" title={T("برگشت", "Back")} aria-label={T("برگشت", "Back")}>
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+              <span className="inline-flex min-w-0 items-center gap-1.5 text-xs font-medium text-muted-foreground" aria-live="polite">
+                <span className={`w-2 h-2 shrink-0 rounded-full ${
+                  saveState === "saving" ? "bg-amber-500 animate-ping" :
+                  saveState === "dirty" ? "bg-amber-500" :
+                  saveState === "error" ? "bg-destructive" : "bg-emerald-500"
+                }`} />
+                <span className="truncate">{saveLabel}</span>
+              </span>
+            </div>
             {editorActions}
           </div>}
           {activeNote ? noteEditorBody : body}

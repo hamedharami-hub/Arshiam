@@ -216,25 +216,14 @@ export default function NewTaskView() {
 
   return (
     <div dir="rtl" className="w-full">
-      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b px-3 py-2.5 space-y-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <Button variant="ghost" size="sm" onClick={handleBack} className="gap-1 shrink-0">
-            <ArrowRight className="w-4 h-4" /> برگشت
-          </Button>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={() => detailRef.current?.openActions()} disabled={busy} aria-label="گزینه‌های بیشتر" title="گزینه‌های بیشتر">
-              <MoreHorizontal className="w-5 h-5" />
-            </Button>
-            <Button onClick={finish} disabled={busy} size="sm" className="gap-1.5 min-w-20 rounded-xl font-semibold">
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              {busy ? "در حال ذخیره…" : "ذخیره"}
-            </Button>
-          </div>
-        </div>
-        <nav aria-label="مسیر تسک" className="flex min-w-0 items-center gap-1.5 text-xs sm:text-sm">
+      <div className="sticky top-0 z-20 flex min-h-14 items-center gap-1.5 border-b bg-background/95 px-2 py-2 backdrop-blur">
+        <Button variant="ghost" size="icon" onClick={handleBack} className="h-10 w-10 shrink-0 rounded-xl" aria-label="برگشت" title="برگشت">
+          <ArrowRight className="w-5 h-5" />
+        </Button>
+        <nav aria-label="مسیر تسک" className="flex min-w-0 flex-1 items-center justify-center gap-1 text-xs sm:text-sm">
           <Popover open={folderOpen} onOpenChange={setFolderOpen}>
             <PopoverTrigger asChild>
-              <button type="button" className="inline-flex min-w-0 max-w-[60%] items-center gap-1.5 rounded-lg px-2 py-1.5 font-semibold text-foreground hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={`تغییر فولدر: ${folderLabel}`}>
+              <button type="button" className="inline-flex min-w-0 max-w-[58vw] items-center gap-1.5 rounded-xl px-2 py-2 font-semibold text-foreground hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={`تغییر فولدر: ${folderLabel}`}>
                 <FolderIcon className="h-4 w-4 shrink-0 text-primary" style={{ color: selectedFolder?.color || undefined }} />
                 <span className="truncate">{folderLabel}</span>
                 <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -259,12 +248,20 @@ export default function NewTaskView() {
           </Popover>
           {parentId && <>
             <span className="text-muted-foreground" aria-hidden="true">/</span>
-            <button type="button" onClick={goToParent} className="inline-flex min-w-0 items-center gap-1 rounded-lg px-2 py-1.5 text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" title={headerContext?.parentTitle || "تسک والد"}>
+            <button type="button" onClick={goToParent} className="inline-flex min-w-0 max-w-[25vw] items-center gap-1 rounded-lg px-1.5 py-1.5 text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" title={headerContext?.parentTitle || "تسک والد"}>
               <ListTree className="h-4 w-4 shrink-0" />
               <span className="truncate">{headerContext?.parentTitle || "تسک والد"}</span>
             </button>
           </>}
         </nav>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <Button variant="ghost" size="icon" onClick={() => detailRef.current?.openActions()} disabled={busy} className="h-10 w-10 rounded-xl" aria-label="گزینه‌های بیشتر" title="گزینه‌های بیشتر">
+            <MoreHorizontal className="w-5 h-5" />
+          </Button>
+          <Button onClick={finish} disabled={busy} size="icon" className="h-10 w-10 rounded-xl" aria-label={busy ? "در حال ذخیره" : "ذخیره"} title={busy ? "در حال ذخیره" : "ذخیره"}>
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-5 h-5" />}
+          </Button>
+        </div>
       </div>
 
       <TaskDetail
