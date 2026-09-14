@@ -278,6 +278,32 @@ public class WidgetTaskActionActivity extends Activity {
             finish();
         });
 
+        // 2.5 Toggle Subtasks in widget (if task has children)
+        if (AgendaListService.Factory.hasChildren(this, taskId)) {
+            int subCount = AgendaListService.Factory.childCount(this, taskId);
+            Button toggleSubs = new Button(this);
+            toggleSubs.setText(isFa ? "📁 باز/بستن " + subCount + " زیرمجموعه در ویجت" : "Toggle " + subCount + " subtasks in widget");
+            toggleSubs.setTextColor(Color.parseColor("#DDD6FE"));
+            toggleSubs.setBackgroundResource(R.drawable.widget_btn_secondary);
+            LinearLayout.LayoutParams tsLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 46 * dp);
+            tsLp.bottomMargin = 8 * dp;
+            toggleSubs.setLayoutParams(tsLp);
+            root.addView(toggleSubs);
+            toggleSubs.setOnClickListener(v -> {
+                android.content.SharedPreferences opts = AgendaData.options(this);
+                android.appwidget.AppWidgetManager m = android.appwidget.AppWidgetManager.getInstance(this);
+                for (Class<?> type : AgendaWidgetProvider.TYPES) {
+                    for (int wId : m.getAppWidgetIds(new android.content.ComponentName(this, type))) {
+                        String key = "widget." + wId + ".collapsed." + taskId;
+                        opts.edit().putBoolean(key, !opts.getBoolean(key, false)).commit();
+                    }
+                }
+                AgendaWidgetProvider.redraw(this);
+                Toast.makeText(this, isFa ? "وضعیت ساب‌تسک‌ها در ویجت تغییر کرد" : "Toggled subtasks in widget", Toast.LENGTH_SHORT).show();
+                finish();
+            });
+        }
+
         // 3. Move to Tomorrow / Postpone
         Button postpone = new Button(this);
         postpone.setText(isFa ? "📅 انتقال موعد به فردا" : "Postpone to Tomorrow");

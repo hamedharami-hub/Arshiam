@@ -35,13 +35,26 @@ public final class WidgetRouterActivity extends Activity {
             return;
         } else if ("collapse".equals(operation)) {
             int widgetId = -1;
-            try { widgetId=Integer.parseInt(data.getQueryParameter("widgetId")); } catch (Exception ignored) { }
+            try { widgetId = Integer.parseInt(data.getQueryParameter("widgetId")); } catch (Exception ignored) { }
+            android.content.SharedPreferences options = AgendaData.options(this);
             if (widgetId >= 0) {
-                String key="widget."+widgetId+".collapsed."+taskId;
-                android.content.SharedPreferences options=AgendaData.options(this);
-                options.edit().putBoolean(key,!options.getBoolean(key,false)).apply();
-                AgendaWidgetProvider.update(this,android.appwidget.AppWidgetManager.getInstance(this),widgetId);
+                String key = "widget." + widgetId + ".collapsed." + taskId;
+                options.edit().putBoolean(key, !options.getBoolean(key, false)).commit();
+                AgendaWidgetProvider.update(this, android.appwidget.AppWidgetManager.getInstance(this), widgetId);
+            } else {
+                android.appwidget.AppWidgetManager m = android.appwidget.AppWidgetManager.getInstance(this);
+                for (Class<?> type : AgendaWidgetProvider.TYPES) {
+                    for (int wId : m.getAppWidgetIds(new android.content.ComponentName(this, type))) {
+                        String key = "widget." + wId + ".collapsed." + taskId;
+                        options.edit().putBoolean(key, !options.getBoolean(key, false)).commit();
+                    }
+                }
+                AgendaWidgetProvider.redraw(this);
             }
+            overridePendingTransition(0, 0);
+            finish();
+            overridePendingTransition(0, 0);
+            return;
         } else if ("menu".equals(operation)) {
             startActivity(new Intent(this, WidgetTaskActionActivity.class).putExtra("taskId", taskId).putExtra("mode", "menu"));
         } else if ("edit".equals(operation)) {
