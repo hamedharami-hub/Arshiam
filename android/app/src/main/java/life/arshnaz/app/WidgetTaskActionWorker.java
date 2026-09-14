@@ -21,26 +21,36 @@ public final class WidgetTaskActionWorker extends Worker {
     private static final String WORK = "arshnaz-widget-task-action";
     public WidgetTaskActionWorker(@NonNull Context context, @NonNull WorkerParameters params) { super(context, params); }
 
+    private static final java.util.concurrent.ExecutorService ENQUEUE_EXECUTOR =
+        java.util.concurrent.Executors.newSingleThreadExecutor();
+
     static void enqueue(Context c, String action, String taskId, String title, String priority, String dueDate) {
         enqueue(c, action, taskId, title, priority, dueDate, false);
     }
     static void enqueue(Context c, String action, String taskId, String title, String priority, String dueDate, boolean preserveDueDate) {
-        SharedPreferences state = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        long sessionGeneration = -1L;
-        try {
-            sessionGeneration = ArshnazSecureStore.open(c).getLong("generation", 0);
-        } catch (Exception ignored) {
-            // Do not enqueue a mutation that cannot be bound to the current secure session.
-            state.edit().putString("syncStatus", "Open ARSHNAZ before editing from a widget").apply();
-        }
-        Data input = new Data.Builder().putString("action", action).putString("taskId", taskId == null ? "" : taskId)
-            .putString("title", title == null ? "" : title).putString("priority", priority == null ? "none" : priority)
-            .putString("dueDate", dueDate == null ? "" : dueDate).putBoolean("preserveDueDate", preserveDueDate)
-            .putString("ownerId", state.getString("dataUserId", ""))
-            .putLong("sessionGeneration", sessionGeneration).build();
-        WorkManager.getInstance(c).enqueueUniqueWork(WORK, ExistingWorkPolicy.APPEND_OR_REPLACE,
-            new OneTimeWorkRequest.Builder(WidgetTaskActionWorker.class).setInputData(input)
-                .setConstraints(new Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build());
+        final Context appContext = c.getApplicationContext();
+        ENQUEUE_EXECUTOR.execute(() -> {
+            try {
+                SharedPreferences state = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+                long sessionGeneration = -1L;
+                try {
+                    sessionGeneration = ArshnazSecureStore.open(appContext).getLong("generation", 0);
+                } catch (Exception ignored) {
+                    // Do not enqueue a mutation that cannot be bound to the current secure session.
+                    state.edit().putString("syncStatus", "Open ARSHNAZ before editing from a widget").apply();
+                }
+                Data input = new Data.Builder().putString("action", action).putString("taskId", taskId == null ? "" : taskId)
+                    .putString("title", title == null ? "" : title).putString("priority", priority == null ? "none" : priority)
+                    .putString("dueDate", dueDate == null ? "" : dueDate).putBoolean("preserveDueDate", preserveDueDate)
+                    .putString("ownerId", state.getString("dataUserId", ""))
+                    .putLong("sessionGeneration", sessionGeneration).build();
+                WorkManager.getInstance(appContext).enqueueUniqueWork(WORK, ExistingWorkPolicy.APPEND_OR_REPLACE,
+                    new OneTimeWorkRequest.Builder(WidgetTaskActionWorker.class).setInputData(input)
+                        .setConstraints(new Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build());
+            } catch (Exception e) {
+                // Safeguard against any unexpected worker scheduling exception
+            }
+        });
     }
 
     @NonNull @Override public Result doWork() {

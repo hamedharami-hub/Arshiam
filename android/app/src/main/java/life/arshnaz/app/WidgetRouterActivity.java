@@ -26,9 +26,13 @@ public final class WidgetRouterActivity extends Activity {
             boolean completed = "1".equals(data.getQueryParameter("completed"));
             AgendaData.setCompleted(this, taskId, !completed);
             AgendaData.prefs(this).edit().putString("syncStatus",
-                completed ? "Reopening task from widget…" : "Completing task from widget…").apply();
-            WidgetTaskActionWorker.enqueue(this, completed ? "reopen" : "complete", taskId, "", "", "");
+                completed ? "Reopening task from widget…" : "Completing task from widget…").commit();
             AgendaWidgetProvider.redraw(this);
+            WidgetTaskActionWorker.enqueue(this, completed ? "reopen" : "complete", taskId, "", "", "");
+            overridePendingTransition(0, 0);
+            finish();
+            overridePendingTransition(0, 0);
+            return;
         } else if ("collapse".equals(operation)) {
             int widgetId = -1;
             try { widgetId=Integer.parseInt(data.getQueryParameter("widgetId")); } catch (Exception ignored) { }

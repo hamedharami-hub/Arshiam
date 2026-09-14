@@ -184,7 +184,7 @@ final class AgendaData {
             break;
         }
         if (changed) prefs(c).edit().putString("agendaTasks", rows.toString())
-            .putLong("updatedAt", System.currentTimeMillis()).apply();
+            .putLong("updatedAt", System.currentTimeMillis()).commit();
         return changed;
     }
     static boolean deleteTask(Context c, String id) {
@@ -201,7 +201,7 @@ final class AgendaData {
             if (row != null) next.put(row);
         }
         if (changed) prefs(c).edit().putString("agendaTasks", next.toString())
-            .putLong("updatedAt", System.currentTimeMillis()).apply();
+            .putLong("updatedAt", System.currentTimeMillis()).commit();
         return changed;
     }
     static String label(String scope) {
