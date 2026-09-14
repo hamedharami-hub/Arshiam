@@ -1,10 +1,8 @@
 import React from "react";
-import { COLOR_CLASSES_MAP } from "@/lib/titleFormatting";
 
 /**
  * Renders text with proper bidirectional handling for mixed Persian/English.
- * Also parses lightweight markdown inline: **bold**, __bold__, *italic*, _italic_, `code`, ~~strike~~,
- * and colored text: [red]{text}, [color:blue]{text}, [#hex]{text}.
+ * Also parses lightweight markdown inline: **bold**, __bold__, *italic*, _italic_, `code`, ~~strike~~.
  * Use everywhere we display user text that may mix RTL/LTR.
  */
 export function BidiText({
@@ -38,26 +36,13 @@ interface PatternRule {
 }
 
 /**
- * Minimal inline markdown & color parser → React nodes.
- * Handles ** **, __ __, [color]{ }, == ==, * *, _ _, ` `, ~~ ~~ without pulling a full MD lib.
+ * Minimal inline markdown parser → React nodes.
+ * Handles ** **, __ __, == ==, * *, _ _, ` `, ~~ ~~ without pulling a full MD lib.
  */
 function parseInlineMarkdown(input: string): React.ReactNode[] {
   if (!input) return [];
 
   const patterns: PatternRule[] = [
-    // Colored phrases: [red]{text}, [color:blue]{text}, [#f43f5e]{text}
-    {
-      re: /\[(?:color:)?([a-zA-Z0-9#_-]+)\]\{([^}\n]+?)\}/,
-      render: (m) => {
-        const colorKey = m[1].toLowerCase();
-        const text = m[2];
-        if (colorKey.startsWith("#")) {
-          return <span style={{ color: colorKey }} className="font-bold">{text}</span>;
-        }
-        const cls = COLOR_CLASSES_MAP[colorKey] || "font-bold text-primary";
-        return <span className={cls}>{text}</span>;
-      },
-    },
     // Triple asterisk: bold italic
     { re: /\*\*\*([^*\n]+?)\*\*\*/, render: (m) => <strong className="font-extrabold text-foreground"><em>{m[1]}</em></strong> },
     // Double asterisk or double underscore: extra bold

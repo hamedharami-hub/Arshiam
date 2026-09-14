@@ -10,7 +10,6 @@ import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { BidiText } from "@/components/BidiText";
-import { TitleFormatToolbar } from "@/components/TitleFormatToolbar";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -701,16 +700,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             )}
           </div>
         </div>
-      )}
-
-      {canEdit && (
-        <TitleFormatToolbar
-          inputRef={titleInputRef}
-          value={t.title}
-          onChange={(newTitle) => setT({ ...t, title: newTitle })}
-          onCommit={(newTitle) => save({ title: newTitle })}
-          className="mt-1 px-1"
-        />
       )}
     </div>
   );

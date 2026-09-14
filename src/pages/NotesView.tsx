@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Plus, Pin, Trash2, Search, Sparkles, Loader2, FolderInput, PinOff, Share2, X, Maximize2, FileText, MoreHorizontal } from "lucide-react";
@@ -20,7 +20,6 @@ import { NoteEditorTabs } from "@/components/NoteEditorTabs";
 import { markdownToHtml } from "@/lib/markdown";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { BidiText } from "@/components/BidiText";
-import { TitleFormatToolbar } from "@/components/TitleFormatToolbar";
 import { callAI, getAILanguage, type AILanguage } from "@/lib/ai";
 import { AILangToggle } from "@/components/AILangToggle";
 import { pushUndo } from "@/lib/undoStack";
@@ -99,7 +98,6 @@ export default function NotesView() {
   const [aiLang, setAiLang] = useState<AILanguage>(getAILanguage());
   const [moveOpen, setMoveOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const noteTitleRef = useRef<HTMLTextAreaElement | null>(null);
 
   const { canEdit, isOwner } = useShareAccess("note", selected?.id, selected?.user_id);
 
@@ -372,7 +370,6 @@ export default function NotesView() {
     <div className="px-3 sm:px-4 py-2 w-full min-h-0 flex flex-col">
       <div className="flex items-start gap-2 mb-3 flex-wrap">
         <AutoTextarea
-          ref={noteTitleRef}
           value={selected.title}
           onChange={(e) => save({ title: e.target.value })}
           onKeyDown={(e) => {
@@ -429,15 +426,6 @@ export default function NotesView() {
           <Trash2 className="w-4 h-4" />
         </Button>
       </div>
-
-      {canEdit && (
-        <TitleFormatToolbar
-          inputRef={noteTitleRef}
-          value={selected.title}
-          onChange={(title) => save({ title })}
-          className="mb-2 px-1"
-        />
-      )}
 
       <NoteEditorTabs
         noteId={selected.id}
