@@ -1913,26 +1913,28 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       />
       <PomodoroSheet task={t} open={focusOpen} onOpenChange={setFocusOpen} />
       {mode === "embedded" ? (
-        <div className="w-full h-full flex flex-col bg-card/90 border border-border/70 rounded-2xl shadow-sm overflow-hidden animate-in fade-in duration-200">
-          <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between gap-2 bg-muted/30">
-            <div className="flex items-center gap-2 min-w-0">
+        <div className="w-full h-full flex flex-col bg-card/95 backdrop-blur-md border border-border/70 rounded-2xl shadow-sm overflow-hidden animate-in fade-in duration-200">
+          <div className="px-3 sm:px-4 py-2.5 border-b border-border/60 flex items-center justify-between gap-2 bg-muted/30 shrink-0">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               <span className="h-2.5 w-2.5 rounded-full bg-primary shrink-0" />
-              <h3 className="text-sm font-semibold truncate text-foreground" dir="auto">
+              <h3 className="text-sm font-bold truncate text-foreground" dir="auto">
                 {activeNote ? T("ویرایش نوت", "Edit note") : (t.title || T("بدون عنوان", "Untitled"))}
               </h3>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
-              onClick={requestClose}
-              title={T("بستن پنل جزئیات", "Close details panel")}
-            >
-              <X className="w-4 h-4" />
-            </Button>
-            {editorActions}
+            <div className="flex items-center gap-1 shrink-0">
+              {editorActions}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+                onClick={requestClose}
+                title={T("بستن پنل جزئیات", "Close details panel")}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
-          <div className="flex-1 overflow-y-auto min-h-0 p-3.5 space-y-3">
+          <div className="flex-1 overflow-y-auto min-h-0 p-3 sm:p-4 space-y-3">
             {activeNote ? noteEditorBody : body}
           </div>
         </div>

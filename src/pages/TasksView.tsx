@@ -185,6 +185,40 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     if (typeof window === "undefined") return true;
     return localStorage.getItem("arshnaz_tasks_split_view") !== "false";
   });
+  const [isWideOrFoldable, setIsWideOrFoldable] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return (
+      window.innerWidth >= 600 ||
+      (typeof window.matchMedia === "function" &&
+        (window.matchMedia("(horizontal-viewport-segments: 2)").matches ||
+          window.matchMedia("(spanning: single-fold-vertical)").matches))
+    );
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const check = () => {
+      const wide =
+        window.innerWidth >= 600 ||
+        (typeof window.matchMedia === "function" &&
+          (window.matchMedia("(horizontal-viewport-segments: 2)").matches ||
+            window.matchMedia("(spanning: single-fold-vertical)").matches));
+      setIsWideOrFoldable(wide);
+    };
+    window.addEventListener("resize", check);
+    const m1 = window.matchMedia?.("(horizontal-viewport-segments: 2)");
+    const m2 = window.matchMedia?.("(spanning: single-fold-vertical)");
+    m1?.addEventListener?.("change", check);
+    m2?.addEventListener?.("change", check);
+    return () => {
+      window.removeEventListener("resize", check);
+      m1?.removeEventListener?.("change", check);
+      m2?.removeEventListener?.("change", check);
+    };
+  }, []);
+
+  const isSplitActive = splitView && isWideOrFoldable;
+
   const toggleSplitView = () => {
     setSplitView((prev) => {
       const next = !prev;
@@ -1035,8 +1069,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                 variant={splitView ? "secondary" : "outline"}
                 size="sm"
                 onClick={toggleSplitView}
-                className="hidden md:inline-flex items-center gap-1.5 text-xs h-8 px-2.5 rounded-lg border border-border/60 font-medium"
-                title={splitView ? T("حالت تمام‌صفحه", "Full width") : T("نمای دوپنله دسکتاپ", "Desktop split view")}
+                className="hidden sm:inline-flex items-center gap-1.5 text-xs h-8 px-2.5 rounded-lg border border-border/60 font-medium transition-colors"
+                title={splitView ? T("حالت تمام‌صفحه", "Full width") : T("نمای دوپنله (نیمه چپ)", "Split view (left panel)")}
               >
                 <Columns2 className="w-3.5 h-3.5" />
                 <span>{splitView ? T("نمای دوپنله", "Split view") : T("تمام‌صفحه", "Full width")}</span>
@@ -1047,12 +1081,22 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         />
       </div>
 
-      {/* On mobile: clean minimal bar with filter button */}
+      {/* On mobile / foldable: clean minimal bar with split view toggle + filter button */}
       <div className="flex items-center justify-between mb-2 md:hidden">
         <span className="text-xs font-medium text-muted-foreground">
           {folderTopLevel.length > 0 ? `${folderTopLevel.length} ${T("تسک", "tasks")}` : ""}
         </span>
-        <div className="ms-auto">
+        <div className="ms-auto flex items-center gap-1.5">
+          <Button
+            variant={splitView ? "secondary" : "outline"}
+            size="sm"
+            onClick={toggleSplitView}
+            className="inline-flex items-center gap-1 text-xs h-7 px-2 rounded-lg border border-border/60 font-medium transition-colors"
+            title={splitView ? T("حالت تمام‌صفحه", "Full width") : T("نمای دوپنله (نیمه چپ)", "Split view (left panel)")}
+          >
+            <Columns2 className="w-3.5 h-3.5" />
+            <span className="text-[11px]">{splitView ? T("دوپنله", "Split") : T("تک‌پنله", "Single")}</span>
+          </Button>
           <TaskFilterSheet filters={filters} onChange={setFilters} />
         </div>
       </div>
@@ -1245,19 +1289,24 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         )}
 
         <div
-          data-task-split={splitView ? "true" : "false"}
+          data-task-split={isSplitActive ? "true" : "false"}
           dir="ltr"
-          className={`w-full items-start gap-4 xl:gap-5 ${splitView ? "flex flex-col md:grid md:grid-cols-[minmax(320px,0.78fr)_minmax(420px,1.22fr)] 2xl:grid-cols-[minmax(390px,0.82fr)_minmax(620px,1.3fr)]" : "flex flex-col"}`}
+          className={`w-full items-start gap-3 sm:gap-4 xl:gap-5 ${
+            isSplitActive
+              ? "grid grid-cols-[minmax(280px,0.85fr)_minmax(320px,1.15fr)] lg:grid-cols-[minmax(340px,0.78fr)_minmax(460px,1.22fr)] 2xl:grid-cols-[minmax(400px,0.82fr)_minmax(640px,1.3fr)]"
+              : "flex flex-col"
+          }`}
         >
           {/* Explicit LTR grid placement keeps the inspector on the physical left:
               sidebar/folders live on the right, the list remains central/right. */}
-          {splitView && (
+          {isSplitActive && (
             <aside
               dir={isEn ? "ltr" : "rtl"}
-              className="hidden md:block md:col-start-1 w-full min-w-0 sticky top-[4.25rem] h-[calc(100dvh-6.5rem)] overflow-hidden transition-all duration-200"
+              className="col-start-1 w-full min-w-0 sticky top-[3.75rem] sm:top-[4.25rem] h-[calc(100dvh-5.5rem)] sm:h-[calc(100dvh-6.5rem)] overflow-hidden transition-all duration-200"
             >
               {selectedTask ? (
                 <TaskDetail
+                  key={selectedTask.id}
                   task={selectedTask}
                   mode="embedded"
                   onClose={() => setSelectedTask(null)}
@@ -1272,14 +1321,19 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                   </div>
                   <p className="text-sm font-semibold text-foreground">{T("یک تسک را انتخاب کنید", "Select a task")}</p>
                   <p className="text-xs text-muted-foreground mt-1 max-w-[260px] leading-5">
-                    {T("جزئیات و ویرایش در پنل سمت چپ باز می‌شود؛ فهرست کارها در مرکز باقی می‌ماند.", "Details open in the left panel while the task list remains central.")}
+                    {T("جزئیات و ویرایش در پنل سمت چپ باز می‌شود؛ فهرست کارها در سمت راست باقی می‌ماند.", "Details open in the left panel while the task list remains on the right.")}
                   </p>
                 </div>
               )}
             </aside>
           )}
 
-          <section dir={isEn ? "ltr" : "rtl"} className={`w-full min-w-0 rounded-2xl border border-border/60 bg-card/35 p-2 sm:p-3 lg:p-4 shadow-sm ${splitView ? "md:col-start-2" : ""}`}>
+          <section
+            dir={isEn ? "ltr" : "rtl"}
+            className={`w-full min-w-0 rounded-2xl border border-border/60 bg-card/35 p-2 sm:p-3 lg:p-4 shadow-sm ${
+              isSplitActive ? "col-start-2" : ""
+            }`}
+          >
             {isFolder ? (
               folderPrefs.view === "list" ? (
                 listView
@@ -1290,7 +1344,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                   sortOrder={folderPrefs.sortOrder}
                   onOpenTask={(id) => {
                     const found = effectiveAllTasks.find(x => x.id === id);
-                    if (found && splitView) setSelectedTask(found);
+                    if (found && isSplitActive) setSelectedTask(found);
                     else navigate(`/app/tasks/${id}`);
                   }}
                 />
@@ -1365,17 +1419,15 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         />
       )}
 
-      {selectedTask && (
-        <div className={splitView ? "md:hidden" : ""}>
-          <TaskDetail
-            task={selectedTask}
-            mode="drawer"
-            onClose={() => setSelectedTask(null)}
-            onChanged={load}
-            setConfirm={setConfirm}
-            allowDelete
-          />
-        </div>
+      {selectedTask && !isSplitActive && (
+        <TaskDetail
+          task={selectedTask}
+          mode="drawer"
+          onClose={() => setSelectedTask(null)}
+          onChanged={load}
+          setConfirm={setConfirm}
+          allowDelete
+        />
       )}
 
       <TaskActionSheet
