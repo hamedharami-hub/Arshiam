@@ -57,7 +57,7 @@ public class AgendaListService extends RemoteViewsService {
             boolean hasChildren=hasChildren(c,t.optString("id"));
             int count=hasChildren?childCount(c,t.optString("id")):0;
             boolean collapsed=AgendaData.options(c).getBoolean("widget."+id+".collapsed."+t.optString("id"),false);
-            row.setTextViewText(R.id.row_title,t.optString("title"));
+            row.setTextViewText(R.id.row_title,WidgetTasks.formatTitle(t.optString("title")));
             if (hasChildren) {
                 row.setInt(R.id.row_expand,"setBackgroundResource",light?R.drawable.widget_expand_background_light:R.drawable.widget_expand_background);
                 row.setTextViewText(R.id.row_expand,collapsed?("▾ "+count):("▲ "+count));

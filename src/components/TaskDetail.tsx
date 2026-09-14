@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { BidiText } from "@/components/BidiText";
+import { TitleFormatToolbar } from "@/components/TitleFormatToolbar";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -125,6 +126,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const latestTaskRef = useRef(task);
   const savedTaskRef = useRef(task);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const titleInputRef = useRef<HTMLTextAreaElement | null>(null);
 
 
   useEffect(() => {
@@ -663,6 +665,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           {t.completed ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
         </Button>
         <AutoTextarea
+          ref={titleInputRef}
           value={t.title}
           onChange={(e) => setT({ ...t, title: e.target.value })}
           onBlur={() => save({ title: t.title })}
@@ -688,6 +691,15 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           {voiceListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
         </Button>
       </div>
+      {canEdit && (
+        <TitleFormatToolbar
+          inputRef={titleInputRef}
+          value={t.title}
+          onChange={(newTitle) => setT({ ...t, title: newTitle })}
+          onCommit={(newTitle) => save({ title: newTitle })}
+          className="mt-1 px-1"
+        />
+      )}
       </div>
     );
 
@@ -1918,7 +1930,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <span className="h-2.5 w-2.5 rounded-full bg-primary shrink-0" />
               <h3 className="text-sm font-bold truncate text-foreground" dir="auto">
-                {activeNote ? T("ویرایش نوت", "Edit note") : (t.title || T("بدون عنوان", "Untitled"))}
+                {activeNote ? T("ویرایش نوت", "Edit note") : <BidiText text={t.title || T("بدون عنوان", "Untitled")} />}
               </h3>
             </div>
             <div className="flex items-center gap-1 shrink-0">
@@ -1958,7 +1970,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           <DrawerContent className={`h-screen max-h-screen flex flex-col !mt-0 ${snap === 1 ? "!m-0 !rounded-none" : "min-h-[55vh]"}`} aria-describedby="task-drawer-desc">
             <DrawerHeader className="px-4 pt-4 pb-1 text-center">
               <DrawerTitle className="text-base font-semibold truncate" dir="auto">
-                {activeNote ? T("ویرایش نوت", "Edit note") : (t.title || T("بدون عنوان", "Untitled"))}
+                {activeNote ? T("ویرایش نوت", "Edit note") : <BidiText text={t.title || T("بدون عنوان", "Untitled")} />}
               </DrawerTitle>
             </DrawerHeader>
             {drawerHeader}
@@ -1973,7 +1985,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           <SheetContent className="w-full sm:max-w-xl md:max-w-2xl overflow-y-auto p-3 sm:p-4 flex flex-col">
             <SheetHeader className="mb-1 flex-row items-center justify-between gap-3 pe-8">
               <SheetTitle className="text-base font-semibold truncate text-start" dir="auto">
-                {activeNote ? T("ویرایش نوت", "Edit note") : (t.title || T("بدون عنوان", "Untitled"))}
+                {activeNote ? T("ویرایش نوت", "Edit note") : <BidiText text={t.title || T("بدون عنوان", "Untitled")} />}
               </SheetTitle>
               {editorActions}
             </SheetHeader>

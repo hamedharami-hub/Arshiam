@@ -47,4 +47,28 @@ final class WidgetTasks {
         JSONObject field = fields.optJSONObject(key);
         return field == null ? "" : field.optString("stringValue", field.optString("timestampValue", ""));
     }
+
+    static CharSequence formatTitle(String raw) {
+        if (raw == null || raw.isEmpty()) return "";
+        if (!raw.contains("*") && !raw.contains("[") && !raw.contains("==") && !raw.contains("__")) return raw;
+        try {
+            String html = raw
+                .replaceAll("\\[(?:color:)?red\\]\\{([^}]+)\\}", "<font color=\"#f43f5e\"><b>$1</b></font>")
+                .replaceAll("\\[(?:color:)?blue\\]\\{([^}]+)\\}", "<font color=\"#0284c7\"><b>$1</b></font>")
+                .replaceAll("\\[(?:color:)?green\\]\\{([^}]+)\\}", "<font color=\"#10b981\"><b>$1</b></font>")
+                .replaceAll("\\[(?:color:)?(?:yellow|amber|gold)\\]\\{([^}]+)\\}", "<font color=\"#f59e0b\"><b>$1</b></font>")
+                .replaceAll("\\[(?:color:)?(?:purple|violet)\\]\\{([^}]+)\\}", "<font color=\"#9333ea\"><b>$1</b></font>")
+                .replaceAll("\\[(?:color:)?orange\\]\\{([^}]+)\\}", "<font color=\"#f97316\"><b>$1</b></font>")
+                .replaceAll("\\[(?:color:)?pink\\]\\{([^}]+)\\}", "<font color=\"#ec4899\"><b>$1</b></font>")
+                .replaceAll("\\[(?:color:)?cyan\\]\\{([^}]+)\\}", "<font color=\"#06b6d4\"><b>$1</b></font>")
+                .replaceAll("\\[(?:color:)?(#[0-9a-fA-F]{3,6})\\]\\{([^}]+)\\}", "<font color=\"$1\"><b>$2</b></font>")
+                .replaceAll("\\*\\*\\*([^*]+)\\*\\*\\*", "<b><i>$1</i></b>")
+                .replaceAll("\\*\\*([^*]+)\\*\\*", "<b>$1</b>")
+                .replaceAll("__([^_]+)__", "<b>$1</b>")
+                .replaceAll("==([^=]+)==", "<font color=\"#d97706\"><b>$1</b></font>");
+            return android.text.Html.fromHtml(html, android.text.Html.FROM_HTML_MODE_LEGACY);
+        } catch (Exception e) {
+            return raw;
+        }
+    }
 }

@@ -1,8 +1,10 @@
 import React from "react";
+import { COLOR_CLASSES_MAP } from "@/lib/titleFormatting";
 
 /**
  * Renders text with proper bidirectional handling for mixed Persian/English.
- * Also parses lightweight markdown inline: **bold**, __bold__, *italic*, _italic_, `code`, ~~strike~~.
+ * Also parses lightweight markdown inline: **bold**, __bold__, *italic*, _italic_, `code`, ~~strike~~,
+ * and colored text: [red]{text}, [color:blue]{text}, [#hex]{text}.
  * Use everywhere we display user text that may mix RTL/LTR.
  */
 export function BidiText({
@@ -30,35 +32,58 @@ export function BidiText({
   );
 }
 
+interface PatternRule {
+  re: RegExp;
+  render: (m: RegExpMatchArray) => React.ReactNode;
+}
+
 /**
- * Minimal inline markdown parser → React nodes.
- * Handles ** **, __ __, * *, _ _, ` `, ~~ ~~ without pulling a full MD lib.
+ * Minimal inline markdown & color parser → React nodes.
+ * Handles ** **, __ __, [color]{ }, == ==, * *, _ _, ` `, ~~ ~~ without pulling a full MD lib.
  */
 function parseInlineMarkdown(input: string): React.ReactNode[] {
   if (!input) return [];
 
-  // Order matters: triple asterisk before double, double before single
-  const patterns: { re: RegExp; render: (m: string) => React.ReactNode }[] = [
-    { re: /\*\*\*([^*\n]+?)\*\*\*/, render: (m) => <strong><em>{m}</em></strong> },
-    { re: /\*\*([^*\n]+?)\*\*/, render: (m) => <strong className="font-bold text-foreground">{m}</strong> },
-    { re: /__([^_\n]+?)__/, render: (m) => <strong className="font-bold text-foreground">{m}</strong> },
-    { re: /==([^=\n]+?)==/, render: (m) => <mark className="px-1 py-0.5 rounded bg-amber-400/30 dark:bg-amber-400/20 text-foreground font-medium">{m}</mark> },
-    { re: /~~([^~\n]+?)~~/, render: (m) => <s className="line-through opacity-75">{m}</s> },
-    { re: /`([^`\n]+?)`/, render: (m) => <code className="px-1.5 py-0.5 rounded bg-muted font-mono text-[0.88em] border border-border/50 ltr inline-block">{m}</code> },
-    { re: /(?<!\*)\*(?!\*)([^*\n]+?)(?<!\*)\*(?!\*)/, render: (m) => <em className="italic">{m}</em> },
-    { re: /(?<!_)_(?!_)([^_\n]+?)(?<!_)_(?!_)/, render: (m) => <em className="italic">{m}</em> },
+  const patterns: PatternRule[] = [
+    // Colored phrases: [red]{text}, [color:blue]{text}, [#f43f5e]{text}
+    {
+      re: /\[(?:color:)?([a-zA-Z0-9#_-]+)\]\{([^}\n]+?)\}/,
+      render: (m) => {
+        const colorKey = m[1].toLowerCase();
+        const text = m[2];
+        if (colorKey.startsWith("#")) {
+          return <span style={{ color: colorKey }} className="font-bold">{text}</span>;
+        }
+        const cls = COLOR_CLASSES_MAP[colorKey] || "font-bold text-primary";
+        return <span className={cls}>{text}</span>;
+      },
+    },
+    // Triple asterisk: bold italic
+    { re: /\*\*\*([^*\n]+?)\*\*\*/, render: (m) => <strong className="font-extrabold text-foreground"><em>{m[1]}</em></strong> },
+    // Double asterisk or double underscore: extra bold
+    { re: /\*\*([^*\n]+?)\*\*/, render: (m) => <strong className="font-extrabold text-foreground">{m[1]}</strong> },
+    { re: /__([^_\n]+?)__/, render: (m) => <strong className="font-extrabold text-foreground">{m[1]}</strong> },
+    // Highlight
+    { re: /==([^=\n]+?)==/, render: (m) => <mark className="px-1 py-0.5 rounded bg-amber-400/30 dark:bg-amber-400/20 text-foreground font-semibold">{m[1]}</mark> },
+    // Strikethrough
+    { re: /~~([^~\n]+?)~~/, render: (m) => <s className="line-through opacity-75">{m[1]}</s> },
+    // Inline code
+    { re: /`([^`\n]+?)`/, render: (m) => <code className="px-1.5 py-0.5 rounded bg-muted font-mono text-[0.88em] border border-border/50 ltr inline-block">{m[1]}</code> },
+    // Single asterisk or underscore: italic
+    { re: /(?<!\*)\*(?!\*)([^*\n]+?)(?<!\*)\*(?!\*)/, render: (m) => <em className="italic">{m[1]}</em> },
+    { re: /(?<!_)_(?!_)([^_\n]+?)(?<!_)_(?!_)/, render: (m) => <em className="italic">{m[1]}</em> },
   ];
 
   // Recursive walker
   const walk = (s: string, key = 0): React.ReactNode[] => {
-    for (const { re, render } of patterns) {
-      const match = s.match(re);
+    for (const rule of patterns) {
+      const match = s.match(rule.re);
       if (match && match.index !== undefined) {
         const before = s.slice(0, match.index);
         const after = s.slice(match.index + match[0].length);
         return [
           ...walk(before, key * 3 + 1),
-          <React.Fragment key={`m-${key}`}>{render(match[1])}</React.Fragment>,
+          <React.Fragment key={`m-${key}`}>{rule.render(match)}</React.Fragment>,
           ...walk(after, key * 3 + 2),
         ];
       }
