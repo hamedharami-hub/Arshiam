@@ -1162,13 +1162,13 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         {isFolder && (
           <div className="flex items-center justify-between gap-2 mb-4">
             <h1 className="text-lg md:text-xl font-black text-foreground truncate">{folderName || title}</h1>
-            <DropdownMenu>
+            <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" aria-label={T("تنظیمات فولدر", "Folder settings")}>
                   <MoreVertical className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-60 text-xs p-1.5 space-y-1">
+              <DropdownMenuContent align="end" sideOffset={6} className="w-60 text-xs p-1.5 space-y-1">
                 <DropdownMenuLabel className="text-[11px] font-bold text-muted-foreground px-2 py-1">
                   {T("نمای فولدر", "Folder View")}
                 </DropdownMenuLabel>

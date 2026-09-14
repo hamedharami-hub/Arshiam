@@ -36,10 +36,14 @@ interface Props {
   onPomodoro?: () => void;
   onPatch?: (patch: Partial<Task>) => Promise<void> | void;
   onRefresh?: () => void;
+  canEdit?: boolean;
+  isOwner?: boolean;
+  canComment?: boolean;
 }
 
 export default function TaskActionSheet({
   task, open, onOpenChange, onComplete, onDelete, onMove, onMakeChild, onEdit, onPin, onPomodoro, onPatch, onRefresh,
+  canEdit: propCanEdit, isOwner: propIsOwner, canComment: propCanComment,
 }: Props) {
   const { i18n } = useTranslation();
   const { user } = useAuth();
@@ -52,7 +56,11 @@ export default function TaskActionSheet({
   const [comment, setComment] = useState("");
   const [location, setLocation] = useState(task?.location || "");
   const [busy, setBusy] = useState(false);
-  const { canEdit, canComment, isOwner } = useShareAccess("task", task?.id, task?.user_id);
+
+  const fallbackIsOwner = !!user && !!task && user.id === task.user_id;
+  const isOwner = propIsOwner ?? fallbackIsOwner;
+  const canEdit = propCanEdit ?? isOwner;
+  const canComment = propCanComment ?? canEdit;
 
   if (!task) return null;
 
@@ -396,19 +404,21 @@ export default function TaskActionSheet({
 
   return (
     <>
-      <Sheet open={(open ?? !!task) && !shareOpen} onOpenChange={onOpenChange}>
+      <Sheet open={!!open && !shareOpen} onOpenChange={onOpenChange} modal={false}>
         <SheetContent side="bottom" className="rounded-t-2xl pb-5 px-3 pt-4 max-h-[85vh] overflow-y-auto">
           {renderView()}
         </SheetContent>
       </Sheet>
 
-      <ShareDialog
-        open={shareOpen}
-        onOpenChange={(v) => { setShareOpen(v); if (!v) onOpenChange(false); }}
-        resourceType="task"
-        resourceId={task.id}
-        resourceTitle={task.title}
-      />
+      {shareOpen && (
+        <ShareDialog
+          open={shareOpen}
+          onOpenChange={(v) => { setShareOpen(v); if (!v) onOpenChange(false); }}
+          resourceType="task"
+          resourceId={task.id}
+          resourceTitle={task.title}
+        />
+      )}
     </>
   );
 }
