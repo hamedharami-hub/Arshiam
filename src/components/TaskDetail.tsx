@@ -113,6 +113,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [showOutcomes, setShowOutcomes] = useState(false);
   const [stepListCount, setStepListCount] = useState(0);
   const [attachmentCount, setAttachmentCount] = useState(0);
+  const [linkUrl, setLinkUrl] = useState("");
   const [voiceListening, setVoiceListening] = useState(false);
   const [voiceInstance, setVoiceInstance] = useState<VoiceInput | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -818,6 +819,33 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     toast.success(T("تگ ساخته شد", "Tag created"));
   };
 
+  const attachLink = async () => {
+    if (!user || !canEdit || !linkUrl.trim()) return;
+    const url = linkUrl.trim();
+    const { error } = await firebaseStore.from("task_attachments").insert({
+      user_id: user.id,
+      task_id: t.id,
+      url,
+      storage_path: "",
+      file_name: url.replace(/^https?:\/\//, "").slice(0, 80),
+      mime_type: "text/uri-list",
+      kind: "file" as any,
+      size_bytes: 0,
+    } as any);
+    if (error) return toast.error(error.message);
+    setLinkUrl("");
+    setShowAttachments(true);
+    toast.success(T("لینک افزوده شد", "Link added"));
+    window.dispatchEvent(new CustomEvent(`arshnaz:attach-refresh:${t.id}`));
+  };
+
+  const pickFileType = (accept: string) => {
+    setShowAttachments(true);
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent(`arshnaz:attach-pick:${t.id}`, { detail: { accept } }));
+    }, 50);
+  };
+
   // ── 4 Metadata tabs: Inbox/Folder, Schedule, Priority, Tags ──────
   const topControls = (
     <div className="mx-auto max-w-3xl w-full px-1 pt-0.5 pb-1.5">
@@ -1394,6 +1422,186 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     </div>
   );
 
+  // ── Rail icon button (matching mobile task bottom bar) ───────────────
+  const RailButton = ({
+    icon: Icon, label, active, badge, onClick, accent, className, disabled,
+  }: any) => (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={label}
+      aria-label={label}
+      className={`relative flex flex-col items-center justify-center gap-0 min-w-[48px] sm:min-w-[54px] h-11 rounded-xl transition active:scale-95 disabled:opacity-50 disabled:cursor-default ${
+        active
+          ? accent
+            ? "bg-primary/15 text-primary font-semibold"
+            : "bg-secondary text-secondary-foreground font-semibold"
+          : "text-muted-foreground hover:bg-muted/60"
+      } ${className || ""}`}
+    >
+      <Icon className="w-4 h-4" />
+      {badge != null && badge !== 0 && (
+        <span className="absolute top-0.5 end-0.5 min-w-[13px] h-[13px] px-0.5 rounded-full bg-primary text-primary-foreground text-[8px] font-medium flex items-center justify-center">
+          {badge}
+        </span>
+      )}
+      <span className="text-[9px] mt-0.5 leading-none line-clamp-1 px-1 text-center">{label}</span>
+    </button>
+  );
+
+  // ── Bottom Action Bar (Docked at lowest part, near bottom tabs) ─────
+  const bottomRail = (
+    <div className="mx-auto max-w-2xl w-full px-2 py-1 border border-border/60 bg-card/95 dark:bg-card/90 backdrop-blur-xl rounded-2xl shadow-lg">
+      <div className="flex items-center justify-between gap-1 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-0.5 overflow-x-auto no-scrollbar py-0.5">
+          {/* 1. Attachments */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <span>
+                <RailButton
+                  icon={Paperclip}
+                  label={T("ضمیمه", "Attach")}
+                  active={showAttachments || attachmentCount > 0}
+                  badge={attachmentCount || undefined}
+                  disabled={!canEdit}
+                />
+              </span>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-2" align="start" side="top">
+              <div className="grid grid-cols-2 gap-1.5">
+                <AttachTypeBtn icon={ImageIcon} label={T("تصویر", "Image")} onClick={() => pickFileType("image/*")} />
+                <AttachTypeBtn icon={Music} label={T("صدا", "Audio")} onClick={() => pickFileType("audio/*")} />
+                <AttachTypeBtn icon={FileText} label={T("سند", "Document")} onClick={() => pickFileType("application/pdf,.doc,.docx,.txt")} />
+                <AttachTypeBtn icon={Paperclip} label={T("هر فایلی", "Any file")} onClick={() => pickFileType("*/*")} />
+              </div>
+              <div className="mt-2 pt-2 border-t border-border/40 flex items-center gap-1.5">
+                <LinkIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <Input
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && attachLink()}
+                  placeholder={T("https://…", "https://…")}
+                  className="h-8 text-xs"
+                  dir="ltr"
+                />
+                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={attachLink} disabled={!linkUrl.trim()}>
+                  {T("افزودن", "Add")}
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* 2. Link parent task */}
+          <Popover open={parentOpen} onOpenChange={setParentOpen}>
+            <PopoverTrigger asChild>
+              <span>
+                <RailButton
+                  icon={ListTree}
+                  label={T("تسک والد", "Parent")}
+                  active={!!t.parent_id}
+                  disabled={!canEdit}
+                />
+              </span>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-2 max-h-[55vh] overflow-y-auto" align="start" side="top">
+              <button
+                disabled={!isOwner || t.parent_id === null}
+                onClick={() => { save({ parent_id: null }); setParentOpen(false); }}
+                className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${t.parent_id === null ? "bg-accent" : ""}`}
+              >
+                {T("بدون والد (سطح بالا)", "No parent (top-level)")}
+              </button>
+              {parentCandidates.map((c) => (
+                <button
+                  key={c.id}
+                  disabled={!canEdit || c.id === t.parent_id}
+                  onClick={() => { save({ parent_id: c.id }); setParentOpen(false); }}
+                  className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent truncate disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${t.parent_id === c.id ? "bg-accent" : ""}`}
+                >
+                  {c.title || T("بدون عنوان", "Untitled")}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+
+          {/* 3. Items: Subtasks, Steps or Branches */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <span>
+                <RailButton
+                  icon={ListChecks}
+                  label={T("آیتم‌ها", "Items")}
+                  active={showSubtasks || showSteps || showOutcomes}
+                  badge={outcomeCount || undefined}
+                  disabled={!(canEdit || canComment)}
+                />
+              </span>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-1.5" align="start" side="top">
+              <button
+                onClick={() => setShowSubtasks(s => !s)}
+                className={`w-full flex items-center gap-2 p-2.5 rounded-lg text-sm hover:bg-accent ${showSubtasks ? "bg-accent" : ""}`}
+              >
+                <ListTree className="w-4 h-4 text-primary" />
+                <span className="flex-1 text-start">{T("زیرتسک", "Subtask")}</span>
+                {showSubtasks && <Check className="w-3.5 h-3.5" />}
+              </button>
+              <button
+                onClick={() => setShowSteps(s => !s)}
+                className={`w-full flex items-center gap-2 p-2.5 rounded-lg text-sm hover:bg-accent ${showSteps ? "bg-accent" : ""}`}
+              >
+                <CheckSquare className="w-4 h-4 text-emerald-500" />
+                <span className="flex-1 text-start">{T("مرحله / چک‌لیست", "Step / checklist")}</span>
+                {showSteps && <Check className="w-3.5 h-3.5" />}
+              </button>
+              <button
+                onClick={() => setShowOutcomes(s => !s)}
+                disabled={!canEdit}
+                className={`w-full flex items-center gap-2 p-2.5 rounded-lg text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${showOutcomes ? "bg-accent" : ""}`}
+              >
+                <GitBranch className="w-4 h-4 text-amber-500" />
+                <span className="flex-1 text-start">{T("شاخه‌ها", "Branches")}</span>
+                {outcomeCount > 0 && (
+                  <span className="text-[10px] text-muted-foreground tabular-nums">{outcomeCount}</span>
+                )}
+                {showOutcomes && <Check className="w-3.5 h-3.5" />}
+              </button>
+            </PopoverContent>
+          </Popover>
+
+          {/* 4. AI */}
+          <RailButton
+            icon={Sparkles}
+            label="AI"
+            accent
+            onClick={() => setAiOpen(true)}
+            disabled={!canEdit}
+          />
+
+          {/* 5. More Actions */}
+          <RailButton
+            icon={MoreHorizontal}
+            label={T("بیشتر", "More")}
+            onClick={() => setActionMenuOpen(true)}
+          />
+        </div>
+
+        {/* 6. Delete Action */}
+        {allowDelete && canEdit && (
+          <div className="flex items-center ps-1 border-s border-border/50 shrink-0">
+            <RailButton
+              icon={Trash2}
+              label={T("حذف", "Delete")}
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={deleteTask}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   const body = (
     <div className="mt-1 task-detail-sections flex flex-col min-h-[40vh] space-y-3">
       {hero}
@@ -1737,9 +1945,14 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           <div className="flex-1 overflow-y-auto min-h-0 p-3 sm:p-4 space-y-3">
             {activeNote ? noteEditorBody : body}
           </div>
+          {!activeNote && (
+            <div className="shrink-0 p-2 border-t border-border/40 bg-card/95">
+              {bottomRail}
+            </div>
+          )}
         </div>
       ) : mode === "page" ? (
-        <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-2 pb-12 min-h-screen flex flex-col">
+        <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-2 min-h-screen flex flex-col justify-between">
           <div className="sticky top-14 z-10 px-3 sm:px-4 py-2 mb-3 rounded-2xl bg-card/80 dark:bg-card/85 backdrop-blur-xl border border-border/50 shadow-xs flex items-center justify-between gap-3">
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground" aria-live="polite">
               <span className={`w-2 h-2 rounded-full ${
@@ -1751,7 +1964,14 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             </span>
             {editorActions}
           </div>
-          {activeNote ? noteEditorBody : body}
+          <div className="flex-1 min-h-0">
+            {activeNote ? noteEditorBody : body}
+          </div>
+          {!activeNote && (
+            <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] min-[600px]:bottom-[5.5rem] xl:bottom-2 z-30 pt-2 pb-1 bg-gradient-to-t from-background via-background/95 to-transparent">
+              {bottomRail}
+            </div>
+          )}
         </div>
       ) : mode === "drawer" && isMobile ? (
         <Drawer open={true} onOpenChange={(v) => !v && requestClose()} snapPoints={[0.5, 1]} activeSnapPoint={snap} setActiveSnapPoint={setSnap} shouldScaleBackground={false} dismissible>
@@ -1765,6 +1985,11 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             <div className={`flex-1 overflow-y-auto min-h-0 px-3 pb-4 ${snap === 1 ? "" : "max-h-[50vh]"}`}>
               {activeNote ? noteEditorBody : body}
             </div>
+            {!activeNote && (
+              <div className="shrink-0 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-1 border-t border-border/40 bg-card/95">
+                {bottomRail}
+              </div>
+            )}
             <p id="task-drawer-desc" className="sr-only">{T("جزئیات و ویرایش تسک", "Task details and editing")}</p>
           </DrawerContent>
         </Drawer>
@@ -1780,6 +2005,11 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             <div className="flex-1 overflow-y-auto min-h-0">
               {activeNote ? noteEditorBody : body}
             </div>
+            {!activeNote && (
+              <div className="shrink-0 pt-2 border-t border-border/40 bg-card/95">
+                {bottomRail}
+              </div>
+            )}
           </SheetContent>
         </Sheet>
       )}
@@ -1842,3 +2072,16 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     </>
   );
 });
+
+function AttachTypeBtn({ icon: Icon, label, onClick }: { icon: any; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex flex-col items-center justify-center gap-0.5 p-2 rounded-lg bg-muted/40 hover:bg-accent active:scale-95 transition"
+    >
+      <Icon className="w-4 h-4 text-primary" />
+      <span className="text-[10px] font-medium">{label}</span>
+    </button>
+  );
+}
