@@ -18,6 +18,7 @@ import {
   collectTaskDescendantIds,
   getTaskProgress,
 } from "@/features/tasks/taskTree";
+import { compareCompletedLast, sortTasksCompletedLast } from "@/features/tasks/taskOrdering";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasksData } from "@/hooks/useTasksData";
 import { syncAndroidWidget } from "@/lib/androidWidget";
@@ -120,7 +121,10 @@ function groupedChildren(
     }
     groups.get(oid)!.tasks.push(s);
   }
-  return [...groups.entries()].sort((a, b) => {
+  return [...groups.entries()].map(([id, group]) => [
+    id,
+    { ...group, tasks: sortTasksCompletedLast(group.tasks) },
+  ] as [string | null, { meta?: { label: string; color?: string | null; icon?: string | null }; tasks: Task[] }]).sort((a, b) => {
     if (a[0] === null) return -1;
     if (b[0] === null) return 1;
     const la = a[1].meta?.label || "";
@@ -367,6 +371,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const primary = filters.sort_primary || DEFAULT_FILTERS.sort_primary;
     const secondary = filters.sort_secondary || DEFAULT_FILTERS.sort_secondary;
     list = [...list].sort((a, b) => {
+      const completed = compareCompletedLast(a, b);
+      if (completed) return completed;
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
       return cmpForLevel(primary)(a, b) || cmpForLevel(secondary)(a, b);
     });
@@ -377,6 +383,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const folderTopLevel = useMemo(() => {
     if (!isFolder || folderPrefs.sortOrder === "manual") return topLevel;
     return [...topLevel].sort((a, b) => {
+      const completed = compareCompletedLast(a, b);
+      if (completed) return completed;
       if (folderPrefs.sortOrder === "priority") {
         return (PRIORITY_META[a.priority]?.rank ?? 3) - (PRIORITY_META[b.priority]?.rank ?? 3);
       }

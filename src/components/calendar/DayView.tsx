@@ -15,6 +15,7 @@ type Task = {
   start_at?: string | null;
   end_at?: string | null;
   estimated_minutes?: number | null;
+  completed?: boolean;
 };
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -47,7 +48,7 @@ function HourSlot({
           <div
             key={t.id}
             onClick={(e) => { e.stopPropagation(); onTaskClick?.(t.id); }}
-            className="bg-card text-foreground/80 text-xs rounded-md px-2 py-1 truncate border border-border/60 hover:border-primary/30 hover:bg-accent/30 transition"
+            className={`bg-card text-foreground/80 text-xs rounded-md px-2 py-1 truncate border border-border/60 hover:border-primary/30 hover:bg-accent/30 transition ${t.completed ? "line-through text-muted-foreground" : ""}`}
           >
             {t.title}
           </div>
@@ -148,7 +149,7 @@ export default function DayView({
               style={{ top: top + 4, height: Math.max(height - 6, 22) }}
               title={`${task.title} (${format(s, "HH:mm")}–${format(e, "HH:mm")})`}
             >
-              <div className="font-medium truncate">{task.title}</div>
+              <div className={`font-medium truncate ${task.completed ? "line-through opacity-70" : ""}`}>{task.title}</div>
               <div className="text-[10px] opacity-90 tabular-nums">
                 {toPersianDigits(format(s, "HH:mm"))} – {toPersianDigits(format(e, "HH:mm"))}
               </div>

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { formatDate, toPersianDigits, type CalendarSystem } from "@/lib/jalali";
 import { isHoliday, type Holiday } from "@/lib/holidays";
 
-type Task = { id: string; title: string; due_date: string | null; priority: string };
+type Task = { id: string; title: string; due_date: string | null; priority: string; completed?: boolean };
 
 export default function AgendaView({
   start, end, tasks, holidays, system,
@@ -19,7 +19,7 @@ export default function AgendaView({
     .filter((t) => t.due_date)
     .map((t) => ({ ...t, _d: new Date(t.due_date!) }))
     .filter((t) => t._d >= start && t._d <= end)
-    .sort((a, b) => compareAsc(a._d, b._d));
+    .sort((a, b) => Number(Boolean(a.completed)) - Number(Boolean(b.completed)) || compareAsc(a._d, b._d));
 
   // Group by day
   const groups: Record<string, typeof items> = {};
@@ -57,7 +57,7 @@ export default function AgendaView({
                   <span className="text-xs text-muted-foreground tabular-nums w-12">
                     {toPersianDigits(format(t._d, "HH:mm"))}
                   </span>
-                  <span className="flex-1 truncate text-foreground/90">{t.title}</span>
+                  <span className={`flex-1 truncate text-foreground/90 ${t.completed ? "line-through text-muted-foreground" : ""}`}>{t.title}</span>
                 </button>
               ))}
             </div>

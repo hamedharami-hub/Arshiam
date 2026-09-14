@@ -4,7 +4,7 @@ import { isHoliday, type Holiday } from "@/lib/holidays";
 import { computePhase, type CycleProfile, type CycleLog, PHASE_META } from "@/lib/cycle";
 type WeekStartsOn = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
-type Task = { id: string; title: string; due_date: string | null; priority: string };
+type Task = { id: string; title: string; due_date: string | null; priority: string; completed?: boolean };
 
 const PRIORITY_COLOR: Record<string, string> = {
   high: "hsl(var(--destructive))",
@@ -38,7 +38,8 @@ export default function MonthGrid({
       </div>
       <div className="grid grid-cols-7 gap-1">
         {days.map((d) => {
-          const dayTasks = tasks.filter((t) => t.due_date && isSameDay(new Date(t.due_date), d));
+          const dayTasks = tasks.filter((t) => t.due_date && isSameDay(new Date(t.due_date), d))
+            .sort((a, b) => Number(Boolean(a.completed)) - Number(Boolean(b.completed)));
           const dayHolidays = isHoliday(d, holidays);
           const isFriday = d.getDay() === 5;
           const isOff = dayHolidays.length > 0 || (system === "jalali" && isFriday);
@@ -79,7 +80,7 @@ export default function MonthGrid({
                     {dayTasks.slice(0, 2).map((t) => (
                       <div key={t.id} className="flex items-center gap-1 text-[9px] leading-tight">
                         <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: PRIORITY_COLOR[t.priority] || PRIORITY_COLOR.none }} />
-                        <span className="truncate text-foreground/80">{t.title}</span>
+                        <span className={`truncate text-foreground/80 ${t.completed ? "line-through text-muted-foreground" : ""}`}>{t.title}</span>
                       </div>
                     ))}
                     {dayTasks.length > 2 && (

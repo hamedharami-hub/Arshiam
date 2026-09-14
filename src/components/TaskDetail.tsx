@@ -779,7 +779,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           dir="auto"
           placeholder={T("عنوان تسک را اینجا بنویس…", "Write the task title here…")}
           data-task-title
-          className="text-lg md:text-xl font-bold leading-relaxed bg-transparent border-0 focus-visible:ring-0 focus-visible:bg-transparent px-2 py-1 text-foreground placeholder:text-muted-foreground/45 break-words whitespace-pre-wrap tracking-tight flex-1"
+          className={`text-lg md:text-xl font-bold leading-relaxed bg-transparent border-0 focus-visible:ring-0 focus-visible:bg-transparent px-2 py-1 text-foreground placeholder:text-muted-foreground/45 break-words whitespace-pre-wrap tracking-tight flex-1 ${t.completed ? "line-through text-muted-foreground" : ""}`}
         />
         <Button
           size="icon"

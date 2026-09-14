@@ -19,6 +19,7 @@ import {
 } from "./taskCache";
 import { applyTaskOperations } from "./taskOperations";
 import { syncAndroidWidget } from "@/lib/androidWidget";
+import { sortTasksCompletedLast } from "./taskOrdering";
 
 const TASKS_CACHE_PREFIX = "tasks:all:";
 const taskCache = new Map<string, Task[]>();
@@ -40,8 +41,8 @@ function persistTaskCache(userId: string, tasks: Task[]): Promise<void> {
   return cacheSet(taskCacheKey(userId), createTaskCacheEnvelope(tasks));
 }
 
-function sortTasks(tasks: Task[]): Task[] {
-  return [...tasks].sort((a, b) => {
+export function sortTasks(tasks: Task[]): Task[] {
+  return sortTasksCompletedLast(tasks, (a, b) => {
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
     const positionA = (a as Task & { position?: number }).position ?? 0;
     const positionB = (b as Task & { position?: number }).position ?? 0;
@@ -56,14 +57,14 @@ export async function getCachedTasks(userId: string): Promise<Task[]> {
   if (memory) return memory;
   const persisted = await cacheGet<unknown>(taskCacheKey(userId));
   const envelope = readTaskCacheEnvelope(persisted);
-  const tasks = envelope?.tasks || [];
+  const tasks = sortTasks(envelope?.tasks || []);
   setTaskCache(userId, tasks, envelope?.cachedAt);
   return tasks;
 }
 
 export async function applyPendingTaskOperations(base: Task[]): Promise<Task[]> {
   const operations = await getPendingOps("tasks");
-  return applyTaskOperations(base, operations);
+  return sortTasks(applyTaskOperations(base, operations));
 }
 
 export async function fetchTasks(userId: string): Promise<Task[]> {
@@ -107,10 +108,11 @@ export async function fetchTasks(userId: string): Promise<Task[]> {
 
 export function subscribeToTasks(userId: string, onUpdate: (tasks: Task[]) => void): () => void {
   return subscribeFirestoreTasks(userId, (tasks) => {
-    setTaskCache(userId, tasks);
-    void persistTaskCache(userId, tasks);
-    void syncAndroidWidget(tasks, userId).catch(() => {});
-    onUpdate(tasks);
+    const ordered = sortTasks(tasks);
+    setTaskCache(userId, ordered);
+    void persistTaskCache(userId, ordered);
+    void syncAndroidWidget(ordered, userId).catch(() => {});
+    onUpdate(ordered);
   });
 }
 

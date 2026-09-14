@@ -11,7 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { toast } from "sonner";
 
-type Task = { id: string; title: string; due_date: string | null; priority: string };
+type Task = { id: string; title: string; due_date: string | null; priority: string; completed?: boolean };
 
 const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2, none: 3 };
 const PRIORITY_COLOR: Record<string, string> = {
@@ -58,6 +58,7 @@ export default function DayDetailSheet({
   const dayTasks = tasks
     .filter((t) => t.due_date && isSameDay(new Date(t.due_date), date))
     .sort((a, b) => {
+      if (a.completed !== b.completed) return a.completed ? 1 : -1;
       const pa = PRIORITY_ORDER[a.priority] ?? 3;
       const pb = PRIORITY_ORDER[b.priority] ?? 3;
       if (pa !== pb) return pa - pb;
@@ -126,7 +127,7 @@ export default function DayDetailSheet({
                   className="flex items-center gap-2 w-full text-end px-3 py-2 text-sm hover:bg-accent/30 transition"
                 >
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ background: PRIORITY_COLOR[t.priority] || PRIORITY_COLOR.none }} />
-                  <span className="truncate flex-1">{t.title}</span>
+                  <span className={`truncate flex-1 ${t.completed ? "line-through text-muted-foreground" : ""}`}>{t.title}</span>
                   <span className="text-[10px] text-muted-foreground tabular-nums">
                     {toPersianDigits(String(t.due_date ? new Date(t.due_date).getHours().toString().padStart(2, "0") : "--"))}
                     :{toPersianDigits("00")}
@@ -154,7 +155,7 @@ export default function DayDetailSheet({
                           onClick={() => { onOpenChange(false); navigate(`/app/tasks/${t.id}`); }}
                           className="block w-full text-end bg-primary/10 text-primary border border-primary/20 rounded-md px-2 py-1 truncate hover:bg-primary/15 transition"
                         >
-                          {t.title}
+                          <span className={t.completed ? "line-through opacity-70" : ""}>{t.title}</span>
                         </button>
                       ))}
                     </div>

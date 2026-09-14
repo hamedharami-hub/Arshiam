@@ -7,6 +7,7 @@ import {
   getCachedTasks,
   isTaskCacheFreshForUser,
   subscribeToTasks,
+  sortTasks,
   taskMemoryCache,
 } from "@/features/tasks/taskService";
 
@@ -52,8 +53,9 @@ export function useTasksData({ user, scope, scopeId }: UseTasksDataOptions) {
     if (!user) return;
     let base = await getCachedTasks(user.id);
     base = await applyPendingTaskOperations(base);
-    taskMemoryCache.set(user.id, base);
-    setAllTasks(base);
+    const ordered = sortTasks(base);
+    taskMemoryCache.set(user.id, ordered);
+    setAllTasks(ordered);
     await fetchAll(!isTaskCacheFreshForUser(user.id));
 
     if (typeof navigator !== "undefined" && navigator.onLine) {
@@ -99,8 +101,9 @@ export function useTasksData({ user, scope, scopeId }: UseTasksDataOptions) {
     window.addEventListener("tasks-changed", onTasksChanged);
     const unsubscribe = subscribeToTasks(user.id, (tasks) => {
       if (tasks.length > 0) {
-        taskMemoryCache.set(user.id, tasks);
-        setAllTasks(tasks);
+        const ordered = sortTasks(tasks);
+        taskMemoryCache.set(user.id, ordered);
+        setAllTasks(ordered);
       }
     });
     const channel = firebaseStore.channel(`tasks-rt-${user.id}`)

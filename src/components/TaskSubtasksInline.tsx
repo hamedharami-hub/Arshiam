@@ -22,6 +22,10 @@ type Sub = {
   id: string; title: string; completed: boolean; position: number;
 };
 
+const sortSubtasksCompletedLast = (rows: Sub[]) => [...rows].sort((a, b) =>
+  Number(a.completed) - Number(b.completed) || a.position - b.position,
+);
+
 export function TaskSubtasksInline({
   taskId, onOpenSubtask, onProgressChange, readOnly = false,
 }: {
@@ -42,7 +46,7 @@ export function TaskSubtasksInline({
     // Preserve titles for rows the user is actively editing (avoid clobbering input/focus on mobile)
     setSubs((prev) => {
       const prevMap = new Map(prev.map((p) => [p.id, p]));
-      return rows.map((row) =>
+      return sortSubtasksCompletedLast(rows).map((row) =>
         editingRef.current.has(row.id) && prevMap.has(row.id)
           ? { ...row, title: prevMap.get(row.id)!.title }
           : row,
@@ -103,17 +107,17 @@ export function TaskSubtasksInline({
       .select("id,title,completed,position")
       .single();
     if (error) return toast.error(error.message);
-    if (data) setSubs((prev) => [...prev, data as Sub]);
+    if (data) setSubs((prev) => sortSubtasksCompletedLast([...prev, data as Sub]));
     setNewTitle("");
   };
 
   const toggle = async (s: Sub) => {
     if (readOnly) return;
     const next = !s.completed;
-    setSubs((prev) => prev.map((x) => (x.id === s.id ? { ...x, completed: next } : x)));
+    setSubs((prev) => sortSubtasksCompletedLast(prev.map((x) => (x.id === s.id ? { ...x, completed: next } : x))));
     await firebaseStore
       .from("tasks")
-      .update({ completed: next, completed_at: next ? new Date().toISOString() : null })
+      .update({ completed: next, status: next ? "done" : "todo", completed_at: next ? new Date().toISOString() : null })
       .eq("id", s.id);
   };
 
@@ -143,7 +147,7 @@ export function TaskSubtasksInline({
     const toIdx = subs.findIndex((s) => s.id === toId);
     if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
     const reordered = arrayMove(subs, fromIdx, toIdx).map((s, i) => ({ ...s, position: i }));
-    setSubs(reordered);
+    setSubs(sortSubtasksCompletedLast(reordered));
     await Promise.all(
       reordered.map((s, i) => firebaseStore.from("tasks").update({ position: i }).eq("id", s.id)),
     );

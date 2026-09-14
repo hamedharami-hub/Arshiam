@@ -7,7 +7,7 @@ import { useTapGestures } from "@/lib/useTapGestures";
 import { usePinchZoom } from "@/lib/usePinchZoom";
 import { ZoomIn } from "lucide-react";
 
-type Task = { id: string; title: string; due_date: string | null; priority: string };
+type Task = { id: string; title: string; due_date: string | null; priority: string; completed?: boolean };
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const BASE_ROW = 36;
@@ -30,7 +30,7 @@ function Slot({
         <div
           key={t.id}
           onClick={(e) => { e.stopPropagation(); navigate(`/app/tasks/${t.id}`); }}
-          className="bg-muted text-foreground/80 text-[10px] truncate rounded-md px-2 py-1 mb-1 border border-border/60 cursor-pointer hover:bg-accent/60 transition"
+          className={`bg-muted text-foreground/80 text-[10px] truncate rounded-md px-2 py-1 mb-1 border border-border/60 cursor-pointer hover:bg-accent/60 transition ${t.completed ? "line-through text-muted-foreground" : ""}`}
         >
           {t.title}
         </div>

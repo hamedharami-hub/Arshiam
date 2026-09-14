@@ -15,6 +15,7 @@ import DayView from "@/components/calendar/DayView";
 import AgendaView from "@/components/calendar/AgendaView";
 import DayDetailSheet from "@/components/calendar/DayDetailSheet";
 import type { CycleProfile, CycleLog } from "@/lib/cycle";
+import { sortTasksCompletedLast } from "@/features/tasks/taskOrdering";
 
 type ViewMode = "month" | "week" | "day" | "agenda";
 
@@ -64,7 +65,7 @@ export default function CalendarView() {
     else { start = startOfMonth(date); end = endOfMonth(date); }
     firebaseStore.from("tasks").select("*")
       .or(`and(due_date.gte.${start.toISOString()},due_date.lte.${end.toISOString()}),and(start_at.gte.${start.toISOString()},start_at.lte.${end.toISOString()})`)
-      .then(({ data }) => setTasks(data || []));
+      .then(({ data }) => setTasks(sortTasksCompletedLast(data || [])));
     getHolidaysForRange(start, end, ["IR", "AU"]).then(setHolidays);
   }, [user, date, view, refreshKey]);
 
