@@ -872,19 +872,102 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     }, 50);
   };
 
-  // ── Folder breadcrumb followed by compact task metadata ───────────
+  // ── 4 Metadata tabs: Inbox/Folder, Schedule, Priority, Tags ──────
   const topControls = (
     <div className="mx-auto max-w-3xl w-full px-1 pt-1 pb-2">
-      <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-        {/* 1. Schedule (Date + Time block + Repeat + Bucket) */}
-        <div className="order-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
+        {/* 1. Folder / Inbox */}
+        <div>
+        <Popover open={folderOpen} onOpenChange={setFolderOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!canEdit}
+              className={`w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-2.5 transition-all duration-150 ${t.folder_id ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30 shadow-xs font-semibold" : "bg-muted/30 text-foreground/85 hover:bg-muted/60 border-border/60"}`}
+            >
+              <FolderIcon className="w-4 h-4 shrink-0" style={{ color: t.folder_id ? folders.find(f => f.id === t.folder_id)?.color || undefined : undefined }} />
+              <span className="truncate flex-1 text-start">{t.folder_id ? folderName(t.folder_id) : T("صندوق ورودی", "Inbox")}</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 p-2 max-h-[55vh] overflow-y-auto" align="start" side="top">
+            {isOwner && !showFolderCreate && (
+              <button
+                onClick={() => setShowFolderCreate(true)}
+                className="w-full flex items-center gap-2 p-2 mb-1 rounded-xl bg-muted/40 hover:bg-accent text-sm text-muted-foreground"
+              >
+                <Plus className="w-4 h-4" /> {T("ساخت فولدر جدید", "Create new folder")}
+              </button>
+            )}
+            {isOwner && showFolderCreate && (
+              <>
+                <div className="flex items-center gap-1.5 mb-2 p-1.5 rounded-xl bg-muted/40">
+                  <span className="w-6 h-6 rounded-md shrink-0" style={{ background: newFolderColor }} />
+                  <Input
+                    autoFocus
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") { createFolderAndAssign(); setShowFolderCreate(false); }
+                      if (e.key === "Escape") setShowFolderCreate(false);
+                    }}
+                    placeholder={T("نام فولدر جدید…", "New folder name…")}
+                    className="h-8 text-xs border-0 bg-transparent focus-visible:ring-0"
+                  />
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={async () => { await createFolderAndAssign(); setShowFolderCreate(false); }} disabled={!newFolderName.trim()}>
+                    <Plus className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+                <div className="flex gap-1 mb-2 px-1">
+                  {TAG_COLORS.map(c => (
+                    <button key={c} onClick={() => setNewFolderColor(c)}
+                      className={`w-5 h-5 rounded-full border-2 ${newFolderColor === c ? "border-foreground" : "border-transparent"}`}
+                      style={{ background: c }} />
+                  ))}
+                </div>
+              </>
+            )}
+            <button
+              disabled={!isOwner}
+              onClick={() => save({ folder_id: null })}
+              className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${t.folder_id === null ? "bg-accent" : ""}`}
+            >{T("بدون فولدر (Inbox)", "No folder (Inbox)")}</button>
+            {folders.filter(f => !f.parent_id).map(f => {
+              const children = folders.filter(c => c.parent_id === f.id);
+              return (
+                <div key={f.id}>
+                  <button
+                    onClick={() => save({ folder_id: f.id })}
+                    className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent flex items-center gap-2 ${t.folder_id === f.id ? "bg-accent" : ""}`}
+                  >
+                    <FolderIcon className="w-3.5 h-3.5" style={{ color: f.color || undefined }} />
+                    {f.name}
+                  </button>
+                  {children.map(c => (
+                    <button key={c.id}
+                      onClick={() => save({ folder_id: c.id })}
+                      className={`w-full text-start p-2 ps-6 rounded-lg text-xs hover:bg-accent flex items-center gap-2 ${t.folder_id === c.id ? "bg-accent" : ""}`}
+                    >
+                      <FolderIcon className="w-3 h-3" style={{ color: c.color || undefined }} />
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
+          </PopoverContent>
+        </Popover>
+        </div>
+
+        {/* 2. Schedule (Date + Time block + Repeat + Bucket) */}
+        <div>
         <Sheet open={scheduleOpen} onOpenChange={setScheduleOpen}>
           <SheetTrigger asChild>
             <Button
               type="button"
               variant="outline"
               disabled={!canEdit}
-              className={`w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-3 transition-all duration-150 ${isScheduled ? "bg-primary/15 text-primary border-primary/35 shadow-xs font-semibold" : "bg-muted/30 text-foreground/85 hover:bg-muted/60 border-border/60"}`}
+              className={`w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-2.5 transition-all duration-150 ${isScheduled ? "bg-primary/15 text-primary border-primary/35 shadow-xs font-semibold" : "bg-muted/30 text-foreground/85 hover:bg-muted/60 border-border/60"}`}
             >
               <Clock className={`w-4 h-4 shrink-0 ${isScheduled ? "text-primary" : "text-muted-foreground"}`} />
               <span className="truncate flex-1 text-start">{scheduleLabel ?? T("زمان‌بندی", "Schedule")}</span>
@@ -1005,15 +1088,15 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         </Sheet>
         </div>
 
-        {/* 2. Priority */}
-        <div className="order-2">
+        {/* 3. Priority */}
+        <div>
         <Popover>
           <PopoverTrigger asChild>
             <Button
               type="button"
               variant="outline"
               disabled={!canEdit}
-              className={`w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-3 transition-all duration-150 ${t.priority !== "none" ? `${priorityMeta.bgClass} ${priorityMeta.textClass} border-border/80 shadow-xs font-semibold` : "bg-muted/30 text-foreground/85 hover:bg-muted/60 border-border/60"}`}
+              className={`w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-2.5 transition-all duration-150 ${t.priority !== "none" ? `${priorityMeta.bgClass} ${priorityMeta.textClass} border-border/80 shadow-xs font-semibold` : "bg-muted/30 text-foreground/85 hover:bg-muted/60 border-border/60"}`}
             >
               <Flag className={`w-4 h-4 shrink-0 ${t.priority !== "none" ? priorityMeta.textClass : "text-muted-foreground"}`} />
               <span className="truncate flex-1 text-start">{t.priority !== "none" ? T(priorityMeta.label, priorityMeta.labelEn) : T("اولویت", "Priority")}</span>
@@ -1048,93 +1131,14 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         </Popover>
         </div>
 
-        {/* 3. Folder + quick-create */}
-        <div className="order-first col-span-3">
-        <Popover open={folderOpen} onOpenChange={setFolderOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!canEdit}
-              className="w-auto max-w-full h-8 rounded-lg border-0 bg-transparent text-xs text-muted-foreground hover:bg-muted/50 gap-1.5 px-2 justify-start"
-            >
-              <FolderIcon className="w-4 h-4 shrink-0" style={{ color: t.folder_id ? folders.find(f => f.id === t.folder_id)?.color || undefined : undefined }} />
-              <span className="truncate text-start">{t.folder_id ? folderName(t.folder_id) : T("صندوق ورودی", "Inbox")}</span>
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-72 p-2 max-h-[55vh] overflow-y-auto" align="start" side="top">
-            {isOwner && !showFolderCreate && (
-              <button
-                onClick={() => setShowFolderCreate(true)}
-                className="w-full flex items-center gap-2 p-2 mb-1 rounded-xl bg-muted/40 hover:bg-accent text-sm text-muted-foreground"
-              >
-                <Plus className="w-4 h-4" /> {T("ساخت فولدر جدید", "Create new folder")}
-              </button>
-            )}
-            {isOwner && showFolderCreate && (
-              <>
-                <div className="flex items-center gap-1.5 mb-2 p-1.5 rounded-xl bg-muted/40">
-                  <span className="w-6 h-6 rounded-md shrink-0" style={{ background: newFolderColor }} />
-                  <Input
-                    autoFocus
-                    value={newFolderName}
-                    onChange={(e) => setNewFolderName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") { createFolderAndAssign(); setShowFolderCreate(false); }
-                      if (e.key === "Escape") setShowFolderCreate(false);
-                    }}
-                    placeholder={T("نام فولدر جدید…", "New folder name…")}
-                    className="h-8 text-xs border-0 bg-transparent focus-visible:ring-0"
-                  />
-                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={async () => { await createFolderAndAssign(); setShowFolderCreate(false); }} disabled={!newFolderName.trim()}>
-                    <Plus className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-                <div className="flex gap-1 mb-2 px-1">
-                  {TAG_COLORS.map(c => (
-                    <button key={c} onClick={() => setNewFolderColor(c)}
-                      className={`w-5 h-5 rounded-full border-2 ${newFolderColor === c ? "border-foreground" : "border-transparent"}`}
-                      style={{ background: c }} />
-                  ))}
-                </div>
-              </>
-            )}
-            <button
-              disabled={!isOwner}
-              onClick={() => save({ folder_id: null })}
-              className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${t.folder_id === null ? "bg-accent" : ""}`}
-            >{T("بدون فولدر (Inbox)", "No folder (Inbox)")}</button>
-            {folders.filter(f => !f.parent_id).map(f => {
-              const children = folders.filter(c => c.parent_id === f.id);
-              return (
-                <div key={f.id}>
-                  <button
-                    onClick={() => save({ folder_id: f.id })}
-                    className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent flex items-center gap-2 ${t.folder_id === f.id ? "bg-accent" : ""}`}
-                  >
-                    <FolderIcon className="w-3.5 h-3.5" style={{ color: f.color || undefined }} />
-                    {f.name}
-                  </button>
-                  {children.map(c => (
-                    <button key={c.id}
-                      onClick={() => save({ folder_id: c.id })}
-                      className={`w-full text-start p-2 ps-6 rounded-lg text-xs hover:bg-accent flex items-center gap-2 ${t.folder_id === c.id ? "bg-accent" : ""}`}
-                    >
-                      <FolderIcon className="w-3 h-3" style={{ color: c.color || undefined }} />
-                      {c.name}
-                    </button>
-                  ))}
-                </div>
-              );
-            })}
-          </PopoverContent>
-        </Popover>
-        </div>
+        {/* 4. Tags */}
+        <div>
         <Button type="button" variant="outline" onClick={() => setTagOpen(true)} disabled={!canEdit}
-          className={`order-2 w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-3 ${taskTagIds.length ? "bg-primary/10 text-primary border-primary/30" : "bg-muted/30 border-border/60"}`}>
+          className={`w-full min-w-0 h-10 rounded-xl text-[11px] font-medium gap-1.5 justify-center px-1.5 sm:px-2.5 transition-all duration-150 ${taskTagIds.length ? "bg-primary/10 text-primary border-primary/30 font-semibold" : "bg-muted/30 text-foreground/85 hover:bg-muted/60 border-border/60"}`}>
           <TagIcon className="w-4 h-4 shrink-0" />
-          <span className="truncate">{taskTagIds.length ? `${taskTagIds.length} ${T("تگ", "tags")}` : T("تگ", "Tags")}</span>
+          <span className="truncate flex-1 text-start">{taskTagIds.length ? `${taskTagIds.length} ${T("تگ", "tags")}` : T("تگ", "Tags")}</span>
         </Button>
+        </div>
       </div>
     </div>
   );
@@ -1645,8 +1649,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
   const body = (
     <div className="mt-1 task-detail-sections flex flex-col min-h-[40vh]">
-      {topControls}
       {hero}
+      {topControls}
       {quickChips}
       {progressPanel}
       {structurePills}
