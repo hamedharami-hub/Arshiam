@@ -72,7 +72,11 @@ const CycleView = lazy(() => import("./pages/CycleView"));
 
 const NewTaskView = lazy(() => import("./pages/NewTaskView"));
 const NewNoteView = lazy(() => import("./pages/NewNoteView"));
-const TaskDetailView = lazy(() => import("./pages/TaskDetailView"));
+// Start this chunk while native auth is resolving after a widget tap. That
+// keeps a warm widget tap from waiting for the route decision and the task
+// editor bundle one after the other.
+const loadTaskDetailView = () => import("./pages/TaskDetailView");
+const TaskDetailView = lazy(loadTaskDetailView);
 const AdminView = lazy(() => import("./pages/AdminView"));
 const SharedWithMeView = lazy(() => import("./pages/SharedWithMeView"));
 const ShareTargetView = lazy(() => import("./pages/ShareTargetView"));
@@ -112,10 +116,18 @@ function CapacitorUrlHandler() {
     let routeGeneration = 0;
     const navigateForUrl = (rawUrl: string) => {
       const generation = ++routeGeneration;
-      void auth.authStateReady().then(() => {
+      if (rawUrl.startsWith("arshnaz://task?")) void loadTaskDetailView();
+      const routeWhenReady = () => {
         const path = nativeRoute(rawUrl, auth.currentUser?.uid);
         if (path && !disposed && generation === routeGeneration) navigate(path);
-      }).catch(() => {});
+      };
+      // A resumed Android app already has its signed-in user in memory. Avoid
+      // waiting for Firebase's readiness promise on every widget task tap.
+      if (auth.currentUser) {
+        routeWhenReady();
+      } else {
+        void auth.authStateReady().then(routeWhenReady).catch(() => {});
+      }
     };
     let handle: any = null;
     try {

@@ -1,7 +1,6 @@
 package life.arshnaz.app;
 
 import android.app.Activity;
-import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 
@@ -17,11 +16,8 @@ public final class WidgetRouterActivity extends Activity {
         String taskId = data.getQueryParameter("taskId");
         String operation = data.getPathSegments().isEmpty() ? "" : data.getPathSegments().get(0);
         if (taskId == null || taskId.isEmpty()) { finish(); return; }
-        if ("open".equals(operation)) {
-            Intent open = AgendaWidgetProvider.appIntent(this,
-                "task?taskId=" + Uri.encode(taskId) + "&owner=" + Uri.encode(activeOwner));
-            open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(open);
+        if ("open".equals(operation) || "menu".equals(operation) || "edit".equals(operation)) {
+            openTask(taskId, activeOwner);
         } else if ("toggle".equals(operation)) {
             boolean completed = "1".equals(data.getQueryParameter("completed"));
             AgendaData.setCompleted(this, taskId, !completed);
@@ -38,11 +34,17 @@ public final class WidgetRouterActivity extends Activity {
                 options.edit().putBoolean(key,!options.getBoolean(key,false)).apply();
                 AgendaWidgetProvider.update(this,android.appwidget.AppWidgetManager.getInstance(this),widgetId);
             }
-        } else if ("menu".equals(operation)) {
-            startActivity(new Intent(this, WidgetTaskActionActivity.class).putExtra("taskId", taskId).putExtra("mode", "menu"));
-        } else if ("edit".equals(operation)) {
-            startActivity(new Intent(this, WidgetTaskActionActivity.class).putExtra("taskId", taskId).putExtra("mode", "edit"));
         }
         finish();
+    }
+
+    /**
+     * Keeps every task-row entry point on the same direct deep-link path. The
+     * launch mode on MainActivity reuses the running WebView and emits the
+     * fresh URL to Capacitor, rather than creating a second Android task.
+     */
+    private void openTask(String taskId, String activeOwner) {
+        startActivity(AgendaWidgetProvider.appIntent(this,
+            "task?taskId=" + Uri.encode(taskId) + "&owner=" + Uri.encode(activeOwner)));
     }
 }

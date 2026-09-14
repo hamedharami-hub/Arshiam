@@ -24,6 +24,20 @@ public class WidgetRouterActivityTest {
         assertEquals(MainActivity.class.getName(),opened.getComponent().getClassName());
         assertEquals("arshnaz://task?taskId=task%201&owner=user-1",opened.getDataString());
         assertEquals("task?taskId=task%201&owner=user-1",opened.getStringExtra("arshnaz_route"));
+        assertEquals(0, opened.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK);
+    }
+
+    @Test public void legacyWidgetMenuAndEditClicksOpenTheFullTaskInsteadOfAnInWidgetEditor() {
+        for (String operation : new String[] {"menu", "edit"}) {
+            Intent click=new Intent(Intent.ACTION_VIEW,Uri.parse("arshnaz://widget-action/"+operation+"?taskId=task-1&owner=user-1"));
+            WidgetRouterActivity activity=Robolectric.buildActivity(WidgetRouterActivity.class,click).get();
+            AgendaData.prefs(activity).edit().putString("dataUserId","user-1").commit();
+            activity.onCreate(null);
+            Intent opened=Shadows.shadowOf(activity).getNextStartedActivity();
+            assertNotNull(opened);
+            assertEquals(MainActivity.class.getName(),opened.getComponent().getClassName());
+            assertEquals("arshnaz://task?taskId=task-1&owner=user-1",opened.getDataString());
+        }
     }
 
     @Test public void ownerMismatchCannotOpenAnotherUsersTask() {

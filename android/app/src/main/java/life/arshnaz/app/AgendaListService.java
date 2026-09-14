@@ -71,9 +71,6 @@ public class AgendaListService extends RemoteViewsService {
             row.setOnClickFillInIntent(R.id.row_content,new Intent().setData(Uri.parse("arshnaz://widget-action/open?taskId="+taskId+"&owner="+Uri.encode(owner))));
             row.setOnClickFillInIntent(R.id.row_done,new Intent().setData(Uri.parse("arshnaz://widget-action/toggle?taskId="+taskId+"&completed="+(completed?"1":"0")+"&owner="+Uri.encode(owner))));
             if(hasChildren) row.setOnClickFillInIntent(R.id.row_expand,new Intent().setData(Uri.parse("arshnaz://widget-action/collapse?taskId="+taskId+"&widgetId="+id+"&owner="+Uri.encode(owner))));
-            // Android launchers do not consistently deliver long-presses for RemoteViews.
-            // The visible overflow control is the reliable equivalent and opens a menu.
-            row.setOnClickFillInIntent(R.id.row_edit,new Intent().setData(Uri.parse("arshnaz://widget-action/menu?taskId="+taskId+"&owner="+Uri.encode(owner))));
             return row;
         }
         public RemoteViews getLoadingView() { return null; }
