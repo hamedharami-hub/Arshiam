@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -7,9 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { ArrowRight, ArrowLeft, Loader2, FolderInput, Pin } from "lucide-react";
 import { toast } from "sonner";
-import { RichEditor } from "@/components/RichEditor";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { useBilingual } from "@/hooks/useBilingual";
+
+const RichEditor = lazy(() =>
+  import("@/components/RichEditor").then((m) => ({ default: m.RichEditor }))
+);
 
 type Folder = { id: string; name: string };
 
@@ -121,7 +124,16 @@ export default function NewNoteView() {
               title={isEn ? "Voice input" : "ضبط صوتی"}
             />
           </div>
-          <RichEditor initialMarkdown={content} onChange={(_html, md) => setContent(md)} />
+          <Suspense
+            fallback={
+              <div className="h-48 flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground rounded-lg border border-dashed border-border/60 bg-muted/20">
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                <span>{T("در حال بارگذاری ویرایشگر...", "Loading editor...")}</span>
+              </div>
+            }
+          >
+            <RichEditor initialMarkdown={content} onChange={(_html, md) => setContent(md)} />
+          </Suspense>
         </div>
       </Card>
     </div>

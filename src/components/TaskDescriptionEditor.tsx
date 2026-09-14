@@ -100,28 +100,30 @@ export function TaskDescriptionEditor({
         </button>
       )}
 
-      <Sheet open={full} onOpenChange={setFull}>
-        <SheetContent side="bottom" className="h-[95vh] p-0 flex flex-col">
-          <SheetHeader className="px-4 py-3 border-b flex-row items-center justify-between space-y-0">
-            <SheetTitle className="text-base">{T("توضیحات تسک", "Task description")}</SheetTitle>
-            <Button
-              size="sm"
-              onClick={() => { onChange(draft); onSave(draft); setFull(false); }}
-              className="gap-1"
-            >
-              <Check className="w-4 h-4" />
-              {T("ذخیره", "Save")}
-            </Button>
-          </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-3 py-3">
-            <NoteEditorTabs
-              noteId={`task-desc-${taskId}`}
-              markdown={draft}
-              onChange={(md) => setDraft(md)}
-            />
-          </div>
-        </SheetContent>
-      </Sheet>
+      {full && (
+        <Sheet open={full} onOpenChange={setFull}>
+          <SheetContent side="bottom" className="h-[95vh] p-0 flex flex-col">
+            <SheetHeader className="px-4 py-3 border-b flex-row items-center justify-between space-y-0">
+              <SheetTitle className="text-base">{T("توضیحات تسک", "Task description")}</SheetTitle>
+              <Button
+                size="sm"
+                onClick={() => { onChange(draft); onSave(draft); setFull(false); }}
+                className="gap-1"
+              >
+                <Check className="w-4 h-4" />
+                {T("ذخیره", "Save")}
+              </Button>
+            </SheetHeader>
+            <div className="flex-1 overflow-y-auto px-3 py-3">
+              <NoteEditorTabs
+                noteId={`task-desc-${taskId}`}
+                markdown={draft}
+                onChange={(md) => setDraft(md)}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   );
 }

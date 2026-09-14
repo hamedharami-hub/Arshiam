@@ -1924,24 +1924,28 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
   return (
     <>
-      <TaskActionSheet
-        task={t}
-        open={actionMenuOpen}
-        onOpenChange={setActionMenuOpen}
-        canEdit={canEdit}
-        isOwner={isOwner}
-        canComment={canComment}
-        onComplete={toggleCompletion}
-        onDelete={deleteTask}
-        onMove={() => setFolderOpen(true)}
-        onMakeChild={() => setParentOpen(true)}
-        onEdit={() => document.querySelector<HTMLTextAreaElement>("[data-task-title]")?.focus()}
-        onPin={() => void save({ pinned: !t.pinned })}
-        onPomodoro={() => setFocusOpen(true)}
-        onPatch={(patch) => save(patch)}
-        onRefresh={refreshTask}
-      />
-      <PomodoroSheet task={t} open={focusOpen} onOpenChange={setFocusOpen} />
+      {actionMenuOpen && (
+        <TaskActionSheet
+          task={t}
+          open={actionMenuOpen}
+          onOpenChange={setActionMenuOpen}
+          canEdit={canEdit}
+          isOwner={isOwner}
+          canComment={canComment}
+          onComplete={toggleCompletion}
+          onDelete={deleteTask}
+          onMove={() => setFolderOpen(true)}
+          onMakeChild={() => setParentOpen(true)}
+          onEdit={() => document.querySelector<HTMLTextAreaElement>("[data-task-title]")?.focus()}
+          onPin={() => void save({ pinned: !t.pinned })}
+          onPomodoro={() => setFocusOpen(true)}
+          onPatch={(patch) => save(patch)}
+          onRefresh={refreshTask}
+        />
+      )}
+      {focusOpen && (
+        <PomodoroSheet task={t} open={focusOpen} onOpenChange={setFocusOpen} />
+      )}
       {mode === "embedded" ? (
         <div className="w-full h-full flex flex-col bg-card/95 backdrop-blur-md border border-border/70 rounded-2xl shadow-sm overflow-hidden animate-in fade-in duration-200">
           <div className="px-3 sm:px-4 py-2.5 border-b border-border/60 flex items-center justify-between gap-2 bg-muted/30 shrink-0">
@@ -2014,55 +2018,61 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         </Sheet>
       )}
 
-      <TaskAIPanel
-        task={t as any}
-        open={aiOpen}
-        onOpenChange={setAiOpen}
-        onMetaApplied={refreshTask}
-      />
+      {aiOpen && (
+        <TaskAIPanel
+          task={t as any}
+          open={aiOpen}
+          onOpenChange={setAiOpen}
+          onMetaApplied={refreshTask}
+        />
+      )}
 
-      <TaskOutcomeSheet
-        task={t}
-        open={outcomeOpen}
-        onOpenChange={(open) => { setOutcomeOpen(open); if (!open) { refreshTask(); refreshOutcomeCount(); } }}
-        folders={folders.map((f) => ({ id: f.id, name: f.name }))}
-      />
+      {outcomeOpen && (
+        <TaskOutcomeSheet
+          task={t}
+          open={outcomeOpen}
+          onOpenChange={(open) => { setOutcomeOpen(open); if (!open) { refreshTask(); refreshOutcomeCount(); } }}
+          folders={folders.map((f) => ({ id: f.id, name: f.name }))}
+        />
+      )}
 
-      <AlertDialog open={closePromptOpen} onOpenChange={(open) => {
-        setClosePromptOpen(open);
-      }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{T("تغییرات ذخیره نشده‌اند", "Changes are not saved")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {T("قبل از خروج، توضیحات و تغییرات این تسک ذخیره شوند؟", "Save this task's description and changes before leaving?")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2 sm:gap-2">
-            <AlertDialogCancel>{T("ادامهٔ ویرایش", "Keep editing")}</AlertDialogCancel>
-            <Button variant="ghost" onClick={() => {
-              clearTaskDraft(t.id);
-              setClosePromptOpen(false);
-              onClose();
-            }}>
-              {T("خروج بدون ذخیره", "Leave without saving")}
-            </Button>
-            <AlertDialogAction onClick={async (event) => {
-              event.preventDefault();
-              try {
-                await savePendingChanges();
+      {closePromptOpen && (
+        <AlertDialog open={closePromptOpen} onOpenChange={(open) => {
+          setClosePromptOpen(open);
+        }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{T("تغییرات ذخیره نشده‌اند", "Changes are not saved")}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {T("قبل از خروج، توضیحات و تغییرات این تسک ذخیره شوند؟", "Save this task's description and changes before leaving?")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2 sm:gap-2">
+              <AlertDialogCancel>{T("ادامهٔ ویرایش", "Keep editing")}</AlertDialogCancel>
+              <Button variant="ghost" onClick={() => {
+                clearTaskDraft(t.id);
                 setClosePromptOpen(false);
                 onClose();
-              } catch {
-                toast.error(T("ذخیره انجام نشد؛ تغییرات همچنان باز هستند", "Save failed; your changes are still open"));
-              }
-            }}>
-              <Save />
-              {T("ذخیره و خروج", "Save and leave")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              }}>
+                {T("خروج بدون ذخیره", "Leave without saving")}
+              </Button>
+              <AlertDialogAction onClick={async (event) => {
+                event.preventDefault();
+                try {
+                  await savePendingChanges();
+                  setClosePromptOpen(false);
+                  onClose();
+                } catch {
+                  toast.error(T("ذخیره انجام نشد؛ تغییرات همچنان باز هستند", "Save failed; your changes are still open"));
+                }
+              }}>
+                <Save />
+                {T("ذخیره و خروج", "Save and leave")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </>
   );
 });

@@ -1,6 +1,22 @@
-import { auth, collection, db, deleteDoc, doc, fbSignOut, getDocs, setDoc } from "@/lib/firebase";
+import {
+  auth,
+  collection,
+  db,
+  deleteDoc,
+  doc,
+  fbSignOut,
+  getDoc,
+  getDocs,
+  limit as fsLimit,
+  orderBy as fsOrderBy,
+  query as fsQuery,
+  setDoc,
+  updateDoc,
+  where as fsWhere,
+} from "@/lib/firebase";
 import { getStoredUser } from "@/lib/authService";
 import { deleteObject, getDownloadURL, getStorage, ref, uploadBytes } from "firebase/storage";
+import type { QueryConstraint } from "firebase/firestore";
 
 type Row = Record<string, any>;
 type Result<T = Row[]> = { data: T | null; error: Error | null; count?: number | null };
@@ -62,17 +78,95 @@ class FirestoreQuery {
   private async rows(): Promise<Result<Row[]>> {
     const userId = currentUserId();
     if (!userId) return { data: null, error: new Error("برای دسترسی به داده وارد شوید") };
+
+    // Fast path: direct document lookup when filtering by ID
+    const idFilter = this.filters.find((f) => f.field === "id" && f.operator === "eq");
+    if (idFilter && typeof idFilter.value === "string") {
+      try {
+        const docRef = doc(db, "users", userId, this.table, idFilter.value);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) {
+          return { data: [], error: null, count: this.wantsCount ? 0 : null };
+        }
+        const row = { id: docSnap.id, ...docSnap.data() } as Row;
+        if (!matches(row, this.filters)) {
+          return { data: [], error: null, count: this.wantsCount ? 0 : null };
+        }
+        return { data: [row], error: null, count: this.wantsCount ? 1 : null };
+      } catch (cause) {
+        return { data: null, error: cause instanceof Error ? cause : new Error("خطا در خواندن داده") };
+      }
+    }
+
     try {
-      const snapshot = await getDocs(collection(db, "users", userId, this.table));
+      const colRef = collection(db, "users", userId, this.table);
+      const constraints: QueryConstraint[] = [];
+      let hasClientOnlyFilter = false;
+
+      for (const filter of this.filters) {
+        if (filter.operator === "eq") {
+          constraints.push(fsWhere(filter.field, "==", filter.value));
+        } else if (filter.operator === "neq") {
+          constraints.push(fsWhere(filter.field, "!=", filter.value));
+        } else if (filter.operator === "is") {
+          constraints.push(fsWhere(filter.field, "==", filter.value));
+        } else if (filter.operator === "gt") {
+          constraints.push(fsWhere(filter.field, ">", filter.value));
+        } else if (filter.operator === "gte") {
+          constraints.push(fsWhere(filter.field, ">=", filter.value));
+        } else if (filter.operator === "lt") {
+          constraints.push(fsWhere(filter.field, "<", filter.value));
+        } else if (filter.operator === "lte") {
+          constraints.push(fsWhere(filter.field, "<=", filter.value));
+        } else if (filter.operator === "in" && Array.isArray(filter.value)) {
+          if (filter.value.length > 0 && filter.value.length <= 10) {
+            constraints.push(fsWhere(filter.field, "in", filter.value));
+          } else {
+            hasClientOnlyFilter = true;
+          }
+        } else {
+          hasClientOnlyFilter = true;
+        }
+      }
+
+      if (this.sort && !hasClientOnlyFilter) {
+        constraints.push(fsOrderBy(this.sort.field, this.sort.ascending ? "asc" : "desc"));
+      }
+
+      if (this.maxRows !== null && !hasClientOnlyFilter) {
+        constraints.push(fsLimit(this.maxRows));
+      }
+
+      let snapshot;
+      try {
+        if (constraints.length > 0) {
+          const q = fsQuery(colRef, ...constraints);
+          snapshot = await getDocs(q);
+        } else {
+          snapshot = await getDocs(colRef);
+        }
+      } catch (queryErr) {
+        // Fallback: If composite index missing or query incompatible, gracefully fallback to client filtering
+        snapshot = await getDocs(colRef);
+        hasClientOnlyFilter = true;
+      }
+
       let rows = snapshot.docs.map((item) => ({ id: item.id, ...item.data() })) as Row[];
       rows = rows.filter((row) => matches(row, this.filters));
-      if (this.sort) rows.sort((a, b) => {
-        const left = a[this.sort!.field] ?? "";
-        const right = b[this.sort!.field] ?? "";
-        const direction = this.sort!.ascending ? 1 : -1;
-        return left < right ? -direction : left > right ? direction : 0;
-      });
-      if (this.maxRows !== null) rows = rows.slice(0, this.maxRows);
+
+      if (this.sort) {
+        rows.sort((a, b) => {
+          const left = a[this.sort!.field] ?? "";
+          const right = b[this.sort!.field] ?? "";
+          const direction = this.sort!.ascending ? 1 : -1;
+          return left < right ? -direction : left > right ? direction : 0;
+        });
+      }
+
+      if (this.maxRows !== null) {
+        rows = rows.slice(0, this.maxRows);
+      }
+
       return { data: rows, error: null, count: this.wantsCount ? rows.length : null };
     } catch (cause) {
       return { data: null, error: cause instanceof Error ? cause : new Error("خطا در خواندن داده") };
@@ -107,8 +201,23 @@ class FirestoreQuery {
         let id = raw.id;
         if (!id && onConflict) {
           const fields = onConflict.split(",").map((field) => field.trim()).filter(Boolean);
-          const existing = await getDocs(collection(db, "users", userId, this.table));
-          id = existing.docs.find((item) => fields.every((field) => item.data()[field] === raw[field]))?.id;
+          try {
+            if (fields.length === 1 && raw[fields[0]] !== undefined) {
+              const q = fsQuery(
+                collection(db, "users", userId, this.table),
+                fsWhere(fields[0], "==", raw[fields[0]]),
+                fsLimit(1)
+              );
+              const matchSnap = await getDocs(q);
+              if (!matchSnap.empty) id = matchSnap.docs[0].id;
+            } else {
+              const existing = await getDocs(collection(db, "users", userId, this.table));
+              id = existing.docs.find((item) => fields.every((field) => item.data()[field] === raw[field]))?.id;
+            }
+          } catch {
+            const existing = await getDocs(collection(db, "users", userId, this.table));
+            id = existing.docs.find((item) => fields.every((field) => item.data()[field] === raw[field]))?.id;
+          }
         }
         id ||= makeId();
         const row = { ...raw, id, user_id: raw.user_id || userId, updated_at: raw.updated_at || new Date().toISOString() };
@@ -123,6 +232,20 @@ class FirestoreQuery {
   }
   update(patch: Row) {
     return new FirestoreMutation(this, async () => {
+      const userId = currentUserId();
+      if (!userId) return { data: null, error: new Error("برای ذخیره وارد شوید") };
+      const idFilter = this.filters.find((f) => f.field === "id" && f.operator === "eq");
+      if (idFilter && typeof idFilter.value === "string" && this.filters.length === 1) {
+        try {
+          const docRef = doc(db, "users", userId, this.table, idFilter.value);
+          const updatedRow = { ...patch, id: idFilter.value, user_id: userId, updated_at: patch.updated_at || new Date().toISOString() };
+          await updateDoc(docRef, updatedRow);
+          if (typeof window !== "undefined") window.dispatchEvent(new Event("firebase-store-changed"));
+          return { data: [updatedRow], error: null };
+        } catch {
+          // Fallback to general update if doc not yet existing or update fails
+        }
+      }
       const result = await this.rows();
       if (result.error || !result.data) return result;
       return this.write(result.data.map((row) => ({ ...row, ...patch })), true);
@@ -131,6 +254,18 @@ class FirestoreQuery {
   delete() {
     return new FirestoreMutation(this, async () => {
       const userId = currentUserId();
+      if (!userId) return { data: null, error: new Error("برای حذف وارد شوید") };
+      const idFilter = this.filters.find((f) => f.field === "id" && f.operator === "eq");
+      if (idFilter && typeof idFilter.value === "string" && this.filters.length === 1) {
+        try {
+          const docRef = doc(db, "users", userId, this.table, idFilter.value);
+          await deleteDoc(docRef);
+          if (typeof window !== "undefined") window.dispatchEvent(new Event("firebase-store-changed"));
+          return { data: [{ id: idFilter.value }], error: null };
+        } catch {
+          // Fallback to general delete
+        }
+      }
       const result = await this.rows();
       if (result.error || !result.data || !userId) return result;
       try {

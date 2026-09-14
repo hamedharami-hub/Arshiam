@@ -1,10 +1,15 @@
+import { lazy, Suspense } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { RichEditor } from "@/components/RichEditor";
 import { markdownToHtml } from "@/lib/markdown";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
+import { Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+
+const RichEditor = lazy(() =>
+  import("@/components/RichEditor").then((m) => ({ default: m.RichEditor }))
+);
 
 /**
  * Three-mode note editor: visual rich editor / raw markdown / preview.
@@ -30,12 +35,21 @@ export function NoteEditorTabs({
       </TabsList>
 
       <TabsContent value="visual" className="mt-3">
-        <RichEditor
-          key={noteId}
-          initialMarkdown={markdown}
-          onChange={(html, md) => onChange(md, html)}
-          readOnly={readOnly}
-        />
+        <Suspense
+          fallback={
+            <div className="h-48 flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground rounded-lg border border-dashed border-border/60 bg-muted/20">
+              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              <span>در حال بارگذاری ویرایشگر...</span>
+            </div>
+          }
+        >
+          <RichEditor
+            key={noteId}
+            initialMarkdown={markdown}
+            onChange={(html, md) => onChange(md, html)}
+            readOnly={readOnly}
+          />
+        </Suspense>
       </TabsContent>
 
       <TabsContent value="markdown" className="mt-3 space-y-3">

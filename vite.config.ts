@@ -175,14 +175,20 @@ export default defineConfig(({ mode }) => {
       output: {
         manualChunks(id) {
           if (id.includes("node_modules")) {
-            if (id.includes("@tiptap") || id.includes("prosemirror")) {
+            if (id.includes("@tiptap") || id.includes("prosemirror") || id.includes("turndown") || id.includes("marked")) {
               return "vendor-editor";
             }
             if (id.includes("recharts") || id.includes("d3-")) {
               return "vendor-charts";
             }
-            if (id.includes("firebase")) {
-              return "vendor-firebase";
+            if (id.includes("firebase/firestore") || id.includes("@firebase/firestore")) {
+              return "vendor-firestore";
+            }
+            if (id.includes("firebase/storage") || id.includes("@firebase/storage")) {
+              return "vendor-storage";
+            }
+            if (id.includes("firebase") || id.includes("@firebase")) {
+              return "vendor-firebase-core";
             }
             if (id.includes("lucide-react")) {
               return "vendor-icons";
