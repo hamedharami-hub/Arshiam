@@ -36,7 +36,15 @@ type Step = {
   id: string; list_id: string; text: string; completed: boolean; position: number;
 };
 
-export function TaskStepLists({ taskId }: { taskId: string }) {
+export function TaskStepLists({
+  taskId,
+  onCountChange,
+  readOnly = false,
+}: {
+  taskId: string;
+  onCountChange?: (count: number) => void;
+  readOnly?: boolean;
+}) {
   const { user } = useAuth();
   const [lists, setLists] = useState<StepList[]>([]);
   const [steps, setSteps] = useState<Step[]>([]);
@@ -52,6 +60,7 @@ export function TaskStepLists({ taskId }: { taskId: string }) {
       .order("position");
     const lists = (ls || []) as unknown as StepList[];
     setLists(lists);
+    onCountChange?.(lists.length);
     if (lists.length) {
       const { data: st } = await firebaseStore
         .from("task_steps" as any)
@@ -62,12 +71,12 @@ export function TaskStepLists({ taskId }: { taskId: string }) {
     } else {
       setSteps([]);
     }
-  }, [taskId]);
+  }, [taskId, onCountChange]);
 
   useEffect(() => { load(); }, [load]);
 
   const addList = async () => {
-    if (!user) return;
+    if (!user || readOnly) return;
     const title = newListTitle.trim() || "مراحل";
     const { data, error } = await firebaseStore
       .from("task_step_lists" as any)
@@ -81,17 +90,23 @@ export function TaskStepLists({ taskId }: { taskId: string }) {
       .select()
       .single();
     if (error) return toast.error(error.message);
-    setLists((prev) => [...prev, data as any]);
+    const next = [...lists, data as any];
+    setLists(next);
+    onCountChange?.(next.length);
     setNewListTitle("");
   };
 
   const updateList = async (id: string, patch: Partial<StepList>) => {
+    if (readOnly) return;
     setLists((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
     await firebaseStore.from("task_step_lists" as any).update(patch).eq("id", id);
   };
 
   const deleteList = async (id: string) => {
-    setLists((prev) => prev.filter((l) => l.id !== id));
+    if (readOnly) return;
+    const next = lists.filter((l) => l.id !== id);
+    setLists(next);
+    onCountChange?.(next.length);
     setSteps((prev) => prev.filter((s) => s.list_id !== id));
     await firebaseStore.from("task_step_lists" as any).delete().eq("id", id);
   };

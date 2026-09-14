@@ -38,6 +38,7 @@ import TaskActionSheet from "@/components/TaskActionSheet";
 import PomodoroSheet from "@/components/PomodoroSheet";
 import { TaskOutcomeSheet } from "@/components/TaskOutcomeSheet";
 import { TaskOutcomesInline } from "@/components/TaskOutcomesInline";
+import { listTaskOutcomes } from "@/lib/taskOutcomes";
 import { DueDatePicker } from "@/components/DueDatePicker";
 import { BucketPickerBody } from "@/components/BucketPickerInline";
 import { bucketLabel, kindLabel } from "@/lib/timeBuckets";
@@ -104,6 +105,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [focusOpen, setFocusOpen] = useState(false);
   const [showTimeBlock, setShowTimeBlock] = useState(hasTimeBlock);
   const [showOutcomes, setShowOutcomes] = useState(false);
+  const [stepListCount, setStepListCount] = useState(0);
+  const [attachmentCount, setAttachmentCount] = useState(0);
   const [voiceListening, setVoiceListening] = useState(false);
   const [voiceInstance, setVoiceInstance] = useState<VoiceInput | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -175,7 +178,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       const [notesRes, tagsRes, subRes, stepListsRes, attachRes, outcomesRes] = await Promise.all([
         firebaseStore.from("notes").select("id,title,content").eq("task_id", task.id).order("updated_at", { ascending: false }),
         firebaseStore.from("task_tags").select("tag_id").eq("task_id", task.id),
-        firebaseStore.from("tasks").select("id", { count: "exact", head: true }).eq("parent_id", task.id),
+        firebaseStore.from("tasks").select("id,completed").eq("parent_id", task.id),
         firebaseStore.from("task_step_lists").select("id", { count: "exact", head: true }).eq("task_id", task.id),
         firebaseStore.from("task_attachments").select("id", { count: "exact", head: true }).eq("task_id", task.id),
         firebaseStore.from("task_outcomes").select("id", { count: "exact", head: true }).eq("task_id", task.id),
@@ -185,15 +188,40 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       setTaskNotes(list);
       if (list.length > 0) setShowNotes(true);
       setTaskTagIds((tagsRes.data || []).map((r: any) => r.tag_id));
-      if ((subRes.count || 0) > 0) setShowSubtasks(true);
-      if ((stepListsRes.count || 0) > 0) setShowSteps(true);
-      if ((attachRes.count || 0) > 0) setShowAttachments(true);
+
+      const subs = (subRes.data || []) as Array<{ id: string; completed: boolean }>;
+      if (subs.length > 0) {
+        setShowSubtasks(true);
+        const done = subs.filter((s) => s.completed).length;
+        setSubtaskProgress({ completed: done, total: subs.length });
+      } else if (user) {
+        // Fallback to offline cached tasks
+        const cachedTasks = await cacheGet<Array<{ id: string; parent_id?: string | null; completed?: boolean }>>(`tasks:all:${user.id}`);
+        if (cachedTasks && !cancelled) {
+          const cachedSubs = cachedTasks.filter((ct) => ct.parent_id === task.id);
+          if (cachedSubs.length > 0) {
+            setShowSubtasks(true);
+            setSubtaskProgress({ completed: cachedSubs.filter((s) => s.completed).length, total: cachedSubs.length });
+          }
+        }
+      }
+
+      const stepCount = stepListsRes.count || 0;
+      setStepListCount(stepCount);
+      if (stepCount > 0) setShowSteps(true);
+
+      const attCount = attachRes.count || 0;
+      setAttachmentCount(attCount);
+      if (attCount > 0) setShowAttachments(true);
+
       if (hasTimeBlock) setShowTimeBlock(true);
-      if ((outcomesRes.count || 0) > 0) setShowOutcomes(true);
-      setOutcomeCount(outcomesRes.count || 0);
+
+      const outCount = outcomesRes.count || 0;
+      setOutcomeCount(outCount);
+      if (outCount > 0) setShowOutcomes(true);
     })();
     return () => { cancelled = true; };
-  }, [task.id, hasTimeBlock]);
+  }, [task.id, hasTimeBlock, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -284,12 +312,28 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   };
 
   const refreshOutcomeCount = async () => {
-    if (typeof navigator !== "undefined" && !navigator.onLine) return;
     try {
-      const { count } = await firebaseStore.from("task_outcomes").select("id", { count: "exact", head: true }).eq("task_id", task.id);
-      setOutcomeCount(count || 0);
-      if ((count || 0) > 0) setShowOutcomes(true);
+      const outcomes = await listTaskOutcomes(task.id);
+      setOutcomeCount(outcomes.length);
+      if (outcomes.length > 0) setShowOutcomes(true);
       setOutcomeRefresh(n => n + 1);
+    } catch {
+      // fallback to store count if needed
+      try {
+        const { count } = await firebaseStore.from("task_outcomes").select("id", { count: "exact", head: true }).eq("task_id", task.id);
+        setOutcomeCount(count || 0);
+        if ((count || 0) > 0) setShowOutcomes(true);
+      } catch {
+        // ignore network errors while offline
+      }
+    }
+  };
+
+  const refreshStepListCount = async () => {
+    try {
+      const { count } = await firebaseStore.from("task_step_lists").select("id", { count: "exact", head: true }).eq("task_id", task.id);
+      setStepListCount(count || 0);
+      if ((count || 0) > 0) setShowSteps(true);
     } catch {
       // ignore network errors while offline
     }
@@ -561,6 +605,46 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   // ── Hero (task state + title) ──────────────────────────────────────
   const hero = (
     <div className="px-1 pb-2 space-y-2">
+      {t.parent_id && (
+        <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-200 text-xs font-medium">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <GitBranch className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            <span className="text-muted-foreground text-[11px] shrink-0">{T("شاخه زیرمجموعه از:", "Sub-branch of:")}</span>
+            <button
+              type="button"
+              onClick={() => {
+                void savePendingChanges().then(() => navigate(`/app/tasks/${encodeURIComponent(t.parent_id!)}`));
+              }}
+              className="font-bold underline underline-offset-2 truncate hover:text-amber-900 dark:hover:text-amber-100 text-start"
+            >
+              {parentTitle || T("مشاهده تسک والد", "View parent task")}
+            </button>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-[11px] text-amber-800 dark:text-amber-200 hover:bg-amber-500/20 rounded-lg gap-1"
+              onClick={() => {
+                void savePendingChanges().then(() => navigate(`/app/tasks/${encodeURIComponent(t.parent_id!)}`));
+              }}
+            >
+              <ExternalLink className="w-3 h-3" />
+              {T("باز کردن والد", "Open parent")}
+            </Button>
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => save({ parent_id: null })}
+                className="text-muted-foreground hover:text-destructive p-1 rounded-md transition"
+                title={T("جدا کردن از والد", "Detach from parent")}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       <div className="flex items-center gap-2 bg-card/50 dark:bg-card/30 rounded-2xl p-1.5 border border-border/50 hover:border-border/80 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all duration-200">
         <Button
           size="icon"
@@ -1254,10 +1338,28 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   // ── Expandable inline blocks (only when toggled) ────────────────────
   const expandables = (
     <div className="space-y-3 px-1">
-
-
       {showSubtasks && (
-        <section className="rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4" aria-label={T("زیرتسک‌ها", "Subtasks")}>
+        <section className="rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4 transition-all" aria-label={T("زیرتسک‌ها", "Subtasks")}>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h3 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              <ListTree className="h-4 w-4 text-primary" />
+              {T("زیرتسک‌ها", "Subtasks")}
+              {subtaskProgress.total > 0 && (
+                <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                  {subtaskProgress.completed}/{subtaskProgress.total}
+                </span>
+              )}
+            </h3>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+              onClick={() => setShowSubtasks(false)}
+              title={T("بستن بخش زیرتسک‌ها", "Collapse subtasks section")}
+            >
+              <X className="w-3.5 h-3.5" />
+            </Button>
+          </div>
           <TaskSubtasksInline
             taskId={t.id}
             onProgressChange={handleSubtaskProgress}
@@ -1270,26 +1372,122 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         </section>
       )}
 
-      {showSteps && <TaskStepLists taskId={t.id} />}
+      {showSteps && (
+        <section className="rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4 transition-all" aria-label={T("چک‌لیست و مراحل", "Checklist & Steps")}>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h3 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              <CheckSquare className="h-4 w-4 text-emerald-500" />
+              {T("چک‌لیست و مراحل", "Checklists & Steps")}
+              {stepListCount > 0 && (
+                <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">
+                  {stepListCount}
+                </span>
+              )}
+            </h3>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+              onClick={() => setShowSteps(false)}
+              title={T("بستن بخش چک‌لیست", "Collapse checklist section")}
+            >
+              <X className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+          <TaskStepLists taskId={t.id} onCountChange={setStepListCount} readOnly={!canEdit} />
+        </section>
+      )}
 
-      {showOutcomes && <TaskOutcomesInline taskId={t.id} refreshKey={outcomeRefresh} onEdit={() => setOutcomeOpen(true)} />}
+      {showOutcomes && (
+        <section className="rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4 transition-all" aria-label={T("شاخه‌ها و سناریوها", "Branches & Outcomes")}>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h3 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              <GitBranch className="h-4 w-4 text-amber-500" />
+              {T("شاخه‌ها و سناریوهای تصمیم‌گیری", "Decision Branches & Scenarios")}
+              {outcomeCount > 0 && (
+                <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium">
+                  {outcomeCount}
+                </span>
+              )}
+            </h3>
+            <div className="flex items-center gap-1">
+              {canEdit && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 px-2 text-[11px] gap-1 rounded-lg"
+                  onClick={() => setOutcomeOpen(true)}
+                >
+                  <Plus className="w-3 h-3" />
+                  {T("مدیریت شاخه‌ها", "Manage branches")}
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowOutcomes(false)}
+                title={T("بستن بخش شاخه‌ها", "Collapse branches section")}
+              >
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          </div>
+          <TaskOutcomesInline
+            taskId={t.id}
+            refreshKey={outcomeRefresh}
+            onEdit={() => setOutcomeOpen(true)}
+            onCountChange={setOutcomeCount}
+          />
+        </section>
+      )}
 
       {showAttachments && (
-        <section className="rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4">
-          <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold"><Paperclip className="h-4 w-4 text-primary" /> {T("پیوست‌ها", "Attachments")}</div>
-          <TaskAttachments taskId={t.id} />
+        <section className="rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4 transition-all">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 text-sm font-semibold">
+              <Paperclip className="h-4 w-4 text-primary" />
+              {T("پیوست‌ها", "Attachments")}
+              {attachmentCount > 0 && (
+                <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                  {attachmentCount}
+                </span>
+              )}
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+              onClick={() => setShowAttachments(false)}
+            >
+              <X className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+          <TaskAttachments taskId={t.id} onCountChange={setAttachmentCount} />
         </section>
       )}
 
       {(showNotes || taskNotes.length > 0) && (
-        <section className="rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4">
+        <section className="rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4 transition-all">
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-sm font-medium flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5" /> {T("نوت‌ها", "Notes")} ({taskNotes.length})
+              <FileText className="w-3.5 h-3.5 text-blue-500" /> {T("نوت‌ها", "Notes")} ({taskNotes.length})
             </label>
-            <Button size="sm" variant="outline" onClick={addNote} disabled={!canEdit} className="gap-1 rounded-full h-7 text-xs">
-              <Plus className="w-3 h-3" /> {T("جدید", "New")}
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button size="sm" variant="outline" onClick={addNote} disabled={!canEdit} className="gap-1 rounded-full h-7 text-xs">
+                <Plus className="w-3 h-3" /> {T("جدید", "New")}
+              </Button>
+              {taskNotes.length === 0 && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowNotes(false)}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              )}
+            </div>
           </div>
           <div className="space-y-1">
             {taskNotes.map((n) => (
@@ -1330,12 +1528,112 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     </div>
   );
 
+  const structurePills = (
+    <div className="mx-1 mb-3 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 text-xs">
+      {/* 1. Subtasks Pill */}
+      <button
+        type="button"
+        onClick={() => setShowSubtasks((s) => !s)}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-medium whitespace-nowrap shrink-0 ${
+          showSubtasks
+            ? "bg-primary/15 text-primary border-primary/30 shadow-2xs"
+            : "bg-card/60 text-muted-foreground hover:text-foreground border-border/50 hover:bg-muted/60"
+        }`}
+      >
+        <ListTree className="w-3.5 h-3.5 text-primary" />
+        <span>{T("زیرتسک‌ها", "Subtasks")}</span>
+        <span className={`px-1.5 py-0.5 rounded-full text-[10px] tabular-nums font-semibold ${
+          showSubtasks ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+        }`}>
+          {subtaskProgress.total ? `${subtaskProgress.completed}/${subtaskProgress.total}` : 0}
+        </span>
+      </button>
+
+      {/* 2. Checklists & Steps Pill */}
+      <button
+        type="button"
+        onClick={() => setShowSteps((s) => !s)}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-medium whitespace-nowrap shrink-0 ${
+          showSteps
+            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shadow-2xs"
+            : "bg-card/60 text-muted-foreground hover:text-foreground border-border/50 hover:bg-muted/60"
+        }`}
+      >
+        <CheckSquare className="w-3.5 h-3.5 text-emerald-500" />
+        <span>{T("چک‌لیست و مراحل", "Checklists & Steps")}</span>
+        <span className={`px-1.5 py-0.5 rounded-full text-[10px] tabular-nums font-semibold ${
+          showSteps ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"
+        }`}>
+          {stepListCount}
+        </span>
+      </button>
+
+      {/* 3. Branches & Outcomes Pill */}
+      <button
+        type="button"
+        onClick={() => setShowOutcomes((s) => !s)}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-medium whitespace-nowrap shrink-0 ${
+          showOutcomes
+            ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 shadow-2xs"
+            : "bg-card/60 text-muted-foreground hover:text-foreground border-border/50 hover:bg-muted/60"
+        }`}
+      >
+        <GitBranch className="w-3.5 h-3.5 text-amber-500" />
+        <span>{T("شاخه‌ها و تصمیمات", "Branches & Outcomes")}</span>
+        <span className={`px-1.5 py-0.5 rounded-full text-[10px] tabular-nums font-semibold ${
+          showOutcomes ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"
+        }`}>
+          {outcomeCount}
+        </span>
+      </button>
+
+      {/* 4. Notes Pill */}
+      <button
+        type="button"
+        onClick={() => setShowNotes((s) => !s)}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-medium whitespace-nowrap shrink-0 ${
+          showNotes || taskNotes.length > 0
+            ? "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 shadow-2xs"
+            : "bg-card/60 text-muted-foreground hover:text-foreground border-border/50 hover:bg-muted/60"
+        }`}
+      >
+        <FileText className="w-3.5 h-3.5 text-blue-500" />
+        <span>{T("نوت‌ها", "Notes")}</span>
+        {taskNotes.length > 0 && (
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] tabular-nums font-semibold bg-blue-500 text-white">
+            {taskNotes.length}
+          </span>
+        )}
+      </button>
+
+      {/* 5. Attachments Pill */}
+      <button
+        type="button"
+        onClick={() => setShowAttachments((s) => !s)}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-medium whitespace-nowrap shrink-0 ${
+          showAttachments
+            ? "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30 shadow-2xs"
+            : "bg-card/60 text-muted-foreground hover:text-foreground border-border/50 hover:bg-muted/60"
+        }`}
+      >
+        <Paperclip className="w-3.5 h-3.5 text-purple-500" />
+        <span>{T("پیوست‌ها", "Attachments")}</span>
+        {attachmentCount > 0 && (
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] tabular-nums font-semibold bg-purple-500 text-white">
+            {attachmentCount}
+          </span>
+        )}
+      </button>
+    </div>
+  );
+
   const body = (
     <div className="mt-1 task-detail-sections flex flex-col min-h-[40vh]">
       {topControls}
       {hero}
       {quickChips}
       {progressPanel}
+      {structurePills}
       {/* On a wide desktop or unfolded device, keep the writing surface and
           task structure adjacent.  The narrow layout remains a single calm
           reading flow instead of squeezing either section into a tiny column. */}

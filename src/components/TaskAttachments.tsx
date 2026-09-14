@@ -34,7 +34,13 @@ const ACCEPT = [
 
 type ImageAction = "attach" | "extract" | "summarize" | "research" | "tasks" | "scheduled_tasks";
 
-export function TaskAttachments({ taskId }: { taskId: string }) {
+export function TaskAttachments({
+  taskId,
+  onCountChange,
+}: {
+  taskId: string;
+  onCountChange?: (count: number) => void;
+}) {
   const { user } = useAuth();
   const [items, setItems] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -49,7 +55,9 @@ export function TaskAttachments({ taskId }: { taskId: string }) {
       .select("*")
       .eq("task_id", taskId)
       .order("created_at", { ascending: false });
-    setItems((data || []) as any);
+    const list = (data || []) as any;
+    setItems(list);
+    onCountChange?.(list.length);
   };
   useEffect(() => { load(); }, [taskId]);
 
@@ -94,7 +102,11 @@ export function TaskAttachments({ taskId }: { taskId: string }) {
         }).select().single();
         if (error) { toast.error(error.message); continue; }
         const att = data as any as Attachment;
-        setItems((prev) => [att, ...prev]);
+        setItems((prev) => {
+          const next = [att, ...prev];
+          onCountChange?.(next.length);
+          return next;
+        });
         if (att.kind === "image") setPendingImage(att);
       }
     } catch (e: any) {
@@ -108,7 +120,11 @@ export function TaskAttachments({ taskId }: { taskId: string }) {
   const removeItem = async (a: Attachment) => {
     await firebaseStore.from("task_attachments").delete().eq("id", a.id);
     await deleteMediaPath(a.storage_path).catch(() => {});
-    setItems((prev) => prev.filter((x) => x.id !== a.id));
+    setItems((prev) => {
+      const next = prev.filter((x) => x.id !== a.id);
+      onCountChange?.(next.length);
+      return next;
+    });
   };
 
   const runImageAction = async (action: ImageAction) => {

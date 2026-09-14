@@ -10,10 +10,12 @@ export function TaskOutcomesInline({
   taskId,
   onEdit,
   refreshKey = 0,
+  onCountChange,
 }: {
   taskId: string;
   onEdit?: () => void;
   refreshKey?: number;
+  onCountChange?: (count: number) => void;
 }) {
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
@@ -26,11 +28,16 @@ export function TaskOutcomesInline({
     let cancelled = false;
     setLoading(true);
     listTaskOutcomes(taskId)
-      .then((data) => { if (!cancelled) setOutcomes(data); })
+      .then((data) => {
+        if (!cancelled) {
+          setOutcomes(data);
+          onCountChange?.(data.length);
+        }
+      })
       .catch(() => { if (!cancelled) setOutcomes([]); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [taskId, refreshKey]);
+  }, [taskId, refreshKey, onCountChange]);
 
   if (loading) {
     return (
