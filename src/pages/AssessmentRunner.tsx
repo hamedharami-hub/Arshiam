@@ -10,40 +10,55 @@ import { ArrowLeft, ArrowRight, Save } from "lucide-react";
 import { HEXACO_ITEMS, scoreHexaco, analyzeHexaco } from "@/lib/assessments/hexaco";
 import { VIA_ITEMS, scoreVia, analyzeVia } from "@/lib/assessments/via";
 import { ECR_ITEMS, scoreEcr, attachmentQuadrant } from "@/lib/assessments/ecr";
-
-type Type = "hexaco" | "via" | "ecr";
-
-const META: Record<Type, { title: string; scale: number; labels: string[]; items: { id: number; text: string }[] }> = {
-  hexaco: {
-    title: "HEXACO-60 — ساختار شخصیت",
-    scale: 5,
-    labels: ["کاملاً مخالف", "مخالف", "خنثی", "موافق", "کاملاً موافق"],
-    items: HEXACO_ITEMS,
-  },
-  via: {
-    title: "VIA — نقاط قوت شخصیتی",
-    scale: 5,
-    labels: ["اصلاً شبیه من نیست", "کم", "تا حدی", "زیاد", "کاملاً شبیه من"],
-    items: VIA_ITEMS,
-  },
-  ecr: {
-    title: "ECR-R — سبک دلبستگی",
-    scale: 7,
-    labels: ["۱ کاملاً مخالف", "۲", "۳", "۴ خنثی", "۵", "۶", "۷ کاملاً موافق"],
-    items: ECR_ITEMS,
-  },
-};
-
+import { useBilingual } from "@/hooks/useBilingual";
+import { toPersianDigits } from "@/lib/persianDigits";
 import {
   getAssessmentProgress,
   saveAssessmentProgress,
   upsertAssessmentResult,
 } from "@/lib/firestoreDataService";
 
+type Type = "hexaco" | "via" | "ecr";
+
+const META: Record<Type, {
+  title: string;
+  title_en: string;
+  scale: number;
+  labels: string[];
+  labels_en: string[];
+  items: { id: number; text: string }[];
+}> = {
+  hexaco: {
+    title: "HEXACO-60 — ساختار شخصیت",
+    title_en: "HEXACO-60 — Personality Structure",
+    scale: 5,
+    labels: ["کاملاً مخالف", "مخالف", "خنثی", "موافق", "کاملاً موافق"],
+    labels_en: ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
+    items: HEXACO_ITEMS,
+  },
+  via: {
+    title: "VIA — نقاط قوت شخصیتی",
+    title_en: "VIA — Character Strengths",
+    scale: 5,
+    labels: ["اصلاً شبیه من نیست", "کم", "تا حدی", "زیاد", "کاملاً شبیه من"],
+    labels_en: ["Very Much Unlike Me", "Unlike Me", "Neutral", "Like Me", "Very Much Like Me"],
+    items: VIA_ITEMS,
+  },
+  ecr: {
+    title: "ECR-R — سبک دلبستگی",
+    title_en: "ECR-R — Attachment Style",
+    scale: 7,
+    labels: ["۱ کاملاً مخالف", "۲", "۳", "۴ خنثی", "۵", "۶", "۷ کاملاً موافق"],
+    labels_en: ["1 Strongly Disagree", "2", "3", "4 Neutral", "5", "6", "7 Strongly Agree"],
+    items: ECR_ITEMS,
+  },
+};
+
 export default function AssessmentRunner() {
   const { type } = useParams<{ type: Type }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { T, isEn } = useBilingual();
   const [responses, setResponses] = useState<Record<number, number>>({});
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -150,31 +165,36 @@ export default function AssessmentRunner() {
       }
       await firebaseStore.from("mh_profile").upsert(profileUpdate, { onConflict: "user_id" }).catch(() => {});
 
-      toast.success("تست تکمیل شد ✨");
+      toast.success(T("تست تکمیل شد ✨", "Assessment Completed ✨"));
       navigate(`/app/self/result/${type}`);
     } catch (e: any) {
-      toast.error(e.message || "خطا در ذخیره");
+      toast.error(e.message || T("خطا در ذخیره", "Failed to save"));
     } finally {
       setSaving(false);
     }
   }
 
-  if (loading) return <div dir="rtl" className="p-8 text-center text-muted-foreground">در حال بارگذاری…</div>;
-  if (!meta || !item) return <div className="p-8">تست نامعتبر</div>;
+  if (loading) return <div dir={isEn ? "ltr" : "rtl"} className="p-8 text-center text-muted-foreground">{T("در حال بارگذاری…", "Loading…")}</div>;
+  if (!meta || !item) return <div dir={isEn ? "ltr" : "rtl"} className="p-8">{T("تست نامعتبر", "Invalid assessment")}</div>;
 
   const current = responses[item.id];
+  const labels = isEn ? meta.labels_en : meta.labels;
+  const title = isEn ? meta.title_en : meta.title;
+  const BackIcon = isEn ? ArrowLeft : ArrowRight;
 
   return (
-    <div className="max-w-2xl mx-auto p-4 md:p-8 space-y-6">
+    <div dir={isEn ? "ltr" : "rtl"} className="max-w-2xl mx-auto p-4 md:p-8 space-y-6">
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={() => navigate("/app/self")}>
-          <ArrowRight className="w-4 h-4 ms-1" /> بازگشت
+          <BackIcon className={`w-4 h-4 ${isEn ? "me-1" : "ms-1"}`} /> {T("بازگشت", "Back")}
         </Button>
-        <span className="text-sm text-muted-foreground">{index + 1} / {total}</span>
+        <span className="text-sm text-muted-foreground">
+          {isEn ? `${index + 1} / ${total}` : `${toPersianDigits(index + 1)} / ${toPersianDigits(total)}`}
+        </span>
       </div>
 
       <div>
-        <h1 className="text-xl font-semibold mb-2">{meta.title}</h1>
+        <h1 className="text-xl font-semibold mb-2">{title}</h1>
         <Progress value={progress} className="h-2" />
       </div>
 
@@ -192,30 +212,44 @@ export default function AssessmentRunner() {
                     : "border-border hover:border-primary/50 bg-background"
                 }`}
               >
-                {n}
+                {isEn ? n : toPersianDigits(n)}
               </button>
             ))}
           </div>
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>{meta.labels[0]}</span>
-            <span>{meta.labels[meta.labels.length - 1]}</span>
+            <span>{labels[0]}</span>
+            <span>{labels[labels.length - 1]}</span>
           </div>
         </CardContent>
       </Card>
 
       <div className="flex justify-between">
         <Button variant="outline" disabled={index === 0} onClick={() => setIndex(i => Math.max(0, i - 1))}>
-          <ArrowRight className="w-4 h-4 ms-1" /> قبلی
+          {isEn ? (
+            <><ArrowLeft className="w-4 h-4 me-1" /> Previous</>
+          ) : (
+            <><ArrowRight className="w-4 h-4 ms-1" /> قبلی</>
+          )}
         </Button>
-        <Button variant="outline" onClick={() => { toast.success("ذخیره شد. هر زمان ادامه بده."); navigate("/app/self"); }}>
-          <Save className="w-4 h-4 ms-1" /> ذخیره و ادامه بعداً
+        <Button
+          variant="outline"
+          onClick={() => {
+            toast.success(T("ذخیره شد. هر زمان ادامه بده.", "Saved. Continue anytime."));
+            navigate("/app/self");
+          }}
+        >
+          <Save className={`w-4 h-4 ${isEn ? "me-1" : "ms-1"}`} /> {T("ذخیره و ادامه بعداً", "Save & Continue Later")}
         </Button>
         <Button disabled={!current || index === total - 1} onClick={() => setIndex(i => Math.min(total - 1, i + 1))}>
-          بعدی <ArrowLeft className="w-4 h-4 me-1" />
+          {isEn ? (
+            <>Next <ArrowRight className="w-4 h-4 ms-1" /></>
+          ) : (
+            <>بعدی <ArrowLeft className="w-4 h-4 me-1" /></>
+          )}
         </Button>
       </div>
 
-      {saving && <div className="text-center text-sm text-muted-foreground">در حال ذخیره نتایج…</div>}
+      {saving && <div className="text-center text-sm text-muted-foreground">{T("در حال ذخیره نتایج…", "Saving results…")}</div>}
     </div>
   );
 }

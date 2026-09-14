@@ -7,12 +7,12 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { firebaseStore } from "@/lib/firebaseStore";
 import { Brain, Send, AlertCircle, BookOpen } from "lucide-react";
 import { detectCrisis } from "@/lib/crisisDetection";
-
+import { useBilingual } from "@/hooks/useBilingual";
 import { toast } from "sonner";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-const SYSTEM = `You are a Socratic questioner in Persian (Farsi). Strict rules:
+const SYSTEM_FA = `You are a Socratic questioner in Persian (Farsi). Strict rules:
 1. NEVER give conclusions, advice, or recommendations.
 2. ONLY ask open-ended questions.
 3. Maximum 2 sentences per response.
@@ -20,10 +20,18 @@ const SYSTEM = `You are a Socratic questioner in Persian (Farsi). Strict rules:
 5. Focus on evidence, not emotions.
 6. If user shows crisis signals (self-harm, hopelessness), STOP questioning and respond: "این چیزی که گفتی مهمه. لطفاً همین الان با اورژانس اجتماعی ۱۲۳ یا یک متخصص سلامت روان تماس بگیر."`;
 
+const SYSTEM_EN = `You are a Socratic questioner in English. Strict rules:
+1. NEVER give conclusions, advice, or recommendations.
+2. ONLY ask open-ended questions.
+3. Maximum 2 sentences per response.
+4. Help the user discover logical contradictions in their own thinking through questions.
+5. Focus on evidence, not emotions.
+6. If user shows crisis signals (self-harm, hopelessness), STOP questioning and respond: "What you shared is very important. Please reach out right now to a crisis helpline (such as 988 or your local emergency services) or a mental health professional."`;
+
 export default function SocraticView() {
-  const { user } = { user: null as any };
+  const { T, isEn } = useBilingual();
   const [messages, setMessages] = useState<Msg[]>([
-    { role: "assistant", content: "چه فکر یا موقعیتی الان ذهن تو را مشغول کرده؟" }
+    { role: "assistant", content: isEn ? "What thought or situation is on your mind right now?" : "چه فکر یا موقعیتی الان ذهن تو را مشغول کرده؟" }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -35,8 +43,11 @@ export default function SocraticView() {
     const text = input.trim();
 
     if (detectCrisis(text)) {
+      const crisisWarning = isEn
+        ? "What you shared is important. Please connect with a mental health professional or call your local crisis helpline (e.g. 988)."
+        : "این چیزی که گفتی مهمه. لطفاً با یک متخصص یا خط اورژانس اجتماعی (۱۲۳) صحبت کن.";
       setMessages((m) => [...m, { role: "user", content: text },
-        { role: "assistant", content: "این چیزی که گفتی مهمه. لطفاً با یک متخصص یا خط اورژانس اجتماعی (۱۲۳) صحبت کن." }]);
+        { role: "assistant", content: crisisWarning }]);
       setInput("");
       return;
     }
@@ -50,25 +61,25 @@ export default function SocraticView() {
       const { data, error } = await firebaseStore.functions.invoke("ai-assistant", {
         body: {
           mode: "chat",
-          input: [{ role: "system", content: SYSTEM }, ...newMsgs.map((m) => ({ role: m.role, content: m.content }))],
-          language: "fa",
+          input: [{ role: "system", content: isEn ? SYSTEM_EN : SYSTEM_FA }, ...newMsgs.map((m) => ({ role: m.role, content: m.content }))],
+          language: isEn ? "en" : "fa",
         },
       });
       if (error) throw error;
       setMessages((m) => [...m, { role: "assistant", content: data?.text || "..." }]);
       setTimeout(() => scrollRef.current?.scrollTo({ top: 999999, behavior: "smooth" }), 100);
     } catch (e: any) {
-      toast.error(e.message || "خطا");
+      toast.error(e.message || T("خطا", "Error"));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div dir="rtl" className="max-w-3xl mx-auto p-4 md:p-8 space-y-4 h-[calc(100dvh-2rem)] flex flex-col">
+    <div dir={isEn ? "ltr" : "rtl"} className="max-w-3xl mx-auto p-4 md:p-8 space-y-4 h-[calc(100dvh-2rem)] flex flex-col">
       <div>
-        <h1 className="text-2xl font-bold mb-1 flex items-center gap-2"><Brain className="w-6 h-6 text-purple-500" /> چت سقراطی</h1>
-        <p className="text-muted-foreground text-xs">AI فقط سؤال می‌پرسد — تو خودت به بینش می‌رسی.</p>
+        <h1 className="text-2xl font-bold mb-1 flex items-center gap-2"><Brain className="w-6 h-6 text-purple-500" /> {T("چت سقراطی", "Socratic Dialogue")}</h1>
+        <p className="text-muted-foreground text-xs">{T("AI فقط سؤال می‌پرسد — تو خودت به بینش می‌رسی.", "AI only asks questions — guiding you to your own insights.")}</p>
       </div>
 
       {/* راهنمای کامل */}
@@ -77,43 +88,46 @@ export default function SocraticView() {
           <Accordion type="single" collapsible>
             <AccordionItem value="guide" className="border-0">
               <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                <div className="flex items-center gap-2 text-end text-sm">
+                <div className="flex items-center gap-2 text-start text-sm">
                   <BookOpen className="w-4 h-4 text-primary" />
-                  <span className="font-medium">راهنمای کامل: روش سقراطی چیست و چگونه استفاده کنم؟</span>
+                  <span className="font-medium">{T("راهنمای کامل: روش سقراطی چیست و چگونه استفاده کنم؟", "Complete Guide: What is the Socratic Method & How to Use It?")}</span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-4 pb-4 space-y-3 text-sm leading-7">
                 <section>
-                  <div className="font-semibold text-foreground mb-1">🏛️ روش سقراطی چیست؟</div>
+                  <div className="font-semibold text-foreground mb-1">{T("🏛️ روش سقراطی چیست؟", "🏛️ What is the Socratic Method?")}</div>
                   <p className="text-muted-foreground">
-                    ۲۴۰۰ سال پیش سقراط متوجه شد بهترین یادگیری وقتی اتفاق می‌افتد که فردی به‌جای دادن
-                    جواب، سؤال درست بپرسد. در روان‌درمانی شناختی، این روش پایه‌ی «گفت‌وگوی هدایت‌شده»
-                    است: AI پاسخ نمی‌دهد، فقط سؤال‌هایی می‌پرسد که خودت تناقض‌ها و فرض‌های پنهان فکرت
-                    را ببینی.
+                    {T(
+                      "۲۴۰۰ سال پیش سقراط متوجه شد بهترین یادگیری وقتی اتفاق می‌افتد که فردی به‌جای دادن جواب، سؤال درست بپرسد. در روان‌درمانی شناختی، این روش پایه‌ی «گفت‌وگوی هدایت‌شده» است: AI پاسخ نمی‌دهد، فقط سؤال‌هایی می‌پرسد که خودت تناقض‌ها و فرض‌های پنهان فکرت را ببینی.",
+                      "2,400 years ago, Socrates discovered that profound learning occurs when one is prompted with insightful questions rather than fed direct answers. In cognitive therapy, this forms the foundation of 'Guided Discovery': AI asks targeted questions so you uncover implicit assumptions and contradictions on your own."
+                    )}
                   </p>
                 </section>
                 <section>
-                  <div className="font-semibold text-foreground mb-1">🎯 چه زمانی استفاده کنم؟</div>
+                  <div className="font-semibold text-foreground mb-1">{T("🎯 چه زمانی استفاده کنم؟", "🎯 When should I use it?")}</div>
                   <ul className="text-muted-foreground list-disc pe-5 space-y-1">
-                    <li>وقتی یک فکر اذیت‌کننده گیرت کرده و نمی‌توانی از زاویه‌ی دیگری ببینی.</li>
-                    <li>وقتی بین دو تصمیم گیر کرده‌ای و فرض‌های ضمنی‌ات را نمی‌شناسی.</li>
-                    <li>وقتی می‌خواهی یک «باور قطعی» را آزمایش کنی: واقعاً این درست است؟</li>
-                    <li>برای پردازش احساسات بدون توصیه گرفتن؛ خودت باید به بینش برسی.</li>
+                    <li>{T("وقتی یک فکر اذیت‌کننده گیرت کرده و نمی‌توانی از زاویه‌ی دیگری ببینی.", "When trapped in a distressing thought loop and struggling to see other angles.")}</li>
+                    <li>{T("وقتی بین دو تصمیم گیر کرده‌ای و فرض‌های ضمنی‌ات را نمی‌شناسی.", "When torn between decisions and wanting to clarify implicit assumptions.")}</li>
+                    <li>{T("وقتی می‌خواهی یک «باور قطعی» را آزمایش کنی: واقعاً این درست است؟", "When testing a rigid belief: is it objectively accurate?")}</li>
+                    <li>{T("برای پردازش احساسات بدون توصیه گرفتن؛ خودت باید به بینش برسی.", "To process feelings without unrequested advice; arriving at your own clarity.")}</li>
                   </ul>
                 </section>
                 <section>
-                  <div className="font-semibold text-foreground mb-1">💡 چگونه بهترین نتیجه را بگیرم؟</div>
+                  <div className="font-semibold text-foreground mb-1">{T("💡 چگونه بهترین نتیجه را بگیرم؟", "💡 How to get the best outcome?")}</div>
                   <ol className="text-muted-foreground list-decimal pe-5 space-y-1">
-                    <li>با یک «فکر یا موقعیت مشخص» شروع کن، نه پرسش کلی.</li>
-                    <li>به سؤال‌های AI صادقانه پاسخ بده، حتی اگر اول دفاعی شدی.</li>
-                    <li>اگر سؤالی برایت سخت بود، همان لحظه‌ی سکوت، نقطه‌ی بینش است.</li>
-                    <li>۱۰ تا ۱۵ پیام معمولاً برای رسیدن به یک «دیدِ تازه» کافی است.</li>
+                    <li>{T("با یک «فکر یا موقعیت مشخص» شروع کن، نه پرسش کلی.", "Start with a specific thought or situation, not a broad philosophical query.")}</li>
+                    <li>{T("به سؤال‌های AI صادقانه پاسخ بده، حتی اگر اول دفاعی شدی.", "Answer questions candidly, even if initial defensiveness arises.")}</li>
+                    <li>{T("اگر سؤالی برایت سخت بود، همان لحظه‌ی سکوت، نقطه‌ی بینش است.", "If a question feels difficult, that hesitation is often where insight blooms.")}</li>
+                    <li>{T("۱۰ تا ۱۵ پیام معمولاً برای رسیدن به یک «دیدِ تازه» کافی است.", "10 to 15 exchanges are usually sufficient to reach a breakthrough.")}</li>
                   </ol>
                 </section>
                 <section className="bg-muted/40 rounded-lg p-3">
-                  <div className="font-semibold text-foreground mb-1">⚠️ این روش جایگزین درمان نیست</div>
+                  <div className="font-semibold text-foreground mb-1">{T("⚠️ این روش جایگزین درمان نیست", "⚠️ Not a Substitute for Therapy")}</div>
                   <p className="text-muted-foreground text-xs">
-                    اگر حال روحی‌ات بحرانی است یا افکار آسیب به خود داری، با اورژانس اجتماعی <span className="ltr">۱۲۳</span> تماس بگیر.
+                    {T(
+                      "اگر حال روحی‌ات بحرانی است یا افکار آسیب به خود داری، با اورژانس اجتماعی ۱۲۳ تماس بگیر.",
+                      "If you are in distress or having thoughts of self-harm, please reach out immediately to a local crisis lifeline (e.g. 988 or 123)."
+                    )}
                   </p>
                 </section>
               </AccordionContent>
@@ -124,7 +138,7 @@ export default function SocraticView() {
 
       <Card className="flex-1 flex flex-col overflow-hidden">
         <ScrollArea className="flex-1 p-4" ref={scrollRef as any}>
-          <div dir="rtl" className="space-y-4">
+          <div dir={isEn ? "ltr" : "rtl"} className="space-y-4">
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div
@@ -136,12 +150,12 @@ export default function SocraticView() {
                 >{m.content}</div>
               </div>
             ))}
-            {loading && <div className="text-xs text-muted-foreground">در حال فکر کردن…</div>}
+            {loading && <div className="text-xs text-muted-foreground">{T("در حال فکر کردن…", "Thinking…")}</div>}
           </div>
         </ScrollArea>
         <div className="border-t p-3 flex gap-2">
           <Input dir="auto" style={{ unicodeBidi: "plaintext" } as any} value={input} onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()} placeholder="پاسخ تو…" disabled={loading} />
+            onKeyDown={(e) => e.key === "Enter" && send()} placeholder={T("پاسخ تو…", "Your response…")} disabled={loading} />
           <Button onClick={send} disabled={loading || !input.trim()} size="icon"><Send className="w-4 h-4" /></Button>
         </div>
       </Card>
@@ -149,7 +163,12 @@ export default function SocraticView() {
       <Card className="bg-muted/30">
         <CardContent className="p-3 text-xs flex gap-2">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>این روش کمک به خودکاوی است، نه درمان. در صورت نیاز فوری به کمک با اورژانس اجتماعی <span className="ltr">۱۲۳</span> تماس بگیر.</span>
+          <span>
+            {T(
+              "این روش کمک به خودکاوی است، نه درمان. در صورت نیاز فوری به کمک با اورژانس اجتماعی ۱۲۳ تماس بگیر.",
+              "This tool promotes self-reflection, not clinical treatment. If in urgent need of assistance, contact your local emergency or mental health helpline."
+            )}
+          </span>
         </CardContent>
       </Card>
     </div>

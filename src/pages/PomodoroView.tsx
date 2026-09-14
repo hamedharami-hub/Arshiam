@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useBilingual } from "@/hooks/useBilingual";
+import { toPersianDigits } from "@/lib/persianDigits";
 import { Clock, ListChecks, TrendingUp, Target } from "lucide-react";
 import PomodoroTimer from "@/components/PomodoroTimer";
 import { subDays, startOfDay, format, isSameDay } from "date-fns";
@@ -16,6 +18,7 @@ type TaskOption = { id: string; title: string; due_date: string | null };
 
 export default function PomodoroView() {
   const { user } = useAuth();
+  const { T, isEn } = useBilingual();
   const [today, setToday] = useState<SessionRow[]>([]);
   const [weekSessions, setWeekSessions] = useState<WeekRow[]>([]);
   const [tasks, setTasks] = useState<TaskOption[]>([]);
@@ -79,18 +82,18 @@ export default function PomodoroView() {
   const selectedTask = tasks.find((t) => t.id === selectedTaskId);
 
   return (
-    <div dir="rtl" className="p-4 md:p-6 max-w-md mx-auto space-y-4">
+    <div dir={isEn ? "ltr" : "rtl"} className="p-4 md:p-6 max-w-md mx-auto space-y-4 page-enter">
       <Card className="p-6 space-y-4">
         <div className="space-y-1.5">
           <label className="text-xs text-muted-foreground flex items-center gap-1.5">
-            <Target className="w-3 h-3" /> تسک فعلی
+            <Target className="w-3 h-3" /> {T("تسک فعلی", "Current Task")}
           </label>
           <Select value={selectedTaskId || "none"} onValueChange={(v) => setSelectedTaskId(v === "none" ? null : v)}>
             <SelectTrigger className="h-9 text-xs">
-              <SelectValue placeholder="انتخاب تسک برای تمرکز" />
+              <SelectValue placeholder={T("انتخاب تسک برای تمرکز", "Select a task to focus on")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">بدون تسک</SelectItem>
+              <SelectItem value="none">{T("بدون تسک", "No task")}</SelectItem>
               {tasks.map((t) => (
                 <SelectItem key={t.id} value={t.id}>
                   <span className="truncate max-w-[16rem] block">{t.title}</span>
@@ -101,15 +104,15 @@ export default function PomodoroView() {
           {selectedTask && (
             <p className="text-[10px] text-muted-foreground">
               {selectedTask.due_date
-                ? `سررسید: ${system === "jalali" ? formatDate(new Date(selectedTask.due_date), "d MMM", "jalali") : format(new Date(selectedTask.due_date), "d MMM")}`
-                : "بدون سررسید"}
+                ? `${T("سررسید:", "Due:")} ${system === "jalali" ? formatDate(new Date(selectedTask.due_date), "d MMM", "jalali") : format(new Date(selectedTask.due_date), "d MMM")}`
+                : T("بدون سررسید", "No due date")}
             </p>
           )}
         </div>
         <PomodoroTimer
           taskId={selectedTaskId}
           onSessionComplete={() => {
-            awardWaterDrops(25, "تکمیل جلسه پومودورو");
+            awardWaterDrops(25, T("تکمیل جلسه پومودورو", "Pomodoro session complete"));
             setRefreshTick((t) => t + 1);
           }}
         />
@@ -118,30 +121,32 @@ export default function PomodoroView() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <Clock className="w-4 h-4 text-primary" /> امروز
+            <Clock className="w-4 h-4 text-primary" /> {T("امروز", "Today")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="text-3xl font-bold tabular-nums text-primary text-center">
-            {totalMin} <span className="text-sm font-normal text-muted-foreground">دقیقه تمرکز</span>
+            {isEn ? totalMin : toPersianDigits(totalMin)} <span className="text-sm font-normal text-muted-foreground">{T("دقیقه تمرکز", "focus minutes")}</span>
           </div>
-          <div className="text-xs text-muted-foreground text-center">{today.length} جلسه کامل</div>
+          <div className="text-xs text-muted-foreground text-center">
+            {isEn ? today.length : toPersianDigits(today.length)} {T("جلسه کامل", "sessions completed")}
+          </div>
 
           {(taskTotals.size > 0 || freeMin > 0) && (
             <div className="border-t pt-3 mt-3 space-y-1.5">
               <div className="text-xs font-semibold flex items-center gap-1 text-muted-foreground">
-                <ListChecks className="w-3 h-3" /> تفکیک
+                <ListChecks className="w-3 h-3" /> {T("تفکیک", "Breakdown")}
               </div>
               {Array.from(taskTotals.entries()).map(([id, v]) => (
                 <div key={id} className="flex justify-between text-sm">
                   <span className="truncate flex-1 ms-2">{v.title}</span>
-                  <span className="tabular-nums text-muted-foreground">{v.min}د</span>
+                  <span className="tabular-nums text-muted-foreground">{isEn ? `${v.min}m` : `${toPersianDigits(v.min)}د`}</span>
                 </div>
               ))}
               {freeMin > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">بدون تسک</span>
-                  <span className="tabular-nums text-muted-foreground">{freeMin}د</span>
+                  <span className="text-muted-foreground">{T("بدون تسک", "No task")}</span>
+                  <span className="tabular-nums text-muted-foreground">{isEn ? `${freeMin}m` : `${toPersianDigits(freeMin)}د`}</span>
                 </div>
               )}
             </div>
@@ -152,7 +157,8 @@ export default function PomodoroView() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-primary" /> {system === "jalali" ? "۷ روز اخیر" : "Last 7 days"}
+            <TrendingUp className="w-4 h-4 text-primary" />
+            {T("۷ روز اخیر", "Last 7 Days")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -163,7 +169,10 @@ export default function PomodoroView() {
                 <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                 <Tooltip
                   contentStyle={{ borderRadius: "0.75rem" }}
-                  formatter={(value: number) => [`${value} دقیقه`, "تمرکز"]}
+                  formatter={(value: number) => [
+                    isEn ? `${value} min` : `${toPersianDigits(value)} دقیقه`,
+                    T("تمرکز", "Focus"),
+                  ]}
                   labelFormatter={(label: string) => label}
                 />
                 <Bar dataKey="minutes" radius={[4, 4, 0, 0]} fill="hsl(var(--primary))" />

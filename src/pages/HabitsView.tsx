@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Plus, Flame, Trash2, Target, StickyNote, Trophy, Check, Sparkles } from "lucide-react";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useBilingual } from "@/hooks/useBilingual";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -28,6 +29,7 @@ type Log = { habit_id: string; log_date: string; note?: string | null };
 
 export default function HabitsView() {
   const { user } = useAuth();
+  const { T, isEn } = useBilingual();
   const [habits, setHabits] = useState<Habit[]>([]);
   const [logs, setLogs] = useState<Log[]>([]);
   const [name, setName] = useState("");
@@ -213,35 +215,35 @@ export default function HabitsView() {
     }
     setNoteDialog(null);
     haptic("success");
-    toast.success("یادداشت ذخیره شد");
+    toast.success(T("یادداشت ذخیره شد", "Note saved successfully"));
     load();
   };
 
   return (
-    <div dir="rtl" className="max-w-5xl mx-auto p-4 md:p-8 space-y-6 pb-20 animate-fade-in">
+    <div dir={isEn ? "ltr" : "rtl"} className="max-w-5xl mx-auto p-4 md:p-8 space-y-6 pb-20 animate-fade-in">
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">عادت‌ها</h1>
-          <p className="text-xs md:text-sm text-muted-foreground mt-1">پیگیری روزانه، بدون فشار.</p>
+          <h1 className="text-2xl md:text-3xl font-bold">{T("عادت‌ها", "Habits")}</h1>
+          <p className="text-xs md:text-sm text-muted-foreground mt-1">{T("پیگیری روزانه، بدون فشار.", "Daily consistency without overwhelm.")}</p>
         </div>
         <div className="flex rounded-lg bg-muted p-0.5">
           <button
             type="button"
             onClick={() => setView("week")}
             className={`px-2.5 py-1 text-xs rounded-md transition ${view === "week" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >هفته</button>
+          >{T("هفته", "Week")}</button>
           <button
             type="button"
             onClick={() => setView("month")}
             className={`px-2.5 py-1 text-xs rounded-md transition ${view === "month" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >ماه</button>
+          >{T("ماه", "Month")}</button>
         </div>
       </div>
 
       {/* Mind Garden Mini Widget */}
       <MiniGardenCard />
       <Card className="p-4 space-y-3 bg-card/60 border-border/60">
-        <Input placeholder="عادت جدید..." value={name} onChange={(e) => setName(e.target.value)}
+        <Input placeholder={T("عادت جدید...", "New habit...")} value={name} onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && add()} className="bg-background/50" />
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex rounded-lg bg-muted p-0.5">
@@ -249,17 +251,17 @@ export default function HabitsView() {
               type="button"
               onClick={() => { setFrequency("daily"); setTarget(7); }}
               className={`px-3 py-1.5 text-xs rounded-md transition ${frequency === "daily" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >روزانه</button>
+            >{T("روزانه", "Daily")}</button>
             <button
               type="button"
               onClick={() => { setFrequency("weekly"); setTarget(3); }}
               className={`px-3 py-1.5 text-xs rounded-md transition ${frequency === "weekly" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >هفتگی</button>
+            >{T("هفتگی", "Weekly")}</button>
           </div>
           {frequency === "weekly" && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Target className="w-3 h-3" />
-              <span>هدف:</span>
+              <span>{T("هدف:", "Target:")}</span>
               <Input
                 type="number"
                 min={1}
@@ -268,7 +270,7 @@ export default function HabitsView() {
                 onChange={(e) => setTarget(Number(e.target.value) || 1)}
                 className="h-7 w-16 text-xs bg-background/50"
               />
-              <span>روز/هفته</span>
+              <span>{T("روز/هفته", "days/week")}</span>
             </div>
           )}
           <Button onClick={add} size="sm" className="ms-auto"><Plus className="w-4 h-4" /></Button>
@@ -277,6 +279,11 @@ export default function HabitsView() {
 
       <div className="space-y-4">
         {habits.map((h) => {
+          const s = streak(h);
+          const wp = weekProgress(h);
+          const best = bestStreak(h);
+          const met = wp.count >= wp.target;
+          const streakUnit = h.frequency === "weekly" ? (isEn ? "weeks" : "هفته") : (isEn ? "days" : "روز");
           const todayLog = logs.find((l) => l.habit_id === h.id && isSameDay(new Date(l.log_date), new Date()));
           const isTodayDone = !!todayLog;
 
@@ -293,7 +300,7 @@ export default function HabitsView() {
                       {s > 0 && (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25 animate-pulse">
                           <Flame className="w-3.5 h-3.5 fill-amber-500" />
-                          <span>{toPersianDigits(s)} {streakUnit}</span>
+                          <span>{isEn ? s : toPersianDigits(s)} {streakUnit}</span>
                         </span>
                       )}
                     </div>
@@ -301,17 +308,19 @@ export default function HabitsView() {
                       {best > 0 && (
                         <span className="flex items-center gap-1 font-medium">
                           <Trophy className="w-3.5 h-3.5 text-yellow-500" />
-                          <span>بهترین: {toPersianDigits(best)}</span>
+                          <span>{T("بهترین:", "Best:")} {isEn ? best : toPersianDigits(best)}</span>
                         </span>
                       )}
                       <span className="text-border/80">•</span>
                       <span className="font-medium">
                         {met ? (
                           <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                            <Check className="w-3.5 h-3.5" /> هدف هفتگی تأمین‌شد
+                            <Check className="w-3.5 h-3.5" /> {T("هدف هفتگی تأمین‌شد", "Weekly target met")}
                           </span>
                         ) : (
-                          `${toPersianDigits(wp.count)} از ${toPersianDigits(wp.target)} روز هفته`
+                          isEn
+                            ? `${wp.count} of ${wp.target} days this week`
+                            : `${toPersianDigits(wp.count)} از ${toPersianDigits(wp.target)} روز هفته`
                         )}
                       </span>
                     </div>
@@ -330,7 +339,7 @@ export default function HabitsView() {
                     }`}
                   >
                     <Check className={`w-3.5 h-3.5 ${isTodayDone ? "stroke-[2.5]" : ""}`} />
-                    <span>{isTodayDone ? "انجام شد" : "امروز"}</span>
+                    <span>{isTodayDone ? T("انجام شد", "Done") : T("امروز", "Today")}</span>
                   </button>
 
                   <Button
@@ -366,6 +375,7 @@ export default function HabitsView() {
                       key={d.toISOString()}
                       date={d}
                       system={system}
+                      isEn={isEn}
                       done={done}
                       hasNote={hasNote}
                       compact={view === "month"}
@@ -381,12 +391,18 @@ export default function HabitsView() {
         {habits.length === 0 && (
           <EmptyState
             icon={Target}
-            title="هنوز عادتی ثبت نکردی"
-            description="عادت‌های کوچک و روزمره، نتایج بزرگ در زندگی می‌سازند. اولین عادتت رو بساز و زنجیره پیوستگی‌ات رو آغاز کن!"
+            title={T("هنوز عادتی ثبت نکردی", "No habits tracked yet")}
+            description={T(
+              "عادت‌های کوچک و روزمره، نتایج بزرگ در زندگی می‌سازند. اولین عادتت رو بساز و زنجیره پیوستگی‌ات رو آغاز کن!",
+              "Small daily habits create massive transformations. Create your first habit and ignite your consistency streak!"
+            )}
             action={{
-              label: "افزودن اولین عادت",
+              label: T("افزودن اولین عادت", "Add your first habit"),
               icon: Plus,
-              onClick: () => setOpen(true),
+              onClick: () => {
+                const el = document.querySelector('input[placeholder*="عادت"], input[placeholder*="habit"]') as HTMLInputElement;
+                el?.focus();
+              },
             }}
             className="my-4"
           />
@@ -394,22 +410,22 @@ export default function HabitsView() {
       </div>
 
       <Dialog open={!!noteDialog} onOpenChange={(v) => !v && setNoteDialog(null)}>
-        <DialogContent dir="rtl">
+        <DialogContent dir={isEn ? "ltr" : "rtl"}>
           <DialogHeader>
             <DialogTitle>
-              یادداشت {noteDialog && format(noteDialog.date, "yyyy/MM/dd")}
+              {T("یادداشت", "Note")} {noteDialog && (isEn ? format(noteDialog.date, "yyyy-MM-dd") : format(noteDialog.date, "yyyy/MM/dd"))}
             </DialogTitle>
           </DialogHeader>
           <Textarea
-            placeholder="چه احساسی داشتی؟ چه چیزی را یاد گرفتی؟"
+            placeholder={T("چه احساسی داشتی؟ چه چیزی را یاد گرفتی؟", "How did you feel? What did you learn?")}
             value={noteDialog?.note || ""}
             onChange={(e) => setNoteDialog((s) => s ? { ...s, note: e.target.value } : s)}
             className="min-h-[120px]"
             dir="auto"
           />
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setNoteDialog(null)}>انصراف</Button>
-            <Button onClick={saveNote}>ذخیره</Button>
+            <Button variant="ghost" onClick={() => setNoteDialog(null)}>{T("انصراف", "Cancel")}</Button>
+            <Button onClick={saveNote}>{T("ذخیره", "Save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -420,6 +436,7 @@ export default function HabitsView() {
 function DayCell({
   date,
   system,
+  isEn,
   done,
   hasNote,
   compact,
@@ -428,6 +445,7 @@ function DayCell({
 }: {
   date: Date;
   system: CalendarSystem;
+  isEn?: boolean;
   done: boolean;
   hasNote: boolean;
   compact?: boolean;
@@ -439,6 +457,8 @@ function DayCell({
     onLongPress,
   });
   const isTouch = typeof window !== "undefined" && "ontouchstart" in window;
+  const isJalali = !isEn && system === "jalali";
+
   return (
     <button
       {...(isTouch ? handlers : {})}
@@ -454,10 +474,12 @@ function DayCell({
     >
       {!compact && (
         <span className="text-[10px] text-muted-foreground/80 mb-0.5">
-          {system === "jalali" ? WEEKDAY_SHORT_FA[jalaliDayOfWeek(date)] : format(date, "EEE")[0]}
+          {isJalali ? WEEKDAY_SHORT_FA[jalaliDayOfWeek(date)] : format(date, "EEE")[0]}
         </span>
       )}
-      <span className="font-bold tabular-nums">{system === "jalali" ? formatDate(date, "d", "jalali") : format(date, "d")}</span>
+      <span className="font-bold tabular-nums">
+        {isJalali ? formatDate(date, "d", "jalali") : (isEn ? format(date, "d") : toPersianDigits(format(date, "d")))}
+      </span>
       {done && (
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-0.5" />
       )}

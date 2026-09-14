@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sprout, Sparkles, Check } from "lucide-react";
 import { PLANT_SPECIES, type PlantType } from "@/lib/garden";
+import { useBilingual } from "@/hooks/useBilingual";
 
 interface PlantPickerModalProps {
   open: boolean;
@@ -24,17 +25,21 @@ export default function PlantPickerModal({
   onSelect,
   currentType,
 }: PlantPickerModalProps) {
+  const { T, isEn } = useBilingual();
   const speciesList = Object.values(PLANT_SPECIES);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto" dir="rtl">
+      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto" dir={isEn ? "ltr" : "rtl"}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
-            <Sprout className="w-5 h-5 text-emerald-500" /> انتخاب بذر جدید برای کاشت
+            <Sprout className="w-5 h-5 text-emerald-500" /> {T("انتخاب بذر جدید برای کاشت", "Choose a New Seed to Plant")}
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            هر بذر بر اساس دسته‌ای از فعالیت‌های شما (تسک، تمرکز، عادات یا آرامش ذهن) بیشترین رشد را تجربه می‌کند.
+            {T(
+              "هر بذر بر اساس دسته‌ای از فعالیت‌های شما (تسک، تمرکز، عادات یا آرامش ذهن) بیشترین رشد را تجربه می‌کند.",
+              "Each botanical species is attuned to specific positive actions (tasks, deep focus, habits, or mindful reflection)."
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -69,16 +74,16 @@ export default function PlantPickerModal({
                   </div>
                   <div className="min-w-0 flex-1">
                     <h4 className="font-bold text-sm text-foreground flex items-center gap-1.5">
-                      {plant.name}
+                      {isEn ? plant.name_en : plant.name}
                     </h4>
                     <span className="text-[10px] text-muted-foreground font-mono block mb-1">
                       {plant.latinName}
                     </span>
                     <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed mb-2">
-                      {plant.description}
+                      {isEn ? plant.description_en : plant.description}
                     </p>
                     <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-background/80 text-[10px] text-primary font-medium border">
-                      <Sparkles className="w-2.5 h-2.5" /> {plant.affinity}
+                      <Sparkles className="w-2.5 h-2.5" /> {isEn ? plant.affinity_en : plant.affinity}
                     </div>
                   </div>
                 </div>

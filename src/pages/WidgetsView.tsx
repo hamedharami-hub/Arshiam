@@ -49,6 +49,7 @@ import { isAndroid } from "@/lib/nativeExperience";
 import { haptic } from "@/lib/haptics";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/jalali";
+import { useBilingual } from "@/hooks/useBilingual";
 
 export type WidgetTheme = "midnight" | "signature" | "emerald" | "crystal" | "amoled";
 
@@ -68,26 +69,27 @@ const DEFAULT_SETTINGS: WidgetSettings = {
   sort: "time",
 };
 
-const THEMES: { id: WidgetTheme; name: string; bg: string; cardBg: string; text: string; accent: string; border: string }[] = [
-  { id: "midnight", name: "اسلیت شبانه (Midnight)", bg: "bg-slate-950", cardBg: "bg-slate-900/90", text: "text-slate-100", accent: "text-violet-400 border-violet-500/30", border: "border-slate-800" },
-  { id: "signature", name: "نئون ارشناز (Signature)", bg: "bg-gradient-to-br from-slate-950 via-purple-950/40 to-slate-950", cardBg: "bg-purple-950/30 backdrop-blur-xl", text: "text-pink-100", accent: "text-pink-400 border-pink-500/40", border: "border-pink-500/30" },
-  { id: "emerald", name: "سبز زمردی (Emerald)", bg: "bg-slate-950", cardBg: "bg-emerald-950/30 backdrop-blur-xl", text: "text-emerald-100", accent: "text-emerald-400 border-emerald-500/40", border: "border-emerald-500/30" },
-  { id: "crystal", name: "شیشه‌ای روشن (Crystal Light)", bg: "bg-slate-100", cardBg: "bg-white/95 shadow-sm", text: "text-slate-900", accent: "text-violet-600 border-violet-200", border: "border-slate-200" },
-  { id: "amoled", name: "مشکی اولد (AMOLED Pure)", bg: "bg-black", cardBg: "bg-black", text: "text-white", accent: "text-violet-400 border-zinc-800", border: "border-zinc-800" },
-];
-
-const SAMPLE_TASKS: Task[] = [
-  { id: "s1", user_id: "sample", title: "طراحی رابط کاربری و بررسی ویجت‌ها", completed: false, status: "todo", priority: "high", due_date: new Date().toISOString().split("T")[0], created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "s2", user_id: "sample", title: "تنفس ۳بعدی و چک‌این آرامش ذهن", completed: false, status: "todo", priority: "medium", due_date: new Date().toISOString().split("T")[0], created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "s3", user_id: "sample", title: "مرور اهداف هفتگی و خلاصه پیشرفت", completed: true, status: "done", priority: "low", due_date: new Date().toISOString().split("T")[0], created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "s4", user_id: "sample", title: "تماس با تیم و هماهنگی نسخه جدید", completed: false, status: "todo", priority: "urgent", due_date: new Date(Date.now() + 86400000).toISOString().split("T")[0], created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-];
-
 export default function WidgetsView() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { T, isEn } = useBilingual();
   const initialTab = searchParams.get("widget") || "agenda";
+
+  const themes = useMemo<{ id: WidgetTheme; name: string; bg: string; cardBg: string; text: string; accent: string; border: string }[]>(() => [
+    { id: "midnight", name: isEn ? "Midnight Slate" : "اسلیت شبانه (Midnight)", bg: "bg-slate-950", cardBg: "bg-slate-900/90", text: "text-slate-100", accent: "text-violet-400 border-violet-500/30", border: "border-slate-800" },
+    { id: "signature", name: isEn ? "Arshnaz Signature" : "نئون ارشناز (Signature)", bg: "bg-gradient-to-br from-slate-950 via-purple-950/40 to-slate-950", cardBg: "bg-purple-950/30 backdrop-blur-xl", text: "text-pink-100", accent: "text-pink-400 border-pink-500/40", border: "border-pink-500/30" },
+    { id: "emerald", name: isEn ? "Emerald Green" : "سبز زمردی (Emerald)", bg: "bg-slate-950", cardBg: "bg-emerald-950/30 backdrop-blur-xl", text: "text-emerald-100", accent: "text-emerald-400 border-emerald-500/40", border: "border-emerald-500/30" },
+    { id: "crystal", name: isEn ? "Crystal Light" : "شیشه‌ای روشن (Crystal Light)", bg: "bg-slate-100", cardBg: "bg-white/95 shadow-sm", text: "text-slate-900", accent: "text-violet-600 border-violet-200", border: "border-slate-200" },
+    { id: "amoled", name: isEn ? "AMOLED Pure" : "مشکی اولد (AMOLED Pure)", bg: "bg-black", cardBg: "bg-black", text: "text-white", accent: "text-violet-400 border-zinc-800", border: "border-zinc-800" },
+  ], [isEn]);
+
+  const sampleTasks = useMemo<Task[]>(() => [
+    { id: "s1", user_id: "sample", title: isEn ? "Design UI and review widgets" : "طراحی رابط کاربری و بررسی ویجت‌ها", completed: false, status: "todo", priority: "high", due_date: new Date().toISOString().split("T")[0], created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: "s2", user_id: "sample", title: isEn ? "3D breathing & peace of mind check-in" : "تنفس ۳بعدی و چک‌این آرامش ذهن", completed: false, status: "todo", priority: "medium", due_date: new Date().toISOString().split("T")[0], created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: "s3", user_id: "sample", title: isEn ? "Review weekly goals & progress summary" : "مرور اهداف هفتگی و خلاصه پیشرفت", completed: true, status: "done", priority: "low", due_date: new Date().toISOString().split("T")[0], created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: "s4", user_id: "sample", title: isEn ? "Call team & coordinate new release" : "تماس با تیم و هماهنگی نسخه جدید", completed: false, status: "todo", priority: "urgent", due_date: new Date(Date.now() + 86400000).toISOString().split("T")[0], created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  ], [isEn]);
 
   const [activeWidget, setActiveWidget] = useState<string>(initialTab);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -129,15 +131,15 @@ export default function WidgetsView() {
     let mounted = true;
     async function load() {
       if (!user?.uid) {
-        setTasks(SAMPLE_TASKS);
+        setTasks(sampleTasks);
         setLoading(false);
         return;
       }
       try {
         const loaded = await fetchTasks(user.uid);
-        if (mounted) setTasks(loaded.length > 0 ? loaded : SAMPLE_TASKS);
+        if (mounted) setTasks(loaded.length > 0 ? loaded : sampleTasks);
       } catch {
-        if (mounted) setTasks(SAMPLE_TASKS);
+        if (mounted) setTasks(sampleTasks);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -146,7 +148,7 @@ export default function WidgetsView() {
     return () => {
       mounted = false;
     };
-  }, [user]);
+  }, [user, sampleTasks]);
 
   // Pomodoro countdown effect
   useEffect(() => {
@@ -155,11 +157,11 @@ export default function WidgetsView() {
       interval = setInterval(() => setTimerSeconds((s) => Math.max(0, s - 1)), 1000);
     } else if (timerSeconds === 0) {
       setTimerRunning(false);
-      toast.success("جلسهٔ تمرکز با موفقیت به پایان رسید!");
+      toast.success(T("جلسهٔ تمرکز با موفقیت به پایان رسید!", "Focus session completed successfully!"));
       haptic("success");
     }
     return () => clearInterval(interval);
-  }, [timerRunning, timerSeconds]);
+  }, [timerRunning, timerSeconds, T]);
 
   // Filter tasks based on widget scope
   const filteredTasks = useMemo(() => {
@@ -195,9 +197,9 @@ export default function WidgetsView() {
     if (user?.uid && task.id && !task.id.startsWith("s")) {
       try {
         await saveTask(user.uid, updated);
-        toast.success(nextCompleted ? "تسک در ویجت انجام شد" : "تسک دوباره فعال شد");
+        toast.success(nextCompleted ? T("تسک در ویجت انجام شد", "Task marked done in widget") : T("تسک دوباره فعال شد", "Task reactivated"));
       } catch {
-        toast.error("خطا در ذخیره وضعیت تسک");
+        toast.error(T("خطا در ذخیره وضعیت تسک", "Error updating task status"));
       }
     }
   };
@@ -216,9 +218,9 @@ export default function WidgetsView() {
     if (user?.uid && task.id && !task.id.startsWith("s")) {
       try {
         await saveTask(user.uid, updated);
-        toast.success("موعد تسک به فردا منتقل شد 📅");
+        toast.success(T("موعد تسک به فردا منتقل شد 📅", "Task postponed to tomorrow 📅"));
       } catch {
-        toast.error("خطا در به‌روزرسانی موعد تسک");
+        toast.error(T("خطا در به‌روزرسانی موعد تسک", "Error updating due date"));
       }
     }
   };
@@ -229,9 +231,9 @@ export default function WidgetsView() {
     if (user?.uid && !taskId.startsWith("s")) {
       try {
         await deleteTask(user.uid, taskId);
-        toast.success("تسک حذف شد 🗑️");
+        toast.success(T("تسک حذف شد 🗑️", "Task deleted 🗑️"));
       } catch {
-        toast.error("خطا در حذف تسک");
+        toast.error(T("خطا در حذف تسک", "Error deleting task"));
       }
     }
   };
@@ -242,20 +244,20 @@ export default function WidgetsView() {
     haptic("medium");
     try {
       await refreshAndroidWidgets();
-      toast.success("همهٔ ویجت‌های اندروید با موفقیت همگام‌سازی شدند");
+      toast.success(T("همهٔ ویجت‌های اندروید با موفقیت همگام‌سازی شدند", "All Android widgets synced successfully"));
       haptic("success");
     } catch {
-      toast.info("ویجت‌ها در محیط برنامه به‌روزرسانی شدند");
+      toast.info(T("ویجت‌ها در محیط برنامه به‌روزرسانی شدند", "Widgets updated in app preview"));
     } finally {
       setSyncBusy(false);
     }
   };
 
-  const currentTheme = THEMES.find((t) => t.id === settings.theme) || THEMES[0];
+  const currentTheme = themes.find((t) => t.id === settings.theme) || themes[0];
   const diagnostics = getWidgetDiagnostics();
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 pb-20 pt-4 px-3 sm:px-6">
+    <div dir={isEn ? "ltr" : "rtl"} className="mx-auto max-w-6xl space-y-6 pb-20 pt-4 px-3 sm:px-6">
       {/* Top Banner & Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -264,10 +266,10 @@ export default function WidgetsView() {
             <span>ARSHNAZ WIDGET STUDIO</span>
           </div>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            استودیوی ویجت‌ها و نمای تعاملی
+            {T("استودیوی ویجت‌ها و نمای تعاملی", "Widget Studio & Interactive Preview")}
           </h1>
           <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-            پیش‌نمایش زنده، شخصی‌سازی ظاهر، تنظیمات بومی اندروید و تست در لحظه
+            {T("پیش‌نمایش زنده، شخصی‌سازی ظاهر، تنظیمات بومی اندروید و تست در لحظه", "Live preview, appearance customization, native Android settings & instant testing")}
           </p>
         </div>
 
@@ -280,7 +282,7 @@ export default function WidgetsView() {
             className="gap-2 rounded-xl border-primary/30 hover:border-primary"
           >
             <RefreshCw className={`h-4 w-4 text-primary ${syncBusy ? "animate-spin" : ""}`} />
-            <span>همگام‌سازی فوری ویجت‌ها</span>
+            <span>{T("همگام‌سازی فوری ویجت‌ها", "Sync Widgets Now")}</span>
           </Button>
 
           {isAndroid() && (
@@ -291,7 +293,7 @@ export default function WidgetsView() {
               className="gap-1.5 rounded-xl text-xs"
             >
               <Smartphone className="h-3.5 w-3.5 text-primary" />
-              <span>تنظیمات سیستم</span>
+              <span>{T("تنظیمات سیستم", "System Settings")}</span>
             </Button>
           )}
         </div>
@@ -302,7 +304,7 @@ export default function WidgetsView() {
         <div className="rounded-2xl border border-border/50 bg-card/60 p-3 backdrop-blur-md">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Smartphone className="h-3.5 w-3.5 text-primary" />
-            <span>بریج بومی</span>
+            <span>{T("بریج بومی", "Native Bridge")}</span>
           </div>
           <div className="mt-2 flex items-center gap-2 text-sm font-semibold">
             <span className={`h-2 w-2 rounded-full ${diagnostics.isNative ? "bg-emerald-500" : "bg-sky-500"}`} />
@@ -313,30 +315,30 @@ export default function WidgetsView() {
         <div className="rounded-2xl border border-border/50 bg-card/60 p-3 backdrop-blur-md">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <ListChecks className="h-3.5 w-3.5 text-primary" />
-            <span>تسک‌های فعال</span>
+            <span>{T("تسک‌های فعال", "Active Tasks")}</span>
           </div>
           <div className="mt-2 text-sm font-semibold">
-            {loading ? "..." : `${filteredTasks.filter((t) => !t.completed).length} تسک`}
+            {loading ? "..." : (isEn ? `${filteredTasks.filter((t) => !t.completed).length} tasks` : `${filteredTasks.filter((t) => !t.completed).length} تسک`)}
           </div>
         </div>
 
         <div className="rounded-2xl border border-border/50 bg-card/60 p-3 backdrop-blur-md">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Clock className="h-3.5 w-3.5 text-primary" />
-            <span>آخرین همگام‌سازی</span>
+            <span>{T("آخرین همگام‌سازی", "Last Sync")}</span>
           </div>
           <div className="mt-2 text-xs font-semibold">
-            {diagnostics.lastSyncTimestamp ? formatDate(new Date(diagnostics.lastSyncTimestamp)) : "همین حالا"}
+            {diagnostics.lastSyncTimestamp ? formatDate(new Date(diagnostics.lastSyncTimestamp)) : T("همین حالا", "Just now")}
           </div>
         </div>
 
         <div className="rounded-2xl border border-border/50 bg-card/60 p-3 backdrop-blur-md">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-            <span>نشست کاربر</span>
+            <span>{T("نشست کاربر", "User Session")}</span>
           </div>
           <div className="mt-2 truncate text-xs font-mono font-medium text-muted-foreground">
-            {user?.uid ? user.uid.slice(0, 10) + "..." : "مهمان"}
+            {user?.uid ? user.uid.slice(0, 10) + "..." : T("مهمان", "Guest")}
           </div>
         </div>
       </div>
@@ -350,20 +352,20 @@ export default function WidgetsView() {
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Layers className="h-4 w-4 text-primary" />
-                <span>انتخاب ویجت</span>
+                <span>{T("انتخاب ویجت", "Select Widget")}</span>
               </CardTitle>
               <CardDescription className="text-xs">
-                ویجت مورد نظر خود را برای مشاهده و آزمایش انتخاب کنید
+                {T("ویجت مورد نظر خود را برای مشاهده و آزمایش انتخاب کنید", "Choose a widget to preview and test")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2 pt-0">
               {[
-                { id: "agenda", name: "Agenda (دستور کار روز)", desc: "لیست کامل تسک‌ها، زیرتسک‌ها و دکمه انجام", icon: ListChecks },
-                { id: "compact", name: "Compact (تک تسک متمرکز)", desc: "نمای مینیمال ۲×۱ با تیک سریع", icon: LayoutGrid },
-                { id: "pomodoro", name: "Focus Timer (تایمر تمرکز)", desc: "شمارش معکوس زنده ۲۵ دقیقه‌ای با شروع/توقف", icon: TimerReset },
-                { id: "action_hub", name: "Quick Actions Hub", desc: "دکمه‌های فوری تسک جدید، ویس، ذهن و پومودورو", icon: Sparkles },
-                { id: "mind", name: "Mind Reset (تنظیم ذهن)", desc: "چک‌این روحی، ثبت فکر CBT و تمرین تنفس ۳بعدی", icon: Activity },
-                { id: "problem", name: "Problem Solver (حل مسئله)", desc: "چارچوب ABC، تفکر سقراطی و قدم بعدی", icon: BrainCircuit },
+                { id: "agenda", name: T("Agenda (دستور کار روز)", "Agenda (Daily Tasks)"), desc: T("لیست کامل تسک‌ها، زیرتسک‌ها و دکمه انجام", "Full task list, subtasks and completion button"), icon: ListChecks },
+                { id: "compact", name: T("Compact (تک تسک متمرکز)", "Compact (Single Focus Task)"), desc: T("نمای مینیمال ۲×۱ با تیک سریع", "Minimal 2x1 view with quick check"), icon: LayoutGrid },
+                { id: "pomodoro", name: T("Focus Timer (تایمر تمرکز)", "Focus Timer (Pomodoro)"), desc: T("شمارش معکوس زنده ۲۵ دقیقه‌ای با شروع/توقف", "Live 25-minute countdown with start/pause"), icon: TimerReset },
+                { id: "action_hub", name: T("Quick Actions Hub", "Quick Actions Hub"), desc: T("دکمه‌های فوری تسک جدید، ویس، ذهن و پومودورو", "Instant shortcuts for task, voice, mind & timer"), icon: Sparkles },
+                { id: "mind", name: T("Mind Reset (تنظیم ذهن)", "Mind Reset"), desc: T("چک‌این روحی، ثبت فکر CBT و تمرین تنفس ۳بعدی", "Mood check-in, CBT thought log & 3D breathing"), icon: Activity },
+                { id: "problem", name: T("Problem Solver (حل مسئله)", "Problem Solver"), desc: T("چارچوب ABC، تفکر سقراطی و قدم بعدی", "ABC framework, Socratic questioning & next steps"), icon: BrainCircuit },
               ].map((w) => {
                 const Icon = w.icon;
                 const isSelected = activeWidget === w.id;
@@ -374,7 +376,7 @@ export default function WidgetsView() {
                       setActiveWidget(w.id);
                       haptic("selection");
                     }}
-                    className={`flex w-full items-center gap-3 rounded-xl border p-3 text-right transition-all duration-200 ${
+                    className={`flex w-full items-center gap-3 rounded-xl border p-3 text-start transition-all duration-200 ${
                       isSelected
                         ? "border-primary bg-primary/10 shadow-sm"
                         : "border-border/40 bg-card/40 hover:border-border hover:bg-card/70"
@@ -386,7 +388,7 @@ export default function WidgetsView() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-semibold">{w.name}</span>
-                        {isSelected && <Badge variant="default" className="text-[10px]">فعال</Badge>}
+                        {isSelected && <Badge variant="default" className="text-[10px]">{T("فعال", "Active")}</Badge>}
                       </div>
                       <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{w.desc}</p>
                     </div>
@@ -401,25 +403,25 @@ export default function WidgetsView() {
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Palette className="h-4 w-4 text-primary" />
-                <span>شخصی‌سازی ظاهر ویجت</span>
+                <span>{T("شخصی‌سازی ظاهر ویجت", "Widget Customization")}</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 pt-0 text-xs">
               {/* Theme Picker */}
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">تم رنگی ویجت</label>
+                <label className="text-xs font-medium text-muted-foreground">{T("تم رنگی ویجت", "Widget Color Theme")}</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {THEMES.map((theme) => (
+                  {themes.map((theme) => (
                     <button
                       key={theme.id}
                       onClick={() => saveSettings({ theme: theme.id })}
-                      className={`flex items-center gap-2 rounded-xl border p-2 text-right transition-all ${
+                      className={`flex items-center gap-2 rounded-xl border p-2 text-start transition-all ${
                         settings.theme === theme.id ? "border-primary bg-primary/10" : "border-border/40 hover:border-border"
                       }`}
                     >
                       <div className={`h-4 w-4 rounded-full border border-border ${theme.bg}`} />
                       <span className="truncate text-[11px]">{theme.name.split(" ")[0]}</span>
-                      {settings.theme === theme.id && <Check className="mr-auto h-3 w-3 text-primary" />}
+                      {settings.theme === theme.id && <Check className="ms-auto h-3 w-3 text-primary" />}
                     </button>
                   ))}
                 </div>
@@ -428,7 +430,7 @@ export default function WidgetsView() {
               {/* Toggles */}
               <div className="space-y-2.5 pt-2 border-t border-border/40">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs">نمایش تسک‌های انجام‌شده</span>
+                  <span className="text-xs">{T("نمایش تسک‌های انجام‌شده", "Show completed tasks")}</span>
                   <Switch
                     checked={settings.showCompleted}
                     onCheckedChange={(val) => saveSettings({ showCompleted: val })}
@@ -436,7 +438,7 @@ export default function WidgetsView() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-xs">فقط تسک‌های با اولویت بالا</span>
+                  <span className="text-xs">{T("فقط تسک‌های با اولویت بالا", "High priority only")}</span>
                   <Switch
                     checked={settings.highPriorityOnly}
                     onCheckedChange={(val) => saveSettings({ highPriorityOnly: val })}
@@ -452,8 +454,8 @@ export default function WidgetsView() {
           <Card className="overflow-hidden rounded-3xl border-border/60 bg-gradient-to-b from-card/80 to-card/40 backdrop-blur-xl shadow-xl">
             <CardHeader className="flex flex-row items-center justify-between border-b border-border/40 pb-3">
               <div>
-                <CardTitle className="text-sm font-semibold">پیش‌نمایش زنده در صفحه گوشی</CardTitle>
-                <CardDescription className="text-xs">این پیش‌نمایش کاملاً فعال و دارای کنترل‌های تعاملی است</CardDescription>
+                <CardTitle className="text-sm font-semibold">{T("پیش‌نمایش زنده در صفحه گوشی", "Live Phone Preview")}</CardTitle>
+                <CardDescription className="text-xs">{T("این پیش‌نمایش کاملاً فعال و دارای کنترل‌های تعاملی است", "This preview is fully interactive and functional")}</CardDescription>
               </div>
               <Badge variant="outline" className="gap-1 border-primary/40 bg-primary/5 text-primary text-[10px]">
                 <Sparkles className="h-3 w-3" /> Live Simulator
@@ -477,11 +479,11 @@ export default function WidgetsView() {
                             <span className="text-xs font-bold uppercase tracking-wider text-primary">ARSHNAZ</span>
                             <span className="text-[10px] text-muted-foreground">· AGENDA</span>
                           </div>
-                          <h3 className="text-lg font-bold">دستور کار امروز</h3>
+                          <h3 className="text-lg font-bold">{T("دستور کار امروز", "Today's Agenda")}</h3>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-                            {filteredTasks.filter((t) => !t.completed).length} فعال
+                            {isEn ? `${filteredTasks.filter((t) => !t.completed).length} active` : `${filteredTasks.filter((t) => !t.completed).length} فعال`}
                           </span>
                         </div>
                       </div>
@@ -489,10 +491,10 @@ export default function WidgetsView() {
                       {/* Scope Pills */}
                       <div className="flex gap-1 overflow-x-auto pb-1 text-[11px]">
                         {[
-                          { id: "today", label: "امروز" },
-                          { id: "tomorrow", label: "فردا" },
-                          { id: "next7", label: "۷ روز" },
-                          { id: "high", label: "مهم‌ها" },
+                          { id: "today", label: T("امروز", "Today") },
+                          { id: "tomorrow", label: T("فردا", "Tomorrow") },
+                          { id: "next7", label: T("۷ روز", "7 Days") },
+                          { id: "high", label: T("مهم‌ها", "High") },
                         ].map((s) => (
                           <button
                             key={s.id}
@@ -515,7 +517,7 @@ export default function WidgetsView() {
                       <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                         {filteredTasks.length === 0 ? (
                           <div className="py-8 text-center text-xs text-muted-foreground">
-                            هیچ تسکی در این نما وجود ندارد
+                            {T("هیچ تسکی در این نما وجود ندارد", "No tasks in this view")}
                           </div>
                         ) : (
                           filteredTasks.slice(0, 5).map((t) => (
@@ -523,14 +525,14 @@ export default function WidgetsView() {
                               key={t.id}
                               className={`group flex items-center gap-2.5 rounded-xl border p-2.5 transition-all ${
                                 t.completed
-                                  ? "border-border/30 bg-muted/20 opacity-60"
+                                   ? "border-border/30 bg-muted/20 opacity-60"
                                   : "border-border/50 bg-card/60 hover:border-primary/40"
                               }`}
                             >
                               {/* Checkbox */}
                               <button
                                 onClick={() => void handleToggleTask(t)}
-                                title={t.completed ? "علامت‌گذاری به عنوان انجام‌نشده" : "انجام شد (تیک زدن)"}
+                                title={t.completed ? T("علامت‌گذاری به عنوان انجام‌نشده", "Mark uncompleted") : T("انجام شد (تیک زدن)", "Mark done")}
                                 className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-primary/40 text-primary transition-all hover:scale-105"
                               >
                                 {t.completed ? <CheckCircle2 className="h-4 w-4 text-emerald-500 fill-emerald-500/20" /> : <Circle className="h-4 w-4" />}
@@ -545,8 +547,8 @@ export default function WidgetsView() {
                                   {t.title}
                                 </p>
                                 <span className="text-[10px] text-muted-foreground">
-                                  {t.priority === "high" || t.priority === "urgent" ? "● اولویت بالا · " : ""}
-                                  {t.due_date ? t.due_date.slice(5) : "بدون تاریخ"}
+                                  {t.priority === "high" || t.priority === "urgent" ? (isEn ? "● High Priority · " : "● اولویت بالا · ") : ""}
+                                  {t.due_date ? t.due_date.slice(5) : T("بدون تاریخ", "No date")}
                                 </span>
                               </div>
 
@@ -557,7 +559,7 @@ export default function WidgetsView() {
                                     type="button"
                                     onClick={(e) => e.stopPropagation()}
                                     className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/60 transition shrink-0 opacity-80 group-hover:opacity-100"
-                                    title="عملیات تسک در ویجت"
+                                    title={T("عملیات تسک در ویجت", "Widget task actions")}
                                   >
                                     <MoreHorizontal className="h-4 w-4" />
                                   </button>
@@ -567,22 +569,22 @@ export default function WidgetsView() {
                                     {t.completed ? (
                                       <>
                                         <Circle className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                                        <span>علامت به عنوان انجام‌نشده</span>
+                                        <span>{T("علامت به عنوان انجام‌نشده", "Mark uncompleted")}</span>
                                       </>
                                     ) : (
                                       <>
                                         <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-500" />
-                                        <span>انجام شد (تیک زدن)</span>
+                                        <span>{T("انجام شد (تیک زدن)", "Mark done")}</span>
                                       </>
                                     )}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => void handlePostponeTask(t)}>
                                     <Calendar className="h-3.5 w-3.5 mr-2 text-primary" />
-                                    <span>انتقال موعد به فردا</span>
+                                    <span>{T("انتقال موعد به فردا", "Postpone to tomorrow")}</span>
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => navigate(`/app/tasks/${t.id}`)}>
                                     <ArrowUpRight className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                                    <span>مشاهده در برنامه اصلی</span>
+                                    <span>{T("مشاهده در برنامه اصلی", "Open in main app")}</span>
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
@@ -590,7 +592,7 @@ export default function WidgetsView() {
                                     className="text-destructive focus:text-destructive"
                                   >
                                     <Trash2 className="h-3.5 w-3.5 mr-2" />
-                                    <span>حذف تسک</span>
+                                    <span>{T("حذف تسک", "Delete task")}</span>
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
@@ -607,9 +609,9 @@ export default function WidgetsView() {
                           onClick={() => navigate("/app/new/task")}
                           className="h-7 text-xs gap-1 hover:text-primary px-2"
                         >
-                          <Plus className="h-3.5 w-3.5" /> افزودن تسک
+                          <Plus className="h-3.5 w-3.5" /> {T("افزودن تسک", "Add Task")}
                         </Button>
-                        <span className="text-[10px] text-muted-foreground">لمس تیک برای انجام · لمس ⋯ برای منو</span>
+                        <span className="text-[10px] text-muted-foreground">{T("لمس تیک برای انجام · لمس ⋯ برای منو", "Tap check to complete · Tap ⋯ for menu")}</span>
                       </div>
                     </div>
                   )}
@@ -618,15 +620,15 @@ export default function WidgetsView() {
                   {activeWidget === "compact" && (
                     <div className="space-y-3 py-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-primary">تسک متمرکز جاری</span>
-                        <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">۱ تسک</Badge>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-primary">{T("تسک متمرکز جاری", "Current Focus Task")}</span>
+                        <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">{isEn ? "1 Task" : "۱ تسک"}</Badge>
                       </div>
 
                       {filteredTasks[0] ? (
                         <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-3 group">
                           <button
                             onClick={() => void handleToggleTask(filteredTasks[0])}
-                            title={filteredTasks[0].completed ? "علامت‌گذاری به عنوان انجام‌نشده" : "انجام شد (تیک زدن)"}
+                            title={filteredTasks[0].completed ? T("علامت‌گذاری به عنوان انجام‌نشده", "Mark uncompleted") : T("انجام شد (تیک زدن)", "Mark done")}
                             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-card border border-primary/40 text-primary transition-all hover:scale-105"
                           >
                             {filteredTasks[0].completed ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <Circle className="h-5 w-5" />}
@@ -638,14 +640,14 @@ export default function WidgetsView() {
                             <h4 className={`truncate text-xs font-bold ${filteredTasks[0].completed ? "line-through text-muted-foreground" : ""}`}>
                               {filteredTasks[0].title}
                             </h4>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">برای بازکردن تسک لمس کنید</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">{T("برای بازکردن تسک لمس کنید", "Tap to open task")}</p>
                           </div>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <button
                                 type="button"
                                 className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/60 transition shrink-0"
-                                title="عملیات تسک در ویجت"
+                                title={T("عملیات تسک در ویجت", "Widget task actions")}
                               >
                                 <MoreHorizontal className="h-4 w-4" />
                               </button>
@@ -655,22 +657,22 @@ export default function WidgetsView() {
                                 {filteredTasks[0].completed ? (
                                   <>
                                     <Circle className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                                    <span>علامت به عنوان انجام‌نشده</span>
+                                    <span>{T("علامت به عنوان انجام‌نشده", "Mark uncompleted")}</span>
                                   </>
                                 ) : (
                                   <>
                                     <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-500" />
-                                    <span>انجام شد (تیک زدن)</span>
+                                    <span>{T("انجام شد (تیک زدن)", "Mark done")}</span>
                                   </>
                                 )}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => void handlePostponeTask(filteredTasks[0])}>
                                 <Calendar className="h-3.5 w-3.5 mr-2 text-primary" />
-                                <span>انتقال موعد به فردا</span>
+                                <span>{T("انتقال موعد به فردا", "Postpone to tomorrow")}</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => navigate(`/app/tasks/${filteredTasks[0].id}`)}>
                                 <ArrowUpRight className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                                <span>مشاهده در برنامه اصلی</span>
+                                <span>{T("مشاهده در برنامه اصلی", "Open in main app")}</span>
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
@@ -678,14 +680,14 @@ export default function WidgetsView() {
                                 className="text-destructive focus:text-destructive"
                               >
                                 <Trash2 className="h-3.5 w-3.5 mr-2" />
-                                <span>حذف تسک</span>
+                                <span>{T("حذف تسک", "Delete task")}</span>
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
                       ) : (
                         <div className="py-4 text-center text-xs text-muted-foreground">
-                          تسک فعالی وجود ندارد · آماده افزودن
+                          {T("تسک فعالی وجود ندارد · آماده افزودن", "No active task · Ready to add")}
                         </div>
                       )}
 
@@ -694,7 +696,7 @@ export default function WidgetsView() {
                         onClick={() => navigate("/app/new/task")}
                         className="w-full h-8 text-xs gap-1 rounded-xl"
                       >
-                        <Plus className="h-3.5 w-3.5" /> تسک جدید
+                        <Plus className="h-3.5 w-3.5" /> {T("تسک جدید", "New Task")}
                       </Button>
                     </div>
                   )}
@@ -704,7 +706,7 @@ export default function WidgetsView() {
                     <div className="space-y-4 py-2 text-center">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-primary">ARSHNAZ · FOCUS TIMER</span>
-                        <Badge variant="secondary" className="text-[10px]">۲۵ دقیقه</Badge>
+                        <Badge variant="secondary" className="text-[10px]">{T("۲۵ دقیقه", "25 Min")}</Badge>
                       </div>
 
                       {/* Chronometer Display */}
@@ -713,7 +715,7 @@ export default function WidgetsView() {
                           {String(Math.floor(timerSeconds / 60)).padStart(2, "0")}:
                           {String(timerSeconds % 60).padStart(2, "0")}
                         </div>
-                        <p className="mt-1 text-[11px] text-muted-foreground">جلسه فوکوس و تمرکز عمیق</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">{T("جلسه فوکوس و تمرکز عمیق", "Deep focus session")}</p>
                       </div>
 
                       {/* Controls */}
@@ -727,7 +729,7 @@ export default function WidgetsView() {
                           className={`gap-1.5 rounded-xl px-5 text-xs ${timerRunning ? "bg-amber-600 hover:bg-amber-700" : ""}`}
                         >
                           {timerRunning ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                          <span>{timerRunning ? "توقف" : "شروع تمرکز"}</span>
+                          <span>{timerRunning ? T("توقف", "Pause") : T("شروع تمرکز", "Start Focus")}</span>
                         </Button>
 
                         <Button
@@ -751,7 +753,7 @@ export default function WidgetsView() {
                     <div className="space-y-3">
                       <div className="flex items-center gap-2">
                         <Sparkles className="h-4 w-4 text-primary" />
-                        <span className="text-xs font-bold">مرکز عملیات سریع (Quick Hub)</span>
+                        <span className="text-xs font-bold">{T("مرکز عملیات سریع (Quick Hub)", "Quick Actions Hub")}</span>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <Button
@@ -761,7 +763,7 @@ export default function WidgetsView() {
                           className="h-12 flex-col gap-0.5 rounded-xl border-border/50 text-[11px]"
                         >
                           <Plus className="h-4 w-4 text-primary" />
-                          <span>تسک جدید</span>
+                          <span>{T("تسک جدید", "New Task")}</span>
                         </Button>
                         <Button
                           variant="outline"
@@ -770,7 +772,7 @@ export default function WidgetsView() {
                           className="h-12 flex-col gap-0.5 rounded-xl border-primary/40 bg-primary/5 text-[11px]"
                         >
                           <Mic className="h-4 w-4 text-primary animate-pulse" />
-                          <span>ویس / حرف من</span>
+                          <span>{T("ویس / حرف من", "Voice / Speech")}</span>
                         </Button>
                         <Button
                           variant="outline"
@@ -779,7 +781,7 @@ export default function WidgetsView() {
                           className="h-12 flex-col gap-0.5 rounded-xl border-border/50 text-[11px]"
                         >
                           <Activity className="h-4 w-4 text-pink-400" />
-                          <span>چک‌این ذهن</span>
+                          <span>{T("چک‌این ذهن", "Mind Check-in")}</span>
                         </Button>
                         <Button
                           variant="outline"
@@ -788,7 +790,7 @@ export default function WidgetsView() {
                           className="h-12 flex-col gap-0.5 rounded-xl border-border/50 text-[11px]"
                         >
                           <Wind className="h-4 w-4 text-sky-400" />
-                          <span>تنفس ۳بعدی</span>
+                          <span>{T("تنفس ۳بعدی", "3D Breathing")}</span>
                         </Button>
                         <Button
                           variant="outline"
@@ -797,7 +799,7 @@ export default function WidgetsView() {
                           className="col-span-2 h-10 flex-row gap-2 rounded-xl border-border/50 text-[11px]"
                         >
                           <TimerReset className="h-4 w-4 text-violet-400" />
-                          <span>پومودورو و تمرکز عمیق</span>
+                          <span>{T("پومودورو و تمرکز عمیق", "Pomodoro & Focus")}</span>
                         </Button>
                       </div>
                     </div>
@@ -809,12 +811,12 @@ export default function WidgetsView() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
                           <Activity className="h-4 w-4 text-pink-400" />
-                          <span className="text-xs font-bold">آرامش و تعادل ذهن</span>
+                          <span className="text-xs font-bold">{T("آرامش و تعادل ذهن", "Mind Peace & Balance")}</span>
                         </div>
                         <Badge variant="outline" className="text-[10px] text-pink-400 border-pink-400/30">Mind</Badge>
                       </div>
                       <p className="text-[11px] text-muted-foreground leading-5">
-                        بررسی خلق، ثبت افکار شناختی و تنفس ضد استرس
+                        {T("بررسی خلق، ثبت افکار شناختی و تنفس ضد استرس", "Mood check, CBT thoughts & stress-relief breathing")}
                       </p>
                       <div className="grid grid-cols-2 gap-2 pt-1">
                         <Button
@@ -823,7 +825,7 @@ export default function WidgetsView() {
                           onClick={() => navigate("/app/checkin")}
                           className="h-9 text-xs rounded-xl"
                         >
-                          چک‌این روزانه
+                          {T("چک‌این روزانه", "Daily Check-in")}
                         </Button>
                         <Button
                           size="sm"
@@ -831,7 +833,7 @@ export default function WidgetsView() {
                           onClick={() => navigate("/app/breathing")}
                           className="h-9 text-xs rounded-xl"
                         >
-                          تنفس آرامش
+                          {T("تنفس آرامش", "Calm Breathing")}
                         </Button>
                       </div>
                     </div>
@@ -843,12 +845,12 @@ export default function WidgetsView() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
                           <BrainCircuit className="h-4 w-4 text-violet-400" />
-                          <span className="text-xs font-bold">حل مسئله و تفکر سقراطی</span>
+                          <span className="text-xs font-bold">{T("حل مسئله و تفکر سقراطی", "Problem Solving & Socratic Thinking")}</span>
                         </div>
                         <Badge variant="outline" className="text-[10px] text-violet-400 border-violet-400/30">CBT</Badge>
                       </div>
                       <p className="text-[11px] text-muted-foreground leading-5">
-                        تفکیک مسئله، پاسخ به سوالات سقراطی و کشف قدم بعدی
+                        {T("تفکیک مسئله، پاسخ به سوالات سقراطی و کشف قدم بعدی", "Deconstruct problem, answer Socratic questions & find next step")}
                       </p>
                       <div className="flex gap-2 pt-1">
                         <Button
@@ -856,7 +858,7 @@ export default function WidgetsView() {
                           onClick={() => navigate("/app/socratic")}
                           className="h-9 flex-1 text-xs rounded-xl"
                         >
-                          چت سقراطی
+                          {T("چت سقراطی", "Socratic Chat")}
                         </Button>
                         <Button
                           size="sm"
@@ -864,7 +866,7 @@ export default function WidgetsView() {
                           onClick={() => navigate("/app/abc")}
                           className="h-9 flex-1 text-xs rounded-xl"
                         >
-                          مدل ABC
+                          {T("مدل ABC", "ABC Model")}
                         </Button>
                       </div>
                     </div>
@@ -872,7 +874,7 @@ export default function WidgetsView() {
                 </div>
 
                 <div className="mt-3 text-center text-[11px] text-muted-foreground">
-                  این ویجت روی صفحهٔ هوم گوشی شما با همین ابعاد و رنگ رندر می‌شود
+                  {T("این ویجت روی صفحهٔ هوم گوشی شما با همین ابعاد و رنگ رندر می‌شود", "This widget renders on your phone's home screen with these exact dimensions and colors")}
                 </div>
               </div>
             </CardContent>
@@ -890,8 +892,8 @@ export default function WidgetsView() {
             <div className="flex items-center gap-2">
               <HelpCircle className="h-5 w-5 text-primary" />
               <div>
-                <CardTitle className="text-sm font-semibold">راهنمای تصویری افزودن ویجت‌ها به صفحه گوشی</CardTitle>
-                <CardDescription className="text-xs">آموزش گام‌به‌گام برای سامسونگ (One UI)، شیائومی و گوگل پیکسل</CardDescription>
+                <CardTitle className="text-sm font-semibold">{T("راهنمای تصویری افزودن ویجت‌ها به صفحه گوشی", "Guide: Adding Widgets to Your Home Screen")}</CardTitle>
+                <CardDescription className="text-xs">{T("آموزش گام‌به‌گام برای سامسونگ (One UI)، شیائومی و گوگل پیکسل", "Step-by-step instructions for Samsung (One UI), Xiaomi & Google Pixel")}</CardDescription>
               </div>
             </div>
             <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${showGuide ? "rotate-180" : ""}`} />
@@ -901,20 +903,20 @@ export default function WidgetsView() {
           <CardContent className="space-y-4 pt-2 border-t border-border/40 text-xs leading-6 text-muted-foreground">
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
-                <h4 className="font-bold text-foreground">۱. لمس طولانی صفحه</h4>
-                <p className="mt-1">روی یک فضای خالی در صفحهٔ اصلی گوشی دست خود را نگه دارید تا منوی لانچر باز شود.</p>
+                <h4 className="font-bold text-foreground">{T("۱. لمس طولانی صفحه", "1. Long press home screen")}</h4>
+                <p className="mt-1">{T("روی یک فضای خالی در صفحهٔ اصلی گوشی دست خود را نگه دارید تا منوی لانچر باز شود.", "Press and hold on an empty area of your home screen to open the launcher menu.")}</p>
               </div>
               <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
-                <h4 className="font-bold text-foreground">۲. انتخاب Widgets</h4>
-                <p className="mt-1">گزینهٔ ویجت‌ها (Widgets) را لمس کرده و از میان برنامه‌ها نام ARSHNAZ را بیابید.</p>
+                <h4 className="font-bold text-foreground">{T("۲. انتخاب Widgets", "2. Select Widgets")}</h4>
+                <p className="mt-1">{T("گزینهٔ ویجت‌ها (Widgets) را لمس کرده و از میان برنامه‌ها نام ARSHNAZ را بیابید.", "Tap Widgets and locate ARSHNAZ among your applications.")}</p>
               </div>
               <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
-                <h4 className="font-bold text-foreground">۳. انتخاب و کشیدن</h4>
-                <p className="mt-1">ویجت Agenda، Focus یا Compact را انتخاب کرده و روی محل دلخواه رها کنید.</p>
+                <h4 className="font-bold text-foreground">{T("۳. انتخاب و کشیدن", "3. Drag & Place")}</h4>
+                <p className="mt-1">{T("ویجت Agenda، Focus یا Compact را انتخاب کرده و روی محل دلخواه رها کنید.", "Select the Agenda, Focus, or Compact widget and place it where you want.")}</p>
               </div>
             </div>
             <p className="text-[11px] text-primary">
-              نکته: با زدن آیکون ⚙ روی گوشهٔ هر ویجت در اندروید، می‌توانید اولویت، اندازه فونت و تم روشن یا تاریک آن ویجت را مستقل تنظیم کنید.
+              {T("نکته: با زدن آیکون ⚙ روی گوشهٔ هر ویجت در اندروید، می‌توانید اولویت، اندازه فونت و تم روشن یا تاریک آن ویجت را مستقل تنظیم کنید.", "Tip: By tapping the ⚙ icon on any Android widget, you can adjust priority, font size, and light/dark theme independently.")}
             </p>
           </CardContent>
         )}

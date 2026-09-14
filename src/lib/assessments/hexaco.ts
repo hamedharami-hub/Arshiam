@@ -136,3 +136,9 @@ export const HEXACO_LABELS: Record<HexacoFactor, string> = {
   H: "صداقت-تواضع", E: "هیجان‌پذیری", X: "برون‌گرایی",
   A: "توافق‌پذیری", C: "وظیفه‌شناسی", O: "گشودگی",
 };
+
+export const HEXACO_LABELS_EN: Record<HexacoFactor, string> = {
+  H: "Honesty-Humility", E: "Emotionality", X: "Extraversion",
+  A: "Agreeableness", C: "Conscientiousness", O: "Openness to Experience",
+};
+

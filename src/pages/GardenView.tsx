@@ -36,6 +36,7 @@ import {
 } from "@/lib/garden";
 import PlantCanvas from "@/components/garden/PlantCanvas";
 import PlantPickerModal from "@/components/garden/PlantPickerModal";
+import { useBilingual } from "@/hooks/useBilingual";
 import { toast } from "sonner";
 
 // Gentle synthesized zen chime for watering
@@ -64,6 +65,7 @@ function playWaterSound() {
 }
 
 export default function GardenView() {
+  const { T, isEn } = useBilingual();
   const [garden, setGarden] = useState<GardenState>(getGardenState);
   const [watering, setWatering] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -98,12 +100,18 @@ export default function GardenView() {
     if (res.success) {
       const updatedGarden = getGardenState();
       if (res.bloomed) {
-        toast.success(`🎉 تبریک! «${plant.name}» به شکوفایی کامل رسید!`, {
-          description: "گیاه به کلکسیون افتخارات باغ شما اضافه شد.",
-        });
+        const plantName = isEn ? meta.name_en : plant.name;
+        toast.success(
+          isEn ? `🎉 Congratulations! "${plantName}" reached full bloom!` : `🎉 تبریک! «${plant.name}» به شکوفایی کامل رسید!`,
+          {
+            description: isEn ? "Added to your botanical herbarium." : "گیاه به کلکسیون افتخارات باغ شما اضافه شد.",
+          }
+        );
       } else if (res.stageUp) {
         const nextStage = updatedGarden.activePlant?.stage ?? plant.stage + 1;
-        toast.success(`🌱 گیاه وارد مرحله ${nextStage} رشد شد!`);
+        toast.success(
+          isEn ? `🌱 Your plant advanced to stage ${nextStage} of growth!` : `🌱 گیاه وارد مرحله ${nextStage} رشد شد!`
+        );
       }
     }
     setTimeout(() => setWatering(false), 1000);
@@ -125,7 +133,7 @@ export default function GardenView() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-8 space-y-6 pb-24 animate-fade-in" dir="rtl">
+    <div className="max-w-5xl mx-auto p-4 md:p-8 space-y-6 pb-24 animate-fade-in" dir={isEn ? "ltr" : "rtl"}>
       {/* Top Zen Stats Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 p-5 rounded-3xl bg-gradient-to-r from-card/80 via-card/50 to-primary/10 border border-border/70 backdrop-blur-md shadow-sm">
         <div className="flex items-center gap-3">
@@ -134,13 +142,13 @@ export default function GardenView() {
           </div>
           <div>
             <h1 className="text-xl md:text-2xl font-black text-foreground flex items-center gap-2">
-              گلخانه و باغ رشد من
+              {T("گلخانه و باغ رشد من", "My Growth Garden & Greenhouse")}
               <Badge variant="outline" className="text-xs bg-primary/10 border-primary/30 text-primary font-bold">
-                سطح {garden.gardenLevel}
+                {isEn ? `Level ${garden.gardenLevel}` : `سطح ${toPersianDigits(garden.gardenLevel)}`}
               </Badge>
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              هر کار مفید، قطره‌ای برای شکوفایی گل‌های باغ توست.
+              {T("هر کار مفید، قطره‌ای برای شکوفایی گل‌های باغ توست.", "Every meaningful action provides water to bloom your inner garden.")}
             </p>
           </div>
         </div>
@@ -149,22 +157,22 @@ export default function GardenView() {
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 text-xs font-bold font-mono">
             <Droplets className="w-4 h-4 fill-sky-400 text-sky-500" />
-            <span>{garden.waterDrops} قطره آب</span>
+            <span>{isEn ? `${garden.waterDrops} Water Drops` : `${toPersianDigits(garden.waterDrops)} قطره آب`}</span>
           </div>
 
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-bold font-mono">
             <Sun className="w-4 h-4 text-amber-500" />
-            <span>{garden.sunEnergy} نور خورشید</span>
+            <span>{isEn ? `${garden.sunEnergy} Sunlight` : `${toPersianDigits(garden.sunEnergy)} نور خورشید`}</span>
           </div>
 
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20 text-xs font-bold font-mono">
             <span>🌸</span>
-            <span>{garden.focusBlossoms || 0} شکوفه پومودورو</span>
+            <span>{isEn ? `${garden.focusBlossoms || 0} Focus Blossoms` : `${toPersianDigits(garden.focusBlossoms || 0)} شکوفه پومودورو`}</span>
           </div>
 
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 text-xs font-bold font-mono">
             <Trophy className="w-4 h-4" />
-            <span>{garden.totalHarvests} شکوفایی</span>
+            <span>{isEn ? `${garden.totalHarvests} Blooms` : `${toPersianDigits(garden.totalHarvests)} شکوفایی`}</span>
           </div>
 
           <Button
@@ -172,7 +180,7 @@ export default function GardenView() {
             size="icon"
             onClick={toggleSound}
             className="w-8 h-8 rounded-full text-muted-foreground"
-            title={garden.soundEnabled ? "صدا فعال است" : "صدا خاموش است"}
+            title={garden.soundEnabled ? T("صدا فعال است", "Sound enabled") : T("صدا خاموش است", "Sound muted")}
           >
             {garden.soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-500" /> : <VolumeX className="w-4 h-4" />}
           </Button>
@@ -183,7 +191,7 @@ export default function GardenView() {
       <div className="flex items-center justify-between p-3 rounded-2xl bg-card/40 border border-border/60 backdrop-blur-sm text-xs">
         <div className="flex items-center gap-2 text-muted-foreground">
           <Sparkles className="w-4 h-4 text-amber-400" />
-          <span className="font-semibold">اتمسفر باغچه:</span>
+          <span className="font-semibold">{T("اتمسفر باغچه:", "Garden Atmosphere:")}</span>
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
           <Button
@@ -192,7 +200,7 @@ export default function GardenView() {
             onClick={() => handleSetTimeMode("auto")}
             className="h-7 text-[11px] rounded-lg px-2.5"
           >
-            ⏰ ساعت واقعی
+            {T("⏰ ساعت واقعی", "⏰ Real-Time")}
           </Button>
           <Button
             variant={garden.timeOfDayMode === "morning" ? "secondary" : "ghost"}
@@ -200,7 +208,7 @@ export default function GardenView() {
             onClick={() => handleSetTimeMode("morning")}
             className="h-7 text-[11px] rounded-lg px-2.5"
           >
-            🌅 صبح
+            {T("🌅 صبح", "🌅 Morning")}
           </Button>
           <Button
             variant={garden.timeOfDayMode === "day" ? "secondary" : "ghost"}
@@ -208,7 +216,7 @@ export default function GardenView() {
             onClick={() => handleSetTimeMode("day")}
             className="h-7 text-[11px] rounded-lg px-2.5"
           >
-            ☀️ روز
+            {T("☀️ روز", "☀️ Daytime")}
           </Button>
           <Button
             variant={garden.timeOfDayMode === "sunset" ? "secondary" : "ghost"}
@@ -216,7 +224,7 @@ export default function GardenView() {
             onClick={() => handleSetTimeMode("sunset")}
             className="h-7 text-[11px] rounded-lg px-2.5"
           >
-            🌇 غروب
+            {T("🌇 غروب", "🌇 Sunset")}
           </Button>
           <Button
             variant={garden.timeOfDayMode === "night" ? "secondary" : "ghost"}
@@ -224,7 +232,7 @@ export default function GardenView() {
             onClick={() => handleSetTimeMode("night")}
             className="h-7 text-[11px] rounded-lg px-2.5"
           >
-            🌙 شب
+            {T("🌙 شب", "🌙 Night")}
           </Button>
         </div>
       </div>
@@ -232,10 +240,10 @@ export default function GardenView() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid grid-cols-2 max-w-sm mx-auto h-11 bg-muted/60 p-1 rounded-2xl">
           <TabsTrigger value="garden" className="rounded-xl font-bold text-xs gap-1.5">
-            <Sprout className="w-4 h-4" /> گلخانه اصلی
+            <Sprout className="w-4 h-4" /> {T("گلخانه اصلی", "Main Sanctuary")}
           </TabsTrigger>
           <TabsTrigger value="herbarium" className="rounded-xl font-bold text-xs gap-1.5">
-            <Award className="w-4 h-4" /> کلکسیون شکوفه‌ها ({garden.herbarium.length})
+            <Award className="w-4 h-4" /> {isEn ? `Herbarium (${garden.herbarium.length})` : `کلکسیون شکوفه‌ها (${toPersianDigits(garden.herbarium.length)})`}
           </TabsTrigger>
         </TabsList>
 
@@ -259,11 +267,11 @@ export default function GardenView() {
                       onClick={() => setPickerOpen(true)}
                       className="text-xs rounded-full gap-1.5 bg-card/60 backdrop-blur"
                     >
-                      <RefreshCw className="w-3 h-3" /> تعویض بذر / گلدان
+                      <RefreshCw className="w-3 h-3" /> {T("تعویض بذر / گلدان", "Switch Seed / Pot")}
                     </Button>
 
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
-                      <span>مرحله {plant.stage} / ۵</span>
+                      <span>{isEn ? `Stage ${plant.stage} / 5` : `مرحله ${toPersianDigits(plant.stage)} / ۵`}</span>
                     </div>
                   </div>
 
@@ -282,20 +290,20 @@ export default function GardenView() {
                   {/* Growth Progress Bar */}
                   <div className="w-full max-w-md space-y-2 mt-4 z-10">
                     <div className="flex justify-between items-center text-xs">
-                      <span className="font-bold text-foreground">میزان رشد تا شکوفایی</span>
+                      <span className="font-bold text-foreground">{T("میزان رشد تا شکوفایی", "Progress to Bloom")}</span>
                       <span className="font-mono text-muted-foreground font-bold">
-                        {plant.currentPoints} / {meta.pointsToBloom} ({progressPct}٪)
+                        {isEn ? `${plant.currentPoints} / ${meta.pointsToBloom} (${progressPct}%)` : `${toPersianDigits(plant.currentPoints)} / ${toPersianDigits(meta.pointsToBloom)} (${toPersianDigits(progressPct)}٪)`}
                       </span>
                     </div>
                     <Progress value={progressPct} className="h-3 rounded-full bg-muted/80" />
                     
                     {/* Stages labels */}
                     <div className="flex justify-between text-[10px] text-muted-foreground pt-1">
-                      <span>بذر 🌱</span>
-                      <span>جوانه 🌿</span>
-                      <span>ساقه 🪴</span>
-                      <span>غنچه 🌸</span>
-                      <span>شکوفایی 🌺</span>
+                      <span>{T("بذر 🌱", "Seed 🌱")}</span>
+                      <span>{T("جوانه 🌿", "Sprout 🌿")}</span>
+                      <span>{T("ساقه 🪴", "Sapling 🪴")}</span>
+                      <span>{T("غنچه 🌸", "Bud 🌸")}</span>
+                      <span>{T("شکوفایی 🌺", "Bloom 🌺")}</span>
                     </div>
                   </div>
 
@@ -308,7 +316,7 @@ export default function GardenView() {
                       className="px-6 py-6 text-sm font-bold rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-lg shadow-sky-500/25 transition-transform active:scale-95"
                     >
                       <Droplets className="w-5 h-5 me-2 fill-current" />
-                      آبیاری گیاه (-۱۵ قطره)
+                      {T("آبیاری گیاه (-۱۵ قطره)", "Water Plant (-15 Drops)")}
                     </Button>
 
                     {plant.stage === 5 ? (
@@ -318,7 +326,7 @@ export default function GardenView() {
                         className="px-6 py-6 text-sm font-bold rounded-2xl bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white shadow-lg shadow-pink-500/25 animate-pulse"
                       >
                         <Sparkles className="w-5 h-5 me-2" />
-                        کاشت گل جدید در گلدان
+                        {T("کاشت گل جدید در گلدان", "Plant New Seed")}
                       </Button>
                     ) : (
                       <Button
@@ -328,7 +336,7 @@ export default function GardenView() {
                         disabled={garden.waterDrops < 30}
                         className="px-4 py-6 text-xs font-semibold rounded-2xl border-border/80 bg-card/40"
                       >
-                        آبیاری عمیق (-۳۰ قطره 💧💧)
+                        {T("آبیاری عمیق (-۳۰ قطره 💧💧)", "Deep Watering (-30 Drops 💧💧)")}
                       </Button>
                     )}
                   </div>
@@ -338,12 +346,12 @@ export default function GardenView() {
                   <div className="w-16 h-16 rounded-3xl bg-muted/50 flex items-center justify-center mx-auto text-3xl">
                     🌱
                   </div>
-                  <h3 className="text-lg font-bold">گلدان شما خالی است!</h3>
+                  <h3 className="text-lg font-bold">{T("گلدان شما خالی است!", "Your Sanctuary is Empty!")}</h3>
                   <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                    یک بذر جدید انتخاب کنید تا با هر قدم مثبت شاهد رشد و شکوفایی آن باشید.
+                    {T("یک بذر جدید انتخاب کنید تا با هر قدم مثبت شاهد رشد و شکوفایی آن باشید.", "Choose a seed to cultivate and nurture through your positive daily progress.")}
                   </p>
                   <Button onClick={() => setPickerOpen(true)} className="rounded-2xl gap-2">
-                    <Plus className="w-4 h-4" /> انتخاب و کاشت بذر
+                    <Plus className="w-4 h-4" /> {T("انتخاب و کاشت بذر", "Select and Plant Seed")}
                   </Button>
                 </div>
               )}
@@ -357,14 +365,14 @@ export default function GardenView() {
                   <div className="flex items-center gap-2">
                     <span className="text-2xl">{meta.badge}</span>
                     <div>
-                      <h3 className="font-bold text-sm text-foreground">{meta.name}</h3>
+                      <h3 className="font-bold text-sm text-foreground">{isEn ? meta.name_en : meta.name}</h3>
                       <span className="text-[10px] text-muted-foreground font-mono">{meta.latinName}</span>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{meta.description}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{isEn ? meta.description_en : meta.description}</p>
                   <div className="p-3 rounded-2xl bg-primary/5 border border-primary/15 text-xs text-primary font-medium flex items-center gap-2">
                     <Sparkles className="w-4 h-4 shrink-0" />
-                    <span>همبستگی: {meta.affinity}</span>
+                    <span>{isEn ? `Attuned to: ${meta.affinity_en}` : `همبستگی: ${meta.affinity}`}</span>
                   </div>
                 </Card>
               )}
@@ -372,24 +380,24 @@ export default function GardenView() {
               {/* How to Earn Water Drops */}
               <Card className="p-5 rounded-3xl bg-card/60 border border-border/70 shadow-sm space-y-3">
                 <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
-                  <Droplets className="w-4 h-4 text-sky-500" /> روش‌های دریافت قطره آب
+                  <Droplets className="w-4 h-4 text-sky-500" /> {T("روش‌های دریافت قطره آب", "How to Earn Water Drops")}
                 </h3>
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between items-center p-2 rounded-xl bg-muted/40">
-                    <span>تکمیل هر تسک</span>
-                    <span className="font-mono text-sky-500 font-bold">+۱۰ 💧</span>
+                    <span>{T("تکمیل هر تسک", "Complete any task")}</span>
+                    <span className="font-mono text-sky-500 font-bold">+10 💧</span>
                   </div>
                   <div className="flex justify-between items-center p-2 rounded-xl bg-muted/40">
-                    <span>انجام عادت روزانه</span>
-                    <span className="font-mono text-sky-500 font-bold">+۱۵ 💧</span>
+                    <span>{T("انجام عادت روزانه", "Complete a daily habit")}</span>
+                    <span className="font-mono text-sky-500 font-bold">+15 💧</span>
                   </div>
                   <div className="flex justify-between items-center p-2 rounded-xl bg-muted/40">
-                    <span>ثبت Check-in یا افکار CBT</span>
-                    <span className="font-mono text-sky-500 font-bold">+۲۰ 💧</span>
+                    <span>{T("ثبت Check-in یا افکار CBT", "Daily check-in or CBT entry")}</span>
+                    <span className="font-mono text-sky-500 font-bold">+20 💧</span>
                   </div>
                   <div className="flex justify-between items-center p-2 rounded-xl bg-muted/40">
-                    <span>جلسه تمرکز Pomodoro</span>
-                    <span className="font-mono text-sky-500 font-bold">+۲۵ 💧</span>
+                    <span>{T("جلسه تمرکز Pomodoro", "Pomodoro focus session")}</span>
+                    <span className="font-mono text-sky-500 font-bold">+25 💧</span>
                   </div>
                 </div>
               </Card>
@@ -402,9 +410,12 @@ export default function GardenView() {
           {garden.herbarium.length === 0 ? (
             <Card className="p-12 text-center rounded-3xl bg-card/50 border border-dashed border-border/80">
               <Award className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
-              <h3 className="font-bold text-base text-foreground">هنوز گلی به شکوفایی نرسیده است</h3>
+              <h3 className="font-bold text-base text-foreground">{T("هنوز گلی به شکوفایی نرسیده است", "No blooms in your herbarium yet")}</h3>
               <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                با آبیاری مداوم و انجام کارهای روزانه، اولین گل خود را شکوفا کنید تا در این کلکسیون برای همیشه ثبت شود.
+                {T(
+                  "با آبیاری مداوم و انجام کارهای روزانه، اولین گل خود را شکوفا کنید تا در این کلکسیون برای همیشه ثبت شود.",
+                  "Nurture your plant with daily positive actions to unlock and preserve your first full bloom here forever."
+                )}
               </p>
             </Card>
           ) : (
@@ -423,20 +434,22 @@ export default function GardenView() {
                     <div className="flex items-start justify-between">
                       <div className="text-3xl">{spec.badge}</div>
                       <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-mono">
-                        شکوفا شده ✨
+                        {T("شکوفا شده ✨", "Bloomed ✨")}
                       </Badge>
                     </div>
 
                     <div>
-                      <h4 className="font-bold text-base text-foreground">{item.name}</h4>
+                      <h4 className="font-bold text-base text-foreground">{isEn ? spec.name_en : item.name}</h4>
                       <span className="text-[10px] text-muted-foreground font-mono block">
                         {spec.latinName}
                       </span>
                     </div>
 
                     <div className="pt-2 border-t text-[11px] text-muted-foreground flex justify-between">
-                      <span>انرژی مصرف‌شده:</span>
-                      <span className="font-bold text-foreground font-mono">{item.totalPoints} امتیاز</span>
+                      <span>{T("انرژی مصرف‌شده:", "Total Energy Nurtured:")}</span>
+                      <span className="font-bold text-foreground font-mono">
+                        {isEn ? `${item.totalPoints} pts` : `${toPersianDigits(item.totalPoints)} امتیاز`}
+                      </span>
                     </div>
                   </Card>
                 );

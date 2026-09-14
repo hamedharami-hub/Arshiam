@@ -36,6 +36,7 @@ import { haptic } from "@/lib/haptics";
 import { playEndBell } from "@/lib/pomodoroSounds";
 import { toPersianDigits } from "@/lib/persianDigits";
 import { upsertTask } from "@/lib/firestoreDataService";
+import { useBilingual } from "@/hooks/useBilingual";
 import {
   ProcrastinationBarrier,
   PROCRASTINATION_BARRIERS,
@@ -70,6 +71,7 @@ export default function ProcrastinationBusterModal({
   onStartFocus,
 }: ProcrastinationBusterModalProps) {
   const { user } = useAuth();
+  const { T, isEn } = useBilingual();
   const [barrier, setBarrier] = useState<ProcrastinationBarrier>("overwhelm");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -92,7 +94,7 @@ export default function ProcrastinationBusterModal({
     // 2. Try calling AI for deep personalized CBT reframing & tailored steps
     try {
       const prompt = buildAIBusterPrompt(task.title, task.description || "", selectedBarrier);
-      const res = await callAI("task_subtasks", prompt, "شکستن سد اهمال‌کاری با اصول روانشناسی CBT");
+      const res = await callAI("task_subtasks", prompt, T("شکستن سد اهمال‌کاری با اصول روانشناسی CBT", "Overcoming Procrastination with CBT Principles"));
       if (res && res.text) {
         const enriched = parseAIBusterResponse(res.text, localResult);
         setBusterData(enriched);
@@ -103,7 +105,7 @@ export default function ProcrastinationBusterModal({
     } finally {
       setLoading(false);
     }
-  }, [task]);
+  }, [task, T]);
 
   const handleBarrierChange = (newBarrier: ProcrastinationBarrier) => {
     setBarrier(newBarrier);
@@ -120,6 +122,7 @@ export default function ProcrastinationBusterModal({
       if (timerRef.current) clearInterval(timerRef.current);
     }
   }, [open, task, barrier, handleGenerate]);
+
   // Sprint timer interval
   useEffect(() => {
     if (timerActive) {
@@ -130,9 +133,9 @@ export default function ProcrastinationBusterModal({
             setTimerActive(false);
             playEndBell("chime");
             haptic("heavy");
-            awardWaterDrops(25, "اتمام موفق اسپرینت ۵ دقیقه‌ای ضد اهمال‌کاری ⚡");
-            toast.success("🎉 فوق‌العاده است! ۵ دقیقه اول با موفقیت تمام شد!", {
-              description: "سد ذهنی شکسته شد. اکنون کار را با همین شتاب ادامه بده!",
+            awardWaterDrops(25, T("اتمام موفق اسپرینت ۵ دقیقه‌ای ضد اهمال‌کاری ⚡", "Completed 5-minute Anti-Procrastination Sprint ⚡"));
+            toast.success(T("🎉 فوق‌العاده است! ۵ دقیقه اول با موفقیت تمام شد!", "🎉 Amazing! First 5 minutes completed successfully!"), {
+              description: T("سد ذهنی شکسته شد. اکنون کار را با همین شتاب ادامه بده!", "Mental barrier broken. Keep going with this momentum!"),
             });
             return 0;
           }
@@ -174,7 +177,7 @@ export default function ProcrastinationBusterModal({
     if (!task || !busterData) return;
     const validSteps = busterData.steps.filter((s) => s.text.trim().length > 0);
     if (validSteps.length === 0) {
-      toast.error("حداقل یک گام بنویسید.");
+      toast.error(T("حداقل یک گام بنویسید.", "Please write at least one step."));
       return;
     }
 
@@ -199,16 +202,16 @@ export default function ProcrastinationBusterModal({
         } as any);
       }
 
-      awardWaterDrops(20, "شکستن سد اهمال‌کاری و ایجاد ریزگام‌های اجرایی ⚡");
-      toast.success(`🎉 ${toPersianDigits(validSteps.length)} ریزگام اختصاصی به عنوان زیرتسک ذخیره شد!`, {
-        description: "سد ذهنی شکسته شد؛ اکنون اولین قدم را بدون معطلی بردار!",
+      awardWaterDrops(20, T("شکستن سد اهمال‌کاری و ایجاد ریزگام‌های اجرایی ⚡", "Overcoming Procrastination & Creating Micro-Steps ⚡"));
+      toast.success(T(`🎉 ${validSteps.length} ریزگام اختصاصی به عنوان زیرتسک ذخیره شد!`, `🎉 ${validSteps.length} micro-steps saved as subtasks!`), {
+        description: T("سد ذهنی شکسته شد؛ اکنون اولین قدم را بدون معطلی بردار!", "Mental barrier broken; take your first step now!"),
       });
 
       onSuccess?.();
       onOpenChange(false);
     } catch (err: any) {
       console.error("Save subtasks error:", err);
-      toast.error(err.message || "خطا در ذخیره زیرتسک‌ها");
+      toast.error(err.message || T("خطا در ذخیره زیرتسک‌ها", "Error saving subtasks"));
     } finally {
       setSaving(false);
     }
@@ -228,35 +231,38 @@ export default function ProcrastinationBusterModal({
   const formatTimer = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
-    return `${toPersianDigits(m.toString().padStart(2, "0"))}:${toPersianDigits(s.toString().padStart(2, "0"))}`;
+    const mStr = m.toString().padStart(2, "0");
+    const sStr = s.toString().padStart(2, "0");
+    if (isEn) return `${mStr}:${sStr}`;
+    return `${toPersianDigits(mStr)}:${toPersianDigits(sStr)}`;
   };
 
   const barrierOptions = [
     {
       id: "overwhelm" as ProcrastinationBarrier,
       icon: Layers,
-      title: "ابهام و سنگینی",
+      title: T("ابهام و سنگینی", "Overwhelm & Ambiguity"),
       color: "from-sky-500/20 to-indigo-500/20 border-sky-500/30 text-sky-600 dark:text-sky-400",
       activeColor: "bg-sky-500/20 border-sky-500 ring-1 ring-sky-500",
     },
     {
       id: "perfectionism" as ProcrastinationBarrier,
       icon: Target,
-      title: "کمال‌گرایی و وسواس",
+      title: T("کمال‌گرایی و وسواس", "Perfectionism"),
       color: "from-amber-500/20 to-orange-500/20 border-amber-500/30 text-amber-600 dark:text-amber-400",
       activeColor: "bg-amber-500/20 border-amber-500 ring-1 ring-amber-500",
     },
     {
       id: "low_energy" as ProcrastinationBarrier,
       icon: Flame,
-      title: "بی‌حوصلگی و خستگی",
+      title: T("بی‌حوصلگی و خستگی", "Low Energy"),
       color: "from-rose-500/20 to-red-500/20 border-rose-500/30 text-rose-600 dark:text-rose-400",
       activeColor: "bg-rose-500/20 border-rose-500 ring-1 ring-rose-500",
     },
     {
       id: "anxiety" as ProcrastinationBarrier,
       icon: ShieldAlert,
-      title: "اضطراب و مقاومت",
+      title: T("اضطراب و مقاومت", "Anxiety & Resistance"),
       color: "from-emerald-500/20 to-teal-500/20 border-emerald-500/30 text-emerald-600 dark:text-emerald-400",
       activeColor: "bg-emerald-500/20 border-emerald-500 ring-1 ring-emerald-500",
     },
@@ -266,25 +272,28 @@ export default function ProcrastinationBusterModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="max-w-xl max-h-[90vh] overflow-y-auto p-5 sm:p-6 rounded-3xl bg-card border-border/80 shadow-2xl space-y-4"
-        dir="rtl"
+        dir={isEn ? "ltr" : "rtl"}
       >
         {/* Header */}
-        <DialogHeader className="text-right space-y-1.5">
+        <DialogHeader className={`${isEn ? "text-left" : "text-right"} space-y-1.5`}>
           <div className="flex items-center justify-between">
             <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 font-bold gap-1.5 px-3 py-1 text-xs">
               <Zap className="w-3.5 h-3.5 fill-current" />
-              موتور ضد اهمال‌کاری (CBT)
+              {T("موتور ضد اهمال‌کاری (CBT)", "Anti-Procrastination Engine (CBT)")}
             </Badge>
             <span className="text-[11px] text-muted-foreground/80 font-mono">
-              شناخت‌درمانی و عمل‌گرایی
+              {T("شناخت‌درمانی و عمل‌گرایی", "CBT & Action Focus")}
             </span>
           </div>
 
           <DialogTitle className="text-base sm:text-lg font-black text-foreground pt-1 flex items-center gap-2">
-            شروع «{task?.title}» برات سخته؟
+            {T(`شروع «${task?.title}» برات سخته؟`, `Struggling to start "${task?.title}"?`)}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
-            مغز در برابر کارهای مهم مقاومت می‌کنه! با مشخص کردن سد ذهنی‌ات، راه‌حل اختصاصی بگیر و با یک گام کوچک شروع کن:
+            {T(
+              "مغز در برابر کارهای مهم مقاومت می‌کنه! با مشخص کردن سد ذهنی‌ات، راه‌حل اختصاصی بگیر و با یک گام کوچک شروع کن:",
+              "The brain naturally resists important tasks! Identify your mental barrier, get targeted solutions, and start with one tiny step:"
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -292,7 +301,7 @@ export default function ProcrastinationBusterModal({
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-foreground/90 flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-            علت اصلی به تعویق انداختن را انتخاب کن:
+            {T("علت اصلی به تعویق انداختن را انتخاب کن:", "Select the primary cause of procrastination:")}
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {barrierOptions.map((opt) => {
@@ -324,7 +333,7 @@ export default function ProcrastinationBusterModal({
               <Lightbulb className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
               <div className="space-y-1 text-xs">
                 <div className="font-bold text-foreground">
-                  {PROCRASTINATION_BARRIERS[barrier].strategyTitleFa}
+                  {isEn ? PROCRASTINATION_BARRIERS[barrier].strategyTitleEn : PROCRASTINATION_BARRIERS[barrier].strategyTitleFa}
                 </div>
                 <p className="text-muted-foreground leading-relaxed italic">
                   {busterData.cbtReframe}
@@ -336,7 +345,7 @@ export default function ProcrastinationBusterModal({
               <div className="flex items-center gap-2 pt-1 text-xs text-amber-700 dark:text-amber-300 font-medium bg-amber-500/10 rounded-xl px-2.5 py-1.5 border border-amber-500/20">
                 <Zap className="w-3.5 h-3.5 fill-current shrink-0" />
                 <span>
-                  <strong>حرکت ۳۰ ثانیه‌ای برای شکستن یخ:</strong> {busterData.quickWin}
+                  <strong>{T("حرکت ۳۰ ثانیه‌ای برای شکستن یخ:", "30-Second Icebreaker:")}</strong> {busterData.quickWin}
                 </span>
               </div>
             )}
@@ -350,8 +359,8 @@ export default function ProcrastinationBusterModal({
               <Timer className="w-4 h-4" />
             </div>
             <div>
-              <div className="text-xs font-bold text-foreground">اسپرینت ۵ دقیقه طلایی</div>
-              <div className="text-[10px] text-muted-foreground">تعهد به فقط ۵ دقیقه کار بدون فکر به انتها</div>
+              <div className="text-xs font-bold text-foreground">{T("اسپرینت ۵ دقیقه طلایی", "Golden 5-Minute Sprint")}</div>
+              <div className="text-[10px] text-muted-foreground">{T("تعهد به فقط ۵ دقیقه کار بدون فکر به انتها", "Commit to just 5 minutes of work without worrying about finishing")}</div>
             </div>
           </div>
 
@@ -367,7 +376,7 @@ export default function ProcrastinationBusterModal({
               className="h-8 text-xs rounded-xl gap-1 font-bold"
             >
               {timerActive ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-              {timerActive ? "توقف" : "شروع"}
+              {timerActive ? T("توقف", "Pause") : T("شروع", "Start")}
             </Button>
             {timerSeconds < 300 && (
               <Button
@@ -376,7 +385,7 @@ export default function ProcrastinationBusterModal({
                 size="icon"
                 onClick={resetTimer}
                 className="w-7 h-7 text-muted-foreground hover:text-foreground"
-                title="شروع مجدد تایمر"
+                title={T("شروع مجدد تایمر", "Reset timer")}
               >
                 <RotateCcw className="w-3.5 h-3.5" />
               </Button>
@@ -389,7 +398,7 @@ export default function ProcrastinationBusterModal({
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
               <Check className="w-3.5 h-3.5 text-primary" />
-              ریزگام‌های اجرایی و عملیاتی:
+              {T("ریزگام‌های اجرایی و عملیاتی:", "Actionable Micro-Steps:")}
             </label>
             <Button
               variant="ghost"
@@ -399,7 +408,7 @@ export default function ProcrastinationBusterModal({
               className="text-[11px] text-amber-600 dark:text-amber-400 gap-1 h-7 px-2 hover:bg-amber-500/10"
             >
               <Sparkles className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
-              تولید مجدد با AI
+              {T("تولید مجدد با AI", "Regenerate with AI")}
             </Button>
           </div>
 
@@ -407,7 +416,7 @@ export default function ProcrastinationBusterModal({
             <div className="py-8 text-center space-y-2 bg-muted/20 rounded-2xl border border-dashed">
               <Sparkles className="w-6 h-6 text-amber-500 animate-spin mx-auto" />
               <p className="text-xs text-muted-foreground animate-pulse font-medium">
-                در حال طراحی ریزگام‌های متناسب با موضوع تسک و سد ذهنی...
+                {T("در حال طراحی ریزگام‌های متناسب با موضوع تسک و سد ذهنی...", "Designing micro-steps tailored to task topic and mental barrier...")}
               </p>
             </div>
           ) : busterData ? (
@@ -418,17 +427,17 @@ export default function ProcrastinationBusterModal({
                   className="flex items-center gap-2 p-2.5 rounded-2xl bg-card border border-border/80 hover:border-amber-500/40 transition-colors shadow-2xs"
                 >
                   <div className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[11px] font-black flex items-center justify-center shrink-0">
-                    {toPersianDigits(idx + 1)}
+                    {isEn ? (idx + 1) : toPersianDigits(idx + 1)}
                   </div>
                   <Input
                     value={step.text}
                     onChange={(e) => handleStepChange(idx, e.target.value)}
-                    placeholder={`گام ${toPersianDigits(idx + 1)}...`}
+                    placeholder={isEn ? `Step ${idx + 1}...` : `گام ${toPersianDigits(idx + 1)}...`}
                     className="h-8 text-xs bg-transparent border-none shadow-none focus-visible:ring-0 px-1 font-medium"
                   />
                   <Badge variant="outline" className="text-[10px] text-muted-foreground shrink-0 border-border/60 gap-1 py-0 px-1.5 h-5">
                     <Clock className="w-2.5 h-2.5" />
-                    {toPersianDigits(step.estMinutes)} دقیقه
+                    {isEn ? `${step.estMinutes} min` : `${toPersianDigits(step.estMinutes)} دقیقه`}
                   </Badge>
                   {busterData.steps.length > 1 && (
                     <Button
@@ -450,7 +459,7 @@ export default function ProcrastinationBusterModal({
                   onClick={handleAddStep}
                   className="text-xs text-muted-foreground gap-1.5 h-8 w-full border border-dashed border-border/70 rounded-xl hover:text-foreground"
                 >
-                  <Plus className="w-3.5 h-3.5" /> افزودن گام دستی
+                  <Plus className="w-3.5 h-3.5" /> {T("افزودن گام دستی", "Add manual step")}
                 </Button>
               )}
             </div>
@@ -470,7 +479,7 @@ export default function ProcrastinationBusterModal({
               className="text-xs rounded-2xl gap-1.5 border-primary/30 text-primary hover:bg-primary/10 h-10 px-3"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
-              ورود به مود تمرکز کامل
+              {T("ورود به مود تمرکز کامل", "Enter Focus Mode")}
             </Button>
           )}
 
@@ -480,7 +489,7 @@ export default function ProcrastinationBusterModal({
             className="flex-1 rounded-2xl text-xs font-bold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md shadow-amber-500/20 h-10"
           >
             <CheckCircle2 className="w-4 h-4 me-1.5" />
-            {saving ? "در حال ثبت زیرتسک‌ها..." : "ثبت به عنوان زیرتسک و شروع کار 🚀"}
+            {saving ? T("در حال ثبت زیرتسک‌ها...", "Saving subtasks...") : T("ثبت به عنوان زیرتسک و شروع کار 🚀", "Save as Subtasks & Begin 🚀")}
           </Button>
         </DialogFooter>
       </DialogContent>

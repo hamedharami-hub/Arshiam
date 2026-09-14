@@ -5,11 +5,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { ArrowRight, Loader2, FolderInput, Pin } from "lucide-react";
+import { ArrowRight, ArrowLeft, Loader2, FolderInput, Pin } from "lucide-react";
 import { toast } from "sonner";
 import { RichEditor } from "@/components/RichEditor";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
-import { useTranslation } from "react-i18next";
+import { useBilingual } from "@/hooks/useBilingual";
 
 type Folder = { id: string; name: string };
 
@@ -17,8 +17,7 @@ export default function NewNoteView() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { i18n } = useTranslation();
-  const isEn = (i18n.language || "fa").startsWith("en");
+  const { T, isEn } = useBilingual();
 
   const [title, setTitle] = useState(params.get("title") || "");
   const [content, setContent] = useState(params.get("content") || "");
@@ -35,7 +34,7 @@ export default function NewNoteView() {
 
   const submit = async () => {
     if (!user || !title.trim()) {
-      toast.error("عنوان الزامی است");
+      toast.error(T("عنوان الزامی است", "Title is required"));
       return;
     }
     setBusy(true);
@@ -48,24 +47,25 @@ export default function NewNoteView() {
         pinned,
       });
       if (error) throw error;
-      toast.success("نوت ساخته شد");
+      toast.success(T("نوت ساخته شد", "Note created"));
       navigate("/app/notes");
     } catch (e: any) {
-      toast.error(e.message || "خطا");
+      toast.error(e.message || T("خطا در ذخیره نوت", "Error saving note"));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div dir="rtl" className="p-4 md:p-6 max-w-3xl mx-auto pb-24">
+    <div dir={isEn ? "ltr" : "rtl"} className="p-4 md:p-6 max-w-3xl mx-auto pb-24">
       <div className="flex items-center justify-between mb-4">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1">
-          <ArrowRight className="w-4 h-4" /> برگشت
+          {isEn ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
+          {T("برگشت", "Back")}
         </Button>
-        <h1 className="text-lg font-bold">نوت جدید</h1>
+        <h1 className="text-lg font-bold">{T("نوت جدید", "New Note")}</h1>
         <Button onClick={submit} disabled={busy || !title.trim()} size="sm">
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "ذخیره"}
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : T("ذخیره", "Save")}
         </Button>
       </div>
 
@@ -73,7 +73,7 @@ export default function NewNoteView() {
         <div className="flex items-center gap-2">
           <Input
             autoFocus
-            placeholder="عنوان نوت..."
+            placeholder={T("عنوان نوت...", "Note title...")}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             dir="auto"
@@ -89,14 +89,14 @@ export default function NewNoteView() {
         <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
           <div>
             <label className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-              <FolderInput className="w-3 h-3" /> فولدر
+              <FolderInput className="w-3 h-3" /> {T("فولدر", "Folder")}
             </label>
             <select
               value={folderId || ""}
               onChange={(e) => setFolderId(e.target.value || null)}
               className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
             >
-              <option value="">📥 بدون فولدر</option>
+              <option value="">{T("📥 بدون فولدر", "📥 No Folder")}</option>
               {folders.map((f) => (
                 <option key={f.id} value={f.id}>📁 {f.name}</option>
               ))}
@@ -108,13 +108,13 @@ export default function NewNoteView() {
             onClick={() => setPinned(!pinned)}
             className="gap-1"
           >
-            <Pin className="w-4 h-4" /> {pinned ? "پین شده" : "پین"}
+            <Pin className="w-4 h-4" /> {pinned ? T("پین شده", "Pinned") : T("پین", "Pin")}
           </Button>
         </div>
 
         <div>
           <div className="flex items-center justify-between mb-1">
-            <label className="text-xs text-muted-foreground">محتوا</label>
+            <label className="text-xs text-muted-foreground">{T("محتوا", "Content")}</label>
             <VoiceInputButton
               onTranscript={(text) => setContent((c) => (c ? `${c} ${text}` : text))}
               className="h-8 w-8"

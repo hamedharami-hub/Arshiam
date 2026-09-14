@@ -106,15 +106,21 @@ export interface SystemAuditResult {
 export interface WizardQuestion {
   id: keyof UserAnswers;
   titleFa: string;
+  titleEn: string;
   subtitleFa: string;
+  subtitleEn: string;
   scientificInsightFa: string;
+  scientificInsightEn: string;
   isMultiSelect?: boolean;
   options: {
     value: string;
     labelFa: string;
+    labelEn: string;
     icon: string;
     badge?: string;
+    badgeEn?: string;
     descFa: string;
+    descEn: string;
   }[];
 }
 
@@ -122,185 +128,261 @@ export const WIZARD_QUESTIONS: WizardQuestion[] = [
   {
     id: "role",
     titleFa: "نقش و سبک زندگی اصلی شما در این روزها چیست؟",
+    titleEn: "What is your primary role and lifestyle these days?",
     subtitleFa: "این بخش اسکلت‌بندی اولیه پوشه‌ها و افق زمانی شما را تعیین می‌کند.",
+    subtitleEn: "This establishes the core structure of your folders and planning horizons.",
     scientificInsightFa:
       "تحقیقات دانشگاه استنفورد نشان می‌دهد تطابق ساختار وظایف با نقش حرفه‌ای، خستگی تصمیم‌گیری (Decision Fatigue) را تا ۴۰٪ کاهش می‌دهد.",
+    scientificInsightEn:
+      "Stanford research shows that matching task structure to your professional role reduces decision fatigue by up to 40%.",
     options: [
       {
         value: "freelancer",
         labelFa: "کارآفرین / فریلنسر / سولوپرنور",
+        labelEn: "Entrepreneur / Freelancer / Solopreneur",
         icon: "🚀",
         badge: "پروژه‌محور",
+        badgeEn: "Project-Based",
         descFa: "مدیریت مشتریان، درآمدهای چندگانه و نیاز به انضباط فردی مستقل",
+        descEn: "Client management, multiple income streams, and self-directed discipline",
       },
       {
         value: "corporate",
         labelFa: "کارمند / مدیر / متخصص تیمی",
+        labelEn: "Employee / Manager / Team Specialist",
         icon: "🏢",
         badge: "جلسات و خروجی",
+        badgeEn: "Meetings & Outcomes",
         descFa: "وظایف مشارکتی، گزارش‌دهی هفتگی، اهداف فصلی و تعادل کار و زندگی",
+        descEn: "Collaborative projects, weekly reporting, quarterly goals, and work-life balance",
       },
       {
         value: "student",
         labelFa: "دانشجو / پژوهشگر / داوطلب آزمون",
+        labelEn: "Student / Researcher / Test Candidate",
         icon: "🎓",
         badge: "مطالعه و ددلاین",
+        badgeEn: "Study & Deadlines",
         descFa: "امتحانات، یادگیری متمرکز، خلاصه برداری و زمان‌بندی مرور دروس",
+        descEn: "Exams, focused learning, structured notes, and active spaced repetition",
       },
       {
         value: "creator",
         labelFa: "تولیدکننده محتوا / طراح / نویسنده",
+        labelEn: "Content Creator / Designer / Writer",
         icon: "🎨",
         badge: "فرآیند خلاقانه",
+        badgeEn: "Creative Pipeline",
         descFa: "ایده‌پردازی، پایپ‌لاین تولید، ویرایش، انتشار و انضباط خلاق",
+        descEn: "Ideation, production pipeline, editing, publishing, and creative consistency",
       },
       {
         value: "homemaker",
         labelFa: "مدیر خانه و خانواده",
+        labelEn: "Home & Family Manager",
         icon: "🏠",
         badge: "نظم محیط و روابط",
+        badgeEn: "Environment & Care",
         descFa: "امور خانه، خریدها، بودجه خانواده، سلامت اعضا و برنامه‌های روزمره",
+        descEn: "Household coordination, family budget, health, and daily routines",
       },
       {
         value: "transition",
         labelFa: "در دوران تغییر مسیر یا بازآفرینی زندگی",
+        labelEn: "Life Transition or Reinvention",
         icon: "🔄",
         badge: "هدف‌گذاری نو",
+        badgeEn: "New Direction",
         descFa: "کشف فرصت‌های تازه، ساخت عادت‌های جدید و بازسازی اولویت‌ها",
+        descEn: "Exploring new opportunities, building fresh habits, and realigning priorities",
       },
       {
         value: "balanced",
         labelFa: "تمرکز بر توسعه فردی و سبک زندگی متعادل",
+        labelEn: "Personal Development & Balanced Lifestyle",
         icon: "🌱",
         badge: "رشد ۳۶۰ درجه",
+        badgeEn: "360° Growth",
         descFa: "ایجاد توازن جامع بین سلامتی، ذهن، مطالعه، روابط و کارهای روزانه",
+        descEn: "Cultivating harmony across physical health, mindfulness, learning, and relationships",
       },
     ],
   },
   {
     id: "obstacle",
     titleFa: "بزرگ‌ترین مانع ذهنی یا عملی شما در اجرای برنامه‌ها چیست؟",
+    titleEn: "What is your biggest mental or practical obstacle when taking action?",
     subtitleFa: "برای شکستن این مانع، ابزارهای روانشناختی مناسب در سیستم شما فعال می‌شوند.",
+    subtitleEn: "Targeted behavioral psychology tools will be activated to neutralize this friction.",
     scientificInsightFa:
       "بر اساس اصول روانشناسی شناختی-رفتاری (CBT)، موانع به دلیل نبود اراده نیستند، بلکه نتیجه اصطکاک بالا در نقطه شروع عمل هستند.",
+    scientificInsightEn:
+      "According to Cognitive Behavioral Therapy (CBT), obstacles stem from high initiation friction rather than a lack of willpower.",
     options: [
       {
         value: "procrastination",
         labelFa: "شروع کردن کارها (اهمال‌کاری و تنبلی)",
+        labelEn: "Getting Started (Procrastination & Hesitation)",
         icon: "⏳",
         badge: "راهکار: کپسول ۲ دقیقه‌ای",
+        badgeEn: "Tool: 2-Minute Capsule",
         descFa: "سختی در شروع، عقب انداختن کارهای مهم و انتظار برای انگیزه",
+        descEn: "Struggling to initiate, delaying important tasks, and waiting for mood/motivation",
       },
       {
         value: "overwhelm",
         labelFa: "حجم زیاد کارها و احساس سردرگمی (Overwhelm)",
+        labelEn: "Heavy Task Volume & Brain Fog (Overwhelm)",
         icon: "🤯",
         badge: "راهکار: متد GTD",
+        badgeEn: "Tool: GTD Clarification",
         descFa: "ندانستن اینکه اول باید چه کاری انجام شود و استرس لیست‌های طولانی",
+        descEn: "Uncertain where to begin and feeling stressed by sprawling to-do lists",
       },
       {
         value: "distraction",
         labelFa: "پرت شدن مداوم حواس و پرش ذهن",
+        labelEn: "Constant Distractions & Attention Fragmentation",
         icon: "🎯",
         badge: "راهکار: پومودورو بصری",
+        badgeEn: "Tool: Visual Pomodoro",
         descFa: "گوشی، شبکه‌های اجتماعی و دشواری در حفظ تمرکز عمیق پایدار",
+        descEn: "Phone notifications, social media pulls, and difficulty sustaining deep focus",
       },
       {
         value: "consistency",
         labelFa: "حفظ پیوستگی بعد از چند روز اول",
+        labelEn: "Maintaining Consistency After the First Few Days",
         icon: "🏃‍♂️",
         badge: "راهکار: گیمیفیکیشن و باغ رشد",
+        badgeEn: "Tool: Growth Sanctuary",
         descFa: "شروع‌های طوفانی اما رها کردن برنامه‌ها بعد از چند روز یا چند هفته",
+        descEn: "Enthusiastic beginnings that fizzle out after a few days or weeks",
       },
       {
         value: "work_life_balance",
         labelFa: "غرق شدن در کار و فراموشی سلامت و خود",
+        labelEn: "Overwork & Neglecting Personal Health and Life",
         icon: "⚖️",
         badge: "راهکار: مرزبندی حوزه‌ها",
+        badgeEn: "Tool: Domain Boundaries",
         descFa: "نداشتن وقت برای ورزش، خانواده، آرامش روان یا سرگرمی‌های فردی",
+        descEn: "Running out of time for fitness, family, restorative stillness, or leisure",
       },
     ],
   },
   {
     id: "domains",
     titleFa: "سه حوزه اصلی که در این فصل می‌خواهید بیشترین تمرکز را روی آن‌ها بگذارید کدامند؟",
+    titleEn: "Which three core domains do you want to prioritize this season?",
     subtitleFa: "قانون طلایی تمرکز: حداکثر ۳ حوزه کلیدی را انتخاب کنید.",
+    subtitleEn: "The Golden Rule of Focus: Select at most 3 key domains.",
     scientificInsightFa:
       "قانون تمرکز وارن بافت و اصل پارتو نشان می‌دهند تمرکز همزمان روی بیش از ۳ جبهه، احتمال تحقق همه آن‌ها را تا ۶۰٪ تضعیف می‌کند.",
+    scientificInsightEn:
+      "Warren Buffett's rule and Pareto principle prove that pursuing more than 3 major fronts simultaneously drops execution success by up to 60%.",
     isMultiSelect: true,
     options: [
       {
         value: "career",
         labelFa: "شغل، کسب‌وکار و پروژه‌ها",
+        labelEn: "Career, Business & Projects",
         icon: "💼",
         descFa: "پیشرفت کاری، درآمدزایی، تحویل به موقع پروژه‌ها و اعتبار شغلی",
+        descEn: "Professional milestones, revenue, timely delivery, and professional standing",
       },
       {
         value: "health",
         labelFa: "سلامتی، ورزش و انرژی بدنی",
+        labelEn: "Health, Fitness & Physical Vitality",
         icon: "🏃‍♂️",
         descFa: "تناسب اندام، خواب باکیفیت، تغذیه سالم و افزایش سطح نشاط روزانه",
+        descEn: "Exercise habits, deep restorative sleep, nutritious fueling, and all-day energy",
       },
       {
         value: "mind",
         labelFa: "آرامش ذهن، کاهش استرس و سلامت روان",
+        labelEn: "Peace of Mind, Stress Resilience & Mental Health",
         icon: "🧠",
         descFa: "چک‌این روزانه، ثبت افکار CBT، تنفس آرام‌بخش و خودآگاهی",
+        descEn: "Daily check-ins, CBT thought work, grounding breathwork, and self-awareness",
       },
       {
         value: "growth",
         labelFa: "یادگیری مهارت نو، مطالعه و رشد فردی",
+        labelEn: "Skill Mastery, Reading & Personal Growth",
         icon: "📚",
         descFa: "کتاب‌خوانی، زبان، دوره‌های آموزشی و ارتقای توانمندی‌های فکری",
+        descEn: "Books, languages, high-value skills, and expanding your cognitive toolkit",
       },
       {
         value: "finance",
         labelFa: "نظم مالی، بودجه‌بندی و پس‌انداز",
+        labelEn: "Financial Discipline, Budgeting & Wealth",
         icon: "💰",
         descFa: "پیگیری هزینه‌ها، کنترل خریدهای هیجانی و سرمایه‌گذاری",
+        descEn: "Expense tracking, curtailing impulse spending, and smart savings",
       },
       {
         value: "relationships",
         labelFa: "روابط عاطفی، خانواده و دوستان",
+        labelEn: "Relationships, Family & Social Bonds",
         icon: "👨‍👩‍👧",
         descFa: "وقت باکیفیت با عزیزان، ابراز محبت و تقویت پیوندهای اجتماعی",
+        descEn: "Quality time with loved ones, nurturing friendships, and presence",
       },
     ],
   },
   {
     id: "chronotype",
     titleFa: "ساعت طلایی انرژی و اوج تمرکز شبانه‌روزی شما چه زمانی است؟",
+    titleEn: "When is your peak cognitive window and energy peak?",
     subtitleFa: "کارهای عمیق و عادت‌های کلیدی شما دقیقا در این بازه چیده می‌شوند.",
+    subtitleEn: "Deep work blocks and Keystone habits will be scheduled specifically in this window.",
     scientificInsightFa:
       "کرونوبیولوژی اثبات می‌کند همگام‌سازی کارهای سنگین تحلیلی با اوج دمای بدن و ترشح دوپامین، کارایی مغز را تا دو برابر می‌کند.",
+    scientificInsightEn:
+      "Chronobiology proves that synchronizing demanding analytical tasks with peak body temperature and dopamine doubles brain efficiency.",
     options: [
       {
         value: "morning",
         labelFa: "سحرخیز و صبحگاهی (۶ تا ۱۱ صبح)",
+        labelEn: "Early Bird & Morning Focused (6 to 11 AM)",
         icon: "🌅",
         badge: "انرژی صبحگاهی",
+        badgeEn: "Morning Energy",
         descFa: "بیشترین طراوت فکری قبل از شروع همهمه‌ی روز و شلوغی‌ها",
+        descEn: "Peak mental clarity before the day's noise and external demands kick in",
       },
       {
         value: "afternoon",
         labelFa: "اوج تمرکز بعدازظهر (۲ تا ۶ عصر)",
+        labelEn: "Afternoon Deep Work (2 to 6 PM)",
         icon: "🌆",
         badge: "انرژی میانه روز",
+        badgeEn: "Midday Energy",
         descFa: "صبح‌ها صرف هماهنگی و کارهای سبک، بعدازظهر برای کارهای عمیق",
+        descEn: "Mornings for lightweight coordination, afternoons for intense deep work",
       },
       {
         value: "night",
         labelFa: "جغد شب و آرامش شبانه (۹ شب به بعد)",
+        labelEn: "Night Owl & Evening Calm (9 PM onward)",
         icon: "🌙",
         badge: "سکوت شبانه",
+        badgeEn: "Night Stillness",
         descFa: "بیشترین قدرت خلاقیت و تمرکز زمانی که همه جا ساکت است",
+        descEn: "Peak creativity and immersion when the world is quiet and still",
       },
       {
         value: "flexible",
         labelFa: "شناور و وابسته به شرایط روزانه",
+        labelEn: "Flexible & Fluid Routine",
         icon: "⚡",
         badge: "انعطاف‌پذیر",
+        badgeEn: "Adaptive Rhythm",
         descFa: "نیازمند سیستم منعطف بر اساس بلوک‌های ۲۵ دقیقه‌ای در طول روز",
+        descEn: "Requires an agile system structured around 25-minute Pomodoro bursts",
       },
     ],
   },

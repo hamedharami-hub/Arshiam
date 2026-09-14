@@ -20,6 +20,7 @@ import type { Task } from "@/lib/taskTypes";
 
 import { formatDate, toPersianDigits } from "@/lib/jalali";
 import { Smile, Zap, Target, Moon, AlertTriangle, Sparkles, Heart } from "lucide-react";
+import { useBilingual } from "@/hooks/useBilingual";
 
 const SLIDER_CONFIGS: Record<string, { emoji: string; color: string; bg: string }> = {
   mood: { emoji: "🌸", color: "from-rose-500 to-pink-500", bg: "bg-rose-500/10 text-rose-600 dark:text-rose-400" },
@@ -34,23 +35,25 @@ function Slider10({
   label,
   value,
   onChange,
+  isEn,
 }: {
   type?: "mood" | "energy" | "focus" | "sleep_quality" | "stress";
   label: string;
   value: number | null;
   onChange: (v: number) => void;
+  isEn: boolean;
 }) {
   const cfg = SLIDER_CONFIGS[type] || SLIDER_CONFIGS.mood;
 
   return (
-    <div dir="rtl" className="p-3.5 rounded-2xl border border-border/50 bg-card/60 space-y-3 shadow-2xs hover:border-border transition-colors">
+    <div dir={isEn ? "ltr" : "rtl"} className="p-3.5 rounded-2xl border border-border/50 bg-card/60 space-y-3 shadow-2xs hover:border-border transition-colors">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-base">{cfg.emoji}</span>
           <Label className="font-semibold text-sm cursor-pointer">{label}</Label>
         </div>
         <span className={`text-xs px-2.5 py-1 rounded-full font-bold tabular-nums ${value ? cfg.bg : "bg-muted text-muted-foreground"}`}>
-          {value ? `${toPersianDigits(value)} / ۱۰` : "— / ۱۰"}
+          {value ? (isEn ? `${value} / 10` : `${toPersianDigits(value)} / ۱۰`) : (isEn ? "— / 10" : "— / ۱۰")}
         </span>
       </div>
 
@@ -72,7 +75,7 @@ function Slider10({
                   : "bg-muted/60 text-muted-foreground hover:bg-muted"
               }`}
             >
-              {toPersianDigits(n)}
+              {isEn ? n : toPersianDigits(n)}
             </button>
           );
         })}
@@ -83,6 +86,7 @@ function Slider10({
 
 export default function CheckinView() {
   const { user } = useAuth();
+  const { T, isEn } = useBilingual();
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState<any>({ mood: null, energy: null, focus: null, sleep_quality: null, stress: null, sleep_hours: "", notes: "" });
   const [history, setHistory] = useState<DailyCheckinItem[]>([]);
@@ -157,77 +161,77 @@ export default function CheckinView() {
       .catch(() => {});
 
     if (ok) {
-      awardWaterDrops(20, "ثبت چک‌این روزانه");
-      toast.success("ثبت شد ✨");
+      awardWaterDrops(20, T("ثبت چک‌این روزانه", "Daily check-in logged"));
+      toast.success(T("ثبت شد ✨", "Saved ✨"));
       setSavedTick(Date.now());
     } else {
-      toast.error("خطا در ذخیره چک‌این");
+      toast.error(T("خطا در ذخیره چک‌این", "Error saving check-in"));
     }
   }
 
   if (loading) return <div className="p-8 text-center text-muted-foreground">…</div>;
 
   return (
-    <div className="max-w-3xl mx-auto p-4 md:p-8 space-y-6">
+    <div dir={isEn ? "ltr" : "rtl"} className="max-w-3xl mx-auto p-4 md:p-8 space-y-6">
       {savedTick && <ProfileMicroPrompt trigger={`checkin-${savedTick}`} />}
       <div>
-        <h1 className="text-3xl font-bold mb-2">Check-in روزانه</h1>
-        <p className="text-muted-foreground text-sm">ثبت کوتاه روزانه برای الگویابی بلندمدت.</p>
+        <h1 className="text-3xl font-bold mb-2">{T("Check-in روزانه", "Daily Check-in")}</h1>
+        <p className="text-muted-foreground text-sm">{T("ثبت کوتاه روزانه برای الگویابی بلندمدت.", "Quick daily check-in for long-term pattern tracking.")}</p>
       </div>
 
       <Card>
-        <CardHeader><CardTitle className="text-lg">امروز · {today}</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-lg">{isEn ? `Today · ${today}` : `امروز · ${today}`}</CardTitle></CardHeader>
         <CardContent className="space-y-5">
-          <Slider10 type="mood" label="خلق و روحیه" value={form.mood} onChange={(v) => setForm({ ...form, mood: v })} />
-          <Slider10 type="energy" label="میزان انرژی و توان" value={form.energy} onChange={(v) => setForm({ ...form, energy: v })} />
-          <Slider10 type="focus" label="میزان تمرکز و بازدهی" value={form.focus} onChange={(v) => setForm({ ...form, focus: v })} />
-          <Slider10 type="sleep_quality" label="کیفیت خواب دیشب" value={form.sleep_quality} onChange={(v) => setForm({ ...form, sleep_quality: v })} />
-          <Slider10 type="stress" label="سطح استرس و اضطراب" value={form.stress} onChange={(v) => setForm({ ...form, stress: v })} />
+          <Slider10 type="mood" label={T("خلق و روحیه", "Mood & Well-being")} value={form.mood} onChange={(v) => setForm({ ...form, mood: v })} isEn={isEn} />
+          <Slider10 type="energy" label={T("میزان انرژی و توان", "Energy & Vitality")} value={form.energy} onChange={(v) => setForm({ ...form, energy: v })} isEn={isEn} />
+          <Slider10 type="focus" label={T("میزان تمرکز و بازدهی", "Focus & Productivity")} value={form.focus} onChange={(v) => setForm({ ...form, focus: v })} isEn={isEn} />
+          <Slider10 type="sleep_quality" label={T("کیفیت خواب دیشب", "Last Night's Sleep Quality")} value={form.sleep_quality} onChange={(v) => setForm({ ...form, sleep_quality: v })} isEn={isEn} />
+          <Slider10 type="stress" label={T("سطح استرس و اضطراب", "Stress & Anxiety Level")} value={form.stress} onChange={(v) => setForm({ ...form, stress: v })} isEn={isEn} />
           <div className="space-y-2">
-            <Label>ساعات خواب</Label>
+            <Label>{T("ساعات خواب", "Sleep Hours")}</Label>
             <input
               type="number" step="0.5" min="0" max="14"
               value={form.sleep_hours}
               onChange={(e) => setForm({ ...form, sleep_hours: e.target.value })}
               className="w-32 h-10 rounded-md border bg-background px-3 text-sm"
-              placeholder="مثلاً 7.5"
+              placeholder={T("مثلاً 7.5", "e.g. 7.5")}
             />
           </div>
           {/* A2 — Dynamic evening reflection: appears in evening + when load was high */}
           {isEvening && todayLoad != null && todayLoad >= 12 && (
             <div className="border-s-4 border-amber-500 bg-amber-500/5 rounded-md p-3 space-y-3">
               <div className="text-sm font-semibold flex items-center gap-2">
-                🌙 تأمل شبانه — بار شناختی امروز <span className="tabular-nums">{todayLoad}</span> بود
+                🌙 {isEn ? `Evening Reflection — Today's cognitive load was ${todayLoad}` : `تأمل شبانه — بار شناختی امروز ${todayLoad} بود`}
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">سخت‌ترین بخش امروز چه بود؟</Label>
+                <Label className="text-xs">{T("سخت‌ترین بخش امروز چه بود؟", "What was the hardest part of today?")}</Label>
                 <Textarea
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  placeholder="یک نکته کوتاه بنویس..."
+                  placeholder={T("یک نکته کوتاه بنویس...", "Write a brief note...")}
                   rows={2}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                💡 با ثبت این تأمل، الگوی بار شناختی هفته بعد دقیق‌تر می‌شود.
+                {T("💡 با ثبت این تأمل، الگوی بار شناختی هفته بعد دقیق‌تر می‌شود.", "💡 Logging this reflection helps calibrate next week's cognitive load patterns.")}
               </p>
             </div>
           )}
           {(!isEvening || todayLoad == null || todayLoad < 12) && (
             <div className="space-y-2">
-              <Label>یادداشت کوتاه</Label>
-              <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="چه چیزی امروز قابل توجه بود؟" rows={3} />
+              <Label>{T("یادداشت کوتاه", "Short Note")}</Label>
+              <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder={T("چه چیزی امروز قابل توجه بود؟", "What stood out today?")} rows={3} />
             </div>
           )}
-          <Button onClick={save} className="w-full">ذخیره</Button>
+          <Button onClick={save} className="w-full">{T("ذخیره", "Save")}</Button>
         </CardContent>
       </Card>
 
       {history.length > 1 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">روند ۳۰ روز اخیر</CardTitle>
-            <CardDescription>خلق، انرژی، تمرکز</CardDescription>
+            <CardTitle className="text-lg">{T("روند ۳۰ روز اخیر", "Recent 30-Day Trend")}</CardTitle>
+            <CardDescription>{T("خلق، انرژی، تمرکز", "Mood, energy, focus")}</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
@@ -251,12 +255,12 @@ export default function CheckinView() {
                     background: "hsl(var(--popover) / 0.95)",
                     backdropFilter: "blur(12px)",
                     border: "1px solid hsl(var(--border))",
-                    direction: "rtl",
+                    direction: isEn ? "ltr" : "rtl",
                     fontSize: "12px",
                   }}
                   formatter={(val: number, name: string) => [
-                    `${toPersianDigits(val)} / ۱۰`,
-                    name === "mood" ? "خلق 🌸" : name === "energy" ? "انرژی ⚡" : "تمرکز 🎯",
+                    isEn ? `${val} / 10` : `${toPersianDigits(val)} / ۱۰`,
+                    name === "mood" ? (isEn ? "Mood 🌸" : "خلق 🌸") : name === "energy" ? (isEn ? "Energy ⚡" : "انرژی ⚡") : (isEn ? "Focus 🎯" : "تمرکز 🎯"),
                   ]}
                 />
                 <Line type="monotone" dataKey="mood" stroke="#f43f5e" strokeWidth={2.5} dot={{ r: 3, fill: "#f43f5e" }} />

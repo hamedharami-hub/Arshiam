@@ -29,6 +29,7 @@ dist-ssr
 *.sw?
 
 # Local Android build artifact
+*.apk
 ARSHNAZ-debug.apk
 artifacts/
 *.jks

@@ -7,9 +7,12 @@ export type PlantStage = 1 | 2 | 3 | 4 | 5; // 1: Seed, 2: Sprout, 3: Sapling, 4
 export interface PlantMetadata {
   id: PlantType;
   name: string;
+  name_en: string;
   latinName: string;
   description: string;
+  description_en: string;
   affinity: string; // e.g. "تسک‌های مهم", "تمرکز", "عادات"
+  affinity_en: string;
   color: string;
   glowColor: string;
   pointsToBloom: number;
@@ -64,9 +67,12 @@ export const PLANT_SPECIES: Record<PlantType, PlantMetadata> = {
   rose: {
     id: "rose",
     name: "گل سرخ عشق",
+    name_en: "Crimson Rose of Passion",
     latinName: "Rosa Arshnazia",
     description: "نماد عشق جاودان، انگیزه پرشور و تعهد به هدف‌های قلبی.",
+    description_en: "Symbol of enduring passion, bold drive, and wholehearted commitment.",
     affinity: "تسک‌های مهم و اولویت بالا",
+    affinity_en: "High-priority tasks & milestones",
     color: "#f43f5e",
     glowColor: "rgba(244, 63, 94, 0.4)",
     pointsToBloom: 100,
@@ -75,9 +81,12 @@ export const PLANT_SPECIES: Record<PlantType, PlantMetadata> = {
   bonsai: {
     id: "bonsai",
     name: "بنسای خرد و استراتژی",
+    name_en: "Bonsai of Wisdom & Strategy",
     latinName: "Bonsai Sapientia",
     description: "نماد صبوری، عمق اندیشه، مدیریت منظم و رشد پیوسته.",
+    description_en: "Emblem of patience, deep reflection, and disciplined gradual mastery.",
     affinity: "یادداشت‌ها، مدل ABC و ثبت افکار CBT",
+    affinity_en: "Notes, ABC model & CBT thought records",
     color: "#10b981",
     glowColor: "rgba(16, 185, 129, 0.4)",
     pointsToBloom: 120,
@@ -86,9 +95,12 @@ export const PLANT_SPECIES: Record<PlantType, PlantMetadata> = {
   orchid: {
     id: "orchid",
     name: "ارکیده تمرکز",
+    name_en: "Zenith Focus Orchid",
     latinName: "Orchis Focus",
     description: "گیاهی شکوهمند که فقط با جلسات عمیق تمرکز و حضور در لحظه رشد می‌کند.",
+    description_en: "A noble bloom that flourishes exclusively through undistracted deep work.",
     affinity: "جلسات پومودورو و زمان کار عمیق",
+    affinity_en: "Pomodoro sessions & deep focus",
     color: "#d946ef",
     glowColor: "rgba(217, 70, 239, 0.4)",
     pointsToBloom: 90,
@@ -97,9 +109,12 @@ export const PLANT_SPECIES: Record<PlantType, PlantMetadata> = {
   lotus: {
     id: "lotus",
     name: "نیلوفر ذهن‌آرام",
+    name_en: "Serene Mind Lotus",
     latinName: "Nelumbo Serenitas",
     description: "نماد رهایی از استرس، آرامش درونی و شفافیت ذهن.",
+    description_en: "Sacred emblem of inner tranquility, clarity, and mindful emotional release.",
     affinity: "چک‌این روزانه و تمرین تنفس ۳بعدی",
+    affinity_en: "Daily check-ins & 3D breathing practice",
     color: "#06b6d4",
     glowColor: "rgba(6, 182, 212, 0.4)",
     pointsToBloom: 80,
@@ -108,9 +123,12 @@ export const PLANT_SPECIES: Record<PlantType, PlantMetadata> = {
   palm: {
     id: "palm",
     name: "نخل استقامت",
+    name_en: "Resilience Palm",
     latinName: "Phoenix Constantia",
     description: "استوار در برابر طوفان‌ها، نماد پایداری و حفظ زنجیره عادات.",
+    description_en: "Steadfast through every storm, embodying unwavering habit streaks.",
     affinity: "زنجیره عادات روزانه (Streaks)",
+    affinity_en: "Habit consistency & streaks",
     color: "#f59e0b",
     glowColor: "rgba(245, 158, 11, 0.4)",
     pointsToBloom: 110,
@@ -119,15 +137,36 @@ export const PLANT_SPECIES: Record<PlantType, PlantMetadata> = {
   bamboo: {
     id: "bamboo",
     name: "بامبوی شکوفایی سریع",
+    name_en: "Swift Momentum Bamboo",
     latinName: "Bambusoideae Vita",
     description: "انعطاف‌پذیر و سریع‌الرشد؛ یادآور اینکه هر تسک کوچک گامی بزرگ است.",
+    description_en: "Supple, resilient, and fast-growing; honoring each accomplished small step.",
     affinity: "تکمیل تسک‌های روزمره",
+    affinity_en: "Everyday task completion",
     color: "#84cc16",
     glowColor: "rgba(132, 204, 22, 0.4)",
     pointsToBloom: 75,
     badge: "🎋",
   },
 };
+
+export function getPlantName(type: PlantType, isEn = false): string {
+  const spec = PLANT_SPECIES[type];
+  if (!spec) return "";
+  return isEn ? spec.name_en : spec.name;
+}
+
+export function getPlantDesc(type: PlantType, isEn = false): string {
+  const spec = PLANT_SPECIES[type];
+  if (!spec) return "";
+  return isEn ? spec.description_en : spec.description;
+}
+
+export function getPlantAffinity(type: PlantType, isEn = false): string {
+  const spec = PLANT_SPECIES[type];
+  if (!spec) return "";
+  return isEn ? spec.affinity_en : spec.affinity;
+}
 
 const GARDEN_STORAGE_KEY = "arshnaz_mind_garden_v1";
 const GARDEN_USER_KEY = "arshnaz_garden_user";

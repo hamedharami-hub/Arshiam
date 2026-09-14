@@ -18,11 +18,16 @@ import { auth } from "@/lib/firebase";
 function usePwaUpdateToast() {
   useEffect(() => {
     const onUpdate = () => {
-      toast("نسخه‌ی جدید برنامه آماده است", {
-        description: "برای دریافت امکانات جدید، برنامه را به‌روزرسانی کن.",
+      // Detect language from i18next or localStorage for the toast
+      const lang = (() => { try { return localStorage.getItem("i18nextLng") || "fa"; } catch { return "fa"; } })();
+      const isEn = lang.startsWith("en");
+      toast(isEn ? "A new version is ready" : "نسخه‌ی جدید برنامه آماده است", {
+        description: isEn
+          ? "Refresh to get the latest features."
+          : "برای دریافت امکانات جدید، برنامه را به‌روزرسانی کن.",
         duration: Infinity,
         action: {
-          label: "به‌روزرسانی",
+          label: isEn ? "Update" : "به‌روزرسانی",
           onClick: () => {
             const apply = (window as any).__applyPwaUpdate;
             if (typeof apply === "function") apply();

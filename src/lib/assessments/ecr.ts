@@ -80,9 +80,24 @@ export const QUADRANT_LABELS: Record<AttachmentQuadrant, string> = {
   fearful: "اجتنابی-ترس‌خورده",
 };
 
+export const QUADRANT_LABELS_EN: Record<AttachmentQuadrant, string> = {
+  secure: "Secure",
+  preoccupied: "Anxious-Preoccupied",
+  dismissive: "Dismissive-Avoidant",
+  fearful: "Fearful-Avoidant",
+};
+
 export const QUADRANT_DESC: Record<AttachmentQuadrant, string> = {
   secure: "راحتی با صمیمیت و استقلال؛ پایه‌ای محکم برای روابط.",
   preoccupied: "نیاز بالا به نزدیکی همراه با ترس از طرد؛ نوسانات هیجانی شدیدتر.",
   dismissive: "ارزش بالا برای استقلال و فاصله؛ کاهش ابراز احساسات.",
   fearful: "تمایل و ترس همزمان از صمیمیت؛ الگوی کشمکش درونی.",
 };
+
+export const QUADRANT_DESC_EN: Record<AttachmentQuadrant, string> = {
+  secure: "Comfortable with intimacy and autonomy; a solid foundation for healthy relationships.",
+  preoccupied: "High desire for closeness paired with fear of rejection; heightened emotional sensitivity.",
+  dismissive: "High value on independence and distance; suppressed emotional vulnerability.",
+  fearful: "Simultaneous desire for and fear of closeness; an internal push-pull conflict.",
+};
+

@@ -77,6 +77,7 @@ const EN_LABELS: Record<string, string> = {
   "معمار زندگی": "Life Architect",
   "صندوق ورودی": "Inbox",
   "ویجت‌ها": "Widgets",
+  "باغ رشد": "Garden",
 };
 const FA_LABELS: Record<string, string> = {
   "Inbox": "صندوق ورودی",
@@ -86,9 +87,9 @@ const FA_LABELS: Record<string, string> = {
 
 function useLabel() {
   const { i18n } = useTranslation();
-  const lang = (i18n.language || "fa").split("-")[0];
+  const isEn = Boolean(i18n.language?.startsWith("en"));
   return (label: string) => {
-    if (lang === "en") return EN_LABELS[label] || label;
+    if (isEn) return EN_LABELS[label] || label;
     return FA_LABELS[label] || label;
   };
 }
@@ -185,6 +186,8 @@ function FolderRow({ folder: f, depth, hasChildren, open, collapsed, onToggle, o
   onToggle: () => void; onLongPress: () => void; onNav: () => void;
 }) {
   const lp = useLongPress({ onLongPress, delay: 420 });
+  const { i18n } = useTranslation();
+  const isEn = Boolean(i18n.language?.startsWith("en"));
   return (
     <SidebarMenuItem className="mb-1">
       <SidebarMenuButton asChild className="h-auto min-h-[58px] rounded-2xl p-0">
@@ -216,7 +219,7 @@ function FolderRow({ folder: f, depth, hasChildren, open, collapsed, onToggle, o
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggle(); }}
               className="p-1 hover:bg-sidebar-accent rounded-md shrink-0 transition-colors"
-              title={open ? "بستن" : "باز کردن"}
+              title={open ? (isEn ? "Collapse" : "بستن") : (isEn ? "Expand" : "باز کردن")}
             >
               {open ? <ChevronDown className="w-3 h-3 text-muted-foreground" /> : <ChevronRight className="w-3 h-3 text-muted-foreground" />}
             </button>
@@ -302,7 +305,8 @@ export function AppSidebar() {
   const { signOut, user } = useAuth();
   const { isAdmin } = useUserRole();
   const tr = useLabel();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isEn = Boolean(i18n.language?.startsWith("en"));
   const [folders, setFolders] = useState<Folder[]>([]);
   const [tags, setTags] = useState<TagT[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -581,18 +585,18 @@ export function AppSidebar() {
             )}
             <CollapsibleTrigger className="flex items-center gap-2 flex-1 hover:bg-sidebar-accent/50 rounded transition">
               <FolderTree className="w-3.5 h-3.5 text-muted-foreground" />
-              <span>فولدرها</span>
+              <span>{tr("فولدرها")}</span>
               <ChevronDown className={`w-3.5 h-3.5 me-auto text-muted-foreground transition-transform ${(openSections["__folders"] ?? true) ? "" : "-rotate-90"}`} />
             </CollapsibleTrigger>
             <Dialog open={openFolderDlg} onOpenChange={setOpenFolderDlg}>
               <DialogTrigger asChild>
-                <button className="hover:bg-muted rounded p-0.5"><Plus className="w-3 h-3" /></button>
+                <button className="hover:bg-muted rounded p-0.5" title={isEn ? "New Folder" : "فولدر جدید"}><Plus className="w-3 h-3" /></button>
               </DialogTrigger>
               <DialogContent>
-                <DialogHeader><DialogTitle>فولدر جدید</DialogTitle></DialogHeader>
-                <Input placeholder="نام فولدر" value={newFolder} onChange={(e) => setNewFolder(e.target.value)}
+                <DialogHeader><DialogTitle>{isEn ? "New Folder" : "فولدر جدید"}</DialogTitle></DialogHeader>
+                <Input placeholder={isEn ? "Folder name" : "نام فولدر"} value={newFolder} onChange={(e) => setNewFolder(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && createFolder()} />
-                <DialogFooter><Button onClick={createFolder}>ایجاد</Button></DialogFooter>
+                <DialogFooter><Button onClick={createFolder}>{isEn ? "Create" : "ایجاد"}</Button></DialogFooter>
               </DialogContent>
             </Dialog>
           </SidebarGroupLabel>
@@ -612,24 +616,24 @@ export function AppSidebar() {
         {!collapsed && (
           <SidebarGroupLabel className="flex justify-between items-center pe-1">
             {dragHandle && (
-              <button {...dragHandle} className="cursor-grab active:cursor-grabbing p-0.5 opacity-30 hover:opacity-80 transition">
+              <button {...dragHandle} className="cursor-grab active:cursor-grabbing p-0.5 opacity-30 hover:opacity-80 transition" title={isEn ? "Drag to reorder" : "جابجا کن"}>
                 <GripVertical className="w-3 h-3" />
               </button>
             )}
             <CollapsibleTrigger className="flex items-center gap-2 flex-1 hover:bg-sidebar-accent/50 rounded transition">
               <Tag className="w-3.5 h-3.5 text-muted-foreground" />
-              <span>تگ‌ها</span>
+              <span>{tr("تگ‌ها")}</span>
               <ChevronDown className={`w-3.5 h-3.5 me-auto text-muted-foreground transition-transform ${(openSections["__tags"] ?? false) ? "" : "-rotate-90"}`} />
             </CollapsibleTrigger>
             <Dialog open={openTagDlg} onOpenChange={setOpenTagDlg}>
               <DialogTrigger asChild>
-                <button className="hover:bg-muted rounded p-0.5"><Plus className="w-3 h-3" /></button>
+                <button className="hover:bg-muted rounded p-0.5" title={isEn ? "New Tag" : "تگ جدید"}><Plus className="w-3 h-3" /></button>
               </DialogTrigger>
               <DialogContent>
-                <DialogHeader><DialogTitle>تگ جدید</DialogTitle></DialogHeader>
-                <Input placeholder="نام تگ" value={newTag} onChange={(e) => setNewTag(e.target.value)}
+                <DialogHeader><DialogTitle>{isEn ? "New Tag" : "تگ جدید"}</DialogTitle></DialogHeader>
+                <Input placeholder={isEn ? "Tag name" : "نام تگ"} value={newTag} onChange={(e) => setNewTag(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && createTag()} />
-                <DialogFooter><Button onClick={createTag}>ایجاد</Button></DialogFooter>
+                <DialogFooter><Button onClick={createTag}>{isEn ? "Create" : "ایجاد"}</Button></DialogFooter>
               </DialogContent>
             </Dialog>
           </SidebarGroupLabel>
@@ -686,7 +690,7 @@ export function AppSidebar() {
                       activeClassName="bg-accent text-accent-foreground font-medium"
                     >
                       <Flame className="w-4 h-4 text-primary" />
-                      <span className="sr-only">پیشرفت روزانه</span>
+                      <span className="sr-only">{isEn ? "Daily progress" : "پیشرفت روزانه"}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -741,12 +745,12 @@ export function AppSidebar() {
         {!collapsed && (
           <Button variant="ghost" size="sm" onClick={resetOrder} className="justify-start text-xs opacity-70">
             <RotateCcw className="w-3.5 h-3.5" />
-            <span className="ms-2">بازنشانی ترتیب</span>
+            <span className="ms-2">{isEn ? "Reset order" : "بازنشانی ترتیب"}</span>
           </Button>
         )}
-        <Button variant="ghost" size="sm" onClick={() => { signOut(); toast.success("خروج موفق"); }} className="justify-start">
+        <Button variant="ghost" size="sm" onClick={() => { signOut(); toast.success(isEn ? "Signed out successfully" : "خروج موفق"); }} className="justify-start">
           <LogOut className="w-4 h-4" />
-          {!collapsed && <span className="ms-2">خروج</span>}
+          {!collapsed && <span className="ms-2">{isEn ? "Log out" : "خروج"}</span>}
         </Button>
       </SidebarFooter>
       {aiFolder && (

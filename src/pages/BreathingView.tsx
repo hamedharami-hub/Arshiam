@@ -4,14 +4,17 @@ import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Wind, Play, Pause, RotateCcw, Volume2, VolumeX, Sparkles } from "lucide-react";
 import { startSynth, stopSynth, setSynthVolume } from "@/lib/pomodoroSynth";
+import { useBilingual } from "@/hooks/useBilingual";
 
 type Phase = "inhale" | "hold-in" | "exhale" | "hold-out";
 
 type Pattern = {
   id: string;
-  name: string;
+  name_fa: string;
+  name_en: string;
   emoji: string;
-  goal: string;
+  goal_fa: string;
+  goal_en: string;
   // seconds for each phase, 0 means skip
   inhale: number;
   holdIn: number;
@@ -25,59 +28,70 @@ type Pattern = {
 const PATTERNS: Pattern[] = [
   {
     id: "box",
-    name: "Box · ۴-۴-۴-۴",
+    name_fa: "Box · ۴-۴-۴-۴",
+    name_en: "Box · 4-4-4-4",
     emoji: "🟦",
-    goal: "آرامش متمرکز و کنترل استرس — مناسب قبل از جلسه/امتحان.",
+    goal_fa: "آرامش متمرکز و کنترل استرس — مناسب قبل از جلسه/امتحان.",
+    goal_en: "Focused calmness & stress control — ideal before meetings/exams.",
     inhale: 4, holdIn: 4, exhale: 4, holdOut: 4, loops: 8,
     ambient: "calm_pad",
     color: "from-sky-500 via-blue-500 to-indigo-500",
   },
   {
     id: "478",
-    name: "۴-۷-۸ · خواب",
+    name_fa: "۴-۷-۸ · خواب",
+    name_en: "4-7-8 · Sleep",
     emoji: "🌙",
-    goal: "آرام‌سازی سریع سیستم عصبی — قبل از خواب.",
+    goal_fa: "آرام‌سازی سریع سیستم عصبی — قبل از خواب.",
+    goal_en: "Rapid nervous system down-regulation — bedtime calming.",
     inhale: 4, holdIn: 7, exhale: 8, holdOut: 0, loops: 6,
     ambient: "binaural_delta",
     color: "from-indigo-600 via-purple-600 to-violet-700",
   },
   {
     id: "coherent",
-    name: "Coherent · ۵-۵",
+    name_fa: "Coherent · ۵-۵",
+    name_en: "Coherent · 5-5",
     emoji: "💗",
-    goal: "هماهنگی ضربان قلب و تنفس — تعادل احساسی.",
+    goal_fa: "هماهنگی ضربان قلب و تنفس — تعادل احساسی.",
+    goal_en: "Heart-rate resonance & HRV coherence — emotional balance.",
     inhale: 5, holdIn: 0, exhale: 5, holdOut: 0, loops: 12,
     ambient: "binaural_alpha",
     color: "from-rose-500 via-pink-500 to-fuchsia-500",
   },
   {
     id: "energizing",
-    name: "Energizing · ۶-۲-۴",
+    name_fa: "Energizing · ۶-۲-۴",
+    name_en: "Energizing · 6-2-4",
     emoji: "⚡",
-    goal: "افزایش انرژی و بیداری — جایگزین قهوه‌ی بعدازظهر.",
+    goal_fa: "افزایش انرژی و بیداری — جایگزین قهوه‌ی بعدازظهر.",
+    goal_en: "Boost alertness & vitality — healthy afternoon pick-me-up.",
     inhale: 6, holdIn: 2, exhale: 4, holdOut: 0, loops: 10,
     ambient: "binaural_beta",
     color: "from-amber-500 via-orange-500 to-red-500",
   },
   {
     id: "wimhof",
-    name: "Wim Hof سبک",
+    name_fa: "Wim Hof سبک",
+    name_en: "Light Wim Hof",
     emoji: "❄️",
-    goal: "تحریک سیستم سمپاتیک — تمرکز و مقاومت ذهنی.",
+    goal_fa: "تحریک سیستم سمپاتیک — تمرکز و مقاومت ذهنی.",
+    goal_en: "Sympathetic stimulation — mental endurance and focus.",
     inhale: 2, holdIn: 0, exhale: 2, holdOut: 0, loops: 30,
     ambient: "wind",
     color: "from-cyan-500 via-teal-500 to-emerald-500",
   },
 ];
 
-const PHASE_LABEL: Record<Phase, string> = {
-  inhale: "دم",
-  "hold-in": "نگه‌داشتن",
-  exhale: "بازدم",
-  "hold-out": "نگه‌داشتن",
+const PHASE_LABEL: Record<Phase, { fa: string; en: string }> = {
+  inhale: { fa: "دم", en: "Inhale" },
+  "hold-in": { fa: "نگه‌داشتن", en: "Hold" },
+  exhale: { fa: "بازدم", en: "Exhale" },
+  "hold-out": { fa: "نگه‌داشتن", en: "Hold" },
 };
 
 export default function BreathingView() {
+  const { T, isEn } = useBilingual();
   const [pattern, setPattern] = useState<Pattern>(PATTERNS[0]);
   const [running, setRunning] = useState(false);
   const [phase, setPhase] = useState<Phase>("inhale");
@@ -220,13 +234,16 @@ export default function BreathingView() {
   const displaySeconds = Math.max(1, Math.ceil(phaseLeft));
 
   return (
-    <div className="max-w-2xl mx-auto p-4 md:p-8 space-y-5 animate-fade-in" dir="rtl">
+    <div className="max-w-2xl mx-auto p-4 md:p-8 space-y-5 animate-fade-in" dir={isEn ? "ltr" : "rtl"}>
       <div className="flex items-center gap-2">
         <Wind className="w-6 h-6 text-primary" />
-        <h1 className="text-2xl font-bold">تمرین تنفس ۳بعدی</h1>
+        <h1 className="text-2xl font-bold">{T("تمرین تنفس ۳بعدی", "3D Breathing Practice")}</h1>
       </div>
       <p className="text-sm text-muted-foreground">
-        تنفس آگاهانه با راهنمای بصری. مناسب قبل از جلسه، خواب، یا برای تنظیم انرژی.
+        {T(
+          "تنفس آگاهانه با راهنمای بصری. مناسب قبل از جلسه، خواب، یا برای تنظیم انرژی.",
+          "Mindful breathing with dynamic visual guidance. Ideal before meetings, sleep, or energy regulation."
+        )}
       </p>
 
       {/* Pattern picker */}
@@ -239,9 +256,9 @@ export default function BreathingView() {
               onClick={() => setPattern(p)}
               className={`relative overflow-hidden rounded-2xl p-3 text-start text-white transition shadow-sm bg-gradient-to-br ${p.color} ${active ? "ring-2 ring-primary scale-[1.02]" : "opacity-90 hover:opacity-100"}`}
             >
-              <div className="text-xs opacity-90">{p.emoji} {p.loops} دور</div>
-              <div className="font-bold mt-1">{p.name}</div>
-              <div className="text-[11px] opacity-90 mt-1 leading-snug">{p.goal}</div>
+              <div className="text-xs opacity-90">{p.emoji} {isEn ? `${p.loops} cycles` : `${p.loops} دور`}</div>
+              <div className="font-bold mt-1">{isEn ? p.name_en : p.name_fa}</div>
+              <div className="text-[11px] opacity-90 mt-1 leading-snug">{isEn ? p.goal_en : p.goal_fa}</div>
             </button>
           );
         })}
@@ -276,10 +293,10 @@ export default function BreathingView() {
           {/* Center text */}
           <div className="absolute inset-0 flex flex-col items-center justify-center text-white pointer-events-none">
             <div className="text-3xl font-extrabold tabular-nums drop-shadow">{displaySeconds || phaseTotal || "—"}</div>
-            <div className="text-sm font-medium opacity-95 mt-1">{PHASE_LABEL[phase]}</div>
+            <div className="text-sm font-medium opacity-95 mt-1">{isEn ? PHASE_LABEL[phase].en : PHASE_LABEL[phase].fa}</div>
             {running && (
               <div className="text-[11px] opacity-80 mt-1">
-                دور {loop + 1} از {pattern.loops}
+                {isEn ? `Cycle ${loop + 1} of ${pattern.loops}` : `دور ${loop + 1} از ${pattern.loops}`}
               </div>
             )}
           </div>
@@ -288,11 +305,11 @@ export default function BreathingView() {
         <div className="relative flex gap-2 justify-center mt-4">
           {!running ? (
             <Button onClick={phaseLeft > 0 && phaseLeft < phaseTotal ? resume : start} size="lg" className="bg-white text-foreground hover:bg-white/90">
-              <Play className="w-5 h-5 me-1" /> {phaseLeft > 0 && phaseLeft < phaseTotal ? "ادامه" : "شروع"}
+              <Play className="w-5 h-5 me-1" /> {phaseLeft > 0 && phaseLeft < phaseTotal ? T("ادامه", "Resume") : T("شروع", "Start")}
             </Button>
           ) : (
             <Button onClick={pause} size="lg" variant="secondary">
-              <Pause className="w-5 h-5 me-1" /> توقف
+              <Pause className="w-5 h-5 me-1" /> {T("توقف", "Pause")}
             </Button>
           )}
           <Button onClick={() => stop(true)} size="lg" variant="outline" className="bg-white/15 text-white border-white/30 hover:bg-white/25">
@@ -305,10 +322,10 @@ export default function BreathingView() {
       <Card className="p-4 space-y-3">
         <div className="flex items-center justify-between">
           <label className="text-sm font-medium flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary" /> صدای همراه
+            <Sparkles className="w-4 h-4 text-primary" /> {T("صدای همراه", "Ambient Sound")}
           </label>
           <Button size="sm" variant={ambient ? "default" : "outline"} onClick={() => setAmbient(v => !v)}>
-            {ambient ? "روشن" : "خاموش"}
+            {ambient ? T("روشن", "On") : T("خاموش", "Off")}
           </Button>
         </div>
         {ambient && (
@@ -319,13 +336,16 @@ export default function BreathingView() {
           </div>
         )}
         <p className="text-[11px] text-muted-foreground">
-          صدا متناسب با نوع تمرین انتخاب شده — برای امواج بتا/تتا/دلتا با هندزفری گوش بده.
+          {T(
+            "صدا متناسب با نوع تمرین انتخاب شده — برای امواج بتا/تتا/دلتا با هندزفری گوش بده.",
+            "Sound is matched to the chosen exercise — use headphones for binaural alpha/beta/delta beats."
+          )}
         </p>
       </Card>
 
       <Card className="p-4 bg-muted/40 text-xs text-muted-foreground space-y-1">
-        <div>💡 <b>نکته:</b> اگر سرگیجه گرفتی، تمرین را قطع کن و عادی نفس بکش.</div>
-        <div>🩺 این تمرین جایگزین درمان نیست. در صورت بیماری قلبی/تنفسی با پزشک مشورت کن.</div>
+        <div>💡 <b>{T("نکته:", "Tip:")}</b> {T("اگر سرگیجه گرفتی، تمرین را قطع کن و عادی نفس بکش.", "If you feel dizzy, pause the exercise and breathe normally.")}</div>
+        <div>🩺 {T("این تمرین جایگزین درمان نیست. در صورت بیماری قلبی/تنفسی با پزشک مشورت کن.", "This exercise is not a substitute for clinical care. Consult your doctor if you have cardiovascular or respiratory conditions.")}</div>
       </Card>
     </div>
   );

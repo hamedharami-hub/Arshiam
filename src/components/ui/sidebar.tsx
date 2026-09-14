@@ -140,15 +140,21 @@ const Sidebar = React.forwardRef<
 >(({ side = "left", variant = "sidebar", collapsible = "offcanvas", className, children, ...props }, ref) => {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
   const contentRef = React.useRef<HTMLDivElement>(null);
-  const swipe = React.useRef<{ x: number; y: number; active: boolean } | null>(null);
+  const swipe = React.useRef<{ x: number; y: number; active: boolean; side: "left" | "right" } | null>(null);
 
-  const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+  const onTouchStart = (e: React.TouchEvent<HTMLDivElement>, panelSide: "left" | "right" = "right") => {
     if (isAndroid()) return; // One native gesture coordinator owns dragging.
     const t = e.targetTouches[0];
+    if (!t) return;
     const rect = contentRef.current?.getBoundingClientRect();
-    if (!rect || !t) return;
-    if (t.clientX - rect.left < 40) {
-      swipe.current = { x: t.clientX, y: t.clientY, active: true };
+    if (!rect) return;
+    // For right-side panel: start tracking from anywhere in panel
+    // For left-side panel: only track from near left edge
+    const startable = panelSide === "right"
+      ? (rect.right - t.clientX < 40 || true) // any touch on right panel
+      : t.clientX - rect.left < 40;
+    if (startable) {
+      swipe.current = { x: t.clientX, y: t.clientY, active: true, side: panelSide };
     }
   };
 
@@ -158,11 +164,21 @@ const Sidebar = React.forwardRef<
     if (!t) return;
     const dx = t.clientX - swipe.current.x;
     const dy = t.clientY - swipe.current.y;
+    // Cancel if vertical
     if (Math.abs(dy) > Math.abs(dx) * 0.8) {
       swipe.current.active = false;
+      return;
     }
-    if (dx > 56) {
+    // Right-side panel: swipe LEFT (dx < -60) to close
+    if (swipe.current.side === "right" && dx < -60) {
       setOpenMobile(false);
+      haptic("light");
+      swipe.current = null;
+    }
+    // Left-side panel: swipe RIGHT (dx > 56) to close
+    if (swipe.current.side === "left" && dx > 56) {
+      setOpenMobile(false);
+      haptic("light");
       swipe.current = null;
     }
   };
@@ -194,7 +210,7 @@ const Sidebar = React.forwardRef<
             backdrop-blur-xl shadow-2xl [&>button]:top-3 [&>button]:left-3 [&>button]:right-auto
             text-sidebar-foreground"
           side="right"
-          onTouchStart={onTouchStart}
+          onTouchStart={(e) => onTouchStart(e, "right")}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >

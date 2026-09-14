@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useBilingual } from "@/hooks/useBilingual";
 import { format, startOfDay, subDays, isSameDay, isWithinInterval } from "date-fns";
 import { getCalendarSystem, formatDate, toPersianDigits, jalaliDayOfWeek, WEEKDAY_SHORT_FA, type CalendarSystem } from "@/lib/jalali";
 import {
@@ -25,6 +26,7 @@ type Period = "today" | "week" | "month";
 
 export default function StatsView() {
   const { user } = useAuth();
+  const { T, isEn } = useBilingual();
   const [system] = useState<CalendarSystem>(getCalendarSystem());
   const [period, setPeriod] = useState<Period>("week");
   const [tasks, setTasks] = useState<TaskRow[]>([]);
@@ -96,7 +98,6 @@ export default function StatsView() {
     });
 
     const start = periodStart;
-    const daysCount = period === "today" ? 1 : period === "week" ? 7 : 30;
     const expectedDays = period === "today" ? 1 : period === "week" ? 7 : 30;
 
     return Array.from(byHabit.entries()).map(([id, h]) => {
@@ -129,11 +130,11 @@ export default function StatsView() {
   const bestHabit = habitStats[0];
 
   return (
-    <div dir="rtl" className="max-w-3xl mx-auto p-4 md:p-8 space-y-6 pb-24 animate-fade-in">
+    <div dir={isEn ? "ltr" : "rtl"} className="max-w-3xl mx-auto p-4 md:p-8 space-y-6 pb-24 page-enter">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-primary" /> آمار و خلاصه
+            <TrendingUp className="w-6 h-6 text-primary" /> {T("آمار و خلاصه", "Stats & Summary")}
           </h1>
           <p className="text-xs md:text-sm text-muted-foreground mt-1">
             {system === "jalali" ? formatDate(new Date(), "d MMMM yyyy", "jalali") : format(new Date(), "MMMM d, yyyy")}
@@ -149,23 +150,47 @@ export default function StatsView() {
               className="text-xs h-8"
               onClick={() => setPeriod(p)}
             >
-              {p === "today" ? "امروز" : p === "week" ? "۷ روز" : "۳۰ روز"}
+              {p === "today"
+                ? T("امروز", "Today")
+                : p === "week"
+                ? (isEn ? "7 Days" : "۷ روز")
+                : (isEn ? "30 Days" : "۳۰ روز")}
             </Button>
           ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <SummaryCard icon={CheckCircle2} label="تسک انجام‌شده" value={toPersianDigits(completedTasks.length)} gradient="from-emerald-500 to-teal-600" />
-        <SummaryCard icon={Clock} label="دقیقه تمرکز" value={toPersianDigits(focusMinutes)} gradient="from-amber-500 to-orange-600" />
-        <SummaryCard icon={Flame} label="عادت موفق" value={bestHabit ? toPersianDigits(bestHabit.rate) + "%" : "—"} gradient="from-violet-500 to-purple-600" />
-        <SummaryCard icon={AlertCircle} label="تسک عقب‌افتاده" value={toPersianDigits(overdueTasks.length)} gradient="from-rose-500 to-red-600" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 stagger-children">
+        <SummaryCard
+          icon={CheckCircle2}
+          label={T("تسک انجام‌شده", "Completed Tasks")}
+          value={isEn ? String(completedTasks.length) : toPersianDigits(completedTasks.length)}
+          gradient="from-emerald-500 to-teal-600"
+        />
+        <SummaryCard
+          icon={Clock}
+          label={T("دقیقه تمرکز", "Focus Minutes")}
+          value={isEn ? String(focusMinutes) : toPersianDigits(focusMinutes)}
+          gradient="from-amber-500 to-orange-600"
+        />
+        <SummaryCard
+          icon={Flame}
+          label={T("عادت موفق", "Best Habit")}
+          value={bestHabit ? (isEn ? `${bestHabit.rate}%` : toPersianDigits(bestHabit.rate) + "%") : "—"}
+          gradient="from-violet-500 to-purple-600"
+        />
+        <SummaryCard
+          icon={AlertCircle}
+          label={T("تسک عقب‌افتاده", "Overdue Tasks")}
+          value={isEn ? String(overdueTasks.length) : toPersianDigits(overdueTasks.length)}
+          gradient="from-rose-500 to-red-600"
+        />
       </div>
 
-      <Card>
+      <Card className="animate-fade-in-up" style={{ animationDelay: "80ms" }}>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <Target className="w-4 h-4 text-primary" /> فعالیت روزانه
+            <Target className="w-4 h-4 text-primary" /> {T("فعالیت روزانه", "Daily Activity")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -184,11 +209,13 @@ export default function StatsView() {
                     border: "1px solid hsl(var(--border))",
                     boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
                     fontSize: "12px",
-                    direction: "rtl",
+                    direction: isEn ? "ltr" : "rtl",
                   }}
                   formatter={(value: number, name: string) => [
-                    name === "minutes" ? `${toPersianDigits(value)} دقیقه` : toPersianDigits(value),
-                    name === "minutes" ? "تمرکز" : "تسک",
+                    name === "minutes"
+                      ? (isEn ? `${value} min` : `${toPersianDigits(value)} دقیقه`)
+                      : (isEn ? String(value) : toPersianDigits(value)),
+                    name === "minutes" ? T("تمرکز", "Focus") : T("تسک", "Tasks"),
                   ]}
                   labelFormatter={(label: string) => label}
                 />
@@ -201,10 +228,10 @@ export default function StatsView() {
       </Card>
 
       {habitStats.length > 0 && (
-        <Card>
+        <Card className="animate-fade-in-up" style={{ animationDelay: "140ms" }}>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
-              <Flame className="w-4 h-4 text-primary" /> پیشرفت عادت‌ها
+              <Flame className="w-4 h-4 text-primary" /> {T("پیشرفت عادت‌ها", "Habit Progress")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -221,7 +248,11 @@ export default function StatsView() {
               <div key={h.id} className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-medium truncate flex-1">{h.name}</span>
-                  <span className="text-muted-foreground tabular-nums">{toPersianDigits(h.logs)}/{toPersianDigits(h.target)} • {toPersianDigits(h.rate)}%</span>
+                  <span className="text-muted-foreground tabular-nums">
+                    {isEn
+                      ? `${h.logs}/${h.target} • ${h.rate}%`
+                      : `${toPersianDigits(h.logs)}/${toPersianDigits(h.target)} • ${toPersianDigits(h.rate)}%`}
+                  </span>
                 </div>
                 <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                   <div
@@ -237,10 +268,10 @@ export default function StatsView() {
       )}
 
       {completedTasks.length > 0 && (
-        <Card>
+        <Card className="animate-fade-in-up" style={{ animationDelay: "200ms" }}>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-primary" /> آخرین تسک‌های انجام‌شده
+              <CheckCircle2 className="w-4 h-4 text-primary" /> {T("آخرین تسک‌های انجام‌شده", "Recently Completed Tasks")}
             </CardTitle>
           </CardHeader>
           <CardContent className="divide-y">
@@ -271,7 +302,7 @@ function SummaryCard({
   gradient: string;
 }) {
   return (
-    <div className="group rounded-2xl border border-border/50 bg-card/60 p-4 shadow-2xs hover:shadow-sm hover:border-border transition-all duration-200">
+    <div className="group rounded-2xl border border-border/50 bg-card/60 p-4 shadow-2xs card-hover animate-fade-in-up">
       <div className="flex items-center gap-3">
         <div className={`grid place-items-center h-9 w-9 rounded-xl bg-gradient-to-tr ${gradient} text-white shrink-0 shadow-xs transition-transform group-hover:scale-105`}>
           <Icon className="w-4 h-4" />

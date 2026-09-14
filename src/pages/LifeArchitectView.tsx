@@ -266,15 +266,19 @@ export default function LifeArchitectView() {
           </div>
 
           <div className="space-y-2">
-            <h2 className="text-xl sm:text-2xl font-black text-foreground">{currentQuestion.titleFa}</h2>
-            <p className="text-xs sm:text-sm text-muted-foreground">{currentQuestion.subtitleFa}</p>
+            <h2 className="text-xl sm:text-2xl font-black text-foreground">
+              {isEn && currentQuestion.titleEn ? currentQuestion.titleEn : currentQuestion.titleFa}
+            </h2>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              {isEn && currentQuestion.subtitleEn ? currentQuestion.subtitleEn : currentQuestion.subtitleFa}
+            </p>
           </div>
 
           <div className="p-3 rounded-2xl bg-primary/5 border border-primary/20 flex items-start gap-2.5 text-xs text-foreground/90">
             <Brain className="w-4 h-4 text-primary shrink-0 mt-0.5" />
             <div className="leading-relaxed">
               <span className="font-bold text-primary ms-1">{T("بینش علمی روانشناسی:", "Scientific Insight:")}</span>
-              {currentQuestion.scientificInsightFa}
+              {isEn && currentQuestion.scientificInsightEn ? currentQuestion.scientificInsightEn : currentQuestion.scientificInsightFa}
             </div>
           </div>
 
@@ -284,6 +288,9 @@ export default function LifeArchitectView() {
               const isSelected = currentQuestion.isMultiSelect
                 ? Array.isArray(selectedValue) && (selectedValue as string[]).includes(opt.value)
                 : selectedValue === opt.value;
+              const label = isEn && opt.labelEn ? opt.labelEn : opt.labelFa;
+              const desc = isEn && opt.descEn ? opt.descEn : opt.descFa;
+              const badge = isEn && opt.badgeEn ? opt.badgeEn : opt.badge;
 
               return (
                 <Card
@@ -298,15 +305,15 @@ export default function LifeArchitectView() {
                   <span className="text-2xl shrink-0 select-none p-1">{opt.icon}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 mb-1">
-                      <span className="font-bold text-sm text-foreground truncate">{opt.labelFa}</span>
-                      {opt.badge && (
+                      <span className="font-bold text-sm text-foreground truncate">{label}</span>
+                      {badge && (
                         <Badge variant="secondary" className="text-[10px] py-0 px-1.5 font-normal">
-                          {opt.badge}
+                          {badge}
                         </Badge>
                       )}
                       {isSelected && <Check className="w-4 h-4 ms-auto text-primary shrink-0" />}
                     </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{opt.descFa}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
                   </div>
                 </Card>
               );

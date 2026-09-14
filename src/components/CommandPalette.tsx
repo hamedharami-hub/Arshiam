@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput,
@@ -13,6 +13,8 @@ import {
   PlusCircle, Database, CheckSquare, Search,
 } from "lucide-react";
 
+import { useBilingual } from "@/hooks/useBilingual";
+
 type Hit = {
   kind: "task" | "note" | "folder" | "tag" | "action";
   id: string;
@@ -21,33 +23,36 @@ type Hit = {
   action?: () => void;
 };
 
-const NAV = [
-  { label: "اینباکس", to: "/app/inbox", icon: ListTodo, keywords: "inbox اینباکس ورودی" },
-  { label: "امروز", to: "/app/today", icon: ListTodo, keywords: "today امروز" },
-  { label: "فردا", to: "/app/tomorrow", icon: Calendar, keywords: "tomorrow فردا" },
-  { label: "هفت روز آینده", to: "/app/next7", icon: Calendar, keywords: "week 7 آینده" },
-  { label: "تقویم", to: "/app/calendar", icon: Calendar, keywords: "calendar تقویم" },
-  { label: "نوت‌ها", to: "/app/notes", icon: FileText, keywords: "notes نوت یادداشت" },
-  { label: "عادات", to: "/app/habits", icon: Heart, keywords: "habits عادت" },
-  { label: "Pomodoro", to: "/app/pomodoro", icon: Timer, keywords: "pomodoro تمرکز پومودورو" },
-  { label: "آمار و عملکرد", to: "/app/stats", icon: BarChart3, keywords: "stats summary statistics آمار خلاصه" },
-  { label: "داشبورد ذهن", to: "/app/mind", icon: Brain, keywords: "mind ذهن داشبورد" },
-  { label: "خودشناسی", to: "/app/self", icon: Brain, keywords: "self شخصیت" },
-  { label: "چک‌این روزانه", to: "/app/checkin", icon: Heart, keywords: "checkin checkin روزانه" },
-  { label: "ثبت افکار CBT", to: "/app/thoughts", icon: Brain, keywords: "thought cbt افکار" },
-  { label: "مدل ABC", to: "/app/abc", icon: Brain, keywords: "abc الگو" },
-  { label: "چت سقراطی", to: "/app/socratic", icon: Brain, keywords: "socratic سقراط" },
-  { label: "تمرین تنفس", to: "/app/breathing", icon: Heart, keywords: "breath breathing تنفس مدیتیشن" },
-  { label: "معمار زندگی", to: "/app/life-architect", icon: Compass, keywords: "life architect معمار زندگی برنامه ریزی هدف اهداف" },
-  { label: "تنظیمات و پشتیبان‌گیری", to: "/app/settings", icon: Settings, keywords: "settings تنظیمات بکاپ firestore firebaseStore" },
+const getNavItems = (T: (fa: string, en: string) => string) => [
+  { label: T("اینباکس", "Inbox"), to: "/app/inbox", icon: ListTodo, keywords: "inbox اینباکس ورودی" },
+  { label: T("امروز", "Today"), to: "/app/today", icon: ListTodo, keywords: "today امروز" },
+  { label: T("فردا", "Tomorrow"), to: "/app/tomorrow", icon: Calendar, keywords: "tomorrow فردا" },
+  { label: T("هفت روز آینده", "Next 7 Days"), to: "/app/next7", icon: Calendar, keywords: "week 7 آینده" },
+  { label: T("تقویم", "Calendar"), to: "/app/calendar", icon: Calendar, keywords: "calendar تقویم" },
+  { label: T("نوت‌ها", "Notes"), to: "/app/notes", icon: FileText, keywords: "notes نوت یادداشت" },
+  { label: T("عادات", "Habits"), to: "/app/habits", icon: Heart, keywords: "habits عادت" },
+  { label: T("پومودورو", "Pomodoro"), to: "/app/pomodoro", icon: Timer, keywords: "pomodoro تمرکز پومودورو" },
+  { label: T("آمار و عملکرد", "Stats & Summary"), to: "/app/stats", icon: BarChart3, keywords: "stats summary statistics آمار خلاصه" },
+  { label: T("داشبورد ذهن", "Mind Dashboard"), to: "/app/mind", icon: Brain, keywords: "mind ذهن داشبورد" },
+  { label: T("خودشناسی", "Self Knowledge"), to: "/app/self", icon: Brain, keywords: "self شخصیت" },
+  { label: T("چک‌این روزانه", "Daily Check-in"), to: "/app/checkin", icon: Heart, keywords: "checkin checkin روزانه" },
+  { label: T("ثبت افکار CBT", "CBT Thoughts"), to: "/app/thoughts", icon: Brain, keywords: "thought cbt افکار" },
+  { label: T("مدل ABC", "ABC Model"), to: "/app/abc", icon: Brain, keywords: "abc الگو" },
+  { label: T("چت سقراطی", "Socratic Chat"), to: "/app/socratic", icon: Brain, keywords: "socratic سقراط" },
+  { label: T("تمرین تنفس", "Breathing Exercise"), to: "/app/breathing", icon: Heart, keywords: "breath breathing تنفس مدیتیشن" },
+  { label: T("معمار زندگی", "Life Architect"), to: "/app/life-architect", icon: Compass, keywords: "life architect معمار زندگی برنامه ریزی هدف اهداف" },
+  { label: T("تنظیمات و پشتیبان‌گیری", "Settings & Backup"), to: "/app/settings", icon: Settings, keywords: "settings تنظیمات بکاپ firestore firebaseStore" },
 ];
 
 export default function CommandPalette() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { T, isEn } = useBilingual();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<Hit[]>([]);
+
+  const navItems = useMemo(() => getNavItems(T), [T]);
 
   useEffect(() => {
     const keyHandler = (e: KeyboardEvent) => {
@@ -97,8 +102,8 @@ export default function CommandPalette() {
             localHits.push({
               kind: "task",
               id: t.id,
-              title: t.title || "بدون عنوان",
-              subtitle: t.due_date ? `موعد: ${new Date(t.due_date).toLocaleDateString("fa-IR")}` : undefined,
+              title: t.title || T("بدون عنوان", "Untitled"),
+              subtitle: t.due_date ? `${T("موعد", "Due")}: ${new Date(t.due_date).toLocaleDateString(isEn ? "en-US" : "fa-IR")}` : undefined,
             });
           }
         });
@@ -123,8 +128,8 @@ export default function CommandPalette() {
             localHits.push({
               kind: "note",
               id: n.id,
-              title: n.title || "بدون عنوان",
-              subtitle: n.folder_id ? "درون پوشه" : undefined,
+              title: n.title || T("بدون عنوان", "Untitled"),
+              subtitle: n.folder_id ? T("درون پوشه", "In folder") : undefined,
             });
           }
         });
@@ -179,7 +184,7 @@ export default function CommandPalette() {
     }, 250);
 
     return () => clearTimeout(t);
-  }, [q, user, open]);
+  }, [q, user, open, T, isEn]);
 
   const go = useCallback((to: string) => {
     setOpen(false);
@@ -189,26 +194,26 @@ export default function CommandPalette() {
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <div className="flex items-center px-3 border-b border-border/50" dir="rtl">
+      <div className="flex items-center px-3 border-b border-border/50" dir={isEn ? "ltr" : "rtl"}>
         <Search className="w-4 h-4 text-muted-foreground me-2 shrink-0" />
         <CommandInput
-          dir="rtl"
-          placeholder="جستجو در تسک‌ها، نوت‌ها، فولدرها، تگ‌ها یا رفتن به صفحه... (Ctrl+K)"
+          dir={isEn ? "ltr" : "rtl"}
+          placeholder={T("جستجو در تسک‌ها، نوت‌ها، فولدرها، تگ‌ها یا رفتن به صفحه... (Ctrl+K)", "Search tasks, notes, folders, tags, or jump to page... (Ctrl+K)")}
           value={q}
           onValueChange={setQ}
           className="text-sm h-12"
         />
       </div>
 
-      <CommandList className="max-h-[65vh] overflow-y-auto" dir="rtl">
+      <CommandList className="max-h-[65vh] overflow-y-auto" dir={isEn ? "ltr" : "rtl"}>
         <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
-          هیچ موردی منطبق با عبارت مورد نظر پیدا نشد.
+          {T("هیچ موردی منطبق با عبارت مورد نظر پیدا نشد.", "No results found for your query.")}
         </CommandEmpty>
 
         {/* Quick action shortcuts */}
-        <CommandGroup heading="اقدامات سریع">
+        <CommandGroup heading={T("اقدامات سریع", "Quick Actions")}>
           <CommandItem
-            value="ایجاد تسک جدید new task add"
+            value={`ایجاد تسک جدید new task add ${T("ایجاد تسک جدید", "New Task")}`}
             onSelect={() => {
               setOpen(false);
               navigate("/app/inbox");
@@ -218,16 +223,16 @@ export default function CommandPalette() {
             }}
           >
             <PlusCircle className="w-4 h-4 ms-2 text-primary" />
-            <span>ایجاد تسک جدید</span>
+            <span>{T("ایجاد تسک جدید", "Create New Task")}</span>
             <span className="ms-auto text-[11px] text-muted-foreground font-mono">N</span>
           </CommandItem>
 
           <CommandItem
-            value="همگام‌سازی ابری فایربیس firebase sync cloud"
+            value={`همگام‌سازی ابری فایربیس firebase sync cloud ${T("وضعیت همگام‌سازی و پشتیبان ابری", "Cloud sync and backup status")}`}
             onSelect={() => go("/app/settings")}
           >
             <Database className="w-4 h-4 ms-2 text-amber-500" />
-            <span>وضعیت همگام‌سازی و پشتیبان ابری</span>
+            <span>{T("وضعیت همگام‌سازی و پشتیبان ابری", "Cloud Sync & Backup Status")}</span>
             <span className="ms-auto text-[11px] text-amber-500 font-medium">Firestore</span>
           </CommandItem>
         </CommandGroup>
@@ -236,7 +241,7 @@ export default function CommandPalette() {
 
         {hits.length > 0 && (
           <>
-            <CommandGroup heading="نتایج جستجو">
+            <CommandGroup heading={T("نتایج جستجو", "Search Results")}>
               {hits.map((h) => {
                 const Icon = h.kind === "task" ? CheckSquare : h.kind === "note" ? FileText : h.kind === "folder" ? Folder : Hash;
                 const to = h.kind === "task" ? `/app/tasks/${h.id}` :
@@ -259,7 +264,7 @@ export default function CommandPalette() {
                       )}
                     </div>
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium shrink-0">
-                      {h.kind === "task" ? "تسک" : h.kind === "note" ? "نوت" : h.kind === "folder" ? "فولدر" : "تگ"}
+                      {h.kind === "task" ? T("تسک", "Task") : h.kind === "note" ? T("نوت", "Note") : h.kind === "folder" ? T("فولدر", "Folder") : T("تگ", "Tag")}
                     </span>
                   </CommandItem>
                 );
@@ -269,8 +274,8 @@ export default function CommandPalette() {
           </>
         )}
 
-        <CommandGroup heading="بخش‌ها و صفحات اپلیکیشن">
-          {NAV.map((n) => {
+        <CommandGroup heading={T("بخش‌ها و صفحات اپلیکیشن", "App Sections & Pages")}>
+          {navItems.map((n) => {
             const Icon = n.icon;
             return (
               <CommandItem key={n.to} value={`${n.label} ${n.keywords}`} onSelect={() => go(n.to)} className="cursor-pointer">

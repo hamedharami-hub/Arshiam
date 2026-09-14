@@ -18,6 +18,19 @@ export const DISTORTION_LABELS: Record<Distortion, string> = {
   personalization: "شخصی‌سازی",
 };
 
+export const DISTORTION_LABELS_EN: Record<Distortion, string> = {
+  overgeneralization: "Overgeneralization",
+  all_or_nothing: "All-or-Nothing Thinking",
+  mental_filter: "Mental Filter",
+  discounting_positive: "Discounting the Positive",
+  jumping_to_conclusions: "Jumping to Conclusions",
+  magnification: "Catastrophizing / Magnification",
+  emotional_reasoning: "Emotional Reasoning",
+  shoulds: "Should Statements",
+  labeling: "Labeling",
+  personalization: "Personalization",
+};
+
 export const DISTORTION_HINTS: Record<Distortion, string> = {
   overgeneralization: "کلمات «همیشه/هرگز/هیچ‌کس» الگوی تعمیم است. ۳ مثال نقض پیدا کن.",
   all_or_nothing: "آیا یک حالت میانی هم قابل تصور است؟ از ۰ تا ۱۰۰ کجاست؟",
@@ -31,43 +44,64 @@ export const DISTORTION_HINTS: Record<Distortion, string> = {
   personalization: "چه عوامل دیگری (خارج از کنترل تو) در کار بودند؟",
 };
 
+export const DISTORTION_HINTS_EN: Record<Distortion, string> = {
+  overgeneralization: "Words like 'always/never/nobody' indicate overgeneralization. Can you find 3 counterexamples?",
+  all_or_nothing: "Is there a middle ground? On a scale of 0 to 100, where does this actually fall?",
+  mental_filter: "Did anything positive happen in that situation that you might be filtering out?",
+  discounting_positive: "If this happened to a friend, would you consider it unimportant?",
+  jumping_to_conclusions: "What objective evidence supports this? Is this mind reading or fortune telling?",
+  magnification: "On a 0-10 scale, how severe is this really? How likely is the absolute worst case?",
+  emotional_reasoning: "A feeling is a data point, not proof. What factual evidence do you have?",
+  shoulds: "Where does this 'should' come from? Is it a personal rule or an absolute law?",
+  labeling: "Is this a permanent label, or a description of a single specific behavior?",
+  personalization: "What other factors (outside your control) contributed to this outcome?",
+};
+
+export function getDistortionLabel(d: Distortion, isEn = false): string {
+  return isEn ? DISTORTION_LABELS_EN[d] || DISTORTION_LABELS[d] : DISTORTION_LABELS[d];
+}
+
+export function getDistortionHint(d: Distortion, isEn = false): string {
+  return isEn ? DISTORTION_HINTS_EN[d] || DISTORTION_HINTS[d] : DISTORTION_HINTS[d];
+}
+
 // Each pattern carries weight = intensity contribution
 type Pat = { d: Distortion; rx: RegExp; w: number };
 
 const PATTERNS: Pat[] = [
   // Overgeneralization
-  { d: "overgeneralization", rx: /(همیشه|هرگز|هیچ‌?کس|هیچ‌?وقت|هیچ وقت|همه‌?ی? مردم|همه چیز|هیچ‌?چیز)/g, w: 1 },
-  { d: "overgeneralization", rx: /(دوباره|باز هم|مثل همیشه|مثل دفعات قبل)/g, w: 0.6 },
+  { d: "overgeneralization", rx: /(همیشه|هرگز|هیچ‌?کس|هیچ‌?وقت|هیچ وقت|همه‌?ی? مردم|همه چیز|هیچ‌?چیز|\balways\b|\bnever\b|\beveryone\b|\bnobody\b|\beverything\b|\bnothing\b)/gi, w: 1 },
+  { d: "overgeneralization", rx: /(دوباره|باز هم|مثل همیشه|مثل دفعات قبل|\bagain\b|\bas usual\b)/gi, w: 0.6 },
 
   // All-or-nothing
-  { d: "all_or_nothing", rx: /(کاملاً? شکست|کاملاً? موفق|صفر|صد در صد|۱۰۰٪|یا .* یا)/g, w: 1 },
-  { d: "all_or_nothing", rx: /(یا الان|حتماً? باید|بی‌نقص|کامل|بی عیب)/g, w: 0.5 },
+  { d: "all_or_nothing", rx: /(کاملاً? شکست|کاملاً? موفق|صفر|صد در صد|۱۰۰٪|یا .* یا|\btotal failure\b|\bcompletely\b|\b100%\b|\beither .* or\b)/gi, w: 1 },
+  { d: "all_or_nothing", rx: /(یا الان|حتماً? باید|بی‌نقص|کامل|بی عیب|\bperfect\b|\bflawless\b)/gi, w: 0.5 },
 
   // Mental filter
-  { d: "mental_filter", rx: /(فقط .* بد|تنها چیز بد|هیچ نکته خوبی|هیچ چیز خوبی)/g, w: 1 },
+  { d: "mental_filter", rx: /(فقط .* بد|تنها چیز بد|هیچ نکته خوبی|هیچ چیز خوبی|\bonly bad\b|\bnothing good\b)/gi, w: 1 },
 
   // Discounting positive
-  { d: "discounting_positive", rx: /(مهم نیست|شانس بود|اتفاقی بود|هر کسی می‌?توانست|کار خاصی نکردم)/g, w: 1 },
+  { d: "discounting_positive", rx: /(مهم نیست|شانس بود|اتفاقی بود|هر کسی می‌?توانست|کار خاصی نکردم|\bdoesn't count\b|\bjust luck\b|\banyone could\b)/gi, w: 1 },
 
   // Jumping to conclusions (mind reading + fortune telling)
-  { d: "jumping_to_conclusions", rx: /(حتماً? فکر می‌?کند|قطعاً? می‌?داند|معلومه که|مطمئنم که)/g, w: 1 },
-  { d: "jumping_to_conclusions", rx: /(آینده‌ام تمام|قطعاً? اتفاق|بدون شک خواهد|هیچ شانسی ندارم)/g, w: 1 },
+  { d: "jumping_to_conclusions", rx: /(حتماً? فکر می‌?کند|قطعاً? می‌?داند|معلومه که|مطمئنم که|\bthey must think\b|\bobviously\b|\bi'm sure that\b)/gi, w: 1 },
+  { d: "jumping_to_conclusions", rx: /(آینده‌ام تمام|قطعاً? اتفاق|بدون شک خواهد|هیچ شانسی ندارم|\bno chance\b|\bwill definitely fail\b)/gi, w: 1 },
 
   // Magnification / catastrophizing
-  { d: "magnification", rx: /(فاجعه|افتضاح|نابودی|نابود|وحشتناک|بدترین حالت|بدترین چیز)/g, w: 1 },
-  { d: "magnification", rx: /(دیگر تمام شد|آخر دنیا|نمی‌?توانم تحمل کنم|غیر قابل تحمل)/g, w: 0.8 },
+  { d: "magnification", rx: /(فاجعه|افتضاح|نابودی|نابود|وحشتناک|بدترین حالت|بدترین چیز|\bdisaster\b|\bterrible\b|\bawful\b|\bworst case\b|\bcatastrophe\b)/gi, w: 1 },
+  { d: "magnification", rx: /(دیگر تمام شد|آخر دنیا|نمی‌?توانم تحمل کنم|غیر قابل تحمل|\bend of the world\b|\bcan't stand this\b|\bunbearable\b)/gi, w: 0.8 },
 
   // Emotional reasoning
-  { d: "emotional_reasoning", rx: /(احساس می‌?کنم پس|چون احساس می‌?کنم|چون می‌?ترسم پس|حسم می‌?گوید پس)/g, w: 1 },
+  { d: "emotional_reasoning", rx: /(احساس می‌?کنم پس|چون احساس می‌?کنم|چون می‌?ترسم پس|حسم می‌?گوید پس|\bi feel like therefore\b|\bi feel it so it must be\b)/gi, w: 1 },
 
   // Shoulds
-  { d: "shoulds", rx: /(باید|نباید|مجبور(م|ی|ه)?|حتماً? باید|واجب است)/g, w: 0.7 },
+  { d: "shoulds", rx: /(باید|نباید|مجبور(م|ی|ه)?|حتماً? باید|واجب است|\bshould\b|\bshouldn't\b|\bmust\b|\bought to\b)/gi, w: 0.7 },
 
   // Labeling
-  { d: "labeling", rx: /(بازنده|ضعیف(م|ی|ه)?|احمق(م|ی|ه)?|بی‌?عرضه|بی‌?لیاقت|آدم بدی|آدم خوبی نیستم)/g, w: 1 },
+  { d: "labeling", rx: /(بازنده|ضعیف(م|ی|ه)?|احمق(م|ی|ه)?|بی‌?عرضه|بی‌?لیاقت|آدم بدی|آدم خوبی نیستم|\bloser\b|\bstupid\b|\bidiot\b|\buseless\b|\bbad person\b)/gi, w: 1 },
 
   // Personalization
-  { d: "personalization", rx: /(تقصیر من|به خاطر من|بخاطر من|من باعث شدم|اگر من نبودم)/g, w: 1 },
+  { d: "personalization", rx: /(تقصیر من|به خاطر من|بخاطر من|من باعث شدم|اگر من نبودم|\bmy fault\b|\bbecause of me\b|\bi caused it\b)/gi, w: 1 },
 ];
 
 export function detectDistortions(text: string): Distortion[] {

@@ -26,4 +26,9 @@ export const CRISIS_RESOURCES = {
     { label: "خط مشاوره بهزیستی", phone: "1480" },
     { label: "اورژانس", phone: "115" },
   ],
+  en: [
+    { label: "Emergency Services", phone: "911 / 112" },
+    { label: "Suicide & Crisis Lifeline (US/CA)", phone: "988" },
+    { label: "Crisis Text Line", phone: "Text HOME to 741741" },
+  ],
 };

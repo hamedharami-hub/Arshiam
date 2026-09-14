@@ -29,13 +29,32 @@ export type CycleLog = {
 
 export type Phase = "period" | "follicular" | "ovulation" | "luteal" | "unknown";
 
-export const PHASE_META: Record<Phase, { label: string; color: string; description: string }> = {
-  period:     { label: "قاعدگی",     color: "#EF4444", description: "روزهای پریود" },
-  follicular: { label: "فولیکولار",  color: "#F59E0B", description: "انرژی روبه‌بالا، تمرکز خوب" },
-  ovulation:  { label: "تخمک‌گذاری", color: "#10B981", description: "پنجره باروری، اوج انرژی" },
-  luteal:     { label: "لوتئال",     color: "#8B5CF6", description: "PMS احتمالی، آرام‌تر" },
-  unknown:    { label: "—",          color: "#94A3B8", description: "" },
+export const PHASE_META: Record<Phase, { label: string; label_en: string; color: string; description: string; description_en: string }> = {
+  period:     { label: "قاعدگی",     label_en: "Menstruation", color: "#EF4444", description: "روزهای پریود", description_en: "Menstrual flow days" },
+  follicular: { label: "فولیکولار",  label_en: "Follicular",   color: "#F59E0B", description: "انرژی روبه‌بالا، تمرکز خوب", description_en: "Rising energy, optimal focus" },
+  ovulation:  { label: "تخمک‌گذاری", label_en: "Ovulation",    color: "#10B981", description: "پنجره باروری، اوج انرژی", description_en: "Fertility window, peak vitality" },
+  luteal:     { label: "لوتئال",     label_en: "Luteal",       color: "#8B5CF6", description: "PMS احتمالی، آرام‌تر", description_en: "Potential PMS, time for gentle rest" },
+  unknown:    { label: "—",          label_en: "—",            color: "#94A3B8", description: "", description_en: "" },
 };
+
+export const SYMPTOM_MAP: Record<string, string> = {
+  "سردرد": "Headache",
+  "کمردرد": "Back pain",
+  "نفخ": "Bloating",
+  "حساسیت سینه": "Breast tenderness",
+  "آکنه": "Acne",
+  "خستگی": "Fatigue",
+  "بی‌خوابی": "Insomnia",
+  "ولع غذایی": "Food cravings",
+  "اضطراب": "Anxiety",
+  "افسردگی خفیف": "Mild low mood",
+  "تحریک‌پذیری": "Irritability",
+};
+
+export function getSymptomLabel(s: string, isEn = false): string {
+  if (!isEn) return s;
+  return SYMPTOM_MAP[s] || s;
+}
 
 /** Pick the most recent period_start log on or before `date`. */
 export function lastPeriodStartOnOrBefore(logs: CycleLog[], date: Date): CycleLog | null {

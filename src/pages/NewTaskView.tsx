@@ -14,6 +14,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+import { useBilingual } from "@/hooks/useBilingual";
+
 /**
  * Full-screen "new task" page. Keeps a local draft until a real save boundary,
  * so a slow connection never leaves the editor on a permanent spinner.
@@ -23,6 +25,7 @@ export default function NewTaskView() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const { T, isEn } = useBilingual();
   const [draft, setDraft] = useState<Task | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
@@ -111,18 +114,18 @@ export default function NewTaskView() {
     if (!d) return;
     const current = detailRef.current?.getCurrentTask() || d;
     if (!current.title?.trim()) {
-      toast.error("عنوان تسک را وارد کن");
+      toast.error(T("عنوان تسک را وارد کن", "Enter task title"));
       return;
     }
     setBusy(true);
     try {
       await detailRef.current?.savePendingChanges(true);
       savedRef.current = true;
-      if (!await persistInitialTag(current.id)) toast.error("تسک ذخیره شد، اما برچسب هنوز ذخیره نشده است");
-      toast.success("تسک ذخیره شد");
+      if (!await persistInitialTag(current.id)) toast.error(T("تسک ذخیره شد، اما برچسب هنوز ذخیره نشده است", "Task saved, but tag not saved yet"));
+      toast.success(T("تسک ذخیره شد", "Task saved"));
       navigate(-1);
     } catch {
-      toast.error("ذخیره انجام نشد؛ تغییرات همچنان باز هستند");
+      toast.error(T("ذخیره انجام نشد؛ تغییرات همچنان باز هستند", "Save failed; changes are still open"));
     } finally {
       setBusy(false);
     }
@@ -133,7 +136,7 @@ export default function NewTaskView() {
     if (d) {
       savedRef.current = true; // prevent cleanup double-delete
       if (user && persistedRef.current && !await deleteTask(user.id, d.id)) {
-        toast.error("حذف روی این دستگاه ذخیره نشد");
+        toast.error(T("حذف روی این دستگاه ذخیره نشد", "Deletion not saved on this device"));
         savedRef.current = false;
         return;
       }
@@ -146,19 +149,19 @@ export default function NewTaskView() {
     const d = draftRef.current;
     const current = detailRef.current?.getCurrentTask() || d;
     if (!current?.title?.trim()) {
-      toast.error("برای ذخیره، عنوان لازم است");
+      toast.error(T("برای ذخیره، عنوان لازم است", "Title is required to save"));
       return;
     }
     setBusy(true);
     try {
       await detailRef.current?.savePendingChanges(true);
       savedRef.current = true;
-      if (!await persistInitialTag(current.id)) toast.error("تسک ذخیره شد، اما برچسب هنوز ذخیره نشده است");
+      if (!await persistInitialTag(current.id)) toast.error(T("تسک ذخیره شد، اما برچسب هنوز ذخیره نشده است", "Task saved, but tag not saved yet"));
       setBackAsk(false);
-      toast.success("تسک ذخیره شد");
+      toast.success(T("تسک ذخیره شد", "Task saved"));
       navigate(-1);
     } catch {
-      toast.error("ذخیره انجام نشد؛ تغییرات همچنان باز هستند");
+      toast.error(T("ذخیره انجام نشد؛ تغییرات همچنان باز هستند", "Save failed; changes are still open"));
     } finally {
       setBusy(false);
     }
@@ -167,7 +170,7 @@ export default function NewTaskView() {
   if (!user) {
     return (
       <div className="p-12 text-center text-muted-foreground">
-        برای ساخت تسک، ابتدا وارد حساب خودت شو.
+        {T("برای ساخت تسک، ابتدا وارد حساب خودت شو.", "Please sign in first to create a task.")}
       </div>
     );
   }
@@ -181,15 +184,15 @@ export default function NewTaskView() {
   }
 
   return (
-    <div dir="rtl" className="w-full pb-40">
+    <div dir={isEn ? "ltr" : "rtl"} className="w-full pb-40">
       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b flex items-center justify-between gap-2 p-3">
         <Button variant="ghost" size="sm" onClick={handleBack} className="gap-1">
-          <ArrowRight className="w-4 h-4" /> برگشت
+          <ArrowRight className={`w-4 h-4 ${isEn ? "rotate-180" : ""}`} /> {T("برگشت", "Back")}
         </Button>
-        <h1 className="text-base font-bold flex-1 text-center">تسک جدید</h1>
+        <h1 className="text-base font-bold flex-1 text-center">{T("تسک جدید", "New Task")}</h1>
         <Button onClick={finish} disabled={busy} size="sm" className="gap-1">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-          ذخیره
+          {T("ذخیره", "Save")}
         </Button>
       </div>
 
@@ -204,39 +207,41 @@ export default function NewTaskView() {
 
       {/* Back-press: save / discard / cancel */}
       <AlertDialog open={backAsk} onOpenChange={setBackAsk}>
-        <AlertDialogContent>
+        <AlertDialogContent dir={isEn ? "ltr" : "rtl"}>
           <AlertDialogHeader>
-            <AlertDialogTitle>تسک ذخیره بشه؟</AlertDialogTitle>
+            <AlertDialogTitle>{T("تسک ذخیره بشه؟", "Save task?")}</AlertDialogTitle>
             <AlertDialogDescription>
-              قبل از برگشت، می‌خوای این تسک ذخیره بشه یا دور انداخته بشه؟
+              {T("قبل از برگشت، می‌خوای این تسک ذخیره بشه یا دور انداخته بشه؟", "Before going back, do you want to save or discard this task?")}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-row-reverse gap-2">
-            <AlertDialogAction onClick={(event) => { event.preventDefault(); void saveAndBack(); }} disabled={busy}>ذخیره</AlertDialogAction>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel>{T("ادامه ویرایش", "Keep Editing")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={discardAndBack}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              دور بنداز
+              {T("دور بنداز", "Discard")}
             </AlertDialogAction>
-            <AlertDialogCancel>ادامه ویرایش</AlertDialogCancel>
+            <AlertDialogAction onClick={(event) => { event.preventDefault(); void saveAndBack(); }} disabled={busy}>
+              {T("ذخیره", "Save")}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* Delete confirmations from TaskDetail (subtasks/notes) */}
       <AlertDialog open={!!confirm} onOpenChange={(v) => !v && setConfirm(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent dir={isEn ? "ltr" : "rtl"}>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirm?.kind === "task" ? "حذف تسک؟" : confirm?.kind === "note" ? "حذف نوت؟" : "حذف زیرتسک؟"}
+              {confirm?.kind === "task" ? T("حذف تسک؟", "Delete task?") : confirm?.kind === "note" ? T("حذف نوت؟", "Delete note?") : T("حذف زیرتسک؟", "Delete subtask?")}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              آیا مطمئنی می‌خوای «{confirm?.title}» را حذف کنی؟
+              {T(`آیا مطمئنی می‌خوای «${confirm?.title}» را حذف کنی؟`, `Are you sure you want to delete "${confirm?.title}"?`)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>انصراف</AlertDialogCancel>
+            <AlertDialogCancel>{T("انصراف", "Cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
                 if (confirm) await confirm.onConfirm();
@@ -244,7 +249,7 @@ export default function NewTaskView() {
               }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              حذف
+              {T("حذف", "Delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

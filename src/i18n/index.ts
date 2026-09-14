@@ -12,7 +12,8 @@ export const LANGUAGE_STORAGE_KEY = "arshnaz_app_language";
 const RTL_LANGUAGES: AppLanguage[] = ["fa"];
 
 export function isRTL(lang: string): boolean {
-  return RTL_LANGUAGES.includes(lang as AppLanguage);
+  if (!lang) return true;
+  return lang.startsWith("fa");
 }
 
 i18n
@@ -24,7 +25,9 @@ i18n
       en: { translation: en },
     },
     fallbackLng: "fa",
+    load: "languageOnly",
     supportedLngs: SUPPORTED_LANGUAGES as unknown as string[],
+    nonExplicitSupportedLngs: true,
     interpolation: { escapeValue: false },
     detection: {
       order: ["localStorage", "navigator"],

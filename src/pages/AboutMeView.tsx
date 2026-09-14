@@ -13,9 +13,12 @@ import { toast } from "sonner";
 import { Sparkles, Save, RefreshCw, ChevronLeft, ChevronRight, Loader2, FolderPlus, Tag as TagIcon, ListTodo } from "lucide-react";
 import { ABOUT_SECTIONS, loadAboutMe, saveAboutMe, type AboutMeRow, type AboutAnswer } from "@/lib/aboutMe";
 import { getAILanguage } from "@/lib/ai";
+import { useBilingual } from "@/hooks/useBilingual";
+
 
 export default function AboutMeView() {
   const { user } = useAuth();
+  const { T, isEn } = useBilingual();
   const [row, setRow] = useState<AboutMeRow | null>(null);
   const [answers, setAnswers] = useState<Record<string, AboutAnswer>>({});
   const [freeText, setFreeText] = useState("");
@@ -67,9 +70,9 @@ export default function AboutMeView() {
       const fresh = await loadAboutMe(user.id);
       if (fresh) setRow(fresh);
       setMode("review");
-      toast.success("تحلیل آماده شد ✨");
+      toast.success(T("تحلیل آماده شد ✨", "Analysis ready ✨"));
     } catch (e: any) {
-      toast.error(e.message || "خطا در تحلیل");
+      toast.error(e.message || T("خطا در تحلیل", "Analysis error"));
     } finally {
       setBusy(false);
     }
@@ -81,7 +84,7 @@ export default function AboutMeView() {
     const { error } = await firebaseStore.from("folders").insert({ user_id: user.id, name });
     setApplying(null);
     if (error) toast.error(error.message);
-    else toast.success("فولدر «" + name + "» ساخته شد");
+    else toast.success(T("فولدر «" + name + "» ساخته شد", `Folder "${name}" created`));
   };
 
   const createTag = async (name: string) => {
@@ -90,7 +93,7 @@ export default function AboutMeView() {
     const { error } = await firebaseStore.from("tags").insert({ user_id: user.id, name });
     setApplying(null);
     if (error) toast.error(error.message);
-    else toast.success("تگ «" + name + "» ساخته شد");
+    else toast.success(T("تگ «" + name + "» ساخته شد", `Tag "${name}" created`));
   };
 
   const createTask = async (t: { title: string; folder?: string; priority?: any }) => {
@@ -110,7 +113,7 @@ export default function AboutMeView() {
     });
     setApplying(null);
     if (error) toast.error(error.message);
-    else toast.success("تسک ساخته شد");
+    else toast.success(T("تسک ساخته شد", "Task created"));
   };
 
   // ----- Render -----
@@ -118,30 +121,30 @@ export default function AboutMeView() {
     const a = row.ai_analysis;
     const s = row.ai_suggestions;
     return (
-      <div dir="rtl" className="p-4 md:p-6 max-w-3xl mx-auto space-y-5">
+      <div dir={isEn ? "ltr" : "rtl"} className="p-4 md:p-6 max-w-3xl mx-auto space-y-5 page-enter">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-primary" /> درباره من
+            <Sparkles className="w-6 h-6 text-primary" /> {T("درباره من", "About Me")}
           </h1>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => { setMode("wizard"); setStep(0); }}>
-              ✏️ ویرایش پاسخ‌ها
+              ✏️ {T("ویرایش پاسخ‌ها", "Edit Answers")}
             </Button>
             <Button size="sm" onClick={analyze} disabled={busy} className="gap-1">
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-              تحلیل مجدد
+              {T("تحلیل مجدد", "Re-analyze")}
             </Button>
           </div>
         </div>
 
         <Card className="p-5 space-y-3">
-          <h2 className="font-semibold">📋 خلاصه</h2>
+          <h2 className="font-semibold">📋 {T("خلاصه", "Summary")}</h2>
           <p className="text-sm leading-7 text-foreground">{a.summary}</p>
         </Card>
 
         {a.themes && a.themes.length > 0 && (
           <Card className="p-5 space-y-3">
-            <h2 className="font-semibold">🎯 تم‌های اصلی زندگی</h2>
+            <h2 className="font-semibold">🎯 {T("تم‌های اصلی زندگی", "Core Life Themes")}</h2>
             <div className="flex flex-wrap gap-2">
               {a.themes.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}
             </div>
@@ -151,7 +154,7 @@ export default function AboutMeView() {
         <div className="grid md:grid-cols-2 gap-4">
           {a.strengths && a.strengths.length > 0 && (
             <Card className="p-5 space-y-2">
-              <h2 className="font-semibold text-success">💪 نقاط قوت</h2>
+              <h2 className="font-semibold text-success">💪 {T("نقاط قوت", "Strengths")}</h2>
               <ul className="text-sm space-y-1.5 list-disc pe-5">
                 {a.strengths.map((x, i) => <li key={i}>{x}</li>)}
               </ul>
@@ -159,7 +162,7 @@ export default function AboutMeView() {
           )}
           {a.risks && a.risks.length > 0 && (
             <Card className="p-5 space-y-2">
-              <h2 className="font-semibold text-warning">⚠️ موانع و ریسک‌ها</h2>
+              <h2 className="font-semibold text-warning">⚠️ {T("موانع و ریسک‌ها", "Obstacles & Risks")}</h2>
               <ul className="text-sm space-y-1.5 list-disc pe-5">
                 {a.risks.map((x, i) => <li key={i}>{x}</li>)}
               </ul>
@@ -169,7 +172,7 @@ export default function AboutMeView() {
 
         {s?.folders && s.folders.length > 0 && (
           <Card className="p-5 space-y-3">
-            <h2 className="font-semibold flex items-center gap-2"><FolderPlus className="w-4 h-4" /> فولدرهای پیشنهادی</h2>
+            <h2 className="font-semibold flex items-center gap-2"><FolderPlus className="w-4 h-4" /> {T("فولدرهای پیشنهادی", "Suggested Folders")}</h2>
             <div className="flex flex-wrap gap-2">
               {s.folders.map((f) => (
                 <Button key={f} size="sm" variant="outline" disabled={applying === "folder:" + f}
@@ -183,7 +186,7 @@ export default function AboutMeView() {
 
         {s?.tags && s.tags.length > 0 && (
           <Card className="p-5 space-y-3">
-            <h2 className="font-semibold flex items-center gap-2"><TagIcon className="w-4 h-4" /> تگ‌های پیشنهادی</h2>
+            <h2 className="font-semibold flex items-center gap-2"><TagIcon className="w-4 h-4" /> {T("تگ‌های پیشنهادی", "Suggested Tags")}</h2>
             <div className="flex flex-wrap gap-2">
               {s.tags.map((t) => (
                 <Button key={t} size="sm" variant="outline" disabled={applying === "tag:" + t}
@@ -197,7 +200,7 @@ export default function AboutMeView() {
 
         {s?.tasks && s.tasks.length > 0 && (
           <Card className="p-5 space-y-3">
-            <h2 className="font-semibold flex items-center gap-2"><ListTodo className="w-4 h-4" /> تسک‌های شروع‌کننده</h2>
+            <h2 className="font-semibold flex items-center gap-2"><ListTodo className="w-4 h-4" /> {T("تسک‌های شروع‌کننده", "Starter Tasks")}</h2>
             <div className="space-y-2">
               {s.tasks.map((t, i) => (
                 <div key={i} className="flex items-center gap-2 border rounded-md p-2">
@@ -210,7 +213,7 @@ export default function AboutMeView() {
                   </div>
                   <Button size="sm" variant="ghost" disabled={applying === "task:" + t.title}
                     onClick={() => createTask(t)}>
-                    افزودن
+                    {T("افزودن", "Add")}
                   </Button>
                 </div>
               ))}
@@ -219,7 +222,7 @@ export default function AboutMeView() {
         )}
 
         <p className="text-xs text-muted-foreground text-center pt-2">
-          هر زمان خواستی، با «ویرایش پاسخ‌ها» جواب‌ها رو عوض کن و دوباره تحلیل بگیر.
+          {T("هر زمان خواستی، با «ویرایش پاسخ‌ها» جواب‌ها رو عوض کن و دوباره تحلیل بگیر.", "You can edit your answers anytime and re-analyze to get updated insights.")}
         </p>
       </div>
     );
@@ -232,12 +235,14 @@ export default function AboutMeView() {
   const progress = Math.round(((step + 1) / (totalSteps + 1)) * 100);
 
   return (
-    <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-5">
+    <div dir={isEn ? "ltr" : "rtl"} className="p-4 md:p-6 max-w-2xl mx-auto space-y-5 page-enter">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Sparkles className="w-6 h-6 text-primary" /> درباره من
+          <Sparkles className="w-6 h-6 text-primary" /> {T("درباره من", "About Me")}
         </h1>
-        <span className="text-xs text-muted-foreground">گام {step + 1} از {totalSteps}</span>
+        <span className="text-xs text-muted-foreground">
+          {isEn ? `Step ${step + 1} of ${totalSteps}` : `گام ${step + 1} از ${totalSteps}`}
+        </span>
       </div>
 
       <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -298,13 +303,13 @@ export default function AboutMeView() {
         ) : (
           <>
             <h2 className="font-semibold text-lg flex items-center gap-2">
-              <span>📝</span> هر چیز دیگری دوست داری بگی
+              <span>📝</span> {T("هر چیز دیگری دوست داری بگی", "Anything else you'd like to share")}
             </h2>
             <p className="text-xs text-muted-foreground">
-              این متن آزاد به AI کمک می‌کنه تو رو بهتر بشناسه. هر چیزی — قصه، حس، رویا، گلایه — رو می‌تونی بنویسی.
+              {T("این متن آزاد به AI کمک می‌کنه تو رو بهتر بشناسه. هر چیزی — قصه، حس، رویا، گلایه — رو می‌تونی بنویسی.", "This free text helps the AI understand you better. Anything — stories, feelings, dreams, grievances — is welcome.")}
             </p>
             <Textarea rows={10} value={freeText} onChange={(e) => setFreeText(e.target.value)}
-              placeholder="هر چه به ذهنت می‌رسد..." />
+              placeholder={T("هر چه به ذهنت می‌رسد...", "Anything that comes to mind...")} />
           </>
         )}
       </Card>
@@ -312,19 +317,19 @@ export default function AboutMeView() {
       <div className="flex items-center justify-between gap-2">
         <Button variant="outline" disabled={step === 0 || busy}
           onClick={() => setStep((s) => Math.max(0, s - 1))} className="gap-1">
-          <ChevronRight className="w-4 h-4" /> قبلی
+          {isEn ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />} {T("قبلی", "Previous")}
         </Button>
         <Button variant="ghost" size="sm" onClick={persist} className="gap-1 text-xs">
-          <Save className="w-3 h-3" /> ذخیره
+          <Save className="w-3 h-3" /> {T("ذخیره", "Save")}
         </Button>
         {step < ABOUT_SECTIONS.length ? (
           <Button onClick={next} disabled={busy} className="gap-1">
-            بعدی <ChevronLeft className="w-4 h-4" />
+            {T("بعدی", "Next")} {isEn ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </Button>
         ) : (
           <Button onClick={analyze} disabled={busy} className="gap-1">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            تحلیل با AI
+            {T("تحلیل با AI", "Analyze with AI")}
           </Button>
         )}
       </div>

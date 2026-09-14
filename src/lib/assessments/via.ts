@@ -145,6 +145,17 @@ export const VIA_LABELS: Record<ViaStrength, string> = {
   hope: "امید", humor: "طنز", spirituality: "معنویت",
 };
 
+export const VIA_LABELS_EN: Record<ViaStrength, string> = {
+  creativity: "Creativity", curiosity: "Curiosity", judgment: "Critical Thinking",
+  love_of_learning: "Love of Learning", perspective: "Perspective",
+  bravery: "Bravery", perseverance: "Perseverance", honesty: "Honesty", zest: "Zest & Vitality",
+  love: "Love", kindness: "Kindness", social_intelligence: "Social Intelligence",
+  teamwork: "Teamwork", fairness: "Fairness", leadership: "Leadership",
+  forgiveness: "Forgiveness", humility: "Humility", prudence: "Prudence", self_regulation: "Self-Regulation",
+  appreciation_of_beauty: "Appreciation of Beauty", gratitude: "Gratitude",
+  hope: "Hope", humor: "Humor", spirituality: "Spirituality",
+};
+
 export const VIA_VIRTUES: Record<string, ViaStrength[]> = {
   "خرد و دانش": ["creativity", "curiosity", "judgment", "love_of_learning", "perspective"],
   "شجاعت": ["bravery", "perseverance", "honesty", "zest"],
@@ -153,6 +164,16 @@ export const VIA_VIRTUES: Record<string, ViaStrength[]> = {
   "اعتدال": ["forgiveness", "humility", "prudence", "self_regulation"],
   "تعالی": ["appreciation_of_beauty", "gratitude", "hope", "humor", "spirituality"],
 };
+
+export const VIA_VIRTUES_EN: Record<string, string> = {
+  "خرد و دانش": "Wisdom & Knowledge",
+  "شجاعت": "Courage",
+  "انسانیت": "Humanity",
+  "عدالت": "Justice",
+  "اعتدال": "Temperance",
+  "تعالی": "Transcendence",
+};
+
 
 export const VIA_ITEMS: ViaItem[] = (() => {
   const items: ViaItem[] = [];

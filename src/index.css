@@ -334,8 +334,126 @@ body {
   box-shadow: 0 0 0 1px hsl(var(--primary) / 0.25), var(--shadow-elegant);
 }
 
+/* =========================================================
+   Beautiful Transition Animations
+   ========================================================= */
 
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(32px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.88) translateY(8px); }
+  60% { transform: scale(1.03) translateY(-2px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+/* Animation utility classes */
+.animate-fade-in       { animation: fadeIn       0.28s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.animate-fade-in-up    { animation: fadeInUp     0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.animate-fade-in-down  { animation: fadeInDown   0.28s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.animate-fade-in-scale { animation: fadeInScale  0.26s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.animate-slide-in-right { animation: slideInRight 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.animate-slide-in-left  { animation: slideInLeft  0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.animate-slide-in-up    { animation: slideInUp    0.36s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.animate-pop-in        { animation: popIn        0.34s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.animate-float         { animation: float        3s ease-in-out infinite; }
+
+/* Staggered children animations — add to parent, children get delay */
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 250ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 350ms; }
+
+/* Page-level enter animation — apply to the root div of each page */
+.page-enter {
+  animation: fadeInUp 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+/* Card hover lift — a subtle elevation lift on hover */
+.card-hover {
+  transition: transform 0.22s cubic-bezier(0.22, 0.61, 0.36, 1),
+              box-shadow 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px -8px hsl(var(--primary) / 0.18), 0 4px 12px -4px hsl(0 0% 0% / 0.06);
+}
+
+/* Shimmer skeleton loading effect */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 25%,
+    hsl(var(--muted-foreground) / 0.08) 50%,
+    hsl(var(--muted)) 75%
+  );
+  background-size: 200% auto;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* Dialog / Sheet / Popover enhanced animations */
+[data-radix-popper-content-wrapper] > [data-state="open"] {
+  animation: fadeInScale 0.2s cubic-bezier(0.22, 0.61, 0.36, 1) both !important;
+}
+
+[data-state="open"][data-side="bottom"] {
+  animation: slideInUp 0.28s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+[data-state="open"][data-side="right"] {
+  animation: slideInRight 0.28s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+[data-state="open"][data-side="left"] {
+  animation: slideInLeft 0.28s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+[data-state="open"][data-side="top"] {
+  animation: fadeInDown 0.24s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
 
 
 /* Markdown preview — bidi-safe so Persian + English mix correctly per paragraph */
