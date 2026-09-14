@@ -13,7 +13,6 @@ import { toast } from "sonner";
 import { ThemeProvider } from "next-themes";
 import { getStoredTheme, getBaseTheme } from "@/lib/theme";
 import { nativeRoute } from "@/lib/nativeRoutes";
-import { auth } from "@/lib/firebase";
 
 function usePwaUpdateToast() {
   useEffect(() => {
@@ -118,10 +117,12 @@ function CapacitorUrlHandler() {
     let routeGeneration = 0;
     const navigateForUrl = (rawUrl: string) => {
       const generation = ++routeGeneration;
-      void auth.authStateReady().then(() => {
-        const path = nativeRoute(rawUrl, auth.currentUser?.uid);
-        if (path && !disposed && generation === routeGeneration) navigate(path);
-      }).catch(() => {});
+      void import("@/lib/firebase")
+        .then(({ auth }) => auth.authStateReady().then(() => {
+          const path = nativeRoute(rawUrl, auth.currentUser?.uid);
+          if (path && !disposed && generation === routeGeneration) navigate(path);
+        }))
+        .catch(() => {});
     };
     let handle: any = null;
     try {

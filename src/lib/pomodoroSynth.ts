@@ -273,6 +273,9 @@ export function stopSynth() {
   window.setTimeout(() => {
     try { a?.stop(); } catch {}
     try { mg?.disconnect(); } catch {}
+    if (ctx && ctx.state === "running" && !active) {
+      ctx.suspend().catch(() => {});
+    }
   }, 200);
   stopBackgroundKeepalive();
 }
