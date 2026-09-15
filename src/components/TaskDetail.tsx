@@ -1365,62 +1365,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           </div>
         </section>
       )}
-
-      {/* Subtle add buttons for sections if not yet added */}
-      {(!showSubtasks || !showSteps || !showAttachments || (!showNotes && taskNotes.length === 0) || !showOutcomes) && (
-        <div className="flex items-center gap-1.5 flex-wrap pt-1 text-xs">
-          {!showSubtasks && (
-            <button
-              type="button"
-              onClick={() => setShowSubtasks(true)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-dashed border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/40 text-xs transition"
-            >
-              <Plus className="w-3 h-3 text-primary" />
-              <span>{T("زیرتسک", "Subtask")}</span>
-            </button>
-          )}
-          {!showSteps && (
-            <button
-              type="button"
-              onClick={() => setShowSteps(true)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-dashed border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/40 text-xs transition"
-            >
-              <Plus className="w-3 h-3 text-emerald-500" />
-              <span>{T("چک‌لیست", "Checklist")}</span>
-            </button>
-          )}
-          {!showNotes && taskNotes.length === 0 && (
-            <button
-              type="button"
-              onClick={() => { setShowNotes(true); void addNote(); }}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-dashed border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/40 text-xs transition"
-            >
-              <Plus className="w-3 h-3 text-blue-500" />
-              <span>{T("یادداشت", "Note")}</span>
-            </button>
-          )}
-          {!showAttachments && (
-            <button
-              type="button"
-              onClick={() => setShowAttachments(true)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-dashed border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/40 text-xs transition"
-            >
-              <Plus className="w-3 h-3 text-purple-500" />
-              <span>{T("پیوست", "Attachment")}</span>
-            </button>
-          )}
-          {!showOutcomes && (
-            <button
-              type="button"
-              onClick={() => setShowOutcomes(true)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-dashed border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/40 text-xs transition"
-            >
-              <Plus className="w-3 h-3 text-amber-500" />
-              <span>{T("شاخه‌ها", "Branches")}</span>
-            </button>
-          )}
-        </div>
-      )}
     </div>
   );
 
