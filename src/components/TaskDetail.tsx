@@ -1525,7 +1525,15 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             disabled={!canEdit}
           />
 
-          {/* 5. More Actions */}
+          {/* 5. Pomodoro */}
+          <RailButton
+            icon={Timer}
+            label={T("پومودورو", "Focus")}
+            onClick={() => setFocusOpen(true)}
+            disabled={!canEdit}
+          />
+
+          {/* 6. More Actions */}
           <RailButton
             icon={MoreHorizontal}
             label={T("بیشتر", "More")}
@@ -1861,6 +1869,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           onPomodoro={() => setFocusOpen(true)}
           onPatch={(patch) => save(patch)}
           onRefresh={refreshTask}
+          hideDuplicates={true}
         />
       )}
       {focusOpen && (

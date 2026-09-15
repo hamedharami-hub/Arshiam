@@ -39,11 +39,13 @@ interface Props {
   canEdit?: boolean;
   isOwner?: boolean;
   canComment?: boolean;
+  hideDuplicates?: boolean;
 }
 
 export default function TaskActionSheet({
   task, open, onOpenChange, onComplete, onDelete, onMove, onMakeChild, onEdit, onPin, onPomodoro, onPatch, onRefresh,
   canEdit: propCanEdit, isOwner: propIsOwner, canComment: propCanComment,
+  hideDuplicates = false,
 }: Props) {
   const { i18n } = useTranslation();
   const { user } = useAuth();
@@ -283,18 +285,33 @@ export default function TaskActionSheet({
 
       {/* Action list */}
       <div className="space-y-0.5">
-        <Row icon={Check} label={task.completed ? T("بازگشایی تکمیل", "Reopen") : T("تکمیل", "Done")} onClick={() => { onComplete(); close(); }} disabled={!canComment} />
-        <Row icon={Pencil} label={T("ویرایش / باز کردن", "Edit / Open")} onClick={() => { onEdit(); close(); }} />
-        <Row icon={Sparkles} label="AI" onClick={() => { navigate(`/app/tasks/${task.id}?ai=1`); close(); }} disabled={!canEdit} />
-        <Row icon={Timer} label={T("پومودورو", "Pomodoro")} onClick={() => { onPomodoro?.(); close(); }} />
-        <Row icon={FolderInput} label={T("انتقال", "Move")} onClick={() => { onMove(); close(); }} disabled={!canEdit} />
-        <Row icon={ListTree} label={T("افزودن زیرتسک", "Add Subtask")} onClick={() => setView("subtask")} disabled={!canEdit} />
-        <Row icon={Network} label={T("لینک به تسک والد", "Link Parent Task")} onClick={() => { onMakeChild(); close(); }} disabled={!canEdit} />
-        <Row icon={StickyNote} label={T("تبدیل به نوت", "Convert to Note")} onClick={convertToNote} disabled={!canEdit || busy} />
-        <Row icon={Paperclip} label={T("ضمیمه", "Attachment")} onClick={() => { onEdit(); close(); }} disabled={!canEdit} />
-        <Row icon={TagIcon} label={T("تگ", "Tags")} onClick={() => { onEdit(); close(); }} disabled={!isOwner} />
-        <Row icon={History} label={T("فعالیت‌ها", "Activities")} onClick={() => setView("activities")} />
-        <Row icon={MoreHorizontal} label={T("بیشتر", "More")} onClick={() => setView("more")} />
+        {hideDuplicates ? (
+          <>
+            <Row icon={StickyNote} label={T("تبدیل به یادداشت", "Convert to Note")} onClick={convertToNote} disabled={!canEdit || busy} />
+            <Row icon={CopyPlus} label={T("تکثیر تسک", "Duplicate Task")} onClick={() => duplicate(false)} disabled={!canEdit || busy} />
+            <Row icon={Save} label={T("تکثیر و باز کردن", "Duplicate & Open")} onClick={() => duplicate(true)} disabled={!canEdit || busy} />
+            <Row icon={LayoutList} label={T("ذخیره در تمپلیت‌ها", "Save as Template")} onClick={saveTemplate} disabled={!canEdit} />
+            <Row icon={Copy} label={T("کپی لینک تسک", "Copy Task Link")} onClick={copyLink} />
+            <Row icon={MapPin} label={T("موقعیت مکانی", "Location")} onClick={() => setView("location")} value={task.location || undefined} disabled={!canEdit} />
+            <Row icon={MessageSquare} label={T("افزودن توضیح / کامنت", "Add Comment")} onClick={() => setView("comment")} disabled={!canEdit} />
+            <Row icon={History} label={T("فعالیت‌ها و تاریخچه", "Activity History")} onClick={() => setView("activities")} />
+          </>
+        ) : (
+          <>
+            <Row icon={Check} label={task.completed ? T("بازگشایی تکمیل", "Reopen") : T("تکمیل", "Done")} onClick={() => { onComplete(); close(); }} disabled={!canComment} />
+            <Row icon={Pencil} label={T("ویرایش / باز کردن", "Edit / Open")} onClick={() => { onEdit(); close(); }} />
+            <Row icon={Sparkles} label="AI" onClick={() => { navigate(`/app/tasks/${task.id}?ai=1`); close(); }} disabled={!canEdit} />
+            <Row icon={Timer} label={T("پومودورو", "Pomodoro")} onClick={() => { onPomodoro?.(); close(); }} />
+            <Row icon={FolderInput} label={T("انتقال", "Move")} onClick={() => { onMove(); close(); }} disabled={!canEdit} />
+            <Row icon={ListTree} label={T("افزودن زیرتسک", "Add Subtask")} onClick={() => setView("subtask")} disabled={!canEdit} />
+            <Row icon={Network} label={T("لینک به تسک والد", "Link Parent Task")} onClick={() => { onMakeChild(); close(); }} disabled={!canEdit} />
+            <Row icon={StickyNote} label={T("تبدیل به نوت", "Convert to Note")} onClick={convertToNote} disabled={!canEdit || busy} />
+            <Row icon={Paperclip} label={T("ضمیمه", "Attachment")} onClick={() => { onEdit(); close(); }} disabled={!canEdit} />
+            <Row icon={TagIcon} label={T("تگ", "Tags")} onClick={() => { onEdit(); close(); }} disabled={!isOwner} />
+            <Row icon={History} label={T("فعالیت‌ها", "Activities")} onClick={() => setView("activities")} />
+            <Row icon={MoreHorizontal} label={T("بیشتر", "More")} onClick={() => setView("more")} />
+          </>
+        )}
       </div>
     </div>
   );
@@ -360,7 +377,7 @@ export default function TaskActionSheet({
       case "comment":
         return (
           <div className="animate-fade-in space-y-3">
-            {header(T("توضیح / کامنت", "Comment"), () => setView("more"))}
+            {header(T("توضیح / کامنت", "Comment"), hideDuplicates ? backToMain : () => setView("more"))}
             <Textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
@@ -376,7 +393,7 @@ export default function TaskActionSheet({
       case "location":
         return (
           <div className="animate-fade-in space-y-3">
-            {header(T("موقعیت", "Location"), () => setView("more"))}
+            {header(T("موقعیت", "Location"), hideDuplicates ? backToMain : () => setView("more"))}
             <AutoTextarea
               value={location}
               onChange={(e) => setLocation(e.target.value)}
