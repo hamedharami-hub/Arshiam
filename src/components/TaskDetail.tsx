@@ -21,7 +21,7 @@ import {
   CheckSquare, ListChecks, CalendarDays, Mic, MicOff, Pin, PinOff, Maximize2, Minimize2,
   GitBranch, Zap,
   Save, ExternalLink, Loader2, Circle, CheckCircle2, MoreHorizontal,
-  Copy, Share2, FolderInput, Timer, Network, CornerDownRight,
+  Copy, Share2, FolderInput, Timer, Network,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -616,9 +616,10 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       ? current : { completed, total });
   }, []);
 
-  const Chip = ({ icon: Icon, children, onClick, onClear, color, disabled }: any) => (
+  const Chip = ({ icon: Icon, children, onClick, onClear, color, disabled, title }: any) => (
     <span
       onClick={disabled ? undefined : onClick}
+      title={title}
       className={`inline-flex items-center gap-1.5 px-2.5 h-6 rounded-lg text-[11px] font-medium transition-all duration-150 border ${
         disabled
           ? "text-muted-foreground/50 border-transparent"
@@ -681,49 +682,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           {voiceListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
         </Button>
       </div>
-
-      {t.parent_id && (
-        <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-200 text-xs font-medium">
-          <div className="flex items-center gap-1.5 min-w-0 flex-1">
-            <CornerDownRight className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 rtl:scale-x-[-1]" />
-            <span className="text-muted-foreground text-[11px] shrink-0">{T("زیرمجموعهٔ:", "Subtask of:")}</span>
-            <button
-              type="button"
-              onClick={() => {
-                void savePendingChanges().then(() => navigate(`/app/tasks/${encodeURIComponent(t.parent_id!)}`));
-              }}
-              className="text-xs font-bold underline underline-offset-2 truncate hover:text-amber-900 dark:hover:text-amber-100 text-start"
-              title={T("رفتن به تسک مادر", "Go to parent task")}
-            >
-              <BidiText text={parentTitle || T("مشاهده تسک والد", "View parent task")} />
-            </button>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 px-2 text-[11px] text-amber-800 dark:text-amber-200 hover:bg-amber-500/20 rounded-lg gap-1"
-              onClick={() => {
-                void savePendingChanges().then(() => navigate(`/app/tasks/${encodeURIComponent(t.parent_id!)}`));
-              }}
-              title={T("رفتن به تسک مادر", "Go to parent task")}
-            >
-              <ExternalLink className="w-3 h-3" />
-              <span className="hidden sm:inline">{T("باز کردن والد", "Open parent")}</span>
-            </Button>
-            {isOwner && (
-              <button
-                type="button"
-                onClick={() => save({ parent_id: null })}
-                className="text-muted-foreground hover:text-destructive p-1 rounded-md transition"
-                title={T("جدا کردن از والد", "Detach from parent")}
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 
@@ -779,6 +737,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           }}
           onClear={isOwner ? () => save({ parent_id: null }) : undefined}
           disabled={!canEdit}
+          title={T("رفتن به تسک مادر", "Go to parent task")}
         >
           {parentTitle || "—"}
         </Chip>
