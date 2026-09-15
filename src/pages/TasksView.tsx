@@ -105,6 +105,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const T = useCallback((fa: string, en: string) => (isEn ? en : fa), [isEn]);
   const params = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [layout, setLayout] = useState<"compact" | "comfortable">("compact");
   useEffect(() => {
     if (!user) return;
@@ -243,7 +244,6 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const [outcomeTask, setOutcomeTask] = useState<Task | null>(null);
   const [outcomes, setOutcomes] = useState<TaskOutcome[]>([]);
   const [outcomeOpen, setOutcomeOpen] = useState(false);
-  const navigate = useNavigate();
 
   useEffect(() => {
     if (!params.id) {

@@ -163,8 +163,8 @@ export default defineConfig(({ mode }) => {
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
   },
   esbuild: {
-    // Drop noisy logs from production bundles (faster parse + smaller JS)
-    drop: mode === "production" ? ["console", "debugger"] : [],
+    drop: mode === "production" ? ["debugger"] : [],
+    pure: mode === "production" ? ["console.log", "console.debug", "console.info"] : [],
   },
   build: {
     target: "es2020",

@@ -83,9 +83,9 @@ export class ErrorBoundary extends React.Component<Props, State> {
                 : "نگران نباشید — داده‌های شما در امن است. می‌توانید این بخش را دوباره بارگذاری کنید."}
             </p>
           </div>
-          {this.state.error?.message && (
-            <pre dir="ltr" className="text-xs text-start bg-muted/50 p-3 rounded border overflow-auto max-h-32">
-              {this.state.error.message}
+          {(this.state.error?.stack || this.state.error?.message) && (
+            <pre dir="ltr" className="text-xs text-start bg-muted/50 p-3 rounded border overflow-auto max-h-48 whitespace-pre-wrap font-mono select-all">
+              {this.state.error?.stack || this.state.error?.message}
             </pre>
           )}
           <div className="flex gap-2 justify-center">

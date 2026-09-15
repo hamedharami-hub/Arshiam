@@ -506,6 +506,7 @@ export function AppSidebar() {
   };
 
   const renderTree = (parentId: string | null, depth = 0) => {
+    if (depth > 12) return null;
     const children = folders.filter((f) => f.parent_id === parentId);
     return children.map((f) => {
       const has = folders.some((x) => x.parent_id === f.id);

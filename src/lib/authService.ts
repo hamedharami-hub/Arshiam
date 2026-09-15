@@ -12,7 +12,6 @@ import {
 } from "./firebase";
 import { setGardenUser } from "./garden";
 import { signInGoogleCredential, googleSignInError } from "./googleSignIn";
-import { clearAndroidWidget } from "./androidWidget";
 
 export interface AppUser {
   id: string;
@@ -236,7 +235,10 @@ export async function loginAsGuest(
  */
 export async function logoutUser(): Promise<void> {
   await fbSignOut(auth);
-  await clearAndroidWidget();
+  try {
+    const { clearAndroidWidget } = await import("./androidWidget");
+    await clearAndroidWidget();
+  } catch {}
   try {
     localStorage.removeItem("arshnaz_current_user_v1");
     setGardenUser(null);
