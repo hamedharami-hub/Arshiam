@@ -261,8 +261,6 @@ export default function TaskActionSheet({
 
   const mainView = (
     <div className="space-y-4 animate-fade-in">
-      <div className="text-start text-sm font-medium truncate px-1">{task.title}</div>
-
       {/* Top icon row: Pin, Share, Won't Do, Delete */}
       <div className="grid grid-cols-4 gap-2">
         <Tile
