@@ -41,7 +41,7 @@ export function TaskDescriptionEditor({
   const hasContent = (value || "").trim().length > 0;
 
   return (
-    <div className="relative group rounded-2xl border border-border/50 bg-card/45 hover:border-border/80 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all duration-200 p-3 sm:p-4">
+    <div className="relative group rounded-2xl border border-border/50 bg-card/45 hover:border-border/80 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all duration-200 p-3.5 sm:p-4 min-h-[170px] flex flex-col">
       {/* Action buttons toolbar (voice, fullscreen markdown) */}
       {!readOnly && (
         <div className="flex items-center gap-1 absolute top-2.5 end-2.5 z-10">
@@ -82,10 +82,10 @@ export function TaskDescriptionEditor({
             setEditing(false);
             void onSave(latest);
           }}
-          minHeight={50}
-          maxHeight={360}
+          minHeight={140}
+          maxHeight={520}
           dir="auto"
-          className="border-none bg-transparent focus-visible:ring-0 px-0 pt-0 text-[14px] leading-relaxed text-foreground/90 placeholder:text-muted-foreground/60 w-full pe-16"
+          className="border-none bg-transparent focus-visible:ring-0 px-0 pt-0 text-[14px] leading-relaxed text-foreground/90 placeholder:text-muted-foreground/60 w-full pe-16 flex-1"
         />
       ) : (
         <button
@@ -93,7 +93,7 @@ export function TaskDescriptionEditor({
           onClick={() => !readOnly && setEditing(true)}
           disabled={readOnly}
           dir="auto"
-          className={`w-full text-start px-0 pt-0 text-[14px] leading-relaxed text-foreground/90 rounded transition pe-16 ${readOnly ? "" : "hover:opacity-90"}`}
+          className={`w-full text-start px-0 pt-0 text-[14px] leading-relaxed text-foreground/90 rounded transition pe-16 min-h-[140px] flex-1 ${readOnly ? "" : "hover:opacity-90"}`}
         >
           <div className="prose-note prose-sm max-w-none">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
