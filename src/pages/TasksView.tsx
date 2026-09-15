@@ -795,6 +795,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       subs={childrenMap[t.id] || []}
       open={!!expanded[t.id]}
       onToggleExpand={(id) => setExpanded(s => ({ ...s, [id]: !s[id] }))}
+      progress={getProgress(t.id)}
       parent={t.parent_id ? taskMap.get(t.parent_id) : null}
       onSelectTask={(task) => {
         if (task.parent_id) {

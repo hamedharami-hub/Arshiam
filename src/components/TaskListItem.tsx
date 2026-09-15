@@ -56,7 +56,7 @@ export interface TaskListItemProps {
   subs: Task[];
   open: boolean;
   onToggleExpand: (id: string) => void;
-  progress: { done: number; total: number };
+  progress?: { done: number; total: number };
   parent?: Task | null;
   onSelectTask: (t: Task) => void;
   onToggleTask: (t: Task) => void;
@@ -108,6 +108,7 @@ const TaskListItemComponent = ({
   taskMap,
 }: TaskListItemProps) => {
   const pm = PRIORITY_META[t.priority] || PRIORITY_META.none;
+  const effectiveProgress = progress ?? (typeof getProgress === "function" ? getProgress(t.id) : undefined) ?? { done: 0, total: subs?.length || 0 };
   const STEP = 18; // px per nesting level
   const lp = useLongPress({ onLongPress: () => onActionTask(t) });
 
@@ -333,7 +334,7 @@ const TaskListItemComponent = ({
                     title={open ? T("بستن زیرتسک‌ها", "Collapse subtasks") : T("نمایش زیرتسک‌ها", "Expand subtasks")}
                   >
                     <CornerDownRight className="w-3 h-3 text-primary" />
-                    <span>{progress.done}/{progress.total}</span>
+                    <span>{`${effectiveProgress.done}/${effectiveProgress.total}`}</span>
                     <span className="text-[9px] text-muted-foreground/70">
                       {open ? `(${T("بستن", "hide")})` : `(${T("نمایش", "show")})`}
                     </span>
