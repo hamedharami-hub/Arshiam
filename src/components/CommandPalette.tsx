@@ -7,6 +7,7 @@ import {
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { cacheGet } from "@/lib/offlineQueue";
+import { extractTasksFromCache } from "@/features/tasks/taskCache";
 import {
   ListTodo, FileText, Calendar, Target, Heart, Brain, Sparkles,
   Timer, Settings, BarChart3, BookOpen, Folder, Hash, Compass,
@@ -90,12 +91,12 @@ export default function CommandPalette() {
       try {
         let cachedTasks: any[] = [];
         if (user) {
-          const userTasks = await cacheGet<any[]>(`tasks:all:${user.id}`);
-          if (Array.isArray(userTasks)) cachedTasks = userTasks;
+          const userTasks = extractTasksFromCache(await cacheGet<unknown>(`tasks:all:${user.id}`));
+          if (userTasks.length > 0) cachedTasks = userTasks;
         }
         if (!cachedTasks.length) {
-          const generalTasks = await cacheGet<any[]>("tasks");
-          if (Array.isArray(generalTasks)) cachedTasks = generalTasks;
+          const generalTasks = extractTasksFromCache(await cacheGet<unknown>("tasks"));
+          if (generalTasks.length > 0) cachedTasks = generalTasks;
         }
         cachedTasks.forEach((t) => {
           if (t?.title?.toLowerCase().includes(term) || t?.description?.toLowerCase().includes(term)) {

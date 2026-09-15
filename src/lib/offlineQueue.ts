@@ -19,32 +19,11 @@ export type QueuedOp = {
   lastError?: string;
 };
 
-const DB_NAME = "taskflow-offline";
-const STORE = "outbox";
-const CACHE_STORE = "cache";
+import { getDB, STORE, CACHE_STORE, cacheGet, cacheSet } from "./offlineDb";
+export { cacheGet, cacheSet };
+
 const MAX_RETRY_DELAY_MS = 300_000;
 const MAX_ATTEMPTS_BEFORE_ALERT = 10;
-
-let dbPromise: Promise<IDBPDatabase | null> | null = null;
-async function getDB(): Promise<IDBPDatabase | null> {
-  if (typeof window === "undefined" || !("indexedDB" in window)) return null;
-  if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, 1, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(STORE)) {
-          db.createObjectStore(STORE, { keyPath: "id", autoIncrement: true });
-        }
-        if (!db.objectStoreNames.contains(CACHE_STORE)) {
-          db.createObjectStore(CACHE_STORE);
-        }
-      },
-    }).catch((err) => {
-      console.warn("IndexedDB not available in this context:", err);
-      return null;
-    });
-  }
-  return dbPromise;
-}
 
 export async function enqueueOp(
   op: Omit<QueuedOp, "id" | "createdAt" | "attempts" | "nextRetryAt" | "lastError">
@@ -101,22 +80,6 @@ export async function clearQueue() {
     if (db) await db.clear(STORE);
   } catch {}
   notifyChange();
-}
-
-export async function cacheSet(key: string, value: unknown) {
-  try {
-    const db = await getDB();
-    if (db) await db.put(CACHE_STORE, value, key);
-  } catch {}
-}
-
-export async function cacheGet<T = unknown>(key: string): Promise<T | undefined> {
-  try {
-    const db = await getDB();
-    return db ? ((await db.get(CACHE_STORE, key)) as T | undefined) : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 const listeners = new Set<() => void>();

@@ -87,7 +87,14 @@ export async function checkTaskReminders(userId: string, s: UserSettings) {
     .lte("reminder_at", nowIso)
     .gte("reminder_at", new Date(Date.now() - 24 * 3600 * 1000).toISOString());
   if (!data || data.length === 0) return;
-  const fired: Record<string, string> = JSON.parse(localStorage.getItem(FIRED_TASKS_KEY) || "{}");
+  let fired: Record<string, string> = {};
+  try {
+    const raw = localStorage.getItem(FIRED_TASKS_KEY);
+    fired = raw ? JSON.parse(raw) : {};
+    if (!fired || typeof fired !== "object") fired = {};
+  } catch {
+    fired = {};
+  }
   let played = false;
   for (const t of data as any[]) {
     const key = `${t.id}:${t.reminder_at}`;
@@ -109,8 +116,14 @@ export async function checkAndFireReminders(s: UserSettings) {
   if (!s.notifications_enabled) return;
   if (!(await hasNotificationPermission())) return;
   const now = new Date();
-  const today = todayKey();
-  const stored = JSON.parse(localStorage.getItem(LAST_NOTIFY_KEY) || "{}");
+  let stored: Record<string, string> = {};
+  try {
+    const raw = localStorage.getItem(LAST_NOTIFY_KEY);
+    stored = raw ? JSON.parse(raw) : {};
+    if (!stored || typeof stored !== "object") stored = {};
+  } catch {
+    stored = {};
+  }
 
   const tryFire = (kind: "sleep" | "checkin", enabled: boolean, time: string, title: string, body: string) => {
     if (!enabled) return;

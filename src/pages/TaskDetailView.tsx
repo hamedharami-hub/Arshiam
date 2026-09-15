@@ -7,6 +7,7 @@ import type { Task, ConfirmState } from "@/lib/taskTypes";
 import { Loader2, ArrowRight, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cacheGet } from "@/lib/offlineQueue";
+import { extractTasksFromCache } from "@/features/tasks/taskCache";
 import { useBilingual } from "@/hooks/useBilingual";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -42,8 +43,9 @@ export default function TaskDetailView() {
       // The network result still refreshes it once available.
       if (user) {
         try {
-          const cached = await cacheGet<Task[]>(`tasks:all:${user.id}`);
-          cachedTask = cached?.find(t => t.id === id) || null;
+          const cachedRaw = await cacheGet<unknown>(`tasks:all:${user.id}`);
+          const cached = extractTasksFromCache(cachedRaw);
+          cachedTask = cached.find(t => t.id === id) || null;
         } catch { /* Network fetch below still runs if cache is unavailable. */ }
         if (generation !== loadGeneration.current) return;
         if (cachedTask) {

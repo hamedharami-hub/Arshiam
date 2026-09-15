@@ -1,5 +1,5 @@
 import { firebaseStore } from "@/lib/firebaseStore";
-import { getStoredUser } from "./authService";
+import { auth } from "@/lib/firebase";
 import type { Task, TaskOutcome, OutcomeAction, OutcomeExecution } from "@/lib/taskTypes";
 import { addHours } from "date-fns";
 
@@ -38,7 +38,7 @@ export async function saveTaskOutcome(outcome: Partial<TaskOutcome>): Promise<Ta
     if (error) throw error;
     return toOutcome(data as unknown);
   }
-  let uid = getStoredUser()?.id;
+  let uid = auth.currentUser?.uid;
   if (!uid) {
     try {
       const { data: auth } = await firebaseStore.auth.getUser();

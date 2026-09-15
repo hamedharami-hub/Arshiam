@@ -35,3 +35,11 @@ export function isTaskCacheFresh(cachedAt: number | undefined, now = Date.now())
     && cachedAt <= now
     && now - cachedAt <= TASK_CACHE_TTL_MS;
 }
+
+export function extractTasksFromCache(value: unknown): Task[] {
+  if (Array.isArray(value)) return value.filter(Boolean) as Task[];
+  if (value && typeof value === "object" && Array.isArray((value as any).tasks)) {
+    return (value as any).tasks.filter(Boolean) as Task[];
+  }
+  return [];
+}

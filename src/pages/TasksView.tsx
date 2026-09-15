@@ -18,6 +18,7 @@ import {
   collectTaskDescendantIds,
   getTaskProgress,
 } from "@/features/tasks/taskTree";
+import { extractTasksFromCache } from "@/features/tasks/taskCache";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasksData } from "@/hooks/useTasksData";
 import { syncAndroidWidget } from "@/lib/androidWidget";
@@ -172,8 +173,9 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     let target = allTasks.find(t => t.id === targetTaskId);
     if (!target && user) {
       try {
-        const cached = await cacheGet<Task[]>(`tasks:all:${user.id}`);
-        target = cached?.find(t => t.id === targetTaskId);
+        const cachedRaw = await cacheGet<unknown>(`tasks:all:${user.id}`);
+        const cached = extractTasksFromCache(cachedRaw);
+        target = cached.find(t => t.id === targetTaskId);
       } catch {}
     }
     if (!target) {

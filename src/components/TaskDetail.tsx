@@ -56,6 +56,7 @@ import { enqueueOp, cacheGet, cacheSet } from "@/lib/offlineQueue";
 import { deleteTask as deletePersistedTask, persistTask } from "@/lib/firestoreDataService";
 import type { Task, TaskNote, ConfirmState } from "@/lib/taskTypes";
 import { clearTaskDraft, taskPatch, writeTaskDraft } from "@/lib/taskDraft";
+import { extractTasksFromCache } from "@/features/tasks/taskCache";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -213,13 +214,14 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         setSubtaskProgress({ completed: done, total: subs.length });
       } else if (user) {
         // Fallback to offline cached tasks
-        const cachedTasks = await cacheGet<Array<{ id: string; title?: string; parent_id?: string | null; completed?: boolean; position?: number }>>(`tasks:all:${user.id}`);
-        if (cachedTasks && !cancelled) {
-          const cachedSubs = cachedTasks.filter((ct) => ct.parent_id === task.id).map((ct, i) => ({
+        const cachedRaw = await cacheGet<unknown>(`tasks:all:${user.id}`);
+        const cachedTasks = extractTasksFromCache(cachedRaw);
+        if (cachedTasks.length > 0 && !cancelled) {
+          const cachedSubs = cachedTasks.filter((ct) => ct && ct.parent_id === task.id).map((ct, i) => ({
             id: ct.id,
             title: ct.title || "",
             completed: !!ct.completed,
-            position: ct.position ?? i,
+            position: (ct as any).position ?? i,
           }));
           if (cachedSubs.length > 0) {
             setLoadedSubtasks(cachedSubs);
@@ -249,14 +251,15 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   useEffect(() => {
     if (!user) return;
     const loadCached = async () => {
-      const [cf, ct, ca] = await Promise.all([
+      const [cf, ct, caRaw] = await Promise.all([
         cacheGet<any[]>(`folders:${user.id}`),
         cacheGet<any[]>(`tags:${user.id}`),
-        cacheGet<{ id: string; title: string; parent_id: string | null }[]>(`tasks:all:${user.id}`),
+        cacheGet<unknown>(`tasks:all:${user.id}`),
       ]);
-      if (cf) setFolders(cf);
-      if (ct) setTags(ct);
-      if (ca) setAllTasks(ca.map(t => ({ id: t.id, title: t.title, parent_id: t.parent_id ?? null })));
+      if (Array.isArray(cf)) setFolders(cf);
+      if (Array.isArray(ct)) setTags(ct);
+      const ca = extractTasksFromCache(caRaw);
+      if (ca.length > 0) setAllTasks(ca.map(t => ({ id: t.id, title: t.title, parent_id: t.parent_id ?? null })));
     };
     loadCached();
 

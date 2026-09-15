@@ -14,7 +14,6 @@ import {
   updateDoc,
   where as fsWhere,
 } from "@/lib/firebase";
-import { getStoredUser } from "@/lib/authService";
 import { deleteObject, getDownloadURL, getStorage, ref, uploadBytes } from "firebase/storage";
 import type { QueryConstraint } from "firebase/firestore";
 
@@ -22,7 +21,7 @@ type Row = Record<string, any>;
 type Result<T = Row[]> = { data: T | null; error: Error | null; count?: number | null };
 type Filter = { field: string; operator: string; value: unknown };
 
-const currentUserId = () => auth.currentUser?.uid || getStoredUser()?.id || null;
+const currentUserId = () => auth.currentUser?.uid || null;
 const makeId = () => typeof crypto !== "undefined" && crypto.randomUUID
   ? crypto.randomUUID()
   : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;

@@ -41,8 +41,10 @@ function persistTaskCache(userId: string, tasks: Task[]): Promise<void> {
 }
 
 function sortTasks(tasks: Task[]): Task[] {
-  return [...tasks].sort((a, b) => {
-    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+  if (!Array.isArray(tasks)) return [];
+  return [...tasks].filter(Boolean).sort((a, b) => {
+    if (!a || !b) return 0;
+    if (Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
     const positionA = (a as Task & { position?: number }).position ?? 0;
     const positionB = (b as Task & { position?: number }).position ?? 0;
     if (positionA !== positionB) return positionA - positionB;

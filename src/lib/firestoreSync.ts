@@ -8,8 +8,8 @@ import {
   deleteDoc,
   serverTimestamp,
 } from "./firebase";
-import type { AppUser } from "./authService";
-import { cacheGet, cacheSet } from "./offlineQueue";
+import { cacheGet, cacheSet } from "./offlineDb";
+import { extractTasksFromCache, createTaskCacheEnvelope } from "@/features/tasks/taskCache";
 import type { Task } from "./taskTypes";
 
 export interface SyncStats {
@@ -90,11 +90,12 @@ export async function backupAllToFirestore(
     // 1. Gather tasks from all potential sources
     let tasksToSync: Task[] = [...localTasks];
     if (!tasksToSync.length) {
-      const cached = (await cacheGet<Task[]>(`tasks:all:${user.id}`)) ||
-                     (await cacheGet<Task[]>("tasks")) ||
-                     (await cacheGet<Task[]>("offline_tasks"));
-      if (Array.isArray(cached) && cached.length) {
-        tasksToSync = cached;
+      const cached = (await cacheGet<unknown>(`tasks:all:${user.id}`)) ??
+                     (await cacheGet<unknown>("tasks")) ??
+                     (await cacheGet<unknown>("offline_tasks"));
+      const extracted = extractTasksFromCache(cached);
+      if (extracted.length) {
+        tasksToSync = extracted;
       }
     }
 
@@ -107,7 +108,7 @@ export async function backupAllToFirestore(
           .limit(2000);
         if (Array.isArray(supaTasks) && supaTasks.length) {
           tasksToSync = supaTasks as Task[];
-          await cacheSet(`tasks:all:${user.id}`, tasksToSync);
+          await cacheSet(`tasks:all:${user.id}`, createTaskCacheEnvelope(tasksToSync));
         }
       } catch {}
     }

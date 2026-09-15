@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { cacheGet } from "@/lib/offlineQueue";
+import { extractTasksFromCache } from "@/features/tasks/taskCache";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -70,8 +71,20 @@ export function TaskSubtasksInline({
     // Render the account cache first. This keeps direct child tasks visible when
     // opening a task offline or while Firestore is reconnecting.
     if (user) {
-      const cached = await cacheGet<Array<Sub & { parent_id?: string | null }>>(`tasks:all:${user.id}`);
-      if (cached) replaceRows(cached.filter((row) => row.parent_id === taskId));
+      const cachedRaw = await cacheGet<unknown>(`tasks:all:${user.id}`);
+      const cached = extractTasksFromCache(cachedRaw);
+      if (cached.length > 0) {
+        replaceRows(
+          cached
+            .filter((row) => row && row.parent_id === taskId)
+            .map((row, i) => ({
+              id: row.id,
+              title: row.title,
+              completed: Boolean(row.completed),
+              position: (row as any).position ?? i,
+            }))
+        );
+      }
     }
     const { data } = await firebaseStore
       .from("tasks")

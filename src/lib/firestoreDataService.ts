@@ -9,6 +9,7 @@ import {
   onSnapshot,
 } from "./firebase";
 import { cacheGet, cacheSet, enqueueOp } from "./offlineQueue";
+import { extractTasksFromCache, createTaskCacheEnvelope } from "@/features/tasks/taskCache";
 import type { Task } from "./taskTypes";
 
 export interface FolderItem {
@@ -129,9 +130,10 @@ export function subscribeTasks(
   }
 
   // 1. Immediately provide cached tasks if available
-  cacheGet<Task[]>(CACHE_KEYS.tasks(userId)).then((cached) => {
-    if (cached && Array.isArray(cached)) {
-      onUpdate(cached);
+  cacheGet<unknown>(CACHE_KEYS.tasks(userId)).then((cached) => {
+    const tasks = extractTasksFromCache(cached);
+    if (tasks.length) {
+      onUpdate(tasks);
     }
   });
 
@@ -155,13 +157,14 @@ export function subscribeTasks(
           return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
         });
 
-        cacheSet(CACHE_KEYS.tasks(userId), items);
+        cacheSet(CACHE_KEYS.tasks(userId), createTaskCacheEnvelope(items));
         onUpdate(items);
       },
       async (err) => {
         console.warn("[FirestoreData] subscribeTasks notice:", err?.message);
-        const cached = await cacheGet<Task[]>(CACHE_KEYS.tasks(userId));
-        if (cached) onUpdate(cached);
+        const cached = await cacheGet<unknown>(CACHE_KEYS.tasks(userId));
+        const tasks = extractTasksFromCache(cached);
+        if (tasks.length) onUpdate(tasks);
       }
     );
     return unsub;
@@ -190,7 +193,8 @@ export async function persistTask(
 
   // 1. Update local cache optimistically first so task is never lost
   try {
-    const cached = (await cacheGet<Task[]>(CACHE_KEYS.tasks(userId))) || [];
+    const cachedRaw = await cacheGet<unknown>(CACHE_KEYS.tasks(userId));
+    const cached = extractTasksFromCache(cachedRaw);
     const index = cached.findIndex((t) => t.id === task.id);
     let next: Task[];
     if (index >= 0) {
@@ -199,7 +203,7 @@ export async function persistTask(
     } else {
       next = [dataToSave as Task, ...cached];
     }
-    await cacheSet(CACHE_KEYS.tasks(userId), next);
+    await cacheSet(CACHE_KEYS.tasks(userId), createTaskCacheEnvelope(next));
   } catch (cacheErr) {
     console.warn("[FirestoreData] upsertTask cache warning:", cacheErr);
   }
@@ -232,8 +236,9 @@ export async function deleteTask(userId: string, taskId: string): Promise<boolea
   // Keep the device view coherent first. If cloud deletion is unavailable, the
   // owner-bound outbox below retains the deletion for a later replay.
   try {
-    const cached = (await cacheGet<Task[]>(CACHE_KEYS.tasks(userId))) || [];
-    await cacheSet(CACHE_KEYS.tasks(userId), cached.filter((task) => task.id !== taskId));
+    const cachedRaw = await cacheGet<unknown>(CACHE_KEYS.tasks(userId));
+    const cached = extractTasksFromCache(cachedRaw);
+    await cacheSet(CACHE_KEYS.tasks(userId), createTaskCacheEnvelope(cached.filter((task) => task.id !== taskId)));
   } catch (cacheErr) {
     console.warn("[FirestoreData] deleteTask cache warning:", cacheErr);
   }

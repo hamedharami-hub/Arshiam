@@ -39,6 +39,7 @@ import { TaskDefaultSettings } from "@/components/TaskDefaultSettings";
 import FirebaseSyncCard from "@/components/FirebaseSyncCard";
 import { saveEntityToFirestore, fetchFromFirestore } from "@/lib/firestoreSync";
 import { cacheGet, cacheSet } from "@/lib/offlineQueue";
+import { extractTasksFromCache, createTaskCacheEnvelope } from "@/features/tasks/taskCache";
 import type { TaskDefaults } from "@/lib/reminders";
 import { cn } from "@/lib/utils";
 import AndroidSettings from "@/components/AndroidSettings";
@@ -956,7 +957,8 @@ export default function SettingsView() {
       const firestoreData = await fetchFromFirestore(user.id);
       
       // 2. Gather from local caches
-      const cachedTasks = (await cacheGet<any[]>(`tasks:all:${user.id}`)) || (await cacheGet<any[]>("tasks")) || [];
+      const cachedTasksRaw = (await cacheGet<any>(`tasks:all:${user.id}`)) ?? (await cacheGet<any>("tasks"));
+      const cachedTasks = extractTasksFromCache(cachedTasksRaw);
       let cachedNotes: any[] = (await cacheGet<any[]>(`notes:all:${user.id}`)) || [];
       if (!cachedNotes.length) {
         try {
@@ -1040,7 +1042,8 @@ export default function SettingsView() {
 
       // Import tasks
       const tasksList = (Array.isArray(data.tasks) ? data.tasks : []) as any[];
-      const existingCached = (await cacheGet<any[]>(`tasks:all:${user.id}`)) || (await cacheGet<any[]>("tasks")) || [];
+      const existingCachedRaw = (await cacheGet<any>(`tasks:all:${user.id}`)) ?? (await cacheGet<any>("tasks"));
+      const existingCached = extractTasksFromCache(existingCachedRaw);
       const mergedTasks = [...existingCached];
 
       for (const t of tasksList) {
@@ -1062,7 +1065,7 @@ export default function SettingsView() {
         else mergedTasks.push(taskObj);
         importedTasks++;
       }
-      await cacheSet(`tasks:all:${user.id}`, mergedTasks);
+      await cacheSet(`tasks:all:${user.id}`, createTaskCacheEnvelope(mergedTasks));
       await cacheSet("tasks", mergedTasks);
 
       // Import notes

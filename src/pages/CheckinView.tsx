@@ -16,6 +16,7 @@ import {
   type DailyCheckinItem,
 } from "@/lib/firestoreDataService";
 import { cacheGet } from "@/lib/offlineQueue";
+import { extractTasksFromCache } from "@/features/tasks/taskCache";
 import type { Task } from "@/lib/taskTypes";
 
 import { formatDate, toPersianDigits } from "@/lib/jalali";
@@ -117,7 +118,8 @@ export default function CheckinView() {
         }
 
         // Calculate cognitive load
-        const cachedTasks = (await cacheGet<Task[]>(`tasks:all:${user!.id}`)) || [];
+        const cachedRaw = await cacheGet<unknown>(`tasks:all:${user!.id}`);
+        const cachedTasks = extractTasksFromCache(cachedRaw);
         const { computeCognitiveLoad } = await import("@/lib/cognitiveLoad");
         const r = computeCognitiveLoad({
           tasks: cachedTasks.filter((t) => !t.completed),

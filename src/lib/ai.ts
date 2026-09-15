@@ -11,8 +11,6 @@ function getAISettings(mode: AIMode) {
   return cfg;
 }
 
-import { getStoredUser } from "./authService";
-
 export type AILanguage = "fa" | "en" | "auto";
 
 const LANG_KEY = "ai_language_v1";
