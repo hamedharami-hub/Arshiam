@@ -274,7 +274,10 @@ export function QuickAddTask({
   const removeTag = (tid: string) => {
     setTagIds(prev => prev.filter(id => id !== tid));
     const tag = tags.find(t => t.id === tid);
-    if (tag) setTitle(title.split(/\s+/).filter(w => w.toLowerCase() !== `#${tag.name.toLowerCase()}`).join(" "));
+    if (tag && tag.name) {
+      const tagNameLower = tag.name.toLowerCase();
+      setTitle((title || "").split(/\s+/).filter(w => (w || "").toLowerCase() !== `#${tagNameLower}`).join(" "));
+    }
   };
 
   const applyTemplate = (tpl: Partial<Task>) => {

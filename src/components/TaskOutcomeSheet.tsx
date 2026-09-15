@@ -136,16 +136,17 @@ export function TaskOutcomeSheet({
     try {
       for (let i = 0; i < outcomes.length; i++) {
         const o = outcomes[i];
-        if (!o.label.trim()) continue;
+        if (!o?.label?.trim()) continue;
         await saveTaskOutcome({
           id: o.id || undefined,
           task_id: task.id,
-          label: o.label,
+          label: o.label.trim(),
           color: o.color,
           icon: o.icon,
           position: i,
-          actions: o.actions.filter((a) => a.title.trim()).map((a) => ({
+          actions: (o.actions || []).filter((a) => a?.title?.trim()).map((a) => ({
             ...a,
+            title: a.title.trim(),
             due_offset_hours: a.due_offset_hours ? Number(a.due_offset_hours) : null,
           })),
         });

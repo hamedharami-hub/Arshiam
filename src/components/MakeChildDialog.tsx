@@ -36,7 +36,7 @@ export function MakeChildDialog({
     const term = q.trim().toLowerCase();
     return allTasks
       .filter(t => !forbidden.has(t.id))
-      .filter(t => !term || t.title.toLowerCase().includes(term))
+      .filter(t => !term || (t.title || "").toLowerCase().includes(term))
       .slice(0, 80);
   }, [allTasks, forbidden, q]);
 

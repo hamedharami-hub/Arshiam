@@ -24,7 +24,7 @@ turndown.addRule("taskItem", {
   },
   replacement: (content: string, node: any) => {
     const isChecked = node.getAttribute("data-checked") === "true" || Boolean(node.querySelector?.("input[type='checkbox']")?.checked);
-    const cleanContent = content.trim().replace(/^\[[ xX]\]\s*/, "");
+    const cleanContent = (content || "").trim().replace(/^\[[ xX]\]\s*/, "");
     return `- [${isChecked ? "x" : " "}] ${cleanContent}\n`;
   },
 });

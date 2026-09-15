@@ -342,9 +342,10 @@ export default function NotesView() {
     load();
   };
 
+  const searchLower = (search || "").toLowerCase();
   const filtered = notes.filter((n) =>
-    n.title.toLowerCase().includes(search.toLowerCase()) ||
-    n.content.toLowerCase().includes(search.toLowerCase())
+    (n.title || "").toLowerCase().includes(searchLower) ||
+    (n.content || "").toLowerCase().includes(searchLower)
   );
 
   // Plain-preview helper (strip MD chars) for sidebar

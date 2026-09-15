@@ -100,11 +100,20 @@ export default function CommandPalette() {
         }
         cachedTasks.forEach((t) => {
           if (t?.title?.toLowerCase().includes(term) || t?.description?.toLowerCase().includes(term)) {
+            let dueSubtitle: string | undefined;
+            if (t.due_date) {
+              try {
+                const parsedDate = new Date(t.due_date);
+                if (!isNaN(parsedDate.getTime())) {
+                  dueSubtitle = `${T("موعد", "Due")}: ${parsedDate.toLocaleDateString(isEn ? "en-US" : "fa-IR")}`;
+                }
+              } catch {}
+            }
             localHits.push({
               kind: "task",
               id: t.id,
               title: t.title || T("بدون عنوان", "Untitled"),
-              subtitle: t.due_date ? `${T("موعد", "Due")}: ${new Date(t.due_date).toLocaleDateString(isEn ? "en-US" : "fa-IR")}` : undefined,
+              subtitle: dueSubtitle,
             });
           }
         });
@@ -160,21 +169,23 @@ export default function CommandPalette() {
         localHits.forEach((h) => remoteMap.set(`${h.kind}-${h.id}`, h));
 
         ((tasksRes.data || []) as any[]).forEach((x) => {
-          remoteMap.set(`task-${x.id}`, { kind: "task", id: x.id, title: x.title });
+          remoteMap.set(`task-${x.id}`, { kind: "task", id: x.id, title: x.title || "" });
         });
         ((notesRes.data || []) as any[]).forEach((x) => {
-          remoteMap.set(`note-${x.id}`, { kind: "note", id: x.id, title: x.title });
+          remoteMap.set(`note-${x.id}`, { kind: "note", id: x.id, title: x.title || "" });
         });
         ((foldersRes.data || []) as any[]).forEach((x) => {
-          remoteMap.set(`folder-${x.id}`, { kind: "folder", id: x.id, title: x.name });
+          remoteMap.set(`folder-${x.id}`, { kind: "folder", id: x.id, title: x.name || "" });
         });
         ((tagsRes.data || []) as any[]).forEach((x) => {
-          remoteMap.set(`tag-${x.id}`, { kind: "tag", id: x.id, title: x.name });
+          remoteMap.set(`tag-${x.id}`, { kind: "tag", id: x.id, title: x.name || "" });
         });
 
         const sorted = Array.from(remoteMap.values()).sort((a, b) => {
-          const aExact = a.title.toLowerCase() === term ? 2 : a.title.toLowerCase().startsWith(term) ? 1 : 0;
-          const bExact = b.title.toLowerCase() === term ? 2 : b.title.toLowerCase().startsWith(term) ? 1 : 0;
+          const aTitle = (a.title || "").toLowerCase();
+          const bTitle = (b.title || "").toLowerCase();
+          const aExact = aTitle === term ? 2 : aTitle.startsWith(term) ? 1 : 0;
+          const bExact = bTitle === term ? 2 : bTitle.startsWith(term) ? 1 : 0;
           return bExact - aExact;
         });
 

@@ -624,68 +624,71 @@ export default function WidgetsView() {
                         <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">{isEn ? "1 Task" : "۱ تسک"}</Badge>
                       </div>
 
-                      {filteredTasks[0] ? (
-                        <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-3 group">
-                          <button
-                            onClick={() => void handleToggleTask(filteredTasks[0])}
-                            title={filteredTasks[0].completed ? T("علامت‌گذاری به عنوان انجام‌نشده", "Mark uncompleted") : T("انجام شد (تیک زدن)", "Mark done")}
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-card border border-primary/40 text-primary transition-all hover:scale-105"
-                          >
-                            {filteredTasks[0].completed ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <Circle className="h-5 w-5" />}
-                          </button>
-                          <div
-                            className="min-w-0 flex-1 cursor-pointer"
-                            onClick={() => navigate(`/app/tasks/${filteredTasks[0].id}`)}
-                          >
-                            <h4 className={`truncate text-xs font-bold ${filteredTasks[0].completed ? "line-through text-muted-foreground" : ""}`}>
-                              {filteredTasks[0].title}
-                            </h4>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">{T("برای بازکردن تسک لمس کنید", "Tap to open task")}</p>
+                      {filteredTasks[0] ? (() => {
+                        const focusTask = filteredTasks[0];
+                        return (
+                          <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-3 group">
+                            <button
+                              onClick={() => void handleToggleTask(focusTask)}
+                              title={focusTask.completed ? T("علامت‌گذاری به عنوان انجام‌نشده", "Mark uncompleted") : T("انجام شد (تیک زدن)", "Mark done")}
+                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-card border border-primary/40 text-primary transition-all hover:scale-105"
+                            >
+                              {focusTask.completed ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <Circle className="h-5 w-5" />}
+                            </button>
+                            <div
+                              className="min-w-0 flex-1 cursor-pointer"
+                              onClick={() => navigate(`/app/tasks/${focusTask.id}`)}
+                            >
+                              <h4 className={`truncate text-xs font-bold ${focusTask.completed ? "line-through text-muted-foreground" : ""}`}>
+                                {focusTask.title}
+                              </h4>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">{T("برای بازکردن تسک لمس کنید", "Tap to open task")}</p>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/60 transition shrink-0"
+                                  title={T("عملیات تسک در ویجت", "Widget task actions")}
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48 text-xs">
+                                <DropdownMenuItem onClick={() => void handleToggleTask(focusTask)}>
+                                  {focusTask.completed ? (
+                                    <>
+                                      <Circle className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                                      <span>{T("علامت به عنوان انجام‌نشده", "Mark uncompleted")}</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-500" />
+                                      <span>{T("انجام شد (تیک زدن)", "Mark done")}</span>
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => void handlePostponeTask(focusTask)}>
+                                  <Calendar className="h-3.5 w-3.5 mr-2 text-primary" />
+                                  <span>{T("انتقال موعد به فردا", "Postpone to tomorrow")}</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => navigate(`/app/tasks/${focusTask.id}`)}>
+                                  <ArrowUpRight className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                                  <span>{T("مشاهده در برنامه اصلی", "Open in main app")}</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => void handleDeleteTask(focusTask.id)}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 mr-2" />
+                                  <span>{T("حذف تسک", "Delete task")}</span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <button
-                                type="button"
-                                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/60 transition shrink-0"
-                                title={T("عملیات تسک در ویجت", "Widget task actions")}
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48 text-xs">
-                              <DropdownMenuItem onClick={() => void handleToggleTask(filteredTasks[0])}>
-                                {filteredTasks[0].completed ? (
-                                  <>
-                                    <Circle className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                                    <span>{T("علامت به عنوان انجام‌نشده", "Mark uncompleted")}</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-500" />
-                                    <span>{T("انجام شد (تیک زدن)", "Mark done")}</span>
-                                  </>
-                                )}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => void handlePostponeTask(filteredTasks[0])}>
-                                <Calendar className="h-3.5 w-3.5 mr-2 text-primary" />
-                                <span>{T("انتقال موعد به فردا", "Postpone to tomorrow")}</span>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate(`/app/tasks/${filteredTasks[0].id}`)}>
-                                <ArrowUpRight className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                                <span>{T("مشاهده در برنامه اصلی", "Open in main app")}</span>
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => void handleDeleteTask(filteredTasks[0].id)}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="h-3.5 w-3.5 mr-2" />
-                                <span>{T("حذف تسک", "Delete task")}</span>
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      ) : (
+                        );
+                      })() : (
                         <div className="py-4 text-center text-xs text-muted-foreground">
                           {T("تسک فعالی وجود ندارد · آماده افزودن", "No active task · Ready to add")}
                         </div>

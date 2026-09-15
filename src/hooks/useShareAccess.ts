@@ -81,7 +81,7 @@ export function useShareAccess(
       // Fallback: the RPC may return null even when the user is the recipient
       // (e.g. pending share). Compute from fetched rows as well.
       const matched = (rows || []).filter(
-        (s) => s.recipient_id === user.id || s.recipient_email.toLowerCase() === (user.email || "").toLowerCase(),
+        (s) => s.recipient_id === user.id || (s.recipient_email || "").toLowerCase() === (user.email || "").toLowerCase(),
       );
       if (effective === null && matched.length > 0) {
         const accepted = matched
