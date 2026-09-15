@@ -42,6 +42,12 @@ export function TaskSubtasksInline({
   const writeTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
+    return () => {
+      Object.values(writeTimers.current).forEach(clearTimeout);
+    };
+  }, []);
+
+  useEffect(() => {
     if (initialSubs && initialSubs.length > 0) {
       setSubs((prev) => {
         if (prev.length === 0) return initialSubs;

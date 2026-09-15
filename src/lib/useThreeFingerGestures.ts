@@ -24,7 +24,7 @@ export function useThreeFingerGestures({ onQuickCapture, onOpenTrash, onOpenSear
     let moved = false;
 
     const onStart = (e: TouchEvent) => {
-      if (e.touches.length !== 3) {
+      if (!e.touches || e.touches.length !== 3 || !e.touches[0] || !e.touches[1] || !e.touches[2]) {
         active = false;
         return;
       }
@@ -36,7 +36,7 @@ export function useThreeFingerGestures({ onQuickCapture, onOpenTrash, onOpenSear
     };
 
     const onMove = (e: TouchEvent) => {
-      if (!active || e.touches.length !== 3) return;
+      if (!active || !e.touches || e.touches.length !== 3 || !e.touches[0] || !e.touches[1] || !e.touches[2]) return;
       const y =
         (e.touches[0].clientY + e.touches[1].clientY + e.touches[2].clientY) / 3;
       if (Math.abs(y - startY) > 12) moved = true;

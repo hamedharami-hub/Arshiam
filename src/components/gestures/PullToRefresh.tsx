@@ -35,6 +35,7 @@ export default function PullToRefresh({ onRefresh, children }: Props) {
 
     const onStart = (e: TouchEvent) => {
       if (refreshing) return;
+      if (!e.touches || !e.touches[0]) return;
       if ((target?.scrollTop || 0) > 0) return;
       startY.current = e.touches[0].clientY;
       pulling.current = true;
@@ -42,6 +43,7 @@ export default function PullToRefresh({ onRefresh, children }: Props) {
     };
     const onMove = (e: TouchEvent) => {
       if (!pulling.current) return;
+      if (!e.touches || !e.touches[0]) return;
       const dy = e.touches[0].clientY - startY.current;
       if (dy <= 0) {
         setPull(0);

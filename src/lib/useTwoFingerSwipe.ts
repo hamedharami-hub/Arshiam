@@ -18,7 +18,7 @@ export function useTwoFingerSwipe() {
     let tracking = false;
 
     const onStart = (e: TouchEvent) => {
-      if (e.touches.length !== 2) {
+      if (!e.touches || e.touches.length !== 2 || !e.touches[0] || !e.touches[1]) {
         tracking = false;
         return;
       }

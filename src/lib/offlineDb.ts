@@ -1,4 +1,4 @@
-﻿import { openDB, type IDBPDatabase } from "idb";
+import { openDB, type IDBPDatabase } from "idb";
 
 export const DB_NAME = "taskflow-offline";
 export const STORE = "outbox";
@@ -18,7 +18,11 @@ export async function getDB(): Promise<IDBPDatabase | null> {
           db.createObjectStore(CACHE_STORE);
         }
       },
-    }).catch(() => null);
+    }).catch((err) => {
+      console.warn("[offlineDb] openDB error:", err);
+      dbPromise = null;
+      return null;
+    });
   }
   return dbPromise;
 }

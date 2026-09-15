@@ -231,6 +231,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         }
       }
 
+      if (cancelled) return;
+
       const stepCount = stepListsRes.count || 0;
       setStepListCount(stepCount);
       if (stepCount > 0) setShowSteps(true);

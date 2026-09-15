@@ -142,8 +142,8 @@ export default function KanbanView() {
   const loadTasks = useCallback(async () => {
     if (!user) return;
     const [parentsRes, subsRes] = await Promise.all([
-      firebaseStore.from("tasks").select("*").is("parent_id", null).order("position"),
-      firebaseStore.from("tasks").select("*").not("parent_id", "is", null).order("position"),
+      firebaseStore.from("tasks").select("*").eq("user_id", user.id).is("parent_id", null).order("position"),
+      firebaseStore.from("tasks").select("*").eq("user_id", user.id).not("parent_id", "is", null).order("position"),
     ]);
     setAllTasks(((parentsRes.data || []) as unknown) as Task[]);
     setSubtasks(((subsRes.data || []) as unknown) as Task[]);

@@ -37,6 +37,13 @@ export default function AndroidBackButton() {
           return;
         }
       }
+      if (pathname === "/auth" || pathname === "/") {
+        const now = Date.now();
+        if (lastBack.current && now - lastBack.current < 2000) { void CapApp.exitApp(); return; }
+        lastBack.current = now;
+        toast("برای خروج یک‌بار دیگر برگشت را بزن", { duration: 1800 });
+        return;
+      }
       if (!["/app/today","/app/tomorrow","/app/next7","/app/inbox"].includes(pathname)) {
         if (window.history.state?.idx > 0) navigate(-1); else navigate("/app/today", { replace: true });
         return;
