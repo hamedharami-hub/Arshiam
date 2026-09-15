@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 export default function AndroidBackButton() {
   const { openMobile, setOpenMobile } = useSidebar();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const navigate = useNavigate();
   const lastBack = useRef(0);
   useEffect(() => {
@@ -18,6 +18,14 @@ export default function AndroidBackButton() {
         return;
       }
       if (openMobile) { setOpenMobile(false); return; }
+      if (pathname.startsWith("/app/tasks/")) {
+        const sp = new URLSearchParams(search);
+        const fromTaskId = sp.get("from");
+        if (fromTaskId) {
+          navigate(`/app/tasks/${encodeURIComponent(fromTaskId)}`, { replace: true });
+          return;
+        }
+      }
       if (!["/app/today","/app/tomorrow","/app/next7","/app/inbox"].includes(pathname)) {
         if (window.history.state?.idx > 0) navigate(-1); else navigate("/app/today", { replace: true });
         return;

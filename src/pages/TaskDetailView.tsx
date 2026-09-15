@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { TaskDetail } from "@/components/TaskDetail";
@@ -15,6 +15,8 @@ import {
 
 export default function TaskDetailView() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const fromTaskId = searchParams.get("from");
   const navigate = useNavigate();
   const { user } = useAuth();
   const { T, isEn } = useBilingual();
@@ -101,7 +103,15 @@ export default function TaskDetailView() {
       <TaskDetail
         key={visibleTask.id}
         task={visibleTask}
-        onClose={() => navigate(-1)}
+        onClose={() => {
+          if (fromTaskId) {
+            navigate(`/app/tasks/${encodeURIComponent(fromTaskId)}`);
+          } else {
+            navigate(-1);
+          }
+        }}
+        onBack={fromTaskId ? () => navigate(`/app/tasks/${encodeURIComponent(fromTaskId)}`) : undefined}
+        hasBackHistory={!!fromTaskId}
         onChanged={load}
         setConfirm={setConfirm}
         mode="page"

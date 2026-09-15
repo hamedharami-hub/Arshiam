@@ -77,7 +77,13 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   mode?: "sheet" | "page" | "drawer" | "embedded";
   allowDelete?: boolean;
   onSave?: () => Promise<void> | void;
-}>(function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet", allowDelete = false, onSave }, ref) {
+  onOpenParentTask?: (parentId: string) => void;
+  onBack?: () => void;
+  hasBackHistory?: boolean;
+}>(function TaskDetail({
+  task, onClose, onChanged, setConfirm, mode = "sheet", allowDelete = false, onSave,
+  onOpenParentTask, onBack, hasBackHistory,
+}, ref) {
   const { user } = useAuth();
   const { i18n } = useTranslation();
   const navigate = useNavigate();
@@ -497,12 +503,14 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   }, [onSave, savePendingChanges, T]);
 
   const handleBackClick = useCallback(() => {
-    if (onSave) {
+    if (onBack) {
+      onBack();
+    } else if (onSave) {
       onClose();
     } else {
       requestClose();
     }
-  }, [onSave, onClose, requestClose]);
+  }, [onBack, onSave, onClose, requestClose]);
 
   useEffect(() => {
     const request = () => handleBackClick();
@@ -733,7 +741,13 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           icon={ListTree}
           color="bg-amber-500/10 text-amber-600 dark:text-amber-400"
           onClick={() => {
-            void savePendingChanges().then(() => navigate(`/app/tasks/${encodeURIComponent(t.parent_id!)}`));
+            void savePendingChanges().then(() => {
+              if (onOpenParentTask) {
+                onOpenParentTask(t.parent_id!);
+              } else {
+                navigate(`/app/tasks/${encodeURIComponent(t.parent_id!)}?from=${encodeURIComponent(t.id)}`);
+              }
+            });
           }}
           onClear={isOwner ? () => save({ parent_id: null }) : undefined}
           disabled={!canEdit}
@@ -1225,8 +1239,13 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             onProgressChange={handleSubtaskProgress}
             readOnly={!canEdit}
             onOpenSubtask={(id) => {
-              void savePendingChanges().then(() => navigate(`/app/tasks/${encodeURIComponent(id)}`))
-                .catch(() => toast.error(T("ابتدا تغییرات تسک فعلی را ذخیره کن", "Save the current task before opening a subtask")));
+              void savePendingChanges().then(() => {
+                if (onOpenParentTask) {
+                  onOpenParentTask(id);
+                } else {
+                  navigate(`/app/tasks/${encodeURIComponent(id)}?from=${encodeURIComponent(t.id)}`);
+                }
+              }).catch(() => toast.error(T("ابتدا تغییرات تسک فعلی را ذخیره کن", "Save the current task before opening a subtask")));
             }}
           />
         </section>
@@ -1778,9 +1797,21 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     </DropdownMenu>
   );
 
-  const drawerHeader = (snap === 1 && isMobile) ? null : (
+  const drawerHeader = (
     <div className="flex items-center justify-between px-3 pt-2 pb-1 shrink-0">
       <div className="flex items-center gap-1.5 ps-1">
+        {(onBack || hasBackHistory) && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 px-2 rounded-xl text-xs gap-1 font-medium text-foreground hover:bg-muted me-1"
+            onClick={onBack || handleBackClick}
+            title={T("برگشت به تسک قبلی", "Back to previous task")}
+          >
+            <ArrowRight className={`w-4 h-4 ${isEn ? "rotate-180" : ""}`} />
+            <span>{T("برگشت", "Back")}</span>
+          </Button>
+        )}
         <span className={`w-2 h-2 rounded-full shrink-0 ${
           saveState === "saving" ? "bg-amber-500 animate-ping" :
           saveState === "dirty" ? "bg-amber-500" :
@@ -1879,6 +1910,18 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         <div className="w-full h-full flex flex-col bg-card/95 backdrop-blur-md border border-border/70 rounded-2xl shadow-sm overflow-hidden animate-in fade-in duration-200">
           <div className="px-3 sm:px-4 py-2.5 border-b border-border/60 flex items-center justify-between gap-2 bg-muted/30 shrink-0">
             <div className="flex items-center gap-2 min-w-0 flex-1">
+              {(onBack || hasBackHistory) && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 px-2 rounded-xl text-xs gap-1 font-medium text-foreground hover:bg-muted shrink-0"
+                  onClick={onBack || handleBackClick}
+                  title={T("برگشت به تسک قبلی", "Back to previous task")}
+                >
+                  <ArrowRight className={`w-4 h-4 ${isEn ? "rotate-180" : ""}`} />
+                  <span>{T("برگشت", "Back")}</span>
+                </Button>
+              )}
               {activeNote ? (
                 <>
                   <span className="h-2.5 w-2.5 rounded-full bg-primary shrink-0" />

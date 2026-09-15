@@ -150,6 +150,44 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const [delFolderOpen, setDelFolderOpen] = useState(false);
   const [actionTask, setActionTask] = useState<Task | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTaskHistory, setSelectedTaskHistory] = useState<Task[]>([]);
+
+  const handleBackInDrawer = useCallback(() => {
+    setSelectedTaskHistory((prev) => {
+      if (prev.length === 0) {
+        setSelectedTask(null);
+        return [];
+      }
+      const next = [...prev];
+      const previousTask = next.pop()!;
+      setSelectedTask(previousTask);
+      return next;
+    });
+  }, []);
+
+  const handleOpenParentInDrawer = useCallback(async (parentId: string) => {
+    if (!selectedTask) return;
+    let parent = allTasks.find(t => t.id === parentId);
+    if (!parent && user) {
+      try {
+        const cached = await cacheGet<Task[]>(`tasks:all:${user.id}`);
+        parent = cached?.find(t => t.id === parentId);
+      } catch {}
+    }
+    if (!parent) {
+      try {
+        const { data } = await firebaseStore.from("tasks").select("*").eq("id", parentId).maybeSingle();
+        if (data) parent = data as unknown as Task;
+      } catch {}
+    }
+    if (parent) {
+      setSelectedTaskHistory(prev => [...prev, selectedTask]);
+      setSelectedTask(parent);
+    } else {
+      navigate(`/app/tasks/${encodeURIComponent(parentId)}?from=${encodeURIComponent(selectedTask.id)}`);
+    }
+  }, [selectedTask, allTasks, user, navigate]);
+
   const [splitView, setSplitView] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
     return localStorage.getItem("arshnaz_tasks_split_view") !== "false";
@@ -758,7 +796,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       onToggleExpand={(id) => setExpanded(s => ({ ...s, [id]: !s[id] }))}
       progress={getProgress(t.id)}
       parent={t.parent_id ? taskMap.get(t.parent_id) : null}
-      onSelectTask={(task) => setSelectedTask(task)}
+      onSelectTask={(task) => { setSelectedTaskHistory([]); setSelectedTask(task); }}
       onToggleTask={toggleTask}
       onActionTask={setActionTask}
       onDeleteTask={askDeleteTask}
@@ -1042,10 +1080,19 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                   key={selectedTask.id}
                   task={selectedTask}
                   mode="embedded"
-                  onClose={() => setSelectedTask(null)}
+                  onClose={() => {
+                    if (selectedTaskHistory.length > 0) {
+                      handleBackInDrawer();
+                    } else {
+                      setSelectedTask(null);
+                    }
+                  }}
                   onChanged={load}
                   setConfirm={setConfirm}
                   allowDelete
+                  onOpenParentTask={handleOpenParentInDrawer}
+                  onBack={selectedTaskHistory.length > 0 ? handleBackInDrawer : undefined}
+                  hasBackHistory={selectedTaskHistory.length > 0}
                 />
               ) : (
                 <div className="h-full rounded-2xl border border-dashed border-border/70 bg-card/40 flex flex-col items-center justify-center p-6 text-center text-muted-foreground shadow-sm">
@@ -1154,12 +1201,22 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
       {selectedTask && !isSplitActive && (
         <TaskDetail
+          key={selectedTask.id}
           task={selectedTask}
           mode="drawer"
-          onClose={() => setSelectedTask(null)}
+          onClose={() => {
+            if (selectedTaskHistory.length > 0) {
+              handleBackInDrawer();
+            } else {
+              setSelectedTask(null);
+            }
+          }}
           onChanged={load}
           setConfirm={setConfirm}
           allowDelete
+          onOpenParentTask={handleOpenParentInDrawer}
+          onBack={selectedTaskHistory.length > 0 ? handleBackInDrawer : undefined}
+          hasBackHistory={selectedTaskHistory.length > 0}
         />
       )}
 
