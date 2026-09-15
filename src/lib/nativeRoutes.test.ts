@@ -21,5 +21,6 @@ describe("Android deep links", () => {
     expect(nativeRoute("arshnaz://mind")).toBe("/app/mind");
     expect(nativeRoute("arshnaz://socratic")).toBe("/app/socratic");
     expect(nativeRoute("arshnaz://life-architect")).toBe("/app/life-architect");
+    expect(nativeRoute("arshnaz://widgets")).toBe("/app/widgets");
   });
 });
