@@ -301,6 +301,18 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     return parent ? `${parent.name} / ${f.name}` : f.name;
   };
 
+  const currentFolder = useMemo(() => {
+    if (!t.folder_id) return null;
+    return folders.find((f) => f.id === t.folder_id) || null;
+  }, [t.folder_id, folders]);
+
+  const taskFolderLabel = useMemo(() => {
+    if (!t.folder_id) return T("اینباکس", "Inbox");
+    if (!currentFolder) return T("پوشه…", "Folder…");
+    const parent = currentFolder.parent_id ? folders.find((x) => x.id === currentFolder.parent_id) : null;
+    return parent ? `${parent.name} / ${currentFolder.name}` : currentFolder.name;
+  }, [t.folder_id, currentFolder, folders, T]);
+
   const generateId = () => {
     try { return crypto.randomUUID(); } catch { return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`; }
   };
@@ -1955,10 +1967,25 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         <div className="w-full h-full flex flex-col bg-card/95 backdrop-blur-md border border-border/70 rounded-2xl shadow-sm overflow-hidden animate-in fade-in duration-200">
           <div className="px-3 sm:px-4 py-2.5 border-b border-border/60 flex items-center justify-between gap-2 bg-muted/30 shrink-0">
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              <span className="h-2.5 w-2.5 rounded-full bg-primary shrink-0" />
-              <h3 className="text-sm font-bold truncate text-foreground" dir="auto">
-                {activeNote ? T("ویرایش نوت", "Edit note") : <BidiText text={t.title || T("بدون عنوان", "Untitled")} />}
-              </h3>
+              {activeNote ? (
+                <>
+                  <span className="h-2.5 w-2.5 rounded-full bg-primary shrink-0" />
+                  <h3 className="text-sm font-bold truncate text-foreground" dir="auto">
+                    {T("ویرایش نوت", "Edit note")}
+                  </h3>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  disabled={!canEdit}
+                  onClick={() => setFolderOpen(true)}
+                  className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:hover:text-muted-foreground max-w-full truncate px-2 py-0.5 rounded-lg hover:bg-muted/50"
+                  title={T("تغییر فولدر", "Change folder")}
+                >
+                  <FolderIcon className="w-3.5 h-3.5 shrink-0" style={{ color: currentFolder?.color || undefined }} />
+                  <span className="truncate max-w-[240px]">{taskFolderLabel}</span>
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-1 shrink-0">
               {editorActions}
@@ -2010,8 +2037,19 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
               </div>
             </div>
 
-            {/* Center: Empty / clean breathing room - no "New Task" or "جزئیات تسک" text */}
-            <div className="flex-1 min-w-0" />
+            {/* Center: Folder name or Inbox */}
+            <div className="flex-1 min-w-0 flex items-center justify-center px-2">
+              <button
+                type="button"
+                disabled={!canEdit}
+                onClick={() => setFolderOpen(true)}
+                className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:hover:text-muted-foreground px-2.5 py-1 rounded-lg hover:bg-muted/50"
+                title={T("تغییر فولدر", "Change folder")}
+              >
+                <FolderIcon className="w-3.5 h-3.5 shrink-0" style={{ color: currentFolder?.color || undefined }} />
+                <span className="truncate max-w-[220px]">{taskFolderLabel}</span>
+              </button>
+            </div>
 
             {/* Trailing: Save button, Calendar button, and More actions dropdown */}
             <div className="flex items-center gap-1.5 shrink-0">
@@ -2052,9 +2090,22 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       ) : mode === "drawer" && isMobile ? (
         <Drawer open={true} onOpenChange={(v) => !v && requestClose()} snapPoints={[0.5, 1]} activeSnapPoint={snap} setActiveSnapPoint={setSnap} shouldScaleBackground={false} dismissible>
           <DrawerContent className={`h-screen max-h-screen flex flex-col !mt-0 ${snap === 1 ? "!m-0 !rounded-none" : "min-h-[55vh]"}`} aria-describedby="task-drawer-desc">
-            <DrawerHeader className="px-4 pt-4 pb-1 text-center">
-              <DrawerTitle className="text-base font-semibold truncate" dir="auto">
-                {activeNote ? T("ویرایش نوت", "Edit note") : <BidiText text={t.title || T("بدون عنوان", "Untitled")} />}
+            <DrawerHeader className="px-4 pt-3 pb-1 text-center">
+              <DrawerTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center justify-center gap-1.5 truncate" dir="auto">
+                {activeNote ? (
+                  T("ویرایش نوت", "Edit note")
+                ) : (
+                  <button
+                    type="button"
+                    disabled={!canEdit}
+                    onClick={() => setFolderOpen(true)}
+                    className="inline-flex items-center justify-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:hover:text-muted-foreground max-w-full px-2 py-0.5 rounded-lg hover:bg-muted/50"
+                    title={T("تغییر فولدر", "Change folder")}
+                  >
+                    <FolderIcon className="w-3.5 h-3.5 shrink-0" style={{ color: currentFolder?.color || undefined }} />
+                    <span className="truncate max-w-[240px]">{taskFolderLabel}</span>
+                  </button>
+                )}
               </DrawerTitle>
             </DrawerHeader>
             {drawerHeader}
@@ -2073,8 +2124,21 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         <Sheet open={true} onOpenChange={(v) => !v && requestClose()}>
           <SheetContent className="w-full sm:max-w-xl md:max-w-2xl overflow-y-auto p-3 sm:p-4 flex flex-col">
             <SheetHeader className="mb-1 flex-row items-center justify-between gap-3 pe-8">
-              <SheetTitle className="text-base font-semibold truncate text-start" dir="auto">
-                {activeNote ? T("ویرایش نوت", "Edit note") : <BidiText text={t.title || T("بدون عنوان", "Untitled")} />}
+              <SheetTitle className="text-xs sm:text-sm font-medium text-muted-foreground truncate text-start" dir="auto">
+                {activeNote ? (
+                  T("ویرایش نوت", "Edit note")
+                ) : (
+                  <button
+                    type="button"
+                    disabled={!canEdit}
+                    onClick={() => setFolderOpen(true)}
+                    className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:hover:text-muted-foreground px-2 py-0.5 rounded-lg hover:bg-muted/50"
+                    title={T("تغییر فولدر", "Change folder")}
+                  >
+                    <FolderIcon className="w-3.5 h-3.5 shrink-0" style={{ color: currentFolder?.color || undefined }} />
+                    <span className="truncate max-w-[220px]">{taskFolderLabel}</span>
+                  </button>
+                )}
               </SheetTitle>
               {editorActions}
             </SheetHeader>
