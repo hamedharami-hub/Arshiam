@@ -10,6 +10,11 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(ArshnazSpeechPlugin.class);
         registerPlugin(NativeExperiencePlugin.class);
         super.onCreate(savedInstanceState);
+        try {
+            if (bridge != null && bridge.getWebView() != null) {
+                bridge.getWebView().clearCache(true);
+            }
+        } catch (Exception ignored) {}
     }
 
     /**

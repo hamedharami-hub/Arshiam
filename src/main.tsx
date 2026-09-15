@@ -6,11 +6,7 @@ import { initOfflineSync } from "@/lib/offlineQueue";
 import { bootApplyUIPrefs } from "@/lib/uiScale";
 import { initStatusBarTheme } from "@/lib/statusBarTheme";
 import { startVersionWatcher, clearAllAppCaches } from "@/lib/versionCheck";
-
-type CapacitorGlobal = {
-  isNativePlatform?: () => boolean;
-  isNative?: boolean;
-};
+import { Capacitor } from "@capacitor/core";
 
 try {
   bootApplyUIPrefs();
@@ -38,15 +34,11 @@ const isPreviewHost =
   host.includes("run.app") ||
   host.includes("googleusercontent.com");
 
-const capacitor =
-  typeof window !== "undefined"
-    ? (window as Window & { Capacitor?: CapacitorGlobal }).Capacitor
-    : undefined;
 const isNativeCapacitor = Boolean(
   typeof window !== "undefined" &&
-    (capacitor?.isNativePlatform?.() ||
-      capacitor?.isNative ||
-      window.location.protocol === "capacitor:")
+    (Capacitor.isNativePlatform() ||
+      window.location.protocol === "capacitor:" ||
+      window.location.hostname === "localhost")
 );
 
 if (isNativeCapacitor) {
@@ -62,13 +54,20 @@ if (isNativeCapacitor) {
 }
 
 if (isInIframe || isNativeCapacitor) {
-  // Inside the live editor preview iframe or native Capacitor APKs, avoid aggressive SW caching
+  // Inside the live editor preview iframe or native Capacitor APKs, purge SW and CacheStorage
   if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
     try {
       navigator.serviceWorker
         .getRegistrations()
         .then((rs) => rs.forEach((r) => r.unregister()))
         .catch(() => {});
+    } catch {}
+  }
+  if (typeof window !== "undefined" && "caches" in window) {
+    try {
+      caches.keys().then((keys) => {
+        keys.forEach((k) => caches.delete(k));
+      });
     } catch {}
   }
 } else if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
