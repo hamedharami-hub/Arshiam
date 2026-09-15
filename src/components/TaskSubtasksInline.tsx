@@ -6,8 +6,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, ListTree, GripVertical } from "lucide-react";
+import { Plus, Trash2, ListTree, GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { useBilingual } from "@/hooks/useBilingual";
 import { BidiText } from "@/components/BidiText";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -32,6 +33,7 @@ export function TaskSubtasksInline({
   initialSubs?: Sub[];
 }) {
   const { user } = useAuth();
+  const { T, isEn } = useBilingual();
   const [subs, setSubs] = useState<Sub[]>(initialSubs || []);
   const [newTitle, setNewTitle] = useState("");
 
@@ -181,10 +183,12 @@ export function TaskSubtasksInline({
                 onChangeTitle={(title) => updateTitle(s.id, title)}
                 onOpen={onOpenSubtask ? () => onOpenSubtask(s.id) : undefined}
                 onDelete={() => remove(s.id)}
+                isEn={isEn}
+                T={T}
               />
             ))}
             {subs.length === 0 && (
-              <li className="text-xs text-muted-foreground/60 px-1 py-1">— زیرتسکی نیست —</li>
+              <li className="text-xs text-muted-foreground/60 px-1 py-1">— {T("زیرتسکی نیست", "No subtasks")} —</li>
             )}
           </ul>
         </SortableContext>
@@ -201,7 +205,7 @@ export function TaskSubtasksInline({
             }
           }}
           disabled={readOnly}
-          placeholder={readOnly ? "" : "+ زیرتسک جدید..."}
+          placeholder={readOnly ? "" : `+ ${T("زیرتسک جدید...", "New subtask...")}`}
           className="text-xs flex-1 min-h-[28px] max-h-[120px] py-1.5"
           dir="auto"
           rows={1}
@@ -217,7 +221,7 @@ export function TaskSubtasksInline({
 }
 
 function SortableSubtaskRow({
-  sub, readOnly, onToggle, onChangeTitle, onOpen, onDelete,
+  sub, readOnly, onToggle, onChangeTitle, onOpen, onDelete, isEn, T,
 }: {
   sub: Sub;
   readOnly: boolean;
@@ -225,6 +229,8 @@ function SortableSubtaskRow({
   onChangeTitle: (title: string) => void;
   onOpen?: () => void;
   onDelete: () => void;
+  isEn: boolean;
+  T: (fa: string, en: string) => string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: sub.id,
@@ -243,8 +249,8 @@ function SortableSubtaskRow({
           {...attributes}
           {...listeners}
           className="pt-1.5 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0"
-          aria-label="جابجایی"
-          title="جابجایی"
+          aria-label={T("جابجایی", "Drag")}
+          title={T("جابجایی", "Drag")}
         >
           <GripVertical className="w-3.5 h-3.5" />
         </button>
@@ -263,12 +269,15 @@ function SortableSubtaskRow({
       />
       {onOpen && (
         <Button
+          type="button"
           size="sm"
           variant="ghost"
           onClick={onOpen}
-          className="h-6 px-2 text-[10px] opacity-70 sm:opacity-0 group-hover:opacity-100"
+          className="h-7 px-2 text-xs gap-1 opacity-90 sm:opacity-75 sm:hover:opacity-100 text-muted-foreground hover:text-foreground shrink-0 rounded-lg hover:bg-muted/60 transition-all active:scale-95"
+          title={T("باز کردن زیرتسک", "Open subtask")}
         >
-          باز کردن
+          <span className="text-[11px] font-medium">{T("باز کردن", "Open")}</span>
+          {isEn ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
         </Button>
       )}
       {!readOnly && (

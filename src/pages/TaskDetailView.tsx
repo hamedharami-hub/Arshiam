@@ -98,20 +98,25 @@ export default function TaskDetailView() {
     );
   }
 
+  const effectiveParentId = fromTaskId || (visibleTask?.parent_id ?? null);
+
   return (
     <div dir={isEn ? "ltr" : "rtl"} className="page-enter">
       <TaskDetail
         key={visibleTask.id}
         task={visibleTask}
         onClose={() => {
-          if (fromTaskId) {
-            navigate(`/app/tasks/${encodeURIComponent(fromTaskId)}`);
+          if (effectiveParentId) {
+            navigate(`/app/tasks/${encodeURIComponent(effectiveParentId)}`);
           } else {
             navigate(-1);
           }
         }}
-        onBack={fromTaskId ? () => navigate(`/app/tasks/${encodeURIComponent(fromTaskId)}`) : undefined}
-        hasBackHistory={!!fromTaskId}
+        onBack={effectiveParentId ? () => navigate(`/app/tasks/${encodeURIComponent(effectiveParentId)}`) : undefined}
+        hasBackHistory={!!effectiveParentId}
+        onOpenParentTask={(targetId) => {
+          navigate(`/app/tasks/${encodeURIComponent(targetId)}?from=${encodeURIComponent(visibleTask.id)}`);
+        }}
         onChanged={load}
         setConfirm={setConfirm}
         mode="page"

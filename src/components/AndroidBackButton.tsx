@@ -13,11 +13,22 @@ export default function AndroidBackButton() {
     let disposed = false;
     const handle = CapApp.addListener("backButton", () => {
       if (disposed) return;
-      if (document.querySelector('[role="dialog"]:not([data-sidebar]),[role="alertdialog"],[role="menu"]')) {
+      if (document.querySelector('[role="alertdialog"],[role="menu"]')) {
         document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
         return;
       }
       if (openMobile) { setOpenMobile(false); return; }
+
+      // Allow TaskDetail (drawer, embedded, or page) to handle back action:
+      // subtask -> parent task, closing inner sheets, or closing drawer
+      const taskEvent = new CustomEvent("arshnaz:request-task-close", { cancelable: true });
+      const taskHandled = !window.dispatchEvent(taskEvent);
+      if (taskHandled) return;
+
+      if (document.querySelector('[role="dialog"]:not([data-sidebar])')) {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        return;
+      }
       if (pathname.startsWith("/app/tasks/")) {
         const sp = new URLSearchParams(search);
         const fromTaskId = sp.get("from");
@@ -36,6 +47,6 @@ export default function AndroidBackButton() {
       toast("برای خروج یک‌بار دیگر برگشت را بزن", { duration: 1800 });
     });
     return () => { disposed = true; void handle.then(h => h.remove()).catch(() => {}); };
-  }, [pathname, navigate, openMobile, setOpenMobile]);
+  }, [pathname, search, navigate, openMobile, setOpenMobile]);
   return null;
 }

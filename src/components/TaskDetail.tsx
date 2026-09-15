@@ -503,6 +503,17 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   }, [onSave, savePendingChanges, T]);
 
   const handleBackClick = useCallback(() => {
+    if (closePromptOpen) { setClosePromptOpen(false); return; }
+    if (actionMenuOpen) { setActionMenuOpen(false); return; }
+    if (focusOpen) { setFocusOpen(false); return; }
+    if (aiOpen) { setAiOpen(false); return; }
+    if (outcomeOpen) { setOutcomeOpen(false); return; }
+    if (folderOpen) { setFolderOpen(false); return; }
+    if (parentOpen) { setParentOpen(false); return; }
+    if (scheduleOpen) { setScheduleOpen(false); return; }
+    if (tagOpen || topTagOpen) { setTagOpen(false); setTopTagOpen(false); return; }
+    if (activeNote) { setActiveNote(null); return; }
+
     if (onBack) {
       onBack();
     } else if (onSave) {
@@ -510,10 +521,17 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     } else {
       requestClose();
     }
-  }, [onBack, onSave, onClose, requestClose]);
+  }, [
+    closePromptOpen, actionMenuOpen, focusOpen, aiOpen, outcomeOpen,
+    folderOpen, parentOpen, scheduleOpen, tagOpen, topTagOpen, activeNote,
+    onBack, onSave, onClose, requestClose,
+  ]);
 
   useEffect(() => {
-    const request = () => handleBackClick();
+    const request = (e: Event) => {
+      e.preventDefault();
+      handleBackClick();
+    };
     window.addEventListener("arshnaz:request-task-close", request);
     return () => window.removeEventListener("arshnaz:request-task-close", request);
   }, [handleBackClick]);

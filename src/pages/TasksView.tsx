@@ -160,31 +160,32 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       }
       const next = [...prev];
       const previousTask = next.pop()!;
-      setSelectedTask(previousTask);
+      const fresh = allTasks.find(t => t.id === previousTask.id) || previousTask;
+      setSelectedTask(fresh);
       return next;
     });
-  }, []);
+  }, [allTasks]);
 
-  const handleOpenParentInDrawer = useCallback(async (parentId: string) => {
+  const handleOpenParentInDrawer = useCallback(async (targetTaskId: string) => {
     if (!selectedTask) return;
-    let parent = allTasks.find(t => t.id === parentId);
-    if (!parent && user) {
+    let target = allTasks.find(t => t.id === targetTaskId);
+    if (!target && user) {
       try {
         const cached = await cacheGet<Task[]>(`tasks:all:${user.id}`);
-        parent = cached?.find(t => t.id === parentId);
+        target = cached?.find(t => t.id === targetTaskId);
       } catch {}
     }
-    if (!parent) {
+    if (!target) {
       try {
-        const { data } = await firebaseStore.from("tasks").select("*").eq("id", parentId).maybeSingle();
-        if (data) parent = data as unknown as Task;
+        const { data } = await firebaseStore.from("tasks").select("*").eq("id", targetTaskId).maybeSingle();
+        if (data) target = data as unknown as Task;
       } catch {}
     }
-    if (parent) {
+    if (target) {
       setSelectedTaskHistory(prev => [...prev, selectedTask]);
-      setSelectedTask(parent);
+      setSelectedTask(target);
     } else {
-      navigate(`/app/tasks/${encodeURIComponent(parentId)}?from=${encodeURIComponent(selectedTask.id)}`);
+      navigate(`/app/tasks/${encodeURIComponent(targetTaskId)}?from=${encodeURIComponent(selectedTask.id)}`);
     }
   }, [selectedTask, allTasks, user, navigate]);
 
@@ -794,9 +795,19 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       subs={childrenMap[t.id] || []}
       open={!!expanded[t.id]}
       onToggleExpand={(id) => setExpanded(s => ({ ...s, [id]: !s[id] }))}
-      progress={getProgress(t.id)}
       parent={t.parent_id ? taskMap.get(t.parent_id) : null}
-      onSelectTask={(task) => { setSelectedTaskHistory([]); setSelectedTask(task); }}
+      onSelectTask={(task) => {
+        if (task.parent_id) {
+          const parent = allTasks.find(p => p.id === task.parent_id);
+          if (parent) {
+            setSelectedTaskHistory([parent]);
+            setSelectedTask(task);
+            return;
+          }
+        }
+        setSelectedTaskHistory([]);
+        setSelectedTask(task);
+      }}
       onToggleTask={toggleTask}
       onActionTask={setActionTask}
       onDeleteTask={askDeleteTask}
@@ -1081,11 +1092,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                   task={selectedTask}
                   mode="embedded"
                   onClose={() => {
-                    if (selectedTaskHistory.length > 0) {
-                      handleBackInDrawer();
-                    } else {
-                      setSelectedTask(null);
-                    }
+                    setSelectedTaskHistory([]);
+                    setSelectedTask(null);
                   }}
                   onChanged={load}
                   setConfirm={setConfirm}
@@ -1205,11 +1213,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           task={selectedTask}
           mode="drawer"
           onClose={() => {
-            if (selectedTaskHistory.length > 0) {
-              handleBackInDrawer();
-            } else {
-              setSelectedTask(null);
-            }
+            setSelectedTaskHistory([]);
+            setSelectedTask(null);
           }}
           onChanged={load}
           setConfirm={setConfirm}
