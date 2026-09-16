@@ -49,6 +49,7 @@ import AuthCallback from "./pages/AuthCallback";
 const AppLayout = lazy(() => import("@/layouts/AppLayout"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const TasksView = lazy(() => import("./pages/TasksView"));
+const TodayDashboardView = lazy(() => import("./pages/TodayDashboardView"));
 const NotesView = lazy(() => import("./pages/NotesView"));
 const HabitsView = lazy(() => import("./pages/HabitsView"));
 const GardenView = lazy(() => import("./pages/GardenView"));
@@ -210,7 +211,7 @@ const App = () => {
                       <Route index element={<Navigate to="today" replace />} />
 
                       <Route path="inbox" element={<TasksView scope="inbox" />} />
-                      <Route path="today" element={<TasksView scope="today" />} />
+                      <Route path="today" element={<TodayDashboardView />} />
                       <Route path="tomorrow" element={<TasksView scope="tomorrow" />} />
                       <Route path="next7" element={<TasksView scope="next7" />} />
                       <Route path="smart" element={<TasksView scope="smart" />} />
