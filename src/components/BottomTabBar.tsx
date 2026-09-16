@@ -153,7 +153,12 @@ export function BottomTabBar() {
   const mobilePrimaryTabs = useMemo(() => [tabs[0], tabs[1]], [tabs]);
   const mobileSecondaryTabs = useMemo(() => [tabs[3]], [tabs]);
 
-  if (!loc.pathname.startsWith("/app")) return null;
+  const isTaskPage =
+    loc.pathname.startsWith("/app/new/task") ||
+    loc.pathname.startsWith("/app/new-task") ||
+    loc.pathname.startsWith("/app/tasks/");
+
+  if (!loc.pathname.startsWith("/app") || isTaskPage) return null;
 
   return (
     <>

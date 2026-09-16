@@ -1599,16 +1599,14 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   );
 
   const body = (
-    <div className="mt-1 task-detail-sections flex flex-col min-h-[40vh] space-y-3">
+    <div className="mt-1 task-detail-sections flex flex-col min-h-[40vh] space-y-4 pb-20">
       {hero}
       {topControls}
       {quickChips}
-      {/* On a wide desktop or unfolded device, keep the writing surface and
-          task structure adjacent.  The narrow layout remains a single calm
-          reading flow instead of squeezing either section into a tiny column. */}
-      <div className={`flex-1 min-w-0 ${mode === "page" ? "min-[820px]:grid min-[820px]:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.85fr)] min-[820px]:items-start min-[820px]:gap-4" : "flex flex-col"}`}>
+      {/* Unified vertical document flow: note description followed directly by subtasks & checklists */}
+      <div className="flex-1 min-w-0 flex flex-col space-y-4">
         <div className="min-w-0">{descriptionSection}</div>
-        <div className="min-w-0 mt-3 min-[820px]:mt-0">{expandables}</div>
+        <div className="min-w-0">{expandables}</div>
       </div>
     </div>
   );
@@ -2060,7 +2058,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             {activeNote ? noteEditorBody : body}
           </div>
           {!activeNote && (
-            <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] min-[600px]:bottom-[5.5rem] xl:bottom-2 z-30 pt-2 pb-1 bg-gradient-to-t from-background via-background/95 to-transparent">
+            <div className="sticky bottom-2 z-30 pt-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] bg-gradient-to-t from-background via-background/95 to-transparent">
               {bottomRail}
             </div>
           )}

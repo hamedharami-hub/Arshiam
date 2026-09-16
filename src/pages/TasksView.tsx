@@ -1078,7 +1078,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           dir="ltr"
           className={`w-full items-start gap-3 sm:gap-4 xl:gap-5 ${
             isSplitActive
-              ? "grid grid-cols-[minmax(280px,0.85fr)_minmax(320px,1.15fr)] lg:grid-cols-[minmax(340px,0.78fr)_minmax(460px,1.22fr)] 2xl:grid-cols-[minmax(400px,0.82fr)_minmax(640px,1.3fr)]"
+              ? "grid grid-cols-[minmax(340px,1.15fr)_minmax(280px,0.85fr)] lg:grid-cols-[minmax(460px,1.15fr)_minmax(360px,0.85fr)] 2xl:grid-cols-[minmax(560px,1.2fr)_minmax(420px,0.8fr)]"
               : "flex flex-col"
           }`}
         >
@@ -1087,7 +1087,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           {isSplitActive && (
             <aside
               dir={isEn ? "ltr" : "rtl"}
-              className="col-start-1 w-full min-w-0 sticky top-[3.75rem] sm:top-[4.25rem] h-[calc(100dvh-5.5rem)] sm:h-[calc(100dvh-6.5rem)] overflow-hidden transition-all duration-200"
+              className="col-start-1 w-full min-w-0 sticky top-[3.75rem] sm:top-[4.25rem] h-[calc(100dvh-7.5rem)] sm:h-[calc(100dvh-8rem)] xl:h-[calc(100dvh-7.2rem)] overflow-hidden transition-all duration-200"
             >
               {selectedTask ? (
                 <TaskDetail
@@ -1121,7 +1121,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
           <section
             dir={isEn ? "ltr" : "rtl"}
-            className={`w-full min-w-0 rounded-2xl border border-border/60 bg-card/35 p-2 sm:p-3 lg:p-4 shadow-sm ${
+            className={`w-full min-w-0 rounded-2xl border border-border/60 bg-card/35 p-2 sm:p-3 lg:p-4 shadow-sm pb-16 ${
               isSplitActive ? "col-start-2" : ""
             }`}
           >
