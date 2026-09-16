@@ -5,9 +5,11 @@ import { useTranslation } from "react-i18next";
 import { useSidebar } from "@/components/ui/sidebar";
 import RecentlyDeletedSheet from "@/components/RecentlyDeletedSheet";
 import { isRTL } from "@/i18n";
+import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { BottomTabItemConfig } from "./bottom-bar/types";
+import { WindowsFluentBar } from "./bottom-bar/WindowsFluentBar";
+import { FoldableAdaptiveBar } from "./bottom-bar/FoldableAdaptiveBar";
 import { MobileBottomBar } from "./bottom-bar/MobileBottomBar";
-import { DesktopFloatingDock } from "./bottom-bar/DesktopFloatingDock";
 
 export function BottomTabBar() {
   const loc = useLocation();
@@ -16,6 +18,7 @@ export function BottomTabBar() {
   const { i18n } = useTranslation();
   const dir = isRTL(i18n.language || "fa") ? "rtl" : "ltr";
   const [trashOpen, setTrashOpen] = useState(false);
+  const { isWindows, isFoldable, isDesktop } = useDeviceFormFactor();
 
   // Global trash listener
   useEffect(() => {
@@ -24,7 +27,7 @@ export function BottomTabBar() {
     return () => window.removeEventListener("lov:open-trash", open);
   }, []);
 
-  // Global Windows / Desktop keyboard shortcuts (Alt+1..5, Alt+N, Alt+M)
+  // Global Windows / Desktop keyboard shortcuts (Alt+1..5, Alt+N, Alt+M, Alt+D)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't intercept when typing in input, textarea, or contentEditable
@@ -146,9 +149,7 @@ export function BottomTabBar() {
     },
   ], []);
 
-  // A predictable five-slot mobile rail is more usable than squeezing seven
-  // destinations into the foldable layout. Habits and Calendar remain one tap
-  // away from the Menu, while the primary daily workflow stays thumb-friendly.
+  // For compact phone layout:
   const mobilePrimaryTabs = useMemo(() => [tabs[0], tabs[1]], [tabs]);
   const mobileSecondaryTabs = useMemo(() => [tabs[3]], [tabs]);
 
@@ -156,20 +157,33 @@ export function BottomTabBar() {
 
   return (
     <>
-      {/* Mobile view: Phone & foldable tablet bottom navigation bar */}
-      <MobileBottomBar
-        primaryTabs={mobilePrimaryTabs}
-        secondaryTabs={mobileSecondaryTabs}
-        currentPath={loc.pathname}
-        dir={dir}
-      />
+      {/* 1. Windows 11 Fluent Command Bar / Modern Web Desktop Bar */}
+      {(isWindows || isDesktop) && (
+        <WindowsFluentBar
+          allTabs={tabs}
+          currentPath={loc.pathname}
+          dir={dir}
+        />
+      )}
 
-      {/* Windows & Desktop view: Floating quick navigation dock */}
-      <DesktopFloatingDock
-        allTabs={tabs}
-        currentPath={loc.pathname}
-        dir={dir}
-      />
+      {/* 2. Foldable Phones Adaptive Ergonomic Bar (Galaxy Z Fold, Pixel Fold, Surface Duo) */}
+      {isFoldable && !isWindows && (
+        <FoldableAdaptiveBar
+          allTabs={tabs}
+          currentPath={loc.pathname}
+          dir={dir}
+        />
+      )}
+
+      {/* 3. Regular Mobile Phone Bottom Bar */}
+      {!isWindows && !isDesktop && !isFoldable && (
+        <MobileBottomBar
+          primaryTabs={mobilePrimaryTabs}
+          secondaryTabs={mobileSecondaryTabs}
+          currentPath={loc.pathname}
+          dir={dir}
+        />
+      )}
 
       <RecentlyDeletedSheet open={trashOpen} onOpenChange={setTrashOpen} />
     </>

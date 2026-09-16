@@ -26,7 +26,7 @@ export function MobileBottomBar({
     <nav
       dir={dir}
       data-bottom-bar="true"
-      className="xl:hidden fixed z-40 transition-all duration-300 ease-out select-none inset-x-0 bottom-0 h-[4.5rem] bg-card/90 dark:bg-card/90 backdrop-blur-2xl border-t border-border/60 flex items-stretch shadow-[0_-8px_30px_rgba(0,0,0,0.06),0_-1px_0_rgba(255,255,255,0.4)_inset] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.45),0_-1px_0_rgba(255,255,255,0.06)_inset] min-[600px]:bottom-4 min-[600px]:inset-x-auto min-[600px]:left-1/2 min-[600px]:-translate-x-1/2 min-[600px]:w-[min(34rem,calc(100%-3rem))] min-[600px]:h-[4.5rem] min-[600px]:rounded-[1.75rem] min-[600px]:border min-[600px]:border-border/80 min-[600px]:px-2 min-[600px]:shadow-[0_20px_50px_rgba(0,0,0,0.18),0_0_0_1px_rgba(255,255,255,0.12)_inset] dark:min-[600px]:shadow-[0_25px_60px_rgba(0,0,0,0.65),0_0_0_1px_rgba(255,255,255,0.06)_inset]"
+      className="fixed z-40 transition-all duration-300 ease-out select-none inset-x-0 bottom-0 h-[4.5rem] bg-card/90 dark:bg-card/90 backdrop-blur-2xl border-t border-border/60 flex items-stretch shadow-[0_-8px_30px_rgba(0,0,0,0.06),0_-1px_0_rgba(255,255,255,0.4)_inset] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.45),0_-1px_0_rgba(255,255,255,0.06)_inset]"
       style={{
         paddingBottom: "max(env(safe-area-inset-bottom, 0px), 4px)",
       }}

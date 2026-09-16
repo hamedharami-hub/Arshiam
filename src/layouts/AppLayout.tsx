@@ -48,6 +48,12 @@ export default function AppLayout() {
   }, [loc.pathname]);
 
   useEffect(() => {
+    const handleOpenAi = () => setAiOpen(true);
+    window.addEventListener("arshnaz:open-ai", handleOpenAi);
+    return () => window.removeEventListener("arshnaz:open-ai", handleOpenAi);
+  }, []);
+
+  useEffect(() => {
     const stored = getStoredTheme() || "system";
     applyTheme(stored);
     setTheme(getBaseTheme(stored));
@@ -110,7 +116,7 @@ export default function AppLayout() {
           )}
           <main
             id="main-scroll"
-            className="flex-1 overflow-auto pb-[calc(5rem+env(safe-area-inset-bottom))] xl:pb-24"
+            className="flex-1 overflow-auto pb-[calc(5.2rem+env(safe-area-inset-bottom))] md:pb-16 xl:pb-16"
           >
             <div
               key={loc.pathname}
