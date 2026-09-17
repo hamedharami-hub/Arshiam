@@ -69,7 +69,7 @@ Only the following 5 narrow capabilities are exposed. Any other function name (s
 
 | Function ID | Description | Parameters | Returns |
 | :--- | :--- | :--- | :--- |
-| `createTask` | Creates a new task | `title` (required, max 500 chars)<br>`dueDateTime` (optional, ISO/date)<br>`priority` (optional, low/med/high/urgent)<br>`folderName` (optional, max 100 chars) | Minimal task status (`pending_sync`) |
+| `createTask` | Creates a new task | `title` (required, max 500 chars)<br>`dueDateTime` (optional, ISO/date)<br>`priority` (optional, low/med/high/urgent) | Minimal task status (`pending_sync`) |
 | `listTodayTasks` | Lists user's active tasks due today | `limit` (optional, integer 1-20, default 20) | List of tasks with minimal fields |
 | `searchTasks` | Searches active tasks by title keyword | `query` (required, max 100 chars)<br>`limit` (optional, integer 1-20, default 20) | List of matching tasks |
 | `updateTask` | Updates title, due date, or priority | `taskId` (required, safe ID regex)<br>`title` (optional)<br>`dueDateTime` (optional)<br>`priority` (optional) | Minimal task status (`pending_sync`) |

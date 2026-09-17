@@ -106,7 +106,6 @@ public class AppFunctionTaskDispatcherTest {
         valid.put("title", "Deploy release");
         valid.put("dueDateTime", LocalDate.now().toString());
         valid.put("priority", "urgent");
-        valid.put("folderName", "Work");
 
         AppFunctionTaskDispatcher.Result successResult =
             AppFunctionTaskDispatcher.dispatch(context, AppFunctionTaskDispatcher.ACTION_CREATE_TASK, valid);
@@ -116,7 +115,7 @@ public class AppFunctionTaskDispatcherTest {
         assertEquals("Deploy release", successResult.data.getString("title"));
         assertEquals("urgent", successResult.data.getString("priority"));
         assertEquals("pending_sync", successResult.data.getString("status"));
-        assertEquals("Work", successResult.data.getString("folderName"));
+        assertFalse(successResult.data.has("folderName"));
     }
 
     @Test

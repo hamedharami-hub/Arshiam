@@ -12,7 +12,7 @@
 
     <app-function
         id="createTask"
-        description="Creates a new task in ARSHNAZ with optional due date, priority, and folder."
+        description="Creates a new task in ARSHNAZ with optional due date and priority."
         enabled="true">
         <parameter
             name="title"
@@ -29,11 +29,6 @@
             type="string"
             required="false"
             description="Optional priority: none, low, medium, high, urgent." />
-        <parameter
-            name="folderName"
-            type="string"
-            required="false"
-            description="Optional category or folder name." />
     </app-function>
 
     <app-function

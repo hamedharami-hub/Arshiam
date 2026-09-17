@@ -17,7 +17,7 @@ import java.util.*;
  * <p>
  * This preparation layer exposes ONLY 5 narrow task capabilities:
  * <ul>
- *   <li>{@code createTask(title, dueDateTime?, priority?, folderName?)}</li>
+ *   <li>{@code createTask(title, dueDateTime?, priority?)}</li>
  *   <li>{@code listTodayTasks(limit <= 20)}</li>
  *   <li>{@code searchTasks(query, limit <= 20)}</li>
  *   <li>{@code updateTask(taskId, title?, dueDateTime?, priority?)}</li>
@@ -174,11 +174,6 @@ public final class AppFunctionTaskDispatcher {
         String rawPriority = getString(params, "priority");
         String priority = normalizePriority(rawPriority);
 
-        String folderName = getString(params, "folderName");
-        if (folderName != null && folderName.length() > 100) {
-            folderName = folderName.substring(0, 100).trim();
-        }
-
         // Route mutation through the canonical Android task persistence pathway
         WidgetTaskActionWorker.enqueue(context, "create", null, title, priority, dueDateTime);
 
@@ -188,9 +183,6 @@ public final class AppFunctionTaskDispatcher {
             response.put("dueDateTime", dueDateTime);
             response.put("priority", priority);
             response.put("status", "pending_sync");
-            if (folderName != null && !folderName.isEmpty()) {
-                response.put("folderName", folderName);
-            }
         } catch (JSONException ignored) {}
 
         return Result.success(response);
