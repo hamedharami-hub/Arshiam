@@ -103,16 +103,11 @@ export function useTasksData({ user, scope, scopeId }: UseTasksDataOptions) {
         setAllTasks(tasks);
       }
     });
-    const channel = firebaseStore.channel(`tasks-rt-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, scheduleLoad)
-      .on("postgres_changes", { event: "*", schema: "public", table: "subtasks" }, scheduleLoad)
-      .subscribe();
     return () => {
       if (pending != null) window.clearTimeout(pending);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("tasks-changed", onTasksChanged);
       unsubscribe();
-      firebaseStore.removeChannel(channel);
     };
   }, [fetchAll, load, user]);
 

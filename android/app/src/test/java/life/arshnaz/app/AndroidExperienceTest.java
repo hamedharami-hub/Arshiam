@@ -182,4 +182,88 @@ public class AndroidExperienceTest {
         new AndroidRescheduleReceiver().onReceive(c,new Intent(Intent.ACTION_BOOT_COMPLETED));
         assertEquals(at,Shadows.shadowOf(c.getSystemService(AlarmManager.class)).peekNextScheduledAlarm().triggerAtTime);
     }
+    @Test public void directBroadcastToggleAppliesTargetCompletedWithoutOpeningActivity() throws Exception {
+        login();
+        assertFalse(AgendaData.task(c, "today-task").optBoolean("completed"));
+        Intent toggle = new Intent().setData(android.net.Uri.parse("arshnaz://widget-action/toggle?taskId=today-task&targetCompleted=1&owner=userA"));
+        new AndroidActionsReceiver().onReceive(c, toggle);
+        assertTrue(AgendaData.task(c, "today-task").optBoolean("completed"));
+        assertNull(Shadows.shadowOf((Application) c).getNextStartedActivity());
+
+        Intent untoggle = new Intent().setData(android.net.Uri.parse("arshnaz://widget-action/toggle?taskId=today-task&targetCompleted=0&owner=userA"));
+        new AndroidActionsReceiver().onReceive(c, untoggle);
+        assertFalse(AgendaData.task(c, "today-task").optBoolean("completed"));
+        assertNull(Shadows.shadowOf((Application) c).getNextStartedActivity());
+    }
+    @Test public void directBroadcastCollapseAppliesTargetCollapsedWithoutOpeningActivity() throws Exception {
+        login();
+        assertFalse(AgendaData.options(c).getBoolean("widget.1.collapsed.today-task", false));
+        Intent collapse = new Intent().setData(android.net.Uri.parse("arshnaz://widget-action/collapse?taskId=today-task&widgetId=1&targetCollapsed=1&owner=userA"));
+        new AndroidActionsReceiver().onReceive(c, collapse);
+        assertTrue(AgendaData.options(c).getBoolean("widget.1.collapsed.today-task", false));
+        assertNull(Shadows.shadowOf((Application) c).getNextStartedActivity());
+
+        Intent uncollapse = new Intent().setData(android.net.Uri.parse("arshnaz://widget-action/collapse?taskId=today-task&widgetId=1&targetCollapsed=0&owner=userA"));
+        new AndroidActionsReceiver().onReceive(c, uncollapse);
+        assertFalse(AgendaData.options(c).getBoolean("widget.1.collapsed.today-task", false));
+        assertNull(Shadows.shadowOf((Application) c).getNextStartedActivity());
+    }
+    @Test public void directBroadcastRejectsOwnerMismatch() throws Exception {
+        login();
+        assertFalse(AgendaData.task(c, "today-task").optBoolean("completed"));
+        Intent toggle = new Intent().setData(android.net.Uri.parse("arshnaz://widget-action/toggle?taskId=today-task&targetCompleted=1&owner=attacker"));
+        new AndroidActionsReceiver().onReceive(c, toggle);
+        assertFalse(AgendaData.task(c, "today-task").optBoolean("completed"));
+    }
+    @Test public void directBroadcastOpenAndMenuLaunchCorrectActivities() throws Exception {
+        login();
+        Intent open = new Intent().setData(android.net.Uri.parse("arshnaz://widget-action/open?taskId=today-task&owner=userA"));
+        new AndroidActionsReceiver().onReceive(c, open);
+        Intent startedOpen = Shadows.shadowOf((Application) c).getNextStartedActivity();
+        assertNotNull(startedOpen);
+        assertEquals(MainActivity.class.getName(), startedOpen.getComponent().getClassName());
+        assertTrue(startedOpen.getDataString().contains("task?taskId=today-task"));
+
+        Intent menu = new Intent().setData(android.net.Uri.parse("arshnaz://widget-action/menu?taskId=today-task&owner=userA"));
+        new AndroidActionsReceiver().onReceive(c, menu);
+        Intent startedMenu = Shadows.shadowOf((Application) c).getNextStartedActivity();
+        assertNotNull(startedMenu);
+        assertEquals(WidgetTaskActionActivity.class.getName(), startedMenu.getComponent().getClassName());
+        assertEquals("menu", startedMenu.getStringExtra("mode"));
+        assertEquals("today-task", startedMenu.getStringExtra("taskId"));
+    }
+    @Test public void taskTitleAndContentAlwaysTriggerDirectOpenEvenWithChildren() throws Exception {
+        login();
+        JSONArray rows = tasks();
+        rows.put(new JSONObject().put("id", "child-task").put("title", "A small step")
+            .put("parent_id", "today-task").put("due_date", ""));
+        AgendaData.prefs(c).edit().putString("agendaTasks", rows.toString()).commit();
+        AgendaListService.Factory widget = new AgendaListService.Factory(c, 1);
+        widget.onCreate();
+        RemoteViews rowViews = widget.getViewAt(0);
+        assertNotNull(rowViews);
+        View applied = rowViews.apply(c, new FrameLayout(c));
+        assertNotNull(applied.findViewById(R.id.row_content));
+        assertNotNull(applied.findViewById(R.id.row_title));
+        assertNotNull(applied.findViewById(R.id.row_expand));
+        assertEquals(View.VISIBLE, applied.findViewById(R.id.row_expand).getVisibility());
+    }
+
+    @Test public void consecutiveBroadcastOpensDoNotRetainStaleTask() throws Exception {
+        login();
+        // Tap Task 1
+        Intent open1 = new Intent().setData(android.net.Uri.parse("arshnaz://widget-action/open?taskId=task-1&owner=userA"));
+        new AndroidActionsReceiver().onReceive(c, open1);
+        Intent started1 = Shadows.shadowOf((Application) c).getNextStartedActivity();
+        assertNotNull(started1);
+        assertTrue(started1.getDataString().contains("task?taskId=task-1"));
+
+        // Tap Task 2
+        Intent open2 = new Intent().setData(android.net.Uri.parse("arshnaz://widget-action/open?taskId=task-2&owner=userA"));
+        new AndroidActionsReceiver().onReceive(c, open2);
+        Intent started2 = Shadows.shadowOf((Application) c).getNextStartedActivity();
+        assertNotNull(started2);
+        assertTrue(started2.getDataString().contains("task?taskId=task-2"));
+        assertFalse(started2.getDataString().contains("task?taskId=task-1"));
+    }
 }

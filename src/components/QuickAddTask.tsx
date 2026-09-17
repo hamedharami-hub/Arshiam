@@ -194,37 +194,18 @@ export function QuickAddTask({
     }
 
     try {
-      // 1. Primary save to Firebase Firestore
-      try {
-        const { upsertTask } = await import("@/lib/firestoreDataService");
-        await upsertTask(user.id, baseTask);
-      } catch (err) {
-        console.warn("[QuickAddTask] Firestore save notice:", err);
-      }
+      // Firestore is the single source of truth for task creation. Avoid the
+      // previous compatibility mirror, which wrote the task a second time.
+      const { upsertTask } = await import("@/lib/firestoreDataService");
+      const saved = await upsertTask(user.id, baseTask);
+      if (!saved) throw new Error(T("ذخیره تسک ناموفق بود", "Task could not be saved"));
 
-    // 2. Best-effort mirror to firebaseStore
-    try {
-      const { data } = await firebaseStore
-        .from("tasks")
-        .insert({
-          id: tempId,
-          user_id: user.id,
-          title: finalTitle,
-          folder_id: finalFolderId,
-          due_date: finalDue,
-          parent_id: defaults.parent_id ?? null,
-          priority: finalPriority,
-        } as never)
-        .select()
-        .single();
-      if (data && finalTagIds.length) {
+      // Tags are a separate relation and can still use the compatibility adapter.
+      if (finalTagIds.length) {
         await firebaseStore
           .from("task_tags")
-          .insert(finalTagIds.map(tag_id => ({ task_id: data.id, tag_id, user_id: user.id })));
+          .insert(finalTagIds.map(tag_id => ({ task_id: tempId, tag_id, user_id: user.id })));
       }
-    } catch {
-      // firebaseStore is secondary; ignore permission/network errors
-    }
 
     setTitle("");
     setDue(defaults.due_date ?? null);

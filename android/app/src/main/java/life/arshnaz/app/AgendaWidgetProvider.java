@@ -85,7 +85,7 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
                 v.setInt(R.id.agenda_compact_done,"setBackgroundResource",completed
                     ? (light?R.drawable.widget_checkbox_checked_light:R.drawable.widget_checkbox_checked)
                     : (light?R.drawable.widget_checkbox_background_light:R.drawable.widget_checkbox_background));
-                v.setTextViewText(R.id.agenda_compact_done,completed ? "✓" : "");
+                v.setTextViewText(R.id.agenda_compact_done,completed ? "✓" : "☐");
                 v.setTextColor(R.id.agenda_compact_done,Color.parseColor(completed ? "#FFFFFF" : "#C4B5FD"));
                 v.setViewVisibility(R.id.agenda_compact_done,View.VISIBLE);
                 v.setOnClickPendingIntent(R.id.agenda_summary,taskOpen(c,primary.optString("id"),72000+id));
@@ -98,8 +98,8 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
             v.setRemoteAdapter(R.id.agenda_list, service);
             v.setEmptyView(R.id.agenda_list,R.id.agenda_empty);
             v.setTextColor(R.id.agenda_empty,fg);
-            Intent template = new Intent(c,WidgetRouterActivity.class).setAction(Intent.ACTION_VIEW);
-            v.setPendingIntentTemplate(R.id.agenda_list,PendingIntent.getActivity(c,50000+id,template,
+            Intent template = new Intent(c,AndroidActionsReceiver.class);
+            v.setPendingIntentTemplate(R.id.agenda_list,PendingIntent.getBroadcast(c,50000+id,template,
                 PendingIntent.FLAG_UPDATE_CURRENT | (android.os.Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0)));
         }
         v.setOnClickPendingIntent(R.id.agenda_title,activity(c,AgendaData.route(scope),70000+id));
@@ -120,15 +120,25 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
         return PendingIntent.getActivity(c,code,appIntent(c,route),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
     }
     static PendingIntent taskOpen(Context c,String taskId,int code) {
-        String owner=AgendaData.prefs(c).getString("dataUserId","");
-        Intent intent=new Intent(c,WidgetRouterActivity.class).setAction(Intent.ACTION_VIEW)
-            .setData(Uri.parse("arshnaz://widget-action/open?taskId="+Uri.encode(taskId)+"&owner="+Uri.encode(owner)));
-        return PendingIntent.getActivity(c,code,intent,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        String safeTaskId = taskId == null ? "" : taskId;
+        String owner = AgendaData.prefs(c).getString("dataUserId","");
+        int reqCode = code ^ safeTaskId.hashCode();
+        Intent intent = new Intent(c,WidgetRouterActivity.class).setAction(Intent.ACTION_VIEW)
+            .setData(Uri.parse("arshnaz://widget-action/open?taskId="+Uri.encode(safeTaskId)+"&owner="+Uri.encode(owner)+"&_uid="+Uri.encode(safeTaskId)))
+            .putExtra("taskId", safeTaskId);
+        return PendingIntent.getActivity(c,reqCode,intent,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
     }
     static Intent appIntent(Context c, String route) {
-        return new Intent(c,MainActivity.class).setAction(Intent.ACTION_VIEW)
-            .setData(Uri.parse("arshnaz://"+route)).putExtra("arshnaz_route",route)
-            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        Uri data = Uri.parse("arshnaz://"+route);
+        String taskId = data.getQueryParameter("taskId");
+        Intent intent = new Intent(c,MainActivity.class).setAction(Intent.ACTION_VIEW)
+            .setData(data).putExtra("arshnaz_route",route)
+            .putExtra("arshnaz_route_time",System.currentTimeMillis());
+        if (taskId != null && !taskId.isEmpty()) {
+            intent.putExtra("taskId", taskId);
+        }
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        return intent;
     }
     static PendingIntent quickCreate(Context c, int code) {
         return quickCreate(c,code,"",false,"");
@@ -139,7 +149,10 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
             .setData(Uri.parse("arshnaz://widget-action/create/" + code));
         return PendingIntent.getActivity(c, code, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
-    static void update(Context c,AppWidgetManager m,int id) { m.updateAppWidget(id,views(c,id)); m.notifyAppWidgetViewDataChanged(id,R.id.agenda_list); }
+    static void update(Context c,AppWidgetManager m,int id) {
+        if (m == null || m.getAppWidgetInfo(id) == null) return;
+        m.updateAppWidget(id,views(c,id)); m.notifyAppWidgetViewDataChanged(id,R.id.agenda_list);
+    }
     static void redraw(Context c) {
         AppWidgetManager m=AppWidgetManager.getInstance(c);
         for (Class<?> type:TYPES) for(int id:m.getAppWidgetIds(new ComponentName(c,type))) update(c,m,id);

@@ -35,4 +35,12 @@ public class WidgetTaskActionWorkerTest {
         assertTrue(reopened.getJSONObject("completed_at").has("nullValue"));
         assertEquals("todo", reopened.getJSONObject("status").getString("stringValue"));
     }
+
+    @Test public void urgentPriorityIsPreservedInEditFieldsAndPayload() throws Exception {
+        JSONObject fields = WidgetTaskActionWorker.editFields("Critical Outage", "urgent", "2026-09-17", false);
+        assertEquals("Critical Outage", fields.getJSONObject("title").getString("stringValue"));
+        assertEquals("urgent", fields.getJSONObject("priority").getString("stringValue"));
+        assertEquals("2026-09-17", fields.getJSONObject("due_date").getString("stringValue"));
+        assertTrue(fields.has("updated_at"));
+    }
 }

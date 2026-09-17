@@ -5,6 +5,7 @@ import android.view.View;
 import android.widget.TextView;
 import android.widget.EditText;
 import android.widget.Spinner;
+import org.json.JSONObject;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
@@ -36,5 +37,39 @@ public class WidgetTaskActionActivityTest {
             .putExtra("prefillTitle","Define the next smallest step").putExtra("prefillToday",true);
         WidgetTaskActionActivity problem = Robolectric.buildActivity(WidgetTaskActionActivity.class,problemIntent).setup().get();
         assertEquals("Add the next smallest step",((TextView)problem.getWindow().getDecorView().findViewWithTag("widget-action-heading")).getText().toString());
+    }
+    @Test public void prioritySelectionIncludesUrgentAndCanBeSaved() {
+        Intent intent = new Intent().putExtra("create", true);
+        WidgetTaskActionActivity activity = Robolectric.buildActivity(WidgetTaskActionActivity.class, intent).setup().get();
+        View root = activity.getWindow().getDecorView();
+        Spinner prioritySpinner = (Spinner) root.findViewWithTag("widget-action-priority");
+        assertNotNull(prioritySpinner);
+        assertEquals(5, prioritySpinner.getCount());
+        prioritySpinner.setSelection(4);
+        assertEquals(4, prioritySpinner.getSelectedItemPosition());
+        ((EditText) root.findViewWithTag("widget-action-title")).setText("Urgent task");
+        root.findViewWithTag("widget-action-save").performClick();
+        assertTrue(activity.isFinishing());
+
+        try {
+            JSONObject fields = WidgetTaskActionWorker.editFields("Urgent task", "urgent", "", true);
+            assertEquals("urgent", fields.getJSONObject("priority").getString("stringValue"));
+        } catch (Exception e) {
+            fail("Exception verifying urgent edit fields: " + e.getMessage());
+        }
+    }
+    @Test public void menuModeRendersUrgentPriorityCorrectly() throws Exception {
+        android.content.Context c = org.robolectric.RuntimeEnvironment.getApplication();
+        org.json.JSONArray tasks = new org.json.JSONArray().put(
+            new org.json.JSONObject().put("id", "urgent-task").put("title", "Server Down!")
+                .put("priority", "urgent").put("completed", false)
+        );
+        AgendaData.prefs(c).edit().putBoolean("sessionReady", true).putString("dataUserId", "userA").putString("agendaTasks", tasks.toString()).commit();
+
+        Intent intent = new Intent().putExtra("taskId", "urgent-task").putExtra("mode", "menu");
+        WidgetTaskActionActivity activity = Robolectric.buildActivity(WidgetTaskActionActivity.class, intent).setup().get();
+        View root = activity.getWindow().getDecorView();
+        String heading = ((TextView) root.findViewWithTag("widget-action-heading")).getText().toString();
+        assertTrue("Task actions".equals(heading) || "عملیات تسک".equals(heading));
     }
 }

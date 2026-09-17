@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.Locale;
 import org.json.JSONObject;
 
-/** Modern native action dialog for home-screen widget operations: Quick edit, Voice input ("حرف من"), and 3-dots actions. */
+/** Modern native action dialog for home-screen widget operations: quick edit, voice input, and task actions. */
 public class WidgetTaskActionActivity extends Activity {
     private static final int REQ_CODE_SPEECH = 101;
     private static final String[] PRIORITIES = {"none", "low", "medium", "high", "urgent"};
@@ -132,6 +132,7 @@ public class WidgetTaskActionActivity extends Activity {
         // Priority Spinner
         Spinner priority = spinner(isFa ? PRIORITY_LABELS_FA : PRIORITY_LABELS_EN,
             indexOf(PRIORITIES, task == null ? "none" : task.optString("priority", "none")), dp);
+        priority.setTag("widget-action-priority");
         root.addView(labeled(isFa ? "اولویت تسک" : "Priority", priority, dp));
 
         // Due Date Spinner
@@ -206,7 +207,7 @@ public class WidgetTaskActionActivity extends Activity {
         }
     }
 
-    /** 3-dots actions menu from widget row tap */
+    /** Task actions menu opened from the small widget action control. */
     private void showTaskMenu(LinearLayout root, String taskId, JSONObject task, int dp) {
         TextView heading = new TextView(this);
         heading.setTag("widget-action-heading");
@@ -236,7 +237,7 @@ public class WidgetTaskActionActivity extends Activity {
         boolean done = task.optBoolean("completed") || "done".equals(task.optString("status"));
         String priorityStr = task.optString("priority", "none");
         String metaText = (done ? (isFa ? "وضعیت: انجام‌شده ✓ · " : "Status: Done · ") : (isFa ? "وضعیت: در انتظار · " : "Status: Todo · "))
-            + (isFa ? "اولویت: " + ("urgent".equals(priorityStr) ? "فوری" : "high".equals(priorityStr) ? "زیاد" : "عادی") : "Priority: " + priorityStr);
+            + (isFa ? "اولویت: " + ("urgent".equals(priorityStr) ? "فوری و مهم (Urgent)" : "high".equals(priorityStr) ? "زیاد (High)" : "medium".equals(priorityStr) ? "متوسط (Medium)" : "low".equals(priorityStr) ? "کم (Low)" : "عادی (بدون اولویت)") : "Priority: " + ("urgent".equals(priorityStr) ? "Urgent" : priorityStr));
         TextView meta = new TextView(this);
         meta.setText(metaText);
         meta.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);

@@ -12,6 +12,7 @@ import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { BidiText } from "@/components/BidiText";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
@@ -75,7 +76,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   onClose: () => void;
   onChanged: () => void;
   setConfirm: (c: ConfirmState) => void;
-  mode?: "sheet" | "page" | "drawer" | "embedded";
+  mode?: "sheet" | "page" | "drawer" | "embedded" | "modal";
   allowDelete?: boolean;
   onSave?: () => Promise<void> | void;
   onOpenParentTask?: (parentId: string) => void;
@@ -1886,7 +1887,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         {saveBusy || saveState === "saving" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
         {T("ذخیره", "Save")}
       </Button>
-      {mode !== "page" && (
+      {mode !== "page" && mode !== "modal" && (
         <Button
           size="sm"
           variant="ghost"
@@ -1927,7 +1928,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       {focusOpen && (
         <PomodoroSheet task={t} open={focusOpen} onOpenChange={setFocusOpen} />
       )}
-      {mode === "embedded" ? (
+      {mode === "embedded" || mode === "modal" ? (
         <div className="w-full h-full flex flex-col bg-card/95 backdrop-blur-md border border-border/70 rounded-2xl shadow-sm overflow-hidden animate-in fade-in duration-200">
           <div className="px-3 sm:px-4 py-2.5 border-b border-border/60 flex items-center justify-between gap-2 bg-muted/30 shrink-0">
             <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -2097,10 +2098,10 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           </DrawerContent>
         </Drawer>
       ) : (
-        <Sheet open={true} onOpenChange={(v) => !v && requestClose()}>
-          <SheetContent className="w-full sm:max-w-xl md:max-w-2xl overflow-y-auto p-3 sm:p-4 flex flex-col">
-            <SheetHeader className="mb-1 flex-row items-center justify-between gap-3 pe-8">
-              <SheetTitle className="text-xs sm:text-sm font-medium text-muted-foreground truncate text-start" dir="auto">
+        <Dialog open={true} onOpenChange={(v) => !v && requestClose()}>
+          <DialogContent className="w-[95vw] sm:max-w-2xl md:max-w-3xl max-h-[90vh] h-[85vh] p-3 sm:p-4 flex flex-col rounded-2xl">
+            <DialogHeader className="mb-1 flex-row items-center justify-between gap-3 pe-8">
+              <DialogTitle className="text-xs sm:text-sm font-medium text-muted-foreground truncate text-start" dir="auto">
                 {activeNote ? (
                   T("ویرایش نوت", "Edit note")
                 ) : (
@@ -2115,9 +2116,9 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                     <span className="truncate max-w-[220px]">{taskFolderLabel}</span>
                   </button>
                 )}
-              </SheetTitle>
+              </DialogTitle>
               {editorActions}
-            </SheetHeader>
+            </DialogHeader>
             <div className="flex-1 overflow-y-auto min-h-0">
               {activeNote ? noteEditorBody : body}
             </div>
@@ -2126,8 +2127,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                 {bottomRail}
               </div>
             )}
-          </SheetContent>
-        </Sheet>
+          </DialogContent>
+        </Dialog>
       )}
 
       {aiOpen && (

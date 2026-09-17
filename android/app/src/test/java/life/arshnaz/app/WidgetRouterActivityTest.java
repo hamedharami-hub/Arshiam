@@ -41,4 +41,39 @@ public class WidgetRouterActivityTest {
         template.fillIn(row, 0);
         assertEquals("arshnaz://widget-action/open?taskId=task-1&owner=user-1", template.getDataString());
     }
+
+    @Test public void consecutiveTapsRouteToClickedTaskWithoutStaleIntent() {
+        AgendaData.prefs(RuntimeEnvironment.getApplication()).edit().putString("dataUserId", "user-1").commit();
+
+        Intent clickA = new Intent(Intent.ACTION_VIEW, Uri.parse("arshnaz://widget-action/open?taskId=task-A&owner=user-1"));
+        WidgetRouterActivity activityA = Robolectric.buildActivity(WidgetRouterActivity.class, clickA).get();
+        activityA.onCreate(null);
+        Intent openedA = Shadows.shadowOf(activityA).getNextStartedActivity();
+        assertNotNull(openedA);
+        assertEquals("arshnaz://task?taskId=task-A&owner=user-1", openedA.getDataString());
+
+        Intent clickB = new Intent(Intent.ACTION_VIEW, Uri.parse("arshnaz://widget-action/open?taskId=task-B&owner=user-1"));
+        activityA.onNewIntent(clickB);
+        Intent openedB = Shadows.shadowOf(activityA).getNextStartedActivity();
+        assertNotNull(openedB);
+        assertEquals("arshnaz://task?taskId=task-B&owner=user-1", openedB.getDataString());
+    }
+
+    @Test public void mainActivityExtractsEveryNewTaskIdFromIntent() {
+        Intent intentA = AgendaWidgetProvider.appIntent(RuntimeEnvironment.getApplication(), "task?taskId=task-alpha&owner=user-1");
+        assertEquals("task-alpha", MainActivity.extractTaskId(intentA));
+
+        Intent intentB = AgendaWidgetProvider.appIntent(RuntimeEnvironment.getApplication(), "task?taskId=task-beta&owner=user-1");
+        assertEquals("task-beta", MainActivity.extractTaskId(intentB));
+        assertNotEquals(MainActivity.extractTaskId(intentA), MainActivity.extractTaskId(intentB));
+    }
+
+    @Test public void taskOpenProducesUniquePendingIntentDataAndRequestIdentity() {
+        android.content.Context ctx = RuntimeEnvironment.getApplication();
+        android.app.PendingIntent piA = AgendaWidgetProvider.taskOpen(ctx, "task-A", 72000);
+        android.app.PendingIntent piB = AgendaWidgetProvider.taskOpen(ctx, "task-B", 72000);
+        assertNotNull(piA);
+        assertNotNull(piB);
+        assertNotEquals(piA, piB);
+    }
 }

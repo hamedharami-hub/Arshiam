@@ -33,6 +33,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from "sonner";
 import { PRIORITY_META } from "@/lib/priority";
 import { FolderKanban } from "@/components/FolderKanban";
+import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
+import { parseTaskDueDate, taskDueTimestamp } from "@/lib/taskDate";
 import { pushUndo } from "@/lib/undoStack";
 import { pushDeleted } from "@/lib/recentlyDeleted";
 import { enqueueOp } from "@/lib/offlineQueue";
@@ -107,6 +109,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const params = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { isPhone } = useDeviceFormFactor();
   const [layout, setLayout] = useState<"compact" | "comfortable">("compact");
   useEffect(() => {
     if (!user) return;
@@ -351,15 +354,15 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     else if (scope === "today") {
       // Show overdue tasks plus today so the Today view matches TickTick (Overdue + Today groups)
       const e = endOfDay(new Date()).getTime();
-      list = list.filter(t => t.due_date && new Date(t.due_date).getTime() <= e);
+      list = list.filter(t => t.due_date && taskDueTimestamp(t.due_date) <= e);
     } else if (scope === "tomorrow") {
       const s = startOfDay(addDays(new Date(), 1)).getTime();
       const e = endOfDay(addDays(new Date(), 1)).getTime();
-      list = list.filter(t => t.due_date && new Date(t.due_date).getTime() >= s && new Date(t.due_date).getTime() <= e);
+      list = list.filter(t => t.due_date && taskDueTimestamp(t.due_date) >= s && taskDueTimestamp(t.due_date) <= e);
     } else if (scope === "next7") {
       // Show overdue plus next 7 days for grouped Upcoming view
       const e = endOfDay(addDays(new Date(), 7)).getTime();
-      list = list.filter(t => t.due_date && new Date(t.due_date).getTime() <= e);
+      list = list.filter(t => t.due_date && taskDueTimestamp(t.due_date) <= e);
     } else if (scope === "smart") {
       list = list.filter(t => t.priority === "high" && (!t.completed || isGraceActive(t.id)));
     } else if (scope === "folder") {
@@ -433,8 +436,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const tomorrowStart = startOfDay(addDays(now, 1)).getTime();
     const tomorrowEnd = endOfDay(addDays(now, 1)).getTime();
     const sorted = [...topLevel].sort((a, b) => {
-      const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
-      const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+      const da = taskDueTimestamp(a.due_date);
+      const db = taskDueTimestamp(b.due_date);
       if (da !== db) return da - db;
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
       if (a.completed !== b.completed) return a.completed ? 1 : -1;
@@ -443,7 +446,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const groups = new Map<string, TaskGroup>();
     for (const task of sorted) {
       if (!task.due_date) continue;
-      const due = new Date(task.due_date).getTime();
+      const due = taskDueTimestamp(task.due_date);
       let key: string;
       let label: string;
       if (due < todayStart) {
@@ -456,17 +459,17 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         key = "tomorrow";
         label = T("فردا", "Tomorrow");
       } else {
-        const d = new Date(task.due_date);
+        const d = parseTaskDueDate(task.due_date)!;
         key = format(d, "yyyy-MM-dd");
         label = d.toLocaleDateString(isEn ? "en-US" : "fa-IR", { weekday: "long", month: "short", day: "numeric" });
       }
       if (!groups.has(key)) groups.set(key, { key, label, tasks: [] });
       groups.get(key)!.tasks.push(task);
     }
-    // Preserve Overdue -> Today -> Tomorrow -> chronological day order
+    // Keep today's tasks first; overdue is still visible, but below today's work.
     const orderedKeys: string[] = [];
-    if (groups.has("overdue")) orderedKeys.push("overdue");
     if (groups.has("today")) orderedKeys.push("today");
+    if (groups.has("overdue")) orderedKeys.push("overdue");
     if (groups.has("tomorrow")) orderedKeys.push("tomorrow");
     [...groups.keys()]
       .filter(k => !["overdue", "today", "tomorrow"].includes(k))

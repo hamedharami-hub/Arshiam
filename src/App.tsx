@@ -129,6 +129,15 @@ function CapacitorUrlHandler() {
     try {
       // Subscribe before reading the cold-start URL. Otherwise a warm widget
       // tap can be missed and an older launch URL wins when the WebView resumes.
+      const handleNativeNavigate = (e: Event) => {
+        const custom = e as CustomEvent<{ path: string }>;
+        if (custom.detail?.path) navigate(custom.detail.path);
+      };
+      (window as any).__arshnazNavigate = (path: string) => {
+        if (path) navigate(path);
+      };
+      window.addEventListener("arshnaz:navigate", handleNativeNavigate);
+
       CapApp.addListener("appUrlOpen", (event) => {
         receivedLiveUrl = true;
         navigateForUrl(event.url || "");
@@ -146,6 +155,8 @@ function CapacitorUrlHandler() {
     }
     return () => {
       disposed = true;
+      delete (window as any).__arshnazNavigate;
+      window.removeEventListener("arshnaz:navigate", handleNativeNavigate);
       try {
         handle?.remove?.();
       } catch {}

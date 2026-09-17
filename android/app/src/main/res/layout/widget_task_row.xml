@@ -1,11 +1,93 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/row_root" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="64dp" android:padding="8dp" android:orientation="horizontal" android:gravity="center_vertical" android:layoutDirection="locale" android:background="@drawable/widget_row_background">
-    <TextView android:id="@+id/row_done" android:layout_width="44dp" android:layout_height="44dp" android:gravity="center" android:text="" android:textSize="20sp" android:textStyle="bold" android:textColor="#FFFFFF" android:contentDescription="Toggle task completion" android:background="@drawable/widget_checkbox_background" />
-    <TextView android:id="@+id/row_expand" android:layout_width="48dp" android:layout_height="44dp" android:layout_marginStart="6dp" android:layout_marginEnd="4dp" android:gravity="center" android:text="▾" android:textSize="13sp" android:textStyle="bold" android:textColor="#C4B5FD" android:contentDescription="Expand or collapse subtasks" android:background="@drawable/widget_expand_background" />
-    <LinearLayout android:id="@+id/row_content" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="4dp" android:layout_marginEnd="6dp" android:orientation="vertical">
-        <TextView android:id="@+id/row_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:textAlignment="viewStart" android:maxLines="2" android:ellipsize="end" android:textSize="15sp" android:textStyle="bold" />
-        <TextView android:id="@+id/row_meta" android:layout_width="match_parent" android:layout_height="wrap_content" android:textAlignment="viewStart" android:layout_marginTop="3dp" android:maxLines="1" android:ellipsize="end" android:textColor="#94A3B8" android:textSize="10sp" />
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/row_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="56dp"
+    android:padding="6dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:layoutDirection="rtl"
+    android:background="@drawable/widget_row_background">
+
+    <!-- 1. Checkbox for completion (on right side in RTL, 30dp x 30dp) -->
+    <TextView
+        android:id="@+id/row_done"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:gravity="center"
+        android:text=""
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:contentDescription="Toggle task completion"
+        android:background="@drawable/widget_checkbox_background" />
+
+    <!-- 2. Independent small expand control for subtasks -->
+    <TextView
+        android:id="@+id/row_expand"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_marginStart="4dp"
+        android:layout_marginEnd="4dp"
+        android:gravity="center"
+        android:text="▾"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textColor="#C4B5FD"
+        android:contentDescription="Expand or collapse subtasks"
+        android:background="@drawable/widget_expand_background" />
+
+    <!-- 3. Task title and meta (tapping opens the task directly in MainActivity) -->
+    <LinearLayout
+        android:id="@+id/row_content"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="4dp"
+        android:layout_marginEnd="6dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/row_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAlignment="viewStart"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/row_meta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAlignment="viewStart"
+            android:layout_marginTop="2dp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textColor="#94A3B8"
+            android:textSize="10sp" />
     </LinearLayout>
-    <TextView android:id="@+id/row_priority" android:layout_width="22dp" android:layout_height="44dp" android:gravity="center" android:text="○" android:textSize="15sp" />
-    <TextView android:id="@+id/row_edit" android:layout_width="40dp" android:layout_height="44dp" android:gravity="center" android:text="⋯" android:textSize="22sp" android:textColor="#C4B5FD" android:contentDescription="Task actions" android:background="@drawable/widget_dots_background" />
+
+    <!-- 4. Priority indicator -->
+    <TextView
+        android:id="@+id/row_priority"
+        android:layout_width="20dp"
+        android:layout_height="30dp"
+        android:gravity="center"
+        android:text="○"
+        android:textSize="14sp" />
+
+    <!-- 5. Small action control opening WidgetTaskActionActivity menu -->
+    <TextView
+        android:id="@+id/row_action"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:gravity="center"
+        android:text="⚙"
+        android:textSize="14sp"
+        android:textColor="#C4B5FD"
+        android:contentDescription="عملیات"
+        android:background="@drawable/widget_dots_background" />
 </LinearLayout>

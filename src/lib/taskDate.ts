@@ -1,0 +1,16 @@
+/** Parse task dates consistently in the user's local timezone.
+ * Date-only Firestore values must not go through Date.parse (UTC), otherwise
+ * they can move to the previous day in negative timezones.
+ */
+export function parseTaskDueDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const date = dateOnly
+    ? (() => { const [year, month, day] = value.split("-").map(Number); return new Date(year, month - 1, day); })()
+    : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function taskDueTimestamp(value: string | null | undefined): number {
+  return parseTaskDueDate(value)?.getTime() ?? Number.POSITIVE_INFINITY;
+}

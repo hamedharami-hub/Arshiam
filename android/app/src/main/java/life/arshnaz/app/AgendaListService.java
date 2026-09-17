@@ -60,7 +60,7 @@ public class AgendaListService extends RemoteViewsService {
             row.setTextViewText(R.id.row_title,t.optString("title"));
             if (hasChildren) {
                 row.setInt(R.id.row_expand,"setBackgroundResource",light?R.drawable.widget_expand_background_light:R.drawable.widget_expand_background);
-                row.setTextViewText(R.id.row_expand,collapsed?("▾ "+count):("▲ "+count));
+                row.setTextViewText(R.id.row_expand,collapsed?"›":"▾");
                 row.setTextColor(R.id.row_expand,android.graphics.Color.parseColor(light?"#6D28D9":"#DDD6FE"));
                 row.setViewVisibility(R.id.row_expand,android.view.View.VISIBLE);
             } else {
@@ -87,16 +87,18 @@ public class AgendaListService extends RemoteViewsService {
             String size=AgendaData.options(c).getString("widget."+id+".textSize",AgendaData.options(c).getBoolean("widget."+id+".large",false)?"large":"medium");
             row.setTextViewTextSize(R.id.row_title,android.util.TypedValue.COMPLEX_UNIT_SP,"large".equals(size)?18:"small".equals(size)?12:15);
             String taskId=Uri.encode(t.optString("id"));
-            row.setOnClickFillInIntent(R.id.row_done,new Intent().setData(Uri.parse("arshnaz://widget-action/toggle?taskId="+taskId+"&completed="+(completed?"1":"0")+"&owner="+Uri.encode(owner))));
-            row.setOnClickFillInIntent(R.id.row_edit,new Intent().setData(Uri.parse("arshnaz://widget-action/menu?taskId="+taskId+"&owner="+Uri.encode(owner))));
+            boolean targetCompleted = !completed;
+            row.setOnClickFillInIntent(R.id.row_done,new Intent().setData(Uri.parse("arshnaz://widget-action/toggle?taskId="+taskId+"&targetCompleted="+(targetCompleted?"1":"0")+"&completed="+(completed?"1":"0")+"&owner="+Uri.encode(owner))));
+            row.setOnClickFillInIntent(R.id.row_action,new Intent().setData(Uri.parse("arshnaz://widget-action/menu?taskId="+taskId+"&owner="+Uri.encode(owner))));
             if(hasChildren) {
-                // Clicking either the chevron button or the parent title/row toggles expand/collapse right in the widget without launching the app.
-                Intent collapseIntent=new Intent().setData(Uri.parse("arshnaz://widget-action/collapse?taskId="+taskId+"&widgetId="+id+"&owner="+Uri.encode(owner)));
+                boolean targetCollapsed = !collapsed;
+                Intent collapseIntent=new Intent().setData(Uri.parse("arshnaz://widget-action/collapse?taskId="+taskId+"&widgetId="+id+"&targetCollapsed="+(targetCollapsed?"1":"0")+"&owner="+Uri.encode(owner)));
                 row.setOnClickFillInIntent(R.id.row_expand,collapseIntent);
-                row.setOnClickFillInIntent(R.id.row_content,collapseIntent);
-            } else {
-                row.setOnClickFillInIntent(R.id.row_content,new Intent().setData(Uri.parse("arshnaz://widget-action/open?taskId="+taskId+"&owner="+Uri.encode(owner))));
             }
+            Intent openIntent=new Intent().setData(Uri.parse("arshnaz://widget-action/open?taskId="+taskId+"&owner="+Uri.encode(owner)+"&_uid="+taskId))
+                .putExtra("taskId", t.optString("id"));
+            row.setOnClickFillInIntent(R.id.row_content,openIntent);
+            row.setOnClickFillInIntent(R.id.row_title,openIntent);
             return row;
         }
         public RemoteViews getLoadingView() { return null; }
