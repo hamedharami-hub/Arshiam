@@ -32,6 +32,15 @@ vi.mock("@/components/HeaderTitlePortal", () => ({
   HeaderTitlePortal: () => null,
 }));
 
+vi.mock("@/components/TaskDetail", () => ({
+  TaskDetail: ({ task, mode, onClose }: any) => (
+    <div data-testid="task-detail" data-mode={mode} data-task-id={task.id}>
+      <span>Detail: {task.title}</span>
+      <button onClick={onClose}>Close Detail</button>
+    </div>
+  ),
+}));
+
 import TodayDashboardView from "./TodayDashboardView";
 
 describe("TodayDashboardView visual and structural requirements", () => {
@@ -124,5 +133,89 @@ describe("TodayDashboardView visual and structural requirements", () => {
     // 5. Overdue section is present
     expect(screen.getByText("Overdue")).toBeInTheDocument();
     expect(screen.getByText("Overdue Report")).toBeInTheDocument();
+  });
+
+  it("renders split view on wide screens with placeholder and opens task in embedded left panel when clicked", () => {
+    mockTasks = [
+      {
+        id: "task-1",
+        user_id: "user-123",
+        title: "Write documentation",
+        completed: false,
+        status: "todo",
+        priority: "high",
+        due_date: todayIso,
+        folder_id: null,
+        parent_id: null,
+      },
+    ];
+
+    const { container } = render(
+      <MemoryRouter>
+        <TodayDashboardView />
+      </MemoryRouter>
+    );
+
+    // Split container is active by default on wide screens
+    const splitContainer = container.querySelector('[data-task-split="true"]');
+    expect(splitContainer).toBeInTheDocument();
+
+    // Placeholder is shown when no task is selected
+    expect(screen.getByText("Select a task")).toBeInTheDocument();
+    expect(screen.getByText(/Details open in the left panel while the task list remains on the right/i)).toBeInTheDocument();
+
+    // Clicking a task selects it and renders embedded TaskDetail in the left panel
+    const taskTitle = screen.getByText("Write documentation");
+    fireEvent.click(taskTitle);
+
+    const detail = screen.getByTestId("task-detail");
+    expect(detail).toBeInTheDocument();
+    expect(detail.getAttribute("data-mode")).toBe("embedded");
+    expect(detail.getAttribute("data-task-id")).toBe("task-1");
+
+    // Closing the detail restores the placeholder
+    const closeBtn = screen.getByText("Close Detail");
+    fireEvent.click(closeBtn);
+    expect(screen.queryByTestId("task-detail")).not.toBeInTheDocument();
+    expect(screen.getByText("Select a task")).toBeInTheDocument();
+  });
+
+  it("toggles split view off to single column and opens drawer when a task is selected", () => {
+    mockTasks = [
+      {
+        id: "task-2",
+        user_id: "user-123",
+        title: "Review pull request",
+        completed: false,
+        status: "todo",
+        priority: "none",
+        due_date: todayIso,
+        folder_id: null,
+        parent_id: null,
+      },
+    ];
+
+    const { container } = render(
+      <MemoryRouter>
+        <TodayDashboardView />
+      </MemoryRouter>
+    );
+
+    // Toggle split view off via the split view button
+    const toggleBtn = screen.getByTitle("Full width");
+    expect(toggleBtn).toBeInTheDocument();
+    fireEvent.click(toggleBtn);
+
+    // Split container is now single column (data-task-split="false")
+    expect(container.querySelector('[data-task-split="false"]')).toBeInTheDocument();
+    expect(screen.queryByText("Select a task")).not.toBeInTheDocument();
+
+    // Clicking the task in single-column mode opens TaskDetail with mode="drawer"
+    fireEvent.click(screen.getByText("Review pull request"));
+
+    const detail = screen.getByTestId("task-detail");
+    expect(detail).toBeInTheDocument();
+    expect(detail.getAttribute("data-mode")).toBe("drawer");
+    expect(detail.getAttribute("data-task-id")).toBe("task-2");
   });
 });

@@ -1,8 +1,8 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { endOfDay, startOfDay } from "date-fns";
 import {
-  Star, ChevronDown, ChevronRight, CheckSquare,
+  Star, ChevronDown, ChevronRight, CheckSquare, Columns2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasksData } from "@/hooks/useTasksData";
@@ -16,6 +16,7 @@ import { deleteTask as deletePersistedTask, persistTask } from "@/lib/firestoreD
 import { taskDueTimestamp } from "@/lib/taskDate";
 import { buildTaskChildrenMap, getTaskProgress } from "@/features/tasks/taskTree";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
+import { Button } from "@/components/ui/button";
 import { TaskListItem } from "@/components/TaskListItem";
 import { TaskDetail } from "@/components/TaskDetail";
 import TaskActionSheet from "@/components/TaskActionSheet";
@@ -42,6 +43,7 @@ export default function TodayDashboardView() {
 
   const [showCompleted, setShowCompleted] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTaskHistory, setSelectedTaskHistory] = useState<Task[]>([]);
   const [actionTask, setActionTask] = useState<Task | null>(null);
   const [moveTask, setMoveTask] = useState<Task | null>(null);
   const [makeChildOf, setMakeChildOf] = useState<Task | null>(null);
@@ -49,6 +51,52 @@ export default function TodayDashboardView() {
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
+  const [splitView, setSplitView] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("arshnaz_tasks_split_view") !== "false";
+  });
+  const [isWideOrFoldable, setIsWideOrFoldable] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return (
+      window.innerWidth >= 600 ||
+      (typeof window.matchMedia === "function" &&
+        (window.matchMedia("(horizontal-viewport-segments: 2)").matches ||
+          window.matchMedia("(spanning: single-fold-vertical)").matches))
+    );
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const check = () => {
+      const wide =
+        window.innerWidth >= 600 ||
+        (typeof window.matchMedia === "function" &&
+          (window.matchMedia("(horizontal-viewport-segments: 2)").matches ||
+            window.matchMedia("(spanning: single-fold-vertical)").matches));
+      setIsWideOrFoldable(wide);
+    };
+    window.addEventListener("resize", check);
+    const m1 = window.matchMedia?.("(horizontal-viewport-segments: 2)");
+    const m2 = window.matchMedia?.("(spanning: single-fold-vertical)");
+    m1?.addEventListener?.("change", check);
+    m2?.addEventListener?.("change", check);
+    return () => {
+      window.removeEventListener("resize", check);
+      m1?.removeEventListener?.("change", check);
+      m2?.removeEventListener?.("change", check);
+    };
+  }, []);
+
+  const isSplitActive = splitView && isWideOrFoldable;
+
+  const toggleSplitView = () => {
+    setSplitView((prev) => {
+      const next = !prev;
+      localStorage.setItem("arshnaz_tasks_split_view", String(next));
+      return next;
+    });
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -148,14 +196,56 @@ export default function TodayDashboardView() {
   const totalCount = todayTasks.length;
   const completedCount = completedTodayTasks.length;
 
-  // 3. Selection handler: large screens modal / phones full route
-  const handleSelectTask = useCallback((task: Task) => {
-    if (isPhone) {
-      navigate(`/app/tasks/${task.id}`);
-    } else {
-      setSelectedTask(task);
+  // Sync selected task with latest data
+  useEffect(() => {
+    if (!selectedTask) return;
+    const current = allTasks.find((item) => item.id === selectedTask.id);
+    if (!current) {
+      setSelectedTask(null);
+      setSelectedTaskHistory([]);
+    } else if (current !== selectedTask) {
+      setSelectedTask(current);
     }
-  }, [isPhone, navigate]);
+  }, [allTasks, selectedTask]);
+
+  const handleBackInDrawer = useCallback(() => {
+    setSelectedTaskHistory((prev) => {
+      if (prev.length === 0) {
+        setSelectedTask(null);
+        return [];
+      }
+      const next = [...prev];
+      const previousTask = next.pop()!;
+      const fresh = allTasks.find((t) => t.id === previousTask.id) || previousTask;
+      setSelectedTask(fresh);
+      return next;
+    });
+  }, [allTasks]);
+
+  const handleOpenParentInDrawer = useCallback((targetTaskId: string) => {
+    if (!selectedTask) return;
+    const target = allTasks.find((t) => t.id === targetTaskId);
+    if (target) {
+      setSelectedTaskHistory((prev) => [...prev, selectedTask]);
+      setSelectedTask(target);
+    } else {
+      navigate(`/app/tasks/${encodeURIComponent(targetTaskId)}?from=${encodeURIComponent(selectedTask.id)}`);
+    }
+  }, [selectedTask, allTasks, navigate]);
+
+  // 3. Selection handler: opens in split left-panel on wide/foldable/desktop, or drawer on mobile
+  const handleSelectTask = useCallback((task: Task) => {
+    if (task.parent_id) {
+      const parent = allTasks.find((p) => p.id === task.parent_id);
+      if (parent) {
+        setSelectedTaskHistory([parent]);
+        setSelectedTask(task);
+        return;
+      }
+    }
+    setSelectedTaskHistory([]);
+    setSelectedTask(task);
+  }, [allTasks]);
 
   // 4. Canonical persistence with optimistic update & rollback
   const handleToggleTask = useCallback(async (task: Task) => {
@@ -260,7 +350,7 @@ export default function TodayDashboardView() {
       onMoveTask={setMoveTask}
       userId={user?.id}
       isSelected={selectedTask?.id === t.id}
-      splitView={false}
+      splitView={splitView}
       layout="compact"
       isEn={isEn}
       T={T}
@@ -279,129 +369,200 @@ export default function TodayDashboardView() {
   return (
     <div
       dir={isEn ? "ltr" : "rtl"}
-      className="p-2 sm:p-3 md:p-4 lg:px-5 xl:px-7 lg:py-5 max-w-4xl mx-auto space-y-3 pb-24 page-enter"
+      className="p-2 sm:p-3 md:p-4 lg:px-5 xl:px-7 lg:py-5 w-full mx-auto relative space-y-3 pb-24 page-enter"
     >
       <HeaderTitlePortal title={T("امروز", "Today")} />
 
-      {/* ۱. هدر فشرده تاریخ و وضعیت */}
-      <div className="flex items-center justify-between py-1 px-1">
-        <div>
-          <h1 className="text-base sm:text-lg md:text-xl font-bold text-foreground">
+      {/* ۱. هدر فشرده تاریخ و وضعیت و کلید تغییر نمای دوپنله */}
+      <div className="flex items-center justify-between py-1 px-1 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <h1 className="text-base sm:text-lg md:text-xl font-bold text-foreground truncate">
             {isEn ? todayGregorian : todayJalali}
           </h1>
         </div>
-        {totalCount > 0 && (
-          <span className="text-xs text-muted-foreground font-medium">
-            {toPersianDigits(completedCount)} / {toPersianDigits(totalCount)} {T("تکمیل‌شده", "completed")}
-          </span>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {totalCount > 0 && (
+            <span className="text-xs text-muted-foreground font-medium">
+              {toPersianDigits(completedCount)} / {toPersianDigits(totalCount)} {T("تکمیل‌شده", "completed")}
+            </span>
+          )}
+          <Button
+            variant={splitView ? "secondary" : "outline"}
+            size="sm"
+            onClick={toggleSplitView}
+            className="inline-flex items-center gap-1.5 text-xs h-7 sm:h-8 px-2 sm:px-2.5 rounded-lg border border-border/60 font-medium transition-colors cursor-pointer"
+            title={splitView ? T("حالت تمام‌صفحه", "Full width") : T("نمای دوپنله (نیمه چپ)", "Split view (left panel)")}
+          >
+            <Columns2 className="w-3.5 h-3.5" />
+            <span className="text-[11px] sm:text-xs">{splitView ? T("نمای دوپنله", "Split view") : T("تمام‌صفحه", "Full width")}</span>
+          </Button>
+        </div>
       </div>
 
-      {/* ۳. لیست تسک‌ها با خط زمان و ریتم فشرده هفتگی */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={(e: DragStartEvent) => setActiveDragId(String(e.active.id))}
-        onDragEnd={onDragEnd}
-        onDragCancel={() => setActiveDragId(null)}
+      <div
+        data-task-split={isSplitActive ? "true" : "false"}
+        dir="ltr"
+        className={`w-full items-start gap-3 sm:gap-4 xl:gap-5 ${
+          isSplitActive
+            ? "grid grid-cols-[minmax(340px,1.15fr)_minmax(280px,0.85fr)] lg:grid-cols-[minmax(460px,1.15fr)_minmax(360px,0.85fr)] 2xl:grid-cols-[minmax(560px,1.2fr)_minmax(420px,0.8fr)]"
+            : "flex flex-col"
+        }`}
       >
-        <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
-          <div className="space-y-2">
-            {/* اولویت‌های برتر (تا ۳ تسک فوری یا بالا) با تمایز ملایم */}
-            {priorityTasks.length > 0 && (
-              <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.03] p-1.5 sm:p-2 space-y-1">
-                <div className="flex items-center px-1 pt-0.5 pb-0.5">
-                  <Star
-                    className="w-3.5 h-3.5 fill-amber-500/20 text-amber-500 shrink-0"
-                    aria-label={T("اولویت‌های برتر", "Top Priorities")}
-                    title={T("اولویت‌های برتر", "Top Priorities")}
-                  />
-                  <span className="sr-only">{T("اولویت‌های برتر", "Top Priorities")}</span>
+        {/* پنل سمت چپ جزئیات تسک در نمایش دسکتاپ/ویندوز/تاشو */}
+        {isSplitActive && (
+          <aside
+            dir={isEn ? "ltr" : "rtl"}
+            className="col-start-1 w-full min-w-0 sticky top-[3.75rem] sm:top-[4.25rem] h-[calc(100dvh-7.5rem)] sm:h-[calc(100dvh-8rem)] xl:h-[calc(100dvh-7.2rem)] overflow-hidden transition-all duration-200"
+          >
+            {selectedTask ? (
+              <TaskDetail
+                key={selectedTask.id}
+                task={selectedTask}
+                mode="embedded"
+                onClose={() => {
+                  setSelectedTaskHistory([]);
+                  setSelectedTask(null);
+                }}
+                onChanged={load}
+                setConfirm={setConfirm}
+                allowDelete
+                onOpenParentTask={handleOpenParentInDrawer}
+                onBack={selectedTaskHistory.length > 0 ? handleBackInDrawer : undefined}
+                hasBackHistory={selectedTaskHistory.length > 0}
+              />
+            ) : (
+              <div className="h-full rounded-2xl border border-dashed border-border/70 bg-card/40 flex flex-col items-center justify-center p-6 text-center text-muted-foreground shadow-sm">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3">
+                  <CheckSquare className="w-6 h-6" />
                 </div>
-                <div className="space-y-1">
-                  {priorityTasks.map((t) => renderTaskItem(t))}
-                </div>
-              </div>
-            )}
-
-            {/* سایر کارهای فعال امروز */}
-            {activeRemaining.length > 0 && (
-              <div className="space-y-1">
-                {activeRemaining.map((t) => renderTaskItem(t))}
-              </div>
-            )}
-
-            {/* تسک‌های تکمیل‌شده امروز به صورت تاشو و فشرده */}
-            {completedTodayTasks.length > 0 && (
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowCompleted((v) => !v)}
-                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground py-1 px-1 font-medium cursor-pointer transition-colors"
-                  aria-label={showCompleted ? T("مخفی کردن تسک‌های تکمیل‌شده", "Hide completed tasks") : T("نمایش تسک‌های تکمیل‌شده", "Show completed tasks")}
-                >
-                  {showCompleted ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5 rtl:rotate-180" />}
-                  <span>{T("تکمیل‌شده", "Completed")}</span>
-                  <span className="text-[11px] text-muted-foreground">({toPersianDigits(completedTodayTasks.length)})</span>
-                </button>
-                {showCompleted && (
-                  <div className="space-y-1 mt-1 opacity-75">
-                    {completedTodayTasks.map((t) => renderTaskItem(t))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* تسک‌های به‌تعویق‌افتاده، حتماً بعد و پایین تسک‌های امروز */}
-            {overdueTasks.length > 0 && (
-              <div className="space-y-1 pt-3">
-                <div className="sticky top-0 z-[5] bg-background/95 backdrop-blur py-1 px-1 text-xs sm:text-sm font-semibold text-rose-500 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <span>{T("به‌تعویق‌افتاده", "Overdue")}</span>
-                  </span>
-                  <span className="text-xs text-muted-foreground font-normal">
-                    {toPersianDigits(overdueTasks.length)}
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  {overdueTasks.map((t) => renderTaskItem(t))}
-                </div>
-              </div>
-            )}
-
-            {/* حالت خالی */}
-            {isEmpty && (
-              <div className="py-12 text-center text-muted-foreground space-y-2">
-                <CheckSquare className="w-10 h-10 mx-auto opacity-30 text-primary" />
-                <p className="text-sm font-medium text-foreground/80">
-                  {T("امروز تسکی نداری ✨", "No tasks for today ✨")}
+                <p className="text-sm font-semibold text-foreground">{T("یک تسک را انتخاب کنید", "Select a task")}</p>
+                <p className="text-xs text-muted-foreground mt-1 max-w-[260px] leading-5">
+                  {T("جزئیات و ویرایش در پنل سمت چپ باز می‌شود؛ فهرست کارها در سمت راست باقی می‌ماند.", "Details open in the left panel while the task list remains on the right.")}
                 </p>
               </div>
             )}
-          </div>
-        </SortableContext>
+          </aside>
+        )}
 
-        <DragOverlay>
-          {activeDragId ? (
-            <Card className="p-3 shadow-lg opacity-90">
-              <p className="text-sm font-medium">
-                {allTasks.find((x) => x.id === activeDragId)?.title || "..."}
-              </p>
-            </Card>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+        <section
+          dir={isEn ? "ltr" : "rtl"}
+          className={`w-full min-w-0 rounded-2xl border border-border/60 bg-card/35 p-2 sm:p-3 lg:p-4 shadow-sm pb-16 ${
+            isSplitActive ? "col-start-2" : ""
+          }`}
+        >
+          {/* ۳. لیست تسک‌ها با خط زمان و ریتم فشرده هفتگی */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={(e: DragStartEvent) => setActiveDragId(String(e.active.id))}
+            onDragEnd={onDragEnd}
+            onDragCancel={() => setActiveDragId(null)}
+          >
+            <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
+              <div className="space-y-2">
+                {/* اولویت‌های برتر (تا ۳ تسک فوری یا بالا) با تمایز ملایم */}
+                {priorityTasks.length > 0 && (
+                  <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.03] p-1.5 sm:p-2 space-y-1">
+                    <div className="flex items-center px-1 pt-0.5 pb-0.5">
+                      <Star
+                        className="w-3.5 h-3.5 fill-amber-500/20 text-amber-500 shrink-0"
+                        aria-label={T("اولویت‌های برتر", "Top Priorities")}
+                        title={T("اولویت‌های برتر", "Top Priorities")}
+                      />
+                      <span className="sr-only">{T("اولویت‌های برتر", "Top Priorities")}</span>
+                    </div>
+                    <div className="space-y-1">
+                      {priorityTasks.map((t) => renderTaskItem(t))}
+                    </div>
+                  </div>
+                )}
 
-      {/* جزئیات تسک در نمایشگرهای بزرگ به‌صورت مودال متمرکز با بک‌دراپ */}
-      {selectedTask && (
+                {/* سایر کارهای فعال امروز */}
+                {activeRemaining.length > 0 && (
+                  <div className="space-y-1">
+                    {activeRemaining.map((t) => renderTaskItem(t))}
+                  </div>
+                )}
+
+                {/* تسک‌های تکمیل‌شده امروز به صورت تاشو و فشرده */}
+                {completedTodayTasks.length > 0 && (
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowCompleted((v) => !v)}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground py-1 px-1 font-medium cursor-pointer transition-colors"
+                      aria-label={showCompleted ? T("مخفی کردن تسک‌های تکمیل‌شده", "Hide completed tasks") : T("نمایش تسک‌های تکمیل‌شده", "Show completed tasks")}
+                    >
+                      {showCompleted ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5 rtl:rotate-180" />}
+                      <span>{T("تکمیل‌شده", "Completed")}</span>
+                      <span className="text-[11px] text-muted-foreground">({toPersianDigits(completedTodayTasks.length)})</span>
+                    </button>
+                    {showCompleted && (
+                      <div className="space-y-1 mt-1 opacity-75">
+                        {completedTodayTasks.map((t) => renderTaskItem(t))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* تسک‌های به‌تعویق‌افتاده، حتماً بعد و پایین تسک‌های امروز */}
+                {overdueTasks.length > 0 && (
+                  <div className="space-y-1 pt-3">
+                    <div className="sticky top-0 z-[5] bg-background/95 backdrop-blur py-1 px-1 text-xs sm:text-sm font-semibold text-rose-500 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <span>{T("به‌تعویق‌افتاده", "Overdue")}</span>
+                      </span>
+                      <span className="text-xs text-muted-foreground font-normal">
+                        {toPersianDigits(overdueTasks.length)}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      {overdueTasks.map((t) => renderTaskItem(t))}
+                    </div>
+                  </div>
+                )}
+
+                {/* حالت خالی */}
+                {isEmpty && (
+                  <div className="py-12 text-center text-muted-foreground space-y-2">
+                    <CheckSquare className="w-10 h-10 mx-auto opacity-30 text-primary" />
+                    <p className="text-sm font-medium text-foreground/80">
+                      {T("امروز تسکی نداری ✨", "No tasks for today ✨")}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </SortableContext>
+
+            <DragOverlay>
+              {activeDragId ? (
+                <Card className="p-3 shadow-lg opacity-90">
+                  <p className="text-sm font-medium">
+                    {allTasks.find((x) => x.id === activeDragId)?.title || "..."}
+                  </p>
+                </Card>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        </section>
+      </div>
+
+      {/* جزئیات تسک در نمایشگرهای تک‌پنله/موبایل به‌صورت کشویی (Drawer) */}
+      {selectedTask && !isSplitActive && (
         <TaskDetail
           key={selectedTask.id}
           task={selectedTask}
-          mode="modal"
-          onClose={() => setSelectedTask(null)}
+          mode="drawer"
+          onClose={() => {
+            setSelectedTaskHistory([]);
+            setSelectedTask(null);
+          }}
           onChanged={load}
           setConfirm={setConfirm}
           allowDelete
+          onOpenParentTask={handleOpenParentInDrawer}
+          onBack={selectedTaskHistory.length > 0 ? handleBackInDrawer : undefined}
+          hasBackHistory={selectedTaskHistory.length > 0}
         />
       )}
 
