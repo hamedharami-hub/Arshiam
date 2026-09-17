@@ -24,16 +24,22 @@ public class NativeExperiencePlugin extends Plugin {
         SharedPreferences.Editor edit=AgendaData.options(getContext()).edit();
         if(call.getBoolean("panelEnabled")!=null) edit.putBoolean("panelEnabled",call.getBoolean("panelEnabled"));
         if(call.getBoolean("remindersEnabled")!=null) edit.putBoolean("remindersEnabled",call.getBoolean("remindersEnabled"));
+        if(call.getBoolean("appFunctionsEnabled")!=null) edit.putBoolean("appFunctionsEnabled",call.getBoolean("appFunctionsEnabled"));
         edit.commit();
         TaskPanel.update(getContext()); NativeReminders.reconcile(getContext()); status(call);
     }
     @PluginMethod public void status(PluginCall call) {
         AlarmManager alarms=getContext().getSystemService(AlarmManager.class);
         boolean exact=Build.VERSION.SDK_INT<31||alarms.canScheduleExactAlarms();
+        boolean appFunctionsSupported=Build.VERSION.SDK_INT>=36;
+        boolean appFunctionsEnabled=AgendaData.options(getContext()).getBoolean("appFunctionsEnabled",true);
         call.resolve(new JSObject().put("notificationsAllowed",TaskPanel.allowed(getContext()))
             .put("exactAllowed",exact).put("panelEnabled",AgendaData.options(getContext()).getBoolean("panelEnabled",false))
             .put("remindersEnabled",AgendaData.options(getContext()).getBoolean("remindersEnabled",false))
-            .put("scheduledCount",NativeReminders.count(getContext())));
+            .put("scheduledCount",NativeReminders.count(getContext()))
+            .put("appFunctionsSupported",appFunctionsSupported)
+            .put("appFunctionsEnabled",appFunctionsEnabled)
+            .put("appFunctionsPreview",true));
     }
     @PluginMethod public void appInfo(PluginCall call) {
         try {

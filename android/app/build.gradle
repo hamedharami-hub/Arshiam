@@ -61,6 +61,8 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    compileOnly "androidx.appfunctions:appfunctions:1.0.0-alpha11"
+    testImplementation "androidx.appfunctions:appfunctions:1.0.0-alpha11"
     testImplementation "junit:junit:$junitVersion"
     testImplementation "org.json:json:20240303"
     testImplementation "org.robolectric:robolectric:4.16.1"

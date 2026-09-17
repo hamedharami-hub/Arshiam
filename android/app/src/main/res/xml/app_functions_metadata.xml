@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android 16 AppFunctions metadata descriptor for ARSHNAZ / Arshiam.
+    Exposes 5 bounded capabilities to Android OS and Gemini:
+      1. createTask
+      2. listTodayTasks
+      3. searchTasks
+      4. updateTask
+      5. completeTask
+-->
+<app-functions>
+
+    <app-function
+        id="createTask"
+        description="Creates a new task in ARSHNAZ with optional due date, priority, and folder."
+        enabled="true">
+        <parameter
+            name="title"
+            type="string"
+            required="true"
+            description="Title of the task to create." />
+        <parameter
+            name="dueDateTime"
+            type="string"
+            required="false"
+            description="Optional due date in ISO-8601 or YYYY-MM-DD format." />
+        <parameter
+            name="priority"
+            type="string"
+            required="false"
+            description="Optional priority: none, low, medium, high, urgent." />
+        <parameter
+            name="folderName"
+            type="string"
+            required="false"
+            description="Optional category or folder name." />
+    </app-function>
+
+    <app-function
+        id="listTodayTasks"
+        description="Lists active tasks scheduled for today in ARSHNAZ (up to 20)."
+        enabled="true">
+        <parameter
+            name="limit"
+            type="integer"
+            required="false"
+            description="Maximum number of tasks to return (1-20, default 20)." />
+    </app-function>
+
+    <app-function
+        id="searchTasks"
+        description="Searches active tasks in ARSHNAZ by title keyword (up to 20)."
+        enabled="true">
+        <parameter
+            name="query"
+            type="string"
+            required="true"
+            description="Keyword to search within task titles." />
+        <parameter
+            name="limit"
+            type="integer"
+            required="false"
+            description="Maximum number of tasks to return (1-20, default 20)." />
+    </app-function>
+
+    <app-function
+        id="updateTask"
+        description="Updates an existing task's title, due date, or priority in ARSHNAZ."
+        enabled="true">
+        <parameter
+            name="taskId"
+            type="string"
+            required="true"
+            description="Unique ID of the task to update." />
+        <parameter
+            name="title"
+            type="string"
+            required="false"
+            description="New title for the task." />
+        <parameter
+            name="dueDateTime"
+            type="string"
+            required="false"
+            description="New due date in ISO-8601 or YYYY-MM-DD format." />
+        <parameter
+            name="priority"
+            type="string"
+            required="false"
+            description="New priority: none, low, medium, high, urgent." />
+    </app-function>
+
+    <app-function
+        id="completeTask"
+        description="Marks an existing task in ARSHNAZ as completed or reopens it."
+        enabled="true">
+        <parameter
+            name="taskId"
+            type="string"
+            required="true"
+            description="Unique ID of the task." />
+        <parameter
+            name="completed"
+            type="boolean"
+            required="true"
+            description="True to mark task as completed; false to reopen." />
+    </app-function>
+
+</app-functions>

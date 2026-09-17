@@ -72,6 +72,18 @@
         <service android:name=".FocusTimerTileService" android:label="ARSHNAZ · Focus Timer" android:icon="@drawable/ic_stat_tasks" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE"/></intent-filter>
         </service>
+        <!-- Android 16 AppFunctions Service (API 36+) for Gemini / System Orchestration -->
+        <service
+            android:name=".ArshnazAppFunctionService"
+            android:permission="android.permission.BIND_APP_FUNCTION_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.app.appfunctions.AppFunctionService" />
+            </intent-filter>
+            <property
+                android:name="android.app.appfunctions.app_metadata"
+                android:resource="@xml/app_functions_metadata" />
+        </service>
         <!-- Widget Provider -->
         <receiver
             android:name=".ArshnazWidgetProvider"
