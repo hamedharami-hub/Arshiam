@@ -156,9 +156,11 @@ describe("TodayDashboardView visual and structural requirements", () => {
       </MemoryRouter>
     );
 
-    // Split container is active by default on wide screens
-    const splitContainer = container.querySelector('[data-task-split="true"]');
-    expect(splitContainer).toBeInTheDocument();
+    // The task list section has independent scrolling (overflow-y-auto and overscroll-contain)
+    const section = container.querySelector("section");
+    expect(section).toBeInTheDocument();
+    expect(section?.className).toContain("overflow-y-auto");
+    expect(section?.className).toContain("overscroll-contain");
 
     // Placeholder is shown when no task is selected
     expect(screen.getByText("Select a task")).toBeInTheDocument();
@@ -209,6 +211,10 @@ describe("TodayDashboardView visual and structural requirements", () => {
     // Split container is now single column (data-task-split="false")
     expect(container.querySelector('[data-task-split="false"]')).toBeInTheDocument();
     expect(screen.queryByText("Select a task")).not.toBeInTheDocument();
+
+    // In single column mode, the section does not constrain height or force independent overflow
+    const section = container.querySelector("section");
+    expect(section?.className).not.toContain("overflow-y-auto");
 
     // Clicking the task in single-column mode opens TaskDetail with mode="drawer"
     fireEvent.click(screen.getByText("Review pull request"));

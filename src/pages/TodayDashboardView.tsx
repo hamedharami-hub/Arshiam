@@ -369,12 +369,16 @@ export default function TodayDashboardView() {
   return (
     <div
       dir={isEn ? "ltr" : "rtl"}
-      className="p-2 sm:p-3 md:p-4 lg:px-5 xl:px-7 lg:py-5 w-full mx-auto relative space-y-3 pb-24 page-enter"
+      className={`w-full mx-auto relative page-enter ${
+        isSplitActive
+          ? "h-[calc(100dvh-7.5rem)] sm:h-[calc(100dvh-8rem)] xl:h-[calc(100dvh-7.2rem)] flex flex-col p-2 sm:p-3 md:p-4 lg:px-5 xl:px-7 lg:py-2.5 space-y-2 overflow-hidden"
+          : "p-2 sm:p-3 md:p-4 lg:px-5 xl:px-7 lg:py-5 space-y-3 pb-24"
+      }`}
     >
       <HeaderTitlePortal title={T("امروز", "Today")} />
 
       {/* ۱. هدر فشرده تاریخ و وضعیت و کلید تغییر نمای دوپنله */}
-      <div className="flex items-center justify-between py-1 px-1 gap-2">
+      <div className="flex items-center justify-between py-1 px-1 gap-2 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <h1 className="text-base sm:text-lg md:text-xl font-bold text-foreground truncate">
             {isEn ? todayGregorian : todayJalali}
@@ -404,15 +408,15 @@ export default function TodayDashboardView() {
         dir="ltr"
         className={`w-full items-start gap-3 sm:gap-4 xl:gap-5 ${
           isSplitActive
-            ? "grid grid-cols-[minmax(340px,1.15fr)_minmax(280px,0.85fr)] lg:grid-cols-[minmax(460px,1.15fr)_minmax(360px,0.85fr)] 2xl:grid-cols-[minmax(560px,1.2fr)_minmax(420px,0.8fr)]"
+            ? "flex-1 min-h-0 grid grid-cols-[minmax(340px,1.15fr)_minmax(280px,0.85fr)] lg:grid-cols-[minmax(460px,1.15fr)_minmax(360px,0.85fr)] 2xl:grid-cols-[minmax(560px,1.2fr)_minmax(420px,0.8fr)] overflow-hidden"
             : "flex flex-col"
         }`}
       >
-        {/* پنل سمت چپ جزئیات تسک در نمایش دسکتاپ/ویندوز/تاشو */}
+        {/* پنل سمت چپ جزئیات تسک در نمایش دسکتاپ/ویندوز/تاشو با اسکرول مستقل */}
         {isSplitActive && (
           <aside
             dir={isEn ? "ltr" : "rtl"}
-            className="col-start-1 w-full min-w-0 sticky top-[3.75rem] sm:top-[4.25rem] h-[calc(100dvh-7.5rem)] sm:h-[calc(100dvh-8rem)] xl:h-[calc(100dvh-7.2rem)] overflow-hidden transition-all duration-200"
+            className="col-start-1 w-full min-w-0 h-full overflow-hidden transition-all duration-200"
           >
             {selectedTask ? (
               <TaskDetail
@@ -444,10 +448,13 @@ export default function TodayDashboardView() {
           </aside>
         )}
 
+        {/* پنل سمت راست فهرست تیترهای تسک با اسکرول مستقل */}
         <section
           dir={isEn ? "ltr" : "rtl"}
-          className={`w-full min-w-0 rounded-2xl border border-border/60 bg-card/35 p-2 sm:p-3 lg:p-4 shadow-sm pb-16 ${
-            isSplitActive ? "col-start-2" : ""
+          className={`w-full min-w-0 rounded-2xl border border-border/60 bg-card/35 p-2 sm:p-3 lg:p-4 shadow-sm ${
+            isSplitActive
+              ? "col-start-2 h-full min-h-0 overflow-y-auto overscroll-contain pb-6"
+              : "pb-16"
           }`}
         >
           {/* ۳. لیست تسک‌ها با خط زمان و ریتم فشرده هفتگی */}

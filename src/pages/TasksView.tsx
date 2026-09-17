@@ -1124,8 +1124,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
           <section
             dir={isEn ? "ltr" : "rtl"}
-            className={`w-full min-w-0 rounded-2xl border border-border/60 bg-card/35 p-2 sm:p-3 lg:p-4 shadow-sm pb-16 ${
-              isSplitActive ? "col-start-2" : ""
+            className={`w-full min-w-0 rounded-2xl border border-border/60 bg-card/35 p-2 sm:p-3 lg:p-4 shadow-sm ${
+              isSplitActive
+                ? "col-start-2 h-[calc(100dvh-7.5rem)] sm:h-[calc(100dvh-8rem)] xl:h-[calc(100dvh-7.2rem)] overflow-y-auto overscroll-contain pb-6"
+                : "pb-16"
             }`}
           >
             {isFolder ? (
