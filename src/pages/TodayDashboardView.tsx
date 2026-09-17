@@ -16,7 +16,6 @@ import { deleteTask as deletePersistedTask, persistTask } from "@/lib/firestoreD
 import { taskDueTimestamp } from "@/lib/taskDate";
 import { buildTaskChildrenMap, getTaskProgress } from "@/features/tasks/taskTree";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
-import { QuickAddTask } from "@/components/QuickAddTask";
 import { TaskListItem } from "@/components/TaskListItem";
 import { TaskDetail } from "@/components/TaskDetail";
 import TaskActionSheet from "@/components/TaskActionSheet";
@@ -298,15 +297,6 @@ export default function TodayDashboardView() {
         )}
       </div>
 
-      {/* ۲. افزودن سریع تسک با سررسید پیش‌فرض امروز */}
-      <div className="mb-2">
-        <QuickAddTask
-          defaults={{ due_date: new Date().toISOString() }}
-          placeholder={T("افزودن تسک برای امروز...", "Add a task for today...")}
-          onCreated={() => load()}
-        />
-      </div>
-
       {/* ۳. لیست تسک‌ها با خط زمان و ریتم فشرده هفتگی */}
       <DndContext
         sensors={sensors}
@@ -385,9 +375,6 @@ export default function TodayDashboardView() {
                 <CheckSquare className="w-10 h-10 mx-auto opacity-30 text-primary" />
                 <p className="text-sm font-medium text-foreground/80">
                   {T("امروز تسکی نداری ✨", "No tasks for today ✨")}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {T("می‌تونی با فرم بالا تسک جدیدی برای امروز ثبت کنی.", "You can add a new task for today using the input above.")}
                 </p>
               </div>
             )}

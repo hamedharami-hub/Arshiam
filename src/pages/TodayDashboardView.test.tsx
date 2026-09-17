@@ -28,10 +28,6 @@ vi.mock("@/hooks/useTasksData", () => ({
   }),
 }));
 
-vi.mock("@/components/QuickAddTask", () => ({
-  QuickAddTask: () => <div data-testid="quick-add-task">Quick Add</div>,
-}));
-
 vi.mock("@/components/HeaderTitlePortal", () => ({
   HeaderTitlePortal: () => null,
 }));
@@ -111,9 +107,10 @@ describe("TodayDashboardView visual and structural requirements", () => {
     // 2. Regular active task
     expect(screen.getByText("Regular Task")).toBeInTheDocument();
 
-    // 3. Unwanted text must NOT exist
+    // 3. Unwanted text and persistent QuickAdd form must NOT exist
     expect(screen.queryByText("Other tasks for today")).not.toBeInTheDocument();
     expect(screen.queryByText("سایر تسک‌های امروز")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/Add a task for today|افزودن تسک برای امروز/i)).not.toBeInTheDocument();
 
     // 4. Completed tasks toggle
     const completedToggle = screen.getByRole("button", { name: /show completed tasks/i });
