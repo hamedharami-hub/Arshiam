@@ -14,7 +14,8 @@ import SwipeableRow, { type SwipeAction } from "@/components/gestures/SwipeableR
 import { useLongPress } from "@/lib/useLongPress";
 import { PRIORITY_META, PRIORITY_SELECTABLE, type Priority } from "@/lib/priority";
 import { describeRule, type RecurrenceRule } from "@/lib/recurrence";
-import { formatDate, addDays, startOfDay } from "date-fns";
+import { addDays, startOfDay } from "date-fns";
+import { formatDate } from "@/lib/jalali";
 import type { Task } from "@/lib/taskTypes";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
@@ -250,37 +251,41 @@ const TaskListItemComponent = ({
                     <Ban className="w-2.5 h-2.5" /> {T("اجتنابی", "Avoidance")}
                   </span>
                 )}
-                {(t.priority as string) !== "none" && (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button
-                        onClick={(e) => e.stopPropagation()}
-                        className={`text-[10px] gap-1 px-2 py-0 h-[20px] font-medium inline-flex items-center rounded-full border shadow-2xs transition hover:opacity-90 ${pm.bgClass} ${pm.textClass}`}
-                        title={T("تغییر اولویت", "Change priority")}
-                      >
-                        <Flag className="w-2.5 h-2.5" /> {T(pm.label, pm.labelEn)}
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-44 p-1" align="start" onClick={(e) => e.stopPropagation()}>
-                      {PRIORITY_SELECTABLE.map(p => {
-                        const m = PRIORITY_META[p];
-                        return (
-                          <button key={p}
-                            onClick={() => onPatchTask(t.id, { priority: p as Priority })}
-                            className={`w-full text-start px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 ${t.priority === p ? "bg-accent" : ""}`}>
-                            <Flag className={`w-3 h-3 ${m.textClass}`} /> {T(m.label, m.labelEn)}
-                          </button>
-                        );
-                      })}
-                      {(t.priority as string) !== "none" && (
-                        <button onClick={() => onPatchTask(t.id, { priority: "none" as Priority })}
-                          className="w-full text-start px-2 py-1.5 text-xs rounded hover:bg-accent text-muted-foreground border-t mt-1">
-                          {T("حذف اولویت", "Remove priority")}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      onClick={(e) => e.stopPropagation()}
+                      className={`text-[10px] gap-1 px-1.5 py-0 h-[20px] font-medium inline-flex items-center rounded-full border shadow-2xs transition hover:opacity-90 ${
+                        (t.priority as string) !== "none"
+                          ? `${pm.bgClass} ${pm.textClass}`
+                          : "border-transparent text-muted-foreground/35 hover:text-muted-foreground hover:border-border/60 hover:bg-muted/30"
+                      }`}
+                      title={T("تغییر اولویت", "Change priority")}
+                      aria-label={T("تغییر اولویت", "Change priority")}
+                    >
+                      <Flag className="w-2.5 h-2.5" />
+                      {(t.priority as string) !== "none" && <span>{T(pm.label, pm.labelEn)}</span>}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-44 p-1" align="start" onClick={(e) => e.stopPropagation()}>
+                    {PRIORITY_SELECTABLE.map(p => {
+                      const m = PRIORITY_META[p];
+                      return (
+                        <button key={p}
+                          onClick={() => onPatchTask(t.id, { priority: p as Priority })}
+                          className={`w-full text-start px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 ${t.priority === p ? "bg-accent" : ""}`}>
+                          <Flag className={`w-3 h-3 ${m.textClass}`} /> {T(m.label, m.labelEn)}
                         </button>
-                      )}
-                    </PopoverContent>
-                  </Popover>
-                )}
+                      );
+                    })}
+                    {(t.priority as string) !== "none" && (
+                      <button onClick={() => onPatchTask(t.id, { priority: "none" as Priority })}
+                        className="w-full text-start px-2 py-1.5 text-xs rounded hover:bg-accent text-muted-foreground border-t mt-1">
+                        {T("حذف اولویت", "Remove priority")}
+                      </button>
+                    )}
+                  </PopoverContent>
+                </Popover>
                 {t.due_date && (
                   <Popover>
                     <PopoverTrigger asChild>
