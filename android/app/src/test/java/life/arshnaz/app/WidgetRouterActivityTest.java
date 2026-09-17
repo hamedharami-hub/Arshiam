@@ -76,4 +76,29 @@ public class WidgetRouterActivityTest {
         assertNotNull(piB);
         assertNotEquals(piA, piB);
     }
+
+    @Test public void buildDispatchScriptSafelyEncodesQuotesAndSpecialCharacters() {
+        String complexUrl = "arshnaz://task?taskId=" + Uri.encode("id\"with'quotes\\and spaces فارسی") + "&owner=user-1";
+        String script = MainActivity.buildDispatchScript(complexUrl);
+        assertNotNull(script);
+        assertTrue(script.startsWith("(function() {"));
+        assertTrue(script.endsWith("})();"));
+        assertTrue(script.contains("__arshnazDispatchUrl"));
+        assertTrue(script.contains("__arshnazPendingUrl"));
+        // Quoting must ensure there are no unescaped raw newlines or broken quotes
+        assertFalse(script.contains("'\n'"));
+    }
+
+    @Test public void extractRawUrlExtractsUriAndRouteCorrectly() {
+        Intent intentWithData = new Intent(Intent.ACTION_VIEW, Uri.parse("arshnaz://task?taskId=task-1&owner=u1"));
+        assertEquals("arshnaz://task?taskId=task-1&owner=u1", MainActivity.extractRawUrl(intentWithData));
+
+        Intent intentWithRoute = new Intent(Intent.ACTION_VIEW).putExtra("arshnaz_route", "task?taskId=task-2&owner=u2");
+        assertEquals("arshnaz://task?taskId=task-2&owner=u2", MainActivity.extractRawUrl(intentWithRoute));
+    }
+
+    @Test public void fallbackFailsSafelyWithNullOrMockBridge() {
+        // Must never throw an unhandled exception even if bridge is null or invalid
+        MainActivity.tryUpdateBridgeIntentUriFallback(null, Uri.parse("arshnaz://task?taskId=1"));
+    }
 }

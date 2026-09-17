@@ -116,30 +116,46 @@ function CapacitorUrlHandler() {
     let disposed = false;
     let receivedLiveUrl = false;
     let routeGeneration = 0;
+    let lastNavigatedPath = "";
+    let lastNavigatedTime = 0;
+
     const navigateForUrl = (rawUrl: string) => {
+      if (!rawUrl) return;
+      receivedLiveUrl = true;
       const generation = ++routeGeneration;
       void import("@/lib/firebase")
         .then(({ auth }) => auth.authStateReady().then(() => {
           const path = nativeRoute(rawUrl, auth.currentUser?.uid);
-          if (path && !disposed && generation === routeGeneration) navigate(path);
+          if (!path || disposed || generation !== routeGeneration) return;
+          const now = Date.now();
+          if (path === lastNavigatedPath && now - lastNavigatedTime < 1000) {
+            return;
+          }
+          lastNavigatedPath = path;
+          lastNavigatedTime = now;
+          navigate(path);
         }))
         .catch(() => {});
     };
     let handle: any = null;
     try {
+      const onDispatchUrl = (event: { url?: string } | null | undefined) => {
+        if (event?.url) {
+          navigateForUrl(event.url);
+        }
+      };
+      (window as any).__arshnazDispatchUrl = onDispatchUrl;
+
+      // Drain cold-start pending URL if injected by native before React effect mounted
+      if (typeof (window as any).__arshnazPendingUrl === "string") {
+        const pending = (window as any).__arshnazPendingUrl;
+        delete (window as any).__arshnazPendingUrl;
+        navigateForUrl(pending);
+      }
+
       // Subscribe before reading the cold-start URL. Otherwise a warm widget
       // tap can be missed and an older launch URL wins when the WebView resumes.
-      const handleNativeNavigate = (e: Event) => {
-        const custom = e as CustomEvent<{ path: string }>;
-        if (custom.detail?.path) navigate(custom.detail.path);
-      };
-      (window as any).__arshnazNavigate = (path: string) => {
-        if (path) navigate(path);
-      };
-      window.addEventListener("arshnaz:navigate", handleNativeNavigate);
-
       CapApp.addListener("appUrlOpen", (event) => {
-        receivedLiveUrl = true;
         navigateForUrl(event.url || "");
       })
         .then((h) => {
@@ -155,8 +171,7 @@ function CapacitorUrlHandler() {
     }
     return () => {
       disposed = true;
-      delete (window as any).__arshnazNavigate;
-      window.removeEventListener("arshnaz:navigate", handleNativeNavigate);
+      delete (window as any).__arshnazDispatchUrl;
       try {
         handle?.remove?.();
       } catch {}
