@@ -21,6 +21,7 @@ import { TaskListItem } from "@/components/TaskListItem";
 import { TaskDetail } from "@/components/TaskDetail";
 import TaskActionSheet from "@/components/TaskActionSheet";
 import { MoveToDialog } from "@/components/MoveToDialog";
+import { MakeChildDialog } from "@/components/MakeChildDialog";
 import PomodoroSheet from "@/components/PomodoroSheet";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -44,6 +45,7 @@ export default function TodayDashboardView() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [actionTask, setActionTask] = useState<Task | null>(null);
   const [moveTask, setMoveTask] = useState<Task | null>(null);
+  const [makeChildOf, setMakeChildOf] = useState<Task | null>(null);
   const [pomoTask, setPomoTask] = useState<Task | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -318,12 +320,13 @@ export default function TodayDashboardView() {
             {/* اولویت‌های برتر (تا ۳ تسک فوری یا بالا) با تمایز ملایم */}
             {priorityTasks.length > 0 && (
               <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.03] p-1.5 sm:p-2 space-y-1">
-                <div className="flex items-center gap-1.5 px-1 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                  <Star className="w-3.5 h-3.5 fill-amber-500/20 text-amber-500" />
-                  <span>{T("اولویت‌های برتر", "Top Priorities")}</span>
-                  <span className="text-[10px] font-normal text-muted-foreground">
-                    ({toPersianDigits(priorityTasks.length)}/۳)
-                  </span>
+                <div className="flex items-center px-1 pt-0.5 pb-0.5">
+                  <Star
+                    className="w-3.5 h-3.5 fill-amber-500/20 text-amber-500 shrink-0"
+                    aria-label={T("اولویت‌های برتر", "Top Priorities")}
+                    title={T("اولویت‌های برتر", "Top Priorities")}
+                  />
+                  <span className="sr-only">{T("اولویت‌های برتر", "Top Priorities")}</span>
                 </div>
                 <div className="space-y-1">
                   {priorityTasks.map((t) => renderTaskItem(t))}
@@ -422,7 +425,7 @@ export default function TodayDashboardView() {
         onComplete={() => actionTask && handleToggleTask(actionTask)}
         onDelete={() => actionTask && askDeleteTask(actionTask)}
         onMove={() => actionTask && setMoveTask(actionTask)}
-        onMakeChild={() => {}}
+        onMakeChild={() => actionTask && setMakeChildOf(actionTask)}
         onPatch={(patch) => actionTask && handlePatchTask(actionTask.id, patch)}
         onPomodoro={() => actionTask && setPomoTask(actionTask)}
         onEdit={() => actionTask && handleSelectTask(actionTask)}
@@ -435,6 +438,21 @@ export default function TodayDashboardView() {
         open={!!pomoTask}
         onOpenChange={(v) => !v && setPomoTask(null)}
       />
+
+      {/* دیالوگ تبدیل به زیرتسک */}
+      {makeChildOf && (
+        <MakeChildDialog
+          open={!!makeChildOf}
+          onOpenChange={(v) => !v && setMakeChildOf(null)}
+          task={makeChildOf}
+          allTasks={allTasks}
+          onDone={(newParentId) => {
+            setAllTasks((prev) => prev.map((x) => (x.id === makeChildOf.id ? { ...x, parent_id: newParentId } : x)));
+            if (newParentId) setExpanded((s) => ({ ...s, [newParentId]: true }));
+            window.dispatchEvent(new Event("tasks-changed"));
+          }}
+        />
+      )}
 
       {/* دیالوگ انتقال تسک به فولدر */}
       {moveTask && (
