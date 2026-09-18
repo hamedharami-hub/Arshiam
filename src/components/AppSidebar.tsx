@@ -10,7 +10,9 @@ import { StreakCard } from "@/components/StreakCard";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar, SidebarHeader, SidebarFooter,
+  SidebarRail,
 } from "@/components/ui/sidebar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -532,6 +534,41 @@ export function AppSidebar() {
   const renderSection = (section: Section, dragHandle: any) => {
     const isOpen = openSections[section.id] ?? section.defaultOpen;
     const SectionIcon = section.icon;
+    const items =
+      section.id === "me" && isAdmin
+        ? [...section.items, { url: "/app/admin", icon: Shield, label: "پنل مدیریت" }]
+        : section.items;
+
+    if (collapsed) {
+      return (
+        <SidebarGroup key={section.id} className="p-0.5">
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {items.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton
+                    asChild
+                    tooltip={tr(item.label)}
+                    className="justify-center h-9 w-9 mx-auto rounded-xl"
+                  >
+                    <NavLink
+                      to={item.url}
+                      onClick={closeOnMobile}
+                      className="flex items-center justify-center w-full h-full"
+                      activeClassName="bg-accent text-accent-foreground font-bold"
+                    >
+                      <item.icon className="w-4 h-4 shrink-0" />
+                      <span className="sr-only">{tr(item.label)}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      );
+    }
+
     return (
       <SidebarGroup>
         <Collapsible open={isOpen || collapsed} onOpenChange={(v) => setSection(section.id, v)}>
@@ -552,10 +589,7 @@ export function AppSidebar() {
           <CollapsibleContent forceMount={collapsed ? true : undefined}>
             <SidebarGroupContent>
               <SidebarMenu>
-                {(section.id === "me" && isAdmin
-                  ? [...section.items, { url: "/app/admin", icon: Shield, label: "پنل مدیریت" }]
-                  : section.items
-                ).map((item) => (
+                {items.map((item) => (
                   <SidebarMenuItem key={item.url}>
                     <SidebarMenuButton asChild>
                       <NavLink to={item.url} onClick={closeOnMobile} className="flex items-center gap-2"
@@ -574,85 +608,220 @@ export function AppSidebar() {
     );
   };
 
-  const renderFolders = (dragHandle: any) => (
-    <SidebarGroup>
-      <Collapsible open={(openSections["__folders"] ?? true) || collapsed} onOpenChange={(v) => setSection("__folders", v)}>
-        {!collapsed && (
-          <SidebarGroupLabel className="flex justify-between items-center pe-1">
-            {dragHandle && (
-              <button {...dragHandle} className="cursor-grab active:cursor-grabbing p-0.5 opacity-30 hover:opacity-80 transition">
-                <GripVertical className="w-3 h-3" />
-              </button>
-            )}
-            <CollapsibleTrigger className="flex items-center gap-2 flex-1 hover:bg-sidebar-accent/50 rounded transition">
-              <FolderTree className="w-3.5 h-3.5 text-muted-foreground" />
-              <span>{tr("فولدرها")}</span>
-              <ChevronDown className={`w-3.5 h-3.5 me-auto text-muted-foreground transition-transform ${(openSections["__folders"] ?? true) ? "" : "-rotate-90"}`} />
-            </CollapsibleTrigger>
-            <Dialog open={openFolderDlg} onOpenChange={setOpenFolderDlg}>
-              <DialogTrigger asChild>
-                <button className="hover:bg-muted rounded p-0.5" title={isEn ? "New Folder" : "فولدر جدید"}><Plus className="w-3 h-3" /></button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>{isEn ? "New Folder" : "فولدر جدید"}</DialogTitle></DialogHeader>
-                <Input placeholder={isEn ? "Folder name" : "نام فولدر"} value={newFolder} onChange={(e) => setNewFolder(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && createFolder()} />
-                <DialogFooter><Button onClick={createFolder}>{isEn ? "Create" : "ایجاد"}</Button></DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </SidebarGroupLabel>
-        )}
-        <CollapsibleContent forceMount={collapsed ? true : undefined}>
-          <SidebarGroupContent>
-            <SidebarMenu>{renderTree(null)}</SidebarMenu>
-          </SidebarGroupContent>
-        </CollapsibleContent>
-      </Collapsible>
-    </SidebarGroup>
-  );
-
-  const renderTags = (dragHandle: any) => (
-    <SidebarGroup>
-      <Collapsible open={(openSections["__tags"] ?? false) || collapsed} onOpenChange={(v) => setSection("__tags", v)}>
-        {!collapsed && (
-          <SidebarGroupLabel className="flex justify-between items-center pe-1">
-            {dragHandle && (
-              <button {...dragHandle} className="cursor-grab active:cursor-grabbing p-0.5 opacity-30 hover:opacity-80 transition" title={isEn ? "Drag to reorder" : "جابجا کن"}>
-                <GripVertical className="w-3 h-3" />
-              </button>
-            )}
-            <CollapsibleTrigger className="flex items-center gap-2 flex-1 hover:bg-sidebar-accent/50 rounded transition">
-              <Tag className="w-3.5 h-3.5 text-muted-foreground" />
-              <span>{tr("تگ‌ها")}</span>
-              <ChevronDown className={`w-3.5 h-3.5 me-auto text-muted-foreground transition-transform ${(openSections["__tags"] ?? false) ? "" : "-rotate-90"}`} />
-            </CollapsibleTrigger>
-            <Dialog open={openTagDlg} onOpenChange={setOpenTagDlg}>
-              <DialogTrigger asChild>
-                <button className="hover:bg-muted rounded p-0.5" title={isEn ? "New Tag" : "تگ جدید"}><Plus className="w-3 h-3" /></button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>{isEn ? "New Tag" : "تگ جدید"}</DialogTitle></DialogHeader>
-                <Input placeholder={isEn ? "Tag name" : "نام تگ"} value={newTag} onChange={(e) => setNewTag(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && createTag()} />
-                <DialogFooter><Button onClick={createTag}>{isEn ? "Create" : "ایجاد"}</Button></DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </SidebarGroupLabel>
-        )}
-        <CollapsibleContent forceMount={collapsed ? true : undefined}>
+  const renderFolders = (dragHandle: any) => {
+    if (collapsed) {
+      return (
+        <SidebarGroup className="p-0.5">
           <SidebarGroupContent>
             <SidebarMenu>
-              {tags.map((t) => (
-                <TagRow key={t.id} tag={t} collapsed={collapsed}
-                  onLongPress={() => setSheetTag(t)}
-                  onNav={closeOnMobile} />
-              ))}
+              <SidebarMenuItem>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <SidebarMenuButton
+                      tooltip={tr("فولدرها")}
+                      className="justify-center h-9 w-9 mx-auto rounded-xl hover:bg-sidebar-accent cursor-pointer"
+                    >
+                      <FolderTree className="w-4 h-4 shrink-0 text-primary" />
+                      <span className="sr-only">{tr("فولدرها")}</span>
+                    </SidebarMenuButton>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side={isEn ? "right" : "left"}
+                    align="start"
+                    sideOffset={14}
+                    className="w-64 p-2 shadow-2xl rounded-2xl border bg-card/95 backdrop-blur-xl z-50"
+                  >
+                    <div className="flex items-center justify-between pb-2 mb-1.5 border-b px-1">
+                      <div className="flex items-center gap-2 font-bold text-xs text-foreground">
+                        <FolderTree className="w-4 h-4 text-primary" />
+                        <span>{tr("فولدرها")}</span>
+                        <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full font-mono">
+                          {folders.length}
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 rounded-md hover:bg-accent cursor-pointer"
+                        onClick={() => setOpenFolderDlg(true)}
+                        title={isEn ? "New Folder" : "فولدر جدید"}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                    <div className="max-h-72 overflow-y-auto space-y-1">
+                      {folders.length === 0 ? (
+                        <p className="text-xs text-muted-foreground text-center py-4">
+                          {isEn ? "No folders yet" : "هنوز فولدری ساخته نشده"}
+                        </p>
+                      ) : (
+                        folders.map((f) => (
+                          <NavLink
+                            key={f.id}
+                            to={`/app/folder/${f.id}`}
+                            className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs hover:bg-accent transition-colors text-foreground"
+                            activeClassName="bg-primary/10 text-primary font-bold"
+                          >
+                            <FolderIcon
+                              className="w-4 h-4 shrink-0"
+                              style={{ color: f.color || "hsl(var(--primary))" }}
+                            />
+                            <span className="truncate flex-1 text-start font-medium">{f.name}</span>
+                          </NavLink>
+                        ))
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
-        </CollapsibleContent>
-      </Collapsible>
-    </SidebarGroup>
-  );
+        </SidebarGroup>
+      );
+    }
+
+    return (
+      <SidebarGroup>
+        <Collapsible open={(openSections["__folders"] ?? true) || collapsed} onOpenChange={(v) => setSection("__folders", v)}>
+          {!collapsed && (
+            <SidebarGroupLabel className="flex justify-between items-center pe-1">
+              {dragHandle && (
+                <button {...dragHandle} className="cursor-grab active:cursor-grabbing p-0.5 opacity-30 hover:opacity-80 transition">
+                  <GripVertical className="w-3 h-3" />
+                </button>
+              )}
+              <CollapsibleTrigger className="flex items-center gap-2 flex-1 hover:bg-sidebar-accent/50 rounded transition">
+                <FolderTree className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>{tr("فولدرها")}</span>
+                <ChevronDown className={`w-3.5 h-3.5 me-auto text-muted-foreground transition-transform ${(openSections["__folders"] ?? true) ? "" : "-rotate-90"}`} />
+              </CollapsibleTrigger>
+              <Dialog open={openFolderDlg} onOpenChange={setOpenFolderDlg}>
+                <DialogTrigger asChild>
+                  <button className="hover:bg-muted rounded p-0.5" title={isEn ? "New Folder" : "فولدر جدید"}><Plus className="w-3 h-3" /></button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>{isEn ? "New Folder" : "فولدر جدید"}</DialogTitle></DialogHeader>
+                  <Input placeholder={isEn ? "Folder name" : "نام فولدر"} value={newFolder} onChange={(e) => setNewFolder(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && createFolder()} />
+                  <DialogFooter><Button onClick={createFolder}>{isEn ? "Create" : "ایجاد"}</Button></DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </SidebarGroupLabel>
+          )}
+          <CollapsibleContent forceMount={collapsed ? true : undefined}>
+            <SidebarGroupContent>
+              <SidebarMenu>{renderTree(null)}</SidebarMenu>
+            </SidebarGroupContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </SidebarGroup>
+    );
+  };
+
+  const renderTags = (dragHandle: any) => {
+    if (collapsed) {
+      if (tags.length === 0) return null;
+      return (
+        <SidebarGroup className="p-0.5">
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <SidebarMenuButton
+                      tooltip={tr("تگ‌ها")}
+                      className="justify-center h-9 w-9 mx-auto rounded-xl hover:bg-sidebar-accent cursor-pointer"
+                    >
+                      <Tag className="w-4 h-4 shrink-0 text-muted-foreground" />
+                      <span className="sr-only">{tr("تگ‌ها")}</span>
+                    </SidebarMenuButton>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side={isEn ? "right" : "left"}
+                    align="start"
+                    sideOffset={14}
+                    className="w-56 p-2 shadow-2xl rounded-2xl border bg-card/95 backdrop-blur-xl z-50"
+                  >
+                    <div className="flex items-center justify-between pb-2 mb-1.5 border-b px-1">
+                      <div className="flex items-center gap-2 font-bold text-xs text-foreground">
+                        <Tag className="w-3.5 h-3.5 text-primary" />
+                        <span>{tr("تگ‌ها")}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 rounded-md hover:bg-accent cursor-pointer"
+                        onClick={() => setOpenTagDlg(true)}
+                        title={isEn ? "New Tag" : "تگ جدید"}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto space-y-1">
+                      {tags.map((t) => (
+                        <NavLink
+                          key={t.id}
+                          to={`/app/tag/${t.id}`}
+                          className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs hover:bg-accent transition-colors"
+                          activeClassName="bg-primary/10 text-primary font-bold"
+                        >
+                          <Tag className="w-3.5 h-3.5 shrink-0" style={{ color: t.color }} />
+                          <span className="truncate flex-1 text-start font-medium">{t.name}</span>
+                        </NavLink>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      );
+    }
+
+    return (
+      <SidebarGroup>
+        <Collapsible open={(openSections["__tags"] ?? false) || collapsed} onOpenChange={(v) => setSection("__tags", v)}>
+          {!collapsed && (
+            <SidebarGroupLabel className="flex justify-between items-center pe-1">
+              {dragHandle && (
+                <button {...dragHandle} className="cursor-grab active:cursor-grabbing p-0.5 opacity-30 hover:opacity-80 transition" title={isEn ? "Drag to reorder" : "جابجا کن"}>
+                  <GripVertical className="w-3 h-3" />
+                </button>
+              )}
+              <CollapsibleTrigger className="flex items-center gap-2 flex-1 hover:bg-sidebar-accent/50 rounded transition">
+                <Tag className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>{tr("تگ‌ها")}</span>
+                <ChevronDown className={`w-3.5 h-3.5 me-auto text-muted-foreground transition-transform ${(openSections["__tags"] ?? false) ? "" : "-rotate-90"}`} />
+              </CollapsibleTrigger>
+              <Dialog open={openTagDlg} onOpenChange={setOpenTagDlg}>
+                <DialogTrigger asChild>
+                  <button className="hover:bg-muted rounded p-0.5" title={isEn ? "New Tag" : "تگ جدید"}><Plus className="w-3 h-3" /></button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>{isEn ? "New Tag" : "تگ جدید"}</DialogTitle></DialogHeader>
+                  <Input placeholder={isEn ? "Tag name" : "نام تگ"} value={newTag} onChange={(e) => setNewTag(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && createTag()} />
+                  <DialogFooter><Button onClick={createTag}>{isEn ? "Create" : "ایجاد"}</Button></DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </SidebarGroupLabel>
+          )}
+          <CollapsibleContent forceMount={collapsed ? true : undefined}>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {tags.map((t) => (
+                  <TagRow key={t.id} tag={t} collapsed={collapsed}
+                    onLongPress={() => setSheetTag(t)}
+                    onNav={closeOnMobile} />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </SidebarGroup>
+    );
+  };
 
   const renderBlock = (id: string, dragHandle: any) => {
     if (id === "__folders") return renderFolders(dragHandle);
@@ -663,7 +832,8 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar side="right" collapsible="offcanvas">
+    <Sidebar side="right" collapsible="icon">
+      <SidebarRail />
       <SidebarHeader className="border-b">
         <div className="flex items-center gap-2 px-2 py-1">
           <img src="/favicon.png" alt="ARSHNAZ" className="w-8 h-8 rounded-lg shrink-0" loading="lazy" width={32} height={32} />
@@ -730,14 +900,14 @@ export function AppSidebar() {
       <SidebarFooter className="border-t">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild>
+            <SidebarMenuButton asChild tooltip={tr("تنظیمات")}>
               <NavLink
                 to="/app/settings"
                 onClick={closeOnMobile}
                 className="flex items-center gap-2"
                 activeClassName="bg-accent text-accent-foreground font-medium"
               >
-                <Settings className="w-4 h-4" />
+                <Settings className="w-4 h-4 shrink-0" />
                 {!collapsed && <span>{tr("تنظیمات")}</span>}
               </NavLink>
             </SidebarMenuButton>
@@ -749,8 +919,14 @@ export function AppSidebar() {
             <span className="ms-2">{isEn ? "Reset order" : "بازنشانی ترتیب"}</span>
           </Button>
         )}
-        <Button variant="ghost" size="sm" onClick={() => { signOut(); toast.success(isEn ? "Signed out successfully" : "خروج موفق"); }} className="justify-start">
-          <LogOut className="w-4 h-4" />
+        <Button
+          variant="ghost"
+          size={collapsed ? "icon" : "sm"}
+          onClick={() => { signOut(); toast.success(isEn ? "Signed out successfully" : "خروج موفق"); }}
+          className={collapsed ? "h-8 w-8 mx-auto" : "justify-start"}
+          title={isEn ? "Log out" : "خروج"}
+        >
+          <LogOut className="w-4 h-4 shrink-0" />
           {!collapsed && <span className="ms-2">{isEn ? "Log out" : "خروج"}</span>}
         </Button>
       </SidebarFooter>

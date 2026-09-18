@@ -17,6 +17,7 @@ import { taskDueTimestamp } from "@/lib/taskDate";
 import { buildTaskChildrenMap, getTaskProgress } from "@/features/tasks/taskTree";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { HeaderActionsPortal } from "@/components/HeaderActionsPortal";
+import { useResizableSplit } from "@/hooks/useResizableSplit";
 import { Button } from "@/components/ui/button";
 import { TaskListItem } from "@/components/TaskListItem";
 import { TaskDetail } from "@/components/TaskDetail";
@@ -90,6 +91,20 @@ export default function TodayDashboardView() {
   }, []);
 
   const isSplitActive = splitView && isWideOrFoldable;
+
+  const {
+    splitRatio,
+    isResizing: isSplitResizing,
+    containerRef: splitContainerRef,
+    handlePointerDown: handleSplitPointerDown,
+    handlePointerMove: handleSplitPointerMove,
+    handlePointerUp: handleSplitPointerUp,
+  } = useResizableSplit({
+    storageKey: "arshnaz_today_split_ratio",
+    defaultRatio: 48,
+    minRatio: 28,
+    maxRatio: 72,
+  });
 
   const toggleSplitView = () => {
     setSplitView((prev) => {
@@ -432,19 +447,23 @@ export default function TodayDashboardView() {
       )}
 
       <div
+        ref={splitContainerRef}
         data-task-split={isSplitActive ? "true" : "false"}
         dir="ltr"
-        className={`w-full items-start gap-3 sm:gap-4 xl:gap-5 ${
+        className={`w-full items-start gap-2 sm:gap-3 xl:gap-4 ${
           isSplitActive
-            ? "flex-1 min-h-0 grid grid-cols-[minmax(340px,1.15fr)_minmax(280px,0.85fr)] lg:grid-cols-[minmax(460px,1.15fr)_minmax(360px,0.85fr)] 2xl:grid-cols-[minmax(560px,1.2fr)_minmax(420px,0.8fr)] overflow-hidden"
+            ? "flex-1 min-h-0 flex flex-row overflow-hidden"
             : "flex flex-col"
-        }`}
+        } ${isSplitResizing ? "select-none cursor-col-resize" : ""}`}
       >
         {/* پنل سمت چپ جزئیات تسک در نمایش دسکتاپ/ویندوز/تاشو با اسکرول مستقل */}
         {isSplitActive && (
           <aside
             dir={isEn ? "ltr" : "rtl"}
-            className="col-start-1 w-full min-w-0 h-full overflow-hidden transition-all duration-200"
+            style={{ width: `${splitRatio}%` }}
+            className={`shrink-0 min-w-[280px] max-w-[75%] h-full overflow-hidden ${
+              isSplitResizing ? "transition-none" : "transition-[width] duration-150 ease-out"
+            }`}
           >
             {selectedTask ? (
               <TaskDetail
@@ -476,12 +495,29 @@ export default function TodayDashboardView() {
           </aside>
         )}
 
+        {/* دستگیره درگ تغییر عرض ستون‌ها در حالت دوپنله */}
+        {isSplitActive && (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={T("تغییر عرض ستون‌ها", "Resize columns")}
+            onPointerDown={handleSplitPointerDown}
+            onPointerMove={handleSplitPointerMove}
+            onPointerUp={handleSplitPointerUp}
+            onPointerCancel={handleSplitPointerUp}
+            className="w-3 -mx-1 shrink-0 h-full flex items-center justify-center cursor-col-resize group/splitter select-none touch-none z-10 hover:w-3.5 transition-all"
+            title={T("بکشید برای تنظیم عرض دو ستون", "Drag to resize columns")}
+          >
+            <div className="w-1 h-12 rounded-full bg-border/80 group-hover/splitter:bg-primary group-hover/splitter:h-16 group-active/splitter:bg-primary group-active/splitter:h-20 transition-all shadow-xs" />
+          </div>
+        )}
+
         {/* پنل سمت راست فهرست تیترهای تسک با اسکرول مستقل */}
         <section
           dir={isEn ? "ltr" : "rtl"}
           className={`w-full min-w-0 rounded-2xl border border-border/60 bg-card/35 p-2 sm:p-3 lg:p-4 shadow-sm ${
             isSplitActive
-              ? "col-start-2 h-full min-h-0 overflow-y-auto overscroll-contain pb-6"
+              ? "flex-1 h-full min-h-0 overflow-y-auto overscroll-contain pb-6"
               : "pb-16"
           }`}
         >

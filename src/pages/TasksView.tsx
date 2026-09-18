@@ -64,6 +64,7 @@ import { TaskFilterSheet, DEFAULT_FILTERS, type TaskFilters, type SortLevel } fr
 import { QuickAddTask } from "@/components/QuickAddTask";
 import { VirtualTaskList } from "@/components/VirtualTaskList";
 import { TaskDetail } from "@/components/TaskDetail";
+import { useResizableSplit } from "@/hooks/useResizableSplit";
 import type { Task, ConfirmState, TaskOutcome, TaskStatus } from "@/lib/taskTypes";
 import { OutcomePicker } from "@/components/OutcomePicker";
 import { listTaskOutcomes, executeTaskOutcome } from "@/lib/taskOutcomes";
@@ -240,6 +241,20 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       return next;
     });
   };
+
+  const {
+    splitRatio,
+    isResizing: isSplitResizing,
+    containerRef: splitContainerRef,
+    handlePointerDown: handleSplitPointerDown,
+    handlePointerMove: handleSplitPointerMove,
+    handlePointerUp: handleSplitPointerUp,
+  } = useResizableSplit({
+    storageKey: "arshnaz_tasks_split_ratio",
+    defaultRatio: 48,
+    minRatio: 28,
+    maxRatio: 72,
+  });
   useEffect(() => {
     if (!selectedTask) return;
     const current = allTasks.find((item) => item.id === selectedTask.id);
@@ -1077,20 +1092,24 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         )}
 
         <div
+          ref={splitContainerRef}
           data-task-split={isSplitActive ? "true" : "false"}
           dir="ltr"
-          className={`w-full items-start gap-3 sm:gap-4 xl:gap-5 ${
+          className={`w-full items-start gap-2 sm:gap-3 xl:gap-4 ${
             isSplitActive
-              ? "grid grid-cols-[minmax(340px,1.15fr)_minmax(280px,0.85fr)] lg:grid-cols-[minmax(460px,1.15fr)_minmax(360px,0.85fr)] 2xl:grid-cols-[minmax(560px,1.2fr)_minmax(420px,0.8fr)]"
+              ? "flex flex-row items-stretch"
               : "flex flex-col"
-          }`}
+          } ${isSplitResizing ? "select-none cursor-col-resize" : ""}`}
         >
-          {/* Explicit LTR grid placement keeps the inspector on the physical left:
+          {/* Explicit LTR placement keeps the inspector on the physical left:
               sidebar/folders live on the right, the list remains central/right. */}
           {isSplitActive && (
             <aside
               dir={isEn ? "ltr" : "rtl"}
-              className="col-start-1 w-full min-w-0 sticky top-[3.75rem] sm:top-[4.25rem] h-[calc(100dvh-7.5rem)] sm:h-[calc(100dvh-8rem)] xl:h-[calc(100dvh-7.2rem)] overflow-hidden transition-all duration-200"
+              style={{ width: `${splitRatio}%` }}
+              className={`shrink-0 min-w-[280px] max-w-[75%] sticky top-[3.75rem] sm:top-[4.25rem] h-[calc(100dvh-7.5rem)] sm:h-[calc(100dvh-8rem)] xl:h-[calc(100dvh-7.2rem)] overflow-hidden ${
+                isSplitResizing ? "transition-none" : "transition-[width] duration-150 ease-out"
+              }`}
             >
               {selectedTask ? (
                 <TaskDetail
@@ -1122,11 +1141,28 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
             </aside>
           )}
 
+          {/* Draggable splitter handle */}
+          {isSplitActive && (
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={T("تغییر عرض ستون‌ها", "Resize columns")}
+              onPointerDown={handleSplitPointerDown}
+              onPointerMove={handleSplitPointerMove}
+              onPointerUp={handleSplitPointerUp}
+              onPointerCancel={handleSplitPointerUp}
+              className="w-3 -mx-1 shrink-0 h-[calc(100dvh-7.5rem)] sm:h-[calc(100dvh-8rem)] xl:h-[calc(100dvh-7.2rem)] sticky top-[3.75rem] sm:top-[4.25rem] flex items-center justify-center cursor-col-resize group/splitter select-none touch-none z-10 hover:w-3.5 transition-all"
+              title={T("بکشید برای تنظیم عرض دو ستون", "Drag to resize columns")}
+            >
+              <div className="w-1 h-12 rounded-full bg-border/80 group-hover/splitter:bg-primary group-hover/splitter:h-16 group-active/splitter:bg-primary group-active/splitter:h-20 transition-all shadow-xs" />
+            </div>
+          )}
+
           <section
             dir={isEn ? "ltr" : "rtl"}
             className={`w-full min-w-0 rounded-2xl border border-border/60 bg-card/35 p-2 sm:p-3 lg:p-4 shadow-sm ${
               isSplitActive
-                ? "col-start-2 h-[calc(100dvh-7.5rem)] sm:h-[calc(100dvh-8rem)] xl:h-[calc(100dvh-7.2rem)] overflow-y-auto overscroll-contain pb-6"
+                ? "flex-1 h-[calc(100dvh-7.5rem)] sm:h-[calc(100dvh-8rem)] xl:h-[calc(100dvh-7.2rem)] overflow-y-auto overscroll-contain pb-6"
                 : "pb-16"
             }`}
           >
