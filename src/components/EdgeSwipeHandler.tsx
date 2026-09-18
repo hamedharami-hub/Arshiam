@@ -10,7 +10,7 @@ import { haptic } from "@/lib/haptics";
  * horizontal threshold is crossed) so it follows the finger.
  */
 export default function EdgeSwipeHandler() {
-  const { isMobile, setOpenMobile, openMobile } = useSidebar();
+  const { isMobile, setOpenMobile, openMobile, side } = useSidebar();
 
   useEffect(() => {
     if (!isMobile) return;
@@ -43,8 +43,8 @@ export default function EdgeSwipeHandler() {
       const t = e.touches[0];
       if (!t) return;
       const w = window.innerWidth;
-      fromLeft = t.clientX <= EDGE_PX;
-      fromRight = t.clientX >= w - EDGE_PX;
+      fromLeft = side === "left" && t.clientX <= EDGE_PX;
+      fromRight = side === "right" && t.clientX >= w - EDGE_PX;
       if (!fromLeft && !fromRight) return;
       tracking = true;
       startX = t.clientX;

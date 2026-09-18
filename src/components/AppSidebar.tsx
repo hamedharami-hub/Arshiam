@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import FolderAIChat from "@/components/FolderAIChat";
+import { useSidebarPosition } from "@/lib/sidebarPosition";
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
   DragEndEvent,
@@ -303,6 +304,7 @@ function TagRow({ tag: tagItem, collapsed, onLongPress, onNav }: {
 
 export function AppSidebar() {
   const { state, isMobile, setOpenMobile } = useSidebar();
+  const { sidebarPosition } = useSidebarPosition();
   const collapsed = state === "collapsed" && !isMobile;
   const { signOut, user } = useAuth();
   const { isAdmin } = useUserRole();
@@ -626,7 +628,7 @@ export function AppSidebar() {
                     </SidebarMenuButton>
                   </PopoverTrigger>
                   <PopoverContent
-                    side={isEn ? "right" : "left"}
+                    side={sidebarPosition === "left" ? "right" : "left"}
                     align="start"
                     sideOffset={14}
                     className="w-64 p-2 shadow-2xl rounded-2xl border bg-card/95 backdrop-blur-xl z-50"
@@ -737,7 +739,7 @@ export function AppSidebar() {
                     </SidebarMenuButton>
                   </PopoverTrigger>
                   <PopoverContent
-                    side={isEn ? "right" : "left"}
+                    side={sidebarPosition === "left" ? "right" : "left"}
                     align="start"
                     sideOffset={14}
                     className="w-56 p-2 shadow-2xl rounded-2xl border bg-card/95 backdrop-blur-xl z-50"
@@ -832,7 +834,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar side="right" collapsible="icon">
+    <Sidebar side={sidebarPosition} collapsible="icon">
       <SidebarRail />
       <SidebarHeader className="border-b">
         <div className="flex items-center gap-2 px-2 py-1">

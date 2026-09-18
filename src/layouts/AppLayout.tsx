@@ -32,6 +32,7 @@ import AndroidTaskSync from "@/components/AndroidTaskSync";
 import { isAndroid } from "@/lib/nativeExperience";
 import { cn } from "@/lib/utils";
 import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
+import { useSidebarPosition } from "@/lib/sidebarPosition";
 
 export default function AppLayout() {
   const [aiOpen, setAiOpen] = useState(false);
@@ -63,6 +64,10 @@ export default function AppLayout() {
   const { isWindows, isFoldable, isDesktop } = useDeviceFormFactor();
   const showMobileBottomBar = !isWindows && !isDesktop && !isFoldable;
 
+  const { sidebarPosition } = useSidebarPosition();
+  const isRtl = typeof document !== "undefined" ? document.documentElement.dir !== "ltr" : true;
+  const isReversed = (isRtl && sidebarPosition === "left") || (!isRtl && sidebarPosition === "right");
+
   const desktopDefaultOpen =
     typeof window !== "undefined" && window.innerWidth >= 1024;
 
@@ -72,13 +77,16 @@ export default function AppLayout() {
     loc.pathname.startsWith("/app/tasks/");
 
   return (
-    <SidebarProvider defaultOpen={desktopDefaultOpen}>
-      <div className="min-h-screen flex w-full bg-background">
+    <SidebarProvider defaultOpen={desktopDefaultOpen} side={sidebarPosition}>
+      <div className={cn("min-h-screen flex w-full bg-background", isReversed ? "flex-row-reverse" : "flex-row")}>
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
           {!isTaskPage && (
             <header
-              className="border-b flex items-center justify-between px-3 lg:px-6 bg-card/50 backdrop-blur sticky top-0 z-10"
+              className={cn(
+                "border-b flex items-center justify-between px-3 lg:px-6 bg-card/50 backdrop-blur sticky top-0 z-10",
+                isReversed ? "flex-row-reverse" : "flex-row"
+              )}
               style={{ paddingTop: "env(safe-area-inset-top)", minHeight: "calc(3rem + env(safe-area-inset-top))" }}
             >
               <div className="flex items-center gap-1.5 min-w-0">

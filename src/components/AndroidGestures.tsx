@@ -6,7 +6,7 @@ import { swipeAction, type Swipe } from "@/lib/androidGestures";
 
 const routes = ["/app/today", "/app/tomorrow", "/app/next7", "/app/inbox"];
 export default function AndroidGestures() {
-  const { isMobile, openMobile, setOpenMobile } = useSidebar();
+  const { isMobile, openMobile, setOpenMobile, side } = useSidebar();
   const loc = useLocation(),
     navigate = useNavigate();
   useEffect(() => {
@@ -43,10 +43,15 @@ export default function AndroidGestures() {
         w = window.innerWidth;
       const inDrawer = Boolean(target?.closest('[data-sidebar="sidebar"]'));
       // Leave the outermost 20px to Android's system back gesture.
+      const isEdgeOpen =
+        side === "left"
+          ? t.clientX >= 20 && t.clientX <= 80
+          : t.clientX >= w - 80 && t.clientX <= w - 20;
+
       const mode =
         openMobile && inDrawer
           ? "close"
-          : !openMobile && t.clientX >= w - 80 && t.clientX <= w - 20
+          : !openMobile && isEdgeOpen
             ? "open"
             : !openMobile &&
                 t.clientX > 80 &&
@@ -78,17 +83,21 @@ export default function AndroidGestures() {
         if (e.cancelable) e.preventDefault();
         if (
           drawer &&
-          dx > 0 &&
           !window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        )
-          drawer.style.transform = "translateX(" + Math.min(dx, 320) + "px)";
+        ) {
+          if (side === "right" && dx > 0) {
+            drawer.style.transform = "translateX(" + Math.min(dx, 320) + "px)";
+          } else if (side === "left" && dx < 0) {
+            drawer.style.transform = "translateX(" + Math.max(dx, -320) + "px)";
+          }
+        }
       }
     };
     const onEnd = (e: TouchEvent) => {
       if (!start) return;
       const t = e.changedTouches[0],
         action = t
-          ? swipeAction(start, t.clientX, t.clientY, Date.now())
+          ? swipeAction(start, t.clientX, t.clientY, Date.now(), side)
           : null;
       reset();
       if (!action) return;
@@ -114,6 +123,6 @@ export default function AndroidGestures() {
       window.removeEventListener("touchend", onEnd);
       window.removeEventListener("touchcancel", reset);
     };
-  }, [isMobile, openMobile, setOpenMobile, loc.pathname, navigate]);
+  }, [isMobile, openMobile, setOpenMobile, loc.pathname, navigate, side]);
   return null;
 }

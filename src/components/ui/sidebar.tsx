@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { VariantProps, cva } from "class-variance-authority";
-import { PanelLeft } from "lucide-react";
+import { PanelLeft, PanelRight } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ import { isAndroid } from "@/lib/nativeExperience";
 import { haptic } from "@/lib/haptics";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { getSidebarPosition, type SidebarPosition } from "@/lib/sidebarPosition";
 
 const SIDEBAR_COOKIE_NAME = "sidebar:state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -34,6 +35,7 @@ type SidebarContext = {
   setWidth: (width: number) => void;
   isResizing: boolean;
   setIsResizing: (resizing: boolean) => void;
+  side: "left" | "right";
 };
 
 const SidebarContext = React.createContext<SidebarContext | null>(null);
@@ -53,8 +55,9 @@ const SidebarProvider = React.forwardRef<
     defaultOpen?: boolean;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
+    side?: "left" | "right";
   }
->(({ defaultOpen = true, open: openProp, onOpenChange: setOpenProp, className, style, children, ...props }, ref) => {
+>(({ defaultOpen = true, open: openProp, onOpenChange: setOpenProp, side: sideProp, className, style, children, ...props }, ref) => {
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
 
@@ -76,6 +79,8 @@ const SidebarProvider = React.forwardRef<
     },
     [setOpenProp, open],
   );
+
+  const side = sideProp ?? getSidebarPosition();
 
   // Custom persistent width on desktop / wide screens
   const [width, setWidthState] = React.useState<number>(() => {
@@ -132,8 +137,9 @@ const SidebarProvider = React.forwardRef<
       setWidth,
       isResizing,
       setIsResizing,
+      side,
     }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar, width, setWidth, isResizing, setIsResizing],
+    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar, width, setWidth, isResizing, setIsResizing, side],
   );
 
   return (
@@ -170,8 +176,9 @@ const Sidebar = React.forwardRef<
     variant?: "sidebar" | "floating" | "inset";
     collapsible?: "offcanvas" | "icon" | "none";
   }
->(({ side = "left", variant = "sidebar", collapsible = "offcanvas", className, children, ...props }, ref) => {
-  const { isMobile, state, openMobile, setOpenMobile, isResizing } = useSidebar();
+>(({ side: sideProp, variant = "sidebar", collapsible = "offcanvas", className, children, ...props }, ref) => {
+  const { isMobile, state, openMobile, setOpenMobile, isResizing, side: contextSide } = useSidebar();
+  const side = sideProp ?? contextSide ?? "right";
   const contentRef = React.useRef<HTMLDivElement>(null);
   const swipe = React.useRef<{ x: number; y: number; active: boolean; side: "left" | "right" } | null>(null);
 
@@ -181,14 +188,7 @@ const Sidebar = React.forwardRef<
     if (!t) return;
     const rect = contentRef.current?.getBoundingClientRect();
     if (!rect) return;
-    // For right-side panel: start tracking from anywhere in panel
-    // For left-side panel: only track from near left edge
-    const startable = panelSide === "right"
-      ? (rect.right - t.clientX < 40 || true) // any touch on right panel
-      : t.clientX - rect.left < 40;
-    if (startable) {
-      swipe.current = { x: t.clientX, y: t.clientY, active: true, side: panelSide };
-    }
+    swipe.current = { x: t.clientX, y: t.clientY, active: true, side: panelSide };
   };
 
   const onTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
@@ -202,14 +202,14 @@ const Sidebar = React.forwardRef<
       swipe.current.active = false;
       return;
     }
-    // Right-side panel: swipe LEFT (dx < -60) to close
-    if (swipe.current.side === "right" && dx < -60) {
+    // Right-side panel: swipe towards right edge (dx > 50) or swipe left (dx < -60) to close
+    if (swipe.current.side === "right" && (dx > 50 || dx < -60)) {
       setOpenMobile(false);
       haptic("light");
       swipe.current = null;
     }
-    // Left-side panel: swipe RIGHT (dx > 56) to close
-    if (swipe.current.side === "left" && dx > 56) {
+    // Left-side panel: swipe towards left edge (dx < -50) or swipe right (dx > 60) to close
+    if (swipe.current.side === "left" && (dx < -50 || dx > 60)) {
       setOpenMobile(false);
       haptic("light");
       swipe.current = null;
@@ -237,13 +237,16 @@ const Sidebar = React.forwardRef<
           ref={contentRef}
           data-sidebar="sidebar"
           data-mobile="true"
+          data-side={side}
           style={{ "--sidebar-width-mobile": `min(${SIDEBAR_WIDTH_MOBILE}, calc(100vw - 20px))` } as React.CSSProperties}
-          className="h-[100dvh] w-[--sidebar-width-mobile] max-w-[--sidebar-width-mobile] p-0 border-0 rounded-none
-            bg-gradient-to-b from-sidebar via-sidebar to-sidebar/95
-            backdrop-blur-xl shadow-2xl [&>button]:top-3 [&>button]:left-3 [&>button]:right-auto
-            text-sidebar-foreground"
-          side="right"
-          onTouchStart={(e) => onTouchStart(e, "right")}
+          className={cn(
+            "h-[100dvh] w-[--sidebar-width-mobile] max-w-[--sidebar-width-mobile] p-0 border-0 rounded-none bg-gradient-to-b from-sidebar via-sidebar to-sidebar/95 backdrop-blur-xl shadow-2xl text-sidebar-foreground",
+            side === "right"
+              ? "[&>button]:top-3 [&>button]:left-3 [&>button]:right-auto"
+              : "[&>button]:top-3 [&>button]:right-3 [&>button]:left-auto"
+          )}
+          side={side}
+          onTouchStart={(e) => onTouchStart(e, side)}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
@@ -251,7 +254,7 @@ const Sidebar = React.forwardRef<
           <SheetDescription className="sr-only">انتخاب فهرست و جابه‌جایی در برنامه</SheetDescription>
           <div className="relative flex h-full w-full flex-col overflow-hidden">
             {/* Drawer edge drag handle */}
-            <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10 pointer-events-none">
+            <div className={cn("absolute top-1/2 -translate-y-1/2 z-10 pointer-events-none", side === "right" ? "left-2" : "right-2")}>
               <span className="block h-8 w-1 rounded-full bg-foreground/20" />
             </div>
             <div className="flex-1 overflow-y-auto px-3 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)]">
@@ -314,7 +317,7 @@ Sidebar.displayName = "Sidebar";
 
 const SidebarTrigger = React.forwardRef<React.ElementRef<typeof Button>, React.ComponentProps<typeof Button>>(
   ({ className, onClick, ...props }, ref) => {
-    const { toggleSidebar } = useSidebar();
+    const { toggleSidebar, side } = useSidebar();
 
     return (
       <Button
@@ -330,7 +333,7 @@ const SidebarTrigger = React.forwardRef<React.ElementRef<typeof Button>, React.C
         }}
         {...props}
       >
-        <PanelLeft />
+        {side === "right" ? <PanelRight /> : <PanelLeft />}
         <span className="sr-only">Toggle Sidebar</span>
       </Button>
     );
@@ -592,7 +595,7 @@ const SidebarMenuButton = React.forwardRef<
   } & VariantProps<typeof sidebarMenuButtonVariants>
 >(({ asChild = false, isActive = false, variant = "default", size = "default", tooltip, className, ...props }, ref) => {
   const Comp = asChild ? Slot : "button";
-  const { isMobile, state } = useSidebar();
+  const { isMobile, state, side } = useSidebar();
 
   const button = (
     <Comp
@@ -618,7 +621,7 @@ const SidebarMenuButton = React.forwardRef<
   return (
     <Tooltip>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent side="right" align="center" hidden={state !== "collapsed" || isMobile} {...tooltip} />
+      <TooltipContent side={side === "right" ? "left" : "right"} align="center" hidden={state !== "collapsed" || isMobile} {...tooltip} />
     </Tooltip>
   );
 });

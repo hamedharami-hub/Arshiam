@@ -38,6 +38,7 @@ export type UserSettings = {
   ui_scale: number;
   task_card_layout: "compact" | "comfortable";
   default_landing: "today" | "home" | "last";
+  sidebar_position?: "right" | "left";
   task_defaults: TaskDefaults;
 };
 
@@ -198,6 +199,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   ui_scale: 1,
   task_card_layout: "compact",
   default_landing: "today",
+  sidebar_position: "right",
   task_defaults: {},
 };
 

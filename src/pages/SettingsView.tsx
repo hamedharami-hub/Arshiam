@@ -33,6 +33,7 @@ import { loadSettings, saveSettings, ensureNotificationPermission, type UserSett
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ALL_BUCKET_KINDS, getEnabledBuckets, setEnabledBuckets, kindLabel, type BucketKind } from "@/lib/timeBuckets";
 import { getCalendarSystem, setCalendarSystem, type CalendarSystem } from "@/lib/jalali";
+import { getSidebarPosition, setSidebarPosition, type SidebarPosition } from "@/lib/sidebarPosition";
 import { useTheme } from "next-themes";
 import { applyTheme, getBaseTheme } from "@/lib/theme";
 import { TaskDefaultSettings } from "@/components/TaskDefaultSettings";
@@ -1166,6 +1167,11 @@ export default function SettingsView() {
     { value: "compact", label: t("settings.layoutCompact") },
   ];
 
+  const sidebarPositionOptions = [
+    { value: "right", label: isEn ? "Right side (Persian standard)" : "سمت راست (استاندارد فارسی)" },
+    { value: "left", label: isEn ? "Left side (TickTick style)" : "سمت چپ (مشابه تیک‌تیک)" },
+  ];
+
   const aiResponseOptions = [
     { value: "fa", label: t("settings.persian") },
     { value: "en", label: t("settings.english") },
@@ -1309,6 +1315,29 @@ export default function SettingsView() {
                       <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {landingOptions.map((o) => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </SettingRow>
+
+                  <SettingRow
+                    label={isEn ? "Sidebar & Navigation Position" : "جهت منو و نوار کناری (سایدبار / تسک‌بار)"}
+                    help={isEn ? "Choose whether navigation opens from the right (Persian standard) or left (TickTick style)" : "تعیین باز شدن تسک‌بار و منوی برنامه از سمت راست یا چپ در تمام دستگاه‌ها"}
+                  >
+                    <Select
+                      value={reminders.sidebar_position || getSidebarPosition()}
+                      onValueChange={(v) => {
+                        const pos = v as SidebarPosition;
+                        setSidebarPosition(pos);
+                        updateReminder({ sidebar_position: pos });
+                      }}
+                    >
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {sidebarPositionOptions.map((o) => (
+                          <SelectItem key={o.value} value={o.value} className="text-xs">
+                            {o.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </SettingRow>

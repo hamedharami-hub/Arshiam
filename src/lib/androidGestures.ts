@@ -9,6 +9,7 @@ export function swipeAction(
   x: number,
   y: number,
   time: number,
+  side: "left" | "right" = "right",
 ): "open" | "close" | "next" | "previous" | null {
   const dx = x - start.x,
     dy = y - start.y;
@@ -18,7 +19,11 @@ export function swipeAction(
     Math.abs(dx) < Math.abs(dy) * 1.8
   )
     return null;
-  if (start.mode === "open") return dx < 0 ? "open" : null;
-  if (start.mode === "close") return dx > 0 ? "close" : null;
+  if (start.mode === "open") {
+    return side === "left" ? (dx > 0 ? "open" : null) : (dx < 0 ? "open" : null);
+  }
+  if (start.mode === "close") {
+    return side === "left" ? (dx < 0 ? "close" : null) : (dx > 0 ? "close" : null);
+  }
   return dx < 0 ? "next" : "previous";
 }
