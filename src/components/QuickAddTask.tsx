@@ -58,7 +58,6 @@ export function QuickAddTask({
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
-  const placeholderText = placeholder || T("+ تسک جدید...", "+ New task...");
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
   const [due, setDue] = useState<string | null>(defaults.due_date ?? null);
@@ -72,6 +71,24 @@ export function QuickAddTask({
   const [templateOpen, setTemplateOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [dateOpen, setDateOpen] = useState(false);
+  const [priorityOpen, setPriorityOpen] = useState(false);
+  const [folderOpen, setFolderOpen] = useState(false);
+  const [tagOpen, setTagOpen] = useState(false);
+
+  // Sync state when defaults change dynamically (e.g. switching folders or dates)
+  useEffect(() => {
+    setDue(defaults.due_date ?? null);
+  }, [defaults.due_date]);
+
+  useEffect(() => {
+    setFolderId(defaults.folder_id ?? null);
+  }, [defaults.folder_id]);
+
+  useEffect(() => {
+    setTagIds(defaults.tag_id ? [defaults.tag_id] : []);
+  }, [defaults.tag_id]);
 
   useEffect(() => {
     if (!user) return;
@@ -348,182 +365,316 @@ export function QuickAddTask({
     setSelectedFiles(prev => [...prev, ...Array.from(files)]);
   };
 
-  const formatDueShort = (iso: string) => {
+  const isDateToday = (d: Date) => {
+    const today = new Date();
+    return (
+      d.getFullYear() === today.getFullYear() &&
+      d.getMonth() === today.getMonth() &&
+      d.getDate() === today.getDate()
+    );
+  };
+
+  const isDateTomorrow = (d: Date) => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return (
+      d.getFullYear() === tomorrow.getFullYear() &&
+      d.getMonth() === tomorrow.getMonth() &&
+      d.getDate() === tomorrow.getDate()
+    );
+  };
+
+  const formatDueLabel = (iso: string | null) => {
+    if (!iso) return T("تاریخ", "Date");
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return "";
+    if (isNaN(d.getTime())) return T("تاریخ", "Date");
+    if (isDateToday(d)) return T("امروز", "Today");
+    if (isDateTomorrow(d)) return T("فردا", "Tomorrow");
     return d.toLocaleDateString(isEn ? "en-US" : "fa-IR", { month: "short", day: "numeric" });
   };
 
   const selectedFolder = folders.find(f => f.id === finalFolderId);
+  const selectedFolderLabel = selectedFolder ? selectedFolder.name : T("اینباکس", "Inbox");
   const selectedTag = finalTagIds.length === 1 ? tags.find(t => t.id === finalTagIds[0]) : null;
+
+  const targetScopeName = useMemo(() => {
+    if (finalFolderId) {
+      const found = folders.find(f => f.id === finalFolderId);
+      if (found) return found.name;
+    }
+    if (finalDue) {
+      const d = new Date(finalDue);
+      if (!isNaN(d.getTime()) && isDateToday(d)) {
+        return T("امروز", "Today");
+      }
+    }
+    return T("اینباکس", "Inbox");
+  }, [finalFolderId, finalDue, folders, isEn]);
+
+  const defaultPlaceholder = T(`+ افزودن تسک به «${targetScopeName}»`, `+ Add task to "${targetScopeName}"`);
+  const placeholderText = placeholder || defaultPlaceholder;
+
   const [focused, setFocused] = useState(false);
-  const showOptions = focused || title.trim().length > 0 || !!finalDue || finalPriority !== "none" || !!finalFolderId || finalTagIds.length > 0;
+  const isAnyPopoverOpen = dateOpen || priorityOpen || folderOpen || tagOpen;
+  const showOptions = focused || title.trim().length > 0 || isAnyPopoverOpen;
 
   return (
-    <div className={`p-2.5 rounded-2xl bg-card border border-border/70 shadow-sm transition-all ${className}`} dir={isEn ? "ltr" : "rtl"}>
-      {/* Title input */}
-      <div className="flex items-center gap-2">
-        <AutoTextarea
-          value={title}
-          onFocus={() => setFocused(true)}
-          onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              submit();
-            }
-          }}
-          placeholder={placeholderText}
-          className="flex-1 text-sm bg-transparent border-0 shadow-none focus-visible:ring-0 min-h-[38px] max-h-[140px] py-1.5 px-1"
-          dir="auto"
-          disabled={busy}
-          rows={1}
-          minHeight={38}
-          maxHeight={140}
-        />
-        <VoiceInputButton
-          onTranscript={(text) => setTitle((prev) => (prev ? prev.trimEnd() + " " + text : text))}
-          disabled={busy}
-          size="icon"
-          className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
-        />
-        <Button
-          onClick={submit}
-          disabled={busy || !title.trim()}
-          size="icon"
-          title={T("افزودن تسک", "Add task")}
-          className="h-9 w-9 shrink-0 rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20"
-        >
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-        </Button>
-      </div>
-
-      {/* Expandable Options below input */}
-      {showOptions && (
-        <div className="flex items-center gap-1.5 flex-wrap pt-2 mt-1 border-t border-border/40 text-xs">
-          {/* Date Picker Chip */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition ${
-                  finalDue
-                    ? "bg-primary/10 text-primary border-primary/30"
-                    : "bg-muted/40 hover:bg-muted text-muted-foreground border-border/60"
-                }`}
-              >
-                <CalendarIcon className="w-3.5 h-3.5" />
-                <span>{finalDue ? formatDueShort(finalDue) : T("تاریخ", "Date")}</span>
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-72 space-y-3 p-3" align="start">
-              <DueDatePicker value={due} onChange={setDue} compact />
-            </PopoverContent>
-          </Popover>
-
-          {/* Priority Chip */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition ${
-                  finalPriority !== "none"
-                    ? `${PRIORITY_META[finalPriority].bgClass} ${PRIORITY_META[finalPriority].textClass} border-transparent`
-                    : "bg-muted/40 hover:bg-muted text-muted-foreground border-border/60"
-                }`}
-              >
-                <Flag className={`w-3.5 h-3.5 ${finalPriority !== "none" ? PRIORITY_META[finalPriority].textClass : ""}`} />
-                <span>{finalPriority !== "none" ? T(PRIORITY_META[finalPriority].label, PRIORITY_META[finalPriority].labelEn) : T("اولویت", "Priority")}</span>
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-48 p-1.5" align="start">
-              {PRIORITY_SELECTABLE.map(p => {
-                const m = PRIORITY_META[p as Priority];
-                return (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => applyPriority(p as Priority)}
-                    className={`w-full text-start px-2 py-1.5 text-xs rounded-lg flex items-center gap-2 ${finalPriority === p ? "bg-accent font-semibold" : "hover:bg-accent/50"}`}
-                  >
-                    <Flag className={`w-3 h-3 ${m.textClass}`} /> {T(m.label, m.labelEn)}
-                  </button>
-                );
-              })}
-              <button type="button" onClick={() => applyPriority("none")} className="w-full text-start px-2 py-1.5 text-xs rounded-lg hover:bg-accent/50 text-muted-foreground border-t mt-1">
-                {T("بدون اولویت", "No priority")}
-              </button>
-            </PopoverContent>
-          </Popover>
-
-          {/* Folder Chip */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition ${
-                  finalFolderId
-                    ? "bg-primary/10 text-primary border-primary/30"
-                    : "bg-muted/40 hover:bg-muted text-muted-foreground border-border/60"
-                }`}
-              >
-                <Folder className="w-3.5 h-3.5" />
-                <span className="max-w-[100px] truncate">{selectedFolder ? selectedFolder.name : T("فولدر", "Folder")}</span>
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-56 p-1.5" align="start">
-              <button type="button" onClick={() => applyFolder(null)} className={`w-full text-start px-2 py-1.5 text-xs rounded-lg ${finalFolderId === null ? "bg-accent font-semibold" : "hover:bg-accent/50"}`}>
-                {T("بدون فولدر (Inbox)", "No folder (Inbox)")}
-              </button>
-              {folders.map(f => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => applyFolder(f.id)}
-                  className={`w-full text-start px-2 py-1.5 text-xs rounded-lg truncate ${finalFolderId === f.id ? "bg-accent font-semibold text-primary" : "hover:bg-accent/50"}`}
-                >
-                  {f.name}
-                </button>
-              ))}
-            </PopoverContent>
-          </Popover>
-
-          {/* Tag Chip */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition ${
-                  finalTagIds.length
-                    ? "bg-primary/10 text-primary border-primary/30"
-                    : "bg-muted/40 hover:bg-muted text-muted-foreground border-border/60"
-                }`}
-              >
-                <Tag className="w-3.5 h-3.5" />
-                <span>{finalTagIds.length ? (selectedTag ? selectedTag.name : `+${finalTagIds.length}`) : T("تگ", "Tag")}</span>
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-56 p-1.5" align="start">
-              {tags.map(t => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => finalTagIds.includes(t.id) ? removeTag(t.id) : applyTag(t.id)}
-                  className={`w-full text-start px-2 py-1.5 text-xs rounded-lg flex items-center gap-2 ${finalTagIds.includes(t.id) ? "bg-accent font-semibold text-primary" : "hover:bg-accent/50"}`}
-                >
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: t.color || "#888" }} />
-                  {t.name} {finalTagIds.includes(t.id) && <Check className="w-3 h-3 ms-auto" />}
-                </button>
-              ))}
-            </PopoverContent>
-          </Popover>
-
+    <div
+      className={`rounded-xl border transition-all duration-150 ${
+        showOptions
+          ? "bg-card border-primary/40 shadow-xs p-2.5"
+          : "bg-muted/40 hover:bg-muted/60 dark:bg-card/40 border-border/60 hover:border-border/80 px-3 py-2 cursor-text"
+      } ${className}`}
+      dir={isEn ? "ltr" : "rtl"}
+    >
+      {!showOptions ? (
+        <div className="flex items-center justify-between gap-2">
+          <div
+            onClick={() => {
+              setFocused(true);
+              setTimeout(() => inputRef.current?.focus(), 10);
+            }}
+            className="flex items-center gap-2 select-none group flex-1 cursor-text min-w-0"
+          >
+            <Plus className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
+            <span className="text-xs sm:text-sm text-muted-foreground group-hover:text-foreground/80 transition-colors truncate">
+              {placeholderText}
+            </span>
+          </div>
           {chipsTrailing && (
-            <div className="ms-auto flex items-center gap-1">
+            <div className="shrink-0 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
               {chipsTrailing}
             </div>
           )}
         </div>
+      ) : (
+        <>
+          {/* Title input */}
+          <div className="flex items-center gap-2">
+            <AutoTextarea
+              ref={inputRef}
+              value={title}
+              onFocus={() => setFocused(true)}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  submit();
+                } else if (e.key === "Escape" && !title.trim()) {
+                  setFocused(false);
+                }
+              }}
+              placeholder={placeholderText}
+              className="flex-1 text-sm bg-transparent border-0 shadow-none focus-visible:ring-0 min-h-[36px] max-h-[120px] py-1 px-1"
+              dir="auto"
+              disabled={busy}
+              rows={1}
+              minHeight={36}
+              maxHeight={120}
+              autoFocus
+            />
+            <VoiceInputButton
+              onTranscript={(text) => setTitle((prev) => (prev ? prev.trimEnd() + " " + text : text))}
+              disabled={busy}
+              size="icon"
+              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+            />
+          </div>
+
+          {/* Compact Options below input */}
+          <div className="flex items-center justify-between gap-1.5 flex-wrap pt-2 mt-1.5 border-t border-border/40 text-xs">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {/* Date Picker Chip */}
+              <Popover open={dateOpen} onOpenChange={setDateOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition cursor-pointer ${
+                      finalDue
+                        ? "bg-primary/10 text-primary border-primary/30 font-semibold"
+                        : "bg-muted/40 hover:bg-muted text-muted-foreground border-border/60"
+                    }`}
+                    title={T("تنظیم تاریخ و زمان", "Set date and time")}
+                  >
+                    <CalendarIcon className="w-3.5 h-3.5" />
+                    <span>{formatDueLabel(finalDue)}</span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 space-y-3 p-3" align="start">
+                  <DueDatePicker
+                    value={due}
+                    onChange={(val) => {
+                      setDue(val);
+                      setDateOpen(false);
+                    }}
+                    compact
+                  />
+                </PopoverContent>
+              </Popover>
+
+              {/* Folder Chip */}
+              <Popover open={folderOpen} onOpenChange={setFolderOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition cursor-pointer ${
+                      finalFolderId
+                        ? "bg-primary/10 text-primary border-primary/30 font-semibold"
+                        : "bg-muted/40 hover:bg-muted text-muted-foreground border-border/60"
+                    }`}
+                    title={T("انتخاب فولدر", "Choose folder")}
+                  >
+                    <Folder className="w-3.5 h-3.5" />
+                    <span className="max-w-[120px] truncate">{selectedFolderLabel}</span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-1.5" align="start">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      applyFolder(null);
+                      setFolderOpen(false);
+                    }}
+                    className={`w-full text-start px-2 py-1.5 text-xs rounded-lg cursor-pointer ${
+                      finalFolderId === null ? "bg-accent font-semibold" : "hover:bg-accent/50"
+                    }`}
+                  >
+                    {T("اینباکس (بدون فولدر)", "Inbox (no folder)")}
+                  </button>
+                  {folders.map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => {
+                        applyFolder(f.id);
+                        setFolderOpen(false);
+                      }}
+                      className={`w-full text-start px-2 py-1.5 text-xs rounded-lg truncate cursor-pointer ${
+                        finalFolderId === f.id ? "bg-accent font-semibold text-primary" : "hover:bg-accent/50"
+                      }`}
+                    >
+                      {f.name}
+                    </button>
+                  ))}
+                </PopoverContent>
+              </Popover>
+
+              {/* Priority Chip */}
+              <Popover open={priorityOpen} onOpenChange={setPriorityOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition cursor-pointer ${
+                      finalPriority !== "none"
+                        ? `${PRIORITY_META[finalPriority].bgClass} ${PRIORITY_META[finalPriority].textClass} border-transparent font-semibold`
+                        : "bg-muted/40 hover:bg-muted text-muted-foreground border-border/60"
+                    }`}
+                    title={T("تعیین اولویت", "Set priority")}
+                  >
+                    <Flag className={`w-3.5 h-3.5 ${finalPriority !== "none" ? PRIORITY_META[finalPriority].textClass : ""}`} />
+                    <span>{finalPriority !== "none" ? T(PRIORITY_META[finalPriority].label, PRIORITY_META[finalPriority].labelEn) : T("اولویت", "Priority")}</span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-1.5" align="start">
+                  {PRIORITY_SELECTABLE.map((p) => {
+                    const m = PRIORITY_META[p as Priority];
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => {
+                          applyPriority(p as Priority);
+                          setPriorityOpen(false);
+                        }}
+                        className={`w-full text-start px-2 py-1.5 text-xs rounded-lg flex items-center gap-2 cursor-pointer ${
+                          finalPriority === p ? "bg-accent font-semibold" : "hover:bg-accent/50"
+                        }`}
+                      >
+                        <Flag className={`w-3 h-3 ${m.textClass}`} /> {T(m.label, m.labelEn)}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      applyPriority("none");
+                      setPriorityOpen(false);
+                    }}
+                    className="w-full text-start px-2 py-1.5 text-xs rounded-lg hover:bg-accent/50 text-muted-foreground border-t mt-1 cursor-pointer"
+                  >
+                    {T("بدون اولویت", "No priority")}
+                  </button>
+                </PopoverContent>
+              </Popover>
+
+              {/* Tag Chip */}
+              <Popover open={tagOpen} onOpenChange={setTagOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition cursor-pointer ${
+                      finalTagIds.length
+                        ? "bg-primary/10 text-primary border-primary/30 font-semibold"
+                        : "bg-muted/40 hover:bg-muted text-muted-foreground border-border/60"
+                    }`}
+                    title={T("افزودن برچسب", "Add tag")}
+                  >
+                    <Tag className="w-3.5 h-3.5" />
+                    <span>{finalTagIds.length ? (selectedTag ? selectedTag.name : `+${finalTagIds.length}`) : T("تگ", "Tag")}</span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-1.5" align="start">
+                  {tags.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => finalTagIds.includes(t.id) ? removeTag(t.id) : applyTag(t.id)}
+                      className={`w-full text-start px-2 py-1.5 text-xs rounded-lg flex items-center gap-2 cursor-pointer ${
+                        finalTagIds.includes(t.id) ? "bg-accent font-semibold text-primary" : "hover:bg-accent/50"
+                      }`}
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: t.color || "#888" }} />
+                      {t.name} {finalTagIds.includes(t.id) && <Check className="w-3 h-3 ms-auto" />}
+                    </button>
+                  ))}
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Action buttons (Trailing) */}
+            <div className="ms-auto flex items-center gap-1.5">
+              {chipsTrailing}
+              {!title.trim() && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setFocused(false)}
+                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  {T("لغو", "Cancel")}
+                </Button>
+              )}
+              <Button
+                type="button"
+                onClick={submit}
+                disabled={busy || !title.trim()}
+                size="sm"
+                title={T("افزودن تسک (Enter)", "Add task (Enter)")}
+                className="h-7 px-3 rounded-lg bg-primary text-primary-foreground shadow-xs text-xs gap-1 font-medium cursor-pointer"
+              >
+                {busy ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <>
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{T("افزودن", "Add")}</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

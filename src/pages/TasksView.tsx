@@ -853,8 +853,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
   const listView = (
     <PullToRefresh onRefresh={load}>
-      {/* On desktop: clean inline quick add task */}
-      <div className="mb-4 hidden md:block">
+      {/* Inline TickTick quick add task on all form factors */}
+      <div className="mb-3">
         <QuickAddTask
           defaults={{
             folder_id: scope === "folder" ? params.id || null : null,
@@ -865,6 +865,15 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                 : null,
             tag_id: scope === "tag" ? params.id || null : null,
           }}
+          placeholder={
+            scope === "folder" && folderName
+              ? T(`+ افزودن تسک به «${folderName}»`, `+ Add task to "${folderName}"`)
+              : scope === "today"
+                ? T("+ افزودن تسک به «امروز»", '+ Add task to "Today"')
+                : scope === "inbox"
+                  ? T("+ افزودن تسک به «اینباکس»", '+ Add task to "Inbox"')
+                  : undefined
+          }
           chipsTrailing={
             <div className="flex items-center gap-1.5">
               <TaskFilterSheet filters={filters} onChange={setFilters} />
@@ -872,11 +881,11 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                 variant={splitView ? "secondary" : "outline"}
                 size="sm"
                 onClick={toggleSplitView}
-                className="hidden sm:inline-flex items-center gap-1.5 text-xs h-8 px-2.5 rounded-lg border border-border/60 font-medium transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs h-8 px-2.5 rounded-lg border border-border/60 font-medium transition-colors"
                 title={splitView ? T("حالت تمام‌صفحه", "Full width") : T("نمای دوپنله (نیمه چپ)", "Split view (left panel)")}
               >
                 <Columns2 className="w-3.5 h-3.5" />
-                <span>{splitView ? T("نمای دوپنله", "Split view") : T("تمام‌صفحه", "Full width")}</span>
+                <span className="hidden sm:inline">{splitView ? T("نمای دوپنله", "Split view") : T("تمام‌صفحه", "Full width")}</span>
               </Button>
             </div>
           }
@@ -884,25 +893,11 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         />
       </div>
 
-      {/* On mobile / foldable: clean minimal bar with split view toggle + filter button */}
-      <div className="flex items-center justify-between mb-2 md:hidden">
-        <span className="text-xs font-medium text-muted-foreground">
-          {folderTopLevel.length > 0 ? `${folderTopLevel.length} ${T("تسک", "tasks")}` : ""}
-        </span>
-        <div className="ms-auto flex items-center gap-1.5">
-          <Button
-            variant={splitView ? "secondary" : "outline"}
-            size="sm"
-            onClick={toggleSplitView}
-            className="inline-flex items-center gap-1 text-xs h-7 px-2 rounded-lg border border-border/60 font-medium transition-colors"
-            title={splitView ? T("حالت تمام‌صفحه", "Full width") : T("نمای دوپنله (نیمه چپ)", "Split view (left panel)")}
-          >
-            <Columns2 className="w-3.5 h-3.5" />
-            <span className="text-[11px]">{splitView ? T("دوپنله", "Split") : T("تک‌پنله", "Single")}</span>
-          </Button>
-          <TaskFilterSheet filters={filters} onChange={setFilters} />
+      {folderTopLevel.length > 0 && (
+        <div className="text-xs font-medium text-muted-foreground mb-2 px-1">
+          {`${folderTopLevel.length} ${T("تسک", "tasks")}`}
         </div>
-      </div>
+      )}
 
 
       {(() => {

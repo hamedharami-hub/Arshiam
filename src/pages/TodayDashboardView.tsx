@@ -20,6 +20,7 @@ import { HeaderActionsPortal } from "@/components/HeaderActionsPortal";
 import { useResizableSplit } from "@/hooks/useResizableSplit";
 import { Button } from "@/components/ui/button";
 import { TaskListItem } from "@/components/TaskListItem";
+import { QuickAddTask } from "@/components/QuickAddTask";
 import { TaskDetail } from "@/components/TaskDetail";
 import TaskActionSheet from "@/components/TaskActionSheet";
 import { MoveToDialog } from "@/components/MoveToDialog";
@@ -521,6 +522,17 @@ export default function TodayDashboardView() {
               : "pb-16"
           }`}
         >
+          {/* باکس درج سریع تسک در نمای امروز به سبک تیک‌تیک */}
+          <div className="mb-3">
+            <QuickAddTask
+              defaults={{
+                due_date: new Date().toISOString(),
+                folder_id: null,
+              }}
+              onCreated={() => load()}
+            />
+          </div>
+
           {/* ۳. لیست تسک‌ها با خط زمان و ریتم فشرده هفتگی */}
           <DndContext
             sensors={sensors}

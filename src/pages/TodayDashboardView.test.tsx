@@ -37,6 +37,10 @@ vi.mock("@/components/HeaderTitlePortal", () => ({
   ),
 }));
 
+vi.mock("@/components/QuickAddTask", () => ({
+  QuickAddTask: () => <div data-testid="quick-add-task" />,
+}));
+
 vi.mock("@/components/TaskDetail", () => ({
   TaskDetail: ({ task, mode, onClose }: any) => (
     <div data-testid="task-detail" data-mode={mode} data-task-id={task.id}>
