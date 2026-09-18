@@ -29,7 +29,12 @@ vi.mock("@/hooks/useTasksData", () => ({
 }));
 
 vi.mock("@/components/HeaderTitlePortal", () => ({
-  HeaderTitlePortal: () => null,
+  HeaderTitlePortal: ({ title, subtitle }: any) => (
+    <div data-testid="header-title-portal">
+      <span>{title}</span>
+      {subtitle && <span data-testid="header-subtitle">{subtitle}</span>}
+    </div>
+  ),
 }));
 
 vi.mock("@/components/TaskDetail", () => ({
@@ -50,6 +55,7 @@ describe("TodayDashboardView visual and structural requirements", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   it("renders top priorities, active today tasks, collapsible completed tasks, and overdue below today", () => {
@@ -223,5 +229,62 @@ describe("TodayDashboardView visual and structural requirements", () => {
     expect(detail).toBeInTheDocument();
     expect(detail.getAttribute("data-mode")).toBe("drawer");
     expect(detail.getAttribute("data-task-id")).toBe("task-2");
+  });
+
+  it("merges the date and split view controls into the header on wide screens and omits the separate second row", () => {
+    mockTasks = [
+      {
+        id: "task-10",
+        user_id: "user-123",
+        title: "Test merged header",
+        completed: false,
+        status: "todo",
+        priority: "high",
+        due_date: todayIso,
+        folder_id: null,
+        parent_id: null,
+      },
+    ];
+
+    const { container } = render(
+      <MemoryRouter>
+        <TodayDashboardView />
+      </MemoryRouter>
+    );
+
+    // Title and date are rendered in the header portal
+    const headerTitle = screen.getByTestId("header-title-portal");
+    expect(headerTitle).toBeInTheDocument();
+    expect(headerTitle).toHaveTextContent("Today");
+    const headerSubtitle = screen.getByTestId("header-subtitle");
+    expect(headerSubtitle).toBeInTheDocument();
+
+    // Split view toggle button is present in the header actions portal
+    const toggleBtn = screen.getByTitle("Full width");
+    expect(toggleBtn).toBeInTheDocument();
+
+    // A separate second row heading for date is NOT present on wide screens
+    // The h1 with date only exists in the mobile second row which should not be rendered
+    const h1Elements = container.querySelectorAll("h1");
+    expect(h1Elements.length).toBe(0);
+  });
+
+  it("renders the separate subheader row inside the page on compact mobile screens", () => {
+    window.innerWidth = 390;
+    mockTasks = [];
+
+    const { container } = render(
+      <MemoryRouter>
+        <TodayDashboardView />
+      </MemoryRouter>
+    );
+
+    // On mobile, the portal subtitle is undefined
+    expect(screen.queryByTestId("header-subtitle")).not.toBeInTheDocument();
+
+    // The date heading exists on the page as an h1
+    const h1Elements = container.querySelectorAll("h1");
+    expect(h1Elements.length).toBe(1);
+    expect(h1Elements[0]).toHaveTextContent(/Friday, September 18, 2026/);
   });
 });

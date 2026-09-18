@@ -76,12 +76,13 @@ export default function AppLayout() {
               className="border-b flex items-center justify-between px-3 lg:px-6 bg-card/50 backdrop-blur sticky top-0 z-10"
               style={{ paddingTop: "env(safe-area-inset-top)", minHeight: "calc(3rem + env(safe-area-inset-top))" }}
             >
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5 min-w-0">
                 <SidebarTrigger />
                 <HeaderBackButton />
                 <div id="app-header-title" className="min-w-0 flex items-center" />
               </div>
-              <div className="flex items-center gap-2 flex-1 justify-end">
+              <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
+                <div id="app-header-actions" className="flex items-center gap-2 shrink-0 empty:hidden" />
                 <button
                   type="button"
                   onClick={() => {

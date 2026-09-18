@@ -16,6 +16,7 @@ import { deleteTask as deletePersistedTask, persistTask } from "@/lib/firestoreD
 import { taskDueTimestamp } from "@/lib/taskDate";
 import { buildTaskChildrenMap, getTaskProgress } from "@/features/tasks/taskTree";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
+import { HeaderActionsPortal } from "@/components/HeaderActionsPortal";
 import { Button } from "@/components/ui/button";
 import { TaskListItem } from "@/components/TaskListItem";
 import { TaskDetail } from "@/components/TaskDetail";
@@ -371,37 +372,64 @@ export default function TodayDashboardView() {
       dir={isEn ? "ltr" : "rtl"}
       className={`w-full mx-auto relative page-enter ${
         isSplitActive
-          ? "h-[calc(100dvh-7.5rem)] sm:h-[calc(100dvh-8rem)] xl:h-[calc(100dvh-7.2rem)] flex flex-col p-2 sm:p-3 md:p-4 lg:px-5 xl:px-7 lg:py-2.5 space-y-2 overflow-hidden"
-          : "p-2 sm:p-3 md:p-4 lg:px-5 xl:px-7 lg:py-5 space-y-3 pb-24"
+          ? "h-[calc(100dvh-5.2rem)] sm:h-[calc(100dvh-5.5rem)] xl:h-[calc(100dvh-5.2rem)] flex flex-col p-2 sm:p-3 md:p-4 lg:px-5 xl:px-7 lg:py-2.5 space-y-2 overflow-hidden"
+          : "p-2 sm:p-3 md:p-4 lg:px-5 xl:px-7 lg:py-4 space-y-3 pb-24"
       }`}
     >
-      <HeaderTitlePortal title={T("امروز", "Today")} />
+      <HeaderTitlePortal
+        title={T("امروز", "Today")}
+        subtitle={isWideOrFoldable ? (isEn ? todayGregorian : todayJalali) : undefined}
+      />
 
-      {/* ۱. هدر فشرده تاریخ و وضعیت و کلید تغییر نمای دوپنله */}
-      <div className="flex items-center justify-between py-1 px-1 gap-2 shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <h1 className="text-base sm:text-lg md:text-xl font-bold text-foreground truncate">
-            {isEn ? todayGregorian : todayJalali}
-          </h1>
+      {isWideOrFoldable && (
+        <HeaderActionsPortal>
+          <div className="flex items-center gap-2 shrink-0">
+            {totalCount > 0 && (
+              <span className="text-xs text-muted-foreground font-medium hidden md:inline-block">
+                {toPersianDigits(completedCount)} / {toPersianDigits(totalCount)} {T("تکمیل‌شده", "completed")}
+              </span>
+            )}
+            <Button
+              variant={splitView ? "secondary" : "outline"}
+              size="sm"
+              onClick={toggleSplitView}
+              className="inline-flex items-center gap-1.5 text-xs h-7 sm:h-8 px-2 sm:px-2.5 rounded-lg border border-border/60 font-medium transition-colors cursor-pointer shrink-0"
+              title={splitView ? T("حالت تمام‌صفحه", "Full width") : T("نمای دوپنله (نیمه چپ)", "Split view (left panel)")}
+            >
+              <Columns2 className="w-3.5 h-3.5" />
+              <span className="text-[11px] sm:text-xs">{splitView ? T("نمای دوپنله", "Split view") : T("تمام‌صفحه", "Full width")}</span>
+            </Button>
+          </div>
+        </HeaderActionsPortal>
+      )}
+
+      {/* ۱. هدر فشرده تاریخ و وضعیت و کلید تغییر نمای دوپنله (تنها در موبایل‌های عادی) */}
+      {!isWideOrFoldable && (
+        <div className="flex items-center justify-between py-1 px-1 gap-2 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <h1 className="text-base sm:text-lg md:text-xl font-bold text-foreground truncate">
+              {isEn ? todayGregorian : todayJalali}
+            </h1>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {totalCount > 0 && (
+              <span className="text-xs text-muted-foreground font-medium">
+                {toPersianDigits(completedCount)} / {toPersianDigits(totalCount)} {T("تکمیل‌شده", "completed")}
+              </span>
+            )}
+            <Button
+              variant={splitView ? "secondary" : "outline"}
+              size="sm"
+              onClick={toggleSplitView}
+              className="inline-flex items-center gap-1.5 text-xs h-7 sm:h-8 px-2 sm:px-2.5 rounded-lg border border-border/60 font-medium transition-colors cursor-pointer"
+              title={splitView ? T("حالت تمام‌صفحه", "Full width") : T("نمای دوپنله (نیمه چپ)", "Split view (left panel)")}
+            >
+              <Columns2 className="w-3.5 h-3.5" />
+              <span className="text-[11px] sm:text-xs">{splitView ? T("نمای دوپنله", "Split view") : T("تمام‌صفحه", "Full width")}</span>
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {totalCount > 0 && (
-            <span className="text-xs text-muted-foreground font-medium">
-              {toPersianDigits(completedCount)} / {toPersianDigits(totalCount)} {T("تکمیل‌شده", "completed")}
-            </span>
-          )}
-          <Button
-            variant={splitView ? "secondary" : "outline"}
-            size="sm"
-            onClick={toggleSplitView}
-            className="inline-flex items-center gap-1.5 text-xs h-7 sm:h-8 px-2 sm:px-2.5 rounded-lg border border-border/60 font-medium transition-colors cursor-pointer"
-            title={splitView ? T("حالت تمام‌صفحه", "Full width") : T("نمای دوپنله (نیمه چپ)", "Split view (left panel)")}
-          >
-            <Columns2 className="w-3.5 h-3.5" />
-            <span className="text-[11px] sm:text-xs">{splitView ? T("نمای دوپنله", "Split view") : T("تمام‌صفحه", "Full width")}</span>
-          </Button>
-        </div>
-      </div>
+      )}
 
       <div
         data-task-split={isSplitActive ? "true" : "false"}
