@@ -160,36 +160,24 @@ export function BottomTabBar() {
 
   if (!loc.pathname.startsWith("/app") || isTaskPage) return null;
 
+  // On Windows, Desktop, Foldable phones/devices, or any wide screen (>= 768px),
+  // completely remove the bottom toolbar — all navigation is merged into the right sidebar.
+  const isWideScreen = typeof window !== "undefined" && window.innerWidth >= 768;
+  const hideBottomBar = isWindows || isDesktop || isFoldable || isWideScreen;
+
+  if (hideBottomBar) {
+    return <RecentlyDeletedSheet open={trashOpen} onOpenChange={setTrashOpen} />;
+  }
+
   return (
     <>
-      {/* 1. Windows 11 Fluent Command Bar / Modern Web Desktop Bar */}
-      {(isWindows || isDesktop) && (
-        <WindowsFluentBar
-          allTabs={tabs}
-          currentPath={loc.pathname}
-          dir={dir}
-        />
-      )}
-
-      {/* 2. Foldable Phones Adaptive Ergonomic Bar (Galaxy Z Fold, Pixel Fold, Surface Duo) */}
-      {isFoldable && !isWindows && (
-        <FoldableAdaptiveBar
-          allTabs={tabs}
-          currentPath={loc.pathname}
-          dir={dir}
-        />
-      )}
-
-      {/* 3. Regular Mobile Phone Bottom Bar */}
-      {!isWindows && !isDesktop && !isFoldable && (
-        <MobileBottomBar
-          primaryTabs={mobilePrimaryTabs}
-          secondaryTabs={mobileSecondaryTabs}
-          currentPath={loc.pathname}
-          dir={dir}
-        />
-      )}
-
+      {/* Regular Mobile Phone Bottom Bar — only on compact single-screen mobile phones */}
+      <MobileBottomBar
+        primaryTabs={mobilePrimaryTabs}
+        secondaryTabs={mobileSecondaryTabs}
+        currentPath={loc.pathname}
+        dir={dir}
+      />
       <RecentlyDeletedSheet open={trashOpen} onOpenChange={setTrashOpen} />
     </>
   );

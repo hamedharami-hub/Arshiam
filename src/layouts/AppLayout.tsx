@@ -30,6 +30,8 @@ import AndroidGestures from "@/components/AndroidGestures";
 import AndroidBackButton from "@/components/AndroidBackButton";
 import AndroidTaskSync from "@/components/AndroidTaskSync";
 import { isAndroid } from "@/lib/nativeExperience";
+import { cn } from "@/lib/utils";
+import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 
 export default function AppLayout() {
   const [aiOpen, setAiOpen] = useState(false);
@@ -58,6 +60,9 @@ export default function AppLayout() {
     applyTheme(stored);
     setTheme(getBaseTheme(stored));
   }, [setTheme]);
+  const { isWindows, isFoldable, isDesktop } = useDeviceFormFactor();
+  const showMobileBottomBar = !isWindows && !isDesktop && !isFoldable;
+
   const desktopDefaultOpen =
     typeof window !== "undefined" && window.innerWidth >= 1024;
 
@@ -117,7 +122,12 @@ export default function AppLayout() {
           )}
           <main
             id="main-scroll"
-            className="flex-1 overflow-auto pb-[calc(5.2rem+env(safe-area-inset-bottom))] md:pb-16 xl:pb-16"
+            className={cn(
+              "flex-1 overflow-auto",
+              showMobileBottomBar
+                ? "pb-[calc(5.2rem+env(safe-area-inset-bottom))] md:pb-2 xl:pb-2"
+                : "pb-2 md:pb-2 xl:pb-2"
+            )}
           >
             <div
               key={loc.pathname}
