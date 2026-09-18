@@ -47,20 +47,18 @@ export function BottomQuickAddButton({ mode = "mobile", className = "" }: Bottom
     );
   }
 
-  // Mobile & Foldable mode: Elevated circular FAB with vibrant gradient and ambient glow
+  // Mobile & Foldable mode: Material 3 Expressive Elevated FAB
   return (
     <div className="relative flex items-center justify-center -mt-6 min-[600px]:-mt-7">
-      {/* Ambient background glow */}
-      <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-primary via-purple-500 to-indigo-400 blur-md opacity-50 dark:opacity-65 pointer-events-none -z-10 animate-pulse" />
+      {/* Soft ambient back-glow */}
+      <div className="absolute -inset-1 rounded-[22px] bg-gradient-to-tr from-primary via-indigo-500 to-violet-500 blur-lg opacity-35 dark:opacity-45 pointer-events-none -z-10" />
       <button
         type="button"
         onClick={handleQuickAdd}
         aria-label={label}
-        className={`group relative h-[3.4rem] w-[3.4rem] min-[600px]:h-[3.6rem] min-[600px]:w-[3.6rem] rounded-full bg-gradient-to-tr from-primary via-indigo-600 to-violet-500 text-primary-foreground shadow-[0_10px_25px_-4px_rgba(99,102,241,0.5),0_4px_10px_-2px_rgba(0,0,0,0.25),inset_0_1px_1px_rgba(255,255,255,0.45)] flex items-center justify-center active:scale-90 hover:scale-105 transition-all duration-200 ring-4 ring-background/95 dark:ring-background/90 border border-white/30 select-none overflow-hidden ${className}`}
+        className={`group relative h-[3.35rem] w-[3.35rem] min-[600px]:h-[3.6rem] min-[600px]:w-[3.6rem] rounded-[20px] bg-gradient-to-tr from-primary via-indigo-600 to-violet-500 text-white shadow-[0_10px_25px_-4px_rgba(99,102,241,0.4),0_3px_8px_-1px_rgba(0,0,0,0.15)] flex items-center justify-center active:scale-90 hover:scale-105 transition-all duration-200 ring-[4px] ring-background dark:ring-card border border-white/20 select-none ${className}`}
       >
-        {/* Subtle top gloss reflection */}
-        <span className="absolute inset-x-1.5 top-0.5 h-1/2 rounded-t-full bg-gradient-to-b from-white/35 to-transparent pointer-events-none" />
-        <Plus className="w-6 h-6 min-[600px]:w-6.5 min-[600px]:h-6.5 stroke-[2.6] drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)] transition-transform duration-300 ease-out group-hover:rotate-90 group-active:rotate-45" />
+        <Plus className="w-6 h-6 min-[600px]:w-6.5 min-[600px]:h-6.5 stroke-[2.5] text-white transition-transform duration-300 ease-out group-hover:rotate-90 group-active:rotate-45" />
         <span className="sr-only">{label}</span>
       </button>
     </div>

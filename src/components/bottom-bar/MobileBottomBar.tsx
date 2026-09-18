@@ -26,14 +26,14 @@ export function MobileBottomBar({
     <nav
       dir={dir}
       data-bottom-bar="true"
-      className="fixed z-40 transition-all duration-300 ease-out select-none inset-x-0 bottom-0 h-[4.5rem] bg-card/90 dark:bg-card/90 backdrop-blur-2xl border-t border-border/60 flex items-stretch shadow-[0_-8px_30px_rgba(0,0,0,0.06),0_-1px_0_rgba(255,255,255,0.4)_inset] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.45),0_-1px_0_rgba(255,255,255,0.06)_inset]"
+      className="fixed z-40 transition-all duration-300 ease-out select-none inset-x-0 bottom-0 h-[4.85rem] bg-background/85 dark:bg-card/85 backdrop-blur-2xl border-t border-border/25 dark:border-white/10 flex items-stretch shadow-[0_-4px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.4)]"
       style={{
-        paddingBottom: "max(env(safe-area-inset-bottom, 0px), 4px)",
+        paddingBottom: "max(env(safe-area-inset-bottom, 0px), 8px)",
       }}
       aria-label={t("nav.bottomBar", "ناوبری پایین صفحه")}
     >
-      {/* Subtle top border gradient accent */}
-      <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-primary/35 to-transparent pointer-events-none" />
+      {/* Subtle modern top hairline glow */}
+      <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-primary/25 to-transparent pointer-events-none" />
 
       {/* Primary tabs (Mind, Notes) */}
       {primaryTabs.map((tab) => (
@@ -62,38 +62,40 @@ export function MobileBottomBar({
         />
       ))}
 
-      {/* Menu / Sidebar toggle button */}
+      {/* Menu / Sidebar toggle button - Material 3 Style */}
       <button
         type="button"
-        className={`group relative h-full flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] select-none active:scale-95 transition-all duration-200 min-w-0 ${
-          openMobile ? "text-primary font-bold" : "text-muted-foreground/75 hover:text-foreground"
-        }`}
+        className="group relative h-full flex-1 flex flex-col items-center justify-center pt-1.5 pb-1 select-none active:scale-92 transition-transform duration-150 min-w-0"
         aria-label={t("nav.menu", "منو")}
         onClick={() => {
           haptic("light");
           toggleSidebar();
         }}
       >
+        {/* Material 3 Capsule Indicator */}
         <div
-          className={`relative flex items-center justify-center h-8 w-12 rounded-2xl transition-all duration-200 ${
+          className={`relative flex items-center justify-center h-8 w-16 rounded-full transition-all duration-300 ease-out ${
             openMobile
-              ? "bg-primary/15 dark:bg-primary/25 text-primary shadow-[0_2px_10px_-2px_hsl(var(--primary)/0.3)] border border-primary/20"
-              : "hover:bg-muted/40 text-muted-foreground/75 group-hover:text-foreground"
+              ? "bg-primary/15 dark:bg-primary/25 text-primary scale-100"
+              : "text-muted-foreground/75 hover:text-foreground group-hover:bg-muted/35"
           }`}
         >
           <PanelRight
-            className={`w-5 h-5 transition-transform duration-200 ${
-              openMobile ? "scale-105 text-primary stroke-[2.2]" : "stroke-[1.8]"
+            className={`w-5 h-5 transition-all duration-200 ${
+              openMobile
+                ? "scale-105 text-primary stroke-[2.2]"
+                : "stroke-[1.8] group-hover:scale-105"
             }`}
           />
-          {openMobile && (
-            <span className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_hsl(var(--primary))]" />
-          )}
         </div>
+
+        {/* Material 3 Label */}
         <span
           dir={dir}
-          className={`tracking-tight truncate max-w-full px-1 transition-colors duration-150 leading-tight mt-0.5 ${
-            openMobile ? "font-bold text-primary" : "text-muted-foreground/80 font-medium group-hover:text-foreground"
+          className={`tracking-tight truncate max-w-full px-1 transition-all duration-200 text-[11px] leading-tight mt-1 ${
+            openMobile
+              ? "font-semibold text-primary dark:text-primary"
+              : "font-medium text-muted-foreground/75 group-hover:text-foreground"
           }`}
         >
           {t("nav.menu", "منو")}

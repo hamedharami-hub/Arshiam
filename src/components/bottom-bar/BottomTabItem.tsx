@@ -86,44 +86,44 @@ export function BottomTabItem({
     );
   }
 
-  // Mobile & Foldable mode
+  // Mobile & Foldable mode - Material 3 Navigation Bar Tab
   return (
     <button
       type="button"
       onClick={handleClick}
       aria-label={label}
       aria-current={isActive ? "page" : undefined}
-      className={`group relative h-full flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] select-none active:scale-95 transition-all duration-200 min-w-0 ${
-        isActive
-          ? "text-primary font-bold"
-          : "text-muted-foreground/75 hover:text-foreground"
-      } ${className}`}
+      className={`group relative h-full flex-1 flex flex-col items-center justify-center pt-1.5 pb-1 select-none active:scale-92 transition-transform duration-150 min-w-0 ${className}`}
     >
+      {/* Material 3 Capsule Active Indicator (64px x 32px) */}
       <div
-        className={`relative flex items-center justify-center h-8 w-12 rounded-2xl transition-all duration-200 ${
+        className={`relative flex items-center justify-center h-8 w-16 rounded-full transition-all duration-300 ease-out ${
           isActive
-            ? "bg-primary/15 dark:bg-primary/25 text-primary shadow-[0_2px_10px_-2px_hsl(var(--primary)/0.3)] border border-primary/20"
-            : "hover:bg-muted/40 text-muted-foreground/75 group-hover:text-foreground"
+            ? "bg-primary/15 dark:bg-primary/25 text-primary scale-100"
+            : "text-muted-foreground/75 hover:text-foreground group-hover:bg-muted/35"
         }`}
       >
         <Icon
-          className={`w-5 h-5 transition-transform duration-200 ${
-            isActive ? "scale-105 stroke-[2.2] text-primary" : "stroke-[1.8]"
+          className={`w-5 h-5 transition-all duration-200 ${
+            isActive
+              ? "scale-105 stroke-[2.2] text-primary"
+              : "stroke-[1.8] group-hover:scale-105"
           }`}
         />
         {tab.badge ? (
-          <span className="absolute -top-1 -right-1 px-1 rounded-full text-[9px] font-bold bg-primary text-primary-foreground min-w-3.5 h-3.5 flex items-center justify-center shadow-xs">
+          <span className="absolute -top-1 -right-0.5 px-1 rounded-full text-[9px] font-bold bg-primary text-primary-foreground min-w-3.5 h-3.5 flex items-center justify-center shadow-xs">
             {tab.badge}
           </span>
         ) : null}
-        {isActive && (
-          <span className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_hsl(var(--primary))]" />
-        )}
       </div>
+
+      {/* Material 3 Label */}
       <span
         dir={dir}
-        className={`tracking-tight truncate max-w-full px-1 transition-colors duration-150 leading-tight mt-0.5 ${
-          isActive ? "font-bold text-primary" : "text-muted-foreground/80 font-medium group-hover:text-foreground"
+        className={`tracking-tight truncate max-w-full px-1 transition-all duration-200 text-[11px] leading-tight mt-1 ${
+          isActive
+            ? "font-semibold text-primary dark:text-primary"
+            : "font-medium text-muted-foreground/75 group-hover:text-foreground"
         }`}
       >
         {label}

@@ -64,14 +64,14 @@ export function FoldableAdaptiveBar({
                 }}
                 aria-label={label}
                 aria-current={isActive ? "page" : undefined}
-                className={`group relative flex-1 flex flex-col items-center justify-center py-1 rounded-2xl active:scale-95 transition-all duration-150 min-w-0 ${
+                className={`group relative flex-1 flex flex-col items-center justify-center py-1 rounded-2xl active:scale-92 transition-transform duration-150 min-w-0 ${
                   isActive ? "text-primary font-bold" : "text-muted-foreground/75 hover:text-foreground"
                 }`}
               >
                 <div
-                  className={`relative flex items-center justify-center h-8 w-11 rounded-xl transition-all duration-200 ${
+                  className={`relative flex items-center justify-center h-8 w-14 rounded-full transition-all duration-300 ease-out ${
                     isActive
-                      ? "bg-primary/15 dark:bg-primary/25 text-primary shadow-[0_2px_10px_-2px_hsl(var(--primary)/0.3)] border border-primary/20"
+                      ? "bg-primary/15 dark:bg-primary/25 text-primary scale-100"
                       : "hover:bg-muted/40 text-muted-foreground/75 group-hover:text-foreground"
                   }`}
                 >
@@ -85,11 +85,10 @@ export function FoldableAdaptiveBar({
                       {tab.badge}
                     </span>
                   ) : null}
-                  {isActive && (
-                    <span className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_hsl(var(--primary))]" />
-                  )}
                 </div>
-                <span className="text-[10.5px] truncate max-w-full px-1 tracking-tight mt-0.5 leading-tight">
+                <span className={`text-[10.5px] truncate max-w-full px-1 tracking-tight mt-1 leading-tight ${
+                  isActive ? "font-semibold text-primary" : "text-muted-foreground/75 font-medium"
+                }`}>
                   {label}
                 </span>
               </button>
@@ -99,15 +98,14 @@ export function FoldableAdaptiveBar({
 
         {/* Center Ergonomic Quick Add FAB (Hinge / Bridge Zone) */}
         <div className="relative px-2 flex items-center justify-center -mt-6">
-          <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-primary via-indigo-500 to-violet-400 blur-md opacity-50 pointer-events-none -z-10 animate-pulse" />
+          <div className="absolute -inset-1 rounded-[22px] bg-gradient-to-tr from-primary via-indigo-500 to-violet-400 blur-lg opacity-35 pointer-events-none -z-10" />
           <button
             type="button"
             onClick={handleQuickAdd}
             aria-label={t("nav.quickAdd", "افزودن سریع")}
-            className="group relative h-14 w-14 rounded-full bg-gradient-to-tr from-primary via-indigo-600 to-violet-500 text-primary-foreground shadow-[0_8px_25px_-2px_rgba(99,102,241,0.5),inset_0_1px_1px_rgba(255,255,255,0.45)] flex items-center justify-center active:scale-90 hover:scale-105 transition-all duration-200 ring-4 ring-background/95 dark:ring-background/90 border border-white/30 select-none overflow-hidden"
+            className="group relative h-13 w-13 rounded-[20px] bg-gradient-to-tr from-primary via-indigo-600 to-violet-500 text-white shadow-[0_8px_22px_-2px_rgba(99,102,241,0.4)] flex items-center justify-center active:scale-90 hover:scale-105 transition-all duration-200 ring-[4px] ring-background dark:ring-card border border-white/20 select-none"
           >
-            <span className="absolute inset-x-1.5 top-0.5 h-1/2 rounded-t-full bg-gradient-to-b from-white/35 to-transparent pointer-events-none" />
-            <Plus className="w-6 h-6 stroke-[2.6] drop-shadow-sm transition-transform duration-300 ease-out group-hover:rotate-90 group-active:rotate-45" />
+            <Plus className="w-6 h-6 stroke-[2.5] text-white transition-transform duration-300 ease-out group-hover:rotate-90 group-active:rotate-45" />
             <span className="sr-only">{t("nav.quickAdd", "افزودن سریع")}</span>
           </button>
         </div>
@@ -129,14 +127,14 @@ export function FoldableAdaptiveBar({
                 }}
                 aria-label={label}
                 aria-current={isActive ? "page" : undefined}
-                className={`group relative flex-1 flex flex-col items-center justify-center py-1 rounded-2xl active:scale-95 transition-all duration-150 min-w-0 ${
+                className={`group relative flex-1 flex flex-col items-center justify-center py-1 rounded-2xl active:scale-92 transition-transform duration-150 min-w-0 ${
                   isActive ? "text-primary font-bold" : "text-muted-foreground/75 hover:text-foreground"
                 }`}
               >
                 <div
-                  className={`relative flex items-center justify-center h-8 w-11 rounded-xl transition-all duration-200 ${
+                  className={`relative flex items-center justify-center h-8 w-14 rounded-full transition-all duration-300 ease-out ${
                     isActive
-                      ? "bg-primary/15 dark:bg-primary/25 text-primary shadow-[0_2px_10px_-2px_hsl(var(--primary)/0.3)] border border-primary/20"
+                      ? "bg-primary/15 dark:bg-primary/25 text-primary scale-100"
                       : "hover:bg-muted/40 text-muted-foreground/75 group-hover:text-foreground"
                   }`}
                 >
@@ -150,11 +148,10 @@ export function FoldableAdaptiveBar({
                       {tab.badge}
                     </span>
                   ) : null}
-                  {isActive && (
-                    <span className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_hsl(var(--primary))]" />
-                  )}
                 </div>
-                <span className="text-[10.5px] truncate max-w-full px-1 tracking-tight mt-0.5 leading-tight">
+                <span className={`text-[10.5px] truncate max-w-full px-1 tracking-tight mt-1 leading-tight ${
+                  isActive ? "font-semibold text-primary" : "text-muted-foreground/75 font-medium"
+                }`}>
                   {label}
                 </span>
               </button>
@@ -169,14 +166,14 @@ export function FoldableAdaptiveBar({
               toggleSidebar();
             }}
             aria-label={t("nav.menu", "منو")}
-            className={`group relative flex-1 flex flex-col items-center justify-center py-1 rounded-2xl active:scale-95 transition-all duration-150 min-w-0 ${
+            className={`group relative flex-1 flex flex-col items-center justify-center py-1 rounded-2xl active:scale-92 transition-transform duration-150 min-w-0 ${
               openMobile ? "text-primary font-bold" : "text-muted-foreground/75 hover:text-foreground"
             }`}
           >
             <div
-              className={`relative flex items-center justify-center h-8 w-11 rounded-xl transition-all duration-200 ${
+              className={`relative flex items-center justify-center h-8 w-14 rounded-full transition-all duration-300 ease-out ${
                 openMobile
-                  ? "bg-primary/15 dark:bg-primary/25 text-primary shadow-[0_2px_10px_-2px_hsl(var(--primary)/0.3)] border border-primary/20"
+                  ? "bg-primary/15 dark:bg-primary/25 text-primary scale-100"
                   : "hover:bg-muted/40 text-muted-foreground/75 group-hover:text-foreground"
               }`}
             >
@@ -185,11 +182,10 @@ export function FoldableAdaptiveBar({
                   openMobile ? "scale-105 text-primary stroke-[2.2]" : "stroke-[1.8]"
                 }`}
               />
-              {openMobile && (
-                <span className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_hsl(var(--primary))]" />
-              )}
             </div>
-            <span className="text-[10.5px] truncate max-w-full px-1 tracking-tight mt-0.5 leading-tight">
+            <span className={`text-[10.5px] truncate max-w-full px-1 tracking-tight mt-1 leading-tight ${
+              openMobile ? "font-semibold text-primary" : "text-muted-foreground/75 font-medium"
+            }`}>
               {t("nav.menu", "منو")}
             </span>
           </button>

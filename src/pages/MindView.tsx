@@ -307,18 +307,27 @@ export default function MindView() {
         </div>
       </Card>
 
-      {/* Segmented Tabs Navigation */}
+      {/* Segmented Tabs Navigation - Modern Material 3 Style */}
       <Tabs defaultValue="tools" className="w-full space-y-4">
-        <TabsList className="grid grid-cols-3 w-full max-w-md mx-auto h-11 p-1 bg-muted/80 rounded-xl">
-          <TabsTrigger value="tools" className="text-xs sm:text-sm font-semibold gap-1.5 cursor-pointer data-[state=active]:shadow-xs">
+        <TabsList className="grid grid-cols-3 w-full max-w-md mx-auto h-12 p-1.5 bg-muted/60 dark:bg-muted/30 backdrop-blur-md rounded-2xl border border-border/40 shadow-xs">
+          <TabsTrigger
+            value="tools"
+            className="text-xs sm:text-sm font-semibold gap-1.5 cursor-pointer rounded-xl transition-all duration-200 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-xs data-[state=active]:font-bold"
+          >
             <Brain className="w-4 h-4 text-primary" />
             <span>{T("ابزارها", "Tools")}</span>
           </TabsTrigger>
-          <TabsTrigger value="trends" className="text-xs sm:text-sm font-semibold gap-1.5 cursor-pointer data-[state=active]:shadow-xs">
+          <TabsTrigger
+            value="trends"
+            className="text-xs sm:text-sm font-semibold gap-1.5 cursor-pointer rounded-xl transition-all duration-200 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-xs data-[state=active]:font-bold"
+          >
             <TrendingUp className="w-4 h-4 text-emerald-500" />
             <span>{T("روند و آمار", "Trends")}</span>
           </TabsTrigger>
-          <TabsTrigger value="screeners" className="text-xs sm:text-sm font-semibold gap-1.5 cursor-pointer data-[state=active]:shadow-xs">
+          <TabsTrigger
+            value="screeners"
+            className="text-xs sm:text-sm font-semibold gap-1.5 cursor-pointer rounded-xl transition-all duration-200 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-xs data-[state=active]:font-bold"
+          >
             <ClipboardCheck className="w-4 h-4 text-sky-500" />
             <span>{T("تست‌های بالینی", "Screeners")}</span>
           </TabsTrigger>
