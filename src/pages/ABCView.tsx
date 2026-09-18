@@ -11,11 +11,12 @@ import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { toast } from "sonner";
-import { Plus, TrendingUp, BookOpen, ListPlus } from "lucide-react";
+import { Plus, TrendingUp, BookOpen, ListPlus, Trash2 } from "lucide-react";
 import { createTaskFromMind } from "@/lib/taskFromMind";
 import {
   subscribeAbcRecords,
   upsertAbcRecord,
+  deleteAbcRecord,
   type AbcRecordItem,
 } from "@/lib/firestoreDataService";
 import { useBilingual } from "@/hooks/useBilingual";
@@ -25,6 +26,9 @@ const TRIGGERS_EN = ["Incoming message", "Physical fatigue", "Stuck on a problem
 
 const CONSEQUENCES_FA = ["باز کردن شبکه اجتماعی", "خوردن ناسالم", "تعویق", "خشم", "گریه", "ترک میز", "خوابیدن بی‌موقع", "سایر"];
 const CONSEQUENCES_EN = ["Opening social media", "Junk food snacking", "Procrastination", "Anger/Outburst", "Crying", "Leaving the desk", "Untimely sleeping", "Other"];
+
+const TRIGGERS = TRIGGERS_FA;
+const CONSEQUENCES = CONSEQUENCES_FA;
 
 export default function ABCView() {
   const { user } = useAuth();
@@ -194,8 +198,16 @@ export default function ABCView() {
               <Label>{T("A — محرک", "A — Trigger")}</Label>
               <Select value={form.trigger} onValueChange={(v) => setForm({ ...form, trigger: v })}>
                 <SelectTrigger><SelectValue placeholder={T("انتخاب کن", "Select a trigger")} /></SelectTrigger>
-                <SelectContent>{TRIGGERS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                <SelectContent>{triggersList.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
               </Select>
+              {(form.trigger === "سایر" || form.trigger === "Other" || (!triggersList.includes(form.trigger) && form.trigger)) && (
+                <Input
+                  placeholder={T("محرک خاص را بنویس...", "Enter specific trigger...")}
+                  value={form.trigger === "سایر" || form.trigger === "Other" ? "" : form.trigger}
+                  onChange={(e) => setForm({ ...form, trigger: e.target.value })}
+                  className="mt-1.5"
+                />
+              )}
             </div>
             <div className="space-y-2">
               <Label>{T("B — باور لحظه‌ای", "B — Immediate Belief")}</Label>
@@ -204,8 +216,8 @@ export default function ABCView() {
             <div className="space-y-2">
               <Label>{T("C — پیامد رفتاری", "C — Behavioral Consequence")}</Label>
               <div className="flex flex-wrap gap-2">
-                {CONSEQUENCES.map((c) => (
-                  <Badge key={c} variant={form.consequences.includes(c) ? "default" : "outline"} className="cursor-pointer"
+                {consequencesList.map((c) => (
+                  <Badge key={c} variant={form.consequences.includes(c) ? "default" : "outline"} className="cursor-pointer text-xs py-1 px-2.5 transition-all"
                     onClick={() => setForm({ ...form, consequences: form.consequences.includes(c) ? form.consequences.filter((x) => x !== c) : [...form.consequences, c] })}>
                     {c}
                   </Badge>
@@ -281,7 +293,27 @@ export default function ABCView() {
                 <div className="text-muted-foreground text-xs mt-1">«{r.belief}»</div>
               </div>
               <div className="flex flex-col items-end gap-2 shrink-0">
-                <div className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString(isEn ? "en-US" : "fa-IR")}</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString(isEn ? "en-US" : "fa-IR")}</span>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive cursor-pointer"
+                    title={T("حذف رکورد", "Delete record")}
+                    onClick={async () => {
+                      if (!user) return;
+                      const ok = await deleteAbcRecord(user.id, r.id);
+                      if (ok) {
+                        setRecords((prev) => prev.filter((x) => x.id !== r.id));
+                        toast.success(T("رکورد حذف شد", "Record deleted"));
+                      } else {
+                        toast.error(T("خطا در حذف رکورد", "Error deleting record"));
+                      }
+                    }}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
                 <Button size="sm" variant="outline"
                   onClick={async () => {
                     const res = await createTaskFromMind({

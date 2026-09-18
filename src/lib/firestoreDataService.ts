@@ -742,6 +742,18 @@ export async function upsertAbcRecord(userId: string, record: Partial<AbcRecordI
   }
 }
 
+export async function deleteAbcRecord(userId: string, recordId: string): Promise<boolean> {
+  if (!userId || !recordId) return false;
+  try {
+    const docRef = doc(db, "users", userId, "abc_records", recordId);
+    await deleteDoc(docRef);
+    return true;
+  } catch (err) {
+    console.warn("[FirestoreData] deleteAbcRecord error:", err);
+    return false;
+  }
+}
+
 // ==================== ASSESSMENTS & SCREENERS ====================
 
 export function subscribeAssessmentResults(
