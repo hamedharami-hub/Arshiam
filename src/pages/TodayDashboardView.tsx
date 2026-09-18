@@ -394,17 +394,17 @@ export default function TodayDashboardView() {
     >
       <HeaderTitlePortal
         title={T("امروز", "Today")}
-        subtitle={isWideOrFoldable ? (isEn ? todayGregorian : todayJalali) : undefined}
+        subtitle={isEn ? todayGregorian : todayJalali}
       />
 
-      {isWideOrFoldable && (
-        <HeaderActionsPortal>
-          <div className="flex items-center gap-2 shrink-0">
-            {totalCount > 0 && (
-              <span className="text-xs text-muted-foreground font-medium hidden md:inline-block">
-                {toPersianDigits(completedCount)} / {toPersianDigits(totalCount)} {T("تکمیل‌شده", "completed")}
-              </span>
-            )}
+      <HeaderActionsPortal>
+        <div className="flex items-center gap-2 shrink-0">
+          {totalCount > 0 && (
+            <span className="text-[11px] sm:text-xs text-muted-foreground font-medium">
+              {toPersianDigits(completedCount)} / {toPersianDigits(totalCount)} <span className="hidden sm:inline">{T("تکمیل‌شده", "completed")}</span>
+            </span>
+          )}
+          {isWideOrFoldable && (
             <Button
               variant={splitView ? "secondary" : "outline"}
               size="sm"
@@ -415,37 +415,9 @@ export default function TodayDashboardView() {
               <Columns2 className="w-3.5 h-3.5" />
               <span className="text-[11px] sm:text-xs">{splitView ? T("نمای دوپنله", "Split view") : T("تمام‌صفحه", "Full width")}</span>
             </Button>
-          </div>
-        </HeaderActionsPortal>
-      )}
-
-      {/* ۱. هدر فشرده تاریخ و وضعیت و کلید تغییر نمای دوپنله (تنها در موبایل‌های عادی) */}
-      {!isWideOrFoldable && (
-        <div className="flex items-center justify-between py-1 px-1 gap-2 shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <h1 className="text-base sm:text-lg md:text-xl font-bold text-foreground truncate">
-              {isEn ? todayGregorian : todayJalali}
-            </h1>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {totalCount > 0 && (
-              <span className="text-xs text-muted-foreground font-medium">
-                {toPersianDigits(completedCount)} / {toPersianDigits(totalCount)} {T("تکمیل‌شده", "completed")}
-              </span>
-            )}
-            <Button
-              variant={splitView ? "secondary" : "outline"}
-              size="sm"
-              onClick={toggleSplitView}
-              className="inline-flex items-center gap-1.5 text-xs h-7 sm:h-8 px-2 sm:px-2.5 rounded-lg border border-border/60 font-medium transition-colors cursor-pointer"
-              title={splitView ? T("حالت تمام‌صفحه", "Full width") : T("نمای دوپنله (نیمه چپ)", "Split view (left panel)")}
-            >
-              <Columns2 className="w-3.5 h-3.5" />
-              <span className="text-[11px] sm:text-xs">{splitView ? T("نمای دوپنله", "Split view") : T("تمام‌صفحه", "Full width")}</span>
-            </Button>
-          </div>
+          )}
         </div>
-      )}
+      </HeaderActionsPortal>
 
       <div
         ref={splitContainerRef}
@@ -523,7 +495,7 @@ export default function TodayDashboardView() {
           }`}
         >
           {/* باکس درج سریع تسک در نمای امروز به سبک تیک‌تیک */}
-          <div className="mb-3">
+          <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md py-1.5 -mx-1 px-1 mb-2 rounded-xl">
             <QuickAddTask
               defaults={{
                 due_date: new Date().toISOString(),

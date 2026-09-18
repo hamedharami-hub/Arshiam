@@ -854,7 +854,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const listView = (
     <PullToRefresh onRefresh={load}>
       {/* Inline TickTick quick add task on all form factors */}
-      <div className="mb-3">
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md py-1.5 mb-2 rounded-xl">
         <QuickAddTask
           defaults={{
             folder_id: scope === "folder" ? params.id || null : null,

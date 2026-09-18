@@ -72,6 +72,8 @@ export function QuickAddTask({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const pointerStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const [dateOpen, setDateOpen] = useState(false);
   const [priorityOpen, setPriorityOpen] = useState(false);
   const [folderOpen, setFolderOpen] = useState(false);
@@ -199,6 +201,7 @@ export function QuickAddTask({
         setFolderId(defaults.folder_id ?? null);
         setTagIds(defaults.tag_id ? [defaults.tag_id] : []);
         setSelectedFiles([]);
+        setFocused(false);
         window.dispatchEvent(new Event("tasks-changed"));
         onCreated?.(tempId);
         toast.success(T("تسک ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Task saved — will sync when online"));
@@ -230,6 +233,7 @@ export function QuickAddTask({
     setFolderId(defaults.folder_id ?? null);
     setTagIds(defaults.tag_id ? [defaults.tag_id] : []);
     setSelectedFiles([]);
+    setFocused(false);
     window.dispatchEvent(new Event("tasks-changed"));
     onCreated?.(tempId);
     toast.success(T("تسک با موفقیت ذخیره شد", "Task created successfully"));
@@ -416,10 +420,78 @@ export function QuickAddTask({
 
   const [focused, setFocused] = useState(false);
   const isAnyPopoverOpen = dateOpen || priorityOpen || folderOpen || tagOpen;
-  const showOptions = focused || title.trim().length > 0 || isAnyPopoverOpen;
+  const showOptions = focused || isAnyPopoverOpen;
+
+  useEffect(() => {
+    if (!focused && !isAnyPopoverOpen) return;
+
+    let isScrolling = false;
+
+    const handlePointerDown = (e: PointerEvent) => {
+      isScrolling = false;
+      const x = e.clientX ?? 0;
+      const y = e.clientY ?? 0;
+      pointerStartRef.current = { x, y, time: Date.now() };
+    };
+
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!pointerStartRef.current) return;
+      const x = e.clientX ?? 0;
+      const y = e.clientY ?? 0;
+      if (Math.hypot(x - pointerStartRef.current.x, y - pointerStartRef.current.y) > 10) {
+        isScrolling = true;
+      }
+    };
+
+    const handlePointerUp = (e: PointerEvent) => {
+      if (!pointerStartRef.current) return;
+      const start = pointerStartRef.current;
+      pointerStartRef.current = null;
+
+      const x = e.clientX ?? 0;
+      const y = e.clientY ?? 0;
+      const dist = Math.hypot(x - start.x, y - start.y);
+
+      // If user moved more than 10px or was scrolling, don't close
+      if (dist > 10 || isScrolling) return;
+
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+
+      // Inside QuickAddTask container? Keep open
+      if (containerRef.current?.contains(target)) return;
+
+      // Inside Radix popovers, dialogs, menus, or themes? Keep open
+      if (
+        target.closest?.("[data-radix-popper-content-wrapper]") ||
+        target.closest?.("[role='dialog']") ||
+        target.closest?.("[role='menu']") ||
+        target.closest?.(".radix-themes")
+      ) {
+        return;
+      }
+
+      // Tap / click was outside: collapse!
+      setFocused(false);
+      setDateOpen(false);
+      setPriorityOpen(false);
+      setFolderOpen(false);
+      setTagOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown, { passive: true });
+    document.addEventListener("pointermove", handlePointerMove, { passive: true });
+    document.addEventListener("pointerup", handlePointerUp);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("pointermove", handlePointerMove);
+      document.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [focused, isAnyPopoverOpen]);
 
   return (
     <div
+      ref={containerRef}
       className={`rounded-xl border transition-all duration-150 ${
         showOptions
           ? "bg-card border-primary/40 shadow-xs p-2.5"
@@ -438,7 +510,7 @@ export function QuickAddTask({
           >
             <Plus className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
             <span className="text-xs sm:text-sm text-muted-foreground group-hover:text-foreground/80 transition-colors truncate">
-              {placeholderText}
+              {title.trim() ? title : placeholderText}
             </span>
           </div>
           {chipsTrailing && (
@@ -460,7 +532,7 @@ export function QuickAddTask({
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   submit();
-                } else if (e.key === "Escape" && !title.trim()) {
+                } else if (e.key === "Escape") {
                   setFocused(false);
                 }
               }}
@@ -644,17 +716,18 @@ export function QuickAddTask({
             {/* Action buttons (Trailing) */}
             <div className="ms-auto flex items-center gap-1.5">
               {chipsTrailing}
-              {!title.trim() && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setFocused(false)}
-                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-                >
-                  {T("لغو", "Cancel")}
-                </Button>
-              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setTitle("");
+                  setFocused(false);
+                }}
+                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                {T("لغو", "Cancel")}
+              </Button>
               <Button
                 type="button"
                 onClick={submit}

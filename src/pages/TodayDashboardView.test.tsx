@@ -273,7 +273,7 @@ describe("TodayDashboardView visual and structural requirements", () => {
     expect(h1Elements.length).toBe(0);
   });
 
-  it("renders the separate subheader row inside the page on compact mobile screens", () => {
+  it("merges the date into the header and omits full width button and second row on compact mobile screens", () => {
     window.innerWidth = 390;
     mockTasks = [];
 
@@ -283,12 +283,14 @@ describe("TodayDashboardView visual and structural requirements", () => {
       </MemoryRouter>
     );
 
-    // On mobile, the portal subtitle is undefined
-    expect(screen.queryByTestId("header-subtitle")).not.toBeInTheDocument();
+    // On mobile, the portal subtitle now has the date directly merged
+    expect(screen.getByTestId("header-subtitle")).toBeInTheDocument();
 
-    // The date heading exists on the page as an h1
+    // The date heading does NOT exist as a separate second row h1 on the page
     const h1Elements = container.querySelectorAll("h1");
-    expect(h1Elements.length).toBe(1);
-    expect(h1Elements[0]).toHaveTextContent(/Friday, September 18, 2026/);
+    expect(h1Elements.length).toBe(0);
+
+    // The Full width / split view button is NOT rendered on mobile
+    expect(screen.queryByTitle("Full width")).not.toBeInTheDocument();
   });
 });
