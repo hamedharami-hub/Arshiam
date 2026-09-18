@@ -17,10 +17,10 @@ export default function HeaderBackButton() {
   if (ROOT_PATHS.has(loc.pathname)) return null;
 
   const onClick = () => {
-    if (window.history.length > 1) {
+    if (window.history.state?.idx > 0) {
       navigate(-1);
     } else {
-      navigate("/app/today");
+      navigate("/app/today", { replace: true });
     }
   };
 

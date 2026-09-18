@@ -87,11 +87,9 @@ export default function TaskDetailView() {
   const handleClose = useCallback(() => {
     if (effectiveParentId) {
       navigate(`/app/tasks/${encodeURIComponent(effectiveParentId)}`);
-    } else if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate("/app/today");
+      return;
     }
+    navigate("/app/today", { replace: true });
   }, [effectiveParentId, navigate]);
 
   useEffect(() => {
@@ -196,8 +194,8 @@ export default function TaskDetailView() {
             key={visibleTask.id}
             task={visibleTask}
             onClose={handleClose}
-            onBack={effectiveParentId ? () => navigate(`/app/tasks/${encodeURIComponent(effectiveParentId)}`) : undefined}
-            hasBackHistory={!!effectiveParentId}
+            onBack={effectiveParentId ? () => navigate(`/app/tasks/${encodeURIComponent(effectiveParentId)}`) : handleClose}
+            hasBackHistory={true}
             onOpenParentTask={(targetId) => {
               navigate(`/app/tasks/${encodeURIComponent(targetId)}?from=${encodeURIComponent(visibleTask.id)}`);
             }}
@@ -218,8 +216,8 @@ export default function TaskDetailView() {
         key={visibleTask.id}
         task={visibleTask}
         onClose={handleClose}
-        onBack={effectiveParentId ? () => navigate(`/app/tasks/${encodeURIComponent(effectiveParentId)}`) : undefined}
-        hasBackHistory={!!effectiveParentId}
+        onBack={effectiveParentId ? () => navigate(`/app/tasks/${encodeURIComponent(effectiveParentId)}`) : handleClose}
+        hasBackHistory={true}
         onOpenParentTask={(targetId) => {
           navigate(`/app/tasks/${encodeURIComponent(targetId)}?from=${encodeURIComponent(visibleTask.id)}`);
         }}
