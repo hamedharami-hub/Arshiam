@@ -1,9 +1,10 @@
 import { useMemo } from "react";
-import { PanelRight, Sparkles, Plus } from "lucide-react";
+import { PanelRight, PanelLeft, Sparkles, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { haptic } from "@/lib/haptics";
 import { useSidebar } from "@/components/ui/sidebar";
+import { useSidebarPosition } from "@/lib/sidebarPosition";
 import { BottomTabItemConfig } from "./types";
 
 interface FoldableAdaptiveBarProps {
@@ -18,24 +19,66 @@ export function FoldableAdaptiveBar({
   dir,
 }: FoldableAdaptiveBarProps) {
   const { toggleSidebar, openMobile } = useSidebar();
+  const { sidebarPosition } = useSidebarPosition();
+  const isSidebarLeft = sidebarPosition === "left";
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const isEn = (i18n.language || "fa").startsWith("en");
 
-  // Left thumb cluster: Mind, Notes, Habits
-  const leftCluster = useMemo(() => allTabs.slice(0, 3), [allTabs]);
-  // Right thumb cluster: Today, Calendar
-  const rightCluster = useMemo(() => allTabs.slice(3, 5), [allTabs]);
+  const MenuIcon = isSidebarLeft ? PanelLeft : PanelRight;
+
+  // Standard (Right sidebar): Left cluster is Mind, Notes, Habits. Right cluster is Today, Calendar + Menu.
+  // Left sidebar: Left cluster is Menu + Today, Calendar. Right cluster is Mind, Notes, Habits.
+  const generalTabs = useMemo(() => allTabs.slice(0, 3), [allTabs]); // Mind, Notes, Habits
+  const taskTabs = useMemo(() => allTabs.slice(3, 5), [allTabs]); // Today, Calendar
+
+  const leftCluster = isSidebarLeft ? taskTabs : generalTabs;
+  const rightCluster = isSidebarLeft ? generalTabs : taskTabs;
 
   const handleQuickAdd = () => {
     haptic("medium");
     window.dispatchEvent(new Event("lov:open-quick-capture"));
   };
 
+  const menuButton = (
+    <button
+      key="foldable-menu-toggle"
+      type="button"
+      onClick={() => {
+        haptic("light");
+        toggleSidebar();
+      }}
+      aria-label={t("nav.menu", "منو")}
+      className={`group relative flex-1 flex flex-col items-center justify-center py-1 rounded-2xl active:scale-92 transition-transform duration-150 min-w-0 ${
+        openMobile ? "text-primary font-bold" : "text-muted-foreground/75 hover:text-foreground"
+      }`}
+    >
+      <div
+        className={`relative flex items-center justify-center h-8 w-14 rounded-full transition-all duration-300 ease-out ${
+          openMobile
+            ? "bg-primary/15 dark:bg-primary/25 text-primary scale-100"
+            : "hover:bg-muted/40 text-muted-foreground/75 group-hover:text-foreground"
+        }`}
+      >
+        <MenuIcon
+          className={`w-4 h-4 transition-transform duration-200 ${
+            openMobile ? "scale-105 text-primary stroke-[2.2]" : "stroke-[1.8]"
+          }`}
+        />
+      </div>
+      <span className={`text-[10.5px] truncate max-w-full px-1 tracking-tight mt-1 leading-tight ${
+        openMobile ? "font-semibold text-primary" : "text-muted-foreground/75 font-medium"
+      }`}>
+        {t("nav.menu", "منو")}
+      </span>
+    </button>
+  );
+
   return (
     <nav
-      dir={dir}
+      dir="ltr"
       data-foldable-adaptive-bar="true"
+      data-sidebar-side={sidebarPosition}
       className="fixed z-40 bottom-4 left-1/2 -translate-x-1/2 w-[min(46rem,calc(100%-2rem))] select-none animate-in fade-in-0 slide-in-from-bottom-3 duration-250"
       style={{
         paddingBottom: "max(env(safe-area-inset-bottom, 0px), 2px)",
@@ -47,8 +90,9 @@ export function FoldableAdaptiveBar({
         {/* Subtle decorative edge gradient */}
         <div className="absolute inset-x-8 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-primary/40 to-transparent pointer-events-none" />
 
-        {/* Left Thumb Cluster (Mind, Notes, Habits) */}
+        {/* Left Thumb Cluster */}
         <div className="flex-1 flex items-center justify-around max-w-[42%]">
+          {isSidebarLeft && menuButton}
           {leftCluster.map((tab) => {
             const isActive = tab.match(currentPath);
             const label = isEn ? tab.labelEn : tab.labelFa;
@@ -110,7 +154,7 @@ export function FoldableAdaptiveBar({
           </button>
         </div>
 
-        {/* Right Thumb Cluster (Today, Calendar, Menu) */}
+        {/* Right Thumb Cluster */}
         <div className="flex-1 flex items-center justify-around max-w-[42%]">
           {rightCluster.map((tab) => {
             const isActive = tab.match(currentPath);
@@ -157,38 +201,7 @@ export function FoldableAdaptiveBar({
               </button>
             );
           })}
-
-          {/* Menu / Sidebar Toggle */}
-          <button
-            type="button"
-            onClick={() => {
-              haptic("light");
-              toggleSidebar();
-            }}
-            aria-label={t("nav.menu", "منو")}
-            className={`group relative flex-1 flex flex-col items-center justify-center py-1 rounded-2xl active:scale-92 transition-transform duration-150 min-w-0 ${
-              openMobile ? "text-primary font-bold" : "text-muted-foreground/75 hover:text-foreground"
-            }`}
-          >
-            <div
-              className={`relative flex items-center justify-center h-8 w-14 rounded-full transition-all duration-300 ease-out ${
-                openMobile
-                  ? "bg-primary/15 dark:bg-primary/25 text-primary scale-100"
-                  : "hover:bg-muted/40 text-muted-foreground/75 group-hover:text-foreground"
-              }`}
-            >
-              <PanelRight
-                className={`w-4 h-4 transition-transform duration-200 ${
-                  openMobile ? "scale-105 text-primary stroke-[2.2]" : "stroke-[1.8]"
-                }`}
-              />
-            </div>
-            <span className={`text-[10.5px] truncate max-w-full px-1 tracking-tight mt-1 leading-tight ${
-              openMobile ? "font-semibold text-primary" : "text-muted-foreground/75 font-medium"
-            }`}>
-              {t("nav.menu", "منو")}
-            </span>
-          </button>
+          {!isSidebarLeft && menuButton}
         </div>
       </div>
     </nav>

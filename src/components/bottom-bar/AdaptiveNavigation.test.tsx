@@ -109,3 +109,52 @@ describe("FoldableAdaptiveBar", () => {
     expect(screen.getByText("منو")).toBeDefined();
   });
 });
+
+describe("MobileBottomBar", () => {
+  it("renders tabs and adapts order when sidebarPosition is left vs right", async () => {
+    const { MobileBottomBar } = await import("./MobileBottomBar");
+    const { setSidebarPosition } = await import("@/lib/sidebarPosition");
+
+    // Test right position (default)
+    setSidebarPosition("right");
+    const { rerender } = render(
+      <MemoryRouter initialEntries={["/app/today"]}>
+        <SidebarProvider>
+          <MobileBottomBar
+            primaryTabs={[mockTabs[0], mockTabs[1]]}
+            secondaryTabs={[mockTabs[3]]}
+            currentPath="/app/today"
+            dir="rtl"
+          />
+        </SidebarProvider>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText("ذهن")).toBeDefined();
+    expect(screen.getByText("یادداشت‌ها")).toBeDefined();
+    expect(screen.getByText("امروز")).toBeDefined();
+    expect(screen.getByText("منو")).toBeDefined();
+
+    // Now switch to left position
+    setSidebarPosition("left");
+    rerender(
+      <MemoryRouter initialEntries={["/app/today"]}>
+        <SidebarProvider>
+          <MobileBottomBar
+            primaryTabs={[mockTabs[0], mockTabs[1]]}
+            secondaryTabs={[mockTabs[3]]}
+            currentPath="/app/today"
+            dir="rtl"
+          />
+        </SidebarProvider>
+      </MemoryRouter>
+    );
+
+    const nav = screen.getByRole("navigation", { name: "ناوبری پایین صفحه" });
+    expect(nav.getAttribute("data-sidebar-side")).toBe("left");
+
+    // Clean up
+    setSidebarPosition("right");
+  });
+});
+
