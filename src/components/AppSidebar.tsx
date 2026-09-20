@@ -840,40 +840,38 @@ export function AppSidebar() {
   return (
     <Sidebar side={sidebarPosition} collapsible="icon">
       <SidebarRail />
-      <SidebarHeader className="border-b p-2">
-        <div className="flex items-center gap-2 px-1 py-1">
-          <img src="/favicon.png" alt="ARSHNAZ" className="w-8 h-8 rounded-lg shrink-0" loading="lazy" width={32} height={32} />
-          {!collapsed ? (
-            <>
-              <div className="flex flex-col leading-tight min-w-0 flex-1">
-                <span className="font-bold text-base bg-gradient-to-l from-pink-500 via-purple-500 to-blue-500 bg-clip-text text-transparent truncate">ARSHNAZ</span>
-                <span className="text-[9px] text-muted-foreground truncate">{t("app.tagline")}</span>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 rounded-lg hover:bg-sidebar-accent cursor-pointer shrink-0"
-                onClick={() => toggleSidebar()}
-                title={isEn ? "Collapse sidebar" : "بستن نوار کناری"}
-              >
-                {sidebarPosition === "left" ? (
-                  <PanelLeft className="w-4 h-4 text-muted-foreground" />
-                ) : (
-                  <PanelRight className="w-4 h-4 text-muted-foreground" />
-                )}
-                <span className="sr-only">{isEn ? "Collapse" : "بستن"}</span>
-              </Button>
-            </>
-          ) : null}
-        </div>
-      </SidebarHeader>
+      {!collapsed && (
+        <SidebarHeader className="border-b p-2">
+          <div className="flex items-center gap-2 px-1 py-1">
+            <img src="/favicon.png" alt="ARSHNAZ" className="w-8 h-8 rounded-lg shrink-0" loading="lazy" width={32} height={32} />
+            <div className="flex flex-col leading-tight min-w-0 flex-1">
+              <span className="font-bold text-base bg-gradient-to-l from-pink-500 via-purple-500 to-blue-500 bg-clip-text text-transparent truncate">ARSHNAZ</span>
+              <span className="text-[9px] text-muted-foreground truncate">{t("app.tagline")}</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-lg hover:bg-sidebar-accent cursor-pointer shrink-0"
+              onClick={() => toggleSidebar()}
+              title={isEn ? "Collapse sidebar" : "بستن نوار کناری"}
+            >
+              {sidebarPosition === "left" ? (
+                <PanelLeft className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <PanelRight className="w-4 h-4 text-muted-foreground" />
+              )}
+              <span className="sr-only">{isEn ? "Collapse" : "بستن"}</span>
+            </Button>
+          </div>
+        </SidebarHeader>
+      )}
 
-      <SidebarContent>
+      <SidebarContent className={cn(collapsed && "p-0 pt-1.5 gap-1")}>
         {/* The compact desktop rail is intentionally curated in Settings. */}
         {collapsed ? (
-          <SidebarGroup>
+          <SidebarGroup className="p-1 pt-0">
             <SidebarGroupContent>
-              <SidebarMenu>
+              <SidebarMenu className="gap-1">
                 {/* 1. Menu Toggle Button (Pinned) */}
                 <SidebarMenuItem key="sidebar-toggle-menu">
                   <SidebarMenuButton

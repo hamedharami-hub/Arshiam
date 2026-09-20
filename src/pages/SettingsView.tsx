@@ -1,6 +1,24 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Save, Trash2, Languages, Download, ShieldOff, Settings2, Bell, Moon, Palette, Type, ZoomIn, LayoutGrid, Heart, Coffee, Star, Wand2, RotateCw, Sun, Upload, CheckCircle2, AlertCircle, Clock, Zap, Cpu, Eye, EyeOff, RefreshCw, Package, Database, Info, Compass, ArrowUp, ArrowDown, Pin, Sliders, PanelLeft, CalendarDays, FolderTree, Tag, Inbox, Calendar, Filter, Timer, BarChart3, Sprout, Target, FileText, BrainCircuit, Activity, BookOpen, MessageCircleQuestion, Wind, User, Users, Search } from "lucide-react";
+import { Sparkles, Save, Trash2, Languages, Download, ShieldOff, Settings2, Bell, Moon, Palette, Type, ZoomIn, LayoutGrid, Heart, Coffee, Star, Wand2, RotateCw, Sun, Upload, CheckCircle2, AlertCircle, Clock, Zap, Cpu, Eye, EyeOff, RefreshCw, Package, Database, Info, Compass, ArrowUp, ArrowDown, Pin, Sliders, PanelLeft, CalendarDays, FolderTree, Tag, Inbox, Calendar, Filter, Timer, BarChart3, Sprout, Target, FileText, BrainCircuit, Activity, BookOpen, MessageCircleQuestion, Wind, User, Users, Search, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { applyFontSize, applyUIScale, type FontSize } from "@/lib/uiScale";
@@ -183,11 +201,139 @@ const QUICK_LINK_ICONS: Record<string, any> = {
   "/app/shared": Users,
 };
 
+interface SortableShortcutItemProps {
+  item: typeof SIDEBAR_QUICK_LINK_OPTIONS[number];
+  orderIndex: number;
+  isEn: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMove: (url: string, dir: "up" | "down") => void;
+  onToggle: (url: string, enabled: boolean) => void;
+}
+
+function SortableShortcutItem({
+  item,
+  orderIndex,
+  isEn,
+  canMoveUp,
+  canMoveDown,
+  onMove,
+  onToggle,
+}: SortableShortcutItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.url });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const Icon = QUICK_LINK_ICONS[item.url] || LayoutGrid;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center justify-between gap-2 rounded-xl border p-2.5 transition-colors select-none",
+        "border-border/80 bg-card/70 hover:bg-card/90",
+        isDragging && "opacity-60 scale-[1.02] shadow-lg border-primary z-10 bg-card ring-2 ring-primary/20"
+      )}
+    >
+      <div className="flex items-center gap-2 min-w-0 flex-1">
+        {/* Drag handle */}
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          aria-label={isEn ? "Drag to reorder" : "بکشید برای تغییر ترتیب"}
+          title={isEn ? "Drag to reorder (hold on touch)" : "بکشید برای تغییر ترتیب (روی لمسی نگه دارید)"}
+          className="p-1 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0"
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
+
+        {/* Up/Down buttons */}
+        <div className="flex items-center gap-0.5 shrink-0">
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-6 w-6 rounded-md hover:bg-accent disabled:opacity-30"
+            disabled={!canMoveUp}
+            onClick={() => onMove(item.url, "up")}
+            title={isEn ? "Move up" : "انتقال به بالا"}
+          >
+            <ArrowUp className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-6 w-6 rounded-md hover:bg-accent disabled:opacity-30"
+            disabled={!canMoveDown}
+            onClick={() => onMove(item.url, "down")}
+            title={isEn ? "Move down" : "انتقال به پایین"}
+          >
+            <ArrowDown className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+
+        <div className="grid place-items-center w-7 h-7 rounded-lg bg-primary/10 text-primary shrink-0">
+          <Icon className="w-3.5 h-3.5" />
+        </div>
+
+        <div className="flex items-center gap-1.5 min-w-0 flex-1 flex-wrap">
+          <span className="text-xs font-semibold truncate">
+            {isEn ? item.labelEn : item.labelFa}
+          </span>
+          <Badge variant="outline" className="text-[9px] px-1 py-0 font-normal text-muted-foreground">
+            {GROUP_LABELS[item.group][isEn ? "en" : "fa"]}
+          </Badge>
+        </div>
+
+        <span className="text-[10px] font-mono font-bold text-primary px-1.5 py-0.5 bg-primary/10 rounded-full shrink-0">
+          #{orderIndex}
+        </span>
+      </div>
+
+      <Switch
+        checked={true}
+        onCheckedChange={(checked) => onToggle(item.url, checked)}
+        aria-label={isEn ? `Toggle ${item.labelEn}` : `تغییر وضعیت ${item.labelFa}`}
+      />
+    </div>
+  );
+}
+
 function SidebarQuickLinksSettings({ isEn }: { isEn: boolean }) {
   const [selected, setSelected] = useState<string[]>(getSidebarQuickLinks);
   const [sidebarWidth, setWidth] = useSidebarWidth();
   const [activeGroup, setActiveGroup] = useState<"all" | SidebarQuickLinkGroup>("all");
   const [searchQuery, setSearchQuery] = useState("");
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 6,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const sync = () => {
     setSelected(getSidebarQuickLinks());
@@ -203,6 +349,23 @@ function SidebarQuickLinksSettings({ isEn }: { isEn: boolean }) {
     sync();
   };
 
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const activeUrl = String(active.id);
+    const overUrl = String(over.id);
+
+    const oldIndex = selected.indexOf(activeUrl);
+    const newIndex = selected.indexOf(overUrl);
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    const next = arrayMove(selected, oldIndex, newIndex);
+    const sanitized = ["/app/today", ...next.filter((u) => u !== "/app/today")];
+    setSidebarQuickLinks(sanitized);
+    setSelected(sanitized);
+    toast.success(isEn ? "Sidebar order updated" : "ترتیب آیکن‌های نوار کناری به‌روز شد");
+  };
+
   const handleReset = () => {
     resetSidebarQuickLinks();
     setWidth(SIDEBAR_WIDTH_PRESETS.standard);
@@ -213,8 +376,14 @@ function SidebarQuickLinksSettings({ isEn }: { isEn: boolean }) {
   // Selectable options (excluding /app/today since it is pinned)
   const selectableOptions = SIDEBAR_QUICK_LINK_OPTIONS.filter((o) => o.url !== "/app/today");
 
-  // Filtered by group and search query
-  const filteredOptions = selectableOptions.filter((item) => {
+  // Active items in custom order (excluding /app/today)
+  const activeItems = selected
+    .filter((url) => url !== "/app/today")
+    .map((url) => SIDEBAR_QUICK_LINK_OPTIONS.find((o) => o.url === url))
+    .filter((item): item is typeof SIDEBAR_QUICK_LINK_OPTIONS[number] => Boolean(item));
+
+  // Catalog items filtered by group and search query
+  const catalogItems = selectableOptions.filter((item) => {
     if (activeGroup !== "all" && item.group !== activeGroup) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
@@ -226,16 +395,6 @@ function SidebarQuickLinksSettings({ isEn }: { isEn: boolean }) {
     return true;
   });
 
-  // Sorted: items currently selected in their custom order, followed by unselected items
-  const sortedItems = [...filteredOptions].sort((a, b) => {
-    const idxA = selected.indexOf(a.url);
-    const idxB = selected.indexOf(b.url);
-    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-    if (idxA !== -1) return -1;
-    if (idxB !== -1) return 1;
-    return 0;
-  });
-
   const totalActive = selected.length;
 
   return (
@@ -244,8 +403,8 @@ function SidebarQuickLinksSettings({ isEn }: { isEn: boolean }) {
       title={isEn ? "Sidebar & Icons Settings" : "تنظیمات نوار کناری و آیکن‌ها"}
       description={
         isEn
-          ? "Configure sidebar width, choose which shortcuts appear in the collapsed icon rail, and change their order."
-          : "تنظیم عرض سایدبار در حالت باز، انتخاب میان‌برهای نمایش‌داده‌شده در حالت جمع‌شده و تغییر ترتیب آن‌ها."
+          ? "Configure sidebar width, choose which shortcuts appear in the collapsed icon rail, and change their order by dragging or tapping."
+          : "تنظیم عرض سایدبار در حالت باز، انتخاب میان‌برهای نمایش‌داده‌شده در حالت جمع‌شده و تغییر ترتیب آن‌ها با کشیدن یا کلیک."
       }
     >
       {/* 1. Sidebar Width in Expanded Mode */}
@@ -350,12 +509,12 @@ function SidebarQuickLinksSettings({ isEn }: { isEn: boolean }) {
         </div>
       </div>
 
-      {/* 3. Reorderable and Selectable Shortcuts */}
+      {/* 3. Reorderable Active Shortcuts with Drag & Drop */}
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2">
             <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              {isEn ? "Customizable Shortcuts & Order" : "میان‌برهای انتخابی و ترتیب نمایش"}
+              {isEn ? "Active Shortcuts & Order (Drag to Reorder)" : "ترتیب میان‌برهای فعال (با کشیدن جابجا کنید)"}
             </Label>
             <Badge variant="secondary" className="text-[10px] font-mono font-medium">
               {isEn ? `${totalActive} active` : `${totalActive} مورد فعال`}
@@ -372,6 +531,52 @@ function SidebarQuickLinksSettings({ isEn }: { isEn: boolean }) {
             {isEn ? "Reset Order" : "بازنشانی ترتیب"}
           </Button>
         </div>
+
+        <p className="text-[11px] text-muted-foreground bg-accent/40 px-3 py-1.5 rounded-lg border border-border/40">
+          {isEn
+            ? "💡 Drag using the ⠿ handle with mouse or hold with finger on touch screen to reorder icons in the collapsed rail."
+            : "💡 برای تغییر ترتیب، آیکن ⠿ را با ماوس بگیرید یا روی لمسی انگشت خود را روی آن نگه دارید و جابجا کنید."}
+        </p>
+
+        {/* Sortable Context for Active Items */}
+        {activeItems.length === 0 ? (
+          <div className="text-center py-4 text-xs text-muted-foreground border border-dashed rounded-xl">
+            {isEn ? "No custom shortcuts active. Enable items below." : "هیچ میان‌بر انتخابی فعالی وجود ندارد. موارد زیر را فعال کنید."}
+          </div>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={activeItems.map((i) => i.url)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2">
+                {activeItems.map((item, idx) => (
+                  <SortableShortcutItem
+                    key={item.url}
+                    item={item}
+                    orderIndex={idx + 1}
+                    isEn={isEn}
+                    canMoveUp={idx > 0}
+                    canMoveDown={idx < activeItems.length - 1}
+                    onMove={handleMove}
+                    onToggle={handleToggle}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
+      </div>
+
+      {/* 4. Catalog / Add & Remove Shortcuts */}
+      <div className="space-y-3 pt-2 border-t border-border/40">
+        <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          {isEn ? "All Available Shortcuts & Categories" : "تمام میان‌برها و دسته‌بندی‌ها"}
+        </Label>
 
         {/* Group Filter Tabs & Search */}
         <div className="space-y-2">
@@ -419,18 +624,16 @@ function SidebarQuickLinksSettings({ isEn }: { isEn: boolean }) {
           </div>
         </div>
 
-        {/* List of Items */}
-        <div className="space-y-2 max-h-[480px] overflow-y-auto pe-1">
-          {sortedItems.length === 0 ? (
+        {/* Catalog List */}
+        <div className="space-y-2 max-h-[360px] overflow-y-auto pe-1">
+          {catalogItems.length === 0 ? (
             <div className="text-center py-6 text-xs text-muted-foreground">
               {isEn ? "No items match your search." : "موردی مطابق جستجوی شما یافت نشد."}
             </div>
           ) : (
-            sortedItems.map((item) => {
+            catalogItems.map((item) => {
               const isEnabled = selected.includes(item.url);
               const orderIndex = selected.indexOf(item.url);
-              const canMoveUp = isEnabled && orderIndex > 1; // index 0 is /app/today
-              const canMoveDown = isEnabled && orderIndex < selected.length - 1;
               const Icon = QUICK_LINK_ICONS[item.url] || LayoutGrid;
 
               return (
@@ -444,32 +647,6 @@ function SidebarQuickLinksSettings({ isEn }: { isEn: boolean }) {
                   )}
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
-                    {/* Up/Down buttons for ordering */}
-                    <div className="flex items-center gap-0.5 shrink-0">
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        className="h-6 w-6 rounded-md hover:bg-accent disabled:opacity-30"
-                        disabled={!canMoveUp}
-                        onClick={() => handleMove(item.url, "up")}
-                        title={isEn ? "Move up" : "انتقال به بالا"}
-                      >
-                        <ArrowUp className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        className="h-6 w-6 rounded-md hover:bg-accent disabled:opacity-30"
-                        disabled={!canMoveDown}
-                        onClick={() => handleMove(item.url, "down")}
-                        title={isEn ? "Move down" : "انتقال به پایین"}
-                      >
-                        <ArrowDown className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-
                     <div className="grid place-items-center w-7 h-7 rounded-lg bg-primary/10 text-primary shrink-0">
                       <Icon className="w-3.5 h-3.5" />
                     </div>
