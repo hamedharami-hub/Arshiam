@@ -4,7 +4,7 @@ import {
   Target, Timer, Calendar, Plus, ChevronRight, ChevronDown, LogOut, Sparkles, Settings, LayoutGrid,
   Brain, TrendingUp, Moon, HeartPulse, Activity, MessageCircleQuestion, Zap, Clock4, Heart, ShieldAlert, BookOpen, Sun,
   ListTodo, BrainCircuit, Wrench, GripVertical, RotateCcw, User, Trash2, Shield, Users,
-  BarChart3, Sprout, Wind, Folder as FolderIcon, Compass,
+  BarChart3, Sprout, Wind, Folder as FolderIcon, Compass, PanelLeft, PanelRight,
 } from "lucide-react";
 import { StreakCard } from "@/components/StreakCard";
 import {
@@ -306,7 +306,7 @@ function TagRow({ tag: tagItem, collapsed, onLongPress, onNav }: {
 }
 
 export function AppSidebar() {
-  const { state, isMobile, setOpenMobile } = useSidebar();
+  const { state, isMobile, setOpenMobile, toggleSidebar } = useSidebar();
   const { sidebarPosition } = useSidebarPosition();
   const collapsed = state === "collapsed" && !isMobile;
   const { signOut, user } = useAuth();
@@ -840,15 +840,31 @@ export function AppSidebar() {
   return (
     <Sidebar side={sidebarPosition} collapsible="icon">
       <SidebarRail />
-      <SidebarHeader className="border-b">
-        <div className="flex items-center gap-2 px-2 py-1">
+      <SidebarHeader className="border-b p-2">
+        <div className="flex items-center gap-2 px-1 py-1">
           <img src="/favicon.png" alt="ARSHNAZ" className="w-8 h-8 rounded-lg shrink-0" loading="lazy" width={32} height={32} />
-          {!collapsed && (
-            <div className="flex flex-col leading-tight">
-              <span className="font-bold text-base bg-gradient-to-l from-pink-500 via-purple-500 to-blue-500 bg-clip-text text-transparent">ARSHNAZ</span>
-              <span className="text-[9px] text-muted-foreground">{t("app.tagline")}</span>
-            </div>
-          )}
+          {!collapsed ? (
+            <>
+              <div className="flex flex-col leading-tight min-w-0 flex-1">
+                <span className="font-bold text-base bg-gradient-to-l from-pink-500 via-purple-500 to-blue-500 bg-clip-text text-transparent truncate">ARSHNAZ</span>
+                <span className="text-[9px] text-muted-foreground truncate">{t("app.tagline")}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 rounded-lg hover:bg-sidebar-accent cursor-pointer shrink-0"
+                onClick={() => toggleSidebar()}
+                title={isEn ? "Collapse sidebar" : "بستن نوار کناری"}
+              >
+                {sidebarPosition === "left" ? (
+                  <PanelLeft className="w-4 h-4 text-muted-foreground" />
+                ) : (
+                  <PanelRight className="w-4 h-4 text-muted-foreground" />
+                )}
+                <span className="sr-only">{isEn ? "Collapse" : "بستن"}</span>
+              </Button>
+            </>
+          ) : null}
         </div>
       </SidebarHeader>
 
@@ -858,21 +874,184 @@ export function AppSidebar() {
           <SidebarGroup>
             <SidebarGroupContent>
               <SidebarMenu>
-                {quickLinks.map((url) => {
-                  const item = NAV_ITEMS.find((candidate) => candidate.url === url);
-                  if (!item) return null;
-                  const Icon = item.icon;
-                  return (
-                    <SidebarMenuItem key={item.url}>
-                      <SidebarMenuButton asChild tooltip={tr(item.label)} className="justify-center h-9 w-9 mx-auto rounded-xl">
-                        <NavLink to={item.url} onClick={closeOnMobile} className="flex items-center justify-center w-full h-full" activeClassName="bg-accent text-accent-foreground font-bold">
-                          <Icon className="w-4 h-4 shrink-0" />
-                          <span className="sr-only">{tr(item.label)}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
+                {/* 1. Menu Toggle Button (Pinned) */}
+                <SidebarMenuItem key="sidebar-toggle-menu">
+                  <SidebarMenuButton
+                    onClick={() => toggleSidebar()}
+                    tooltip={isEn ? "Menu (Open sidebar)" : "منو (باز کردن نوار کناری)"}
+                    className="justify-center h-9 w-9 mx-auto rounded-xl hover:bg-sidebar-accent cursor-pointer text-foreground"
+                  >
+                    {sidebarPosition === "left" ? (
+                      <PanelLeft className="w-4 h-4 shrink-0 text-primary" />
+                    ) : (
+                      <PanelRight className="w-4 h-4 shrink-0 text-primary" />
+                    )}
+                    <span className="sr-only">{isEn ? "Menu" : "منو"}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* 2. Today (Pinned) */}
+                <SidebarMenuItem key="/app/today">
+                  <SidebarMenuButton asChild tooltip={tr("امروز")} className="justify-center h-9 w-9 mx-auto rounded-xl">
+                    <NavLink
+                      to="/app/today"
+                      onClick={closeOnMobile}
+                      className="flex items-center justify-center w-full h-full"
+                      activeClassName="bg-accent text-accent-foreground font-bold"
+                    >
+                      <CalendarDays className="w-4 h-4 shrink-0 text-primary" />
+                      <span className="sr-only">{tr("امروز")}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* 3. Configured shortcuts (excluding /app/today since it's already pinned above) */}
+                {quickLinks
+                  .filter((url) => url !== "/app/today")
+                  .map((url) => {
+                    if (url === "__folders") {
+                      return (
+                        <SidebarMenuItem key="__folders">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <SidebarMenuButton
+                                tooltip={tr("فولدرها")}
+                                className="justify-center h-9 w-9 mx-auto rounded-xl hover:bg-sidebar-accent cursor-pointer"
+                              >
+                                <FolderTree className="w-4 h-4 shrink-0 text-primary" />
+                                <span className="sr-only">{tr("فولدرها")}</span>
+                              </SidebarMenuButton>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              side={sidebarPosition === "left" ? "right" : "left"}
+                              align="start"
+                              sideOffset={14}
+                              className="w-64 p-2 shadow-2xl rounded-2xl border bg-card/95 backdrop-blur-xl z-50"
+                            >
+                              <div className="flex items-center justify-between pb-2 mb-1.5 border-b px-1">
+                                <div className="flex items-center gap-2 font-bold text-xs text-foreground">
+                                  <FolderTree className="w-4 h-4 text-primary" />
+                                  <span>{tr("فولدرها")}</span>
+                                  <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full font-mono">
+                                    {folders.length}
+                                  </span>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 rounded-md hover:bg-accent cursor-pointer"
+                                  onClick={() => setOpenFolderDlg(true)}
+                                  title={isEn ? "New Folder" : "فولدر جدید"}
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                              <div className="max-h-72 overflow-y-auto space-y-1">
+                                {folders.length === 0 ? (
+                                  <p className="text-xs text-muted-foreground text-center py-4">
+                                    {isEn ? "No folders yet" : "هنوز فولدری ساخته نشده"}
+                                  </p>
+                                ) : (
+                                  folders.map((f) => (
+                                    <NavLink
+                                      key={f.id}
+                                      to={`/app/folder/${f.id}`}
+                                      className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs hover:bg-accent transition-colors text-foreground"
+                                      activeClassName="bg-primary/10 text-primary font-bold"
+                                      onClick={closeOnMobile}
+                                    >
+                                      <FolderIcon
+                                        className="w-4 h-4 shrink-0"
+                                        style={{ color: f.color || "hsl(var(--primary))" }}
+                                      />
+                                      <span className="truncate flex-1 text-start font-medium">{f.name}</span>
+                                    </NavLink>
+                                  ))
+                                )}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </SidebarMenuItem>
+                      );
+                    }
+
+                    if (url === "__tags") {
+                      return (
+                        <SidebarMenuItem key="__tags">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <SidebarMenuButton
+                                tooltip={tr("تگ‌ها")}
+                                className="justify-center h-9 w-9 mx-auto rounded-xl hover:bg-sidebar-accent cursor-pointer"
+                              >
+                                <Tag className="w-4 h-4 shrink-0 text-muted-foreground" />
+                                <span className="sr-only">{tr("تگ‌ها")}</span>
+                              </SidebarMenuButton>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              side={sidebarPosition === "left" ? "right" : "left"}
+                              align="start"
+                              sideOffset={14}
+                              className="w-56 p-2 shadow-2xl rounded-2xl border bg-card/95 backdrop-blur-xl z-50"
+                            >
+                              <div className="flex items-center justify-between pb-2 mb-1.5 border-b px-1">
+                                <div className="flex items-center gap-2 font-bold text-xs text-foreground">
+                                  <Tag className="w-3.5 h-3.5 text-primary" />
+                                  <span>{tr("تگ‌ها")}</span>
+                                  <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full font-mono">
+                                    {tags.length}
+                                  </span>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 rounded-md hover:bg-accent cursor-pointer"
+                                  onClick={() => setOpenTagDlg(true)}
+                                  title={isEn ? "New Tag" : "تگ جدید"}
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                              <div className="max-h-64 overflow-y-auto space-y-1">
+                                {tags.length === 0 ? (
+                                  <p className="text-xs text-muted-foreground text-center py-4">
+                                    {isEn ? "No tags yet" : "هنوز تگی ساخته نشده"}
+                                  </p>
+                                ) : (
+                                  tags.map((t) => (
+                                    <NavLink
+                                      key={t.id}
+                                      to={`/app/tag/${t.id}`}
+                                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs hover:bg-accent transition-colors"
+                                      activeClassName="bg-primary/10 text-primary font-bold"
+                                      onClick={closeOnMobile}
+                                    >
+                                      <Tag className="w-3.5 h-3.5 shrink-0" style={{ color: t.color }} />
+                                      <span className="truncate flex-1 text-start font-medium">{t.name}</span>
+                                    </NavLink>
+                                  ))
+                                )}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </SidebarMenuItem>
+                      );
+                    }
+
+                    const item = NAV_ITEMS.find((candidate) => candidate.url === url);
+                    if (!item) return null;
+                    const Icon = item.icon;
+                    return (
+                      <SidebarMenuItem key={item.url}>
+                        <SidebarMenuButton asChild tooltip={tr(item.label)} className="justify-center h-9 w-9 mx-auto rounded-xl">
+                          <NavLink to={item.url} onClick={closeOnMobile} className="flex items-center justify-center w-full h-full" activeClassName="bg-accent text-accent-foreground font-bold">
+                            <Icon className="w-4 h-4 shrink-0" />
+                            <span className="sr-only">{tr(item.label)}</span>
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

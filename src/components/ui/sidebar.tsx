@@ -14,6 +14,12 @@ import { haptic } from "@/lib/haptics";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getSidebarPosition, type SidebarPosition } from "@/lib/sidebarPosition";
+import {
+  getSidebarWidth,
+  setSidebarWidth,
+  SIDEBAR_WIDTH_EVENT,
+  SIDEBAR_STORAGE_WIDTH_KEY,
+} from "@/lib/sidebarWidth";
 
 const SIDEBAR_COOKIE_NAME = "sidebar:state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -21,7 +27,6 @@ const SIDEBAR_WIDTH = "16rem";
 const SIDEBAR_WIDTH_MOBILE = "24rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
-const SIDEBAR_STORAGE_WIDTH_KEY = "arshnaz_sidebar_width";
 
 type SidebarContext = {
   state: "expanded" | "collapsed";
@@ -83,23 +88,22 @@ const SidebarProvider = React.forwardRef<
   const side = sideProp ?? getSidebarPosition();
 
   // Custom persistent width on desktop / wide screens
-  const [width, setWidthState] = React.useState<number>(() => {
-    if (typeof window === "undefined") return 260;
-    try {
-      const saved = localStorage.getItem(SIDEBAR_STORAGE_WIDTH_KEY);
-      const val = saved ? parseInt(saved, 10) : 260;
-      return isNaN(val) || val < 160 || val > 600 ? 260 : val;
-    } catch {
-      return 260;
-    }
-  });
+  const [width, setWidthState] = React.useState<number>(getSidebarWidth);
   const [isResizing, setIsResizing] = React.useState(false);
 
   const setWidth = React.useCallback((w: number) => {
     setWidthState(w);
-    try {
-      localStorage.setItem(SIDEBAR_STORAGE_WIDTH_KEY, String(w));
-    } catch {}
+    setSidebarWidth(w);
+  }, []);
+
+  React.useEffect(() => {
+    const handleWidthChange = (e: CustomEvent<number>) => {
+      if (typeof e.detail === "number" && !isNaN(e.detail)) {
+        setWidthState(e.detail);
+      }
+    };
+    window.addEventListener(SIDEBAR_WIDTH_EVENT as any, handleWidthChange);
+    return () => window.removeEventListener(SIDEBAR_WIDTH_EVENT as any, handleWidthChange);
   }, []);
 
   // Helper to toggle the sidebar.

@@ -33,7 +33,7 @@ export async function callAI(
   context?: string,
   action?: string,
   langOverride?: AILanguage,
-  opts?: { webSearch?: boolean },
+  opts?: { webSearch?: boolean; systemPromptOverride?: string; signal?: AbortSignal },
 ) {
   const lang = langOverride ?? getAILanguage();
   const settings = getAISettings(mode);
@@ -86,7 +86,7 @@ export async function callAI(
     const geminiKey = settings.apiKey || getGeminiApiKey();
     if (geminiKey) {
       try {
-        const systemPrompt = GEMINI_SYSTEM_PROMPTS[mode] || GEMINI_SYSTEM_PROMPTS.chat;
+        const systemPrompt = opts?.systemPromptOverride || GEMINI_SYSTEM_PROMPTS[mode] || GEMINI_SYSTEM_PROMPTS.chat;
         let promptText = typeof input === "string" ? input : JSON.stringify(input);
         if (context) promptText = `زمینه (Context):\n${context}\n\nورودی:\n${promptText}`;
         if (action) promptText = `دستور (Action): ${action}\n\n${promptText}`;
@@ -95,6 +95,7 @@ export async function callAI(
           systemPrompt,
           model: settings?.model || "gemini-2.5-flash",
           apiKey: geminiKey,
+          signal: opts?.signal,
         });
         return sanitizeAIResult(mode, res);
       } catch (directErr: any) {
@@ -105,7 +106,19 @@ export async function callAI(
 
   // 2. firebaseStore Edge Function fallback
   const { data, error } = await firebaseStore.functions.invoke("ai-assistant", {
-    body: { mode, input, context, settings, action, language, mhProfile, aboutMe, webSearch: opts?.webSearch === true, timezone },
+    body: {
+      mode,
+      input,
+      context,
+      settings,
+      action,
+      language,
+      mhProfile,
+      aboutMe,
+      webSearch: opts?.webSearch === true,
+      timezone,
+      systemPrompt: opts?.systemPromptOverride,
+    },
   });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);

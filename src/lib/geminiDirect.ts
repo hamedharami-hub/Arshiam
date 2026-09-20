@@ -73,6 +73,7 @@ export async function callDirectGemini(options: {
   model?: string;
   apiKey?: string;
   temperature?: number;
+  signal?: AbortSignal;
 }): Promise<{ text: string; data?: any }> {
   const apiKey = options.apiKey || getGeminiApiKey();
   if (!apiKey) {
@@ -104,6 +105,7 @@ export async function callDirectGemini(options: {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    signal: options.signal,
   });
 
   if (!resp.ok) {

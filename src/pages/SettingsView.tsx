@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Save, Trash2, Languages, Download, ShieldOff, Settings2, Bell, Moon, Palette, Type, ZoomIn, LayoutGrid, Heart, Coffee, Star, Wand2, RotateCw, Sun, Upload, CheckCircle2, AlertCircle, Clock, Zap, Cpu, Eye, EyeOff, RefreshCw, Package, Database, Info, Compass } from "lucide-react";
+import { Sparkles, Save, Trash2, Languages, Download, ShieldOff, Settings2, Bell, Moon, Palette, Type, ZoomIn, LayoutGrid, Heart, Coffee, Star, Wand2, RotateCw, Sun, Upload, CheckCircle2, AlertCircle, Clock, Zap, Cpu, Eye, EyeOff, RefreshCw, Package, Database, Info, Compass, ArrowUp, ArrowDown, Pin, Sliders, PanelLeft, CalendarDays, FolderTree, Tag, Inbox, Calendar, Filter, Timer, BarChart3, Sprout, Target, FileText, BrainCircuit, Activity, BookOpen, MessageCircleQuestion, Wind, User, Users, Search } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { applyFontSize, applyUIScale, type FontSize } from "@/lib/uiScale";
@@ -34,7 +34,22 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ALL_BUCKET_KINDS, getEnabledBuckets, setEnabledBuckets, kindLabel, type BucketKind } from "@/lib/timeBuckets";
 import { getCalendarSystem, setCalendarSystem, type CalendarSystem } from "@/lib/jalali";
 import { getSidebarPosition, setSidebarPosition, type SidebarPosition } from "@/lib/sidebarPosition";
-import { getSidebarQuickLinks, setSidebarQuickLinks, SIDEBAR_QUICK_LINK_OPTIONS } from "@/lib/sidebarQuickLinks";
+import {
+  getSidebarQuickLinks,
+  setSidebarQuickLinks,
+  toggleSidebarQuickLink,
+  moveSidebarQuickLink,
+  resetSidebarQuickLinks,
+  SIDEBAR_QUICK_LINK_OPTIONS,
+  GROUP_LABELS,
+  type SidebarQuickLinkGroup,
+} from "@/lib/sidebarQuickLinks";
+import {
+  useSidebarWidth,
+  SIDEBAR_WIDTH_PRESETS,
+  SIDEBAR_MIN_WIDTH,
+  SIDEBAR_MAX_WIDTH,
+} from "@/lib/sidebarWidth";
 import { useTheme } from "next-themes";
 import { applyTheme, getBaseTheme } from "@/lib/theme";
 import { TaskDefaultSettings } from "@/components/TaskDefaultSettings";
@@ -139,33 +154,352 @@ function TimeBucketsSettings() {
   );
 }
 
+const QUICK_LINK_ICONS: Record<string, any> = {
+  "/app/today": CalendarDays,
+  "__folders": FolderTree,
+  "__tags": Tag,
+  "/app/inbox": Inbox,
+  "/app/tomorrow": Sun,
+  "/app/next7": CalendarDays,
+  "/app/calendar": Calendar,
+  "/app/widgets": LayoutGrid,
+  "/app/buckets": Clock,
+  "/app/smart": Filter,
+  "/app/pomodoro": Timer,
+  "/app/stats": BarChart3,
+  "/app/life-architect": Compass,
+  "/app/garden": Sprout,
+  "/app/habits": Target,
+  "/app/notes": FileText,
+  "/app/cycle": Calendar,
+  "/app/mind": BrainCircuit,
+  "/app/checkin": Activity,
+  "/app/thoughts": BookOpen,
+  "/app/abc": Zap,
+  "/app/socratic": MessageCircleQuestion,
+  "/app/breathing": Wind,
+  "/app/about-me": User,
+  "/app/self": Sparkles,
+  "/app/shared": Users,
+};
+
 function SidebarQuickLinksSettings({ isEn }: { isEn: boolean }) {
   const [selected, setSelected] = useState<string[]>(getSidebarQuickLinks);
+  const [sidebarWidth, setWidth] = useSidebarWidth();
+  const [activeGroup, setActiveGroup] = useState<"all" | SidebarQuickLinkGroup>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const update = (url: string, enabled: boolean) => {
-    const next = enabled ? [...selected, url] : selected.filter((item) => item !== url);
-    setSelected(next);
-    setSidebarQuickLinks(next);
+  const sync = () => {
+    setSelected(getSidebarQuickLinks());
   };
+
+  const handleToggle = (url: string, enabled: boolean) => {
+    toggleSidebarQuickLink(url, enabled);
+    sync();
+  };
+
+  const handleMove = (url: string, dir: "up" | "down") => {
+    moveSidebarQuickLink(url, dir);
+    sync();
+  };
+
+  const handleReset = () => {
+    resetSidebarQuickLinks();
+    setWidth(SIDEBAR_WIDTH_PRESETS.standard);
+    sync();
+    toast.success(isEn ? "Sidebar settings reset to default" : "تنظیمات نوار کناری به حالت پیش‌فرض بازگشت");
+  };
+
+  // Selectable options (excluding /app/today since it is pinned)
+  const selectableOptions = SIDEBAR_QUICK_LINK_OPTIONS.filter((o) => o.url !== "/app/today");
+
+  // Filtered by group and search query
+  const filteredOptions = selectableOptions.filter((item) => {
+    if (activeGroup !== "all" && item.group !== activeGroup) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const matchFa = item.labelFa.toLowerCase().includes(q);
+      const matchEn = item.labelEn.toLowerCase().includes(q);
+      const matchUrl = item.url.toLowerCase().includes(q);
+      return matchFa || matchEn || matchUrl;
+    }
+    return true;
+  });
+
+  // Sorted: items currently selected in their custom order, followed by unselected items
+  const sortedItems = [...filteredOptions].sort((a, b) => {
+    const idxA = selected.indexOf(a.url);
+    const idxB = selected.indexOf(b.url);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return 0;
+  });
+
+  const totalActive = selected.length;
 
   return (
     <SectionCard
-      icon={LayoutGrid}
-      title={isEn ? "Compact sidebar icons" : "آیکن‌های سایدبار جمع‌شده"}
-      description={isEn ? "Choose the shortcuts shown when the desktop sidebar is reduced to icons. Today and Settings always remain available." : "انتخاب کن در حالت آیکنی سایدبار دسکتاپ چه میان‌برهایی نمایش داده شوند. امروز و تنظیمات همیشه در دسترس‌اند."}
+      icon={Sliders}
+      title={isEn ? "Sidebar & Icons Settings" : "تنظیمات نوار کناری و آیکن‌ها"}
+      description={
+        isEn
+          ? "Configure sidebar width, choose which shortcuts appear in the collapsed icon rail, and change their order."
+          : "تنظیم عرض سایدبار در حالت باز، انتخاب میان‌برهای نمایش‌داده‌شده در حالت جمع‌شده و تغییر ترتیب آن‌ها."
+      }
     >
+      {/* 1. Sidebar Width in Expanded Mode */}
+      <div className="space-y-3 p-3.5 rounded-xl border border-border/60 bg-card/40">
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label className="text-sm font-semibold flex items-center gap-1.5">
+              <PanelLeft className="w-4 h-4 text-primary" />
+              {isEn ? "Sidebar Width (Expanded Mode)" : "عرض سایدبار (در حالت باز)"}
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              {isEn
+                ? "Adjust width of the expanded sidebar alongside content."
+                : "تنظیم عرض سایدبار وقتی باز است تا فضای میانی صفحه متناسب باشد."}
+            </p>
+          </div>
+          <span className="font-mono text-xs font-bold px-2 py-1 bg-primary/10 text-primary rounded-lg">
+            {sidebarWidth} px
+          </span>
+        </div>
+
+        <div className="pt-2">
+          <Slider
+            value={[sidebarWidth]}
+            min={SIDEBAR_MIN_WIDTH}
+            max={SIDEBAR_MAX_WIDTH}
+            step={10}
+            onValueChange={([val]) => setWidth(val)}
+            className="w-full"
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-2 pt-1">
+          <Button
+            type="button"
+            size="sm"
+            variant={sidebarWidth === SIDEBAR_WIDTH_PRESETS.narrow ? "default" : "outline"}
+            className="h-7 text-xs rounded-lg"
+            onClick={() => setWidth(SIDEBAR_WIDTH_PRESETS.narrow)}
+          >
+            {isEn ? "Narrow (220px)" : "باریک (۲۲۰px)"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={sidebarWidth === SIDEBAR_WIDTH_PRESETS.standard ? "default" : "outline"}
+            className="h-7 text-xs rounded-lg"
+            onClick={() => setWidth(SIDEBAR_WIDTH_PRESETS.standard)}
+          >
+            {isEn ? "Standard (260px)" : "استاندارد (۲۶۰px)"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={sidebarWidth === SIDEBAR_WIDTH_PRESETS.wide ? "default" : "outline"}
+            className="h-7 text-xs rounded-lg"
+            onClick={() => setWidth(SIDEBAR_WIDTH_PRESETS.wide)}
+          >
+            {isEn ? "Wide (340px)" : "عریض (۳۴۰px)"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={sidebarWidth === SIDEBAR_WIDTH_PRESETS.extraWide ? "default" : "outline"}
+            className="h-7 text-xs rounded-lg"
+            onClick={() => setWidth(SIDEBAR_WIDTH_PRESETS.extraWide)}
+          >
+            {isEn ? "Extra Wide (420px)" : "خیلی عریض (۴۲۰px)"}
+          </Button>
+        </div>
+      </div>
+
+      {/* 2. Pinned Items Info */}
       <div className="space-y-2">
-        {SIDEBAR_QUICK_LINK_OPTIONS.map((item) => (
-          <div key={item.url} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-card/40 px-3 py-2.5">
-            <div className="text-sm">{isEn ? item.labelEn : item.labelFa}</div>
-            <Switch
-              checked={item.required || selected.includes(item.url)}
-              disabled={item.required}
-              onCheckedChange={(enabled) => update(item.url, enabled)}
-              aria-label={isEn ? `Show ${item.labelEn}` : `نمایش ${item.labelFa}`}
+        <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+          <Pin className="w-3.5 h-3.5 text-primary" />
+          {isEn ? "Pinned Items (Always visible at top)" : "آیکن‌های ثابت (همیشه در بالا)"}
+        </Label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-primary/20 bg-primary/5">
+            <div className="flex items-center gap-2">
+              <PanelLeft className="w-4 h-4 text-primary" />
+              <div className="text-xs font-semibold text-foreground">
+                {isEn ? "Menu (Toggle Sidebar)" : "منو (باز و بسته کردن نوار کناری)"}
+              </div>
+            </div>
+            <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary border-primary/20">
+              {isEn ? "Pinned" : "ثابت"}
+            </Badge>
+          </div>
+          <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-primary/20 bg-primary/5">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="w-4 h-4 text-primary" />
+              <div className="text-xs font-semibold text-foreground">
+                {isEn ? "Today" : "امروز"}
+              </div>
+            </div>
+            <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary border-primary/20">
+              {isEn ? "Pinned" : "ثابت"}
+            </Badge>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Reorderable and Selectable Shortcuts */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              {isEn ? "Customizable Shortcuts & Order" : "میان‌برهای انتخابی و ترتیب نمایش"}
+            </Label>
+            <Badge variant="secondary" className="text-[10px] font-mono font-medium">
+              {isEn ? `${totalActive} active` : `${totalActive} مورد فعال`}
+            </Badge>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1"
+            onClick={handleReset}
+          >
+            <RotateCw className="w-3 h-3" />
+            {isEn ? "Reset Order" : "بازنشانی ترتیب"}
+          </Button>
+        </div>
+
+        {/* Group Filter Tabs & Search */}
+        <div className="space-y-2">
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 absolute start-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={isEn ? "Search items (e.g. folders, tags, notes)..." : "جستجوی موارد (مانند فولدرها، تگ‌ها، نوت‌ها)..."}
+              className="ps-8 h-8 text-xs bg-card/60"
             />
           </div>
-        ))}
+
+          <div className="flex flex-wrap gap-1">
+            {(
+              [
+                { key: "all", labelFa: "همه", labelEn: "All" },
+                { key: "core", labelFa: GROUP_LABELS.core.fa, labelEn: GROUP_LABELS.core.en },
+                { key: "do", labelFa: GROUP_LABELS.do.fa, labelEn: GROUP_LABELS.do.en },
+                { key: "grow", labelFa: GROUP_LABELS.grow.fa, labelEn: GROUP_LABELS.grow.en },
+                { key: "mind", labelFa: GROUP_LABELS.mind.fa, labelEn: GROUP_LABELS.mind.en },
+                { key: "me", labelFa: GROUP_LABELS.me.fa, labelEn: GROUP_LABELS.me.en },
+              ] as const
+            ).map((grp) => {
+              const count = grp.key === "all"
+                ? selectableOptions.filter((o) => selected.includes(o.url)).length
+                : selectableOptions.filter((o) => o.group === grp.key && selected.includes(o.url)).length;
+              const isCurrent = activeGroup === grp.key;
+              return (
+                <Button
+                  key={grp.key}
+                  type="button"
+                  size="sm"
+                  variant={isCurrent ? "default" : "outline"}
+                  className="h-6 text-[11px] px-2 rounded-lg gap-1"
+                  onClick={() => setActiveGroup(grp.key)}
+                >
+                  <span>{isEn ? grp.labelEn : grp.labelFa}</span>
+                  <span className={cn("text-[9px] px-1 rounded-full", isCurrent ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground")}>
+                    {count}
+                  </span>
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* List of Items */}
+        <div className="space-y-2 max-h-[480px] overflow-y-auto pe-1">
+          {sortedItems.length === 0 ? (
+            <div className="text-center py-6 text-xs text-muted-foreground">
+              {isEn ? "No items match your search." : "موردی مطابق جستجوی شما یافت نشد."}
+            </div>
+          ) : (
+            sortedItems.map((item) => {
+              const isEnabled = selected.includes(item.url);
+              const orderIndex = selected.indexOf(item.url);
+              const canMoveUp = isEnabled && orderIndex > 1; // index 0 is /app/today
+              const canMoveDown = isEnabled && orderIndex < selected.length - 1;
+              const Icon = QUICK_LINK_ICONS[item.url] || LayoutGrid;
+
+              return (
+                <div
+                  key={item.url}
+                  className={cn(
+                    "flex items-center justify-between gap-2 rounded-xl border p-2.5 transition-colors",
+                    isEnabled
+                      ? "border-border/80 bg-card/60"
+                      : "border-border/30 bg-muted/20 opacity-60"
+                  )}
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    {/* Up/Down buttons for ordering */}
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6 rounded-md hover:bg-accent disabled:opacity-30"
+                        disabled={!canMoveUp}
+                        onClick={() => handleMove(item.url, "up")}
+                        title={isEn ? "Move up" : "انتقال به بالا"}
+                      >
+                        <ArrowUp className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6 rounded-md hover:bg-accent disabled:opacity-30"
+                        disabled={!canMoveDown}
+                        onClick={() => handleMove(item.url, "down")}
+                        title={isEn ? "Move down" : "انتقال به پایین"}
+                      >
+                        <ArrowDown className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+
+                    <div className="grid place-items-center w-7 h-7 rounded-lg bg-primary/10 text-primary shrink-0">
+                      <Icon className="w-3.5 h-3.5" />
+                    </div>
+
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1 flex-wrap">
+                      <span className="text-xs font-semibold truncate">
+                        {isEn ? item.labelEn : item.labelFa}
+                      </span>
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 font-normal text-muted-foreground">
+                        {GROUP_LABELS[item.group][isEn ? "en" : "fa"]}
+                      </Badge>
+                    </div>
+
+                    {isEnabled && (
+                      <span className="text-[10px] font-mono font-bold text-primary px-1.5 py-0.5 bg-primary/10 rounded-full shrink-0">
+                        #{orderIndex}
+                      </span>
+                    )}
+                  </div>
+
+                  <Switch
+                    checked={isEnabled}
+                    onCheckedChange={(checked) => handleToggle(item.url, checked)}
+                    aria-label={isEn ? `Toggle ${item.labelEn}` : `تغییر وضعیت ${item.labelFa}`}
+                  />
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
     </SectionCard>
   );
