@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,8 +14,10 @@ import {
   ListPlus,
   Loader2,
   Download,
+  ShieldAlert,
 } from "lucide-react";
 import { detectCrisis } from "@/lib/crisisDetection";
+import { resolveSupportRegion } from "@/lib/crisisResources";
 import { useBilingual } from "@/hooks/useBilingual";
 import { useAuth } from "@/hooks/useAuth";
 import { createTaskFromMind } from "@/lib/taskFromMind";
@@ -49,6 +52,7 @@ export default function SocraticView() {
   const [summary, setSummary] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
   const [migrated, setMigrated] = useState(false);
+  const [crisisInterrupted, setCrisisInterrupted] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const draftTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -163,9 +167,22 @@ export default function SocraticView() {
     const text = input.trim();
 
     if (detectCrisis(text)) {
-      const crisisWarning = isEn
-        ? "What you shared is important. Please connect with a mental health professional or call your local crisis helpline (e.g. 988 or 123)."
-        : "این چیزی که گفتی مهمه. لطفاً با یک متخصص سلامت روان یا اورژانس اجتماعی (۱۲۳ / ۱۴۸۰) تماس بگیر.";
+      setCrisisInterrupted(true);
+      const region = resolveSupportRegion(isEn ? "en" : "fa");
+      let crisisWarning = "";
+      if (region === "au") {
+        crisisWarning = isEn
+          ? "What you shared is very important and you do not have to carry this alone. Please connect with free, 24/7 crisis support: Lifeline Australia on 13 11 14, or call Triple Zero (000) if you are in immediate danger."
+          : "این چیزی که گفتی بسیار مهمه و تنها نیستی. لطفاً بلافاصله با خطوط حمایتی رایگان تماس بگیر: لایف‌لاین استرالیا (13 11 14) یا در صورت خطر فوری با اورژانس (000).";
+      } else if (region === "ir") {
+        crisisWarning = isEn
+          ? "What you shared is very important and you do not have to carry this alone. Please reach out to social emergency services (123), welfare counseling (1480), or medical emergency (115) immediately."
+          : "این چیزی که گفتی بسیار مهمه و تنها نیستی. لطفاً بلافاصله با خطوط حمایتی تماس بگیر: اورژانس اجتماعی (۱۲۳)، صدای مشاور بهزیستی (۱۴۸۰)، یا در شرایط خطر فوری با اورژانس (۱۱۵).";
+      } else {
+        crisisWarning = isEn
+          ? "What you shared is very important and you do not have to carry this alone. Please connect with free, confidential crisis support right away: 988 Suicide & Crisis Lifeline, or emergency services (911 / 112)."
+          : "این چیزی که گفتی بسیار مهمه و تنها نیستی. لطفاً بلافاصله با خطوط حمایتی و اورژانس محلی خود تماس بگیر (۹۸۸ یا ۱۱۲).";
+      }
       const updated: SocraticMessageItem[] = [
         ...messages,
         { role: "user", content: text, timestamp: new Date().toISOString(), provenance: "user_report" },
@@ -436,6 +453,30 @@ export default function SocraticView() {
           </div>
         )}
       </div>
+
+      {/* Crisis Interruption Banner */}
+      {crisisInterrupted && (
+        <div
+          className="p-3.5 rounded-xl border-2 border-rose-500/70 bg-rose-500/10 flex items-center justify-between gap-3 shrink-0 animate-fade-in shadow-xs"
+          data-testid="socratic-crisis-banner"
+        >
+          <div className="flex items-center gap-2 text-xs font-semibold text-rose-700 dark:text-rose-300">
+            <ShieldAlert className="w-4 h-4 shrink-0 text-rose-600" />
+            <span>
+              {T(
+                "پشتیبانی فوری و خطوط امداد بحران در دسترس است. تنها نیستی.",
+                "Immediate crisis support and emergency helplines are available. You are not alone."
+              )}
+            </span>
+          </div>
+          <Button asChild size="sm" variant="destructive" className="h-8 text-xs shrink-0 font-bold gap-1 shadow-xs">
+            <Link to="/app/crisis">
+              <ShieldAlert className="w-3.5 h-3.5" />
+              <span>{T("مشاهده خطوط بحران (SOS)", "Open Crisis Page (SOS)")}</span>
+            </Link>
+          </Button>
+        </div>
+      )}
 
       {/* Input Field */}
       <div className="flex gap-2 shrink-0 pt-1">

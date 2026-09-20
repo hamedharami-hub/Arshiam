@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   Sparkles,
   ShieldCheck,
+  ShieldAlert,
   Loader2,
   Eye,
 } from "lucide-react";
@@ -559,7 +560,15 @@ export default function MindView() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            <Link
+              to="/app/crisis"
+              className="inline-flex items-center gap-1.5 border border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300 font-medium rounded-xl px-3 py-1.5 text-xs hover:bg-rose-500/20 transition shadow-xs"
+              data-testid="mind-crisis-link"
+            >
+              <ShieldAlert className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+              <span>{T("پشتیبانی بحران (SOS)", "Crisis Support (SOS)")}</span>
+            </Link>
             {isToday && today ? (
               <div className="flex items-center gap-2 text-xs bg-muted/60 px-3 py-1.5 rounded-full border border-border/60">
                 <span className="flex items-center gap-1 text-rose-500 font-medium">

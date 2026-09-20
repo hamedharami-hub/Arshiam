@@ -1,6 +1,13 @@
 // Hard-stop trigger phrases for crisis intervention.
 // \b word boundaries don't work reliably with Persian script; we rely on
 // substring/whitespace patterns instead.
+import {
+  getCrisisResources,
+  resolveSupportRegion,
+  type CrisisResource,
+  type SupportRegion,
+} from "./crisisResources";
+
 const HARD_STOPS = [
   /خودکشی/i,
   /خودآزار/i,
@@ -20,15 +27,25 @@ export function detectCrisis(text: string): boolean {
   return HARD_STOPS.some((rx) => rx.test(text));
 }
 
+// Backwards-compatible legacy exports with clean dialable phone strings
 export const CRISIS_RESOURCES = {
   fa: [
     { label: "اورژانس اجتماعی", phone: "123" },
     { label: "خط مشاوره بهزیستی", phone: "1480" },
-    { label: "اورژانس", phone: "115" },
+    { label: "اورژانس پزشکی", phone: "115" },
+    { label: "پلیس", phone: "110" },
   ],
   en: [
-    { label: "Emergency Services", phone: "911 / 112" },
-    { label: "Suicide & Crisis Lifeline (US/CA)", phone: "988" },
-    { label: "Crisis Text Line", phone: "Text HOME to 741741" },
+    { label: "Emergency Services (Triple Zero)", phone: "000" },
+    { label: "Lifeline Australia (24/7 Crisis Support)", phone: "131114" },
+    { label: "Beyond Blue (Mental Health Support)", phone: "1300224636" },
+    { label: "Suicide Call Back Service", phone: "1300659467" },
   ],
+};
+
+export {
+  getCrisisResources,
+  resolveSupportRegion,
+  type CrisisResource,
+  type SupportRegion,
 };

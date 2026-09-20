@@ -74,6 +74,7 @@ const ScreenerView = lazy(() => import("./pages/ScreenerView"));
 const ValuesGoalsView = lazy(() => import("./pages/ValuesGoalsView"));
 const WorryView = lazy(() => import("./pages/WorryView"));
 const CycleView = lazy(() => import("./pages/CycleView"));
+const CrisisView = lazy(() => import("./pages/CrisisView"));
 
 const NewTaskView = lazy(() => import("./pages/NewTaskView"));
 const NewNoteView = lazy(() => import("./pages/NewNoteView"));
@@ -223,6 +224,8 @@ const App = () => {
                     <Route path="/life-architect" element={<Navigate to="/app/life-architect" replace />} />
                     <Route path="/new-task" element={<Navigate to="/app/new/task" replace />} />
                     <Route path="/new/task" element={<Navigate to="/app/new/task" replace />} />
+                    <Route path="/crisis" element={<Navigate to="/app/crisis" replace />} />
+                    <Route path="/sos" element={<Navigate to="/app/crisis" replace />} />
 
                     <Route
                       path="/app"
@@ -253,6 +256,8 @@ const App = () => {
                       <Route path="buckets" element={<BucketsView />} />
 
                       <Route path="mind" element={<MindView />} />
+                      <Route path="crisis" element={<CrisisView />} />
+                      <Route path="sos" element={<Navigate to="/app/crisis" replace />} />
                       <Route path="self" element={<SelfKnowledgeView />} />
                       <Route path="self/test/:type" element={<AssessmentRunner />} />
                       <Route path="self/result/:type" element={<AssessmentResult />} />
