@@ -84,13 +84,15 @@ export function deduplicateAssessmentHistory(
   history: AssessmentResultItem[]
 ): AssessmentResultItem[] {
   const unique: AssessmentResultItem[] = [];
-  const seen = new Set<string>();
   for (const h of history) {
     const timeMs = new Date(h.completed_at || h.created_at || Date.now()).getTime();
-    const timeKey = Math.floor(timeMs / 10000);
-    const key = `${h.assessment_type}_${timeKey}_${h.scores?.raw}_${h.scores?.instrument_version || ""}`;
-    if (!seen.has(key)) {
-      seen.add(key);
+    const isDuplicate = unique.some((existing) => {
+      if (existing.assessment_type !== h.assessment_type) return false;
+      if (existing.scores?.raw !== h.scores?.raw) return false;
+      const existingTimeMs = new Date(existing.completed_at || existing.created_at || 0).getTime();
+      return Math.abs(timeMs - existingTimeMs) < 10000;
+    });
+    if (!isDuplicate) {
       unique.push(h);
     }
   }
@@ -206,11 +208,18 @@ export default function ScreenerView() {
     }
   }
 
+  const [submitting, setSubmitting] = useState(false);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
+
   async function submitFinal() {
-    if (!user || !type) return;
+    if (!user || !type || submitting) return;
+    setSubmitting(true);
     const result = scoreScreener(type, answers);
+    const currentId = submissionId || `result_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    if (!submissionId) setSubmissionId(currentId);
 
     const payload = {
+      id: currentId,
       assessment_type: type,
       completed_at: new Date().toISOString(),
       scores: {
@@ -237,30 +246,23 @@ export default function ScreenerView() {
       },
     };
 
-    const saved = await upsertAssessmentResult(user.id, payload);
-    if (saved) {
-      firebaseStore
-        .from("assessment_results")
-        .upsert(
-          {
-            id: saved.id,
-            user_id: user.id,
-            ...payload,
-          },
-          { onConflict: "id" }
-        )
-        .catch(() => {});
+    try {
+      const saved = await upsertAssessmentResult(user.id, payload);
+      if (saved) {
+        // Clear draft
+        try {
+          localStorage.removeItem(draftKey);
+        } catch {}
 
-      // Clear draft
-      try {
-        localStorage.removeItem(draftKey);
-      } catch {}
-
-      setLatestResult(saved);
-      setStage("result");
-      toast.success(T("نتیجه با موفقیت ثبت شد ✨", "Result successfully logged ✨"));
-    } else {
-      toast.error(T("خطا در ذخیره نتیجه ارزیابی", "Failed to save assessment result"));
+        setLatestResult(saved);
+        setStage("result");
+        setSubmissionId(null);
+        toast.success(T("نتیجه با موفقیت ثبت شد ✨", "Result successfully logged ✨"));
+      } else {
+        toast.error(T("خطا در ذخیره نتیجه ارزیابی", "Failed to save assessment result"));
+      }
+    } finally {
+      setSubmitting(false);
     }
   }
 

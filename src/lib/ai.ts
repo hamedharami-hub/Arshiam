@@ -3,6 +3,7 @@ import { getOpConfig, type AIOperation } from "@/lib/aiSettings";
 import { offlineAssistant } from "@/lib/offlineAssistant";
 import { getStoredUser } from "@/lib/authService";
 import { DISTORTION_LABELS, type Distortion } from "@/lib/distortions";
+import { GEMINI_SYSTEM_PROMPTS } from "@/lib/geminiDirect";
 
 export type AIMode = AIOperation;
 
@@ -80,49 +81,50 @@ export async function callAI(
   let timezone = "UTC";
   try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch {}
 
-  // 1. Direct Google Gemini REST API support (when provider is gemini)
-  if (settings?.provider === "gemini") {
-    const { getGeminiApiKey, callDirectGemini, GEMINI_SYSTEM_PROMPTS } = await import("./geminiDirect");
+  const systemPrompt = opts?.systemPromptOverride || GEMINI_SYSTEM_PROMPTS[mode] || GEMINI_SYSTEM_PROMPTS.chat;
+  let promptText = typeof input === "string" ? input : JSON.stringify(input);
+  if (context) promptText = `زمینه (Context):\n${context}\n\nورودی:\n${promptText}`;
+  if (action) promptText = `دستور (Action): ${action}\n\n${promptText}`;
+
+  // 1. Direct Google Gemini REST API support
+  if (settings.provider === "gemini") {
+    const { getGeminiApiKey, callDirectGemini } = await import("./geminiDirect");
     const geminiKey = settings.apiKey || getGeminiApiKey();
-    if (geminiKey) {
-      try {
-        const systemPrompt = opts?.systemPromptOverride || GEMINI_SYSTEM_PROMPTS[mode] || GEMINI_SYSTEM_PROMPTS.chat;
-        let promptText = typeof input === "string" ? input : JSON.stringify(input);
-        if (context) promptText = `زمینه (Context):\n${context}\n\nورودی:\n${promptText}`;
-        if (action) promptText = `دستور (Action): ${action}\n\n${promptText}`;
-        const res = await callDirectGemini({
-          prompt: promptText,
-          systemPrompt,
-          model: settings?.model || "gemini-2.5-flash",
-          apiKey: geminiKey,
-          signal: opts?.signal,
-        });
-        return sanitizeAIResult(mode, res);
-      } catch (directErr: any) {
-        console.warn("[AI] Direct Gemini call error, attempting firebaseStore edge fallback:", directErr?.message || directErr);
-      }
+    if (!geminiKey) {
+      throw new Error("کلید Google Gemini وارد نشده است. لطفاً در تنظیمات → AI کلید خود را وارد کنید.");
     }
+    const res = await callDirectGemini({
+      prompt: promptText,
+      systemPrompt,
+      model: settings.model || "gemini-2.5-flash",
+      apiKey: geminiKey,
+      signal: opts?.signal,
+    });
+    return sanitizeAIResult(mode, res);
   }
 
-  // 2. firebaseStore Edge Function fallback
-  const { data, error } = await firebaseStore.functions.invoke("ai-assistant", {
-    body: {
-      mode,
-      input,
-      context,
-      settings,
-      action,
-      language,
-      mhProfile,
-      aboutMe,
-      webSearch: opts?.webSearch === true,
-      timezone,
-      systemPrompt: opts?.systemPromptOverride,
-    },
-  });
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
-  return sanitizeAIResult(mode, data as { text: string; data?: any });
+  // 2. OpenAI, Groq, OpenRouter, Custom, Anthropic direct support
+  if (
+    settings.provider === "openai" ||
+    settings.provider === "groq" ||
+    settings.provider === "openrouter" ||
+    settings.provider === "custom" ||
+    settings.provider === "anthropic"
+  ) {
+    const { callDirectOpenAICompat } = await import("./openAICompatDirect");
+    const res = await callDirectOpenAICompat({
+      provider: settings.provider,
+      prompt: promptText,
+      systemPrompt,
+      model: settings.model,
+      apiKey: settings.apiKey,
+      baseUrl: settings.baseUrl,
+      signal: opts?.signal,
+    });
+    return sanitizeAIResult(mode, res);
+  }
+
+  throw new Error(`سرویس «${settings.provider}» پشتیبانی نمی‌شود یا پیکربندی نشده است.`);
 }
 
 function sanitizeAIResult(mode: AIMode, result: any): { text: string; data?: any } {

@@ -1,13 +1,13 @@
 // Helpers to convert mental-health artifacts (Thought records, ABC, Worry, Values & Goals)
 // into actionable Tasks — one of the main "integration" points between Mind and Tasks.
 
-import { firebaseStore } from "@/lib/firebaseStore";
 import { upsertTask } from "@/lib/firestoreDataService";
 import type { Task } from "@/lib/taskTypes";
 
 export type MindSourceType = "cbt_thought" | "abc_model" | "worry_tree" | "values_goal";
 
 export interface CreateTaskFromMindOptions {
+  id?: string;
   user_id: string;
   title: string;
   description?: string;
@@ -27,7 +27,7 @@ export async function createTaskFromMind(opts: CreateTaskFromMindOptions): Promi
     }
   }
 
-  const taskId = `task_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const taskId = opts.id || `task_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   const taskData: Task = {
     id: taskId,
     user_id: opts.user_id,
@@ -51,8 +51,6 @@ export async function createTaskFromMind(opts: CreateTaskFromMindOptions): Promi
   };
 
   const ok = await upsertTask(opts.user_id, taskData);
-  // Mirror to firebaseStore if available
-  firebaseStore.from("tasks").insert(taskData as any).catch(() => {});
 
   return { ok, error: ok ? undefined : "Failed to create task", task: taskData };
 }

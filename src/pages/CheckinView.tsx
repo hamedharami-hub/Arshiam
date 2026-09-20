@@ -310,11 +310,6 @@ export default function CheckinView() {
 
       const ok = await upsertDailyCheckin(user.id, payload);
 
-      firebaseStore
-        .from("daily_checkins")
-        .upsert(payload as any, { onConflict: "user_id,checkin_date" })
-        .catch(() => {});
-
       if (ok) {
         awardDailyCheckinDrops(today, 20, T("ثبت چک‌این روزانه", "Daily check-in logged"));
         toast.success(T("چک‌این با موفقیت ثبت شد ✨", "Check-in successfully saved ✨"));

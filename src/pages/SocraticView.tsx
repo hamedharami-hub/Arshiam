@@ -1,73 +1,161 @@
 import { useEffect, useRef, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   Brain,
   Send,
-  AlertCircle,
   BookOpen,
   RotateCcw,
   CheckCircle2,
   FileText,
   ListPlus,
   Loader2,
+  Download,
 } from "lucide-react";
 import { detectCrisis } from "@/lib/crisisDetection";
 import { useBilingual } from "@/hooks/useBilingual";
 import { useAuth } from "@/hooks/useAuth";
-import { callAI } from "@/lib/ai";
 import { createTaskFromMind } from "@/lib/taskFromMind";
 import { toast } from "sonner";
-
-type Msg = { role: "user" | "assistant"; content: string };
+import { createMindAIContext } from "@/lib/mindAI/contextBuilder";
+import { executeMindAI } from "@/lib/mindAI/executor";
+import type { SocraticDialogueOutput, SocraticSummaryOutput } from "@/lib/mindAI/types";
+import {
+  subscribeSocraticSession,
+  saveSocraticSession,
+  clearSocraticSession,
+  type SocraticMessageItem,
+} from "@/lib/firestoreDataService";
 
 export default function SocraticView() {
   const { user } = useAuth();
   const { T, isEn } = useBilingual();
   const chatKey = `socratic_chat_${user?.id || "guest"}`;
 
-  const defaultGreeting: Msg = {
+  const defaultGreeting: SocraticMessageItem = {
     role: "assistant",
     content: isEn
       ? "What thought or situation is on your mind right now?"
       : "چه فکر، موضوع یا تصمیمی الان ذهن تو را به خود مشغول کرده است؟",
+    timestamp: new Date().toISOString(),
+    provenance: "ai_suggestion",
   };
 
-  const [messages, setMessages] = useState<Msg[]>(() => {
-    try {
-      const stored = localStorage.getItem(chatKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return [defaultGreeting];
-  });
-
+  const [messages, setMessages] = useState<SocraticMessageItem[]>([defaultGreeting]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
+  const [migrated, setMigrated] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const draftTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // 1. Subscribe to Firebase Firestore session
+  useEffect(() => {
+    if (!user) {
+      // Guest mode: fallback to localStorage
+      try {
+        const stored = localStorage.getItem(chatKey);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) setMessages(parsed);
+        }
+      } catch {}
+      return;
+    }
+
+    const unsub = subscribeSocraticSession(user.id, (session) => {
+      if (session) {
+        if (Array.isArray(session.messages) && session.messages.length > 0) {
+          setMessages(session.messages);
+        } else {
+          setMessages([defaultGreeting]);
+        }
+        setSummary(session.summary ?? null);
+        if (session.draft_text && !input) {
+          setInput(session.draft_text);
+        }
+      } else if (!migrated) {
+        // Initial migration from localStorage if exists
+        try {
+          const stored = localStorage.getItem(chatKey);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setMessages(parsed);
+              saveSocraticSession(user.id, { messages: parsed });
+              setMigrated(true);
+              return;
+            }
+          }
+        } catch {}
+        setMessages([defaultGreeting]);
+      }
+    });
+
+    return () => unsub();
+  }, [user?.id, chatKey]);
+
+  // Keep localStorage as local offline backup
   useEffect(() => {
     try {
       localStorage.setItem(chatKey, JSON.stringify(messages));
     } catch {}
   }, [messages, chatKey]);
 
-  function resetChat() {
+  // Debounced draft save to Firestore
+  function handleInputChange(val: string) {
+    setInput(val);
+    if (!user) return;
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = setTimeout(() => {
+      saveSocraticSession(user.id, { draft_text: val });
+    }, 1500);
+  }
+
+  async function resetChat() {
     const initial = [defaultGreeting];
     setMessages(initial);
     setSummary(null);
+    setInput("");
     try {
       localStorage.setItem(chatKey, JSON.stringify(initial));
     } catch {}
+    if (user) {
+      await clearSocraticSession(user.id);
+    }
     toast.success(T("گفتگو پاک شد", "Conversation cleared"));
+  }
+
+  function exportDialogue() {
+    if (messages.length <= 1) {
+      toast.info(T("گفتگویی برای خروجی وجود ندارد", "No conversation to export"));
+      return;
+    }
+    const lines = [
+      `# ${isEn ? "Socratic Dialogue Export" : "خروجی گفتگوی سقراطی"}`,
+      `_${new Date().toLocaleString(isEn ? "en-US" : "fa-IR")}_\n`,
+    ];
+    if (summary) {
+      lines.push(`## ${isEn ? "Summary" : "جمع‌بندی"}`);
+      lines.push(`${summary}\n`);
+    }
+    lines.push(`## ${isEn ? "Dialogue" : "گفتگو"}`);
+    for (const m of messages) {
+      const sender = m.role === "user" ? (isEn ? "You" : "شما") : (isEn ? "Socratic Guide" : "راهنمای سقراطی");
+      lines.push(`**${sender}:** ${m.content}\n`);
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `socratic-dialogue-${new Date().toISOString().slice(0, 10)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(T("فایل با موفقیت دانلود شد", "Export downloaded"));
   }
 
   async function send() {
@@ -78,19 +166,33 @@ export default function SocraticView() {
       const crisisWarning = isEn
         ? "What you shared is important. Please connect with a mental health professional or call your local crisis helpline (e.g. 988 or 123)."
         : "این چیزی که گفتی مهمه. لطفاً با یک متخصص سلامت روان یا اورژانس اجتماعی (۱۲۳ / ۱۴۸۰) تماس بگیر.";
-      setMessages((m) => [
-        ...m,
-        { role: "user", content: text },
-        { role: "assistant", content: crisisWarning },
-      ]);
+      const updated: SocraticMessageItem[] = [
+        ...messages,
+        { role: "user", content: text, timestamp: new Date().toISOString(), provenance: "user_report" },
+        { role: "assistant", content: crisisWarning, timestamp: new Date().toISOString(), provenance: "ai_suggestion" },
+      ];
+      setMessages(updated);
       setInput("");
+      if (user) {
+        saveSocraticSession(user.id, { messages: updated, draft_text: "" });
+      }
       return;
     }
 
-    const newMsgs: Msg[] = [...messages, { role: "user", content: text }];
+    const userMsg: SocraticMessageItem = {
+      role: "user",
+      content: text,
+      timestamp: new Date().toISOString(),
+      provenance: "user_report",
+    };
+    const newMsgs = [...messages, userMsg];
     setMessages(newMsgs);
     setInput("");
     setLoading(true);
+
+    if (user) {
+      saveSocraticSession(user.id, { messages: newMsgs, draft_text: "" });
+    }
 
     try {
       const ctx = createMindAIContext({
@@ -103,9 +205,9 @@ export default function SocraticView() {
         },
         relevantHistory: newMsgs.slice(-10).map((m) => ({
           tool: "socratic",
-          timestamp: new Date().toISOString(),
+          timestamp: m.timestamp || new Date().toISOString(),
           summary: `${m.role === "user" ? "User" : "Socratic"}: ${m.content}`,
-          provenance: (m.role === "user" ? "user_report" : "deterministic_calculation") as any,
+          provenance: m.provenance || (m.role === "user" ? "user_report" : "ai_suggestion"),
         })),
       });
 
@@ -115,7 +217,17 @@ export default function SocraticView() {
         ? `${d.observationOrEmpathy} ${d.question}`
         : d.question;
 
-      setMessages((m) => [...m, { role: "assistant", content: replyText }]);
+      const assistantMsg: SocraticMessageItem = {
+        role: "assistant",
+        content: replyText,
+        timestamp: new Date().toISOString(),
+        provenance: "ai_suggestion",
+      };
+      const finalMsgs = [...newMsgs, assistantMsg];
+      setMessages(finalMsgs);
+      if (user) {
+        saveSocraticSession(user.id, { messages: finalMsgs });
+      }
       setTimeout(() => scrollRef.current?.scrollTo({ top: 999999, behavior: "smooth" }), 100);
     } catch (e: any) {
       toast.error(e.message || T("خطا در برقراری ارتباط", "Connection error"));
@@ -159,6 +271,9 @@ export default function SocraticView() {
         .join("\n");
 
       setSummary(bulletText);
+      if (user) {
+        saveSocraticSession(user.id, { summary: bulletText });
+      }
       toast.success(T("جمع‌بندی آماده شد", "Summary ready"));
     } catch (e: any) {
       toast.error(e.message || T("خطا در جمع‌بندی", "Summary error"));
@@ -205,15 +320,27 @@ export default function SocraticView() {
             </Button>
           )}
           {messages.length > 1 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={resetChat}
-              title={T("شروع دوباره", "Start fresh")}
-            >
-              <RotateCcw className="w-4 h-4 me-1" />
-              <span className="text-xs">{T("پاک کردن", "Reset")}</span>
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportDialogue}
+                title={T("خروجی گرفتن", "Export dialogue")}
+                className="text-xs"
+              >
+                <Download className="w-3.5 h-3.5 me-1" />
+                {T("خروجی", "Export")}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={resetChat}
+                title={T("شروع دوباره", "Start fresh")}
+              >
+                <RotateCcw className="w-4 h-4 me-1" />
+                <span className="text-xs">{T("پاک کردن", "Reset")}</span>
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -314,7 +441,7 @@ export default function SocraticView() {
       <div className="flex gap-2 shrink-0 pt-1">
         <Input
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => handleInputChange(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();

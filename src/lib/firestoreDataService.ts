@@ -993,3 +993,108 @@ export async function deleteMindGoal(userId: string, goalId: string): Promise<bo
     return false;
   }
 }
+
+// ==================== SOCRATIC SESSION ====================
+
+export interface SocraticMessageItem {
+  role: "user" | "assistant";
+  content: string;
+  timestamp?: string;
+  provenance?: "user_report" | "ai_suggestion";
+}
+
+export interface SocraticSessionItem {
+  id: string;
+  user_id: string;
+  messages: SocraticMessageItem[];
+  summary?: string | null;
+  draft_text?: string;
+  updated_at: string;
+  created_at?: string;
+}
+
+export function subscribeSocraticSession(
+  userId: string,
+  onUpdate: (session: SocraticSessionItem | null) => void
+): () => void {
+  if (!userId) {
+    onUpdate(null);
+    return () => {};
+  }
+
+  cacheGet<SocraticSessionItem>(`socratic:session:${userId}`).then((cached) => {
+    if (cached) onUpdate(cached);
+  });
+
+  try {
+    const docRef = doc(db, "users", userId, "socratic_sessions", "current");
+    const unsub = onSnapshot(
+      docRef,
+      (snap) => {
+        if (snap.exists()) {
+          const data = { id: snap.id, ...(snap.data() as any) } as SocraticSessionItem;
+          cacheSet(`socratic:session:${userId}`, data);
+          onUpdate(data);
+        } else {
+          onUpdate(null);
+        }
+      },
+      async () => {
+        const cached = await cacheGet<SocraticSessionItem>(`socratic:session:${userId}`);
+        if (cached) onUpdate(cached);
+      }
+    );
+    return unsub;
+  } catch {
+    return () => {};
+  }
+}
+
+export async function saveSocraticSession(
+  userId: string,
+  session: Partial<SocraticSessionItem>
+): Promise<boolean> {
+  if (!userId) return false;
+  const now = new Date().toISOString();
+  const payload: SocraticSessionItem = {
+    id: "current",
+    user_id: userId,
+    messages: session.messages || [],
+    summary: session.summary ?? null,
+    draft_text: session.draft_text ?? "",
+    updated_at: now,
+    created_at: session.created_at || now,
+    ...session,
+  };
+
+  cacheSet(`socratic:session:${userId}`, payload);
+
+  try {
+    const docRef = doc(db, "users", userId, "socratic_sessions", "current");
+    await setDoc(docRef, payload, { merge: true });
+    return true;
+  } catch (err) {
+    console.warn("[FirestoreData] saveSocraticSession error, queuing:", err);
+    await enqueueOp({
+      type: "upsert",
+      collection: `users/${userId}/socratic_sessions`,
+      id: "current",
+      data: payload,
+    });
+    return true;
+  }
+}
+
+export async function clearSocraticSession(userId: string): Promise<boolean> {
+  if (!userId) return false;
+  cacheSet(`socratic:session:${userId}`, null);
+  try {
+    const docRef = doc(db, "users", userId, "socratic_sessions", "current");
+    await deleteDoc(docRef);
+    return true;
+  } catch (err) {
+    console.warn("[FirestoreData] clearSocraticSession error:", err);
+    return false;
+  }
+}
+
