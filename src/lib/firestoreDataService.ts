@@ -116,6 +116,8 @@ const CACHE_KEYS = {
   thoughtRecords: (uid: string) => `thoughtRecords:all:${uid}`,
   abcRecords: (uid: string) => `abcRecords:all:${uid}`,
   assessmentResults: (uid: string, type?: string) => `assessmentResults:${type || "all"}:${uid}`,
+  mindValues: (uid: string) => `mindValues:all:${uid}`,
+  mindGoals: (uid: string) => `mindGoals:all:${uid}`,
 };
 
 // ==================== TASKS ====================
@@ -867,6 +869,127 @@ export async function saveAssessmentProgress(
     return true;
   } catch (err) {
     console.warn("[FirestoreData] saveAssessmentProgress error:", err);
+    return false;
+  }
+}
+
+// ==================== MIND VALUES & GOALS (ACT) ====================
+
+export interface MindGoalItem {
+  id: string;
+  user_id?: string;
+  domain: string;
+  text: string;
+  horizon: "today" | "week" | "month" | "year";
+  created_at: string;
+  [key: string]: any;
+}
+
+export function subscribeMindValues(
+  userId: string,
+  onUpdate: (values: Record<string, any>) => void
+): () => void {
+  if (!userId) {
+    onUpdate({});
+    return () => {};
+  }
+
+  cacheGet<Record<string, any>>(CACHE_KEYS.mindValues(userId)).then((cached) => {
+    if (cached) onUpdate(cached);
+  });
+
+  try {
+    const docRef = doc(db, "users", userId, "mind_settings", "values");
+    const unsub = onSnapshot(
+      docRef,
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data()?.values || {};
+          cacheSet(CACHE_KEYS.mindValues(userId), data);
+          onUpdate(data);
+        }
+      },
+      async () => {
+        const cached = await cacheGet<Record<string, any>>(CACHE_KEYS.mindValues(userId));
+        if (cached) onUpdate(cached);
+      }
+    );
+    return unsub;
+  } catch {
+    return () => {};
+  }
+}
+
+export async function saveMindValues(userId: string, values: Record<string, any>): Promise<boolean> {
+  if (!userId) return false;
+  cacheSet(CACHE_KEYS.mindValues(userId), values);
+  try {
+    const docRef = doc(db, "users", userId, "mind_settings", "values");
+    await setDoc(docRef, { values, updated_at: new Date().toISOString() }, { merge: true });
+    return true;
+  } catch (err) {
+    console.warn("[FirestoreData] saveMindValues error:", err);
+    return false;
+  }
+}
+
+export function subscribeMindGoals(
+  userId: string,
+  onUpdate: (goals: MindGoalItem[]) => void
+): () => void {
+  if (!userId) {
+    onUpdate([]);
+    return () => {};
+  }
+
+  cacheGet<MindGoalItem[]>(CACHE_KEYS.mindGoals(userId)).then((cached) => {
+    if (cached && Array.isArray(cached)) onUpdate(cached);
+  });
+
+  try {
+    const colRef = collection(db, "users", userId, "mind_goals");
+    const unsub = onSnapshot(
+      colRef,
+      (snap) => {
+        const items: MindGoalItem[] = [];
+        snap.forEach((d) => {
+          items.push({ id: d.id, ...(d.data() as any) });
+        });
+        items.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+        cacheSet(CACHE_KEYS.mindGoals(userId), items);
+        onUpdate(items);
+      },
+      async () => {
+        const cached = await cacheGet<MindGoalItem[]>(CACHE_KEYS.mindGoals(userId));
+        if (cached) onUpdate(cached);
+      }
+    );
+    return unsub;
+  } catch {
+    return () => {};
+  }
+}
+
+export async function upsertMindGoal(userId: string, goal: Partial<MindGoalItem> & { id: string }): Promise<boolean> {
+  if (!userId || !goal.id) return false;
+  try {
+    const docRef = doc(db, "users", userId, "mind_goals", goal.id);
+    await setDoc(docRef, { ...goal, user_id: userId, updated_at: new Date().toISOString() }, { merge: true });
+    return true;
+  } catch (err) {
+    console.warn("[FirestoreData] upsertMindGoal error:", err);
+    return false;
+  }
+}
+
+export async function deleteMindGoal(userId: string, goalId: string): Promise<boolean> {
+  if (!userId || !goalId) return false;
+  try {
+    const docRef = doc(db, "users", userId, "mind_goals", goalId);
+    await deleteDoc(docRef);
+    return true;
+  } catch (err) {
+    console.warn("[FirestoreData] deleteMindGoal error:", err);
     return false;
   }
 }

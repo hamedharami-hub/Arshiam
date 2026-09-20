@@ -44,6 +44,21 @@ function ScreenerTrendTooltip({ active, payload, isEn }: any) {
   );
 }
 
+export function deduplicateAssessmentHistory(history: AssessmentResultItem[]): AssessmentResultItem[] {
+  const unique: AssessmentResultItem[] = [];
+  const seen = new Set<string>();
+  for (const h of history) {
+    const timeMs = new Date(h.completed_at || h.created_at || Date.now()).getTime();
+    const timeKey = Math.floor(timeMs / 10000);
+    const key = `${h.assessment_type}_${timeKey}_${h.scores?.raw}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(h);
+    }
+  }
+  return unique;
+}
+
 export default function ScreenerView() {
   const { type } = useParams<{ type: ScreenerType }>();
   const navigate = useNavigate();
@@ -65,7 +80,9 @@ export default function ScreenerView() {
     return () => unsub();
   }, [user, type, stage]);
 
-  const trend = useMemo(() => history.slice().reverse().map((h: any) => {
+  const uniqueHistory = useMemo(() => deduplicateAssessmentHistory(history), [history]);
+
+  const trend = useMemo(() => uniqueHistory.slice().reverse().map((h: any) => {
     const d = new Date(h.completed_at || h.created_at || Date.now());
     return {
       date: isEn ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : formatDate(d, "d MMM"),
@@ -74,7 +91,7 @@ export default function ScreenerView() {
       raw: h.scores?.raw ?? 0,
       severity: isEn ? (h.analysis?.severityLabel_en || h.analysis?.severityLabel || "") : (h.analysis?.severityLabel ?? ""),
     };
-  }), [history, isEn]);
+  }), [uniqueHistory, isEn]);
 
   if (!meta) return <div dir={isEn ? "ltr" : "rtl"} className="p-8 text-center text-muted-foreground">{T("تست نامعتبر", "Invalid assessment")}</div>;
   const item = meta.items[index];
@@ -109,13 +126,14 @@ export default function ScreenerView() {
     };
 
     const saved = await upsertAssessmentResult(user.id, payload);
-    // Mirror to firebaseStore if accessible
-    firebaseStore.from("assessment_results").insert({
-      user_id: user.id,
-      ...payload,
-    }).catch(() => {});
-
     if (saved) {
+      // Mirror to firebaseStore using the same generated ID to prevent duplicate records
+      firebaseStore.from("assessment_results").upsert({
+        id: saved.id,
+        user_id: user.id,
+        ...payload,
+      }, { onConflict: "id" }).catch(() => {});
+
       setLatestResult(saved);
       setStage("result");
       toast.success(T("نتیجه ذخیره شد ✨", "Result saved ✨"));
@@ -200,7 +218,7 @@ export default function ScreenerView() {
                   <p className="text-sm text-muted-foreground">{T("حداقل ۲ ثبت برای نمودار لازم است.", "At least 2 entries required for trend chart.")}</p>
                 )}
                 <div className="space-y-1 mt-3">
-                  {history.slice(0, 5).map((h: any) => {
+                  {uniqueHistory.slice(0, 5).map((h: any) => {
                     const sevLabel = isEn ? (h.analysis?.severityLabel_en || h.analysis?.severityLabel) : h.analysis?.severityLabel;
                     const dateStr = isEn
                       ? new Date(h.completed_at || h.created_at).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })

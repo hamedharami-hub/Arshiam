@@ -9,10 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
 import { ArrowRight, ArrowLeft, Brain, Lightbulb, Wind, CheckCircle2, Save, Plus, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { callAI } from "@/lib/ai";
-import { upsertTask, upsertThoughtRecord } from "@/lib/firestoreDataService";
+import { upsertThoughtRecord } from "@/lib/firestoreDataService";
+import { createTaskFromMind } from "@/lib/taskFromMind";
 
 type Stage = "intake" | "triage" | "solve" | "accept" | "done";
 
@@ -29,6 +31,8 @@ export default function WorryView() {
   const [chosen, setChosen] = useState<number | null>(null);
   const [firstStep, setFirstStep] = useState("");
   const [acceptanceText, setAcceptanceText] = useState("");
+  const [distressBefore, setDistressBefore] = useState<number | null>(null);
+  const [distressAfter, setDistressAfter] = useState<number | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
 
   async function aiBrainstorm() {
@@ -72,27 +76,20 @@ export default function WorryView() {
           chosen != null ? `راه‌حل انتخابی: ${solutions[chosen]}` : "",
         ].filter(Boolean).join("\n\n");
 
-    const newTask = {
-      id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    const res = await createTaskFromMind({
       user_id: user.id,
       title,
       description: desc,
-      due_date: new Date(Date.now() + 86400000).toISOString(),
-      completed: false,
-      priority: "medium" as const,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+      due_in_days: 1,
+      source_type: "worry_tree",
+      priority: "medium",
+    });
 
-    const ok = await upsertTask(user.id, newTask);
-    // Mirror to firebaseStore
-    firebaseStore.from("tasks").insert(newTask).catch(() => {});
-
-    if (ok) {
+    if (res.ok) {
       toast.success(T("به Task فردا اضافه شد ✨", "Added to tomorrow's tasks ✨"));
       setStage("done");
     } else {
-      toast.error(T("خطا در افزودن وظیفه", "Error adding task"));
+      toast.error(res.error || T("خطا در افزودن وظیفه", "Error adding task"));
     }
   }
 
@@ -106,17 +103,16 @@ export default function WorryView() {
       user_id: user.id,
       situation: isEn ? `Uncontrollable worry: ${worry}` : `نگرانی غیرقابل‌حل: ${worry}`,
       automatic_thought: worry,
-      emotion_intensity_before: 70,
-      emotion_intensity_after: 50,
+      emotion_intensity_before: distressBefore,
+      emotion_intensity_after: distressAfter,
       emotions: [isEn ? "Anxiety" : "اضطراب"],
       alternative_thought: acceptanceText || defaultAcceptance,
       distortions: [],
     };
     const savedId = await upsertThoughtRecord(user.id, payload);
     // Mirror to firebaseStore
-    firebaseStore.from("thought_records").insert({ ...payload, id: savedId }).catch(() => {});
-
     if (savedId) {
+      firebaseStore.from("thought_records").upsert({ ...payload, id: savedId }, { onConflict: "id" }).catch(() => {});
       toast.success(T("در Thought Records ثبت شد ✨", "Saved to Thought Records ✨"));
       setStage("done");
     } else {
@@ -247,6 +243,46 @@ export default function WorryView() {
                   "E.g., This is beyond my control. I choose to channel my attention into meaningful actions today."
                 )} />
             </div>
+
+            <div className="space-y-3 pt-2 border-t border-border/50">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <Label>{T("شدت اضطراب قبل از پذیرش (اختیاری)", "Distress before acceptance (optional)")}</Label>
+                  <span className="font-mono text-muted-foreground">{distressBefore != null ? `${distressBefore}%` : "—"}</span>
+                </div>
+                <Slider
+                  value={[distressBefore ?? 50]}
+                  max={100}
+                  step={5}
+                  onValueChange={(v) => setDistressBefore(v[0])}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <Label>{T("شدت اضطراب بعد از پذیرش (اختیاری)", "Distress after acceptance (optional)")}</Label>
+                  <span className="font-mono text-muted-foreground">{distressAfter != null ? `${distressAfter}%` : "—"}</span>
+                </div>
+                <Slider
+                  value={[distressAfter ?? (distressBefore != null ? Math.max(0, distressBefore - 20) : 40)]}
+                  max={100}
+                  step={5}
+                  onValueChange={(v) => setDistressAfter(v[0])}
+                />
+              </div>
+
+              {distressBefore != null && distressAfter != null && (
+                <div className="text-xs p-2.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium flex items-center justify-between">
+                  <span>{T("تغییر شدت اضطراب:", "Distress Change:")}</span>
+                  <span className="font-bold font-mono">
+                    {distressBefore - distressAfter > 0
+                      ? `-${distressBefore - distressAfter}% ${isEn ? "reduction" : "کاهش"}`
+                      : `${distressAfter - distressBefore}%`}
+                  </span>
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-2">
               <Button onClick={saveAcceptance}><Save className="w-4 h-4 ms-1" /> {T("ذخیره در Thought Records", "Save to Thought Records")}</Button>
               <Button variant="ghost" size="sm" onClick={() => setStage("triage")}>{T("قبلی", "Back")}</Button>
@@ -262,7 +298,7 @@ export default function WorryView() {
             <h2 className="font-bold text-lg">{T("تمام شد", "Completed")}</h2>
             <p className="text-sm text-muted-foreground">{T("یک قدم برداشتی. این کافی است.", "You took a conscious step. That is enough.")}</p>
             <div className="flex gap-2 justify-center">
-              <Button onClick={() => { setStage("intake"); setWorry(""); setSolvable(null); setProblem(""); setSolutions([""]); setChosen(null); setFirstStep(""); setAcceptanceText(""); }}>
+              <Button onClick={() => { setStage("intake"); setWorry(""); setSolvable(null); setProblem(""); setSolutions([""]); setChosen(null); setFirstStep(""); setAcceptanceText(""); setDistressBefore(null); setDistressAfter(null); }}>
                 {T("نگرانی جدید", "New Worry")}
               </Button>
               <Button variant="outline" onClick={() => navigate("/app/mind")}>{T("بازگشت به Mind", "Back to Mind")}</Button>

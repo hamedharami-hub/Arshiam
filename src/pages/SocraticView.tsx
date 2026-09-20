@@ -1,13 +1,14 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { firebaseStore } from "@/lib/firebaseStore";
-import { Brain, Send, AlertCircle, BookOpen } from "lucide-react";
+import { Brain, Send, AlertCircle, BookOpen, RotateCcw } from "lucide-react";
 import { detectCrisis } from "@/lib/crisisDetection";
 import { useBilingual } from "@/hooks/useBilingual";
+import { useAuth } from "@/hooks/useAuth";
+import { callAI } from "@/lib/ai";
 import { toast } from "sonner";
 
 type Msg = { role: "user" | "assistant"; content: string };
@@ -29,14 +30,45 @@ const SYSTEM_EN = `You are a Socratic questioner in English. Strict rules:
 6. If user shows crisis signals (self-harm, hopelessness), STOP questioning and respond: "What you shared is very important. Please reach out right now to a crisis helpline (such as 988 or your local emergency services) or a mental health professional."`;
 
 export default function SocraticView() {
+  const { user } = useAuth();
   const { T, isEn } = useBilingual();
-  const [messages, setMessages] = useState<Msg[]>([
-    { role: "assistant", content: isEn ? "What thought or situation is on your mind right now?" : "چه فکر یا موقعیتی الان ذهن تو را مشغول کرده؟" }
-  ]);
+  const chatKey = `socratic_chat_${user?.id || "guest"}`;
+
+  const defaultGreeting: Msg = {
+    role: "assistant",
+    content: isEn ? "What thought or situation is on your mind right now?" : "چه فکر یا موقعیتی الان ذهن تو را مشغول کرده؟",
+  };
+
+  const [messages, setMessages] = useState<Msg[]>(() => {
+    try {
+      const stored = localStorage.getItem(chatKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [defaultGreeting];
+  });
+
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(chatKey, JSON.stringify(messages));
+    } catch {}
+  }, [messages, chatKey]);
+
+  function resetChat() {
+    const initial = [defaultGreeting];
+    setMessages(initial);
+    try {
+      localStorage.setItem(chatKey, JSON.stringify(initial));
+    } catch {}
+    toast.success(T("گفتگو پاک شد", "Conversation cleared"));
+  }
 
   async function send() {
     if (!input.trim() || loading) return;
@@ -58,18 +90,23 @@ export default function SocraticView() {
     setLoading(true);
 
     try {
-      const { data, error } = await firebaseStore.functions.invoke("ai-assistant", {
-        body: {
-          mode: "chat",
-          input: [{ role: "system", content: isEn ? SYSTEM_EN : SYSTEM_FA }, ...newMsgs.map((m) => ({ role: m.role, content: m.content }))],
-          language: isEn ? "en" : "fa",
-        },
-      });
-      if (error) throw error;
-      setMessages((m) => [...m, { role: "assistant", content: data?.text || "..." }]);
+      const historyContext = newMsgs
+        .slice(-8)
+        .map((m) => `${m.role === "user" ? (isEn ? "User" : "کاربر") : (isEn ? "Socratic Guide" : "راهنمای سقراطی")}: ${m.content}`)
+        .join("\n");
+
+      const res = await callAI(
+        "socratic",
+        text,
+        historyContext,
+        undefined,
+        isEn ? "en" : "fa"
+      );
+      const replyText = typeof res === "string" ? res : (res?.text || "...");
+      setMessages((m) => [...m, { role: "assistant", content: replyText }]);
       setTimeout(() => scrollRef.current?.scrollTo({ top: 999999, behavior: "smooth" }), 100);
     } catch (e: any) {
-      toast.error(e.message || T("خطا", "Error"));
+      toast.error(e.message || T("خطا در برقراری ارتباط", "Connection error"));
     } finally {
       setLoading(false);
     }
@@ -77,9 +114,17 @@ export default function SocraticView() {
 
   return (
     <div dir={isEn ? "ltr" : "rtl"} className="max-w-3xl mx-auto p-4 md:p-8 space-y-4 h-[calc(100dvh-2rem)] flex flex-col">
-      <div>
-        <h1 className="text-2xl font-bold mb-1 flex items-center gap-2"><Brain className="w-6 h-6 text-purple-500" /> {T("چت سقراطی", "Socratic Dialogue")}</h1>
-        <p className="text-muted-foreground text-xs">{T("AI فقط سؤال می‌پرسد — تو خودت به بینش می‌رسی.", "AI only asks questions — guiding you to your own insights.")}</p>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold mb-1 flex items-center gap-2"><Brain className="w-6 h-6 text-purple-500" /> {T("چت سقراطی", "Socratic Dialogue")}</h1>
+          <p className="text-muted-foreground text-xs">{T("AI فقط سؤال می‌پرسد — تو خودت به بینش می‌رسی.", "AI only asks questions — guiding you to your own insights.")}</p>
+        </div>
+        {messages.length > 1 && (
+          <Button variant="ghost" size="sm" onClick={resetChat} title={T("شروع دوباره", "Start fresh")}>
+            <RotateCcw className="w-4 h-4 me-1" />
+            <span className="text-xs">{T("پاک کردن", "Reset")}</span>
+          </Button>
+        )}
       </div>
 
       {/* راهنمای کامل */}

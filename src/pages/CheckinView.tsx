@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import ProfileMicroPrompt from "@/components/ProfileMicroPrompt";
-import { awardWaterDrops } from "@/lib/garden";
+import { awardDailyCheckinDrops } from "@/lib/garden";
+import { getLocalDateString } from "@/lib/taskDate";
 import {
   subscribeDailyCheckins,
   getDailyCheckin,
@@ -20,7 +21,7 @@ import { extractTasksFromCache } from "@/features/tasks/taskCache";
 import type { Task } from "@/lib/taskTypes";
 
 import { formatDate, toPersianDigits } from "@/lib/jalali";
-import { Smile, Zap, Target, Moon, AlertTriangle, Sparkles, Heart } from "lucide-react";
+import { Smile, Zap, Target, Moon, AlertTriangle, Sparkles, Heart, Loader2 } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
 
 const SLIDER_CONFIGS: Record<string, { emoji: string; color: string; bg: string }> = {
@@ -88,21 +89,24 @@ function Slider10({
 export default function CheckinView() {
   const { user } = useAuth();
   const { T, isEn } = useBilingual();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getLocalDateString();
   const [form, setForm] = useState<any>({ mood: null, energy: null, focus: null, sleep_quality: null, stress: null, sleep_hours: "", notes: "" });
   const [history, setHistory] = useState<DailyCheckinItem[]>([]);
   const [savedTick, setSavedTick] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [todayLoad, setTodayLoad] = useState<number | null>(null);
   const isEvening = new Date().getHours() >= 17;
 
   useEffect(() => {
     if (!user) return;
     let unsubCheckins: (() => void) | undefined;
+    const safetyTimer = setTimeout(() => setLoading(false), 2000);
 
     async function init() {
       // 1. Listen to checkins from Firestore
       unsubCheckins = subscribeDailyCheckins(user!.id, async (items) => {
+        clearTimeout(safetyTimer);
         setHistory(items);
         const todayDoc = items.find((i) => i.checkin_date === today || i.id === today);
         if (todayDoc) {
@@ -118,58 +122,83 @@ export default function CheckinView() {
         }
 
         // Calculate cognitive load
-        const cachedRaw = await cacheGet<unknown>(`tasks:all:${user!.id}`);
-        const cachedTasks = extractTasksFromCache(cachedRaw);
-        const { computeCognitiveLoad } = await import("@/lib/cognitiveLoad");
-        const r = computeCognitiveLoad({
-          tasks: cachedTasks.filter((t) => !t.completed),
-          sleepHours: todayDoc?.sleep_hours ?? null,
-          sleepQuality: todayDoc?.sleep_quality ?? null,
-          stress: todayDoc?.stress ?? null,
-        });
-        setTodayLoad(r.load);
+        try {
+          const cachedRaw = await cacheGet<unknown>(`tasks:all:${user!.id}`);
+          const cachedTasks = extractTasksFromCache(cachedRaw);
+          const { computeCognitiveLoad } = await import("@/lib/cognitiveLoad");
+          const r = computeCognitiveLoad({
+            tasks: cachedTasks.filter((t) => !t.completed),
+            sleepHours: todayDoc?.sleep_hours ?? null,
+            sleepQuality: todayDoc?.sleep_quality ?? null,
+            stress: todayDoc?.stress ?? null,
+          });
+          setTodayLoad(r.load);
+        } catch { /* ignore */ }
         setLoading(false);
       });
     }
 
     init();
     return () => {
+      clearTimeout(safetyTimer);
       if (unsubCheckins) unsubCheckins();
     };
   }, [user, today]);
 
   async function save() {
-    if (!user) return;
-    const payload: DailyCheckinItem = {
-      id: today,
-      user_id: user.id,
-      checkin_date: today,
-      mood: form.mood,
-      energy: form.energy,
-      focus: form.focus,
-      sleep_quality: form.sleep_quality,
-      stress: form.stress,
-      sleep_hours: form.sleep_hours ? Number(form.sleep_hours) : null,
-      notes: form.notes || null,
-    };
+    if (!user || saving) return;
+    setSaving(true);
+    try {
+      const payload: DailyCheckinItem = {
+        id: today,
+        user_id: user.id,
+        checkin_date: today,
+        mood: form.mood,
+        energy: form.energy,
+        focus: form.focus,
+        sleep_quality: form.sleep_quality,
+        stress: form.stress,
+        sleep_hours: form.sleep_hours ? Number(form.sleep_hours) : null,
+        notes: form.notes || null,
+      };
 
-    // Save to Firestore primary store
-    const ok = await upsertDailyCheckin(user.id, payload);
-    
-    // Also try to mirror to firebaseStore in background
-    firebaseStore
-      .from("daily_checkins")
-      .upsert(payload as any, { onConflict: "user_id,checkin_date" })
-      .catch(() => {});
+      // Save to Firestore primary store
+      const ok = await upsertDailyCheckin(user.id, payload);
+      
+      // Also mirror to firebaseStore in background
+      firebaseStore
+        .from("daily_checkins")
+        .upsert(payload as any, { onConflict: "user_id,checkin_date" })
+        .catch(() => {});
 
-    if (ok) {
-      awardWaterDrops(20, T("ثبت چک‌این روزانه", "Daily check-in logged"));
-      toast.success(T("ثبت شد ✨", "Saved ✨"));
-      setSavedTick(Date.now());
-    } else {
-      toast.error(T("خطا در ذخیره چک‌این", "Error saving check-in"));
+      if (ok) {
+        awardDailyCheckinDrops(today, 20, T("ثبت چک‌این روزانه", "Daily check-in logged"));
+        toast.success(T("ثبت شد ✨", "Saved ✨"));
+        setSavedTick(Date.now());
+      } else {
+        toast.error(T("خطا در ذخیره چک‌این", "Error saving check-in"));
+      }
+    } finally {
+      setSaving(false);
     }
   }
+
+  const recent30DaysTrend = useMemo(() => {
+    const thirtyDaysAgo = getLocalDateString(new Date(Date.now() - 30 * 86400000));
+    return history
+      .filter((h) => h.checkin_date >= thirtyDaysAgo)
+      .sort((a, b) => a.checkin_date.localeCompare(b.checkin_date))
+      .map((h) => {
+        const d = new Date(h.checkin_date);
+        return {
+          rawDate: h.checkin_date,
+          date: formatDate(d, "d MMM", "jalali"),
+          mood: h.mood,
+          energy: h.energy,
+          focus: h.focus,
+        };
+      });
+  }, [history]);
 
   if (loading) return <div className="p-8 text-center text-muted-foreground">…</div>;
 
@@ -225,11 +254,20 @@ export default function CheckinView() {
               <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder={T("چه چیزی امروز قابل توجه بود؟", "What stood out today?")} rows={3} />
             </div>
           )}
-          <Button onClick={save} className="w-full">{T("ذخیره", "Save")}</Button>
+          <Button onClick={save} disabled={saving} className="w-full">
+            {saving ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {T("در حال ذخیره...", "Saving...")}
+              </span>
+            ) : (
+              T("ذخیره", "Save")
+            )}
+          </Button>
         </CardContent>
       </Card>
 
-      {history.length > 1 && (
+      {recent30DaysTrend.length > 1 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">{T("روند ۳۰ روز اخیر", "Recent 30-Day Trend")}</CardTitle>
@@ -237,18 +275,7 @@ export default function CheckinView() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
-              <LineChart
-                data={history.map((h) => {
-                  const d = new Date(h.checkin_date);
-                  return {
-                    rawDate: h.checkin_date,
-                    date: formatDate(d, "d MMM", "jalali"),
-                    mood: h.mood,
-                    energy: h.energy,
-                    focus: h.focus,
-                  };
-                })}
-              >
+              <LineChart data={recent30DaysTrend}>
                 <XAxis dataKey="date" fontSize={11} stroke="hsl(var(--muted-foreground))" />
                 <YAxis domain={[0, 10]} fontSize={11} stroke="hsl(var(--muted-foreground))" />
                 <Tooltip

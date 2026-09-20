@@ -12,6 +12,15 @@ import { Label } from "@/components/ui/label";
 import { ArrowRight, ArrowLeft, Compass, Plus, Save, Target, Heart, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useBilingual } from "@/hooks/useBilingual";
+import { createTaskFromMind } from "@/lib/taskFromMind";
+import {
+  subscribeMindValues,
+  saveMindValues,
+  subscribeMindGoals,
+  upsertMindGoal,
+  deleteMindGoal,
+  type MindGoalItem,
+} from "@/lib/firestoreDataService";
 
 // 10 life domains commonly used in ACT Values clarification.
 const DOMAINS = [
@@ -62,23 +71,77 @@ export default function ValuesGoalsView() {
   const [newGoal, setNewGoal] = useState({ domain: DOMAINS[0].key, text: "", horizon: "week" as Goal["horizon"] });
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setState({});
+      setGoals([]);
+      return;
+    }
+
+    // 1. Load from local cache immediately
     try {
       const raw = localStorage.getItem(STORAGE(user.id));
       if (raw) setState(JSON.parse(raw));
       const g = localStorage.getItem(GOALS_STORAGE(user.id));
       if (g) setGoals(JSON.parse(g));
     } catch {}
+
+    // 2. Subscribe to Firestore Values
+    const unsubValues = subscribeMindValues(user.id, (cloudValues) => {
+      if (cloudValues && Object.keys(cloudValues).length > 0) {
+        setState(cloudValues);
+        try { localStorage.setItem(STORAGE(user.id), JSON.stringify(cloudValues)); } catch {}
+      } else {
+        // Cloud is empty, check if we should migrate local data
+        try {
+          const raw = localStorage.getItem(STORAGE(user.id));
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Object.keys(parsed).length > 0) {
+              saveMindValues(user.id, parsed);
+            }
+          }
+        } catch {}
+      }
+    });
+
+    // 3. Subscribe to Firestore Goals
+    const unsubGoals = subscribeMindGoals(user.id, (cloudGoals) => {
+      if (cloudGoals && cloudGoals.length > 0) {
+        setGoals(cloudGoals as Goal[]);
+        try { localStorage.setItem(GOALS_STORAGE(user.id), JSON.stringify(cloudGoals)); } catch {}
+      } else {
+        // Cloud is empty, check if we should migrate local goals
+        try {
+          const raw = localStorage.getItem(GOALS_STORAGE(user.id));
+          if (raw) {
+            const parsed: Goal[] = JSON.parse(raw);
+            if (parsed.length > 0) {
+              parsed.forEach((item) => upsertMindGoal(user.id, item));
+            }
+          }
+        } catch {}
+      }
+    });
+
+    return () => {
+      unsubValues();
+      unsubGoals();
+    };
   }, [user]);
 
   function persist(next: Record<string, DomainState>) {
     setState(next);
-    if (user) localStorage.setItem(STORAGE(user.id), JSON.stringify(next));
+    if (user) {
+      try { localStorage.setItem(STORAGE(user.id), JSON.stringify(next)); } catch {}
+      saveMindValues(user.id, next);
+    }
   }
 
   function persistGoals(next: Goal[]) {
     setGoals(next);
-    if (user) localStorage.setItem(GOALS_STORAGE(user.id), JSON.stringify(next));
+    if (user) {
+      try { localStorage.setItem(GOALS_STORAGE(user.id), JSON.stringify(next)); } catch {}
+    }
   }
 
   function update(key: string, patch: Partial<DomainState>) {
@@ -104,6 +167,7 @@ export default function ValuesGoalsView() {
       created_at: new Date().toISOString(),
     };
     persistGoals([goal, ...goals]);
+    upsertMindGoal(user.id, goal);
     setNewGoal({ ...newGoal, text: "" });
     toast.success(T("هدف افزوده شد", "Goal added"));
   }
@@ -111,24 +175,30 @@ export default function ValuesGoalsView() {
   async function goalToTask(g: Goal) {
     if (!user) return;
     const days = HORIZONS[g.horizon].days;
-    const due = days === 0 ? null : new Date(Date.now() + days * 86400000).toISOString();
     const dObj = DOMAINS.find((d) => d.key === g.domain);
     const domainLabel = (isEn ? dObj?.label_en : dObj?.label) || "";
-    const { error } = await firebaseStore.from("tasks").insert({
+
+    const res = await createTaskFromMind({
       user_id: user.id,
       title: g.text,
       description: isEn ? `Value-aligned goal · ${domainLabel}` : `هدف ارزش‌محور · ${domainLabel}`,
-      due_date: due,
+      due_in_days: days, // 0 for today ensures it gets today's date
+      source_type: "values_goal",
+      source_id: g.id,
+      priority: "medium",
     });
-    if (error) toast.error(error.message);
-    else {
+
+    if (res.ok) {
       toast.success(T("به Task تبدیل شد", "Converted to Task"));
       navigate("/app/today");
+    } else {
+      toast.error(res.error || T("خطا در تبدیل هدف به تسک", "Error converting goal to task"));
     }
   }
 
   function removeGoal(id: string) {
     persistGoals(goals.filter((g) => g.id !== id));
+    if (user) deleteMindGoal(user.id, id);
   }
 
   return (

@@ -5,6 +5,8 @@ import { Slider } from "@/components/ui/slider";
 import { Wind, Play, Pause, RotateCcw, Volume2, VolumeX, Sparkles } from "lucide-react";
 import { startSynth, stopSynth, setSynthVolume } from "@/lib/pomodoroSynth";
 import { useBilingual } from "@/hooks/useBilingual";
+import { awardWaterDrops } from "@/lib/garden";
+import { toast } from "sonner";
 
 type Phase = "inhale" | "hold-in" | "exhale" | "hold-out";
 
@@ -100,6 +102,8 @@ export default function BreathingView() {
   const [loop, setLoop] = useState(0);
   const [ambient, setAmbient] = useState(true);
   const [vol, setVol] = useState(35);
+  const [completedSession, setCompletedSession] = useState(false);
+  const [postMood, setPostMood] = useState<number | null>(null);
 
   const rafRef = useRef<number | null>(null);
   const phaseStartRef = useRef<number>(0);   // performance.now() when current phase started
@@ -136,6 +140,8 @@ export default function BreathingView() {
   // Reset on pattern change
   useEffect(() => {
     stop(true);
+    setCompletedSession(false);
+    setPostMood(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pattern.id]);
 
@@ -166,6 +172,9 @@ export default function BreathingView() {
         loopRef.current += 1;
         if (loopRef.current >= pattern.loops) {
           stop(true);
+          awardWaterDrops(10, isEn ? "Mindful Breathing Session" : "تمرین تنفس آگاهانه");
+          setCompletedSession(true);
+          toast.success(T("تمرین کامل شد! ۱۰ قطره آب به باغت اضافه شد 💧", "Session completed! 10 water drops added to your garden 💧"));
           return;
         }
         setLoop(loopRef.current);
@@ -180,11 +189,13 @@ export default function BreathingView() {
     const left = Math.max(0, cur.dur - elapsed);
     setPhaseLeft(left);
     rafRef.current = requestAnimationFrame(loop_);
-  }, [sequence, pattern.loops, stop]);
+  }, [sequence, pattern.loops, stop, isEn, T]);
 
   const start = () => {
     if (runningRef.current) return;
     if (!sequence.length) return;
+    setCompletedSession(false);
+    setPostMood(null);
     phaseIdxRef.current = 0;
     loopRef.current = 0;
     phaseStartRef.current = performance.now();
@@ -317,6 +328,49 @@ export default function BreathingView() {
           </Button>
         </div>
       </Card>
+
+      {/* Completion & Post-Session Mood Check */}
+      {completedSession && (
+        <Card className="p-4 bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 rounded-2xl space-y-2.5 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 font-bold text-sm">
+              <Sparkles className="w-4 h-4 text-emerald-500" />
+              <span>{T("آفرین! تمرین تنفس کامل شد.", "Well done! Breathing session complete.")}</span>
+            </div>
+            <span className="text-xs bg-emerald-500/20 px-2.5 py-0.5 rounded-full font-bold">
+              +۱۰ 💧
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {T("سیستم عصبی شما آرام‌تر شده است. الان احساست چطوره؟", "Your nervous system is down-regulated. How are you feeling now?")}
+          </p>
+          <div className="flex items-center gap-1.5 pt-1 flex-wrap">
+            {[
+              { emoji: "😌", label: T("آرام‌تر", "Calmer"), val: 1 },
+              { emoji: "⚡", label: T("پرانرژی‌تر", "Energized"), val: 2 },
+              { emoji: "🎯", label: T("متمرکزتر", "Focused"), val: 3 },
+              { emoji: "😐", label: T("بدون تغییر", "No change"), val: 4 },
+            ].map((item) => (
+              <button
+                key={item.val}
+                type="button"
+                onClick={() => {
+                  setPostMood(item.val);
+                  toast.success(T("احساست ثبت شد!", "Feeling noted!"));
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition ${
+                  postMood === item.val
+                    ? "bg-emerald-500 text-white border-emerald-500 shadow-xs"
+                    : "bg-card/70 hover:bg-card border-border/50 text-foreground"
+                }`}
+              >
+                <span>{item.emoji}</span>
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Audio controls */}
       <Card className="p-4 space-y-3">

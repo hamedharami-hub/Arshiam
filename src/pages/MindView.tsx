@@ -19,6 +19,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { formatDate, toPersianDigits } from "@/lib/jalali";
 import { useBilingual } from "@/hooks/useBilingual";
 
+import { getLocalDateString } from "@/lib/taskDate";
+
 type Checkin = {
   checkin_date: string; mood: number | null; energy: number | null;
   focus: number | null; stress: number | null; sleep_quality: number | null;
@@ -184,7 +186,7 @@ export default function MindView() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const since90 = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+      const since90 = getLocalDateString(new Date(Date.now() - 90 * 86400000));
       const since30iso = new Date(Date.now() - 30 * 86400000).toISOString();
       const [{ data: ck }, { data: tr }, { count: ac }, { data: scr }] = await Promise.all([
         firebaseStore.from("daily_checkins").select("checkin_date,mood,energy,focus,stress,sleep_quality")
@@ -212,20 +214,26 @@ export default function MindView() {
       setTopDistortions(Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([key, n]) => ({ key, n })));
       const dates = new Set((ck || []).map((c: any) => c.checkin_date));
       let s = 0;
-      for (let i = 0; i < 90; i++) {
-        const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+      const todayLocalDate = getLocalDateString(new Date());
+      const hasToday = dates.has(todayLocalDate);
+      const startOffset = hasToday ? 0 : 1;
+      for (let i = startOffset; i < 90; i++) {
+        const d = getLocalDateString(new Date(Date.now() - i * 86400000));
         if (dates.has(d)) s++;
-        else if (i > 0) break;
+        else break;
       }
       setStreak(s);
     })();
   }, [user]);
 
-  const today = checkins.length ? checkins[checkins.length - 1] : null;
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = getLocalDateString(new Date());
+  const today = checkins.find((c) => c.checkin_date === todayStr) || (checkins.length ? checkins[checkins.length - 1] : null);
   const isToday = today?.checkin_date === todayStr;
 
-  const trend = useMemo(() => checkins.slice(-30).map((c) => {
+  const thirtyDaysAgoStr = getLocalDateString(new Date(Date.now() - 30 * 86400000));
+  const recentCheckins = useMemo(() => checkins.filter((c) => c.checkin_date >= thirtyDaysAgoStr), [checkins, thirtyDaysAgoStr]);
+
+  const trend = useMemo(() => recentCheckins.map((c) => {
     const d = new Date(c.checkin_date);
     return {
       rawDate: c.checkin_date,
@@ -236,7 +244,7 @@ export default function MindView() {
       focus: c.focus,
       stress: c.stress,
     };
-  }), [checkins]);
+  }), [recentCheckins]);
 
   // 90-day heatmap aligned to weeks
   const heatmap = useMemo(() => {
@@ -248,7 +256,7 @@ export default function MindView() {
     });
     const days: { date: string; jalaliDate: string; intensity: number }[] = [];
     for (let i = 89; i >= 0; i--) {
-      const dStr = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+      const dStr = getLocalDateString(new Date(Date.now() - i * 86400000));
       const dObj = new Date(dStr);
       days.push({
         date: dStr,
@@ -306,6 +314,99 @@ export default function MindView() {
           </div>
         </div>
       </Card>
+
+      {/* 3-Step Mind Pathway: Check-in -> Reframe/Solve -> Micro-action */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {/* Step 1: Check-in */}
+        <Link
+          to="/app/checkin"
+          className="group relative overflow-hidden rounded-2xl border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 p-4 transition-all duration-200 hover:shadow-md flex flex-col justify-between"
+        >
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-rose-500/20 grid place-items-center text-xs font-bold">۱</span>
+                {T("ثبت حال", "Check-in")}
+              </span>
+              {isToday ? (
+                <Badge variant="outline" className="text-[10px] bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30">
+                  {T("ثبت شده ✓", "Logged ✓")}
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-[10px] bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 animate-pulse">
+                  {T("شروع روز", "Start today")}
+                </Badge>
+              )}
+            </div>
+            <h3 className="font-bold text-sm text-foreground group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
+              {T("حالم را ثبت کنم", "Log my mood & energy")}
+            </h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {T("۱۰ ثانیه برای آگاهی از خلق، استرس و تمرکز درونی.", "10 seconds to check in on mood, stress, and energy.")}
+            </p>
+          </div>
+          <div className="mt-3 pt-2 border-t border-rose-500/10 flex items-center justify-between text-xs text-rose-600 dark:text-rose-400 font-medium">
+            <span>{isToday ? T("ویرایش یا مشاهده", "View or edit") : T("ثبت الان", "Check in now")}</span>
+            {isEn ? <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" /> : <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />}
+          </div>
+        </Link>
+
+        {/* Step 2: Thought / Worry */}
+        <Link
+          to="/app/thoughts"
+          className="group relative overflow-hidden rounded-2xl border border-violet-500/20 bg-violet-500/5 hover:bg-violet-500/10 p-4 transition-all duration-200 hover:shadow-md flex flex-col justify-between"
+        >
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-violet-600 dark:text-violet-400 flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-violet-500/20 grid place-items-center text-xs font-bold">۲</span>
+                {T("بررسی فکر / نگرانی", "Reframe / Solve")}
+              </span>
+              <Badge variant="outline" className="text-[10px] bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/30">
+                {T("CBT · نگرانی", "CBT · Worry")}
+              </Badge>
+            </div>
+            <h3 className="font-bold text-sm text-foreground group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+              {T("فکری درگیرم کرده", "Something is on my mind")}
+            </h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {T("کشف خطای شناختی با هوش مصنوعی یا حل نگرانی با درخت تصمیم‌گیری.", "Break cognitive distortions or solve problems with Worry Tree.")}
+            </p>
+          </div>
+          <div className="mt-3 pt-2 border-t border-violet-500/10 flex items-center justify-between text-xs text-violet-600 dark:text-violet-400 font-medium">
+            <span>{T("ثبت فکر یا نگرانی", "Log thought or worry")}</span>
+            {isEn ? <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" /> : <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />}
+          </div>
+        </Link>
+
+        {/* Step 3: Micro-action & Review */}
+        <Link
+          to="/app/today"
+          className="group relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 p-4 transition-all duration-200 hover:shadow-md flex flex-col justify-between"
+        >
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-emerald-500/20 grid place-items-center text-xs font-bold">۳</span>
+                {T("اقدام کوچک و اثر", "Action & Review")}
+              </span>
+              <Badge variant="outline" className="text-[10px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+                {T("Today · تسک‌ها", "Today · Tasks")}
+              </Badge>
+            </div>
+            <h3 className="font-bold text-sm text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+              {T("اقدام کوچک و بررسی نتیجه", "Micro-action & review")}
+            </h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {T("اقدامات برخاسته از ذهن در Today قرار می‌گیرند تا اثربخشی آن‌ها را بسنجید.", "Mind-generated tasks land in Today so you can review their impact.")}
+            </p>
+          </div>
+          <div className="mt-3 pt-2 border-t border-emerald-500/10 flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+            <span>{T("مشاهده تسک‌های امروز", "View today's tasks")}</span>
+            {isEn ? <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" /> : <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />}
+          </div>
+        </Link>
+      </div>
 
       {/* Segmented Tabs Navigation - Modern Material 3 Style */}
       <Tabs defaultValue="tools" className="w-full space-y-4">

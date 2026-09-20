@@ -126,9 +126,8 @@ export default function ThoughtRecordsView() {
     };
     const savedId = await upsertThoughtRecord(user.id, payload);
     // Mirror to firebaseStore if accessible
-    firebaseStore.from("thought_records").insert({ ...payload, id: savedId }).catch(() => {});
-
     if (savedId) {
+      firebaseStore.from("thought_records").upsert({ ...payload, id: savedId }, { onConflict: "id" }).catch(() => {});
       toast.success(T("ثبت شد ✨", "Saved ✨"));
       setEditing(false);
       setForm(initial());

@@ -1,6 +1,8 @@
 import { firebaseStore } from "@/lib/firebaseStore";
 import { getOpConfig, type AIOperation } from "@/lib/aiSettings";
 import { offlineAssistant } from "@/lib/offlineAssistant";
+import { getStoredUser } from "@/lib/authService";
+import { DISTORTION_LABELS, type Distortion } from "@/lib/distortions";
 
 export type AIMode = AIOperation;
 
@@ -38,7 +40,7 @@ export async function callAI(
 
   if (settings?.provider === "offline") {
     const local = offlineAssistant(mode, input, lang, action, context);
-    if (local) return local;
+    if (local) return sanitizeAIResult(mode, local);
     throw new Error("این عملیات در موتور آفلاین فعلی پشتیبانی نمی‌شود؛ برای آن یک سرویس آنلاین انتخاب کن.");
   }
 
@@ -46,11 +48,11 @@ export async function callAI(
   // automatically while offline and as a private fallback when no API key exists.
   if (typeof navigator !== "undefined" && !navigator.onLine) {
     const local = offlineAssistant(mode, input, lang, action, context);
-    if (local) return local;
+    if (local) return sanitizeAIResult(mode, local);
   }
   if (!settings) {
     const local = offlineAssistant(mode, input, lang, action, context);
-    if (local) return local;
+    if (local) return sanitizeAIResult(mode, local);
     throw new Error("برای استفاده از این قابلیت، یک سرویس آنلاین و کلید API شخصی را در تنظیمات → AI وارد کن؛ یا برای عملیات پشتیبانی‌شده، هوش مصنوعی آفلاین را انتخاب کن.");
   }
   const language = lang === "auto" ? undefined : lang;
@@ -78,24 +80,26 @@ export async function callAI(
   let timezone = "UTC";
   try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch {}
 
-  // 1. Direct Google Gemini REST API support
-  const { getGeminiApiKey, callDirectGemini, GEMINI_SYSTEM_PROMPTS } = await import("./geminiDirect");
-  const geminiKey = (settings?.provider === "gemini" && settings.apiKey) ? settings.apiKey : getGeminiApiKey();
-  if (geminiKey) {
-    try {
-      const systemPrompt = GEMINI_SYSTEM_PROMPTS[mode] || GEMINI_SYSTEM_PROMPTS.chat;
-      let promptText = typeof input === "string" ? input : JSON.stringify(input);
-      if (context) promptText = `زمینه (Context):\n${context}\n\nورودی:\n${promptText}`;
-      if (action) promptText = `دستور (Action): ${action}\n\n${promptText}`;
-      const res = await callDirectGemini({
-        prompt: promptText,
-        systemPrompt,
-        model: settings?.model || "gemini-2.5-flash",
-        apiKey: geminiKey,
-      });
-      return res;
-    } catch (directErr: any) {
-      console.warn("[AI] Direct Gemini call error, attempting firebaseStore edge fallback:", directErr?.message || directErr);
+  // 1. Direct Google Gemini REST API support (when provider is gemini)
+  if (settings?.provider === "gemini") {
+    const { getGeminiApiKey, callDirectGemini, GEMINI_SYSTEM_PROMPTS } = await import("./geminiDirect");
+    const geminiKey = settings.apiKey || getGeminiApiKey();
+    if (geminiKey) {
+      try {
+        const systemPrompt = GEMINI_SYSTEM_PROMPTS[mode] || GEMINI_SYSTEM_PROMPTS.chat;
+        let promptText = typeof input === "string" ? input : JSON.stringify(input);
+        if (context) promptText = `زمینه (Context):\n${context}\n\nورودی:\n${promptText}`;
+        if (action) promptText = `دستور (Action): ${action}\n\n${promptText}`;
+        const res = await callDirectGemini({
+          prompt: promptText,
+          systemPrompt,
+          model: settings?.model || "gemini-2.5-flash",
+          apiKey: geminiKey,
+        });
+        return sanitizeAIResult(mode, res);
+      } catch (directErr: any) {
+        console.warn("[AI] Direct Gemini call error, attempting firebaseStore edge fallback:", directErr?.message || directErr);
+      }
     }
   }
 
@@ -105,5 +109,26 @@ export async function callAI(
   });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
-  return data as { text: string; data?: any };
+  return sanitizeAIResult(mode, data as { text: string; data?: any });
+}
+
+function sanitizeAIResult(mode: AIMode, result: any): { text: string; data?: any } {
+  if (mode === "distortion_detect" && result?.data?.distortions) {
+    const validKeys = new Set(Object.keys(DISTORTION_LABELS));
+    const rawDistortions = Array.isArray(result.data.distortions) ? result.data.distortions : [];
+    const sanitized = rawDistortions
+      .filter((d: any) => d && typeof d === "object" && typeof d.key === "string")
+      .map((d: any) => {
+        let key = d.key.toLowerCase().trim().replace(/[\s-]+/g, "_");
+        if (key === "catastrophizing") key = "magnification";
+        if (key === "all-or-nothing" || key === "black_and_white") key = "all_or_nothing";
+        if (key === "should_statement" || key === "must") key = "shoulds";
+        return {
+          key: validKeys.has(key) ? (key as Distortion) : "overgeneralization",
+          explanation: String(d.explanation || ""),
+        };
+      });
+    result.data.distortions = sanitized;
+  }
+  return result;
 }

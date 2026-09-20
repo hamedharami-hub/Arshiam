@@ -18,6 +18,9 @@ export type Task = {
   recurrence_rule: RecurrenceRule | null;
   parent_id: string | null;
   outcome_id?: string | null;
+  source_type?: "cbt_thought" | "abc_model" | "worry_tree" | "values_goal" | string | null;
+  source_id?: string | null;
+  outcome_review?: { helpful: "helpful" | "somewhat" | "not_helpful"; note?: string; created_at: string } | null;
   pinned: boolean;
   start_at: string | null;
   end_at: string | null;

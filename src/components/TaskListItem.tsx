@@ -1,7 +1,7 @@
 import React, { memo } from "react";
 import {
   CornerDownRight, ChevronDown, ChevronRight, Pin, X, Ban,
-  GripVertical, Flag, Calendar, Repeat, GitBranch, Check, Trash2, Clock, FolderInput
+  GripVertical, Flag, Calendar, Repeat, GitBranch, Check, Trash2, Clock, FolderInput, Brain,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -249,6 +249,21 @@ const TaskListItemComponent = ({
                 {t.is_avoidance && (
                   <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 h-4 rounded bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
                     <Ban className="w-2.5 h-2.5" /> {T("اجتنابی", "Avoidance")}
+                  </span>
+                )}
+                {t.source_type && (
+                  <span
+                    className="inline-flex items-center gap-0.5 text-[9px] px-1.5 h-4 rounded bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/30"
+                    title={T("ایجاد شده از بخش ذهن", "Created from Mind")}
+                  >
+                    <Brain className="w-2.5 h-2.5" />
+                    <span>
+                      {t.source_type === "cbt_thought" ? T("CBT", "CBT")
+                        : t.source_type === "abc_model" ? T("ABC", "ABC")
+                        : t.source_type === "worry_tree" ? T("نگرانی", "Worry")
+                        : t.source_type === "values_goal" ? T("ارزش‌ها", "Values")
+                        : T("ذهن", "Mind")}
+                    </span>
                   </span>
                 )}
                 <Popover>

@@ -20,7 +20,7 @@ import {
   Folder as FolderIcon, Tag as TagIcon, Check, Calendar as CalendarIcon,
   Flag, Repeat, ListTree, Paperclip, X, Image as ImageIcon, Music, Link as LinkIcon,
   CheckSquare, ListChecks, CalendarDays, Mic, MicOff, Pin, PinOff, Maximize2, Minimize2,
-  GitBranch, Zap,
+  GitBranch, Zap, Brain,
   Save, ExternalLink, Loader2, Circle, CheckCircle2, MoreHorizontal,
   Copy, Share2, FolderInput, Timer, Network,
 } from "lucide-react";
@@ -793,6 +793,26 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           color="bg-amber-500/15 text-amber-700 dark:text-amber-400"
         >
           {T("اجتنابی", "Avoidance")}
+        </Chip>
+      )}
+      {t.source_type && (
+        <Chip
+          icon={Brain}
+          color="bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30"
+          onClick={() => {
+            if (t.source_type === "cbt_thought") navigate("/app/thoughts");
+            else if (t.source_type === "abc_model") navigate("/app/abc");
+            else if (t.source_type === "worry_tree") navigate("/app/worry");
+            else if (t.source_type === "values_goal") navigate("/app/values");
+            else navigate("/app/mind");
+          }}
+          title={T("مشاهده مبدا در ذهن", "View origin in Mind")}
+        >
+          {t.source_type === "cbt_thought" ? T("ثبت فکر (CBT)", "CBT Thought")
+            : t.source_type === "abc_model" ? T("مدل رفتار (ABC)", "ABC Model")
+            : t.source_type === "worry_tree" ? T("درخت نگرانی", "Worry Tree")
+            : t.source_type === "values_goal" ? T("ارزش‌ها (ACT)", "Values (ACT)")
+            : T("ذهن", "Mind")}
         </Chip>
       )}
     </div>
@@ -1599,11 +1619,80 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     </div>
   );
 
+  const mindOutcomeReviewSection = t.source_type && (
+    <Card className="p-3.5 mx-1 rounded-2xl border-purple-500/30 bg-purple-500/5 space-y-2.5">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2 text-xs font-semibold text-purple-600 dark:text-purple-400">
+          <Brain className="w-4 h-4 shrink-0" />
+          <span>
+            {t.source_type === "cbt_thought" && T("اقدام برخاسته از ثبت فکر (CBT)", "Action from CBT Thought")}
+            {t.source_type === "abc_model" && T("اقدام برخاسته از مدل رفتار (ABC)", "Action from ABC Model")}
+            {t.source_type === "worry_tree" && T("اقدام حل مسئله (درخت نگرانی)", "Problem-solving Action (Worry Tree)")}
+            {t.source_type === "values_goal" && T("اقدام مبتنی بر ارزش‌ها (ACT)", "Values-based Action (ACT)")}
+          </span>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2 text-[11px] text-purple-600 dark:text-purple-400 hover:bg-purple-500/10"
+          onClick={() => {
+            if (t.source_type === "cbt_thought") navigate("/app/thoughts");
+            else if (t.source_type === "abc_model") navigate("/app/abc");
+            else if (t.source_type === "worry_tree") navigate("/app/worry");
+            else if (t.source_type === "values_goal") navigate("/app/values");
+            else navigate("/app/mind");
+          }}
+        >
+          <span>{T("مشاهده در ذهن", "View in Mind")}</span>
+          <ExternalLink className="w-3 h-3 ms-1" />
+        </Button>
+      </div>
+
+      <div className="pt-2 border-t border-purple-500/20 text-xs">
+        <div className="text-muted-foreground mb-1.5 font-medium">
+          {T("این اقدام چقدر به آرامش یا شفافیت ذهنت کمک کرد؟", "How much did this action help your clarity or calm?")}
+        </div>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {[
+            { key: "helpful", label: T("خیلی مفید بود", "Very helpful"), color: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30" },
+            { key: "somewhat", label: T("تا حدی", "Somewhat"), color: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30" },
+            { key: "not_helpful", label: T("کمکی نکرد", "Not helpful"), color: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30" },
+          ].map((opt) => {
+            const isSelected = t.outcome_review?.helpful === opt.key;
+            return (
+              <button
+                key={opt.key}
+                type="button"
+                disabled={!canEdit}
+                onClick={() => {
+                  const nextReview = {
+                    helpful: opt.key as any,
+                    created_at: t.outcome_review?.created_at || new Date().toISOString(),
+                    note: t.outcome_review?.note || "",
+                  };
+                  void save({ outcome_review: nextReview });
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition ${
+                  isSelected
+                    ? `${opt.color} ring-1 ring-current shadow-xs font-semibold`
+                    : "bg-background/60 hover:bg-background text-muted-foreground border-border/60"
+                }`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </Card>
+  );
+
   const body = (
     <div className="mt-1 task-detail-sections flex flex-col min-h-[40vh] space-y-4 pb-20">
       {hero}
       {topControls}
       {quickChips}
+      {mindOutcomeReviewSection}
       {/* Unified vertical document flow: note description followed directly by subtasks & checklists */}
       <div className="flex-1 min-w-0 flex flex-col space-y-4">
         <div className="min-w-0">{descriptionSection}</div>

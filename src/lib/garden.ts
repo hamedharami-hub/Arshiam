@@ -61,6 +61,7 @@ export interface GardenState {
   gardenLevel: number;
   soundEnabled: boolean;
   timeOfDayMode: "auto" | TimeOfDay;
+  lastCheckinRewardDate?: string;
 }
 
 export const PLANT_SPECIES: Record<PlantType, PlantMetadata> = {
@@ -316,6 +317,27 @@ export function awardWaterDrops(amount: number, reason: string): number {
   });
 
   return newDrops;
+}
+
+export function awardDailyCheckinDrops(todayStr: string, amount = 20, reason = "ثبت چک‌این روزانه"): { awarded: boolean; drops: number } {
+  const current = getGardenState();
+  if (current.lastCheckinRewardDate === todayStr) {
+    return { awarded: false, drops: current.waterDrops };
+  }
+  const newDrops = current.waterDrops + amount;
+  const newSun = current.sunEnergy + Math.ceil(amount / 2);
+  const updated: GardenState = {
+    ...current,
+    waterDrops: newDrops,
+    sunEnergy: newSun,
+    lastCheckinRewardDate: todayStr,
+  };
+  saveGardenState(updated);
+  toast.success(`+${amount} قطره آب برای گلخانه 🌱`, {
+    description: reason,
+    duration: 3500,
+  });
+  return { awarded: true, drops: newDrops };
 }
 
 export function waterActivePlant(amount = 15): { success: boolean; stageUp: boolean; bloomed: boolean } {
