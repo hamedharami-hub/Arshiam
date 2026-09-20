@@ -3,7 +3,7 @@ import {
   Inbox, Calendar as CalIcon, CalendarDays, Filter, FolderTree, Tag, FileText,
   Target, Timer, Calendar, Plus, ChevronRight, ChevronDown, LogOut, Sparkles, Settings, LayoutGrid,
   Brain, TrendingUp, Moon, HeartPulse, Activity, MessageCircleQuestion, Zap, Clock4, Heart, ShieldAlert, BookOpen, Sun,
-  ListTodo, BrainCircuit, Wrench, GripVertical, RotateCcw, User, Trash2, Shield, Users, Flame,
+  ListTodo, BrainCircuit, Wrench, GripVertical, RotateCcw, User, Trash2, Shield, Users,
   BarChart3, Sprout, Wind, Folder as FolderIcon, Compass,
 } from "lucide-react";
 import { StreakCard } from "@/components/StreakCard";
@@ -39,6 +39,7 @@ import { useTranslation } from "react-i18next";
 import SidebarItemSheet from "@/components/SidebarItemSheet";
 import { useLongPress } from "@/lib/useLongPress";
 import { cacheGet, cacheSet, enqueueOp } from "@/lib/offlineQueue";
+import { useSidebarQuickLinks } from "@/lib/sidebarQuickLinks";
 
 // Bilingual label maps. SECTIONS uses the Persian label as the canonical key.
 const EN_LABELS: Record<string, string> = {
@@ -149,6 +150,8 @@ const SECTIONS: Section[] = [
     ],
   },
 ];
+
+const NAV_ITEMS = SECTIONS.flatMap((section) => section.items);
 
 // Default order: folders → tags → tasks → notes → self → mind → settings
 const DEFAULT_ORDER = ["__folders", "__tags", "do", "grow", "mind", "me"];
@@ -324,6 +327,7 @@ export function AppSidebar() {
   const [sheetFolder, setSheetFolder] = useState<Folder | null>(null);
   const [sheetTag, setSheetTag] = useState<TagT | null>(null);
   const [order, setOrder] = useState<string[]>(loadOrder);
+  const { quickLinks } = useSidebarQuickLinks();
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
     try {
@@ -849,24 +853,26 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Daily progress replaces the old Home link at the top of the sidebar */}
+        {/* The compact desktop rail is intentionally curated in Settings. */}
         {collapsed ? (
           <SidebarGroup>
             <SidebarGroupContent>
               <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to="/app/stats"
-                      onClick={closeOnMobile}
-                      className="flex items-center gap-2"
-                      activeClassName="bg-accent text-accent-foreground font-medium"
-                    >
-                      <Flame className="w-4 h-4 text-primary" />
-                      <span className="sr-only">{isEn ? "Daily progress" : "پیشرفت روزانه"}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                {quickLinks.map((url) => {
+                  const item = NAV_ITEMS.find((candidate) => candidate.url === url);
+                  if (!item) return null;
+                  const Icon = item.icon;
+                  return (
+                    <SidebarMenuItem key={item.url}>
+                      <SidebarMenuButton asChild tooltip={tr(item.label)} className="justify-center h-9 w-9 mx-auto rounded-xl">
+                        <NavLink to={item.url} onClick={closeOnMobile} className="flex items-center justify-center w-full h-full" activeClassName="bg-accent text-accent-foreground font-bold">
+                          <Icon className="w-4 h-4 shrink-0" />
+                          <span className="sr-only">{tr(item.label)}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -883,10 +889,7 @@ export function AppSidebar() {
           </div>
         )}
 
-        {collapsed ? (
-          // collapsed: render in default order, no drag
-          DEFAULT_ORDER.map((id) => <div key={id}>{renderBlock(id, null)}</div>)
-        ) : (
+        {!collapsed && (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={order} strategy={verticalListSortingStrategy}>
               {order.map((id) => (

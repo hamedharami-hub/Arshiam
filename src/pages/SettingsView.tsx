@@ -34,6 +34,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ALL_BUCKET_KINDS, getEnabledBuckets, setEnabledBuckets, kindLabel, type BucketKind } from "@/lib/timeBuckets";
 import { getCalendarSystem, setCalendarSystem, type CalendarSystem } from "@/lib/jalali";
 import { getSidebarPosition, setSidebarPosition, type SidebarPosition } from "@/lib/sidebarPosition";
+import { getSidebarQuickLinks, setSidebarQuickLinks, SIDEBAR_QUICK_LINK_OPTIONS } from "@/lib/sidebarQuickLinks";
 import { useTheme } from "next-themes";
 import { applyTheme, getBaseTheme } from "@/lib/theme";
 import { TaskDefaultSettings } from "@/components/TaskDefaultSettings";
@@ -133,6 +134,38 @@ function TimeBucketsSettings() {
             <SelectItem value="gregorian">{t("settings.gregorian")}</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+    </SectionCard>
+  );
+}
+
+function SidebarQuickLinksSettings({ isEn }: { isEn: boolean }) {
+  const [selected, setSelected] = useState<string[]>(getSidebarQuickLinks);
+
+  const update = (url: string, enabled: boolean) => {
+    const next = enabled ? [...selected, url] : selected.filter((item) => item !== url);
+    setSelected(next);
+    setSidebarQuickLinks(next);
+  };
+
+  return (
+    <SectionCard
+      icon={LayoutGrid}
+      title={isEn ? "Compact sidebar icons" : "آیکن‌های سایدبار جمع‌شده"}
+      description={isEn ? "Choose the shortcuts shown when the desktop sidebar is reduced to icons. Today and Settings always remain available." : "انتخاب کن در حالت آیکنی سایدبار دسکتاپ چه میان‌برهایی نمایش داده شوند. امروز و تنظیمات همیشه در دسترس‌اند."}
+    >
+      <div className="space-y-2">
+        {SIDEBAR_QUICK_LINK_OPTIONS.map((item) => (
+          <div key={item.url} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-card/40 px-3 py-2.5">
+            <div className="text-sm">{isEn ? item.labelEn : item.labelFa}</div>
+            <Switch
+              checked={item.required || selected.includes(item.url)}
+              disabled={item.required}
+              onCheckedChange={(enabled) => update(item.url, enabled)}
+              aria-label={isEn ? `Show ${item.labelEn}` : `نمایش ${item.labelFa}`}
+            />
+          </div>
+        ))}
       </div>
     </SectionCard>
   );
@@ -1345,6 +1378,8 @@ export default function SettingsView() {
               )}
             </div>
           </SectionCard>
+
+          <SidebarQuickLinksSettings isEn={isEn} />
         </TabsContent>
 
         <TabsContent value="tasks" className="space-y-5 mt-5">
