@@ -70,7 +70,7 @@ export default function ShareDialog({ open, onOpenChange, resourceType, resource
       .returns<Share[]>();
     if (error) toast.error(error.message);
 
-    const rows = (data as Share[] || []);
+    const rows = data || [];
     const ids = Array.from(new Set(rows.map((s) => s.recipient_id).filter(Boolean)));
     const names: Record<string, string> = {};
     if (ids.length) {

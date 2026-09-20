@@ -183,6 +183,9 @@ export default function ScreenerView() {
       });
   }, [uniqueHistory, isEn]);
 
+  const [submitting, setSubmitting] = useState(false);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
+
   if (!meta) {
     return (
       <div dir={isEn ? "ltr" : "rtl"} className="p-8 text-center text-muted-foreground">
@@ -207,9 +210,6 @@ export default function ScreenerView() {
       setStage("review");
     }
   }
-
-  const [submitting, setSubmitting] = useState(false);
-  const [submissionId, setSubmissionId] = useState<string | null>(null);
 
   async function submitFinal() {
     if (!user || !type || submitting) return;

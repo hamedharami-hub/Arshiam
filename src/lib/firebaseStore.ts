@@ -51,7 +51,7 @@ function matches(row: Row, filters: Filter[]) {
   });
 }
 
-class FirestoreQuery {
+class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
   private filters: Filter[] = [];
   private sort: { field: string; ascending: boolean } | null = null;
   private maxRows: number | null = null;
@@ -61,27 +61,36 @@ class FirestoreQuery {
 
   constructor(private readonly table: string) {}
 
-  select(_columns = "*", options?: { count?: "exact"; head?: boolean }) {
+  select(_columns = "*", options?: { count?: "exact"; head?: boolean }): this {
     this.wantsCount = options?.count === "exact";
     this.headOnly = !!options?.head;
     return this;
   }
-  eq(field: string, value: unknown) { this.filters.push({ field, operator: "eq", value }); return this; }
-  neq(field: string, value: unknown) { this.filters.push({ field, operator: "neq", value }); return this; }
-  is(field: string, value: unknown) { this.filters.push({ field, operator: "is", value }); return this; }
-  in(field: string, value: unknown[]) { this.filters.push({ field, operator: "in", value }); return this; }
-  gte(field: string, value: unknown) { this.filters.push({ field, operator: "gte", value }); return this; }
-  gt(field: string, value: unknown) { this.filters.push({ field, operator: "gt", value }); return this; }
-  lte(field: string, value: unknown) { this.filters.push({ field, operator: "lte", value }); return this; }
-  lt(field: string, value: unknown) { this.filters.push({ field, operator: "lt", value }); return this; }
-  ilike(field: string, value: string) { this.filters.push({ field, operator: "ilike", value }); return this; }
-  not(field: string, operator: string, value: unknown) { this.filters.push({ field, operator: operator === "is" ? "neq" : operator, value }); return this; }
-  or(_expression: string) { return this; }
-  order(field: string, options?: { ascending?: boolean }) { this.sort = { field, ascending: options?.ascending !== false }; return this; }
-  limit(count: number) { this.maxRows = count; return this; }
-  range(from: number, to: number) { this.maxRows = to - from + 1; return this; }
-  single() { this.one = "single"; return this; }
-  maybeSingle() { this.one = "maybe"; return this; }
+  returns<TNext = TData>(): FirestoreQuery<TNext> {
+    return this as unknown as FirestoreQuery<TNext>;
+  }
+  eq(field: string, value: unknown): this { this.filters.push({ field, operator: "eq", value }); return this; }
+  neq(field: string, value: unknown): this { this.filters.push({ field, operator: "neq", value }); return this; }
+  is(field: string, value: unknown): this { this.filters.push({ field, operator: "is", value }); return this; }
+  in(field: string, value: unknown[]): this { this.filters.push({ field, operator: "in", value }); return this; }
+  gte(field: string, value: unknown): this { this.filters.push({ field, operator: "gte", value }); return this; }
+  gt(field: string, value: unknown): this { this.filters.push({ field, operator: "gt", value }); return this; }
+  lte(field: string, value: unknown): this { this.filters.push({ field, operator: "lte", value }); return this; }
+  lt(field: string, value: unknown): this { this.filters.push({ field, operator: "lt", value }); return this; }
+  ilike(field: string, value: string): this { this.filters.push({ field, operator: "ilike", value }); return this; }
+  not(field: string, operator: string, value: unknown): this { this.filters.push({ field, operator: operator === "is" ? "neq" : operator, value }); return this; }
+  or(_expression: string): this { return this; }
+  order(field: string, options?: { ascending?: boolean }): this { this.sort = { field, ascending: options?.ascending !== false }; return this; }
+  limit(count: number): this { this.maxRows = count; return this; }
+  range(from: number, to: number): this { this.maxRows = to - from + 1; return this; }
+  single<TRecord = (TData extends (infer U)[] ? U : TData)>(): FirestoreQuery<TRecord> {
+    this.one = "single";
+    return this as unknown as FirestoreQuery<TRecord>;
+  }
+  maybeSingle<TRecord = (TData extends (infer U)[] ? U : TData)>(): FirestoreQuery<TRecord | null> {
+    this.one = "maybe";
+    return this as unknown as FirestoreQuery<TRecord | null>;
+  }
 
   private async rows(): Promise<Result<Row[]>> {
     const userId = currentUserId();
@@ -185,24 +194,32 @@ class FirestoreQuery {
     }
   }
 
-  async execute(): Promise<Result<Row[] | Row>> {
+  async execute(): Promise<Result<TData>> {
     const result = await this.rows();
-    if (result.error || !this.one) return this.headOnly ? { ...result, data: null } : result;
+    if (result.error || !this.one) return (this.headOnly ? { ...result, data: null } : result) as unknown as Result<TData>;
     const first = result.data?.[0] ?? null;
     if (!first && this.one === "single") return { data: null, error: new Error("رکورد پیدا نشد"), count: result.count };
-    return { data: first, error: null, count: result.count };
+    return { data: first as unknown as TData, error: null, count: result.count };
   }
 
-  then<TResult1 = Result<Row[] | Row>, TResult2 = never>(
-    onfulfilled?: ((value: Result<Row[] | Row>) => TResult1 | PromiseLike<TResult1>) | null,
+  then<TResult1 = Result<TData>, TResult2 = never>(
+    onfulfilled?: ((value: Result<TData>) => TResult1 | PromiseLike<TResult1>) | null,
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
-  ) { return this.execute().then(onfulfilled, onrejected); }
+  ): Promise<TResult1 | TResult2> {
+    return this.execute().then(onfulfilled, onrejected);
+  }
+
+  catch<TResult = never>(
+    onrejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null,
+  ): Promise<Result<TData> | TResult> {
+    return this.execute().catch(onrejected);
+  }
 
   insert(input: Row | Row[]) {
-    return new FirestoreMutation(this, () => this.write(input, false));
+    return new FirestoreMutation<Row[]>(this, () => this.write(input, false));
   }
   upsert(input: Row | Row[], options?: { onConflict?: string }) {
-    return new FirestoreMutation(this, () => this.write(input, true, options?.onConflict));
+    return new FirestoreMutation<Row[]>(this, () => this.write(input, true, options?.onConflict));
   }
   private async write(input: Row | Row[], _merge: boolean, onConflict?: string): Promise<Result<Row[]>> {
     const userId = currentUserId();
@@ -250,7 +267,7 @@ class FirestoreQuery {
     }
   }
   update(patch: Row) {
-    return new FirestoreMutation(this, async () => {
+    return new FirestoreMutation<Row[]>(this, async () => {
       const userId = currentUserId();
       if (!userId) return { data: null, error: new Error("برای ذخیره وارد شوید") };
       const idFilter = this.filters.find((f) => f.field === "id" && f.operator === "eq");
@@ -271,7 +288,7 @@ class FirestoreQuery {
     });
   }
   delete() {
-    return new FirestoreMutation(this, async () => {
+    return new FirestoreMutation<Row[]>(this, async () => {
       const userId = currentUserId();
       if (!userId) return { data: null, error: new Error("برای حذف وارد شوید") };
       const idFilter = this.filters.find((f) => f.field === "id" && f.operator === "eq");
@@ -298,26 +315,38 @@ class FirestoreQuery {
   }
 }
 
-class FirestoreMutation {
+class FirestoreMutation<TData = Row[]> implements PromiseLike<Result<TData>> {
   private one = false;
-  constructor(private readonly query: FirestoreQuery, private readonly operation: () => Promise<Result<Row[]>>) {}
-  select(_columns = "*") { return this; }
-  single() { this.one = true; return this; }
-  maybeSingle() { this.one = true; return this; }
-  eq(field: string, value: unknown) { this.query.eq(field, value); return this; }
-  in(field: string, value: unknown[]) { this.query.in(field, value); return this; }
-  is(field: string, value: unknown) { this.query.is(field, value); return this; }
-  not(field: string, operator: string, value: unknown) { this.query.not(field, operator, value); return this; }
-  async execute(): Promise<Result<Row[] | Row>> {
-    const result = await this.operation();
-    if (!this.one || result.error) return result;
-    return { data: result.data?.[0] || null, error: null };
+  constructor(private readonly query: FirestoreQuery<any>, private readonly operation: () => Promise<Result<Row[]>>) {}
+  select(_columns = "*"): this { return this; }
+  returns<TNext = TData>(): FirestoreMutation<TNext> {
+    return this as unknown as FirestoreMutation<TNext>;
   }
-  then<TResult1 = Result<Row[] | Row>, TResult2 = never>(
-    onfulfilled?: ((value: Result<Row[] | Row>) => TResult1 | PromiseLike<TResult1>) | null,
+  single<TRecord = (TData extends (infer U)[] ? U : TData)>(): FirestoreMutation<TRecord> {
+    this.one = true;
+    return this as unknown as FirestoreMutation<TRecord>;
+  }
+  maybeSingle<TRecord = (TData extends (infer U)[] ? U : TData)>(): FirestoreMutation<TRecord | null> {
+    this.one = true;
+    return this as unknown as FirestoreMutation<TRecord | null>;
+  }
+  eq(field: string, value: unknown): this { this.query.eq(field, value); return this; }
+  neq(field: string, value: unknown): this { this.query.neq(field, value); return this; }
+  in(field: string, value: unknown[]): this { this.query.in(field, value); return this; }
+  is(field: string, value: unknown): this { this.query.is(field, value); return this; }
+  not(field: string, operator: string, value: unknown): this { this.query.not(field, operator, value); return this; }
+  async execute(): Promise<Result<TData>> {
+    const result = await this.operation();
+    if (!this.one || result.error) return result as unknown as Result<TData>;
+    return { data: (result.data?.[0] || null) as unknown as TData, error: null };
+  }
+  then<TResult1 = Result<TData>, TResult2 = never>(
+    onfulfilled?: ((value: Result<TData>) => TResult1 | PromiseLike<TResult1>) | null,
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
-  ) { return this.execute().then(onfulfilled, onrejected); }
-  catch<TResult = never>(onrejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null) {
+  ): Promise<TResult1 | TResult2> {
+    return this.execute().then(onfulfilled, onrejected);
+  }
+  catch<TResult = never>(onrejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null): Promise<Result<TData> | TResult> {
     return this.execute().catch(onrejected);
   }
 }
@@ -353,7 +382,7 @@ function mediaBucket(name: string) {
 }
 
 export const firebaseStore = {
-  from: (table: string) => new FirestoreQuery(table),
+  from: <T = Row>(table: string) => new FirestoreQuery<T[]>(table),
   rpc: (name: string, _args?: Row) => Promise.resolve(disabled(name)),
   functions: { invoke: (name: string, _body?: unknown) => Promise.resolve(disabled(name)) },
   storage: { from: (name: string) => mediaBucket(name) },
@@ -380,3 +409,5 @@ export const firebaseStore = {
   },
   removeChannel: (channel: { unsubscribe?: () => void }) => channel?.unsubscribe?.(),
 };
+
+export { FirestoreQuery, FirestoreMutation };

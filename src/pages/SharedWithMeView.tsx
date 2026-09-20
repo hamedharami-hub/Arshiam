@@ -49,7 +49,7 @@ export default function SharedWithMeView() {
       .neq("owner_id", user.id)
       .order("created_at", { ascending: false })
       .returns<Row[]>();
-    const list = (shares || []) as Row[];
+    const list = shares || [];
 
     const groups: Record<string, string[]> = { task: [], note: [], folder: [] };
     list.forEach((s) => groups[s.resource_type]?.push(s.resource_id));
