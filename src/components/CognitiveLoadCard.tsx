@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Brain, ChevronDown, ChevronUp } from "lucide-react";
 import { computeCognitiveLoad, loadStatus, CATEGORY_LABELS } from "@/lib/cognitiveLoad";
 import { Button } from "@/components/ui/button";
+import { getLocalDateString } from "@/lib/taskDate";
 
 export default function CognitiveLoadCard() {
   const { user } = useAuth();
@@ -17,13 +18,11 @@ export default function CognitiveLoadCard() {
     (async () => {
       const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
       const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
-      const todayDate = new Date().toISOString().slice(0, 10);
+      const todayDate = getLocalDateString(new Date());
 
       const [tasks, checkin] = await Promise.all([
         firebaseStore.from("tasks").select("id,title,description,priority,folder_id,quadrant,due_date,completed")
-          .eq("user_id", user.id).eq("completed", false)
-          .or(`due_date.gte.${todayStart.toISOString()},due_date.is.null`)
-          .lte("due_date", todayEnd.toISOString()),
+          .eq("user_id", user.id).eq("completed", false),
         firebaseStore.from("daily_checkins").select("sleep_hours,sleep_quality,stress").eq("user_id", user.id).eq("checkin_date", todayDate).maybeSingle(),
       ]);
 

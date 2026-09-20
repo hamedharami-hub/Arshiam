@@ -1,4 +1,5 @@
 import { firebaseStore } from "@/lib/firebaseStore";
+import { getLocalDateString } from "@/lib/taskDate";
 
 export type Holiday = {
   id: string;
@@ -12,8 +13,8 @@ export type Holiday = {
 let cache: Record<string, Holiday[]> = {};
 
 export async function getHolidaysForRange(start: Date, end: Date, countries: string[] = ["IR", "AU"]): Promise<Holiday[]> {
-  const startStr = start.toISOString().slice(0, 10);
-  const endStr = end.toISOString().slice(0, 10);
+  const startStr = getLocalDateString(start);
+  const endStr = getLocalDateString(end);
   const cacheKey = `${startStr}_${endStr}_${countries.join(",")}`;
   if (cache[cacheKey]) return cache[cacheKey];
 
@@ -64,7 +65,8 @@ async function ensureYearLoaded(year: number, country: string) {
   }
 }
 
-export function isHoliday(date: Date, holidays: Holiday[]): Holiday[] {
-  const d = date.toISOString().slice(0, 10);
+export function isHoliday(date: Date, holidays: Holiday[], timeZone?: string): Holiday[] {
+  const d = getLocalDateString(date, timeZone);
   return holidays.filter(h => h.date === d);
 }
+

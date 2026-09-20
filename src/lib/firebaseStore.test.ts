@@ -248,10 +248,9 @@ describe("firebaseStore adapter and query builder", () => {
       expect(data?.every((d) => d.active === true)).toBe(true);
     });
 
-    it("handles .or() as a non-breaking noop / fallback", async () => {
-      const res = await firebaseStore.from("fruits").select().or("name.eq.Apple,name.eq.Banana");
-      expect(res.error).toBeNull();
-      expect(res.data).toBeDefined();
+    it("does not provide a silent no-op .or() method", () => {
+      const q = firebaseStore.from("fruits") as any;
+      expect(q.or).toBeUndefined();
     });
   });
 

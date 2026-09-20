@@ -79,7 +79,6 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
   lt(field: string, value: unknown): this { this.filters.push({ field, operator: "lt", value }); return this; }
   ilike(field: string, value: string): this { this.filters.push({ field, operator: "ilike", value }); return this; }
   not(field: string, operator: string, value: unknown): this { this.filters.push({ field, operator: operator === "is" ? "neq" : operator, value }); return this; }
-  or(_expression: string): this { return this; }
   order(field: string, options?: { ascending?: boolean }): this { this.sort = { field, ascending: options?.ascending !== false }; return this; }
   limit(count: number): this { this.maxRows = count; return this; }
   range(from: number, to: number): this { this.maxRows = to - from + 1; return this; }

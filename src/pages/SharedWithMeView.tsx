@@ -45,11 +45,12 @@ export default function SharedWithMeView() {
     const email = (user.email || "").toLowerCase();
     const { data: shares } = await firebaseStore.from("shares")
       .select("*")
-      .or(`recipient_id.eq.${user.id},recipient_email.ilike.${email}`)
       .neq("owner_id", user.id)
       .order("created_at", { ascending: false })
       .returns<Row[]>();
-    const list = shares || [];
+    const list = (shares || []).filter(
+      (s) => s.recipient_id === user.id || (s.recipient_email && s.recipient_email.toLowerCase() === email)
+    );
 
     const groups: Record<string, string[]> = { task: [], note: [], folder: [] };
     list.forEach((s) => groups[s.resource_type]?.push(s.resource_id));
