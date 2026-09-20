@@ -3,10 +3,12 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 
-const ARTIFACT_DIR = "C:\\Users\\hamed\\.gemini\\antigravity\\brain\\dde53c6b-9f20-449f-8f45-2bd02c77300f";
+const ARTIFACT_DIR = process.env.LAYOUT_ARTIFACT_DIR ?? path.resolve(process.cwd(), "artifacts", "layout");
 const TEMP_USER_DATA = path.join(os.tmpdir(), `chrome-temp-profile-${Date.now()}`);
 
 function findChrome() {
+  if (process.env.TEST_SIMULATE_NO_CHROME === "1") return null;
+
   // 1. Check explicit environment variables
   const envCandidates = [
     process.env.CHROME_BIN,
@@ -99,6 +101,14 @@ class CDPClient {
 }
 
 async function runTests() {
+  console.log("Artifact output directory:", ARTIFACT_DIR);
+  try {
+    fs.mkdirSync(ARTIFACT_DIR, { recursive: true });
+  } catch (err) {
+    console.error("❌ ERROR: Failed to create artifact directory:", ARTIFACT_DIR, err);
+    process.exit(1);
+  }
+
   const chromePath = findChrome();
   if (!chromePath) {
     console.error("❌ ERROR: Chrome or Chromium executable not found on this system.");
@@ -108,16 +118,18 @@ async function runTests() {
 
   console.log(`Using Chrome binary: ${chromePath}`);
 
+  const devServerUrl = process.env.DEV_SERVER_URL ?? "http://localhost:3000/src/test/layout-test.html";
+
   // Verify that Vite dev server is running on port 3000
   try {
-    const devServerRes = await fetch("http://localhost:3000/src/test/layout-test.html");
+    const devServerRes = await fetch(devServerUrl);
     if (!devServerRes.ok) {
       console.error(`❌ ERROR: Dev server responded with status ${devServerRes.status}`);
       process.exit(1);
     }
   } catch (err) {
-    console.error("❌ ERROR: Dev server not reachable on http://localhost:3000. Please start Vite dev server first.");
-    console.error(err);
+    console.error(`❌ ERROR: Dev server not reachable on ${devServerUrl}. Please start Vite dev server first.`);
+    console.error(err.message);
     process.exit(1);
   }
 
@@ -164,7 +176,7 @@ async function runTests() {
   // Open dedicated test tab
   let newTab = null;
   try {
-    const res = await fetch("http://127.0.0.1:9222/json/new?http://localhost:3000/src/test/layout-test.html", {
+    const res = await fetch(`http://127.0.0.1:9222/json/new?${encodeURIComponent(devServerUrl)}`, {
       method: "PUT",
     });
     newTab = await res.json();
@@ -298,7 +310,7 @@ async function runTests() {
       mobile: false,
     });
 
-    await client.send("Page.navigate", { url: "http://localhost:3000/src/test/layout-test.html" });
+    await client.send("Page.navigate", { url: devServerUrl });
     await sleep(1200);
 
     // Apply configuration to storage and DOM
@@ -422,8 +434,14 @@ async function runTests() {
     // Take screenshot
     const screenshotRes = await client.send("Page.captureScreenshot", { format: "png" });
     const screenshotPath = path.join(ARTIFACT_DIR, cfg.screenshotName);
-    fs.writeFileSync(screenshotPath, Buffer.from(screenshotRes.data, "base64"));
-    console.log(`  Screenshot saved: ${cfg.screenshotName}`);
+    try {
+      fs.mkdirSync(ARTIFACT_DIR, { recursive: true });
+      fs.writeFileSync(screenshotPath, Buffer.from(screenshotRes.data, "base64"));
+      console.log(`  Screenshot saved: ${cfg.screenshotName}`);
+    } catch (err) {
+      console.error(`❌ ERROR: Failed to save screenshot to ${screenshotPath}:`, err);
+      process.exit(1);
+    }
 
     results.push({
       config: cfg.name,
@@ -448,10 +466,16 @@ async function runTests() {
   }
   console.log("======================================================\n");
 
-  fs.writeFileSync(
-    path.join(ARTIFACT_DIR, "layout_verification_results.json"),
-    JSON.stringify(results, null, 2)
-  );
+  try {
+    fs.mkdirSync(ARTIFACT_DIR, { recursive: true });
+    fs.writeFileSync(
+      path.join(ARTIFACT_DIR, "layout_verification_results.json"),
+      JSON.stringify(results, null, 2)
+    );
+  } catch (err) {
+    console.error(`❌ ERROR: Failed to write layout verification results to ${ARTIFACT_DIR}:`, err);
+    process.exit(1);
+  }
 
   try {
     fs.rmSync(TEMP_USER_DATA, { recursive: true, force: true });
