@@ -40,6 +40,7 @@ import SidebarItemSheet from "@/components/SidebarItemSheet";
 import { useLongPress } from "@/lib/useLongPress";
 import { cacheGet, cacheSet, enqueueOp } from "@/lib/offlineQueue";
 import { useSidebarQuickLinks } from "@/lib/sidebarQuickLinks";
+import { cn } from "@/lib/utils";
 
 // Bilingual label maps. SECTIONS uses the Persian label as the canonical key.
 const EN_LABELS: Record<string, string> = {
@@ -305,7 +306,7 @@ function TagRow({ tag: tagItem, collapsed, onLongPress, onNav }: {
   );
 }
 
-export function AppSidebar() {
+export function AppSidebar({ className, style }: { className?: string; style?: React.CSSProperties } = {}) {
   const { state, isMobile, setOpenMobile, toggleSidebar } = useSidebar();
   const { sidebarPosition } = useSidebarPosition();
   const collapsed = state === "collapsed" && !isMobile;
@@ -838,7 +839,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar side={sidebarPosition} collapsible="icon">
+    <Sidebar side={sidebarPosition} collapsible="icon" className={className} style={style} dir={isEn ? "ltr" : "rtl"}>
       <SidebarRail />
       {!collapsed && (
         <SidebarHeader className="border-b p-2">

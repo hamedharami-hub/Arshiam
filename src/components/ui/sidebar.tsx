@@ -180,7 +180,7 @@ const Sidebar = React.forwardRef<
     variant?: "sidebar" | "floating" | "inset";
     collapsible?: "offcanvas" | "icon" | "none";
   }
->(({ side: sideProp, variant = "sidebar", collapsible = "offcanvas", className, children, ...props }, ref) => {
+>(({ side: sideProp, variant = "sidebar", collapsible = "offcanvas", className, style, children, ...props }, ref) => {
   const { isMobile, state, openMobile, setOpenMobile, isResizing, side: contextSide } = useSidebar();
   const side = sideProp ?? contextSide ?? "right";
   const contentRef = React.useRef<HTMLDivElement>(null);
@@ -227,6 +227,7 @@ const Sidebar = React.forwardRef<
       <div
         className={cn("flex h-full w-[--sidebar-width] flex-col bg-sidebar text-sidebar-foreground", className)}
         ref={ref}
+        style={style}
         {...props}
       >
         {children}
@@ -242,7 +243,7 @@ const Sidebar = React.forwardRef<
           data-sidebar="sidebar"
           data-mobile="true"
           data-side={side}
-          style={{ "--sidebar-width-mobile": `min(${SIDEBAR_WIDTH_MOBILE}, calc(100vw - 20px))` } as React.CSSProperties}
+          style={{ "--sidebar-width-mobile": `min(${SIDEBAR_WIDTH_MOBILE}, calc(100vw - 20px))`, ...style } as React.CSSProperties}
           className={cn(
             "h-[100dvh] w-[--sidebar-width-mobile] max-w-[--sidebar-width-mobile] p-0 border-0 rounded-none bg-gradient-to-b from-sidebar via-sidebar to-sidebar/95 backdrop-blur-xl shadow-2xl text-sidebar-foreground",
             side === "right"
@@ -274,7 +275,11 @@ const Sidebar = React.forwardRef<
   return (
     <div
       ref={ref}
-      className="group peer hidden text-sidebar-foreground md:block"
+      className={cn(
+        "group peer hidden text-sidebar-foreground md:block shrink-0",
+        className
+      )}
+      style={style}
       data-state={state}
       data-collapsible={state === "collapsed" ? collapsible : ""}
       data-variant={variant}
@@ -303,7 +308,6 @@ const Sidebar = React.forwardRef<
           variant === "floating" || variant === "inset"
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]"
             : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l",
-          className,
         )}
         {...props}
       >

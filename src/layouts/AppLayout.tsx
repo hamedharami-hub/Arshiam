@@ -66,7 +66,7 @@ export default function AppLayout() {
 
   const { sidebarPosition } = useSidebarPosition();
   const isRtl = typeof document !== "undefined" ? document.documentElement.dir !== "ltr" : true;
-  const isReversed = (isRtl && sidebarPosition === "left") || (!isRtl && sidebarPosition === "right");
+  const isSidebarLeft = sidebarPosition === "left";
 
   const desktopDefaultOpen =
     typeof window !== "undefined" && window.innerWidth >= 1024;
@@ -78,15 +78,18 @@ export default function AppLayout() {
 
   return (
     <SidebarProvider defaultOpen={desktopDefaultOpen} side={sidebarPosition}>
-      <div className={cn("min-h-screen flex w-full bg-background", isReversed ? "flex-row-reverse" : "flex-row")}>
-        <AppSidebar />
-        <div className="flex-1 flex flex-col min-w-0">
+      <div className="min-h-screen flex w-full bg-background" dir="ltr">
+        <AppSidebar className={isSidebarLeft ? "order-1" : "order-2"} />
+        <div
+          className={cn(
+            "flex-1 flex flex-col min-w-0",
+            isSidebarLeft ? "order-2" : "order-1"
+          )}
+          dir={isRtl ? "rtl" : "ltr"}
+        >
           {!isTaskPage && (
             <header
-              className={cn(
-                "border-b flex items-center justify-between px-3 lg:px-6 bg-card/50 backdrop-blur sticky top-0 z-10",
-                isReversed ? "flex-row-reverse" : "flex-row"
-              )}
+              className="border-b flex items-center justify-between px-3 lg:px-6 bg-card/50 backdrop-blur sticky top-0 z-10"
               style={{ paddingTop: "env(safe-area-inset-top)", minHeight: "calc(3rem + env(safe-area-inset-top))" }}
             >
               <div className="flex items-center gap-1.5 min-w-0">
