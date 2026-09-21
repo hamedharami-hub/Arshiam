@@ -1,195 +1,67 @@
-import { useEffect, useState, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
-import { firebaseStore } from "@/lib/firebaseStore";
-import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { CheckSquare, FileText, FolderTree, Eye, MessageSquare, Pencil, Users, Check, X, Loader2 } from "lucide-react";
-import { BidiText } from "@/components/BidiText";
-import { toast } from "sonner";
-
-type Row = {
-  id: string;
-  resource_type: "task" | "note" | "folder";
-  resource_id: string;
-  permission: "view" | "comment" | "edit";
-  owner_id: string;
-  ownerName?: string;
-  accepted_at: string | null;
-  created_at: string;
-  title?: string;
-};
-
-const TYPE_META: Record<Row["resource_type"], { icon: ComponentType<{ className?: string }>; route: (id: string) => string; label_fa: string; label_en: string }> = {
-  task: { icon: CheckSquare, route: (id) => `/app/tasks/${id}`, label_fa: "تسک", label_en: "Task" },
-  note: { icon: FileText, route: (id) => `/app/notes?select=${id}`, label_fa: "نوت", label_en: "Note" },
-  folder: { icon: FolderTree, route: (id) => `/app/folder/${id}`, label_fa: "فولدر", label_en: "Folder" },
-};
-
-const PERM_ICON = { view: Eye, comment: MessageSquare, edit: Pencil } as const;
+import { Users, ShieldAlert, ArrowLeft, ArrowRight } from "lucide-react";
+import { getFeatureCapability } from "@/lib/capabilities";
 
 export default function SharedWithMeView() {
-  const { user } = useAuth();
   const { i18n } = useTranslation();
+  const navigate = useNavigate();
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
-  const [rows, setRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [actingId, setActingId] = useState<string | null>(null);
-
-  const load = async () => {
-    if (!user) return;
-    setLoading(true);
-    const email = (user.email || "").toLowerCase();
-    const { data: shares } = await firebaseStore.from("shares")
-      .select("*")
-      .or(`recipient_id.eq.${user.id},recipient_email.ilike.${email}`)
-      .neq("owner_id", user.id)
-      .order("created_at", { ascending: false })
-      .returns<Row[]>();
-    const list = (shares || []) as Row[];
-
-    const groups: Record<string, string[]> = { task: [], note: [], folder: [] };
-    list.forEach((s) => groups[s.resource_type]?.push(s.resource_id));
-
-    const titles: Record<string, string> = {};
-    const ownerIds = Array.from(new Set(list.map((s) => s.owner_id)));
-
-    const [t, n, f, p] = await Promise.all([
-      groups.task.length ? firebaseStore.from("tasks").select("id,title").in("id", groups.task) : Promise.resolve({ data: [] }),
-      groups.note.length ? firebaseStore.from("notes").select("id,title").in("id", groups.note) : Promise.resolve({ data: [] }),
-      groups.folder.length ? firebaseStore.from("folders").select("id,name").in("id", groups.folder) : Promise.resolve({ data: [] }),
-      ownerIds.length ? firebaseStore.from("profiles").select("id,display_name").in("id", ownerIds) : Promise.resolve({ data: [] }),
-    ]);
-
-    type Named = { id: string; title?: string | null; name?: string | null; display_name?: string | null };
-    const cast = (x: unknown) => (x || []) as Named[];
-    cast(t.data).forEach((r) => { if (r.title) titles[`task:${r.id}`] = r.title; });
-    cast(n.data).forEach((r) => { if (r.title) titles[`note:${r.id}`] = r.title; });
-    cast(f.data).forEach((r) => { if (r.name) titles[`folder:${r.id}`] = r.name; });
-    const owners: Record<string, string> = {};
-    cast(p.data).forEach((r) => { if (r.display_name) owners[r.id] = r.display_name; });
-
-    setRows(
-      list.map((s) => {
-        const title = titles[`${s.resource_type}:${s.resource_id}`];
-        const pendingLabel = s.accepted_at ? null : T("دعوت به اشتراک", "Sharing invitation");
-        return {
-          ...s,
-          title: pendingLabel || title || T("بدون عنوان", "Untitled"),
-          ownerName: owners[s.owner_id] || T("کاربر", "User"),
-        };
-      }),
-    );
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    load();
-    const ch = firebaseStore
-      .channel("shared-with-me")
-      .on("postgres_changes", { event: "*", schema: "public", table: "shares" }, load)
-      .subscribe();
-    return () => { firebaseStore.removeChannel(ch); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
-  const accept = async (id: string) => {
-    setActingId(id);
-    try {
-      const { error } = await firebaseStore.rpc("accept_share", { _share_id: id });
-      if (error) throw error;
-      toast.success(T("پذیرفته شد", "Accepted"));
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : T("خطا", "Error"));
-    } finally {
-      setActingId(null);
-      load();
-    }
-  };
-
-  const decline = async (id: string) => {
-    setActingId(id);
-    try {
-      const { error } = await firebaseStore.rpc("decline_share", { _share_id: id });
-      if (error) throw error;
-      toast.success(T("رد شد", "Declined"));
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : T("خطا", "Error"));
-    } finally {
-      setActingId(null);
-      load();
-    }
-  };
+  const cap = getFeatureCapability("sharing");
+  const BackIcon = isEn ? ArrowLeft : ArrowRight;
 
   return (
-    <div dir={isEn ? "ltr" : "rtl"} className="p-4 max-w-3xl mx-auto page-enter">
-      <header className="mb-4 flex items-center gap-2">
-        <Users className="w-5 h-5 text-primary" />
-        <h1 className="text-xl font-bold">{T("به اشتراک گذاشته‌شده با من", "Shared with me")}</h1>
-      </header>
-
-      {loading && <p className="text-center text-muted-foreground py-8">{T("در حال بارگذاری…", "Loading…")}</p>}
-      {!loading && rows.length === 0 && (
-        <Card className="p-8 text-center text-muted-foreground">
-          {T("هنوز چیزی با شما به اشتراک گذاشته نشده.", "Nothing has been shared with you yet.")}
-        </Card>
-      )}
-
-      <div className="space-y-2">
-        {rows.map((r) => {
-          const meta = TYPE_META[r.resource_type];
-          const Icon = meta.icon;
-          const PIcon = PERM_ICON[r.permission];
-          const pending = !r.accepted_at;
-          const busy = actingId === r.id;
-          return (
-            <Card key={r.id} className="p-3 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <Icon className="w-4 h-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <BidiText as="div" text={r.title || ""} className="font-medium text-sm truncate" />
-                <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
-                  <span>{T(meta.label_fa, meta.label_en)}</span>
-                  <span>•</span>
-                  <span>{T("از", "from")} {r.ownerName}</span>
-                  {pending && (
-                    <>
-                      <span>•</span>
-                      <Badge variant="secondary" className="text-[9px] h-4 px-1">{T("در انتظار", "Pending")}</Badge>
-                    </>
-                  )}
-                </div>
-              </div>
-              <Badge variant="outline" className="text-[10px] gap-1">
-                <PIcon className="w-3 h-3" />
-                {T(
-                  r.permission === "view" ? "دیدن" : r.permission === "comment" ? "تعامل" : "ویرایش",
-                  r.permission === "view" ? "View" : r.permission === "comment" ? "Interact" : "Edit",
-                )}
-              </Badge>
-
-              {pending ? (
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => accept(r.id)} disabled={busy}>
-                    {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5 text-green-600" />}
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => decline(r.id)} disabled={busy}>
-                    <X className="w-3.5 h-3.5 text-destructive" />
-                  </Button>
-                </div>
-              ) : (
-                <Button size="sm" variant="secondary" asChild>
-                  <Link to={meta.route(r.resource_id)}>{T("باز کردن", "Open")}</Link>
-                </Button>
-              )}
-            </Card>
-          );
-        })}
+    <div
+      dir={isEn ? "ltr" : "rtl"}
+      className="p-4 md:p-8 max-w-2xl mx-auto page-enter space-y-6"
+      data-testid="shared-with-me-view"
+    >
+      <div className="flex items-center justify-between">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate("/app/today")}
+          className="text-xs text-muted-foreground"
+        >
+          <BackIcon className={`w-3.5 h-3.5 ${isEn ? "me-1" : "ms-1"}`} />
+          {T("بازگشت به صفحه امروز", "Back to Today")}
+        </Button>
       </div>
+
+      <Card className="p-6 space-y-4 border-border/60 bg-card/70">
+        <header className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-foreground">
+              {T("به اشتراک گذاشته‌شده با من", "Shared with me")}
+            </h1>
+            <p className="text-xs text-muted-foreground">{isEn ? cap.name_en : cap.name}</p>
+          </div>
+        </header>
+
+        <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs text-amber-900 dark:text-amber-200 leading-relaxed flex items-start gap-3">
+          <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <p>{isEn ? cap.reason_en : cap.reason}</p>
+        </div>
+
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          {T(
+            "به منظور حفظ محرمانگی و ایزولاسیون کامل داده‌های فردی در فایربیس، اشتراک‌گذاری متقابل منابع تا زمان راه‌اندازی توابع سروری امن غیرفعال است. داده‌های فردی شما کاملاً محرمانه و محفوظ هستند.",
+            "To ensure strict privacy and tenant isolation in Firebase, cross-user sharing is temporarily disabled until secure server-side functions are established. Your individual productivity data remains private and secure."
+          )}
+        </p>
+
+        <div className="pt-4 border-t border-border/40 flex justify-end">
+          <Button onClick={() => navigate("/app/today")} size="sm">
+            {T("بازگشت به داشبورد", "Return to Dashboard")}
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 }

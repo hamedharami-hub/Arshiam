@@ -183,8 +183,13 @@ final class AgendaData {
             } catch (JSONException ignored) { }
             break;
         }
-        if (changed) prefs(c).edit().putString("agendaTasks", rows.toString())
-            .putLong("updatedAt", System.currentTimeMillis()).commit();
+        if (changed) {
+            prefs(c).edit().putString("agendaTasks", rows.toString())
+                .putLong("updatedAt", System.currentTimeMillis()).commit();
+            if (completed) {
+                NativeReminders.cancelTaskReminder(c, id);
+            }
+        }
         return changed;
     }
     static boolean deleteTask(Context c, String id) {
@@ -200,8 +205,11 @@ final class AgendaData {
             }
             if (row != null) next.put(row);
         }
-        if (changed) prefs(c).edit().putString("agendaTasks", next.toString())
-            .putLong("updatedAt", System.currentTimeMillis()).commit();
+        if (changed) {
+            prefs(c).edit().putString("agendaTasks", next.toString())
+                .putLong("updatedAt", System.currentTimeMillis()).commit();
+            NativeReminders.cancelTaskReminder(c, id);
+        }
         return changed;
     }
     static String label(String scope) {

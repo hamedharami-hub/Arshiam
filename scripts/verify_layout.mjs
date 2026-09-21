@@ -311,7 +311,17 @@ async function runTests() {
     });
 
     await client.send("Page.navigate", { url: devServerUrl });
-    await sleep(1200);
+    await sleep(500);
+
+    // Wait for React hydration and layout elements to be present
+    for (let attempt = 0; attempt < 40; attempt++) {
+      const readyCheck = await client.send("Runtime.evaluate", {
+        expression: "Boolean(document.querySelector('[data-sidebar=\"sidebar\"]') && document.querySelector('main'))",
+        returnByValue: true,
+      });
+      if (readyCheck?.result?.value) break;
+      await sleep(250);
+    }
 
     // Apply configuration to storage and DOM
     await client.send("Runtime.evaluate", {

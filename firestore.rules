@@ -20,6 +20,13 @@ service cloud.firestore {
     match /users/{userId} {
       allow read, write: if isOwner(userId);
 
+      // Disallow client writes to user_roles subcollection.
+      // Roles must never be self-assigned or altered by client-side writes.
+      match /user_roles/{docId=**} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
       match /{subcollection}/{docId=**} {
         allow read, write: if isOwner(userId);
       }

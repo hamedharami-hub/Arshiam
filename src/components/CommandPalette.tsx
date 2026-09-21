@@ -11,7 +11,7 @@ import { extractTasksFromCache } from "@/features/tasks/taskCache";
 import {
   ListTodo, FileText, Calendar, Target, Heart, Brain, Sparkles,
   Timer, Settings, BarChart3, BookOpen, Folder, Hash, Compass,
-  PlusCircle, Database, CheckSquare, Search,
+  PlusCircle, Database, CheckSquare, Search, ShieldAlert,
 } from "lucide-react";
 
 import { useBilingual } from "@/hooks/useBilingual";
@@ -41,6 +41,7 @@ const getNavItems = (T: (fa: string, en: string) => string) => [
   { label: T("مدل ABC", "ABC Model"), to: "/app/abc", icon: Brain, keywords: "abc الگو" },
   { label: T("چت سقراطی", "Socratic Chat"), to: "/app/socratic", icon: Brain, keywords: "socratic سقراط" },
   { label: T("تمرین تنفس", "Breathing Exercise"), to: "/app/breathing", icon: Heart, keywords: "breath breathing تنفس مدیتیشن" },
+  { label: T("پشتیبانی بحران و اضطراری (SOS)", "Crisis Support & Emergency (SOS)"), to: "/app/crisis", icon: ShieldAlert, keywords: "crisis sos help emergency بحران اضطراری کمک اورژانس خودکشی" },
   { label: T("معمار زندگی", "Life Architect"), to: "/app/life-architect", icon: Compass, keywords: "life architect معمار زندگی برنامه ریزی هدف اهداف" },
   { label: T("تنظیمات و پشتیبان‌گیری", "Settings & Backup"), to: "/app/settings", icon: Settings, keywords: "settings تنظیمات بکاپ firestore firebaseStore" },
 ];
@@ -156,30 +157,53 @@ export default function CommandPalette() {
     if (!user) return;
     const t = setTimeout(async () => {
       try {
-        const pattern = `%${term}%`;
+        const queryTerm = term.trim().toLowerCase();
+        if (!queryTerm) return;
+
         const [tasksRes, notesRes, foldersRes, tagsRes] = await Promise.all([
-          firebaseStore.from("tasks").select("id,title,description").eq("user_id", user.id).or(`title.ilike.${pattern},description.ilike.${pattern}`).limit(8),
-          firebaseStore.from("notes").select("id,title").eq("user_id", user.id).or(`title.ilike.${pattern},content.ilike.${pattern}`).limit(6),
-          firebaseStore.from("folders").select("id,name").eq("user_id", user.id).ilike("name", pattern).limit(4),
-          firebaseStore.from("tags").select("id,name").eq("user_id", user.id).ilike("name", pattern).limit(4),
+          firebaseStore.from("tasks").select("id,title,description").eq("user_id", user.id),
+          firebaseStore.from("notes").select("id,title,content").eq("user_id", user.id),
+          firebaseStore.from("folders").select("id,name").eq("user_id", user.id),
+          firebaseStore.from("tags").select("id,name").eq("user_id", user.id),
         ]);
 
         const remoteMap = new Map<string, Hit>();
         // Add existing local hits
         localHits.forEach((h) => remoteMap.set(`${h.kind}-${h.id}`, h));
 
-        ((tasksRes.data || []) as any[]).forEach((x) => {
-          remoteMap.set(`task-${x.id}`, { kind: "task", id: x.id, title: x.title || "" });
-        });
-        ((notesRes.data || []) as any[]).forEach((x) => {
-          remoteMap.set(`note-${x.id}`, { kind: "note", id: x.id, title: x.title || "" });
-        });
-        ((foldersRes.data || []) as any[]).forEach((x) => {
-          remoteMap.set(`folder-${x.id}`, { kind: "folder", id: x.id, title: x.name || "" });
-        });
-        ((tagsRes.data || []) as any[]).forEach((x) => {
-          remoteMap.set(`tag-${x.id}`, { kind: "tag", id: x.id, title: x.name || "" });
-        });
+        ((tasksRes.data || []) as any[])
+          .filter((x) =>
+            (x.title && String(x.title).toLowerCase().includes(queryTerm)) ||
+            (x.description && String(x.description).toLowerCase().includes(queryTerm))
+          )
+          .slice(0, 8)
+          .forEach((x) => {
+            remoteMap.set(`task-${x.id}`, { kind: "task", id: x.id, title: x.title || "" });
+          });
+
+        ((notesRes.data || []) as any[])
+          .filter((x) =>
+            (x.title && String(x.title).toLowerCase().includes(queryTerm)) ||
+            (x.content && String(x.content).toLowerCase().includes(queryTerm))
+          )
+          .slice(0, 6)
+          .forEach((x) => {
+            remoteMap.set(`note-${x.id}`, { kind: "note", id: x.id, title: x.title || "" });
+          });
+
+        ((foldersRes.data || []) as any[])
+          .filter((x) => x.name && String(x.name).toLowerCase().includes(queryTerm))
+          .slice(0, 4)
+          .forEach((x) => {
+            remoteMap.set(`folder-${x.id}`, { kind: "folder", id: x.id, title: x.name || "" });
+          });
+
+        ((tagsRes.data || []) as any[])
+          .filter((x) => x.name && String(x.name).toLowerCase().includes(queryTerm))
+          .slice(0, 4)
+          .forEach((x) => {
+            remoteMap.set(`tag-${x.id}`, { kind: "tag", id: x.id, title: x.name || "" });
+          });
 
         const sorted = Array.from(remoteMap.values()).sort((a, b) => {
           const aTitle = (a.title || "").toLowerCase();

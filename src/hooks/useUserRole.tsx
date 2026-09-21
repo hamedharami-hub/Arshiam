@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 
 export function useUserRole() {
@@ -11,15 +10,19 @@ export function useUserRole() {
     if (!user) { setIsAdmin(false); setLoading(false); return; }
     let mounted = true;
     (async () => {
-      const { data } = await (firebaseStore as any)
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-      if (mounted) {
-        setIsAdmin(!!data);
-        setLoading(false);
+      try {
+        // Only trust verified Firebase Auth token custom claims, never user-editable Firestore documents
+        const tokenResult = await (user as any).getIdTokenResult?.();
+        if (mounted) {
+          const claims = tokenResult?.claims || {};
+          setIsAdmin(Boolean(claims.admin === true || claims.role === "admin"));
+          setLoading(false);
+        }
+      } catch {
+        if (mounted) {
+          setIsAdmin(false);
+          setLoading(false);
+        }
       }
     })();
     return () => { mounted = false; };

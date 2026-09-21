@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fix/core-reliability
   workflow_dispatch:
 
 concurrency:
@@ -39,8 +40,8 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses || true
 
       - name: Sync Android
         run: npx cap sync android

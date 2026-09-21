@@ -15,6 +15,7 @@ export function nativeRoute(raw: string, currentUid?: string | null): string | n
       const id = url.searchParams.get("taskId");
       return "/app/today" + (id ? "?completeTaskId=" + encodeURIComponent(id) : "");
     }
-    return ["today","tomorrow","next7","inbox","notes","checkin","garden","pomodoro","settings","mind","thoughts","abc","socratic","breathing","worry","life-architect","widgets","habits","calendar","kanban","self","stats"].includes(route) ? "/app/" + route : null;
+    if (route === "sos" || route === "crisis") return "/app/crisis";
+    return ["today","tomorrow","next7","inbox","notes","checkin","garden","pomodoro","settings","mind","crisis","thoughts","abc","socratic","breathing","worry","life-architect","widgets","habits","calendar","kanban","self","stats"].includes(route) ? "/app/" + route : null;
   } catch { return null; }
 }

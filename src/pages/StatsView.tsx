@@ -49,8 +49,21 @@ export default function StatsView() {
     firebaseStore.from("tasks")
       .select("id,title,completed,completed_at,due_date,priority")
       .eq("user_id", user.id)
-      .or(`and(completed.eq.true,completed_at.gte.${isoStart},completed_at.lte.${isoEnd}),and(completed.eq.false,due_date.lt.${todayStart.toISOString()})`)
-      .then(({ data }) => setTasks((data as TaskRow[] | null) || []));
+      .then(({ data }) => {
+        const rows = (data as TaskRow[] | null) || [];
+        const filtered = rows.filter((t) => {
+          if (t.completed) {
+            if (!t.completed_at) return false;
+            const d = new Date(t.completed_at);
+            return d >= start && d <= end;
+          }
+          if (t.due_date) {
+            return new Date(t.due_date) < todayStart;
+          }
+          return false;
+        });
+        setTasks(filtered);
+      });
 
     firebaseStore.from("pomodoro_sessions")
       .select("duration_minutes,started_at")

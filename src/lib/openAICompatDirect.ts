@@ -18,6 +18,8 @@ export interface DirectAIRequestOptions {
 export interface DirectAIResponse {
   text: string;
   data?: any;
+  provider?: string;
+  model?: string;
 }
 
 function parseJsonFromText(rawText: string): any {
@@ -98,7 +100,7 @@ export async function callDirectOpenAICompat(
   const rawText = data?.choices?.[0]?.message?.content || "";
   const parsedData = parseJsonFromText(rawText);
 
-  return { text: rawText, data: parsedData };
+  return { text: rawText, data: parsedData, provider, model: model || "" };
 }
 
 export async function callDirectAnthropic(
@@ -150,5 +152,5 @@ export async function callDirectAnthropic(
   const rawText = data?.content?.[0]?.text || "";
   const parsedData = parseJsonFromText(rawText);
 
-  return { text: rawText, data: parsedData };
+  return { text: rawText, data: parsedData, provider: "anthropic", model: model || "claude-3-5-sonnet-latest" };
 }

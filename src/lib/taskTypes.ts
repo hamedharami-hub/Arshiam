@@ -3,6 +3,26 @@ import type { RecurrenceRule } from "@/lib/recurrence";
 
 export type TaskStatus = "todo" | "in_progress" | "done" | "wont_do";
 
+export type ReminderMode = "once" | "until_ack" | "count";
+export type ReminderImportance = "normal" | "important";
+export type ReminderPlanStatus = "pending" | "firing" | "snoozed" | "missed" | "acknowledged" | "cancelled";
+
+export type ReminderPlan = {
+  version: 1;
+  enabled: boolean;
+  trigger_at: string;
+  mode: ReminderMode;
+  repeat_interval_minutes: 5 | 10 | 15 | 30 | 60;
+  repeat_count: 1 | 3 | 5;
+  snooze_options: number[];
+  importance: ReminderImportance;
+  status?: ReminderPlanStatus;
+  fire_count?: number;
+  max_window_hours?: number;
+  snooze_until?: string | null;
+  last_fired_at?: string | null;
+};
+
 export type Task = {
   id: string;
   user_id?: string;
@@ -14,6 +34,7 @@ export type Task = {
   status: TaskStatus;
   folder_id: string | null;
   reminder_at: string | null;
+  reminder_plan?: ReminderPlan | null;
   recurrence: "none" | "daily" | "weekly" | "monthly";
   recurrence_rule: RecurrenceRule | null;
   parent_id: string | null;

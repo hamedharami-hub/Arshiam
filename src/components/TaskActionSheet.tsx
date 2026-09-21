@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useShareAccess } from "@/hooks/useShareAccess";
 import { logTaskActivity } from "@/lib/taskActivity";
 import { saveTaskTemplate } from "@/lib/taskTemplates";
+import { isFeatureEnabled } from "@/lib/capabilities";
 import {
   Check, Trash2, FolderInput, Network, Pencil, Copy, Share2,
   Sparkles, CopyPlus, Pin, PinOff, Timer, ListTree, Paperclip,
@@ -272,7 +273,9 @@ export default function TaskActionSheet({
           color="yellow"
           disabled={!canEdit}
         />
-        <Tile icon={Share2} label={T("اشتراک", "Share")} onClick={() => setShareOpen(true)} color="green" disabled={!isOwner} />
+        {isFeatureEnabled("sharing") && (
+          <Tile icon={Share2} label={T("اشتراک", "Share")} onClick={() => setShareOpen(true)} color="green" disabled={!isOwner} />
+        )}
         <Tile
           icon={task.status === "wont_do" ? Check : X}
           label={task.status === "wont_do" ? T("بازگشایی", "Reopen") : T("انجام نمی‌شود", "Won't Do")}
@@ -428,7 +431,7 @@ export default function TaskActionSheet({
         </SheetContent>
       </Sheet>
 
-      {shareOpen && (
+      {isFeatureEnabled("sharing") && shareOpen && (
         <ShareDialog
           open={shareOpen}
           onOpenChange={(v) => { setShareOpen(v); if (!v) onOpenChange(false); }}

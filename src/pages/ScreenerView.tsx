@@ -19,6 +19,7 @@ import {
   ExternalLink,
   BookOpen,
   Info,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -28,7 +29,11 @@ import {
   severityColor,
   type ScreenerType,
 } from "@/lib/assessments/screeners";
-import { CRISIS_RESOURCES } from "@/lib/crisisDetection";
+import {
+  getCrisisResources,
+  resolveSupportRegion,
+  type CrisisResource,
+} from "@/lib/crisisResources";
 import {
   XAxis,
   YAxis,
@@ -183,6 +188,9 @@ export default function ScreenerView() {
       });
   }, [uniqueHistory, isEn]);
 
+  const [submitting, setSubmitting] = useState(false);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
+
   if (!meta) {
     return (
       <div dir={isEn ? "ltr" : "rtl"} className="p-8 text-center text-muted-foreground">
@@ -207,9 +215,6 @@ export default function ScreenerView() {
       setStage("review");
     }
   }
-
-  const [submitting, setSubmitting] = useState(false);
-  const [submissionId, setSubmissionId] = useState<string | null>(null);
 
   async function submitFinal() {
     if (!user || !type || submitting) return;
@@ -283,7 +288,8 @@ export default function ScreenerView() {
   const labels = isEn ? meta.labels_en : meta.labels;
   const itemText = isEn && item?.text_en ? item.text_en : item?.text;
   const timeframe = isEn ? meta.timeframe_en : meta.timeframe;
-  const crisisResources = isEn ? CRISIS_RESOURCES.en : CRISIS_RESOURCES.fa;
+  const activeRegion = resolveSupportRegion(isEn ? "en" : "fa");
+  const crisisResources = getCrisisResources(activeRegion);
 
   return (
     <div
@@ -832,18 +838,27 @@ export default function ScreenerView() {
                   )}
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {crisisResources.map((r: any) => (
+                  {crisisResources.filter((r) => Boolean(r.phone)).map((r) => (
                     <a
-                      key={r.phone}
+                      key={r.id || r.phone}
                       href={`tel:${r.phone}`}
                       className="flex items-center justify-between p-3 bg-background rounded-lg border hover:bg-muted transition"
                     >
-                      <span className="font-medium text-xs">{r.label}</span>
+                      <span className="font-medium text-xs">{isEn ? r.name_en : r.name}</span>
                       <span className="font-mono text-xs flex items-center gap-1 text-primary font-bold">
-                        <Phone className="w-3.5 h-3.5" /> {r.phone}
+                        <Phone className="w-3.5 h-3.5" /> {r.displayPhone}
                       </span>
                     </a>
                   ))}
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <Button asChild variant="destructive" size="sm" className="gap-1.5 font-bold shadow-xs">
+                    <Link to="/app/crisis">
+                      <ShieldAlert className="w-4 h-4" />
+                      <span>{T("مشاهده صفحه پشتیبانی بحران و خطوط کامل (SOS)", "Open Crisis Support & Helplines (SOS)")}</span>
+                    </Link>
+                  </Button>
                 </div>
               </CardContent>
             </Card>

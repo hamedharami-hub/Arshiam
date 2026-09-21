@@ -57,7 +57,6 @@ export const SIDEBAR_QUICK_LINK_OPTIONS: SidebarQuickLink[] = [
   // 5. Me (خودِ من)
   { url: "/app/about-me", labelFa: "درباره من", labelEn: "About Me", group: "me" },
   { url: "/app/self", labelFa: "خودشناسی", labelEn: "Self-Knowledge", group: "me" },
-  { url: "/app/shared", labelFa: "اشتراک‌ها", labelEn: "Shared with me", group: "me" },
 ];
 
 export const DEFAULT_QUICK_LINKS: string[] = [

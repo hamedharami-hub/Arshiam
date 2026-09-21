@@ -12,9 +12,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { Sparkles, Save, RefreshCw, ChevronLeft, ChevronRight, Loader2, FolderPlus, Tag as TagIcon, ListTodo } from "lucide-react";
 import { ABOUT_SECTIONS, loadAboutMe, saveAboutMe, type AboutMeRow, type AboutAnswer } from "@/lib/aboutMe";
-import { getAILanguage } from "@/lib/ai";
 import { useBilingual } from "@/hooks/useBilingual";
-
+import { getFeatureCapability, isFeatureEnabled } from "@/lib/capabilities";
+import { callAI } from "@/lib/ai";
 
 export default function AboutMeView() {
   const { user } = useAuth();
@@ -41,9 +41,10 @@ export default function AboutMeView() {
 
   const setAns = (k: string, v: AboutAnswer) => setAnswers((s) => ({ ...s, [k]: v }));
 
-  const persist = async () => {
+  const persist = async (notify = false) => {
     if (!user) return;
     await saveAboutMe(user.id, { answers, free_text: freeText });
+    if (notify) toast.success(T("پاسخ‌ها ذخیره شدند ✓", "Answers saved successfully ✓"));
   };
 
   const next = async () => {
@@ -56,23 +57,44 @@ export default function AboutMeView() {
     if (!user) return;
     setBusy(true);
     try {
+      // 1. Always persist manual answers first so they are never lost
       await persist();
-      const { data, error } = await firebaseStore.functions.invoke("about-me-analyze", {
-        body: { answers, freeText, language: getAILanguage() },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      await saveAboutMe(user.id, {
-        ai_analysis: data.analysis,
-        ai_suggestions: data.suggestions,
-        analyzed_at: new Date().toISOString(),
-      } as any);
       const fresh = await loadAboutMe(user.id);
       if (fresh) setRow(fresh);
-      setMode("review");
-      toast.success(T("تحلیل آماده شد ✨", "Analysis ready ✨"));
+      toast.success(T("پاسخ‌ها ذخیره شدند ✓", "Answers saved successfully ✓"));
+
+      // 2. Call configured client-side AI provider (BYOK)
+      const formattedInput = {
+        answers,
+        free_text: freeText,
+      };
+
+      const aiRes = await callAI(
+        "about_me_analysis",
+        formattedInput,
+        undefined,
+        undefined,
+        isEn ? "en" : "fa"
+      );
+
+      if (aiRes?.data?.ai_analysis) {
+        const patch = {
+          ai_analysis: aiRes.data.ai_analysis,
+          ai_suggestions: aiRes.data.ai_suggestions || null,
+          analyzed_at: new Date().toISOString(),
+        };
+        await saveAboutMe(user.id, patch);
+        setRow((prev) => (prev ? { ...prev, ...patch } : null));
+        setMode("review");
+        toast.success(T("تحلیل هوشمند با موفقیت تکمیل شد ✓", "AI analysis completed successfully ✓"));
+      } else {
+        toast.info(T("پاسخ‌ها ذخیره شدند، اما تحلیل هوش مصنوعی فرمت معتبری بازنگرداند.", "Answers saved, but AI did not produce structured output."));
+      }
     } catch (e: any) {
-      toast.error(e.message || T("خطا در تحلیل", "Analysis error"));
+      // Manual answers remain preserved by persist()
+      toast.error(
+        e.message || T("خطا در اجرای تحلیل هوش مصنوعی. پاسخ‌های شما ذخیره شده‌اند.", "Error running AI analysis. Your answers are saved.")
+      );
     } finally {
       setBusy(false);
     }
@@ -135,6 +157,15 @@ export default function AboutMeView() {
               {T("تحلیل مجدد", "Re-analyze")}
             </Button>
           </div>
+        </div>
+
+        <div className="p-3.5 rounded-xl border border-primary/20 bg-primary/5 text-xs text-muted-foreground leading-relaxed flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-primary shrink-0" />
+          <span>
+            {isEn
+              ? "Non-clinical personal summary generated with your configured BYOK AI provider. ARSHNAZ does not provide medical or psychological diagnosis."
+              : "خلاصه و دسته‌بندی غیربالینی با کلید اختصاصی هوش مصنوعی شما. ارشناز هیچ‌گونه تشخیص پزشکی یا روان‌شناختی ارائه نمی‌دهد."}
+          </span>
         </div>
 
         <Card className="p-5 space-y-3">
@@ -319,7 +350,7 @@ export default function AboutMeView() {
           onClick={() => setStep((s) => Math.max(0, s - 1))} className="gap-1">
           {isEn ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />} {T("قبلی", "Previous")}
         </Button>
-        <Button variant="ghost" size="sm" onClick={persist} className="gap-1 text-xs">
+        <Button variant="ghost" size="sm" onClick={() => persist(true)} className="gap-1 text-xs">
           <Save className="w-3 h-3" /> {T("ذخیره", "Save")}
         </Button>
         {step < ABOUT_SECTIONS.length ? (
@@ -328,8 +359,8 @@ export default function AboutMeView() {
           </Button>
         ) : (
           <Button onClick={analyze} disabled={busy} className="gap-1">
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {T("تحلیل با AI", "Analyze with AI")}
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {T("ذخیره و ثبت پاسخ‌ها", "Save & Finish")}
           </Button>
         )}
       </div>

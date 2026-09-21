@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
-import { firebaseStore } from "@/lib/firebaseStore";
+import { useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 
 export type ShareableType = "task" | "note" | "folder";
@@ -25,105 +24,28 @@ export interface ShareRow {
   created_at: string;
 }
 
-function permissionLevel(p: Exclude<SharePermission, null>): number {
-  if (p === "owner") return 4;
-  const map = { view: 1, comment: 2, edit: 3 };
-  return map[p] || 0;
-}
-
 export function useShareAccess(
-  resourceType: ShareableType,
-  resourceId: string | undefined,
+  _resourceType: ShareableType,
+  _resourceId: string | undefined,
   resourceOwnerId?: string | null,
 ): ShareAccess {
   const { user } = useAuth();
-  const [permission, setPermission] = useState<SharePermission>(null);
-  const [shares, setShares] = useState<ShareRow[]>([]);
-  const [loading, setLoading] = useState(true);
 
   const isOwner = useMemo(() => {
-    return !!user && !!resourceOwnerId && user.id === resourceOwnerId;
+    if (!resourceOwnerId) return true;
+    return !!user && user.id === resourceOwnerId;
   }, [user, resourceOwnerId]);
 
-  useEffect(() => {
-    setPermission(null);
-    setShares([]);
-    setLoading(true);
-    if (!user || !resourceId) {
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    const load = async () => {
-      const [{ data: perm }, { data: rows }] = await Promise.all([
-        firebaseStore.rpc("get_effective_share_permission", {
-          _user_id: user.id,
-          _resource_type: resourceType,
-          _resource_id: resourceId,
-        }),
-        firebaseStore
-          .from("shares")
-          .select("id,owner_id,recipient_id,recipient_email,permission,accepted_at,created_at")
-          .eq("resource_type", resourceType)
-          .eq("resource_id", resourceId)
-          .order("created_at", { ascending: false })
-          .returns<ShareRow[]>(),
-      ]);
-      if (cancelled) return;
-
-      let effective: SharePermission = null;
-      if (isOwner) {
-        effective = "owner";
-      } else if (typeof perm === "string") {
-        effective = perm as SharePermission;
-      }
-      // Fallback: the RPC may return null even when the user is the recipient
-      // (e.g. pending share). Compute from fetched rows as well.
-      const matched = (rows || []).filter(
-        (s) => s.recipient_id === user.id || (s.recipient_email || "").toLowerCase() === (user.email || "").toLowerCase(),
-      );
-      if (effective === null && matched.length > 0) {
-        const accepted = matched
-          .filter((s) => s.accepted_at)
-          .map((s) => s.permission);
-        if (accepted.length > 0) {
-          effective = accepted.reduce((a, b) => (permissionLevel(a) >= permissionLevel(b) ? a : b));
-        }
-      }
-
-      setPermission(effective);
-      setShares((rows || []) as ShareRow[]);
-      setLoading(false);
-    };
-
-    load();
-
-    const channel = firebaseStore
-      .channel(`share-access-${resourceType}-${resourceId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "shares", filter: `resource_type=eq.${resourceType}` },
-        () => load(),
-      )
-      .subscribe();
-
-    return () => {
-      cancelled = true;
-      firebaseStore.removeChannel(channel);
-    };
-  }, [user, resourceType, resourceId, isOwner]);
-
   return useMemo(() => {
-    const level = isOwner ? 4 : permission ? permissionLevel(permission) : 0;
+    const permission: SharePermission = isOwner ? "owner" : null;
     return {
       permission,
-      canView: level >= 1,
-      canComment: level >= 2,
-      canEdit: level >= 3,
+      canView: isOwner,
+      canComment: isOwner,
+      canEdit: isOwner,
       isOwner,
-      loading,
-      shares,
+      loading: false,
+      shares: [],
     };
-  }, [permission, isOwner, loading, shares]);
+  }, [isOwner]);
 }
