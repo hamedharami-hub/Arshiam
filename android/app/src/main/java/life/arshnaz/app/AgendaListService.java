@@ -40,7 +40,8 @@ public class AgendaListService extends RemoteViewsService {
             boolean light=AgendaData.options(c).getBoolean("widget."+id+".light",false);
             boolean completed=t.optBoolean("completed")||"done".equals(t.optString("status"));
             int depth=Math.max(0,Math.min(3,t.optInt("_widgetDepth",0)));
-            row.setInt(R.id.row_root,"setBackgroundResource",depth>0
+            boolean isStandaloneChild = (depth == 0 && !t.optString("parent_id").isEmpty());
+            row.setInt(R.id.row_root,"setBackgroundResource",(depth>0 || isStandaloneChild)
                 ? (light?R.drawable.widget_subtask_background_light:R.drawable.widget_subtask_background)
                 : (light?R.drawable.widget_row_background_light:R.drawable.widget_row_background));
             row.setInt(R.id.row_done,"setBackgroundResource",completed
@@ -51,7 +52,7 @@ public class AgendaListService extends RemoteViewsService {
             if(completed) {
                 row.setTextColor(R.id.row_title,android.graphics.Color.parseColor(light?"#94A3B8":"#64748B"));
             } else {
-                row.setTextColor(R.id.row_title,android.graphics.Color.parseColor(depth>0
+                row.setTextColor(R.id.row_title,android.graphics.Color.parseColor((depth>0 || isStandaloneChild)
                     ? (light?"#4338A6":"#DDD6FE") : (light?"#172033":"#F1F5F9")));
             }
             boolean hasChildren=hasChildren(c,t.optString("id"));
@@ -76,6 +77,12 @@ public class AgendaListService extends RemoteViewsService {
                 metaText="📁 "+subCount+stateHint+(due.isEmpty()?"":" · "+due);
             } else if (depth>0) {
                 metaText="↳ "+(isFa?"ساب‌تسک":"SUBTASK")+(due.isEmpty()?"":" · "+due);
+            } else if (isStandaloneChild) {
+                JSONObject parentTask = AgendaData.task(c, t.optString("parent_id"));
+                String parentTitle = (parentTask != null && !parentTask.optString("title").isEmpty())
+                    ? parentTask.optString("title")
+                    : (isFa ? "تسک مادر" : "Parent");
+                metaText="↳ "+(isFa?"والد: ":"Parent: ")+parentTitle+(due.isEmpty()?"":" · "+due);
             } else {
                 metaText=due.isEmpty()?(isFa?"تسک بدون موعد":"TASK"):due;
             }

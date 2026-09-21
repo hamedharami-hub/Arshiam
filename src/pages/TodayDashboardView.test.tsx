@@ -293,4 +293,45 @@ describe("TodayDashboardView visual and structural requirements", () => {
     // The Full width / split view button is NOT rendered on mobile
     expect(screen.queryByTitle("Full width")).not.toBeInTheDocument();
   });
+
+  it("promotes and displays a child task scheduled for today when its parent has no due date", () => {
+    mockTasks = [
+      {
+        id: "parent-project",
+        user_id: "user-123",
+        title: "Big Overarching Project",
+        completed: false,
+        status: "todo",
+        priority: "none",
+        due_date: null,
+        folder_id: null,
+        parent_id: null,
+      },
+      {
+        id: "child-due-today",
+        user_id: "user-123",
+        title: "Child Subtask Due Today",
+        completed: false,
+        status: "todo",
+        priority: "high",
+        due_date: todayIso,
+        folder_id: null,
+        parent_id: "parent-project",
+      },
+    ];
+
+    render(
+      <MemoryRouter>
+        <TodayDashboardView />
+      </MemoryRouter>
+    );
+
+    // Child task is visible on today's dashboard!
+    expect(screen.getByText("Child Subtask Due Today")).toBeInTheDocument();
+
+    // The capsule chip badge indicating the parent task is also rendered!
+    expect(screen.getByTitle("View parent task")).toBeInTheDocument();
+    expect(screen.getByText("Big Overarching Project")).toBeInTheDocument();
+  });
 });
+

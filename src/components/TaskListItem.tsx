@@ -109,6 +109,7 @@ const TaskListItemComponent = ({
   taskMap,
 }: TaskListItemProps) => {
   const pm = PRIORITY_META[t.priority] || PRIORITY_META.none;
+  const parentTask = parent || (t.parent_id ? taskMap?.get(t.parent_id) : null);
   const effectiveProgress = progress ?? (typeof getProgress === "function" ? getProgress(t.id) : undefined) ?? { done: 0, total: subs?.length || 0 };
   const STEP = 18; // px per nesting level
   const lp = useLongPress({ onLongPress: () => onActionTask(t) });
@@ -179,7 +180,33 @@ const TaskListItemComponent = ({
               },
             ] as SwipeAction[]}
           >
-            <Card className={`rounded-xl ${layout === "compact" ? "p-1.5" : "p-2 sm:p-2.5"} border-s-[3.5px] ${pm.borderClass} ${t.is_avoidance ? "bg-amber-500/[0.04] border-amber-500/30" : ""} ${depth > 0 ? "bg-muted/20" : "bg-card/60 backdrop-blur-xs"} hover:bg-accent/25 hover:border-primary/30 transition-all duration-150 shadow-2xs ${isSelected && splitView ? "ring-2 ring-primary/80 bg-primary/10 shadow-sm" : ""}`}>
+            <Card className={`rounded-xl ${layout === "compact" ? "p-1.5" : "p-2 sm:p-2.5"} border-s-[3.5px] ${pm.borderClass} ${t.is_avoidance ? "bg-amber-500/[0.04] border-amber-500/30" : ""} ${depth > 0 ? "bg-muted/20" : depth === 0 && t.parent_id ? "bg-primary/[0.03] border-primary/20 backdrop-blur-xs" : "bg-card/60 backdrop-blur-xs"} hover:bg-accent/25 hover:border-primary/30 transition-all duration-150 shadow-2xs ${isSelected && splitView ? "ring-2 ring-primary/80 bg-primary/10 shadow-sm" : ""}`}>
+              {/* Standalone subtask chip when rendered at top-level (depth === 0) */}
+              {depth === 0 && t.parent_id && (
+                <div className="flex items-center gap-1.5 mb-1.5 px-0.5">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (parentTask) {
+                        onSelectTask(parentTask);
+                      } else if (t.parent_id) {
+                        navigate(`/app/tasks/${encodeURIComponent(t.parent_id)}`);
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-primary/10 text-primary border border-primary/25 hover:bg-primary/20 hover:border-primary/40 transition-all duration-150 cursor-pointer group max-w-full shadow-2xs"
+                    title={T("مشاهده تسک مادر", "View parent task")}
+                  >
+                    <CornerDownRight className="w-3 h-3 shrink-0 text-primary/70 group-hover:text-primary transition-colors rtl:rotate-180" />
+                    <span className="text-primary/70 text-[10px] shrink-0 font-normal">
+                      {T("تسک مادر:", "Parent:")}
+                    </span>
+                    <span className="truncate font-semibold text-[11px] max-w-[200px] sm:max-w-[320px]">
+                      {parentTask?.title || T("بدون عنوان", "Untitled")}
+                    </span>
+                  </button>
+                </div>
+              )}
               {depth > 0 && parent && (
                 <div className="flex items-center gap-1 mb-1 text-[10px] text-muted-foreground/80">
                   <CornerDownRight className="w-2.5 h-2.5 shrink-0" />

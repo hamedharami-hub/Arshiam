@@ -1,5 +1,4 @@
-import { describe, expect, it } from "vitest";
-import { buildTaskChildrenMap, collectTaskDescendantIds, getTaskProgress } from "./taskTree";
+import { buildTaskChildrenMap, collectTaskDescendantIds, getTaskProgress, isStandaloneTaskForScope } from "./taskTree";
 import type { Task } from "@/lib/taskTypes";
 
 const task = (id: string, parent_id: string | null = null, completed = false): Task => ({
@@ -60,5 +59,51 @@ describe("task tree utilities", () => {
     const map = buildTaskChildrenMap([task("a", "b"), task("b", "a")]);
     expect(collectTaskDescendantIds("a", map)).toEqual(["a", "b"]);
     expect(getTaskProgress("a", map)).toEqual({ done: 0, total: 2 });
+  });
+
+  describe("isStandaloneTaskForScope", () => {
+    const todayStr = "2026-09-21";
+    const tomorrowStr = "2026-09-22";
+    const isToday = (t: Task) => t.due_date === todayStr;
+
+    it("returns false if task itself is not in scope", () => {
+      const t = { ...task("child"), due_date: tomorrowStr };
+      expect(isStandaloneTaskForScope(t, isToday, new Map())).toBe(false);
+    });
+
+    it("returns true for root task in scope without parent", () => {
+      const t = { ...task("root"), due_date: todayStr };
+      expect(isStandaloneTaskForScope(t, isToday, new Map())).toBe(true);
+    });
+
+    it("returns true for child task in scope when parent is undated (not in scope)", () => {
+      const parent = { ...task("parent"), due_date: null };
+      const child = { ...task("child", "parent"), due_date: todayStr };
+      const map = new Map([["parent", parent], ["child", child]]);
+
+      expect(isStandaloneTaskForScope(child, isToday, map)).toBe(true);
+    });
+
+    it("returns true for child task in scope when parent is on a different date", () => {
+      const parent = { ...task("parent"), due_date: tomorrowStr };
+      const child = { ...task("child", "parent"), due_date: todayStr };
+      const map = new Map([["parent", parent], ["child", child]]);
+
+      expect(isStandaloneTaskForScope(child, isToday, map)).toBe(true);
+    });
+
+    it("returns false for child task in scope when parent is ALSO in scope", () => {
+      const parent = { ...task("parent"), due_date: todayStr };
+      const child = { ...task("child", "parent"), due_date: todayStr };
+      const map = new Map([["parent", parent], ["child", child]]);
+
+      // Since parent is in today's scope, child will be nested inside parent
+      expect(isStandaloneTaskForScope(child, isToday, map)).toBe(false);
+    });
+
+    it("returns true if parent_id is missing from taskMap (orphaned child)", () => {
+      const child = { ...task("child", "missing-parent"), due_date: todayStr };
+      expect(isStandaloneTaskForScope(child, isToday, new Map())).toBe(true);
+    });
   });
 });

@@ -17,6 +17,7 @@ import {
   buildTaskChildrenMap,
   collectTaskDescendantIds,
   getTaskProgress,
+  isStandaloneTaskForScope,
 } from "@/features/tasks/taskTree";
 import { extractTasksFromCache } from "@/features/tasks/taskCache";
 import { useAuth } from "@/hooks/useAuth";
@@ -342,6 +343,9 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     smart: T("لیست‌های هوشمند", "Smart Lists"), folder: folderName || T("فولدر", "Folder"), tag: `#${tagName || T("تگ", "Tag")}`,
   }[scope];
 
+  // Task lookup map
+  const taskMap = useMemo(() => new Map(effectiveAllTasks.map(t => [t.id, t])), [effectiveAllTasks]);
+
   // Build children map
   const childrenMap = useMemo(() => buildTaskChildrenMap(effectiveAllTasks), [effectiveAllTasks]);
 
@@ -349,24 +353,35 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const topLevel = useMemo(() => {
     const nowMs = Date.now();
     const isGraceActive = (id: string) => (graceMap[id] || 0) > nowMs;
-    let list = effectiveAllTasks.filter(t => !t.parent_id);
-    if (scope === "inbox") list = list.filter(t => !t.folder_id);
-    else if (scope === "today") {
+    let list = effectiveAllTasks;
+
+    if (scope === "inbox") {
+      list = list.filter(t => !t.parent_id && !t.folder_id);
+    } else if (scope === "today") {
       // Show overdue tasks plus today so the Today view matches TickTick (Overdue + Today groups)
       const e = endOfDay(new Date()).getTime();
-      list = list.filter(t => t.due_date && taskDueTimestamp(t.due_date) <= e);
+      const isDueTodayOrOverdue = (t: Task) => !!t.due_date && taskDueTimestamp(t.due_date) <= e;
+      list = list.filter(t => isStandaloneTaskForScope(t, isDueTodayOrOverdue, taskMap));
     } else if (scope === "tomorrow") {
       const s = startOfDay(addDays(new Date(), 1)).getTime();
       const e = endOfDay(addDays(new Date(), 1)).getTime();
-      list = list.filter(t => t.due_date && taskDueTimestamp(t.due_date) >= s && taskDueTimestamp(t.due_date) <= e);
+      const isDueTomorrow = (t: Task) => {
+        if (!t.due_date) return false;
+        const ts = taskDueTimestamp(t.due_date);
+        return ts >= s && ts <= e;
+      };
+      list = list.filter(t => isStandaloneTaskForScope(t, isDueTomorrow, taskMap));
     } else if (scope === "next7") {
       // Show overdue plus next 7 days for grouped Upcoming view
       const e = endOfDay(addDays(new Date(), 7)).getTime();
-      list = list.filter(t => t.due_date && taskDueTimestamp(t.due_date) <= e);
+      const isDueNext7 = (t: Task) => !!t.due_date && taskDueTimestamp(t.due_date) <= e;
+      list = list.filter(t => isStandaloneTaskForScope(t, isDueNext7, taskMap));
     } else if (scope === "smart") {
-      list = list.filter(t => t.priority === "high" && (!t.completed || isGraceActive(t.id)));
+      list = list.filter(t => !t.parent_id && t.priority === "high" && (!t.completed || isGraceActive(t.id)));
     } else if (scope === "folder") {
-      list = list.filter(t => t.folder_id === params.id);
+      list = list.filter(t => !t.parent_id && t.folder_id === params.id);
+    } else {
+      list = list.filter(t => !t.parent_id);
     }
 
     // Apply advanced filters
@@ -406,7 +421,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       return cmpForLevel(primary)(a, b) || cmpForLevel(secondary)(a, b);
     });
     return list;
-  }, [effectiveAllTasks, scope, params.id, filters, taskTagsMap, graceMap]);
+  }, [effectiveAllTasks, scope, params.id, filters, taskTagsMap, graceMap, taskMap]);
 
   const isFolder = scope === "folder" && !!params.id;
   const folderTopLevel = useMemo(() => {
@@ -423,8 +438,6 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       return a.title.localeCompare(b.title, "fa");
     });
   }, [folderPrefs.sortOrder, isFolder, topLevel]);
-
-  const taskMap = useMemo(() => new Map(effectiveAllTasks.map(t => [t.id, t])), [effectiveAllTasks]);
 
   // Date-based grouping for Today/Next7 to mimic TickTick (Overdue, Today, Tomorrow, ...)
   const groupedTasks = useMemo(() => buildGroupedTasks(topLevel, scope, isEn, T), [topLevel, scope, isEn, T]);

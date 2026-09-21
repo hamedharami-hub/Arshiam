@@ -14,7 +14,7 @@ import { PRIORITY_META } from "@/lib/priority";
 import type { Task, ConfirmState } from "@/lib/taskTypes";
 import { deleteTask as deletePersistedTask, persistTask } from "@/lib/firestoreDataService";
 import { taskDueTimestamp } from "@/lib/taskDate";
-import { buildTaskChildrenMap, getTaskProgress } from "@/features/tasks/taskTree";
+import { buildTaskChildrenMap, getTaskProgress, isStandaloneTaskForScope } from "@/features/tasks/taskTree";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { HeaderActionsPortal } from "@/components/HeaderActionsPortal";
 import { useResizableSplit } from "@/hooks/useResizableSplit";
@@ -137,18 +137,18 @@ export default function TodayDashboardView() {
   const getProgress = useCallback((id: string) => getTaskProgress(id, childrenMap), [childrenMap]);
 
   // 2. Classify tasks
-  // Only consider root tasks; subtasks are rendered hierarchically inside parents
-  const rootDueTasks = useMemo(() => {
-    return allTasks.filter((t) => !t.parent_id && t.due_date);
-  }, [allTasks]);
+  // Today's tasks: standalone tasks whose due date is today.
+  // Root tasks, or subtasks whose parents are not due today, are displayed at top-level.
+  const isDueToday = useCallback((t: Task) => {
+    if (!t.due_date) return false;
+    const due = taskDueTimestamp(t.due_date);
+    return !isNaN(due) && due >= startOfToday && due <= endOfToday;
+  }, [startOfToday, endOfToday]);
 
   // Today's tasks (due between startOfToday and endOfToday)
   const todayTasks = useMemo(() => {
-    return rootDueTasks.filter((t) => {
-      const due = taskDueTimestamp(t.due_date);
-      return !isNaN(due) && due >= startOfToday && due <= endOfToday;
-    });
-  }, [rootDueTasks, startOfToday, endOfToday]);
+    return allTasks.filter((t) => isStandaloneTaskForScope(t, isDueToday, taskMap));
+  }, [allTasks, isDueToday, taskMap]);
 
   // Active today tasks: sorted by pinned, then priority, then due date
   const activeTodayTasks = useMemo(() => {
@@ -192,13 +192,15 @@ export default function TodayDashboardView() {
   }, [todayTasks]);
 
   // Overdue tasks: open tasks with due date strictly before start of today
+  const isDueOverdue = useCallback((t: Task) => {
+    if (t.completed || !t.due_date) return false;
+    const due = taskDueTimestamp(t.due_date);
+    return !isNaN(due) && due < startOfToday;
+  }, [startOfToday]);
+
   const overdueTasks = useMemo(() => {
-    return rootDueTasks
-      .filter((t) => {
-        if (t.completed) return false;
-        const due = taskDueTimestamp(t.due_date);
-        return !isNaN(due) && due < startOfToday;
-      })
+    return allTasks
+      .filter((t) => isStandaloneTaskForScope(t, isDueOverdue, taskMap))
       .sort((a, b) => {
         if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
         const aDue = taskDueTimestamp(a.due_date);
@@ -208,7 +210,7 @@ export default function TodayDashboardView() {
         if (priorityDiff !== 0) return priorityDiff;
         return a.id.localeCompare(b.id);
       });
-  }, [rootDueTasks, startOfToday]);
+  }, [allTasks, isDueOverdue, taskMap]);
 
   const totalCount = todayTasks.length;
   const completedCount = completedTodayTasks.length;

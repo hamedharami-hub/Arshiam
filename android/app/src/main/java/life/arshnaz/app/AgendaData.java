@@ -67,14 +67,14 @@ final class AgendaData {
             if (include)
                 selected.add(t.optString("id"));
         }
-        // A selected parent brings its descendants; a selected child brings its visible ancestors for context.
+        // A selected parent brings its descendants.
+        // Unscheduled/future parents are not forced into date scopes so child tasks render directly.
         boolean changed;
         do {
             changed = false;
             for (JSONObject t : eligible.values()) {
                 String id=t.optString("id"), parent=t.optString("parent_id");
                 if (!parent.isEmpty() && selected.contains(parent) && selected.add(id)) changed=true;
-                if (selected.contains(id) && !parent.isEmpty() && eligible.containsKey(parent) && selected.add(parent)) changed=true;
             }
         } while(changed);
         Map<String,List<JSONObject>> children=new HashMap<>();
