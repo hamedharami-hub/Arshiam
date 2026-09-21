@@ -31,7 +31,7 @@ public final class WidgetRouterActivity extends Activity {
         String routeOwner = (owner != null && !owner.isEmpty()) ? owner : activeOwner;
         if ("open".equals(operation)) {
             Intent open = AgendaWidgetProvider.appIntent(this,
-                "task?taskId=" + Uri.encode(taskId) + "&owner=" + Uri.encode(routeOwner));
+                "task?taskId=" + Uri.encode(taskId) + "&owner=" + Uri.encode(routeOwner) + "&fromWidget=1");
             open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(open);
         } else if ("toggle".equals(operation)) {

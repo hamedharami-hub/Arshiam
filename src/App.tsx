@@ -120,7 +120,7 @@ function CapacitorUrlHandler() {
     let lastNavigatedPath = "";
     let lastNavigatedTime = 0;
 
-    const navigateForUrl = (rawUrl: string) => {
+    const navigateForUrl = (rawUrl: string, isFromLaunch = false) => {
       if (!rawUrl) return;
       receivedLiveUrl = true;
       const generation = ++routeGeneration;
@@ -128,6 +128,12 @@ function CapacitorUrlHandler() {
         .then(({ auth }) => auth.authStateReady().then(() => {
           const path = nativeRoute(rawUrl, auth.currentUser?.uid);
           if (!path || disposed || generation !== routeGeneration) return;
+          const currentPath = window.location.pathname;
+          // If this is a cold launch URL resolving to default /app/today,
+          // do not overwrite if the user has already navigated elsewhere in the app.
+          if (isFromLaunch && path === "/app/today" && currentPath.startsWith("/app/") && currentPath !== "/app/today") {
+            return;
+          }
           const now = Date.now();
           if (path === lastNavigatedPath && now - lastNavigatedTime < 1000) {
             return;
@@ -142,7 +148,7 @@ function CapacitorUrlHandler() {
     try {
       const onDispatchUrl = (event: { url?: string } | null | undefined) => {
         if (event?.url) {
-          navigateForUrl(event.url);
+          navigateForUrl(event.url, false);
         }
       };
       (window as any).__arshnazDispatchUrl = onDispatchUrl;
@@ -151,19 +157,19 @@ function CapacitorUrlHandler() {
       if (typeof (window as any).__arshnazPendingUrl === "string") {
         const pending = (window as any).__arshnazPendingUrl;
         delete (window as any).__arshnazPendingUrl;
-        navigateForUrl(pending);
+        navigateForUrl(pending, true);
       }
 
       // Subscribe before reading the cold-start URL. Otherwise a warm widget
       // tap can be missed and an older launch URL wins when the WebView resumes.
       CapApp.addListener("appUrlOpen", (event) => {
-        navigateForUrl(event.url || "");
+        navigateForUrl(event.url || "", false);
       })
         .then((h) => {
           handle = h;
           if (disposed) { void h.remove(); return; }
           return CapApp.getLaunchUrl().then((launch) => {
-            if (launch?.url && !receivedLiveUrl && !disposed) navigateForUrl(launch.url);
+            if (launch?.url && !receivedLiveUrl && !disposed) navigateForUrl(launch.url, true);
           });
         })
         .catch((e) => console.warn("Capacitor widget route notice:", e));

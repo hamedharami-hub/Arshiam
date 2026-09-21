@@ -71,4 +71,10 @@ describe("Android deep links", () => {
     expect(navigated).toBe("/app/tasks/task-cold-start");
     expect(fakeWindow.__arshnazPendingUrl).toBeUndefined();
   });
+
+  it("preserves fromWidget query param when arriving from Android widget", () => {
+    expect(nativeRoute("arshnaz://task?taskId=task-w1&fromWidget=1&owner=u", "u")).toBe(
+      "/app/tasks/task-w1?fromWidget=1"
+    );
+  });
 });

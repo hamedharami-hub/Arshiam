@@ -50,6 +50,22 @@ export default function AppLayout() {
     }
   }, [loc.pathname]);
 
+  // Safety guard against Radix UI pointer-events locking when modals/drawers unmount
+  useEffect(() => {
+    const clearStuckPointerEvents = () => {
+      if (typeof document === "undefined") return;
+      const hasOpenModal = Boolean(
+        document.querySelector('div[role="dialog"][data-state="open"], div[role="alertdialog"][data-state="open"], [data-radix-dialog-content][data-state="open"], [data-radix-alert-dialog-content][data-state="open"]')
+      );
+      if (!hasOpenModal && document.body.style.pointerEvents === "none") {
+        document.body.style.pointerEvents = "";
+      }
+    };
+    clearStuckPointerEvents();
+    const interval = setInterval(clearStuckPointerEvents, 300);
+    return () => clearInterval(interval);
+  }, [loc.pathname]);
+
   useEffect(() => {
     const handleOpenAi = () => setAiOpen(true);
     window.addEventListener("arshnaz:open-ai", handleOpenAi);

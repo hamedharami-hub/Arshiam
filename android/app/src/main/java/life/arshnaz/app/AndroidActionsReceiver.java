@@ -84,7 +84,7 @@ public class AndroidActionsReceiver extends BroadcastReceiver {
             } else if ("open".equals(operation)) {
                 String routeOwner = (owner != null && !owner.isEmpty()) ? owner : activeOwner;
                 Intent open = AgendaWidgetProvider.appIntent(c,
-                    "task?taskId=" + Uri.encode(taskId) + "&owner=" + Uri.encode(routeOwner));
+                    "task?taskId=" + Uri.encode(taskId) + "&owner=" + Uri.encode(routeOwner) + "&fromWidget=1");
                 open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 c.startActivity(open);
                 return;

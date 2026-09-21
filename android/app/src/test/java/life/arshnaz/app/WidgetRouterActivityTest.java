@@ -22,8 +22,8 @@ public class WidgetRouterActivityTest {
         Intent opened=Shadows.shadowOf(activity).getNextStartedActivity();
         assertNotNull(opened);
         assertEquals(MainActivity.class.getName(),opened.getComponent().getClassName());
-        assertEquals("arshnaz://task?taskId=task%201&owner=user-1",opened.getDataString());
-        assertEquals("task?taskId=task%201&owner=user-1",opened.getStringExtra("arshnaz_route"));
+        assertEquals("arshnaz://task?taskId=task%201&owner=user-1&fromWidget=1",opened.getDataString());
+        assertEquals("task?taskId=task%201&owner=user-1&fromWidget=1",opened.getStringExtra("arshnaz_route"));
     }
 
     @Test public void ownerMismatchCannotOpenAnotherUsersTask() {
@@ -50,13 +50,13 @@ public class WidgetRouterActivityTest {
         activityA.onCreate(null);
         Intent openedA = Shadows.shadowOf(activityA).getNextStartedActivity();
         assertNotNull(openedA);
-        assertEquals("arshnaz://task?taskId=task-A&owner=user-1", openedA.getDataString());
+        assertEquals("arshnaz://task?taskId=task-A&owner=user-1&fromWidget=1", openedA.getDataString());
 
         Intent clickB = new Intent(Intent.ACTION_VIEW, Uri.parse("arshnaz://widget-action/open?taskId=task-B&owner=user-1"));
         activityA.onNewIntent(clickB);
         Intent openedB = Shadows.shadowOf(activityA).getNextStartedActivity();
         assertNotNull(openedB);
-        assertEquals("arshnaz://task?taskId=task-B&owner=user-1", openedB.getDataString());
+        assertEquals("arshnaz://task?taskId=task-B&owner=user-1&fromWidget=1", openedB.getDataString());
     }
 
     @Test public void mainActivityExtractsEveryNewTaskIdFromIntent() {

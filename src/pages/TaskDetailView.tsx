@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { App as CapApp } from "@capacitor/app";
+import { toast } from "sonner";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { TaskDetail } from "@/components/TaskDetail";
@@ -19,6 +21,7 @@ export default function TaskDetailView() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const fromTaskId = searchParams.get("from");
+  const isFromWidget = searchParams.get("fromWidget") === "1" || searchParams.get("from") === "widget";
   const navigate = useNavigate();
   const { user } = useAuth();
   const { T, isEn } = useBilingual();
@@ -29,6 +32,7 @@ export default function TaskDetailView() {
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const loadGeneration = useRef(0);
+  const lastBackRef = useRef(0);
 
   const load = useCallback(async () => {
     const generation = ++loadGeneration.current;
@@ -76,8 +80,9 @@ export default function TaskDetailView() {
 
   useEffect(() => {
     void load();
+    const currentRef = loadGeneration;
     return () => {
-      loadGeneration.current++;
+      currentRef.current++;
     };
   }, [load]);
 
@@ -85,12 +90,34 @@ export default function TaskDetailView() {
   const effectiveParentId = fromTaskId || (visibleTask?.parent_id ?? null);
 
   const handleClose = useCallback(() => {
+    if (isFromWidget) {
+      void CapApp.exitApp();
+      return;
+    }
     if (effectiveParentId) {
       navigate(`/app/tasks/${encodeURIComponent(effectiveParentId)}`);
       return;
     }
     navigate("/app/today", { replace: true });
-  }, [effectiveParentId, navigate]);
+  }, [isFromWidget, effectiveParentId, navigate]);
+
+  const handleBack = useCallback(() => {
+    if (effectiveParentId) {
+      navigate(`/app/tasks/${encodeURIComponent(effectiveParentId)}${isFromWidget ? "?fromWidget=1" : ""}`);
+      return;
+    }
+    if (isFromWidget) {
+      const now = Date.now();
+      if (lastBackRef.current && now - lastBackRef.current < 2000) {
+        void CapApp.exitApp();
+        return;
+      }
+      lastBackRef.current = now;
+      toast("برای خروج یک‌بار دیگر برگشت را بزن", { duration: 1800 });
+      return;
+    }
+    handleClose();
+  }, [effectiveParentId, isFromWidget, navigate, handleClose]);
 
   useEffect(() => {
     if (isPhone) return;
@@ -128,7 +155,7 @@ export default function TaskDetailView() {
         <div dir={isEn ? "ltr" : "rtl"} className="flex flex-col items-center justify-center h-[60vh] text-muted-foreground p-4 text-center space-y-4 page-enter">
           <p className="text-base font-medium">{T("تسک مورد نظر پیدا نشد یا حذف شده است.", "Task not found or has been deleted.")}</p>
           <Button variant="outline" onClick={handleClose} className="gap-1.5">
-            <BackIcon className="w-4 h-4" /> {T("بازگشت به تسک‌ها", "Back to tasks")}
+            <BackIcon className="w-4 h-4" /> {isFromWidget ? T("خروج", "Exit") : T("بازگشت به تسک‌ها", "Back to tasks")}
           </Button>
         </div>
       );
@@ -138,7 +165,7 @@ export default function TaskDetailView() {
         <div className="bg-card p-6 rounded-2xl shadow-xl border border-border/80 max-w-md w-full text-center p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
           <p className="text-base font-medium">{T("تسک مورد نظر پیدا نشد یا حذف شده است.", "Task not found or has been deleted.")}</p>
           <Button variant="outline" onClick={handleClose} className="gap-1.5">
-            <BackIcon className="w-4 h-4" /> {T("بازگشت به تسک‌ها", "Back to tasks")}
+            <BackIcon className="w-4 h-4" /> {isFromWidget ? T("خروج", "Exit") : T("بازگشت به تسک‌ها", "Back to tasks")}
           </Button>
         </div>
       </div>
@@ -194,10 +221,10 @@ export default function TaskDetailView() {
             key={visibleTask.id}
             task={visibleTask}
             onClose={handleClose}
-            onBack={effectiveParentId ? () => navigate(`/app/tasks/${encodeURIComponent(effectiveParentId)}`) : handleClose}
+            onBack={handleBack}
             hasBackHistory={true}
             onOpenParentTask={(targetId) => {
-              navigate(`/app/tasks/${encodeURIComponent(targetId)}?from=${encodeURIComponent(visibleTask.id)}`);
+              navigate(`/app/tasks/${encodeURIComponent(targetId)}?from=${encodeURIComponent(visibleTask.id)}${isFromWidget ? "&fromWidget=1" : ""}`);
             }}
             onChanged={load}
             setConfirm={setConfirm}
@@ -216,10 +243,10 @@ export default function TaskDetailView() {
         key={visibleTask.id}
         task={visibleTask}
         onClose={handleClose}
-        onBack={effectiveParentId ? () => navigate(`/app/tasks/${encodeURIComponent(effectiveParentId)}`) : handleClose}
+        onBack={handleBack}
         hasBackHistory={true}
         onOpenParentTask={(targetId) => {
-          navigate(`/app/tasks/${encodeURIComponent(targetId)}?from=${encodeURIComponent(visibleTask.id)}`);
+          navigate(`/app/tasks/${encodeURIComponent(targetId)}?from=${encodeURIComponent(visibleTask.id)}${isFromWidget ? "&fromWidget=1" : ""}`);
         }}
         onChanged={load}
         setConfirm={setConfirm}

@@ -9,7 +9,10 @@ export function nativeRoute(raw: string, currentUid?: string | null): string | n
     if (route === "new-task" || route === "add_task") return "/app/new/task";
     if (route === "task") {
       const id = url.searchParams.get("taskId");
-      return id ? "/app/tasks/" + encodeURIComponent(id) : "/app/today";
+      if (!id) return "/app/today";
+      const fromWidget = url.searchParams.get("fromWidget");
+      const query = fromWidget ? `?fromWidget=${encodeURIComponent(fromWidget)}` : "";
+      return "/app/tasks/" + encodeURIComponent(id) + query;
     }
     if (route === "complete-task") {
       const id = url.searchParams.get("taskId");

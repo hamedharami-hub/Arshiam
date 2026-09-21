@@ -73,6 +73,8 @@ export type TaskDetailHandle = {
   savePendingChanges: (force?: boolean) => Promise<void>;
   hasPendingChanges: () => boolean;
   getCurrentTask: () => Task;
+  requestClose: () => void;
+  handleBackClick: () => void;
 };
 
 export const TaskDetail = forwardRef<TaskDetailHandle, {
@@ -450,14 +452,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     await save(patch, force);
   }, [save]);
 
-  // A full-page creation screen owns its Back/Save buttons. Giving it one
-  // awaited save boundary prevents navigation from racing the editor's debounce.
-  useImperativeHandle(ref, () => ({
-    savePendingChanges,
-    hasPendingChanges: () => Object.keys(taskPatch(latestTaskRef.current, savedTaskRef.current)).length > 0,
-    getCurrentTask: () => latestTaskRef.current,
-  }), [savePendingChanges]);
-
   useEffect(() => {
     if (!canEdit || !hasPendingChanges) return;
     setSaveState("dirty");
@@ -524,6 +518,11 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     if (tagOpen || topTagOpen) { setTagOpen(false); setTopTagOpen(false); return; }
     if (activeNote) { setActiveNote(null); return; }
 
+    if (hasPendingChanges || saveState === "saving" || saveState === "error") {
+      requestClose();
+      return;
+    }
+
     if (onBack) {
       onBack();
     } else if (onSave) {
@@ -534,8 +533,18 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   }, [
     closePromptOpen, actionMenuOpen, focusOpen, aiOpen, outcomeOpen,
     folderOpen, parentOpen, scheduleOpen, tagOpen, topTagOpen, activeNote,
-    onBack, onSave, onClose, requestClose,
+    hasPendingChanges, saveState, onBack, onSave, onClose, requestClose,
   ]);
+
+  // A full-page creation screen owns its Back/Save buttons. Giving it one
+  // awaited save boundary prevents navigation from racing the editor's debounce.
+  useImperativeHandle(ref, () => ({
+    savePendingChanges,
+    hasPendingChanges: () => Object.keys(taskPatch(latestTaskRef.current, savedTaskRef.current)).length > 0,
+    getCurrentTask: () => latestTaskRef.current,
+    requestClose,
+    handleBackClick,
+  }), [savePendingChanges, requestClose, handleBackClick]);
 
   useEffect(() => {
     const request = (e: Event) => {
@@ -1356,7 +1365,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             size="sm"
             variant="ghost"
             className="h-8 px-2 rounded-xl text-xs gap-1 font-medium text-foreground hover:bg-muted me-1"
-            onClick={onBack || handleBackClick}
+            onClick={handleBackClick}
             title={T("برگشت به تسک قبلی", "Back to previous task")}
           >
             <ArrowRight className={`w-4 h-4 ${isEn ? "rotate-180" : ""}`} />
@@ -1466,7 +1475,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                   size="sm"
                   variant="ghost"
                   className="h-8 px-2 rounded-xl text-xs gap-1 font-medium text-foreground hover:bg-muted shrink-0"
-                  onClick={onBack || handleBackClick}
+                  onClick={handleBackClick}
                   title={T("برگشت به تسک قبلی", "Back to previous task")}
                 >
                   <ArrowRight className={`w-4 h-4 ${isEn ? "rotate-180" : ""}`} />

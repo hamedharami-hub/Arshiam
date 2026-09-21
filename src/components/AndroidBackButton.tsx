@@ -31,9 +31,17 @@ export default function AndroidBackButton() {
       }
       if (pathname.startsWith("/app/tasks/")) {
         const sp = new URLSearchParams(search);
+        const isFromWidget = sp.get("fromWidget") === "1" || sp.get("from") === "widget";
         const fromTaskId = sp.get("from");
-        if (fromTaskId) {
-          navigate(`/app/tasks/${encodeURIComponent(fromTaskId)}`, { replace: true });
+        if (fromTaskId && fromTaskId !== "widget") {
+          navigate(`/app/tasks/${encodeURIComponent(fromTaskId)}${isFromWidget ? "?fromWidget=1" : ""}`, { replace: true });
+          return;
+        }
+        if (isFromWidget) {
+          const now = Date.now();
+          if (lastBack.current && now - lastBack.current < 2000) { void CapApp.exitApp(); return; }
+          lastBack.current = now;
+          toast("برای خروج یک‌بار دیگر برگشت را بزن", { duration: 1800 });
           return;
         }
         navigate("/app/today", { replace: true });

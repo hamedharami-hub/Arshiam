@@ -72,6 +72,27 @@ describe("AndroidBackButton", () => {
     expect(CapApp.exitApp).toHaveBeenCalled();
   });
 
+  it("prompts to exit on first back press and exits on second back press when fromWidget=1 on task route", () => {
+    mockLocation = { pathname: "/app/tasks/task-123", search: "?fromWidget=1" };
+    render(<AndroidBackButton />);
+
+    backListener?.();
+    expect(toast).toHaveBeenCalledWith("برای خروج یک‌بار دیگر برگشت را بزن", { duration: 1800 });
+    expect(CapApp.exitApp).not.toHaveBeenCalled();
+
+    // Second press immediately after
+    backListener?.();
+    expect(CapApp.exitApp).toHaveBeenCalled();
+  });
+
+  it("navigates to parent task preserving fromWidget when from query parameter is present", () => {
+    mockLocation = { pathname: "/app/tasks/subtask-456", search: "?from=parent-123&fromWidget=1" };
+    render(<AndroidBackButton />);
+
+    backListener?.();
+    expect(mockNavigate).toHaveBeenCalledWith("/app/tasks/parent-123?fromWidget=1", { replace: true });
+  });
+
   it("navigates to /app/today when on another route with no prior history", () => {
     mockLocation = { pathname: "/app/calendar", search: "" };
     // window.history.state has no idx > 0
