@@ -31,10 +31,15 @@ export default function AndroidBackButton() {
       }
       if (pathname.startsWith("/app/tasks/")) {
         const sp = new URLSearchParams(search);
-        const isFromWidget = sp.get("fromWidget") === "1" || sp.get("from") === "widget";
+        const isFromWidget =
+          sp.get("fromWidget") === "1" ||
+          sp.get("fromWidget") === "true" ||
+          sp.get("from") === "widget" ||
+          sp.get("source") === "widget";
         const fromTaskId = sp.get("from");
         if (fromTaskId && fromTaskId !== "widget") {
-          navigate(`/app/tasks/${encodeURIComponent(fromTaskId)}${isFromWidget ? "?fromWidget=1" : ""}`, { replace: true });
+          const widgetSuffix = isFromWidget ? "?fromWidget=1" : "";
+          navigate(`/app/tasks/${encodeURIComponent(fromTaskId)}${widgetSuffix}`, { replace: true });
           return;
         }
         if (isFromWidget) {

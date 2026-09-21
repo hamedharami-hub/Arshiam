@@ -115,31 +115,44 @@ function CapacitorUrlHandler() {
     if (!isNative) return;
 
     let disposed = false;
-    let receivedLiveUrl = false;
     let routeGeneration = 0;
     let lastNavigatedPath = "";
     let lastNavigatedTime = 0;
+    let lastProcessedUrl = "";
+    let lastProcessedTime = 0;
+
+    // Invalidate pending in-flight URL resolutions whenever the user navigates inside the app
+    const onUserNavigation = () => {
+      routeGeneration++;
+    };
+    window.addEventListener("popstate", onUserNavigation);
 
     const navigateForUrl = (rawUrl: string, isFromLaunch = false) => {
-      if (!rawUrl) return;
-      receivedLiveUrl = true;
+      if (!rawUrl || disposed) return;
+      const now = Date.now();
+      if (rawUrl === lastProcessedUrl && now - lastProcessedTime < 1500) {
+        return; // Deduplicate simultaneous events from appUrlOpen and __arshnazDispatchUrl
+      }
+      lastProcessedUrl = rawUrl;
+      lastProcessedTime = now;
+
       const generation = ++routeGeneration;
       void import("@/lib/firebase")
         .then(({ auth }) => auth.authStateReady().then(() => {
           const path = nativeRoute(rawUrl, auth.currentUser?.uid);
           if (!path || disposed || generation !== routeGeneration) return;
           const currentPath = window.location.pathname;
-          // If this is a cold launch URL resolving to default /app/today,
-          // do not overwrite if the user has already navigated elsewhere in the app.
-          if (isFromLaunch && path === "/app/today" && currentPath.startsWith("/app/") && currentPath !== "/app/today") {
+
+          // Never yank the user back to Today if they are currently on another section
+          // (e.g. Notes, Mind, Calendar, Habits) unless they specifically opened a task.
+          if (path === "/app/today" && currentPath.startsWith("/app/") && currentPath !== "/app/today") {
             return;
           }
-          const now = Date.now();
           if (path === lastNavigatedPath && now - lastNavigatedTime < 1000) {
             return;
           }
           lastNavigatedPath = path;
-          lastNavigatedTime = now;
+          lastNavigatedTime = Date.now();
           navigate(path);
         }))
         .catch(() => {});
@@ -163,13 +176,15 @@ function CapacitorUrlHandler() {
       // Subscribe before reading the cold-start URL. Otherwise a warm widget
       // tap can be missed and an older launch URL wins when the WebView resumes.
       CapApp.addListener("appUrlOpen", (event) => {
-        navigateForUrl(event.url || "", false);
+        if (event?.url) navigateForUrl(event.url, false);
       })
         .then((h) => {
           handle = h;
           if (disposed) { void h.remove(); return; }
           return CapApp.getLaunchUrl().then((launch) => {
-            if (launch?.url && !receivedLiveUrl && !disposed) navigateForUrl(launch.url, true);
+            if (launch?.url && !lastProcessedUrl && !disposed) {
+              navigateForUrl(launch.url, true);
+            }
           });
         })
         .catch((e) => console.warn("Capacitor widget route notice:", e));
@@ -178,6 +193,7 @@ function CapacitorUrlHandler() {
     }
     return () => {
       disposed = true;
+      window.removeEventListener("popstate", onUserNavigation);
       delete (window as any).__arshnazDispatchUrl;
       try {
         handle?.remove?.();

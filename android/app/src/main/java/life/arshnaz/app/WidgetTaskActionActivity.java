@@ -201,7 +201,7 @@ public class WidgetTaskActionActivity extends Activity {
             full.setLayoutParams(fullLp);
             root.addView(full);
             full.setOnClickListener(v -> {
-                startActivity(AgendaWidgetProvider.appIntent(this, "task?taskId=" + Uri.encode(taskId) + "&owner=" + Uri.encode(AgendaData.prefs(this).getString("dataUserId", ""))));
+                startActivity(AgendaWidgetProvider.appIntent(this, "task?taskId=" + Uri.encode(taskId) + "&owner=" + Uri.encode(AgendaData.prefs(this).getString("dataUserId", "")) + "&fromWidget=1"));
                 finish();
             });
         }
@@ -332,7 +332,7 @@ public class WidgetTaskActionActivity extends Activity {
         open.setLayoutParams(openLp);
         root.addView(open);
         open.setOnClickListener(v -> {
-            startActivity(AgendaWidgetProvider.appIntent(this, "task?taskId=" + Uri.encode(taskId) + "&owner=" + Uri.encode(AgendaData.prefs(this).getString("dataUserId", ""))));
+            startActivity(AgendaWidgetProvider.appIntent(this, "task?taskId=" + Uri.encode(taskId) + "&owner=" + Uri.encode(AgendaData.prefs(this).getString("dataUserId", "")) + "&fromWidget=1"));
             finish();
         });
 

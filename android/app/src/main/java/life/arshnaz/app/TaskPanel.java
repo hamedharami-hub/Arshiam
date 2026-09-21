@@ -30,7 +30,7 @@ final class TaskPanel {
         JSONObject selected=tasks.isEmpty()?null:tasks.get(index);
         String title=selected==null?"تسکی برای "+AgendaData.label(scope)+" نیست":selected.optString("title");
         String owner=AgendaData.prefs(c).getString("dataUserId","");
-        String route=selected==null?scope:"task?taskId="+android.net.Uri.encode(selected.optString("id"))+"&owner="+android.net.Uri.encode(owner);
+        String route=selected==null?scope:"task?taskId="+android.net.Uri.encode(selected.optString("id"))+"&owner="+android.net.Uri.encode(owner)+"&fromWidget=1";
         String subtitle=AgendaData.label(scope)+" · "+(tasks.isEmpty()?"0":(index+1)+" / "+tasks.size());
         String status=AgendaData.prefs(c).getString("syncStatus","برای تازه‌سازی برنامه را باز کنید");
         Notification publicVersion=new NotificationCompat.Builder(c,"arshnaz_task_panel")

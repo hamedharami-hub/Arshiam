@@ -36,9 +36,6 @@ public class MainActivity extends BridgeActivity {
     public void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        if (bridge != null) {
-            bridge.onNewIntent(intent);
-        }
         tryUpdateBridgeIntentUriFallback(bridge, intent != null ? intent.getData() : null);
         forwardIntentToWeb(intent);
     }
@@ -120,6 +117,7 @@ public class MainActivity extends BridgeActivity {
         try {
             WebView webView = bridge.getWebView();
             if (webView != null) {
+                webView.requestFocus();
                 String script = buildDispatchScript(rawUrl);
                 if (script != null) {
                     webView.post(() -> webView.evaluateJavascript(script, null));

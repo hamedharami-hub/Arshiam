@@ -4,7 +4,7 @@ import { App as CapApp } from "@capacitor/app";
 import { toast } from "sonner";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
-import { TaskDetail } from "@/components/TaskDetail";
+import { TaskDetail, type TaskDetailHandle } from "@/components/TaskDetail";
 import type { Task, ConfirmState } from "@/lib/taskTypes";
 import { Loader2, ArrowRight, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,11 @@ export default function TaskDetailView() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const fromTaskId = searchParams.get("from");
-  const isFromWidget = searchParams.get("fromWidget") === "1" || searchParams.get("from") === "widget";
+  const isFromWidget =
+    searchParams.get("fromWidget") === "1" ||
+    searchParams.get("fromWidget") === "true" ||
+    searchParams.get("from") === "widget" ||
+    searchParams.get("source") === "widget";
   const navigate = useNavigate();
   const { user } = useAuth();
   const { T, isEn } = useBilingual();
@@ -31,6 +35,7 @@ export default function TaskDetailView() {
   const [loading, setLoading] = useState(true);
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
+  const taskDetailRef = useRef<TaskDetailHandle | null>(null);
   const loadGeneration = useRef(0);
   const lastBackRef = useRef(0);
 
@@ -102,22 +107,26 @@ export default function TaskDetailView() {
   }, [isFromWidget, effectiveParentId, navigate]);
 
   const handleBack = useCallback(() => {
-    if (effectiveParentId) {
-      navigate(`/app/tasks/${encodeURIComponent(effectiveParentId)}${isFromWidget ? "?fromWidget=1" : ""}`);
-      return;
-    }
     if (isFromWidget) {
+      if (taskDetailRef.current?.hasPendingChanges()) {
+        taskDetailRef.current?.requestClose();
+        return;
+      }
       const now = Date.now();
       if (lastBackRef.current && now - lastBackRef.current < 2000) {
         void CapApp.exitApp();
         return;
       }
       lastBackRef.current = now;
-      toast("برای خروج یک‌بار دیگر برگشت را بزن", { duration: 1800 });
+      toast(isEn ? "Press back again to exit" : "برای خروج یک‌بار دیگر برگشت را بزن", { duration: 1800 });
+      return;
+    }
+    if (effectiveParentId) {
+      navigate(`/app/tasks/${encodeURIComponent(effectiveParentId)}`);
       return;
     }
     handleClose();
-  }, [effectiveParentId, isFromWidget, navigate, handleClose]);
+  }, [effectiveParentId, isFromWidget, navigate, handleClose, isEn]);
 
   useEffect(() => {
     if (isPhone) return;
@@ -218,6 +227,7 @@ export default function TaskDetailView() {
           onClick={(e) => e.stopPropagation()}
         >
           <TaskDetail
+            ref={taskDetailRef}
             key={visibleTask.id}
             task={visibleTask}
             onClose={handleClose}
@@ -240,6 +250,7 @@ export default function TaskDetailView() {
   return (
     <div dir={isEn ? "ltr" : "rtl"} className="page-enter">
       <TaskDetail
+        ref={taskDetailRef}
         key={visibleTask.id}
         task={visibleTask}
         onClose={handleClose}

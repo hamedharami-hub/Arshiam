@@ -5,7 +5,7 @@ export function nativeRoute(raw: string, currentUid?: string | null): string | n
     if (url.protocol !== "arshnaz:") return null;
     const route = url.hostname;
     const owner = url.searchParams.get("owner");
-    if (owner && owner !== currentUid) return "/app/today";
+    if (owner && currentUid && owner !== currentUid) return "/app/today";
     if (route === "new-task" || route === "add_task") return "/app/new/task";
     if (route === "task") {
       const id = url.searchParams.get("taskId");
