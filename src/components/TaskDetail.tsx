@@ -49,6 +49,7 @@ import { BucketPickerBody } from "@/components/BucketPickerInline";
 import { TaskMetaBar } from "@/components/task-detail/TaskMetaBar";
 import { TaskDetailBottomRail } from "@/components/task-detail/TaskDetailBottomRail";
 import { TaskCloseDialog } from "@/components/task-detail/TaskCloseDialog";
+import { TaskDetailActionsMenu } from "@/components/task-detail/TaskDetailActionsMenu";
 import { bucketLabel, kindLabel } from "@/lib/timeBuckets";
 import { describeRule } from "@/lib/recurrence";
 import { addDays, endOfDay } from "date-fns";
@@ -1325,130 +1326,26 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   };
 
   const moreActionsDropdown = (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground transition-transform active:scale-95"
-          title={T("گزینه‌های بیشتر", "More actions")}
-        >
-          <MoreHorizontal className="w-4 h-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={6} className="w-56 text-xs p-1.5 space-y-0.5 rounded-2xl shadow-xl border-border/60 bg-popover/95 backdrop-blur-md">
-        <DropdownMenuItem
-          onClick={() => void save({ pinned: !t.pinned })}
-          disabled={!canEdit}
-          className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-accent focus:bg-accent"
-        >
-          {t.pinned ? <PinOff className="w-4 h-4 text-amber-500" /> : <Pin className="w-4 h-4 text-primary" />}
-          <span>{t.pinned ? T("حذف پین", "Unpin task") : T("پین کردن تسک", "Pin task")}</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={toggleCompletion}
-          disabled={!canEdit}
-          className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-accent focus:bg-accent"
-        >
-          {t.completed ? <Circle className="w-4 h-4 text-muted-foreground" /> : <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-          <span>{t.completed ? T("بازگشایی تسک", "Reopen task") : T("تکمیل تسک", "Complete task")}</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => setFocusOpen(true)}
-          className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-accent focus:bg-accent"
-        >
-          <Timer className="w-4 h-4 text-rose-500" />
-          <span>{T("حالت تمرکز (پومودورو)", "Pomodoro timer")}</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => setFolderOpen(true)}
-          disabled={!canEdit}
-          className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-accent focus:bg-accent"
-        >
-          <FolderInput className="w-4 h-4 text-blue-500" />
-          <span>{T("انتقال به پوشه", "Move to folder")}</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => setParentOpen(true)}
-          disabled={!canEdit}
-          className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-accent focus:bg-accent"
-        >
-          <Network className="w-4 h-4 text-amber-500" />
-          <span>{T("لینک به تسک والد", "Link to parent task")}</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => void copyTaskLink()}
-          className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-accent focus:bg-accent"
-        >
-          <LinkIcon className="w-4 h-4 text-muted-foreground" />
-          <span>{T("کپی لینک تسک", "Copy task link")}</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => void duplicateTask()}
-          disabled={!canEdit}
-          className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-accent focus:bg-accent"
-        >
-          <Copy className="w-4 h-4 text-muted-foreground" />
-          <span>{T("تکثیر تسک", "Duplicate task")}</span>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator className="my-1 border-border/50" />
-        <DropdownMenuItem
-          onClick={() => setAiOpen(true)}
-          className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-accent focus:bg-accent"
-        >
-          <Sparkles className="w-4 h-4 text-purple-500" />
-          <span>{T("دستیار هوش مصنوعی", "AI Assistant")}</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => setShowSteps(true)}
-          className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-accent focus:bg-accent"
-        >
-          <CheckSquare className="w-4 h-4 text-emerald-500" />
-          <span>{T("افزودن چک‌لیست و مراحل", "Add checklist & steps")}</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => { setShowNotes(true); void addNote(); }}
-          className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-accent focus:bg-accent"
-        >
-          <FileText className="w-4 h-4 text-blue-500" />
-          <span>{T("افزودن یادداشت", "Add note")}</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => setShowAttachments(true)}
-          className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-accent focus:bg-accent"
-        >
-          <Paperclip className="w-4 h-4 text-purple-500" />
-          <span>{T("افزودن پیوست", "Add attachment")}</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => setOutcomeOpen(true)}
-          className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-accent focus:bg-accent"
-        >
-          <GitBranch className="w-4 h-4 text-amber-500" />
-          <span>{T("شاخه‌ها و تصمیمات", "Branches & outcomes")}</span>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator className="my-1 border-border/50" />
-        <DropdownMenuItem
-          onClick={() => setActionMenuOpen(true)}
-          className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-accent focus:bg-accent font-medium text-foreground"
-        >
-          <MoreHorizontal className="w-4 h-4 text-primary" />
-          <span>{T("سایر گزینه‌ها و تاریخچه…", "More actions & history…")}</span>
-        </DropdownMenuItem>
-        {allowDelete && canEdit && (
-          <>
-            <DropdownMenuSeparator className="my-1 border-border/50" />
-            <DropdownMenuItem
-              onClick={deleteTask}
-              className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer text-destructive focus:text-destructive hover:bg-destructive/10 focus:bg-destructive/10"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span>{T("حذف تسک", "Delete task")}</span>
-            </DropdownMenuItem>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <TaskDetailActionsMenu
+      task={t}
+      canEdit={canEdit}
+      allowDelete={allowDelete}
+      T={T}
+      onTogglePin={() => void save({ pinned: !t.pinned })}
+      onToggleCompletion={toggleCompletion}
+      onOpenFocus={() => setFocusOpen(true)}
+      onOpenFolder={() => setFolderOpen(true)}
+      onOpenParent={() => setParentOpen(true)}
+      onCopyTaskLink={() => void copyTaskLink()}
+      onDuplicateTask={() => void duplicateTask()}
+      onOpenAI={() => setAiOpen(true)}
+      onShowSteps={() => setShowSteps(true)}
+      onAddNote={() => { setShowNotes(true); void addNote(); }}
+      onShowAttachments={() => setShowAttachments(true)}
+      onOpenOutcome={() => setOutcomeOpen(true)}
+      onOpenActionMenu={() => setActionMenuOpen(true)}
+      onDeleteTask={deleteTask}
+    />
   );
 
   const drawerHeader = (
