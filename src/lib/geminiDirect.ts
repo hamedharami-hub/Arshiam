@@ -23,16 +23,33 @@ Return a valid JSON object with keys: title, description, priority, due_date.`,
   folder_chat: `You help the user plan and break down a project. Suggest actionable tasks. Match the user's language.`,
   socratic: `You are a Socratic guide. NEVER give direct answers or advice. ONLY ask thoughtful open-ended questions that help the user discover their own answers and clarity. Match the user's language.`,
   distortion_detect: `You are a CBT clinician. Analyze the user's automatic thought and identify which cognitive distortions are present (e.g. overgeneralization, all_or_nothing, mental_filter, jumping_to_conclusions, magnification, emotional_reasoning, shoulds, labeling, personalization). Return JSON with distortions: [{ key, explanation }] and alternative_thought.`,
+  about_me_analysis: `You are a thoughtful, non-clinical personal organization and productivity assistant in ARSHNAZ.
+Analyze the user's "About Me" questionnaire answers to help categorize life areas, habits, and actionable goals.
+CRITICAL SAFETY AND ETHICAL RULES:
+1. You are NOT a medical doctor, psychiatrist, or therapist.
+2. NEVER provide clinical diagnoses, psychiatric pathology, or clinical labels (strictly avoid words like "disorder", "clinical depression", "trauma", "pathology").
+3. Keep all feedback non-clinical, encouraging, constructive, and focused on everyday life organization, personal values, and practical habits.
+4. Output MUST be a valid JSON object matching this schema:
+{
+  "ai_analysis": {
+    "summary": "1-2 paragraphs of thoughtful, compassionate summary of the user's life context, goals, and values.",
+    "themes": ["Main life theme 1", "Theme 2"],
+    "strengths": ["Key personal value or strength 1", "Strength 2"],
+    "risks": ["Everyday non-clinical challenge or obstacle 1 (e.g. procrastination, busy schedule)", "Challenge 2"]
+  },
+  "ai_suggestions": {
+    "folders": ["Suggested life/project folder 1", "Folder 2"],
+    "tags": ["Tag1", "Tag2"],
+    "tasks": [
+      {"title": "Actionable task title", "folder": "Folder name", "priority": "medium"}
+    ]
+  }
+}
+Do not include any extra text outside the JSON object. Match the user's language (Persian or English).`,
 };
 
 export function getGeminiApiKey(): string | null {
-  // 1. Check Vite environment variable
-  const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-  if (envKey && typeof envKey === "string" && envKey.trim()) {
-    return envKey.trim();
-  }
-
-  // 2. Check in-app AI settings
+  // Pure BYOK: strictly retrieve user-configured personal keys, never bundled shared env keys
   try {
     const settings = loadAISettings();
     if (settings.default?.provider === "gemini" && settings.default?.apiKey?.trim()) {
@@ -48,10 +65,10 @@ export function getGeminiApiKey(): string | null {
     }
   } catch {}
 
-  // 3. Check local storage overrides
+  // Legacy direct key fallback in localStorage
   try {
-    const localKey = localStorage.getItem("gemini_api_key") || localStorage.getItem("ai_gemini_key");
-    if (localKey?.trim()) return localKey.trim();
+    const directKey = localStorage.getItem("gemini_api_key") || localStorage.getItem("ai_gemini_key");
+    if (directKey && directKey.trim()) return directKey.trim();
   } catch {}
 
   return null;

@@ -38,7 +38,7 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { getAILanguage, setAILanguage, type AILanguage } from "@/lib/ai";
 import {
-  loadAISettings, saveAISettings, defaultConfig, recommendedConfig,
+  loadAISettings, saveAISettings, clearAllStoredAIKeys, defaultConfig, recommendedConfig,
   PROVIDER_INFO, OPERATIONS, MODEL_DESCRIPTIONS, OP_RECOMMENDED,
   resolveOpConfig, resolveOpStrategy,
   type Provider, type ProviderConfig, type AIPerOpSettings, type OperationMeta, type OpStrategy, type AIOperation,
@@ -2060,43 +2060,80 @@ export default function SettingsView() {
             }
           >
             <div className="space-y-4">
-              <div className="p-3.5 rounded-xl border border-border/60 bg-muted/30 space-y-1.5 text-xs text-muted-foreground leading-relaxed">
+              <div className="p-3.5 rounded-xl border border-border/60 bg-muted/30 space-y-2 text-xs text-muted-foreground leading-relaxed">
                 <div className="font-semibold text-foreground flex items-center gap-1.5">
                   <Shield className="w-3.5 h-3.5 text-primary" />
                   {isEn ? "Strict BYOK (Bring Your Own Key) Architecture" : "معماری کاملاً شفاف BYOK (کلید اختصاصی کاربر)"}
                 </div>
                 <p>
                   {isEn
-                    ? "Your AI API keys are stored solely on your local device (localStorage) and never transmitted to ARSHNAZ servers. Requests are sent directly from your browser to the official provider endpoint (Google AI Studio, OpenAI, Anthropic, or Groq)."
-                    : "کلیدهای API شما صرفاً در حافظه محلی همین دستگاه (localStorage) نگهداری می‌شوند و هرگز به سرورهای ARSHNAZ ارسال نمی‌شوند. درخواست‌ها مستقیماً از مرورگر شما به سرور رسمی ارائه‌دهنده (گوگل، OpenAI، آنتروپیک یا Groq) ارسال می‌گردند."}
+                    ? "Your AI API keys are stored solely on your local device (localStorage) and never transmitted to ARSHNAZ servers. Requests are sent directly from your browser to the official provider endpoint (Google AI Studio, OpenAI, Anthropic, or Groq). No shared production key exists in the app."
+                    : "کلیدهای API شما صرفاً در حافظه محلی همین دستگاه (localStorage) نگهداری می‌شوند و هرگز به سرورهای ARSHNAZ ارسال نمی‌شوند. درخواست‌ها مستقیماً از مرورگر شما به سرور رسمی ارائه‌دهنده (گوگل، OpenAI، آنتروپیک یا Groq) ارسال می‌گردند. هیچ کلید اشتراکی در برنامه وجود ندارد."}
                 </p>
+                <div className="pt-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-destructive hover:bg-destructive/10 border-destructive/30 text-xs h-8"
+                    onClick={() => {
+                      clearAllStoredAIKeys();
+                      setSettings(loadAISettings());
+                      toast.success(
+                        isEn
+                          ? "All locally stored AI keys have been completely removed from this device."
+                          : "تمام کلیدهای ذخیره‌شده هوش مصنوعی با موفقیت از این دستگاه حذف شدند."
+                      );
+                    }}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    {isEn ? "Remove all locally stored AI keys" : "حذف یک‌کلیکه تمام کلیدهای هوش مصنوعی از این دستگاه"}
+                  </Button>
+                </div>
               </div>
 
-              <div className="flex items-center justify-between gap-4 p-3 rounded-xl border border-border/60 bg-card/60">
-                <div className="space-y-1">
-                  <Label htmlFor="ai-personalization-toggle" className="text-sm font-medium cursor-pointer">
-                    {isEn ? "Include Profile & Goals in AI Prompts (Opt-In)" : "شخصی‌سازی هوشمند با پروفایل و درباره من (اختیاری)"}
-                  </Label>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {isEn
-                      ? "When enabled, a concise summary of your goals and preferences from About Me is included in AI requests for personalized advice. When disabled, zero profile notes or sensitive data are read."
-                      : "در صورت فعال بودن، خلاصه‌ای از اهداف و ترجیحات شما از بخش «درباره من» برای پاسخ‌های متناسب‌تر به همراه پرامپت ارسال می‌شود. در حالت پیش‌فرض (غیرفعال)، هیچ داده پروفایلی خوانده یا ارسال نمی‌شود."}
-                  </p>
+              <div className="p-3.5 rounded-xl border border-border/60 bg-card/60 space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="ai-personalization-toggle" className="text-sm font-medium cursor-pointer">
+                      {isEn ? "Include Profile & Goals in AI Prompts (Opt-In)" : "شخصی‌سازی هوشمند با پروفایل و درباره من (اختیاری)"}
+                    </Label>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {isEn
+                        ? "By default, zero profile notes, mental health data, or task histories are sent to external models. When opted in, only a minimal, relevant summary is included:"
+                        : "در حالت پیش‌فرض، هیچ داده‌ای از ذهن، درباره من، نوت‌ها یا تاریخچه تسک‌ها به مدل خارجی ارسال نمی‌شود. در صورت فعال‌سازی، فقط خلاصه حداقلی زیر همراه پرامپت ارسال خواهد شد:"}
+                    </p>
+                  </div>
+                  <Switch
+                    id="ai-personalization-toggle"
+                    checked={settings.personalizationOptIn === true}
+                    onCheckedChange={(checked) => {
+                      const next = { ...settings, personalizationOptIn: checked };
+                      setSettings(next);
+                      saveAISettings(next);
+                      toast.success(
+                        isEn
+                          ? (checked ? "Personalization enabled" : "Personalization disabled")
+                          : (checked ? "شخصی‌سازی فعال شد" : "شخصی‌سازی غیرفعال شد")
+                      );
+                    }}
+                  />
                 </div>
-                <Switch
-                  id="ai-personalization-toggle"
-                  checked={settings.personalizationOptIn === true}
-                  onCheckedChange={(checked) => {
-                    const next = { ...settings, personalizationOptIn: checked };
-                    setSettings(next);
-                    saveAISettings(next);
-                    toast.success(
-                      isEn
-                        ? (checked ? "Personalization enabled" : "Personalization disabled")
-                        : (checked ? "شخصی‌سازی فعال شد" : "شخصی‌سازی غیرفعال شد")
-                    );
-                  }}
-                />
+
+                <div className="rounded-lg border border-border/40 bg-muted/20 p-2.5 text-xs text-muted-foreground space-y-1.5">
+                  <div className="font-medium text-foreground text-[11px]">
+                    {isEn ? "Categories of data included only when opted in:" : "دسته‌بندی داده‌های ارسالی فقط پس از فعال‌سازی:"}
+                  </div>
+                  <ul className="list-disc pe-4 space-y-1 text-[11px] leading-relaxed">
+                    <li>{isEn ? "Primary goals & focus life areas (from About Me)" : "اهداف اصلی و حوزه‌های تمرکز (از پرسشنامه درباره من)"}</li>
+                    <li>{isEn ? "Communication & energy style preferences" : "ترجیحات ارتباطی و زمان اوج انرژی روزانه"}</li>
+                    <li>{isEn ? "Mind profile summary (if previously recorded by you)" : "خلاصه پروفایل ذهن (در صورت ثبت قبلی توسط خودتان)"}</li>
+                    <li className="font-semibold text-foreground/80">
+                      {isEn
+                        ? "Never sent: raw private notes, full task lists, or past chat history."
+                        : "هرگز ارسال نمی‌شوند: متن خام نوت‌های خصوصی، لیست کامل تسک‌ها یا تاریخچه چت‌های گذشته."}
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
           </SectionCard>

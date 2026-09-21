@@ -153,5 +153,52 @@ function sanitizeAIResult(mode: AIMode, result: any): { text: string; data?: any
       });
     result.data.distortions = sanitized;
   }
+
+  if (mode === "about_me_analysis") {
+    const raw = result?.data || {};
+    const rawAnalysis = raw.ai_analysis || raw.analysis || raw;
+    const rawSuggestions = raw.ai_suggestions || raw.suggestions || raw;
+
+    const toStringArray = (arr: any, max = 10): string[] => {
+      if (!Array.isArray(arr)) return [];
+      return arr
+        .map((x) => String(x || "").trim())
+        .filter((x) => x.length > 0)
+        .slice(0, max);
+    };
+
+    const validPriorities = new Set(["none", "low", "medium", "high"]);
+    const rawTasks = Array.isArray(rawSuggestions.tasks) ? rawSuggestions.tasks : [];
+    const sanitizedTasks = rawTasks
+      .filter((t: any) => t && (typeof t === "string" || (typeof t === "object" && t.title)))
+      .map((t: any) => {
+        if (typeof t === "string") return { title: t.trim(), priority: "medium" as const };
+        const priority = validPriorities.has(t.priority) ? (t.priority as "none" | "low" | "medium" | "high") : "medium";
+        return {
+          title: String(t.title || "").trim(),
+          folder: t.folder ? String(t.folder).trim() : undefined,
+          priority,
+        };
+      })
+      .filter((t: any) => t.title.length > 0)
+      .slice(0, 10);
+
+    const sanitizedData = {
+      ai_analysis: {
+        summary: String(rawAnalysis.summary || result.text || "").trim(),
+        themes: toStringArray(rawAnalysis.themes),
+        strengths: toStringArray(rawAnalysis.strengths),
+        risks: toStringArray(rawAnalysis.risks),
+      },
+      ai_suggestions: {
+        folders: toStringArray(rawSuggestions.folders),
+        tags: toStringArray(rawSuggestions.tags, 15),
+        tasks: sanitizedTasks,
+      },
+    };
+
+    result.data = sanitizedData;
+  }
+
   return result;
 }

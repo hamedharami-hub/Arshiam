@@ -25,7 +25,8 @@ export type AIOperation =
   | "task_chat"
   | "folder_chat"
   | "socratic"
-  | "distortion_detect";
+  | "distortion_detect"
+  | "about_me_analysis";
 
 export type OperationMeta = {
   key: AIOperation;
@@ -56,9 +57,10 @@ export const OPERATIONS: OperationMeta[] = [
   { key: "inline_edit",           labelFa: "ویرایش inline متن",               labelEn: "Inline edit",                   descFa: "ویرایش بخش انتخاب‌شده با دستور دلخواه.",                     descEn: "Edit a highlighted span with a custom instruction.",           usedInFa: "نوت‌ها / ویرایشگر → متن انتخابی", usedInEn: "Notes / editor → selected text", group: "نوت", groupEn: "Notes" },
   // Folder
   { key: "folder_chat",           labelFa: "چت روی یک فولدر (پروژه)",        labelEn: "Chat on a folder (project)",    descFa: "گفتگو روی همه تسک‌ها/نوت‌های یک فولدر.",                     descEn: "Chat across a whole folder of tasks/notes.",                   usedInFa: "فولدر → چت AI", usedInEn: "Folder → AI chat", group: "فولدر", groupEn: "Folder" },
-  // Mental health
+  // Mental health & Personalization
   { key: "socratic",              labelFa: "چت سقراطی (فقط سوال)",            labelEn: "Socratic chat (questions only)", descFa: "فقط سوال می‌پرسد تا خودت به پاسخ برسی.",                    descEn: "Only asks questions, helping you self-discover.",              usedInFa: "ذهن → چت سقراطی (نیاز به اتصال)", usedInEn: "Mind → Socratic (needs wiring)", group: "سلامت ذهن", groupEn: "Mental health" },
   { key: "distortion_detect",     labelFa: "تشخیص خطای شناختی (CBT)",         labelEn: "Cognitive distortion detection (CBT)", descFa: "خطاهای شناختی را در متن پیدا می‌کند.",                descEn: "Finds cognitive distortions in your text.",                    usedInFa: "ذهن → Thought Records", usedInEn: "Mind → Thought Records", group: "سلامت ذهن", groupEn: "Mental health" },
+  { key: "about_me_analysis",     labelFa: "تحلیل هوشمند درباره من",          labelEn: "About Me analysis",             descFa: "تحلیل ارزش‌ها، اهداف و الگوهای شخصی بدون ادعای بالینی.",      descEn: "Analyzes personal goals and patterns without clinical claims.", usedInFa: "درباره من → تحلیل و استخراج", usedInEn: "About Me → Analyze & extract", group: "شخصی‌سازی", groupEn: "Personalization" },
 ];
 
 // Recommended provider+model for each operation.
@@ -79,6 +81,7 @@ export const OP_RECOMMENDED: Record<AIOperation, { provider: Provider; model: st
   chat:                  { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "همه‌کاره و متعادل",                            whyEn: "Versatile & balanced" },
   socratic:              { provider: "gemini", model: "gemini-2.5-pro",                          whyFa: "سوال‌پرسی عمیق و درست",                        whyEn: "Deep, well-aimed questions" },
   distortion_detect:     { provider: "gemini", model: "gemini-2.5-pro",                        whyFa: "reasoning قوی برای تحلیل CBT",                 whyEn: "Strong reasoning for CBT analysis" },
+  about_me_analysis:     { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "استخراج ساختاریافته اهداف بدون برچسب بالینی",   whyEn: "Structured goal extraction without clinical labeling" },
 };
 
 export const PROVIDER_INFO: Record<Provider, { label: string; defaultModel: string; baseUrl: string; help: string; models: string[] }> = {
@@ -326,3 +329,28 @@ export function operationLabel(key: AIOperation, lang: "fa" | "en"): string {
   if (!op) return key;
   return lang === "en" ? op.labelEn : op.labelFa;
 }
+
+/**
+ * Privacy utility: One-click deletion of all locally stored AI API keys
+ * from this device/browser (both perOp and global defaults, as well as legacy direct keys).
+ */
+export function clearAllStoredAIKeys(): void {
+  try {
+    localStorage.removeItem("gemini_api_key");
+  } catch {}
+
+  try {
+    const s = loadAISettings();
+    s.default.apiKey = "";
+    if (s.perOp) {
+      for (const k of Object.keys(s.perOp)) {
+        const opKey = k as AIOperation;
+        if (s.perOp[opKey]) {
+          s.perOp[opKey]!.apiKey = "";
+        }
+      }
+    }
+    saveAISettings(s);
+  } catch {}
+}
+

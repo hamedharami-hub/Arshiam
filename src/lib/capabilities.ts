@@ -32,11 +32,11 @@ export const CAPABILITIES: Record<FeatureKey, FeatureCapability> = {
   },
   about_me_ai: {
     key: "about_me_ai",
-    enabled: false,
+    enabled: true,
     name: "تحلیل هوش مصنوعی درباره من",
     name_en: "About Me AI Analysis",
-    reason: "تحلیل هوش مصنوعی این بخش در حال بازسازی با مدل BYOK کلاینت است و در این نسخه غیرفعال می‌باشد.",
-    reason_en: "AI analysis for this section is temporarily disabled while being rebuilt with client-side BYOK.",
+    reason: "تحلیل هوشمند با کلید اختصاصی کاربر (BYOK) و بدون ادعای بالینی مستقیماً در مرورگر انجام می‌شود.",
+    reason_en: "Smart analysis is performed client-side using the user's configured BYOK provider without clinical claims.",
   },
   backend_holiday_sync: {
     key: "backend_holiday_sync",

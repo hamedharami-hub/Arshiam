@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { callAI } from "./ai";
-import { saveAISettings, setAIPersonalizationOptedIn, type AIPerOpSettings } from "./aiSettings";
+import { saveAISettings, setAIPersonalizationOptedIn, clearAllStoredAIKeys, loadAISettings, type AIPerOpSettings } from "./aiSettings";
 import { normalizeGeminiModel } from "./geminiDirect";
 import { saveOfflineModelSettings } from "./offlineModels";
 
@@ -325,6 +325,86 @@ describe("callAI multi-provider support", () => {
       await callAI("chat", "Hello", undefined, undefined, "en");
       const systemText = capturedBody.systemInstruction?.parts?.[0]?.text || "";
       expect(systemText).not.toContain("Personalization Profile Context");
+    });
+  });
+
+  describe("One-click key removal (Privacy BYOK)", () => {
+    it("clears all stored AI keys across defaults and per-operation configs", () => {
+      localStorage.setItem("gemini_api_key", "standalone-key");
+      saveAISettings({
+        default: { provider: "gemini", apiKey: "default-key", model: "gemini-2.5-flash" },
+        perOp: {
+          chat: { provider: "openai", apiKey: "openai-key", model: "gpt-4o" },
+          generate_note: { provider: "gemini", apiKey: "gemini-note-key", model: "gemini-2.5-pro" },
+        },
+      });
+
+      clearAllStoredAIKeys();
+
+      expect(localStorage.getItem("gemini_api_key")).toBeNull();
+      const current = loadAISettings();
+      expect(current.default.apiKey).toBe("");
+      expect(current.perOp.chat?.apiKey).toBe("");
+      expect(current.perOp.generate_note?.apiKey).toBe("");
+    });
+  });
+
+  describe("About Me analysis structured operation", () => {
+    it("analyzes questionnaire answers and returns validated structured schema without clinical diagnosis", async () => {
+      saveAISettings({
+        default: { provider: "gemini", apiKey: "test-gemini-key", model: "gemini-2.5-flash" },
+        perOp: {},
+      });
+
+      const mockResponseData = {
+        ai_analysis: {
+          summary: "User is a software engineer focusing on fitness and work-life balance.",
+          themes: ["Career Growth", "Physical Health"],
+          strengths: ["Persistence", "Curiosity"],
+          risks: ["Time management under tight deadlines"],
+        },
+        ai_suggestions: {
+          folders: ["Fitness", "Deep Work"],
+          tags: ["Routine", "Coding"],
+          tasks: [
+            { title: "Plan weekly workout schedule", folder: "Fitness", priority: "high" },
+            { title: "Review morning routine", folder: "Deep Work", priority: "medium" },
+          ],
+        },
+      };
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          candidates: [
+            {
+              content: {
+                parts: [{ text: JSON.stringify(mockResponseData) }],
+              },
+            },
+          ],
+        }),
+      });
+
+      const input = {
+        answers: {
+          occupation: "Software Engineer",
+          main_goal: "Run 10km and publish open source tool",
+        },
+        free_text: "Need better routine",
+      };
+
+      const res = await callAI("about_me_analysis", input, undefined, undefined, "en");
+
+      expect(res.data).toBeDefined();
+      expect(res.data.ai_analysis.summary).toContain("software engineer");
+      expect(res.data.ai_analysis.themes).toEqual(["Career Growth", "Physical Health"]);
+      expect(res.data.ai_analysis.strengths).toEqual(["Persistence", "Curiosity"]);
+      expect(res.data.ai_analysis.risks).toEqual(["Time management under tight deadlines"]);
+      expect(res.data.ai_suggestions.folders).toEqual(["Fitness", "Deep Work"]);
+      expect(res.data.ai_suggestions.tasks).toHaveLength(2);
+      expect(res.data.ai_suggestions.tasks[0].title).toBe("Plan weekly workout schedule");
+      expect(res.data.ai_suggestions.tasks[0].priority).toBe("high");
     });
   });
 });

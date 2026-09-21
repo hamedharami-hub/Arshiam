@@ -21,8 +21,14 @@ describe("capabilities registry", () => {
     expect(cap.reason_en).toContain("custom claims");
   });
 
-  it("explicitly disables retired edge function calls", () => {
-    expect(isFeatureEnabled("about_me_ai")).toBe(false);
+  it("enables about_me_ai via client-side BYOK architecture", () => {
+    expect(isFeatureEnabled("about_me_ai")).toBe(true);
+    const cap = getFeatureCapability("about_me_ai");
+    expect(cap.enabled).toBe(true);
+    expect(cap.reason_en).toContain("BYOK");
+  });
+
+  it("explicitly disables retired edge function calls (backend holiday sync)", () => {
     expect(isFeatureEnabled("backend_holiday_sync")).toBe(false);
   });
 

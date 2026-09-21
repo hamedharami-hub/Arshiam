@@ -14,7 +14,7 @@ import { Sparkles, Save, RefreshCw, ChevronLeft, ChevronRight, Loader2, FolderPl
 import { ABOUT_SECTIONS, loadAboutMe, saveAboutMe, type AboutMeRow, type AboutAnswer } from "@/lib/aboutMe";
 import { useBilingual } from "@/hooks/useBilingual";
 import { getFeatureCapability, isFeatureEnabled } from "@/lib/capabilities";
-
+import { callAI } from "@/lib/ai";
 
 export default function AboutMeView() {
   const { user } = useAuth();
@@ -41,9 +41,10 @@ export default function AboutMeView() {
 
   const setAns = (k: string, v: AboutAnswer) => setAnswers((s) => ({ ...s, [k]: v }));
 
-  const persist = async () => {
+  const persist = async (notify = false) => {
     if (!user) return;
     await saveAboutMe(user.id, { answers, free_text: freeText });
+    if (notify) toast.success(T("پاسخ‌ها ذخیره شدند ✓", "Answers saved successfully ✓"));
   };
 
   const next = async () => {
@@ -56,16 +57,44 @@ export default function AboutMeView() {
     if (!user) return;
     setBusy(true);
     try {
+      // 1. Always persist manual answers first so they are never lost
       await persist();
       const fresh = await loadAboutMe(user.id);
       if (fresh) setRow(fresh);
       toast.success(T("پاسخ‌ها ذخیره شدند ✓", "Answers saved successfully ✓"));
-      if (!isFeatureEnabled("about_me_ai")) {
-        const cap = getFeatureCapability("about_me_ai");
-        toast.info(isEn ? cap.reason_en : cap.reason);
+
+      // 2. Call configured client-side AI provider (BYOK)
+      const formattedInput = {
+        answers,
+        free_text: freeText,
+      };
+
+      const aiRes = await callAI(
+        "about_me_analysis",
+        formattedInput,
+        undefined,
+        undefined,
+        isEn ? "en" : "fa"
+      );
+
+      if (aiRes?.data?.ai_analysis) {
+        const patch = {
+          ai_analysis: aiRes.data.ai_analysis,
+          ai_suggestions: aiRes.data.ai_suggestions || null,
+          analyzed_at: new Date().toISOString(),
+        };
+        await saveAboutMe(user.id, patch);
+        setRow((prev) => (prev ? { ...prev, ...patch } : null));
+        setMode("review");
+        toast.success(T("تحلیل هوشمند با موفقیت تکمیل شد ✓", "AI analysis completed successfully ✓"));
+      } else {
+        toast.info(T("پاسخ‌ها ذخیره شدند، اما تحلیل هوش مصنوعی فرمت معتبری بازنگرداند.", "Answers saved, but AI did not produce structured output."));
       }
     } catch (e: any) {
-      toast.error(e.message || T("خطا در ذخیره پاسخ‌ها", "Error saving answers"));
+      // Manual answers remain preserved by persist()
+      toast.error(
+        e.message || T("خطا در اجرای تحلیل هوش مصنوعی. پاسخ‌های شما ذخیره شده‌اند.", "Error running AI analysis. Your answers are saved.")
+      );
     } finally {
       setBusy(false);
     }
@@ -130,11 +159,14 @@ export default function AboutMeView() {
           </div>
         </div>
 
-        {!isFeatureEnabled("about_me_ai") && (
-          <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
-            {isEn ? getFeatureCapability("about_me_ai").reason_en : getFeatureCapability("about_me_ai").reason}
-          </div>
-        )}
+        <div className="p-3.5 rounded-xl border border-primary/20 bg-primary/5 text-xs text-muted-foreground leading-relaxed flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-primary shrink-0" />
+          <span>
+            {isEn
+              ? "Non-clinical personal summary generated with your configured BYOK AI provider. ARSHNAZ does not provide medical or psychological diagnosis."
+              : "خلاصه و دسته‌بندی غیربالینی با کلید اختصاصی هوش مصنوعی شما. ارشناز هیچ‌گونه تشخیص پزشکی یا روان‌شناختی ارائه نمی‌دهد."}
+          </span>
+        </div>
 
         <Card className="p-5 space-y-3">
           <h2 className="font-semibold">📋 {T("خلاصه", "Summary")}</h2>
@@ -318,7 +350,7 @@ export default function AboutMeView() {
           onClick={() => setStep((s) => Math.max(0, s - 1))} className="gap-1">
           {isEn ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />} {T("قبلی", "Previous")}
         </Button>
-        <Button variant="ghost" size="sm" onClick={persist} className="gap-1 text-xs">
+        <Button variant="ghost" size="sm" onClick={() => persist(true)} className="gap-1 text-xs">
           <Save className="w-3 h-3" /> {T("ذخیره", "Save")}
         </Button>
         {step < ABOUT_SECTIONS.length ? (
