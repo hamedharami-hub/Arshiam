@@ -28,6 +28,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/u
 import { useShareAccess } from "@/hooks/useShareAccess";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cacheGet, cacheSet, enqueueOp, getPendingOps } from "@/lib/offlineQueue";
+import { isFeatureEnabled } from "@/lib/capabilities";
 
 
 
@@ -420,9 +421,11 @@ export default function NotesView() {
         <Button size="icon" variant="ghost" onClick={() => setMoveOpen(true)} title={T("انتقال به فولدر", "Move to folder")} disabled={!canEdit}>
           <FolderInput className="w-4 h-4" />
         </Button>
-        <Button size="icon" variant="ghost" onClick={() => setShareOpen(true)} title={T("اشتراک‌گذاری", "Share")} disabled={!isOwner}>
-          <Share2 className="w-4 h-4" />
-        </Button>
+        {isFeatureEnabled("sharing") && (
+          <Button size="icon" variant="ghost" onClick={() => setShareOpen(true)} title={T("اشتراک‌گذاری", "Share")} disabled={!isOwner}>
+            <Share2 className="w-4 h-4" />
+          </Button>
+        )}
         <Button size="icon" variant="ghost" onClick={() => setConfirmDel(selected)} disabled={!isOwner}>
           <Trash2 className="w-4 h-4" />
         </Button>
@@ -615,13 +618,15 @@ export default function NotesView() {
             currentFolderId={selected.folder_id ?? null}
             onMoved={(fid) => { setSelected((prev) => prev ? { ...prev, folder_id: fid } : null); load(); }}
           />
-          <ShareDialog
-            open={shareOpen}
-            onOpenChange={setShareOpen}
-            resourceType="note"
-            resourceId={selected.id}
-            resourceTitle={selected.title}
-          />
+          {isFeatureEnabled("sharing") && (
+            <ShareDialog
+              open={shareOpen}
+              onOpenChange={setShareOpen}
+              resourceType="note"
+              resourceId={selected.id}
+              resourceTitle={selected.title}
+            />
+          )}
         </>
       )}
     </div>

@@ -12,8 +12,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { Sparkles, Save, RefreshCw, ChevronLeft, ChevronRight, Loader2, FolderPlus, Tag as TagIcon, ListTodo } from "lucide-react";
 import { ABOUT_SECTIONS, loadAboutMe, saveAboutMe, type AboutMeRow, type AboutAnswer } from "@/lib/aboutMe";
-import { getAILanguage } from "@/lib/ai";
 import { useBilingual } from "@/hooks/useBilingual";
+import { getFeatureCapability, isFeatureEnabled } from "@/lib/capabilities";
 
 
 export default function AboutMeView() {
@@ -57,22 +57,15 @@ export default function AboutMeView() {
     setBusy(true);
     try {
       await persist();
-      const { data, error } = await firebaseStore.functions.invoke("about-me-analyze", {
-        body: { answers, freeText, language: getAILanguage() },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      await saveAboutMe(user.id, {
-        ai_analysis: data.analysis,
-        ai_suggestions: data.suggestions,
-        analyzed_at: new Date().toISOString(),
-      } as any);
       const fresh = await loadAboutMe(user.id);
       if (fresh) setRow(fresh);
-      setMode("review");
-      toast.success(T("تحلیل آماده شد ✨", "Analysis ready ✨"));
+      toast.success(T("پاسخ‌ها ذخیره شدند ✓", "Answers saved successfully ✓"));
+      if (!isFeatureEnabled("about_me_ai")) {
+        const cap = getFeatureCapability("about_me_ai");
+        toast.info(isEn ? cap.reason_en : cap.reason);
+      }
     } catch (e: any) {
-      toast.error(e.message || T("خطا در تحلیل", "Analysis error"));
+      toast.error(e.message || T("خطا در ذخیره پاسخ‌ها", "Error saving answers"));
     } finally {
       setBusy(false);
     }
@@ -136,6 +129,12 @@ export default function AboutMeView() {
             </Button>
           </div>
         </div>
+
+        {!isFeatureEnabled("about_me_ai") && (
+          <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
+            {isEn ? getFeatureCapability("about_me_ai").reason_en : getFeatureCapability("about_me_ai").reason}
+          </div>
+        )}
 
         <Card className="p-5 space-y-3">
           <h2 className="font-semibold">📋 {T("خلاصه", "Summary")}</h2>
@@ -328,8 +327,8 @@ export default function AboutMeView() {
           </Button>
         ) : (
           <Button onClick={analyze} disabled={busy} className="gap-1">
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {T("تحلیل با AI", "Analyze with AI")}
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {T("ذخیره و ثبت پاسخ‌ها", "Save & Finish")}
           </Button>
         )}
       </div>

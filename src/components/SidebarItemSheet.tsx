@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import ShareDialog from "@/components/ShareDialog";
 import { useShareAccess } from "@/hooks/useShareAccess";
 import { useAuth } from "@/hooks/useAuth";
+import { isFeatureEnabled } from "@/lib/capabilities";
 
 type Item = { id: string; user_id?: string; name: string; color?: string };
 type Kind = "folder" | "tag";
@@ -94,7 +95,7 @@ export default function SidebarItemSheet({ item, kind, onOpenChange, onDelete, o
         ) : (
           <div className="mt-3 space-y-1">
             <Item icon={Pencil} label={T("تغییر نام", "Rename")} disabled={!owns} onClick={() => { setName(item.name); setRenaming(true); }} />
-            {kind === "folder" && (
+            {kind === "folder" && isFeatureEnabled("sharing") && (
               <Item icon={Share2} label={T("اشتراک‌گذاری…", "Share…")} disabled={!owns} onClick={() => setShareOpen(true)} />
             )}
             {kind === "folder" && onAIChat && (
@@ -124,7 +125,7 @@ export default function SidebarItemSheet({ item, kind, onOpenChange, onDelete, o
         )}
       </SheetContent>
     </Sheet>
-    {kind === "folder" && (
+    {kind === "folder" && isFeatureEnabled("sharing") && (
       <ShareDialog
         open={shareOpen}
         onOpenChange={(v) => { setShareOpen(v); if (!v) onOpenChange(false); }}

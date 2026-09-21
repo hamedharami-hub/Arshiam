@@ -148,7 +148,6 @@ const SECTIONS: Section[] = [
     items: [
       { url: "/app/about-me", icon: User, label: "درباره من" },
       { url: "/app/self", icon: Sparkles, label: "خودشناسی" },
-      { url: "/app/shared", icon: Users, label: "اشتراک‌ها" },
     ],
   },
 ];

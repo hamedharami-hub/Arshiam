@@ -276,7 +276,6 @@ const QUICK_LINK_ICONS: Record<string, any> = {
   "/app/breathing": Wind,
   "/app/about-me": User,
   "/app/self": Sparkles,
-  "/app/shared": Users,
 };
 
 interface SortableShortcutItemProps {
