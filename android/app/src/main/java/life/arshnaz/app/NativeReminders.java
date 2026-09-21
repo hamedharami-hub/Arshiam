@@ -281,6 +281,14 @@ final class NativeReminders {
         }
     }
 
+    static void deliver(Context c, String id, String owner, boolean snooze) {
+        if (snooze) {
+            snooze(c, id, owner, 10);
+        } else {
+            deliver(c, id, owner);
+        }
+    }
+
     static void deliver(Context c, String id, String owner) {
         synchronized (LOCK) {
             if (!AgendaData.prefs(c).getBoolean("sessionReady", false)
