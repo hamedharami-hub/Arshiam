@@ -62,8 +62,16 @@ export function normalizeGeminiModel(model?: string): string {
   let m = model.trim();
   if (m.startsWith("google/")) m = m.replace("google/", "");
   if (m.startsWith("models/")) m = m.replace("models/", "");
-  // Map preview/older names to standard accessible Gemini endpoints
-  if (m.includes("gemini-3")) return "gemini-2.5-flash";
+
+  // Model truthfulness: Never silently substitute the user's selected model.
+  // If an unreleased or unsupported model name is requested (such as gemini-3 previews),
+  // fail honestly with a clear compatibility error instead of silent substitution.
+  if (m.startsWith("gemini-3")) {
+    throw new Error(
+      `مدل انتخابی «${m}» در دسترس نیست یا توسط API پشتیبانی نمی‌شود. لطفاً در تنظیمات → AI یکی از مدل‌های معتبر (مانند gemini-2.5-flash یا gemini-2.5-pro) را انتخاب کنید.`
+    );
+  }
+
   return m || "gemini-2.5-flash";
 }
 
@@ -74,7 +82,7 @@ export async function callDirectGemini(options: {
   apiKey?: string;
   temperature?: number;
   signal?: AbortSignal;
-}): Promise<{ text: string; data?: any }> {
+}): Promise<{ text: string; data?: any; provider: string; model: string }> {
   const apiKey = options.apiKey || getGeminiApiKey();
   if (!apiKey) {
     throw new Error("کلید Google Gemini API یافت نشد. لطفاً در تنظیمات → AI کلید خود را وارد کنید.");
@@ -129,7 +137,7 @@ export async function callDirectGemini(options: {
     }
   } catch {}
 
-  return { text: rawText, data: parsedData };
+  return { text: rawText, data: parsedData, provider: "gemini", model };
 }
 
 export async function streamDirectGemini(options: {

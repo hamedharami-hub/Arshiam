@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { callAI } from "./ai";
-import { saveAISettings, type AIPerOpSettings } from "./aiSettings";
+import { saveAISettings, setAIPersonalizationOptedIn, type AIPerOpSettings } from "./aiSettings";
+import { normalizeGeminiModel } from "./geminiDirect";
+import { saveOfflineModelSettings } from "./offlineModels";
 
 describe("callAI multi-provider support", () => {
   const originalFetch = global.fetch;
@@ -225,5 +227,104 @@ describe("callAI multi-provider support", () => {
     controller.abort();
 
     await expect(promise).rejects.toThrow(/Aborted/);
+  });
+
+  describe("Model normalization and truthfulness", () => {
+    it("normalizes model prefixes without altering supported model name", () => {
+      expect(normalizeGeminiModel("models/gemini-2.5-flash")).toBe("gemini-2.5-flash");
+      expect(normalizeGeminiModel("google/gemini-2.5-pro")).toBe("gemini-2.5-pro");
+      expect(normalizeGeminiModel("gemini-2.5-flash-lite")).toBe("gemini-2.5-flash-lite");
+      expect(normalizeGeminiModel(undefined)).toBe("gemini-2.5-flash");
+    });
+
+    it("throws clear compatibility error for unsupported gemini-3 preview models rather than silently substituting", () => {
+      expect(() => normalizeGeminiModel("gemini-3.1-flash-preview")).toThrow(
+        /مدل انتخابی «gemini-3.1-flash-preview» در دسترس نیست یا توسط API پشتیبانی نمی‌شود/
+      );
+      expect(() => normalizeGeminiModel("google/gemini-3-pro-preview")).toThrow(
+        /مدل انتخابی «gemini-3-pro-preview» در دسترس نیست یا توسط API پشتیبانی نمی‌شود/
+      );
+    });
+  });
+
+  describe("Model metadata in responses", () => {
+    it("returns provider and actual model in the response for Gemini", async () => {
+      saveAISettings({
+        default: { provider: "gemini", apiKey: "test-gemini-key", model: "gemini-2.5-pro" },
+        perOp: { chat: { provider: "gemini", apiKey: "test-gemini-key", model: "gemini-2.5-pro" } },
+        opStrategies: { chat: "custom" },
+      });
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: "Response from Gemini Pro" }] } }],
+        }),
+      });
+
+      const res = await callAI("chat", "Test prompt", undefined, undefined, "en");
+      expect(res.text).toBe("Response from Gemini Pro");
+      expect(res.provider).toBe("gemini");
+      expect(res.model).toBe("gemini-2.5-pro");
+    });
+
+    it("returns provider and model in the response for OpenAI-compatible", async () => {
+      saveAISettings({
+        default: { provider: "groq", apiKey: "test-groq-key", model: "llama-3.3-70b-versatile" },
+        perOp: { chat: { provider: "groq", apiKey: "test-groq-key", model: "llama-3.3-70b-versatile" } },
+        opStrategies: { chat: "custom" },
+      });
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: "Groq response" } }],
+        }),
+      });
+
+      const res = await callAI("chat", "Test prompt", undefined, undefined, "en");
+      expect(res.text).toBe("Groq response");
+      expect(res.provider).toBe("groq");
+      expect(res.model).toBe("llama-3.3-70b-versatile");
+    });
+
+    it("returns provider and model for offline fallback", async () => {
+      saveOfflineModelSettings({ speechMode: "system", assistantEnabled: true });
+      saveAISettings({
+        default: { provider: "offline", apiKey: "", model: "deterministic-v1" },
+        perOp: { parse_task: { provider: "offline", apiKey: "", model: "deterministic-v1" } },
+        opStrategies: { parse_task: "custom" },
+      });
+
+      const res = await callAI("parse_task", "Buy coffee tomorrow at 9am", undefined, undefined, "en");
+      expect(res.provider).toBe("offline");
+      expect(res.model).toBe("deterministic-v1");
+      expect(res.data?.title).toBeDefined();
+    });
+  });
+
+  describe("Privacy opt-in for personalization", () => {
+    it("does not fetch or include personal profile context when personalization opt-in is false", async () => {
+      saveAISettings({
+        default: { provider: "gemini", apiKey: "test-gemini-key", model: "gemini-2.5-flash" },
+        perOp: {},
+        personalizationOptIn: false,
+      });
+
+      let capturedBody: any = null;
+      global.fetch = vi.fn().mockImplementation(async (_url, init: RequestInit) => {
+        capturedBody = JSON.parse(init.body as string);
+        return {
+          ok: true,
+          json: async () => ({
+            candidates: [{ content: { parts: [{ text: "Answer without profile" }] } }],
+          }),
+        };
+      });
+
+      await callAI("chat", "Hello", undefined, undefined, "en");
+      const systemText = capturedBody.systemInstruction?.parts?.[0]?.text || "";
+      expect(systemText).not.toContain("Personalization Profile Context");
+    });
   });
 });

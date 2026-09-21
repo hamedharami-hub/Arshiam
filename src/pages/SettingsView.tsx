@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Save, Trash2, Languages, Download, ShieldOff, Settings2, Bell, Moon, Palette, Type, ZoomIn, LayoutGrid, Heart, Coffee, Star, Wand2, RotateCw, Sun, Upload, CheckCircle2, AlertCircle, Clock, Zap, Cpu, Eye, EyeOff, RefreshCw, Package, Database, Info, Compass, ArrowUp, ArrowDown, Pin, Sliders, PanelLeft, CalendarDays, FolderTree, Tag, Inbox, Calendar, Filter, Timer, BarChart3, Sprout, Target, FileText, BrainCircuit, Activity, BookOpen, MessageCircleQuestion, Wind, User, Users, Search, GripVertical } from "lucide-react";
+import { Sparkles, Save, Trash2, Languages, Download, ShieldOff, Shield, Settings2, Bell, Moon, Palette, Type, ZoomIn, LayoutGrid, Heart, Coffee, Star, Wand2, RotateCw, Sun, Upload, CheckCircle2, AlertCircle, Clock, Zap, Cpu, Eye, EyeOff, RefreshCw, Package, Database, Info, Compass, ArrowUp, ArrowDown, Pin, Sliders, PanelLeft, CalendarDays, FolderTree, Tag, Inbox, Calendar, Filter, Timer, BarChart3, Sprout, Target, FileText, BrainCircuit, Activity, BookOpen, MessageCircleQuestion, Wind, User, Users, Search, GripVertical } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -2048,6 +2048,57 @@ export default function SettingsView() {
                 {aiResponseOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
               </SelectContent>
             </Select>
+          </SectionCard>
+
+          <SectionCard
+            icon={Shield}
+            title={isEn ? "AI Privacy & Personalization (BYOK)" : "حریم خصوصی و شخصی‌سازی هوش مصنوعی (BYOK)"}
+            description={
+              isEn
+                ? "Transparent client-side AI keys and explicit opt-in for personalizing responses with your profile."
+                : "شفافیت کلیدهای اختصاصی (BYOK) و انتخاب آگاهانه برای شخصی‌سازی با داده‌های پروفایل."
+            }
+          >
+            <div className="space-y-4">
+              <div className="p-3.5 rounded-xl border border-border/60 bg-muted/30 space-y-1.5 text-xs text-muted-foreground leading-relaxed">
+                <div className="font-semibold text-foreground flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5 text-primary" />
+                  {isEn ? "Strict BYOK (Bring Your Own Key) Architecture" : "معماری کاملاً شفاف BYOK (کلید اختصاصی کاربر)"}
+                </div>
+                <p>
+                  {isEn
+                    ? "Your AI API keys are stored solely on your local device (localStorage) and never transmitted to ARSHNAZ servers. Requests are sent directly from your browser to the official provider endpoint (Google AI Studio, OpenAI, Anthropic, or Groq)."
+                    : "کلیدهای API شما صرفاً در حافظه محلی همین دستگاه (localStorage) نگهداری می‌شوند و هرگز به سرورهای ARSHNAZ ارسال نمی‌شوند. درخواست‌ها مستقیماً از مرورگر شما به سرور رسمی ارائه‌دهنده (گوگل، OpenAI، آنتروپیک یا Groq) ارسال می‌گردند."}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between gap-4 p-3 rounded-xl border border-border/60 bg-card/60">
+                <div className="space-y-1">
+                  <Label htmlFor="ai-personalization-toggle" className="text-sm font-medium cursor-pointer">
+                    {isEn ? "Include Profile & Goals in AI Prompts (Opt-In)" : "شخصی‌سازی هوشمند با پروفایل و درباره من (اختیاری)"}
+                  </Label>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {isEn
+                      ? "When enabled, a concise summary of your goals and preferences from About Me is included in AI requests for personalized advice. When disabled, zero profile notes or sensitive data are read."
+                      : "در صورت فعال بودن، خلاصه‌ای از اهداف و ترجیحات شما از بخش «درباره من» برای پاسخ‌های متناسب‌تر به همراه پرامپت ارسال می‌شود. در حالت پیش‌فرض (غیرفعال)، هیچ داده پروفایلی خوانده یا ارسال نمی‌شود."}
+                  </p>
+                </div>
+                <Switch
+                  id="ai-personalization-toggle"
+                  checked={settings.personalizationOptIn === true}
+                  onCheckedChange={(checked) => {
+                    const next = { ...settings, personalizationOptIn: checked };
+                    setSettings(next);
+                    saveAISettings(next);
+                    toast.success(
+                      isEn
+                        ? (checked ? "Personalization enabled" : "Personalization disabled")
+                        : (checked ? "شخصی‌سازی فعال شد" : "شخصی‌سازی غیرفعال شد")
+                    );
+                  }}
+                />
+              </div>
+            </div>
           </SectionCard>
 
           <SectionCard

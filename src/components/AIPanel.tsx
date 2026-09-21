@@ -16,10 +16,13 @@ import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useTranslation } from "react-i18next";
 
 export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const { i18n } = useTranslation();
+  const isEn = (i18n.language || "fa").startsWith("en");
   const [tab, setTab] = useState("create");
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,12 +31,14 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
   const [chat, setChat] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [aiLang, setAiLang] = useState<AILanguage>(getAILanguage());
+  const [lastResultMeta, setLastResultMeta] = useState<{ provider?: string; model?: string } | null>(null);
 
   const createTaskFromNL = async () => {
     if (!input.trim() || !user) return;
     setLoading(true);
     try {
       const r = await callAI("parse_task", input, undefined, undefined, aiLang);
+      if (r.provider && r.model) setLastResultMeta({ provider: r.provider, model: r.model });
       if (!r.data?.title) throw new Error("نتوانست تسک بسازد");
       const { error } = await firebaseStore.from("tasks").insert({
         user_id: user.id,
@@ -56,6 +61,7 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
     setLoading(true);
     try {
       const r = await callAI("generate_note", input, undefined, undefined, aiLang);
+      if (r.provider && r.model) setLastResultMeta({ provider: r.provider, model: r.model });
       const { error } = await firebaseStore.from("notes").insert({
         user_id: user.id,
         title: input.slice(0, 60),
@@ -73,6 +79,7 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
     setLoading(true); setSuggestions([]); setPicked({});
     try {
       const r = await callAI("suggest", input, undefined, undefined, aiLang);
+      if (r.provider && r.model) setLastResultMeta({ provider: r.provider, model: r.model });
       if (r.data?.items) setSuggestions(r.data.items);
     } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
@@ -99,6 +106,7 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
       const { data: tasks } = await firebaseStore.from("tasks").select("title,priority,due_date,completed").limit(20);
       const ctx = `Recent tasks: ${JSON.stringify(tasks || [])}`;
       const r = await callAI("chat", [...chat, newMsg], ctx, undefined, aiLang);
+      if (r.provider && r.model) setLastResultMeta({ provider: r.provider, model: r.model });
       setChat((c) => [...c, { role: "assistant", content: r.text }]);
     } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
@@ -110,6 +118,15 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
         <span className="text-sm">زبان پاسخ AI</span>
         <AILangToggle value={aiLang} onChange={setAiLang} />
       </div>
+
+      {lastResultMeta?.model && (
+        <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground px-2.5 py-1 bg-muted/40 rounded-md border border-border/40">
+          <span>{isEn ? "Model used:" : "مدل آخرین پاسخ:"}</span>
+          <span className="font-mono font-medium text-foreground">
+            {lastResultMeta.provider} / {lastResultMeta.model}
+          </span>
+        </div>
+      )}
 
       <Tabs value={tab} onValueChange={setTab} className="mt-4">
         <TabsList className="grid grid-cols-4">

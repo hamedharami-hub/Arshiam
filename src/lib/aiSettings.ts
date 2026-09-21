@@ -105,14 +105,14 @@ export const PROVIDER_INFO: Record<Provider, { label: string; defaultModel: stri
   },
   gemini: {
     label: "Google Gemini (مستقیم)",
-    defaultModel: "gemini-3.1-flash-preview",
+    defaultModel: "gemini-2.5-flash",
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
-    help: "از aistudio.google.com کلید بگیرید. فقط Gemini 3.1 (Pro · Flash · Flash-Lite · Image).",
+    help: "از aistudio.google.com کلید بگیرید (پشتیبانی مستقیم از مدل‌های رسمی Gemini 2.5 Flash ،Pro و Flash-Lite).",
     models: [
-      "gemini-3.1-pro-preview",
-      "gemini-3.1-flash-preview",
-      "gemini-3.1-flash-lite-preview",
-      "gemini-3.1-flash-image-preview",
+      "gemini-2.5-flash",
+      "gemini-2.5-pro",
+      "gemini-2.5-flash-lite",
+      "gemini-2.0-flash",
     ],
   },
   groq: {
@@ -157,6 +157,8 @@ export type AIPerOpSettings = {
   opStrategies?: Partial<Record<AIOperation, OpStrategy>>;
   // Model IDs hidden per provider in the model selection dropdowns.
   providerHiddenModels?: Partial<Record<Provider, string[]>>;
+  // Explicit opt-in for personalizing AI prompts with user profile/about-me data.
+  personalizationOptIn?: boolean;
 };
 
 export function defaultConfig(): ProviderConfig {
@@ -256,6 +258,23 @@ export function loadAISettings(): AIPerOpSettings {
 
 export function saveAISettings(s: AIPerOpSettings) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+}
+
+export function isAIPersonalizationOptedIn(): boolean {
+  try {
+    const s = loadAISettings();
+    return s.personalizationOptIn === true;
+  } catch {
+    return false;
+  }
+}
+
+export function setAIPersonalizationOptedIn(optIn: boolean): void {
+  try {
+    const s = loadAISettings();
+    s.personalizationOptIn = optIn;
+    saveAISettings(s);
+  } catch {}
 }
 
 export function resolveOpStrategy(s: AIPerOpSettings, op: AIOperation): OpStrategy {

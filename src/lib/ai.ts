@@ -1,5 +1,5 @@
 import { firebaseStore } from "@/lib/firebaseStore";
-import { getOpConfig, type AIOperation } from "@/lib/aiSettings";
+import { getOpConfig, isAIPersonalizationOptedIn, type AIOperation } from "@/lib/aiSettings";
 import { offlineAssistant } from "@/lib/offlineAssistant";
 import { getStoredUser } from "@/lib/authService";
 import { DISTORTION_LABELS, type Distortion } from "@/lib/distortions";
@@ -41,7 +41,7 @@ export async function callAI(
 
   if (settings?.provider === "offline") {
     const local = offlineAssistant(mode, input, lang, action, context);
-    if (local) return sanitizeAIResult(mode, local);
+    if (local) return sanitizeAIResult(mode, { ...local, provider: "offline", model: "deterministic-v1" });
     throw new Error("این عملیات در موتور آفلاین فعلی پشتیبانی نمی‌شود؛ برای آن یک سرویس آنلاین انتخاب کن.");
   }
 
@@ -49,39 +49,47 @@ export async function callAI(
   // automatically while offline and as a private fallback when no API key exists.
   if (typeof navigator !== "undefined" && !navigator.onLine) {
     const local = offlineAssistant(mode, input, lang, action, context);
-    if (local) return sanitizeAIResult(mode, local);
+    if (local) return sanitizeAIResult(mode, { ...local, provider: "offline", model: "deterministic-v1" });
   }
   if (!settings) {
     const local = offlineAssistant(mode, input, lang, action, context);
-    if (local) return sanitizeAIResult(mode, local);
+    if (local) return sanitizeAIResult(mode, { ...local, provider: "offline", model: "deterministic-v1" });
     throw new Error("برای استفاده از این قابلیت، یک سرویس آنلاین و کلید API شخصی را در تنظیمات → AI وارد کن؛ یا برای عملیات پشتیبانی‌شده، هوش مصنوعی آفلاین را انتخاب کن.");
   }
   const language = lang === "auto" ? undefined : lang;
 
-  // Fetch mental-health profile + about-me for personalization (best-effort)
-  let mhProfile: any = null;
-  let aboutMe: any = null;
-  try {
-    const local = getStoredUser();
-    let uid = local?.id;
-    if (!uid) {
-      const { data: { user } } = await firebaseStore.auth.getUser();
-      uid = user?.id;
-    }
-    if (uid) {
-      const [{ data: mh }, { data: am }] = await Promise.all([
-        firebaseStore.from("mh_profile").select("*").eq("user_id", uid).maybeSingle(),
-        firebaseStore.from("about_me" as any).select("answers, free_text, ai_analysis").eq("user_id", uid).maybeSingle(),
-      ]);
-      if (mh) mhProfile = mh;
-      if (am) aboutMe = am;
-    }
-  } catch { /* ignore */ }
+  // Personalization: strictly opt-in to protect sensitive user profile and mental health notes
+  let personalizationContext = "";
+  if (isAIPersonalizationOptedIn()) {
+    try {
+      const local = getStoredUser();
+      let uid = local?.id;
+      if (!uid) {
+        const { data: { user } } = await firebaseStore.auth.getUser();
+        uid = user?.id;
+      }
+      if (uid) {
+        const [{ data: mh }, { data: am }] = await Promise.all([
+          firebaseStore.from("mh_profile").select("summary, primary_goals, communication_style").eq("user_id", uid).maybeSingle(),
+          firebaseStore.from("about_me" as any).select("answers, free_text, ai_analysis").eq("user_id", uid).maybeSingle(),
+        ]);
+        const parts: string[] = [];
+        if (mh?.summary) parts.push(`پروفایل سلامت ذهن: ${mh.summary}`);
+        if (mh?.primary_goals) parts.push(`اهداف اصلی: ${mh.primary_goals}`);
+        if (am?.ai_analysis?.summary) parts.push(`خلاصه درباره من: ${am.ai_analysis.summary}`);
+        else if (am?.free_text) parts.push(`یادداشت درباره من: ${am.free_text.slice(0, 300)}`);
+        if (parts.length > 0) {
+          personalizationContext = `\n[Personalization Profile Context / اطلاعات شخصی‌سازی شده با رضایت کاربر]:\n${parts.join("\n")}\n`;
+        }
+      }
+    } catch { /* ignore */ }
+  }
 
-  let timezone = "UTC";
-  try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch {}
+  let systemPrompt = opts?.systemPromptOverride || GEMINI_SYSTEM_PROMPTS[mode] || GEMINI_SYSTEM_PROMPTS.chat;
+  if (personalizationContext) {
+    systemPrompt += `\n${personalizationContext}`;
+  }
 
-  const systemPrompt = opts?.systemPromptOverride || GEMINI_SYSTEM_PROMPTS[mode] || GEMINI_SYSTEM_PROMPTS.chat;
   let promptText = typeof input === "string" ? input : JSON.stringify(input);
   if (context) promptText = `زمینه (Context):\n${context}\n\nورودی:\n${promptText}`;
   if (action) promptText = `دستور (Action): ${action}\n\n${promptText}`;
@@ -127,7 +135,7 @@ export async function callAI(
   throw new Error(`سرویس «${settings.provider}» پشتیبانی نمی‌شود یا پیکربندی نشده است.`);
 }
 
-function sanitizeAIResult(mode: AIMode, result: any): { text: string; data?: any } {
+function sanitizeAIResult(mode: AIMode, result: any): { text: string; data?: any; provider?: string; model?: string } {
   if (mode === "distortion_detect" && result?.data?.distortions) {
     const validKeys = new Set(Object.keys(DISTORTION_LABELS));
     const rawDistortions = Array.isArray(result.data.distortions) ? result.data.distortions : [];
