@@ -35,6 +35,8 @@ import { extractTasksFromCache, createTaskCacheEnvelope } from "@/features/tasks
 import type { TaskDefaults } from "@/lib/reminders";
 import { cn } from "@/lib/utils";
 import AndroidSettings from "@/components/AndroidSettings";
+import { AndroidReminderHealth } from "@/components/AndroidReminderHealth";
+import { ReminderCenter } from "@/components/ReminderCenter";
 import { isAndroid, nativeExperience, type NativeAppInfo } from "@/lib/nativeExperience";
 import { SectionCard, SettingRow } from "./settings/SectionCard";
 import { TimeBucketsSettings } from "./settings/TimeBucketsSettings";
@@ -745,6 +747,8 @@ export default function SettingsView() {
         </TabsContent>
 
         <TabsContent value="notifications" className="space-y-5 mt-5">
+          <AndroidReminderHealth />
+          <ReminderCenter onOpenTask={(id) => navigate(`/tasks?taskId=${id}`)} />
           <AndroidSettings />
           {reminders && (
             <SectionCard

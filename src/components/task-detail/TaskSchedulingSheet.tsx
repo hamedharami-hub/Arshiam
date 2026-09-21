@@ -95,6 +95,8 @@ export function TaskSchedulingSheet({
               label=""
               value={t.due_date}
               reminderValue={t.reminder_at}
+              reminderPlan={t.reminder_plan}
+              onReminderPlanChange={(plan) => save({ reminder_plan: plan, reminder_at: plan?.trigger_at ?? null })}
               onReminderChange={(iso) => save({ reminder_at: iso })}
               onChange={(iso) => save({ due_date: iso })}
             />

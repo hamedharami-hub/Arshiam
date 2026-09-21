@@ -3,16 +3,209 @@ import { firebaseStore } from "@/lib/firebaseStore";
 import { cacheGet, cacheSet, enqueueOp } from "@/lib/offlineQueue";
 import { fireNotification, hasNotificationPermission } from "@/lib/notify";
 import { cancelNotification, scheduleNotificationAt } from "@/lib/notify";
-import type { Task } from "@/lib/taskTypes";
+import type { Task, ReminderPlan, ReminderMode, ReminderImportance, ReminderPlanStatus } from "@/lib/taskTypes";
 import { isAndroid, nativeExperience } from "./nativeExperience";
 export { ensureNotificationPermission } from "@/lib/notify";
+export type { ReminderPlan, ReminderMode, ReminderImportance, ReminderPlanStatus };
 
-export async function syncNativeTaskReminder(task: Pick<Task, "id" | "title" | "reminder_at" | "completed">) {
+/**
+ * Converts an ISO string or Date into a local datetime input string (YYYY-MM-DDTHH:mm).
+ * Avoids UTC slicing bugs that shift hours when edited in local timezones.
+ */
+export function toLocalDatetimeInputString(isoOrDate: string | Date | null | undefined): string {
+  if (!isoOrDate) return "";
+  const d = typeof isoOrDate === "string" ? new Date(isoOrDate) : isoOrDate;
+  if (isNaN(d.getTime())) return "";
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+/**
+ * Converts a local datetime input string (YYYY-MM-DDTHH:mm) into a standard UTC ISO string.
+ */
+export function parseLocalDateFromInput(localStr: string | null | undefined): string | null {
+  if (!localStr) return null;
+  const parts = localStr.split("T");
+  if (parts.length !== 2) return null;
+  const [datePart, timePart] = parts;
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hours, minutes] = timePart.split(":").map(Number);
+  if (!year || !month || !day || isNaN(hours) || isNaN(minutes)) return null;
+  const d = new Date(year, month - 1, day, hours, minutes, 0, 0);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+/**
+ * Factory for creating a default backward-compatible reminder plan.
+ */
+export function createDefaultReminderPlan(
+  triggerAtIso: string,
+  mode: ReminderMode = "once",
+  intervalMinutes: 5 | 10 | 15 | 30 | 60 = 15,
+  repeatCount: 1 | 3 | 5 = 3
+): ReminderPlan {
+  return {
+    version: 1,
+    enabled: true,
+    trigger_at: triggerAtIso,
+    mode,
+    repeat_interval_minutes: mode === "until_ack" ? (Math.max(15, intervalMinutes) as any) : intervalMinutes,
+    repeat_count: repeatCount,
+    snooze_options: [10, 15, 30, 60],
+    importance: "normal",
+    status: "pending",
+    fire_count: 0,
+    max_window_hours: 24,
+  };
+}
+
+/**
+ * Resolves an effective reminder plan for a task, guaranteeing 100% backward
+ * compatibility for legacy tasks that only have `reminder_at`.
+ */
+export function resolveEffectiveReminder(
+  task: Pick<Task, "reminder_at"> & { reminder_plan?: ReminderPlan | null }
+): ReminderPlan | null {
+  if (task.reminder_plan && task.reminder_plan.enabled) {
+    return task.reminder_plan;
+  }
+  if (task.reminder_at) {
+    return {
+      version: 1,
+      enabled: true,
+      trigger_at: task.reminder_at,
+      mode: "once",
+      repeat_interval_minutes: 15,
+      repeat_count: 1,
+      snooze_options: [10, 15, 30, 60],
+      importance: "normal",
+      status: "pending",
+      fire_count: 0,
+      max_window_hours: 24,
+    };
+  }
+  return null;
+}
+
+/**
+ * Calculates the next trigger timestamp for a reminder plan.
+ * Respects repetition counts and enforces a strict 24-hour safety cap on "until_ack".
+ */
+export function calculateNextReminderTrigger(
+  plan: ReminderPlan,
+  fromTime: Date = new Date()
+): { nextTriggerAt: string | null; updatedPlan: ReminderPlan } {
+  if (!plan.enabled || plan.status === "cancelled" || plan.status === "acknowledged") {
+    return { nextTriggerAt: null, updatedPlan: { ...plan, status: plan.status || "cancelled" } };
+  }
+
+  const initialTriggerTime = new Date(plan.trigger_at).getTime();
+  const nowTime = fromTime.getTime();
+  const fireCount = plan.fire_count || 0;
+
+  // Initial trigger has not fired yet
+  if (fireCount === 0 && initialTriggerTime > nowTime) {
+    return {
+      nextTriggerAt: new Date(initialTriggerTime).toISOString(),
+      updatedPlan: { ...plan, status: "pending" },
+    };
+  }
+
+  // Mode: once
+  if (plan.mode === "once") {
+    if (fireCount >= 1) {
+      return { nextTriggerAt: null, updatedPlan: { ...plan, status: "missed" } };
+    }
+    return {
+      nextTriggerAt: new Date(initialTriggerTime).toISOString(),
+      updatedPlan: { ...plan, status: "pending" },
+    };
+  }
+
+  // Mode: count
+  if (plan.mode === "count") {
+    const maxCount = plan.repeat_count || 1;
+    if (fireCount >= maxCount) {
+      return { nextTriggerAt: null, updatedPlan: { ...plan, status: "missed" } };
+    }
+    const intervalMinutes = plan.repeat_interval_minutes || 15;
+    const intervalMs = intervalMinutes * 60 * 1000;
+    const nextTime = Math.max(nowTime, initialTriggerTime + fireCount * intervalMs);
+    return {
+      nextTriggerAt: new Date(nextTime).toISOString(),
+      updatedPlan: { ...plan, status: "firing" },
+    };
+  }
+
+  // Mode: until_ack (Repeat until acknowledged)
+  if (plan.mode === "until_ack") {
+    const maxWindowHours = plan.max_window_hours || 24;
+    const maxWindowMs = maxWindowHours * 3600 * 1000;
+    const intervalMinutes = Math.max(15, plan.repeat_interval_minutes || 15);
+    const intervalMs = intervalMinutes * 60 * 1000;
+
+    // Safety guard: if 24 hours have elapsed since the initial trigger, mark as missed
+    if (nowTime - initialTriggerTime >= maxWindowMs) {
+      return { nextTriggerAt: null, updatedPlan: { ...plan, status: "missed" } };
+    }
+
+    const nextTime = Math.max(nowTime, initialTriggerTime + (fireCount || 1) * intervalMs);
+    if (nextTime - initialTriggerTime > maxWindowMs) {
+      return { nextTriggerAt: null, updatedPlan: { ...plan, status: "missed" } };
+    }
+
+    return {
+      nextTriggerAt: new Date(nextTime).toISOString(),
+      updatedPlan: { ...plan, status: "firing" },
+    };
+  }
+
+  return { nextTriggerAt: null, updatedPlan: plan };
+}
+
+/**
+ * Calculates snooze trigger time and pauses/updates the reminder plan.
+ */
+export function calculateSnoozeTrigger(
+  plan: ReminderPlan,
+  snoozeMinutes: number | "tomorrow",
+  fromTime: Date = new Date()
+): { snoozeUntil: string; updatedPlan: ReminderPlan } {
+  let targetDate: Date;
+  if (snoozeMinutes === "tomorrow") {
+    targetDate = new Date(fromTime);
+    targetDate.setDate(targetDate.getDate() + 1);
+    targetDate.setHours(9, 0, 0, 0); // 09:00 tomorrow local
+  } else {
+    targetDate = new Date(fromTime.getTime() + snoozeMinutes * 60 * 1000);
+  }
+
+  const snoozeIso = targetDate.toISOString();
+  return {
+    snoozeUntil: snoozeIso,
+    updatedPlan: {
+      ...plan,
+      status: "snoozed",
+      snooze_until: snoozeIso,
+    },
+  };
+}
+
+export async function syncNativeTaskReminder(task: Pick<Task, "id" | "title" | "reminder_at" | "completed"> & { reminder_plan?: ReminderPlan | null }) {
   if (isAndroid()) return false; // Android AlarmManager reconciles the complete snapshot.
   const tag = `task-reminder-${task.id}`;
   await cancelNotification(tag);
-  if (task.completed || !task.reminder_at) return false;
-  return scheduleNotificationAt("⏰ یادآور تسک", task.title, tag, new Date(task.reminder_at));
+  if (task.completed) return false;
+  const effective = resolveEffectiveReminder(task);
+  if (!effective || !effective.enabled) return false;
+  const trigger = effective.snooze_until || effective.trigger_at;
+  if (!trigger) return false;
+  return scheduleNotificationAt("⏰ یادآور تسک", task.title, tag, new Date(trigger));
 }
 
 export type TaskDefaults = {
@@ -117,6 +310,7 @@ export async function checkAndFireReminders(s: UserSettings) {
   if (!s.notifications_enabled) return;
   if (!(await hasNotificationPermission())) return;
   const now = new Date();
+  const today = todayKey();
   let stored: Record<string, string> = {};
   try {
     const raw = localStorage.getItem(LAST_NOTIFY_KEY);

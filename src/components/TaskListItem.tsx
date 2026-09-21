@@ -318,6 +318,8 @@ const TaskListItemComponent = ({
                         value={t.due_date}
                         onChange={(iso) => onPatchTask(t.id, { due_date: iso })}
                         reminderValue={t.reminder_at}
+                        reminderPlan={t.reminder_plan}
+                        onReminderPlanChange={(plan) => onPatchTask(t.id, { reminder_plan: plan, reminder_at: plan?.trigger_at ?? null })}
                         onReminderChange={(iso) => onPatchTask(t.id, { reminder_at: iso })}
                         label=""
                       />
