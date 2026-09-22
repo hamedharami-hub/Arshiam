@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate, useNavigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { App as CapApp } from "@capacitor/app";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -101,8 +101,41 @@ const RouteFallback = () => (
   <div className="flex min-h-screen items-center justify-center bg-background" />
 );
 
-function CapacitorUrlHandler() {
+export function CapacitorUrlHandler() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const routeGenerationRef = useRef(0);
+  const initialLaunchConsumedRef = useRef(false);
+  const programmaticTargetRef = useRef<string | null>(null);
+  const currentRouteRef = useRef<string>(location.pathname + location.search);
+  const lastHandledUrlRef = useRef<{ url: string; time: number }>({ url: "", time: 0 });
+
+  // Invalidate any in-flight widget route request whenever the user navigates inside the app
+  useEffect(() => {
+    const currentLoc = location.pathname + location.search;
+    if (programmaticTargetRef.current === currentLoc) {
+      // Location update was initiated by our own widget navigation handler
+      programmaticTargetRef.current = null;
+    } else {
+      const prevLoc = currentRouteRef.current;
+      // Index.tsx redirects root ("/" or "/index.html") to the user's default landing page at boot.
+      // That initial boot transition should NOT invalidate cold-start widget route requests.
+      const isInitialRootTransition =
+        (prevLoc === "/" || prevLoc === "/index.html") &&
+        (currentLoc.startsWith("/app/") || currentLoc === "/auth");
+
+      if (!isInitialRootTransition) {
+        // Genuine user navigation inside React Router:
+        // 1. Invalidate any in-flight asynchronous widget route request
+        routeGenerationRef.current++;
+        // 2. Prevent cold-start launch URL from overwriting this navigation later
+        initialLaunchConsumedRef.current = true;
+      }
+    }
+    currentRouteRef.current = currentLoc;
+  }, [location.pathname, location.search]);
+
   useEffect(() => {
     const isNative =
       typeof window !== "undefined" &&
@@ -115,48 +148,50 @@ function CapacitorUrlHandler() {
     if (!isNative) return;
 
     let disposed = false;
-    let routeGeneration = 0;
-    let lastNavigatedPath = "";
-    let lastNavigatedTime = 0;
-    let lastProcessedUrl = "";
-    let lastProcessedTime = 0;
 
-    // Invalidate pending in-flight URL resolutions whenever the user navigates inside the app
-    const onUserNavigation = () => {
-      routeGeneration++;
+    // Popstate (browser back/forward button) listener as additional safety guard
+    const onPopState = () => {
+      routeGenerationRef.current++;
+      initialLaunchConsumedRef.current = true;
     };
-    window.addEventListener("popstate", onUserNavigation);
+    window.addEventListener("popstate", onPopState);
 
     const navigateForUrl = (rawUrl: string, isFromLaunch = false) => {
       if (!rawUrl || disposed) return;
-      const now = Date.now();
-      if (rawUrl === lastProcessedUrl && now - lastProcessedTime < 1500) {
-        return; // Deduplicate simultaneous events from appUrlOpen and __arshnazDispatchUrl
-      }
-      lastProcessedUrl = rawUrl;
-      lastProcessedTime = now;
 
-      const generation = ++routeGeneration;
+      // Ensure cold-start launch URL is consumed only once
+      if (isFromLaunch) {
+        if (initialLaunchConsumedRef.current) return;
+        initialLaunchConsumedRef.current = true;
+      }
+
+      const now = Date.now();
+      // Deduplicate rapid duplicate events (e.g. simultaneous __arshnazDispatchUrl and appUrlOpen)
+      if (
+        rawUrl === lastHandledUrlRef.current.url &&
+        now - lastHandledUrlRef.current.time < 800
+      ) {
+        return;
+      }
+      lastHandledUrlRef.current = { url: rawUrl, time: now };
+
+      const targetGeneration = ++routeGenerationRef.current;
+
       void import("@/lib/firebase")
         .then(({ auth }) => auth.authStateReady().then(() => {
-          const path = nativeRoute(rawUrl, auth.currentUser?.uid);
-          if (!path || disposed || generation !== routeGeneration) return;
-          const currentPath = window.location.pathname;
+          if (disposed || targetGeneration !== routeGenerationRef.current) return;
 
-          // Never yank the user back to Today if they are currently on another section
-          // (e.g. Notes, Mind, Calendar, Habits) unless they specifically opened a task.
-          if (path === "/app/today" && currentPath.startsWith("/app/") && currentPath !== "/app/today") {
-            return;
-          }
-          if (path === lastNavigatedPath && now - lastNavigatedTime < 1000) {
-            return;
-          }
-          lastNavigatedPath = path;
-          lastNavigatedTime = Date.now();
+          const path = nativeRoute(rawUrl, auth.currentUser?.uid);
+          if (!path || disposed || targetGeneration !== routeGenerationRef.current) return;
+
+          if (currentRouteRef.current === path) return;
+
+          programmaticTargetRef.current = path;
           navigate(path);
         }))
         .catch(() => {});
     };
+
     let handle: any = null;
     try {
       const onDispatchUrl = (event: { url?: string } | null | undefined) => {
@@ -182,7 +217,7 @@ function CapacitorUrlHandler() {
           handle = h;
           if (disposed) { void h.remove(); return; }
           return CapApp.getLaunchUrl().then((launch) => {
-            if (launch?.url && !lastProcessedUrl && !disposed) {
+            if (launch?.url && !initialLaunchConsumedRef.current && !disposed) {
               navigateForUrl(launch.url, true);
             }
           });
@@ -191,15 +226,17 @@ function CapacitorUrlHandler() {
     } catch (e) {
       console.warn("Capacitor appUrlOpen error:", e);
     }
+
     return () => {
       disposed = true;
-      window.removeEventListener("popstate", onUserNavigation);
+      window.removeEventListener("popstate", onPopState);
       delete (window as any).__arshnazDispatchUrl;
       try {
         handle?.remove?.();
       } catch {}
     };
   }, [navigate]);
+
   return null;
 }
 
