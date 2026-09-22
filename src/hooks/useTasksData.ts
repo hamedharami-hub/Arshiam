@@ -38,7 +38,7 @@ export function useTasksData({ user, scope, scopeId }: UseTasksDataOptions) {
     lastLoadRef.current = now;
     const request = (async () => {
       const tasks = await fetchTasks(user.id);
-      if (tasks.length > 0) setAllTasks(tasks);
+      setAllTasks(tasks);
     })();
     inflightRef.current = request;
     try {
@@ -98,10 +98,8 @@ export function useTasksData({ user, scope, scopeId }: UseTasksDataOptions) {
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("tasks-changed", onTasksChanged);
     const unsubscribe = subscribeToTasks(user.id, (tasks) => {
-      if (tasks.length > 0) {
-        taskMemoryCache.set(user.id, tasks);
-        setAllTasks(tasks);
-      }
+      taskMemoryCache.set(user.id, tasks);
+      setAllTasks(tasks);
     });
     return () => {
       if (pending != null) window.clearTimeout(pending);

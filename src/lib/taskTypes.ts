@@ -110,5 +110,11 @@ export type OutcomeExecution = {
 };
 
 export type ConfirmState =
-  | { kind: "task" | "note" | "subtask-row"; id: string; title: string; onConfirm: () => Promise<void> }
+  | {
+      kind: "task" | "note" | "subtask-row";
+      id: string;
+      title: string;
+      onConfirm: () => Promise<void>;
+      childCount?: number;
+    }
   | null;

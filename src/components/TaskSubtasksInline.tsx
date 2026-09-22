@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { firebaseStore } from "@/lib/firebaseStore";
 import { cacheGet } from "@/lib/offlineQueue";
 import { extractTasksFromCache } from "@/features/tasks/taskCache";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,6 +10,9 @@ import { Plus, Trash2, ListTree, GripVertical, ChevronLeft, ChevronRight } from 
 import { toast } from "sonner";
 import { useBilingual } from "@/hooks/useBilingual";
 import { BidiText } from "@/components/BidiText";
+import { persistTask } from "@/lib/firestoreDataService";
+import { deleteTaskCascade } from "@/features/tasks/taskService";
+import type { Task } from "@/lib/taskTypes";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -39,13 +41,34 @@ export function TaskSubtasksInline({
   const [newTitle, setNewTitle] = useState("");
 
   const editingRef = useRef<Set<string>>(new Set());
+  const pendingTitles = useRef<Record<string, string>>({});
   const writeTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  const flushPendingTitle = useCallback(async (id: string) => {
+    if (writeTimers.current[id]) {
+      clearTimeout(writeTimers.current[id]);
+      delete writeTimers.current[id];
+    }
+    const title = pendingTitles.current[id];
+    if (title !== undefined && user) {
+      delete pendingTitles.current[id];
+      await persistTask(user.id, { id, title });
+      window.dispatchEvent(new Event("tasks-changed"));
+    }
+  }, [user]);
 
   useEffect(() => {
     return () => {
+      // Flush any debounced title writes on unmount so changes are never lost
+      Object.keys(pendingTitles.current).forEach((id) => {
+        const title = pendingTitles.current[id];
+        if (title !== undefined && user) {
+          void persistTask(user.id, { id, title });
+        }
+      });
       Object.values(writeTimers.current).forEach(clearTimeout);
     };
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (initialSubs && initialSubs.length > 0) {
@@ -74,106 +97,137 @@ export function TaskSubtasksInline({
   }, []);
 
   const load = useCallback(async () => {
-    // Render the account cache first. This keeps direct child tasks visible when
-    // opening a task offline or while Firestore is reconnecting.
-    if (user) {
-      const cachedRaw = await cacheGet<unknown>(`tasks:all:${user.id}`);
-      const cached = extractTasksFromCache(cachedRaw);
-      if (cached.length > 0) {
-        replaceRows(
-          cached
-            .filter((row) => row && row.parent_id === taskId)
-            .map((row, i) => ({
-              id: row.id,
-              title: row.title,
-              completed: Boolean(row.completed),
-              position: (row as any).position ?? i,
-            }))
-        );
-      }
+    if (!user) return;
+    const cachedRaw = await cacheGet<unknown>(`tasks:all:${user.id}`);
+    const cached = extractTasksFromCache(cachedRaw);
+    if (cached) {
+      const childRows = cached
+        .filter((row) => row && row.parent_id === taskId)
+        .sort((a, b) => ((a as any).position ?? 0) - ((b as any).position ?? 0))
+        .map((row, i) => ({
+          id: row.id,
+          title: row.title,
+          completed: Boolean(row.completed),
+          position: (row as any).position ?? i,
+        }));
+      replaceRows(childRows);
     }
-    const { data } = await firebaseStore
-      .from("tasks")
-      .select("id,title,completed,position")
-      .eq("parent_id", taskId)
-      .order("position");
-    if (data) replaceRows(data as Sub[]);
   }, [taskId, user, replaceRows]);
 
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
     if (!user) return;
-    const ch = firebaseStore
-      .channel(`subs-rt-${taskId}`)
-      .on("postgres_changes",
-        { event: "*", schema: "public", table: "tasks", filter: `parent_id=eq.${taskId}` },
-        load)
-      .subscribe();
-    return () => { firebaseStore.removeChannel(ch); };
-  }, [user, taskId, load]);
-
+    const onTasksChanged = () => void load();
+    window.addEventListener("tasks-changed", onTasksChanged);
+    return () => {
+      window.removeEventListener("tasks-changed", onTasksChanged);
+    };
+  }, [user, load]);
 
   const add = async () => {
     if (readOnly) return;
     const title = newTitle.trim();
     if (!title || !user) return;
-    const { data, error } = await firebaseStore
-      .from("tasks")
-      .insert({
-        user_id: user.id,
-        title,
-        parent_id: taskId,
-        priority: "none",
-        position: subs.length,
-      })
-      .select("id,title,completed,position")
-      .single();
-    if (error) return toast.error(error.message);
-    if (data) setSubs((prev) => [...prev, data as Sub]);
+
+    const newId = crypto.randomUUID();
+    const position = subs.length;
+    const newSubTask: Task = {
+      id: newId,
+      user_id: user.id,
+      title,
+      parent_id: taskId,
+      priority: "none",
+      position,
+      completed: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    setSubs((prev) => [...prev, { id: newId, title, completed: false, position }]);
     setNewTitle("");
+
+    const status = await persistTask(user.id, newSubTask);
+    if (status === "failed") {
+      setSubs((prev) => prev.filter((x) => x.id !== newId));
+      toast.error(T("خطا در ایجاد زیرتسک", "Failed to create subtask"));
+      return;
+    }
+    window.dispatchEvent(new Event("tasks-changed"));
   };
 
   const toggle = async (s: Sub) => {
-    if (readOnly) return;
+    if (readOnly || !user) return;
     const next = !s.completed;
+    const prevSubs = subs;
     setSubs((prev) => prev.map((x) => (x.id === s.id ? { ...x, completed: next } : x)));
-    await firebaseStore
-      .from("tasks")
-      .update({ completed: next, completed_at: next ? new Date().toISOString() : null })
-      .eq("id", s.id);
+
+    const status = await persistTask(user.id, {
+      id: s.id,
+      completed: next,
+      completed_at: next ? new Date().toISOString() : null,
+    });
+    if (status === "failed") {
+      setSubs(prevSubs);
+      toast.error(T("خطا در به‌روزرسانی زیرتسک", "Failed to update subtask"));
+      return;
+    }
+    window.dispatchEvent(new Event("tasks-changed"));
   };
 
   const updateTitle = (id: string, title: string) => {
-    if (readOnly) return;
+    if (readOnly || !user) return;
     editingRef.current.add(id);
+    pendingTitles.current[id] = title;
     setSubs((prev) => prev.map((x) => (x.id === id ? { ...x, title } : x)));
+
     if (writeTimers.current[id]) clearTimeout(writeTimers.current[id]);
     writeTimers.current[id] = setTimeout(async () => {
-      await firebaseStore.from("tasks").update({ title }).eq("id", id);
-      // release the editing lock shortly after the realtime echo arrives
+      delete writeTimers.current[id];
+      delete pendingTitles.current[id];
+      const status = await persistTask(user.id, { id, title });
+      if (status === "failed") {
+        toast.error(T("خطا در ذخیره عنوان زیرتسک", "Failed to save subtask title"));
+      }
+      window.dispatchEvent(new Event("tasks-changed"));
       setTimeout(() => editingRef.current.delete(id), 800);
     }, 500);
   };
 
   const remove = async (id: string) => {
-    if (readOnly) return;
+    if (readOnly || !user) return;
+    const prevSubs = subs;
     setSubs((prev) => prev.filter((x) => x.id !== id));
-    await firebaseStore.from("tasks").delete().eq("id", id);
+
+    const res = await deleteTaskCascade(user.id, id);
+    if (!res.success) {
+      setSubs(prevSubs);
+      toast.error(T("خطا در حذف زیرتسک", "Failed to delete subtask"));
+      return;
+    }
+    window.dispatchEvent(new Event("tasks-changed"));
   };
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const reorder = async (fromId: string, toId: string) => {
-    if (readOnly) return;
+    if (readOnly || !user) return;
     const fromIdx = subs.findIndex((s) => s.id === fromId);
     const toIdx = subs.findIndex((s) => s.id === toId);
     if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
+    const prevSubs = subs;
     const reordered = arrayMove(subs, fromIdx, toIdx).map((s, i) => ({ ...s, position: i }));
     setSubs(reordered);
-    await Promise.all(
-      reordered.map((s, i) => firebaseStore.from("tasks").update({ position: i }).eq("id", s.id)),
+
+    const results = await Promise.all(
+      reordered.map((s, i) => persistTask(user.id, { id: s.id, position: i }))
     );
+    if (results.some((r) => r === "failed")) {
+      setSubs(prevSubs);
+      toast.error(T("خطا در تغییر ترتیب زیرتسک‌ها", "Failed to reorder subtasks"));
+      return;
+    }
+    window.dispatchEvent(new Event("tasks-changed"));
   };
 
   const done = subs.filter((s) => s.completed).length;
@@ -200,6 +254,7 @@ export function TaskSubtasksInline({
                 readOnly={readOnly}
                 onToggle={() => toggle(s)}
                 onChangeTitle={(title) => updateTitle(s.id, title)}
+                onBlur={() => void flushPendingTitle(s.id)}
                 onOpen={onOpenSubtask ? () => onOpenSubtask(s.id) : undefined}
                 onDelete={() => remove(s.id)}
                 isEn={isEn}
@@ -240,12 +295,13 @@ export function TaskSubtasksInline({
 }
 
 function SortableSubtaskRow({
-  sub, readOnly, onToggle, onChangeTitle, onOpen, onDelete, isEn, T,
+  sub, readOnly, onToggle, onChangeTitle, onBlur, onOpen, onDelete, isEn, T,
 }: {
   sub: Sub;
   readOnly: boolean;
   onToggle: () => void;
   onChangeTitle: (title: string) => void;
+  onBlur?: () => void;
   onOpen?: () => void;
   onDelete: () => void;
   isEn: boolean;
@@ -278,6 +334,7 @@ function SortableSubtaskRow({
       <AutoTextarea
         value={sub.title}
         onChange={(e) => onChangeTitle(e.target.value)}
+        onBlur={onBlur}
         disabled={readOnly}
         minHeight={28}
         maxHeight={240}

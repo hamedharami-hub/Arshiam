@@ -16,6 +16,7 @@ import { PRIORITY_META, PRIORITY_SELECTABLE, type Priority } from "@/lib/priorit
 import { describeRule, type RecurrenceRule } from "@/lib/recurrence";
 import { addDays, startOfDay } from "date-fns";
 import { formatDate } from "@/lib/jalali";
+import { formatTaskDueDateDisplay } from "@/lib/taskDate";
 import type { Task } from "@/lib/taskTypes";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
@@ -78,6 +79,7 @@ export interface TaskListItemProps {
   expanded: Record<string, boolean>;
   getProgress: (id: string) => { done: number; total: number };
   taskMap: Map<string, Task>;
+  allowDrag?: boolean;
 }
 
 const TaskListItemComponent = ({
@@ -107,6 +109,7 @@ const TaskListItemComponent = ({
   expanded,
   getProgress,
   taskMap,
+  allowDrag = false,
 }: TaskListItemProps) => {
   const pm = PRIORITY_META[t.priority] || PRIORITY_META.none;
   const parentTask = parent || (t.parent_id ? taskMap?.get(t.parent_id) : null);
@@ -133,7 +136,7 @@ const TaskListItemComponent = ({
           style={{ insetInlineStart: (depth - 1) * STEP + 7, top: 20, width: STEP - 4 }}
         />
       )}
-      <SortableTaskRow id={t.id}>
+      <SortableTaskRow id={t.id} disabled={!allowDrag}>
         {(dragHandle) => (
           <SwipeableRow
             disabled={t.user_id !== userId}
@@ -270,9 +273,11 @@ const TaskListItemComponent = ({
 
               {/* Row 2: metadata */}
               <div className="flex items-center gap-1.5 mt-1 ms-5 flex-wrap min-h-[20px]" dir="rtl">
-                <button {...dragHandle} data-drag-handle data-no-swipe-nav className="text-muted-foreground/60 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0 h-5 w-5 rounded flex items-center justify-center" aria-label={T("جابجایی", "Drag")} title={T("جابجایی", "Drag")}>
-                  <GripVertical className="w-3 h-3" />
-                </button>
+                {allowDrag && (
+                  <button {...dragHandle} data-drag-handle data-no-swipe-nav className="text-muted-foreground/60 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0 h-5 w-5 rounded flex items-center justify-center" aria-label={T("جابجایی", "Drag")} title={T("جابجایی", "Drag")}>
+                    <GripVertical className="w-3 h-3" />
+                  </button>
+                )}
                 {t.is_avoidance && (
                   <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 h-4 rounded bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
                     <Ban className="w-2.5 h-2.5" /> {T("اجتنابی", "Avoidance")}
@@ -328,7 +333,7 @@ const TaskListItemComponent = ({
                     )}
                   </PopoverContent>
                 </Popover>
-                {t.due_date && (
+                {t.due_date ? (
                   <Popover>
                     <PopoverTrigger asChild>
                       <button
@@ -337,12 +342,36 @@ const TaskListItemComponent = ({
                         title={T("تغییر تاریخ", "Change date")}
                       >
                         <Calendar className="w-2.5 h-2.5 opacity-70" />
-                        {formatDate(new Date(t.due_date), "d MMM، HH:mm")}
+                        {formatTaskDueDateDisplay(t.due_date, isEn)}
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-72 p-3" align="start" onClick={(e) => e.stopPropagation()}>
                       <DueDatePicker
                         value={t.due_date}
+                        onChange={(iso) => onPatchTask(t.id, { due_date: iso })}
+                        reminderValue={t.reminder_at}
+                        reminderPlan={t.reminder_plan}
+                        onReminderPlanChange={(plan) => onPatchTask(t.id, { reminder_plan: plan, reminder_at: plan?.trigger_at ?? null })}
+                        onReminderChange={(iso) => onPatchTask(t.id, { reminder_at: iso })}
+                        label=""
+                      />
+                    </PopoverContent>
+                  </Popover>
+                ) : (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-[10px] gap-1 px-1.5 py-0 h-[20px] font-medium inline-flex items-center rounded-full border border-dashed border-muted-foreground/30 text-muted-foreground/60 hover:text-foreground hover:border-border/60 hover:bg-muted/30 transition"
+                        title={T("افزودن تاریخ", "Add date")}
+                      >
+                        <Calendar className="w-2.5 h-2.5 opacity-70" />
+                        <span>{T("افزودن تاریخ", "Add date")}</span>
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72 p-3" align="start" onClick={(e) => e.stopPropagation()}>
+                      <DueDatePicker
+                        value={null}
                         onChange={(iso) => onPatchTask(t.id, { due_date: iso })}
                         reminderValue={t.reminder_at}
                         reminderPlan={t.reminder_plan}
@@ -452,6 +481,7 @@ const TaskListItemComponent = ({
                     expanded={expanded}
                     getProgress={getProgress}
                     taskMap={taskMap}
+                    allowDrag={allowDrag}
                   />
                 ))}
               </SortableContext>

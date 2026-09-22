@@ -43,4 +43,21 @@ describe("task offline operation projection", () => {
     expect(result).toHaveLength(1);
     expect(result[0].title).toBe("one");
   });
+
+  it("handles upsert operations for new and existing tasks", () => {
+    const result = applyTaskOperations([task("existing")], [
+      op({ table: "tasks", op: "upsert", payload: { ...task("existing"), title: "updated via upsert" }, match: { id: "existing" } }),
+      op({ table: "tasks", op: "upsert", payload: task("new-via-upsert"), match: { id: "new-via-upsert" } }),
+    ]);
+    expect(result.map((item) => item.id)).toEqual(["new-via-upsert", "existing"]);
+    expect(result.find((item) => item.id === "existing")?.title).toBe("updated via upsert");
+  });
+
+  it("ensures delete removes previously queued inserts or updates", () => {
+    const result = applyTaskOperations([], [
+      op({ table: "tasks", op: "insert", payload: task("transient") }),
+      op({ table: "tasks", op: "delete", match: { id: "transient" } }),
+    ]);
+    expect(result).toHaveLength(0);
+  });
 });

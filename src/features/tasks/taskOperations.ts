@@ -7,11 +7,20 @@ export function applyTaskOperations(base: Task[], operations: QueuedOp[]): Task[
   const updates = new Map<string, Partial<Task>>();
 
   for (const operation of operations) {
-    if (operation.op === "insert" && operation.payload) {
+    if ((operation.op === "insert" || operation.op === "upsert") && operation.payload) {
       const task = operation.payload as Task;
-      if (task.id) inserts.set(task.id, task);
+      if (task.id) {
+        if (operation.op === "upsert" && base.some((t) => t.id === task.id)) {
+          updates.set(task.id, { ...(updates.get(task.id) || {}), ...task });
+        } else {
+          inserts.set(task.id, task);
+        }
+      }
     } else if (operation.op === "delete" && operation.match?.id) {
-      deletes.add(operation.match.id as string);
+      const id = operation.match.id as string;
+      deletes.add(id);
+      inserts.delete(id);
+      updates.delete(id);
     } else if (operation.op === "update" && operation.match?.id && operation.payload) {
       const id = operation.match.id as string;
       updates.set(id, { ...(updates.get(id) || {}), ...(operation.payload as Partial<Task>) });

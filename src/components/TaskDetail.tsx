@@ -58,7 +58,9 @@ import { addTaskToAndroidCalendar } from "@/lib/androidNative";
 import { Switch } from "@/components/ui/switch";
 import { pushUndo } from "@/lib/undoStack";
 import { enqueueOp, cacheGet, cacheSet } from "@/lib/offlineQueue";
-import { deleteTask as deletePersistedTask, persistTask } from "@/lib/firestoreDataService";
+import { persistTask } from "@/lib/firestoreDataService";
+import { deleteTaskCascade } from "@/features/tasks/taskService";
+import { buildTaskChildrenMap, collectTaskDescendantIds } from "@/features/tasks/taskTree";
 import type { Task, TaskNote, ConfirmState } from "@/lib/taskTypes";
 import { clearTaskDraft, taskPatch, writeTaskDraft } from "@/lib/taskDraft";
 import { extractTasksFromCache } from "@/features/tasks/taskCache";
@@ -344,14 +346,26 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         await enqueueOp({ table: "task_tags", op: "delete", match: { task_id: t.id, tag_id: tagId } });
         return;
       }
-      try { await firebaseStore.from("task_tags").delete().eq("task_id", t.id).eq("tag_id", tagId); } catch { void 0; }
+      try {
+        const { error } = await firebaseStore.from("task_tags").delete().eq("task_id", t.id).eq("tag_id", tagId);
+        if (error) throw error;
+      } catch (err) {
+        console.warn("[TaskDetail] Failed to delete tag link online, queueing:", err);
+        await enqueueOp({ table: "task_tags", op: "delete", match: { task_id: t.id, tag_id: tagId } });
+      }
     } else {
       setTaskTagIds([...taskTagIds, tagId]);
       if (typeof navigator !== "undefined" && !navigator.onLine) {
         await enqueueOp({ table: "task_tags", op: "insert", payload: { task_id: t.id, tag_id: tagId, user_id: user.id } });
         return;
       }
-      try { await firebaseStore.from("task_tags").insert({ task_id: t.id, tag_id: tagId, user_id: user.id }); } catch { void 0; }
+      try {
+        const { error } = await firebaseStore.from("task_tags").insert({ task_id: t.id, tag_id: tagId, user_id: user.id });
+        if (error) throw error;
+      } catch (err) {
+        console.warn("[TaskDetail] Failed to insert tag link online, queueing:", err);
+        await enqueueOp({ table: "task_tags", op: "insert", payload: { task_id: t.id, tag_id: tagId, user_id: user.id } });
+      }
     }
   };
 
@@ -555,13 +569,25 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     return () => window.removeEventListener("arshnaz:request-task-close", request);
   }, [handleBackClick]);
 
-  const deleteTask = () => {
+  const deleteTask = async () => {
+    if (!user) return;
+    let allTasks: Task[] = [];
+    try {
+      const cachedRaw = await cacheGet<unknown>(`tasks:all:${user.id}`);
+      allTasks = extractTasksFromCache(cachedRaw);
+    } catch {}
+    const childrenMap = buildTaskChildrenMap(allTasks);
+    const descendants = collectTaskDescendantIds(t.id, childrenMap).filter(id => id !== t.id);
+    const childCount = descendants.length;
+
     setConfirm({
       kind: "task",
       id: t.id,
       title: t.title || T("بدون عنوان", "Untitled"),
+      childCount,
       onConfirm: async () => {
-        if (!user || !await deletePersistedTask(user.id, t.id)) {
+        const res = await deleteTaskCascade(user.id, t.id, allTasks);
+        if (!res.success) {
           toast.error(T("حذف روی این دستگاه ذخیره نشد", "Delete could not be saved on this device"));
           return;
         }

@@ -1,3 +1,5 @@
+import { formatDate } from "./jalali";
+
 /** Parse task dates consistently in the user's local timezone.
  * Date-only Firestore values must not go through Date.parse (UTC), otherwise
  * they can move to the previous day in negative timezones.
@@ -32,3 +34,10 @@ export function getLocalDateString(date: Date = new Date(), timeZone?: string): 
   return `${year}-${month}-${day}`;
 }
 
+export function formatTaskDueDateDisplay(value: string | null | undefined, isEn = false): string {
+  const d = parseTaskDueDate(value);
+  if (!d) return "";
+  const hasTime = typeof value === "string" && value.includes("T");
+  const system = isEn ? "gregorian" : undefined;
+  return formatDate(d, hasTime ? (isEn ? "d MMM, HH:mm" : "d MMM، HH:mm") : "d MMM", system);
+}

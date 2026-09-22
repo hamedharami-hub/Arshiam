@@ -224,10 +224,21 @@ export default function NewTaskView() {
         <AlertDialogContent dir={isEn ? "ltr" : "rtl"}>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirm?.kind === "task" ? T("حذف تسک؟", "Delete task?") : confirm?.kind === "note" ? T("حذف نوت؟", "Delete note?") : T("حذف زیرتسک؟", "Delete subtask?")}
+              {confirm?.kind === "task"
+                ? confirm.childCount && confirm.childCount > 0
+                  ? T(`حذف این تسک و ${confirm.childCount} زیرتسک؟`, `Delete this task and ${confirm.childCount} subtasks?`)
+                  : T("حذف تسک؟", "Delete task?")
+                : confirm?.kind === "note"
+                ? T("حذف نوت؟", "Delete note?")
+                : T("حذف زیرتسک؟", "Delete subtask?")}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {T(`آیا مطمئنی می‌خوای «${confirm?.title}» را حذف کنی؟`, `Are you sure you want to delete "${confirm?.title}"?`)}
+              {confirm?.childCount && confirm.childCount > 0
+                ? T(
+                    `آیا مطمئنی می‌خوای «${confirm?.title || T("این تسک", "this task")}» و ${confirm.childCount} زیرتسک آن را حذف کنی؟`,
+                    `Are you sure you want to delete "${confirm?.title || T("this task", "this task")}" and its ${confirm.childCount} subtasks?`
+                  )
+                : T(`آیا مطمئنی می‌خوای «${confirm?.title}» را حذف کنی؟`, `Are you sure you want to delete "${confirm?.title}"?`)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

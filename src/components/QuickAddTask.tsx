@@ -222,9 +222,20 @@ export function QuickAddTask({
 
       // Tags are a separate relation and can still use the compatibility adapter.
       if (finalTagIds.length) {
-        await firebaseStore
-          .from("task_tags")
-          .insert(finalTagIds.map(tag_id => ({ task_id: tempId, tag_id, user_id: user.id })));
+        try {
+          const { error } = await firebaseStore
+            .from("task_tags")
+            .insert(finalTagIds.map(tag_id => ({ task_id: tempId, tag_id, user_id: user.id })));
+          if (error) throw error;
+        } catch (tagErr) {
+          console.warn("[QuickAddTask] Failed to link tags online, queueing offline:", tagErr);
+          await enqueueOp({
+            table: "task_tags",
+            op: "insert",
+            payload: finalTagIds.map(tag_id => ({ task_id: tempId, tag_id, user_id: user.id })),
+          });
+          toast.info(T("تسک ذخیره شد؛ همگام‌سازی تگ‌ها با اتصال اینترنت کامل می‌شود", "Task saved — tags will sync when online"));
+        }
       }
 
     setTitle("");

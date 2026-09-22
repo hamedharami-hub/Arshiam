@@ -12,9 +12,10 @@ import { firebaseStore } from "@/lib/firebaseStore";
 import { formatDate, toPersianDigits } from "@/lib/jalali";
 import { PRIORITY_META } from "@/lib/priority";
 import type { Task, ConfirmState } from "@/lib/taskTypes";
-import { deleteTask as deletePersistedTask, persistTask } from "@/lib/firestoreDataService";
-import { taskDueTimestamp } from "@/lib/taskDate";
-import { buildTaskChildrenMap, getTaskProgress, isStandaloneTaskForScope } from "@/features/tasks/taskTree";
+import { persistTask } from "@/lib/firestoreDataService";
+import { deleteTaskCascade } from "@/features/tasks/taskService";
+import { taskDueTimestamp, getLocalDateString } from "@/lib/taskDate";
+import { buildTaskChildrenMap, collectTaskDescendantIds, getTaskProgress, isStandaloneTaskForScope } from "@/features/tasks/taskTree";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { HeaderActionsPortal } from "@/components/HeaderActionsPortal";
 import { useResizableSplit } from "@/hooks/useResizableSplit";
@@ -129,8 +130,33 @@ export default function TodayDashboardView() {
     load,
   } = useTasksData({ user, scope: "today" });
 
-  const startOfToday = useMemo(() => startOfDay(new Date()).getTime(), []);
-  const endOfToday = useMemo(() => endOfDay(new Date()).getTime(), []);
+  const [currentDayKey, setCurrentDayKey] = useState(() => getLocalDateString());
+  useEffect(() => {
+    const checkDay = () => {
+      const nowKey = getLocalDateString();
+      if (nowKey !== currentDayKey) {
+        setCurrentDayKey(nowKey);
+        void load();
+      }
+    };
+    const onVisibility = () => {
+      if (!document.hidden) checkDay();
+    };
+    const onFocus = () => checkDay();
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onFocus);
+    const now = new Date();
+    const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1).getTime() - now.getTime();
+    const timer = setTimeout(checkDay, Math.max(1000, msUntilMidnight));
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onFocus);
+      clearTimeout(timer);
+    };
+  }, [currentDayKey, load]);
+
+  const startOfToday = useMemo(() => startOfDay(new Date()).getTime(), [currentDayKey]);
+  const endOfToday = useMemo(() => endOfDay(new Date()).getTime(), [currentDayKey]);
 
   const taskMap = useMemo(() => new Map(allTasks.map((t) => [t.id, t])), [allTasks]);
   const childrenMap = useMemo(() => buildTaskChildrenMap(allTasks), [allTasks]);
@@ -311,29 +337,39 @@ export default function TodayDashboardView() {
   }, [T, user?.id, allTasks, setAllTasks]);
 
   const askDeleteTask = useCallback((task: Task) => {
+    const descendants = collectTaskDescendantIds(task.id, childrenMap);
+    const childCount = descendants.length;
+    const idsToRemove = new Set([task.id, ...descendants]);
+
     setConfirm({
       kind: "task",
       id: task.id,
       title: task.title,
+      childCount,
       onConfirm: async () => {
-        setAllTasks((prev) => prev.filter((t) => t.id !== task.id));
+        const previousTasks = allTasks;
+        setAllTasks((prev) => prev.filter((t) => !idsToRemove.has(t.id)));
         try {
           if (user?.id) {
-            const res = await deletePersistedTask(user.id, task.id);
-            if (res === "failed") throw new Error(T("حذف تسک ناموفق بود", "Could not delete task"));
+            const res = await deleteTaskCascade(user.id, task.id, allTasks);
+            if (!res.success) throw new Error(T("حذف تسک ناموفق بود", "Could not delete task"));
           } else {
-            const { error } = await firebaseStore.from("tasks").delete().eq("id", task.id);
+            const { error } = await firebaseStore.from("tasks").delete().in("id", Array.from(idsToRemove));
             if (error) throw new Error(error.message);
           }
           window.dispatchEvent(new Event("tasks-changed"));
-          toast.success(T("تسک حذف شد", "Task deleted"));
+          toast.success(
+            childCount > 0
+              ? T(`تسک و ${childCount} زیرتسک آن حذف شدند`, `Task and its ${childCount} subtasks deleted`)
+              : T("تسک حذف شد", "Task deleted")
+          );
         } catch (err) {
-          setAllTasks((prev) => [...prev, task]);
+          setAllTasks(previousTasks);
           toast.error(err instanceof Error ? err.message : T("حذف تسک با خطا مواجه شد", "Could not delete task"));
         }
       },
     });
-  }, [user?.id, setAllTasks, T]);
+  }, [childrenMap, allTasks, user?.id, setAllTasks, T]);
 
   const onDragEnd = useCallback((event: DragEndEvent) => {
     setActiveDragId(null);
@@ -380,6 +416,7 @@ export default function TodayDashboardView() {
       expanded={expanded}
       getProgress={getProgress}
       taskMap={taskMap}
+      allowDrag={false}
     />
   );
 
@@ -675,9 +712,21 @@ export default function TodayDashboardView() {
       <AlertDialog open={!!confirm} onOpenChange={(v) => !v && setConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{T("حذف تسک؟", "Delete task?")}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {confirm?.childCount && confirm.childCount > 0
+                ? T(`حذف این تسک و ${confirm.childCount} زیرتسک؟`, `Delete this task and ${confirm.childCount} subtasks?`)
+                : T("حذف تسک؟", "Delete task?")}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              {T(`آیا مطمئنی می‌خوای «${confirm?.title || T("این مورد", "this item")}» را حذف کنی؟`, `Are you sure you want to delete "${confirm?.title || T("این مورد", "this item")}"?`)}
+              {confirm?.childCount && confirm.childCount > 0
+                ? T(
+                    `آیا مطمئنی می‌خوای «${confirm?.title || T("این تسک", "this task")}» و ${confirm.childCount} زیرتسک آن را حذف کنی؟`,
+                    `Are you sure you want to delete "${confirm?.title || T("this task", "this task")}" and its ${confirm.childCount} subtasks?`
+                  )
+                : T(
+                    `آیا مطمئنی می‌خوای «${confirm?.title || T("این مورد", "this item")}» را حذف کنی؟`,
+                    `Are you sure you want to delete "${confirm?.title || T("this item", "this item")}"?`
+                  )}
               <span className="block mt-2 text-xs">{T("این عمل قابل بازگشت نیست.", "This action cannot be undone.")}</span>
             </AlertDialogDescription>
           </AlertDialogHeader>

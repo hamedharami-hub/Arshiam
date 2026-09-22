@@ -10,9 +10,11 @@ import { FolderDeleteDialog } from "@/components/FolderDeleteDialog";
 import { useNavigate } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
 import {
+  deleteTaskCascade,
   removeTask,
   saveTask,
 } from "@/features/tasks/taskService";
+import { persistTask } from "@/lib/firestoreDataService";
 import {
   buildTaskChildrenMap,
   collectTaskDescendantIds,
@@ -35,7 +37,7 @@ import { toast } from "sonner";
 import { PRIORITY_META } from "@/lib/priority";
 import { FolderKanban } from "@/components/FolderKanban";
 import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
-import { parseTaskDueDate, taskDueTimestamp } from "@/lib/taskDate";
+import { parseTaskDueDate, taskDueTimestamp, getLocalDateString } from "@/lib/taskDate";
 import { pushUndo } from "@/lib/undoStack";
 import { pushDeleted } from "@/lib/recentlyDeleted";
 import { enqueueOp } from "@/lib/offlineQueue";
@@ -267,11 +269,50 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     return () => window.removeEventListener("arshnaz-folder-prefs-updated", onPrefsUpdated);
   }, [params.id, user?.id]);
 
+  const [currentDayKey, setCurrentDayKey] = useState(() => getLocalDateString());
+  useEffect(() => {
+    const checkDay = () => {
+      const nowKey = getLocalDateString();
+      if (nowKey !== currentDayKey) {
+        setCurrentDayKey(nowKey);
+        void load();
+      }
+    };
+    const onVisibility = () => {
+      if (!document.hidden) checkDay();
+    };
+    const onFocus = () => checkDay();
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onFocus);
+    const now = new Date();
+    const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1).getTime() - now.getTime();
+    const timer = setTimeout(checkDay, Math.max(1000, msUntilMidnight));
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onFocus);
+      clearTimeout(timer);
+    };
+  }, [currentDayKey, load]);
+
   // Patch a task field optimistically + persist
   const patchTask = useCallback(async (id: string, patch: Partial<Task>) => {
     const target = effectiveAllTasks.find(t => t.id === id);
     const owner = target ? target.user_id === user?.id : true;
     if (owner) setAllTasks(prev => prev.map(x => x.id === id ? { ...x, ...patch } as Task : x));
+
+    if (user?.id) {
+      const status = await persistTask(user.id, { id, ...patch });
+      if (status === "failed") {
+        if (owner && target) setAllTasks(prev => prev.map(x => x.id === id ? target : x));
+        toast.error(T("ذخیره تغییرات ناموفق بود", "Could not save task changes"));
+        return;
+      }
+      if (status === "queued") {
+        toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
+      }
+      window.dispatchEvent(new Event("tasks-changed"));
+      return;
+    }
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id } });
@@ -421,7 +462,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       return cmpForLevel(primary)(a, b) || cmpForLevel(secondary)(a, b);
     });
     return list;
-  }, [effectiveAllTasks, scope, params.id, filters, taskTagsMap, graceMap, taskMap]);
+  }, [effectiveAllTasks, scope, params.id, filters, taskTagsMap, graceMap, taskMap, currentDayKey]);
 
   const isFolder = scope === "folder" && !!params.id;
   const folderTopLevel = useMemo(() => {
@@ -454,20 +495,31 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       setGraceMap(prev => { const n = { ...prev }; delete n[t.id]; return n; });
     }, GRACE_MS);
 
+    if (user?.id) {
+      const status = await persistTask(user.id, { id: t.id, ...patch });
+      if (status === "failed") {
+        if (isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? t : x));
+        toast.error(T("تکمیل تسک با خطا مواجه شد", "Could not complete task"));
+        return;
+      }
+      if (status === "queued") {
+        toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
+      }
+      window.dispatchEvent(new Event("tasks-changed"));
+      await logTaskActivity(t.id, user.id, "completed", { ...patch, outcome_id: outcome?.id } as Record<string, unknown>);
+      return;
+    }
+
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: t.id } });
       toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
       return;
     }
 
-    if (user) {
-      await saveTask(user.id, { id: t.id, ...patch });
-    }
     try {
       await firebaseStore.from("tasks").update(patch).eq("id", t.id);
     } catch {}
     if (!isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } as Task : x));
-    if (user) await logTaskActivity(t.id, user.id, "completed", { ...patch, outcome_id: outcome?.id } as Record<string, unknown>);
   };
 
   const completeTask = async (t: Task, outcome: TaskOutcome | null = null) => {
@@ -498,20 +550,31 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     setGraceMap(prev => { const n = { ...prev }; delete n[t.id]; return n; });
     setGraceTasks(prev => { const n = { ...prev }; delete n[t.id]; return n; });
 
+    if (user?.id) {
+      const status = await persistTask(user.id, { id: t.id, ...patch });
+      if (status === "failed") {
+        if (isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? t : x));
+        toast.error(T("بازگشایی تسک با خطا مواجه شد", "Could not reopen task"));
+        return;
+      }
+      if (status === "queued") {
+        toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
+      }
+      window.dispatchEvent(new Event("tasks-changed"));
+      await logTaskActivity(t.id, user.id, "reopened", patch as Record<string, unknown>);
+      return;
+    }
+
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: t.id } });
       toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
       return;
     }
 
-    if (user) {
-      await saveTask(user.id, { id: t.id, ...patch });
-    }
     try {
       await firebaseStore.from("tasks").update(patch).eq("id", t.id);
     } catch {}
     if (!isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } as Task : x));
-    if (user) await logTaskActivity(t.id, user.id, "reopened", patch as Record<string, unknown>);
   };
 
   const toggleTask = async (t: Task) => {
@@ -548,6 +611,18 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         };
         if (t.user_id === user?.id) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } : x));
 
+        if (user?.id) {
+          const status = await persistTask(user.id, { id: t.id, ...patch });
+          if (status === "failed") {
+            if (t.user_id === user?.id) setAllTasks(prev => prev.map(x => x.id === t.id ? t : x));
+            toast.error(T("بروزرسانی تکرار تسک با خطا مواجه شد", "Could not update recurring task"));
+            return;
+          }
+          window.dispatchEvent(new Event("tasks-changed"));
+          toast.success(T(`نمونه بعدی به ${format(next, "yyyy-MM-dd HH:mm")} منتقل شد 🔁`, `Next instance moved to ${format(next, "yyyy-MM-dd HH:mm")} 🔁`));
+          return;
+        }
+
         if (typeof navigator !== "undefined" && !navigator.onLine) {
           await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: t.id } });
           toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
@@ -578,46 +653,48 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   };
 
   const delTask = async (id: string) => {
+    if (!user?.id) return;
     const target = effectiveAllTasks.find(t => t.id === id);
-    if (target && target.user_id !== user?.id) { toast(T("فقط صاحب تسک می‌تواند حذف کند", "Only the task owner can delete")); return; }
-    // snapshot task + descendants + tag links for undo
-    const ids = collectTaskDescendantIds(id, childrenMap);
-    const snaps = allTasks.filter(t => ids.includes(t.id));
+    if (target && target.user_id !== user.id) {
+      toast(T("فقط صاحب تسک می‌تواند حذف کند", "Only the task owner can delete"));
+      return;
+    }
+    const allDescendantIds = collectTaskDescendantIds(id, childrenMap);
+    const snaps = allTasks.filter(t => allDescendantIds.includes(t.id));
+    const previousTasks = allTasks;
     const until = Date.now() + GRACE_MS;
-    // Keep deleted task(s) visible with strikethrough for a short grace period
     const ghosts: Record<string, Task & { _graceUntil: number }> = {};
     for (const s of snaps) {
       ghosts[s.id] = { ...s, completed: true, status: "done" as TaskStatus, _graceUntil: until };
     }
     let tagLinks: Record<string, unknown>[] | null = null;
     if (typeof navigator === "undefined" || navigator.onLine) {
-      const { data } = await firebaseStore.from("task_tags").select("*").in("task_id", ids);
+      const { data } = await firebaseStore.from("task_tags").select("*").in("task_id", allDescendantIds);
       tagLinks = (data as Record<string, unknown>[] | null) || null;
     }
-    setAllTasks(prev => prev.filter(t => !ids.includes(t.id)));
+    setAllTasks(prev => prev.filter(t => !allDescendantIds.includes(t.id)));
     setGraceTasks(prev => ({ ...prev, ...ghosts }));
-    setGraceMap(prev => ({ ...prev, ...Object.fromEntries(ids.map(i => [i, until])) }));
+    setGraceMap(prev => ({ ...prev, ...Object.fromEntries(allDescendantIds.map(i => [i, until])) }));
     window.setTimeout(() => {
-      setGraceTasks(prev => { const n = { ...prev }; ids.forEach(i => delete n[i]); return n; });
-      setGraceMap(prev => { const n = { ...prev }; ids.forEach(i => delete n[i]); return n; });
+      setGraceTasks(prev => { const n = { ...prev }; allDescendantIds.forEach(i => delete n[i]); return n; });
+      setGraceMap(prev => { const n = { ...prev }; allDescendantIds.forEach(i => delete n[i]); return n; });
     }, GRACE_MS);
 
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      await enqueueOp({ table: "tasks", op: "delete", match: { id } });
-      toast.info(T("حذف ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Delete saved locally — will sync when online"));
+    const res = await deleteTaskCascade(user.id, id, allTasks);
+    if (!res.success) {
+      setAllTasks(previousTasks);
+      toast.error(T("حذف تسک با خطا مواجه شد", "Could not delete task"));
       return;
     }
 
-    if (user) {
-      await removeTask(user.id, id);
-    }
-    try {
-      await firebaseStore.from("tasks").delete().eq("id", id);
-    } catch {}
     const title = snaps.find(s => s.id === id)?.title || "";
     const restore = async () => {
-      await firebaseStore.from("tasks").insert(snaps as never);
-      if (tagLinks?.length) await firebaseStore.from("task_tags").insert(tagLinks as never);
+      await Promise.all(snaps.map(s => persistTask(user.id, s)));
+      if (tagLinks?.length) {
+        try {
+          await firebaseStore.from("task_tags").insert(tagLinks as never);
+        } catch {}
+      }
       load();
     };
     pushUndo({ label: T(`تسک «${title}» حذف شد`, `Task "${title}" deleted`), undo: restore });
@@ -625,16 +702,19 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   };
 
   const askDeleteTask = (t: Task) => {
-    if (t.user_id !== user?.id) { toast(T("فقط صاحب تسک می‌تواند حذف کند", "Only the task owner can delete")); return; }
-    const childCount = (childrenMap[t.id] || []).length;
+    if (t.user_id !== user?.id) {
+      toast(T("فقط صاحب تسک می‌تواند حذف کند", "Only the task owner can delete"));
+      return;
+    }
+    const allDescendantIds = collectTaskDescendantIds(t.id, childrenMap);
+    const childCount = allDescendantIds.filter(i => i !== t.id).length;
     setConfirm({
       kind: "task",
       id: t.id,
       title: t.title,
+      childCount,
       onConfirm: async () => { await delTask(t.id); },
     });
-    // include child count info via title hack (handled in dialog body)
-    (window as any).__lastChildCount = childCount;
   };
 
   // Compute progress including nested descendants.
@@ -796,6 +876,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       expanded={expanded}
       getProgress={getProgress}
       taskMap={taskMap}
+      allowDrag={scope !== "today" && scope !== "next7"}
     />
   );
 
@@ -1048,13 +1129,24 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirm?.kind === "task" ? T("حذف تسک؟", "Delete task?") : confirm?.kind === "note" ? T("حذف نوت؟", "Delete note?") : T("حذف زیرتسک؟", "Delete subtask?")}
+              {confirm?.kind === "task"
+                ? confirm.childCount && confirm.childCount > 0
+                  ? T(`حذف این تسک و ${confirm.childCount} زیرتسک؟`, `Delete this task and ${confirm.childCount} subtasks?`)
+                  : T("حذف تسک؟", "Delete task?")
+                : confirm?.kind === "note"
+                ? T("حذف نوت؟", "Delete note?")
+                : T("حذف زیرتسک؟", "Delete subtask?")}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {T(`آیا مطمئنی می‌خوای «${confirm?.title || T("این مورد", "this item")}» را حذف کنی؟`, `Are you sure you want to delete "${confirm?.title || T("این مورد", "this item")}"?`)}
-              {confirm?.kind === "task" && (window as any).__lastChildCount > 0 && (
-                <span className="block mt-2 text-destructive">⚠️ {T(`${(window as any).__lastChildCount} زیرتسک هم با این تسک حذف می‌شود.`, `${(window as any).__lastChildCount} subtask(s) will also be deleted.`)}</span>
-              )}
+              {confirm?.childCount && confirm.childCount > 0
+                ? T(
+                    `آیا مطمئنی می‌خوای «${confirm?.title || T("این تسک", "this task")}» و ${confirm.childCount} زیرتسک آن را حذف کنی؟`,
+                    `Are you sure you want to delete "${confirm?.title || T("this task", "this task")}" and its ${confirm.childCount} subtasks?`
+                  )
+                : T(
+                    `آیا مطمئنی می‌خوای «${confirm?.title || T("این مورد", "this item")}» را حذف کنی؟`,
+                    `Are you sure you want to delete "${confirm?.title || T("this item", "this item")}"?`
+                  )}
               <span className="block mt-2 text-xs">{T("این عمل قابل بازگشت نیست.", "This action cannot be undone.")}</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
