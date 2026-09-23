@@ -453,7 +453,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
                 const docCards = cards.filter((c) => c.document_id === doc.id);
 
                 const cardFns: Array<() => { y: number; height: number }> = [];
-                docCards.slice(0, 5).forEach((card) => {
+                docCards.slice(0, 15).forEach((card) => {
                   cardFns.push(() => {
                     return layoutNode(
                       `card-${card.id}`,
@@ -516,7 +516,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
             const docCards = cards.filter((c) => c.document_id === doc.id);
 
             const cardFns: Array<() => { y: number; height: number }> = [];
-            docCards.slice(0, 5).forEach((card) => {
+            docCards.slice(0, 15).forEach((card) => {
               cardFns.push(() => {
                 return layoutNode(
                   `card-${card.id}`,
@@ -579,7 +579,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
         const docCards = cards.filter((c) => c.document_id === doc.id);
 
         const cardFns: Array<() => { y: number; height: number }> = [];
-        docCards.slice(0, 5).forEach((card) => {
+        docCards.slice(0, 15).forEach((card) => {
           cardFns.push(() => {
             return layoutNode(
               `card-${card.id}`,

@@ -19,13 +19,14 @@ import { KnowledgeSidebarTree } from "@/components/knowledge/KnowledgeSidebarTre
 import { KnowledgeDocumentReader } from "@/components/knowledge/KnowledgeDocumentReader";
 import { KnowledgeDocumentEditorModal } from "@/components/knowledge/KnowledgeDocumentEditorModal";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 export const KnowledgeBaseView: React.FC = () => {
   const { user } = useAuth();
   const { isEn } = useBilingual();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const urlDocId = searchParams.get("docId");
 
@@ -331,12 +332,8 @@ export const KnowledgeBaseView: React.FC = () => {
             folder={currentFolder}
             onEdit={handleOpenEditDoc}
             onDelete={handleDeleteDoc}
-            onAddToNote={(text) => {
-              toast.success(isEn ? "Text copied for note" : "متن برای نوت کپی شد");
-            }}
-            onAddToTask={(text) => {
-              toast.success(isEn ? "Text copied for task" : "متن برای تسک کپی شد");
-            }}
+            userId={userId}
+            onOpenReview={() => navigate("/app/review")}
           />
         </div>
       </div>

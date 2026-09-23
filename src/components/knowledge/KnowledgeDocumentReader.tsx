@@ -17,13 +17,18 @@ import { useBilingual } from "@/hooks/useBilingual";
 import type { KnowledgeDocument, KnowledgeFolder, DocumentViewMode } from "@/lib/knowledgeTypes";
 import { sanitizeKnowledgeHtml } from "@/lib/knowledgeBeautifier";
 import { TextSelectionFloatingBar } from "./TextSelectionFloatingBar";
+import { AiQuestionGeneratorModal } from "./AiQuestionGeneratorModal";
 
 interface KnowledgeDocumentReaderProps {
   document: KnowledgeDocument | null;
   folder: KnowledgeFolder | null;
   onEdit: (doc: KnowledgeDocument) => void;
   onDelete: (docId: string) => void;
+  userId?: string;
+  onOpenReview?: () => void;
+  /** @deprecated */
   onAddToNote?: (text: string) => void;
+  /** @deprecated */
   onAddToTask?: (text: string) => void;
   onAiAction?: (text: string) => void;
 }
@@ -33,6 +38,8 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   folder,
   onEdit,
   onDelete,
+  userId = "guest",
+  onOpenReview,
   onAddToNote,
   onAddToTask,
   onAiAction,
@@ -41,6 +48,8 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   const [viewMode, setViewMode] = useState<DocumentViewMode>("reader");
   const [fontSize, setFontSize] = useState<number>(15);
   const [isCopied, setIsCopied] = useState(false);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [selectedSnippetForAi, setSelectedSnippetForAi] = useState("");
   const contentContainerRef = useRef<HTMLDivElement>(null);
 
   // Memoize sanitized HTML to avoid expensive re-parsing on every render
@@ -62,6 +71,19 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
     const blob = new Blob([document.content_html], { type: "text/html;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank");
+  };
+
+  const handleTriggerAiFromSelection = (text: string) => {
+    setSelectedSnippetForAi(text);
+    setAiModalOpen(true);
+  };
+
+  const handleTriggerAiFromToolbar = () => {
+    if (!document) return;
+    const selection = window.getSelection()?.toString().trim();
+    const targetText = selection || document.plain_text || document.title;
+    setSelectedSnippetForAi(targetText);
+    setAiModalOpen(true);
   };
 
   if (!document) {
@@ -97,6 +119,21 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 
         {/* View Mode & Actions Toolbar */}
         <div className="flex items-center gap-1.5 flex-wrap">
+          {/* AI Flashcard Generator Button */}
+          <button
+            type="button"
+            onClick={handleTriggerAiFromToolbar}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-linear-to-r from-purple-600 via-indigo-600 to-sky-600 hover:from-purple-500 hover:to-sky-500 text-white font-bold text-xs shadow-xs transition cursor-pointer"
+            title={
+              isEn
+                ? "Generate Leitner & Mind Map questions with AI"
+                : "تولید سوالات لایتنر و نقشه ذهنی با هوش مصنوعی"
+            }
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+            <span>{isEn ? "Generate Cards (AI)" : "تولید کارت و سوال هوشمند"}</span>
+          </button>
+
           {/* Mode Switcher */}
           <div className="flex items-center p-0.5 rounded-xl bg-muted/60 border border-border text-xs">
             <button
@@ -266,8 +303,21 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
           onAddToNote={onAddToNote}
           onAddToTask={onAddToTask}
           onAiAction={onAiAction}
+          onGenerateQuestions={handleTriggerAiFromSelection}
         />
       )}
+
+      {/* AI Question & Flashcard Generator Modal */}
+      <AiQuestionGeneratorModal
+        open={aiModalOpen}
+        onClose={() => setAiModalOpen(false)}
+        initialText={selectedSnippetForAi}
+        documentId={document?.id}
+        documentTitle={document?.title}
+        folderId={document?.folder_id}
+        userId={userId}
+        onOpenReview={onOpenReview}
+      />
     </div>
   );
 };

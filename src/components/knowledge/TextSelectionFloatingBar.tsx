@@ -1,19 +1,21 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Copy, Check, Plus, MessageSquare, Sparkles, X, BookOpen } from "lucide-react";
+import { Copy, Check, Sparkles, X, BookOpen } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
 
 interface TextSelectionFloatingBarProps {
   containerRef?: React.RefObject<HTMLElement | null>;
+  /** @deprecated Removed per user request — AI Question generation preferred */
   onAddToNote?: (text: string) => void;
+  /** @deprecated Removed per user request — AI Question generation preferred */
   onAddToTask?: (text: string) => void;
   onAiAction?: (text: string) => void;
+  onGenerateQuestions?: (text: string) => void;
 }
 
 export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> = ({
   containerRef,
-  onAddToNote,
-  onAddToTask,
   onAiAction,
+  onGenerateQuestions,
 }) => {
   const { isEn } = useBilingual();
   const [selectedText, setSelectedText] = useState("");
@@ -55,7 +57,7 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
     }
 
     const top = Math.max(12, rect.top - 54);
-    const left = Math.max(16, Math.min(window.innerWidth - 300, rect.left + rect.width / 2 - 140));
+    const left = Math.max(16, Math.min(window.innerWidth - 320, rect.left + rect.width / 2 - 140));
 
     setSelectedText(text);
     setCoords({ top, left });
@@ -115,11 +117,25 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
     window.getSelection()?.removeAllRanges();
   };
 
+  const handleTriggerAiQuestions = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!selectedText) return;
+    if (onGenerateQuestions) {
+      onGenerateQuestions(selectedText);
+    } else if (onAiAction) {
+      onAiAction(selectedText);
+    }
+    handleDismiss(e);
+  };
+
   if (!selectedText) return null;
 
   const wordCount = selectedText.split(/\s+/).filter(Boolean).length;
   const previewSnippet =
     selectedText.length > 40 ? `${selectedText.substring(0, 40)}...` : selectedText;
+
+  const hasAiAction = Boolean(onGenerateQuestions || onAiAction);
 
   return (
     <>
@@ -156,54 +172,17 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
             )}
           </button>
 
-          {onAddToNote && (
+          {/* AI Flashcard & Question Generation Button */}
+          {hasAiAction && (
             <button
               type="button"
               onMouseDown={(e) => e.preventDefault()}
-              onClick={(e) => {
-                e.preventDefault();
-                onAddToNote(selectedText);
-                handleDismiss(e);
-              }}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-600/80 hover:bg-purple-600 text-white font-medium transition cursor-pointer"
-              title={isEn ? "Add to Notes" : "افزودن به نوت"}
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span>{isEn ? "Note" : "نوت"}</span>
-            </button>
-          )}
-
-          {onAddToTask && (
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={(e) => {
-                e.preventDefault();
-                onAddToTask(selectedText);
-                handleDismiss(e);
-              }}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-medium transition cursor-pointer"
-              title={isEn ? "Create Task from text" : "ساخت تسک از متن"}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>{isEn ? "Task" : "تسک"}</span>
-            </button>
-          )}
-
-          {onAiAction && (
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={(e) => {
-                e.preventDefault();
-                onAiAction(selectedText);
-                handleDismiss(e);
-              }}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-linear-to-r from-purple-600 to-indigo-600 text-white font-bold transition cursor-pointer"
-              title={isEn ? "AI Action" : "هوش مصنوعی"}
+              onClick={handleTriggerAiQuestions}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-linear-to-r from-purple-600 via-indigo-600 to-sky-600 hover:from-purple-500 hover:to-sky-500 text-white font-bold transition cursor-pointer shadow-sm shadow-purple-500/25"
+              title={isEn ? "Generate Leitner & Mind Map cards with AI" : "تولید کارت‌های لایتنر و نقشه ذهنی با هوش مصنوعی"}
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-              <span>AI</span>
+              <span>{isEn ? "Generate Cards (AI)" : "تولید کارت و سوال هوشمند"}</span>
             </button>
           )}
 
@@ -257,7 +236,7 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={handleCopy}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs transition cursor-pointer"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs transition cursor-pointer"
             >
               {isCopied ? (
                 <>
@@ -272,35 +251,15 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
               )}
             </button>
 
-            {onAddToNote && (
+            {hasAiAction && (
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={(e) => {
-                  e.preventDefault();
-                  onAddToNote(selectedText);
-                  handleDismiss(e);
-                }}
-                className="flex items-center justify-center gap-1 py-2 px-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-medium text-xs transition cursor-pointer"
+                onClick={handleTriggerAiQuestions}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-linear-to-r from-purple-600 via-indigo-600 to-sky-600 text-white font-bold text-xs shadow-md shadow-purple-500/25 transition cursor-pointer"
               >
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>{isEn ? "Note" : "نوت"}</span>
-              </button>
-            )}
-
-            {onAddToTask && (
-              <button
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={(e) => {
-                  e.preventDefault();
-                  onAddToTask(selectedText);
-                  handleDismiss(e);
-                }}
-                className="flex items-center justify-center gap-1 py-2 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-medium text-xs transition cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>{isEn ? "Task" : "تسک"}</span>
+                <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                <span>{isEn ? "Generate Cards (AI)" : "تولید سوال هوشمند (AI)"}</span>
               </button>
             )}
           </div>

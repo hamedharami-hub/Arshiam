@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { TextSelectionFloatingBar } from "./TextSelectionFloatingBar";
 
 vi.mock("@/hooks/useBilingual", () => ({
@@ -18,8 +18,7 @@ describe("TextSelectionFloatingBar", () => {
   });
 
   it("2. shows actions when text is selected and handles copy", async () => {
-    const onAddToNote = vi.fn();
-    const onAddToTask = vi.fn();
+    const onGenerateQuestions = vi.fn();
 
     // Mock clipboard
     Object.assign(navigator, {
@@ -45,22 +44,32 @@ describe("TextSelectionFloatingBar", () => {
 
     render(
       <TextSelectionFloatingBar
-        onAddToNote={onAddToNote}
-        onAddToTask={onAddToTask}
+        onGenerateQuestions={onGenerateQuestions}
       />
     );
 
-    // Trigger selection check via mouseup
-    fireEvent.mouseUp(document);
-
-    // Wait for debounce timer
-    await new Promise((r) => setTimeout(r, 100));
+    // Trigger selection check via mouseup wrapped in act
+    await act(async () => {
+      fireEvent.mouseUp(document);
+      await new Promise((r) => setTimeout(r, 100));
+    });
 
     // Elements should now be visible
     const copyBtns = screen.getAllByTitle(/کپی/i);
     expect(copyBtns.length).toBeGreaterThan(0);
 
-    fireEvent.click(copyBtns[0]);
+    await act(async () => {
+      fireEvent.click(copyBtns[0]);
+    });
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith("Fluoxetine 20mg");
+
+    // Check AI Question button
+    const aiBtns = screen.getAllByTitle(/تولید کارت‌های لایتنر/i);
+    expect(aiBtns.length).toBeGreaterThan(0);
+
+    await act(async () => {
+      fireEvent.click(aiBtns[0]);
+    });
+    expect(onGenerateQuestions).toHaveBeenCalledWith("Fluoxetine 20mg");
   });
 });
