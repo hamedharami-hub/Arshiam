@@ -58,6 +58,7 @@ export const EN_LABELS: Record<string, string> = {
   "ویجت‌ها": "Widgets",
   "باغ رشد": "Garden",
   "افراد": "Contacts",
+  "کتابخانه دانش": "Knowledge Base",
 };
 
 export const FA_LABELS: Record<string, string> = {
@@ -65,6 +66,7 @@ export const FA_LABELS: Record<string, string> = {
   "Pomodoro": "پومودورو",
   "Smart Lists": "لیست‌های هوشمند",
   "Contacts": "افراد",
+  "Knowledge Base": "کتابخانه دانش",
 };
 
 export function useLabel() {
@@ -103,6 +105,7 @@ export const SECTIONS: Section[] = [
       { url: "/app/garden", icon: Sprout, label: "باغ رشد" },
       { url: "/app/habits", icon: Target, label: "عادت‌ها" },
       { url: "/app/notes", icon: FileText, label: "نوت‌ها" },
+      { url: "/app/knowledge", icon: BookOpen, label: "کتابخانه دانش" },
       { url: "/app/cycle", icon: Calendar, label: "سیکل پریود" },
     ],
   },
