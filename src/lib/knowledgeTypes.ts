@@ -16,6 +16,10 @@ export interface KnowledgeDocument {
   folder_id: string | null;
   title: string;
   content_html: string;
+  title_en?: string;
+  content_en?: string;
+  preferred_language?: "fa" | "en" | "bilingual";
+  direction?: "rtl" | "ltr" | "auto";
   plain_text?: string;
   tags?: string[];
   source_url?: string;
@@ -31,3 +35,4 @@ export interface KnowledgeFolderNode extends KnowledgeFolder {
 }
 
 export type DocumentViewMode = "reader" | "original" | "split";
+export type DocumentLanguageMode = "fa" | "en" | "bilingual";

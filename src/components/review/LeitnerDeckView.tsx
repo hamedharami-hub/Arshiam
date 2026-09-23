@@ -26,6 +26,7 @@ import {
   getLeitnerBoxStats,
 } from "@/lib/leitnerService";
 import { getKnowledgeDocuments } from "@/lib/knowledgeService";
+import { isPersianText } from "@/lib/bilingualHelper";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
@@ -58,6 +59,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [showClue, setShowClue] = useState(false);
+  const [cardDirectionOverride, setCardDirectionOverride] = useState<"rtl" | "ltr" | null>(null);
 
   // New Card Modal
   const [openNewCard, setOpenNewCard] = useState(false);
@@ -260,15 +262,33 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
       </div>
 
       {/* Active Study Session Runner */}
-      {isStudying && activeCard ? (
+      {isStudying && activeCard ? (() => {
+        const currentText = isFlipped ? activeCard.back : activeCard.front;
+        const isCardRtl = cardDirectionOverride ? cardDirectionOverride === "rtl" : isPersianText(currentText);
+
+        return (
         <div className="p-6 rounded-3xl bg-card border-2 border-primary/50 shadow-xl flex flex-col items-center justify-center text-center space-y-6 animate-in zoom-in-95 duration-200 max-w-2xl mx-auto w-full">
           <div className="w-full flex items-center justify-between text-xs text-muted-foreground border-b border-border pb-3">
             <span className="font-mono text-primary font-bold">
               {currentIndex + 1} / {dueCards.length}
             </span>
-            <span className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-bold font-mono text-[11px]">
-              Box {activeCard.box}
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setCardDirectionOverride((curr) =>
+                    curr ? (curr === "rtl" ? "ltr" : "rtl") : isCardRtl ? "ltr" : "rtl"
+                  )
+                }
+                className="px-2 py-0.5 rounded-lg bg-secondary hover:bg-secondary/80 text-[10px] text-muted-foreground hover:text-foreground font-semibold transition cursor-pointer"
+                title={isEn ? "Toggle RTL / LTR direction" : "تغییر جهت راست‌چین / چپ‌چین"}
+              >
+                {isCardRtl ? "🇮🇷 راست‌چین (RTL)" : "🇬🇧 چپ‌چین (LTR)"}
+              </button>
+              <span className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-bold font-mono text-[11px]">
+                Box {activeCard.box}
+              </span>
+            </div>
             <button
               type="button"
               onClick={() => setIsStudying(false)}
@@ -294,15 +314,25 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
                 : "پرسش / مفهوم (کلیک برای چرخاندن کارت)"}
             </div>
 
-            <div className="text-base sm:text-lg font-bold text-foreground leading-relaxed max-w-lg">
-              {isFlipped ? activeCard.back : activeCard.front}
+            <div
+              dir={isCardRtl ? "rtl" : "ltr"}
+              className={`text-base sm:text-lg font-bold text-foreground leading-relaxed max-w-lg w-full ${
+                isCardRtl ? "text-right" : "text-left"
+              }`}
+            >
+              {currentText}
             </div>
 
             {/* Clue button */}
             {!isFlipped && activeCard.clue && (
               <div className="mt-4">
                 {showClue ? (
-                  <span className="text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 px-3 py-1 rounded-xl border border-amber-500/20">
+                  <span
+                    dir={isPersianText(activeCard.clue) ? "rtl" : "ltr"}
+                    className={`text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 px-3 py-1 rounded-xl border border-amber-500/20 inline-block ${
+                      isPersianText(activeCard.clue) ? "text-right" : "text-left"
+                    }`}
+                  >
                     💡 {activeCard.clue}
                   </span>
                 ) : (
@@ -360,7 +390,8 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
             </button>
           </div>
         </div>
-      ) : null}
+        );
+      })() : null}
 
       {/* Cards Table / List */}
       <div className="p-4 rounded-3xl bg-card border border-border space-y-3 shadow-sm">
@@ -381,30 +412,44 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
           </div>
         ) : (
           <div className="space-y-2">
-            {cards.map((c) => (
-              <div
-                key={c.id}
-                className="p-3 rounded-xl bg-muted/40 border border-border flex items-center justify-between gap-3 text-xs hover:bg-muted/70 transition"
-              >
-                <div className="space-y-1 min-w-0">
-                  <div className="font-bold text-foreground truncate">{c.front}</div>
-                  <div className="text-[11px] text-muted-foreground truncate">{c.back}</div>
-                </div>
+            {cards.map((c) => {
+              const isFrontRtl = isPersianText(c.front);
+              const isBackRtl = isPersianText(c.back);
+              return (
+                <div
+                  key={c.id}
+                  className="p-3 rounded-xl bg-muted/40 border border-border flex items-center justify-between gap-3 text-xs hover:bg-muted/70 transition"
+                >
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div
+                      dir={isFrontRtl ? "rtl" : "ltr"}
+                      className={`font-bold text-foreground truncate ${isFrontRtl ? "text-right" : "text-left"}`}
+                    >
+                      {c.front}
+                    </div>
+                    <div
+                      dir={isBackRtl ? "rtl" : "ltr"}
+                      className={`text-[11px] text-muted-foreground truncate ${isBackRtl ? "text-right" : "text-left"}`}
+                    >
+                      {c.back}
+                    </div>
+                  </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary font-mono font-bold text-[10px]">
-                    B{c.box}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteCard(c.id)}
-                    className="p-1 rounded text-muted-foreground hover:text-rose-500 transition cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary font-mono font-bold text-[10px]">
+                      B{c.box}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCard(c.id)}
+                      className="p-1 rounded text-muted-foreground hover:text-rose-500 transition cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -427,6 +472,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               <textarea
                 required
                 rows={2}
+                dir="auto"
                 value={frontInput}
                 onChange={(e) => setFrontInput(e.target.value)}
                 placeholder={isEn ? "e.g. Mechanism of Fluoxetine" : "مثلاً مکانیسم اثر فلوکستین..."}
@@ -441,6 +487,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               <textarea
                 required
                 rows={3}
+                dir="auto"
                 value={backInput}
                 onChange={(e) => setBackInput(e.target.value)}
                 placeholder={isEn ? "e.g. Selective Serotonin Reuptake Inhibitor (SSRI)" : "مثلاً مهارکننده انتخابی بازجذب سروتونین (SSRI)..."}
@@ -454,6 +501,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               </label>
               <input
                 type="text"
+                dir="auto"
                 value={clueInput}
                 onChange={(e) => setClueInput(e.target.value)}
                 placeholder={isEn ? "e.g. Longest half-life" : "مثلاً بیشترین نیمه‌عمر"}

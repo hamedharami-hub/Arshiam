@@ -737,12 +737,66 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
 }
 
 /* ==========================================================================
-   KNOWLEDGE BASE HTML READER STYLES
+   KNOWLEDGE BASE HTML READER STYLES & BILINGUAL DIRECTION
    ========================================================================== */
+.dir-rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+.dir-ltr {
+  direction: ltr;
+  text-align: left;
+}
+
 .knowledge-html-content {
   font-family: inherit;
-  line-height: 1.8;
+  line-height: 1.9;
+  letter-spacing: normal;
   color: hsl(var(--foreground));
+}
+
+.knowledge-html-content p,
+.knowledge-html-content li,
+.knowledge-html-content div:not([class*="callout"]):not([class*="table"]):not([class*="checklist"]) {
+  unicode-bidi: plaintext;
+}
+
+.knowledge-html-content.dir-rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+.knowledge-html-content.dir-ltr {
+  direction: ltr;
+  text-align: left;
+}
+
+/* Bilingual Dual Column Grid */
+.bilingual-dual-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .bilingual-dual-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+  }
+}
+
+.bilingual-col-fa {
+  direction: rtl;
+  text-align: right;
+  border-inline-end: 1px solid hsl(var(--border) / 0.7);
+  padding-inline-end: 1.25rem;
+}
+
+.bilingual-col-en {
+  direction: ltr;
+  text-align: left;
+  padding-inline-start: 0.25rem;
 }
 
 .knowledge-html-content h1,

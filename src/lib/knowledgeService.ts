@@ -237,7 +237,11 @@ export async function createKnowledgeDocument(
   data: {
     folder_id?: string | null;
     title: string;
+    title_en?: string;
     content_html: string;
+    content_en?: string;
+    preferred_language?: "fa" | "en" | "bilingual";
+    direction?: "rtl" | "ltr" | "auto";
     tags?: string[];
     source_url?: string;
   }
@@ -252,7 +256,11 @@ export async function createKnowledgeDocument(
     user_id: userId,
     folder_id: data.folder_id || null,
     title: titleTrimmed,
+    title_en: data.title_en?.trim(),
     content_html: data.content_html,
+    content_en: data.content_en,
+    preferred_language: data.preferred_language,
+    direction: data.direction,
     plain_text: plainText,
     tags: data.tags || [],
     source_url: data.source_url || "",

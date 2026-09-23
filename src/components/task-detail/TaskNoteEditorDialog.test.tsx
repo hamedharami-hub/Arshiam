@@ -5,7 +5,8 @@ import { TaskNoteEditorDialog } from "./TaskNoteEditorDialog";
 import type { TaskNote } from "@/lib/taskTypes";
 
 vi.mock("react-i18next", () => ({
-  useTranslation: () => ({ i18n: { language: "en" } }),
+  useTranslation: () => ({ i18n: { language: "en" }, t: (k: string) => k }),
+  initReactI18next: { type: "3rdParty", init: vi.fn() },
 }));
 
 vi.mock("@/lib/taskNotesService", () => ({

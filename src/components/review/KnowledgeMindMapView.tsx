@@ -10,11 +10,14 @@ import {
   Search,
   Layers,
   ChevronRight,
+  ChevronLeft,
   ChevronDown,
   RotateCcw,
   Eye,
+  ArrowRightLeft,
 } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
+import { isPersianText } from "@/lib/bilingualHelper";
 import type { KnowledgeFolder, KnowledgeDocument } from "@/lib/knowledgeTypes";
 import type { LeitnerCard } from "@/lib/leitnerTypes";
 import { getKnowledgeFolders, getKnowledgeDocuments } from "@/lib/knowledgeService";
@@ -62,16 +65,21 @@ interface MindMapNodeItemProps {
   node: MindMapNode;
   isHighlighted: boolean;
   isEn: boolean;
+  treeDirection?: "rtl" | "ltr";
   onOpenPreview: (doc: KnowledgeDocument) => void;
   onToggleExpand: (nodeId: string) => void;
 }
 
 const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
-  ({ node, isHighlighted, isEn, onOpenPreview, onToggleExpand }) => {
+  ({ node, isHighlighted, isEn, treeDirection = "ltr", onOpenPreview, onToggleExpand }) => {
     const isDoc = node.type === "doc";
     const isFolder = node.type === "folder" || node.type === "subfolder";
     const isRoot = node.type === "root";
     const isCard = node.type === "card";
+
+    const isTitlePersian = isPersianText(node.title);
+    const isSubtitlePersian = node.subtitle ? isPersianText(node.subtitle) : isTitlePersian;
+    const isTreeRtl = treeDirection === "rtl";
 
     return (
       <div
@@ -104,7 +112,10 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
         }}
       >
         {/* Node Icon & Labels */}
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div
+          dir={isTitlePersian ? "rtl" : "ltr"}
+          className="flex items-center gap-2 min-w-0 flex-1"
+        >
           <div className="shrink-0">
             {isRoot && <Sparkles className="w-4 h-4 text-amber-300" />}
             {isFolder && <Folder className="w-4 h-4 text-emerald-500" />}
@@ -114,7 +125,10 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
 
           <div className="min-w-0 flex-1 space-y-0.5">
             <div
+              dir={isTitlePersian ? "rtl" : "ltr"}
               className={`truncate text-xs font-semibold ${
+                isTitlePersian ? "text-right" : "text-left"
+              } ${
                 isRoot ? "text-primary-foreground" : "text-foreground"
               }`}
             >
@@ -122,7 +136,10 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
             </div>
             {node.subtitle && (
               <div
+                dir={isSubtitlePersian ? "rtl" : "ltr"}
                 className={`truncate text-[10px] ${
+                  isSubtitlePersian ? "text-right" : "text-left"
+                } ${
                   isRoot ? "text-primary-foreground/80" : "text-muted-foreground"
                 }`}
               >
@@ -167,6 +184,8 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
             >
               {node.isExpanded ? (
                 <ChevronDown className="w-3.5 h-3.5" />
+              ) : isTreeRtl ? (
+                <ChevronLeft className="w-3.5 h-3.5" />
               ) : (
                 <ChevronRight className="w-3.5 h-3.5" />
               )}
@@ -193,6 +212,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   });
 
   // Canvas Viewport State
+  const [treeDirection, setTreeDirection] = useState<"rtl" | "ltr">("ltr");
   const [zoomLevel, setZoomLevel] = useState<number>(0.9);
   const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 60, y: 80 });
   const [isDragging, setIsDragging] = useState(false);
@@ -641,6 +661,14 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       items.forEach((it) => (it.y += shiftY));
     }
 
+    // If RTL tree direction, flip horizontal coordinate so branches flow right-to-left
+    if (treeDirection === "rtl") {
+      const maxXCoord = Math.max(...items.map((it) => it.x + it.width), 300);
+      items.forEach((it) => {
+        it.x = maxXCoord - (it.x - 60) - it.width;
+      });
+    }
+
     // Build lookup map for fast link generation
     const itemMap = new Map<string, MindMapNode>();
     items.forEach((it) => itemMap.set(it.id, it));
@@ -650,9 +678,10 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       if (item.parentId) {
         const parent = itemMap.get(item.parentId);
         if (parent) {
-          const startX = parent.x + parent.width;
+          const isTreeRtl = treeDirection === "rtl";
+          const startX = isTreeRtl ? parent.x : parent.x + parent.width;
           const startY = parent.y + parent.height / 2;
-          const endX = item.x;
+          const endX = isTreeRtl ? item.x + item.width : item.x;
           const endY = item.y + item.height / 2;
 
           linkList.push({
@@ -702,7 +731,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
         height: maxY - minY + 160,
       },
     };
-  }, [folders, documents, cards, expandedNodeIds, isEn]);
+  }, [folders, documents, cards, expandedNodeIds, isEn, treeDirection]);
 
   // Fit View To Container
   const fitViewToContainer = useCallback(() => {
@@ -970,6 +999,28 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
 
           <div className="w-px h-4 bg-border mx-1" />
 
+          <button
+            type="button"
+            onClick={() => setTreeDirection((d) => (d === "rtl" ? "ltr" : "rtl"))}
+            className="flex items-center gap-1.5 px-2 py-1 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition cursor-pointer text-xs font-medium"
+            title={
+              isEn
+                ? treeDirection === "rtl"
+                  ? "Layout: Right-to-Left (Click to switch)"
+                  : "Layout: Left-to-Right (Click to switch)"
+                : treeDirection === "rtl"
+                ? "جهت شاخه‌ها: راست‌به‌چپ (کلیک برای تغییر)"
+                : "جهت شاخه‌ها: چپ‌به‌راست (کلیک برای تغییر)"
+            }
+          >
+            <ArrowRightLeft className="w-3.5 h-3.5 text-primary" />
+            <span className="text-[11px] font-semibold">
+              {treeDirection === "rtl" ? "RTL" : "LTR"}
+            </span>
+          </button>
+
+          <div className="w-px h-4 bg-border mx-1" />
+
           <span className="text-[11px] font-mono font-bold text-primary px-1.5">
             {Math.round(zoomLevel * 100)}%
           </span>
@@ -1055,8 +1106,9 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
           >
             {links.map((link) => {
               const { startX, startY, endX, endY } = link;
-              const dx = Math.max(30, (endX - startX) * 0.5);
-              const pathData = `M ${startX} ${startY} C ${startX + dx} ${startY}, ${endX - dx} ${endY}, ${endX} ${endY}`;
+              const dx = Math.max(30, Math.abs(endX - startX) * 0.5);
+              const dirSign = endX >= startX ? 1 : -1;
+              const pathData = `M ${startX} ${startY} C ${startX + dx * dirSign} ${startY}, ${endX - dx * dirSign} ${endY}, ${endX} ${endY}`;
 
               return (
                 <path
@@ -1084,6 +1136,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
                 node={node}
                 isHighlighted={isHighlighted}
                 isEn={isEn}
+                treeDirection={treeDirection}
                 onOpenPreview={setPreviewDoc}
                 onToggleExpand={handleToggleExpand}
               />

@@ -205,7 +205,9 @@ export const KnowledgeBaseView: React.FC = () => {
   const handleSaveDoc = async (data: {
     folder_id: string | null;
     title: string;
+    title_en?: string;
     content_html: string;
+    content_en?: string;
     tags: string[];
     source_url?: string;
   }) => {
@@ -334,6 +336,9 @@ export const KnowledgeBaseView: React.FC = () => {
             onDelete={handleDeleteDoc}
             userId={userId}
             onOpenReview={() => navigate("/app/review")}
+            onDocumentUpdated={(updated) => {
+              setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+            }}
           />
         </div>
       </div>

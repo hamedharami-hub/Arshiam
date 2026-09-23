@@ -7,7 +7,10 @@ vi.mock("@/hooks/useShareAccess", () => ({
   useShareAccess: () => ({ canEdit: true, canComment: true, isOwner: true }),
 }));
 vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => false }));
-vi.mock("react-i18next", () => ({ useTranslation: () => ({ i18n: { language: "en" } }) }));
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({ i18n: { language: "en" }, t: (k: string) => k }),
+  initReactI18next: { type: "3rdParty", init: vi.fn() },
+}));
 vi.mock("react-router-dom", () => ({ useNavigate: () => vi.fn() }));
 vi.mock("@/lib/firebaseStore", () => ({ firebaseStore: {} }));
 vi.mock("@/components/TaskSubtasksInline", () => ({ TaskSubtasksInline: () => null }));

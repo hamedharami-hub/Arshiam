@@ -13,7 +13,8 @@ vi.mock("@/hooks/useShareAccess", () => ({
 }));
 vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => false }));
 vi.mock("react-i18next", () => ({
-  useTranslation: () => ({ i18n: { language: "en" } }),
+  useTranslation: () => ({ i18n: { language: "en" }, t: (k: string) => k }),
+  initReactI18next: { type: "3rdParty", init: vi.fn() },
 }));
 const mockNavigate = vi.fn();
 vi.mock("react-router-dom", () => ({
