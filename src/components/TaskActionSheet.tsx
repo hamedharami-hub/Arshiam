@@ -181,16 +181,14 @@ export default function TaskActionSheet({
     if (!user || !canEdit) return;
     setBusy(true);
     try {
-      const { data, error } = await firebaseStore.from("notes").insert({
-        user_id: user.id,
-        task_id: task.id,
+      const { createTaskNote } = await import("@/lib/taskNotesService");
+      const created = await createTaskNote(user.id, task.id, {
         title: task.title,
         content: task.description || "",
-      }).select().single();
-      if (error) throw error;
-      await logTaskActivity(task.id, user.id, "note_created", { note_id: (data as { id: string } | null)?.id });
-      toast.success(T("نوت ساخته شد", "Note created"));
-      navigate("/app/notes");
+      });
+      await logTaskActivity(task.id, user.id, "note_created", { note_id: created.id });
+      toast.success(T("نوت ساخته شد و به تسک پیوست شد", "Note created and attached to task"));
+      onRefresh?.();
       close();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : T("خطا", "Error"));

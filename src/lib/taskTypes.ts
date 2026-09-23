@@ -76,7 +76,15 @@ export type TaskActivity = {
   created_at: string;
 };
 
-export type TaskNote = { id: string; title: string; content: string };
+export type TaskNote = {
+  id: string;
+  user_id?: string;
+  task_id?: string;
+  title: string;
+  content: string;
+  created_at?: string;
+  updated_at?: string;
+};
 
 export type OutcomeAction = {
   title: string;

@@ -22,7 +22,7 @@ import {
   CheckSquare, ListChecks, CalendarDays, Mic, MicOff, Pin, PinOff, Maximize2, Minimize2,
   GitBranch, Zap, Brain,
   Save, ExternalLink, Loader2, Circle, CheckCircle2, MoreHorizontal,
-  Copy, Share2, FolderInput, Timer, Network,
+  Copy, Share2, FolderInput, Timer, Network, Edit,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -34,7 +34,8 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 
 import { RecurrenceEditor } from "@/components/RecurrenceEditor";
 import { TaskAIPanel } from "@/components/TaskAIPanel";
-import { NoteEditorTabs } from "@/components/NoteEditorTabs";
+import { TaskNoteEditorDialog } from "@/components/task-detail/TaskNoteEditorDialog";
+import { getTaskNotes, createTaskNote, deleteTaskNote } from "@/lib/taskNotesService";
 import { TaskStepLists } from "@/components/TaskStepLists";
 import { TaskSubtasksInline } from "@/components/TaskSubtasksInline";
 import { TaskAttachments } from "@/components/TaskAttachments";
@@ -110,7 +111,11 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
   const [t, setT] = useState(task);
   const [taskNotes, setTaskNotes] = useState<TaskNote[]>([]);
-  const [activeNote, setActiveNote] = useState<TaskNote | null>(null);
+  const [editingNote, setEditingNote] = useState<TaskNote | null>(null);
+  const [isAddingNote, setIsAddingNote] = useState(false);
+  const [newNoteTitle, setNewNoteTitle] = useState("");
+  const [newNoteContent, setNewNoteContent] = useState("");
+  const [noteSaving, setNoteSaving] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [snap, setSnap] = useState<number | string>(0.5);
   const [folders, setFolders] = useState<{ id: string; name: string; parent_id: string | null; color: string | null }[]>([]);
@@ -217,8 +222,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [notesRes, tagsRes, subRes, stepListsRes, attachRes, outcomesRes] = await Promise.all([
-        firebaseStore.from("notes").select("id,title,content").eq("task_id", task.id).order("updated_at", { ascending: false }),
+      const [loadedNotes, tagsRes, subRes, stepListsRes, attachRes, outcomesRes] = await Promise.all([
+        getTaskNotes(task.id, user ? user.id : ""),
         firebaseStore.from("task_tags").select("tag_id").eq("task_id", task.id),
         firebaseStore.from("tasks").select("id,title,completed,position").eq("parent_id", task.id),
         firebaseStore.from("task_step_lists").select("id", { count: "exact", head: true }).eq("task_id", task.id),
@@ -226,9 +231,15 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         firebaseStore.from("task_outcomes").select("id", { count: "exact", head: true }).eq("task_id", task.id),
       ]);
       if (cancelled) return;
-      const list = (notesRes.data || []) as any;
-      setTaskNotes(list);
-      if (list.length > 0) setShowNotes(true);
+      setTaskNotes((prev) => {
+        const map = new Map<string, TaskNote>();
+        for (const n of loadedNotes) map.set(n.id, n);
+        for (const p of prev) map.set(p.id, p);
+        return Array.from(map.values()).sort(
+          (a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime()
+        );
+      });
+      if (loadedNotes.length > 0) setShowNotes(true);
       setTaskTagIds((tagsRes.data || []).map((r: any) => r.tag_id));
 
       const subs = (subRes.data || []) as Array<{ id: string; title: string; completed: boolean; position: number }>;
@@ -273,7 +284,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       if (outCount > 0) setShowOutcomes(true);
     })();
     return () => { cancelled = true; };
-  }, [task.id, hasTimeBlock, user]);
+  }, [task.id, hasTimeBlock, user?.id]);
 
   useEffect(() => {
     if (!user) return;
@@ -546,7 +557,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     if (parentOpen) { setParentOpen(false); return; }
     if (scheduleOpen) { setScheduleOpen(false); return; }
     if (tagOpen || topTagOpen) { setTagOpen(false); setTopTagOpen(false); return; }
-    if (activeNote) { setActiveNote(null); return; }
+    if (editingNote) { setEditingNote(null); return; }
+    if (isAddingNote) { setIsAddingNote(false); setNewNoteTitle(""); setNewNoteContent(""); return; }
 
     if (hasPendingChanges || saveState === "saving" || saveState === "error") {
       requestClose();
@@ -562,7 +574,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     }
   }, [
     closePromptOpen, actionMenuOpen, focusOpen, aiOpen, outcomeOpen,
-    folderOpen, parentOpen, scheduleOpen, tagOpen, topTagOpen, activeNote,
+    folderOpen, parentOpen, scheduleOpen, tagOpen, topTagOpen, editingNote, isAddingNote,
     hasPendingChanges, saveState, onBack, onSave, onClose, requestClose,
   ]);
 
@@ -626,44 +638,59 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     void save({ completed: nextCompleted, status: nextCompleted ? "done" : "todo" });
   };
 
-  const addNote = async () => {
-    if (!user || !canEdit) return;
-    const { data, error } = await firebaseStore.from("notes").insert({
-      user_id: user.id, task_id: t.id, title: T("نوت جدید", "New note"), content: "",
-    }).select().single();
-    if (error) return toast.error(error.message);
-    if (data) {
-      setTaskNotes([data as any, ...taskNotes]);
-      setActiveNote(data as any);
+  const handleCancelNewNote = () => {
+    setIsAddingNote(false);
+    setNewNoteTitle("");
+    setNewNoteContent("");
+  };
+
+  const handleSaveNewNote = async () => {
+    if (!user || !canEdit || noteSaving) return;
+    const trimmedTitle = newNoteTitle.trim();
+    const trimmedContent = newNoteContent.trim();
+    if (!trimmedTitle && !trimmedContent) {
+      toast.error(T("عنوان یا متن نوت نباید خالی باشد", "Title or content cannot be empty"));
+      return;
+    }
+    setNoteSaving(true);
+    try {
+      const created = await createTaskNote(user.id, t.id, {
+        title: trimmedTitle || trimmedContent.slice(0, 40) || T("یادداشت", "Note"),
+        content: trimmedContent,
+      });
+      setTaskNotes(prev => [created, ...prev.filter(n => n.id !== created.id)]);
+      toast.success(T("نوت اضافه شد", "Note added"));
+      handleCancelNewNote();
       setShowNotes(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : T("خطا در ایجاد نوت", "Error creating note"));
+    } finally {
+      setNoteSaving(false);
     }
   };
 
-  const saveNote = async (id: string, patch: Partial<TaskNote>) => {
-    if (!canEdit) return;
-    setTaskNotes(taskNotes.map(n => n.id === id ? { ...n, ...patch } : n));
-    if (activeNote?.id === id) setActiveNote({ ...activeNote, ...patch });
-    await firebaseStore.from("notes").update(patch).eq("id", id);
-  };
-
   const askDelNote = (n: TaskNote) => {
+    if (!user || !canEdit) return;
     setConfirm({
-      kind: "note", id: n.id, title: n.title || T("بدون عنوان", "Untitled"),
+      kind: "note",
+      id: n.id,
+      title: n.title || T("بدون عنوان", "Untitled"),
       onConfirm: async () => {
-        const { data: snap } = await firebaseStore.from("notes").select("*").eq("id", n.id).maybeSingle();
-        await firebaseStore.from("notes").delete().eq("id", n.id);
-        setTaskNotes(prev => prev.filter(x => x.id !== n.id));
-        if (activeNote?.id === n.id) setActiveNote(null);
-        if (snap) {
+        try {
+          const existingNote = taskNotes.find(x => x.id === n.id) || n;
+          await deleteTaskNote(user.id, n.id, t.id);
+          setTaskNotes(prev => prev.filter(x => x.id !== n.id));
+          toast.success(T("نوت حذف شد", "Note deleted"));
           pushUndo({
-            label: T(`نوت «${snap.title || "بدون عنوان"}» حذف شد`, `Note "${snap.title || "Untitled"}" deleted`),
+            label: T(`نوت «${existingNote.title || "بدون عنوان"}» حذف شد`, `Note "${existingNote.title || "Untitled"}" deleted`),
             undo: async () => {
-              await firebaseStore.from("notes").insert(snap as any);
-              const { data } = await firebaseStore.from("notes").select("id,title,content").eq("task_id", task.id)
-                .order("updated_at", { ascending: false });
-              setTaskNotes((data || []) as any);
+              await firebaseStore.from("notes").insert(existingNote as any);
+              const list = await getTaskNotes(t.id, user.id);
+              setTaskNotes(list);
             },
           });
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : T("خطا در حذف نوت", "Error deleting note"));
         }
       },
     });
@@ -1141,17 +1168,31 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         </section>
       )}
 
-      {(showNotes || taskNotes.length > 0) && (
+      {(showNotes || taskNotes.length > 0 || isAddingNote) && (
         <section className="rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4 transition-all">
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="text-sm font-medium flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-blue-500" /> {T("نوت‌ها", "Notes")} ({taskNotes.length})
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
+              <FileText className="w-4 h-4 text-blue-500" />
+              <span>{T("نوت‌ها", "Notes")}</span>
+              <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium">
+                {taskNotes.length}
+              </span>
             </label>
             <div className="flex items-center gap-1">
-              <Button size="sm" variant="outline" onClick={addNote} disabled={!canEdit} className="gap-1 rounded-full h-7 text-xs">
-                <Plus className="w-3 h-3" /> {T("جدید", "New")}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setShowNotes(true);
+                  setIsAddingNote(true);
+                }}
+                disabled={!canEdit}
+                className="gap-1 rounded-full h-7 text-xs font-medium"
+              >
+                <Plus className="w-3 h-3" />
+                <span>{T("جدید", "New")}</span>
               </Button>
-              {taskNotes.length === 0 && (
+              {taskNotes.length === 0 && !isAddingNote && (
                 <Button
                   size="sm"
                   variant="ghost"
@@ -1163,16 +1204,108 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
               )}
             </div>
           </div>
-          <div className="space-y-1">
+
+          {/* Compact in-panel note creation form */}
+          {isAddingNote && (
+            <div className="p-3 mb-2.5 rounded-xl border border-primary/30 bg-primary/5 space-y-2 animate-in fade-in duration-150">
+              <Input
+                placeholder={T("عنوان نوت (اختیاری)...", "Note title (optional)...")}
+                value={newNoteTitle}
+                onChange={(e) => setNewNoteTitle(e.target.value)}
+                disabled={noteSaving}
+                className="h-8 text-xs sm:text-sm bg-background/80"
+                dir="auto"
+                autoFocus
+              />
+              <AutoTextarea
+                placeholder={T("متن نوت را بنویسید...", "Write note content...")}
+                value={newNoteContent}
+                onChange={(e) => setNewNoteContent(e.target.value)}
+                disabled={noteSaving}
+                className="text-xs sm:text-sm bg-background/80 min-h-[64px] rounded-lg p-2"
+                dir="auto"
+                minHeight={64}
+                maxHeight={160}
+              />
+              <div className="flex items-center justify-end gap-2 pt-0.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={noteSaving}
+                  onClick={handleCancelNewNote}
+                  className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  {T("انصراف", "Cancel")}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={noteSaving}
+                  onClick={() => void handleSaveNewNote()}
+                  className="h-7 px-3 text-xs gap-1 font-semibold"
+                >
+                  {noteSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                  <span>{T("ذخیره نوت", "Save Note")}</span>
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Notes Cards List */}
+          <div className="space-y-1.5">
             {taskNotes.map((n) => (
-              <Card key={n.id} className="p-1.5 flex items-center gap-2 rounded-lg bg-card/50">
-                <button className="flex-1 text-start text-sm truncate px-1" onClick={() => setActiveNote(n)}>
-                  <BidiText text={n.title} />
-                </button>
-                {canEdit && (
-                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => askDelNote(n)}>
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
+              <Card
+                key={n.id}
+                className="p-2.5 rounded-xl border border-border/60 bg-card/60 hover:bg-card/90 transition-all cursor-pointer group"
+                onClick={() => setEditingNote(n)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="flex-1 text-start text-xs sm:text-sm font-semibold truncate text-foreground group-hover:text-primary transition-colors" dir="auto">
+                    <BidiText text={n.title || T("بدون عنوان", "Untitled")} />
+                  </h4>
+                  <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    {canEdit && (
+                      <>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-muted-foreground hover:text-foreground rounded-lg"
+                          onClick={() => setEditingNote(n)}
+                          title={T("ویرایش", "Edit")}
+                        >
+                          <Edit className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-destructive/80 hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                          onClick={() => askDelNote(n)}
+                          title={T("حذف", "Delete")}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+                {n.content && (
+                  <p className="mt-1 text-[11px] sm:text-xs text-muted-foreground line-clamp-2 leading-relaxed text-start" dir="auto">
+                    <BidiText text={n.content} />
+                  </p>
+                )}
+                {n.updated_at && (
+                  <div className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground/70">
+                    <Clock className="w-2.5 h-2.5" />
+                    <span>
+                      {new Date(n.updated_at).toLocaleDateString(isEn ? "en-US" : "fa-IR", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
                 )}
               </Card>
             ))}
@@ -1226,7 +1359,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       }}
       onAddNote={() => {
         setShowNotes(true);
-        void addNote();
+        setIsAddingNote(true);
       }}
       onAddLocation={() => {
         setLocationText(t.location || "");
@@ -1320,39 +1453,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     </div>
   );
 
-  const noteEditorBody = activeNote && (
-    <div className="space-y-3 mt-2">
-      <div className="flex items-center gap-2">
-        <Button size="sm" variant="ghost" onClick={() => setActiveNote(null)} className="gap-1">
-          <ArrowRight className="w-4 h-4" />
-          {T("بازگشت به تسک", "Back to task")}
-        </Button>
-      </div>
-      <AutoTextarea
-        value={activeNote.title}
-        readOnly={!canEdit}
-        onChange={(e) => saveNote(activeNote.id, { title: e.target.value })}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            (e.currentTarget as HTMLTextAreaElement).blur();
-          }
-        }}
-        className="border-none focus-visible:ring-0 px-0 text-lg font-semibold py-1"
-        dir="auto"
-        rows={1}
-        minHeight={36}
-        maxHeight={200}
-      />
-      <NoteEditorTabs
-        noteId={activeNote.id}
-        readOnly={!canEdit}
-        markdown={activeNote.content || ""}
-        onChange={(md) => saveNote(activeNote.id, { content: md })}
-      />
-    </div>
-  );
-
   const addToAndroidCalendar = async () => {
     try {
       const added = await addTaskToAndroidCalendar(t);
@@ -1415,7 +1515,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       onDuplicateTask={() => void duplicateTask()}
       onOpenAI={() => setAiOpen(true)}
       onShowSteps={() => setShowSteps(true)}
-      onAddNote={() => { setShowNotes(true); void addNote(); }}
+      onAddNote={() => { setShowNotes(true); setIsAddingNote(true); }}
       onShowAttachments={() => setShowAttachments(true)}
       onOpenOutcome={() => setOutcomeOpen(true)}
       onOpenActionMenu={() => setActionMenuOpen(true)}
@@ -1548,25 +1648,16 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                   <span>{T("برگشت", "Back")}</span>
                 </Button>
               )}
-              {activeNote ? (
-                <>
-                  <span className="h-2.5 w-2.5 rounded-full bg-primary shrink-0" />
-                  <h3 className="text-sm font-bold truncate text-foreground" dir="auto">
-                    {T("ویرایش نوت", "Edit note")}
-                  </h3>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  disabled={!canEdit}
-                  onClick={() => setFolderOpen(true)}
-                  className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:hover:text-muted-foreground max-w-full truncate px-2 py-0.5 rounded-lg hover:bg-muted/50"
-                  title={T("تغییر فولدر", "Change folder")}
-                >
-                  <FolderIcon className="w-3.5 h-3.5 shrink-0" style={{ color: currentFolder?.color || undefined }} />
-                  <span className="truncate max-w-[240px]">{taskFolderLabel}</span>
-                </button>
-              )}
+              <button
+                type="button"
+                disabled={!canEdit}
+                onClick={() => setFolderOpen(true)}
+                className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:hover:text-muted-foreground max-w-full truncate px-2 py-0.5 rounded-lg hover:bg-muted/50"
+                title={T("تغییر فولدر", "Change folder")}
+              >
+                <FolderIcon className="w-3.5 h-3.5 shrink-0" style={{ color: currentFolder?.color || undefined }} />
+                <span className="truncate max-w-[240px]">{taskFolderLabel}</span>
+              </button>
             </div>
             <div className="flex items-center gap-1 shrink-0">
               {editorActions}
@@ -1582,13 +1673,11 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto min-h-0 p-3 sm:p-4 space-y-3">
-            {activeNote ? noteEditorBody : body}
+            {body}
           </div>
-          {!activeNote && (
-            <div className="shrink-0 p-2 border-t border-border/40 bg-card/95">
-              {bottomRail}
-            </div>
-          )}
+          <div className="shrink-0 p-2 border-t border-border/40 bg-card/95">
+            {bottomRail}
+          </div>
         </div>
       ) : mode === "page" ? (
         <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 min-h-screen flex flex-col justify-between">
@@ -1660,44 +1749,36 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             </div>
           </div>
           <div className="flex-1 min-h-0">
-            {activeNote ? noteEditorBody : body}
+            {body}
           </div>
-          {!activeNote && (
-            <div className="sticky bottom-2 z-30 pt-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] bg-gradient-to-t from-background via-background/95 to-transparent">
-              {bottomRail}
-            </div>
-          )}
+          <div className="sticky bottom-2 z-30 pt-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] bg-gradient-to-t from-background via-background/95 to-transparent">
+            {bottomRail}
+          </div>
         </div>
       ) : mode === "drawer" && isMobile ? (
         <Drawer open={true} onOpenChange={(v) => !v && requestClose()} snapPoints={[0.5, 1]} activeSnapPoint={snap} setActiveSnapPoint={setSnap} shouldScaleBackground={false} dismissible>
           <DrawerContent className={`h-screen max-h-screen flex flex-col !mt-0 ${snap === 1 ? "!m-0 !rounded-none" : "min-h-[55vh]"}`} aria-describedby="task-drawer-desc">
             <DrawerHeader className="px-4 pt-3 pb-1 text-center">
               <DrawerTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center justify-center gap-1.5 truncate" dir="auto">
-                {activeNote ? (
-                  T("ویرایش نوت", "Edit note")
-                ) : (
-                  <button
-                    type="button"
-                    disabled={!canEdit}
-                    onClick={() => setFolderOpen(true)}
-                    className="inline-flex items-center justify-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:hover:text-muted-foreground max-w-full px-2 py-0.5 rounded-lg hover:bg-muted/50"
-                    title={T("تغییر فولدر", "Change folder")}
-                  >
-                    <FolderIcon className="w-3.5 h-3.5 shrink-0" style={{ color: currentFolder?.color || undefined }} />
-                    <span className="truncate max-w-[240px]">{taskFolderLabel}</span>
-                  </button>
-                )}
+                <button
+                  type="button"
+                  disabled={!canEdit}
+                  onClick={() => setFolderOpen(true)}
+                  className="inline-flex items-center justify-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:hover:text-muted-foreground max-w-full px-2 py-0.5 rounded-lg hover:bg-muted/50"
+                  title={T("تغییر فولدر", "Change folder")}
+                >
+                  <FolderIcon className="w-3.5 h-3.5 shrink-0" style={{ color: currentFolder?.color || undefined }} />
+                  <span className="truncate max-w-[240px]">{taskFolderLabel}</span>
+                </button>
               </DrawerTitle>
             </DrawerHeader>
             {drawerHeader}
             <div className={`flex-1 overflow-y-auto min-h-0 px-3 pb-4 ${snap === 1 ? "" : "max-h-[50vh]"}`}>
-              {activeNote ? noteEditorBody : body}
+              {body}
             </div>
-            {!activeNote && (
-              <div className="shrink-0 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-1 border-t border-border/40 bg-card/95">
-                {bottomRail}
-              </div>
-            )}
+            <div className="shrink-0 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-1 border-t border-border/40 bg-card/95">
+              {bottomRail}
+            </div>
             <p id="task-drawer-desc" className="sr-only">{T("جزئیات و ویرایش تسک", "Task details and editing")}</p>
           </DrawerContent>
         </Drawer>
@@ -1706,31 +1787,25 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           <DialogContent className="w-[95vw] sm:max-w-2xl md:max-w-3xl max-h-[90vh] h-[85vh] p-3 sm:p-4 flex flex-col rounded-2xl">
             <DialogHeader className="mb-1 flex-row items-center justify-between gap-3 pe-8">
               <DialogTitle className="text-xs sm:text-sm font-medium text-muted-foreground truncate text-start" dir="auto">
-                {activeNote ? (
-                  T("ویرایش نوت", "Edit note")
-                ) : (
-                  <button
-                    type="button"
-                    disabled={!canEdit}
-                    onClick={() => setFolderOpen(true)}
-                    className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:hover:text-muted-foreground px-2 py-0.5 rounded-lg hover:bg-muted/50"
-                    title={T("تغییر فولدر", "Change folder")}
-                  >
-                    <FolderIcon className="w-3.5 h-3.5 shrink-0" style={{ color: currentFolder?.color || undefined }} />
-                    <span className="truncate max-w-[220px]">{taskFolderLabel}</span>
-                  </button>
-                )}
+                <button
+                  type="button"
+                  disabled={!canEdit}
+                  onClick={() => setFolderOpen(true)}
+                  className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:hover:text-muted-foreground px-2 py-0.5 rounded-lg hover:bg-muted/50"
+                  title={T("تغییر فولدر", "Change folder")}
+                >
+                  <FolderIcon className="w-3.5 h-3.5 shrink-0" style={{ color: currentFolder?.color || undefined }} />
+                  <span className="truncate max-w-[220px]">{taskFolderLabel}</span>
+                </button>
               </DialogTitle>
               {editorActions}
             </DialogHeader>
             <div className="flex-1 overflow-y-auto min-h-0">
-              {activeNote ? noteEditorBody : body}
+              {body}
             </div>
-            {!activeNote && (
-              <div className="shrink-0 pt-2 border-t border-border/40 bg-card/95">
-                {bottomRail}
-              </div>
-            )}
+            <div className="shrink-0 pt-2 border-t border-border/40 bg-card/95">
+              {bottomRail}
+            </div>
           </DialogContent>
         </Dialog>
       )}
@@ -1888,6 +1963,28 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             taskId={t.id}
             onImported={() => setContactsRefreshKey((k) => k + 1)}
           />
+
+          {/* Task Note Editor Dialog / Sheet */}
+          {editingNote && (
+            <TaskNoteEditorDialog
+              open={!!editingNote}
+              onOpenChange={(open) => {
+                if (!open) setEditingNote(null);
+              }}
+              userId={user.id}
+              taskId={t.id}
+              note={editingNote}
+              canEdit={canEdit}
+              onSaved={(updated) => {
+                setTaskNotes((prev) => prev.map((n) => (n.id === updated.id ? updated : n)));
+                setEditingNote(null);
+              }}
+              onDeleted={(noteId) => {
+                setTaskNotes((prev) => prev.filter((n) => n.id !== noteId));
+                setEditingNote(null);
+              }}
+            />
+          )}
         </>
       )}
     </>
