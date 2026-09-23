@@ -230,7 +230,7 @@ export default function TaskDetailView() {
         onClick={handleClose}
       >
         <div
-          className="relative w-full max-w-2xl max-h-[90vh] h-[85vh] flex flex-col bg-card rounded-2xl shadow-2xl border border-border/80 overflow-hidden"
+          className="relative w-full max-w-2xl max-h-[75vh] flex flex-col bg-card rounded-2xl shadow-2xl border border-border/80 overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           <TaskDetail

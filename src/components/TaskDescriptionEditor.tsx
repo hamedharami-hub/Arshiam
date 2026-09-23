@@ -6,6 +6,8 @@ import { Maximize2, Check, Eraser } from "lucide-react";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { NoteEditorTabs } from "@/components/NoteEditorTabs";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
 
@@ -30,6 +32,7 @@ export function TaskDescriptionEditor({
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
+  const { prefersDialog } = useDeviceFormFactor();
 
   const [editing, setEditing] = useState(false);
   const [full, setFull] = useState(false);
@@ -102,28 +105,59 @@ export function TaskDescriptionEditor({
       )}
 
       {full && (
-        <Sheet open={full} onOpenChange={setFull}>
-          <SheetContent side="bottom" className="h-[95vh] p-0 flex flex-col">
-            <SheetHeader className="px-4 py-3 border-b flex-row items-center justify-between space-y-0">
-              <SheetTitle className="text-base">{T("توضیحات تسک", "Task description")}</SheetTitle>
-              <Button
-                size="sm"
-                onClick={() => { onChange(draft); onSave(draft); setFull(false); }}
-                className="gap-1"
-              >
-                <Check className="w-4 h-4" />
-                {T("ذخیره", "Save")}
-              </Button>
-            </SheetHeader>
-            <div className="flex-1 overflow-y-auto px-3 py-3">
-              <NoteEditorTabs
-                noteId={`task-desc-${taskId}`}
-                markdown={draft}
-                onChange={(md) => setDraft(md)}
-              />
-            </div>
-          </SheetContent>
-        </Sheet>
+        prefersDialog ? (
+          <Dialog open={full} onOpenChange={setFull}>
+            <DialogContent
+              dir={isEn ? "ltr" : "rtl"}
+              className="w-full max-w-2xl max-h-[75vh] p-0 flex flex-col overflow-hidden rounded-2xl"
+            >
+              <DialogHeader className="px-4 py-3 border-b flex-row items-center justify-between space-y-0">
+                <DialogTitle className="text-base">{T("توضیحات تسک", "Task description")}</DialogTitle>
+                <DialogDescription className="sr-only">
+                  {T("ویرایشگر توضیحات تسک", "Task description editor")}
+                </DialogDescription>
+                <Button
+                  size="sm"
+                  onClick={() => { onChange(draft); onSave(draft); setFull(false); }}
+                  className="gap-1 me-6"
+                >
+                  <Check className="w-4 h-4" />
+                  {T("ذخیره", "Save")}
+                </Button>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto px-3 py-3 min-h-0">
+                <NoteEditorTabs
+                  noteId={`task-desc-${taskId}`}
+                  markdown={draft}
+                  onChange={(md) => setDraft(md)}
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
+        ) : (
+          <Sheet open={full} onOpenChange={setFull}>
+            <SheetContent side="bottom" className="h-[95vh] p-0 flex flex-col" dir={isEn ? "ltr" : "rtl"}>
+              <SheetHeader className="px-4 py-3 border-b flex-row items-center justify-between space-y-0">
+                <SheetTitle className="text-base">{T("توضیحات تسک", "Task description")}</SheetTitle>
+                <Button
+                  size="sm"
+                  onClick={() => { onChange(draft); onSave(draft); setFull(false); }}
+                  className="gap-1"
+                >
+                  <Check className="w-4 h-4" />
+                  {T("ذخیره", "Save")}
+                </Button>
+              </SheetHeader>
+              <div className="flex-1 overflow-y-auto px-3 py-3 min-h-0">
+                <NoteEditorTabs
+                  noteId={`task-desc-${taskId}`}
+                  markdown={draft}
+                  onChange={(md) => setDraft(md)}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+        )
       )}
     </div>
   );

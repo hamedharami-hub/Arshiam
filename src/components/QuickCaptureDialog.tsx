@@ -9,6 +9,8 @@ import { PRIORITY_META, PRIORITY_SELECTABLE, type Priority } from "@/lib/priorit
 import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DueDatePicker } from "@/components/DueDatePicker";
@@ -27,6 +29,7 @@ export default function QuickCaptureDialog() {
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
+  const { prefersDialog } = useDeviceFormFactor();
 
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"task" | "note">("task");
@@ -206,155 +209,181 @@ export default function QuickCaptureDialog() {
   const selectedFolder = folders.find((f) => f.id === finalFolderId);
   const dueLabel = formatDue(finalDue);
 
+  const bodyContent = (
+    <>
+      {/* Tabs */}
+      <div className="flex items-center gap-1 p-1 mt-3 bg-muted/50 rounded-xl">
+        <button
+          type="button"
+          onClick={() => setTab("task")}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm rounded-lg transition ${
+            tab === "task" ? "bg-background shadow-sm text-foreground font-medium" : "text-muted-foreground"
+          }`}
+        >
+          <ListTodo className="w-4 h-4" />
+          {T("تسک", "Task")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("note")}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm rounded-lg transition ${
+            tab === "note" ? "bg-background shadow-sm text-foreground font-medium" : "text-muted-foreground"
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          {T("نوت", "Note")}
+        </button>
+      </div>
+
+      {/* Title */}
+      <div className="mt-4">
+        <AutoTextarea
+          autoFocus
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              submit();
+            }
+          }}
+          placeholder={tab === "task" ? T("چه کاری باید انجام شود؟", "What needs to be done?") : T("عنوان نوت...", "Note title...")}
+          dir="auto"
+          disabled={busy}
+          rows={1}
+          minHeight={48}
+          maxHeight={160}
+          className="text-base font-medium min-h-[48px] max-h-[160px] py-3 bg-muted/40 border border-border rounded-xl px-3"
+        />
+      </div>
+
+      {/* Task quick params */}
+      {tab === "task" && (
+        <div className="mt-4 space-y-3">
+          {/* Date */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground w-16 shrink-0">{T("زمان", "Date")}</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`flex-1 justify-start gap-2 rounded-lg ${finalDue ? "border-primary text-primary" : ""}`}
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span className="truncate">
+                    {dueLabel || T("انتخاب تاریخ", "Pick a date")}
+                  </span>
+                  {finalDue && (
+                    <span className="ms-auto">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setDue(null); }}
+                        className="p-0.5 rounded hover:bg-muted"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 space-y-3 p-3" align="start" side="top">
+                <DueDatePicker value={due} onChange={setDue} compact />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Priority */}
+          <div className="flex items-start gap-3">
+            <span className="text-sm text-muted-foreground w-16 shrink-0 pt-2">{T("اولویت", "Priority")}</span>
+            <div className="flex-1 flex flex-wrap gap-1.5">
+              {PRIORITY_SELECTABLE.map((p) => {
+                const m = PRIORITY_META[p];
+                const active = finalPriority === p;
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => applyPriority(active ? "none" : p)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition border ${
+                      active
+                        ? `${m.bgClass} ${m.textClass} border-transparent`
+                        : "bg-muted/50 text-muted-foreground border-border hover:bg-muted"
+                    }`}
+                  >
+                    <Flag className={`w-3.5 h-3.5 ${active ? m.textClass : ""}`} />
+                    {T(m.label, m.labelEn)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Folder */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground w-16 shrink-0">{T("فولدر", "Folder")}</span>
+            <Select value={finalFolderId || "inbox"} onValueChange={(v) => applyFolder(v === "inbox" ? null : v)}>
+              <SelectTrigger className="flex-1 rounded-lg">
+                <div className="flex items-center gap-2 truncate">
+                  <FolderIcon className="w-4 h-4" style={{ color: selectedFolder?.color || undefined }} />
+                  <SelectValue placeholder={T("انتخاب فولدر", "Select folder")} />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="inbox">{T("بدون فولدر (Inbox)", "No folder (Inbox)")}</SelectItem>
+                {folders.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full" style={{ background: f.color || "#888" }} />
+                      {f.name}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="mt-6 flex items-center justify-between gap-3">
+        <span className="text-[10px] text-muted-foreground ltr">⌘N • Enter = {T("ثبت", "save")}</span>
+        <Button onClick={submit} disabled={busy || !finalTitle} size="sm" className="gap-1 px-4">
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+          {T("ثبت", "Save")}
+        </Button>
+      </div>
+    </>
+  );
+
+  if (prefersDialog) {
+    return (
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent
+          dir={isEn ? "ltr" : "rtl"}
+          className="w-full max-w-lg max-h-[75vh] flex flex-col p-5 overflow-hidden rounded-2xl"
+        >
+          <DialogHeader className="px-0">
+            <DialogTitle className="text-base">{T("ثبت سریع", "Quick Capture")}</DialogTitle>
+            <DialogDescription className="sr-only">
+              {T("فرم ثبت سریع تسک یا یادداشت", "Quick capture task or note")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-y-auto min-h-0 flex-1 pe-1">
+            {bodyContent}
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto p-4 pb-8" dir={isEn ? "ltr" : "rtl"}>
         <SheetHeader className="px-0">
           <SheetTitle className="text-base">{T("ثبت سریع", "Quick Capture")}</SheetTitle>
         </SheetHeader>
-
-        {/* Tabs */}
-        <div className="flex items-center gap-1 p-1 mt-3 bg-muted/50 rounded-xl">
-          <button
-            type="button"
-            onClick={() => setTab("task")}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm rounded-lg transition ${
-              tab === "task" ? "bg-background shadow-sm text-foreground font-medium" : "text-muted-foreground"
-            }`}
-          >
-            <ListTodo className="w-4 h-4" />
-            {T("تسک", "Task")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("note")}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm rounded-lg transition ${
-              tab === "note" ? "bg-background shadow-sm text-foreground font-medium" : "text-muted-foreground"
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            {T("نوت", "Note")}
-          </button>
-        </div>
-
-        {/* Title */}
-        <div className="mt-4">
-          <AutoTextarea
-            autoFocus
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                submit();
-              }
-            }}
-            placeholder={tab === "task" ? T("چه کاری باید انجام شود؟", "What needs to be done?") : T("عنوان نوت...", "Note title...")}
-            dir="auto"
-            disabled={busy}
-            rows={1}
-            minHeight={48}
-            maxHeight={160}
-            className="text-base font-medium min-h-[48px] max-h-[160px] py-3 bg-muted/40 border border-border rounded-xl px-3"
-          />
-        </div>
-
-        {/* Task quick params */}
-        {tab === "task" && (
-          <div className="mt-4 space-y-3">
-            {/* Date */}
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground w-16 shrink-0">{T("زمان", "Date")}</span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={`flex-1 justify-start gap-2 rounded-lg ${finalDue ? "border-primary text-primary" : ""}`}
-                  >
-                    <Calendar className="w-4 h-4" />
-                    <span className="truncate">
-                      {dueLabel || T("انتخاب تاریخ", "Pick a date")}
-                    </span>
-                    {finalDue && (
-                      <span className="ms-auto">
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); setDue(null); }}
-                          className="p-0.5 rounded hover:bg-muted"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-72 space-y-3 p-3" align="start" side="top">
-                  <DueDatePicker value={due} onChange={setDue} compact />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Priority */}
-            <div className="flex items-start gap-3">
-              <span className="text-sm text-muted-foreground w-16 shrink-0 pt-2">{T("اولویت", "Priority")}</span>
-              <div className="flex-1 flex flex-wrap gap-1.5">
-                {PRIORITY_SELECTABLE.map((p) => {
-                  const m = PRIORITY_META[p];
-                  const active = finalPriority === p;
-                  return (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => applyPriority(active ? "none" : p)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition border ${
-                        active
-                          ? `${m.bgClass} ${m.textClass} border-transparent`
-                          : "bg-muted/50 text-muted-foreground border-border hover:bg-muted"
-                      }`}
-                    >
-                      <Flag className={`w-3.5 h-3.5 ${active ? m.textClass : ""}`} />
-                      {T(m.label, m.labelEn)}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Folder */}
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground w-16 shrink-0">{T("فولدر", "Folder")}</span>
-              <Select value={finalFolderId || "inbox"} onValueChange={(v) => applyFolder(v === "inbox" ? null : v)}>
-                <SelectTrigger className="flex-1 rounded-lg">
-                  <div className="flex items-center gap-2 truncate">
-                    <FolderIcon className="w-4 h-4" style={{ color: selectedFolder?.color || undefined }} />
-                    <SelectValue placeholder={T("انتخاب فولدر", "Select folder")} />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="inbox">{T("بدون فولدر (Inbox)", "No folder (Inbox)")}</SelectItem>
-                  {folders.map((f) => (
-                    <SelectItem key={f.id} value={f.id}>
-                      <span className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full" style={{ background: f.color || "#888" }} />
-                        {f.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="mt-6 flex items-center justify-between gap-3">
-          <span className="text-[10px] text-muted-foreground ltr">⌘N • Enter = {T("ثبت", "save")}</span>
-          <Button onClick={submit} disabled={busy || !finalTitle} size="sm" className="gap-1 px-4">
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            {T("ثبت", "Save")}
-          </Button>
-        </div>
+        {bodyContent}
       </SheetContent>
     </Sheet>
   );

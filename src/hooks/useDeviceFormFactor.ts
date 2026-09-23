@@ -12,6 +12,8 @@ export interface DeviceFormFactorInfo {
   screenWidth: number;
   screenHeight: number;
   aspectRatio: number;
+  prefersDialog: boolean;
+  shouldUseBottomSheet: boolean;
 }
 
 function detectFormFactor(): DeviceFormFactorInfo {
@@ -26,6 +28,8 @@ function detectFormFactor(): DeviceFormFactorInfo {
       screenWidth: 1280,
       screenHeight: 800,
       aspectRatio: 1.6,
+      prefersDialog: true,
+      shouldUseBottomSheet: false,
     };
   }
 
@@ -47,6 +51,8 @@ function detectFormFactor(): DeviceFormFactorInfo {
         screenWidth: window.innerWidth,
         screenHeight: window.innerHeight,
         aspectRatio: window.innerWidth / (window.innerHeight || 1),
+        prefersDialog: !isPh,
+        shouldUseBottomSheet: isPh,
       };
     }
   } catch {}
@@ -78,15 +84,15 @@ function detectFormFactor(): DeviceFormFactorInfo {
     aspectRatio >= 0.7 &&
     aspectRatio <= 1.45;
 
-  const isFoldable = isDualScreen || (isFoldableModel && width >= 560) || isFoldableDimensions;
+  const isFoldableHardware = isDualScreen || (isFoldableModel && width >= 560) || isFoldableDimensions;
 
   // 2. Windows and Desktop checks:
   // If running on Windows OS, or on desktop browsers with fine pointer and non-phone screen
   const hasFinePointer = typeof window.matchMedia === "function" && window.matchMedia("(pointer: fine)").matches;
-  const isDesktopScreen = (isWindowsOS && width >= 700) || (!isTouch && width >= 768) || (hasFinePointer && width >= 800 && !isFoldable);
+  const isDesktopScreen = (isWindowsOS && width >= 700) || (!isTouch && width >= 768) || (hasFinePointer && width >= 800 && !isFoldableHardware);
 
   let formFactor: DeviceFormFactor;
-  if (isFoldable) {
+  if (isFoldableHardware) {
     formFactor = "foldable";
   } else if (isWindowsOS || (isDesktopScreen && !isTouch)) {
     formFactor = isWindowsOS ? "windows" : "desktop";
@@ -96,16 +102,25 @@ function detectFormFactor(): DeviceFormFactorInfo {
     formFactor = "phone";
   }
 
+  const isWindows = formFactor === "windows";
+  const isFoldable = formFactor === "foldable";
+  const isDesktop = formFactor === "windows" || formFactor === "desktop";
+  const isPhone = formFactor === "phone";
+  const shouldUseBottomSheet = isPhone;
+  const prefersDialog = !shouldUseBottomSheet;
+
   return {
     formFactor,
-    isWindows: formFactor === "windows",
-    isFoldable: formFactor === "foldable",
-    isDesktop: formFactor === "windows" || formFactor === "desktop",
-    isPhone: formFactor === "phone",
+    isWindows,
+    isFoldable,
+    isDesktop,
+    isPhone,
     isTouch,
     screenWidth: width,
     screenHeight: height,
     aspectRatio,
+    prefersDialog,
+    shouldUseBottomSheet,
   };
 }
 

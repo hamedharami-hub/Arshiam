@@ -1,7 +1,8 @@
 import { useState, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +13,7 @@ import { TaskActivities } from "@/components/TaskActivities";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useShareAccess } from "@/hooks/useShareAccess";
+import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { logTaskActivity } from "@/lib/taskActivity";
 import { saveTaskTemplate } from "@/lib/taskTemplates";
 import { isFeatureEnabled } from "@/lib/capabilities";
@@ -53,6 +55,7 @@ export default function TaskActionSheet({
   const navigate = useNavigate();
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
+  const { prefersDialog } = useDeviceFormFactor();
   const [shareOpen, setShareOpen] = useState(false);
   const [view, setView] = useState<View>("main");
   const [subtaskTitle, setSubtaskTitle] = useState("");
@@ -425,11 +428,31 @@ export default function TaskActionSheet({
 
   return (
     <>
-      <Sheet open={!!open && !shareOpen} onOpenChange={onOpenChange} modal={false}>
-        <SheetContent side="bottom" className="rounded-t-2xl pb-5 px-3 pt-4 max-h-[85vh] overflow-y-auto">
-          {renderView()}
-        </SheetContent>
-      </Sheet>
+      {prefersDialog ? (
+        <Dialog open={!!open && !shareOpen} onOpenChange={onOpenChange}>
+          <DialogContent
+            dir={isEn ? "ltr" : "rtl"}
+            className="w-full max-w-md sm:max-w-lg max-h-[75vh] flex flex-col p-4 sm:p-5 overflow-hidden rounded-2xl"
+          >
+            <DialogHeader className="sr-only">
+              <DialogTitle>{task.title || T("اقدامات تسک", "Task Actions")}</DialogTitle>
+              <DialogDescription>{T("منوی اقدامات تسک", "Task action menu")}</DialogDescription>
+            </DialogHeader>
+            <div className="overflow-y-auto min-h-0 flex-1 pe-1">
+              {renderView()}
+            </div>
+          </DialogContent>
+        </Dialog>
+      ) : (
+        <Sheet open={!!open && !shareOpen} onOpenChange={onOpenChange} modal={false}>
+          <SheetContent side="bottom" className="rounded-t-2xl pb-5 px-3 pt-4 max-h-[85vh] overflow-y-auto" dir={isEn ? "ltr" : "rtl"}>
+            <SheetHeader className="sr-only">
+              <SheetTitle>{task.title || T("اقدامات تسک", "Task Actions")}</SheetTitle>
+            </SheetHeader>
+            {renderView()}
+          </SheetContent>
+        </Sheet>
+      )}
 
       {isFeatureEnabled("sharing") && shareOpen && (
         <ShareDialog

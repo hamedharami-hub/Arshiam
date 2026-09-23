@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { format, isSameDay } from "date-fns";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { Button } from "@/components/ui/button";
 import { Plus, Activity, ListChecks, ListTodo } from "lucide-react";
 import { formatDate, toPersianDigits, type CalendarSystem } from "@/lib/jalali";
@@ -36,6 +38,7 @@ export default function DayDetailSheet({
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { prefersDialog } = useDeviceFormFactor();
   const [checkin, setCheckin] = useState<any>(null);
   const [newTitle, setNewTitle] = useState("");
   const [newHour, setNewHour] = useState<number>(9);
@@ -95,128 +98,163 @@ export default function DayDetailSheet({
     }
   };
 
+  const headerTitle = (
+    <div className="flex items-center justify-between">
+      <span>
+        {system === "jalali"
+          ? formatDate(date, "EEEE d MMMM yyyy", "jalali")
+          : format(date, "EEEE, MMMM d, yyyy")}
+      </span>
+      {dayHolidays.length > 0 && (
+        <span className="text-xs text-rose-500">{dayHolidays[0].country_code === "IR" ? "🇮🇷" : "🇦🇺"} {dayHolidays[0].local_name || dayHolidays[0].name}</span>
+      )}
+    </div>
+  );
+
+  const headerDescription = (
+    <p className="text-xs text-muted-foreground">
+      {system === "jalali" ? format(date, "EEEE, MMMM d, yyyy") : formatDate(date, "EEEE d MMMM yyyy", "jalali")}
+      {(system === "jalali" && isFriday) && <span className="text-rose-500 me-2">• تعطیل</span>}
+    </p>
+  );
+
+  const bodyContent = (
+    <>
+      {dayTasks.length > 0 && (
+        <div className="mt-4 space-y-2">
+          <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground"><ListTodo className="w-4 h-4 text-primary" /> تسک‌های این روز</h3>
+          <div className="border border-border/60 rounded-xl divide-y bg-card/40 max-h-[180px] overflow-y-auto">
+            {dayTasks.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => { onOpenChange(false); navigate(`/app/tasks/${t.id}`); }}
+                className="flex items-center gap-2 w-full text-end px-3 py-2 text-sm hover:bg-accent/30 transition"
+              >
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: PRIORITY_COLOR[t.priority] || PRIORITY_COLOR.none }} />
+                <span className="truncate flex-1">{t.title}</span>
+                <span className="text-[10px] text-muted-foreground tabular-nums">
+                  {toPersianDigits(String(t.due_date ? new Date(t.due_date).getHours().toString().padStart(2, "0") : "--"))}
+                  :{toPersianDigits("00")}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="grid md:grid-cols-2 gap-4 mt-6">
+        {/* Hourly Timeline */}
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground"><ListChecks className="w-4 h-4 text-primary" /> خط‌زمان</h3>
+          <div className="border border-border/60 rounded-xl divide-y max-h-[300px] overflow-y-auto bg-card/40">
+            {HOURS.map((h) => {
+              const slot = dayTasks.filter((t) => t.due_date && new Date(t.due_date).getHours() === h);
+              return (
+                <div key={h} className="grid grid-cols-[40px_1fr] gap-2 p-2 text-xs min-h-[32px]">
+                  <div className="text-muted-foreground tabular-nums pt-0.5">{toPersianDigits(String(h).padStart(2, "0"))}</div>
+                  <div className="space-y-1">
+                    {slot.map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => { onOpenChange(false); navigate(`/app/tasks/${t.id}`); }}
+                        className="block w-full text-end bg-primary/10 text-primary border border-primary/20 rounded-md px-2 py-1 truncate hover:bg-primary/15 transition"
+                      >
+                        {t.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {/* Quick Add */}
+          <div className="border border-border/60 rounded-xl p-4 space-y-3 bg-card/40">
+            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground"><Plus className="w-4 h-4 text-primary" /> تسک جدید برای این روز</h3>
+            <AutoTextarea
+              placeholder="عنوان تسک"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  addTask();
+                }
+              }}
+              rows={1}
+              minHeight={40}
+              maxHeight={160}
+              className="min-h-[40px] max-h-[160px] py-2.5"
+              dir="auto"
+            />
+            <div className="flex items-center gap-2">
+              <select
+                className="flex h-9 rounded-md border bg-background px-2 text-sm flex-1"
+                value={newHour}
+                onChange={(e) => setNewHour(+e.target.value)}
+              >
+                {HOURS.map((h) => (
+                  <option key={h} value={h}>{toPersianDigits(String(h).padStart(2, "0"))}:۰۰</option>
+                ))}
+              </select>
+              <Button onClick={addTask} size="sm">افزودن</Button>
+            </div>
+          </div>
+
+          {/* Check-in */}
+          <div className="border border-border/60 rounded-xl p-4 space-y-2 bg-card/40">
+            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground"><Activity className="w-4 h-4 text-primary" /> Check-in</h3>
+            {checkin ? (
+              <div className="text-xs grid grid-cols-2 gap-1 text-muted-foreground">
+                {checkin.mood != null && <div>خلق: {toPersianDigits(checkin.mood)}/۱۰</div>}
+                {checkin.energy != null && <div>انرژی: {toPersianDigits(checkin.energy)}/۱۰</div>}
+                {checkin.focus != null && <div>تمرکز: {toPersianDigits(checkin.focus)}/۱۰</div>}
+                {checkin.stress != null && <div>استرس: {toPersianDigits(checkin.stress)}/۱۰</div>}
+                {checkin.sleep_hours != null && <div>خواب: {toPersianDigits(checkin.sleep_hours)} ساعت</div>}
+              </div>
+            ) : (
+              <Button size="sm" variant="outline" className="w-full" onClick={() => navigate("/app/checkin")}>
+                ثبت Check-in
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  if (prefersDialog) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="w-full max-w-lg max-h-[75vh] flex flex-col p-4 md:p-6 overflow-hidden rounded-2xl">
+          <DialogHeader className="text-end px-0">
+            <DialogTitle asChild>
+              {headerTitle}
+            </DialogTitle>
+            <DialogDescription asChild>
+              {headerDescription}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-y-auto min-h-0 flex-1 pe-1">
+            {bodyContent}
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto p-4 md:p-6">
         <SheetHeader className="text-end">
-          <SheetTitle className="flex items-center justify-between">
-            <span>
-              {system === "jalali"
-                ? formatDate(date, "EEEE d MMMM yyyy", "jalali")
-                : format(date, "EEEE, MMMM d, yyyy")}
-            </span>
-            {dayHolidays.length > 0 && (
-              <span className="text-xs text-rose-500">{dayHolidays[0].country_code === "IR" ? "🇮🇷" : "🇦🇺"} {dayHolidays[0].local_name || dayHolidays[0].name}</span>
-            )}
+          <SheetTitle asChild>
+            {headerTitle}
           </SheetTitle>
-          <p className="text-xs text-muted-foreground">
-            {system === "jalali" ? format(date, "EEEE, MMMM d, yyyy") : formatDate(date, "EEEE d MMMM yyyy", "jalali")}
-            {(system === "jalali" && isFriday) && <span className="text-rose-500 me-2">• تعطیل</span>}
-          </p>
+          {headerDescription}
         </SheetHeader>
-
-        {dayTasks.length > 0 && (
-          <div className="mt-4 space-y-2">
-            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground"><ListTodo className="w-4 h-4 text-primary" /> تسک‌های این روز</h3>
-            <div className="border border-border/60 rounded-xl divide-y bg-card/40 max-h-[180px] overflow-y-auto">
-              {dayTasks.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => { onOpenChange(false); navigate(`/app/tasks/${t.id}`); }}
-                  className="flex items-center gap-2 w-full text-end px-3 py-2 text-sm hover:bg-accent/30 transition"
-                >
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: PRIORITY_COLOR[t.priority] || PRIORITY_COLOR.none }} />
-                  <span className="truncate flex-1">{t.title}</span>
-                  <span className="text-[10px] text-muted-foreground tabular-nums">
-                    {toPersianDigits(String(t.due_date ? new Date(t.due_date).getHours().toString().padStart(2, "0") : "--"))}
-                    :{toPersianDigits("00")}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="grid md:grid-cols-2 gap-4 mt-6">
-          {/* Hourly Timeline */}
-          <div className="space-y-2">
-            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground"><ListChecks className="w-4 h-4 text-primary" /> خط‌زمان</h3>
-            <div className="border border-border/60 rounded-xl divide-y max-h-[300px] overflow-y-auto bg-card/40">
-              {HOURS.map((h) => {
-                const slot = dayTasks.filter((t) => t.due_date && new Date(t.due_date).getHours() === h);
-                return (
-                  <div key={h} className="grid grid-cols-[40px_1fr] gap-2 p-2 text-xs min-h-[32px]">
-                    <div className="text-muted-foreground tabular-nums pt-0.5">{toPersianDigits(String(h).padStart(2, "0"))}</div>
-                    <div className="space-y-1">
-                      {slot.map((t) => (
-                        <button
-                          key={t.id}
-                          onClick={() => { onOpenChange(false); navigate(`/app/tasks/${t.id}`); }}
-                          className="block w-full text-end bg-primary/10 text-primary border border-primary/20 rounded-md px-2 py-1 truncate hover:bg-primary/15 transition"
-                        >
-                          {t.title}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {/* Quick Add */}
-            <div className="border border-border/60 rounded-xl p-4 space-y-3 bg-card/40">
-              <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground"><Plus className="w-4 h-4 text-primary" /> تسک جدید برای این روز</h3>
-              <AutoTextarea
-                placeholder="عنوان تسک"
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    addTask();
-                  }
-                }}
-                rows={1}
-                minHeight={40}
-                maxHeight={160}
-                className="min-h-[40px] max-h-[160px] py-2.5"
-                dir="auto"
-              />
-              <div className="flex items-center gap-2">
-                <select
-                  className="flex h-9 rounded-md border bg-background px-2 text-sm flex-1"
-                  value={newHour}
-                  onChange={(e) => setNewHour(+e.target.value)}
-                >
-                  {HOURS.map((h) => (
-                    <option key={h} value={h}>{toPersianDigits(String(h).padStart(2, "0"))}:۰۰</option>
-                  ))}
-                </select>
-                <Button onClick={addTask} size="sm">افزودن</Button>
-              </div>
-            </div>
-
-            {/* Check-in */}
-            <div className="border border-border/60 rounded-xl p-4 space-y-2 bg-card/40">
-              <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground"><Activity className="w-4 h-4 text-primary" /> Check-in</h3>
-              {checkin ? (
-                <div className="text-xs grid grid-cols-2 gap-1 text-muted-foreground">
-                  {checkin.mood != null && <div>خلق: {toPersianDigits(checkin.mood)}/۱۰</div>}
-                  {checkin.energy != null && <div>انرژی: {toPersianDigits(checkin.energy)}/۱۰</div>}
-                  {checkin.focus != null && <div>تمرکز: {toPersianDigits(checkin.focus)}/۱۰</div>}
-                  {checkin.stress != null && <div>استرس: {toPersianDigits(checkin.stress)}/۱۰</div>}
-                  {checkin.sleep_hours != null && <div>خواب: {toPersianDigits(checkin.sleep_hours)} ساعت</div>}
-                </div>
-              ) : (
-                <Button size="sm" variant="outline" className="w-full" onClick={() => navigate("/app/checkin")}>
-                  ثبت Check-in
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
+        {bodyContent}
       </SheetContent>
     </Sheet>
   );
