@@ -27,18 +27,26 @@ export async function getDB(): Promise<IDBPDatabase | null> {
   return dbPromise;
 }
 
+export const memoryCache = new Map<string, unknown>();
+
 export async function cacheSet(key: string, value: unknown): Promise<void> {
   try {
     const db = await getDB();
-    if (db) await db.put(CACHE_STORE, value, key);
+    if (db) {
+      await db.put(CACHE_STORE, value, key);
+      return;
+    }
   } catch {}
+  memoryCache.set(key, value);
 }
 
 export async function cacheGet<T = unknown>(key: string): Promise<T | undefined> {
   try {
     const db = await getDB();
-    return db ? ((await db.get(CACHE_STORE, key)) as T | undefined) : undefined;
-  } catch {
-    return undefined;
-  }
+    if (db) {
+      const val = (await db.get(CACHE_STORE, key)) as T | undefined;
+      if (val !== undefined) return val;
+    }
+  } catch {}
+  return memoryCache.get(key) as T | undefined;
 }

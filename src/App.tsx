@@ -85,6 +85,7 @@ const ShareTargetView = lazy(() => import("./pages/ShareTargetView"));
 const BucketsView = lazy(() => import("./pages/BucketsView"));
 const ArticleRewriteView = lazy(() => import("./pages/ArticleRewriteView"));
 const WidgetsView = lazy(() => import("./pages/WidgetsView"));
+const ContactsView = lazy(() => import("./pages/ContactsView"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -279,6 +280,7 @@ const App = () => {
                     <Route path="/notes" element={<Navigate to="/app/notes" replace />} />
                     <Route path="/habits" element={<Navigate to="/app/habits" replace />} />
                     <Route path="/calendar" element={<Navigate to="/app/calendar" replace />} />
+                    <Route path="/contacts" element={<Navigate to="/app/contacts" replace />} />
                     <Route path="/settings" element={<Navigate to="/app/settings" replace />} />
                     <Route path="/life-architect" element={<Navigate to="/app/life-architect" replace />} />
                     <Route path="/new-task" element={<Navigate to="/app/new/task" replace />} />
@@ -310,6 +312,7 @@ const App = () => {
                       <Route path="garden" element={<GardenView />} />
                       <Route path="pomodoro" element={<PomodoroView />} />
                       <Route path="calendar" element={<CalendarView />} />
+                      <Route path="contacts" element={<ContactsView />} />
                       <Route path="stats" element={<StatsView />} />
                       <Route path="kanban" element={<KanbanView />} />
                       <Route path="buckets" element={<BucketsView />} />

@@ -15,6 +15,7 @@
     "qa:layout": "node scripts/verify_layout.mjs"
   },
   "dependencies": {
+    "@capacitor-community/contacts": "^8.0.0",
     "@capacitor/android": "^8.3.1",
     "@capacitor/app": "^8.1.1",
     "@capacitor/core": "^8.3.1",

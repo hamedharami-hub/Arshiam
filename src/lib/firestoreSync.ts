@@ -26,7 +26,7 @@ export interface SyncStats {
  */
 export async function saveEntityToFirestore(
   userId: string,
-  collectionName: "tasks" | "notes" | "habits" | "checkins" | "settings",
+  collectionName: "tasks" | "notes" | "habits" | "checkins" | "settings" | "contacts" | "task_contacts",
   docId: string,
   data: Record<string, any>
 ): Promise<boolean> {
@@ -56,7 +56,7 @@ export async function saveEntityToFirestore(
  */
 export async function deleteEntityFromFirestore(
   userId: string,
-  collectionName: "tasks" | "notes" | "habits" | "checkins",
+  collectionName: "tasks" | "notes" | "habits" | "checkins" | "contacts" | "task_contacts",
   docId: string
 ): Promise<boolean> {
   if (!userId || !docId) return false;

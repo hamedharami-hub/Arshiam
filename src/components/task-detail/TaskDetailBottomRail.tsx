@@ -17,8 +17,15 @@ import {
   Timer,
   MoreHorizontal,
   Trash2,
+  Plus,
+  MessageSquare,
+  MapPin,
+  Users,
+  UserPlus,
+  Smartphone,
 } from "lucide-react";
 import type { Task } from "@/lib/taskTypes";
+import { isDeviceContactImportSupported } from "@/lib/deviceContacts";
 
 export function AttachTypeBtn({
   icon: Icon,
@@ -50,6 +57,7 @@ export function RailButton({
   accent,
   className,
   disabled,
+  dataTestId,
 }: {
   icon: any;
   label: string;
@@ -59,6 +67,7 @@ export function RailButton({
   accent?: boolean;
   className?: string;
   disabled?: boolean;
+  dataTestId?: string;
 }) {
   return (
     <button
@@ -67,6 +76,7 @@ export function RailButton({
       disabled={disabled}
       title={label}
       aria-label={label}
+      data-testid={dataTestId}
       className={`relative flex flex-col items-center justify-center gap-0 min-w-[48px] sm:min-w-[54px] h-11 rounded-xl transition active:scale-95 disabled:opacity-50 disabled:cursor-default ${
         active
           ? accent
@@ -114,6 +124,12 @@ export interface TaskDetailBottomRailProps {
   deleteTask: () => void;
   save: (patch: Partial<Task>) => void;
   T: (fa: string, en: string) => string;
+  onAddComment?: () => void;
+  onAddNote?: () => void;
+  onAddLocation?: () => void;
+  onPickContact?: () => void;
+  onNewContact?: () => void;
+  onImportDeviceContact?: () => void;
 }
 
 export function TaskDetailBottomRail({
@@ -144,7 +160,15 @@ export function TaskDetailBottomRail({
   deleteTask,
   save,
   T,
+  onAddComment,
+  onAddNote,
+  onAddLocation,
+  onPickContact,
+  onNewContact,
+  onImportDeviceContact,
 }: TaskDetailBottomRailProps) {
+  const [addPopoverOpen, setAddPopoverOpen] = React.useState(false);
+
   return (
     <div className="mx-auto max-w-2xl w-full px-2 py-1 border border-border/60 bg-card/95 dark:bg-card/90 backdrop-blur-xl rounded-2xl shadow-lg">
       <div className="flex items-center justify-between gap-1 overflow-x-auto no-scrollbar">
@@ -154,6 +178,7 @@ export function TaskDetailBottomRail({
             <PopoverTrigger asChild>
               <span>
                 <RailButton
+                  dataTestId="task-bottom-rail-attach-btn"
                   icon={Paperclip}
                   label={T("ضمیمه", "Attach")}
                   active={showAttachments || attachmentCount > 0}
@@ -204,6 +229,114 @@ export function TaskDetailBottomRail({
                 >
                   {T("افزودن", "Add")}
                 </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Add Menu (Comment, Note, Location, Contact, New Contact, Device Contacts) */}
+          <Popover open={addPopoverOpen} onOpenChange={setAddPopoverOpen}>
+            <PopoverTrigger asChild>
+              <span>
+                <RailButton
+                  dataTestId="task-bottom-rail-add-btn"
+                  icon={Plus}
+                  label={T("افزودن", "Add")}
+                  disabled={!canEdit}
+                />
+              </span>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-1.5" align="start" side="top">
+              <div className="space-y-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddPopoverOpen(false);
+                    onAddComment?.();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-accent text-start transition"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <span>{T("افزودن کامنت / توضیح", "Add Comment")}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddPopoverOpen(false);
+                    onAddNote?.();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-accent text-start transition"
+                >
+                  <FileText className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                  <span>{T("افزودن نوت", "Add Note")}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddPopoverOpen(false);
+                    onAddLocation?.();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-accent text-start transition"
+                >
+                  <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                  <span>{T("افزودن موقعیت مکانی", "Add Location")}</span>
+                </button>
+
+                <div className="my-1 border-t border-border/40" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddPopoverOpen(false);
+                    onPickContact?.();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-accent text-start transition"
+                >
+                  <Users className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  <span>{T("انتخاب شخص موجود", "Select Contact")}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddPopoverOpen(false);
+                    onNewContact?.();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-accent text-start transition"
+                >
+                  <UserPlus className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span>{T("ساخت شخص جدید", "Create New Contact")}</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={!isDeviceContactImportSupported()}
+                  onClick={() => {
+                    setAddPopoverOpen(false);
+                    onImportDeviceContact?.();
+                  }}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-start transition ${
+                    isDeviceContactImportSupported()
+                      ? "hover:bg-accent text-foreground"
+                      : "opacity-50 cursor-not-allowed text-muted-foreground"
+                  }`}
+                  title={
+                    !isDeviceContactImportSupported()
+                      ? T("فقط در Android", "Only available on Android")
+                      : undefined
+                  }
+                >
+                  <Smartphone className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="block truncate">{T("ورود از مخاطبین گوشی", "Import from Phone")}</span>
+                    {!isDeviceContactImportSupported() && (
+                      <span className="text-[10px] text-muted-foreground block">
+                        {T("(فقط در Android)", "(Only on Android)")}
+                      </span>
+                    )}
+                  </div>
+                </button>
               </div>
             </PopoverContent>
           </Popover>

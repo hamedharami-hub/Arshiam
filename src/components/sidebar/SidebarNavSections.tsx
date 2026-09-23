@@ -4,7 +4,7 @@ import {
   Target, Timer, Calendar, ChevronDown, Sparkles, LayoutGrid,
   TrendingUp, Activity, MessageCircleQuestion, Zap, ShieldAlert, BookOpen, Sun,
   ListTodo, BrainCircuit, GripVertical, User, Shield,
-  BarChart3, Sprout, Wind, Compass,
+  BarChart3, Sprout, Wind, Compass, Users,
 } from "lucide-react";
 import {
   SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -57,12 +57,14 @@ export const EN_LABELS: Record<string, string> = {
   "صندوق ورودی": "Inbox",
   "ویجت‌ها": "Widgets",
   "باغ رشد": "Garden",
+  "افراد": "Contacts",
 };
 
 export const FA_LABELS: Record<string, string> = {
   "Inbox": "صندوق ورودی",
   "Pomodoro": "پومودورو",
   "Smart Lists": "لیست‌های هوشمند",
+  "Contacts": "افراد",
 };
 
 export function useLabel() {
@@ -86,6 +88,7 @@ export const SECTIONS: Section[] = [
       { url: "/app/tomorrow", icon: Sun, label: "فردا" },
       { url: "/app/next7", icon: CalendarDays, label: "۷ روز آینده" },
       { url: "/app/calendar", icon: Calendar, label: "تقویم" },
+      { url: "/app/contacts", icon: Users, label: "افراد" },
       { url: "/app/widgets", icon: LayoutGrid, label: "ویجت‌ها" },
       { url: "/app/buckets", icon: CalendarDays, label: "بازه‌های کلی" },
       { url: "/app/smart", icon: Filter, label: "Smart Lists" },

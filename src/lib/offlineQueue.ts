@@ -25,15 +25,23 @@ export { cacheGet, cacheSet };
 const MAX_RETRY_DELAY_MS = 300_000;
 const MAX_ATTEMPTS_BEFORE_ALERT = 10;
 
+const memoryOutbox = new Map<number, QueuedOp>();
+let memoryOutboxAutoInc = 1;
+
 export async function enqueueOp(
   op: Omit<QueuedOp, "id" | "createdAt" | "attempts" | "nextRetryAt" | "lastError">
 ): Promise<boolean> {
   let queued = false;
   try {
     const db = await getDB();
+    const ownerId = await getAuthenticatedUserId();
+    const item = { ...op, ownerId, createdAt: Date.now(), attempts: 0 };
     if (db) {
-      const ownerId = await getAuthenticatedUserId();
-      await db.add(STORE, { ...op, ownerId, createdAt: Date.now(), attempts: 0 });
+      await db.add(STORE, item);
+      queued = true;
+    } else {
+      const id = memoryOutboxAutoInc++;
+      memoryOutbox.set(id, { ...item, id });
       queued = true;
     }
   } catch (err) {
@@ -63,10 +71,9 @@ export function canReplayForOwner(item: Pick<QueuedOp, "ownerId">, activeOwnerId
 export async function getQueue(): Promise<QueuedOp[]> {
   try {
     const db = await getDB();
-    return db ? await db.getAll(STORE) : [];
-  } catch {
-    return [];
-  }
+    if (db) return await db.getAll(STORE);
+  } catch {}
+  return Array.from(memoryOutbox.values());
 }
 
 export async function getPendingOps(table?: string): Promise<QueuedOp[]> {
@@ -78,6 +85,11 @@ export async function clearQueue() {
   try {
     const db = await getDB();
     if (db) await db.clear(STORE);
+  } catch {}
+  memoryOutbox.clear();
+  try {
+    const { memoryCache } = await import("./offlineDb");
+    memoryCache.clear();
   } catch {}
   notifyChange();
 }
@@ -128,20 +140,20 @@ async function replayItem(item: QueuedOp, userId: string): Promise<boolean> {
   let firestoreAttempted = false;
   let firestoreSucceeded = false;
   try {
-    const firestoreTables = ["tasks", "notes", "habits", "folders", "tags"];
+    const firestoreTables = ["tasks", "notes", "habits", "folders", "tags", "contacts", "task_contacts"];
     if (userId && firestoreTables.includes(item.table)) {
       firestoreAttempted = true;
       const { saveEntityToFirestore, deleteEntityFromFirestore } = await import("./firestoreSync");
       if (item.op === "delete") {
         const docId = item.match?.id as string;
         firestoreSucceeded = Boolean(
-          docId && await deleteEntityFromFirestore(userId, item.table as "tasks" | "notes" | "habits", docId)
+          docId && await deleteEntityFromFirestore(userId, item.table as any, docId)
         );
       } else {
         const payload = (item.payload || {}) as Record<string, any>;
         const docId = (payload.id || item.match?.id) as string;
         firestoreSucceeded = Boolean(
-          docId && await saveEntityToFirestore(userId, item.table as "tasks" | "notes" | "habits", docId, payload)
+          docId && await saveEntityToFirestore(userId, item.table as any, docId, payload)
         );
       }
     }

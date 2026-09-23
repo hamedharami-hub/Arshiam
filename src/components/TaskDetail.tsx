@@ -50,6 +50,12 @@ import { TaskMetaBar } from "@/components/task-detail/TaskMetaBar";
 import { TaskDetailBottomRail } from "@/components/task-detail/TaskDetailBottomRail";
 import { TaskCloseDialog } from "@/components/task-detail/TaskCloseDialog";
 import { TaskDetailActionsMenu } from "@/components/task-detail/TaskDetailActionsMenu";
+import { TaskRelatedContacts } from "@/components/task-detail/TaskRelatedContacts";
+import { ContactPickerModal } from "@/components/contacts/ContactPickerModal";
+import { ContactEditorDialog } from "@/components/contacts/ContactEditorDialog";
+import { DeviceContactImportModal } from "@/components/contacts/DeviceContactImportModal";
+import { linkTaskContact } from "@/lib/contactService";
+import { logTaskActivity } from "@/lib/taskActivity";
 import { bucketLabel, kindLabel } from "@/lib/timeBuckets";
 import { describeRule } from "@/lib/recurrence";
 import { addDays, endOfDay } from "date-fns";
@@ -147,6 +153,16 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const savedTaskRef = useRef(task);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleInputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Add menu & Contacts modal states
+  const [addCommentOpen, setAddCommentOpen] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [addLocationOpen, setAddLocationOpen] = useState(false);
+  const [locationText, setLocationText] = useState(task.location || "");
+  const [contactPickerOpen, setContactPickerOpen] = useState(false);
+  const [newContactOpen, setNewContactOpen] = useState(false);
+  const [deviceImportOpen, setDeviceImportOpen] = useState(false);
+  const [contactsRefreshKey, setContactsRefreshKey] = useState(0);
 
 
   useEffect(() => {
@@ -1163,6 +1179,15 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           </div>
         </section>
       )}
+
+      {user?.id && (
+        <TaskRelatedContacts
+          key={`contacts-${contactsRefreshKey}`}
+          taskId={t.id}
+          userId={user.id}
+          canEdit={canEdit}
+        />
+      )}
     </div>
   );
 
@@ -1195,6 +1220,21 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       deleteTask={deleteTask}
       save={save}
       T={T}
+      onAddComment={() => {
+        setCommentText("");
+        setAddCommentOpen(true);
+      }}
+      onAddNote={() => {
+        setShowNotes(true);
+        void addNote();
+      }}
+      onAddLocation={() => {
+        setLocationText(t.location || "");
+        setAddLocationOpen(true);
+      }}
+      onPickContact={() => setContactPickerOpen(true)}
+      onNewContact={() => setNewContactOpen(true)}
+      onImportDeviceContact={() => setDeviceImportOpen(true)}
     />
   );
 
@@ -1721,6 +1761,135 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         savePendingChanges={savePendingChanges}
         T={T}
       />
+
+      {/* Add Comment Dialog */}
+      <Dialog open={addCommentOpen} onOpenChange={setAddCommentOpen}>
+        <DialogContent dir={isEn ? "ltr" : "rtl"} className="max-w-md rounded-2xl p-4 sm:p-5">
+          <DialogHeader>
+            <DialogTitle className="text-start text-base font-bold flex items-center gap-2">
+              <FileText className="w-4 h-4 text-primary" />
+              {T("افزودن توضیح / کامنت به تسک", "Add Comment to Task")}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <AutoTextarea
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder={T("توضیح یا کامنت خود را اینجا بنویسید…", "Write your comment or note here…")}
+              rows={3}
+              minHeight={60}
+              maxHeight={180}
+              autoFocus
+              dir="auto"
+              className="text-xs"
+            />
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
+              <Button variant="outline" size="sm" onClick={() => setAddCommentOpen(false)}>
+                {T("انصراف", "Cancel")}
+              </Button>
+              <Button
+                size="sm"
+                onClick={async () => {
+                  if (!commentText.trim() || !canEdit) return;
+                  const trimmed = commentText.trim();
+                  const updatedDesc = t.description ? `${t.description}\n\n${trimmed}` : trimmed;
+                  await save({ description: updatedDesc });
+                  if (user) {
+                    void logTaskActivity(user.id, t.id, "updated", { comment_added: true, comment: trimmed });
+                  }
+                  toast.success(T("توضیحات / کامنت افزوده شد", "Comment added"));
+                  setAddCommentOpen(false);
+                }}
+                disabled={!commentText.trim()}
+              >
+                {T("ثبت کامنت", "Save Comment")}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add / Edit Location Dialog */}
+      <Dialog open={addLocationOpen} onOpenChange={setAddLocationOpen}>
+        <DialogContent dir={isEn ? "ltr" : "rtl"} className="max-w-md rounded-2xl p-4 sm:p-5">
+          <DialogHeader>
+            <DialogTitle className="text-start text-base font-bold flex items-center gap-2">
+              <CalendarIcon className="w-4 h-4 text-rose-500" />
+              {T("موقعیت مکانی تسک", "Task Location")}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Input
+              value={locationText}
+              onChange={(e) => setLocationText(e.target.value)}
+              placeholder={T("مثلاً: دفتر کار، منزل، شرکت مشتری...", "e.g. Office, Home...")}
+              autoFocus
+              dir="auto"
+              className="text-xs h-9"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void save({ location: locationText.trim() || null });
+                  toast.success(T("موقعیت مکانی ذخیره شد", "Location saved"));
+                  setAddLocationOpen(false);
+                }
+              }}
+            />
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
+              <Button variant="outline" size="sm" onClick={() => setAddLocationOpen(false)}>
+                {T("انصراف", "Cancel")}
+              </Button>
+              <Button
+                size="sm"
+                onClick={async () => {
+                  if (!canEdit) return;
+                  await save({ location: locationText.trim() || null });
+                  toast.success(T("موقعیت مکانی ذخیره شد", "Location saved"));
+                  setAddLocationOpen(false);
+                }}
+              >
+                {T("ذخیره موقعیت", "Save Location")}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Contacts Integration Modals */}
+      {user?.id && (
+        <>
+          <ContactPickerModal
+            open={contactPickerOpen}
+            onOpenChange={setContactPickerOpen}
+            taskId={t.id}
+            userId={user.id}
+            onLinked={() => setContactsRefreshKey((k) => k + 1)}
+          />
+
+          <ContactEditorDialog
+            open={newContactOpen}
+            onOpenChange={setNewContactOpen}
+            userId={user.id}
+            onSaved={async (created) => {
+              try {
+                await linkTaskContact(t.id, created.id, user.id);
+                toast.success(T("شخص جدید ذخیره و به تسک متصل شد", "Contact created and linked to task"));
+                setContactsRefreshKey((k) => k + 1);
+              } catch {
+                // link error
+              }
+            }}
+          />
+
+          <DeviceContactImportModal
+            open={deviceImportOpen}
+            onOpenChange={setDeviceImportOpen}
+            userId={user.id}
+            taskId={t.id}
+            onImported={() => setContactsRefreshKey((k) => k + 1)}
+          />
+        </>
+      )}
     </>
   );
 });
