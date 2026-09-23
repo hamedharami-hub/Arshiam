@@ -229,26 +229,27 @@ export const KnowledgeBaseView: React.FC = () => {
     );
   }, [documents, searchQuery]);
 
+
   return (
     <div
       dir={isEn ? "ltr" : "rtl"}
-      className="flex flex-col h-screen w-full bg-slate-950 text-slate-100 overflow-hidden font-sans"
+      className="flex-1 flex flex-col h-full w-full bg-background text-foreground overflow-hidden"
     >
       {/* Top Mobile Bar */}
-      <div className="md:hidden flex items-center justify-between p-3 border-b border-slate-800 bg-slate-900/80">
+      <div className="md:hidden flex items-center justify-between p-3 border-b border-border bg-card/80 backdrop-blur-md shrink-0">
         <button
           type="button"
           onClick={() => setMobileTreeOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 text-xs font-medium"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary text-foreground text-xs font-semibold border border-border"
         >
-          <Menu className="w-4 h-4 text-emerald-400" />
+          <Menu className="w-4 h-4 text-primary" />
           <span>{isEn ? "Folders & Docs" : "فولدرها و اسناد"}</span>
         </button>
 
         <button
           type="button"
           onClick={() => handleOpenCreateDoc(selectedFolderId)}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold shadow-md"
+          className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold shadow-xs"
         >
           <Plus className="w-4 h-4" />
           <span>{isEn ? "Add Document" : "افزودن سند"}</span>
@@ -256,7 +257,7 @@ export const KnowledgeBaseView: React.FC = () => {
       </div>
 
       {/* Main Split Layout */}
-      <div className="flex-1 flex overflow-hidden p-2 md:p-4 gap-3">
+      <div className="flex-1 flex overflow-hidden p-2 md:p-4 gap-3 min-h-0">
         {/* Desktop Sidebar Folder Tree */}
         <div className="hidden md:block w-72 lg:w-80 shrink-0 h-full">
           <KnowledgeSidebarTree
@@ -280,7 +281,7 @@ export const KnowledgeBaseView: React.FC = () => {
         <Sheet open={mobileTreeOpen} onOpenChange={setMobileTreeOpen}>
           <SheetContent
             side={isEn ? "left" : "right"}
-            className="w-80 p-0 bg-slate-950 border-slate-800 text-slate-100"
+            className="w-80 p-0 bg-card border-border text-card-foreground"
           >
             <KnowledgeSidebarTree
               tree={tree}

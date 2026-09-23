@@ -159,45 +159,75 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   };
 
   const boxesConfig = [
-    { box: 1, label: isEn ? "Box 1 (1d)" : "جعبه ۱ (۱ روز)", count: stats.box1, color: "border-rose-500/50 bg-rose-500/10 text-rose-300" },
-    { box: 2, label: isEn ? "Box 2 (3d)" : "جعبه ۲ (۳ روز)", count: stats.box2, color: "border-amber-500/50 bg-amber-500/10 text-amber-300" },
-    { box: 3, label: isEn ? "Box 3 (7d)" : "جعبه ۳ (۷ روز)", count: stats.box3, color: "border-sky-500/50 bg-sky-500/10 text-sky-300" },
-    { box: 4, label: isEn ? "Box 4 (14d)" : "جعبه ۴ (۱۴ روز)", count: stats.box4, color: "border-indigo-500/50 bg-indigo-500/10 text-indigo-300" },
-    { box: 5, label: isEn ? "Box 5 (Mastered)" : "جعبه ۵ (تسلط کامل)", count: stats.box5, color: "border-emerald-500/50 bg-emerald-500/10 text-emerald-300" },
+    {
+      box: 1,
+      label: isEn ? "Box 1 (1d)" : "جعبه ۱ (۱ روز)",
+      count: stats.box1,
+      color: "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400",
+      accent: "bg-rose-500",
+    },
+    {
+      box: 2,
+      label: isEn ? "Box 2 (3d)" : "جعبه ۲ (۳ روز)",
+      count: stats.box2,
+      color: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+      accent: "bg-amber-500",
+    },
+    {
+      box: 3,
+      label: isEn ? "Box 3 (7d)" : "جعبه ۳ (۷ روز)",
+      count: stats.box3,
+      color: "border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400",
+      accent: "bg-sky-500",
+    },
+    {
+      box: 4,
+      label: isEn ? "Box 4 (14d)" : "جعبه ۴ (۱۴ روز)",
+      count: stats.box4,
+      color: "border-indigo-500/30 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
+      accent: "bg-indigo-500",
+    },
+    {
+      box: 5,
+      label: isEn ? "Box 5 (Mastered)" : "جعبه ۵ (تسلط کامل)",
+      count: stats.box5,
+      color: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+      accent: "bg-emerald-500",
+    },
   ];
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto p-4 md:p-6 space-y-6">
       {/* Header & Stats Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-3xl bg-slate-900/80 border border-purple-500/30 shadow-xl backdrop-blur-xl">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-3xl bg-card border border-border shadow-sm backdrop-blur-md">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <Layers className="w-5 h-5 text-purple-400" />
-            <h2 className="text-base sm:text-lg font-bold text-white">
+            <Layers className="w-5 h-5 text-primary" />
+            <h2 className="text-base sm:text-lg font-bold text-foreground">
               {isEn ? "Leitner Spaced Repetition" : "سیستم جعبه لایتنر و مرور هوشمند"}
             </h2>
           </div>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-muted-foreground">
             {isEn
               ? "Review concepts at scientifically proven intervals for long-term memory mastery."
               : "مفاهیم و داروها را بر اساس فواصل زمانی اثبات‌شده مرور کنید تا به حافظهٔ بلندمدت منتقل شوند."}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={() => setOpenNewCard(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground text-xs font-semibold border border-border transition cursor-pointer"
           >
-            <Plus className="w-4 h-4 text-emerald-400" />
+            <Plus className="w-4 h-4 text-primary" />
             <span>{isEn ? "New Card" : "کارت جدید"}</span>
           </button>
 
           <button
             type="button"
             onClick={handleStartStudy}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-purple-500/25 transition cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold shadow-md shadow-primary/25 transition cursor-pointer"
           >
             <Zap className="w-4 h-4 text-amber-300 animate-pulse" />
             <span>
@@ -212,12 +242,15 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
         {boxesConfig.map((b) => (
           <div
             key={b.box}
-            className={`p-3.5 rounded-2xl border flex flex-col justify-between gap-2 backdrop-blur-sm transition ${b.color}`}
+            className={`p-3.5 rounded-2xl border flex flex-col justify-between gap-2 transition relative overflow-hidden ${b.color}`}
           >
-            <div className="text-[11px] font-bold opacity-90 truncate">{b.label}</div>
-            <div className="flex items-baseline justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold truncate">{b.label}</span>
+              <span className={`w-2 h-2 rounded-full ${b.accent}`} />
+            </div>
+            <div className="flex items-baseline justify-between mt-1">
               <span className="text-2xl font-black">{b.count}</span>
-              <span className="text-[10px] opacity-75">{isEn ? "cards" : "کارت"}</span>
+              <span className="text-[10px] opacity-75 font-medium">{isEn ? "cards" : "کارت"}</span>
             </div>
           </div>
         ))}
@@ -225,18 +258,18 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
 
       {/* Active Study Session Runner */}
       {isStudying && activeCard ? (
-        <div className="p-6 rounded-3xl bg-slate-900/95 border-2 border-purple-500/60 shadow-2xl flex flex-col items-center justify-center text-center space-y-6 animate-in zoom-in-95 duration-200 max-w-2xl mx-auto w-full">
-          <div className="w-full flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-3">
-            <span className="font-mono text-purple-300">
+        <div className="p-6 rounded-3xl bg-card border-2 border-primary/50 shadow-xl flex flex-col items-center justify-center text-center space-y-6 animate-in zoom-in-95 duration-200 max-w-2xl mx-auto w-full">
+          <div className="w-full flex items-center justify-between text-xs text-muted-foreground border-b border-border pb-3">
+            <span className="font-mono text-primary font-bold">
               {currentIndex + 1} / {dueCards.length}
             </span>
-            <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-bold font-mono">
+            <span className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-bold font-mono text-[11px]">
               Box {activeCard.box}
             </span>
             <button
               type="button"
               onClick={() => setIsStudying(false)}
-              className="text-slate-400 hover:text-white"
+              className="text-muted-foreground hover:text-foreground transition cursor-pointer text-xs"
             >
               {isEn ? "Exit" : "خروج"}
             </button>
@@ -246,9 +279,9 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
           <div
             data-testid="flip-card"
             onClick={() => setIsFlipped(!isFlipped)}
-            className="w-full min-h-[220px] p-6 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col items-center justify-center cursor-pointer select-none transition-all duration-300 hover:border-purple-500/50"
+            className="w-full min-h-[220px] p-6 rounded-2xl bg-muted/40 border border-border flex flex-col items-center justify-center cursor-pointer select-none transition-all duration-300 hover:border-primary/50 hover:shadow-md"
           >
-            <div className="text-[11px] uppercase tracking-wider text-slate-500 mb-2 font-bold">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-3 font-bold">
               {isFlipped
                 ? isEn
                   ? "Answer / Explanation"
@@ -258,7 +291,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
                 : "پرسش / مفهوم (کلیک برای چرخاندن کارت)"}
             </div>
 
-            <div className="text-base sm:text-lg font-bold text-slate-100 leading-relaxed max-w-lg">
+            <div className="text-base sm:text-lg font-bold text-foreground leading-relaxed max-w-lg">
               {isFlipped ? activeCard.back : activeCard.front}
             </div>
 
@@ -266,7 +299,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
             {!isFlipped && activeCard.clue && (
               <div className="mt-4">
                 {showClue ? (
-                  <span className="text-xs text-amber-300/90 bg-amber-500/10 px-3 py-1 rounded-xl border border-amber-500/20">
+                  <span className="text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 px-3 py-1 rounded-xl border border-amber-500/20">
                     💡 {activeCard.clue}
                   </span>
                 ) : (
@@ -276,7 +309,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
                       e.stopPropagation();
                       setShowClue(true);
                     }}
-                    className="text-xs text-slate-400 hover:text-amber-300 flex items-center gap-1"
+                    className="text-xs text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-1 cursor-pointer transition"
                   >
                     <HelpCircle className="w-3.5 h-3.5" />
                     <span>{isEn ? "Show Hint" : "نمایش سرنخ"}</span>
@@ -294,7 +327,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
                     e.stopPropagation();
                     onOpenDocument(activeCard.document_id!);
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 text-xs font-medium transition cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 text-xs font-medium transition cursor-pointer"
                 >
                   <BookOpen className="w-3.5 h-3.5" />
                   <span>{isEn ? "View Source Document" : "مشاهده سند مرجع"}</span>
@@ -308,7 +341,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
             <button
               type="button"
               onClick={() => handleReviewAnswer(false)}
-              className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-rose-600/90 hover:bg-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-600/20 transition cursor-pointer"
+              className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md shadow-rose-600/20 transition cursor-pointer"
             >
               <XCircle className="w-4 h-4" />
               <span>{isEn ? "Forgot (Box 1)" : "فراموش کردم (جعبه ۱)"}</span>
@@ -317,7 +350,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
             <button
               type="button"
               onClick={() => handleReviewAnswer(true)}
-              className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/20 transition cursor-pointer"
+              className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>{isEn ? "Remembered (+1 Box)" : "بلدم (انتقال به جعبه بعدی)"}</span>
@@ -327,18 +360,18 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
       ) : null}
 
       {/* Cards Table / List */}
-      <div className="p-4 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-3">
-        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-          <h3 className="text-xs font-bold text-slate-200">
+      <div className="p-4 rounded-3xl bg-card border border-border space-y-3 shadow-sm">
+        <div className="flex items-center justify-between pb-2 border-b border-border">
+          <h3 className="text-xs font-bold text-foreground">
             {isEn ? "All Flashcards" : "تمامی فلش‌کارت‌ها"} ({cards.length})
           </h3>
-          <span className="text-[11px] text-slate-400">
+          <span className="text-[11px] text-muted-foreground">
             {stats.masteredCount} {isEn ? "Mastered" : "مسلط شده"}
           </span>
         </div>
 
         {cards.length === 0 ? (
-          <div className="p-8 text-center text-xs text-slate-500">
+          <div className="p-8 text-center text-xs text-muted-foreground">
             {isEn
               ? "No flashcards yet. Click 'New Card' to create your first Leitner card."
               : "هنوز کارتی ثبت نشده است. روی 'کارت جدید' کلیک کنید تا اولین کارت لایتنر خود را بسازید."}
@@ -348,21 +381,21 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
             {cards.map((c) => (
               <div
                 key={c.id}
-                className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 flex items-center justify-between gap-3 text-xs"
+                className="p-3 rounded-xl bg-muted/40 border border-border flex items-center justify-between gap-3 text-xs hover:bg-muted/70 transition"
               >
                 <div className="space-y-1 min-w-0">
-                  <div className="font-bold text-slate-200 truncate">{c.front}</div>
-                  <div className="text-[11px] text-slate-400 truncate">{c.back}</div>
+                  <div className="font-bold text-foreground truncate">{c.front}</div>
+                  <div className="text-[11px] text-muted-foreground truncate">{c.back}</div>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-mono font-bold text-[10px]">
+                  <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary font-mono font-bold text-[10px]">
                     B{c.box}
                   </span>
                   <button
                     type="button"
                     onClick={() => handleDeleteCard(c.id)}
-                    className="p-1 rounded text-slate-500 hover:text-rose-400 transition"
+                    className="p-1 rounded text-muted-foreground hover:text-rose-500 transition cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -375,17 +408,17 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
 
       {/* New Card Modal */}
       <Dialog open={openNewCard} onOpenChange={setOpenNewCard}>
-        <DialogContent className="max-w-md bg-slate-950 border border-slate-800 text-slate-100 rounded-2xl">
+        <DialogContent className="max-w-md bg-card border border-border text-foreground rounded-2xl shadow-xl">
           <DialogHeader>
             <DialogTitle className="text-sm font-bold flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-purple-400" />
+              <Sparkles className="w-4 h-4 text-primary" />
               <span>{isEn ? "Create Flashcard" : "افزودن فلش‌کارت جدید"}</span>
             </DialogTitle>
           </DialogHeader>
 
           <form onSubmit={handleCreateCard} className="space-y-3 pt-2">
             <div>
-              <label className="block text-[11px] text-slate-400 mb-1">
+              <label className="block text-[11px] text-muted-foreground mb-1">
                 {isEn ? "Front (Question / Prompt)" : "روی کارت (پرسش یا مفهوم)"}
               </label>
               <textarea
@@ -394,12 +427,12 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
                 value={frontInput}
                 onChange={(e) => setFrontInput(e.target.value)}
                 placeholder={isEn ? "e.g. Mechanism of Fluoxetine" : "مثلاً مکانیسم اثر فلوکستین..."}
-                className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-purple-500 resize-none"
+                className="w-full p-2.5 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] text-slate-400 mb-1">
+              <label className="block text-[11px] text-muted-foreground mb-1">
                 {isEn ? "Back (Answer / Clinical Key)" : "پشت کارت (پاسخ یا نکته بالینی)"}
               </label>
               <textarea
@@ -408,12 +441,12 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
                 value={backInput}
                 onChange={(e) => setBackInput(e.target.value)}
                 placeholder={isEn ? "e.g. Selective Serotonin Reuptake Inhibitor (SSRI)" : "مثلاً مهارکننده انتخابی بازجذب سروتونین (SSRI)..."}
-                className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-purple-500 resize-none"
+                className="w-full p-2.5 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] text-slate-400 mb-1">
+              <label className="block text-[11px] text-muted-foreground mb-1">
                 {isEn ? "Clue / Hint (optional)" : "سرنخ یا راهنمایی (اختیاری)"}
               </label>
               <input
@@ -421,19 +454,19 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
                 value={clueInput}
                 onChange={(e) => setClueInput(e.target.value)}
                 placeholder={isEn ? "e.g. Longest half-life" : "مثلاً بیشترین نیمه‌عمر"}
-                className="w-full py-1.5 px-3 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-purple-500"
+                className="w-full py-1.5 px-3 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
 
             {documents.length > 0 && (
               <div>
-                <label className="block text-[11px] text-slate-400 mb-1">
+                <label className="block text-[11px] text-muted-foreground mb-1">
                   {isEn ? "Link to Knowledge Document (optional)" : "اتصال به سند آموزشی مرجع (اختیاری)"}
                 </label>
                 <select
                   value={selectedDocId}
                   onChange={(e) => setSelectedDocId(e.target.value)}
-                  className="w-full py-1.5 px-3 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-purple-500"
+                  className="w-full py-1.5 px-3 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                 >
                   <option value="">{isEn ? "(None)" : "(بدون اتصال)"}</option>
                   {documents.map((d) => (
@@ -449,13 +482,13 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               <button
                 type="button"
                 onClick={() => setOpenNewCard(false)}
-                className="px-3 py-1.5 rounded-xl text-xs text-slate-400 hover:text-white"
+                className="px-3 py-1.5 rounded-xl text-xs text-muted-foreground hover:text-foreground transition cursor-pointer"
               >
                 {isEn ? "Cancel" : "انصراف"}
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold"
+                className="px-4 py-1.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold shadow-sm transition cursor-pointer"
               >
                 {isEn ? "Create Card" : "ایجاد کارت"}
               </button>
