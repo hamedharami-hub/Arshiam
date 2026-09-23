@@ -17,9 +17,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { Save, Trash2, ArrowRight, Loader2, FileText, X } from "lucide-react";
+import { Save, Trash2, ArrowRight, Loader2, FileText, X, BookOpen } from "lucide-react";
 import type { TaskNote } from "@/lib/taskTypes";
 import { updateTaskNote, deleteTaskNote } from "@/lib/taskNotesService";
+import { TaskKnowledgeLinkModal } from "./TaskKnowledgeLinkModal";
 
 interface Props {
   open: boolean;
@@ -51,6 +52,13 @@ export function TaskNoteEditorDialog({
   const [content, setContent] = useState(() => note?.content || "");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
+
+  const handleInsertDocLink = (doc: any) => {
+    const linkText = `\n[📄 ${doc.title}](kb:${doc.id})\n`;
+    setContent((prev) => (prev ? prev + linkText : linkText.trim()));
+    toast.success(T("لینک سند به نوت اضافه شد", "Knowledge link inserted into note"));
+  };
 
   useEffect(() => {
     if (note) {
@@ -119,9 +127,19 @@ export function TaskNoteEditorDialog({
       </div>
 
       <div className="flex-1 flex flex-col min-h-0">
-        <label className="text-xs font-semibold text-muted-foreground block mb-1">
-          {T("متن یادداشت", "Note Content")}
-        </label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-xs font-semibold text-muted-foreground block">
+            {T("متن یادداشت", "Note Content")}
+          </label>
+          <button
+            type="button"
+            onClick={() => setLinkModalOpen(true)}
+            className="flex items-center gap-1 text-[11px] text-purple-400 hover:text-purple-300 font-medium cursor-pointer"
+          >
+            <BookOpen className="w-3 h-3" />
+            <span>{T("درج لینک سند آموزشی", "Insert Knowledge Link")}</span>
+          </button>
+        </div>
         <Textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
@@ -243,6 +261,14 @@ export function TaskNoteEditorDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <TaskKnowledgeLinkModal
+        open={linkModalOpen}
+        onOpenChange={setLinkModalOpen}
+        userId={userId}
+        alreadyLinkedDocIds={[]}
+        onSelectDoc={handleInsertDocLink}
+      />
     </>
   );
 }

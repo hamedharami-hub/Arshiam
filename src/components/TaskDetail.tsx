@@ -56,6 +56,10 @@ import { ContactPickerModal } from "@/components/contacts/ContactPickerModal";
 import { ContactEditorDialog } from "@/components/contacts/ContactEditorDialog";
 import { DeviceContactImportModal } from "@/components/contacts/DeviceContactImportModal";
 import { linkTaskContact } from "@/lib/contactService";
+import { TaskRelatedKnowledge } from "@/components/task-detail/TaskRelatedKnowledge";
+import { TaskKnowledgeLinkModal } from "@/components/task-detail/TaskKnowledgeLinkModal";
+import { getTaskKnowledgeDocs, linkTaskKnowledge, unlinkTaskKnowledge } from "@/lib/taskKnowledgeService";
+import type { KnowledgeDocument } from "@/lib/knowledgeTypes";
 import { logTaskActivity } from "@/lib/taskActivity";
 import { bucketLabel, kindLabel } from "@/lib/timeBuckets";
 import { describeRule } from "@/lib/recurrence";
@@ -168,6 +172,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [newContactOpen, setNewContactOpen] = useState(false);
   const [deviceImportOpen, setDeviceImportOpen] = useState(false);
   const [contactsRefreshKey, setContactsRefreshKey] = useState(0);
+  const [linkedKnowledgeDocs, setLinkedKnowledgeDocs] = useState<KnowledgeDocument[]>([]);
+  const [isKnowledgeLinkModalOpen, setIsKnowledgeLinkModalOpen] = useState(false);
 
 
   useEffect(() => {
@@ -222,15 +228,17 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [loadedNotes, tagsRes, subRes, stepListsRes, attachRes, outcomesRes] = await Promise.all([
+      const [loadedNotes, tagsRes, subRes, stepListsRes, attachRes, outcomesRes, loadedKDocs] = await Promise.all([
         getTaskNotes(task.id, user ? user.id : ""),
         firebaseStore.from("task_tags").select("tag_id").eq("task_id", task.id),
         firebaseStore.from("tasks").select("id,title,completed,position").eq("parent_id", task.id),
         firebaseStore.from("task_step_lists").select("id", { count: "exact", head: true }).eq("task_id", task.id),
         firebaseStore.from("task_attachments").select("id", { count: "exact", head: true }).eq("task_id", task.id),
         firebaseStore.from("task_outcomes").select("id", { count: "exact", head: true }).eq("task_id", task.id),
+        getTaskKnowledgeDocs(task.id, user ? user.id : ""),
       ]);
       if (cancelled) return;
+      setLinkedKnowledgeDocs(loadedKDocs || []);
       setTaskNotes((prev) => {
         const map = new Map<string, TaskNote>();
         for (const n of loadedNotes) map.set(n.id, n);
@@ -694,6 +702,31 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         }
       },
     });
+  };
+
+  const handleLinkKnowledge = async (doc: KnowledgeDocument) => {
+    if (!user?.id || !t.id) return;
+    try {
+      await linkTaskKnowledge(user.id, t.id, doc.id);
+      setLinkedKnowledgeDocs((prev) => {
+        if (prev.some((d) => d.id === doc.id)) return prev;
+        return [...prev, doc];
+      });
+      toast.success(T("سند آموزشی به تسک متصل شد", "Knowledge doc linked to task"));
+    } catch (e) {
+      toast.error(T("خطا در اتصال سند", "Error linking doc"));
+    }
+  };
+
+  const handleUnlinkKnowledge = async (docId: string) => {
+    if (!user?.id || !t.id) return;
+    try {
+      await unlinkTaskKnowledge(user.id, t.id, docId);
+      setLinkedKnowledgeDocs((prev) => prev.filter((d) => d.id !== docId));
+      toast.success(T("اتصال سند حذف شد", "Knowledge doc unlinked"));
+    } catch (e) {
+      toast.error(T("خطا در قطع اتصال سند", "Error unlinking doc"));
+    }
   };
 
   // ── Quick chip helpers ──────────────────────────────────────────────
@@ -1321,6 +1354,14 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           canEdit={canEdit}
         />
       )}
+
+      {user?.id && (
+        <TaskRelatedKnowledge
+          documents={linkedKnowledgeDocs}
+          onOpenLinkModal={() => setIsKnowledgeLinkModalOpen(true)}
+          onUnlink={handleUnlinkKnowledge}
+        />
+      )}
     </div>
   );
 
@@ -1368,6 +1409,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       onPickContact={() => setContactPickerOpen(true)}
       onNewContact={() => setNewContactOpen(true)}
       onImportDeviceContact={() => setDeviceImportOpen(true)}
+      onLinkKnowledge={() => setIsKnowledgeLinkModalOpen(true)}
     />
   );
 
@@ -1962,6 +2004,14 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             userId={user.id}
             taskId={t.id}
             onImported={() => setContactsRefreshKey((k) => k + 1)}
+          />
+
+          <TaskKnowledgeLinkModal
+            open={isKnowledgeLinkModalOpen}
+            onOpenChange={setIsKnowledgeLinkModalOpen}
+            userId={user.id}
+            alreadyLinkedDocIds={linkedKnowledgeDocs.map((d) => d.id)}
+            onSelectDoc={handleLinkKnowledge}
           />
 
           {/* Task Note Editor Dialog / Sheet */}

@@ -67,6 +67,7 @@ export const FA_LABELS: Record<string, string> = {
   "Smart Lists": "لیست‌های هوشمند",
   "Contacts": "افراد",
   "Knowledge Base": "کتابخانه دانش",
+  "Review (SR)": "مرور (SR)",
 };
 
 export function useLabel() {
@@ -106,6 +107,7 @@ export const SECTIONS: Section[] = [
       { url: "/app/habits", icon: Target, label: "عادت‌ها" },
       { url: "/app/notes", icon: FileText, label: "نوت‌ها" },
       { url: "/app/knowledge", icon: BookOpen, label: "کتابخانه دانش" },
+      { url: "/app/review", icon: BrainCircuit, label: "مرور (SR)" },
       { url: "/app/cycle", icon: Calendar, label: "سیکل پریود" },
     ],
   },

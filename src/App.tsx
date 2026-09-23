@@ -87,6 +87,7 @@ const ArticleRewriteView = lazy(() => import("./pages/ArticleRewriteView"));
 const WidgetsView = lazy(() => import("./pages/WidgetsView"));
 const ContactsView = lazy(() => import("./pages/ContactsView"));
 const KnowledgeBaseView = lazy(() => import("./pages/KnowledgeBaseView"));
+const ReviewView = lazy(() => import("./pages/ReviewView"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -283,6 +284,7 @@ const App = () => {
                     <Route path="/calendar" element={<Navigate to="/app/calendar" replace />} />
                     <Route path="/contacts" element={<Navigate to="/app/contacts" replace />} />
                     <Route path="/knowledge" element={<Navigate to="/app/knowledge" replace />} />
+                    <Route path="/review" element={<Navigate to="/app/review" replace />} />
                     <Route path="/settings" element={<Navigate to="/app/settings" replace />} />
                     <Route path="/life-architect" element={<Navigate to="/app/life-architect" replace />} />
                     <Route path="/new-task" element={<Navigate to="/app/new/task" replace />} />
@@ -316,6 +318,7 @@ const App = () => {
                       <Route path="calendar" element={<CalendarView />} />
                       <Route path="contacts" element={<ContactsView />} />
                       <Route path="knowledge" element={<KnowledgeBaseView />} />
+                      <Route path="review" element={<ReviewView />} />
                       <Route path="stats" element={<StatsView />} />
                       <Route path="kanban" element={<KanbanView />} />
                       <Route path="buckets" element={<BucketsView />} />

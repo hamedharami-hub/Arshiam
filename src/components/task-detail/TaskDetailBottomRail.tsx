@@ -23,6 +23,7 @@ import {
   Users,
   UserPlus,
   Smartphone,
+  BookOpen,
 } from "lucide-react";
 import type { Task } from "@/lib/taskTypes";
 import { isDeviceContactImportSupported } from "@/lib/deviceContacts";
@@ -130,6 +131,7 @@ export interface TaskDetailBottomRailProps {
   onPickContact?: () => void;
   onNewContact?: () => void;
   onImportDeviceContact?: () => void;
+  onLinkKnowledge?: () => void;
 }
 
 export function TaskDetailBottomRail({
@@ -166,6 +168,7 @@ export function TaskDetailBottomRail({
   onPickContact,
   onNewContact,
   onImportDeviceContact,
+  onLinkKnowledge,
 }: TaskDetailBottomRailProps) {
   const [addPopoverOpen, setAddPopoverOpen] = React.useState(false);
 
@@ -269,6 +272,18 @@ export function TaskDetailBottomRail({
                 >
                   <FileText className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                   <span>{T("افزودن نوت", "Add Note")}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddPopoverOpen(false);
+                    onLinkKnowledge?.();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-accent text-start transition"
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                  <span>{T("اتصال سند آموزشی", "Link Knowledge Doc")}</span>
                 </button>
 
                 <button
