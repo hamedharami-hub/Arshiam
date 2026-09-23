@@ -11,7 +11,9 @@ import {
   Trash2,
   FolderOpen,
   PanelLeftClose,
+  Network,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useBilingual } from "@/hooks/useBilingual";
 import type { KnowledgeFolder, KnowledgeDocument, KnowledgeFolderNode } from "@/lib/knowledgeTypes";
 import {
@@ -55,6 +57,7 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
   onToggleCollapse,
 }) => {
   const { isEn } = useBilingual();
+  const navigate = useNavigate();
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
@@ -188,6 +191,13 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
                   <span>{isEn ? "Add subfolder" : "افزودن زیرفولدر"}</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  onClick={() => navigate(`/app/review?tab=mindmap&folderId=${node.id}`)}
+                  className="cursor-pointer gap-2"
+                >
+                  <Network className="w-3.5 h-3.5 text-primary" />
+                  <span>{isEn ? "View Mind Map" : "مشاهده نقشه ذهنی این فولدر"}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={() => onDeleteFolder(node.id)}
                   className="text-destructive focus:text-destructive cursor-pointer gap-2"
                 >
@@ -256,6 +266,15 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
           </span>
 
           <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => navigate(selectedFolderId ? `/app/review?tab=mindmap&folderId=${selectedFolderId}` : "/app/review?tab=mindmap")}
+              className="p-1.5 rounded-xl hover:bg-secondary text-muted-foreground hover:text-primary transition cursor-pointer border border-border"
+              title={isEn ? "Open Mind Map" : "نقشه ذهنی پایگاه دانش"}
+            >
+              <Network className="w-3.5 h-3.5" />
+            </button>
+
             <button
               type="button"
               onClick={() => handleOpenCreateFolder(null)}

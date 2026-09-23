@@ -4,13 +4,31 @@ import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
 import { LeitnerDeckView } from "@/components/review/LeitnerDeckView";
 import { KnowledgeMindMapView } from "@/components/review/KnowledgeMindMapView";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 export const ReviewView: React.FC = () => {
   const { user } = useAuth();
   const { isEn } = useBilingual();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"leitner" | "mindmap">("leitner");
+  const [searchParams] = useSearchParams();
+  const urlFolderId = searchParams.get("folderId");
+  const urlDocId = searchParams.get("docId");
+  const urlTab = searchParams.get("tab");
+
+  const [activeTab, setActiveTab] = useState<"leitner" | "mindmap">(() => {
+    if (urlTab === "mindmap" || urlFolderId || urlDocId) {
+      return "mindmap";
+    }
+    return "leitner";
+  });
+
+  React.useEffect(() => {
+    if (urlTab === "mindmap" || urlFolderId || urlDocId) {
+      setActiveTab("mindmap");
+    } else if (urlTab === "leitner") {
+      setActiveTab("leitner");
+    }
+  }, [urlTab, urlFolderId, urlDocId]);
 
   const userId = user?.id || "anonymous-review-user";
 
@@ -77,7 +95,12 @@ export const ReviewView: React.FC = () => {
           <LeitnerDeckView userId={userId} onOpenDocument={handleOpenDoc} />
         </div>
         <div className={`flex-1 flex flex-col h-full min-h-0 ${activeTab === "mindmap" ? "" : "hidden"}`}>
-          <KnowledgeMindMapView userId={userId} onOpenDocument={handleOpenDoc} />
+          <KnowledgeMindMapView
+            userId={userId}
+            onOpenDocument={handleOpenDoc}
+            initialFolderId={urlFolderId || undefined}
+            initialDocId={urlDocId || undefined}
+          />
         </div>
       </div>
     </div>

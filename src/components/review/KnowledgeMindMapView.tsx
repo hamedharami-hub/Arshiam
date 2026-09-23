@@ -5,6 +5,7 @@ import {
   Maximize2,
   Minimize2,
   Folder,
+  FolderTree,
   FileText,
   Sparkles,
   Search,
@@ -15,7 +16,18 @@ import {
   RotateCcw,
   Eye,
   ArrowRightLeft,
+  GitBranch,
+  X,
+  Check,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
 import { useBilingual } from "@/hooks/useBilingual";
 import { isPersianText } from "@/lib/bilingualHelper";
 import type { KnowledgeFolder, KnowledgeDocument } from "@/lib/knowledgeTypes";
@@ -27,6 +39,8 @@ import { TaskKnowledgeReaderDialog } from "@/components/task-detail/TaskKnowledg
 interface KnowledgeMindMapViewProps {
   userId: string;
   onOpenDocument?: (docId: string) => void;
+  initialFolderId?: string;
+  initialDocId?: string;
 }
 
 interface MindMapNode {
@@ -66,12 +80,23 @@ interface MindMapNodeItemProps {
   isHighlighted: boolean;
   isEn: boolean;
   treeDirection?: "rtl" | "ltr";
+  isCurrentScopeRoot?: boolean;
   onOpenPreview: (doc: KnowledgeDocument) => void;
   onToggleExpand: (nodeId: string) => void;
+  onFocusScope?: (scopeId: string) => void;
 }
 
 const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
-  ({ node, isHighlighted, isEn, treeDirection = "ltr", onOpenPreview, onToggleExpand }) => {
+  ({
+    node,
+    isHighlighted,
+    isEn,
+    treeDirection = "ltr",
+    isCurrentScopeRoot = false,
+    onOpenPreview,
+    onToggleExpand,
+    onFocusScope,
+  }) => {
     const isDoc = node.type === "doc";
     const isFolder = node.type === "folder" || node.type === "subfolder";
     const isRoot = node.type === "root";
@@ -94,8 +119,8 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
         className={`mindmap-interactive-node p-2.5 rounded-2xl border flex items-center justify-between gap-2 shadow-xs backdrop-blur-xl transition-all duration-150 cursor-pointer ${
           isHighlighted ? "ring-2 ring-amber-400 shadow-md shadow-amber-400/25 scale-105" : ""
         } ${
-          isRoot
-            ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 font-bold"
+          isCurrentScopeRoot || isRoot
+            ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 font-bold ring-2 ring-primary/30"
             : isFolder
             ? "bg-card text-card-foreground border-emerald-500/40 hover:border-emerald-500 hover:shadow-sm"
             : isDoc
@@ -129,7 +154,7 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
               className={`truncate text-xs font-semibold ${
                 isTitlePersian ? "text-right" : "text-left"
               } ${
-                isRoot ? "text-primary-foreground" : "text-foreground"
+                isRoot || isCurrentScopeRoot ? "text-primary-foreground" : "text-foreground"
               }`}
             >
               {node.title}
@@ -140,7 +165,7 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
                 className={`truncate text-[10px] ${
                   isSubtitlePersian ? "text-right" : "text-left"
                 } ${
-                  isRoot ? "text-primary-foreground/80" : "text-muted-foreground"
+                  isRoot || isCurrentScopeRoot ? "text-primary-foreground/80" : "text-muted-foreground"
                 }`}
               >
                 {node.subtitle}
@@ -168,6 +193,21 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
             </button>
           )}
 
+          {/* Focus on this branch button */}
+          {!isRoot && !isCurrentScopeRoot && onFocusScope && (isFolder || isDoc) && (
+            <button
+              type="button"
+              title={isEn ? "Focus on this branch" : "تمرکز روی این شاخه"}
+              onClick={(e) => {
+                e.stopPropagation();
+                onFocusScope(node.id);
+              }}
+              className="p-1 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition cursor-pointer"
+            >
+              <GitBranch className="w-3.5 h-3.5" />
+            </button>
+          )}
+
           {/* Expand / Collapse Button if has children */}
           {node.hasChildren && (
             <button
@@ -177,7 +217,7 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
                 onToggleExpand(node.id);
               }}
               className={`p-1 rounded-lg transition cursor-pointer ${
-                isRoot
+                isRoot || isCurrentScopeRoot
                   ? "hover:bg-primary-foreground/20 text-primary-foreground"
                   : "hover:bg-muted text-muted-foreground hover:text-foreground"
               }`}
@@ -202,14 +242,29 @@ MindMapNodeItem.displayName = "MindMapNodeItem";
 export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   userId,
   onOpenDocument,
+  initialFolderId,
+  initialDocId,
 }) => {
   const { isEn } = useBilingual();
   const [folders, setFolders] = useState<KnowledgeFolder[]>([]);
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [cards, setCards] = useState<LeitnerCard[]>([]);
+  const [selectedScopeId, setSelectedScopeId] = useState<string>(() => {
+    if (initialFolderId) return `folder-${initialFolderId}`;
+    if (initialDocId) return `doc-${initialDocId}`;
+    return "all";
+  });
   const [expandedNodeIds, setExpandedNodeIds] = useState<Record<string, boolean>>({
     "root-kb": true,
   });
+
+  useEffect(() => {
+    if (initialFolderId) {
+      setSelectedScopeId(`folder-${initialFolderId}`);
+    } else if (initialDocId) {
+      setSelectedScopeId(`doc-${initialDocId}`);
+    }
+  }, [initialFolderId, initialDocId]);
 
   // Canvas Viewport State
   const [treeDirection, setTreeDirection] = useState<"rtl" | "ltr">("ltr");
@@ -343,7 +398,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
 
   // Expand All
   const handleExpandAll = useCallback(() => {
-    const allExpanded: Record<string, boolean> = { "root-kb": true };
+    const allExpanded: Record<string, boolean> = { [selectedScopeId]: true, "root-kb": true };
     folders.forEach((f) => {
       allExpanded[`folder-${f.id}`] = true;
     });
@@ -351,12 +406,70 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       allExpanded[`doc-${d.id}`] = true;
     });
     setExpandedNodeIds(allExpanded);
-  }, [folders, documents]);
+  }, [folders, documents, selectedScopeId]);
 
   // Collapse All
   const handleCollapseAll = useCallback(() => {
-    setExpandedNodeIds({ "root-kb": true });
-  }, []);
+    setExpandedNodeIds({ [selectedScopeId]: true });
+  }, [selectedScopeId]);
+
+  // Current scope title for toolbar
+  const currentScopeTitle = useMemo(() => {
+    if (selectedScopeId === "all") {
+      return isEn ? "All Knowledge Base" : "همه پایگاه دانش";
+    }
+    if (selectedScopeId.startsWith("folder-")) {
+      const f = folders.find((item) => item.id === selectedScopeId.replace("folder-", ""));
+      return f ? f.name : isEn ? "Folder" : "فولدر";
+    }
+    if (selectedScopeId.startsWith("doc-")) {
+      const d = documents.find((item) => item.id === selectedScopeId.replace("doc-", ""));
+      return d ? d.title : isEn ? "Document" : "سند";
+    }
+    return isEn ? "Scope" : "شاخه";
+  }, [selectedScopeId, folders, documents, isEn]);
+
+  // Breadcrumb trail for focused navigation
+  const breadcrumbTrail = useMemo(() => {
+    if (selectedScopeId === "all") {
+      return [{ id: "all", label: isEn ? "All Knowledge Base" : "کل پایگاه دانش" }];
+    }
+
+    if (selectedScopeId.startsWith("folder-")) {
+      const targetFolderId = selectedScopeId.replace("folder-", "");
+      const trail: Array<{ id: string; label: string }> = [];
+      let curr = folders.find((f) => f.id === targetFolderId);
+      while (curr) {
+        trail.unshift({ id: `folder-${curr.id}`, label: curr.name });
+        curr = curr.parent_id ? folders.find((f) => f.id === curr!.parent_id) : undefined;
+      }
+      return [{ id: "all", label: isEn ? "All" : "همه" }, ...trail];
+    }
+
+    if (selectedScopeId.startsWith("doc-")) {
+      const targetDocId = selectedScopeId.replace("doc-", "");
+      const doc = documents.find((d) => d.id === targetDocId);
+      if (!doc) return [{ id: "all", label: isEn ? "All" : "همه" }];
+      const trail: Array<{ id: string; label: string }> = [];
+      if (doc.folder_id) {
+        let curr = folders.find((f) => f.id === doc.folder_id);
+        while (curr) {
+          trail.unshift({ id: `folder-${curr.id}`, label: curr.name });
+          curr = curr.parent_id ? folders.find((f) => f.id === curr!.parent_id) : undefined;
+        }
+      }
+      return [
+        { id: "all", label: isEn ? "All" : "همه" },
+        ...trail,
+        { id: selectedScopeId, label: doc.title },
+      ];
+    }
+
+    return [{ id: "all", label: isEn ? "All Knowledge Base" : "کل پایگاه دانش" }];
+  }, [selectedScopeId, folders, documents, isEn]);
+
+  const rootFoldersList = useMemo(() => folders.filter((f) => !f.parent_id), [folders]);
+  const unfiledDocsCount = useMemo(() => documents.filter((d) => !d.folder_id).length, [documents]);
 
   // Compute Tree Layout (Pharmacy layout algorithm: Center parent to children and prevent subtree overlap)
   const { nodes, links, bounds } = useMemo(() => {
@@ -445,214 +558,157 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       return { y: nodeY, height };
     }
 
-    // Build hierarchical child functions
-    const rootFolders = folders.filter((f) => !f.parent_id);
-    const unfiledDocs = documents.filter((d) => !d.folder_id);
+    // Helper to build a document node and its flashcards
+    const buildDocNode = (
+      doc: KnowledgeDocument,
+      depth: number,
+      x: number,
+      parentId?: string
+    ): { y: number; height: number } => {
+      const docId = `doc-${doc.id}`;
+      const docCards = cards.filter((c) => c.document_id === doc.id);
 
-    const rootChildrenFns: Array<() => { y: number; height: number }> = [];
-
-    // Root Folders
-    rootFolders.forEach((rf) => {
-      rootChildrenFns.push(() => {
-        const folderId = `folder-${rf.id}`;
-        const subFolders = folders.filter((f) => f.parent_id === rf.id);
-        const rfDocs = documents.filter((d) => d.folder_id === rf.id);
-
-        const folderChildrenFns: Array<() => { y: number; height: number }> = [];
-
-        // Subfolders
-        subFolders.forEach((sf) => {
-          folderChildrenFns.push(() => {
-            const subFolderId = `folder-${sf.id}`;
-            const sfDocs = documents.filter((d) => d.folder_id === sf.id);
-
-            const subChildrenFns: Array<() => { y: number; height: number }> = [];
-            sfDocs.forEach((doc) => {
-              subChildrenFns.push(() => {
-                const docId = `doc-${doc.id}`;
-                const docCards = cards.filter((c) => c.document_id === doc.id);
-
-                const cardFns: Array<() => { y: number; height: number }> = [];
-                docCards.slice(0, 15).forEach((card) => {
-                  cardFns.push(() => {
-                    return layoutNode(
-                      `card-${card.id}`,
-                      "card",
-                      card.front,
-                      4,
-                      60 + colSpacing * 4,
-                      docId,
-                      "var(--primary)",
-                      "#ec4899",
-                      card.id,
-                      undefined,
-                      isEn ? `Box ${card.box}` : `جعبه ${card.box}`
-                    );
-                  });
-                });
-
-                return layoutNode(
-                  docId,
-                  "doc",
-                  doc.title,
-                  3,
-                  60 + colSpacing * 3,
-                  subFolderId,
-                  "#6366f1",
-                  "#818cf8",
-                  doc.id,
-                  doc,
-                  docCards.length > 0
-                    ? isEn
-                      ? `${docCards.length} Cards`
-                      : `${docCards.length} کارت`
-                    : undefined,
-                  cardFns
-                );
-              });
-            });
-
-            return layoutNode(
-              subFolderId,
-              "subfolder",
-              sf.name,
-              2,
-              60 + colSpacing * 2,
-              folderId,
-              sf.color || "#06b6d4",
-              "#22d3ee",
-              sf.id,
-              undefined,
-              `${sfDocs.length} ${isEn ? "docs" : "سند"}`,
-              subChildrenFns
-            );
-          });
+      const cardFns: Array<() => { y: number; height: number }> = [];
+      docCards.slice(0, 15).forEach((card) => {
+        cardFns.push(() => {
+          return layoutNode(
+            `card-${card.id}`,
+            "card",
+            card.front,
+            depth + 1,
+            x + colSpacing,
+            docId,
+            "var(--primary)",
+            "#ec4899",
+            card.id,
+            undefined,
+            isEn ? `Box ${card.box}` : `جعبه ${card.box}`
+          );
         });
+      });
 
-        // Docs directly in Root Folder
-        rfDocs.forEach((doc) => {
-          folderChildrenFns.push(() => {
-            const docId = `doc-${doc.id}`;
-            const docCards = cards.filter((c) => c.document_id === doc.id);
+      return layoutNode(
+        docId,
+        "doc",
+        doc.title,
+        depth,
+        x,
+        parentId,
+        "#6366f1",
+        "#818cf8",
+        doc.id,
+        doc,
+        docCards.length > 0
+          ? isEn
+            ? `${docCards.length} Cards`
+            : `${docCards.length} کارت`
+          : undefined,
+        cardFns
+      );
+    };
 
-            const cardFns: Array<() => { y: number; height: number }> = [];
-            docCards.slice(0, 15).forEach((card) => {
-              cardFns.push(() => {
-                return layoutNode(
-                  `card-${card.id}`,
-                  "card",
-                  card.front,
-                  3,
-                  60 + colSpacing * 3,
-                  docId,
-                  "var(--primary)",
-                  "#ec4899",
-                  card.id,
-                  undefined,
-                  isEn ? `Box ${card.box}` : `جعبه ${card.box}`
-                );
-              });
-            });
+    // Helper to recursively build a folder subtree (its subfolders and documents)
+    const buildFolderSubtree = (
+      folder: KnowledgeFolder,
+      depth: number,
+      x: number,
+      parentId?: string,
+      isScopeRoot = false
+    ): { y: number; height: number } => {
+      const folderId = `folder-${folder.id}`;
+      const subFolders = folders.filter((f) => f.parent_id === folder.id);
+      const folderDocs = documents.filter((d) => d.folder_id === folder.id);
 
-            return layoutNode(
-              docId,
-              "doc",
-              doc.title,
-              2,
-              60 + colSpacing * 2,
-              folderId,
-              "#6366f1",
-              "#818cf8",
-              doc.id,
-              doc,
-              docCards.length > 0
-                ? isEn
-                  ? `${docCards.length} Cards`
-                  : `${docCards.length} کارت`
-                : undefined,
-              cardFns
-            );
-          });
+      const childrenFns: Array<() => { y: number; height: number }> = [];
+
+      // Subfolders first
+      subFolders.forEach((sf) => {
+        childrenFns.push(() => {
+          return buildFolderSubtree(sf, depth + 1, x + colSpacing, folderId, false);
         });
+      });
 
-        return layoutNode(
-          folderId,
-          "folder",
-          rf.name,
-          1,
-          60 + colSpacing,
+      // Documents in this folder
+      folderDocs.forEach((doc) => {
+        childrenFns.push(() => {
+          return buildDocNode(doc, depth + 1, x + colSpacing, folderId);
+        });
+      });
+
+      const totalItems = subFolders.length + folderDocs.length;
+      const subtitle = `${totalItems} ${isEn ? "items" : "مورد"}`;
+
+      return layoutNode(
+        folderId,
+        isScopeRoot ? "root" : folder.parent_id ? "subfolder" : "folder",
+        folder.name,
+        depth,
+        x,
+        parentId,
+        folder.color || (isScopeRoot ? "hsl(var(--primary))" : "#10b981"),
+        "#34d399",
+        folder.id,
+        undefined,
+        subtitle,
+        childrenFns
+      );
+    };
+
+    if (selectedScopeId === "all") {
+      const rootFolders = folders.filter((f) => !f.parent_id);
+      const unfiledDocs = documents.filter((d) => !d.folder_id);
+
+      const rootChildrenFns: Array<() => { y: number; height: number }> = [];
+
+      rootFolders.forEach((rf) => {
+        rootChildrenFns.push(() => buildFolderSubtree(rf, 1, 60 + colSpacing, "root-kb", false));
+      });
+
+      unfiledDocs.forEach((doc) => {
+        rootChildrenFns.push(() => buildDocNode(doc, 1, 60 + colSpacing, "root-kb"));
+      });
+
+      layoutNode(
+        "root-kb",
+        "root",
+        isEn ? "Knowledge Base" : "پایگاه دانش جامع",
+        0,
+        60,
+        undefined,
+        "hsl(var(--primary))",
+        "hsl(var(--primary))",
+        undefined,
+        undefined,
+        `${documents.length} ${isEn ? "docs" : "سند"}`,
+        rootChildrenFns
+      );
+    } else if (selectedScopeId.startsWith("folder-")) {
+      const targetFolderId = selectedScopeId.replace("folder-", "");
+      const targetFolder = folders.find((f) => f.id === targetFolderId);
+      if (targetFolder) {
+        buildFolderSubtree(targetFolder, 0, 60, undefined, true);
+      } else {
+        layoutNode(
           "root-kb",
-          rf.color || "#10b981",
-          "#34d399",
-          rf.id,
+          "root",
+          isEn ? "Knowledge Base" : "پایگاه دانش جامع",
+          0,
+          60,
           undefined,
-          `${subFolders.length + rfDocs.length} ${isEn ? "items" : "مورد"}`,
-          folderChildrenFns
+          "hsl(var(--primary))",
+          "hsl(var(--primary))",
+          undefined,
+          undefined,
+          `${documents.length} ${isEn ? "docs" : "سند"}`
         );
-      });
-    });
-
-    // Unfiled Docs
-    unfiledDocs.forEach((doc) => {
-      rootChildrenFns.push(() => {
-        const docId = `doc-${doc.id}`;
-        const docCards = cards.filter((c) => c.document_id === doc.id);
-
-        const cardFns: Array<() => { y: number; height: number }> = [];
-        docCards.slice(0, 15).forEach((card) => {
-          cardFns.push(() => {
-            return layoutNode(
-              `card-${card.id}`,
-              "card",
-              card.front,
-              2,
-              60 + colSpacing * 2,
-              docId,
-              "var(--primary)",
-              "#ec4899",
-              card.id,
-              undefined,
-              isEn ? `Box ${card.box}` : `جعبه ${card.box}`
-            );
-          });
-        });
-
-        return layoutNode(
-          docId,
-          "doc",
-          doc.title,
-          1,
-          60 + colSpacing,
-          "root-kb",
-          "#6366f1",
-          "#818cf8",
-          doc.id,
-          doc,
-          docCards.length > 0
-            ? isEn
-              ? `${docCards.length} Cards`
-              : `${docCards.length} کارت`
-            : undefined,
-          cardFns
-        );
-      });
-    });
-
-    // Run layout for root
-    layoutNode(
-      "root-kb",
-      "root",
-      isEn ? "Knowledge Base" : "پایگاه دانش جامع",
-      0,
-      60,
-      undefined,
-      "hsl(var(--primary))",
-      "hsl(var(--primary))",
-      undefined,
-      undefined,
-      `${documents.length} ${isEn ? "docs" : "سند"}`,
-      rootChildrenFns
-    );
+      }
+    } else if (selectedScopeId.startsWith("doc-")) {
+      const targetDocId = selectedScopeId.replace("doc-", "");
+      const targetDoc = documents.find((d) => d.id === targetDocId);
+      if (targetDoc) {
+        buildDocNode(targetDoc, 0, 60, undefined);
+      }
+    }
 
     // Normalize vertical coordinates if any negative offset
     const minYCoord = Math.min(...items.map((it) => it.y), 40);
@@ -731,7 +787,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
         height: maxY - minY + 160,
       },
     };
-  }, [folders, documents, cards, expandedNodeIds, isEn, treeDirection]);
+  }, [folders, documents, cards, expandedNodeIds, isEn, treeDirection, selectedScopeId]);
 
   // Fit View To Container
   const fitViewToContainer = useCallback(() => {
@@ -764,6 +820,19 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       hasInitializedViewRef.current = true;
     }
   }, [nodes.length, fitViewToContainer]);
+
+  // Auto re-center when selected scope changes
+  useEffect(() => {
+    setExpandedNodeIds((prev) => ({
+      ...prev,
+      [selectedScopeId]: true,
+      "root-kb": true,
+    }));
+    const timer = setTimeout(() => {
+      fitViewToContainer();
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [selectedScopeId, fitViewToContainer]);
 
   // Fullscreen support
   const toggleFullscreen = useCallback(() => {
@@ -1026,6 +1095,116 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
           </span>
         </div>
 
+        {/* Center: Scope / Folder Branch Selector */}
+        <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-card/90 border border-border backdrop-blur-xl shadow-lg pointer-events-auto">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl hover:bg-muted text-foreground transition cursor-pointer text-xs font-semibold"
+                title={isEn ? "Select Mind Map Branch" : "انتخاب شاخه یا فولدر نقشه ذهنی"}
+              >
+                <FolderTree className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span className="truncate max-w-[130px] sm:max-w-[180px]">{currentScopeTitle}</span>
+                <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="w-72 max-h-80 overflow-y-auto text-xs p-1">
+              <DropdownMenuItem
+                onClick={() => setSelectedScopeId("all")}
+                className={`cursor-pointer gap-2 ${selectedScopeId === "all" ? "bg-primary/10 text-primary font-bold" : ""}`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span className="flex-1">{isEn ? "All Knowledge Base (Full Tree)" : "همه پایگاه دانش (نمایش کامل)"}</span>
+                {selectedScopeId === "all" && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-[10px] text-muted-foreground uppercase px-2 py-1">
+                {isEn ? "Folders & Subtrees" : "فولدرها و زیرشاخه‌ها"}
+              </DropdownMenuLabel>
+
+              {rootFoldersList.map((rf) => {
+                const subF = folders.filter((f) => f.parent_id === rf.id);
+                const rfDocs = documents.filter((d) => d.folder_id === rf.id);
+                const isRfSelected = selectedScopeId === `folder-${rf.id}`;
+
+                return (
+                  <React.Fragment key={rf.id}>
+                    <DropdownMenuItem
+                      onClick={() => setSelectedScopeId(`folder-${rf.id}`)}
+                      className={`cursor-pointer gap-2 font-medium ${isRfSelected ? "bg-primary/10 text-primary font-bold" : ""}`}
+                    >
+                      <Folder className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span className="flex-1 truncate">{rf.name}</span>
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        {subF.length > 0 ? `${subF.length} زیرشاخه • ` : ""}{rfDocs.length} سند
+                      </span>
+                      {isRfSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                    </DropdownMenuItem>
+
+                    {subF.map((sf) => {
+                      const sfDocs = documents.filter((d) => d.folder_id === sf.id);
+                      const isSfSelected = selectedScopeId === `folder-${sf.id}`;
+                      return (
+                        <DropdownMenuItem
+                          key={sf.id}
+                          onClick={() => setSelectedScopeId(`folder-${sf.id}`)}
+                          className={`cursor-pointer gap-2 ps-6 text-xs ${isSfSelected ? "bg-primary/10 text-primary font-bold" : ""}`}
+                        >
+                          <span className="text-muted-foreground font-mono">↳</span>
+                          <Folder className="w-3 h-3 text-cyan-500 shrink-0" />
+                          <span className="flex-1 truncate">{sf.name}</span>
+                          <span className="text-[10px] text-muted-foreground font-mono">{sfDocs.length} سند</span>
+                          {isSfSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </React.Fragment>
+                );
+              })}
+
+              {unfiledDocsCount > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-[10px] text-muted-foreground uppercase px-2 py-1">
+                    {isEn ? "Other Documents" : "سایر اسناد"}
+                  </DropdownMenuLabel>
+                  {documents
+                    .filter((d) => !d.folder_id)
+                    .map((doc) => {
+                      const isDocSelected = selectedScopeId === `doc-${doc.id}`;
+                      return (
+                        <DropdownMenuItem
+                          key={doc.id}
+                          onClick={() => setSelectedScopeId(`doc-${doc.id}`)}
+                          className={`cursor-pointer gap-2 ${isDocSelected ? "bg-primary/10 text-primary font-bold" : ""}`}
+                        >
+                          <FileText className="w-3 h-3 text-indigo-500 shrink-0" />
+                          <span className="flex-1 truncate">{doc.title}</span>
+                          {isDocSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Reset to All quick button */}
+          {selectedScopeId !== "all" && (
+            <button
+              type="button"
+              onClick={() => setSelectedScopeId("all")}
+              className="flex items-center gap-1 px-2 py-1 rounded-xl text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition cursor-pointer"
+              title={isEn ? "Show all knowledge base" : "نمایش کل پایگاه دانش"}
+            >
+              <X className="w-3 h-3" />
+              <span className="hidden sm:inline text-[11px]">{isEn ? "All" : "همه"}</span>
+            </button>
+          )}
+        </div>
+
         {/* Right: Expand/Collapse & Quick Search */}
         <div className="flex items-center gap-2 pointer-events-auto">
           <div className="hidden sm:flex items-center gap-1.5 p-1.5 rounded-2xl bg-card/90 border border-border backdrop-blur-xl shadow-lg">
@@ -1057,6 +1236,43 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Breadcrumb Navigation Strip when focused on a branch */}
+      {selectedScopeId !== "all" && (
+        <div className="absolute top-16 start-3 z-20 flex items-center gap-1 px-3 py-1.5 rounded-2xl bg-card/90 border border-primary/25 backdrop-blur-xl shadow-md text-xs pointer-events-auto max-w-[92vw] overflow-x-auto">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase me-1 shrink-0">
+            {isEn ? "Branch:" : "شاخه:"}
+          </span>
+          {breadcrumbTrail.map((crumb, idx) => {
+            const isLast = idx === breadcrumbTrail.length - 1;
+            return (
+              <React.Fragment key={crumb.id}>
+                {idx > 0 && <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0 rtl:rotate-180" />}
+                <button
+                  type="button"
+                  disabled={isLast}
+                  onClick={() => setSelectedScopeId(crumb.id)}
+                  className={`truncate max-w-[130px] transition cursor-pointer shrink-0 ${
+                    isLast
+                      ? "font-bold text-primary pointer-events-none"
+                      : "text-muted-foreground hover:text-foreground hover:underline"
+                  }`}
+                >
+                  {crumb.label}
+                </button>
+              </React.Fragment>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setSelectedScopeId("all")}
+            className="ms-2 p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-destructive transition cursor-pointer shrink-0"
+            title={isEn ? "Reset to full tree" : "بازگشت به نمایش کل نقشه"}
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
 
       {/* Bottom Info Badge */}
       <div className="absolute bottom-3 left-3 z-20 hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-card/80 border border-border text-xs text-muted-foreground backdrop-blur-md shadow-md">
@@ -1129,6 +1345,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
             const isHighlighted =
               debouncedSearch.trim() !== "" &&
               node.title.toLowerCase().includes(debouncedSearch.toLowerCase());
+            const isCurrentScopeRoot = selectedScopeId !== "all" && node.id === selectedScopeId;
 
             return (
               <MindMapNodeItem
@@ -1137,8 +1354,10 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
                 isHighlighted={isHighlighted}
                 isEn={isEn}
                 treeDirection={treeDirection}
+                isCurrentScopeRoot={isCurrentScopeRoot}
                 onOpenPreview={setPreviewDoc}
                 onToggleExpand={handleToggleExpand}
+                onFocusScope={setSelectedScopeId}
               />
             );
           })}
