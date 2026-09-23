@@ -1,3 +1,5 @@
+export type LeitnerRating = 1 | 2 | 3 | 4; // 1: Again (دوباره), 2: Hard (سخت), 3: Good (خوب), 4: Easy (آسان)
+
 export interface LeitnerCard {
   id: string;
   user_id: string;
@@ -6,13 +8,28 @@ export interface LeitnerCard {
   front: string; // Question / Concept
   back: string;  // Answer / Clinical note / Solution
   clue?: string; // Optional hint
-  box: number;   // 1 to 5
+  box: number;   // 1 to 5 (mapped for visual boxes)
   next_review_at: string;
   last_reviewed_at?: string | null;
   review_count: number;
   lapse_count: number;
+
+  // Modern Spaced Repetition (SM-2 / FSRS) parameters:
+  ease_factor?: number;        // Default 2.5, min 1.3
+  interval_days?: number;      // Current calculated interval in days
+  consecutive_correct?: number;// Number of consecutive successful recalls
+  difficulty?: number;         // 0 to 1 scale
+  stability?: number;          // Estimated memory half-life in days
+
   created_at: string;
   updated_at: string;
+}
+
+export interface LeitnerUpcomingForecast {
+  today: number;
+  tomorrow: number;
+  next3Days: number;
+  next7Days: number;
 }
 
 export interface LeitnerBoxStats {
@@ -24,4 +41,10 @@ export interface LeitnerBoxStats {
   dueToday: number;
   totalCards: number;
   masteredCount: number;
+
+  // Extended Retention & Memory Analytics:
+  retentionRate: number;       // 0 to 100 percentage
+  lapsedCardsCount: number;    // Cards with at least 1 lapse
+  upcomingForecast: LeitnerUpcomingForecast;
+  streakDays: number;          // Daily review streak count
 }

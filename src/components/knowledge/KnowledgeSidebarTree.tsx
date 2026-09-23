@@ -10,6 +10,7 @@ import {
   MoreVertical,
   Trash2,
   FolderOpen,
+  PanelLeftClose,
 } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
 import type { KnowledgeFolder, KnowledgeDocument, KnowledgeFolderNode } from "@/lib/knowledgeTypes";
@@ -34,6 +35,7 @@ interface KnowledgeSidebarTreeProps {
   onDeleteDocument: (docId: string) => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
+  onToggleCollapse?: () => void;
 }
 
 export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
@@ -50,6 +52,7 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
   onDeleteDocument,
   searchQuery,
   onSearchChange,
+  onToggleCollapse,
 }) => {
   const { isEn } = useBilingual();
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
@@ -61,6 +64,22 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
     e.stopPropagation();
     setExpandedFolders((prev) => ({ ...prev, [folderId]: !prev[folderId] }));
   };
+
+  // Auto-expand ancestor folders for selected document
+  React.useEffect(() => {
+    if (!selectedDocId) return;
+    const doc = documents.find((d) => d.id === selectedDocId);
+    if (!doc || !doc.folder_id) return;
+
+    const toExpand: Record<string, boolean> = {};
+    let currentFolderId: string | null = doc.folder_id;
+    while (currentFolderId) {
+      toExpand[currentFolderId] = true;
+      const parent = allFolders.find((f) => f.id === currentFolderId);
+      currentFolderId = parent?.parent_id || null;
+    }
+    setExpandedFolders((prev) => ({ ...prev, ...toExpand }));
+  }, [selectedDocId, documents, allFolders]);
 
   const handleOpenCreateFolder = (parentId: string | null = null, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -193,7 +212,7 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
                 <div
                   key={doc.id}
                   onClick={() => onSelectDocument(doc)}
-                  className={`flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer transition text-xs ${
+                  className={`group flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer transition text-xs ${
                     isDocSelected
                       ? "bg-primary/15 text-primary font-semibold border border-primary/30"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -256,6 +275,17 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
               <Plus className="w-3.5 h-3.5" />
               <span>{isEn ? "Doc" : "سند"}</span>
             </button>
+
+            {onToggleCollapse && (
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                className="hidden md:flex p-1.5 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition cursor-pointer border border-border"
+                title={isEn ? "Collapse sidebar (Ctrl+B)" : "بستن سایدبار فصل‌ها (Ctrl+B)"}
+              >
+                <PanelLeftClose className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -331,7 +361,7 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
               <div
                 key={doc.id}
                 onClick={() => onSelectDocument(doc)}
-                className={`flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer transition text-xs ${
+                className={`group flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer transition text-xs ${
                   selectedDocId === doc.id
                     ? "bg-primary/15 text-primary font-semibold border border-primary/30"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -348,7 +378,8 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
                     e.stopPropagation();
                     onDeleteDocument(doc.id);
                   }}
-                  className="opacity-60 hover:opacity-100 p-0.5 rounded text-muted-foreground hover:text-destructive transition cursor-pointer"
+                  className="opacity-0 group-hover:opacity-100 hover:opacity-100 p-0.5 rounded text-muted-foreground hover:text-destructive transition cursor-pointer"
+                  title={isEn ? "Delete document" : "حذف سند"}
                 >
                   <Trash2 className="w-3 h-3" />
                 </button>

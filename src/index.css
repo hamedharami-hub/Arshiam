@@ -1110,4 +1110,635 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
   color: hsl(var(--foreground));
 }
 
+/* ==========================================================================
+   ARSHNAZ INTERACTIVE LEARNING ENGINE (آموزش تعاملی)
+   ========================================================================== */
+
+.interactive-learning-block {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  border-radius: 1.25rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--primary) / 0.25);
+  box-shadow: 0 8px 30px -10px hsl(var(--primary) / 0.12);
+  position: relative;
+  overflow: hidden;
+}
+
+.interactive-block-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid hsl(var(--border) / 0.7);
+  padding-bottom: 0.85rem;
+}
+
+.interactive-block-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+  font-size: 0.75rem;
+  font-weight: 700;
+  width: fit-content;
+}
+
+.interactive-block-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: hsl(var(--foreground));
+}
+
+.interactive-block-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* 1. 3D FLIP CARDS (فلش‌کارت سه‌بعدی و کلیک‌وارونه) */
+.interactive-flip-card {
+  perspective: 1000px;
+  cursor: pointer;
+  min-height: 190px;
+  margin: 0.75rem 0;
+  user-select: none;
+  outline: none;
+}
+
+.interactive-flip-card:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  border-radius: 1.2rem;
+}
+
+.interactive-flip-card .flip-card-inner {
+  position: relative;
+  width: 100%;
+  min-height: 190px;
+  height: 100%;
+  transition: transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-style: preserve-3d;
+}
+
+.interactive-flip-card.is-flipped .flip-card-inner {
+  transform: rotateY(180deg);
+}
+
+.interactive-flip-card .flip-card-front,
+.interactive-flip-card .flip-card-back {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 1.15rem;
+  padding: 1.35rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  box-shadow: 0 4px 14px hsl(var(--foreground) / 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.interactive-flip-card:hover .flip-card-front {
+  border-color: hsl(var(--primary) / 0.4);
+  box-shadow: 0 8px 24px -6px hsl(var(--primary) / 0.15);
+}
+
+.interactive-flip-card .flip-card-back {
+  background: hsl(var(--primary) / 0.07);
+  border-color: hsl(var(--primary) / 0.35);
+  transform: rotateY(180deg);
+}
+
+.interactive-flip-card .flip-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: hsl(var(--primary));
+  text-transform: uppercase;
+}
+
+.interactive-flip-card .flip-badge-answer {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: hsl(142 71% 45%);
+}
+
+.interactive-flip-card .flip-text {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.6;
+  margin: 0.5rem 0;
+  color: hsl(var(--foreground));
+}
+
+.interactive-flip-card .flip-prompt {
+  font-size: 0.72rem;
+  color: hsl(var(--muted-foreground));
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* 2. INTERACTIVE MCQ QUIZ (کوییز تشخیصی با تشریح آنی) */
+.interactive-quiz-card {
+  padding: 1.25rem;
+  border-radius: 1.15rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 2px 10px hsl(var(--foreground) / 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.interactive-quiz-card .quiz-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.interactive-quiz-card .quiz-question {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+  line-height: 1.5;
+}
+
+.interactive-quiz-card .quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.interactive-quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.85rem;
+  background: hsl(var(--muted) / 0.4);
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  font-size: 0.88rem;
+  text-align: start;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.interactive-quiz-option:hover:not(:disabled) {
+  background: hsl(var(--muted));
+  border-color: hsl(var(--primary) / 0.4);
+  transform: translateX(-2px);
+}
+
+.interactive-quiz-option .option-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
+  font-size: 0.75rem;
+  font-weight: 800;
+  shrink: 0;
+}
+
+.interactive-quiz-option.option-correct {
+  background: hsl(142 71% 45% / 0.15) !important;
+  border-color: hsl(142 71% 45%) !important;
+  color: hsl(142 71% 35%) !important;
+  font-weight: 700;
+}
+.interactive-quiz-option.option-correct .option-marker {
+  background: hsl(142 71% 45%);
+  color: white;
+  border-color: hsl(142 71% 45%);
+}
+
+.interactive-quiz-option.option-incorrect {
+  background: hsl(0 84% 60% / 0.15) !important;
+  border-color: hsl(0 84% 60%) !important;
+  color: hsl(0 84% 50%) !important;
+}
+.interactive-quiz-option.option-incorrect .option-marker {
+  background: hsl(0 84% 60%);
+  color: white;
+  border-color: hsl(0 84% 60%);
+}
+
+.interactive-quiz-card .quiz-explanation {
+  padding: 0.85rem 1rem;
+  border-radius: 0.75rem;
+  background: hsl(var(--muted) / 0.6);
+  border: 1px solid hsl(var(--border));
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: hsl(var(--foreground));
+  display: none;
+}
+
+.interactive-quiz-card .quiz-explanation.is-visible {
+  display: block;
+  animation: fadeIn 0.3s ease;
+}
+
+/* 3. CLICK-TO-PAIR MATCHER (بازی تطبیق جفت‌ها) */
+.interactive-pair-container {
+  padding: 1.25rem;
+  border-radius: 1.15rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.interactive-pair-container .pair-instruction {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+.interactive-pair-container .pair-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .interactive-pair-container .pair-columns {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+}
+
+.interactive-pair-container .pair-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.interactive-pair-btn {
+  padding: 0.75rem 1rem;
+  border-radius: 0.85rem;
+  background: hsl(var(--muted) / 0.4);
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  text-align: center;
+}
+
+.interactive-pair-btn:hover:not(.is-matched) {
+  border-color: hsl(var(--primary) / 0.5);
+  background: hsl(var(--muted));
+}
+
+.interactive-pair-btn.is-selected {
+  background: hsl(var(--primary) / 0.15) !important;
+  border-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary)) !important;
+  font-weight: 700;
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2);
+  transform: scale(1.02);
+}
+
+.interactive-pair-btn.is-matched {
+  background: hsl(142 71% 45% / 0.15) !important;
+  border-color: hsl(142 71% 45%) !important;
+  color: hsl(142 71% 35%) !important;
+  cursor: default;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.interactive-pair-btn.is-mismatch {
+  animation: shake 0.4s ease;
+  background: hsl(0 84% 60% / 0.15) !important;
+  border-color: hsl(0 84% 60%) !important;
+}
+
+.pair-feedback {
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: hsl(142 71% 45% / 0.15);
+  border: 1px solid hsl(142 71% 45% / 0.4);
+  color: hsl(142 71% 35%);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* 4. STEP-BY-STEP CLINICAL CASE (سناریوی مرحله‌به‌مرحله بالینی) */
+.interactive-case-container {
+  padding: 1.25rem;
+  border-radius: 1.15rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.interactive-case-container .case-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.interactive-case-container .case-title {
+  margin: 0.35rem 0 0;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.interactive-case-container .case-step {
+  display: none;
+  padding: 1.1rem;
+  border-radius: 0.9rem;
+  background: hsl(var(--muted) / 0.3);
+  border: 1px solid hsl(var(--border));
+}
+
+.interactive-case-container .case-step.active {
+  display: block;
+  animation: fadeIn 0.35s ease;
+}
+
+.interactive-case-container .step-num {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: hsl(var(--primary));
+  margin-bottom: 0.4rem;
+}
+
+.interactive-case-container .step-text {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: hsl(var(--foreground));
+  margin: 0.5rem 0 1rem;
+}
+
+.interactive-case-container .step-key-point {
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: hsl(38 92% 50% / 0.12);
+  border: 1px solid hsl(38 92% 50% / 0.35);
+  color: hsl(var(--foreground));
+  font-size: 0.82rem;
+  margin: 0.75rem 0;
+}
+
+.interactive-case-next-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.1rem;
+  border-radius: 0.75rem;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.15s ease;
+}
+
+.interactive-case-next-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.interactive-case-container .step-completed-badge {
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: hsl(142 71% 45% / 0.15);
+  border: 1px solid hsl(142 71% 45%);
+  color: hsl(142 71% 35%);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* 5. INTERACTIVE CLOZE DELETION (جای خالی تعاملی) */
+.interactive-cloze-card {
+  padding: 1.25rem;
+  border-radius: 1.15rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+}
+
+.interactive-cloze-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 0.75rem;
+}
+
+.interactive-cloze-blank {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  margin: 0 0.25rem;
+  border-radius: 0.5rem;
+  background: hsl(var(--muted));
+  border: 1px dashed hsl(var(--primary));
+  color: hsl(var(--primary));
+  font-weight: 700;
+  font-size: 0.88em;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.25s ease;
+}
+
+.interactive-cloze-blank:hover {
+  background: hsl(var(--primary) / 0.12);
+}
+
+.interactive-cloze-blank.is-revealed {
+  background: hsl(142 71% 45% / 0.15);
+  border: 1px solid hsl(142 71% 45%);
+  color: hsl(142 71% 35%);
+  animation: pulse 0.3s ease;
+}
+
+/* 6. CLINICAL DECISION TREE (درخت تصمیم‌گیری بالینی) */
+.interactive-decision-tree {
+  padding: 1.25rem;
+  border-radius: 1.15rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+}
+
+.decision-node {
+  display: none;
+}
+
+.decision-node.active {
+  display: block;
+  animation: fadeIn 0.3s ease;
+}
+
+.node-question {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+  margin-bottom: 1rem;
+}
+
+.node-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.decision-choice-btn {
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: hsl(var(--muted) / 0.5);
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: start;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.decision-choice-btn:hover {
+  background: hsl(var(--primary) / 0.12);
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary));
+}
+
+.decision-choice-btn.btn-restart {
+  margin-top: 1rem;
+  background: hsl(var(--secondary));
+  text-align: center;
+}
+
+.node-alert {
+  padding: 1rem;
+  border-radius: 0.85rem;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.node-alert.alert-warning {
+  background: hsl(38 92% 50% / 0.12);
+  border: 1px solid hsl(38 92% 50% / 0.4);
+  color: hsl(var(--foreground));
+}
+
+.node-alert.alert-success {
+  background: hsl(142 71% 45% / 0.15);
+  border: 1px solid hsl(142 71% 45% / 0.4);
+  color: hsl(142 71% 35%);
+}
+
+/* 7. MEMORY MATCH MINI-GAME (مینی‌گیم تطبیق حافظه) */
+.interactive-memory-game {
+  padding: 1.25rem;
+  border-radius: 1.15rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+}
+
+.memory-instruction {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 0.85rem;
+}
+
+.memory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.75rem;
+}
+
+.memory-tile {
+  perspective: 600px;
+  height: 90px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.memory-tile .tile-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.4s ease;
+  transform-style: preserve-3d;
+}
+
+.memory-tile.is-flipped .tile-inner {
+  transform: rotateY(180deg);
+}
+
+.memory-tile .tile-front,
+.memory-tile .tile-back {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border: 1px solid hsl(var(--border));
+}
+
+.memory-tile .tile-front {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  font-size: 1.2rem;
+}
+
+.memory-tile .tile-back {
+  background: hsl(var(--primary) / 0.12);
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary));
+  transform: rotateY(180deg);
+}
+
+.memory-tile.is-matched .tile-back {
+  background: hsl(142 71% 45% / 0.2);
+  border-color: hsl(142 71% 45%);
+  color: hsl(142 71% 35%);
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+
 

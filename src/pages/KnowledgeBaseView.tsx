@@ -37,6 +37,37 @@ export const KnowledgeBaseView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [mobileTreeOpen, setMobileTreeOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("knowledge_sidebar_collapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("knowledge_sidebar_collapsed", String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  // Keyboard shortcut Ctrl+B or Cmd+B to toggle chapters sidebar on desktop
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [toggleSidebar]);
 
   // Editor Modal State
   const [editorOpen, setEditorOpen] = useState(false);
@@ -279,7 +310,13 @@ export const KnowledgeBaseView: React.FC = () => {
       {/* Main Split Layout */}
       <div className="flex-1 flex overflow-hidden p-2 md:p-4 gap-3 min-h-0">
         {/* Desktop Sidebar Folder Tree */}
-        <div className="hidden md:block w-72 lg:w-80 shrink-0 h-full">
+        <div
+          className={`hidden md:block shrink-0 h-full transition-all duration-300 ease-in-out ${
+            sidebarCollapsed
+              ? "w-0 opacity-0 overflow-hidden -me-3 pointer-events-none"
+              : "w-72 lg:w-80 opacity-100"
+          }`}
+        >
           <KnowledgeSidebarTree
             tree={tree}
             allFolders={folders}
@@ -294,6 +331,7 @@ export const KnowledgeBaseView: React.FC = () => {
             onDeleteDocument={handleDeleteDoc}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
+            onToggleCollapse={toggleSidebar}
           />
         </div>
 
@@ -335,6 +373,8 @@ export const KnowledgeBaseView: React.FC = () => {
             onEdit={handleOpenEditDoc}
             onDelete={handleDeleteDoc}
             userId={userId}
+            isSidebarCollapsed={sidebarCollapsed}
+            onToggleSidebar={toggleSidebar}
             onOpenReview={() => navigate("/app/review")}
             onDocumentUpdated={(updated) => {
               setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));

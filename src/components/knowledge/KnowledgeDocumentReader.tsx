@@ -15,6 +15,9 @@ import {
   Languages,
   Loader2,
   Columns,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Gamepad2,
 } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
 import type {
@@ -26,8 +29,10 @@ import type {
 import { sanitizeKnowledgeHtml } from "@/lib/knowledgeBeautifier";
 import { isPersianText, detectDirection, generateBilingualLesson } from "@/lib/bilingualHelper";
 import { updateKnowledgeDocument } from "@/lib/knowledgeService";
+import { attachInteractiveListeners } from "@/lib/interactiveLearningHelper";
 import { TextSelectionFloatingBar } from "./TextSelectionFloatingBar";
 import { AiQuestionGeneratorModal } from "./AiQuestionGeneratorModal";
+import { InteractiveLearningModal } from "./InteractiveLearningModal";
 import { toast } from "sonner";
 
 interface KnowledgeDocumentReaderProps {
@@ -36,6 +41,8 @@ interface KnowledgeDocumentReaderProps {
   onEdit: (doc: KnowledgeDocument) => void;
   onDelete: (docId: string) => void;
   userId?: string;
+  isSidebarCollapsed?: boolean;
+  onToggleSidebar?: () => void;
   onOpenReview?: () => void;
   onDocumentUpdated?: (doc: KnowledgeDocument) => void;
   /** @deprecated */
@@ -51,6 +58,8 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   onEdit,
   onDelete,
   userId = "guest",
+  isSidebarCollapsed,
+  onToggleSidebar,
   onOpenReview,
   onDocumentUpdated,
   onAddToNote,
@@ -64,6 +73,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   const [isCopied, setIsCopied] = useState(false);
   const [isGeneratingBilingual, setIsGeneratingBilingual] = useState(false);
   const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [interactiveModalOpen, setInteractiveModalOpen] = useState(false);
   const [selectedSnippetForAi, setSelectedSnippetForAi] = useState("");
   const contentContainerRef = useRef<HTMLDivElement>(null);
 
@@ -81,6 +91,34 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
       }
     }
   }, [document?.id, document?.preferred_language, document?.content_en]);
+
+  // Attach interactive delegated click listeners (flip cards, quizzes, pairs, cases, etc.)
+  useEffect(() => {
+    if (viewMode === "reader" && contentContainerRef.current) {
+      const cleanup = attachInteractiveListeners(contentContainerRef.current);
+      return cleanup;
+    }
+  }, [viewMode, document?.content_html, document?.content_en, docLangMode]);
+
+  const handleInsertInteractive = async (html: string, mode: "append" | "replace") => {
+    if (!document) return;
+    const newContent =
+      mode === "append"
+        ? `${document.content_html || ""}\n<hr class="my-6 border-border/60" />\n${html}`
+        : html;
+
+    try {
+      const updated = await updateKnowledgeDocument(userId, document.id, {
+        content_html: newContent,
+      });
+      if (onDocumentUpdated) {
+        onDocumentUpdated(updated);
+      }
+    } catch (err: any) {
+      console.error("Error saving interactive content:", err);
+      toast.error(err.message || "Failed to update document");
+    }
+  };
 
   // Memoize sanitized Persian and English HTML
   const safeHtmlFa = React.useMemo(() => {
@@ -196,6 +234,29 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
       {/* Top Toolbar */}
       <div className="p-3.5 border-b border-border flex flex-wrap items-center justify-between gap-2 bg-muted/20">
         <div className="flex items-center gap-2 min-w-0">
+          {onToggleSidebar && (
+            <button
+              type="button"
+              onClick={onToggleSidebar}
+              className="hidden md:flex items-center justify-center p-1.5 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground border border-border transition cursor-pointer shrink-0"
+              title={
+                isSidebarCollapsed
+                  ? isEn
+                    ? "Show Chapters Sidebar (Ctrl+B)"
+                    : "نمایش سایدبار فصل‌ها (Ctrl+B)"
+                  : isEn
+                  ? "Hide Chapters Sidebar (Ctrl+B)"
+                  : "بستن سایدبار فصل‌ها (Ctrl+B)"
+              }
+            >
+              {isSidebarCollapsed ? (
+                <PanelLeftOpen className="w-4 h-4 text-primary" />
+              ) : (
+                <PanelLeftClose className="w-4 h-4 text-muted-foreground" />
+              )}
+            </button>
+          )}
+
           {folder && (
             <div className="flex items-center gap-1 text-[11px] text-primary font-semibold shrink-0">
               <Folder className="w-3.5 h-3.5" />
@@ -291,6 +352,23 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
             <span>{isEn ? "Generate Cards" : "تولید کارت هوشمند"}</span>
+          </button>
+
+          {/* Interactive Learning Studio Button */}
+          <button
+            type="button"
+            onClick={() => setInteractiveModalOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground border border-border text-xs font-semibold transition cursor-pointer"
+            title={
+              isEn
+                ? "Generate 3D cards, quizzes, scenarios & games"
+                : "تولید کارت‌های ۳ بعدی، کوییز تشخیصی، سناریوی بالینی و بازی‌ها"
+            }
+          >
+            <Gamepad2 className="w-3.5 h-3.5 text-primary" />
+            <span className="hidden sm:inline">
+              {isEn ? "Interactive Studio" : "آموزش تعاملی"}
+            </span>
           </button>
 
           {/* Mode Switcher */}
@@ -576,6 +654,15 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
         folderId={document?.folder_id}
         userId={userId}
         onOpenReview={onOpenReview}
+      />
+
+      {/* Interactive Learning Studio Modal */}
+      <InteractiveLearningModal
+        open={interactiveModalOpen}
+        onOpenChange={setInteractiveModalOpen}
+        documentTitle={document?.title || ""}
+        documentContent={document?.content_html || ""}
+        onInsertContent={handleInsertInteractive}
       />
     </div>
   );

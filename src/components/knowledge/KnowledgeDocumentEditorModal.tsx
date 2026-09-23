@@ -10,12 +10,14 @@ import {
   Loader2,
   Wand2,
   Languages,
+  Gamepad2,
 } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
 import type { KnowledgeDocument, KnowledgeFolder } from "@/lib/knowledgeTypes";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { smartAiBeautifyDocument } from "@/lib/knowledgeBeautifier";
 import { generateBilingualLesson } from "@/lib/bilingualHelper";
+import { InteractiveLearningModal } from "./InteractiveLearningModal";
 import { toast } from "sonner";
 
 interface KnowledgeDocumentEditorModalProps {
@@ -52,10 +54,23 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
   const [tagsInput, setTagsInput] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [langTab, setLangTab] = useState<"fa" | "en">("fa");
-  const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
   const [isSaving, setIsSaving] = useState(false);
   const [isBeautifying, setIsBeautifying] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
+  const [interactiveModalOpen, setInteractiveModalOpen] = useState(false);
+
+  const handleInsertInteractive = (html: string, mode: "append" | "replace") => {
+    if (langTab === "fa") {
+      setContentHtml((prev) =>
+        mode === "append" ? `${prev}\n<hr class="my-6 border-border/60" />\n${html}` : html
+      );
+    } else {
+      setContentEn((prev) =>
+        mode === "append" ? `${prev}\n<hr class="my-6 border-border/60" />\n${html}` : html
+      );
+    }
+    setActiveTab("preview");
+  };
 
   useEffect(() => {
     if (document) {
@@ -380,6 +395,16 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
                   <span>{isEn ? "Smart Beautify" : "زیباسازی"}</span>
                 </button>
 
+                <button
+                  type="button"
+                  onClick={() => setInteractiveModalOpen(true)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground font-semibold text-xs border border-border cursor-pointer transition"
+                  title={isEn ? "Generate 3D cards, quizzes & games" : "تولید کارت‌های ۳ بعدی، کوییز و بازی‌های یادگیری"}
+                >
+                  <Gamepad2 className="w-3 h-3 text-primary" />
+                  <span className="hidden sm:inline">{isEn ? "Interactive" : "آموزش تعاملی"}</span>
+                </button>
+
                 {/* Tabs: Edit / Preview */}
                 <div className="flex items-center p-0.5 rounded-xl bg-muted/60 border border-border text-xs">
                   <button
@@ -476,6 +501,15 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
           </div>
         </form>
       </DialogContent>
+
+      {/* Interactive Learning Studio Modal */}
+      <InteractiveLearningModal
+        open={interactiveModalOpen}
+        onOpenChange={setInteractiveModalOpen}
+        documentTitle={langTab === "fa" ? title : titleEn || title}
+        documentContent={langTab === "fa" ? contentHtml : contentEn}
+        onInsertContent={handleInsertInteractive}
+      />
     </Dialog>
   );
 };

@@ -71,6 +71,17 @@ vi.mock("@/lib/leitnerService", () => ({
     id: "card-1",
     box: 2,
   }),
+  reviewLeitnerCardWithRating: vi.fn().mockResolvedValue({
+    id: "card-1",
+    box: 2,
+  }),
+  previewNextInterval: vi.fn().mockImplementation((card, rating) => {
+    return { days: 3, textFa: "۳ روز", textEn: "3 days" };
+  }),
+  updateLeitnerCard: vi.fn().mockImplementation((userId, cardId, patch) =>
+    Promise.resolve({ id: cardId, ...patch })
+  ),
+  getCramCards: vi.fn().mockImplementation(() => Promise.resolve([...mockCards])),
   deleteLeitnerCard: vi.fn().mockResolvedValue(true),
 }));
 

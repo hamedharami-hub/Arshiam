@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Layers,
   Sparkles,
@@ -13,17 +13,33 @@ import {
   Trash2,
   Award,
   Zap,
+  Volume2,
+  VolumeX,
+  Edit3,
+  Search,
+  Filter,
+  Flame,
+  TrendingUp,
+  BarChart3,
+  Calendar,
+  AlertTriangle,
+  Keyboard,
+  Shuffle,
 } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
-import type { LeitnerCard, LeitnerBoxStats } from "@/lib/leitnerTypes";
+import type { LeitnerCard, LeitnerBoxStats, LeitnerRating } from "@/lib/leitnerTypes";
 import type { KnowledgeDocument } from "@/lib/knowledgeTypes";
 import {
   getLeitnerCards,
   getDueLeitnerCards,
   createLeitnerCard,
-  reviewLeitnerCard,
+  reviewLeitnerCardWithRating,
+  previewNextInterval,
+  updateLeitnerCard,
   deleteLeitnerCard,
   getLeitnerBoxStats,
+  getCramCards,
+  type CramFilterOptions,
 } from "@/lib/leitnerService";
 import { getKnowledgeDocuments } from "@/lib/knowledgeService";
 import { isPersianText } from "@/lib/bilingualHelper";
@@ -51,15 +67,34 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
     dueToday: 0,
     totalCards: 0,
     masteredCount: 0,
+    retentionRate: 100,
+    lapsedCardsCount: 0,
+    upcomingForecast: { today: 0, tomorrow: 0, next3Days: 0, next7Days: 0 },
+    streakDays: 0,
   });
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
 
+  // Mode: "due" (Scheduled Spaced Repetition) vs "cram" (Free Practice / Custom Cram)
+  const [studyMode, setStudyMode] = useState<"due" | "cram">("due");
+  const [cramBoxFilter, setCramBoxFilter] = useState<number | "all">("all");
+  const [cramDocFilter, setCramDocFilter] = useState<string>("all");
+  const [cramLapsedOnly, setCramLapsedOnly] = useState<boolean>(false);
+
   // Study Session State
   const [isStudying, setIsStudying] = useState(false);
+  const [activeQueue, setActiveQueue] = useState<LeitnerCard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [showClue, setShowClue] = useState(false);
   const [cardDirectionOverride, setCardDirectionOverride] = useState<"rtl" | "ltr" | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  // Quick Edit Modal (in-session or from table)
+  const [editingCard, setEditingCard] = useState<LeitnerCard | null>(null);
+  const [editFront, setEditFront] = useState("");
+  const [editBack, setEditBack] = useState("");
+  const [editClue, setEditClue] = useState("");
+  const [editBox, setEditBox] = useState<number>(1);
 
   // New Card Modal
   const [openNewCard, setOpenNewCard] = useState(false);
@@ -68,7 +103,11 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   const [clueInput, setClueInput] = useState("");
   const [selectedDocId, setSelectedDocId] = useState<string>("");
 
-  const loadData = async () => {
+  // Card List Search & Filter
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedBoxTab, setSelectedBoxTab] = useState<number | "all">("all");
+
+  const loadData = useCallback(async () => {
     try {
       const [allCards, due, s, docs] = await Promise.all([
         getLeitnerCards(userId),
@@ -78,54 +117,203 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
       ]);
       setCards(allCards);
       setDueCards(due);
-      setStats(s);
+      setStats({
+        box1: s?.box1 ?? 0,
+        box2: s?.box2 ?? 0,
+        box3: s?.box3 ?? 0,
+        box4: s?.box4 ?? 0,
+        box5: s?.box5 ?? 0,
+        dueToday: s?.dueToday ?? 0,
+        totalCards: s?.totalCards ?? 0,
+        masteredCount: s?.masteredCount ?? 0,
+        retentionRate: s?.retentionRate ?? 100,
+        lapsedCardsCount: s?.lapsedCardsCount ?? 0,
+        upcomingForecast: s?.upcomingForecast || {
+          today: s?.dueToday ?? 0,
+          tomorrow: 0,
+          next3Days: 0,
+          next7Days: 0,
+        },
+        streakDays: s?.streakDays ?? 0,
+      });
       setDocuments(docs);
     } catch (e) {
       console.error("Error loading Leitner data", e);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
     loadData();
-  }, [userId]);
+  }, [loadData]);
 
-  const activeCard = dueCards[currentIndex] || null;
+  // Cram cards calculation based on active filters
+  const cramCards = useMemo(() => {
+    return cards.filter((c) => {
+      if (cramBoxFilter !== "all" && c.box !== cramBoxFilter) return false;
+      if (cramDocFilter !== "all" && c.document_id !== cramDocFilter) return false;
+      if (cramLapsedOnly && (c.lapse_count || 0) === 0) return false;
+      return true;
+    });
+  }, [cards, cramBoxFilter, cramDocFilter, cramLapsedOnly]);
 
-  const handleStartStudy = () => {
-    if (dueCards.length === 0) {
-      toast.info(isEn ? "No cards due for review today!" : "امروز کارتی برای مرور ندارید!");
+  const activeCard = activeQueue[currentIndex] || null;
+
+  // Text to Speech
+  const handleSpeak = useCallback(
+    (text: string) => {
+      if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+        toast.info(
+          isEn
+            ? "Speech synthesis not supported in this browser"
+            : "مرورگر شما از قابلیت خوانش صوتی پشتیبانی نمی‌کند"
+        );
+        return;
+      }
+
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        setIsSpeaking(false);
+        return;
+      }
+
+      try {
+        const utterance = new SpeechSynthesisUtterance(text);
+        const isPersian = isPersianText(text);
+        utterance.lang = isPersian ? "fa-IR" : "en-US";
+        utterance.rate = 0.95;
+        utterance.onend = () => setIsSpeaking(false);
+        utterance.onerror = () => setIsSpeaking(false);
+        setIsSpeaking(true);
+        window.speechSynthesis.speak(utterance);
+      } catch {
+        setIsSpeaking(false);
+      }
+    },
+    [isEn]
+  );
+
+  // Start study session
+  const handleStartStudy = (mode: "due" | "cram" = studyMode) => {
+    const queue = mode === "due" ? [...dueCards] : [...cramCards];
+    if (queue.length === 0) {
+      toast.info(
+        mode === "due"
+          ? isEn
+            ? "No cards due for review today!"
+            : "امروز کارتی برای مرور ندارید!"
+          : isEn
+          ? "No cards match the selected practice filter"
+          : "کارتی با فیلتر انتخابی برای تمرین آزاد پیدا نشد"
+      );
       return;
     }
+    setActiveQueue(queue);
     setCurrentIndex(0);
     setIsFlipped(false);
     setShowClue(false);
+    setCardDirectionOverride(null);
     setIsStudying(true);
   };
 
-  const handleReviewAnswer = async (isSuccess: boolean) => {
+  // Review answer with SM-2 4-tier rating
+  const handleReviewAnswer = async (rating: LeitnerRating) => {
     if (!activeCard) return;
     try {
-      await reviewLeitnerCard(userId, activeCard.id, isSuccess);
-      if (isSuccess) {
-        toast.success(isEn ? "Moved to next box!" : "آفرین! به جعبه بعدی منتقل شد.");
-      } else {
-        toast.error(isEn ? "Reset to Box 1" : "به جعبه ۱ بازگشت.");
+      await reviewLeitnerCardWithRating(userId, activeCard.id, rating);
+
+      if (rating === 1) {
+        toast.error(
+          isEn
+            ? "Reset to Box 1 (Re-queued in session)"
+            : "به جعبه ۱ بازگشت (در پایان جلسه تکرار می‌شود)"
+        );
+      } else if (rating === 2) {
+        toast.info(
+          isEn
+            ? "Hard - Interval gently increased"
+            : "سخت - تمدید با فاصله کوتاه‌تر"
+        );
+      } else if (rating === 3) {
+        toast.success(
+          isEn
+            ? "Good! Moved to next box"
+            : "آفرین! به جعبه بعدی منتقل شد."
+        );
+      } else if (rating === 4) {
+        toast.success(
+          isEn
+            ? "Easy! Rapid mastery leap"
+            : "عالی! جهش سریع به جعبه‌های بالاتر."
+        );
       }
 
       setIsFlipped(false);
       setShowClue(false);
+      setCardDirectionOverride(null);
 
-      if (currentIndex + 1 < dueCards.length) {
+      // Re-queue card at the end of the session if lapsed/again
+      const nextQueue = [...activeQueue];
+      if (rating === 1) {
+        nextQueue.push(activeCard);
+        setActiveQueue(nextQueue);
+      }
+
+      if (currentIndex + 1 < nextQueue.length) {
         setCurrentIndex((i) => i + 1);
       } else {
         setIsStudying(false);
-        toast.success(isEn ? "Review session completed!" : "جلسه مرور امروز به پایان رسید!");
+        toast.success(
+          isEn ? "Review session completed!" : "جلسه مرور امروز به پایان رسید!"
+        );
       }
       await loadData();
     } catch (e) {
       toast.error("Error updating review");
     }
   };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    if (!isStudying || !activeCard) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select") return;
+
+      if (e.code === "Space" || e.code === "Enter") {
+        e.preventDefault();
+        setIsFlipped((f) => !f);
+      } else if (e.key === "1") {
+        e.preventDefault();
+        if (isFlipped) handleReviewAnswer(1);
+      } else if (e.key === "2") {
+        e.preventDefault();
+        if (isFlipped) handleReviewAnswer(2);
+      } else if (e.key === "3") {
+        e.preventDefault();
+        if (isFlipped) handleReviewAnswer(3);
+      } else if (e.key === "4") {
+        e.preventDefault();
+        if (isFlipped) handleReviewAnswer(4);
+      } else if (e.key.toLowerCase() === "h") {
+        e.preventDefault();
+        setShowClue((c) => !c);
+      } else if (e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        const currentText = isFlipped ? activeCard.back : activeCard.front;
+        handleSpeak(currentText);
+      } else if (e.key.toLowerCase() === "r") {
+        e.preventDefault();
+        setCardDirectionOverride((curr) => (curr === "rtl" ? "ltr" : "rtl"));
+      } else if (e.key.toLowerCase() === "e") {
+        e.preventDefault();
+        openEditModal(activeCard);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isStudying, activeCard, isFlipped, handleSpeak, activeQueue, currentIndex]);
 
   const handleCreateCard = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,6 +335,41 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
       await loadData();
     } catch (e: any) {
       toast.error(e.message || "Error creating card");
+    }
+  };
+
+  const openEditModal = (card: LeitnerCard) => {
+    setEditingCard(card);
+    setEditFront(card.front);
+    setEditBack(card.back);
+    setEditClue(card.clue || "");
+    setEditBox(card.box);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCard) return;
+
+    try {
+      const updated = await updateLeitnerCard(userId, editingCard.id, {
+        front: editFront.trim(),
+        back: editBack.trim(),
+        clue: editClue.trim() || "",
+        box: editBox,
+      });
+
+      // Update in active study queue if studying
+      if (isStudying) {
+        setActiveQueue((prev) =>
+          prev.map((c) => (c.id === updated.id ? updated : c))
+        );
+      }
+
+      setEditingCard(null);
+      toast.success(isEn ? "Card updated" : "کارت ویرایش شد");
+      await loadData();
+    } catch (e: any) {
+      toast.error(e.message || "Error updating card");
     }
   };
 
@@ -201,6 +424,21 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
     [stats, isEn]
   );
 
+  // Filtered card list for the bottom table
+  const displayedCards = useMemo(() => {
+    return cards.filter((c) => {
+      if (selectedBoxTab !== "all" && c.box !== selectedBoxTab) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchFront = c.front.toLowerCase().includes(q);
+        const matchBack = c.back.toLowerCase().includes(q);
+        const matchClue = c.clue?.toLowerCase().includes(q);
+        if (!matchFront && !matchBack && !matchClue) return false;
+      }
+      return true;
+    });
+  }, [cards, selectedBoxTab, searchQuery]);
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto p-4 md:p-6 space-y-6">
       {/* Header & Stats Banner */}
@@ -231,7 +469,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
 
           <button
             type="button"
-            onClick={handleStartStudy}
+            onClick={() => handleStartStudy("due")}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold shadow-md shadow-primary/25 transition cursor-pointer"
           >
             <Zap className="w-4 h-4 text-amber-300 animate-pulse" />
@@ -261,158 +499,428 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
         ))}
       </div>
 
+      {/* Modern Memory Health & Spaced Repetition Analytics Dashboard */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {/* Retention Rate Gauge */}
+        <div className="p-4 rounded-2xl bg-card border border-border flex items-center gap-3 shadow-xs">
+          <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <TrendingUp className="w-5 h-5" />
+          </div>
+          <div className="space-y-0.5">
+            <div className="text-[11px] text-muted-foreground font-medium">
+              {isEn ? "Retention Rate" : "نرخ یادآوری حافظه"}
+            </div>
+            <div className="text-lg font-black text-foreground">
+              {stats.retentionRate}%
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 mr-2 font-normal">
+                {stats.retentionRate >= 85
+                  ? isEn ? "Mastery" : "عالی"
+                  : stats.retentionRate >= 70
+                  ? isEn ? "Good" : "مطلوب"
+                  : isEn ? "Review needed" : "نیاز به تقویت"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Daily Streak Counter */}
+        <div className="p-4 rounded-2xl bg-card border border-border flex items-center gap-3 shadow-xs">
+          <div className="p-3 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+            <Flame className="w-5 h-5" />
+          </div>
+          <div className="space-y-0.5">
+            <div className="text-[11px] text-muted-foreground font-medium">
+              {isEn ? "Study Streak" : "توالی روزهای مرور"}
+            </div>
+            <div className="text-lg font-black text-foreground">
+              {stats.streakDays}{" "}
+              <span className="text-xs font-normal text-muted-foreground">
+                {isEn ? "days" : "روز متوالی"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Upcoming Reviews Forecast */}
+        <div className="p-4 rounded-2xl bg-card border border-border flex items-center gap-3 shadow-xs">
+          <div className="p-3 rounded-xl bg-primary/10 text-primary">
+            <Calendar className="w-5 h-5" />
+          </div>
+          <div className="space-y-0.5 min-w-0 flex-1">
+            <div className="text-[11px] text-muted-foreground font-medium">
+              {isEn ? "Upcoming Reviews" : "پیش‌بینی مرور روزهای آتی"}
+            </div>
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+              <span>{isEn ? `Tomorrow: ${stats.upcomingForecast?.tomorrow ?? 0}` : `فردا: ${stats.upcomingForecast?.tomorrow ?? 0}`}</span>
+              <span className="text-border">•</span>
+              <span>{isEn ? `7d: ${stats.upcomingForecast?.next7Days ?? 0}` : `هفته: ${stats.upcomingForecast?.next7Days ?? 0}`}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mode Switcher: Scheduled Review vs Cram Practice */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-muted/40 border border-border">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setStudyMode("due")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+              studyMode === "due"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5" />
+            <span>{isEn ? `Scheduled Due (${dueCards.length})` : `مرورهای موعد رسیده (${dueCards.length})`}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setStudyMode("cram")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+              studyMode === "cram"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Shuffle className="w-3.5 h-3.5" />
+            <span>{isEn ? `Cram / Free Practice (${cramCards.length})` : `مرور تقویتی و آزاد (${cramCards.length})`}</span>
+          </button>
+        </div>
+
+        {/* Cram Mode Filter Chips */}
+        {studyMode === "cram" && (
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="text-[11px] text-muted-foreground">{isEn ? "Filter:" : "فیلتر:"}</span>
+            <select
+              value={cramBoxFilter}
+              onChange={(e) =>
+                setCramBoxFilter(e.target.value === "all" ? "all" : Number(e.target.value))
+              }
+              className="py-1 px-2 rounded-lg bg-card border border-border text-xs text-foreground focus:outline-none"
+            >
+              <option value="all">{isEn ? "All Boxes" : "تمامی جعبه‌ها"}</option>
+              <option value="1">{isEn ? "Box 1" : "جعبه ۱"}</option>
+              <option value="2">{isEn ? "Box 2" : "جعبه ۲"}</option>
+              <option value="3">{isEn ? "Box 3" : "جعبه ۳"}</option>
+              <option value="4">{isEn ? "Box 4" : "جعبه ۴"}</option>
+              <option value="5">{isEn ? "Box 5" : "جعبه ۵"}</option>
+            </select>
+
+            {documents.length > 0 && (
+              <select
+                value={cramDocFilter}
+                onChange={(e) => setCramDocFilter(e.target.value)}
+                className="py-1 px-2 rounded-lg bg-card border border-border text-xs text-foreground focus:outline-none max-w-[140px] truncate"
+              >
+                <option value="all">{isEn ? "All Docs" : "تمامی اسناد"}</option>
+                {documents.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.title}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setCramLapsedOnly((l) => !l)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                cramLapsedOnly
+                  ? "bg-rose-500/10 border-rose-500/40 text-rose-600 dark:text-rose-400"
+                  : "bg-card border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {isEn ? "Lapsed Only" : "فقط پرچالش‌ها"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleStartStudy("cram")}
+              className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition cursor-pointer"
+            >
+              {isEn ? "Start Practice" : "شروع تمرین"}
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Active Study Session Runner */}
       {isStudying && activeCard ? (() => {
         const currentText = isFlipped ? activeCard.back : activeCard.front;
         const isCardRtl = cardDirectionOverride ? cardDirectionOverride === "rtl" : isPersianText(currentText);
 
+        const preview1 = previewNextInterval(activeCard, 1);
+        const preview2 = previewNextInterval(activeCard, 2);
+        const preview3 = previewNextInterval(activeCard, 3);
+        const preview4 = previewNextInterval(activeCard, 4);
+
         return (
-        <div className="p-6 rounded-3xl bg-card border-2 border-primary/50 shadow-xl flex flex-col items-center justify-center text-center space-y-6 animate-in zoom-in-95 duration-200 max-w-2xl mx-auto w-full">
-          <div className="w-full flex items-center justify-between text-xs text-muted-foreground border-b border-border pb-3">
-            <span className="font-mono text-primary font-bold">
-              {currentIndex + 1} / {dueCards.length}
-            </span>
-            <div className="flex items-center gap-2">
+          <div className="p-6 rounded-3xl bg-card border-2 border-primary/50 shadow-xl flex flex-col items-center justify-center text-center space-y-6 animate-in zoom-in-95 duration-200 max-w-2xl mx-auto w-full">
+            {/* Session Top Bar */}
+            <div className="w-full flex items-center justify-between text-xs text-muted-foreground border-b border-border pb-3">
+              <span className="font-mono text-primary font-bold">
+                {currentIndex + 1} / {activeQueue.length}
+              </span>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => openEditModal(activeCard)}
+                  className="p-1 rounded-lg text-muted-foreground hover:text-foreground transition cursor-pointer"
+                  title={isEn ? "Quick edit card (E)" : "ویرایش سریع کارت (E)"}
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCardDirectionOverride((curr) =>
+                      curr ? (curr === "rtl" ? "ltr" : "rtl") : isCardRtl ? "ltr" : "rtl"
+                    )
+                  }
+                  className="px-2 py-0.5 rounded-lg bg-secondary hover:bg-secondary/80 text-[10px] text-muted-foreground hover:text-foreground font-semibold transition cursor-pointer"
+                  title={isEn ? "Toggle RTL / LTR direction (R)" : "تغییر جهت راست‌چین / چپ‌چین (R)"}
+                >
+                  {isCardRtl ? "🇮🇷 RTL" : "🇬🇧 LTR"}
+                </button>
+
+                <span className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-bold font-mono text-[11px]">
+                  Box {activeCard.box}
+                </span>
+              </div>
+
               <button
                 type="button"
-                onClick={() =>
-                  setCardDirectionOverride((curr) =>
-                    curr ? (curr === "rtl" ? "ltr" : "rtl") : isCardRtl ? "ltr" : "rtl"
-                  )
-                }
-                className="px-2 py-0.5 rounded-lg bg-secondary hover:bg-secondary/80 text-[10px] text-muted-foreground hover:text-foreground font-semibold transition cursor-pointer"
-                title={isEn ? "Toggle RTL / LTR direction" : "تغییر جهت راست‌چین / چپ‌چین"}
+                onClick={() => setIsStudying(false)}
+                className="text-muted-foreground hover:text-foreground transition cursor-pointer text-xs"
               >
-                {isCardRtl ? "🇮🇷 راست‌چین (RTL)" : "🇬🇧 چپ‌چین (LTR)"}
+                {isEn ? "Exit" : "خروج"}
               </button>
-              <span className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-bold font-mono text-[11px]">
-                Box {activeCard.box}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsStudying(false)}
-              className="text-muted-foreground hover:text-foreground transition cursor-pointer text-xs"
-            >
-              {isEn ? "Exit" : "خروج"}
-            </button>
-          </div>
-
-          {/* Flip Card Body */}
-          <div
-            data-testid="flip-card"
-            onClick={() => setIsFlipped(!isFlipped)}
-            className="w-full min-h-[220px] p-6 rounded-2xl bg-muted/40 border border-border flex flex-col items-center justify-center cursor-pointer select-none transition-all duration-300 hover:border-primary/50 hover:shadow-md"
-          >
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-3 font-bold">
-              {isFlipped
-                ? isEn
-                  ? "Answer / Explanation"
-                  : "پاسخ / توضیحات"
-                : isEn
-                ? "Question / Concept (Click to flip)"
-                : "پرسش / مفهوم (کلیک برای چرخاندن کارت)"}
             </div>
 
+            {/* Flip Card Body */}
             <div
-              dir={isCardRtl ? "rtl" : "ltr"}
-              className={`text-base sm:text-lg font-bold text-foreground leading-relaxed max-w-lg w-full ${
-                isCardRtl ? "text-right" : "text-left"
-              }`}
+              data-testid="flip-card"
+              onClick={() => setIsFlipped(!isFlipped)}
+              className="w-full min-h-[220px] p-6 rounded-2xl bg-muted/40 border border-border flex flex-col items-center justify-center cursor-pointer select-none transition-all duration-300 hover:border-primary/50 hover:shadow-md relative"
             >
-              {currentText}
-            </div>
+              {/* Header Label and TTS Button */}
+              <div className="w-full flex items-center justify-between mb-3">
+                <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
+                  {isFlipped
+                    ? isEn
+                      ? "Answer / Explanation"
+                      : "پاسخ / توضیحات"
+                    : isEn
+                    ? "Question / Concept (Click or Space to flip)"
+                    : "پرسش / مفهوم (کلیک یا Space برای چرخاندن)"}
+                </span>
 
-            {/* Clue button */}
-            {!isFlipped && activeCard.clue && (
-              <div className="mt-4">
-                {showClue ? (
-                  <span
-                    dir={isPersianText(activeCard.clue) ? "rtl" : "ltr"}
-                    className={`text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 px-3 py-1 rounded-xl border border-amber-500/20 inline-block ${
-                      isPersianText(activeCard.clue) ? "text-right" : "text-left"
-                    }`}
-                  >
-                    💡 {activeCard.clue}
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowClue(true);
-                    }}
-                    className="text-xs text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-1 cursor-pointer transition"
-                  >
-                    <HelpCircle className="w-3.5 h-3.5" />
-                    <span>{isEn ? "Show Hint" : "نمایش سرنخ"}</span>
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Attached document link */}
-            {isFlipped && activeCard.document_id && onOpenDocument && (
-              <div className="mt-4">
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onOpenDocument(activeCard.document_id!);
+                    handleSpeak(currentText);
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 text-xs font-medium transition cursor-pointer"
+                  className="p-1 rounded-lg text-muted-foreground hover:text-primary transition cursor-pointer"
+                  title={isEn ? "Pronounce / Read aloud (S)" : "تلفظ و خوانش صوتی (S)"}
                 >
-                  <BookOpen className="w-3.5 h-3.5" />
-                  <span>{isEn ? "View Source Document" : "مشاهده سند مرجع"}</span>
+                  {isSpeaking ? (
+                    <VolumeX className="w-4 h-4 text-primary animate-pulse" />
+                  ) : (
+                    <Volume2 className="w-4 h-4" />
+                  )}
                 </button>
               </div>
-            )}
-          </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-3 w-full">
-            <button
-              type="button"
-              onClick={() => handleReviewAnswer(false)}
-              className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md shadow-rose-600/20 transition cursor-pointer"
-            >
-              <XCircle className="w-4 h-4" />
-              <span>{isEn ? "Forgot (Box 1)" : "فراموش کردم (جعبه ۱)"}</span>
-            </button>
+              {/* Card Question / Answer Text */}
+              <div
+                dir={isCardRtl ? "rtl" : "ltr"}
+                className={`text-base sm:text-lg font-bold text-foreground leading-relaxed max-w-lg w-full ${
+                  isCardRtl ? "text-right" : "text-left"
+                }`}
+              >
+                {currentText}
+              </div>
 
-            <button
-              type="button"
-              onClick={() => handleReviewAnswer(true)}
-              className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition cursor-pointer"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>{isEn ? "Remembered (+1 Box)" : "بلدم (انتقال به جعبه بعدی)"}</span>
-            </button>
+              {/* Clue button */}
+              {!isFlipped && activeCard.clue && (
+                <div className="mt-4">
+                  {showClue ? (
+                    <span
+                      dir={isPersianText(activeCard.clue) ? "rtl" : "ltr"}
+                      className={`text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 px-3 py-1 rounded-xl border border-amber-500/20 inline-block ${
+                        isPersianText(activeCard.clue) ? "text-right" : "text-left"
+                      }`}
+                    >
+                      💡 {activeCard.clue}
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowClue(true);
+                      }}
+                      className="text-xs text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-1 cursor-pointer transition"
+                    >
+                      <HelpCircle className="w-3.5 h-3.5" />
+                      <span>{isEn ? "Show Hint (H)" : "نمایش سرنخ (H)"}</span>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Attached document link */}
+              {isFlipped && activeCard.document_id && onOpenDocument && (
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenDocument(activeCard.document_id!);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 text-xs font-medium transition cursor-pointer"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span>{isEn ? "View Source Document" : "مشاهده سند مرجع"}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Modern 4-Tier SM-2 Rating Buttons */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full">
+              {/* Rating 1: Again */}
+              <button
+                type="button"
+                onClick={() => handleReviewAnswer(1)}
+                className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md shadow-rose-600/20 transition cursor-pointer"
+              >
+                <div className="flex items-center gap-1">
+                  <XCircle className="w-3.5 h-3.5" />
+                  <span>{isEn ? "Forgot (Box 1)" : "فراموش کردم (جعبه ۱)"}</span>
+                </div>
+                <span className="text-[10px] opacity-80 mt-0.5 font-mono">
+                  {isEn ? preview1.textEn : preview1.textFa} • [1]
+                </span>
+              </button>
+
+              {/* Rating 2: Hard */}
+              <button
+                type="button"
+                onClick={() => handleReviewAnswer(2)}
+                className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-md shadow-amber-600/20 transition cursor-pointer"
+              >
+                <div className="flex items-center gap-1">
+                  <RotateCw className="w-3.5 h-3.5" />
+                  <span>{isEn ? "Hard" : "سخت"}</span>
+                </div>
+                <span className="text-[10px] opacity-80 mt-0.5 font-mono">
+                  +{isEn ? preview2.textEn : preview2.textFa} • [2]
+                </span>
+              </button>
+
+              {/* Rating 3: Good */}
+              <button
+                type="button"
+                onClick={() => handleReviewAnswer(3)}
+                className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-600/20 transition cursor-pointer"
+              >
+                <div className="flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>{isEn ? "Remembered (+1 Box)" : "بلدم (انتقال به جعبه بعدی)"}</span>
+                </div>
+                <span className="text-[10px] opacity-80 mt-0.5 font-mono">
+                  +{isEn ? preview3.textEn : preview3.textFa} • [3]
+                </span>
+              </button>
+
+              {/* Rating 4: Easy */}
+              <button
+                type="button"
+                onClick={() => handleReviewAnswer(4)}
+                className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition cursor-pointer"
+              >
+                <div className="flex items-center gap-1">
+                  <Award className="w-3.5 h-3.5" />
+                  <span>{isEn ? "Easy (Master)" : "آسان (جهش سریع)"}</span>
+                </div>
+                <span className="text-[10px] opacity-80 mt-0.5 font-mono">
+                  +{isEn ? preview4.textEn : preview4.textFa} • [4]
+                </span>
+              </button>
+            </div>
           </div>
-        </div>
         );
       })() : null}
 
-      {/* Cards Table / List */}
-      <div className="p-4 rounded-3xl bg-card border border-border space-y-3 shadow-sm">
-        <div className="flex items-center justify-between pb-2 border-b border-border">
-          <h3 className="text-xs font-bold text-foreground">
-            {isEn ? "All Flashcards" : "تمامی فلش‌کارت‌ها"} ({cards.length})
-          </h3>
-          <span className="text-[11px] text-muted-foreground">
-            {stats.masteredCount} {isEn ? "Mastered" : "مسلط شده"}
-          </span>
+      {/* Cards Table / List with Search and Box Filtering */}
+      <div className="p-4 rounded-3xl bg-card border border-border space-y-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
+          <div className="flex items-center gap-2">
+            <h3 className="text-xs font-bold text-foreground">
+              {isEn ? "All Flashcards" : "تمامی فلش‌کارت‌ها"} ({displayedCards.length})
+            </h3>
+            <span className="text-[11px] text-muted-foreground">
+              {stats.masteredCount} {isEn ? "Mastered" : "مسلط شده"}
+            </span>
+          </div>
+
+          {/* Quick Search Input */}
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={isEn ? "Search cards..." : "جستجو در کارت‌ها..."}
+              className="pl-8 pr-3 py-1.5 w-full sm:w-56 rounded-xl bg-background border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
         </div>
 
-        {cards.length === 0 ? (
+        {/* Box Filter Tab Chips */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+          <button
+            type="button"
+            onClick={() => setSelectedBoxTab("all")}
+            className={`px-3 py-1 rounded-xl font-semibold border transition cursor-pointer shrink-0 ${
+              selectedBoxTab === "all"
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-muted/40 border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {isEn ? "All" : "همه"} ({cards.length})
+          </button>
+          {[1, 2, 3, 4, 5].map((bx) => (
+            <button
+              key={bx}
+              type="button"
+              onClick={() => setSelectedBoxTab(bx)}
+              className={`px-2.5 py-1 rounded-xl font-semibold border transition cursor-pointer shrink-0 ${
+                selectedBoxTab === bx
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-muted/40 border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {isEn ? `Box ${bx}` : `جعبه ${bx}`} ({(stats as any)[`box${bx}`] || 0})
+            </button>
+          ))}
+        </div>
+
+        {displayedCards.length === 0 ? (
           <div className="p-8 text-center text-xs text-muted-foreground">
             {isEn
-              ? "No flashcards yet. Click 'New Card' to create your first Leitner card."
-              : "هنوز کارتی ثبت نشده است. روی 'کارت جدید' کلیک کنید تا اولین کارت لایتنر خود را بسازید."}
+              ? "No flashcards match your criteria."
+              : "کارتی با معیارهای انتخابی یافت نشد."}
           </div>
         ) : (
-          <div className="space-y-2">
-            {cards.map((c) => {
+          <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+            {displayedCards.map((c) => {
               const isFrontRtl = isPersianText(c.front);
               const isBackRtl = isPersianText(c.back);
               return (
@@ -441,8 +949,17 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
                     </span>
                     <button
                       type="button"
+                      onClick={() => openEditModal(c)}
+                      className="p-1 rounded text-muted-foreground hover:text-foreground transition cursor-pointer"
+                      title={isEn ? "Edit card" : "ویرایش کارت"}
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => handleDeleteCard(c.id)}
                       className="p-1 rounded text-muted-foreground hover:text-rose-500 transition cursor-pointer"
+                      title={isEn ? "Delete card" : "حذف کارت"}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -453,6 +970,94 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* Quick Edit Card Modal */}
+      <Dialog open={!!editingCard} onOpenChange={(open) => !open && setEditingCard(null)}>
+        <DialogContent className="max-w-md bg-card border border-border text-foreground rounded-2xl shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold flex items-center gap-2">
+              <Edit3 className="w-4 h-4 text-primary" />
+              <span>{isEn ? "Edit Flashcard" : "ویرایش فلش‌کارت"}</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveEdit} className="space-y-3 pt-2">
+            <div>
+              <label className="block text-[11px] text-muted-foreground mb-1">
+                {isEn ? "Front (Question / Prompt)" : "روی کارت (پرسش)"}
+              </label>
+              <textarea
+                required
+                rows={2}
+                dir="auto"
+                value={editFront}
+                onChange={(e) => setEditFront(e.target.value)}
+                className="w-full p-2.5 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-muted-foreground mb-1">
+                {isEn ? "Back (Answer / Clinical Key)" : "پشت کارت (پاسخ)"}
+              </label>
+              <textarea
+                required
+                rows={3}
+                dir="auto"
+                value={editBack}
+                onChange={(e) => setEditBack(e.target.value)}
+                className="w-full p-2.5 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-muted-foreground mb-1">
+                {isEn ? "Clue / Hint (optional)" : "سرنخ یا راهنمایی (اختیاری)"}
+              </label>
+              <input
+                type="text"
+                dir="auto"
+                value={editClue}
+                onChange={(e) => setEditClue(e.target.value)}
+                className="w-full py-1.5 px-3 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-muted-foreground mb-1">
+                {isEn ? "Leitner Box" : "جعبه لایتنر"}
+              </label>
+              <select
+                value={editBox}
+                onChange={(e) => setEditBox(Number(e.target.value))}
+                className="w-full py-1.5 px-3 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                <option value={1}>{isEn ? "Box 1 (Daily)" : "جعبه ۱ (روزانه)"}</option>
+                <option value={2}>{isEn ? "Box 2 (3 Days)" : "جعبه ۲ (۳ روز)"}</option>
+                <option value={3}>{isEn ? "Box 3 (7 Days)" : "جعبه ۳ (۷ روز)"}</option>
+                <option value={4}>{isEn ? "Box 4 (14 Days)" : "جعبه ۴ (۱۴ روز)"}</option>
+                <option value={5}>{isEn ? "Box 5 (Mastered)" : "جعبه ۵ (تسلط کامل)"}</option>
+              </select>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingCard(null)}
+                className="px-3 py-1.5 rounded-xl text-xs text-muted-foreground hover:text-foreground transition cursor-pointer"
+              >
+                {isEn ? "Cancel" : "انصراف"}
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-1.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold shadow-sm transition cursor-pointer"
+              >
+                {isEn ? "Save Changes" : "ذخیره تغییرات"}
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* New Card Modal */}
       <Dialog open={openNewCard} onOpenChange={setOpenNewCard}>
@@ -550,3 +1155,5 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
     </div>
   );
 };
+
+export default LeitnerDeckView;
