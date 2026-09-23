@@ -5,18 +5,13 @@ import {
   Maximize2,
   Minimize2,
   Folder,
-  FolderTree,
   FileText,
   Sparkles,
-  BookOpen,
   Search,
   Layers,
   ChevronRight,
   ChevronDown,
-  ChevronsUpDown,
-  Move,
   RotateCcw,
-  ExternalLink,
   Eye,
 } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
@@ -62,6 +57,129 @@ interface MindMapLink {
   isDashed?: boolean;
 }
 
+// Highly optimized memoized node card to avoid unnecessary re-renders during canvas pan/zoom
+interface MindMapNodeItemProps {
+  node: MindMapNode;
+  isHighlighted: boolean;
+  isEn: boolean;
+  onOpenPreview: (doc: KnowledgeDocument) => void;
+  onToggleExpand: (nodeId: string) => void;
+}
+
+const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
+  ({ node, isHighlighted, isEn, onOpenPreview, onToggleExpand }) => {
+    const isDoc = node.type === "doc";
+    const isFolder = node.type === "folder" || node.type === "subfolder";
+    const isRoot = node.type === "root";
+    const isCard = node.type === "card";
+
+    return (
+      <div
+        style={{
+          position: "absolute",
+          left: `${node.x}px`,
+          top: `${node.y}px`,
+          width: `${node.width}px`,
+          height: `${node.height}px`,
+          zIndex: 2,
+        }}
+        className={`mindmap-interactive-node p-2.5 rounded-2xl border flex items-center justify-between gap-2 shadow-xs backdrop-blur-xl transition-all duration-150 cursor-pointer ${
+          isHighlighted ? "ring-2 ring-amber-400 shadow-md shadow-amber-400/25 scale-105" : ""
+        } ${
+          isRoot
+            ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 font-bold"
+            : isFolder
+            ? "bg-card text-card-foreground border-emerald-500/40 hover:border-emerald-500 hover:shadow-sm"
+            : isDoc
+            ? "bg-card text-card-foreground border-primary/40 hover:border-primary hover:shadow-sm hover:bg-primary/5"
+            : "bg-card text-card-foreground border-pink-500/30 hover:border-pink-500 hover:shadow-xs"
+        }`}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (isDoc && node.docRef) {
+            onOpenPreview(node.docRef);
+          } else if (node.hasChildren) {
+            onToggleExpand(node.id);
+          }
+        }}
+      >
+        {/* Node Icon & Labels */}
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="shrink-0">
+            {isRoot && <Sparkles className="w-4 h-4 text-amber-300" />}
+            {isFolder && <Folder className="w-4 h-4 text-emerald-500" />}
+            {isDoc && <FileText className="w-4 h-4 text-primary" />}
+            {isCard && <Layers className="w-3.5 h-3.5 text-pink-500" />}
+          </div>
+
+          <div className="min-w-0 flex-1 space-y-0.5">
+            <div
+              className={`truncate text-xs font-semibold ${
+                isRoot ? "text-primary-foreground" : "text-foreground"
+              }`}
+            >
+              {node.title}
+            </div>
+            {node.subtitle && (
+              <div
+                className={`truncate text-[10px] ${
+                  isRoot ? "text-primary-foreground/80" : "text-muted-foreground"
+                }`}
+              >
+                {node.subtitle}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Node Actions / Badges */}
+        <div className="flex items-center gap-1 shrink-0">
+          {/* For Document: Direct Read Button */}
+          {isDoc && (
+            <button
+              type="button"
+              title={isEn ? "Open in Reader" : "مطالعه سند"}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (node.docRef) {
+                  onOpenPreview(node.docRef);
+                }
+              }}
+              className="p-1 rounded-lg text-primary hover:bg-primary/10 transition cursor-pointer"
+            >
+              <Eye className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {/* Expand / Collapse Button if has children */}
+          {node.hasChildren && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleExpand(node.id);
+              }}
+              className={`p-1 rounded-lg transition cursor-pointer ${
+                isRoot
+                  ? "hover:bg-primary-foreground/20 text-primary-foreground"
+                  : "hover:bg-muted text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {node.isExpanded ? (
+                <ChevronDown className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5" />
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+);
+
+MindMapNodeItem.displayName = "MindMapNodeItem";
+
 export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   userId,
   onOpenDocument,
@@ -79,12 +197,46 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 60, y: 80 });
   const [isDragging, setIsDragging] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<KnowledgeDocument | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const dragStartPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const hasInitializedViewRef = useRef(false);
+
+  // RAF Scheduler for 60fps/120fps hardware-composited panning
+  const rafIdRef = useRef<number | null>(null);
+  const pendingPanRef = useRef<{ x: number; y: number } | null>(null);
+
+  const schedulePanUpdate = useCallback((x: number, y: number) => {
+    pendingPanRef.current = { x, y };
+    if (rafIdRef.current === null) {
+      rafIdRef.current = requestAnimationFrame(() => {
+        rafIdRef.current = null;
+        if (pendingPanRef.current) {
+          setPanOffset(pendingPanRef.current);
+        }
+      });
+    }
+  }, []);
+
+  // Cleanup RAF on unmount
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
+  }, []);
+
+  // Debounce search query to prevent unnecessary recalculations on rapid typing
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 150);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
   // Mobile Touch Gesture Ref
   const touchGestureRef = useRef<{
@@ -139,16 +291,38 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     loadData();
   }, [loadData]);
 
+  // Auto-expand branches when searching
+  useEffect(() => {
+    if (!debouncedSearch.trim()) return;
+    const q = debouncedSearch.toLowerCase();
+    const autoExpand: Record<string, boolean> = { "root-kb": true };
+
+    for (let i = 0; i < documents.length; i++) {
+      const d = documents[i];
+      if (d.title.toLowerCase().includes(q)) {
+        if (d.folder_id) {
+          autoExpand[`folder-${d.folder_id}`] = true;
+          const parentF = folders.find((f) => f.id === d.folder_id);
+          if (parentF?.parent_id) {
+            autoExpand[`folder-${parentF.parent_id}`] = true;
+          }
+        }
+      }
+    }
+
+    setExpandedNodeIds((prev) => ({ ...prev, ...autoExpand }));
+  }, [debouncedSearch, documents, folders]);
+
   // Toggle expand / collapse node
-  const handleToggleExpand = (nodeId: string) => {
+  const handleToggleExpand = useCallback((nodeId: string) => {
     setExpandedNodeIds((prev) => ({
       ...prev,
       [nodeId]: !prev[nodeId],
     }));
-  };
+  }, []);
 
   // Expand All
-  const handleExpandAll = () => {
+  const handleExpandAll = useCallback(() => {
     const allExpanded: Record<string, boolean> = { "root-kb": true };
     folders.forEach((f) => {
       allExpanded[`folder-${f.id}`] = true;
@@ -157,22 +331,17 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       allExpanded[`doc-${d.id}`] = true;
     });
     setExpandedNodeIds(allExpanded);
-  };
+  }, [folders, documents]);
 
   // Collapse All
-  const handleCollapseAll = () => {
+  const handleCollapseAll = useCallback(() => {
     setExpandedNodeIds({ "root-kb": true });
-  };
+  }, []);
 
   // Compute Tree Layout (Pharmacy layout algorithm: Center parent to children and prevent subtree overlap)
   const { nodes, links, bounds } = useMemo(() => {
     const items: MindMapNode[] = [];
     const linkList: MindMapLink[] = [];
-
-    const isMatch = (text: string) => {
-      if (!searchQuery.trim()) return false;
-      return text.toLowerCase().includes(searchQuery.toLowerCase());
-    };
 
     // Calculate dimensions
     const getNodeDimensions = (type: MindMapNode["type"]) => {
@@ -191,12 +360,6 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
 
     const colSpacing = 300;
     let currentY = 60;
-
-    // Helper: Build subtrees
-    // Root Node
-    const rootHasChildren = folders.some((f) => !f.parent_id) || documents.some((d) => !d.folder_id);
-    const rootDims = getNodeDimensions("root");
-    const rootExpanded = !!expandedNodeIds["root-kb"];
 
     // Recursively layout tree
     function layoutNode(
@@ -539,7 +702,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
         height: maxY - minY + 160,
       },
     };
-  }, [folders, documents, cards, expandedNodeIds, searchQuery, isEn]);
+  }, [folders, documents, cards, expandedNodeIds, isEn]);
 
   // Fit View To Container
   const fitViewToContainer = useCallback(() => {
@@ -574,16 +737,20 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   }, [nodes.length, fitViewToContainer]);
 
   // Fullscreen support
-  const toggleFullscreen = () => {
+  const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
-    if (!document.fullscreenElement && !isFullscreen) {
-      containerRef.current.requestFullscreen?.().catch(() => {});
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen?.().catch(() => {});
-      setIsFullscreen(false);
+    try {
+      if (!document.fullscreenElement && !isFullscreen) {
+        containerRef.current.requestFullscreen?.().catch(() => {});
+        setIsFullscreen(true);
+      } else {
+        document.exitFullscreen?.().catch(() => {});
+        setIsFullscreen(false);
+      }
+    } catch {
+      // Ignore unsupported browser environments
     }
-  };
+  }, [isFullscreen]);
 
   useEffect(() => {
     const handleFs = () => setIsFullscreen(!!document.fullscreenElement);
@@ -592,15 +759,17 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   }, []);
 
   // Zoom handlers
-  const handleZoomIn = () => setZoomLevel((z) => Math.min(2.5, +(z + 0.15).toFixed(2)));
-  const handleZoomOut = () => setZoomLevel((z) => Math.max(0.3, +(z - 0.15).toFixed(2)));
-  const handleResetZoom = () => {
-    setZoomLevel(1);
-    setPanOffset({ x: 60, y: 80 });
-  };
+  const handleZoomIn = useCallback(
+    () => setZoomLevel((z) => Math.min(2.5, +(z + 0.15).toFixed(2))),
+    []
+  );
+  const handleZoomOut = useCallback(
+    () => setZoomLevel((z) => Math.max(0.3, +(z - 0.15).toFixed(2))),
+    []
+  );
 
   // Mouse wheel zoom centered at cursor position
-  const handleWheel = (e: React.WheelEvent) => {
+  const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     const container = containerRef.current;
     if (!container) return;
@@ -626,10 +795,10 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
 
       return nextZoom;
     });
-  };
+  }, []);
 
   // Mouse pan handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
     const target = e.target as HTMLElement;
     if (target.closest(".mindmap-interactive-node") || target.closest("button")) {
@@ -640,20 +809,25 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       x: e.clientX - panOffset.x,
       y: e.clientY - panOffset.y,
     };
-  };
+  }, [panOffset]);
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isDragging) return;
-    setPanOffset({
-      x: e.clientX - dragStartPosRef.current.x,
-      y: e.clientY - dragStartPosRef.current.y,
-    });
-  };
+    schedulePanUpdate(
+      e.clientX - dragStartPosRef.current.x,
+      e.clientY - dragStartPosRef.current.y
+    );
+  }, [isDragging, schedulePanUpdate]);
 
-  const handleMouseUp = () => setIsDragging(false);
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+    if (pendingPanRef.current) {
+      setPanOffset(pendingPanRef.current);
+    }
+  }, []);
 
   // Mobile Touch Pan & Pinch-to-Zoom handlers
-  const handleTouchStart = (e: React.TouchEvent) => {
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const target = e.target as HTMLElement;
     if (target.closest("button")) return;
 
@@ -691,19 +865,19 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
         startMidY: midY,
       };
     }
-  };
+  }, [panOffset, zoomLevel]);
 
-  const handleTouchMove = (e: React.TouchEvent) => {
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!isDragging) return;
 
     if (e.touches.length === 1 && touchGestureRef.current.mode === "pan") {
       const t = e.touches[0];
       const dx = t.clientX - touchGestureRef.current.startX;
       const dy = t.clientY - touchGestureRef.current.startY;
-      setPanOffset({
-        x: touchGestureRef.current.startPanX + dx,
-        y: touchGestureRef.current.startPanY + dy,
-      });
+      schedulePanUpdate(
+        touchGestureRef.current.startPanX + dx,
+        touchGestureRef.current.startPanY + dy
+      );
     } else if (e.touches.length >= 2) {
       const t1 = e.touches[0];
       const t2 = e.touches[1];
@@ -740,17 +914,20 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       const contentY = (originY - touchGestureRef.current.startPanY) / touchGestureRef.current.startZoom;
 
       setZoomLevel(newZoom);
-      setPanOffset({
-        x: Math.round(originX - contentX * newZoom),
-        y: Math.round(originY - contentY * newZoom),
-      });
+      schedulePanUpdate(
+        Math.round(originX - contentX * newZoom),
+        Math.round(originY - contentY * newZoom)
+      );
     }
-  };
+  }, [isDragging, panOffset, zoomLevel, schedulePanUpdate]);
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = useCallback(() => {
     setIsDragging(false);
     touchGestureRef.current.mode = "none";
-  };
+    if (pendingPanRef.current) {
+      setPanOffset(pendingPanRef.current);
+    }
+  }, []);
 
   return (
     <div className="flex-1 flex flex-col h-full w-full bg-background overflow-hidden relative select-none font-sans">
@@ -863,11 +1040,12 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       >
         <div
           style={{
-            transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
+            transform: `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoomLevel})`,
             transformOrigin: "0 0",
             width: "4000px",
             height: "3000px",
             position: "relative",
+            willChange: isDragging ? "transform" : "auto",
           }}
         >
           {/* SVG Connecting Bezier Lines */}
@@ -894,120 +1072,21 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
             })}
           </svg>
 
-          {/* Render Nodes */}
+          {/* Render Memoized Nodes */}
           {nodes.map((node) => {
-            const isDoc = node.type === "doc";
-            const isFolder = node.type === "folder" || node.type === "subfolder";
-            const isRoot = node.type === "root";
-            const isCard = node.type === "card";
             const isHighlighted =
-              searchQuery.trim() !== "" &&
-              node.title.toLowerCase().includes(searchQuery.toLowerCase());
+              debouncedSearch.trim() !== "" &&
+              node.title.toLowerCase().includes(debouncedSearch.toLowerCase());
 
             return (
-              <div
+              <MindMapNodeItem
                 key={node.id}
-                style={{
-                  position: "absolute",
-                  left: `${node.x}px`,
-                  top: `${node.y}px`,
-                  width: `${node.width}px`,
-                  height: `${node.height}px`,
-                  zIndex: 2,
-                }}
-                className={`mindmap-interactive-node p-2.5 rounded-2xl border flex items-center justify-between gap-2 shadow-sm backdrop-blur-xl transition duration-150 cursor-pointer ${
-                  isHighlighted
-                    ? "ring-2 ring-amber-400 shadow-amber-400/20 scale-105"
-                    : ""
-                } ${
-                  isRoot
-                    ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 font-bold"
-                    : isFolder
-                    ? "bg-card text-card-foreground border-emerald-500/40 hover:border-emerald-500 hover:shadow-md"
-                    : isDoc
-                    ? "bg-card text-card-foreground border-primary/40 hover:border-primary hover:shadow-md hover:bg-primary/5"
-                    : "bg-card text-card-foreground border-pink-500/30 hover:border-pink-500 hover:shadow-sm"
-                }`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isDoc && node.docRef) {
-                    setPreviewDoc(node.docRef);
-                  } else if (node.hasChildren) {
-                    handleToggleExpand(node.id);
-                  }
-                }}
-              >
-                {/* Node Icon & Labels */}
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <div className="shrink-0">
-                    {isRoot && <Sparkles className="w-4 h-4 text-amber-300" />}
-                    {isFolder && <Folder className="w-4 h-4 text-emerald-500" />}
-                    {isDoc && <FileText className="w-4 h-4 text-primary" />}
-                    {isCard && <Layers className="w-3.5 h-3.5 text-pink-500" />}
-                  </div>
-
-                  <div className="min-w-0 flex-1 space-y-0.5">
-                    <div
-                      className={`truncate text-xs font-semibold ${
-                        isRoot ? "text-primary-foreground" : "text-foreground"
-                      }`}
-                    >
-                      {node.title}
-                    </div>
-                    {node.subtitle && (
-                      <div
-                        className={`truncate text-[10px] ${
-                          isRoot ? "text-primary-foreground/80" : "text-muted-foreground"
-                        }`}
-                      >
-                        {node.subtitle}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Node Actions / Badges */}
-                <div className="flex items-center gap-1 shrink-0">
-                  {/* For Document: Direct Read Button */}
-                  {isDoc && (
-                    <button
-                      type="button"
-                      title={isEn ? "Open in Reader" : "مطالعه سند"}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (node.docRef) {
-                          setPreviewDoc(node.docRef);
-                        }
-                      }}
-                      className="p-1 rounded-lg text-primary hover:bg-primary/10 transition cursor-pointer"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-
-                  {/* Expand / Collapse Button if has children */}
-                  {node.hasChildren && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleToggleExpand(node.id);
-                      }}
-                      className={`p-1 rounded-lg transition cursor-pointer ${
-                        isRoot
-                          ? "hover:bg-primary-foreground/20 text-primary-foreground"
-                          : "hover:bg-muted text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {node.isExpanded ? (
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      ) : (
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      )}
-                    </button>
-                  )}
-                </div>
-              </div>
+                node={node}
+                isHighlighted={isHighlighted}
+                isEn={isEn}
+                onOpenPreview={setPreviewDoc}
+                onToggleExpand={handleToggleExpand}
+              />
             );
           })}
         </div>

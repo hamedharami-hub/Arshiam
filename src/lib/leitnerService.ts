@@ -71,10 +71,46 @@ export async function getLeitnerCards(userId: string): Promise<LeitnerCard[]> {
   return cached;
 }
 
+export function computeDueCards(cards: LeitnerCard[], now = Date.now()): LeitnerCard[] {
+  return cards.filter((c) => new Date(c.next_review_at).getTime() <= now);
+}
+
+export function computeBoxStats(cards: LeitnerCard[], now = Date.now()): LeitnerBoxStats {
+  let box1 = 0;
+  let box2 = 0;
+  let box3 = 0;
+  let box4 = 0;
+  let box5 = 0;
+  let dueToday = 0;
+
+  for (let i = 0; i < cards.length; i++) {
+    const c = cards[i];
+    if (c.box === 1) box1++;
+    else if (c.box === 2) box2++;
+    else if (c.box === 3) box3++;
+    else if (c.box === 4) box4++;
+    else if (c.box === 5) box5++;
+
+    if (new Date(c.next_review_at).getTime() <= now) {
+      dueToday++;
+    }
+  }
+
+  return {
+    box1,
+    box2,
+    box3,
+    box4,
+    box5,
+    dueToday,
+    totalCards: cards.length,
+    masteredCount: box5,
+  };
+}
+
 export async function getDueLeitnerCards(userId: string): Promise<LeitnerCard[]> {
   const cards = await getLeitnerCards(userId);
-  const now = new Date().getTime();
-  return cards.filter((c) => new Date(c.next_review_at).getTime() <= now);
+  return computeDueCards(cards);
 }
 
 export async function createLeitnerCard(
@@ -243,35 +279,5 @@ export async function deleteLeitnerCard(userId: string, cardId: string): Promise
 
 export async function getLeitnerBoxStats(userId: string): Promise<LeitnerBoxStats> {
   const cards = await getLeitnerCards(userId);
-  const now = new Date().getTime();
-
-  let box1 = 0;
-  let box2 = 0;
-  let box3 = 0;
-  let box4 = 0;
-  let box5 = 0;
-  let dueToday = 0;
-
-  for (const c of cards) {
-    if (c.box === 1) box1++;
-    else if (c.box === 2) box2++;
-    else if (c.box === 3) box3++;
-    else if (c.box === 4) box4++;
-    else if (c.box === 5) box5++;
-
-    if (new Date(c.next_review_at).getTime() <= now) {
-      dueToday++;
-    }
-  }
-
-  return {
-    box1,
-    box2,
-    box3,
-    box4,
-    box5,
-    dueToday,
-    totalCards: cards.length,
-    masteredCount: box5,
-  };
+  return computeBoxStats(cards);
 }

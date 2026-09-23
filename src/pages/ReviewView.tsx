@@ -71,13 +71,14 @@ export const ReviewView: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Tab Content */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-background">
-        {activeTab === "leitner" ? (
+      {/* Main Tab Content with Zero-Latency State Preservation */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-background relative">
+        <div className={`flex-1 flex flex-col h-full min-h-0 ${activeTab === "leitner" ? "" : "hidden"}`}>
           <LeitnerDeckView userId={userId} onOpenDocument={handleOpenDoc} />
-        ) : (
+        </div>
+        <div className={`flex-1 flex flex-col h-full min-h-0 ${activeTab === "mindmap" ? "" : "hidden"}`}>
           <KnowledgeMindMapView userId={userId} onOpenDocument={handleOpenDoc} />
-        )}
+        </div>
       </div>
     </div>
   );

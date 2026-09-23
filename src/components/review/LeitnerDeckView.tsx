@@ -158,43 +158,46 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
     }
   };
 
-  const boxesConfig = [
-    {
-      box: 1,
-      label: isEn ? "Box 1 (1d)" : "جعبه ۱ (۱ روز)",
-      count: stats.box1,
-      color: "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400",
-      accent: "bg-rose-500",
-    },
-    {
-      box: 2,
-      label: isEn ? "Box 2 (3d)" : "جعبه ۲ (۳ روز)",
-      count: stats.box2,
-      color: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
-      accent: "bg-amber-500",
-    },
-    {
-      box: 3,
-      label: isEn ? "Box 3 (7d)" : "جعبه ۳ (۷ روز)",
-      count: stats.box3,
-      color: "border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400",
-      accent: "bg-sky-500",
-    },
-    {
-      box: 4,
-      label: isEn ? "Box 4 (14d)" : "جعبه ۴ (۱۴ روز)",
-      count: stats.box4,
-      color: "border-indigo-500/30 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
-      accent: "bg-indigo-500",
-    },
-    {
-      box: 5,
-      label: isEn ? "Box 5 (Mastered)" : "جعبه ۵ (تسلط کامل)",
-      count: stats.box5,
-      color: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-      accent: "bg-emerald-500",
-    },
-  ];
+  const boxesConfig = useMemo(
+    () => [
+      {
+        box: 1,
+        label: isEn ? "Box 1 (1d)" : "جعبه ۱ (۱ روز)",
+        count: stats.box1,
+        color: "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400",
+        accent: "bg-rose-500",
+      },
+      {
+        box: 2,
+        label: isEn ? "Box 2 (3d)" : "جعبه ۲ (۳ روز)",
+        count: stats.box2,
+        color: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+        accent: "bg-amber-500",
+      },
+      {
+        box: 3,
+        label: isEn ? "Box 3 (7d)" : "جعبه ۳ (۷ روز)",
+        count: stats.box3,
+        color: "border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400",
+        accent: "bg-sky-500",
+      },
+      {
+        box: 4,
+        label: isEn ? "Box 4 (14d)" : "جعبه ۴ (۱۴ روز)",
+        count: stats.box4,
+        color: "border-indigo-500/30 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
+        accent: "bg-indigo-500",
+      },
+      {
+        box: 5,
+        label: isEn ? "Box 5 (Mastered)" : "جعبه ۵ (تسلط کامل)",
+        count: stats.box5,
+        color: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+        accent: "bg-emerald-500",
+      },
+    ],
+    [stats, isEn]
+  );
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto p-4 md:p-6 space-y-6">

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
 import type { KnowledgeDocument, KnowledgeFolder, DocumentViewMode } from "@/lib/knowledgeTypes";
+import { sanitizeKnowledgeHtml } from "@/lib/knowledgeBeautifier";
 import { TextSelectionFloatingBar } from "./TextSelectionFloatingBar";
 
 interface KnowledgeDocumentReaderProps {
@@ -41,6 +42,12 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   const [fontSize, setFontSize] = useState<number>(15);
   const [isCopied, setIsCopied] = useState(false);
   const contentContainerRef = useRef<HTMLDivElement>(null);
+
+  // Memoize sanitized HTML to avoid expensive re-parsing on every render
+  const safeHtml = React.useMemo(() => {
+    if (!document?.content_html) return "";
+    return sanitizeKnowledgeHtml(document.content_html);
+  }, [document?.content_html]);
 
   const handleCopyAll = () => {
     if (!document) return;
@@ -114,7 +121,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
               }`}
             >
               <Globe className="w-3.5 h-3.5 text-sky-500" />
-              <span>{isEn ? "Original HTML" : "کد HTML"}</span>
+              <span>{isEn ? "Original HTML" : "سند اصلی (HTML)"}</span>
             </button>
           </div>
 
@@ -236,7 +243,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
             {/* Sanitized/Formatted HTML content rendered with native reader styling */}
             <div
               className="knowledge-html-content"
-              dangerouslySetInnerHTML={{ __html: document.content_html }}
+              dangerouslySetInnerHTML={{ __html: safeHtml }}
             />
           </div>
         ) : (

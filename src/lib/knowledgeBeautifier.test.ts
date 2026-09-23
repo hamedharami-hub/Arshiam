@@ -44,4 +44,14 @@ describe("knowledgeBeautifier", () => {
     const result = beautifyKnowledgeContent(input);
     expect(result).toBe(input);
   });
+
+  it("strips malicious script tags, event handlers, and javascript: links", () => {
+    const dangerous = '<p>Safe Text</p><script>alert("xss")</script><img src="x" onerror="alert(1)" /><a href="javascript:doBad()">Link</a>';
+    const result = beautifyKnowledgeContent(dangerous);
+    expect(result).not.toContain("<script>");
+    expect(result).not.toContain("alert");
+    expect(result).not.toContain("onerror");
+    expect(result).not.toContain("javascript:");
+    expect(result).toContain("Safe Text");
+  });
 });

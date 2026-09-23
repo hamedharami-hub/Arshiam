@@ -19,18 +19,22 @@ import { KnowledgeSidebarTree } from "@/components/knowledge/KnowledgeSidebarTre
 import { KnowledgeDocumentReader } from "@/components/knowledge/KnowledgeDocumentReader";
 import { KnowledgeDocumentEditorModal } from "@/components/knowledge/KnowledgeDocumentEditorModal";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 export const KnowledgeBaseView: React.FC = () => {
   const { user } = useAuth();
   const { isEn } = useBilingual();
   const isMobile = useIsMobile();
+  const [searchParams] = useSearchParams();
+  const urlDocId = searchParams.get("docId");
 
   const [folders, setFolders] = useState<KnowledgeFolder[]>([]);
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [mobileTreeOpen, setMobileTreeOpen] = useState(false);
 
   // Editor Modal State
@@ -122,17 +126,30 @@ export const KnowledgeBaseView: React.FC = () => {
 
       setFolders(fList);
       setDocuments(dList);
-      if (dList.length > 0 && !selectedDocId) {
-        setSelectedDocId(dList[0].id);
-      }
+      setSelectedDocId((prev) => prev || (dList.length > 0 ? dList[0].id : null));
     } catch (e) {
       console.error("Error loading knowledge base data", e);
     }
-  }, [userId, isEn, selectedDocId, user]);
+  }, [userId, isEn, user]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Sync document selection from URL search params (?docId=...)
+  useEffect(() => {
+    if (urlDocId && documents.some((d) => d.id === urlDocId)) {
+      setSelectedDocId(urlDocId);
+    }
+  }, [urlDocId, documents]);
+
+  // Debounce search query for high-performance typing
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 150);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
   const tree = useMemo(() => {
     return buildFolderTree(folders, documents);
@@ -219,15 +236,15 @@ export const KnowledgeBaseView: React.FC = () => {
 
   // Search filter
   const filteredDocuments = useMemo(() => {
-    if (!searchQuery.trim()) return documents;
-    const q = searchQuery.toLowerCase();
+    if (!debouncedSearch.trim()) return documents;
+    const q = debouncedSearch.toLowerCase();
     return documents.filter(
       (d) =>
         d.title.toLowerCase().includes(q) ||
         (d.plain_text && d.plain_text.toLowerCase().includes(q)) ||
         (d.tags && d.tags.some((t) => t.toLowerCase().includes(q)))
     );
-  }, [documents, searchQuery]);
+  }, [documents, debouncedSearch]);
 
 
   return (

@@ -80,12 +80,28 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
     setNewFolderName("");
   };
 
-  const rootDocuments = documents.filter((d) => !d.folder_id);
+  // Pre-index documents by folder ID for O(1) instant lookup
+  const docsByFolder = React.useMemo(() => {
+    const map = new Map<string, KnowledgeDocument[]>();
+    for (let i = 0; i < documents.length; i++) {
+      const doc = documents[i];
+      const key = doc.folder_id || "__root__";
+      const list = map.get(key);
+      if (list) {
+        list.push(doc);
+      } else {
+        map.set(key, [doc]);
+      }
+    }
+    return map;
+  }, [documents]);
+
+  const rootDocuments = docsByFolder.get("__root__") || [];
 
   const renderFolderNode = (node: KnowledgeFolderNode, depth = 0) => {
     const isExpanded = !!expandedFolders[node.id];
     const isSelected = selectedFolderId === node.id;
-    const folderDocs = documents.filter((d) => d.folder_id === node.id);
+    const folderDocs = docsByFolder.get(node.id) || [];
 
     return (
       <div key={node.id} className="space-y-0.5 select-none">

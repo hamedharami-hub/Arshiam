@@ -1,6 +1,28 @@
 import { callAI } from "@/lib/ai";
 
 /**
+ * Zero-dependency, secure HTML sanitizer for educational and clinical documents.
+ * Strips dangerous executable tags, event handlers, and javascript: links,
+ * while preserving formatting, callouts, tables, accordions, and images.
+ */
+export function sanitizeKnowledgeHtml(rawHtml: string): string {
+  if (!rawHtml) return "";
+
+  return rawHtml
+    // Remove script tags and content
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    // Remove style tags that could corrupt global theme styles
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+    // Remove inline event handlers (onload, onerror, onclick, etc.)
+    .replace(/\son[a-z]+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, "")
+    // Remove javascript: pseudo-protocol
+    .replace(/href\s*=\s*(?:'javascript:[^']*'|"javascript:[^"]*"|javascript:[^\s>]+)/gi, 'href="#"')
+    .replace(/src\s*=\s*(?:'javascript:[^']*'|"javascript:[^"]*"|javascript:[^\s>]+)/gi, 'src=""')
+    // Remove dangerous embedding tags
+    .replace(/<(applet|object|embed)\b[^>]*>.*?<\/\1>/gi, "");
+}
+
+/**
  * Deterministic local beautifier for raw clinical/educational text and HTML.
  * Converts unstructured text, notes, or raw HTML into the native Arshnaz
  * educational layout with interactive callouts, tables, accordions, and badges.
@@ -10,13 +32,13 @@ export function beautifyKnowledgeContent(rawInput: string): string {
 
   const trimmed = rawInput.trim();
 
-  // If already structured HTML with our callouts or custom tags, preserve and lightly enhance
+  // If already structured HTML with our callouts or custom tags, sanitize and return
   if (
     trimmed.includes("class=\"callout-") ||
     trimmed.includes("class='callout-") ||
     trimmed.includes("class=\"knowledge-")
   ) {
-    return trimmed;
+    return sanitizeKnowledgeHtml(trimmed);
   }
 
   const lines = trimmed.split(/\r?\n/);
@@ -227,7 +249,7 @@ export function beautifyKnowledgeContent(rawInput: string): string {
   }
 
   closeOpenBlocks();
-  return output.join("\n");
+  return sanitizeKnowledgeHtml(output.join("\n"));
 }
 
 /**
@@ -270,7 +292,7 @@ Ensure all original facts, medical details, formulas, and references are preserv
       let cleaned = aiResult.text.trim();
       // Remove any ```html ... ``` wrappers
       cleaned = cleaned.replace(/^```html\s*/i, "").replace(/```$/i, "").trim();
-      return cleaned;
+      return sanitizeKnowledgeHtml(cleaned);
     }
   } catch (err) {
     console.warn("AI beautify not available, falling back to deterministic local beautifier", err);
