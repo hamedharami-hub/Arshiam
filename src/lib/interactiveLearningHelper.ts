@@ -214,7 +214,7 @@ CRITICAL TECHNICAL RULES:
 <div class="interactive-cloze-card">
   <div class="cloze-title">${isEn ? "Fill in the Blanks (Click hidden tokens to reveal):" : "جای‌خالی تعاملی (برای مشاهده کلمات کلیک کنید):"}</div>
   <p class="cloze-paragraph">
-    ... <span class="interactive-cloze-blank" data-answer="Answer word" title="${isEn ? "Click to reveal" : "کلیک برای نمایش"}">[?]</span> ...
+    ... <span class="interactive-cloze-blank" role="button" tabindex="0" data-answer="Answer word" title="${isEn ? "Click to reveal" : "کلیک برای نمایش"}">[?]</span> ...
   </p>
 </div>
 
@@ -241,25 +241,25 @@ CRITICAL TECHNICAL RULES:
 <div class="interactive-memory-game" data-pairs-count="3">
   <div class="memory-instruction">${isEn ? "Flip tiles to find matching pairs:" : "کاشی‌ها را باز کنید تا جفت‌های مرتبط را پیدا کنید:"}</div>
   <div class="memory-grid">
-    <div class="memory-tile" data-card-id="1">
+    <div class="memory-tile" role="button" tabindex="0" data-card-id="1">
       <div class="tile-inner">
         <div class="tile-front">❓</div>
         <div class="tile-back">Concept 1</div>
       </div>
     </div>
-    <div class="memory-tile" data-card-id="2">
+    <div class="memory-tile" role="button" tabindex="0" data-card-id="2">
       <div class="tile-inner">
         <div class="tile-front">❓</div>
         <div class="tile-back">Concept 2</div>
       </div>
     </div>
-    <div class="memory-tile" data-card-id="1">
+    <div class="memory-tile" role="button" tabindex="0" data-card-id="1">
       <div class="tile-inner">
         <div class="tile-front">❓</div>
         <div class="tile-back">Property 1</div>
       </div>
     </div>
-    <div class="memory-tile" data-card-id="2">
+    <div class="memory-tile" role="button" tabindex="0" data-card-id="2">
       <div class="tile-inner">
         <div class="tile-front">❓</div>
         <div class="tile-back">Property 2</div>
@@ -416,8 +416,8 @@ export function generateDeterministicInteractiveWidgets(
             <div class="cloze-title">${isEn ? "Interactive Fill-in-the-Blanks (Click to reveal):" : "جای‌خالی تعاملی (برای آشکار شدن روی جاهای خالی کلیک کنید):"}</div>
             <p class="cloze-paragraph">
               ${isEn
-                ? `In the management of ${title}, the primary target is <span class="interactive-cloze-blank" data-answer="Serotonin Transporter" title="Click to reveal">[?]</span> and the recommended initial treatment duration is at least <span class="interactive-cloze-blank" data-answer="6 to 12 Months" title="Click to reveal">[?]</span>.`
-                : `در پروتکل بالینی مربوط به ${title}، هدف اصلی درمانی <span class="interactive-cloze-blank" data-answer="ناقل بازجذب سروتونین (SERT)" title="کلیک برای نمایش کلمه">[؟]</span> بوده و مدت زمان استاندارد ادامه درمان حداقل <span class="interactive-cloze-blank" data-answer="۶ تا ۱۲ ماه" title="کلیک برای نمایش">[؟]</span> توصیه می‌شود.`}
+                ? `In the management of ${title}, the primary target is <span class="interactive-cloze-blank" role="button" tabindex="0" data-answer="Serotonin Transporter" title="Click to reveal">[?]</span> and the recommended initial treatment duration is at least <span class="interactive-cloze-blank" role="button" tabindex="0" data-answer="6 to 12 Months" title="Click to reveal">[?]</span>.`
+                : `در پروتکل بالینی مربوط به ${title}، هدف اصلی درمانی <span class="interactive-cloze-blank" role="button" tabindex="0" data-answer="ناقل بازجذب سروتونین (SERT)" title="کلیک برای نمایش کلمه">[؟]</span> بوده و مدت زمان استاندارد ادامه درمان حداقل <span class="interactive-cloze-blank" role="button" tabindex="0" data-answer="۶ تا ۱۲ ماه" title="کلیک برای نمایش">[؟]</span> توصیه می‌شود.`}
             </p>
           </div>
         `);
@@ -450,25 +450,25 @@ export function generateDeterministicInteractiveWidgets(
           <div class="interactive-memory-game" data-pairs-count="2">
             <div class="memory-instruction">${isEn ? "Memory Challenge: Click tiles to discover matching pairs!" : "چالش حافظه: روی کاشی‌ها کلیک کنید تا جفت‌های مرتبط را کشف کنید!"}</div>
             <div class="memory-grid">
-              <div class="memory-tile" data-card-id="1">
+              <div class="memory-tile" role="button" tabindex="0" data-card-id="1">
                 <div class="tile-inner">
                   <div class="tile-front">❓</div>
                   <div class="tile-back">${isEn ? "Fluoxetine" : "فلوکستین"}</div>
                 </div>
               </div>
-              <div class="memory-tile" data-card-id="2">
+              <div class="memory-tile" role="button" tabindex="0" data-card-id="2">
                 <div class="tile-inner">
                   <div class="tile-front">❓</div>
                   <div class="tile-back">${isEn ? "Sertraline" : "سرترالین"}</div>
                 </div>
               </div>
-              <div class="memory-tile" data-card-id="1">
+              <div class="memory-tile" role="button" tabindex="0" data-card-id="1">
                 <div class="tile-inner">
                   <div class="tile-front">❓</div>
                   <div class="tile-back">${isEn ? "Long Half-Life" : "نیمه‌عمر طولانی"}</div>
                 </div>
               </div>
-              <div class="memory-tile" data-card-id="2">
+              <div class="memory-tile" role="button" tabindex="0" data-card-id="2">
                 <div class="tile-inner">
                   <div class="tile-front">❓</div>
                   <div class="tile-back">${isEn ? "Safe Post-MI" : "ایمن پس از سکته قلبی"}</div>
@@ -700,8 +700,48 @@ export function attachInteractiveListeners(container: HTMLElement): () => void {
     }
   };
 
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+
+      // Flip card keyboard toggle
+      const flipCard = target.closest(".interactive-flip-card") as HTMLElement | null;
+      if (flipCard && (target === flipCard || target.getAttribute("role") === "button")) {
+        e.preventDefault();
+        e.stopPropagation();
+        flipCard.classList.toggle("is-flipped");
+        return;
+      }
+
+      // Cloze blank keyboard toggle
+      const clozeBlank = target.closest(".interactive-cloze-blank") as HTMLElement | null;
+      if (clozeBlank) {
+        e.preventDefault();
+        e.stopPropagation();
+        const answer = clozeBlank.getAttribute("data-answer");
+        if (answer && !clozeBlank.classList.contains("is-revealed")) {
+          clozeBlank.textContent = answer;
+          clozeBlank.classList.add("is-revealed");
+        }
+        return;
+      }
+
+      // Memory tile keyboard toggle
+      const memoryTile = target.closest(".memory-tile") as HTMLElement | null;
+      if (memoryTile && !memoryTile.classList.contains("is-matched") && !memoryTile.classList.contains("is-flipped")) {
+        e.preventDefault();
+        e.stopPropagation();
+        memoryTile.click();
+        return;
+      }
+    }
+  };
+
   container.addEventListener("click", handleClick);
+  container.addEventListener("keydown", handleKeyDown);
   return () => {
     container.removeEventListener("click", handleClick);
+    container.removeEventListener("keydown", handleKeyDown);
   };
 }

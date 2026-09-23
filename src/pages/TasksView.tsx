@@ -392,6 +392,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
   // Filter top-level visible tasks per scope
   const topLevel = useMemo(() => {
+    void currentDayKey;
     const nowMs = Date.now();
     const isGraceActive = (id: string) => (graceMap[id] || 0) > nowMs;
     let list = effectiveAllTasks;

@@ -79,8 +79,8 @@ export default function SocraticView() {
           setMessages([defaultGreeting]);
         }
         setSummary(session.summary ?? null);
-        if (session.draft_text && !input) {
-          setInput(session.draft_text);
+        if (session.draft_text) {
+          setInput((prev) => (!prev ? session.draft_text! : prev));
         }
       } else if (!migrated) {
         // Initial migration from localStorage if exists
@@ -101,6 +101,7 @@ export default function SocraticView() {
     });
 
     return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, chatKey]);
 
   // Keep localStorage as local offline backup

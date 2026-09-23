@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -43,7 +43,7 @@ export default function ContactsView() {
 
   const isAndroid = isDeviceContactImportSupported();
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
     try {
@@ -64,11 +64,11 @@ export default function ContactsView() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     loadData();
-  }, [user?.id]);
+  }, [loadData]);
 
   const filteredContacts = contacts.filter((c) => {
     if (!search.trim()) return true;

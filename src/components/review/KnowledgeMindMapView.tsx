@@ -1093,8 +1093,8 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
           style={{
             transform: `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoomLevel})`,
             transformOrigin: "0 0",
-            width: "4000px",
-            height: "3000px",
+            width: `${Math.max(4500, bounds.width + 1200)}px`,
+            height: `${Math.max(3500, bounds.height + 1200)}px`,
             position: "relative",
             willChange: isDragging ? "transform" : "auto",
           }}

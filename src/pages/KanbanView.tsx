@@ -133,10 +133,8 @@ export default function KanbanView() {
   useEffect(() => {
     const list = getKanbanGoals(null, user?.id);
     setGoals(list);
-    if (!selectedTier1Id && list.length > 0) {
-      setSelectedTier1Id(list[0].id);
-    }
-  }, [user]);
+    setSelectedTier1Id((prev) => (!prev && list.length > 0 ? list[0].id : prev));
+  }, [user?.id]);
 
   // Load tasks from firebaseStore
   const loadTasks = useCallback(async () => {

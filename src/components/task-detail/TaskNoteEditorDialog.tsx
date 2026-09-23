@@ -67,7 +67,7 @@ export function TaskNoteEditorDialog({
       setTitle((prev) => (prev !== nextTitle ? nextTitle : prev));
       setContent((prev) => (prev !== nextContent ? nextContent : prev));
     }
-  }, [note?.id, open]);
+  }, [note, open]);
 
   if (!note) return null;
 

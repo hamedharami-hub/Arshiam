@@ -128,7 +128,7 @@ export default function NotesView() {
     return next;
   };
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!user) return;
     let base = (await cacheGet<Note[]>(NOTES_CACHE_KEY)) || [];
     // 1. Try Firebase Firestore
@@ -160,7 +160,7 @@ export default function NotesView() {
     }
     const merged = await applyNoteQueue(base);
     setNotes(merged);
-  };
+  }, [user, NOTES_CACHE_KEY]);
 
   useEffect(() => {
     if (!user) return;
@@ -177,7 +177,7 @@ export default function NotesView() {
       fsUnsub();
       firebaseStore.removeChannel(ch);
     };
-  }, [user]);
+  }, [user, load, NOTES_CACHE_KEY]);
 
   const preselectId = searchParams.get("select");
   useEffect(() => {

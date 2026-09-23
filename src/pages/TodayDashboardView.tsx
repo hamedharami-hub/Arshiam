@@ -155,8 +155,14 @@ export default function TodayDashboardView() {
     };
   }, [currentDayKey, load]);
 
-  const startOfToday = useMemo(() => startOfDay(new Date()).getTime(), [currentDayKey]);
-  const endOfToday = useMemo(() => endOfDay(new Date()).getTime(), [currentDayKey]);
+  const startOfToday = useMemo(() => {
+    void currentDayKey;
+    return startOfDay(new Date()).getTime();
+  }, [currentDayKey]);
+  const endOfToday = useMemo(() => {
+    void currentDayKey;
+    return endOfDay(new Date()).getTime();
+  }, [currentDayKey]);
 
   const taskMap = useMemo(() => new Map(allTasks.map((t) => [t.id, t])), [allTasks]);
   const childrenMap = useMemo(() => buildTaskChildrenMap(allTasks), [allTasks]);

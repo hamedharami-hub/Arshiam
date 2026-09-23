@@ -50,19 +50,26 @@ vi.mock("@/lib/taskNotesService", () => ({
   }),
 }));
 
-vi.mock("@/lib/firebaseStore", () => ({
-  firebaseStore: {
-    from: () => ({
-      select: () => ({
-        eq: () => Promise.resolve({ data: [], error: null }),
-        order: () => Promise.resolve({ data: [], error: null }),
+vi.mock("@/lib/firebaseStore", () => {
+  const makeQuery = (): any => ({
+    eq: () => makeQuery(),
+    neq: () => makeQuery(),
+    in: () => makeQuery(),
+    order: () => makeQuery(),
+    then: (resolve: any) => Promise.resolve({ data: [], error: null }).then(resolve),
+    catch: (reject: any) => Promise.resolve({ data: [], error: null }).catch(reject),
+  });
+  return {
+    firebaseStore: {
+      from: () => ({
+        select: () => makeQuery(),
+        insert: () => Promise.resolve({ data: null, error: null }),
+        update: () => makeQuery(),
+        delete: () => makeQuery(),
       }),
-      insert: () => Promise.resolve({ data: null, error: null }),
-      update: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
-      delete: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
-    }),
-  },
-}));
+    },
+  };
+});
 
 vi.mock("@/components/ui/popover", () => ({
   Popover: ({ children }: any) => <div data-testid="mock-popover">{children}</div>,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Users, UserPlus, X, User } from "lucide-react";
@@ -31,7 +31,7 @@ export function TaskRelatedContacts({
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!taskId || !userId) return;
     try {
       const list = await getTaskContacts(taskId, userId);
@@ -40,11 +40,11 @@ export function TaskRelatedContacts({
     } catch {
       // silent
     }
-  };
+  }, [taskId, userId, onCountChange]);
 
   useEffect(() => {
     loadData();
-  }, [taskId, userId]);
+  }, [loadData]);
 
   const handleUnlink = async (e: React.MouseEvent, taskContactId: string) => {
     e.stopPropagation();
