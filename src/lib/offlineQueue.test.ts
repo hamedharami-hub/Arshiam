@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { canReplayForOwner, clearQueue, enqueueOp, flushQueue, getQueue, type QueuedOp } from "./offlineQueue";
+import { canReplayForOwner, clearQueue, enqueueOp, enqueueOps, flushQueue, getQueue, type QueuedOp } from "./offlineQueue";
 import * as offlineDb from "./offlineDb";
 import { firebaseStore } from "./firebaseStore";
 
@@ -65,6 +65,19 @@ describe("offline outbox persistence", () => {
       expect.objectContaining({ ownerId: "account-a", table: "knowledge_documents", op: "insert" }),
     ]));
     expect(getDbSpy).toHaveBeenCalled();
+  });
+
+  it("persists a related batch together in the localStorage fallback", async () => {
+    const accepted = await enqueueOps([
+      { ownerId: "account-a", table: "tasks", op: "delete", match: { id: "root" } },
+      { ownerId: "account-a", table: "tasks", op: "delete", match: { id: "child" } },
+    ]);
+
+    expect(accepted).toBe(true);
+    expect(await getQueue()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ table: "tasks", match: { id: "root" }, ownerId: "account-a" }),
+      expect.objectContaining({ table: "tasks", match: { id: "child" }, ownerId: "account-a" }),
+    ]));
   });
 
   it("returns false instead of reporting success when no durable queue can be written", async () => {

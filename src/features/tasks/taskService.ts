@@ -1,10 +1,10 @@
-import { collection, getDocs, doc, deleteDoc } from "firebase/firestore";
+import { collection, getDocs, doc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { firebaseStore } from "@/lib/firebaseStore";
 import {
   cacheGet,
   cacheSet,
-  enqueueOp,
+  enqueueOps,
   getPendingOps,
 } from "@/lib/offlineQueue";
 import {
@@ -122,49 +122,59 @@ export async function deleteTaskCascade(
   const descendantIds = collectTaskDescendantIds(rootTaskId, childrenMap);
   const idsToDelete = Array.from(new Set([rootTaskId, ...descendantIds]));
 
-  // 1. Immediately update memory and persistent caches
-  const remaining = (tasks || []).filter((t) => !idsToDelete.includes(t.id));
-  setTaskCache(userId, remaining);
-  await persistTaskCache(userId, remaining);
-  void syncAndroidWidget(remaining, userId).catch(() => {});
+  const deleteOperations = idsToDelete.flatMap((id) => [
+    { ownerId: userId, table: "tasks", op: "delete" as const, match: { id } },
+    { ownerId: userId, table: "task_tags", op: "delete" as const, match: { task_id: id } },
+  ]);
+  const commitLocalRemoval = async () => {
+    const remaining = (tasks || []).filter((task) => !idsToDelete.includes(task.id));
+    setTaskCache(userId, remaining);
+    await persistTaskCache(userId, remaining);
+    void syncAndroidWidget(remaining, userId).catch(() => {});
+    window.dispatchEvent(new Event("tasks-changed"));
+    return remaining;
+  };
 
-  // 2. Offline handling: queue delete ops for all affected tasks and tag links
+  // Queue the whole cascade atomically before hiding it from the user's task list.
   const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
   if (isOffline) {
-    for (const id of idsToDelete) {
-      await enqueueOp({ table: "tasks", op: "delete", match: { id } });
-      await enqueueOp({ table: "task_tags", op: "delete", match: { task_id: id } });
-    }
-    window.dispatchEvent(new Event("tasks-changed"));
+    if (!await enqueueOps(deleteOperations)) return { success: false, deletedIds: [] };
+    await commitLocalRemoval();
     return { success: true, deletedIds: idsToDelete };
   }
 
-  // 3. Online handling: delete each from Firestore and clean up task_tags
+  // Firestore batches are atomic and capped at 500 writes. Larger trees are
+  // durably queued as one local transaction and replayed idempotently.
+  if (idsToDelete.length > 500) {
+    if (!await enqueueOps(deleteOperations)) return { success: false, deletedIds: [] };
+    await commitLocalRemoval();
+    return { success: true, deletedIds: idsToDelete };
+  }
+
   try {
-    await Promise.all(
-      idsToDelete.map(async (id) => {
-        const taskRef = doc(db, "users", userId, "tasks", id);
-        await deleteDoc(taskRef);
-      })
-    );
-
-    try {
-      await firebaseStore.from("task_tags").delete().in("task_id", idsToDelete);
-    } catch (tagErr) {
-      console.warn("[TaskService] task_tags cleanup warning:", tagErr);
-    }
-
-    window.dispatchEvent(new Event("tasks-changed"));
-    return { success: true, deletedIds: idsToDelete };
-  } catch (err) {
-    console.warn("[TaskService] Firestore cascade delete failed, enqueuing for offline sync:", err);
-    for (const id of idsToDelete) {
-      await enqueueOp({ table: "tasks", op: "delete", match: { id } });
-      await enqueueOp({ table: "task_tags", op: "delete", match: { task_id: id } });
-    }
-    window.dispatchEvent(new Event("tasks-changed"));
+    const batch = writeBatch(db);
+    for (const id of idsToDelete) batch.delete(doc(db, "users", userId, "tasks", id));
+    await batch.commit();
+  } catch (error) {
+    console.warn("[TaskService] Atomic Firestore cascade delete failed, enqueuing for sync:", error);
+    if (!await enqueueOps(deleteOperations)) return { success: false, deletedIds: [] };
+    await commitLocalRemoval();
     return { success: true, deletedIds: idsToDelete };
   }
+
+  const tagCleanupOperations = deleteOperations.filter((operation) => operation.table === "task_tags");
+  try {
+    const tagResult = await firebaseStore.from("task_tags").delete().in("task_id", idsToDelete);
+    if (tagResult.error && !await enqueueOps(tagCleanupOperations)) {
+      console.warn("[TaskService] Tasks were deleted, but task-tag cleanup could not be queued.", tagResult.error);
+    }
+  } catch (error) {
+    if (!await enqueueOps(tagCleanupOperations)) {
+      console.warn("[TaskService] Tasks were deleted, but task-tag cleanup could not be queued.", error);
+    }
+  }
+  await commitLocalRemoval();
+  return { success: true, deletedIds: idsToDelete };
 }
 
 export async function deleteTask(userId: string, taskId: string, knownTasks?: Task[]): Promise<boolean> {

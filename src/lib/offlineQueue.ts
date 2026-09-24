@@ -52,40 +52,52 @@ function saveLocalStorageOutbox(items: QueuedOp[]): boolean {
 const memoryOutbox = new Map<number, QueuedOp>();
 let memoryOutboxAutoInc = 1;
 
-export async function enqueueOp(
-  op: Omit<QueuedOp, "id" | "createdAt" | "attempts" | "nextRetryAt" | "lastError">
-): Promise<boolean> {
-  let queued = false;
-  const payload = op.payload && typeof op.payload === "object"
-    ? op.payload as Record<string, unknown>
-    : undefined;
-  const ownerId = op.ownerId ||
-    (typeof payload?.user_id === "string" ? payload.user_id : undefined) ||
-    (typeof payload?.userId === "string" ? payload.userId : undefined) ||
-    (typeof op.match?.user_id === "string" ? op.match.user_id : undefined) ||
-    await getAuthenticatedUserId();
-  const item = { ...op, ownerId, createdAt: Date.now(), attempts: 0 };
+export type EnqueueOpInput = Omit<QueuedOp, "id" | "createdAt" | "attempts" | "nextRetryAt" | "lastError">;
 
+export async function enqueueOp(op: EnqueueOpInput): Promise<boolean> {
+  return enqueueOps([op]);
+}
+
+/** Persist a related set of mutations as one transaction or one verified fallback write. */
+export async function enqueueOps(ops: EnqueueOpInput[]): Promise<boolean> {
+  if (ops.length === 0) return true;
+
+  const items = await Promise.all(ops.map(async (op) => {
+    const payload = op.payload && typeof op.payload === "object"
+      ? op.payload as Record<string, unknown>
+      : undefined;
+    const ownerId = op.ownerId ||
+      (typeof payload?.user_id === "string" ? payload.user_id : undefined) ||
+      (typeof payload?.userId === "string" ? payload.userId : undefined) ||
+      (typeof op.match?.user_id === "string" ? op.match.user_id : undefined) ||
+      await getAuthenticatedUserId();
+    return { ...op, ownerId, createdAt: Date.now(), attempts: 0 };
+  }));
+
+  let queued = false;
   try {
     const db = await getDB();
     if (db) {
+      const transaction = db.transaction(STORE, "readwrite");
       try {
-        await db.add(STORE, item);
+        for (const item of items) await transaction.store.add(item);
+        await transaction.done;
         queued = true;
-      } catch (err) {
-        console.warn("[offlineQueue] IndexedDB enqueue failed; trying verified localStorage fallback:", err);
+      } catch (error) {
+        try { transaction.abort(); } catch {}
+        try { await transaction.done; } catch {}
+        console.warn("[offlineQueue] IndexedDB batch enqueue failed; trying verified localStorage fallback:", error);
       }
     }
-  } catch (err) {
-    console.warn("Could not enqueue offline op:", err);
+  } catch (error) {
+    console.warn("Could not enqueue offline operations:", error);
   }
 
   if (!queued) {
-    const id = memoryOutboxAutoInc++;
-    const fullItem = { ...item, id };
+    const fullItems = items.map((item) => ({ ...item, id: memoryOutboxAutoInc++ }));
     const list = loadLocalStorageOutbox();
-    if (saveLocalStorageOutbox([...list, fullItem])) {
-      memoryOutbox.set(id, fullItem);
+    if (saveLocalStorageOutbox([...list, ...fullItems])) {
+      for (const item of fullItems) memoryOutbox.set(item.id!, item);
       queued = true;
     }
   }
