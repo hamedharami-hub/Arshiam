@@ -22,6 +22,7 @@ import { StudyTaskScheduleModal } from "@/components/knowledge/StudyTaskSchedule
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { isPharmacyImported, importPharmacyKnowledge } from "@/lib/pharmacyImportService";
 
 export const KnowledgeBaseView: React.FC = () => {
   const { user } = useAuth();
@@ -36,6 +37,8 @@ export const KnowledgeBaseView: React.FC = () => {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [hasPharmacy, setHasPharmacy] = useState<boolean>(true);
+  const [isImportingPharmacy, setIsImportingPharmacy] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [mobileTreeOpen, setMobileTreeOpen] = useState(false);
@@ -89,18 +92,49 @@ export const KnowledgeBaseView: React.FC = () => {
 
   const loadData = useCallback(async () => {
     try {
-      const [fList, dList] = await Promise.all([
+      const [fList, dList, imported] = await Promise.all([
         getKnowledgeFolders(userId),
         getKnowledgeDocuments(userId),
+        isPharmacyImported(userId),
       ]);
 
       setFolders(fList);
       setDocuments(dList);
+      setHasPharmacy(imported);
       setSelectedDocId((prev) => prev || (dList.length > 0 ? dList[0].id : null));
     } catch (e) {
       console.error("Error loading knowledge base data", e);
     }
   }, [userId]);
+
+  const handleImportPharmacy = useCallback(async (force = false) => {
+    setIsImportingPharmacy(true);
+    const toastId = toast.loading(
+      isEn
+        ? "Importing Pharmacy Encyclopedia (97 clinical lessons)..."
+        : "در حال بارگذاری دایره‌المعارف دارویی (۹۷ درس و اطلس بالینی)..."
+    );
+    try {
+      const result = await importPharmacyKnowledge(userId, { force, importCards: true });
+      await loadData();
+      setHasPharmacy(true);
+      setSelectedFolderId("pharmacy-root");
+      toast.success(
+        isEn
+          ? `Imported ${result.docsCount} lessons and ${result.cardsCount} flashcards!`
+          : `بسته دارویی با موفقیت وارد شد (${result.docsCount} درس و ${result.cardsCount} کارت لایتنر)`,
+        { id: toastId }
+      );
+    } catch (err: any) {
+      console.error("Pharmacy import failed:", err);
+      toast.error(
+        err.message || (isEn ? "Failed to import pharmacy knowledge" : "خطا در بارگذاری دایره‌المعارف دارویی"),
+        { id: toastId }
+      );
+    } finally {
+      setIsImportingPharmacy(false);
+    }
+  }, [userId, isEn, loadData]);
 
   useEffect(() => {
     loadData();
@@ -304,6 +338,9 @@ export const KnowledgeBaseView: React.FC = () => {
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
             onToggleCollapse={toggleSidebar}
+            onImportPharmacy={handleImportPharmacy}
+            isPharmacyImported={hasPharmacy}
+            isImportingPharmacy={isImportingPharmacy}
           />
         </div>
 
@@ -341,6 +378,9 @@ export const KnowledgeBaseView: React.FC = () => {
               }}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
+              onImportPharmacy={handleImportPharmacy}
+              isPharmacyImported={hasPharmacy}
+              isImportingPharmacy={isImportingPharmacy}
             />
           </SheetContent>
         </Sheet>
@@ -360,6 +400,9 @@ export const KnowledgeBaseView: React.FC = () => {
               setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
             }}
             onScheduleStudy={handleScheduleDocStudy}
+            onImportPharmacy={handleImportPharmacy}
+            isPharmacyImported={hasPharmacy}
+            isImportingPharmacy={isImportingPharmacy}
           />
         </div>
       </div>

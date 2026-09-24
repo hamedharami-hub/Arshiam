@@ -13,6 +13,8 @@ import {
   PanelLeftClose,
   Network,
   CalendarPlus,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useBilingual } from "@/hooks/useBilingual";
@@ -89,9 +91,15 @@ const FolderRowItem: React.FC<FolderRowItemProps> = ({
         </button>
 
         {isExpanded ? (
-          <FolderOpen className="w-4 h-4 text-amber-500 shrink-0" />
+          <FolderOpen
+            className="w-4 h-4 shrink-0 transition"
+            style={node.color ? { color: node.color } : undefined}
+          />
         ) : (
-          <Folder className="w-4 h-4 text-primary shrink-0" />
+          <Folder
+            className="w-4 h-4 shrink-0 transition"
+            style={node.color ? { color: node.color } : undefined}
+          />
         )}
 
         <span className="truncate">{node.name}</span>
@@ -250,6 +258,9 @@ interface KnowledgeSidebarTreeProps {
   searchQuery: string;
   onSearchChange: (q: string) => void;
   onToggleCollapse?: () => void;
+  onImportPharmacy?: (force?: boolean) => Promise<void>;
+  isPharmacyImported?: boolean;
+  isImportingPharmacy?: boolean;
 }
 
 export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
@@ -269,6 +280,9 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
   searchQuery,
   onSearchChange,
   onToggleCollapse,
+  onImportPharmacy,
+  isPharmacyImported = true,
+  isImportingPharmacy = false,
 }) => {
   const { isEn } = useBilingual();
   const navigate = useNavigate();
@@ -436,6 +450,42 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
               <span>{isEn ? "Doc" : "سند"}</span>
             </button>
 
+            {onImportPharmacy && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="p-1.5 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition cursor-pointer border border-border"
+                    title={isEn ? "More Options" : "گزینه‌های بیشتر"}
+                  >
+                    <MoreVertical className="w-3.5 h-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="text-xs">
+                  <DropdownMenuItem
+                    onClick={() => onImportPharmacy(isPharmacyImported)}
+                    disabled={isImportingPharmacy}
+                    className="cursor-pointer gap-2"
+                  >
+                    {isImportingPharmacy ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                    ) : (
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
+                    )}
+                    <span>
+                      {isPharmacyImported
+                        ? isEn
+                          ? "Re-sync Pharmacy Encyclopedia (97 lessons)"
+                          : "تازه‌سازی دایره‌المعارف دارویی (۹۷ درس)"
+                        : isEn
+                        ? "Import Pharmacy Encyclopedia (97 lessons)"
+                        : "واردسازی دایره‌المعارف دارویی (۹۷ درس)"}
+                    </span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
             {onToggleCollapse && (
               <button
                 type="button"
@@ -460,6 +510,44 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
             className="w-full py-1.5 ps-8 pe-3 bg-background border border-input rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
           />
         </div>
+
+        {/* Pharmacy Quick Import Banner */}
+        {!isPharmacyImported && onImportPharmacy && (
+          <div className="p-2.5 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-primary/15 border border-emerald-500/30 flex items-center justify-between gap-2 shadow-2xs animate-in fade-in">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-base shrink-0">💊</span>
+              <div className="min-w-0">
+                <div className="text-[11px] font-bold text-foreground truncate">
+                  {isEn ? "Pharmacy Encyclopedia" : "بسته جامع دارویی"}
+                </div>
+                <div className="text-[10px] text-muted-foreground truncate">
+                  {isEn ? "97 lessons, clinical atlas & cards" : "۹۷ درس، اطلس بالینی و لایتنر"}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={isImportingPharmacy}
+              onClick={() => onImportPharmacy(false)}
+              className="px-2.5 py-1 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-[10px] font-bold shrink-0 shadow-2xs transition disabled:opacity-60 flex items-center gap-1 cursor-pointer"
+            >
+              {isImportingPharmacy ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Sparkles className="w-3 h-3" />
+              )}
+              <span>
+                {isImportingPharmacy
+                  ? isEn
+                    ? "..."
+                    : "..."
+                  : isEn
+                  ? "Install"
+                  : "نصب"}
+              </span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* New Folder Inline Form */}

@@ -1361,7 +1361,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={isEn ? "Search map..." : "جستجو در نقشه..."}
-              className="pl-8 pr-3 py-1.5 w-36 sm:w-52 rounded-2xl bg-card/90 border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 backdrop-blur-xl shadow-lg"
+              className="pl-8 pr-3 py-1.5 w-28 sm:w-52 rounded-2xl bg-card/90 border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 backdrop-blur-xl shadow-lg"
             />
           </div>
         </div>
@@ -1369,7 +1369,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
 
       {/* Breadcrumb Navigation Strip when focused on a branch */}
       {selectedScopeId !== "all" && (
-        <div className="absolute top-16 start-3 z-20 flex items-center gap-1 px-3 py-1.5 rounded-2xl bg-card/90 border border-primary/25 backdrop-blur-xl shadow-md text-xs pointer-events-auto max-w-[92vw] overflow-x-auto">
+        <div className="absolute top-28 sm:top-16 start-3 z-20 flex items-center gap-1 px-3 py-1.5 rounded-2xl bg-card/90 border border-primary/25 backdrop-blur-xl shadow-md text-xs pointer-events-auto max-w-[92vw] overflow-x-auto">
           <span className="text-[10px] font-bold text-muted-foreground uppercase me-1 shrink-0">
             {isEn ? "Branch:" : "شاخه:"}
           </span>

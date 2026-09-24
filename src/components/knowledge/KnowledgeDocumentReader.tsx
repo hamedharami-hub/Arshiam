@@ -52,6 +52,9 @@ interface KnowledgeDocumentReaderProps {
   /** @deprecated */
   onAddToTask?: (text: string) => void;
   onAiAction?: (text: string) => void;
+  onImportPharmacy?: (force?: boolean) => Promise<void>;
+  isPharmacyImported?: boolean;
+  isImportingPharmacy?: boolean;
 }
 
 export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = ({
@@ -68,6 +71,9 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   onAddToNote,
   onAddToTask,
   onAiAction,
+  onImportPharmacy,
+  isPharmacyImported = true,
+  isImportingPharmacy = false,
 }) => {
   const { isEn } = useBilingual();
   const [viewMode, setViewMode] = useState<DocumentViewMode>("reader");
@@ -229,6 +235,43 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
             ? "Choose a document from the folder hierarchy or add a new HTML page to start reading."
             : "سندی را از درخت فولدرها انتخاب کنید یا صفحهٔ HTML جدیدی بیفزایید تا متن آن در سبک بومی برنامه نمایش داده شود."}
         </p>
+
+        {!isPharmacyImported && onImportPharmacy && (
+          <div className="mt-6 p-5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-primary/10 border border-emerald-500/25 max-w-md text-center space-y-3 shadow-xs animate-in fade-in">
+            <div className="text-2xl">💊</div>
+            <div className="text-xs font-bold text-foreground">
+              {isEn
+                ? "Pharmacy Knowledge & Clinical Modules"
+                : "دایره‌المعارف و آموزش جامع دارویی"}
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              {isEn
+                ? "Instant access to 97 clinical guides, drug monographs, CYP interactions, triage cases, and 17 Leitner cards."
+                : "دسترسی فوری به ۹۷ درس بالینی، راهنمای تریاژ بیماری‌های OTC، تداخلات آنزیمی CYP و ۱۷ فلش‌کارت لایتنر."}
+            </p>
+            <button
+              type="button"
+              disabled={isImportingPharmacy}
+              onClick={() => onImportPharmacy(false)}
+              className="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold shadow-xs transition disabled:opacity-60 inline-flex items-center gap-2 cursor-pointer"
+            >
+              {isImportingPharmacy ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5" />
+              )}
+              <span>
+                {isImportingPharmacy
+                  ? isEn
+                    ? "Importing 97 Lessons..."
+                    : "در حال بارگذاری ۹۷ درس..."
+                  : isEn
+                  ? "Install Pharmacy Knowledge"
+                  : "واردسازی بسته جامع دارویی"}
+              </span>
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -360,7 +403,8 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
             }
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-            <span>{isEn ? "Generate Cards" : "تولید کارت هوشمند"}</span>
+            <span className="hidden sm:inline">{isEn ? "Generate Cards" : "تولید کارت هوشمند"}</span>
+            <span className="sm:hidden">{isEn ? "Cards" : "کارت"}</span>
           </button>
 
           {/* Interactive Learning Studio Button */}

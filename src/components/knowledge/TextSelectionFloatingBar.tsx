@@ -21,7 +21,8 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
   const [selectedText, setSelectedText] = useState("");
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
   const [isCopied, setIsCopied] = useState(false);
-  const bubbleRef = useRef<HTMLDivElement>(null);
+  const desktopBubbleRef = useRef<HTMLDivElement>(null);
+  const mobileBubbleRef = useRef<HTMLDivElement>(null);
 
   const checkSelection = useCallback(() => {
     const selection = window.getSelection();
@@ -76,7 +77,11 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
     };
 
     const handleMouseDown = (e: MouseEvent | TouchEvent) => {
-      if (bubbleRef.current && bubbleRef.current.contains(e.target as Node)) {
+      const targetNode = e.target as Node;
+      if (
+        (desktopBubbleRef.current && desktopBubbleRef.current.contains(targetNode)) ||
+        (mobileBubbleRef.current && mobileBubbleRef.current.contains(targetNode))
+      ) {
         return;
       }
       const selection = window.getSelection();
@@ -148,7 +153,7 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
       {/* 1. Desktop Smart Floating Pill */}
       {coords && (
         <div
-          ref={bubbleRef}
+          ref={desktopBubbleRef}
           style={{
             position: "fixed",
             top: `${coords.top}px`,
@@ -208,9 +213,9 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
 
       {/* 2. Responsive Mobile & Touch Dock */}
       <div
-        ref={bubbleRef}
+        ref={mobileBubbleRef}
         style={{ zIndex: 99998 }}
-        className="md:hidden fixed bottom-20 inset-x-3 max-w-lg mx-auto animate-in slide-in-from-bottom-4 fade-in duration-200 select-none"
+        className="md:hidden fixed bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)] inset-x-3 max-w-lg mx-auto animate-in slide-in-from-bottom-4 fade-in duration-200 select-none"
       >
         <div className="p-3 rounded-2xl bg-slate-900/95 border border-purple-500/60 shadow-2xl backdrop-blur-2xl flex flex-col gap-2 ring-1 ring-purple-400/25">
           {/* Header Row: Word Count & Snippet Preview */}

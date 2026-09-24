@@ -11,6 +11,8 @@ import {
   Wand2,
   Languages,
   Gamepad2,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
 import type { KnowledgeDocument, KnowledgeFolder } from "@/lib/knowledgeTypes";
@@ -59,6 +61,7 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
   const [isBeautifying, setIsBeautifying] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [interactiveModalOpen, setInteractiveModalOpen] = useState(false);
+  const [showMetadata, setShowMetadata] = useState(false);
 
   const handleInsertInteractive = (html: string, mode: "append" | "replace") => {
     if (langTab === "fa") {
@@ -82,6 +85,9 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
       setContentEn(document.content_en || "");
       setTagsInput(document.tags ? document.tags.join(", ") : "");
       setSourceUrl(document.source_url || "");
+      if (document.folder_id || (document.tags && document.tags.length > 0) || document.source_url) {
+        setShowMetadata(true);
+      }
     } else {
       setTitle("");
       setTitleEn("");
@@ -90,6 +96,7 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
       setContentEn("");
       setTagsInput("");
       setSourceUrl("");
+      setShowMetadata(Boolean(initialFolderId));
     }
     setLangTab("fa");
     setActiveTab("edit");
@@ -273,8 +280,34 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
               </div>
             </div>
 
+            {/* Mobile/Foldable Metadata Collapsible Toggle */}
+            <div className="sm:hidden">
+              <button
+                type="button"
+                onClick={() => setShowMetadata((v) => !v)}
+                className="w-full flex items-center justify-between py-1.5 px-3 rounded-xl bg-background border border-border text-[11px] font-semibold text-muted-foreground hover:text-foreground transition cursor-pointer"
+              >
+                <div className="flex items-center gap-1.5">
+                  <Folder className="w-3.5 h-3.5 text-primary" />
+                  <span>
+                    {isEn
+                      ? "Additional Details (Folder, Tags, URL)"
+                      : "مشخصات تکمیلی (پوشه، برچسب‌ها، منبع)"}
+                  </span>
+                  {(folderId || tagsInput || sourceUrl) && (
+                    <span className="w-2 h-2 rounded-full bg-primary" />
+                  )}
+                </div>
+                {showMetadata ? (
+                  <ChevronUp className="w-3.5 h-3.5" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5" />
+                )}
+              </button>
+            </div>
+
             {/* Folder, Tags and Source Link */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className={`${showMetadata ? "grid" : "hidden sm:grid"} grid-cols-1 sm:grid-cols-3 gap-3`}>
               <div>
                 <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
                   {isEn ? "Category / Folder" : "دسته‌بندی و پوشه"}
@@ -438,7 +471,7 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
           </div>
 
           {/* Content Area */}
-          <div className="flex-1 min-h-[300px] overflow-y-auto p-4 bg-muted/15">
+          <div className="flex-1 min-h-[180px] sm:min-h-[280px] overflow-y-auto p-3 sm:p-4 bg-muted/15">
             {activeTab === "edit" ? (
               <textarea
                 dir={langTab === "fa" ? "rtl" : "ltr"}
@@ -453,12 +486,12 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
                     ? "متن یا کد HTML فارسی درس را اینجا وارد فرمایید...\nبا کلیک روی «زیباسازی»، کادرهای بالینی و جداول استاندارد اضافه می‌شوند."
                     : "Enter English educational text or HTML here...\nClick 'Smart Beautify' or 'AI Bilingualize' to auto-generate."
                 }
-                className={`w-full h-full min-h-[280px] p-3 font-mono text-xs bg-background border border-input rounded-2xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed resize-none shadow-xs ${
+                className={`w-full h-full min-h-[160px] sm:min-h-[260px] p-3 font-mono text-xs bg-background border border-input rounded-2xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed resize-none shadow-xs ${
                   langTab === "fa" ? "text-right" : "text-left"
                 }`}
               />
             ) : (
-              <div className="p-5 bg-card rounded-2xl border border-border min-h-[280px] shadow-sm">
+              <div className="p-4 sm:p-5 bg-card rounded-2xl border border-border min-h-[160px] sm:min-h-[260px] shadow-sm">
                 <div
                   dir={langTab === "fa" ? "rtl" : "ltr"}
                   className={`knowledge-html-content ${langTab === "fa" ? "dir-rtl text-right" : "dir-ltr text-left"}`}

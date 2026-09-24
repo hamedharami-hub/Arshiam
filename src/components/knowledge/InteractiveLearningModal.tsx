@@ -172,17 +172,17 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
         className="max-w-4xl w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden bg-card border border-border rounded-3xl shadow-xl"
       >
         {/* Header */}
-        <DialogHeader className="p-5 border-b border-border bg-muted/20 shrink-0">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-2xl bg-primary/10 text-primary border border-primary/20">
+        <DialogHeader className="p-4 sm:p-5 border-b border-border bg-muted/20 shrink-0">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-2 rounded-2xl bg-primary/10 text-primary border border-primary/20 shrink-0">
                 <Sparkles className="w-5 h-5" />
               </div>
-              <div>
-                <DialogTitle className="text-base font-bold text-foreground">
+              <div className="min-w-0">
+                <DialogTitle className="text-sm sm:text-base font-bold text-foreground truncate">
                   {isEn ? "Interactive Learning Studio" : "استودیوی ساخت آموزش تعاملی"}
                 </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5 line-clamp-1 sm:line-clamp-none">
                   {isEn
                     ? "Generate 3D cards, quizzes, clinical scenarios, or interactive games with AI"
                     : "تبدیل درس به فلش‌کارت‌های وارونه، کوییز تشخیصی، سناریوی بالینی یا بازی‌های حافظه"}
@@ -191,11 +191,11 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
             </div>
 
             {/* Tab switchers */}
-            <div className="flex items-center p-0.5 rounded-xl bg-muted/60 border border-border text-xs">
+            <div className="flex items-center p-0.5 rounded-xl bg-muted/60 border border-border text-xs self-stretch sm:self-auto justify-center">
               <button
                 type="button"
                 onClick={() => setActiveTab("presets")}
-                className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
+                className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg font-medium transition cursor-pointer text-center ${
                   activeTab === "presets"
                     ? "bg-background text-foreground shadow-xs font-semibold"
                     : "text-muted-foreground hover:text-foreground"
@@ -207,7 +207,7 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
                 type="button"
                 disabled={!generatedHtml}
                 onClick={() => setActiveTab("preview")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                   activeTab === "preview"
                     ? "bg-background text-foreground shadow-xs font-semibold"
                     : "text-muted-foreground hover:text-foreground"
@@ -221,7 +221,7 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
         </DialogHeader>
 
         {/* Body Content */}
-        <div className="flex-1 overflow-y-auto p-5 min-h-[380px]">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 min-h-[260px] sm:min-h-[380px]">
           {activeTab === "presets" ? (
             <div className="space-y-6">
               {/* Presets Chips Grid */}
@@ -359,7 +359,7 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-border bg-muted/20 flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <div className="p-3 sm:p-4 border-t border-border bg-muted/20 flex flex-wrap items-center justify-between gap-2 shrink-0">
           <div className="flex items-center gap-2">
             {activeTab === "preview" && (
               <button
@@ -372,7 +372,7 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2 w-full sm:w-auto">
             <button
               type="button"
               onClick={() => onOpenChange(false)}
@@ -396,7 +396,7 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
                 <span>{isEn ? "Generate Interactive Module" : "تولید ماژول تعاملی با هوش مصنوعی"}</span>
               </button>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => handleApply("append")}
