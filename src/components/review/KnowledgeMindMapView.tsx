@@ -319,6 +319,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   const dragStartPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const hasInitializedViewRef = useRef(false);
   const lastCenteredSearchRef = useRef("");
+  const lastFittedScopeRef = useRef<string | null>(null);
   const loadRequestRef = useRef(0);
 
   // RAF Scheduler for 60fps/120fps hardware-composited panning
@@ -986,6 +987,12 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
 
   // Auto re-center when selected scope changes
   useEffect(() => {
+    // fitViewToContainer changes whenever the calculated bounds change. Without
+    // this guard, expanding search results re-runs this effect and overwrites
+    // the more precise search-result centering scheduled just above.
+    if (lastFittedScopeRef.current === selectedScopeId) return;
+    lastFittedScopeRef.current = selectedScopeId;
+
     setExpandedNodeIds((prev) => ({
       ...prev,
       [selectedScopeId]: true,
