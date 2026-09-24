@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   extractDocumentCheckpoints,
+  getRelatedDocumentSuggestions,
   getRelatedDocuments,
 } from "./knowledgeCheckpointHelper";
 import type { KnowledgeDocument } from "./knowledgeTypes";
@@ -102,5 +103,54 @@ describe("knowledgeCheckpointHelper", () => {
 
     expect(related.length).toBe(1);
     expect(related[0].id).toBe("doc-mono-salbutamol");
+    expect(
+      getRelatedDocumentSuggestions(sampleOtcDoc, allDocs, 2)[0].match
+    ).toBe("shared-tag");
+  });
+
+  it("labels same-folder fallback as navigation, not a clinical relation", () => {
+    const sameFolderOnly: KnowledgeDocument = {
+      ...unrelatedDoc,
+      id: "doc-same-folder-only",
+      folder_id: sampleOtcDoc.folder_id,
+      title: "Inventory accounting overview",
+      tags: ["Finance"],
+    };
+
+    const suggestions = getRelatedDocumentSuggestions(
+      sampleOtcDoc,
+      [sampleOtcDoc, sameFolderOnly]
+    );
+
+    expect(suggestions).toEqual([
+      { document: sameFolderOnly, match: "same-folder" },
+    ]);
+  });
+
+  it("ranks a shared tag above an unrelated document in the same folder", () => {
+    const folderOnly: KnowledgeDocument = {
+      ...unrelatedDoc,
+      id: "doc-folder-only",
+      folder_id: sampleOtcDoc.folder_id,
+      title: "Inventory accounting overview",
+      tags: ["Finance"],
+    };
+    const crossFolderTagMatch: KnowledgeDocument = {
+      ...sampleRelatedDoc,
+      id: "doc-cross-folder-tag-match",
+      folder_id: "folder-other",
+    };
+
+    const suggestions = getRelatedDocumentSuggestions(
+      sampleOtcDoc,
+      [sampleOtcDoc, folderOnly, crossFolderTagMatch],
+      2
+    );
+
+    expect(suggestions[0]).toEqual({
+      document: crossFolderTagMatch,
+      match: "shared-tag",
+    });
+    expect(suggestions[1]).toEqual({ document: folderOnly, match: "same-folder" });
   });
 });

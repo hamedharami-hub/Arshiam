@@ -186,14 +186,21 @@ export function extractDocumentCheckpoints(doc: KnowledgeDocument): KnowledgeChe
   return checkpoints.slice(0, 3);
 }
 
+export type RelatedDocumentSuggestion = {
+  document: KnowledgeDocument;
+  match: "shared-tag" | "title-overlap" | "same-folder";
+};
+
 /**
- * Computes related documents based on shared tags, folder, or title similarities
+ * Suggests documents using explicit, displayable matching reasons. A shared
+ * folder is a useful navigation fallback, but must not be presented as a
+ * clinical or semantic relationship.
  */
-export function getRelatedDocuments(
+export function getRelatedDocumentSuggestions(
   currentDoc: KnowledgeDocument,
   allDocs: KnowledgeDocument[],
   limit = 4
-): KnowledgeDocument[] {
+): RelatedDocumentSuggestion[] {
   if (!currentDoc || !allDocs || allDocs.length <= 1) return [];
 
   const currentTags = new Set((currentDoc.tags || []).map((t) => t.toLowerCase()));
@@ -205,34 +212,44 @@ export function getRelatedDocuments(
   const scoredDocs = allDocs
     .filter((d) => d.id !== currentDoc.id)
     .map((doc) => {
-      let score = 0;
-
-      // 1. Same Folder (strong similarity)
-      if (doc.folder_id && doc.folder_id === currentDoc.folder_id) {
-        score += 5;
-      }
-
-      // 2. Shared tags
-      if (doc.tags) {
-        for (const t of doc.tags) {
-          if (currentTags.has(t.toLowerCase())) {
-            score += 3;
-          }
-        }
-      }
-
-      // 3. Title word overlaps
+      const sharedTagCount = (doc.tags || []).filter((tag) =>
+        currentTags.has(tag.toLowerCase())
+      ).length;
       const docTitle = (doc.title || "").toLowerCase();
+      let titleOverlapCount = 0;
       for (const w of currentTitleWords) {
         if (docTitle.includes(w)) {
-          score += 2;
+          titleOverlapCount += 1;
         }
       }
+      const sameFolder = Boolean(
+        doc.folder_id && doc.folder_id === currentDoc.folder_id
+      );
+      const match: RelatedDocumentSuggestion["match"] =
+        sharedTagCount > 0
+          ? "shared-tag"
+          : titleOverlapCount > 0
+            ? "title-overlap"
+            : "same-folder";
+      const score = sharedTagCount * 3 + titleOverlapCount * 2 + (sameFolder ? 1 : 0);
 
-      return { doc, score };
+      return { document: doc, match, score };
     })
     .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => b.score - a.score || a.document.title.localeCompare(b.document.title));
 
-  return scoredDocs.slice(0, limit).map((item) => item.doc);
+  return scoredDocs
+    .slice(0, limit)
+    .map(({ document, match }) => ({ document, match }));
+}
+
+/** Computes suggested documents, preserving the legacy document-only API. */
+export function getRelatedDocuments(
+  currentDoc: KnowledgeDocument,
+  allDocs: KnowledgeDocument[],
+  limit = 4
+): KnowledgeDocument[] {
+  return getRelatedDocumentSuggestions(currentDoc, allDocs, limit).map(
+    ({ document }) => document
+  );
 }

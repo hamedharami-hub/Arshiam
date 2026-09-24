@@ -35,7 +35,7 @@ import { updateKnowledgeDocument } from "@/lib/knowledgeService";
 import { attachInteractiveListeners } from "@/lib/interactiveLearningHelper";
 import {
   extractDocumentCheckpoints,
-  getRelatedDocuments,
+  getRelatedDocumentSuggestions,
   type KnowledgeCheckpoint,
 } from "@/lib/knowledgeCheckpointHelper";
 import { createLeitnerCard } from "@/lib/leitnerService";
@@ -120,9 +120,9 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   }, [document]);
 
   // Compute smart related documents
-  const relatedDocuments = useMemo(() => {
+  const relatedSuggestions = useMemo(() => {
     return document && allDocuments.length > 0
-      ? getRelatedDocuments(document, allDocuments, 3)
+      ? getRelatedDocumentSuggestions(document, allDocuments, 3)
       : [];
   }, [document, allDocuments]);
 
@@ -858,7 +858,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
             </React.Suspense>
 
             {/* Smart Related Knowledge & Products Section */}
-            {relatedDocuments.length > 0 && (
+            {relatedSuggestions.length > 0 && (
               <div className="mt-8 pt-6 border-t border-border/80 space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs md:text-sm font-bold text-foreground flex items-center gap-2">
@@ -867,17 +867,17 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                     </span>
                     <span>
                       {isEn
-                        ? "Related Clinical Knowledge & Products"
-                        : "اسناد و فرآورده‌های دارویی مرتبط"}
+                        ? "Suggested further reading"
+                        : "پیشنهاد برای مطالعهٔ بیشتر"}
                     </span>
                   </h3>
                   <span className="text-[11px] text-muted-foreground font-medium">
-                    {relatedDocuments.length} {isEn ? "linked topics" : "مورد مرتبط"}
+                    {relatedSuggestions.length} {isEn ? "documents" : "سند"}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                  {relatedDocuments.map((rDoc) => (
+                  {relatedSuggestions.map(({ document: rDoc, match }) => (
                     <button
                       key={rDoc.id}
                       type="button"
@@ -892,6 +892,13 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                           <h4 className="text-xs font-bold text-foreground group-hover:text-primary transition line-clamp-2">
                             {isEn && rDoc.title_en ? rDoc.title_en : rDoc.title}
                           </h4>
+                          <span className="mt-1 inline-flex rounded-full bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground">
+                            {match === "shared-tag"
+                              ? isEn ? "Shared tag" : "برچسب مشترک"
+                              : match === "title-overlap"
+                                ? isEn ? "Title overlap" : "هم‌پوشانی عنوان"
+                                : isEn ? "Same folder" : "همین پوشه"}
+                          </span>
                           {rDoc.title_en && !isEn && (
                             <p className="text-[10px] text-muted-foreground line-clamp-1" dir="ltr">
                               {rDoc.title_en}

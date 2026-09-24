@@ -200,7 +200,7 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
     expect(screen.getByRole("button", { name: /مخفی‌سازی/i })).toBeInTheDocument();
   });
 
-  it("5. renders smart related documents and triggers onSelectDocument on click", () => {
+  it("5. renders suggested further reading with its match basis and opens the selected document", () => {
     const relatedDoc: KnowledgeDocument = {
       id: "doc-related-sertraline",
       user_id: "user-1",
@@ -225,12 +225,34 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
       />
     );
 
-    // Should display related documents section
-    expect(screen.getByText(/اسناد و فرآورده‌های دارویی مرتبط/i)).toBeInTheDocument();
+    expect(screen.getByText("پیشنهاد برای مطالعهٔ بیشتر")).toBeInTheDocument();
     expect(screen.getByText("سرترالین ۵۰ میلی‌گرم")).toBeInTheDocument();
+    expect(screen.getByText("برچسب مشترک")).toBeInTheDocument();
 
     // Click related card
     fireEvent.click(screen.getByText("سرترالین ۵۰ میلی‌گرم"));
     expect(handleSelect).toHaveBeenCalledWith("doc-related-sertraline");
+  });
+
+  it("labels same-folder suggestions without implying a clinical relationship", () => {
+    const folderNeighbor: KnowledgeDocument = {
+      ...dummyDoc,
+      id: "doc-folder-neighbor",
+      title: "Inventory accounting overview",
+      tags: ["Finance"],
+    };
+
+    render(
+      <KnowledgeDocumentReader
+        document={dummyDoc}
+        folder={dummyFolder}
+        allDocuments={[dummyDoc, folderNeighbor]}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />
+    );
+
+    expect(screen.getByText("Inventory accounting overview")).toBeInTheDocument();
+    expect(screen.getByText("همین پوشه")).toBeInTheDocument();
   });
 });
