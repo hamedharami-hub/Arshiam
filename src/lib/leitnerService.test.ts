@@ -12,6 +12,7 @@ import {
   getLeitnerBoxStats,
 } from "./leitnerService";
 import { clearQueue } from "./offlineQueue";
+import * as offlineQueue from "./offlineQueue";
 
 vi.mock("@/lib/firebaseStore", () => ({
   firebaseStore: {
@@ -63,6 +64,17 @@ describe("leitnerService", () => {
 
     const all = await getLeitnerCards(userId);
     expect(all.length).toBe(1);
+  });
+
+  it("does not report a card saved when offline queue storage rejects it", async () => {
+    vi.spyOn(offlineQueue, "enqueueOp").mockResolvedValueOnce(false);
+
+    await expect(createLeitnerCard(userId, {
+      front: "Unqueued question",
+      back: "Unqueued answer",
+    })).rejects.toThrow("sync queue storage is unavailable");
+
+    expect(await getLeitnerCards(userId)).toEqual([]);
   });
 
   it("2. advances card to Box 2 on successful review", async () => {

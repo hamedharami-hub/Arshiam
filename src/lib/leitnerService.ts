@@ -422,17 +422,33 @@ export async function createLeitnerCard(
   const existing = (await cacheGet<LeitnerCard[]>(cacheKey)) || [];
   await cacheSet(cacheKey, [card, ...existing]);
 
-  if (isOnline()) {
-    try {
-      const ok = await saveEntityToFirestore(userId, "leitner_cards", card.id, card);
-      if (!ok) {
-        await enqueueOp({ table: "leitner_cards", op: "insert", payload: card });
+  try {
+    let savedRemotely = false;
+    if (isOnline()) {
+      try {
+        savedRemotely = await saveEntityToFirestore(userId, "leitner_cards", card.id, card);
+      } catch {
+        savedRemotely = false;
       }
-    } catch (e) {
-      await enqueueOp({ table: "leitner_cards", op: "insert", payload: card });
     }
-  } else {
-    await enqueueOp({ table: "leitner_cards", op: "insert", payload: card });
+
+    if (!savedRemotely) {
+      const queued = await enqueueOp({
+        ownerId: userId,
+        table: "leitner_cards",
+        op: "insert",
+        payload: card,
+      });
+      if (!queued) {
+        throw new Error("Could not safely save this flashcard: sync queue storage is unavailable. Free storage space and retry.");
+      }
+    }
+  } catch (error) {
+    // A cache-only card must not look like a successful save when neither the
+    // server nor the durable outbox accepted it.
+    const latest = (await cacheGet<LeitnerCard[]>(cacheKey)) || [];
+    await cacheSet(cacheKey, latest.filter((item) => item.id !== card.id));
+    throw error;
   }
 
   return card;
