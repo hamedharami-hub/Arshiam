@@ -22,7 +22,9 @@ describe("interactiveLearningHelper", () => {
   });
 
   it("returns sanitized AI-generated HTML", async () => {
-    vi.mocked(callAI).mockResolvedValueOnce({ text: '<div class="interactive-learning-block"><p>Lesson-based card</p></div>' });
+    vi.mocked(callAI).mockResolvedValueOnce({
+      text: '<div class="interactive-learning-block"><div class="interactive-flip-card">Lesson-based card</div></div>',
+    });
 
     const html = await generateInteractiveContent({
       title: "Lesson",
@@ -31,7 +33,23 @@ describe("interactiveLearningHelper", () => {
     });
 
     expect(html).toContain("interactive-learning-block");
+    expect(html).toContain("interactive-flip-card");
     expect(html).toContain("Lesson-based card");
+  });
+
+  it("rejects markup that omits the selected interaction instead of reporting success", async () => {
+    vi.mocked(callAI).mockResolvedValueOnce({
+      text: '<div class="interactive-learning-block"><p>This is static text, not a quiz.</p></div>',
+    });
+
+    await expect(
+      generateInteractiveContent({
+        title: "Lesson",
+        content: "Source passage.",
+        selectedPresets: ["quiz_mcq"],
+        language: "en",
+      })
+    ).rejects.toThrow("without the required interactive controls");
   });
 
   it("fails visibly instead of substituting canned clinical examples when AI is unavailable", async () => {

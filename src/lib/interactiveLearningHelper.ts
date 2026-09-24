@@ -94,9 +94,78 @@ export interface GenerateInteractiveParams {
   language?: "fa" | "en";
 }
 
+const INTERACTIVE_MARKERS: Record<InteractiveWidgetType, string> = {
+  flip_card: ".interactive-flip-card",
+  quiz_mcq: ".interactive-quiz-option",
+  pair_match: ".interactive-pair-btn",
+  clinical_case: ".interactive-case-next-btn",
+  cloze_deletion: ".interactive-cloze-blank",
+  decision_tree: ".decision-choice-btn",
+  memory_game: ".memory-tile",
+};
+
+function hasFunctionalWidget(root: ParentNode, type: InteractiveWidgetType): boolean {
+  switch (type) {
+    case "flip_card":
+      return Boolean(root.querySelector(INTERACTIVE_MARKERS.flip_card));
+    case "quiz_mcq": {
+      const options = Array.from(root.querySelectorAll(INTERACTIVE_MARKERS.quiz_mcq));
+      return options.length >= 2 && options.some((option) => option.getAttribute("data-correct") === "true");
+    }
+    case "pair_match": {
+      const buttons = Array.from(root.querySelectorAll(INTERACTIVE_MARKERS.pair_match));
+      return buttons.some((left) =>
+        left.getAttribute("data-side") === "left" &&
+        buttons.some((right) => right.getAttribute("data-side") === "right" &&
+          right.getAttribute("data-pair-id") === left.getAttribute("data-pair-id"))
+      );
+    }
+    case "clinical_case": {
+      const steps = Array.from(root.querySelectorAll(".case-step[data-step]"));
+      return steps.length >= 2 && Array.from(root.querySelectorAll(INTERACTIVE_MARKERS.clinical_case)).some((button) =>
+        steps.some((step) => step.getAttribute("data-step") === button.getAttribute("data-next-step"))
+      );
+    }
+    case "cloze_deletion":
+      return Array.from(root.querySelectorAll(INTERACTIVE_MARKERS.cloze_deletion)).some((blank) =>
+        Boolean(blank.getAttribute("data-answer"))
+      );
+    case "decision_tree": {
+      const nodes = Array.from(root.querySelectorAll(".decision-node[data-node-id]"));
+      return nodes.length >= 2 && Array.from(root.querySelectorAll(INTERACTIVE_MARKERS.decision_tree)).some((button) =>
+        nodes.some((node) => node.getAttribute("data-node-id") === button.getAttribute("data-target-node"))
+      );
+    }
+    case "memory_game": {
+      const tiles = Array.from(root.querySelectorAll(INTERACTIVE_MARKERS.memory_game));
+      const counts = new Map<string, number>();
+      tiles.forEach((tile) => {
+        const cardId = tile.getAttribute("data-card-id");
+        if (cardId) counts.set(cardId, (counts.get(cardId) || 0) + 1);
+      });
+      return tiles.length >= 4 && Array.from(counts.values()).filter((count) => count >= 2).length >= 2;
+    }
+  }
+}
+
+function validateInteractiveMarkup(html: string, selectedPresets: InteractiveWidgetType[]): boolean {
+  if (typeof document === "undefined") return false;
+  const template = document.createElement("template");
+  template.innerHTML = html;
+  const root = template.content.querySelector(".interactive-learning-block");
+  if (!root) return false;
+
+  const presetsToCheck = selectedPresets.length > 0
+    ? selectedPresets
+    : (Object.keys(INTERACTIVE_MARKERS) as InteractiveWidgetType[]).filter((type) => hasFunctionalWidget(root, type));
+
+  return presetsToCheck.length > 0 && presetsToCheck.every((type) => hasFunctionalWidget(root, type));
+}
+
 /**
- * Generate semantic HTML interactive learning widgets using Gemini AI
- * or high-quality local deterministic fallbacks.
+ * Generate semantic HTML interactive learning widgets from the lesson using AI.
+ * Rejects incomplete interactive markup and fails visibly instead of substituting
+ * canned educational or clinical content when generation is unavailable.
  */
 export async function generateInteractiveContent({
   title,
@@ -107,6 +176,7 @@ export async function generateInteractiveContent({
 }: GenerateInteractiveParams): Promise<string> {
   const isEn = language === "en";
   const cleanSnippet = content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 3500);
+  let invalidMarkupReturned = false;
 
   // System Prompt for AI
   const prompt = `You are an elite educational game and interactive e-learning instructional designer specializing in medical, pharmaceutical, and scientific learning.
@@ -279,17 +349,25 @@ Output pure HTML only. No markdown fences (\`\`\`html) if possible, or simple ma
     // Strip markdown code fences if present
     generatedHtml = generatedHtml.replace(/^```(?:html)?\s*/i, "").replace(/\s*```$/i, "").trim();
 
-    if (generatedHtml && generatedHtml.includes("<div") && generatedHtml.length > 50) {
-      return sanitizeKnowledgeHtml(generatedHtml);
+    if (generatedHtml) {
+      const sanitizedHtml = sanitizeKnowledgeHtml(generatedHtml);
+      if (sanitizedHtml.length > 50 && validateInteractiveMarkup(sanitizedHtml, selectedPresets)) {
+        return sanitizedHtml;
+      }
+      invalidMarkupReturned = true;
     }
   } catch (error) {
     console.warn("AI generation failed or unavailable; no unverified interactive fallback will be created:", error);
   }
 
   throw new Error(
-    isEn
-      ? "AI generation is unavailable. To avoid creating unverified educational content, no automatic fallback was produced. Check the AI connection and try again."
-      : "تولید هوشمند در دسترس نیست. برای جلوگیری از ساخت محتوای آموزشیِ تأییدنشده، جایگزین خودکار ساخته نشد. اتصال هوش مصنوعی را بررسی کنید و دوباره تلاش کنید."
+    invalidMarkupReturned
+      ? isEn
+        ? "AI returned content without the required interactive controls. Nothing was applied; try again or choose different formats."
+        : "خروجی هوش مصنوعی کنترل‌های لازم برای قالب‌های تعاملی انتخاب‌شده را نداشت. چیزی به درس افزوده نشد؛ دوباره تلاش کنید یا قالب دیگری برگزینید."
+      : isEn
+        ? "AI generation is unavailable. To avoid creating unverified educational content, no automatic fallback was produced. Check the AI connection and try again."
+        : "تولید هوشمند در دسترس نیست. برای جلوگیری از ساخت محتوای آموزشیِ تأییدنشده، جایگزین خودکار ساخته نشد. اتصال هوش مصنوعی را بررسی کنید و دوباره تلاش کنید."
   );
 }
 
