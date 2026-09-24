@@ -125,4 +125,24 @@ describe("offline outbox persistence", () => {
     ]));
     expect(firebaseStore.from).not.toHaveBeenCalled();
   });
+
+  it("does not clear a legacy update when the server confirms zero rows changed", async () => {
+    vi.mocked(firebaseStore.from).mockReturnValue({
+      update: () => ({ eq: () => Promise.resolve({ data: [], error: null }) }),
+    } as any);
+    const accepted = await enqueueOp({
+      ownerId: "account-a",
+      table: "settings",
+      op: "update",
+      payload: { theme: "dark" },
+      match: { user_id: "account-a" },
+    });
+    expect(accepted).toBe(true);
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+
+    expect(await flushQueue()).toEqual({ ok: 0, failed: 1 });
+    expect(await getQueue()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ table: "settings", match: { user_id: "account-a" } }),
+    ]));
+  });
 });

@@ -181,6 +181,18 @@ function responseHasError(response: unknown): boolean {
   );
 }
 
+function legacyMutationConfirmed(item: QueuedOp, response: unknown): boolean {
+  if (!response || typeof response !== "object" || responseHasError(response) || !("data" in response)) {
+    return false;
+  }
+
+  // Deleting an already absent row is an idempotent success. For writes, an
+  // empty result means the requested insert/update was not actually applied.
+  if (item.op === "delete") return true;
+  const data = (response as { data?: unknown }).data;
+  return Array.isArray(data) ? data.length > 0 : data !== null && data !== undefined;
+}
+
 async function replayWithLegacyStore(item: QueuedOp): Promise<boolean> {
   try {
     const q = firebaseStore.from(item.table);
@@ -198,7 +210,7 @@ async function replayWithLegacyStore(item: QueuedOp): Promise<boolean> {
       for (const [key, value] of Object.entries(item.match || {})) builder = builder.eq(key, value);
       response = await builder;
     }
-    return !responseHasError(response);
+    return legacyMutationConfirmed(item, response);
   } catch (error) {
     console.warn(`[offlineQueue] Legacy replay failed for ${item.table}:`, error);
     return false;
