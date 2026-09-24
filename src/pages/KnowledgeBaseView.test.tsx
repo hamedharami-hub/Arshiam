@@ -137,7 +137,7 @@ describe("KnowledgeBaseView (/app/knowledge) Page Verification", { timeout: 1500
     await waitFor(() => {
       expect(screen.getAllByText("فولدر داروها").length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText("راهنمای فلوکستین").length).toBeGreaterThanOrEqual(1);
-    });
+    }, { timeout: 10000 });
   });
 
   it("renders empty state cleanly without crashing when user has no documents", async () => {

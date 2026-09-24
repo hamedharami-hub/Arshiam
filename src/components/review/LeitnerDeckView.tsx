@@ -221,8 +221,8 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   };
 
   // Review answer with SM-2 4-tier rating
-  const handleReviewAnswer = async (rating: LeitnerRating) => {
-    if (!activeCard || ratingSubmissionRef.current) return;
+  const handleReviewAnswer = useCallback(async (rating: LeitnerRating) => {
+    if (!activeCard || !isFlipped || ratingSubmissionRef.current) return;
     ratingSubmissionRef.current = true;
     setIsSubmittingRating(true);
     try {
@@ -280,7 +280,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
       ratingSubmissionRef.current = false;
       setIsSubmittingRating(false);
     }
-  };
+  }, [activeCard, activeQueue, currentIndex, isEn, isFlipped, loadData, userId]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -323,7 +323,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isStudying, activeCard, isFlipped, handleSpeak, activeQueue, currentIndex]);
+  }, [isStudying, activeCard, isFlipped, handleSpeak, handleReviewAnswer, activeQueue, currentIndex]);
 
   const handleCreateCard = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -817,7 +817,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               {/* Rating 1: Again */}
               <button
                 type="button"
-                disabled={isSubmittingRating}
+                disabled={!isFlipped || isSubmittingRating}
                 onClick={() => handleReviewAnswer(1)}
                 className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-rose-600 hover:bg-rose-500 disabled:opacity-60 disabled:cursor-wait text-white font-bold text-xs shadow-md shadow-rose-600/20 transition cursor-pointer"
               >
@@ -833,7 +833,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               {/* Rating 2: Hard */}
               <button
                 type="button"
-                disabled={isSubmittingRating}
+                disabled={!isFlipped || isSubmittingRating}
                 onClick={() => handleReviewAnswer(2)}
                 className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-amber-600 hover:bg-amber-500 disabled:opacity-60 disabled:cursor-wait text-white font-bold text-xs shadow-md shadow-amber-600/20 transition cursor-pointer"
               >
@@ -849,7 +849,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               {/* Rating 3: Good */}
               <button
                 type="button"
-                disabled={isSubmittingRating}
+                disabled={!isFlipped || isSubmittingRating}
                 onClick={() => handleReviewAnswer(3)}
                 className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-sky-600 hover:bg-sky-500 disabled:opacity-60 disabled:cursor-wait text-white font-bold text-xs shadow-md shadow-sky-600/20 transition cursor-pointer"
               >
@@ -865,7 +865,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               {/* Rating 4: Easy */}
               <button
                 type="button"
-                disabled={isSubmittingRating}
+                disabled={!isFlipped || isSubmittingRating}
                 onClick={() => handleReviewAnswer(4)}
                 className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-wait text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition cursor-pointer"
               >

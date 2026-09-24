@@ -21,3 +21,8 @@
 - All 432 Pharmacy seed documents have non-empty Persian and English titles and bodies; all are marked `unreviewed` and have a pinned GitHub source URL.
 - A static scan found Persian-script passages in 104 `content_en` fields; 89 have explicit RTL markup, and 13 documents have at least a 30% Persian-script share by character count. This does not establish translation correctness because some scenarios intentionally contain bilingual dialogue.
 - The Reader warns when an English field contains a substantial Persian passage. It does not hide, rewrite, or machine-translate clinical text; each item still needs review.
+
+## 2026-09-25 — Leitner review action guard
+
+- Fixed a functional review-flow defect: Again/Hard/Good/Easy actions can no longer be submitted before the answer is revealed. The UI disables ratings until reveal, and the handler independently rejects premature submissions.
+- Added regression coverage for rating availability, one-submit protection, and completion of the final due-card session.

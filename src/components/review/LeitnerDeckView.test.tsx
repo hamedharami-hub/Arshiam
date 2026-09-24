@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import React from "react";
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup, act } from "@testing-library/react";
 import { LeitnerDeckView } from "./LeitnerDeckView";
 import type { LeitnerCard } from "@/lib/leitnerTypes";
 import { reviewLeitnerCardWithRating } from "@/lib/leitnerService";
@@ -148,6 +148,23 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
     });
   });
 
+  it("does not allow a card rating until the answer has been revealed", async () => {
+    render(<LeitnerDeckView userId="user-test" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /شروع مرور/ }));
+    await screen.findByTestId("flip-card");
+
+    const againButton = screen.getByRole("button", { name: /فراموش کردم/ });
+    expect(againButton).toBeDisabled();
+    fireEvent.click(againButton);
+    expect(reviewLeitnerCardWithRating).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("flip-card"));
+    await waitFor(() => expect(againButton).toBeEnabled());
+    fireEvent.click(againButton);
+    await waitFor(() => expect(reviewLeitnerCardWithRating).toHaveBeenCalledTimes(1));
+  });
+
   it("prevents a second rating while the first save is still pending", async () => {
     let resolveReview!: (card: LeitnerCard) => void;
     vi.mocked(reviewLeitnerCardWithRating).mockReturnValueOnce(
@@ -167,7 +184,10 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
     expect(reviewLeitnerCardWithRating).toHaveBeenCalledTimes(1);
     expect((ratingButton as HTMLButtonElement).disabled).toBe(true);
 
-    resolveReview({ ...mockCards[0] });
-    await waitFor(() => expect((ratingButton as HTMLButtonElement).disabled).toBe(false));
+    await act(async () => {
+      resolveReview({ ...mockCards[0] });
+    });
+    expect(screen.getByRole("button", { name: /فراموش کردم/ })).toBeDisabled();
+    expect(reviewLeitnerCardWithRating).toHaveBeenCalledTimes(1);
   });
 });
