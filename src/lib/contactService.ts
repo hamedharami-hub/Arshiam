@@ -1,6 +1,8 @@
 import { firebaseStore } from "./firebaseStore";
-import { cacheGet, cacheSet, enqueueOp } from "./offlineQueue";
+import { cacheGet, cacheSet, enqueueOp, enqueueOps } from "./offlineQueue";
 import { saveEntityToFirestore, deleteEntityFromFirestore } from "./firestoreSync";
+import { doc, writeBatch } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import type {
   Contact,
@@ -33,6 +35,36 @@ export function isOnline(): boolean {
     return navigator.onLine;
   }
   return true;
+}
+
+async function persistContactRowOrQueue(
+  userId: string,
+  table: "contacts" | "task_contacts",
+  operation: "insert" | "update" | "delete",
+  row: Contact | TaskContact,
+): Promise<void> {
+  let synced = false;
+  if (isOnline()) {
+    try {
+      synced = operation === "delete"
+        ? await deleteEntityFromFirestore(userId, table, row.id)
+        : await saveEntityToFirestore(userId, table, row.id, row);
+    } catch {
+      synced = false;
+    }
+  }
+  if (synced) return;
+
+  const queued = await enqueueOp({
+    ownerId: userId,
+    table,
+    op: operation,
+    ...(operation === "delete" ? {} : { payload: row }),
+    match: { id: row.id },
+  });
+  if (!queued) {
+    throw new Error("Could not safely save this contact change: sync queue storage is unavailable. Your previous data was restored.");
+  }
 }
 
 /**
@@ -210,22 +242,11 @@ export async function createContact(
   );
   await cacheSet(cacheKey, updated);
 
-  // Sync to Firestore or enqueue offline
-  let synced = false;
-  if (isOnline()) {
-    try {
-      synced = await saveEntityToFirestore(userId, "contacts", contact.id, contact);
-    } catch {
-      synced = false;
-    }
-  }
-
-  if (!synced) {
-    await enqueueOp({
-      table: "contacts",
-      op: "insert",
-      payload: contact,
-    });
+  try {
+    await persistContactRowOrQueue(userId, "contacts", "insert", contact);
+  } catch (error) {
+    await cacheSet(cacheKey, current);
+    throw error;
   }
 
   return contact;
@@ -260,23 +281,11 @@ export async function updateContact(
   );
   await cacheSet(cacheKey, nextList);
 
-  // Sync to Firestore or enqueue offline
-  let synced = false;
-  if (isOnline()) {
-    try {
-      synced = await saveEntityToFirestore(userId, "contacts", contactId, updated);
-    } catch {
-      synced = false;
-    }
-  }
-
-  if (!synced) {
-    await enqueueOp({
-      table: "contacts",
-      op: "update",
-      payload: updated,
-      match: { id: contactId },
-    });
+  try {
+    await persistContactRowOrQueue(userId, "contacts", "update", updated);
+  } catch (error) {
+    await cacheSet(cacheKey, all);
+    throw error;
   }
 
   return updated;
@@ -289,49 +298,49 @@ export async function updateContact(
 export async function deleteContact(contactId: string, userId: string): Promise<void> {
   if (!contactId || !userId) return;
 
-  // 1. Update contacts cache
   const contactsKey = getContactsCacheKey(userId);
   const currentContacts = (await cacheGet<Contact[]>(contactsKey)) || [];
-  await cacheSet(
-    contactsKey,
-    currentContacts.filter((c) => c.id !== contactId)
-  );
-
-  // 2. Update task_contacts cache (remove relations for this contact)
   const taskContactsKey = getTaskContactsCacheKey(userId);
-  const currentRelations = (await cacheGet<TaskContact[]>(taskContactsKey)) || [];
+  const currentRelations = await getAllTaskContacts(userId);
   const remainingRelations = currentRelations.filter((tc) => tc.contact_id !== contactId);
   const removedRelations = currentRelations.filter((tc) => tc.contact_id === contactId);
-  await cacheSet(taskContactsKey, remainingRelations);
+  const deleteOperations = [
+    { ownerId: userId, table: "contacts", op: "delete" as const, match: { id: contactId } },
+    ...removedRelations.map((relation) => ({
+      ownerId: userId,
+      table: "task_contacts",
+      op: "delete" as const,
+      match: { id: relation.id },
+    })),
+  ];
+  const updateLocalCaches = async () => {
+    await cacheSet(contactsKey, currentContacts.filter((contact) => contact.id !== contactId));
+    await cacheSet(taskContactsKey, remainingRelations);
+  };
 
-  // 3. Delete from Firestore or enqueue offline
-  let contactSynced = false;
-  if (isOnline()) {
-    try {
-      contactSynced = await deleteEntityFromFirestore(userId, "contacts", contactId);
-      // Delete relation documents
-      for (const rel of removedRelations) {
-        await deleteEntityFromFirestore(userId, "task_contacts", rel.id);
-      }
-    } catch {
-      contactSynced = false;
+  const isOffline = !isOnline();
+  if (isOffline || deleteOperations.length > 500) {
+    if (!await enqueueOps(deleteOperations)) {
+      throw new Error("Could not safely delete this contact: the complete delete operation could not be stored for sync.");
+    }
+    await updateLocalCaches();
+    return;
+  }
+
+  try {
+    const batch = writeBatch(db);
+    batch.delete(doc(db, "users", userId, "contacts", contactId));
+    for (const relation of removedRelations) {
+      batch.delete(doc(db, "users", userId, "task_contacts", relation.id));
+    }
+    await batch.commit();
+  } catch {
+    if (!await enqueueOps(deleteOperations)) {
+      throw new Error("Could not safely delete this contact: cloud deletion failed and the complete retry could not be stored.");
     }
   }
 
-  if (!contactSynced) {
-    await enqueueOp({
-      table: "contacts",
-      op: "delete",
-      match: { id: contactId },
-    });
-    for (const rel of removedRelations) {
-      await enqueueOp({
-        table: "task_contacts",
-        op: "delete",
-        match: { id: rel.id },
-      });
-    }
-  }
+  await updateLocalCaches();
 }
 
 /**
@@ -440,21 +449,11 @@ export async function linkTaskContact(
       const updatedList = existingRelations.map((r) => (r.id === duplicate.id ? updatedRel : r));
       await cacheSet(cacheKey, updatedList);
 
-      let synced = false;
-      if (isOnline()) {
-        try {
-          synced = await saveEntityToFirestore(userId, "task_contacts", updatedRel.id, updatedRel);
-        } catch {
-          synced = false;
-        }
-      }
-      if (!synced) {
-        await enqueueOp({
-          table: "task_contacts",
-          op: "update",
-          payload: updatedRel,
-          match: { id: updatedRel.id },
-        });
+      try {
+        await persistContactRowOrQueue(userId, "task_contacts", "update", updatedRel);
+      } catch (error) {
+        await cacheSet(cacheKey, existingRelations);
+        throw error;
       }
       return updatedRel;
     }
@@ -475,22 +474,11 @@ export async function linkTaskContact(
   const updatedList = [...existingRelations, newRelation];
   await cacheSet(cacheKey, updatedList);
 
-  // Sync to Firestore or enqueue offline
-  let synced = false;
-  if (isOnline()) {
-    try {
-      synced = await saveEntityToFirestore(userId, "task_contacts", newRelation.id, newRelation);
-    } catch {
-      synced = false;
-    }
-  }
-
-  if (!synced) {
-    await enqueueOp({
-      table: "task_contacts",
-      op: "insert",
-      payload: newRelation,
-    });
+  try {
+    await persistContactRowOrQueue(userId, "task_contacts", "insert", newRelation);
+  } catch (error) {
+    await cacheSet(cacheKey, existingRelations);
+    throw error;
   }
 
   return newRelation;
@@ -508,21 +496,18 @@ export async function unlinkTaskContact(taskContactId: string, userId: string): 
   const updatedList = existingRelations.filter((r) => r.id !== taskContactId);
   await cacheSet(cacheKey, updatedList);
 
-  let synced = false;
-  if (isOnline()) {
-    try {
-      synced = await deleteEntityFromFirestore(userId, "task_contacts", taskContactId);
-    } catch {
-      synced = false;
-    }
-  }
-
-  if (!synced) {
-    await enqueueOp({
-      table: "task_contacts",
-      op: "delete",
-      match: { id: taskContactId },
-    });
+  const relation = existingRelations.find((item) => item.id === taskContactId) || {
+    id: taskContactId,
+    user_id: userId,
+    task_id: "",
+    contact_id: "",
+    created_at: new Date().toISOString(),
+  };
+  try {
+    await persistContactRowOrQueue(userId, "task_contacts", "delete", relation);
+  } catch (error) {
+    await cacheSet(cacheKey, existingRelations);
+    throw error;
   }
 }
 

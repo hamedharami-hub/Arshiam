@@ -15,7 +15,20 @@ import {
 } from "./contactService";
 import { isDeviceContactImportSupported, requestDeviceContactPermission } from "./deviceContacts";
 import { cacheGet, cacheSet, clearQueue, getPendingOps } from "./offlineQueue";
+import * as offlineQueue from "./offlineQueue";
+import { deleteEntityFromFirestore, saveEntityToFirestore } from "./firestoreSync";
 import type { Task } from "./taskTypes";
+
+const mocks = vi.hoisted(() => ({
+  doc: vi.fn((...args: unknown[]) => args),
+  writeBatch: vi.fn(),
+}));
+
+vi.mock("firebase/firestore", () => ({
+  doc: mocks.doc,
+  writeBatch: mocks.writeBatch,
+}));
+vi.mock("@/lib/firebase", () => ({ db: {} }));
 
 // Mock Firebase store and auth
 vi.mock("@/lib/firebaseStore", () => ({
@@ -46,13 +59,19 @@ describe("contactService & task_contacts relations", () => {
   const userId = "user-test-123";
 
   beforeEach(async () => {
+    vi.clearAllMocks();
     localStorage.clear();
     await clearQueue();
     await cacheSet(`contacts_${userId}`, []);
     await cacheSet(`task_contacts_${userId}`, []);
+    mocks.writeBatch.mockReturnValue({
+      delete: vi.fn(),
+      commit: vi.fn().mockResolvedValue(undefined),
+    });
   });
 
   afterEach(async () => {
+    vi.restoreAllMocks();
     localStorage.clear();
     await clearQueue();
   });
@@ -230,5 +249,120 @@ describe("contactService & task_contacts relations", () => {
     const permResult = await requestDeviceContactPermission();
     expect(permResult.granted).toBe(false);
     expect(permResult.error).toContain("Android");
+  });
+
+  it("restores contact cache when a create cannot be synced or durably queued", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    vi.spyOn(offlineQueue, "enqueueOp").mockResolvedValueOnce(false);
+    (saveEntityToFirestore as any).mockResolvedValueOnce(false);
+
+    await expect(createContact(userId, { display_name: "Unsaved contact" })).rejects.toThrow(
+      "sync queue storage is unavailable",
+    );
+    expect(await getContacts(userId)).toEqual([]);
+  });
+
+  it("restores a contact edit when neither Firestore nor the durable queue accepts it", async () => {
+    const original = await createContact(userId, { display_name: "Original contact" });
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    vi.spyOn(offlineQueue, "enqueueOp").mockResolvedValueOnce(false);
+    (saveEntityToFirestore as any).mockResolvedValueOnce(false);
+
+    await expect(updateContact(original.id, userId, { display_name: "Unsaved edit" })).rejects.toThrow(
+      "sync queue storage is unavailable",
+    );
+    expect((await getContact(original.id, userId))?.display_name).toBe("Original contact");
+  });
+
+  it("does not hide a task-contact link when it cannot be durably saved", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    vi.spyOn(offlineQueue, "enqueueOp").mockResolvedValueOnce(false);
+    (saveEntityToFirestore as any).mockResolvedValueOnce(false);
+
+    await expect(linkTaskContact("task-link-failure", "contact-link-failure", userId)).rejects.toThrow(
+      "sync queue storage is unavailable",
+    );
+    expect(await getTaskContacts("task-link-failure", userId)).toEqual([]);
+  });
+
+  it("restores the relation when unlink cannot be synced or durably queued", async () => {
+    const contact = await createContact(userId, { display_name: "Unlink rollback" });
+    const relation = await linkTaskContact("task-unlink-rollback", contact.id, userId);
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    vi.spyOn(offlineQueue, "enqueueOp").mockResolvedValueOnce(false);
+    (deleteEntityFromFirestore as any).mockResolvedValueOnce(false);
+
+    await expect(unlinkTaskContact(relation.id, userId)).rejects.toThrow(
+      "sync queue storage is unavailable",
+    );
+    expect(await getTaskContacts("task-unlink-rollback", userId)).toEqual([
+      expect.objectContaining({ id: relation.id }),
+    ]);
+  });
+
+  it("keeps contact and relation caches unchanged if an offline delete batch cannot be queued", async () => {
+    const contact = await createContact(userId, { display_name: "Keep on queue failure" });
+    const relation = await linkTaskContact("task-delete-failure", contact.id, userId);
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
+    vi.spyOn(offlineQueue, "enqueueOps").mockResolvedValueOnce(false);
+
+    await expect(deleteContact(contact.id, userId)).rejects.toThrow("complete delete operation could not be stored");
+    expect(await getContact(contact.id, userId)).not.toBeNull();
+    expect(await getTaskContacts("task-delete-failure", userId)).toEqual([
+      expect.objectContaining({ id: relation.id }),
+    ]);
+  });
+
+  it("uses one atomic Firestore batch for deleting a contact and its known relations", async () => {
+    const contact = await createContact(userId, { display_name: "Atomic contact" });
+    const relation = await linkTaskContact("task-atomic-delete", contact.id, userId);
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    const batch = { delete: vi.fn(), commit: vi.fn().mockResolvedValue(undefined) };
+    mocks.writeBatch.mockReturnValue(batch);
+
+    await deleteContact(contact.id, userId);
+
+    expect(batch.delete).toHaveBeenCalledTimes(2);
+    expect(batch.commit).toHaveBeenCalledOnce();
+    expect(await getContact(contact.id, userId)).toBeNull();
+    expect(await getTaskContacts("task-atomic-delete", userId)).toEqual([]);
+    expect(relation.contact_id).toBe(contact.id);
+  });
+
+  it("keeps contact and relations visible if cloud delete and durable retry both fail", async () => {
+    const contact = await createContact(userId, { display_name: "Keep after cloud failure" });
+    const relation = await linkTaskContact("task-cloud-delete-failure", contact.id, userId);
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    mocks.writeBatch.mockReturnValue({
+      delete: vi.fn(),
+      commit: vi.fn().mockRejectedValue(new Error("temporary cloud failure")),
+    });
+    vi.spyOn(offlineQueue, "enqueueOps").mockResolvedValueOnce(false);
+
+    await expect(deleteContact(contact.id, userId)).rejects.toThrow(
+      "cloud deletion failed and the complete retry could not be stored",
+    );
+    expect(await getContact(contact.id, userId)).not.toBeNull();
+    expect(await getTaskContacts("task-cloud-delete-failure", userId)).toEqual([
+      expect.objectContaining({ id: relation.id }),
+    ]);
+  });
+
+  it("queues the complete contact cascade if its atomic cloud batch fails", async () => {
+    const contact = await createContact(userId, { display_name: "Retry contact" });
+    const relation = await linkTaskContact("task-retry-delete", contact.id, userId);
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    const batch = { delete: vi.fn(), commit: vi.fn().mockRejectedValue(new Error("temporary failure")) };
+    mocks.writeBatch.mockReturnValue(batch);
+    vi.spyOn(offlineQueue, "enqueueOps").mockResolvedValueOnce(true);
+
+    await deleteContact(contact.id, userId);
+
+    expect(offlineQueue.enqueueOps).toHaveBeenCalledWith([
+      { ownerId: userId, table: "contacts", op: "delete", match: { id: contact.id } },
+      { ownerId: userId, table: "task_contacts", op: "delete", match: { id: relation.id } },
+    ]);
+    expect(await getContact(contact.id, userId)).toBeNull();
+    expect(await getTaskContacts("task-retry-delete", userId)).toEqual([]);
   });
 });
