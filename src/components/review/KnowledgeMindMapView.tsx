@@ -317,6 +317,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const dragStartPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const hasInitializedViewRef = useRef(false);
+  const lastCenteredSearchRef = useRef("");
 
   // RAF Scheduler for 60fps/120fps hardware-composited panning
   const rafIdRef = useRef<number | null>(null);
@@ -923,6 +924,37 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       hasInitializedViewRef.current = true;
     }
   }, [nodes.length, fitViewToContainer]);
+
+  // Expanding a deep search result changes the canvas bounds but used to leave
+  // the viewport parked on empty space. Center the first revealed match once
+  // per query, while preserving the user's current zoom level.
+  useEffect(() => {
+    const query = debouncedSearch.trim();
+    if (!query) {
+      lastCenteredSearchRef.current = "";
+      return;
+    }
+    if (lastCenteredSearchRef.current === query || !containerRef.current) return;
+
+    const firstMatch = nodes.find((node) => mindMapNodeMatchesSearch(node, searchResult));
+    if (!firstMatch) return;
+
+    const timer = setTimeout(() => {
+      const container = containerRef.current;
+      if (!container) return;
+      const width = container.clientWidth || 900;
+      const height = container.clientHeight || 650;
+      const centerX = firstMatch.x + firstMatch.width / 2;
+      const centerY = firstMatch.y + firstMatch.height / 2;
+      setPanOffset({
+        x: Math.round(width / 2 - centerX * zoomLevel),
+        y: Math.round(height / 2 - centerY * zoomLevel),
+      });
+      lastCenteredSearchRef.current = query;
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [debouncedSearch, nodes, searchResult, zoomLevel]);
 
   // Auto re-center when selected scope changes
   useEffect(() => {
