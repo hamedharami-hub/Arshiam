@@ -2,6 +2,17 @@ import type { KnowledgeContentReviewEvidence, KnowledgeDocument } from "./knowle
 
 export type KnowledgeReviewState = "unreviewed" | "missing-evidence" | "recorded" | "not-required";
 
+// The Pharmacy seed uses immutable, namespaced IDs. These identify legacy
+// Firestore imports that predate source_url/content_review_status metadata.
+const PHARMACY_SEED_DOCUMENT_ID = /^doc-(?:cal-|clinical-domain-|concept-|core-disease-|cyp-|disease-|mechanism-|m\d+-sec\d+(?:-|$)|practice-question-|product-|scenario-|script-(?:case|type)-|storage-|study-track-)/;
+
+export function isPharmacyKnowledgeDocument(
+  document: Pick<KnowledgeDocument, "id" | "source_url">,
+): boolean {
+  return document.source_url?.includes("github.com/hamedharami-hub/pharmacy/blob/") === true ||
+    PHARMACY_SEED_DOCUMENT_ID.test(document.id);
+}
+
 function isValidCalendarDate(value: string, now: Date): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const [year, month, day] = value.split("-").map(Number);

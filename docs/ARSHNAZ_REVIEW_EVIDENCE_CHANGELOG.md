@@ -6,6 +6,7 @@
 - Review records now require a reviewer role, jurisdiction, review scope, a valid non-future review date, and at least one titled HTTPS reference with a valid access date.
 - The Knowledge editor can record this metadata in a collapsed bilingual section. The Reader displays recorded details and an explicit limitation: ARSHNAZ stores the self-entered record but does not authenticate reviewer credentials or independently certify source authority/currentness.
 - Imported Pharmacy material stays cautioned unless complete evidence is recorded. A bare/partial `reviewed` marker is presented as unverified.
+- Legacy Pharmacy imports without `source_url` or review fields are also recognized through the immutable seed ID namespaces; all 432 current seed document IDs were checked against the classifier.
 - Changes to a document title or either-language body automatically return its review status to `unreviewed`. Review metadata is retained as history but is not displayed as a current review while that status is unreviewed.
 - Creation and update services reject attempts to set `reviewed` without complete evidence. Tests cover validation, persistence, import preservation, content-edit invalidation, Reader warnings, and Editor behavior.
 

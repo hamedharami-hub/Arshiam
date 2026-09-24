@@ -81,6 +81,19 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
     expect(screen.queryByText("شواهد بازبینی ثبت‌شده")).not.toBeInTheDocument();
   });
 
+  it("keeps a warning on a legacy Pharmacy seed document without review metadata", () => {
+    const legacyImportedDoc: KnowledgeDocument = {
+      ...dummyDoc,
+      id: "doc-scenario-clinical-safescript-early-refill-s8",
+      source_url: undefined,
+      content_review_status: undefined,
+      content_review_evidence: undefined,
+    };
+    render(<KnowledgeDocumentReader document={legacyImportedDoc} folder={dummyFolder} onEdit={() => {}} onDelete={() => {}} />);
+    expect(screen.getByRole("note")).toHaveTextContent(/محتوای آموزشیِ واردشده/);
+    expect(screen.getByRole("note")).toHaveTextContent(/منبع اولیهٔ روز را بررسی کنید/);
+  });
+
   it("uses accurate wording for user-authored unreviewed documents", () => {
     const unreviewedDoc: KnowledgeDocument = {
       ...dummyDoc,

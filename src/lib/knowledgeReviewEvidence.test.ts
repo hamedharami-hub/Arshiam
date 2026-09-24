@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getKnowledgeReviewState, hasCompleteKnowledgeReviewEvidence } from "./knowledgeReviewEvidence";
+import {
+  getKnowledgeReviewState,
+  hasCompleteKnowledgeReviewEvidence,
+  isPharmacyKnowledgeDocument,
+} from "./knowledgeReviewEvidence";
 import type { KnowledgeContentReviewEvidence } from "./knowledgeTypes";
 
 const now = new Date("2026-09-25T00:00:00.000Z");
@@ -17,6 +21,16 @@ const completeEvidence: KnowledgeContentReviewEvidence = {
 };
 
 describe("knowledge review evidence", () => {
+  it("recognizes existing Pharmacy seed imports even when legacy metadata is absent", () => {
+    expect(isPharmacyKnowledgeDocument({ id: "doc-scenario-clinical-safescript-early-refill-s8" })).toBe(true);
+    expect(isPharmacyKnowledgeDocument({ id: "doc-m1-sec2" })).toBe(true);
+    expect(isPharmacyKnowledgeDocument({ id: "personal-study-note-123" })).toBe(false);
+    expect(isPharmacyKnowledgeDocument({
+      id: "personal-study-note-123",
+      source_url: "https://github.com/hamedharami-hub/pharmacy/blob/abc/data/example.ts",
+    })).toBe(true);
+  });
+
   it("requires a recorded reviewer, jurisdiction, scope, dates, and at least one HTTPS source", () => {
     expect(hasCompleteKnowledgeReviewEvidence(completeEvidence, now)).toBe(true);
     expect(hasCompleteKnowledgeReviewEvidence(undefined, now)).toBe(false);

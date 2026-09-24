@@ -39,7 +39,7 @@ import {
   type KnowledgeCheckpoint,
 } from "@/lib/knowledgeCheckpointHelper";
 import { createLeitnerCard } from "@/lib/leitnerService";
-import { getKnowledgeReviewState } from "@/lib/knowledgeReviewEvidence";
+import { getKnowledgeReviewState, isPharmacyKnowledgeDocument } from "@/lib/knowledgeReviewEvidence";
 import { TextSelectionFloatingBar } from "./TextSelectionFloatingBar";
 const AiQuestionGeneratorModal = React.lazy(() =>
   import("./AiQuestionGeneratorModal").then((m) => ({
@@ -104,7 +104,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   isImportingPharmacy = false,
 }) => {
   const { isEn } = useBilingual();
-  const isPharmacySourceFile = document?.source_url?.includes("github.com/hamedharami-hub/pharmacy/blob/") ?? false;
+  const isPharmacySourceFile = document ? isPharmacyKnowledgeDocument(document) : false;
   const documentId = document?.id;
   const documentPreferredLanguage = document?.preferred_language;
   const reviewState = document

@@ -22,7 +22,11 @@ import type {
   KnowledgeDocument,
   KnowledgeFolder,
 } from "@/lib/knowledgeTypes";
-import { getKnowledgeReviewState, hasCompleteKnowledgeReviewEvidence } from "@/lib/knowledgeReviewEvidence";
+import {
+  getKnowledgeReviewState,
+  hasCompleteKnowledgeReviewEvidence,
+  isPharmacyKnowledgeDocument,
+} from "@/lib/knowledgeReviewEvidence";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { smartAiBeautifyDocument, sanitizeKnowledgeHtml } from "@/lib/knowledgeBeautifier";
 import { generateBilingualLesson } from "@/lib/bilingualHelper";
@@ -95,7 +99,7 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
   const currentReviewState = document
     ? getKnowledgeReviewState(
         document,
-        document.source_url?.includes("github.com/hamedharami-hub/pharmacy/blob/") ?? false,
+        isPharmacyKnowledgeDocument(document),
       )
     : "not-required";
 
