@@ -40,6 +40,7 @@ import {
 } from "@/lib/knowledgeCheckpointHelper";
 import { createLeitnerCard } from "@/lib/leitnerService";
 import { getKnowledgeReviewState, isPharmacyKnowledgeDocument } from "@/lib/knowledgeReviewEvidence";
+import { hasSubstantialPersianInEnglish } from "@/lib/bilingualHelper";
 import { TextSelectionFloatingBar } from "./TextSelectionFloatingBar";
 const AiQuestionGeneratorModal = React.lazy(() =>
   import("./AiQuestionGeneratorModal").then((m) => ({
@@ -236,6 +237,11 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
     const latinCharacters = (text.match(/[a-z]/gi) || []).length;
     return persianCharacters > 0 && persianCharacters < 200 && latinCharacters > persianCharacters * 2;
   }, [document?.content_html, document?.content_en]);
+
+  const englishBodyHasPersianPassages = React.useMemo(
+    () => hasSubstantialPersianInEnglish(document?.content_en),
+    [document?.content_en],
+  );
 
   const safeHtmlEn = React.useMemo(() => {
     if (!document?.content_en) return "";
@@ -671,6 +677,14 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                 {isEn
                   ? "This older document has Persian headings but much of its body is still English. Its Persian translation is incomplete."
                   : "ترجمهٔ فارسی این سند قدیمی کامل نیست؛ بعضی بخش‌ها با وجود تیتر فارسی هنوز انگلیسی‌اند."}
+              </div>
+            )}
+
+            {englishBodyHasPersianPassages && docLangMode === "en" && (
+              <div role="status" className="mb-5 rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-foreground">
+                {isEn
+                  ? "The English field contains substantial Persian passages. This may be intentional bilingual content, but this view is not strictly English-only."
+                  : "نسخهٔ انگلیسی این سند بخش‌های فارسیِ قابل‌توجه دارد؛ ممکن است محتوای دوزبانه عمدی باشد، اما این نما کاملاً انگلیسی نیست."}
               </div>
             )}
 

@@ -70,6 +70,22 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
     expect(screen.getByText(/ترجمهٔ فارسی این سند قدیمی کامل نیست/)).toBeInTheDocument();
   });
 
+  it("warns in English mode when the English field contains substantial Persian passages", () => {
+    const englishWithPersian = "Review the patient's medication history and assess reported symptoms. ".repeat(10);
+    const persianPassage = "ارزیابی بیمار و بررسی سابقه دارویی در داروخانه ".repeat(10);
+    render(<KnowledgeDocumentReader
+      document={{
+        ...dummyDoc,
+        preferred_language: "en",
+        content_en: `<p>${englishWithPersian}</p><p dir="rtl">${persianPassage}</p>`,
+      }}
+      folder={dummyFolder}
+      onEdit={() => {}}
+      onDelete={() => {}}
+    />);
+    expect(screen.getByText(/نسخهٔ انگلیسی این سند بخش‌های فارسی/)).toBeInTheDocument();
+  });
+
   it("does not let a bare reviewed flag suppress the imported Pharmacy safety notice", () => {
     const importedDoc: KnowledgeDocument = {
       ...dummyDoc,

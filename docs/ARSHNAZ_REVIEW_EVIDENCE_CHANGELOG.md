@@ -15,3 +15,9 @@
 - These fields are user-entered metadata, not a credential-verification workflow. A complete record does not prove the reviewer is qualified or that a linked source is authoritative or up to date.
 - Pharmacy scenario clinical claims still need pharmacist review against current primary sources and relevant jurisdictional guidance. No clinical content was endorsed or changed in this stage.
 - This stage does not implement Pharmacy OTC triage parity, Google Drive media storage, or end-to-end authenticated production-browser verification. It does not write live Firestore data or create an Android APK.
+
+## 2026-09-25 — Bilingual field coverage scan
+
+- All 432 Pharmacy seed documents have non-empty Persian and English titles and bodies; all are marked `unreviewed` and have a pinned GitHub source URL.
+- A static scan found Persian-script passages in 104 `content_en` fields; 89 have explicit RTL markup, and 13 documents have at least a 30% Persian-script share by character count. This does not establish translation correctness because some scenarios intentionally contain bilingual dialogue.
+- The Reader warns when an English field contains a substantial Persian passage. It does not hide, rewrite, or machine-translate clinical text; each item still needs review.

@@ -9,6 +9,19 @@ export function isPersianText(text: string | null | undefined): boolean {
   return /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text);
 }
 
+/** Flags a substantial Persian passage inside English-field HTML without editing the content. */
+export function hasSubstantialPersianInEnglish(html: string | null | undefined): boolean {
+  if (!html) return false;
+  const text = html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]*>/g, " ");
+  const persianCharacters = (text.match(/[\u0600-\u06ff]/g) || []).length;
+  const latinCharacters = (text.match(/[a-z]/gi) || []).length;
+  const totalLetters = persianCharacters + latinCharacters;
+  return persianCharacters >= 100 && totalLetters > 0 && persianCharacters / totalLetters >= 0.2;
+}
+
 /**
  * Determines reading direction ("rtl" or "ltr") based on content.
  * If text contains Persian/Arabic characters, returns "rtl", otherwise "ltr".

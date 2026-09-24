@@ -1,11 +1,20 @@
 import { describe, it, expect, vi } from "vitest";
-import { isPersianText, detectDirection, getTextDirClasses, generateBilingualLesson } from "./bilingualHelper";
+import { hasSubstantialPersianInEnglish, isPersianText, detectDirection, getTextDirClasses, generateBilingualLesson } from "./bilingualHelper";
 
 vi.mock("./ai", () => ({
   callAI: vi.fn(),
 }));
 
 describe("bilingualHelper", () => {
+  it("flags substantial Persian passages in an English field without counting markup or scripts", () => {
+    const persian = "ارزیابی بیمار و بررسی سابقه دارویی در داروخانه ".repeat(10);
+    const english = "Review the patient's medication history and assess the reported symptoms. ".repeat(10);
+    expect(hasSubstantialPersianInEnglish(`<section><p>${english}</p><p dir="rtl">${persian}</p></section>`)).toBe(true);
+    expect(hasSubstantialPersianInEnglish(`<script>${persian}</script><p>${english}</p>`)).toBe(false);
+    expect(hasSubstantialPersianInEnglish("<p>Paracetamol 500 mg (پاراستامول)</p>")).toBe(false);
+    expect(hasSubstantialPersianInEnglish(undefined)).toBe(false);
+  });
+
   it("detects Persian text correctly", () => {
     expect(isPersianText("فلوکستین ۲۰ میلی‌گرم")).toBe(true);
     expect(isPersianText("Fluoxetine 20mg")).toBe(false);
