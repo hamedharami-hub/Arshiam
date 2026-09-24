@@ -287,6 +287,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   const [folders, setFolders] = useState<KnowledgeFolder[]>([]);
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [cards, setCards] = useState<LeitnerCard[]>([]);
+  const [hasLoadedData, setHasLoadedData] = useState(false);
   const [selectedScopeId, setSelectedScopeId] = useState<string>(() => {
     if (initialFolderId) return `folder-${initialFolderId}`;
     if (initialDocId) return `doc-${initialDocId}`;
@@ -318,6 +319,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   const dragStartPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const hasInitializedViewRef = useRef(false);
   const lastCenteredSearchRef = useRef("");
+  const loadRequestRef = useRef(0);
 
   // RAF Scheduler for 60fps/120fps hardware-composited panning
   const rafIdRef = useRef<number | null>(null);
@@ -377,15 +379,23 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
 
   // Load Data
   const loadData = useCallback(async () => {
+    const requestId = loadRequestRef.current + 1;
+    loadRequestRef.current = requestId;
+    hasInitializedViewRef.current = false;
+    setHasLoadedData(false);
+
     try {
       const [f, d, c] = await Promise.all([
         getKnowledgeFolders(userId),
         getKnowledgeDocuments(userId),
         getLeitnerCards(userId),
       ]);
+      if (loadRequestRef.current !== requestId) return;
+
       setFolders(f);
       setDocuments(d);
       setCards(c);
+      setHasLoadedData(true);
 
       // Default expand root and first 3 top-level folders
       setExpandedNodeIds((prev) => {
@@ -397,7 +407,12 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
         return next;
       });
     } catch (e) {
+      if (loadRequestRef.current !== requestId) return;
       console.error("Error loading MindMap data", e);
+      setFolders([]);
+      setDocuments([]);
+      setCards([]);
+      setHasLoadedData(true);
     }
   }, [userId]);
 
@@ -919,11 +934,16 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
 
   // Auto-center on initial load
   useEffect(() => {
-    if (nodes.length > 0 && containerRef.current && !hasInitializedViewRef.current) {
+    if (
+      hasLoadedData &&
+      nodes.length > 0 &&
+      containerRef.current &&
+      !hasInitializedViewRef.current
+    ) {
       fitViewToContainer();
       hasInitializedViewRef.current = true;
     }
-  }, [nodes.length, fitViewToContainer]);
+  }, [hasLoadedData, nodes.length, fitViewToContainer]);
 
   // Expanding a deep search result changes the canvas bounds but used to leave
   // the viewport parked on empty space. Center the first revealed match once
