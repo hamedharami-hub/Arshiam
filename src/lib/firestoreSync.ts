@@ -1,5 +1,6 @@
 import {
   db,
+  auth,
   collection,
   doc,
   getDoc,
@@ -8,9 +9,37 @@ import {
   deleteDoc,
   serverTimestamp,
 } from "./firebase";
+import { firebaseStore } from "./firebaseStore";
 import { cacheGet, cacheSet } from "./offlineDb";
 import { extractTasksFromCache, createTaskCacheEnvelope } from "@/features/tasks/taskCache";
 import type { Task } from "./taskTypes";
+
+export interface AppUser {
+  id: string;
+  email?: string | null;
+  [key: string]: any;
+}
+
+export type SupportedFirestoreCollection =
+  | "tasks"
+  | "notes"
+  | "habits"
+  | "checkins"
+  | "settings"
+  | "contacts"
+  | "task_contacts"
+  | "knowledge_folders"
+  | "knowledge_documents"
+  | "leitner_cards"
+  | "leitner_reviews"
+  | "task_knowledge_links"
+  | "cycle_profiles"
+  | "cycle_logs"
+  | "mind_values"
+  | "mind_goals"
+  | "thought_records"
+  | "socratic_sessions"
+  | "assessment_results";
 
 export interface SyncStats {
   tasksCount: number;
@@ -23,16 +52,59 @@ export interface SyncStats {
 /**
  * Saves a single entity to user's private Firestore subcollection:
  * /users/{userId}/{collectionName}/{docId}
+ * Supports both:
+ * - 4-arg: (userId, collectionName, docId, data)
+ * - 2-arg: (collectionName, entity)
+ * Includes conflict protection against overwriting newer remote documents.
  */
 export async function saveEntityToFirestore(
-  userId: string,
-  collectionName: "tasks" | "notes" | "habits" | "checkins" | "settings" | "contacts" | "task_contacts",
-  docId: string,
-  data: Record<string, any>
+  userIdOrCollection: string,
+  collectionOrData: SupportedFirestoreCollection | string | Record<string, any>,
+  docIdOrNothing?: string,
+  dataOrNothing?: Record<string, any>
 ): Promise<boolean> {
-  if (!userId || !docId) return false;
+  let userId = "";
+  let collectionName = "";
+  let docId = "";
+  let data: Record<string, any> = {};
+
+  if (typeof docIdOrNothing === "string" && dataOrNothing) {
+    userId = userIdOrCollection;
+    collectionName = collectionOrData as string;
+    docId = docIdOrNothing;
+    data = dataOrNothing;
+  } else if (typeof collectionOrData === "object" && collectionOrData !== null) {
+    collectionName = userIdOrCollection;
+    data = collectionOrData;
+    docId = String(data.id || "");
+    userId = String(data.user_id || data.userId || auth.currentUser?.uid || "");
+  }
+
+  if (!userId || !docId || !collectionName) return false;
+
   try {
     const docRef = doc(db, "users", userId, collectionName, docId);
+
+    // Conflict protection: check if remote document is newer than incoming local data
+    try {
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const remoteData = snap.data();
+        const remoteUpdatedAt = remoteData?.updatedAt || remoteData?.updated_at;
+        const localUpdatedAt = data.updatedAt || data.updated_at;
+        if (remoteUpdatedAt && localUpdatedAt) {
+          const remoteTime = new Date(remoteUpdatedAt).getTime();
+          const localTime = new Date(localUpdatedAt).getTime();
+          if (remoteTime > localTime) {
+            console.info(`[FirestoreSync] Remote document is newer than local cache for ${collectionName}/${docId}. Skipping overwrite.`);
+            return true;
+          }
+        }
+      }
+    } catch {
+      // Offline or network error reading remote: proceed to setDoc
+    }
+
     await setDoc(
       docRef,
       {
@@ -52,14 +124,32 @@ export async function saveEntityToFirestore(
 }
 
 /**
- * Deletes an entity from user's private Firestore subcollection
+ * Deletes an entity from user's private Firestore subcollection.
+ * Supports both:
+ * - 3-arg: (userId, collectionName, docId)
+ * - 2-arg: (collectionName, docId)
  */
 export async function deleteEntityFromFirestore(
-  userId: string,
-  collectionName: "tasks" | "notes" | "habits" | "checkins" | "contacts" | "task_contacts",
-  docId: string
+  userIdOrCollection: string,
+  collectionOrDocId: SupportedFirestoreCollection | string,
+  docIdOrNothing?: string
 ): Promise<boolean> {
-  if (!userId || !docId) return false;
+  let userId = "";
+  let collectionName = "";
+  let docId = "";
+
+  if (docIdOrNothing) {
+    userId = userIdOrCollection;
+    collectionName = collectionOrDocId;
+    docId = docIdOrNothing;
+  } else {
+    collectionName = userIdOrCollection;
+    docId = collectionOrDocId;
+    userId = auth.currentUser?.uid || "";
+  }
+
+  if (!userId || !docId || !collectionName) return false;
+
   try {
     const docRef = doc(db, "users", userId, collectionName, docId);
     await deleteDoc(docRef);
@@ -158,7 +248,7 @@ export async function backupAllToFirestore(
         completed: !!t.completed,
         priority: t.priority || "none",
         due_date: t.due_date || null,
-        created_at: t.created_at || new Date().toISOString(),
+        created_at: (t as any).created_at || new Date().toISOString(),
         folder_id: t.folder_id || null,
         pinned: !!t.pinned,
         status: t.status || "todo",

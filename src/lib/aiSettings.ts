@@ -17,6 +17,8 @@ export type AIOperation =
   | "generate_note"
   | "summarize_note"
   | "improve_note"
+  | "note_actions"
+  | "interactive_learning"
   | "suggest"
   | "chat"
   | "inline_edit"
@@ -82,6 +84,8 @@ export const OP_RECOMMENDED: Record<AIOperation, { provider: Provider; model: st
   socratic:              { provider: "gemini", model: "gemini-2.5-pro",                          whyFa: "سوال‌پرسی عمیق و درست",                        whyEn: "Deep, well-aimed questions" },
   distortion_detect:     { provider: "gemini", model: "gemini-2.5-pro",                        whyFa: "reasoning قوی برای تحلیل CBT",                 whyEn: "Strong reasoning for CBT analysis" },
   about_me_analysis:     { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "استخراج ساختاریافته اهداف بدون برچسب بالینی",   whyEn: "Structured goal extraction without clinical labeling" },
+  note_actions:          { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "قالب‌بندی و ترجمه آموزشی سریع",                 whyEn: "Fast educational formatting & translation" },
+  interactive_learning:  { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "تولید ویجت‌های تعاملی یادگیری",                whyEn: "Interactive learning widget generation" },
 };
 
 export const PROVIDER_INFO: Record<Provider, { label: string; defaultModel: string; baseUrl: string; help: string; models: string[] }> = {

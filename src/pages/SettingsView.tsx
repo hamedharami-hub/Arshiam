@@ -29,7 +29,7 @@ import { useTheme } from "next-themes";
 import { applyTheme, getBaseTheme } from "@/lib/theme";
 import { TaskDefaultSettings } from "@/components/TaskDefaultSettings";
 import FirebaseSyncCard from "@/components/FirebaseSyncCard";
-import { fetchFromFirestore } from "@/lib/firestoreSync";
+import { fetchFromFirestore, saveEntityToFirestore } from "@/lib/firestoreSync";
 import { cacheGet, cacheSet } from "@/lib/offlineQueue";
 import { extractTasksFromCache, createTaskCacheEnvelope } from "@/features/tasks/taskCache";
 import type { TaskDefaults } from "@/lib/reminders";
@@ -531,9 +531,9 @@ export default function SettingsView() {
           tasks: tasksMap.size,
           notes: notesMap.size,
         },
+        ...remoteData,
         tasks: Array.from(tasksMap.values()),
         notes: Array.from(notesMap.values()),
-        ...remoteData,
       };
 
       const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
@@ -564,6 +564,13 @@ export default function SettingsView() {
     try {
       const text = await file.text();
       const data = JSON.parse(text) as Record<string, any>;
+
+      if (!data || typeof data !== "object") {
+        throw new Error(isEn ? "Invalid backup file format" : "قالب فایل پشتیبان نامعتبر است");
+      }
+      if (!Array.isArray(data.tasks) && !Array.isArray(data.notes)) {
+        throw new Error(isEn ? "No tasks or notes found in backup file" : "هیچ تسک یا یادداشتی در فایل یافت نشد");
+      }
       
       let importedTasks = 0;
       let importedNotes = 0;
@@ -748,13 +755,13 @@ export default function SettingsView() {
 
         <TabsContent value="notifications" className="space-y-5 mt-5">
           <AndroidReminderHealth />
-          <ReminderCenter onOpenTask={(id) => navigate(`/tasks?taskId=${id}`)} />
+          <ReminderCenter onOpenTask={(id) => navigate(`/app/tasks/${id}`)} />
           <AndroidSettings />
           {reminders && (
             <SectionCard
               icon={Bell}
               title={t("settings.dailyReminders")}
-              description={t("notificationsCardDesc")}
+              description={t("settings.notificationsCardDesc", isEn ? "Configure daily reminder schedules and task notifications" : "پیکربندی زمان‌بندی یادآورهای روزانه و اعلان‌های تسک")}
             >
               <SettingRow label={t("settings.browserNotif")} help={t("settings.browserNotifHelp")}>
                 {reminders.notifications_enabled ? (

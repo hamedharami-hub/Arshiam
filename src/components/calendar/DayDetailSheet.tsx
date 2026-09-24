@@ -134,7 +134,7 @@ export default function DayDetailSheet({
                 <span className="truncate flex-1">{t.title}</span>
                 <span className="text-[10px] text-muted-foreground tabular-nums">
                   {toPersianDigits(String(t.due_date ? new Date(t.due_date).getHours().toString().padStart(2, "0") : "--"))}
-                  :{toPersianDigits("00")}
+                  :{toPersianDigits(String(t.due_date ? new Date(t.due_date).getMinutes().toString().padStart(2, "0") : "00"))}
                 </span>
               </button>
             ))}

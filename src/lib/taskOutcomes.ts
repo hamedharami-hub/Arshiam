@@ -41,8 +41,8 @@ export async function saveTaskOutcome(outcome: Partial<TaskOutcome>): Promise<Ta
   let uid = auth.currentUser?.uid;
   if (!uid) {
     try {
-      const { data: auth } = await firebaseStore.auth.getUser();
-      uid = auth.user?.id;
+      const { data: authData } = await firebaseStore.auth.getUser();
+      uid = (authData.user as any)?.uid || (authData.user as any)?.id;
     } catch {}
   }
   if (!uid) throw new Error("Not signed in");

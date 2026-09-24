@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { Task } from "@/types";
+import type { Task } from "@/lib/taskTypes";
 
 export interface TaskDetailActionsMenuProps {
   task: Task;

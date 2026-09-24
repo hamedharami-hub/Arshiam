@@ -4,6 +4,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { deleteFolder } from "@/lib/firestoreDataService";
+import { cacheGet, cacheSet } from "@/lib/offlineDb";
 
 type Mode = "move" | "delete-all";
 
@@ -16,6 +19,7 @@ export function FolderDeleteDialog({
   folderName: string;
   onDone?: () => void;
 }) {
+  const { user } = useAuth();
   const [mode, setMode] = useState<Mode>("move");
   const [busy, setBusy] = useState(false);
 
@@ -23,18 +27,37 @@ export function FolderDeleteDialog({
     setBusy(true);
     try {
       if (mode === "move") {
-        // Move tasks & notes & subfolders to root, then delete the folder
-        await firebaseStore.from("tasks").update({ folder_id: null }).eq("folder_id", folderId);
-        await firebaseStore.from("notes").update({ folder_id: null }).eq("folder_id", folderId);
-        await firebaseStore.from("folders").update({ parent_id: null }).eq("parent_id", folderId);
+        // Move tasks & notes & subfolders to root, with strict error checking
+        const { error: tErr } = await firebaseStore.from("tasks").update({ folder_id: null }).eq("folder_id", folderId);
+        if (tErr) throw new Error("خطا در انتقال تسک‌ها: " + tErr.message);
+
+        const { error: nErr } = await firebaseStore.from("notes").update({ folder_id: null }).eq("folder_id", folderId);
+        if (nErr) throw new Error("خطا در انتقال نوت‌ها: " + nErr.message);
+
+        const { error: fErr } = await firebaseStore.from("folders").update({ parent_id: null }).eq("parent_id", folderId);
+        if (fErr) throw new Error("خطا در انتقال زیرپوشه‌ها: " + fErr.message);
+
         // folder_columns belong to this folder; delete them along with the folder
         await firebaseStore.from("folder_columns").delete().eq("folder_id", folderId);
       } else {
         // Delete tasks (cascade subtasks via parent_id), notes, columns, and subfolders recursively
         await deleteCascade(folderId);
       }
+
+      if (user?.id) {
+        await deleteFolder(user.id, folderId);
+      }
       const { error } = await firebaseStore.from("folders").delete().eq("id", folderId);
       if (error) throw error;
+
+      if (user?.id) {
+        const cached = (await cacheGet<any[]>(`folders:all:${user.id}`)) || (await cacheGet<any[]>("folders")) || [];
+        const next = cached.filter((f) => f.id !== folderId);
+        await cacheSet(`folders:all:${user.id}`, next);
+        await cacheSet("folders", next);
+      }
+      window.dispatchEvent(new Event("arshnaz:tasks-updated"));
+
       toast.success(mode === "move" ? "فولدر حذف شد، محتوا منتقل شد" : "فولدر و محتوا حذف شد");
       onDone?.();
       onOpenChange(false);

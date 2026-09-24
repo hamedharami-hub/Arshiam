@@ -421,7 +421,10 @@ export async function createLeitnerCard(
 
   if (isOnline()) {
     try {
-      await saveEntityToFirestore("leitner_cards", card);
+      const ok = await saveEntityToFirestore(userId, "leitner_cards", card.id, card);
+      if (!ok) {
+        await enqueueOp({ table: "leitner_cards", op: "insert", payload: card });
+      }
     } catch (e) {
       await enqueueOp({ table: "leitner_cards", op: "insert", payload: card });
     }
@@ -472,7 +475,10 @@ export async function reviewLeitnerCardWithRating(
 
   if (isOnline()) {
     try {
-      await saveEntityToFirestore("leitner_cards", updated);
+      const ok = await saveEntityToFirestore(userId, "leitner_cards", cardId, updated);
+      if (!ok) {
+        await enqueueOp({ table: "leitner_cards", op: "update", payload: updated, match: { id: cardId } });
+      }
     } catch (e) {
       await enqueueOp({ table: "leitner_cards", op: "update", payload: updated, match: { id: cardId } });
     }
@@ -518,7 +524,10 @@ export async function updateLeitnerCard(
 
   if (isOnline()) {
     try {
-      await saveEntityToFirestore("leitner_cards", updated);
+      const ok = await saveEntityToFirestore(userId, "leitner_cards", cardId, updated);
+      if (!ok) {
+        await enqueueOp({ table: "leitner_cards", op: "update", payload: updated, match: { id: cardId } });
+      }
     } catch (e) {
       await enqueueOp({ table: "leitner_cards", op: "update", payload: updated, match: { id: cardId } });
     }
@@ -539,7 +548,10 @@ export async function deleteLeitnerCard(userId: string, cardId: string): Promise
 
   if (isOnline()) {
     try {
-      await deleteEntityFromFirestore("leitner_cards", cardId);
+      const ok = await deleteEntityFromFirestore(userId, "leitner_cards", cardId);
+      if (!ok) {
+        await enqueueOp({ table: "leitner_cards", op: "delete", match: { id: cardId } });
+      }
     } catch (e) {
       await enqueueOp({ table: "leitner_cards", op: "delete", match: { id: cardId } });
     }

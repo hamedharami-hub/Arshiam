@@ -21,12 +21,9 @@ import {
   MessageSquare,
   MapPin,
   Users,
-  UserPlus,
-  Smartphone,
   BookOpen,
 } from "lucide-react";
 import type { Task } from "@/lib/taskTypes";
-import { isDeviceContactImportSupported } from "@/lib/deviceContacts";
 
 export function AttachTypeBtn({
   icon: Icon,
@@ -108,10 +105,10 @@ export interface TaskDetailBottomRailProps {
   pickFileType: (accept: string) => void;
   linkUrl: string;
   setLinkUrl: (url: string) => void;
-  attachLink: () => Promise<void>;
+  attachLink: () => Promise<unknown>;
   parentOpen: boolean;
   setParentOpen: (open: boolean) => void;
-  parentCandidates: Task[];
+  parentCandidates: Array<{ id: string; title: string; parent_id?: string | null }>;
   showSubtasks: boolean;
   setShowSubtasks: React.Dispatch<React.SetStateAction<boolean>>;
   showSteps: boolean;
@@ -309,48 +306,7 @@ export function TaskDetailBottomRail({
                   className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-accent text-start transition"
                 >
                   <Users className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                  <span>{T("انتخاب شخص موجود", "Select Contact")}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAddPopoverOpen(false);
-                    onNewContact?.();
-                  }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-accent text-start transition"
-                >
-                  <UserPlus className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  <span>{T("ساخت شخص جدید", "Create New Contact")}</span>
-                </button>
-
-                <button
-                  type="button"
-                  disabled={!isDeviceContactImportSupported()}
-                  onClick={() => {
-                    setAddPopoverOpen(false);
-                    onImportDeviceContact?.();
-                  }}
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-start transition ${
-                    isDeviceContactImportSupported()
-                      ? "hover:bg-accent text-foreground"
-                      : "opacity-50 cursor-not-allowed text-muted-foreground"
-                  }`}
-                  title={
-                    !isDeviceContactImportSupported()
-                      ? T("فقط در Android", "Only available on Android")
-                      : undefined
-                  }
-                >
-                  <Smartphone className="w-3.5 h-3.5 text-purple-500 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <span className="block truncate">{T("ورود از مخاطبین گوشی", "Import from Phone")}</span>
-                    {!isDeviceContactImportSupported() && (
-                      <span className="text-[10px] text-muted-foreground block">
-                        {T("(فقط در Android)", "(Only on Android)")}
-                      </span>
-                    )}
-                  </div>
+                  <span>{T("شخص / مخاطب", "Contact")}</span>
                 </button>
               </div>
             </PopoverContent>

@@ -34,8 +34,8 @@ export interface TaskMetaBarProps {
   taskTagIds: string[];
   tags: Array<{ id: string; name: string; color?: string }>;
   toggleTag: (tagId: string) => void;
-  createTagAndAssign: () => Promise<void>;
-  createFolderAndAssign: () => Promise<void>;
+  createTagAndAssign: () => Promise<unknown>;
+  createFolderAndAssign: () => Promise<unknown>;
   save: (patch: Partial<Task>) => void;
   postpone: (days: number) => void;
   T: (fa: string, en: string) => string;

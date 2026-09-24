@@ -11,7 +11,7 @@ import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { formatDate, toPersianDigits } from "@/lib/jalali";
 import { PRIORITY_META } from "@/lib/priority";
-import type { Task, ConfirmState } from "@/lib/taskTypes";
+import type { Task, TaskStatus, ConfirmState } from "@/lib/taskTypes";
 import { persistTask } from "@/lib/firestoreDataService";
 import { deleteTaskCascade } from "@/features/tasks/taskService";
 import { taskDueTimestamp, getLocalDateString } from "@/lib/taskDate";
@@ -301,7 +301,7 @@ export default function TodayDashboardView() {
   // 4. Canonical persistence with optimistic update & rollback
   const handleToggleTask = useCallback(async (task: Task) => {
     const nextCompleted = !task.completed;
-    const nextStatus = nextCompleted ? "done" : "todo";
+    const nextStatus: TaskStatus = nextCompleted ? "done" : "todo";
     const nextCompletedAt = nextCompleted ? new Date().toISOString() : null;
     const patch = { completed: nextCompleted, status: nextStatus, completed_at: nextCompletedAt };
 
@@ -563,11 +563,10 @@ export default function TodayDashboardView() {
                 {/* اولویت‌های برتر (تا ۳ تسک فوری یا بالا) با تمایز ملایم */}
                 {priorityTasks.length > 0 && (
                   <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.03] p-1.5 sm:p-2 space-y-1">
-                    <div className="flex items-center px-1 pt-0.5 pb-0.5">
+                    <div className="flex items-center px-1 pt-0.5 pb-0.5" title={T("اولویت‌های برتر", "Top Priorities")}>
                       <Star
                         className="w-3.5 h-3.5 fill-amber-500/20 text-amber-500 shrink-0"
                         aria-label={T("اولویت‌های برتر", "Top Priorities")}
-                        title={T("اولویت‌های برتر", "Top Priorities")}
                       />
                       <span className="sr-only">{T("اولویت‌های برتر", "Top Priorities")}</span>
                     </div>

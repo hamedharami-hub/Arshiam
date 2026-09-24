@@ -273,14 +273,9 @@ Output pure HTML only. No markdown fences (\`\`\`html) if possible, or simple ma
 `;
 
   try {
-    const aiResponse = await callAI([
-      {
-        role: "user",
-        content: prompt,
-      },
-    ]);
-
-    let generatedHtml = (aiResponse || "").trim();
+    const aiResponse = await callAI("interactive_learning", prompt);
+    const rawOutput = typeof aiResponse === "string" ? aiResponse : (aiResponse as any)?.text || "";
+    let generatedHtml = rawOutput.trim();
     // Strip markdown code fences if present
     generatedHtml = generatedHtml.replace(/^```(?:html)?\s*/i, "").replace(/\s*```$/i, "").trim();
 

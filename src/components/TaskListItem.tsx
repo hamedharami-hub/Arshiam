@@ -2,6 +2,8 @@ import React, { memo } from "react";
 import {
   CornerDownRight, ChevronDown, ChevronRight, Pin, X, Ban,
   GripVertical, Flag, Calendar, Repeat, GitBranch, Check, Trash2, Clock, FolderInput, Brain,
+  Network, BookOpen, FolderTree, ExternalLink, Layers,
+  Sunrise, Sun, Sunset, Moon, CalendarRange,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -17,6 +19,8 @@ import { describeRule, type RecurrenceRule } from "@/lib/recurrence";
 import { addDays, startOfDay } from "date-fns";
 import { formatDate } from "@/lib/jalali";
 import { formatTaskDueDateDisplay } from "@/lib/taskDate";
+import { getStudyTaskNavigation } from "@/lib/taskStudyService";
+import { isSubDayBucket, kindLabel } from "@/lib/timeBuckets";
 import type { Task } from "@/lib/taskTypes";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
@@ -69,7 +73,7 @@ export interface TaskListItemProps {
   userId?: string;
   isSelected: boolean;
   splitView: boolean;
-  layout: "compact" | "default";
+  layout: "compact" | "default" | "comfortable";
   isEn: boolean;
   T: (fa: string, en: string) => string;
   navigate: (to: string) => void;
@@ -283,21 +287,92 @@ const TaskListItemComponent = ({
                     <Ban className="w-2.5 h-2.5" /> {T("اجتنابی", "Avoidance")}
                   </span>
                 )}
-                {t.source_type && (
-                  <span
-                    className="inline-flex items-center gap-0.5 text-[9px] px-1.5 h-4 rounded bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/30"
-                    title={T("ایجاد شده از بخش ذهن", "Created from Mind")}
-                  >
-                    <Brain className="w-2.5 h-2.5" />
-                    <span>
-                      {t.source_type === "cbt_thought" ? T("CBT", "CBT")
-                        : t.source_type === "abc_model" ? T("ABC", "ABC")
-                        : t.source_type === "worry_tree" ? T("نگرانی", "Worry")
-                        : t.source_type === "values_goal" ? T("ارزش‌ها", "Values")
-                        : T("ذهن", "Mind")}
-                    </span>
-                  </span>
-                )}
+                {(() => {
+                  const studyInfo = getStudyTaskNavigation(t);
+                  if (studyInfo.isStudyTask) {
+                    const isLeitner = t.source_type === "leitner";
+                    return (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(studyInfo.navUrl);
+                        }}
+                        className={`inline-flex items-center gap-1 text-[9px] px-2 h-5 rounded-full border font-medium transition cursor-pointer ${
+                          isLeitner
+                            ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/25"
+                            : studyInfo.isMindMap
+                            ? "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/25"
+                            : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25"
+                        }`}
+                        title={T(studyInfo.actionTextFa, studyInfo.actionTextEn)}
+                      >
+                        {isLeitner ? (
+                          <Layers className="w-2.5 h-2.5 shrink-0" />
+                        ) : studyInfo.isMindMap ? (
+                          <Network className="w-2.5 h-2.5 shrink-0" />
+                        ) : t.source_type === "knowledge_folder" ? (
+                          <FolderTree className="w-2.5 h-2.5 shrink-0" />
+                        ) : (
+                          <BookOpen className="w-2.5 h-2.5 shrink-0" />
+                        )}
+                        <span>{T(studyInfo.badgeLabelFa, studyInfo.badgeLabelEn)}</span>
+                        <ExternalLink className="w-2 h-2 shrink-0 opacity-70 rtl:rotate-180" />
+                      </button>
+                    );
+                  }
+
+                  if (t.source_type) {
+                    return (
+                      <span
+                        className="inline-flex items-center gap-0.5 text-[9px] px-1.5 h-4 rounded bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/30"
+                        title={T("ایجاد شده از بخش ذهن", "Created from Mind")}
+                      >
+                        <Brain className="w-2.5 h-2.5" />
+                        <span>
+                          {t.source_type === "cbt_thought" ? T("CBT", "CBT")
+                            : t.source_type === "abc_model" ? T("ABC", "ABC")
+                            : t.source_type === "worry_tree" ? T("نگرانی", "Worry")
+                            : t.source_type === "values_goal" ? T("ارزش‌ها", "Values")
+                            : T("ذهن", "Mind")}
+                        </span>
+                      </span>
+                    );
+                  }
+
+                  return null;
+                })()}
+
+                {/* Time Bucket Tag */}
+                {t.bucket_kind && (() => {
+                  const isSub = isSubDayBucket(t.bucket_kind);
+                  const label = kindLabel(t.bucket_kind, isEn ? "en" : "fa");
+                  return (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/app/buckets?kind=${t.bucket_kind}`);
+                      }}
+                      className={`inline-flex items-center gap-1 text-[9px] px-2 h-5 rounded-full border font-medium transition cursor-pointer ${
+                        isSub
+                          ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/25 hover:bg-amber-500/20"
+                          : "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/25 hover:bg-blue-500/20"
+                      }`}
+                      title={T(`بازه زمانی: ${label}`, `Time Bucket: ${label}`)}
+                    >
+                      {isSub ? (
+                        t.bucket_kind === "morning" ? <Sunrise className="w-2.5 h-2.5 shrink-0" />
+                        : t.bucket_kind === "noon" ? <Sun className="w-2.5 h-2.5 shrink-0" />
+                        : t.bucket_kind === "afternoon" ? <Sunset className="w-2.5 h-2.5 shrink-0" />
+                        : <Moon className="w-2.5 h-2.5 shrink-0" />
+                      ) : (
+                        <CalendarRange className="w-2.5 h-2.5 shrink-0" />
+                      )}
+                      <span>{label}</span>
+                    </button>
+                  );
+                })()}
                 <Popover>
                   <PopoverTrigger asChild>
                     <button

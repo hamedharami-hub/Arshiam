@@ -54,12 +54,20 @@ export default function CrisisView() {
     );
   };
 
-  const handleCopy = (phone: string, id: string) => {
+  const handleCopy = async (phone: string, id: string) => {
     if (!phone) return;
-    navigator.clipboard.writeText(phone);
-    setCopiedId(id);
-    toast.success(T("شماره کپی شد", "Phone number copied"));
-    setTimeout(() => setCopiedId(null), 2000);
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(phone);
+        setCopiedId(id);
+        toast.success(T("شماره کپی شد", "Phone number copied"));
+        setTimeout(() => setCopiedId(null), 2000);
+      } else {
+        toast.error(T("عدم دسترسی به کلیپ‌بورد", "Clipboard not accessible"));
+      }
+    } catch {
+      toast.error(T("کپی در کلیپ‌بورد انجام نشد", "Failed to copy phone number"));
+    }
   };
 
   // Immediate exit / back-to-safety handler

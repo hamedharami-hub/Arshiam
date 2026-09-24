@@ -94,8 +94,8 @@ export function QuickAddTask({
 
   useEffect(() => {
     if (!user) return;
-    firebaseStore.from("folders").select("id,name").order("name").then(({ data }) => setFolders(data || []));
-    firebaseStore.from("tags").select("id,name,color").order("name").then(({ data }) => setTags(data || []));
+    firebaseStore.from("folders").select("id,name").order("name").then(({ data }) => setFolders((data as any) || []));
+    firebaseStore.from("tags").select("id,name,color").order("name").then(({ data }) => setTags((data as any) || []));
     listTaskTemplates(user.id).then((tpls) => {
       setTemplates(tpls.map(t => buildTaskFromTemplate(t)));
     }).catch(() => {});

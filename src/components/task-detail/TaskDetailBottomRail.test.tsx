@@ -15,6 +15,7 @@ describe("TaskDetailBottomRail Add Menu", () => {
     title: "Task with Bottom Rail",
     user_id: "user-123",
     created_at: new Date().toISOString(),
+    priority: "none",
     completed: false,
     status: "todo",
   };
@@ -53,6 +54,7 @@ describe("TaskDetailBottomRail Add Menu", () => {
     onPickContact: vi.fn(),
     onNewContact: vi.fn(),
     onImportDeviceContact: vi.fn(),
+    onLinkKnowledge: vi.fn(),
   };
 
   it("renders Add button next to Attach button", () => {
@@ -67,7 +69,7 @@ describe("TaskDetailBottomRail Add Menu", () => {
     expect(addBtn).toBeInTheDocument();
   });
 
-  it("opens popover with 6 options when Add is clicked", () => {
+  it("opens popover with options when Add is clicked", () => {
     render(<TaskDetailBottomRail {...defaultProps} />);
 
     const addBtn = screen.getByTestId("task-bottom-rail-add-btn");
@@ -76,10 +78,9 @@ describe("TaskDetailBottomRail Add Menu", () => {
     // Options exist
     expect(screen.getByText(/افزودن کامنت \/ توضیح/i)).toBeInTheDocument();
     expect(screen.getByText(/افزودن نوت/i)).toBeInTheDocument();
+    expect(screen.getByText(/اتصال سند آموزشی/i)).toBeInTheDocument();
     expect(screen.getByText(/افزودن موقعیت مکانی/i)).toBeInTheDocument();
-    expect(screen.getByText(/انتخاب شخص موجود/i)).toBeInTheDocument();
-    expect(screen.getByText(/ساخت شخص جدید/i)).toBeInTheDocument();
-    expect(screen.getByText(/ورود از مخاطبین گوشی/i)).toBeInTheDocument();
+    expect(screen.getByText(/شخص \/ مخاطب/i)).toBeInTheDocument();
   });
 
   it("triggers callbacks when options are clicked", () => {
@@ -96,15 +97,15 @@ describe("TaskDetailBottomRail Add Menu", () => {
     expect(defaultProps.onAddNote).toHaveBeenCalled();
 
     fireEvent.click(addBtn);
+    fireEvent.click(screen.getByText(/اتصال سند آموزشی/i));
+    expect(defaultProps.onLinkKnowledge).toHaveBeenCalled();
+
+    fireEvent.click(addBtn);
     fireEvent.click(screen.getByText(/افزودن موقعیت مکانی/i));
     expect(defaultProps.onAddLocation).toHaveBeenCalled();
 
     fireEvent.click(addBtn);
-    fireEvent.click(screen.getByText(/انتخاب شخص موجود/i));
+    fireEvent.click(screen.getByText(/شخص \/ مخاطب/i));
     expect(defaultProps.onPickContact).toHaveBeenCalled();
-
-    fireEvent.click(addBtn);
-    fireEvent.click(screen.getByText(/ساخت شخص جدید/i));
-    expect(defaultProps.onNewContact).toHaveBeenCalled();
   });
 });

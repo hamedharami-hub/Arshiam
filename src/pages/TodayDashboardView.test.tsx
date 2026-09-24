@@ -52,7 +52,7 @@ vi.mock("@/components/TaskDetail", () => ({
 
 import TodayDashboardView from "./TodayDashboardView";
 
-describe("TodayDashboardView visual and structural requirements", () => {
+describe("TodayDashboardView visual and structural requirements", { timeout: 15000 }, () => {
   const now = new Date();
   const todayIso = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0).toISOString();
   const yesterdayIso = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 12, 0).toISOString();

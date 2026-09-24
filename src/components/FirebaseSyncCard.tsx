@@ -87,6 +87,8 @@ export default function FirebaseSyncCard() {
     }
   };
 
+  const [liveCount, setLiveCount] = useState<{ tasks: number; notes: number } | null>(null);
+
   const handleRestoreCheck = async () => {
     if (!user) {
       toast.error("ابتدا وارد حساب کاربری شوید.");
@@ -96,16 +98,10 @@ export default function FirebaseSyncCard() {
     try {
       const res = await fetchFromFirestore(user.id);
       if (res.success) {
-        toast.info("بررسی ابر Firestore", {
-          description: `تعداد ${res.tasks.length} تسک و ${res.notes.length} یادداشت در ابر موجود است.`,
+        setLiveCount({ tasks: res.tasks.length, notes: res.notes.length });
+        toast.info("استعلام زنده از ابر Firestore", {
+          description: `تعداد ${res.tasks.length} تسک و ${res.notes.length} یادداشت به صورت زنده در دیتابیس ابر ثبت است.`,
         });
-        setStats((prev) => ({
-          tasksCount: res.tasks.length,
-          notesCount: res.notes.length,
-          habitsCount: prev?.habitsCount || 0,
-          checkinsCount: prev?.checkinsCount || 0,
-          lastSyncedAt: prev?.lastSyncedAt || new Date().toISOString(),
-        }));
       } else {
         toast.error("خطا در خواندن داده‌ها از Firestore", {
           description: res.message,
@@ -235,14 +231,29 @@ export default function FirebaseSyncCard() {
             <div className="flex items-center gap-2">
               <Check className="w-4 h-4 text-primary shrink-0" />
               <span>
-                <strong>وضعیت همگام‌سازی:</strong> {stats.tasksCount} تسک و {stats.notesCount} یادداشت ثبت شده در ابر
+                <strong>گزارش آخرین پشتیبان‌گیری دستی:</strong> {stats.tasksCount} تسک و {stats.notesCount} یادداشت
               </span>
             </div>
             {stats.lastSyncedAt && (
               <div className="text-muted-foreground text-[11px]">
-                آخرین ارسال: {new Date(stats.lastSyncedAt).toLocaleString("fa-IR")}
+                زمان آخرین ارسال: {new Date(stats.lastSyncedAt).toLocaleString("fa-IR")}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Live Cloud Content Banner */}
+        {liveCount && (
+          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>
+                <strong>موجودی استعلام‌شدهٔ زنده از ابر:</strong> {liveCount.tasks} تسک و {liveCount.notes} یادداشت
+              </span>
+            </div>
+            <div className="text-emerald-700 dark:text-emerald-400 text-[11px]">
+              تأییدشده از پایگاه داده
+            </div>
           </div>
         )}
 

@@ -18,6 +18,7 @@ import {
 import { KnowledgeSidebarTree } from "@/components/knowledge/KnowledgeSidebarTree";
 import { KnowledgeDocumentReader } from "@/components/knowledge/KnowledgeDocumentReader";
 import { KnowledgeDocumentEditorModal } from "@/components/knowledge/KnowledgeDocumentEditorModal";
+import { StudyTaskScheduleModal } from "@/components/knowledge/StudyTaskScheduleModal";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -29,6 +30,7 @@ export const KnowledgeBaseView: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const urlDocId = searchParams.get("docId");
+  const urlFolderId = searchParams.get("folderId");
 
   const [folders, setFolders] = useState<KnowledgeFolder[]>([]);
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
@@ -44,6 +46,15 @@ export const KnowledgeBaseView: React.FC = () => {
       return false;
     }
   });
+
+  // Study task scheduling modal state
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [scheduleTarget, setScheduleTarget] = useState<{
+    targetType: "knowledge_folder" | "knowledge_doc";
+    targetId: string;
+    targetTitle: string;
+    folderBreadcrumb?: string;
+  } | null>(null);
 
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed((prev) => {
@@ -83,86 +94,13 @@ export const KnowledgeBaseView: React.FC = () => {
         getKnowledgeDocuments(userId),
       ]);
 
-      // If user has zero documents & zero folders, provide a helpful clinical sample
-      if (fList.length === 0 && dList.length === 0 && user) {
-        const rootMed = await createKnowledgeFolder(userId, {
-          name: isEn ? "Medications" : "دسته‌های دارویی",
-          icon: "Pill",
-          color: "#10b981",
-        });
-        const subAntidepressants = await createKnowledgeFolder(userId, {
-          name: isEn ? "Antidepressants (SSRIs)" : "ضد افسردگی‌ها (SSRIs)",
-          parent_id: rootMed.id,
-          icon: "Smile",
-        });
-        const sampleDoc = await createKnowledgeDocument(userId, {
-          folder_id: subAntidepressants.id,
-          title: isEn ? "Fluoxetine & Sertraline Clinical Guide" : "راهنمای بالینی فلوکستین و سرترالین",
-          tags: ["SSRI", "Depression", "OCD"],
-          source_url: "https://github.com/hamedharami-hub/pharmacy",
-          content_html: `
-            <h1>دسته‌بندی داروهای مهارکننده اختصاصی بازجذب سروتونین (SSRIs)</h1>
-            <p>این دسته از داروها خط اول درمان در <strong>افسردگی اساسی (MDD)</strong>، اختلال اضطراب فراگیر (GAD) و وسواس فکری-عملی (OCD) هستند.</p>
-            
-            <blockquote>
-              <strong>نکته بالینی طلایی (Clinical Pearl):</strong>
-              اثرات ضدافسردگی معمولاً بین ۲ تا ۴ هفته پس از شروع دوز درمانی ظاهر می‌شوند. به بیمار آموزش دهید مصرف دارو را خودسرانه قطع نکند.
-            </blockquote>
-
-            <h2>جدول مقایسه بالینی داروهای شاخص</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>نام ژنریک</th>
-                  <th>دوز شروع (mg/day)</th>
-                  <th>نیمه‌عمر پلاسمایی</th>
-                  <th>ویژگی‌های کلیدی</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><strong>فلوکستین (Fluoxetine)</strong></td>
-                  <td>20</td>
-                  <td>طولانی (۲ تا ۴ روز) + متابولیت فعال (تا ۱۶ روز)</td>
-                  <td>کمترین سندرم قطع مصرف، مناسب برای افراد با فراموشی دوز</td>
-                </tr>
-                <tr>
-                  <td><strong>سرترالین (Sertraline)</strong></td>
-                  <td>50</td>
-                  <td>۲۶ ساعت</td>
-                  <td>ایمن‌ترین انتخاب پس از سکته قلبی و ایمنی بالا در بارداری</td>
-                </tr>
-                <tr>
-                  <td><strong>اس‌سیتالوپرام (Escitalopram)</strong></td>
-                  <td>10</td>
-                  <td>۳۰ ساعت</td>
-                  <td>بالاترین اختصاصیت، کمترین تداخل آنزیمی سیتوکروم P450</td>
-                </tr>
-              </tbody>
-            </table>
-
-            <h3>عوارض جانبی و نکات مدیریت</h3>
-            <ul>
-              <li><strong>دستگاه گوارش:</strong> تهوع و ناراحتی معده (توصیه به مصرف همراه غذا).</li>
-              <li><strong>بی‌خوابی یا خواب‌آلودگی:</strong> فلوکستین صبح‌ها و داروهای سداتیو شب‌ها مصرف شوند.</li>
-              <li><strong>سندرم سروتونین:</strong> در مصرف همزمان با MAOIs یا ترامادول احتیاط شود.</li>
-            </ul>
-          `,
-        });
-
-        setFolders([rootMed, subAntidepressants]);
-        setDocuments([sampleDoc]);
-        setSelectedDocId(sampleDoc.id);
-        return;
-      }
-
       setFolders(fList);
       setDocuments(dList);
       setSelectedDocId((prev) => prev || (dList.length > 0 ? dList[0].id : null));
     } catch (e) {
       console.error("Error loading knowledge base data", e);
     }
-  }, [userId, isEn, user]);
+  }, [userId]);
 
   useEffect(() => {
     loadData();
@@ -174,6 +112,38 @@ export const KnowledgeBaseView: React.FC = () => {
       setSelectedDocId(urlDocId);
     }
   }, [urlDocId, documents]);
+
+  // Sync folder selection from URL search params (?folderId=...)
+  useEffect(() => {
+    if (urlFolderId && folders.some((f) => f.id === urlFolderId)) {
+      setSelectedFolderId(urlFolderId);
+      const docsInFolder = documents.filter((d) => d.folder_id === urlFolderId);
+      if (docsInFolder.length > 0 && !urlDocId) {
+        setSelectedDocId(docsInFolder[0].id);
+      }
+    }
+  }, [urlFolderId, folders, documents, urlDocId]);
+
+  // Study task scheduling handlers
+  const handleScheduleFolderStudy = useCallback((folder: KnowledgeFolder) => {
+    setScheduleTarget({
+      targetType: "knowledge_folder",
+      targetId: folder.id,
+      targetTitle: folder.name,
+    });
+    setScheduleModalOpen(true);
+  }, []);
+
+  const handleScheduleDocStudy = useCallback((doc: KnowledgeDocument) => {
+    const parent = folders.find((f) => f.id === doc.folder_id);
+    setScheduleTarget({
+      targetType: "knowledge_doc",
+      targetId: doc.id,
+      targetTitle: doc.title,
+      folderBreadcrumb: parent?.name,
+    });
+    setScheduleModalOpen(true);
+  }, [folders]);
 
   // Debounce search query for high-performance typing
   useEffect(() => {
@@ -329,6 +299,8 @@ export const KnowledgeBaseView: React.FC = () => {
             onDeleteFolder={handleDeleteFolder}
             onCreateDocument={handleOpenCreateDoc}
             onDeleteDocument={handleDeleteDoc}
+            onScheduleFolderStudy={handleScheduleFolderStudy}
+            onScheduleDocStudy={handleScheduleDocStudy}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
             onToggleCollapse={toggleSidebar}
@@ -359,6 +331,14 @@ export const KnowledgeBaseView: React.FC = () => {
                 setMobileTreeOpen(false);
               }}
               onDeleteDocument={handleDeleteDoc}
+              onScheduleFolderStudy={(f) => {
+                handleScheduleFolderStudy(f);
+                setMobileTreeOpen(false);
+              }}
+              onScheduleDocStudy={(d) => {
+                handleScheduleDocStudy(d);
+                setMobileTreeOpen(false);
+              }}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
             />
@@ -379,6 +359,7 @@ export const KnowledgeBaseView: React.FC = () => {
             onDocumentUpdated={(updated) => {
               setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
             }}
+            onScheduleStudy={handleScheduleDocStudy}
           />
         </div>
       </div>
@@ -392,6 +373,18 @@ export const KnowledgeBaseView: React.FC = () => {
         folders={folders}
         onSave={handleSaveDoc}
       />
+
+      {/* Study Task Schedule Modal */}
+      {scheduleTarget && (
+        <StudyTaskScheduleModal
+          open={scheduleModalOpen}
+          onOpenChange={setScheduleModalOpen}
+          targetType={scheduleTarget.targetType}
+          targetId={scheduleTarget.targetId}
+          targetTitle={scheduleTarget.targetTitle}
+          folderBreadcrumb={scheduleTarget.folderBreadcrumb}
+        />
+      )}
     </div>
   );
 };

@@ -8,10 +8,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { Search, UserPlus, Users, Check, X, Loader2 } from "lucide-react";
+import { Search, UserPlus, Users, Check, X, Loader2, Smartphone } from "lucide-react";
 import type { Contact } from "@/lib/contactTypes";
 import { getContacts, linkTaskContact, getTaskContacts } from "@/lib/contactService";
+import { isDeviceContactImportSupported } from "@/lib/deviceContacts";
 import { ContactEditorDialog } from "./ContactEditorDialog";
+import { DeviceContactImportModal } from "./DeviceContactImportModal";
 
 interface Props {
   open: boolean;
@@ -41,6 +43,7 @@ export function ContactPickerModal({
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [deviceImportOpen, setDeviceImportOpen] = useState(false);
 
   const loadData = async () => {
     if (!open || !userId || !taskId) return;
@@ -127,9 +130,22 @@ export function ContactPickerModal({
           className="h-8 text-xs px-2.5 gap-1 shrink-0"
           onClick={() => setCreateOpen(true)}
         >
-          <UserPlus className="w-3.5 h-3.5" />
+          <UserPlus className="w-3.5 h-3.5 text-amber-500" />
           <span>{T("شخص جدید", "New")}</span>
         </Button>
+        {isDeviceContactImportSupported() && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs px-2.5 gap-1 shrink-0 text-purple-600 dark:text-purple-400 hover:text-purple-700"
+            onClick={() => setDeviceImportOpen(true)}
+            title={T("ورود از مخاطبین گوشی", "Import from Phone")}
+          >
+            <Smartphone className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{T("از گوشی", "From Phone")}</span>
+          </Button>
+        )}
       </div>
 
       {/* Role / Context input */}
@@ -155,14 +171,29 @@ export function ContactPickerModal({
           <div className="flex flex-col items-center justify-center h-32 text-center p-3 text-muted-foreground">
             <Users className="w-8 h-8 opacity-30 mb-2" />
             <p className="text-xs">{T("مخاطبی یافت نشد", "No contacts found")}</p>
-            <Button
-              size="sm"
-              variant="link"
-              className="text-xs mt-1"
-              onClick={() => setCreateOpen(true)}
-            >
-              {T("افزودن شخص جدید", "Create new contact")}
-            </Button>
+            <div className="flex items-center justify-center gap-2 mt-1">
+              <Button
+                size="sm"
+                variant="link"
+                className="text-xs"
+                onClick={() => setCreateOpen(true)}
+              >
+                {T("افزودن شخص جدید", "Create new contact")}
+              </Button>
+              {isDeviceContactImportSupported() && (
+                <>
+                  <span className="text-muted-foreground/40">•</span>
+                  <Button
+                    size="sm"
+                    variant="link"
+                    className="text-xs text-purple-600 dark:text-purple-400"
+                    onClick={() => setDeviceImportOpen(true)}
+                  >
+                    {T("ورود از مخاطبین گوشی", "Import from phone")}
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         ) : (
           filteredContacts.map((c) => {
@@ -296,6 +327,18 @@ export function ContactPickerModal({
           } catch {
             await loadData();
           }
+        }}
+      />
+
+      {/* Nested Device Contact Import Modal (Android) */}
+      <DeviceContactImportModal
+        open={deviceImportOpen}
+        onOpenChange={setDeviceImportOpen}
+        userId={userId}
+        taskId={taskId}
+        onImported={async () => {
+          onLinked?.();
+          await loadData();
         }}
       />
     </>

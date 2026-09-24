@@ -100,13 +100,19 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
     };
   }, [checkSelection]);
 
-  const handleCopy = (e: React.MouseEvent) => {
+  const handleCopy = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!selectedText) return;
-    navigator.clipboard.writeText(selectedText);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(selectedText);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+      }
+    } catch (err) {
+      console.warn("Failed to copy selected text:", err);
+    }
   };
 
   const handleDismiss = (e: React.MouseEvent) => {

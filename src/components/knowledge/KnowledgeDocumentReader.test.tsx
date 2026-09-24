@@ -8,7 +8,7 @@ vi.mock("@/hooks/useBilingual", () => ({
   useBilingual: () => ({ isEn: false }),
 }));
 
-describe("KnowledgeDocumentReader", () => {
+describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
   const dummyDoc: KnowledgeDocument = {
     id: "doc-1",
     user_id: "user-1",

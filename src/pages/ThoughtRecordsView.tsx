@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -65,8 +66,7 @@ export default function ThoughtRecordsView() {
   const navigate = useNavigate();
 
   const [records, setRecords] = useState<ThoughtRecordItem[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const editing = editingId !== null;
+  const [editing, setEditing] = useState(false);
   const [activeStep, setActiveStep] = useState<number>(1);
   const [form, setForm] = useState(emptyForm());
   const [aiBusy, setAiBusy] = useState(false);
@@ -211,7 +211,7 @@ export default function ThoughtRecordsView() {
 
       toast.success(T("ثبت شد ✨", "Saved ✨"));
       setEditing(false);
-      setForm(initial());
+      setForm(emptyForm());
       setAiAlternative("");
       setAiExplanations({});
     } else {
@@ -540,7 +540,7 @@ export default function ThoughtRecordsView() {
                 size="lg"
                 onClick={() => {
                   setEditing(false);
-                  setForm(initial());
+                  setForm(emptyForm());
                   setAiAlternative("");
                 }}
               >

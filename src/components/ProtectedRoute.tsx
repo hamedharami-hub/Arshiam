@@ -1,8 +1,10 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -10,6 +12,10 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
       </div>
     );
   }
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) {
+    const nextPath = location.pathname + location.search + location.hash;
+    const search = nextPath && nextPath !== "/" && nextPath !== "/app" ? `?next=${encodeURIComponent(nextPath)}` : "";
+    return <Navigate to={`/auth${search}`} replace />;
+  }
   return <>{children}</>;
 }

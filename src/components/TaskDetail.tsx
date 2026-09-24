@@ -22,8 +22,9 @@ import {
   CheckSquare, ListChecks, CalendarDays, Mic, MicOff, Pin, PinOff, Maximize2, Minimize2,
   GitBranch, Zap, Brain,
   Save, ExternalLink, Loader2, Circle, CheckCircle2, MoreHorizontal,
-  Copy, Share2, FolderInput, Timer, Network, Edit,
+  Copy, Share2, FolderInput, Timer, Network, Edit, BookOpen, FolderTree, Layers,
 } from "lucide-react";
+import { getStudyTaskNavigation } from "@/lib/taskStudyService";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -61,7 +62,7 @@ import { TaskKnowledgeLinkModal } from "@/components/task-detail/TaskKnowledgeLi
 import { getTaskKnowledgeDocs, linkTaskKnowledge, unlinkTaskKnowledge } from "@/lib/taskKnowledgeService";
 import type { KnowledgeDocument } from "@/lib/knowledgeTypes";
 import { logTaskActivity } from "@/lib/taskActivity";
-import { bucketLabel, kindLabel } from "@/lib/timeBuckets";
+import { bucketLabel, kindLabel, isSubDayBucket } from "@/lib/timeBuckets";
 import { describeRule } from "@/lib/recurrence";
 import { addDays, endOfDay } from "date-fns";
 import { addTaskToAndroidCalendar } from "@/lib/androidNative";
@@ -854,27 +855,36 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   // ── Quick-info chips row (only what's set) ──────────────────────────
   const quickChips = (
     <div className="flex flex-wrap gap-1 px-1 pb-2">
-      {t.bucket_kind && t.bucket_anchor && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span>
-                <Chip
-                  icon={CalendarDays}
-                  onClear={() => save({ bucket_kind: null, bucket_calendar: null, bucket_anchor: null } as any)}
-                  disabled={!canEdit}
-                  color="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                >
-                  {kindLabel(t.bucket_kind, isEn ? "en" : "fa")} · {bucketLabel(t.bucket_kind, (t.bucket_calendar as any) || "gregorian", t.bucket_anchor, isEn ? "en" : "fa")}
-                </Chip>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              {T("این تسک در بازهٔ زمانی قرار دارد", "This task is in a time bucket")}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
+      {t.bucket_kind && t.bucket_anchor && (() => {
+        const isSub = isSubDayBucket(t.bucket_kind);
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Chip
+                    icon={isSub ? Clock : CalendarDays}
+                    onClear={() => save({ bucket_kind: null, bucket_calendar: null, bucket_anchor: null } as any)}
+                    disabled={!canEdit}
+                    color={
+                      isSub
+                        ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30"
+                        : "bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/30"
+                    }
+                  >
+                    {kindLabel(t.bucket_kind, isEn ? "en" : "fa")} · {bucketLabel(t.bucket_kind, (t.bucket_calendar as any) || "gregorian", t.bucket_anchor, isEn ? "en" : "fa")}
+                  </Chip>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                {isSub
+                  ? T("این تسک در بازهٔ درون‌روزی (زیر یک روز) قرار دارد", "This task is in a sub-day time bucket")
+                  : T("این تسک در بازهٔ زمانی بالای یک روز قرار دارد", "This task is in a multi-day time bucket")}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
+      })()}
       {t.parent_id && (
         <Chip
           icon={ListTree}
@@ -910,26 +920,49 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           {T("اجتنابی", "Avoidance")}
         </Chip>
       )}
-      {t.source_type && (
-        <Chip
-          icon={Brain}
-          color="bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30"
-          onClick={() => {
-            if (t.source_type === "cbt_thought") navigate("/app/thoughts");
-            else if (t.source_type === "abc_model") navigate("/app/abc");
-            else if (t.source_type === "worry_tree") navigate("/app/worry");
-            else if (t.source_type === "values_goal") navigate("/app/values");
-            else navigate("/app/mind");
-          }}
-          title={T("مشاهده مبدا در ذهن", "View origin in Mind")}
-        >
-          {t.source_type === "cbt_thought" ? T("ثبت فکر (CBT)", "CBT Thought")
-            : t.source_type === "abc_model" ? T("مدل رفتار (ABC)", "ABC Model")
-            : t.source_type === "worry_tree" ? T("درخت نگرانی", "Worry Tree")
-            : t.source_type === "values_goal" ? T("ارزش‌ها (ACT)", "Values (ACT)")
-            : T("ذهن", "Mind")}
-        </Chip>
-      )}
+      {t.source_type && (() => {
+        const studyInfo = getStudyTaskNavigation(t);
+        if (studyInfo.isStudyTask) {
+          const isLeitner = t.source_type === "leitner";
+          return (
+            <Chip
+              icon={isLeitner ? Layers : studyInfo.isMindMap ? Network : t.source_type === "knowledge_folder" ? FolderTree : BookOpen}
+              color={
+                isLeitner
+                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/25"
+                  : studyInfo.isMindMap
+                  ? "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/25"
+                  : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25"
+              }
+              onClick={() => navigate(studyInfo.navUrl)}
+              title={T(studyInfo.actionTextFa, studyInfo.actionTextEn)}
+            >
+              {T(studyInfo.badgeLabelFa, studyInfo.badgeLabelEn)}
+            </Chip>
+          );
+        }
+
+        return (
+          <Chip
+            icon={Brain}
+            color="bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30"
+            onClick={() => {
+              if (t.source_type === "cbt_thought") navigate("/app/thoughts");
+              else if (t.source_type === "abc_model") navigate("/app/abc");
+              else if (t.source_type === "worry_tree") navigate("/app/worry");
+              else if (t.source_type === "values_goal") navigate("/app/values");
+              else navigate("/app/mind");
+            }}
+            title={T("مشاهده مبدا در ذهن", "View origin in Mind")}
+          >
+            {t.source_type === "cbt_thought" ? T("ثبت فکر (CBT)", "CBT Thought")
+              : t.source_type === "abc_model" ? T("مدل رفتار (ABC)", "ABC Model")
+              : t.source_type === "worry_tree" ? T("درخت نگرانی", "Worry Tree")
+              : t.source_type === "values_goal" ? T("ارزش‌ها (ACT)", "Values (ACT)")
+              : T("ذهن", "Mind")}
+          </Chip>
+        );
+      })()}
     </div>
   );
 
@@ -1413,6 +1446,81 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     />
   );
 
+  const studyInfo = getStudyTaskNavigation(t);
+  const isLeitnerTask = t.source_type === "leitner";
+  const studyTaskActionSection = studyInfo.isStudyTask && (
+    <Card
+      className={`p-3.5 mx-1 rounded-2xl space-y-2.5 ${
+        isLeitnerTask
+          ? "border-amber-500/30 bg-amber-500/5"
+          : studyInfo.isMindMap
+          ? "border-indigo-500/30 bg-indigo-500/5"
+          : "border-emerald-500/30 bg-emerald-500/5"
+      }`}
+    >
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div
+          className={`flex items-center gap-2 text-xs font-semibold ${
+            isLeitnerTask
+              ? "text-amber-600 dark:text-amber-400"
+              : studyInfo.isMindMap
+              ? "text-indigo-600 dark:text-indigo-400"
+              : "text-emerald-600 dark:text-emerald-400"
+          }`}
+        >
+          {isLeitnerTask ? (
+            <Layers className="w-4 h-4 shrink-0" />
+          ) : studyInfo.isMindMap ? (
+            <Network className="w-4 h-4 shrink-0" />
+          ) : t.source_type === "knowledge_folder" ? (
+            <FolderTree className="w-4 h-4 shrink-0" />
+          ) : (
+            <BookOpen className="w-4 h-4 shrink-0" />
+          )}
+          <span>
+            {isLeitnerTask
+              ? T("تسک مرور کارت‌های لایتنر", "Leitner Flashcard Review Task")
+              : studyInfo.isMindMap
+              ? T(
+                  "تسک مرور نقشه ذهنی (مرکزیت این شاخه)",
+                  "Mind Map Review Task (Centered on this Branch)"
+                )
+              : t.source_type === "knowledge_folder"
+              ? T("تسک مطالعه شاخه در پایگاه دانش", "Knowledge Branch Study Task")
+              : T("تسک مطالعه درس در پایگاه دانش", "Knowledge Lesson Study Task")}
+          </span>
+        </div>
+
+        <Button
+          size="sm"
+          className={`h-7 px-3 text-xs rounded-xl font-semibold gap-1.5 shadow-xs cursor-pointer ${
+            isLeitnerTask
+              ? "bg-amber-600 hover:bg-amber-700 text-white"
+              : studyInfo.isMindMap
+              ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+              : "bg-emerald-600 hover:bg-emerald-700 text-white"
+          }`}
+          onClick={() => navigate(studyInfo.navUrl)}
+        >
+          <span>{T(studyInfo.actionTextFa, studyInfo.actionTextEn)}</span>
+          <ExternalLink className="w-3.5 h-3.5 rtl:rotate-180" />
+        </Button>
+      </div>
+
+      <p className="text-[11px] text-muted-foreground leading-relaxed">
+        {studyInfo.isMindMap
+          ? T(
+              "با کلیک روی این دکمه، نقشه مفهومی با مرکزیت دقیق این شاخه به عنوان ریشه باز می‌شود.",
+              "Clicking this button opens the visual mind map centered directly on this branch as the root."
+            )
+          : T(
+              "با کلیک روی این دکمه، مستقیماً وارد پایگاه دانش شده و این شاخه یا درس برای شما باز می‌شود.",
+              "Clicking this button opens the knowledge base directly to this branch or lesson."
+            )}
+      </p>
+    </Card>
+  );
+
   const mindOutcomeReviewSection = t.source_type && (
     <Card className="p-3.5 mx-1 rounded-2xl border-purple-500/30 bg-purple-500/5 space-y-2.5">
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -1486,6 +1594,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       {hero}
       {topControls}
       {quickChips}
+      {studyTaskActionSection}
       {mindOutcomeReviewSection}
       {/* Unified vertical document flow: note description followed directly by subtasks & checklists */}
       <div className="flex-1 min-w-0 flex flex-col space-y-4">

@@ -100,8 +100,8 @@ describe("contactService & task_contacts relations", () => {
 
     // Mock tasks in cache
     const mockTasks: Task[] = [
-      { id: "task-A", title: "Task A", user_id: userId, created_at: "", completed: false, priority: "p2", status: "todo", updated_at: "" },
-      { id: "task-B", title: "Task B", user_id: userId, created_at: "", completed: false, priority: "p1", status: "todo", updated_at: "" },
+      { id: "task-A", title: "Task A", user_id: userId, created_at: "", completed: false, priority: "high", status: "todo", updated_at: "" },
+      { id: "task-B", title: "Task B", user_id: userId, created_at: "", completed: false, priority: "urgent", status: "todo", updated_at: "" },
     ];
     await cacheSet(`tasks_${userId}`, mockTasks);
 

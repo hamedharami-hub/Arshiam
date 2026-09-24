@@ -208,8 +208,16 @@ export function setTimeOfDayMode(mode: "auto" | TimeOfDay) {
   saveGardenState(next);
 }
 
-export function recordPomodoroFocusSession(minutes: number): { dropsAwarded: number; newBlossoms: number } {
+const processedFocusEvents = new Set<string>();
+
+export function recordPomodoroFocusSession(minutes: number, eventId?: string): { dropsAwarded: number; newBlossoms: number } {
   const current = getGardenState();
+  if (eventId) {
+    if (processedFocusEvents.has(eventId)) {
+      return { dropsAwarded: 0, newBlossoms: current.focusBlossoms || 0 };
+    }
+    processedFocusEvents.add(eventId);
+  }
   const dropsAwarded = Math.max(10, Math.floor(minutes * 0.8));
   const newBlossoms = (current.focusBlossoms || 0) + 1;
   const newSun = current.sunEnergy + Math.ceil(minutes / 2);

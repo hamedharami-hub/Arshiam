@@ -112,7 +112,6 @@ export default function PomodoroView() {
         <PomodoroTimer
           taskId={selectedTaskId}
           onSessionComplete={() => {
-            awardWaterDrops(25, T("تکمیل جلسه پومودورو", "Pomodoro session complete"));
             setRefreshTick((t) => t + 1);
           }}
         />

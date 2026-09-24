@@ -32,6 +32,7 @@ import {
   attachInteractiveListeners,
 } from "@/lib/interactiveLearningHelper";
 import { toast } from "sonner";
+import { sanitizeKnowledgeHtml } from "@/lib/knowledgeBeautifier";
 
 interface InteractiveLearningModalProps {
   open: boolean;
@@ -133,12 +134,20 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
   }, [activeTab, generatedHtml]);
 
   // Copy HTML
-  const handleCopyHtml = () => {
+  const handleCopyHtml = async () => {
     if (!generatedHtml) return;
-    navigator.clipboard.writeText(generatedHtml);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
-    toast.success(isEn ? "HTML copied to clipboard" : "کد HTML کپی شد");
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(generatedHtml);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+        toast.success(isEn ? "HTML copied to clipboard" : "کد HTML کپی شد");
+      } else {
+        toast.error(isEn ? "Clipboard not available" : "دسترسی به کلیپ‌بورد مقدور نیست");
+      }
+    } catch {
+      toast.error(isEn ? "Failed to copy HTML" : "خطا در کپی HTML");
+    }
   };
 
   const handleApply = (mode: "append" | "replace") => {
@@ -343,7 +352,7 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
               <div
                 ref={previewContainerRef}
                 className="knowledge-html-content p-4 rounded-2xl bg-background border border-border shadow-xs"
-                dangerouslySetInnerHTML={{ __html: generatedHtml }}
+                dangerouslySetInnerHTML={{ __html: sanitizeKnowledgeHtml(generatedHtml) }}
               />
             </div>
           )}

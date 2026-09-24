@@ -232,6 +232,7 @@ export type UserSettings = {
   task_card_layout: "compact" | "comfortable";
   default_landing: "today" | "home" | "last";
   sidebar_position?: "right" | "left";
+  streak_enabled?: boolean;
   task_defaults: TaskDefaults;
 };
 

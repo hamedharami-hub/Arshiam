@@ -15,7 +15,7 @@ import {
 import { useBilingual } from "@/hooks/useBilingual";
 import type { KnowledgeDocument, KnowledgeFolder } from "@/lib/knowledgeTypes";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { smartAiBeautifyDocument } from "@/lib/knowledgeBeautifier";
+import { smartAiBeautifyDocument, sanitizeKnowledgeHtml } from "@/lib/knowledgeBeautifier";
 import { generateBilingualLesson } from "@/lib/bilingualHelper";
 import { InteractiveLearningModal } from "./InteractiveLearningModal";
 import { toast } from "sonner";
@@ -54,6 +54,7 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
   const [tagsInput, setTagsInput] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [langTab, setLangTab] = useState<"fa" | "en">("fa");
+  const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
   const [isSaving, setIsSaving] = useState(false);
   const [isBeautifying, setIsBeautifying] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
@@ -462,11 +463,12 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
                   dir={langTab === "fa" ? "rtl" : "ltr"}
                   className={`knowledge-html-content ${langTab === "fa" ? "dir-rtl text-right" : "dir-ltr text-left"}`}
                   dangerouslySetInnerHTML={{
-                    __html:
+                    __html: sanitizeKnowledgeHtml(
                       (langTab === "fa" ? contentHtml : contentEn) ||
                       `<p class="text-muted-foreground italic text-center py-8">${
                         isEn ? "No content to preview" : "محتوایی در این بخش برای پیش‌نمایش وجود ندارد"
-                      }</p>`,
+                      }</p>`
+                    ),
                   }}
                 />
               </div>

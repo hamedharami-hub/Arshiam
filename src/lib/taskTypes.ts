@@ -27,30 +27,44 @@ export type Task = {
   id: string;
   user_id?: string;
   title: string;
-  description: string | null;
+  description?: string | null;
   priority: Priority;
-  due_date: string | null;
+  due_date?: string | null;
   completed: boolean;
   status: TaskStatus;
-  folder_id: string | null;
-  reminder_at: string | null;
+  folder_id?: string | null;
+  reminder_at?: string | null;
   reminder_plan?: ReminderPlan | null;
-  recurrence: "none" | "daily" | "weekly" | "monthly";
-  recurrence_rule: RecurrenceRule | null;
-  parent_id: string | null;
+  recurrence?: "none" | "daily" | "weekly" | "monthly";
+  recurrence_rule?: RecurrenceRule | null;
+  parent_id?: string | null;
   outcome_id?: string | null;
   source_type?: "cbt_thought" | "abc_model" | "worry_tree" | "values_goal" | string | null;
   source_id?: string | null;
   outcome_review?: { helpful: "helpful" | "somewhat" | "not_helpful"; note?: string; created_at: string } | null;
-  pinned: boolean;
-  start_at: string | null;
-  end_at: string | null;
-  estimated_minutes: number | null;
+  pinned?: boolean;
+  start_at?: string | null;
+  end_at?: string | null;
+  estimated_minutes?: number | null;
   is_avoidance?: boolean;
   location?: string | null;
-  bucket_kind?: "day" | "week" | "month" | "quarter" | "year" | null;
+  bucket_kind?:
+    | "morning"
+    | "noon"
+    | "afternoon"
+    | "night"
+    | "day"
+    | "week"
+    | "month"
+    | "quarter"
+    | "year"
+    | null;
   bucket_calendar?: "jalali" | "gregorian" | null;
   bucket_anchor?: string | null;
+  completed_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  position?: number | null;
   // transient UI state for deleted-task grace period
   _graceUntil?: number;
 };

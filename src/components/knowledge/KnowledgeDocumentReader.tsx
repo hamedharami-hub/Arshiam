@@ -18,6 +18,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Gamepad2,
+  CalendarPlus,
 } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
 import type {
@@ -45,6 +46,7 @@ interface KnowledgeDocumentReaderProps {
   onToggleSidebar?: () => void;
   onOpenReview?: () => void;
   onDocumentUpdated?: (doc: KnowledgeDocument) => void;
+  onScheduleStudy?: (doc: KnowledgeDocument) => void;
   /** @deprecated */
   onAddToNote?: (text: string) => void;
   /** @deprecated */
@@ -62,6 +64,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   onToggleSidebar,
   onOpenReview,
   onDocumentUpdated,
+  onScheduleStudy,
   onAddToNote,
   onAddToTask,
   onAiAction,
@@ -131,15 +134,21 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
     return sanitizeKnowledgeHtml(document.content_en);
   }, [document?.content_en]);
 
-  const handleCopyAll = () => {
+  const handleCopyAll = async () => {
     if (!document) return;
     const textToCopy =
       docLangMode === "en" && document.content_en
         ? document.content_en.replace(/<[^>]+>/g, " ").trim()
         : document.plain_text || document.title;
-    navigator.clipboard.writeText(textToCopy);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(textToCopy);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+      }
+    } catch (e) {
+      console.warn("Clipboard copy failed:", e);
+    }
   };
 
   const handleOpenExternal = () => {
@@ -370,6 +379,25 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
               {isEn ? "Interactive Studio" : "آموزش تعاملی"}
             </span>
           </button>
+
+          {/* Schedule Study Task Button */}
+          {onScheduleStudy && (
+            <button
+              type="button"
+              onClick={() => onScheduleStudy(document)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 text-xs font-semibold transition cursor-pointer shadow-2xs"
+              title={
+                isEn
+                  ? "Schedule a study/review task for this lesson"
+                  : "برنامه‌ریزی مطالعه و ایجاد تسک برای این درس"
+              }
+            >
+              <CalendarPlus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">
+                {isEn ? "Study Task" : "برنامه‌ریزی مطالعه"}
+              </span>
+            </button>
+          )}
 
           {/* Mode Switcher */}
           <div className="flex items-center p-0.5 rounded-xl bg-muted/60 border border-border text-xs">

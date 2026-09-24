@@ -328,7 +328,7 @@ export default function WidgetsView() {
             <span>{T("آخرین همگام‌سازی", "Last Sync")}</span>
           </div>
           <div className="mt-2 text-xs font-semibold">
-            {diagnostics.lastSyncTimestamp ? formatDate(new Date(diagnostics.lastSyncTimestamp)) : T("همین حالا", "Just now")}
+            {diagnostics.lastSyncTimestamp ? formatDate(new Date(diagnostics.lastSyncTimestamp), "yyyy/MM/dd HH:mm") : T("همین حالا", "Just now")}
           </div>
         </div>
 

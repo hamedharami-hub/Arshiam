@@ -25,6 +25,27 @@ export { cacheGet, cacheSet };
 const MAX_RETRY_DELAY_MS = 300_000;
 const MAX_ATTEMPTS_BEFORE_ALERT = 10;
 
+const LS_OUTBOX_KEY = "arshnaz_offline_outbox_fallback";
+
+function loadLocalStorageOutbox(): QueuedOp[] {
+  try {
+    const raw = localStorage.getItem(LS_OUTBOX_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+  return [];
+}
+
+function saveLocalStorageOutbox(items: QueuedOp[]) {
+  try {
+    localStorage.setItem(LS_OUTBOX_KEY, JSON.stringify(items));
+  } catch (e) {
+    console.warn("[offlineQueue] Failed to save outbox to localStorage:", e);
+  }
+}
+
 const memoryOutbox = new Map<number, QueuedOp>();
 let memoryOutboxAutoInc = 1;
 
@@ -41,7 +62,11 @@ export async function enqueueOp(
       queued = true;
     } else {
       const id = memoryOutboxAutoInc++;
-      memoryOutbox.set(id, { ...item, id });
+      const fullItem = { ...item, id };
+      memoryOutbox.set(id, fullItem);
+      const list = loadLocalStorageOutbox();
+      list.push(fullItem);
+      saveLocalStorageOutbox(list);
       queued = true;
     }
   } catch (err) {
@@ -73,6 +98,8 @@ export async function getQueue(): Promise<QueuedOp[]> {
     const db = await getDB();
     if (db) return await db.getAll(STORE);
   } catch {}
+  const lsItems = loadLocalStorageOutbox();
+  if (lsItems.length) return lsItems;
   return Array.from(memoryOutbox.values());
 }
 
@@ -87,6 +114,9 @@ export async function clearQueue() {
     if (db) await db.clear(STORE);
   } catch {}
   memoryOutbox.clear();
+  try {
+    localStorage.removeItem(LS_OUTBOX_KEY);
+  } catch {}
   try {
     const { memoryCache } = await import("./offlineDb");
     memoryCache.clear();
@@ -179,10 +209,17 @@ export async function flushQueue(): Promise<{ ok: number; failed: number }> {
   let notifiedFailure = false;
   try {
     const db = await getDB();
-    if (!db) return { ok: 0, failed: 0 };
     const activeOwnerId = await getAuthenticatedUserId();
     if (!activeOwnerId) return { ok: 0, failed: 0 };
-    const items = await db.getAll(STORE);
+    let items: QueuedOp[] = [];
+    if (db) {
+      items = await db.getAll(STORE);
+    } else {
+      items = loadLocalStorageOutbox();
+      if (!items.length) {
+        items = Array.from(memoryOutbox.values());
+      }
+    }
     const now = Date.now();
 
     for (const item of items) {
@@ -193,7 +230,13 @@ export async function flushQueue(): Promise<{ ok: number; failed: number }> {
       try {
         const succeeded = await replayItem(item, activeOwnerId);
         if (!succeeded) throw new Error("Cloud write was not confirmed");
-        await db.delete(STORE, item.id!);
+        if (db) {
+          await db.delete(STORE, item.id!);
+        } else {
+          items = items.filter((x) => x.id !== item.id);
+          saveLocalStorageOutbox(items);
+          if (item.id) memoryOutbox.delete(item.id);
+        }
         ok++;
       } catch (error) {
         failed++;
@@ -207,7 +250,14 @@ export async function flushQueue(): Promise<{ ok: number; failed: number }> {
         };
         // Never discard user data automatically. After repeated failures, keep the
         // operation in the outbox and alert the user so it can be diagnosed/retried.
-        await db.put(STORE, updated);
+        if (db) {
+          await db.put(STORE, updated);
+        } else {
+          const idx = items.findIndex((x) => x.id === item.id);
+          if (idx >= 0) items[idx] = updated;
+          saveLocalStorageOutbox(items);
+          if (item.id) memoryOutbox.set(item.id, updated);
+        }
         if (attempts >= MAX_ATTEMPTS_BEFORE_ALERT && !notifiedFailure) {
           toast.error("برخی تغییرات هنوز همگام نشده‌اند", {
             description: "تغییرات شما حفظ شده‌اند و بعداً دوباره تلاش می‌شود.",

@@ -44,7 +44,7 @@ describe("TaskActionSheet Responsive Behavior", () => {
     title: "Responsive Task Test",
     user_id: "user-123",
     created_at: new Date().toISOString(),
-    priority: "p1",
+    priority: "urgent",
     completed: false,
     status: "todo",
     updated_at: new Date().toISOString(),

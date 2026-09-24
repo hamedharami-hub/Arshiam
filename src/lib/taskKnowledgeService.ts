@@ -107,7 +107,10 @@ export async function linkTaskKnowledge(
 
   if (isOnline()) {
     try {
-      await saveEntityToFirestore("task_knowledge_links", link);
+      const ok = await saveEntityToFirestore(userId, "task_knowledge_links", link.id, link);
+      if (!ok) {
+        await enqueueOp({ table: "task_knowledge_links", op: "insert", payload: link });
+      }
     } catch (e) {
       await enqueueOp({ table: "task_knowledge_links", op: "insert", payload: link });
     }
@@ -117,6 +120,8 @@ export async function linkTaskKnowledge(
 
   return link;
 }
+
+export const linkTaskToDocument = linkTaskKnowledge;
 
 export async function unlinkTaskKnowledge(
   userId: string,
@@ -134,7 +139,10 @@ export async function unlinkTaskKnowledge(
   if (target) {
     if (isOnline()) {
       try {
-        await deleteEntityFromFirestore("task_knowledge_links", target.id);
+        const ok = await deleteEntityFromFirestore(userId, "task_knowledge_links", target.id);
+        if (!ok) {
+          await enqueueOp({ table: "task_knowledge_links", op: "delete", match: { id: target.id } });
+        }
       } catch (e) {
         await enqueueOp({ table: "task_knowledge_links", op: "delete", match: { id: target.id } });
       }

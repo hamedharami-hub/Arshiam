@@ -19,6 +19,7 @@ import {
   GitBranch,
   X,
   Check,
+  CalendarPlus,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -29,12 +30,14 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { useBilingual } from "@/hooks/useBilingual";
+import { useLongPress } from "@/lib/useLongPress";
 import { isPersianText } from "@/lib/bilingualHelper";
 import type { KnowledgeFolder, KnowledgeDocument } from "@/lib/knowledgeTypes";
 import type { LeitnerCard } from "@/lib/leitnerTypes";
 import { getKnowledgeFolders, getKnowledgeDocuments } from "@/lib/knowledgeService";
 import { getLeitnerCards } from "@/lib/leitnerService";
 import { TaskKnowledgeReaderDialog } from "@/components/task-detail/TaskKnowledgeReaderDialog";
+import { StudyTaskScheduleModal } from "@/components/knowledge/StudyTaskScheduleModal";
 
 interface KnowledgeMindMapViewProps {
   userId: string;
@@ -84,6 +87,7 @@ interface MindMapNodeItemProps {
   onOpenPreview: (doc: KnowledgeDocument) => void;
   onToggleExpand: (nodeId: string) => void;
   onFocusScope?: (scopeId: string) => void;
+  onScheduleTask?: (node: MindMapNode) => void;
 }
 
 const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
@@ -96,6 +100,7 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
     onOpenPreview,
     onToggleExpand,
     onFocusScope,
+    onScheduleTask,
   }) => {
     const isDoc = node.type === "doc";
     const isFolder = node.type === "folder" || node.type === "subfolder";
@@ -106,8 +111,16 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
     const isSubtitlePersian = node.subtitle ? isPersianText(node.subtitle) : isTitlePersian;
     const isTreeRtl = treeDirection === "rtl";
 
+    const longPress = useLongPress({
+      onLongPress: () => {
+        onScheduleTask?.(node);
+      },
+      delay: 500,
+    });
+
     return (
       <div
+        {...longPress.handlers}
         style={{
           position: "absolute",
           left: `${node.x}px`,
@@ -128,6 +141,7 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
             : "bg-card text-card-foreground border-pink-500/30 hover:border-pink-500 hover:shadow-xs"
         }`}
         onClick={(e) => {
+          if (longPress.didFire()) return;
           e.stopPropagation();
           if (isDoc && node.docRef) {
             onOpenPreview(node.docRef);
@@ -205,6 +219,29 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
               className="p-1 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition cursor-pointer"
             >
               <GitBranch className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {/* Schedule Mind Map Review Task button */}
+          {onScheduleTask && (
+            <button
+              type="button"
+              title={
+                isEn
+                  ? "Schedule Mind Map Review Task"
+                  : "برنامه‌ریزی مرور در نقشه ذهنی (تسک)"
+              }
+              onClick={(e) => {
+                e.stopPropagation();
+                onScheduleTask(node);
+              }}
+              className={`p-1 rounded-lg transition cursor-pointer ${
+                isRoot || isCurrentScopeRoot
+                  ? "hover:bg-primary-foreground/20 text-primary-foreground/90"
+                  : "hover:bg-indigo-500/10 text-muted-foreground hover:text-indigo-500"
+              }`}
+            >
+              <CalendarPlus className="w-3.5 h-3.5" />
             </button>
           )}
 
@@ -467,6 +504,82 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
 
     return [{ id: "all", label: isEn ? "All Knowledge Base" : "کل پایگاه دانش" }];
   }, [selectedScopeId, folders, documents, isEn]);
+
+  // Study task scheduling modal state
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [scheduleTarget, setScheduleTarget] = useState<{
+    targetType: "mindmap_folder" | "mindmap_doc" | "mindmap_all";
+    targetId: string;
+    targetTitle: string;
+    folderBreadcrumb?: string;
+  } | null>(null);
+
+  const handleScheduleNodeTask = useCallback(
+    (node: MindMapNode) => {
+      if (node.type === "root") {
+        setScheduleTarget({
+          targetType: "mindmap_all",
+          targetId: "all",
+          targetTitle: isEn ? "All Knowledge Base" : "کل پایگاه دانش",
+        });
+      } else if (node.type === "folder" || node.type === "subfolder") {
+        const cleanId = node.id.replace(/^folder-/, "");
+        const folder = folders.find((f) => f.id === cleanId);
+        setScheduleTarget({
+          targetType: "mindmap_folder",
+          targetId: cleanId,
+          targetTitle: folder?.name || node.title,
+        });
+      } else if (node.type === "doc") {
+        const cleanId = node.id.replace(/^doc-/, "");
+        const doc = documents.find((d) => d.id === cleanId);
+        const parent = folders.find((f) => f.id === doc?.folder_id);
+        setScheduleTarget({
+          targetType: "mindmap_doc",
+          targetId: cleanId,
+          targetTitle: doc?.title || node.title,
+          folderBreadcrumb: parent?.name,
+        });
+      } else {
+        setScheduleTarget({
+          targetType: "mindmap_all",
+          targetId: "all",
+          targetTitle: node.title,
+        });
+      }
+      setScheduleModalOpen(true);
+    },
+    [folders, documents, isEn]
+  );
+
+  const handleScheduleCurrentScope = useCallback(() => {
+    if (selectedScopeId === "all") {
+      setScheduleTarget({
+        targetType: "mindmap_all",
+        targetId: "all",
+        targetTitle: isEn ? "All Knowledge Base" : "کل پایگاه دانش",
+      });
+    } else if (selectedScopeId.startsWith("folder-")) {
+      const fId = selectedScopeId.replace("folder-", "");
+      const folder = folders.find((f) => f.id === fId);
+      setScheduleTarget({
+        targetType: "mindmap_folder",
+        targetId: fId,
+        targetTitle: folder?.name || currentScopeTitle,
+      });
+    } else if (selectedScopeId.startsWith("doc-")) {
+      const dId = selectedScopeId.replace("doc-", "");
+      const doc = documents.find((d) => d.id === dId);
+      const parent = folders.find((f) => f.id === doc?.folder_id);
+      setScheduleTarget({
+        targetType: "mindmap_doc",
+        targetId: dId,
+        targetTitle: doc?.title || currentScopeTitle,
+        folderBreadcrumb: parent?.name,
+      });
+    }
+    setScheduleModalOpen(true);
+  }, [selectedScopeId, folders, documents, currentScopeTitle, isEn]);
 
   const rootFoldersList = useMemo(() => folders.filter((f) => !f.parent_id), [folders]);
   const unfiledDocsCount = useMemo(() => documents.filter((d) => !d.folder_id).length, [documents]);
@@ -1203,6 +1316,23 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
               <span className="hidden sm:inline text-[11px]">{isEn ? "All" : "همه"}</span>
             </button>
           )}
+
+          {/* Schedule Review Task for current scope */}
+          <button
+            type="button"
+            onClick={handleScheduleCurrentScope}
+            className="flex items-center gap-1 px-2 py-1 rounded-xl text-xs bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25 transition cursor-pointer font-medium"
+            title={
+              isEn
+                ? "Schedule Mind Map Review Task for this branch"
+                : "برنامه‌ریزی تسک مرور برای این شاخه در نقشه ذهنی"
+            }
+          >
+            <CalendarPlus className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline text-[11px]">
+              {isEn ? "Task" : "تسک مرور"}
+            </span>
+          </button>
         </div>
 
         {/* Right: Expand/Collapse & Quick Search */}
@@ -1263,10 +1393,21 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
               </React.Fragment>
             );
           })}
+
+          <button
+            type="button"
+            onClick={handleScheduleCurrentScope}
+            className="ms-1.5 flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25 transition cursor-pointer shrink-0 font-medium"
+            title={isEn ? "Schedule task for this branch" : "برنامه‌ریزی تسک برای این شاخه"}
+          >
+            <CalendarPlus className="w-3 h-3" />
+            <span>{isEn ? "Task" : "تسک"}</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setSelectedScopeId("all")}
-            className="ms-2 p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-destructive transition cursor-pointer shrink-0"
+            className="ms-1 p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-destructive transition cursor-pointer shrink-0"
             title={isEn ? "Reset to full tree" : "بازگشت به نمایش کل نقشه"}
           >
             <X className="w-3 h-3" />
@@ -1358,6 +1499,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
                 onOpenPreview={setPreviewDoc}
                 onToggleExpand={handleToggleExpand}
                 onFocusScope={setSelectedScopeId}
+                onScheduleTask={handleScheduleNodeTask}
               />
             );
           })}
@@ -1370,6 +1512,18 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
           open={!!previewDoc}
           onOpenChange={(open) => !open && setPreviewDoc(null)}
           document={previewDoc}
+        />
+      )}
+
+      {/* Study Task Schedule Modal */}
+      {scheduleTarget && (
+        <StudyTaskScheduleModal
+          open={scheduleModalOpen}
+          onOpenChange={setScheduleModalOpen}
+          targetType={scheduleTarget.targetType}
+          targetId={scheduleTarget.targetId}
+          targetTitle={scheduleTarget.targetTitle}
+          folderBreadcrumb={scheduleTarget.folderBreadcrumb}
         />
       )}
     </div>

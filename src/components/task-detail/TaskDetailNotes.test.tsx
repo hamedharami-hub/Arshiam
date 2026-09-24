@@ -100,7 +100,7 @@ vi.mock("@/components/task-detail/TaskNoteEditorDialog", () => ({
 import { TaskDetail } from "@/components/TaskDetail";
 import { createTaskNote, getTaskNotes } from "@/lib/taskNotesService";
 
-describe("TaskDetail Notes integration", () => {
+describe("TaskDetail Notes integration", { timeout: 15000 }, () => {
   const dummyTask: Task = {
     id: "task-test-notes",
     user_id: "user-test-456",

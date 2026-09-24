@@ -83,7 +83,7 @@ export async function fetchDeviceContacts(): Promise<{ contacts: DeviceContactCa
     });
 
     const list: DeviceContactCandidate[] = (result.contacts || [])
-      .map((c, index) => {
+      .map((c, index): DeviceContactCandidate | null => {
         const displayName =
           c.name?.display ||
           [c.name?.given, c.name?.family].filter(Boolean).join(" ").trim() ||
@@ -108,8 +108,8 @@ export async function fetchDeviceContacts(): Promise<{ contacts: DeviceContactCa
           }));
 
         const addresses: ContactAddress[] = (c.postalAddresses || [])
-          .filter((a) => Boolean(a.formatted || a.street || a.city))
-          .map((a) => ({
+          .filter((a: any) => Boolean(a.formatted || a.street || a.city))
+          .map((a: any) => ({
             label: a.type || "home",
             street: a.street || a.formatted || undefined,
             city: a.city || undefined,
@@ -119,10 +119,10 @@ export async function fetchDeviceContacts(): Promise<{ contacts: DeviceContactCa
           }));
 
         const websites: ContactWebsite[] = (c.urls || [])
-          .filter((u) => Boolean(u.url?.trim()))
-          .map((u) => ({
-            label: u.type || "website",
-            url: u.url?.trim() || "",
+          .filter((u: any) => typeof u === "string" ? Boolean(u.trim()) : Boolean(u?.url?.trim()))
+          .map((u: any) => ({
+            label: (typeof u === "object" && u?.type) ? u.type : "website",
+            url: typeof u === "string" ? u.trim() : (u?.url?.trim() || ""),
           }));
 
         return {

@@ -13,8 +13,6 @@ export async function uploadMediaFull(file: File, userId: string): Promise<{
   const ext = file.name.split(".").pop() || "bin";
   const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
   const { error } = await firebaseStore.storage.from("note-media").upload(path, file, {
-    cacheControl: "3600",
-    upsert: false,
     contentType: file.type || undefined,
   });
   if (error) throw error;

@@ -83,10 +83,11 @@ export default function CommandPalette() {
     }
 
     let cancelled = false;
+    let localHits: Hit[] = [];
 
     // 1. Instant local search from cache
     async function searchLocal() {
-      const localHits: Hit[] = [];
+      localHits = [];
 
       // Local cached tasks
       try {

@@ -35,7 +35,7 @@ export function TaskSchedulingSheet({
   save,
   postpone,
   T,
-}: Props) {
+}: TaskSchedulingSheetProps) {
   const { prefersDialog } = useDeviceFormFactor();
 
   const triggerButton = (

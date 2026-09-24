@@ -101,7 +101,10 @@ export async function createKnowledgeFolder(
 
   if (isOnline()) {
     try {
-      await saveEntityToFirestore("knowledge_folders", folder);
+      const ok = await saveEntityToFirestore(userId, "knowledge_folders", folder.id, folder);
+      if (!ok) {
+        await enqueueOp({ table: "knowledge_folders", op: "insert", payload: folder });
+      }
     } catch (e) {
       console.warn("Could not save folder to firestore immediately, enqueuing", e);
       await enqueueOp({ table: "knowledge_folders", op: "insert", payload: folder });
@@ -137,7 +140,10 @@ export async function updateKnowledgeFolder(
 
   if (isOnline()) {
     try {
-      await saveEntityToFirestore("knowledge_folders", updated);
+      const ok = await saveEntityToFirestore(userId, "knowledge_folders", folderId, updated);
+      if (!ok) {
+        await enqueueOp({ table: "knowledge_folders", op: "update", payload: updated, match: { id: folderId } });
+      }
     } catch (e) {
       await enqueueOp({ table: "knowledge_folders", op: "update", payload: updated, match: { id: folderId } });
     }
@@ -164,7 +170,10 @@ export async function deleteKnowledgeFolder(userId: string, folderId: string): P
 
   if (isOnline()) {
     try {
-      await deleteEntityFromFirestore("knowledge_folders", folderId);
+      const ok = await deleteEntityFromFirestore(userId, "knowledge_folders", folderId);
+      if (!ok) {
+        await enqueueOp({ table: "knowledge_folders", op: "delete", match: { id: folderId } });
+      }
     } catch (e) {
       await enqueueOp({ table: "knowledge_folders", op: "delete", match: { id: folderId } });
     }
@@ -276,7 +285,10 @@ export async function createKnowledgeDocument(
 
   if (isOnline()) {
     try {
-      await saveEntityToFirestore("knowledge_documents", doc);
+      const ok = await saveEntityToFirestore(userId, "knowledge_documents", doc.id, doc);
+      if (!ok) {
+        await enqueueOp({ table: "knowledge_documents", op: "insert", payload: doc });
+      }
     } catch (e) {
       await enqueueOp({ table: "knowledge_documents", op: "insert", payload: doc });
     }
@@ -316,7 +328,10 @@ export async function updateKnowledgeDocument(
 
   if (isOnline()) {
     try {
-      await saveEntityToFirestore("knowledge_documents", updated);
+      const ok = await saveEntityToFirestore(userId, "knowledge_documents", docId, updated);
+      if (!ok) {
+        await enqueueOp({ table: "knowledge_documents", op: "update", payload: updated, match: { id: docId } });
+      }
     } catch (e) {
       await enqueueOp({ table: "knowledge_documents", op: "update", payload: updated, match: { id: docId } });
     }
@@ -337,7 +352,10 @@ export async function deleteKnowledgeDocument(userId: string, docId: string): Pr
 
   if (isOnline()) {
     try {
-      await deleteEntityFromFirestore("knowledge_documents", docId);
+      const ok = await deleteEntityFromFirestore(userId, "knowledge_documents", docId);
+      if (!ok) {
+        await enqueueOp({ table: "knowledge_documents", op: "delete", match: { id: docId } });
+      }
     } catch (e) {
       await enqueueOp({ table: "knowledge_documents", op: "delete", match: { id: docId } });
     }

@@ -397,7 +397,7 @@ export default function KanbanView() {
           </div>
 
           {/* Grouping / Filter Dropdown */}
-          <DropdownMenu>
+          <DropdownMenu dir={isEn ? "ltr" : "rtl"}>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl gap-1.5 bg-card/60">
                 <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -411,7 +411,7 @@ export default function KanbanView() {
                 <ChevronDown className="w-3 h-3 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="text-xs w-48" dir={isEn ? "ltr" : "rtl"}>
+            <DropdownMenuContent align="end" className="text-xs w-48">
               <DropdownMenuLabel className="text-[11px] text-muted-foreground">
                 {T("حالت نمایش کانبان", "Kanban View Mode")}
               </DropdownMenuLabel>

@@ -40,7 +40,7 @@ import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { parseTaskDueDate, taskDueTimestamp, getLocalDateString } from "@/lib/taskDate";
 import { pushUndo } from "@/lib/undoStack";
 import { pushDeleted } from "@/lib/recentlyDeleted";
-import { enqueueOp } from "@/lib/offlineQueue";
+import { enqueueOp, cacheGet } from "@/lib/offlineQueue";
 import { logTaskActivity } from "@/lib/taskActivity";
 import {
   DropdownMenu,
@@ -89,6 +89,7 @@ import { TasksHeader, FOLDER_BG_COLORS, FOLDER_BG_IMAGES } from "./tasks/TasksHe
 import { TaskDueDateGroups, buildGroupedTasks, type TaskGroup } from "./tasks/TaskDueDateGroups";
 
 import { TaskListItem, outcomeMeta, groupedChildren } from "@/components/TaskListItem";
+import { currentAnchor, isSubDayBucket, doesTaskMatchBucketScope } from "@/lib/timeBuckets";
 
 export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomorrow" | "next7" | "smart" | "folder" | "tag" }) {
   const { user } = useAuth();
@@ -400,23 +401,45 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     if (scope === "inbox") {
       list = list.filter(t => !t.parent_id && !t.folder_id);
     } else if (scope === "today") {
-      // Show overdue tasks plus today so the Today view matches TickTick (Overdue + Today groups)
+      // Show overdue tasks plus today, PLUS tasks with today's sub-day / day bucket!
       const e = endOfDay(new Date()).getTime();
-      const isDueTodayOrOverdue = (t: Task) => !!t.due_date && taskDueTimestamp(t.due_date) <= e;
+      const todayAnchor = currentAnchor("day");
+      const isDueTodayOrOverdue = (t: Task) => {
+        if (t.due_date && taskDueTimestamp(t.due_date) <= e) return true;
+        if (t.bucket_kind) {
+          if (isSubDayBucket(t.bucket_kind) || t.bucket_kind === "day") {
+            if (!t.bucket_anchor || t.bucket_anchor === todayAnchor) return true;
+          }
+        }
+        return false;
+      };
       list = list.filter(t => isStandaloneTaskForScope(t, isDueTodayOrOverdue, taskMap));
     } else if (scope === "tomorrow") {
       const s = startOfDay(addDays(new Date(), 1)).getTime();
       const e = endOfDay(addDays(new Date(), 1)).getTime();
+      const tmrwDateStr = getLocalDateString(addDays(new Date(), 1));
       const isDueTomorrow = (t: Task) => {
-        if (!t.due_date) return false;
-        const ts = taskDueTimestamp(t.due_date);
-        return ts >= s && ts <= e;
+        if (t.due_date) {
+          const ts = taskDueTimestamp(t.due_date);
+          if (ts >= s && ts <= e) return true;
+        }
+        if (t.bucket_kind && t.bucket_anchor === tmrwDateStr) {
+          return true;
+        }
+        return false;
       };
       list = list.filter(t => isStandaloneTaskForScope(t, isDueTomorrow, taskMap));
     } else if (scope === "next7") {
-      // Show overdue plus next 7 days for grouped Upcoming view
+      // Show overdue plus next 7 days, PLUS this week's bucket tasks!
       const e = endOfDay(addDays(new Date(), 7)).getTime();
-      const isDueNext7 = (t: Task) => !!t.due_date && taskDueTimestamp(t.due_date) <= e;
+      const isDueNext7 = (t: Task) => {
+        if (t.due_date && taskDueTimestamp(t.due_date) <= e) return true;
+        if (t.bucket_kind) {
+          const match = doesTaskMatchBucketScope(t, { scopeKind: "week", hierarchical: true });
+          if (match.matches) return true;
+        }
+        return false;
+      };
       list = list.filter(t => isStandaloneTaskForScope(t, isDueNext7, taskMap));
     } else if (scope === "smart") {
       list = list.filter(t => !t.parent_id && t.priority === "high" && (!t.completed || isGraceActive(t.id)));
@@ -891,9 +914,11 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
             folder_id: scope === "folder" ? params.id || null : null,
             due_date: scope === "today"
               ? new Date().toISOString()
-              : scope === "next7"
+              : scope === "tomorrow"
                 ? addDays(new Date(), 1).toISOString()
-                : null,
+                : scope === "next7"
+                  ? addDays(new Date(), 1).toISOString()
+                  : null,
             tag_id: scope === "tag" ? params.id || null : null,
           }}
           placeholder={
@@ -901,9 +926,11 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
               ? T(`+ افزودن تسک به «${folderName}»`, `+ Add task to "${folderName}"`)
               : scope === "today"
                 ? T("+ افزودن تسک به «امروز»", '+ Add task to "Today"')
-                : scope === "inbox"
-                  ? T("+ افزودن تسک به «اینباکس»", '+ Add task to "Inbox"')
-                  : undefined
+                : scope === "tomorrow"
+                  ? T("+ افزودن تسک به «فردا»", '+ Add task to "Tomorrow"')
+                  : scope === "inbox"
+                    ? T("+ افزودن تسک به «اینباکس»", '+ Add task to "Inbox"')
+                    : undefined
           }
           chipsTrailing={
             <div className="flex items-center gap-1.5">

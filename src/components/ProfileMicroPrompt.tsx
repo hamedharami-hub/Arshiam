@@ -68,7 +68,7 @@ export default function ProfileMicroPrompt({ trigger }: { trigger?: string }) {
     const t = setTimeout(async () => {
       const q = await fetchNext();
       if (q) {
-        setItem(q);
+        setItem(q as any);
         setOpen(true);
         localStorage.setItem(COOLDOWN_KEY, String(Date.now()));
       }

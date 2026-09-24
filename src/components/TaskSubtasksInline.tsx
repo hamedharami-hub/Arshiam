@@ -140,6 +140,7 @@ export function TaskSubtasksInline({
       priority: "none",
       position,
       completed: false,
+      status: "todo",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

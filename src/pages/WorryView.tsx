@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { callAI } from "@/lib/ai";
 import { upsertThoughtRecord } from "@/lib/firestoreDataService";
 import { createTaskFromMind } from "@/lib/taskFromMind";
+import { createMindAIContext, executeMindAI, type WorryBrainstormOutput } from "@/lib/mindAI";
 
 type Stage = "intake" | "triage" | "partial_split" | "solve" | "accept" | "confirm_task" | "done";
 
@@ -40,7 +41,9 @@ export default function WorryView() {
   const [stage, setStage] = useState<Stage>("intake");
   const [worry, setWorry] = useState("");
   // Branch: "actionable" | "partial" | "uncontrollable"
-  const [controlBranch, setControlBranch] = useState<"actionable" | "partial" | "uncontrollable">("actionable");
+  const [controlBranch, setControlBranch] = useState<"actionable" | "partial" | "uncontrollable" | null>("actionable");
+  const triageChoice = controlBranch;
+  const setTriageChoice = setControlBranch;
 
   // For partial control split
   const [controllablePart, setControllablePart] = useState("");

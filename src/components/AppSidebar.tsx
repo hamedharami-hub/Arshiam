@@ -134,20 +134,17 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
         getDocs(collection(db, "users", user.id, "folders")),
         getDocs(collection(db, "users", user.id, "tags")),
       ]);
-      if (!foldersSnap.empty) {
-        const fList: Folder[] = [];
-        foldersSnap.forEach((d) => fList.push({ id: d.id, ...(d.data() as any) }));
-        fList.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-        setFolders(fList);
-        await cacheSet(FOLDERS_KEY, fList);
-      }
-      if (!tagsSnap.empty) {
-        const tList: TagT[] = [];
-        tagsSnap.forEach((d) => tList.push({ id: d.id, ...(d.data() as any) }));
-        tList.sort((a, b) => a.name.localeCompare(b.name));
-        setTags(tList);
-        await cacheSet(TAGS_KEY, tList);
-      }
+      const fList: Folder[] = [];
+      foldersSnap.forEach((d) => fList.push({ id: d.id, ...(d.data() as any) }));
+      fList.sort((a, b) => ((a as any).position ?? 0) - ((b as any).position ?? 0));
+      setFolders(fList);
+      await cacheSet(FOLDERS_KEY, fList);
+
+      const tList: TagT[] = [];
+      tagsSnap.forEach((d) => tList.push({ id: d.id, ...(d.data() as any) }));
+      tList.sort((a, b) => a.name.localeCompare(b.name));
+      setTags(tList);
+      await cacheSet(TAGS_KEY, tList);
     } catch {
       // 2. Secondary fallback: check firebaseStore
       try {
@@ -155,12 +152,12 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
           firebaseStore.from("folders").select("*").order("position"),
           firebaseStore.from("tags").select("*").order("name"),
         ]);
-        if (f.data && f.data.length > 0) {
-          setFolders(f.data);
+        if (f.data) {
+          setFolders((f.data as unknown) as Folder[]);
           await cacheSet(FOLDERS_KEY, f.data);
         }
-        if (t.data && t.data.length > 0) {
-          setTags(t.data);
+        if (t.data) {
+          setTags((t.data as unknown) as TagT[]);
           await cacheSet(TAGS_KEY, t.data);
         }
       } catch {
@@ -176,10 +173,10 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
     let fsUnsubT = () => {};
     import("@/lib/firestoreDataService").then(({ subscribeFolders, subscribeTags }) => {
       fsUnsubF = subscribeFolders(user.id, (flist) => {
-        if (flist && flist.length > 0) setFolders(flist as Folder[]);
+        setFolders((flist || []) as Folder[]);
       });
       fsUnsubT = subscribeTags(user.id, (tlist) => {
-        if (tlist && tlist.length > 0) setTags(tlist as TagT[]);
+        setTags((tlist || []) as TagT[]);
       });
     });
     const ch = firebaseStore
@@ -204,23 +201,34 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       await enqueueOp({ table: "folders", op: "insert", payload: folder });
-      toast.success(t("folders.created") + " — " + t("offline.willSync", "با اتصال اینترنت همگام می‌شود"));
+      toast.info(t("folders.created") + " — " + t("offline.willSync", "با اتصال اینترنت همگام می‌شود"));
       setNewFolder(""); setOpenFolderDlg(false);
       return;
     }
 
     // 1. Primary: save folder to Firebase Firestore
+    let saved = false;
     try {
       const { upsertFolder } = await import("@/lib/firestoreDataService");
-      await upsertFolder(user.id, folder);
+      saved = await upsertFolder(user.id, folder);
     } catch {}
+
+    if (!saved) {
+      const queued = await enqueueOp({ table: "folders", op: "insert", payload: folder });
+      if (queued) {
+        toast.info(t("folders.created") + " — " + t("offline.willSync", "با اتصال اینترنت همگام می‌شود"));
+      } else {
+        toast.error(t("error.saveFailed", "خطا در ذخیره پوشه"));
+      }
+    } else {
+      toast.success(t("folders.created"));
+    }
 
     // 2. Best-effort mirror to firebaseStore
     try {
       await firebaseStore.from("folders").insert({ id: folder.id, name: newFolder, user_id: user.id });
     } catch {}
 
-    toast.success(t("folders.created"));
     setNewFolder("");
     setOpenFolderDlg(false);
   };
@@ -233,23 +241,34 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       await enqueueOp({ table: "tags", op: "insert", payload: tag });
-      toast.success(t("tags.created") + " — " + t("offline.willSync", "با اتصال اینترنت همگام می‌شود"));
+      toast.info(t("tags.created") + " — " + t("offline.willSync", "با اتصال اینترنت همگام می‌شود"));
       setNewTag(""); setOpenTagDlg(false);
       return;
     }
 
     // 1. Primary: save tag to Firebase Firestore
+    let saved = false;
     try {
       const { upsertTag } = await import("@/lib/firestoreDataService");
-      await upsertTag(user.id, tag);
+      saved = await upsertTag(user.id, tag);
     } catch {}
+
+    if (!saved) {
+      const queued = await enqueueOp({ table: "tags", op: "insert", payload: tag });
+      if (queued) {
+        toast.info(t("tags.created") + " — " + t("offline.willSync", "با اتصال اینترنت همگام می‌شود"));
+      } else {
+        toast.error(t("error.saveFailed", "خطا در ذخیره تگ"));
+      }
+    } else {
+      toast.success(t("tags.created"));
+    }
 
     // 2. Best-effort mirror to firebaseStore
     try {
       await firebaseStore.from("tags").insert({ id: tag.id, name: newTag, user_id: user.id });
     } catch {}
 
-    toast.success(t("tags.created"));
     setNewTag("");
     setOpenTagDlg(false);
   };

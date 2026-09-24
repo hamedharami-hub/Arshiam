@@ -44,7 +44,11 @@ describe("Contacts Responsive UI & Modals", () => {
     display_name: "Sara Ahmadi",
     phones: [{ label: "موبایل", value: "09121112233" }],
     emails: [{ label: "کاری", value: "sara@work.com" }],
+    addresses: [],
+    websites: [],
+    social_links: [],
     created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
     source: "manual",
   };
 

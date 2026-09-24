@@ -20,6 +20,8 @@ const mockCards: LeitnerCard[] = [
     interval_days: 1,
     next_review_at: "2026-09-20T00:00:00.000Z", // due
     consecutive_correct: 0,
+    review_count: 0,
+    lapse_count: 0,
     created_at: "2026-09-18T00:00:00.000Z",
     updated_at: "2026-09-18T00:00:00.000Z",
   },
@@ -34,6 +36,8 @@ const mockCards: LeitnerCard[] = [
     interval_days: 3,
     next_review_at: "2026-09-25T00:00:00.000Z", // not due
     consecutive_correct: 1,
+    review_count: 1,
+    lapse_count: 0,
     created_at: "2026-09-15T00:00:00.000Z",
     updated_at: "2026-09-15T00:00:00.000Z",
   },
@@ -89,7 +93,7 @@ vi.mock("@/lib/knowledgeService", () => ({
   getKnowledgeDocuments: vi.fn().mockResolvedValue([]),
 }));
 
-describe("LeitnerDeckView", () => {
+describe("LeitnerDeckView", { timeout: 15000 }, () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

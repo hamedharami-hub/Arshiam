@@ -12,9 +12,11 @@ import {
   FolderOpen,
   PanelLeftClose,
   Network,
+  CalendarPlus,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useBilingual } from "@/hooks/useBilingual";
+import { useLongPress } from "@/lib/useLongPress";
 import type { KnowledgeFolder, KnowledgeDocument, KnowledgeFolderNode } from "@/lib/knowledgeTypes";
 import {
   DropdownMenu,
@@ -22,6 +24,214 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+interface FolderRowItemProps {
+  node: KnowledgeFolderNode;
+  depth: number;
+  isSelected: boolean;
+  isExpanded: boolean;
+  isEn: boolean;
+  onToggle: (e: React.MouseEvent) => void;
+  onSelect: () => void;
+  onCreateDocument: (folderId: string) => void;
+  onCreateSubfolder: (folderId: string) => void;
+  onViewMindMap: (folderId: string) => void;
+  onScheduleStudy?: (folder: KnowledgeFolder) => void;
+  onDelete: (folderId: string) => void;
+}
+
+const FolderRowItem: React.FC<FolderRowItemProps> = ({
+  node,
+  depth,
+  isSelected,
+  isExpanded,
+  isEn,
+  onToggle,
+  onSelect,
+  onCreateDocument,
+  onCreateSubfolder,
+  onViewMindMap,
+  onScheduleStudy,
+  onDelete,
+}) => {
+  const longPress = useLongPress({
+    onLongPress: () => {
+      onScheduleStudy?.(node);
+    },
+    delay: 500,
+  });
+
+  return (
+    <div
+      {...longPress.handlers}
+      onClick={() => {
+        if (longPress.didFire()) return;
+        onSelect();
+      }}
+      className={`flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-xl cursor-pointer transition text-xs font-medium ${
+        isSelected
+          ? "bg-primary/10 text-primary border border-primary/25 font-semibold"
+          : "text-foreground hover:bg-muted/70"
+      }`}
+      style={{ paddingInlineStart: `${Math.max(8, depth * 14 + 8)}px` }}
+    >
+      <div className="flex items-center gap-1.5 min-w-0">
+        <button
+          type="button"
+          onClick={(e) => onToggle(e)}
+          className="p-0.5 rounded hover:bg-muted text-muted-foreground transition"
+        >
+          {isExpanded ? (
+            <ChevronDown className="w-3.5 h-3.5" />
+          ) : (
+            <ChevronRight className="w-3.5 h-3.5 rtl:rotate-180" />
+          )}
+        </button>
+
+        {isExpanded ? (
+          <FolderOpen className="w-4 h-4 text-amber-500 shrink-0" />
+        ) : (
+          <Folder className="w-4 h-4 text-primary shrink-0" />
+        )}
+
+        <span className="truncate">{node.name}</span>
+      </div>
+
+      <div className="flex items-center gap-1 shrink-0">
+        <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-muted text-muted-foreground font-mono">
+          {node.document_count}
+        </span>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition cursor-pointer"
+            >
+              <MoreVertical className="w-3 h-3" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="text-xs">
+            <DropdownMenuItem
+              onClick={() => onCreateDocument(node.id)}
+              className="cursor-pointer gap-2"
+            >
+              <Plus className="w-3.5 h-3.5 text-primary" />
+              <span>{isEn ? "Add document here" : "افزودن سند به این فولدر"}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onCreateSubfolder(node.id)}
+              className="cursor-pointer gap-2"
+            >
+              <FolderPlus className="w-3.5 h-3.5 text-emerald-500" />
+              <span>{isEn ? "Add subfolder" : "افزودن زیرفولدر"}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onViewMindMap(node.id)}
+              className="cursor-pointer gap-2"
+            >
+              <Network className="w-3.5 h-3.5 text-primary" />
+              <span>{isEn ? "View Mind Map" : "مشاهده نقشه ذهنی این فولدر"}</span>
+            </DropdownMenuItem>
+            {onScheduleStudy && (
+              <DropdownMenuItem
+                onClick={() => onScheduleStudy(node)}
+                className="cursor-pointer gap-2"
+              >
+                <CalendarPlus className="w-3.5 h-3.5 text-emerald-500" />
+                <span>{isEn ? "Schedule study task" : "برنامه‌ریزی مطالعه این شاخه (تسک)"}</span>
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              onClick={() => onDelete(node.id)}
+              className="text-destructive focus:text-destructive cursor-pointer gap-2"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{isEn ? "Delete folder" : "حذف فولدر"}</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+};
+
+interface DocumentRowItemProps {
+  doc: KnowledgeDocument;
+  depth?: number;
+  isSelected: boolean;
+  isEn: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+  onScheduleStudy?: (doc: KnowledgeDocument) => void;
+}
+
+const DocumentRowItem: React.FC<DocumentRowItemProps> = ({
+  doc,
+  depth = 0,
+  isSelected,
+  isEn,
+  onSelect,
+  onDelete,
+  onScheduleStudy,
+}) => {
+  const longPress = useLongPress({
+    onLongPress: () => {
+      onScheduleStudy?.(doc);
+    },
+    delay: 500,
+  });
+
+  return (
+    <div
+      {...longPress.handlers}
+      onClick={() => {
+        if (longPress.didFire()) return;
+        onSelect();
+      }}
+      className={`group flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer transition text-xs ${
+        isSelected
+          ? "bg-primary/15 text-primary font-semibold border border-primary/30"
+          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+      }`}
+      style={{
+        paddingInlineStart: `${Math.max(16, depth * 14 + 12)}px`,
+      }}
+    >
+      <div className="flex items-center gap-1.5 min-w-0">
+        <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
+        <span className="truncate">{doc.title}</span>
+      </div>
+
+      <div className="flex items-center gap-0.5 shrink-0">
+        {onScheduleStudy && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onScheduleStudy(doc);
+            }}
+            className="opacity-0 group-hover:opacity-100 hover:opacity-100 p-0.5 rounded text-muted-foreground hover:text-emerald-500 transition cursor-pointer"
+            title={isEn ? "Schedule study task" : "برنامه‌ریزی مطالعه این درس"}
+          >
+            <CalendarPlus className="w-3 h-3" />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="opacity-0 group-hover:opacity-100 hover:opacity-100 p-0.5 rounded text-muted-foreground hover:text-destructive transition cursor-pointer"
+          title={isEn ? "Delete document" : "حذف سند"}
+        >
+          <Trash2 className="w-3 h-3" />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 interface KnowledgeSidebarTreeProps {
   tree: KnowledgeFolderNode[];
@@ -35,6 +245,8 @@ interface KnowledgeSidebarTreeProps {
   onDeleteFolder: (folderId: string) => void;
   onCreateDocument: (folderId: string | null) => void;
   onDeleteDocument: (docId: string) => void;
+  onScheduleFolderStudy?: (folder: KnowledgeFolder) => void;
+  onScheduleDocStudy?: (doc: KnowledgeDocument) => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   onToggleCollapse?: () => void;
@@ -52,6 +264,8 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
   onDeleteFolder,
   onCreateDocument,
   onDeleteDocument,
+  onScheduleFolderStudy,
+  onScheduleDocStudy,
   searchQuery,
   onSearchChange,
   onToggleCollapse,
@@ -83,6 +297,19 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
     }
     setExpandedFolders((prev) => ({ ...prev, ...toExpand }));
   }, [selectedDocId, documents, allFolders]);
+
+  // Auto-expand ancestor folders when selectedFolderId is activated
+  React.useEffect(() => {
+    if (!selectedFolderId) return;
+    const toExpand: Record<string, boolean> = { [selectedFolderId]: true };
+    let currentFolderId: string | null = selectedFolderId;
+    while (currentFolderId) {
+      toExpand[currentFolderId] = true;
+      const parent = allFolders.find((f) => f.id === currentFolderId);
+      currentFolderId = parent?.parent_id || null;
+    }
+    setExpandedFolders((prev) => ({ ...prev, ...toExpand }));
+  }, [selectedFolderId, allFolders]);
 
   const handleOpenCreateFolder = (parentId: string | null = null, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -127,87 +354,23 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
 
     return (
       <div key={node.id} className="space-y-0.5 select-none">
-        <div
-          onClick={() => {
+        <FolderRowItem
+          node={node}
+          depth={depth}
+          isSelected={isSelected}
+          isExpanded={isExpanded}
+          isEn={isEn}
+          onToggle={(e) => toggleFolder(node.id, e)}
+          onSelect={() => {
             onSelectFolder(isSelected ? null : node.id);
             setExpandedFolders((prev) => ({ ...prev, [node.id]: true }));
           }}
-          className={`flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-xl cursor-pointer transition text-xs font-medium ${
-            isSelected
-              ? "bg-primary/10 text-primary border border-primary/25 font-semibold"
-              : "text-foreground hover:bg-muted/70"
-          }`}
-          style={{ paddingInlineStart: `${Math.max(8, depth * 14 + 8)}px` }}
-        >
-          <div className="flex items-center gap-1.5 min-w-0">
-            <button
-              type="button"
-              onClick={(e) => toggleFolder(node.id, e)}
-              className="p-0.5 rounded hover:bg-muted text-muted-foreground transition"
-            >
-              {isExpanded ? (
-                <ChevronDown className="w-3.5 h-3.5" />
-              ) : (
-                <ChevronRight className="w-3.5 h-3.5 rtl:rotate-180" />
-              )}
-            </button>
-
-            {isExpanded ? (
-              <FolderOpen className="w-4 h-4 text-amber-500 shrink-0" />
-            ) : (
-              <Folder className="w-4 h-4 text-primary shrink-0" />
-            )}
-
-            <span className="truncate">{node.name}</span>
-          </div>
-
-          <div className="flex items-center gap-1 shrink-0">
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-muted text-muted-foreground font-mono">
-              {node.document_count}
-            </span>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <button
-                  type="button"
-                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition cursor-pointer"
-                >
-                  <MoreVertical className="w-3 h-3" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="text-xs">
-                <DropdownMenuItem
-                  onClick={() => onCreateDocument(node.id)}
-                  className="cursor-pointer gap-2"
-                >
-                  <Plus className="w-3.5 h-3.5 text-primary" />
-                  <span>{isEn ? "Add document here" : "افزودن سند به این فولدر"}</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleOpenCreateFolder(node.id)}
-                  className="cursor-pointer gap-2"
-                >
-                  <FolderPlus className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>{isEn ? "Add subfolder" : "افزودن زیرفولدر"}</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => navigate(`/app/review?tab=mindmap&folderId=${node.id}`)}
-                  className="cursor-pointer gap-2"
-                >
-                  <Network className="w-3.5 h-3.5 text-primary" />
-                  <span>{isEn ? "View Mind Map" : "مشاهده نقشه ذهنی این فولدر"}</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => onDeleteFolder(node.id)}
-                  className="text-destructive focus:text-destructive cursor-pointer gap-2"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>{isEn ? "Delete folder" : "حذف فولدر"}</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
+          onCreateDocument={(fId) => onCreateDocument(fId)}
+          onCreateSubfolder={(pId) => handleOpenCreateFolder(pId)}
+          onViewMindMap={(fId) => navigate(`/app/review?tab=mindmap&folderId=${fId}`)}
+          onScheduleStudy={onScheduleFolderStudy}
+          onDelete={(fId) => onDeleteFolder(fId)}
+        />
 
         {/* Folder Children when expanded */}
         {isExpanded && (
@@ -216,40 +379,18 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
             {node.children.map((subNode) => renderFolderNode(subNode, depth + 1))}
 
             {/* Documents inside this folder */}
-            {folderDocs.map((doc) => {
-              const isDocSelected = selectedDocId === doc.id;
-              return (
-                <div
-                  key={doc.id}
-                  onClick={() => onSelectDocument(doc)}
-                  className={`group flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer transition text-xs ${
-                    isDocSelected
-                      ? "bg-primary/15 text-primary font-semibold border border-primary/30"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  }`}
-                  style={{
-                    paddingInlineStart: `${Math.max(16, (depth + 1) * 14 + 12)}px`,
-                  }}
-                >
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
-                    <span className="truncate">{doc.title}</span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteDocument(doc.id);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 hover:opacity-100 p-0.5 rounded text-muted-foreground hover:text-destructive transition cursor-pointer"
-                    title={isEn ? "Delete document" : "حذف سند"}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              );
-            })}
+            {folderDocs.map((doc) => (
+              <DocumentRowItem
+                key={doc.id}
+                doc={doc}
+                depth={depth + 1}
+                isSelected={selectedDocId === doc.id}
+                isEn={isEn}
+                onSelect={() => onSelectDocument(doc)}
+                onDelete={() => onDeleteDocument(doc.id)}
+                onScheduleStudy={onScheduleDocStudy}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -377,32 +518,16 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
               {isEn ? "Root Documents" : "اسناد بدون فولدر"}
             </div>
             {rootDocuments.map((doc) => (
-              <div
+              <DocumentRowItem
                 key={doc.id}
-                onClick={() => onSelectDocument(doc)}
-                className={`group flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer transition text-xs ${
-                  selectedDocId === doc.id
-                    ? "bg-primary/15 text-primary font-semibold border border-primary/30"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                }`}
-              >
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
-                  <span className="truncate">{doc.title}</span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteDocument(doc.id);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 hover:opacity-100 p-0.5 rounded text-muted-foreground hover:text-destructive transition cursor-pointer"
-                  title={isEn ? "Delete document" : "حذف سند"}
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </div>
+                doc={doc}
+                depth={0}
+                isSelected={selectedDocId === doc.id}
+                isEn={isEn}
+                onSelect={() => onSelectDocument(doc)}
+                onDelete={() => onDeleteDocument(doc.id)}
+                onScheduleStudy={onScheduleDocStudy}
+              />
             ))}
           </div>
         )}

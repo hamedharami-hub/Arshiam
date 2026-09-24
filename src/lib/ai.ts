@@ -66,7 +66,7 @@ export async function callAI(
       let uid = local?.id;
       if (!uid) {
         const { data: { user } } = await firebaseStore.auth.getUser();
-        uid = user?.id;
+        uid = (user as any)?.uid || (user as any)?.id;
       }
       if (uid) {
         const [{ data: mh }, { data: am }] = await Promise.all([

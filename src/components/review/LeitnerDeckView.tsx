@@ -25,6 +25,7 @@ import {
   AlertTriangle,
   Keyboard,
   Shuffle,
+  CalendarPlus,
 } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
 import type { LeitnerCard, LeitnerBoxStats, LeitnerRating } from "@/lib/leitnerTypes";
@@ -44,6 +45,7 @@ import {
 import { getKnowledgeDocuments } from "@/lib/knowledgeService";
 import { isPersianText } from "@/lib/bilingualHelper";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { StudyTaskScheduleModal } from "@/components/knowledge/StudyTaskScheduleModal";
 import { toast } from "sonner";
 
 interface LeitnerDeckViewProps {
@@ -98,6 +100,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
 
   // New Card Modal
   const [openNewCard, setOpenNewCard] = useState(false);
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [frontInput, setFrontInput] = useState("");
   const [backInput, setBackInput] = useState("");
   const [clueInput, setClueInput] = useState("");
@@ -458,6 +461,16 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setScheduleModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground text-xs font-semibold border border-border transition cursor-pointer"
+            title={isEn ? "Schedule a Leitner review task in Tasks" : "برنامه‌ریزی تسک مرور کارت‌ها در بخش تسک‌ها"}
+          >
+            <CalendarPlus className="w-4 h-4 text-amber-500" />
+            <span className="hidden sm:inline">{isEn ? "Schedule Task" : "برنامه‌ریزی مرور (تسک)"}</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setOpenNewCard(true)}
@@ -1152,6 +1165,17 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Study Task Schedule Modal */}
+      {scheduleModalOpen && (
+        <StudyTaskScheduleModal
+          open={scheduleModalOpen}
+          onOpenChange={setScheduleModalOpen}
+          targetType="leitner"
+          targetId="all"
+          targetTitle={isEn ? "Leitner Flashcard Review" : "مرور کارت‌های لایتنر"}
+        />
+      )}
     </div>
   );
 };

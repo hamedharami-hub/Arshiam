@@ -100,7 +100,7 @@ export interface AssessmentResultItem {
   user_id?: string;
   assessment_type: string;
   scores: any;
-  analysis: any;
+  analysis?: any;
   completed_at?: string;
   created_at?: string;
   [key: string]: any;
@@ -153,10 +153,10 @@ export function subscribeTasks(
         // Sort: pinned first, then position, then created_at desc
         items.sort((a, b) => {
           if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-          const posA = a.position ?? 0;
-          const posB = b.position ?? 0;
+          const posA = (a as any).position ?? 0;
+          const posB = (b as any).position ?? 0;
           if (posA !== posB) return posA - posB;
-          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+          return new Date((b as any).created_at || 0).getTime() - new Date((a as any).created_at || 0).getTime();
         });
 
         cacheSet(CACHE_KEYS.tasks(userId), createTaskCacheEnvelope(items));
@@ -455,8 +455,19 @@ export async function upsertNote(userId: string, note: Partial<NoteItem> & { id:
     await setDoc(noteRef, dataToSave, { merge: true });
     return true;
   } catch (err) {
-    console.warn("[FirestoreData] upsertNote remote save notice (saved to local cache):", err);
-    return true;
+    console.warn("[FirestoreData] upsertNote remote save failed, falling back to offline queue:", err);
+    try {
+      const { enqueueOp } = await import("@/lib/offlineQueue");
+      const ok = await enqueueOp({
+        table: "notes",
+        op: "upsert",
+        payload: dataToSave,
+        match: { id: note.id },
+      });
+      return ok;
+    } catch {
+      return false;
+    }
   }
 }
 
@@ -471,8 +482,18 @@ export async function deleteNote(userId: string, noteId: string): Promise<boolea
     await cacheSet(CACHE_KEYS.notes(userId), next);
     return true;
   } catch (err) {
-    console.warn("[FirestoreData] deleteNote error:", err);
-    return false;
+    console.warn("[FirestoreData] deleteNote error, queuing delete:", err);
+    try {
+      const { enqueueOp } = await import("@/lib/offlineQueue");
+      const ok = await enqueueOp({
+        table: "notes",
+        op: "delete",
+        match: { id: noteId },
+      });
+      return ok;
+    } catch {
+      return false;
+    }
   }
 }
 
@@ -1075,13 +1096,17 @@ export async function saveSocraticSession(
     return true;
   } catch (err) {
     console.warn("[FirestoreData] saveSocraticSession error, queuing:", err);
-    await enqueueOp({
-      type: "upsert",
-      collection: `users/${userId}/socratic_sessions`,
-      id: "current",
-      data: payload,
-    });
-    return true;
+    try {
+      const ok = await enqueueOp({
+        table: "socratic_sessions",
+        op: "upsert",
+        payload,
+        match: { id: "current" },
+      });
+      return ok;
+    } catch {
+      return false;
+    }
   }
 }
 

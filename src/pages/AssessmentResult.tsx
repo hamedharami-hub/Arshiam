@@ -151,9 +151,17 @@ export default function AssessmentResult() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => {
-                      navigator.clipboard.writeText(aiAnalysis);
-                      toast.success(T("به کلیپ‌بورد کپی شد", "Copied to clipboard"));
+                    onClick={async () => {
+                      try {
+                        if (navigator?.clipboard?.writeText) {
+                          await navigator.clipboard.writeText(aiAnalysis);
+                          toast.success(T("به کلیپ‌بورد کپی شد", "Copied to clipboard"));
+                        } else {
+                          toast.error(T("عدم دسترسی به کلیپ‌بورد", "Clipboard not accessible"));
+                        }
+                      } catch {
+                        toast.error(T("خطا در کپی متن", "Failed to copy text"));
+                      }
                     }}
                   >
                     {T("کپی متن کامل", "Copy Full Text")}
