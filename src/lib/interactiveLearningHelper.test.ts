@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
-  generateDeterministicInteractiveWidgets,
+  generateInteractiveContent,
   attachInteractiveListeners,
   INTERACTIVE_PRESETS,
 } from "./interactiveLearningHelper";
+import { callAI } from "@/lib/ai";
+
+vi.mock("@/lib/ai", () => ({ callAI: vi.fn() }));
 
 describe("interactiveLearningHelper", () => {
   it("defines all 7 interactive preset options with Persian and English labels", () => {
@@ -18,22 +21,43 @@ describe("interactiveLearningHelper", () => {
     expect(ids).toContain("memory_game");
   });
 
-  it("generates deterministic interactive widgets containing expected classes", () => {
-    const html = generateDeterministicInteractiveWidgets(
-      "فلوکستین (Fluoxetine)",
-      "فلوکستین یک مهارکننده انتخابی بازجذب سروتونین است که در درمان افسردگی اساسی استفاده می‌شود.",
-      ["flip_card", "quiz_mcq", "pair_match", "clinical_case", "cloze_deletion", "decision_tree", "memory_game"],
-      false
-    );
+  it("returns sanitized AI-generated HTML", async () => {
+    vi.mocked(callAI).mockResolvedValueOnce({ text: '<div class="interactive-learning-block"><p>Lesson-based card</p></div>' });
+
+    const html = await generateInteractiveContent({
+      title: "Lesson",
+      content: "A source passage.",
+      selectedPresets: ["flip_card"],
+    });
 
     expect(html).toContain("interactive-learning-block");
-    expect(html).toContain("interactive-flip-card");
-    expect(html).toContain("interactive-quiz-card");
-    expect(html).toContain("interactive-pair-container");
-    expect(html).toContain("interactive-case-container");
-    expect(html).toContain("interactive-cloze-card");
-    expect(html).toContain("interactive-decision-tree");
-    expect(html).toContain("interactive-memory-game");
+    expect(html).toContain("Lesson-based card");
+  });
+
+  it("fails visibly instead of substituting canned clinical examples when AI is unavailable", async () => {
+    vi.mocked(callAI).mockRejectedValueOnce(new Error("offline"));
+
+    await expect(
+      generateInteractiveContent({
+        title: "A lesson unrelated to antidepressants",
+        content: "Source content without any drug-specific claims.",
+        selectedPresets: ["clinical_case", "decision_tree"],
+        language: "en",
+      })
+    ).rejects.toThrow("no automatic fallback was produced");
+  });
+
+  it("rejects an empty AI response instead of reporting a false success", async () => {
+    vi.mocked(callAI).mockResolvedValueOnce({ text: "" });
+
+    await expect(
+      generateInteractiveContent({
+        title: "Lesson",
+        content: "Source passage.",
+        selectedPresets: ["quiz_mcq"],
+        language: "en",
+      })
+    ).rejects.toThrow("no automatic fallback was produced");
   });
 
   describe("attachInteractiveListeners DOM handling", () => {

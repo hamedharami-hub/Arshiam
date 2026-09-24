@@ -283,15 +283,20 @@ Output pure HTML only. No markdown fences (\`\`\`html) if possible, or simple ma
       return sanitizeKnowledgeHtml(generatedHtml);
     }
   } catch (error) {
-    console.warn("AI generation failed or unavailable, falling back to local deterministic interactive generator:", error);
+    console.warn("AI generation failed or unavailable; no unverified interactive fallback will be created:", error);
   }
 
-  // Fallback: Generate deterministic rich interactive widgets based on selected presets
-  return generateDeterministicInteractiveWidgets(title, cleanSnippet, selectedPresets, isEn);
+  throw new Error(
+    isEn
+      ? "AI generation is unavailable. To avoid creating unverified educational content, no automatic fallback was produced. Check the AI connection and try again."
+      : "تولید هوشمند در دسترس نیست. برای جلوگیری از ساخت محتوای آموزشیِ تأییدنشده، جایگزین خودکار ساخته نشد. اتصال هوش مصنوعی را بررسی کنید و دوباره تلاش کنید."
+  );
 }
 
 /**
- * High quality deterministic offline generator for interactive widgets
+ * @deprecated Do not use for educational content: these legacy examples contain
+ * canned clinical claims unrelated to the selected lesson. Interactive content
+ * must come from the lesson-aware AI path or fail visibly.
  */
 export function generateDeterministicInteractiveWidgets(
   title: string,
