@@ -82,6 +82,9 @@ describe("InteractiveStudyView", () => {
 
     expect((await screen.findAllByText("Sample guide")).length).toBeGreaterThan(0);
     expect(mockGetKnowledgeDocuments).toHaveBeenCalledWith("study-user");
+    const lessonGrid = container.querySelector("main > div.grid");
+    expect(lessonGrid).toHaveClass("min-w-0", "grid-cols-1");
+    expect(Array.from(lessonGrid?.querySelectorAll("section") || []).every((section) => section.classList.contains("min-w-0"))).toBe(true);
     expect(screen.getByText("بازبینی منبع تأیید نشده")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /ساخت جلسهٔ تعاملی/i }));

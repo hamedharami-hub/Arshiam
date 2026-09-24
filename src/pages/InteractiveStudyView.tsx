@@ -150,8 +150,8 @@ export const InteractiveStudyView: React.FC = () => {
           <div><strong className="block">{labels.safetyTitle}</strong><span className="text-muted-foreground">{labels.safetyText}</span></div>
         </aside>
 
-        <div className="grid min-h-[420px] gap-4 lg:grid-cols-[minmax(270px,0.8fr)_minmax(0,1.6fr)]">
-          <section aria-label={labels.documents} className="flex min-h-0 flex-col rounded-3xl border border-border bg-card p-3 sm:p-4">
+        <div className="grid min-h-[420px] min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(270px,0.8fr)_minmax(0,1.6fr)]">
+          <section aria-label={labels.documents} className="flex min-h-0 min-w-0 flex-col rounded-3xl border border-border bg-card p-3 sm:p-4">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="text-sm font-bold">{labels.documents}</h2>
               <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">{documents.length}</span>
