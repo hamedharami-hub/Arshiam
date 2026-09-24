@@ -10,6 +10,21 @@ export interface KnowledgeFolder {
   updated_at: string;
 }
 
+export interface KnowledgeReviewReference {
+  title: string;
+  url: string;
+  accessed_at: string;
+}
+
+/** Evidence recorded by a human reviewer; the app does not independently validate source authority. */
+export interface KnowledgeContentReviewEvidence {
+  reviewer_role: string;
+  jurisdiction: string;
+  scope: string;
+  reviewed_at: string;
+  references: KnowledgeReviewReference[];
+}
+
 export interface KnowledgeDocument {
   id: string;
   user_id: string;
@@ -24,8 +39,10 @@ export interface KnowledgeDocument {
   content_plain?: string;
   tags?: string[];
   source_url?: string;
-  /** Imported knowledge remains visibly unreviewed until a qualified source review is recorded. */
+  /** Manual review label; the UI still requires structured evidence before presenting it as recorded. */
   content_review_status?: "unreviewed" | "reviewed";
+  /** Optional audit evidence for a manually recorded review. */
+  content_review_evidence?: KnowledgeContentReviewEvidence;
   is_favorite?: boolean;
   is_pinned?: boolean;
   is_archived?: boolean;

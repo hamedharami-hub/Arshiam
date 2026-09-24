@@ -337,6 +337,8 @@ export const KnowledgeBaseView: React.FC = () => {
     content_en?: string;
     tags: string[];
     source_url?: string;
+    content_review_status?: KnowledgeDocument["content_review_status"];
+    content_review_evidence?: KnowledgeDocument["content_review_evidence"];
   }) => {
     if (editingDoc) {
       const updated = await updateKnowledgeDocument(userId, editingDoc.id, data);

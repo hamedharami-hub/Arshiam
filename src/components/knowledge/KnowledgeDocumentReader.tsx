@@ -39,6 +39,7 @@ import {
   type KnowledgeCheckpoint,
 } from "@/lib/knowledgeCheckpointHelper";
 import { createLeitnerCard } from "@/lib/leitnerService";
+import { getKnowledgeReviewState } from "@/lib/knowledgeReviewEvidence";
 import { TextSelectionFloatingBar } from "./TextSelectionFloatingBar";
 const AiQuestionGeneratorModal = React.lazy(() =>
   import("./AiQuestionGeneratorModal").then((m) => ({
@@ -104,6 +105,11 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 }) => {
   const { isEn } = useBilingual();
   const isPharmacySourceFile = document?.source_url?.includes("github.com/hamedharami-hub/pharmacy/blob/") ?? false;
+  const documentId = document?.id;
+  const documentPreferredLanguage = document?.preferred_language;
+  const reviewState = document
+    ? getKnowledgeReviewState(document, isPharmacySourceFile)
+    : "not-required";
   const [docLangMode, setDocLangMode] = useState<DocumentLanguageMode>("en");
   const [fontSize, setFontSize] = useState<number>(15);
   const [isGeneratingBilingual, setIsGeneratingBilingual] = useState(false);
@@ -160,8 +166,8 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 
   // Initialize language mode based on document properties
   useEffect(() => {
-    if (document) setDocLangMode(document.preferred_language || "en");
-  }, [document?.id, document?.preferred_language, document?.content_en]);
+    if (documentId) setDocLangMode(documentPreferredLanguage || "en");
+  }, [documentId, documentPreferredLanguage]);
 
   // Attach interactive delegated click listeners (flip cards, quizzes, pairs, cases, etc.)
   useEffect(() => {
@@ -609,15 +615,54 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                       : isEn ? "Source Reference" : "منبع سند"}</span>
                   </a>
                 )}
+                {reviewState === "recorded" && document.content_review_evidence && (
+                  <details className="basis-full rounded-xl border border-border/70 bg-muted/30 px-3 py-2 text-xs leading-5">
+                    <summary className="cursor-pointer font-semibold text-foreground">
+                      {isEn ? "Recorded review evidence" : "شواهد بازبینی ثبت‌شده"}
+                    </summary>
+                    <div className="mt-2 space-y-1.5 text-muted-foreground">
+                      <p>
+                        {isEn ? "Reviewer role:" : "نقش بازبین:"} {document.content_review_evidence.reviewer_role}
+                        {" · "}{isEn ? "Jurisdiction:" : "حوزهٔ قضایی:"} {document.content_review_evidence.jurisdiction}
+                      </p>
+                      <p>
+                        {isEn ? "Scope:" : "دامنهٔ بازبینی:"} {document.content_review_evidence.scope}
+                        {" · "}{isEn ? "Reviewed:" : "تاریخ بازبینی:"} {document.content_review_evidence.reviewed_at}
+                      </p>
+                      <ul className="list-disc space-y-1 ps-5">
+                        {document.content_review_evidence.references.map((reference) => (
+                          <li key={`${reference.url}-${reference.accessed_at}`}>
+                            <a href={reference.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                              {reference.title}
+                            </a>
+                            <span>{" · "}{isEn ? "accessed" : "تاریخ دسترسی"}: {reference.accessed_at}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-[11px]">
+                        {isEn
+                          ? "This is recorded metadata; ARSHNAZ does not independently certify the reviewer or source authority."
+                          : "این فرادادهٔ ثبت‌شده است؛ ARSHNAZ صلاحیت بازبین یا اعتبار مرجع را مستقلاً تأیید نمی‌کند."}
+                      </p>
+                    </div>
+                  </details>
+                )}
               </div>
             </div>
 
-            {(document.content_review_status === "unreviewed" ||
-              (isPharmacySourceFile && document.content_review_status !== "reviewed")) && (
+            {(reviewState === "unreviewed" || reviewState === "missing-evidence") && (
               <div role="note" className="mb-5 rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-foreground">
-                {isEn
-                  ? "Imported educational content. It has not been independently checked against current Australian clinical references or state and territory rules. Verify the current primary source before using it in practice."
-                  : "محتوای آموزشیِ واردشده است و با منابع اولیهٔ بالینیِ جاری یا قوانین ایالت‌ها و قلمروهای استرالیا به‌طور مستقل تطبیق داده نشده؛ پیش از استفادهٔ حرفه‌ای، منبع اولیهٔ روز را بررسی کنید."}
+                {reviewState === "missing-evidence"
+                  ? isEn
+                    ? "This document is marked reviewed, but its review record is missing valid reviewer, jurisdiction, date, scope, or source details. Treat it as unreviewed."
+                    : "برای این سند برچسب بازبینی‌شده ثبت شده، اما نقش بازبین، حوزهٔ قضایی، تاریخ، دامنه یا جزئیات معتبر منبع کامل نیست؛ فعلاً آن را بازبینی‌نشده در نظر بگیرید."
+                  : isPharmacySourceFile
+                    ? isEn
+                      ? "Imported educational content. It has not been independently checked against current Australian clinical references or state and territory rules. Verify the current primary source before using it in practice."
+                      : "محتوای آموزشیِ واردشده است و با منابع اولیهٔ بالینیِ جاری یا قوانین ایالت‌ها و قلمروهای استرالیا به‌طور مستقل تطبیق داده نشده؛ پیش از استفادهٔ حرفه‌ای، منبع اولیهٔ روز را بررسی کنید."
+                    : isEn
+                      ? "This document is marked unreviewed. Check its primary sources before relying on it for professional decisions."
+                      : "این سند بازبینی‌نشده است؛ پیش از اتکا به آن برای تصمیم حرفه‌ای، منابع اولیه‌اش را بررسی کنید."}
               </div>
             )}
 

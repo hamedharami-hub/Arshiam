@@ -91,6 +91,66 @@ describe("knowledgeService", () => {
     expect(singleDoc?.id).toBe(doc.id);
   });
 
+  it("persists structured review evidence without adding it to documents that do not opt in", async () => {
+    const evidence = {
+      reviewer_role: "Registered pharmacist",
+      jurisdiction: "NSW, Australia",
+      scope: "Clinical triage",
+      reviewed_at: "2026-09-20",
+      references: [{
+        title: "Example primary source",
+        url: "https://example.org/clinical-reference",
+        accessed_at: "2026-09-19",
+      }],
+    };
+    const reviewed = await createKnowledgeDocument(userId, {
+      title: "Reviewed lesson",
+      content_html: "<p>Reviewed content</p>",
+      content_review_status: "reviewed",
+      content_review_evidence: evidence,
+    });
+    const ordinary = await createKnowledgeDocument(userId, {
+      title: "Ordinary note",
+      content_html: "<p>Personal note</p>",
+    });
+
+    expect(reviewed.content_review_status).toBe("reviewed");
+    expect(reviewed.content_review_evidence).toEqual(evidence);
+    expect((await getKnowledgeDocument(userId, reviewed.id))?.content_review_evidence).toEqual(evidence);
+    expect(ordinary).not.toHaveProperty("content_review_status");
+    expect(ordinary).not.toHaveProperty("content_review_evidence");
+
+    const edited = await updateKnowledgeDocument(userId, reviewed.id, {
+      content_html: "<p>Changed content requiring another review</p>",
+    });
+    expect(edited.content_review_status).toBe("unreviewed");
+    expect(edited.content_review_evidence).toEqual(evidence);
+
+    const reReviewed = await updateKnowledgeDocument(userId, reviewed.id, {
+      content_review_status: "reviewed",
+      content_review_evidence: evidence,
+    });
+    expect(reReviewed.content_review_status).toBe("reviewed");
+  });
+
+  it("rejects reviewed documents without complete evidence before any write", async () => {
+    await expect(createKnowledgeDocument(userId, {
+      title: "Invalid review record",
+      content_html: "<p>Content</p>",
+      content_review_status: "reviewed",
+    })).rejects.toThrow("Review status requires complete review evidence.");
+
+    const doc = await createKnowledgeDocument(userId, {
+      title: "Unreviewed document",
+      content_html: "<p>Content</p>",
+    });
+    await expect(updateKnowledgeDocument(userId, doc.id, {
+      title: "Reviewed without evidence",
+      content_review_status: "reviewed",
+    })).rejects.toThrow("Review status requires complete review evidence.");
+    expect((await getKnowledgeDocument(userId, doc.id))?.title).toBe("Unreviewed document");
+  });
+
   it("3. searches documents by title, plain text, and tags", async () => {
     await createKnowledgeDocument(userId, {
       title: "سرترالین (Sertraline)",

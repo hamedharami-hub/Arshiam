@@ -13,9 +13,16 @@ import {
   Gamepad2,
   ChevronDown,
   ChevronUp,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
-import type { KnowledgeDocument, KnowledgeFolder } from "@/lib/knowledgeTypes";
+import type {
+  KnowledgeContentReviewEvidence,
+  KnowledgeDocument,
+  KnowledgeFolder,
+} from "@/lib/knowledgeTypes";
+import { getKnowledgeReviewState, hasCompleteKnowledgeReviewEvidence } from "@/lib/knowledgeReviewEvidence";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { smartAiBeautifyDocument, sanitizeKnowledgeHtml } from "@/lib/knowledgeBeautifier";
 import { generateBilingualLesson } from "@/lib/bilingualHelper";
@@ -36,7 +43,27 @@ interface KnowledgeDocumentEditorModalProps {
     content_en?: string;
     tags: string[];
     source_url?: string;
+    content_review_status?: KnowledgeDocument["content_review_status"];
+    content_review_evidence?: KnowledgeContentReviewEvidence;
   }) => Promise<void>;
+}
+
+function getTodayDate(): string {
+  const today = new Date();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${today.getFullYear()}-${month}-${day}`;
+}
+
+function createEmptyReviewEvidence(): KnowledgeContentReviewEvidence {
+  const today = getTodayDate();
+  return {
+    reviewer_role: "",
+    jurisdiction: "",
+    scope: "",
+    reviewed_at: today,
+    references: [{ title: "", url: "", accessed_at: today }],
+  };
 }
 
 export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModalProps> = ({
@@ -62,6 +89,15 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
   const [isTranslating, setIsTranslating] = useState(false);
   const [interactiveModalOpen, setInteractiveModalOpen] = useState(false);
   const [showMetadata, setShowMetadata] = useState(false);
+  const [reviewStatus, setReviewStatus] = useState<KnowledgeDocument["content_review_status"]>("unreviewed");
+  const [reviewEvidence, setReviewEvidence] = useState<KnowledgeContentReviewEvidence>(createEmptyReviewEvidence);
+  const [reviewTouched, setReviewTouched] = useState(false);
+  const currentReviewState = document
+    ? getKnowledgeReviewState(
+        document,
+        document.source_url?.includes("github.com/hamedharami-hub/pharmacy/blob/") ?? false,
+      )
+    : "not-required";
 
   const handleInsertInteractive = (html: string, mode: "append" | "replace") => {
     if (langTab === "fa") {
@@ -85,6 +121,9 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
       setContentEn(document.content_en || "");
       setTagsInput(document.tags ? document.tags.join(", ") : "");
       setSourceUrl(document.source_url || "");
+      setReviewStatus(document.content_review_status || "unreviewed");
+      setReviewEvidence(document.content_review_evidence || createEmptyReviewEvidence());
+      setReviewTouched(false);
       if (document.folder_id || (document.tags && document.tags.length > 0) || document.source_url) {
         setShowMetadata(true);
       }
@@ -96,6 +135,9 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
       setContentEn("");
       setTagsInput("");
       setSourceUrl("");
+      setReviewStatus("unreviewed");
+      setReviewEvidence(createEmptyReviewEvidence());
+      setReviewTouched(false);
       setShowMetadata(Boolean(initialFolderId));
     }
     setLangTab("fa");
@@ -197,6 +239,25 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
       return;
     }
 
+    const normalizedReviewEvidence: KnowledgeContentReviewEvidence = {
+      reviewer_role: reviewEvidence.reviewer_role.trim(),
+      jurisdiction: reviewEvidence.jurisdiction.trim(),
+      scope: reviewEvidence.scope.trim(),
+      reviewed_at: reviewEvidence.reviewed_at,
+      references: reviewEvidence.references.map((reference) => ({
+        title: reference.title.trim(),
+        url: reference.url.trim(),
+        accessed_at: reference.accessed_at,
+      })),
+    };
+    if (reviewTouched && reviewStatus === "reviewed" &&
+      !hasCompleteKnowledgeReviewEvidence(normalizedReviewEvidence)) {
+      toast.error(isEn
+        ? "To mark reviewed, complete reviewer role, jurisdiction, scope, dates, and at least one HTTPS source."
+        : "برای ثبت بازبینی، نقش بازبین، حوزهٔ قضایی، دامنه، تاریخ‌ها و دست‌کم یک منبع HTTPS معتبر را کامل کنید.");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const tags = tagsInput
@@ -212,6 +273,11 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
         content_en: contentEn.trim() || undefined,
         tags,
         source_url: sourceUrl.trim() || undefined,
+        ...(reviewTouched
+          ? reviewStatus === "reviewed"
+            ? { content_review_status: "reviewed" as const, content_review_evidence: normalizedReviewEvidence }
+            : { content_review_status: "unreviewed" as const }
+          : {}),
       });
 
       onOpenChange(false);
@@ -473,23 +539,219 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
           {/* Content Area */}
           <div className="flex-1 min-h-[180px] sm:min-h-[280px] overflow-y-auto p-3 sm:p-4 bg-muted/15">
             {activeTab === "edit" ? (
-              <textarea
-                dir={langTab === "fa" ? "rtl" : "ltr"}
-                value={langTab === "fa" ? contentHtml : contentEn}
-                onChange={(e) =>
-                  langTab === "fa"
-                    ? setContentHtml(e.target.value)
-                    : setContentEn(e.target.value)
-                }
-                placeholder={
-                  langTab === "fa"
-                    ? "متن یا کد HTML فارسی درس را اینجا وارد فرمایید...\nبا کلیک روی «زیباسازی»، کادرهای بالینی و جداول استاندارد اضافه می‌شوند."
-                    : "Enter English educational text or HTML here...\nClick 'Smart Beautify' or 'AI Bilingualize' to auto-generate."
-                }
-                className={`w-full h-full min-h-[160px] sm:min-h-[260px] p-3 font-mono text-xs bg-background border border-input rounded-2xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed resize-none shadow-xs ${
-                  langTab === "fa" ? "text-right" : "text-left"
-                }`}
-              />
+              <div className="flex min-h-full flex-col gap-3">
+                <details className="rounded-xl border border-border bg-card px-3 py-2">
+                  <summary className="cursor-pointer text-xs font-semibold text-foreground">
+                    {isEn ? "Review status and source evidence" : "وضعیت بازبینی و شواهد منابع"}
+                  </summary>
+                  <div className="mt-3 space-y-3">
+                    {currentReviewState === "missing-evidence" && (
+                      <p role="note" className="rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-foreground">
+                        {isEn
+                          ? "The existing reviewed label has incomplete evidence. Reader mode will continue to show a caution until this record is completed."
+                          : "فرادادهٔ بازبینی فعلی ناقص است؛ تا تکمیل این سابقه، Reader همچنان هشدار نشان می‌دهد."}
+                      </p>
+                    )}
+                    <label className="block space-y-1 text-xs">
+                      <span className="font-medium text-foreground">{isEn ? "Review status" : "وضعیت بازبینی"}</span>
+                      <select
+                        aria-label={isEn ? "Review status" : "وضعیت بازبینی"}
+                        value={reviewStatus || "unreviewed"}
+                        onChange={(event) => {
+                          setReviewTouched(true);
+                          setReviewStatus(event.target.value as KnowledgeDocument["content_review_status"]);
+                        }}
+                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs text-foreground"
+                      >
+                        <option value="unreviewed">{isEn ? "Unreviewed" : "بازبینی‌نشده"}</option>
+                        <option value="reviewed">{isEn ? "Reviewed (requires evidence)" : "بازبینی‌شده (نیازمند ثبت شواهد)"}</option>
+                      </select>
+                    </label>
+
+                    {reviewStatus === "reviewed" ? (
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <label className="block space-y-1 text-xs">
+                            <span className="font-medium">{isEn ? "Reviewer role" : "نقش بازبین"}</span>
+                            <input
+                              aria-label={isEn ? "Reviewer role" : "نقش بازبین"}
+                              value={reviewEvidence.reviewer_role}
+                              onChange={(event) => {
+                                setReviewTouched(true);
+                                setReviewEvidence((previous) => ({ ...previous, reviewer_role: event.target.value }));
+                              }}
+                              placeholder={isEn ? "e.g. registered pharmacist" : "مثلاً داروساز ثبت‌شده"}
+                              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs"
+                            />
+                          </label>
+                          <label className="block space-y-1 text-xs">
+                            <span className="font-medium">{isEn ? "Jurisdiction" : "حوزهٔ قضایی"}</span>
+                            <input
+                              aria-label={isEn ? "Jurisdiction" : "حوزهٔ قضایی"}
+                              value={reviewEvidence.jurisdiction}
+                              onChange={(event) => {
+                                setReviewTouched(true);
+                                setReviewEvidence((previous) => ({ ...previous, jurisdiction: event.target.value }));
+                              }}
+                              placeholder={isEn ? "e.g. NSW, Australia" : "مثلاً NSW، استرالیا"}
+                              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs"
+                            />
+                          </label>
+                          <label className="block space-y-1 text-xs">
+                            <span className="font-medium">{isEn ? "Review scope" : "دامنهٔ بازبینی"}</span>
+                            <input
+                              aria-label={isEn ? "Review scope" : "دامنهٔ بازبینی"}
+                              value={reviewEvidence.scope}
+                              onChange={(event) => {
+                                setReviewTouched(true);
+                                setReviewEvidence((previous) => ({ ...previous, scope: event.target.value }));
+                              }}
+                              placeholder={isEn ? "Clinical, regulatory, translation…" : "بالینی، مقررات، ترجمه…"}
+                              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs"
+                            />
+                          </label>
+                          <label className="block space-y-1 text-xs">
+                            <span className="font-medium">{isEn ? "Review date" : "تاریخ بازبینی"}</span>
+                            <input
+                              aria-label={isEn ? "Review date" : "تاریخ بازبینی"}
+                              type="date"
+                              value={reviewEvidence.reviewed_at}
+                              onChange={(event) => {
+                                setReviewTouched(true);
+                                setReviewEvidence((previous) => ({ ...previous, reviewed_at: event.target.value }));
+                              }}
+                              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs"
+                            />
+                          </label>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <h3 className="text-xs font-semibold">{isEn ? "Primary/source references" : "منابع اولیه و مراجع"}</h3>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReviewTouched(true);
+                                const today = getTodayDate();
+                                setReviewEvidence((previous) => ({
+                                  ...previous,
+                                  references: [...previous.references, { title: "", url: "", accessed_at: today }],
+                                }));
+                              }}
+                              className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs font-medium hover:bg-muted"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              {isEn ? "Add source" : "افزودن منبع"}
+                            </button>
+                          </div>
+                          {reviewEvidence.references.map((reference, index) => (
+                            <div key={`review-reference-${index}`} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 rounded-lg border border-border/70 p-2">
+                              <label className="block space-y-1 text-xs">
+                                <span>{isEn ? `Source title ${index + 1}` : `عنوان منبع ${index + 1}`}</span>
+                                <input
+                                  aria-label={isEn ? `Source title ${index + 1}` : `عنوان منبع ${index + 1}`}
+                                  value={reference.title}
+                                  onChange={(event) => {
+                                    setReviewTouched(true);
+                                    setReviewEvidence((previous) => ({
+                                      ...previous,
+                                      references: previous.references.map((item, itemIndex) => itemIndex === index
+                                        ? { ...item, title: event.target.value }
+                                        : item),
+                                    }));
+                                  }}
+                                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs"
+                                />
+                              </label>
+                              <label className="block space-y-1 text-xs">
+                                <span>{isEn ? `HTTPS source URL ${index + 1}` : `نشانی HTTPS منبع ${index + 1}`}</span>
+                                <input
+                                  aria-label={isEn ? `HTTPS source URL ${index + 1}` : `نشانی HTTPS منبع ${index + 1}`}
+                                  type="url"
+                                  value={reference.url}
+                                  onChange={(event) => {
+                                    setReviewTouched(true);
+                                    setReviewEvidence((previous) => ({
+                                      ...previous,
+                                      references: previous.references.map((item, itemIndex) => itemIndex === index
+                                        ? { ...item, url: event.target.value }
+                                        : item),
+                                    }));
+                                  }}
+                                  placeholder="https://..."
+                                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs"
+                                />
+                              </label>
+                              <div className="flex items-end gap-2">
+                                <label className="block min-w-0 flex-1 space-y-1 text-xs">
+                                  <span>{isEn ? "Accessed" : "تاریخ دسترسی"}</span>
+                                  <input
+                                    aria-label={isEn ? `Access date ${index + 1}` : `تاریخ دسترسی منبع ${index + 1}`}
+                                    type="date"
+                                    value={reference.accessed_at}
+                                    onChange={(event) => {
+                                      setReviewTouched(true);
+                                      setReviewEvidence((previous) => ({
+                                        ...previous,
+                                        references: previous.references.map((item, itemIndex) => itemIndex === index
+                                          ? { ...item, accessed_at: event.target.value }
+                                          : item),
+                                      }));
+                                    }}
+                                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs"
+                                  />
+                                </label>
+                                <button
+                                  type="button"
+                                  aria-label={isEn ? `Remove source ${index + 1}` : `حذف منبع ${index + 1}`}
+                                  onClick={() => {
+                                    setReviewTouched(true);
+                                    setReviewEvidence((previous) => ({
+                                      ...previous,
+                                      references: previous.references.filter((_, itemIndex) => itemIndex !== index),
+                                    }));
+                                  }}
+                                  className="mb-0.5 rounded-lg border border-border p-2 text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-[11px] leading-5 text-muted-foreground">
+                          {isEn
+                            ? "ARSHNAZ records what you enter; it does not verify the reviewer's registration or certify that a source is authoritative or current."
+                            : "ARSHNAZ اطلاعات واردشده را ثبت می‌کند؛ ثبت حرفه‌ای بازبین یا اولیه/به‌روز بودن مرجع را مستقلاً تأیید نمی‌کند."}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-xs leading-5 text-muted-foreground">
+                        {isEn
+                          ? "Imported or clinical content should remain unreviewed until a human review and its sources are recorded."
+                          : "محتوای واردشده یا بالینی تا زمان بازبینی انسانی و ثبت منابع باید بازبینی‌نشده بماند."}
+                      </p>
+                    )}
+                  </div>
+                </details>
+                <textarea
+                  dir={langTab === "fa" ? "rtl" : "ltr"}
+                  value={langTab === "fa" ? contentHtml : contentEn}
+                  onChange={(e) =>
+                    langTab === "fa"
+                      ? setContentHtml(e.target.value)
+                      : setContentEn(e.target.value)
+                  }
+                  placeholder={
+                    langTab === "fa"
+                      ? "متن یا کد HTML فارسی درس را اینجا وارد فرمایید...\nبا کلیک روی «زیباسازی»، کادرهای بالینی و جداول استاندارد اضافه می‌شوند."
+                      : "Enter English educational text or HTML here...\nClick 'Smart Beautify' or 'AI Bilingualize' to auto-generate."
+                  }
+                  className={`w-full flex-1 min-h-[160px] sm:min-h-[260px] p-3 font-mono text-xs bg-background border border-input rounded-2xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed resize-y shadow-xs ${
+                    langTab === "fa" ? "text-right" : "text-left"
+                  }`}
+                />
+              </div>
             ) : (
               <div className="p-4 sm:p-5 bg-card rounded-2xl border border-border min-h-[160px] sm:min-h-[260px] shadow-sm">
                 <div

@@ -177,11 +177,28 @@ describe("pharmacyImportService", () => {
     expect(remote.knowledge_documents.get(old.id)?.source_url).toBe(personalSource);
   });
 
-  it("preserves a manual content-review status on a legacy document", async () => {
+  it("preserves the manual content-review status and evidence on a legacy document", async () => {
     const old = LEGACY_DOCUMENTS.find((item) => item.id === "doc-disease-eczema")!;
-    remote.knowledge_documents.set(old.id, { ...old, user_id: userId, content_review_status: "reviewed" });
+    const reviewEvidence = {
+      reviewer_role: "Registered pharmacist",
+      jurisdiction: "NSW, Australia",
+      scope: "Clinical content",
+      reviewed_at: "2026-09-20",
+      references: [{
+        title: "Example test reference",
+        url: "https://example.org/clinical-reference",
+        accessed_at: "2026-09-19",
+      }],
+    };
+    remote.knowledge_documents.set(old.id, {
+      ...old,
+      user_id: userId,
+      content_review_status: "reviewed",
+      content_review_evidence: reviewEvidence,
+    });
     await importPharmacyKnowledge(userId);
     expect(remote.knowledge_documents.get(old.id)?.content_review_status).toBe("reviewed");
+    expect(remote.knowledge_documents.get(old.id)?.content_review_evidence).toEqual(reviewEvidence);
   });
 
   it("fails visibly on partial server writes and safely resumes", async () => {

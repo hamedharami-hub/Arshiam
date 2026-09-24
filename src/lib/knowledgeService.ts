@@ -3,6 +3,7 @@ import { cacheGet, cacheSet, enqueueOp, getPendingOps } from "./offlineQueue";
 import { saveEntityToFirestore, deleteEntityFromFirestore } from "./firestoreSync";
 import type { KnowledgeFolder, KnowledgeDocument, KnowledgeFolderNode } from "./knowledgeTypes";
 import { reconcileRemoteRowsWithPending } from "./offlineReconcile";
+import { hasCompleteKnowledgeReviewEvidence } from "./knowledgeReviewEvidence";
 
 const makeId = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
@@ -306,9 +307,15 @@ export async function createKnowledgeDocument(
     direction?: "rtl" | "ltr" | "auto";
     tags?: string[];
     source_url?: string;
+    content_review_status?: KnowledgeDocument["content_review_status"];
+    content_review_evidence?: KnowledgeDocument["content_review_evidence"];
   }
 ): Promise<KnowledgeDocument> {
   if (!userId) throw new Error("User ID is required");
+  if (data.content_review_status === "reviewed" &&
+    !hasCompleteKnowledgeReviewEvidence(data.content_review_evidence)) {
+    throw new Error("Review status requires complete review evidence.");
+  }
   const titleTrimmed = data.title.trim() || "Untitled Document";
   const now = new Date().toISOString();
   const plainText = stripHtmlToPlainText(data.content_html);
@@ -326,6 +333,8 @@ export async function createKnowledgeDocument(
     plain_text: plainText,
     tags: data.tags || [],
     source_url: data.source_url || "",
+    ...(data.content_review_status ? { content_review_status: data.content_review_status } : {}),
+    ...(data.content_review_evidence ? { content_review_evidence: data.content_review_evidence } : {}),
     is_favorite: false,
     view_count: 0,
     created_at: now,
@@ -357,12 +366,24 @@ export async function updateKnowledgeDocument(
   if (idx === -1) throw new Error("Document not found");
 
   const current = existing[idx];
-  const nextHtml = patch.content_html !== undefined ? patch.content_html : current.content_html;
-  const plainText = patch.content_html !== undefined ? stripHtmlToPlainText(nextHtml) : current.plain_text;
+  const contentChanged =
+    (patch.title !== undefined && patch.title !== current.title) ||
+    (patch.title_en !== undefined && patch.title_en !== current.title_en) ||
+    (patch.content_html !== undefined && patch.content_html !== current.content_html) ||
+    (patch.content_en !== undefined && patch.content_en !== current.content_en);
+  if (patch.content_review_status === "reviewed" &&
+    !hasCompleteKnowledgeReviewEvidence(patch.content_review_evidence)) {
+    throw new Error("Review status requires complete review evidence.");
+  }
+  const safePatch = contentChanged && patch.content_review_status !== "reviewed"
+    ? { ...patch, content_review_status: "unreviewed" as const }
+    : patch;
+  const nextHtml = safePatch.content_html !== undefined ? safePatch.content_html : current.content_html;
+  const plainText = safePatch.content_html !== undefined ? stripHtmlToPlainText(nextHtml) : current.plain_text;
 
   const updated: KnowledgeDocument = {
     ...current,
-    ...patch,
+    ...safePatch,
     plain_text: plainText,
     updated_at: new Date().toISOString(),
   };

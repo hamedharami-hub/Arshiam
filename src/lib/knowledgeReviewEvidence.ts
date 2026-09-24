@@ -1,0 +1,60 @@
+import type { KnowledgeContentReviewEvidence, KnowledgeDocument } from "./knowledgeTypes";
+
+export type KnowledgeReviewState = "unreviewed" | "missing-evidence" | "recorded" | "not-required";
+
+function isValidCalendarDate(value: string, now: Date): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(year, month - 1, day);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return parsed.getFullYear() === year && parsed.getMonth() === month - 1 &&
+    parsed.getDate() === day && parsed.getTime() <= today.getTime();
+}
+
+function isSafeReferenceUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
+export function hasCompleteKnowledgeReviewEvidence(
+  evidence: KnowledgeContentReviewEvidence | undefined,
+  now = new Date(),
+): boolean {
+  if (!evidence || typeof evidence !== "object") return false;
+  if (typeof evidence.reviewer_role !== "string" || !evidence.reviewer_role.trim() ||
+    typeof evidence.jurisdiction !== "string" || !evidence.jurisdiction.trim() ||
+    typeof evidence.scope !== "string" || !evidence.scope.trim()) {
+    return false;
+  }
+  if (!isValidCalendarDate(evidence.reviewed_at, now) ||
+    !Array.isArray(evidence.references) || evidence.references.length === 0) return false;
+
+  return evidence.references.every((reference) => {
+    if (!reference || typeof reference !== "object") return false;
+    return typeof reference.title === "string" && Boolean(reference.title.trim()) &&
+      typeof reference.url === "string" && isSafeReferenceUrl(reference.url) &&
+      typeof reference.accessed_at === "string" && isValidCalendarDate(reference.accessed_at, now);
+  });
+}
+
+export function getKnowledgeReviewState(
+  document: Pick<KnowledgeDocument, "content_review_status" | "content_review_evidence">,
+  isImportedPharmacyDocument = false,
+  now = new Date(),
+): KnowledgeReviewState {
+  if (document.content_review_status === "reviewed") {
+    return hasCompleteKnowledgeReviewEvidence(document.content_review_evidence, now)
+      ? "recorded"
+      : "missing-evidence";
+  }
+
+  if (document.content_review_status === "unreviewed" || isImportedPharmacyDocument) {
+    return "unreviewed";
+  }
+
+  return "not-required";
+}

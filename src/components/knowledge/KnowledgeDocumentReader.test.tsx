@@ -70,6 +70,54 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
     expect(screen.getByText(/ترجمهٔ فارسی این سند قدیمی کامل نیست/)).toBeInTheDocument();
   });
 
+  it("does not let a bare reviewed flag suppress the imported Pharmacy safety notice", () => {
+    const importedDoc: KnowledgeDocument = {
+      ...dummyDoc,
+      source_url: "https://github.com/hamedharami-hub/pharmacy/blob/abc123/data/scenarios/example.ts",
+      content_review_status: "reviewed",
+    };
+    render(<KnowledgeDocumentReader document={importedDoc} folder={dummyFolder} onEdit={() => {}} onDelete={() => {}} />);
+    expect(screen.getByRole("note")).toHaveTextContent(/برچسب بازبینی‌شده ثبت شده/);
+    expect(screen.queryByText("شواهد بازبینی ثبت‌شده")).not.toBeInTheDocument();
+  });
+
+  it("uses accurate wording for user-authored unreviewed documents", () => {
+    const unreviewedDoc: KnowledgeDocument = {
+      ...dummyDoc,
+      content_review_status: "unreviewed",
+    };
+    render(<KnowledgeDocumentReader document={unreviewedDoc} folder={dummyFolder} onEdit={() => {}} onDelete={() => {}} />);
+    expect(screen.getByRole("note")).toHaveTextContent(/این سند بازبینی‌نشده است/);
+    expect(screen.queryByText(/محتوای آموزشیِ واردشده/)).not.toBeInTheDocument();
+  });
+
+  it("shows recorded review sources without claiming that ARSHNAZ certifies them", () => {
+    const reviewedDoc: KnowledgeDocument = {
+      ...dummyDoc,
+      source_url: "https://github.com/hamedharami-hub/pharmacy/blob/abc123/data/scenarios/example.ts",
+      content_review_status: "reviewed",
+      content_review_evidence: {
+        reviewer_role: "Registered pharmacist",
+        jurisdiction: "NSW, Australia",
+        scope: "Clinical triage",
+        reviewed_at: "2026-09-20",
+        references: [{
+          title: "NSW Health clinical guidance",
+          url: "https://health.example.gov.au/clinical-guidance",
+          accessed_at: "2026-09-19",
+        }],
+      },
+    };
+    render(<KnowledgeDocumentReader document={reviewedDoc} folder={dummyFolder} onEdit={() => {}} onDelete={() => {}} />);
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
+    expect(screen.getByText("شواهد بازبینی ثبت‌شده")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "NSW Health clinical guidance" })).toHaveAttribute(
+      "href",
+      "https://health.example.gov.au/clinical-guidance",
+    );
+    expect(screen.getByText(/صلاحیت بازبین یا اعتبار مرجع را مستقلاً تأیید نمی‌کند/)).toBeInTheDocument();
+  });
+
   it("renders consecutive inline numbered advice as a readable list without editing the source", () => {
     const sourceMarkup =
       '<p dir="ltr">Protocol: 1) Communicate calmly 2) Check the alert 3) Contact the prescriber</p>';
