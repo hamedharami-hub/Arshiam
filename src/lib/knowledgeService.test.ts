@@ -12,8 +12,7 @@ import {
   buildFolderTree,
   searchKnowledgeDocuments,
 } from "./knowledgeService";
-import { clearQueue } from "./offlineQueue";
-import { saveEntityToFirestore, deleteEntityFromFirestore } from "./firestoreSync";
+import { clearQueue, getPendingOps } from "./offlineQueue";
 
 vi.mock("@/lib/firebaseStore", () => ({
   firebaseStore: {
@@ -42,11 +41,13 @@ describe("knowledgeService", () => {
     localStorage.clear();
     await clearQueue();
     vi.clearAllMocks();
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
   });
 
   afterEach(async () => {
     localStorage.clear();
     await clearQueue();
+    vi.restoreAllMocks();
   });
 
   it("1. creates folders and subfolders hierarchically", async () => {
@@ -180,18 +181,26 @@ describe("knowledgeService", () => {
     expect(folders.find((item) => item.id === child.id)?.parent_id).toBe(parent.id);
     expect(folders.find((item) => item.id === nested.id)?.parent_id).toBe(child.id);
     expect(documents.find((item) => item.id === doc.id)?.folder_id).toBe(parent.id);
-    expect(saveEntityToFirestore).toHaveBeenCalledWith(
-      userId,
-      "knowledge_folders",
-      child.id,
-      expect.objectContaining({ parent_id: parent.id }),
-    );
-    expect(saveEntityToFirestore).toHaveBeenCalledWith(
-      userId,
-      "knowledge_documents",
-      doc.id,
-      expect.objectContaining({ folder_id: parent.id }),
-    );
-    expect(deleteEntityFromFirestore).toHaveBeenCalledWith(userId, "knowledge_folders", target.id);
+    const pendingFolders = await getPendingOps("knowledge_folders");
+    const pendingDocuments = await getPendingOps("knowledge_documents");
+    expect(pendingFolders).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        ownerId: userId,
+        op: "update",
+        payload: expect.objectContaining({ id: child.id, parent_id: parent.id }),
+      }),
+      expect.objectContaining({
+        ownerId: userId,
+        op: "delete",
+        match: { id: target.id },
+      }),
+    ]));
+    expect(pendingDocuments).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        ownerId: userId,
+        op: "update",
+        payload: expect.objectContaining({ id: doc.id, folder_id: parent.id }),
+      }),
+    ]));
   });
 });

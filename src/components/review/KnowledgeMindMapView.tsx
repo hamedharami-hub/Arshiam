@@ -38,6 +38,7 @@ import { getKnowledgeFolders, getKnowledgeDocuments } from "@/lib/knowledgeServi
 import { getLeitnerCards } from "@/lib/leitnerService";
 import { TaskKnowledgeReaderDialog } from "@/components/task-detail/TaskKnowledgeReaderDialog";
 import { StudyTaskScheduleModal } from "@/components/knowledge/StudyTaskScheduleModal";
+import { buildKnowledgeMindMapSearch, mindMapNodeMatchesSearch } from "@/lib/knowledgeMindMapSearch";
 
 interface KnowledgeMindMapViewProps {
   userId: string;
@@ -403,27 +404,16 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     loadData();
   }, [loadData]);
 
-  // Auto-expand branches when searching
+  const searchResult = useMemo(
+    () => buildKnowledgeMindMapSearch(debouncedSearch, folders, documents, cards),
+    [debouncedSearch, folders, documents, cards],
+  );
+
+  // Auto-expand every ancestor needed to reveal folder, document-content, and card matches.
   useEffect(() => {
     if (!debouncedSearch.trim()) return;
-    const q = debouncedSearch.toLowerCase();
-    const autoExpand: Record<string, boolean> = { "root-kb": true };
-
-    for (let i = 0; i < documents.length; i++) {
-      const d = documents[i];
-      if (d.title.toLowerCase().includes(q)) {
-        if (d.folder_id) {
-          autoExpand[`folder-${d.folder_id}`] = true;
-          const parentF = folders.find((f) => f.id === d.folder_id);
-          if (parentF?.parent_id) {
-            autoExpand[`folder-${parentF.parent_id}`] = true;
-          }
-        }
-      }
-    }
-
-    setExpandedNodeIds((prev) => ({ ...prev, ...autoExpand }));
-  }, [debouncedSearch, documents, folders]);
+    setExpandedNodeIds((prev) => ({ ...prev, ...searchResult.expandedNodeIds }));
+  }, [debouncedSearch, searchResult]);
 
   // Toggle expand / collapse node
   const handleToggleExpand = useCallback((nodeId: string) => {
@@ -1485,7 +1475,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
           {nodes.map((node) => {
             const isHighlighted =
               debouncedSearch.trim() !== "" &&
-              node.title.toLowerCase().includes(debouncedSearch.toLowerCase());
+              mindMapNodeMatchesSearch(node, searchResult);
             const isCurrentScopeRoot = selectedScopeId !== "all" && node.id === selectedScopeId;
 
             return (

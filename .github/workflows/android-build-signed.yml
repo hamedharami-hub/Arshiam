@@ -1,9 +1,8 @@
 name: Build Signed Android APK
 
+# Signed Android releases are explicit/manual so ordinary web deployments do
+# not fail when release-signing secrets are intentionally unavailable.
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:

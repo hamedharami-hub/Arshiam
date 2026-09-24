@@ -1,9 +1,10 @@
 import { firebaseStore } from "./firebaseStore";
-import { cacheGet, cacheSet, enqueueOp } from "./offlineQueue";
+import { cacheGet, cacheSet, enqueueOp, getPendingOps } from "./offlineQueue";
 import { saveEntityToFirestore, deleteEntityFromFirestore } from "./firestoreSync";
 import type { TaskKnowledgeLink } from "./taskKnowledgeTypes";
 import type { KnowledgeDocument } from "./knowledgeTypes";
 import { getKnowledgeDocuments } from "./knowledgeService";
+import { reconcileRemoteRowsWithPending } from "./offlineReconcile";
 
 const makeId = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
@@ -42,12 +43,14 @@ export async function getTaskKnowledgeLinks(
 
       if (!res.error && Array.isArray(res.data)) {
         const remote = res.data as TaskKnowledgeLink[];
-        const map = new Map<string, TaskKnowledgeLink>();
-        for (const l of remote) map.set(l.id, l);
-        for (const c of cached) {
-          if (!map.has(c.id)) map.set(c.id, c);
-        }
-        const merged = Array.from(map.values());
+        const pending = await getPendingOps("task_knowledge_links");
+        const merged = reconcileRemoteRowsWithPending(
+          remote,
+          cached,
+          pending,
+          "task_knowledge_links",
+          userId,
+        );
         await cacheSet(cacheKey, merged);
         return merged;
       }
@@ -109,13 +112,13 @@ export async function linkTaskKnowledge(
     try {
       const ok = await saveEntityToFirestore(userId, "task_knowledge_links", link.id, link);
       if (!ok) {
-        await enqueueOp({ table: "task_knowledge_links", op: "insert", payload: link });
+        await enqueueOp({ ownerId: userId, table: "task_knowledge_links", op: "insert", payload: link });
       }
     } catch (e) {
-      await enqueueOp({ table: "task_knowledge_links", op: "insert", payload: link });
+      await enqueueOp({ ownerId: userId, table: "task_knowledge_links", op: "insert", payload: link });
     }
   } else {
-    await enqueueOp({ table: "task_knowledge_links", op: "insert", payload: link });
+    await enqueueOp({ ownerId: userId, table: "task_knowledge_links", op: "insert", payload: link });
   }
 
   return link;
@@ -141,13 +144,13 @@ export async function unlinkTaskKnowledge(
       try {
         const ok = await deleteEntityFromFirestore(userId, "task_knowledge_links", target.id);
         if (!ok) {
-          await enqueueOp({ table: "task_knowledge_links", op: "delete", match: { id: target.id } });
+          await enqueueOp({ ownerId: userId, table: "task_knowledge_links", op: "delete", match: { id: target.id } });
         }
       } catch (e) {
-        await enqueueOp({ table: "task_knowledge_links", op: "delete", match: { id: target.id } });
+        await enqueueOp({ ownerId: userId, table: "task_knowledge_links", op: "delete", match: { id: target.id } });
       }
     } else {
-      await enqueueOp({ table: "task_knowledge_links", op: "delete", match: { id: target.id } });
+      await enqueueOp({ ownerId: userId, table: "task_knowledge_links", op: "delete", match: { id: target.id } });
     }
   }
 

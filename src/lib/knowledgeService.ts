@@ -1,7 +1,8 @@
 import { firebaseStore } from "./firebaseStore";
-import { cacheGet, cacheSet, enqueueOp } from "./offlineQueue";
+import { cacheGet, cacheSet, enqueueOp, getPendingOps } from "./offlineQueue";
 import { saveEntityToFirestore, deleteEntityFromFirestore } from "./firestoreSync";
 import type { KnowledgeFolder, KnowledgeDocument, KnowledgeFolderNode } from "./knowledgeTypes";
+import { reconcileRemoteRowsWithPending } from "./offlineReconcile";
 
 const makeId = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
@@ -94,12 +95,14 @@ export async function getKnowledgeFolders(userId: string): Promise<KnowledgeFold
 
       if (!res.error && Array.isArray(res.data)) {
         const remote = res.data as KnowledgeFolder[];
-        const map = new Map<string, KnowledgeFolder>();
-        for (const f of remote) map.set(f.id, f);
-        for (const c of cached) {
-          if (!map.has(c.id)) map.set(c.id, c);
-        }
-        const merged = Array.from(map.values()).sort(
+        const pending = await getPendingOps("knowledge_folders");
+        const merged = reconcileRemoteRowsWithPending(
+          remote,
+          cached,
+          pending,
+          "knowledge_folders",
+          userId,
+        ).sort(
           (a, b) => (a.position ?? 0) - (b.position ?? 0) || a.name.localeCompare(b.name)
         );
         await cacheSet(cacheKey, merged);
@@ -254,12 +257,14 @@ export async function getKnowledgeDocuments(
 
       if (!res.error && Array.isArray(res.data)) {
         const remote = res.data as KnowledgeDocument[];
-        const map = new Map<string, KnowledgeDocument>();
-        for (const d of remote) map.set(d.id, d);
-        for (const c of cached) {
-          if (!map.has(c.id)) map.set(c.id, c);
-        }
-        const merged = Array.from(map.values()).sort(
+        const pending = await getPendingOps("knowledge_documents");
+        const merged = reconcileRemoteRowsWithPending(
+          remote,
+          cached,
+          pending,
+          "knowledge_documents",
+          userId,
+        ).sort(
           (a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime()
         );
         await cacheSet(cacheKey, merged);

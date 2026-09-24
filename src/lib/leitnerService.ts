@@ -1,7 +1,8 @@
 import { firebaseStore } from "./firebaseStore";
-import { cacheGet, cacheSet, enqueueOp } from "./offlineQueue";
+import { cacheGet, cacheSet, enqueueOp, getPendingOps } from "./offlineQueue";
 import { saveEntityToFirestore, deleteEntityFromFirestore } from "./firestoreSync";
 import type { LeitnerCard, LeitnerBoxStats, LeitnerRating } from "./leitnerTypes";
+import { reconcileRemoteRowsWithPending } from "./offlineReconcile";
 
 const makeId = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
@@ -187,12 +188,14 @@ export async function getLeitnerCards(userId: string): Promise<LeitnerCard[]> {
 
       if (!res.error && Array.isArray(res.data)) {
         const remote = res.data as LeitnerCard[];
-        const map = new Map<string, LeitnerCard>();
-        for (const c of remote) map.set(c.id, c);
-        for (const c of cached) {
-          if (!map.has(c.id)) map.set(c.id, c);
-        }
-        const merged = Array.from(map.values()).sort(
+        const pending = await getPendingOps("leitner_cards");
+        const merged = reconcileRemoteRowsWithPending(
+          remote,
+          cached,
+          pending,
+          "leitner_cards",
+          userId,
+        ).sort(
           (a, b) => new Date(a.next_review_at).getTime() - new Date(b.next_review_at).getTime()
         );
         await cacheSet(cacheKey, merged);

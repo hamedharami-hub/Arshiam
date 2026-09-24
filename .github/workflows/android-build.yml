@@ -1,10 +1,8 @@
 name: Build Android APK
 
+# Android artifacts are intentionally opt-in. Web releases on main must not
+# spend runner time or publish an APK unless a maintainer starts this workflow.
 on:
-  push:
-    branches:
-      - main
-      - fix/core-reliability
   workflow_dispatch:
 
 concurrency:

@@ -37,11 +37,13 @@ describe("taskKnowledgeService", () => {
     localStorage.clear();
     await clearQueue();
     vi.clearAllMocks();
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
   });
 
   afterEach(async () => {
     localStorage.clear();
     await clearQueue();
+    vi.restoreAllMocks();
   });
 
   it("1. links a knowledge document to a task without duplicates", async () => {

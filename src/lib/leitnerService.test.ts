@@ -40,11 +40,13 @@ describe("leitnerService", () => {
     localStorage.clear();
     await clearQueue();
     vi.clearAllMocks();
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
   });
 
   afterEach(async () => {
     localStorage.clear();
     await clearQueue();
+    vi.restoreAllMocks();
   });
 
   it("1. creates flashcard with front and back, starting in Box 1", async () => {
