@@ -260,4 +260,18 @@ describe("knowledgeCheckpointHelper", () => {
       getRelatedDocumentSuggestions(current, [current, unrelatedMedicalDoc])
     ).toEqual([]);
   });
+
+  it("does not treat generic red-alert wording as a specific title match", () => {
+    const current = { ...sampleOtcDoc, title: "SafeScript red alert", tags: [] };
+    const unrelatedRedFlagDoc = {
+      ...unrelatedDoc,
+      folder_id: "folder-other",
+      title: "Red flags in cough",
+      tags: [],
+    };
+
+    expect(
+      getRelatedDocumentSuggestions(current, [current, unrelatedRedFlagDoc])
+    ).toEqual([]);
+  });
 });

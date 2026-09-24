@@ -227,6 +227,11 @@ const TITLE_STOP_WORDS = new Set([
   "prescriptions",
   "repeat",
   "refill",
+  "red",
+  "alert",
+  "alerts",
+  "flag",
+  "flags",
   "برای",
   "های",
   "را",
@@ -263,6 +268,9 @@ const TITLE_STOP_WORDS = new Set([
   "راهنما",
   "مدیریت",
   "ارزیابی",
+  "قرمز",
+  "پرچم",
+  "پرچم‌ها",
 ]);
 
 function getTitleWords(title: string): string[] {
