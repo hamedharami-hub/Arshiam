@@ -15,6 +15,7 @@ import {
   getConnectedClinicalEntities,
   type ConnectedEntity,
 } from "@/lib/pharmacyRelationsHelper";
+import { ClinicalEntityCard } from "./ClinicalEntityCard";
 
 interface ClinicalRelationsNetworkProps {
   document: KnowledgeDocument | null;
@@ -208,45 +209,12 @@ export const ClinicalRelationsNetwork: React.FC<ClinicalRelationsNetworkProps> =
       {/* Connected Entities Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
         {activeItems.map((item) => (
-          <button
+          <ClinicalEntityCard
             key={item.id}
-            type="button"
-            onClick={() => onSelectDocument?.(item.id)}
-            className="flex flex-col justify-between p-3.5 rounded-2xl bg-card hover:bg-secondary/70 border border-border/80 hover:border-primary/50 transition text-start group cursor-pointer shadow-2xs space-y-2.5"
-          >
-            <div className="flex items-start justify-between gap-2 w-full">
-              <div className="flex items-start gap-2.5 min-w-0">
-                <div className="p-2 rounded-xl bg-background border border-border/80 shrink-0 group-hover:scale-105 transition shadow-2xs">
-                  {getEntityIcon(item.type)}
-                </div>
-                <div className="min-w-0">
-                  <span
-                    className={`text-[9px] font-bold px-2 py-0.5 rounded-md border inline-block mb-1 ${item.colorClass}`}
-                  >
-                    {isEn ? item.badgeEn : item.badgeFa}
-                  </span>
-                  <h4 className="text-xs font-bold text-foreground group-hover:text-primary transition line-clamp-2">
-                    {isEn && item.titleEn ? item.titleEn : item.title}
-                  </h4>
-                  {item.titleEn && !isEn && (
-                    <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5 font-sans" dir="ltr">
-                      {item.titleEn}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="text-muted-foreground group-hover:text-primary shrink-0 transition">
-                <ArrowUpRight className="w-3.5 h-3.5" />
-              </div>
-            </div>
-
-            {item.subtitle && (
-              <div className="text-[10px] text-muted-foreground pt-1.5 border-t border-border/40 line-clamp-1">
-                {item.subtitle}
-              </div>
-            )}
-          </button>
+            item={item}
+            isEn={isEn}
+            onSelect={onSelectDocument}
+          />
         ))}
       </div>
     </div>

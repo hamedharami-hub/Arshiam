@@ -41,8 +41,16 @@ import {
 } from "@/lib/knowledgeCheckpointHelper";
 import { createLeitnerCard } from "@/lib/leitnerService";
 import { TextSelectionFloatingBar } from "./TextSelectionFloatingBar";
-import { AiQuestionGeneratorModal } from "./AiQuestionGeneratorModal";
-import { InteractiveLearningModal } from "./InteractiveLearningModal";
+const AiQuestionGeneratorModal = React.lazy(() =>
+  import("./AiQuestionGeneratorModal").then((m) => ({
+    default: m.AiQuestionGeneratorModal,
+  }))
+);
+const InteractiveLearningModal = React.lazy(() =>
+  import("./InteractiveLearningModal").then((m) => ({
+    default: m.InteractiveLearningModal,
+  }))
+);
 const ClinicalRelationsNetwork = React.lazy(() =>
   import("./ClinicalRelationsNetwork").then((m) => ({
     default: m.ClinicalRelationsNetwork,
@@ -1000,25 +1008,33 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
       )}
 
       {/* AI Question & Flashcard Generator Modal */}
-      <AiQuestionGeneratorModal
-        open={aiModalOpen}
-        onClose={() => setAiModalOpen(false)}
-        initialText={selectedSnippetForAi}
-        documentId={document?.id}
-        documentTitle={document?.title}
-        folderId={document?.folder_id}
-        userId={userId}
-        onOpenReview={onOpenReview}
-      />
+      {aiModalOpen && (
+        <React.Suspense fallback={null}>
+          <AiQuestionGeneratorModal
+            open={aiModalOpen}
+            onClose={() => setAiModalOpen(false)}
+            initialText={selectedSnippetForAi}
+            documentId={document?.id}
+            documentTitle={document?.title}
+            folderId={document?.folder_id}
+            userId={userId}
+            onOpenReview={onOpenReview}
+          />
+        </React.Suspense>
+      )}
 
       {/* Interactive Learning Studio Modal */}
-      <InteractiveLearningModal
-        open={interactiveModalOpen}
-        onOpenChange={setInteractiveModalOpen}
-        documentTitle={document?.title || ""}
-        documentContent={document?.content_html || ""}
-        onInsertContent={handleInsertInteractive}
-      />
+      {interactiveModalOpen && (
+        <React.Suspense fallback={null}>
+          <InteractiveLearningModal
+            open={interactiveModalOpen}
+            onOpenChange={setInteractiveModalOpen}
+            documentTitle={document?.title || ""}
+            documentContent={document?.content_html || ""}
+            onInsertContent={handleInsertInteractive}
+          />
+        </React.Suspense>
+      )}
     </div>
   );
 };

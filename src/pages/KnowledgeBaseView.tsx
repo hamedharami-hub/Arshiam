@@ -112,8 +112,8 @@ export const KnowledgeBaseView: React.FC = () => {
     setIsImportingPharmacy(true);
     const toastId = toast.loading(
       isEn
-        ? "Importing Pharmacy Encyclopedia (144 clinical lessons & 35 cards)..."
-        : "در حال بارگذاری دایره‌المعارف دارویی (۱۴۴ درس و ۳۵ کارت لایتنر)..."
+        ? "Importing Pharmacy Encyclopedia (330 clinical lessons & 35 cards)..."
+        : "در حال بارگذاری دایره‌المعارف دارویی (۳۳۰ درس و سند بالینی و ۳۵ کارت لایتنر)..."
     );
     try {
       const result = await importPharmacyKnowledge(userId, { force, importCards: true });

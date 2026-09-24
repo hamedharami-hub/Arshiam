@@ -26,6 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { PharmacyImportBanner } from "./PharmacyImportBanner";
 
 interface FolderRowItemProps {
   node: KnowledgeFolderNode;
@@ -492,11 +493,11 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
                     <span>
                       {isPharmacyImported
                         ? isEn
-                          ? "Re-sync Pharmacy Encyclopedia (144 lessons & 35 cards)"
-                          : "تازه‌سازی دایره‌المعارف دارویی (۱۴۴ درس و ۳۵ کارت)"
+                          ? "Re-sync Pharmacy Encyclopedia (330 lessons & 35 cards)"
+                          : "تازه‌سازی دایره‌المعارف دارویی (۳۳۰ درس و ۳۵ کارت)"
                         : isEn
-                        ? "Import Pharmacy Encyclopedia (144 lessons & 35 cards)"
-                        : "واردسازی دایره‌المعارف دارویی (۱۴۴ درس و ۳۵ کارت)"}
+                        ? "Import Pharmacy Encyclopedia (330 lessons & 35 cards)"
+                        : "واردسازی دایره‌المعارف دارویی (۳۳۰ درس و ۳۵ کارت)"}
                     </span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -554,44 +555,12 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
         </div>
 
         {/* Pharmacy Quick Import Banner */}
-        {!isPharmacyImported && onImportPharmacy && (
-          <div className="p-2.5 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-primary/15 border border-emerald-500/30 flex items-center justify-between gap-2 shadow-2xs animate-in fade-in">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-base shrink-0">💊</span>
-              <div className="min-w-0">
-                <div className="text-[11px] font-bold text-foreground truncate">
-                  {isEn ? "Pharmacy Encyclopedia" : "بسته جامع دارویی"}
-                </div>
-                <div className="text-[10px] text-muted-foreground truncate">
-                  {isEn
-                    ? "144 lessons, clinical atlas & 35 cards"
-                    : "۱۴۴ درس، اطلس بالینی و ۳۵ کارت لایتنر"}
-                </div>
-              </div>
-            </div>
-            <button
-              type="button"
-              disabled={isImportingPharmacy}
-              onClick={() => onImportPharmacy(false)}
-              className="px-2.5 py-1 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-[10px] font-bold shrink-0 shadow-2xs transition disabled:opacity-60 flex items-center gap-1 cursor-pointer"
-            >
-              {isImportingPharmacy ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <Sparkles className="w-3 h-3" />
-              )}
-              <span>
-                {isImportingPharmacy
-                  ? isEn
-                    ? "..."
-                    : "..."
-                  : isEn
-                  ? "Install"
-                  : "نصب"}
-              </span>
-            </button>
-          </div>
-        )}
+        <PharmacyImportBanner
+          isPharmacyImported={isPharmacyImported}
+          isImportingPharmacy={isImportingPharmacy}
+          onImportPharmacy={onImportPharmacy}
+          isEn={isEn}
+        />
       </div>
 
       {/* New Folder Inline Form */}
