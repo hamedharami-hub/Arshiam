@@ -194,3 +194,8 @@ Workflowهای Android debug و signed اکنون فقط با اجرای دست�
 - این مورد را «ریسک ایمنی/ردیابی منبع و احتمال خلط آستانه‌ها» ثبت می‌کنیم، نه حکم قطعیِ نادرستی: راهنمای جاری ACI در NSW برای سوختگی‌های dermal معیارهای ارجاع مبتنی بر وسعت و محل دارد؛ پروتکل جداگانهٔ ACI برای کارکنان درمانی دربارهٔ احیای مایعات است و نباید آستانهٔ آن با معیار ارجاع یا توصیهٔ OTC یکی گرفته شود. Healthdirect نیز سوختگی/تاول گسترده و علائم شدید را دلیلی برای ارزیابی پزشکی می‌داند. زمینه، سن، عمق سوختگی و حدود صلاحیت حرفه‌ای باید توسط داروساز/پزشک واجد صلاحیت بازبینی شود.
 - منابع رسمی برای بازبینی: [NSW ACI ED burns flow chart](https://aci.health.nsw.gov.au/networks/burn-injury/resources/patient-management/ed-flow-chart)، [NSW ACI adult ECAT burns protocol](https://aci.health.nsw.gov.au/ecat/adult/burns)، و [Healthdirect sunburn](https://www.healthdirect.gov.au/sunburn).
 - اقدام ایمن تا بازبینی: این متن را به‌عنوان محتوای بالینی تأییدشده به ARSHNAZ منتقل/منتشر نکنید و پاسخ خودکار سناریو را مرجع تصمیم‌گیری OTC تلقی نکنید. پیش از parity، برای همهٔ سناریوها منبع اولیه، jurisdiction، reviewed/accessed date و reviewer را ثبت کنید؛ سناریوی فاقد این فراداده باید هشدار عدم بازبینی نشان دهد و پاسخ قطعیِ «صحیح/غلط» بالینی ندهد.
+
+## آزمون رگرسیون مسیر Thought Records (2026-09-25)
+
+- مسیر مستقیم `/app/thoughts` در نسخهٔ فعلی به `ThoughtRecordsView` می‌رسد و با کاربر ساختگی و تاریخچهٔ خالی بدون crash رندر می‌شود؛ برای جلوگیری از بازگشت خطای قبلی، تست `src/pages/ThoughtRecordsView.test.tsx` اضافه شد.
+- اعتبارسنجی: اجرای کامل Vitest با ۲ worker برابر ۹۲ فایل/۵۴۱ تست موفق؛ `npx tsc -p tsconfig.app.json --noEmit` و ESLint دو فایل درگیر موفق. دادهٔ Firestore زنده تغییر نکرد و APK ساخته نشد.
