@@ -39,7 +39,7 @@ export const ReviewView: React.FC = () => {
   return (
     <div
       dir={isEn ? "ltr" : "rtl"}
-      className="flex flex-col h-full w-full bg-background text-foreground overflow-hidden font-sans"
+      className="flex flex-col h-[calc(100dvh-3.5rem-env(safe-area-inset-top))] min-h-[28rem] w-full bg-background text-foreground overflow-hidden font-sans"
     >
       {/* Top Header & Tab Navigation */}
       <div className="p-3 md:px-6 border-b border-border bg-card/70 backdrop-blur-md flex flex-wrap items-center justify-between gap-3 shrink-0">
