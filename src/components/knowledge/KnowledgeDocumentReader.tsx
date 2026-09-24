@@ -17,6 +17,8 @@ import {
   Columns,
   PanelLeftClose,
   PanelLeftOpen,
+  ArrowLeft,
+  ArrowRight,
   Gamepad2,
   CalendarPlus,
   Eye,
@@ -63,6 +65,7 @@ interface KnowledgeDocumentReaderProps {
   folder: KnowledgeFolder | null;
   allDocuments?: KnowledgeDocument[];
   onSelectDocument?: (docId: string) => void;
+  onBackDocument?: () => void;
   onEdit: (doc: KnowledgeDocument) => void;
   onDelete: (docId: string) => void;
   userId?: string;
@@ -86,6 +89,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   folder,
   allDocuments = [],
   onSelectDocument,
+  onBackDocument,
   onEdit,
   onDelete,
   userId = "guest",
@@ -130,6 +134,8 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   // Reset revealed answers when document changes
   useEffect(() => {
     setRevealedCheckpoints({});
+    setAddedToLeitner({});
+    if (contentContainerRef.current) contentContainerRef.current.scrollTop = 0;
   }, [document?.id]);
 
   const handleAddCheckpointToLeitner = async (cp: KnowledgeCheckpoint) => {
@@ -195,7 +201,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
         const targetDocId = linkEl.getAttribute("data-doc-link");
         if (targetDocId && onSelectDocument) {
           onSelectDocument(targetDocId);
-          container.scrollTo({ top: 0, behavior: "smooth" });
+          container.scrollTop = 0;
         }
       }
     };
@@ -391,6 +397,17 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
       {/* Top Toolbar */}
       <div className="p-3.5 border-b border-border flex flex-wrap items-center justify-between gap-2 bg-muted/20">
         <div className="flex items-center gap-2 min-w-0">
+          {onBackDocument && (
+            <button
+              type="button"
+              onClick={onBackDocument}
+              className="inline-flex shrink-0 items-center justify-center rounded-xl border border-border bg-secondary p-1.5 text-foreground hover:bg-secondary/80"
+              aria-label={isEn ? "Back to previous document" : "بازگشت به سند قبلی"}
+              title={isEn ? "Back to previous document" : "بازگشت به سند قبلی"}
+            >
+              {isEn ? <ArrowLeft className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
+            </button>
+          )}
           {onToggleSidebar && (
             <button
               type="button"

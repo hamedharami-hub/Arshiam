@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
+import { MemoryRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import KnowledgeBaseView from "./KnowledgeBaseView";
 
 const mockUser = { id: "test-user-123", email: "test@example.com" };
@@ -174,6 +174,45 @@ describe("KnowledgeBaseView (/app/knowledge) Page Verification", { timeout: 1500
 
     await waitFor(() => {
       expect(screen.getByRole("dialog")).toBeDefined();
+    });
+  });
+
+  it("opens an in-content document link and restores the previous document with browser Back", async () => {
+    currentDocs = [
+      { ...mockDocs[0], content_html: '<p data-doc-link="doc-2">باز کردن سند دوم</p>' },
+      {
+        ...mockDocs[0], id: "doc-2", title: "سند دوم", title_en: "Second document",
+        content_html: "<p>متن سند دوم</p>", tags: ["SSRI"],
+      },
+    ];
+
+    const HistoryProbe = () => {
+      const location = useLocation();
+      const navigate = useNavigate();
+      return <><output data-testid="knowledge-url">{location.search}</output>
+        <button type="button" onClick={() => navigate(-1)}>Browser Back</button></>;
+    };
+
+    render(
+      <MemoryRouter initialEntries={["/app/knowledge"]}>
+        <HistoryProbe />
+        <Routes>
+          <Route path="/app/knowledge" element={<KnowledgeBaseView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText("باز کردن سند دوم");
+    fireEvent.click(screen.getByText("باز کردن سند دوم"));
+    await waitFor(() => {
+      expect(screen.getByTestId("knowledge-url")).toHaveTextContent("docId=doc-2");
+      expect(screen.getByRole("heading", { name: "سند دوم", level: 2 })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Browser Back" }));
+    await waitFor(() => {
+      expect(screen.getByTestId("knowledge-url")).toHaveTextContent("");
+      expect(screen.getByRole("heading", { name: "راهنمای فلوکستین", level: 2 })).toBeInTheDocument();
     });
   });
 });

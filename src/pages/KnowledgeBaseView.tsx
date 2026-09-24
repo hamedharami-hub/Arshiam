@@ -30,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { getPharmacyImportStatus, importPharmacyKnowledge, type PharmacyImportStatus } from "@/lib/pharmacyImportService";
 import { PHARMACY_ROOT_FOLDER_ID } from "@/lib/pharmacyConstants";
@@ -44,6 +44,7 @@ export const KnowledgeBaseView: React.FC = () => {
   const { isEn } = useBilingual();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const urlDocId = searchParams.get("docId");
   const urlFolderId = searchParams.get("folderId");
@@ -167,12 +168,37 @@ export const KnowledgeBaseView: React.FC = () => {
     loadData();
   }, [loadData]);
 
-  // Sync document selection from URL search params (?docId=...)
+  // The URL is the source of truth for document navigation, including browser Back.
   useEffect(() => {
     if (urlDocId && documents.some((d) => d.id === urlDocId)) {
       setSelectedDocId(urlDocId);
+    } else if (!urlDocId) {
+      const folderDocument = urlFolderId
+        ? documents.find((d) => d.folder_id === urlFolderId)
+        : undefined;
+      setSelectedDocId(folderDocument?.id ?? documents[0]?.id ?? null);
     }
-  }, [urlDocId, documents]);
+  }, [urlDocId, urlFolderId, documents]);
+
+  const handleSelectDocument = useCallback((docId: string) => {
+    const target = documents.find((doc) => doc.id === docId);
+    if (!target) {
+      toast.error(isEn ? "Linked document is unavailable" : "سند پیوندشده پیدا نشد");
+      return;
+    }
+    if (selectedDocId === docId) return;
+
+    const params = new URLSearchParams(location.search);
+    params.set("docId", docId);
+    navigate({ pathname: location.pathname, search: params.toString() }, {
+      state: { knowledgePreviousDocId: selectedDocId },
+    });
+    setSelectedDocId(docId);
+  }, [documents, isEn, location.pathname, location.search, navigate, selectedDocId]);
+
+  const previousDocId = (location.state as { knowledgePreviousDocId?: unknown } | null)?.knowledgePreviousDocId;
+  const canGoBackDocument = typeof previousDocId === "string" &&
+    documents.some((doc) => doc.id === previousDocId);
 
   // Sync folder selection from URL search params (?folderId=...)
   useEffect(() => {
@@ -273,7 +299,12 @@ export const KnowledgeBaseView: React.FC = () => {
         setDocuments((prev) => prev.filter((item) => item.id !== deleteTarget.id));
         if (selectedDocId === deleteTarget.id) {
           const remaining = documents.filter((item) => item.id !== deleteTarget.id);
-          setSelectedDocId(remaining.length > 0 ? remaining[0].id : null);
+          const nextDocId = remaining[0]?.id ?? null;
+          const params = new URLSearchParams(location.search);
+          if (nextDocId) params.set("docId", nextDocId);
+          else params.delete("docId");
+          navigate({ pathname: location.pathname, search: params.toString() }, { replace: true, state: null });
+          setSelectedDocId(nextDocId);
         }
         toast.success(isEn ? "Document deleted" : "سند حذف شد");
       }
@@ -314,6 +345,11 @@ export const KnowledgeBaseView: React.FC = () => {
     } else {
       const created = await createKnowledgeDocument(userId, data);
       setDocuments((prev) => [created, ...prev]);
+      const params = new URLSearchParams(location.search);
+      params.set("docId", created.id);
+      navigate({ pathname: location.pathname, search: params.toString() }, {
+        state: { knowledgePreviousDocId: selectedDocId },
+      });
       setSelectedDocId(created.id);
       toast.success(isEn ? "Document added" : "سند جدید اضافه شد");
     }
@@ -386,7 +422,7 @@ export const KnowledgeBaseView: React.FC = () => {
             documents={filteredDocuments}
             selectedDocId={selectedDocId}
             selectedFolderId={selectedFolderId}
-            onSelectDocument={(doc) => setSelectedDocId(doc.id)}
+            onSelectDocument={(doc) => handleSelectDocument(doc.id)}
             onSelectFolder={(fId) => setSelectedFolderId(fId)}
             onCreateFolder={handleCreateFolder}
             onDeleteFolder={handleDeleteFolder}
@@ -419,7 +455,7 @@ export const KnowledgeBaseView: React.FC = () => {
               selectedDocId={selectedDocId}
               selectedFolderId={selectedFolderId}
               onSelectDocument={(doc) => {
-                setSelectedDocId(doc.id);
+                handleSelectDocument(doc.id);
                 setMobileTreeOpen(false);
               }}
               onSelectFolder={(fId) => setSelectedFolderId(fId)}
@@ -456,7 +492,8 @@ export const KnowledgeBaseView: React.FC = () => {
             document={currentDoc}
             folder={currentFolder}
             allDocuments={documents}
-            onSelectDocument={(docId) => setSelectedDocId(docId)}
+            onSelectDocument={handleSelectDocument}
+            onBackDocument={canGoBackDocument ? () => navigate(-1) : undefined}
             onEdit={handleOpenEditDoc}
             onDelete={handleDeleteDoc}
             userId={userId}
