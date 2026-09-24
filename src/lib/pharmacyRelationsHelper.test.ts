@@ -6,6 +6,10 @@ import {
   type ClinicalEntityType,
 } from "./pharmacyRelationsHelper";
 import type { KnowledgeDocument } from "./knowledgeTypes";
+import {
+  PHARMACY_CLINICAL_ENTITIES,
+  PHARMACY_CLINICAL_RELATIONS,
+} from "./pharmacyClinicalGraph.generated";
 
 describe("pharmacyRelationsHelper", () => {
   const mockDoc = (partial: Partial<KnowledgeDocument>): KnowledgeDocument => ({
@@ -88,6 +92,68 @@ describe("pharmacyRelationsHelper", () => {
   });
 
   describe("getConnectedClinicalEntities", () => {
+    it("keeps source relation confidence and provenance for mapped documents", () => {
+      const asthma = mockDoc({
+        id: "doc-core-disease-dis-asthma",
+        title: "آسم و اسپاسم برونش",
+        title_en: "Asthma & Bronchospasm",
+        folder_id: "folder-clinical-core",
+      });
+      const ventolin = mockDoc({
+        id: "doc-product-prod-ventolin-inhaler",
+        title: "Ventolin",
+        title_en: "Ventolin CFC-Free Inhaler 100mcg",
+        folder_id: "folder-mono-respiratory",
+      });
+
+      const relations = getConnectedClinicalEntities(asthma, [asthma, ventolin]);
+      const linkedProduct = relations.products.find((item) => item.documentId === ventolin.id);
+
+      expect(linkedProduct).toBeDefined();
+      expect(linkedProduct?.sourceRelations).toContainEqual(expect.objectContaining({
+        type: "has-product",
+        confidence: "verified",
+        source: "DiseaseInfo.relatedShelfProducts",
+        direction: "outgoing",
+      }));
+    });
+
+    it("preserves active-ingredient graph nodes without inventing a document link", () => {
+      const panadol = mockDoc({
+        id: "doc-product-prod-panadol-500",
+        title: "Panadol 500mg",
+        title_en: "Panadol 500mg (Paracetamol)",
+        folder_id: "folder-mono-analgesics",
+      });
+
+      const relations = getConnectedClinicalEntities(panadol, [panadol]);
+      const ingredient = relations.products.find((item) => item.titleEn === "Paracetamol");
+
+      expect(ingredient).toBeDefined();
+      expect(ingredient?.documentId).toBeUndefined();
+      expect(ingredient?.sourceRelations).toContainEqual(expect.objectContaining({
+        type: "has-medicine",
+        confidence: "verified",
+        source: "Product.genericName canonical identity",
+      }));
+    });
+
+    it("ships a complete, internally consistent source graph and maps only existing seed documents", () => {
+      const entityIds = new Set(PHARMACY_CLINICAL_ENTITIES.map((entity) => entity.id));
+      const documentIds = new Set(PHARMACY_CLINICAL_ENTITIES.flatMap((entity) => entity.documentId ? [entity.documentId] : []));
+
+      expect(PHARMACY_CLINICAL_ENTITIES.length).toBeGreaterThan(0);
+      expect(PHARMACY_CLINICAL_RELATIONS.length).toBeGreaterThan(0);
+      expect(documentIds.size).toBe(PHARMACY_CLINICAL_ENTITIES.filter((entity) => entity.documentId).length);
+      expect(PHARMACY_CLINICAL_RELATIONS.every((relation) =>
+        entityIds.has(relation.fromId) && entityIds.has(relation.toId),
+      )).toBe(true);
+      expect(PHARMACY_CLINICAL_RELATIONS.every((relation) =>
+        relation.confidence === "verified" || relation.confidence === "suggested",
+      )).toBe(true);
+      expect(PHARMACY_CLINICAL_ENTITIES.filter((entity) => entity.type === "medicine" && !entity.documentId).length).toBeGreaterThan(0);
+    });
+
     it("constructs bidirectional relations between diseases and products", () => {
       const docDisease = mockDoc({
         id: "doc-disease-headache",

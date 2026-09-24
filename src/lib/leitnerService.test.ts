@@ -188,4 +188,19 @@ describe("leitnerService", () => {
     expect(searchRes.length).toBe(1);
     expect(searchRes[0].front).toBe("Card A");
   });
+
+  it("rejects blank question or answer edits without changing the stored card", async () => {
+    const card = await createLeitnerCard(userId, { front: "Original question", back: "Original answer" });
+
+    await expect(updateLeitnerCard(userId, card.id, { front: "   " })).rejects.toThrow(
+      "Front and back of card cannot be empty",
+    );
+    await expect(updateLeitnerCard(userId, card.id, { back: "\n\t" })).rejects.toThrow(
+      "Front and back of card cannot be empty",
+    );
+
+    const [stored] = await getLeitnerCards(userId);
+    expect(stored.front).toBe("Original question");
+    expect(stored.back).toBe("Original answer");
+  });
 });

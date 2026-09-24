@@ -66,12 +66,14 @@ describe("pharmacyImportService", () => {
 
   it("generates complete source categories with valid folder and document links", () => {
     expect(PHARMACY_SEED_FOLDERS).toHaveLength(34);
-    expect(PHARMACY_SEED_DOCUMENTS).toHaveLength(362);
+    expect(PHARMACY_SEED_DOCUMENTS).toHaveLength(432);
     const folderIds = new Set(PHARMACY_SEED_FOLDERS.map((item) => item.id));
     const docIds = new Set(PHARMACY_SEED_DOCUMENTS.map((item) => item.id));
     expect(docIds.size).toBe(PHARMACY_SEED_DOCUMENTS.length);
     for (const doc of PHARMACY_SEED_DOCUMENTS) {
       expect(folderIds.has(doc.folder_id || "")).toBe(true);
+      expect(doc.source_url).toMatch(/^https:\/\/github\.com\/hamedharami-hub\/pharmacy\/blob\/[a-f0-9]{40}\//);
+      expect(doc.content_review_status).toBe("unreviewed");
       for (const match of `${doc.content_html} ${doc.content_en}`.matchAll(/data-doc-link="([^"]+)"/g)) {
         expect(docIds.has(match[1]), `Broken link in ${doc.id}: ${match[1]}`).toBe(true);
       }
@@ -82,6 +84,16 @@ describe("pharmacyImportService", () => {
     expect(PHARMACY_SEED_DOCUMENTS.filter((item) => item.id.startsWith("doc-core-disease-"))).toHaveLength(15);
     expect(PHARMACY_SEED_DOCUMENTS.filter((item) => item.id.startsWith("doc-study-track-"))).toHaveLength(5);
     expect(PHARMACY_SEED_DOCUMENTS.filter((item) => item.id.startsWith("doc-practice-question-"))).toHaveLength(7);
+    const productDocuments = PHARMACY_SEED_DOCUMENTS.filter((item) => item.id.startsWith("doc-product-"));
+    expect(productDocuments).toHaveLength(121);
+    for (const schedule of ["S2", "S3", "S4", "S8"]) {
+      expect(productDocuments.some((item) => item.tags?.includes(`Schedule ${schedule}`))).toBe(true);
+    }
+    expect(PHARMACY_SEED_DOCUMENTS.filter((item) => item.id.startsWith("doc-mechanism-sub-"))).toHaveLength(14);
+    expect(PHARMACY_SEED_DOCUMENTS.filter((item) =>
+      item.id.startsWith("doc-mechanism-") && !item.id.startsWith("doc-mechanism-sub-")
+    )).toHaveLength(70);
+    expect(PHARMACY_SEED_DOCUMENTS.find((item) => item.id === "doc-cyp-cyp2d6")?.title).toBe("\u0633\u06cc\u062a\u0648\u06a9\u0631\u0648\u0645 CYP2D6: \u062a\u062f\u0627\u062e\u0644\u0627\u062a \u0648 \u0645\u0647\u0627\u0631\u06a9\u0646\u0646\u062f\u0647\u200c\u0647\u0627");
   });
 
   it("imports missing rows and verifies them on the server", async () => {
@@ -136,6 +148,21 @@ describe("pharmacyImportService", () => {
     remote.knowledge_documents.set(old.id, { ...old, user_id: userId, content_html: `${old.content_html}<p>My note</p>` });
     await importPharmacyKnowledge(userId);
     expect(String(remote.knowledge_documents.get(old.id)?.content_html)).toContain("My note");
+  });
+
+  it("preserves a custom source link on a legacy document", async () => {
+    const old = LEGACY_DOCUMENTS.find((item) => item.id === "doc-disease-eczema")!;
+    const personalSource = "https://example.com/my-clinical-reference";
+    remote.knowledge_documents.set(old.id, { ...old, user_id: userId, source_url: personalSource });
+    await importPharmacyKnowledge(userId);
+    expect(remote.knowledge_documents.get(old.id)?.source_url).toBe(personalSource);
+  });
+
+  it("preserves a manual content-review status on a legacy document", async () => {
+    const old = LEGACY_DOCUMENTS.find((item) => item.id === "doc-disease-eczema")!;
+    remote.knowledge_documents.set(old.id, { ...old, user_id: userId, content_review_status: "reviewed" });
+    await importPharmacyKnowledge(userId);
+    expect(remote.knowledge_documents.get(old.id)?.content_review_status).toBe("reviewed");
   });
 
   it("fails visibly on partial server writes and safely resumes", async () => {

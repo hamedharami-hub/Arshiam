@@ -58,6 +58,11 @@ const handbookDiseases = [
   ...(OTC_HANDBOOK_DATA_PART2 || []),
   ...(OTC_HANDBOOK_DATA_PART3 || [])
 ];
+const handbookSourceFileById = new Map([
+  ['src/data/handbook/part1.ts', OTC_HANDBOOK_DATA_PART1 || []],
+  ['src/data/handbook/part2.ts', OTC_HANDBOOK_DATA_PART2 || []],
+  ['src/data/handbook/part3.ts', OTC_HANDBOOK_DATA_PART3 || []],
+].flatMap(([sourceFile, entries]) => entries.map((entry) => [entry.id, sourceFile])));
 
 // 3. Clinical Translations (43 items)
 const { OTC_CLINICAL_TRANSLATIONS } = extractExports(path.join(pharmacyDir, 'data/otcClinicalTranslations.ts'));
@@ -66,9 +71,13 @@ const { OTC_CLINICAL_TRANSLATIONS } = extractExports(path.join(pharmacyDir, 'dat
 const { CYP_ENZYMES_DATABASE, COMMON_PAIR_INTERACTIONS } = extractExports(path.join(pharmacyDir, 'data/cypInteractionsData.ts'));
 const cypList = Object.values(CYP_ENZYMES_DATABASE || {});
 
-// 5. Mechanisms Registry (14 items)
+// 5. Mechanism overviews (14 subcategories) and drug-class mechanisms (70 records)
 const { SUBCATEGORY_MECHANISMS, DRUG_MECHANISMS_REGISTRY } = extractExports(path.join(pharmacyDir, 'data/mechanismsRegistry.ts'));
-const mechanismsList = Object.values(SUBCATEGORY_MECHANISMS || DRUG_MECHANISMS_REGISTRY || {});
+const mechanismsList = Object.values(SUBCATEGORY_MECHANISMS || {});
+const drugMechanismsList = Object.values(DRUG_MECHANISMS_REGISTRY || {});
+if (mechanismsList.length === 0 || drugMechanismsList.length === 0) {
+  throw new Error('Both mechanism overview and drug-class registries are required for Pharmacy import.');
+}
 
 // 6. Shelf Products (121 items)
 const { SHELF_PRODUCTS } = extractExports(path.join(pharmacyDir, 'data/shelf/shelfProducts.ts'));
@@ -770,7 +779,7 @@ for (const hb of handbookDiseases) {
 console.log(`Generated ${handbookDiseases.length} Disease documents across 6 clinical subfolders`);
 
 // =========================================================================
-// SECTION 2: PHARMACOLOGY (6 CYP + 14 Mechanisms + 35 Clinical Concepts = 55 docs)
+// SECTION 2: CYP, mechanism overviews, and clinical concepts (55 overview documents)
 // =========================================================================
 
 // 2.1 6 CYP Enzymes
@@ -1037,7 +1046,7 @@ for (const [conceptId, concept] of Object.entries(CLINICAL_CONCEPTS_REGISTRY || 
   });
 }
 
-console.log(`Generated ${cypList.length + mechanismsList.length + Object.keys(CLINICAL_CONCEPTS_REGISTRY || {}).length} Pharmacology documents in Pillar 2`);
+console.log(`Generated ${cypList.length + mechanismsList.length + Object.keys(CLINICAL_CONCEPTS_REGISTRY || {}).length} Pharmacology overview documents in Pillar 2; ${drugMechanismsList.length} drug-class mechanism documents are added in Section 6.`);
 
 // =========================================================================
 // SECTION 3: 121 SHELF PRODUCTS + 22 CAL LABELS + 8 STORAGE LAWS (151 docs)
@@ -1840,6 +1849,22 @@ function sourceDocument({ id, folderId, titleFa, titleEn, data, sourceFile, tags
   });
 }
 
+for (const mechanism of drugMechanismsList) {
+  const mechanismId = String(mechanism.classCode || mechanism.id || 'unknown')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-');
+  sourceDocument({
+    // Product monographs already link to this stable class-code document ID.
+    id: `doc-mechanism-${mechanismId}`,
+    folderId: 'folder-pharm-mechanisms',
+    titleFa: mechanism.classNameFa || mechanism.classNameEn || mechanismId,
+    titleEn: mechanism.classNameEn || mechanism.classNameFa || mechanismId,
+    data: mechanism,
+    sourceFile: 'data/mechanismsRegistry.ts',
+    tags: ['Pharmacology', 'Mechanism', mechanism.classCode || mechanismId],
+  });
+}
+
 for (const disease of CORE_CLINICAL_DISEASES) {
   sourceDocument({
     id: `doc-core-disease-${disease.id}`,
@@ -1967,6 +1992,24 @@ const finalizedFolders = PHARMACY_FOLDERS.map((f, idx) => ({
   updated_at: '2026-03-20T00:00:00.000Z'
 }));
 
+function sourceFileForDocument(document) {
+  const { id } = document;
+  if (id.startsWith('doc-disease-')) return handbookSourceFileById.get(id.slice('doc-disease-'.length));
+  if (id.startsWith('doc-product-')) return 'data/shelf/shelfProducts.ts';
+  if (id.startsWith('doc-concept-')) return 'data/shelf/clinicalConcepts.ts';
+  if (id.startsWith('doc-scenario-slang-')) return 'data/scenarios/slangScenarios.ts';
+  if (id.startsWith('doc-scenario-clinical-')) return 'data/scenarios/clinicalScenarios.ts';
+  if (id.startsWith('doc-scenario-admin-')) return 'data/scenarios/adminScenarios.ts';
+  if (id.startsWith('doc-cal-')) return 'data/shelf/calLabels.ts';
+  if (id.startsWith('doc-mechanism-sub-')) return 'data/mechanismsRegistry.ts';
+  if (id.startsWith('doc-cyp-')) return 'data/cypInteractionsData.ts';
+  if (id.startsWith('doc-storage-')) return 'data/shelf/stateStorageRules.ts';
+  if (id.startsWith('doc-script-type-')) return 'data/scriptTypesData.ts';
+  if (id.startsWith('doc-script-')) return 'data/realisticScriptsData.ts';
+  if (/^doc-m[1-6]-/.test(id)) return 'lib/pharmacy-data.ts';
+  return undefined;
+}
+
 const finalizedDocuments = documents.map(d => ({
   id: d.id,
   user_id: 'guest',
@@ -1978,7 +2021,13 @@ const finalizedDocuments = documents.map(d => ({
   preferred_language: d.preferred_language || 'bilingual',
   direction: d.direction || 'rtl',
   tags: d.tags || [],
-  source_url: d.source_url,
+  source_url: d.source_url || (() => {
+    const sourceFile = sourceFileForDocument(d);
+    if (!sourceFile) throw new Error(`Missing source provenance for ${d.id}`);
+    if (!fs.existsSync(path.join(pharmacyDir, sourceFile))) throw new Error(`Missing source file ${sourceFile} for ${d.id}`);
+    return `https://github.com/hamedharami-hub/pharmacy/blob/${sourceCommit}/${sourceFile}`;
+  })(),
+  content_review_status: 'unreviewed',
   created_at: '2026-03-20T00:00:00.000Z',
   updated_at: '2026-03-20T00:00:00.000Z'
 }));

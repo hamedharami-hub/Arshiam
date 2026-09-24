@@ -28,6 +28,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PharmacyImportBanner } from "./PharmacyImportBanner";
 
+function countDocumentsInSubtree(node: KnowledgeFolderNode): number {
+  return node.document_count + node.children.reduce(
+    (total, child) => total + countDocumentsInSubtree(child),
+    0,
+  );
+}
+
 interface FolderRowItemProps {
   node: KnowledgeFolderNode;
   depth: number;
@@ -108,13 +115,14 @@ const FolderRowItem: React.FC<FolderRowItemProps> = ({
 
       <div className="flex items-center gap-1 shrink-0">
         <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-muted text-muted-foreground font-mono">
-          {node.document_count}
+          {countDocumentsInSubtree(node)}
         </span>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
+              aria-label={isEn ? `Actions for ${node.name}` : `عملیات فولدر ${node.name}`}
               className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition cursor-pointer"
             >
               <MoreVertical className="w-3 h-3" />
@@ -275,6 +283,10 @@ export const HIGH_YIELD_TAG_FILTERS = [
   { id: "Pain", labelFa: "درد", labelEn: "Pain", icon: "⚡" },
   { id: "CYP", labelFa: "سیتوکروم", labelEn: "CYP", icon: "🧬" },
   { id: "Monograph", labelFa: "مونوگراف", labelEn: "Monograph", icon: "💊" },
+  { id: "Schedule S2", labelFa: "گروه S2", labelEn: "Schedule S2", icon: "🟢" },
+  { id: "Schedule S3", labelFa: "گروه S3", labelEn: "Schedule S3", icon: "🟠" },
+  { id: "Schedule S4", labelFa: "گروه S4", labelEn: "Schedule S4", icon: "🔴" },
+  { id: "Schedule S8", labelFa: "گروه S8", labelEn: "Schedule S8", icon: "🔒" },
   { id: "RedFlags", labelFa: "علائم هشدار", labelEn: "Red Flags", icon: "🚨" },
   { id: "Slang", labelFa: "اصطلاحات", labelEn: "Slang", icon: "🗣️" },
   { id: "Scenario", labelFa: "سناریو بالینی", labelEn: "Scenario", icon: "📋" },

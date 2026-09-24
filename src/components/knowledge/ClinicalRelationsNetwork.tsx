@@ -11,6 +11,7 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import type { KnowledgeDocument } from "@/lib/knowledgeTypes";
+import { PHARMACY_CLINICAL_SOURCE_COMMIT } from "@/lib/pharmacyClinicalGraph.generated";
 import {
   getConnectedClinicalEntities,
   type ConnectedEntity,
@@ -168,6 +169,11 @@ export const ClinicalRelationsNetwork: React.FC<ClinicalRelationsNetworkProps> =
               {isEn
                 ? "Click any item to jump instantly across medicines, diseases, and triage cases"
                 : "با کلیک روی هر مورد مستقیماً به فرآورده، بیماری یا سناریوی تریاژ مرتبط منتقل شوید"}
+            </p>
+            <p className="mt-1 max-w-3xl text-[10px] leading-relaxed text-amber-700 dark:text-amber-300">
+              {isEn
+                ? `Pharmacy relation registry · source ${PHARMACY_CLINICAL_SOURCE_COMMIT.slice(0, 7)}. “Verified” and “suggested” reflect source-code labels, not independent clinical review.`
+                : `رجیستری روابط Pharmacy · نسخهٔ منبع ${PHARMACY_CLINICAL_SOURCE_COMMIT.slice(0, 7)}. برچسب‌های «تأییدشده» و «پیشنهادی» فقط وضعیت ثبت‌شده در منبع‌اند، نه بازبینی بالینی مستقل.`}
             </p>
           </div>
         </div>

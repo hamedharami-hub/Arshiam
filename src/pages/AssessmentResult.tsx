@@ -10,6 +10,7 @@ import { HEXACO_LABELS, HEXACO_LABELS_EN, type HexacoFactor } from "@/lib/assess
 import { VIA_LABELS, VIA_LABELS_EN, VIA_VIRTUES_EN, type ViaStrength } from "@/lib/assessments/via";
 import { QUADRANT_LABELS, QUADRANT_LABELS_EN, QUADRANT_DESC, QUADRANT_DESC_EN, type AttachmentQuadrant } from "@/lib/assessments/ecr";
 import { markdownToHtml } from "@/lib/markdown";
+import { sanitizeKnowledgeHtml } from "@/lib/knowledgeBeautifier";
 import { streamAI } from "@/lib/aiStream";
 import { toast } from "sonner";
 import { subscribeAssessmentResults } from "@/lib/firestoreDataService";
@@ -140,7 +141,9 @@ export default function AssessmentResult() {
                   prose-hr:my-6 prose-hr:border-primary/15
                   prose-blockquote:border-primary prose-blockquote:bg-muted/30 prose-blockquote:py-2 prose-blockquote:px-3 prose-blockquote:rounded
                   ${isEn ? "text-start" : "text-end"}`}
-                dangerouslySetInnerHTML={{ __html: markdownToHtml(aiAnalysis) }}
+                dangerouslySetInnerHTML={{
+                  __html: sanitizeKnowledgeHtml(markdownToHtml(aiAnalysis)),
+                }}
               />
               {!loadingAi && aiAnalysis && (
                 <div className="flex gap-2 pt-4 border-t">

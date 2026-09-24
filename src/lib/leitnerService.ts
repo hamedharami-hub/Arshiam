@@ -512,9 +512,15 @@ export async function updateLeitnerCard(
   const idx = existing.findIndex((c) => c.id === cardId);
   if (idx === -1) throw new Error("Card not found");
 
+  const front = typeof patch.front === "string" ? patch.front.trim() : existing[idx].front;
+  const back = typeof patch.back === "string" ? patch.back.trim() : existing[idx].back;
+  if (!front || !back) throw new Error("Front and back of card cannot be empty");
+
   const updated: LeitnerCard = {
     ...existing[idx],
     ...patch,
+    front,
+    back,
     updated_at: new Date().toISOString(),
   };
 

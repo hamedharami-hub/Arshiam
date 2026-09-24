@@ -87,6 +87,8 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   const [activeQueue, setActiveQueue] = useState<LeitnerCard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
+  const ratingSubmissionRef = React.useRef(false);
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const [showClue, setShowClue] = useState(false);
   const [cardDirectionOverride, setCardDirectionOverride] = useState<"rtl" | "ltr" | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -220,7 +222,9 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
 
   // Review answer with SM-2 4-tier rating
   const handleReviewAnswer = async (rating: LeitnerRating) => {
-    if (!activeCard) return;
+    if (!activeCard || ratingSubmissionRef.current) return;
+    ratingSubmissionRef.current = true;
+    setIsSubmittingRating(true);
     try {
       await reviewLeitnerCardWithRating(userId, activeCard.id, rating);
 
@@ -272,6 +276,9 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
       await loadData();
     } catch (e) {
       toast.error("Error updating review");
+    } finally {
+      ratingSubmissionRef.current = false;
+      setIsSubmittingRating(false);
     }
   };
 
@@ -810,8 +817,9 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               {/* Rating 1: Again */}
               <button
                 type="button"
+                disabled={isSubmittingRating}
                 onClick={() => handleReviewAnswer(1)}
-                className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md shadow-rose-600/20 transition cursor-pointer"
+                className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-rose-600 hover:bg-rose-500 disabled:opacity-60 disabled:cursor-wait text-white font-bold text-xs shadow-md shadow-rose-600/20 transition cursor-pointer"
               >
                 <div className="flex items-center gap-1">
                   <XCircle className="w-3.5 h-3.5" />
@@ -825,8 +833,9 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               {/* Rating 2: Hard */}
               <button
                 type="button"
+                disabled={isSubmittingRating}
                 onClick={() => handleReviewAnswer(2)}
-                className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-md shadow-amber-600/20 transition cursor-pointer"
+                className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-amber-600 hover:bg-amber-500 disabled:opacity-60 disabled:cursor-wait text-white font-bold text-xs shadow-md shadow-amber-600/20 transition cursor-pointer"
               >
                 <div className="flex items-center gap-1">
                   <RotateCw className="w-3.5 h-3.5" />
@@ -840,8 +849,9 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               {/* Rating 3: Good */}
               <button
                 type="button"
+                disabled={isSubmittingRating}
                 onClick={() => handleReviewAnswer(3)}
-                className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-600/20 transition cursor-pointer"
+                className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-sky-600 hover:bg-sky-500 disabled:opacity-60 disabled:cursor-wait text-white font-bold text-xs shadow-md shadow-sky-600/20 transition cursor-pointer"
               >
                 <div className="flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
@@ -855,8 +865,9 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               {/* Rating 4: Easy */}
               <button
                 type="button"
+                disabled={isSubmittingRating}
                 onClick={() => handleReviewAnswer(4)}
-                className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition cursor-pointer"
+                className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-wait text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition cursor-pointer"
               >
                 <div className="flex items-center gap-1">
                   <Award className="w-3.5 h-3.5" />

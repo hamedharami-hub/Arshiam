@@ -24,6 +24,8 @@ export interface KnowledgeDocument {
   content_plain?: string;
   tags?: string[];
   source_url?: string;
+  /** Imported knowledge remains visibly unreviewed until a qualified source review is recorded. */
+  content_review_status?: "unreviewed" | "reviewed";
   is_favorite?: boolean;
   is_pinned?: boolean;
   is_archived?: boolean;

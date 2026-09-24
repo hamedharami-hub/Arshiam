@@ -412,6 +412,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Acne Vulgaris",
       "Topical Antibacterial & Comedolytic Agent"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part1.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -430,6 +432,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Anal Fissure",
       "Nitric Oxide Donor & Internal Anal Sphincter Relaxant"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part1.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -448,6 +452,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Blepharitis",
       "Mechanical Lid Hygiene & Topical Ocular Antibacterial"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part1.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -466,6 +472,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Superficial Burns & Sunburn",
       "First Aid Cooling & Hydrating Wound Hydrogel"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part1.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -484,6 +492,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Chilblains (Pernio)",
       "Microvascular Protective & Topical Circulation Enhancer"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part1.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -502,6 +512,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Chickenpox / Varicella",
       "Simple Antipyretic & First-Generation Sedating Antihistamine"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part1.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -520,6 +532,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Recurrent Cold Sores (Herpes Labialis)",
       "Oral Antiviral Nucleoside Analogue (S3 Pharmacist Only)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part1.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -538,6 +552,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Bacterial Conjunctivitis",
       "Broad-Spectrum Ophthalmic Antibacterial"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part1.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -556,6 +572,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Constipation",
       "Iso-osmotic Macrogol / Synthetic Disaccharide Laxative"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part2.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -574,6 +592,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Corns and Calluses",
       "Potent Keratolytic & Desquamating Agent"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part2.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -592,6 +612,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Chesty Productive Cough",
       "Mucolytic & Secretolytic Agent"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part2.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -610,6 +632,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Dry Irritating Cough",
       "Central Antitussive Agent (S3 Pharmacist Only)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part2.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -628,6 +652,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Cradle Cap (Infantile Seborrhoeic Dermatitis)",
       "Emollient Keratolytic Softening Protocol"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part2.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -646,6 +672,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Acute Diarrhoea & Gastroenteritis",
       "Oral Electrolyte Replacement & Peripheral Opioid Motility Inhibitor"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part2.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -664,6 +692,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Dry Eyes & Ocular Lubrication",
       "Viscoelastic Ocular Lubricant & Tear Film Stabilizer"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part2.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -682,6 +712,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Dry Mouth (Xerostomia)",
       "Artificial Salivary Replacement & Sialogogue Stimulant"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part2.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -700,6 +732,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Impacted Ear Wax (Cerumen Impaction)",
       "Surfactant Cerumenolytic Agent"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part2.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -718,6 +752,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Eczema & Atopic Dermatitis",
       "Skin Barrier Repair Emollient & Mild Topical Corticosteroid"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part2.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -736,6 +772,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "GORD & Heartburn / Dyspepsia",
       "Gastric Acid Proton Pump Inhibitor & Alginate Antireflux Raft"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part2.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -754,6 +792,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Haemorrhoids (Piles)",
       "Topical Anti-inflammatory Corticosteroid & Local Anaesthetic"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part2.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -772,6 +812,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Hayfever & Allergic Rhinitis",
       "Topical Intranasal Corticosteroid (First-line Gold Standard)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part2.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -790,6 +832,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Head Lice (Pediculosis Capitis)",
       "Physical Occlusive Pediculicide & Ovicidal Agent"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -808,6 +852,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Motion Sickness (Kinetosis)",
       "Vestibular Anticholinergic & Antiemetic Agent"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -826,6 +872,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Recurrent Aphthous Ulcers (Mouth Ulcers)",
       "Topical Oral Corticosteroid Paste & Local Anaesthetic"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -844,6 +892,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Nappy Rash (Diaper Dermatitis)",
       "Protective Skin Barrier & Soothing Emollient"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -862,6 +912,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Nasal Congestion (Nasal Obstruction)",
       "Topical Alpha-1/Alpha-2 Adrenergic Vasoconstrictor"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -880,6 +932,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Acute Pain Management (Analgesia)",
       "Central Non-opioid Analgesic & Peripheral Non-Steroidal Anti-inflammatory"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -898,6 +952,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Scabies (Sarcoptes scabiei)",
       "Topical Scabicide (Gold Standard)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -916,6 +972,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Seborrhoeic Dermatitis & Dandruff",
       "Topical Imidazole Antifungal & Anti-inflammatory Shampoo"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -934,6 +992,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Herpes Zoster (Shingles)",
       "Systemic Antiviral Agent & Neuropathic Analgesia"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -952,6 +1012,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Smoking Cessation & Nicotine Replacement Therapy",
       "Nicotinic Acetylcholine Receptor Agonist & Cessation Aid"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -970,6 +1032,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Acute Sore Throat (Pharyngitis)",
       "Systemic NSAID Analgesia & Topical Anti-inflammatory / Anaesthetic"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -988,6 +1052,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Insect Bites and Stings",
       "Topical Corticosteroid, Local Anaesthetic & Oral H1 Antihistamine"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1006,6 +1072,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Stye (External Hordeolum)",
       "Thermal Glandular Evacuation Protocol"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1024,6 +1092,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Swimmer's Ear (Otitis Externa)",
       "Topical Acidifying & Astringent / Desiccating Agent"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1042,6 +1112,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Infant Teething",
       "Non-pharmacological Cryotherapy & Paediatric Analgesia"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1060,6 +1132,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Oral Candidiasis (Oral Thrush)",
       "Topical Imidazole & Polyene Antifungal"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1078,6 +1152,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Vaginal Candidiasis (Vaginal Thrush)",
       "Systemic Triazole / Topical Imidazole Antifungal"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1096,6 +1172,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Tinea Infections (Athlete’s Foot & Jock Itch)",
       "Topical Allylamine Fungicidal Agent (Gold Standard)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1114,6 +1192,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Tinea Versicolor (Pityriasis Versicolor)",
       "Broad-spectrum Topical Imidazole Antifungal Foaming Body Wash"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1132,6 +1212,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Uncomplicated Cystitis / UTI",
       "Systemic Urinary Alkaliniser"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1150,6 +1232,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Warts and Verrucas (Verruca Vulgaris & Plantaris)",
       "High-strength Keratolytic & Chemical Ablative Agent"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1168,6 +1252,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Threadworms & Pinworms (Enterobiasis)",
       "Antihelmintic & Neuromuscular Depolarising Agent"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/src/data/handbook/part3.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1186,6 +1272,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "CYP Interaction",
       "CYP3A4 / CYP3A5"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/cypInteractionsData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1204,6 +1292,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "CYP Interaction",
       "CYP2D6"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/cypInteractionsData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1222,6 +1312,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "CYP Interaction",
       "CYP2C9"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/cypInteractionsData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1240,6 +1332,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "CYP Interaction",
       "CYP2C19"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/cypInteractionsData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1258,6 +1352,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "CYP Interaction",
       "CYP1A2"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/cypInteractionsData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1276,6 +1372,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "CYP Interaction",
       "P-glycoprotein (ABCB1 Transporter)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/cypInteractionsData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1294,6 +1392,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Mechanism",
       "Antifungal & Anthelmintic Agents"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1312,6 +1412,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Mechanism",
       "Systemic Antifungal Therapy"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1330,6 +1432,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Mechanism",
       "Viral Skin Conditions & Topical Corticosteroids"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1348,6 +1452,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Mechanism",
       "Penicillins & Beta-lactam Antibiotics"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1366,6 +1472,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Mechanism",
       "Macrolides & Fluoroquinolones"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1384,6 +1492,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Mechanism",
       "Antihypertensive Agents (RAAS Inhibitors & CCBs)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1402,6 +1512,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Mechanism",
       "Anticoagulants: Direct Oral (DOACs) & Warfarin"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1420,6 +1532,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Mechanism",
       "Lipid-Lowering Therapy & Statins"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1438,6 +1552,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Mechanism",
       "Gastrointestinal & Acid Suppressive Agents"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1456,6 +1572,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Mechanism",
       "Respiratory Inhalers & Sympathomimetic Decongestants"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1474,6 +1592,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Mechanism",
       "SSRIs & Psychotropic Antidepressants"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1492,6 +1612,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Mechanism",
       "Antidiabetic Therapy & Glycaemic Control"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1510,6 +1632,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Mechanism",
       "Opioid Analgesics & Receptor Antagonists"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1528,6 +1652,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Mechanism",
       "Ophthalmic, Glaucoma & Otology Protocols"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1546,6 +1672,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Toxicity & Interaction"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1564,6 +1692,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Red Flag Symptom"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1582,6 +1712,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Drug Safety"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1600,6 +1732,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Drug Interaction"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1618,6 +1752,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Pharmacogenetics"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1636,6 +1772,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Drug Interaction"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1654,6 +1792,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Drug Interaction"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1672,6 +1812,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Australian Regulations"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1690,6 +1832,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Red Flag Symptom"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1708,6 +1852,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Drug Safety"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1726,6 +1872,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Acute Toxicity"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1744,6 +1892,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Drug Safety"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1762,6 +1912,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Therapeutic Monitoring"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1780,6 +1932,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Australian Regulations"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1798,6 +1952,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Storage & Stability"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1816,6 +1972,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Red Flag Symptom"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1834,6 +1992,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Cardiac Toxicity"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1852,6 +2012,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Dermatologic Emergency"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1870,6 +2032,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Drug Safety"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1888,6 +2052,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Drug Interaction"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1906,6 +2072,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Metabolic Adverse Effect"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1924,6 +2092,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Pediatric Safety"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1942,6 +2112,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "High-Risk Interaction"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1960,6 +2132,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Clinical Counseling"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1978,6 +2152,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Clinical Counseling"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -1996,6 +2172,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Drug Interaction"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2014,6 +2192,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Medical Emergency"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2032,6 +2212,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Clinical Pharmacology"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2050,6 +2232,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Drug Safety"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2068,6 +2252,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Immunisation"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2086,6 +2272,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Diagnostic Testing"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2104,6 +2292,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Chronic Toxicity"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2122,6 +2312,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Clinical Pharmacology"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2140,6 +2332,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Medical Emergency"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2158,6 +2352,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical Concept",
       "Clinical Protocol"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalConcepts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2176,6 +2372,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule Unscheduled",
       "Paracetamol"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2194,6 +2392,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Paracetamol (Modified Release)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2212,6 +2412,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Ibuprofen"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2230,6 +2432,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Diclofenac Potassium"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2248,6 +2452,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S3",
       "Paracetamol + Ibuprofen"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2266,6 +2472,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule Unscheduled",
       "Aspirin (Soluble / Effervescent)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2284,6 +2492,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S3",
       "Fluconazole"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2302,6 +2512,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Clotrimazole"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2320,6 +2532,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Terbinafine Hydrochloride"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2338,6 +2552,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Amorolfine"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2356,6 +2572,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule Unscheduled",
       "Pyrantel Embonate"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2374,6 +2592,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Mebendazole"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2392,6 +2612,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Permethrin"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2410,6 +2632,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S3",
       "Chloramphenicol"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2428,6 +2652,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule Unscheduled",
       "Polyethylene Glycol + Propylene Glycol"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2446,6 +2672,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Ketotifen Fumarate"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2464,6 +2692,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule Unscheduled",
       "Docusate Sodium (Otic)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2482,6 +2712,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule Unscheduled",
       "Acetic Acid + Isopropyl Alcohol"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2500,6 +2732,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S3",
       "Pseudoephedrine Hydrochloride"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2518,6 +2752,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Fexofenadine Hydrochloride"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2536,6 +2772,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Cetirizine Hydrochloride"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2554,6 +2792,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Budesonide (Nasal)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2572,6 +2812,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Oxymetazoline Hydrochloride"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2590,6 +2832,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Dextromethorphan Hydrobromide"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2608,6 +2852,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Bromhexine Hydrochloride"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2626,6 +2872,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S3",
       "Salbutamol"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2644,6 +2892,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule Unscheduled",
       "Nicotine Polacrilex"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2662,6 +2912,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S3",
       "Esomeprazole Magnesium"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2680,6 +2932,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule Unscheduled",
       "Sodium Alginate + Sodium Bicarbonate + Calcium Carbonate"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2698,6 +2952,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Loperamide Hydrochloride"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2716,6 +2972,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule Unscheduled",
       "Oral Rehydration Salts (ORS)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2734,6 +2992,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule Unscheduled",
       "Macrogol 3350 + Electrolytes"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2752,6 +3012,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule Unscheduled",
       "Bisacodyl"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2770,6 +3032,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Hyoscine Butylbromide"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2788,6 +3052,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Dimenhydrinate + Hyoscine Hydrobromide + Caffeine"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2806,6 +3072,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Hydrocortisone"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2824,6 +3092,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule Unscheduled",
       "Emollient & Barrier Cream (Glycerol + Liquid Paraffin)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2842,6 +3112,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule Unscheduled",
       "Benzoyl Peroxide"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2860,6 +3132,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Aciclovir"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2878,6 +3152,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule Unscheduled",
       "Zinc Oxide + Benzyl Benzoate"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2896,6 +3172,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S3",
       "Levonorgestrel"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2914,6 +3192,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S3",
       "Ulipristal Acetate"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2932,6 +3212,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule Unscheduled",
       "Urinary Alkaliniser (Sodium Bicarbonate + Tartaric Acid + Citric Acid)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2950,6 +3232,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S3",
       "Clotrimazole (Vaginal)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2968,6 +3252,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Choline Salicylate + Cetalkonium Chloride"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -2986,6 +3272,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Telmisartan"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3004,6 +3292,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Perindopril Arginine"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3022,6 +3312,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Candesartan Cilexetil"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3040,6 +3332,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Amlodipine Besylate"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3058,6 +3352,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Hydrochlorothiazide"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3076,6 +3372,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Labetalol Hydrochloride"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3094,6 +3392,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Warfarin Sodium"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3112,6 +3412,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Rivaroxaban"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3130,6 +3432,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Apixaban"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3148,6 +3452,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Clopidogrel Hydrogen Sulfate"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3166,6 +3472,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule Unscheduled",
       "Aspirin (Low Dose Antiplatelet)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3184,6 +3492,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Digoxin"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3202,6 +3512,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Bisoprolol Fumarate"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3220,6 +3532,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Spironolactone"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3238,6 +3552,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Amiodarone Hydrochloride"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3256,6 +3572,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S3",
       "Glyceryl Trinitrate (GTN)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3274,6 +3592,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Dapagliflozin"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3292,6 +3612,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Atorvastatin Calcium"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3310,6 +3632,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Rosuvastatin Calcium"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3328,6 +3652,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Ezetimibe"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3346,6 +3672,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Fenofibrate (Nanoparticle)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3364,6 +3692,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Simvastatin"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3382,6 +3712,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Escitalopram"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3400,6 +3732,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Venlafaxine Hydrochloride"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3418,6 +3752,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Amitriptyline Hydrochloride"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3436,6 +3772,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Mirtazapine"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3454,6 +3792,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Fluoxetine Hydrochloride"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3472,6 +3812,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Lithium Carbonate"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3490,6 +3832,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Sodium Valproate"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3508,6 +3852,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Pregabalin"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3526,6 +3872,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Carbamazepine"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3544,6 +3892,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Lamotrigine"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3562,6 +3912,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Levetiracetam"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3580,6 +3932,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Diazepam"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3598,6 +3952,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Zolpidem Tartrate"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3616,6 +3972,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Temazepam"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3634,6 +3992,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Melatonin (Prolonged Release)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3652,6 +4012,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S3",
       "Naloxone Hydrochloride"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3670,6 +4032,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S8",
       "Fentanyl (Transdermal)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3688,6 +4052,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S8",
       "Oxycodone Hydrochloride + Naloxone Hydrochloride"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3706,6 +4072,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S8",
       "Oxycodone Hydrochloride (Immediate Release)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3724,6 +4092,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Tramadol Hydrochloride"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3742,6 +4112,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Metformin Hydrochloride"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3760,6 +4132,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Empagliflozin"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3778,6 +4152,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Semaglutide"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3796,6 +4172,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Gliclazide"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3814,6 +4192,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Insulin Glargine (Long-Acting Analog)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3832,6 +4212,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Insulin Aspart (Rapid-Acting Analog)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3850,6 +4232,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Alendronate Sodium"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3868,6 +4252,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Denosumab"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3886,6 +4272,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Risedronate Sodium"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3904,6 +4292,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule Unscheduled",
       "Calcium Carbonate + Colecalciferol"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3922,6 +4312,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Levothyroxine Sodium"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3940,6 +4332,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Levothyroxine Sodium"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3958,6 +4352,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Carbimazole"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3976,6 +4372,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Flucloxacillin Sodium"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -3994,6 +4392,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Amoxicillin + Clavulanic Acid"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4012,6 +4412,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Cephalexin"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4030,6 +4432,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Doxycycline Hyclate"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4048,6 +4452,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Clarithromycin"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4066,6 +4472,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Metronidazole"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4084,6 +4492,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Valaciclovir"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4102,6 +4512,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Oseltamivir Phosphate"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4120,6 +4532,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Recombinant Varicella Zoster Virus Glycoprotein E Vaccine"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4138,6 +4552,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Influenza Virus Vaccine (Surface Antigen / Split Virion, Inactivated)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4156,6 +4572,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S3",
       "Glyceryl Trinitrate (GTN) 0.2%"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4174,6 +4592,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Hydrocortisone 5mg/g + Cinchocaine HCl 5mg/g"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4192,6 +4612,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule Unscheduled",
       "Benzoyl Peroxide 5%"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4210,6 +4632,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S2",
       "Azelaic Acid 20%"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4228,6 +4652,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Calcipotriol 50mcg/g + Betamethasone Dipropionate 500mcg/g"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4246,6 +4672,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Azelastine HCl 137mcg + Fluticasone Propionate 50mcg per actuation"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4264,6 +4692,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S3",
       "Salbutamol Sulfate 100mcg/actuation"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4282,6 +4712,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Colchicine 500mcg"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4300,6 +4732,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S4",
       "Allopurinol"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4318,6 +4752,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S3",
       "Esomeprazole 20mg (as magnesium trihydrate)"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4336,6 +4772,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Schedule S3",
       "Clotrimazole 500mg Pessary"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4354,6 +4792,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL 1"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4372,6 +4812,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL 2"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4390,6 +4832,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL 3"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4408,6 +4852,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL 4"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4426,6 +4872,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL 5"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4444,6 +4892,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL 6"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4462,6 +4912,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL 7"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4480,6 +4932,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL 8"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4498,6 +4952,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL 9"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4516,6 +4972,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL 10"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4534,6 +4992,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL 11"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4552,6 +5012,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL 12"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4570,6 +5032,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL 13"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4588,6 +5052,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL 14"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4606,6 +5072,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL 16"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4624,6 +5092,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL 17"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4642,6 +5112,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL 18"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4660,6 +5132,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL 21"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4678,6 +5152,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL A"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4696,6 +5172,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL B"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4714,6 +5192,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL C"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4732,6 +5212,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "APF Auxiliary Label",
       "CAL D"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/calLabels.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4750,6 +5232,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "State Regulation",
       "NSW"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/stateStorageRules.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4768,6 +5252,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "State Regulation",
       "QLD"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/stateStorageRules.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4786,6 +5272,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "State Regulation",
       "WA"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/stateStorageRules.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4804,6 +5292,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "State Regulation",
       "VIC"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/stateStorageRules.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4822,6 +5312,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "State Regulation",
       "SA"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/stateStorageRules.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4840,6 +5332,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "State Regulation",
       "TAS"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/stateStorageRules.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4858,6 +5352,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "State Regulation",
       "ACT"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/stateStorageRules.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4876,6 +5372,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "State Regulation",
       "NT"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/stateStorageRules.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4895,6 +5393,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Communication",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/slangScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4914,6 +5414,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Communication",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/slangScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4933,6 +5435,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Communication",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/slangScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4952,6 +5456,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Communication",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/slangScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4971,6 +5477,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Respiratory System",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -4990,6 +5498,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Allergy & Rhinitis",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5009,6 +5519,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "S3 & Identification",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5028,6 +5540,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Viral & Dermatology",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5047,6 +5561,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Pediatric Infections",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5066,6 +5582,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Dermatology & Steroids",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5085,6 +5603,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Parasitic Infections",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5104,6 +5624,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Womens Health",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5123,6 +5645,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Vaccines & Immunology",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5142,6 +5666,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "ENT & Otology",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5161,6 +5687,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Gastrointestinal",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5180,6 +5708,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Dermatology & Burns",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5199,6 +5729,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Musculoskeletal & Pain",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5218,6 +5750,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Pediatric GI & ORS",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5237,6 +5771,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Gastrointestinal & GORD",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5256,6 +5792,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "GI & Laxative Protocol",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5275,6 +5813,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Analgesia & Osteoarthritis",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5294,6 +5834,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Musculoskeletal & RICER",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5313,6 +5855,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Analgesia & NSAID Safety",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5332,6 +5876,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Smoking Cessation & 5A's",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5351,6 +5897,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "S3 Compliance & Conflict De-escalation",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5370,6 +5918,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Continued Dispensing & Emergency Supply",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5389,6 +5939,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Conflict De-escalation & Clinical Safety",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5408,6 +5960,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Real-Time Prescription Monitoring & S8 Compliance",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/clinicalScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5427,6 +5981,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Administrative",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/adminScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5446,6 +6002,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Administrative",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/adminScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5465,6 +6023,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Administrative",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/adminScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5484,6 +6044,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Administrative",
       "Bilingual Triage"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scenarios/adminScenarios.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5502,6 +6064,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Dispensing Dilemma",
       "Legal Practice"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/realisticScriptsData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5520,6 +6084,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Dispensing Dilemma",
       "Legal Practice"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/realisticScriptsData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5538,6 +6104,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Dispensing Dilemma",
       "Legal Practice"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/realisticScriptsData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5556,6 +6124,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Dispensing Dilemma",
       "Legal Practice"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/realisticScriptsData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5574,6 +6144,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Dispensing Dilemma",
       "Legal Practice"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/realisticScriptsData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5592,6 +6164,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Dispensing Dilemma",
       "Legal Practice"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/realisticScriptsData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5610,6 +6184,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Script Form",
       "دوبخشی PBS"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scriptTypesData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5628,6 +6204,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Script Form",
       "فرم تکرار + کپی منگنه شده"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scriptTypesData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5646,6 +6224,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Script Form",
       "دست‌نویس پد"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scriptTypesData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5664,6 +6244,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Script Form",
       "توکن eScript"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scriptTypesData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5682,6 +6264,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Script Form",
       "نسخه زرد S8"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scriptTypesData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5700,6 +6284,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Script Form",
       "فرم NSW ODT"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scriptTypesData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5718,6 +6304,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Script Form",
       "چارت RACF"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/scriptTypesData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5736,6 +6324,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Medicare System",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5754,6 +6344,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Patient X Journey",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5772,6 +6364,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "TGA & ARTG Registration",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5790,6 +6384,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "PBS & PBAC",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5808,6 +6404,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "PBS Safety Net",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5826,6 +6424,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Pharmacy Stakeholders",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5844,6 +6444,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Guidance Hierarchy & PPS",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5862,6 +6464,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Prescription Formats",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5880,6 +6484,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Digital Health Ecosystem",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5898,6 +6504,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Clinical References",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5916,6 +6524,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "National Legislation",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5934,6 +6544,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Medicine Scheduling",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5952,6 +6564,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "State Storage Variations",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5970,6 +6584,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "State S8 Regulations",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -5988,6 +6604,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Ethics & Advertising",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6006,6 +6624,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Emergency Supply Options",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6024,6 +6644,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Coughs & Colds",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6042,6 +6664,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Cough Medications",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6060,6 +6684,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Hay Fever & Allergy",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6078,6 +6704,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Analgesics & Pain",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6096,6 +6724,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "GI Conditions",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6114,6 +6744,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Smoking Cessation NRT",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6132,6 +6764,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Ear & Skin Care",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6150,6 +6784,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Pharmacy Assistant Role",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6168,6 +6804,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Importance of Counseling",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6186,6 +6824,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Assessing Adherence",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6204,6 +6844,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "BPMH Documentation",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6222,6 +6864,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Counseling Guidelines",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6240,6 +6884,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Report Data Gathering",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6258,6 +6904,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Literature Review Process",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6276,6 +6924,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "TED Paragraph Structure",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6294,6 +6944,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Summarizing vs Quoting",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6312,6 +6964,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Pharmacy Work Environment",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6330,6 +6984,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Data Entry (Fred Dispense)",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6348,6 +7004,8 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Legal & Clinical Checks",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6366,6 +7024,1408 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Supply to Patient",
       "Academic Lesson"
     ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-azoles",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "مشتقات آزول (مهار سنتز ارگوسترول)",
+    "title_en": "Azoles (Ergosterol Synthesis Inhibitor)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">مشتقات آزول (مهار سنتز ارگوسترول)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-azoles</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>مشتقات آزول (مهار سنتز ارگوسترول)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>fungistatic</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>قارچ‌ایستا (Fungistatic)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>آنزیم 14α-دمتیلاز سیتوکروم قارچی (CYP51)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>کاهش ارگوسترول، آسیب به غشای سلولی و توقف رشد قارچ.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>مهار آنزیم CYP51 قارچی و جلوگیری از تبدیل لانوسترول به ارگوسترول در غشا، که رشد قارچ را متوقف می‌سازد.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>خط اول کاندیدیازیس واژینال و برفک. در بارداری ممنوع است و با وارفارین تداخل دارد.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Azoles (Ergosterol Synthesis Inhibitor)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-azoles</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Azoles (Ergosterol Synthesis Inhibitor)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>fungistatic</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Fungistatic</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Fungal CYP51 (14α-demethylase)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Ergosterol depletion, disrupting fungal membrane and halting growth.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Inhibits fungal CYP51, blocking ergosterol synthesis in the cell membrane and arresting fungal growth.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>First-line for candidiasis. Contraindicated in pregnancy; interacts with warfarin.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-azoles"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-allylamines",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "آلیل‌آمین‌ها (مهار اسکوالن اپوکسیداز)",
+    "title_en": "Allylamines (Squalene Epoxidase Inhibitor)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">آلیل‌آمین‌ها (مهار اسکوالن اپوکسیداز)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-allylamines</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>آلیل‌آمین‌ها (مهار اسکوالن اپوکسیداز)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>fungicidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>قارچ‌کش (Fungicidal)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>آنزیم اسکوالن اپوکسیداز قارچی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>تجمع اسکوالن سمی و لیز سریع دیواره سلولی قارچ.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>مهار زودرس آنزیم اسکوالن اپوکسیداز، تجمع سمی اسکوالن و مرگ سریع قارچ (دوره درمان کوتاه).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>داروی انتخابی عفونت‌های تینئا و پای ورزشکاران (Tinea Pedis). دوره مصرف موضعی ۷ روز.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Allylamines (Squalene Epoxidase Inhibitor)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-allylamines</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Allylamines (Squalene Epoxidase Inhibitor)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>fungicidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Fungicidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Fungal Squalene Epoxidase</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Toxic squalene accumulation and rapid fungal membrane lysis.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Inhibits squalene epoxidase, accumulating toxic squalene and killing the fungus rapidly.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Treatment of choice for tinea pedis and dermatophytes in a short 7-day course.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-allylamines"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-polyenes",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "پلی‌ان‌ها (ایجاد منفذ در غشای ارگوسترول)",
+    "title_en": "Polyenes (Ergosterol Membrane Disruptor)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">پلی‌ان‌ها (ایجاد منفذ در غشای ارگوسترول)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-polyenes</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>پلی‌ان‌ها (ایجاد منفذ در غشای ارگوسترول)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>fungicidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>تخریب غشا (Membrane Disruptor)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>ارگوسترول موجود در غشای قارچ</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>ایجاد منافذ غشایی، خروج پتاسیم و متلاشی شدن سلول قارچ.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>اتصال مستقیم به ارگوسترول غشا و ایجاد حفراتی که باعث نشت املاح و مرگ سلول قارچ می‌شود.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>نیستاتین جذب سیستمیک ندارد و داروی ایمن برفک دهان نوزادان و کودکان است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-cyan-500/20 text-cyan-300 border-cyan-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Polyenes (Ergosterol Membrane Disruptor)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-polyenes</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Polyenes (Ergosterol Membrane Disruptor)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>fungicidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Membrane Disruptor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Fungal membrane ergosterol</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Forms membrane pores, leaking potassium and lysing the fungal cell.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Binds directly to fungal ergosterol, forming pores that leak cellular contents and kill the fungus.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Nystatin has no systemic absorption, making it safe for oral infant thrush.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-cyan-500/20 text-cyan-300 border-cyan-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-polyenes"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-benzimidazoles",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "بنزایمیدازول‌ها (مهار میکروتوبول کرمک)",
+    "title_en": "Benzimidazoles (Tubulin Inhibitor)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">بنزایمیدازول‌ها (مهار میکروتوبول کرمک)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-benzimidazoles</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>بنزایمیدازول‌ها (مهار میکروتوبول کرمک)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>helminthicidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>کشنده انگل (Vermicidal)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>بتا-توبولین در سلول‌های روده انگل</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار جذب گلوکز، تخلیه ذخایر انرژی و دفع انگل از روده.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>اتصال به بتا-توبولین انگل، قطع جذب قند و گرسنگی و فلج انگل تا دفع کامل از مدفوع.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>داروی خط اول کرمک (Vermox). دوز دوم بعد از ۱۴ روز و درمان همزمان کل خانواده الزامی است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Benzimidazoles (Tubulin Inhibitor)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-benzimidazoles</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Benzimidazoles (Tubulin Inhibitor)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>helminthicidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Vermicidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Nematode beta-tubulin subunits</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Disrupts microtubules and blocks glucose uptake, starving the worm.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Binds nematode beta-tubulin to block glucose uptake, starving and expelling the pinworm.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Drug of choice for pinworm. Repeat dose in 14 days and treat entire household.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-benzimidazoles"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-nucleoside-antiviral",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "آنالوگ‌های گوانوزین (مهار DNA پلیمراز ویروس)",
+    "title_en": "Nucleoside Analogues (Viral DNA Inhibitor)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">آنالوگ‌های گوانوزین (مهار DNA پلیمراز ویروس)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-nucleoside-antiviral</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>آنالوگ‌های گوانوزین (مهار DNA پلیمراز ویروس)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>virosuppressive</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>مهار تکثیر ویروس (Virosuppressive)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>تیمیدین کیناز و DNA پلیمراز ویروس هرپس</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>خاتمه ساخت زنجیره DNA ویروسی و توقف تکثیر.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>فسفوریلاسیون توسط تیمیدین کیناز ویروس و مهار رقابتی DNA پلیمراز ویروسی که تکثیر ویروس را متوقف می‌کند.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>خط اول تبخال لب (HSV-1) و زونا. مصرف در اولین علائم خارش/سوزش بیشترین اثر را دارد.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-sky-500/20 text-sky-300 border-sky-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Nucleoside Analogues (Viral DNA Inhibitor)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-nucleoside-antiviral</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Nucleoside Analogues (Viral DNA Inhibitor)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>virosuppressive</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Virosuppressive</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Viral Thymidine Kinase &amp; DNA Polymerase</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Obligate viral DNA chain termination.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Phosphorylated by viral thymidine kinase to inhibit viral DNA polymerase and terminate replication.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>First-line for HSV-1 cold sores and zoster. Most effective at prodromal tingling onset.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-sky-500/20 text-sky-300 border-sky-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-nucleoside-antiviral"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-topical-steroid",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "کورتیکواستروئید موضعی (ضدالتهاب و خارش)",
+    "title_en": "Topical Corticosteroids (Anti-inflammatory)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">کورتیکواستروئید موضعی (ضدالتهاب و خارش)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-topical-steroid</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>کورتیکواستروئید موضعی (ضدالتهاب و خارش)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>anti_inflammatory</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>ضدالتهاب (Anti-inflammatory)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های گلوکوکورتیکوئیدی داخل سلولی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار فسفولیپاز A2 و کاهش سایتوکاین‌های التهابی و قرمزی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>القا لیپوکورتین-۱، مهار اسید آراشیدونیک و انقباض عروق موضعی برای رفع سریع خارش و التهاب پوست.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>تسکین اگزما، درماتیت و نیش حشرات. روی عفونت قارچی درمان‌نشده منع مصرف دارد.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-indigo-500/20 text-indigo-300 border-indigo-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Topical Corticosteroids (Anti-inflammatory)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-topical-steroid</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Topical Corticosteroids (Anti-inflammatory)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>anti_inflammatory</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Anti-inflammatory</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Intracellular Glucocorticoid Receptors</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Inhibits phospholipase A2 and inflammatory cytokines.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Induces lipocortin-1 to inhibit the arachidonic cascade, reducing swelling and itching.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Relief of eczema and dermatitis. Contraindicated on untreated fungal infections.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-indigo-500/20 text-indigo-300 border-indigo-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-topical-steroid"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-betalactams",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "بتالاکتام‌ها (مهار دیواره پپتیدوگلیکان باکتری)",
+    "title_en": "Beta-lactams (Cell Wall Inhibitor)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">بتالاکتام‌ها (مهار دیواره پپتیدوگلیکان باکتری)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-betalactams</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>بتالاکتام‌ها (مهار دیواره پپتیدوگلیکان باکتری)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>bactericidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>باکتریوسید (Bactericidal)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>پروتئین‌های PBPs (ترنس‌پپتیداز دیواره باکتری)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار اتصال پپتیدوگلیکان، ناپایداری اسمزی و لیز باکتری.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>اتصال به PBPs و مهار ساخت دیواره سلولی در باکتری‌های در حال رشد که باعث تخریب و مرگ باکتری می‌شود.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>آنتی‌بیوتیک خط اول عفونت‌های گوش و گلو. کلاوولانات در آگمنتین مانع تخریب بتالاکتاماز می‌شود.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Beta-lactams (Cell Wall Inhibitor)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-betalactams</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Beta-lactams (Cell Wall Inhibitor)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>bactericidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Bactericidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Bacterial Penicillin-Binding Proteins (PBPs)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Inhibits cell wall cross-linking, causing osmotic lysis.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Binds PBPs to block peptidoglycan cross-linking and trigger bactericidal lysis.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>First-line for ENT/respiratory infections. Clavulanate protects against beta-lactamase.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-betalactams"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-macrolides",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "ماکرولیدها (مهار سنتز پروتئین ریبوزوم 50S)",
+    "title_en": "Macrolides (50S Ribosomal Inhibitor)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">ماکرولیدها (مهار سنتز پروتئین ریبوزوم 50S)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-macrolides</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>ماکرولیدها (مهار سنتز پروتئین ریبوزوم 50S)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>bacteriostatic</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>باکتریواستاتیک (Bacteriostatic)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>زیرواحد 50S ریبوزوم باکتریایی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>توقف طویل‌سازی زنجیره پپتیدی و مهار سنتز پروتئین.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>اتصال برگشت‌پذیر به زیرواحد 50S ریبوزوم و توقف سنتز پروتئین و رشد باکتری‌های معمولی و آتیپیکال.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>جایگزین در حساسیت به پنی‌سیلین. کلاریترومایسین با استاتین‌ها تداخل شدید دارد.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-blue-500/20 text-blue-300 border-blue-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Macrolides (50S Ribosomal Inhibitor)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-macrolides</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Macrolides (50S Ribosomal Inhibitor)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>bacteriostatic</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Bacteriostatic</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Bacterial 50S ribosomal subunit</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Halts peptide chain elongation and protein synthesis.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Reversibly binds the 50S ribosomal subunit to arrest bacterial protein translation.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Alternative in penicillin allergy. Clarithromycin has severe statin CYP interactions.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-blue-500/20 text-blue-300 border-blue-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-macrolides"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-ppis",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "مهارکننده‌های پمپ پروتون (PPIs / H+/K+ ATPase)",
+    "title_en": "Proton Pump Inhibitors (H+/K+ ATPase)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">مهارکننده‌های پمپ پروتون (PPIs / H+/K+ ATPase)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-ppis</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>مهارکننده‌های پمپ پروتون (PPIs / H+/K+ ATPase)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>enzyme_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>مهارکننده اسید معده (Acid Suppressor)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>پمپ H+/K+ ATPase سلول‌های پاریتال معده</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار کامل مرحله نهایی ترشح اسید هیدروکلریک معده.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>پیوند کووالانسی پایدار با پمپ H+/K+ ATPase و مهار طولانی‌مدت ترشح اسید معده تا سنتز پمپ جدید.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>خط اول ریفلاکس (GORD) و زخم پپتیک. نحوه مصرف: ۳۰ تا ۶۰ دقیقه قبل از صبحانه.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-purple-500/20 text-purple-300 border-purple-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Proton Pump Inhibitors (H+/K+ ATPase)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-ppis</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Proton Pump Inhibitors (H+/K+ ATPase)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>enzyme_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Acid Suppressor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Gastric parietal cell H+/K+ ATPase</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Irreversible blockade of final acid secretion step.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Covalently binds and irreversibly inactivates the H+/K+ ATPase proton pump.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Gold standard for GORD and ulcers. Take 30-60 minutes before breakfast.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-purple-500/20 text-purple-300 border-purple-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-ppis"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-saba",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "آگونیست‌های بتا-۲ کوتاه‌اثر (SABA)",
+    "title_en": "Short-Acting Beta-2 Agonists (SABA)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">آگونیست‌های بتا-۲ کوتاه‌اثر (SABA)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-saba</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>آگونیست‌های بتا-۲ کوتاه‌اثر (SABA)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_agonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>گشادکننده سریع برونش (Bronchodilator)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های بتا-۲ آدرنرژیک عضلات صاف برونش</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>افزایش cAMP، کاهش کلسیم آزاد و اتساع برونش ظرف ۵ دقیقه.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>تحریک گیرنده بتا-۲ ریه، افزایش cAMP درون سلولی و شل شدن سریع عضلات مجاری هوایی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>اسپری نجات‌بخش تنگی نفس در آسم. مصرف بیش از ۲ بار در هفته نشان‌دهنده نیاز به کورتون استنشاقی است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-sky-500/20 text-sky-300 border-sky-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Short-Acting Beta-2 Agonists (SABA)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-saba</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Short-Acting Beta-2 Agonists (SABA)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_agonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Bronchodilator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Bronchial smooth muscle Beta-2 adrenoceptors</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Increases cAMP to relax bronchial smooth muscle in 5 mins.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Stimulates beta-2 receptors, elevating cAMP to rapidly dilate constricted airways.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Reliever inhaler for acute asthma. Overuse indicates need for preventer steroid.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-sky-500/20 text-sky-300 border-sky-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-saba"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-opioids",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "آگونیست‌های گیرنده مو-اپیوئید (S8 Opioids)",
+    "title_en": "Mu-Opioid Receptor Agonists (S8)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">آگونیست‌های گیرنده مو-اپیوئید (S8 Opioids)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-opioids</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>آگونیست‌های گیرنده مو-اپیوئید (S8 Opioids)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_agonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>ضد درد مخدر مرکزی (Analgesic)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های مو-اپیوئیدی (MOR) در نخاع و مغز</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار آزادسازی پیام‌رسان‌های درد (سابستنس P) و تسکین درد.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>تحریک گیرنده‌های مو، مهار انتقال سیگنال درد در نخاع و تغییر درک مغز از درد.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>کنترل دردهای شدید (جدول S8). عوارض: یبوست (تجویز همزمان ملین محرک الزامی است) و خواب‌آلودگی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Mu-Opioid Receptor Agonists (S8)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-opioids</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Mu-Opioid Receptor Agonists (S8)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_agonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Analgesic</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Central Mu-Opioid Receptors (MOR)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Inhibits pain neurotransmitters and blocks spinal transmission.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Stimulates MOR receptors, suppressing pain signal conduction in spinal pathways.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Schedule 8 for severe pain. Co-prescribe stimulant laxative to prevent constipation.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-opioids"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-sglt2",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "مهارکننده‌های SGLT2 کلیه",
+    "title_en": "SGLT2 Inhibitors",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">مهارکننده‌های SGLT2 کلیه</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-sglt2</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>مهارکننده‌های SGLT2 کلیه</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>transporter_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>دفع گلوکز در ادرار (Glucosuric)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>هم‌ناقل سدیم-گلوکز نوع ۲ در توبول پروگزیمال کلیه</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار بازجذب قند و سدیم و دفع گلوکز در ادرار.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>مهار بازجذب قند در کلیه و دفع گلوکز اضافی از طریق ادرار با اثر محافظت قلبی و کلیوی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>داروی خط اول دیابت همراه با نارسایی قلبی/کلیوی. هشدار: نوشیدن آب کافی جهت پیشگیری از عفونت ادراری.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">SGLT2 Inhibitors</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-sglt2</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>SGLT2 Inhibitors</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>transporter_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Glucosuric</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Renal proximal tubule SGLT2 co-transporter</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Blocks glucose reabsorption, promoting urinary glucose excretion.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Inhibits renal glucose reabsorption to lower blood sugar and provide cardiorenal protection.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>First-line for diabetes with CKD/heart failure. Maintain good hydration.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-sglt2"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-statins",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "استاتین‌ها (مهارکننده HMG-CoA ردوکتاز)",
+    "title_en": "Statins (HMG-CoA Reductase Inhibitors)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">استاتین‌ها (مهارکننده HMG-CoA ردوکتاز)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-statins</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>استاتین‌ها (مهارکننده HMG-CoA ردوکتاز)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>enzyme_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>کاهنده چربی خون (Lipid-Lowering)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>آنزیم HMG-CoA ردوکتاز در کبد</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>کاهش ساخت کلسترول کبد و افزایش پاکسازی LDL از خون.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>مهار آنزیم کلیدی ساخت کلسترول در کبد که باعث افزایش برداشت LDL-C از گردش خون می‌شود.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>کاهش خطر سکته قلبی و مغزی. در صورت درد عضلانی غیرعادی به پزشک اطلاع داده شود.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-indigo-500/20 text-indigo-300 border-indigo-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Statins (HMG-CoA Reductase Inhibitors)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-statins</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Statins (HMG-CoA Reductase Inhibitors)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>enzyme_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Lipid-Lowering</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Hepatic HMG-CoA Reductase</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Depletes hepatic cholesterol and upregulates LDL clearance receptors.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Inhibits cholesterol synthesis in hepatocytes, upregulating LDL receptors to clear blood LDL.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Key for cardiovascular protection. Advise reporting unexplained muscle pain.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-indigo-500/20 text-indigo-300 border-indigo-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-statins"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-decongestants",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "ضداحتقان‌های آلفا-۱ (انقباض عروق بینی)",
+    "title_en": "Decongestants (Alpha-1 Agonist)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">ضداحتقان‌های آلفا-۱ (انقباض عروق بینی)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-decongestants</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>ضداحتقان‌های آلفا-۱ (انقباض عروق بینی)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_agonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>منقبض‌کننده عروق مخاط (Vasoconstrictor)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های آلفا-۱ آدرنرژیک در مخاط بینی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>انقباض مویرگ‌های متورم بینی و کاهش گرفتگی تنفس.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>تحریک گیرنده آلفا-۱، انقباض عروق خونی بینی و باز شدن سریع مجاری تنفسی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>تسکین گرفتگی بینی در سرماخوردگی (جدول S3 ثبت Project Stop). در فشار خون بالا احتیاط شود.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Decongestants (Alpha-1 Agonist)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-decongestants</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Decongestants (Alpha-1 Agonist)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_agonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Vasoconstrictor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Nasal mucosa Alpha-1 adrenoceptors</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Constricts nasal mucosal blood vessels, relieving congestion.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Stimulates alpha-1 receptors to constrict dilated mucosal vessels and restore airflow.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Relief of acute congestion (S3 Project Stop). Caution in uncontrolled hypertension.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-decongestants"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-paracetamol",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "پاراستامول (مهار سنتز پروستاگلاندین مرکزی)",
+    "title_en": "Paracetamol (Central Prostaglandin Synthesis Inhibitor)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">پاراستامول (مهار سنتز پروستاگلاندین مرکزی)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-paracetamol</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>پاراستامول (مهار سنتز پروستاگلاندین مرکزی)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>ضد درد و تب مرکزی (Antipyretic / Analgesic)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>سنتز پروستاگلاندین در سیستم عصبی مرکزی (CNS) و تعدیل مسیر سروتونرژیک نزولی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>کاهش حساسیت گیرنده‌های درد مرکزی و تنظیم مرکز کنترل دمای بدن در هیپوتالاموس.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>مهار انتخابی تولید پروستاگلاندین‌ها در مغز بدون اثرات ضدالتهابی یا عوارض گوارشی محیطی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>خط اول تسکین درد و تب در تمام گروه‌های سنی و بارداری. حداکثر ۴ گرم در ۲۴ ساعت در بزرگسالان.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-sky-500/20 text-sky-300 border-sky-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Paracetamol (Central Prostaglandin Synthesis Inhibitor)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-paracetamol</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Paracetamol (Central Prostaglandin Synthesis Inhibitor)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Central Analgesic &amp; Antipyretic</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Central nervous system prostaglandin synthesis &amp; descending serotonergic pathways</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Reduces central pain signal perception and resets hypothalamic thermoregulatory set-point.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Selectively inhibits central prostaglandin synthesis, providing effective pain and fever reduction with minimal GI risk.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>First-line analgesic/antipyretic. Strict maximum 4g daily in adults to prevent hepatotoxicity.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-sky-500/20 text-sky-300 border-sky-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-paracetamol"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-nsaids",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "مهارکننده‌های سیکلواکسیژناز COX (ضدالتهاب غیراستروئیدی NSAID)",
+    "title_en": "Cyclooxygenase (COX-1/COX-2) Inhibitors (NSAIDs)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">مهارکننده‌های سیکلواکسیژناز COX (ضدالتهاب غیراستروئیدی NSAID)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-nsaids</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>مهارکننده‌های سیکلواکسیژناز COX (ضدالتهاب غیراستروئیدی NSAID)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>enzyme_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>ضدالتهاب و ضددرد محیطی (NSAID)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>آنزیم‌های سیکلواکسیژناز ۱ و ۲ (COX-1 و COX-2)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار سنتز پروستاگلاندین‌های التهابی E2 و I2 در بافت‌های محیطی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>کاهش تورم، درد و التهاب محیطی مفاصل و عضلات از طریق مسدود کردن مسیر سنتز پروستاگلاندین.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>موثر در دردهای التهابی و آرتروز. همراه غذا مصرف شود؛ در زخم معده، نارسایی کلیه و آسم احتیاط شود.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Cyclooxygenase (COX-1/COX-2) Inhibitors (NSAIDs)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-nsaids</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Cyclooxygenase (COX-1/COX-2) Inhibitors (NSAIDs)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>enzyme_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Anti-inflammatory &amp; Peripheral Analgesic</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Cyclooxygenase isoenzymes (COX-1 and COX-2)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Inhibits conversion of arachidonic acid to pro-inflammatory prostaglandins.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Blocks COX enzymes to attenuate peripheral inflammation, pain, and tissue swelling.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Effective for inflammatory pain. Take with food; caution with peptic ulcers, renal impairment, and asthma.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-nsaids"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-antihistamines",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "آنتاگونیست‌های انتخابی گیرنده H1 هیستامین (آنتی‌هیستامین نسل جدید)",
+    "title_en": "Selective Histamine H1 Receptor Antagonists (Non-sedating Antihistamines)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">آنتاگونیست‌های انتخابی گیرنده H1 هیستامین (آنتی‌هیستامین نسل جدید)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-antihistamines</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>آنتاگونیست‌های انتخابی گیرنده H1 هیستامین (آنتی‌هیستامین نسل جدید)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_antagonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>ضدحساسیت و آلرژی (Antiallergic)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های H1 هیستامین در عروق خونی و اعصاب حسی محیطی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار گشادی عروق، نشت پلاسما و خارش ناشی از آزادسازی هیستامین از ماست‌سل‌ها.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>اتصال رقابتی به گیرنده‌های H1 و رفع خارش، آبریزش بینی، عطسه و کهیر بدون خواب‌آلودگی چشمگیر.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>درمان خط اول رینیت آلرژیک، تب یونجه و کهیرهای پوستی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Selective Histamine H1 Receptor Antagonists (Non-sedating Antihistamines)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-antihistamines</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Selective Histamine H1 Receptor Antagonists (Non-sedating Antihistamines)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_antagonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Antihistamine / Antiallergic</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Peripheral Histamine H1 Receptors</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Blocks histamine-mediated vascular permeability, pruritus, and mucosal edema.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Competitively blocks H1 receptors to control allergic rhinitis, conjunctivitis, and urticaria with minimal sedation.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>First-line for allergic rhinitis, hay fever, and acute urticaria.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-antihistamines"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-antacids",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "آنتی‌اسیدها و سد محافظ آلژینات (خنثی‌سازی اسید و سد فیزیکی)",
+    "title_en": "Antacids & Alginate Barrier (Direct Acid Neutralisation)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">آنتی‌اسیدها و سد محافظ آلژینات (خنثی‌سازی اسید و سد فیزیکی)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-antacids</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>آنتی‌اسیدها و سد محافظ آلژینات (خنثی‌سازی اسید و سد فیزیکی)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>neutralizer</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>خنثی‌کننده اسید معده (Acid Neutraliser &amp; Barrier)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>اسید کلریدریک لومن معده و محل اتصال مری به معده</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>افزایش فوری pH معده و ایجاد سد فوم غوطه‌ور برای جلوگیری از بازگشت اسید به مری.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>ترکیب شیمیایی املاح خنثی‌کننده و آلژینات سدیم که تسکین سریع و موضعی سوزش سر دل ایجاد می‌کند.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>تسکین سریع پس از غذا. رعایت فاصله حداقل ۲ ساعته با سایر داروها برای جلوگیری از کاهش جذب الزامی است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Antacids &amp; Alginate Barrier (Direct Acid Neutralisation)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-antacids</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Antacids &amp; Alginate Barrier (Direct Acid Neutralisation)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>neutralizer</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Acid Neutraliser &amp; Physical Raft</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Gastric acid lumen &amp; gastroesophageal junction</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Rapidly neutralises HCl and forms a floating raft barrier above gastric contents.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Provides immediate symptomatic relief by buffering gastric acidity and forming a mechanical barrier.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Rapid postprandial relief. Space at least 2 hours apart from other oral medications.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-antacids"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-nrt",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "آگونیست گیرنده‌های نیکوتینی nAChR (درمان جایگزین نیکوتین NRT)",
+    "title_en": "Nicotinic Acetylcholine Receptor Agonists (NRT)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">آگونیست گیرنده‌های نیکوتینی nAChR (درمان جایگزین نیکوتین NRT)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-nrt</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>آگونیست گیرنده‌های نیکوتینی nAChR (درمان جایگزین نیکوتین NRT)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_agonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>تسکین وسوسه نیکوتین (Smoking Cessation)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های کولینرژیک نیکوتینی (nAChRs) در مغز</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>تحریک رهایش دوپامین در مسیر پاداش مغز و مهار علائم ترک سیگار.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>تامین کنترل‌شده نیکوتین بدون سموم و دود سیگار جهت کمک به ترک تدریجی دخانیات.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>آدامس و پچ نیکوتین؛ رعایت تکنیک Chew and Park در آدامس الزامی است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-indigo-500/20 text-indigo-300 border-indigo-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Nicotinic Acetylcholine Receptor Agonists (NRT)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-nrt</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Nicotinic Acetylcholine Receptor Agonists (NRT)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_agonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Smoking Cessation Aid</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Neuronal Nicotinic Acetylcholine Receptors</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Maintains baseline dopamine tone to attenuate acute nicotine withdrawal cravings.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Delivers controlled nicotine levels without harmful tobacco combustion products.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Nicotine gum/patches; follow Chew &amp; Park technique to optimize buccal absorption.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-indigo-500/20 text-indigo-300 border-indigo-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-nrt"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-acei",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "مهارکننده‌های آنزیم مبدل آنژیوتانسین (ACE Inhibitors)",
+    "title_en": "Angiotensin Converting Enzyme Inhibitors (ACEIs)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">مهارکننده‌های آنزیم مبدل آنژیوتانسین (ACE Inhibitors)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-acei</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>مهارکننده‌های آنزیم مبدل آنژیوتانسین (ACE Inhibitors)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>enzyme_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>کاهنده فشار خون و محافظ قلبی-کلیوی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>آنزیم مبدل آنژیوتانسین (ACE) در اندوتلیوم عروق و ریه</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار تبدیل آنژیوتانسین I به II (منقبض‌کننده قوی) و جلوگیری از تجزیه برادی‌کینین گشادکننده عروق.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>کاهش مقاومت عروق محیطی، کاهش بار پس‌بار قلب و محافظت از کلیه در دیابت و فشار خون بالا.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>خط اول فشار خون و نارسایی قلبی. عارضه جانبی شایع: سرفه خشک ناشی از تجمع برادی‌کینین.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-blue-500/20 text-blue-300 border-blue-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Angiotensin Converting Enzyme Inhibitors (ACEIs)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-acei</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Angiotensin Converting Enzyme Inhibitors (ACEIs)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>enzyme_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Antihypertensive &amp; Cardiorenal Protective</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Vascular &amp; pulmonary Angiotensin Converting Enzyme (ACE)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Inhibits Ang I to Ang II conversion and blocks bradykinin degradation.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Reduces systemic vascular resistance and provides target organ protection in hypertension and heart failure.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>First-line for hypertension/HF. Common adverse effect: dry cough due to bradykinin accumulation.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-blue-500/20 text-blue-300 border-blue-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-acei"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-arb",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "آنتاگونیست‌های گیرنده آنژیوتانسین II (ARBs)",
+    "title_en": "Angiotensin II Receptor Blockers (ARBs)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">آنتاگونیست‌های گیرنده آنژیوتانسین II (ARBs)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-arb</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>آنتاگونیست‌های گیرنده آنژیوتانسین II (ARBs)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_antagonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>مسدودکننده گیرنده AT1 آنژیوتانسین</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های نوع ۱ آنژیوتانسین II (AT1 receptors) در عضلات صاف عروق</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار انقباض عروقی و مهار ترشح آلدوسترون ناشی از آنژیوتانسین II بدون افزایش برادی‌کینین.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>بلوک اختصاصی گیرنده AT1 که باعث گشادی عروق، کاهش فشار خون و دفع سدیم و آب می‌گردد.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>جایگزین ایده‌آل ACEI در صورت بروز سرفه خشک. در بارداری اکیداً منع مصرف دارد.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-indigo-500/20 text-indigo-300 border-indigo-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Angiotensin II Receptor Blockers (ARBs)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-arb</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Angiotensin II Receptor Blockers (ARBs)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_antagonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Selective AT1 Receptor Antagonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Vascular Smooth Muscle AT1 Receptors</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Blocks Ang II-mediated vasoconstriction and aldosterone release without increasing bradykinin.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Selectively displaces Ang II from AT1 receptors, lowering blood pressure without causing dry cough.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Ideal alternative when ACEI cough occurs. Strictly contraindicated in pregnancy.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-indigo-500/20 text-indigo-300 border-indigo-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-arb"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-dhp-ccb",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "مسدودکننده‌های کانال کلسیم دی‌هیدروپیریدینی (DHP-CCBs)",
+    "title_en": "Dihydropyridine Calcium Channel Blockers (DHP-CCBs)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">مسدودکننده‌های کانال کلسیم دی‌هیدروپیریدینی (DHP-CCBs)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-dhp-ccb</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>مسدودکننده‌های کانال کلسیم دی‌هیدروپیریدینی (DHP-CCBs)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>ion_channel_blocker</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>گشادکننده اختصاصی عروق شریانی (Arteriolar Vasodilator)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>کانال‌های کلسیمی وابسته به ولتاژ نوع L در عضلات صاف شریان‌ها</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار ورود کلسیم به سلول‌های عضلانی شریان‌ها، شل شدن عروق و کاهش مقاومت محیطی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>کاهش فشار خون شریانی از طریق اتساع انتخابی شریان‌های محیطی با حداقل اثر روی هدایت قلبی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>موثر در فشار خون بالا و آنژین پایدار. عارضه جانبی شایع: ادم مچ پا ناشی از اتساع پره‌کاپیلری.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-cyan-500/20 text-cyan-300 border-cyan-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Dihydropyridine Calcium Channel Blockers (DHP-CCBs)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-dhp-ccb</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Dihydropyridine Calcium Channel Blockers (DHP-CCBs)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>ion_channel_blocker</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Arteriolar Vasodilator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Voltage-gated L-type calcium channels in arterial smooth muscle</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Inhibits transmembrane calcium influx, causing peripheral vasodilation.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Selectively dilates peripheral arterioles to lower systemic vascular resistance.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>First-line for hypertension. Common side effect: peripheral ankle edema.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-cyan-500/20 text-cyan-300 border-cyan-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-dhp-ccb"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-non-dhp-ccb",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "مسدودکننده‌های کانال کلسیم غیر دی‌هیدروپیریدینی (Non-DHP CCBs)",
+    "title_en": "Non-Dihydropyridine Calcium Channel Blockers",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">مسدودکننده‌های کانال کلسیم غیر دی‌هیدروپیریدینی (Non-DHP CCBs)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-non-dhp-ccb</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>مسدودکننده‌های کانال کلسیم غیر دی‌هیدروپیریدینی (Non-DHP CCBs)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>ion_channel_blocker</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>کاهنده سرعت هدایت قلبی و فشار خون (Cardiodepressant CCB)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>کانال‌های کلسیمی نوع L در میوکارد و گره‌های SA و AV قلب</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>کاهش سرعت هدایت گره دهلیزی-بطنی، کاهش ضربان قلب و کاهش قدرت انقباضی میوکارد.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>کنترل ریتم قلب و کاهش فشار خون با مهار ورود کلسیم به بافت هدایتی و عضلانی قلب.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>کنترل ریتم در فیبریلاسیون دهلیزی و آنژین. احتیاط: تداخل شدید با بتابلوکرها (خطر برادی‌کاردی شدید).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Non-Dihydropyridine Calcium Channel Blockers</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-non-dhp-ccb</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Non-Dihydropyridine Calcium Channel Blockers</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>ion_channel_blocker</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Cardiodepressant &amp; Vasodilator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Cardiac SA/AV nodal and myocardial L-type calcium channels</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Slows AV nodal conduction and reduces myocardial contractility and heart rate.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Slows AV node conduction and cardiac chronotropy for rate control and angina relief.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Rate control in AF and angina. Caution: severe bradycardia risk if combined with beta-blockers.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-non-dhp-ccb"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-alpha-beta-blocker",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "مسدودکننده‌های همزمان گیرنده آلفا و بتا (Combined Alpha/Beta Blockers)",
+    "title_en": "Combined Alpha-1 and Beta-Adrenoceptor Antagonists",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">مسدودکننده‌های همزمان گیرنده آلفا و بتا (Combined Alpha/Beta Blockers)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-alpha-beta-blocker</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>مسدودکننده‌های همزمان گیرنده آلفا و بتا (Combined Alpha/Beta Blockers)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_antagonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>کاهنده فشار خون شریانی با گشادی عروق محیطی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های بتا-۱، بتا-۲ و آلفا-۱ آدرنرژیک</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>بلوک آلفا-۱ باعث اتساع عروق محیطی و بلوک بتا مانع از تاکیکاردی واکنشی ناشی از افت فشار می‌شود.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>کنترل سریع و ایمن فشار خون بالا بدون افزایش مقاومت عروقی یا ضربان قلب جهشی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>داروی انتخابی فشار خون بارداری (پره‌اکلامپسی) و بحران‌های حاد فشار خون.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Combined Alpha-1 and Beta-Adrenoceptor Antagonists</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-alpha-beta-blocker</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Combined Alpha-1 and Beta-Adrenoceptor Antagonists</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_antagonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Vasodilating Beta-Blocker</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Alpha-1, Beta-1, and Beta-2 adrenoceptors</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Alpha-1 antagonism induces vasodilation while beta-blockade prevents reflex tachycardia.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Provides balanced blood pressure reduction with peripheral vasodilation and cardiac rate modulation.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Drug of choice for pregnancy-induced hypertension and hypertensive urgency.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-alpha-beta-blocker"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-mra",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "آنتاگونیست‌های گیرنده مینرالوکورتیکوئید (MRA / دیورتیک نگه‌دارنده پتاسیم)",
+    "title_en": "Mineralocorticoid (Aldosterone) Receptor Antagonists (MRAs)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">آنتاگونیست‌های گیرنده مینرالوکورتیکوئید (MRA / دیورتیک نگه‌دارنده پتاسیم)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-mra</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>آنتاگونیست‌های گیرنده مینرالوکورتیکوئید (MRA / دیورتیک نگه‌دارنده پتاسیم)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_antagonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>ضد آلدوسترون و نگه‌دارنده پتاسیم (Potassium-Sparing Diuretic)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های داخل سلولی آلدوسترون در لوله جمع‌کننده قشر کلیه</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار کانال‌های ENaC، مهار بازجذب سدیم و آب و مهار دفع پتاسیم و منیزیم در ادرار.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>مهار رقابتی اثرات آلدوسترون، کاهش ادم و فشار خون و جلوگیری از فیبروز قلبی در نارسایی قلب.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>کاهش مرگ‌ومیر در نارسایی قلبی (HFrEF) و درمان هایپرآلدوسترونیسم. پایش منظم پتاسیم خون الزامی است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-violet-500/20 text-violet-300 border-violet-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Mineralocorticoid (Aldosterone) Receptor Antagonists (MRAs)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-mra</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Mineralocorticoid (Aldosterone) Receptor Antagonists (MRAs)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_antagonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Aldosterone Antagonist / K+-Sparing Diuretic</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Cortical collecting duct mineralocorticoid receptors</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Inhibits aldosterone-induced ENaC channels, excreting Na+/water while sparing K+.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Competitively inhibits aldosterone to reduce fluid retention and cardiorenal remodeling.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Improves survival in HFrEF. Monitor serum potassium and renal function closely.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-violet-500/20 text-violet-300 border-violet-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-mra"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-vka",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "آنتاگونیست‌های ویتامین K (وارفارین)",
+    "title_en": "Vitamin K Antagonists (Warfarin)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">آنتاگونیست‌های ویتامین K (وارفارین)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-vka</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>آنتاگونیست‌های ویتامین K (وارفارین)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>enzyme_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>ضدانعقاد خوراکی پایش‌شونده با INR</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>آنزیم ویتامین K اپوکسید ردوکتاز (VKORC1) در کبد</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار احیای ویتامین K و توقف گاما-کربوکسیلاسیون فاکتورهای انعقادی II, VII, IX, X و پروتئین‌های C و S.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>کاهش ساخت فاکتورهای انعقادی فعال در کبد و پیشگیری از تشکیل و گسترش لخته‌های ترومبوآمبولیک.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>داروی با پنجره درمانی باریک (NTI). پایش منظم INR، عدم تغییر برند و توجه به تداخلات غذایی/دارویی الزامی است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Vitamin K Antagonists (Warfarin)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-vka</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Vitamin K Antagonists (Warfarin)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>enzyme_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Oral Anticoagulant (VKORC1 Inhibitor)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Hepatic Vitamin K Epoxide Reductase Complex 1 (VKORC1)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Blocks vitamin K recycling, preventing gamma-carboxylation of clotting factors II, VII, IX, X.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Inhibits synthesis of functional vitamin K-dependent coagulation factors to prevent thrombosis.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Narrow Therapeutic Index (NTI). Requires strict INR monitoring and consistent brand/diet.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-vka"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-p2y12",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "مهارکننده‌های گیرنده P2Y12 پلاکت (کلوپیدوگرل)",
+    "title_en": "Platelet P2Y12 Receptor Antagonists (Thienopyridines)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">مهارکننده‌های گیرنده P2Y12 پلاکت (کلوپیدوگرل)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-p2y12</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>مهارکننده‌های گیرنده P2Y12 پلاکت (کلوپیدوگرل)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_antagonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>ضدتجمع پلاکت (Antiplatelet)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده پورینرژیک P2Y12 روی سطح پلاکت‌های خون</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار غیرقابل برگشت اتصال ADP به گیرنده P2Y12 و جلوگیری از فعال‌سازی کمپلکس گلیکوپروتئین GPIIb/IIIa.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>مهار چسبندگی و تجمع پلاکت‌ها در تمام طول عمر پلاکت (۷ الی ۱۰ روز) جهت پیشگیری از سکته مجدد.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>پیشگیری ثانویه پس از استنت‌گذاری و سکته قلبی. تبدیل به فرم فعال نیازمند آنزیم کبدی CYP2C19 است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Platelet P2Y12 Receptor Antagonists (Thienopyridines)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-p2y12</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Platelet P2Y12 Receptor Antagonists (Thienopyridines)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_antagonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Antiplatelet / ADP Receptor Antagonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Platelet surface purinergic P2Y12 receptors</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Irreversibly blocks ADP binding to P2Y12 receptors, preventing platelet aggregation for their lifespan.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Irreversibly blocks platelet aggregation to prevent atherothrombotic events post-stent/ACS.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Secondary prevention after ACS/stenting. Prodrug activated by hepatic CYP2C19.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-p2y12"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-doac-thrombin",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "مهارکننده‌های مستقیم ترومبین (دابیگاتران / DOAC)",
+    "title_en": "Direct Thrombin Inhibitors (DTI / DOAC)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">مهارکننده‌های مستقیم ترومبین (دابیگاتران / DOAC)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-doac-thrombin</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>مهارکننده‌های مستقیم ترومبین (دابیگاتران / DOAC)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>enzyme_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>ضدانعقاد خوراکی نوین با اثر مستقیم (DOAC)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>جایگاه فعال ترومبین آزاد و متصل به لخته (فاکتور IIa)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار مستقیم تبدیل فیبرینوژن به فیبرین و توقف آبشار انعقادی بدون نیاز به کوفاکتور آنتی‌ترومبین.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>مهار اختصاصی و مستقیم ترومبین جهت پیشگیری از سکته مغزی در AF و درمان ترومبوز ورید عمقی (DVT/PE).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>عدم نیاز به پایش آزمایشگاهی روتین. کپسول‌ها باید در قوطی اصلی نگهداری شده و دست‌نخورده بلعیده شوند.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-purple-500/20 text-purple-300 border-purple-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Direct Thrombin Inhibitors (DTI / DOAC)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-doac-thrombin</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Direct Thrombin Inhibitors (DTI / DOAC)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>enzyme_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Direct Oral Anticoagulant (Factor IIa Inhibitor)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Active catalytic site of free and clot-bound Thrombin (Factor IIa)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Potently and reversibly inhibits thrombin-mediated fibrin formation.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Directly and reversibly inhibits thrombin to prevent thromboembolism with predictable kinetics.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>No routine INR monitoring required. Keep in original packaging to protect from moisture.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-purple-500/20 text-purple-300 border-purple-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-doac-thrombin"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-ssri",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "مهارکننده‌های انتخابی بازجذب سروتونین (SSRIs)",
+    "title_en": "Selective Serotonin Reuptake Inhibitors (SSRIs)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">مهارکننده‌های انتخابی بازجذب سروتونین (SSRIs)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-ssri</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>مهارکننده‌های انتخابی بازجذب سروتونین (SSRIs)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>transporter_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>ضدافسردگی و ضداضطراب (Antidepressant)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>ناقل اختصاصی بازجذب سروتونین (SERT) در پایانه پیش‌سیناپسی نورون‌های مغز</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار بازجذب سروتونین، افزایش غلظت آن در شکاف سیناپسی و تنظیم گیرنده‌های سروتونرژیک پس‌سیناپسی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>بهبود خلق، کاهش اضطراب و تثبیت انتقال پیام‌های سروتونرژیک مغزی با عوارض آنتی‌کولینرژیک بسیار کمتر.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>خط اول درمان افسردگی و اضطراب. شروع اثر درمانی نیازمند ۲ تا ۴ هفته مصرف مداوم است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Selective Serotonin Reuptake Inhibitors (SSRIs)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-ssri</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Selective Serotonin Reuptake Inhibitors (SSRIs)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>transporter_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Antidepressant / SERT Inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Presynaptic Serotonin Transporter (SERT)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Inhibits SERT to increase synaptic serotonin concentration and promote neuroplasticity.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Blocks serotonin reuptake to enhance serotonergic neurotransmission in depressive and anxiety disorders.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>First-line for depression and anxiety. Full therapeutic response requires 2-4 weeks.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-ssri"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-lithium",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "نمک‌های لیتیوم (تثبیت‌کننده خلق / مهار اینوزیتول مونوفسفاتاز)",
+    "title_en": "Lithium Salts (Mood Stabilizer)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">نمک‌های لیتیوم (تثبیت‌کننده خلق / مهار اینوزیتول مونوفسفاتاز)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-lithium</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>نمک‌های لیتیوم (تثبیت‌کننده خلق / مهار اینوزیتول مونوفسفاتاز)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>enzyme_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>تثبیت‌کننده خلق در اختلال دوقطبی (Mood Stabilizer)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>آنزیم‌های اینوزیتول مونوفسفاتاز (IMPase) و گلیکوژن سنتاز کیناز-۳ (GSK-3)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>کاهش تخلیه اینوزیتول آزاد در مغز، تعدیل انتقال پیام گلوتامات و دوپامین و افزایش نوروپروتکشن.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>تثبیت نوسانات خلقی و پیشگیری از فازهای مانیا و افسردگی شدید در اختلال دوقطبی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>داروی با پنجره درمانی باریک (NTI). سطح سرمی هدف ۰.۶ تا ۰.۸ میلی‌مول بر لیتر؛ پایش عملکرد تیروئید و کلیه الزامی است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Lithium Salts (Mood Stabilizer)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-lithium</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Lithium Salts (Mood Stabilizer)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>enzyme_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Mood Stabilizer / Second Messenger Modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Inositol monophosphatase (IMPase) &amp; Glycogen Synthase Kinase-3 (GSK-3)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Depletes neuronal inositol and inhibits GSK-3 to stabilize neurotransmission.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Stabilizes mood swings and prevents manic/depressive relapses in bipolar disorder.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Strict Narrow Therapeutic Index (NTI). Maintain target range 0.6-0.8 mmol/L.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-lithium"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-valproate",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "سدیم والپروات (تقویت GABA و مهار کانال‌های سدیمی/کلسیمی)",
+    "title_en": "Sodium Valproate (GABA Enhancer & Ion Channel Blocker)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">سدیم والپروات (تقویت GABA و مهار کانال‌های سدیمی/کلسیمی)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-valproate</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>سدیم والپروات (تقویت GABA و مهار کانال‌های سدیمی/کلسیمی)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>ضدصرع و تثبیت‌کننده خلق وسیع‌الطیف</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>آنزیم GABA ترانس‌آمیناز، کانال‌های سدیمی ولتاژی و کانال‌های کلسیمی نوع T</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>افزایش غلظت GABA مهاری در مغز، مهار شلیک مکرر نورون‌ها و فرونشاندن کانون‌های صرعی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>کنترل حملات تشنجی جنرالیزه و فوکال و پیشگیری از حملات حاد مانیا در اختلال دو قطبی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>پنجره درمانی باریک. تراتوژن شدید (منع مصرف در سنین باروری مگر با برنامه پیشگیری از بارداری تاییدشده).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-indigo-500/20 text-indigo-300 border-indigo-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Sodium Valproate (GABA Enhancer &amp; Ion Channel Blocker)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-valproate</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Sodium Valproate (GABA Enhancer &amp; Ion Channel Blocker)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Broad-Spectrum Anticonvulsant &amp; Mood Stabilizer</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>GABA transaminase, voltage-gated Na+ channels &amp; T-type Ca2+ channels</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Elevates inhibitory GABA levels and blocks repetitive high-frequency neuronal firing.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Broad-spectrum anticonvulsant that prevents seizure propagation and mood instability.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Highly teratogenic. Avoid in females of childbearing potential unless under strict pregnancy prevention.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-indigo-500/20 text-indigo-300 border-indigo-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-valproate"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-atypical-antipsychotic",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "آنتی‌سایکوتیک‌های آتیپیک (کلوزاپین / آنتاگونیست D4 و 5-HT2A)",
+    "title_en": "Atypical Antipsychotics (Clozapine)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">آنتی‌سایکوتیک‌های آتیپیک (کلوزاپین / آنتاگونیست D4 و 5-HT2A)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-atypical-antipsychotic</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>آنتی‌سایکوتیک‌های آتیپیک (کلوزاپین / آنتاگونیست D4 و 5-HT2A)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_antagonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>ضدجنون آتیپیک در اسکیزوفرنی مقاوم به درمان</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های دوپامین D4 و D2 و گیرنده‌های سروتونین 5-HT2A در مغز</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>تعدیل انتخابی مسیر مزولیمبیک با کمترین اثر روی مسیر حرکتی اکستراپیرامیدال (EPS).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>مهار علائم مثبت و منفی اسکیزوفرنی در بیماران مقاوم به سایر داروهای آنتی‌سایکوتیک.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>داروی تحت کنترل ویژه با سیستم ثبت ملی کلوزاپین (CPN). پایش مداوم شمارش گلبول‌های سفید و نوتروفیل‌ها الزامی است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Atypical Antipsychotics (Clozapine)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-atypical-antipsychotic</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Atypical Antipsychotics (Clozapine)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_antagonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Atypical Antipsychotic for Treatment-Resistant Schizophrenia</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Limbic Dopamine D4/D2 and Serotonin 5-HT2A receptors</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Selectively modulates limbic dopaminergic pathways with minimal extrapyramidal motor liability.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Gold standard for treatment-resistant schizophrenia, resolving refractory psychotic symptoms.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Mandatory registry dispensing. Regular absolute neutrophil count (ANC) monitoring required.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-atypical-antipsychotic"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-levothyroxine",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "لووتیروکسین سدیم (هورمون تیروئیدی صناعی T4)",
+    "title_en": "Levothyroxine Sodium (Synthetic Thyroid Hormone T4)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">لووتیروکسین سدیم (هورمون تیروئیدی صناعی T4)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-levothyroxine</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>لووتیروکسین سدیم (هورمون تیروئیدی صناعی T4)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>hormone_replacement</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>جایگزین هورمون تیروئید (Thyroid Hormone Replacement)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های هسته‌ای هورمون تیروئید (TR) در تمام بافت‌های بدن پس از تبدیل به T3</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>تبدیل به تری‌یدوتیرونین (T3) فعال، تنظیم بیان ژن‌های متابولیک و تنظیم متابولیسم پایه سلول‌ها.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>تامین هورمون تیروئید کمبودیافته در کم‌کاری تیروئید (هیپوتیروئیدیسم) و نرمال‌سازی TSH.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>داروی با پنجره درمانی باریک (NTI). نحوه مصرف: صبح ناشتا حداقل ۳۰ تا ۶۰ دقیقه قبل از صبحانه با آب خالی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-blue-500/20 text-blue-300 border-blue-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Levothyroxine Sodium (Synthetic Thyroid Hormone T4)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-levothyroxine</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Levothyroxine Sodium (Synthetic Thyroid Hormone T4)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>hormone_replacement</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Thyroid Hormone Replacement</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Nuclear Thyroid Receptors (TRα/TRβ) across target tissues</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Deiodinated to active T3, activating nuclear transcription to regulate basal metabolic rate.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Restores physiological thyroid hormone levels, normalizing cellular metabolism and TSH.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Narrow Therapeutic Index (NTI). Take on an empty stomach 30-60 minutes before breakfast with plain water.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-blue-500/20 text-blue-300 border-blue-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-levothyroxine"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-metformin",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "بی‌گوانیدها (متفورمین / فعال‌کننده AMPK کبدی)",
+    "title_en": "Biguanides (Metformin / Hepatic AMPK Activator)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">بی‌گوانیدها (متفورمین / فعال‌کننده AMPK کبدی)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-metformin</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>بی‌گوانیدها (متفورمین / فعال‌کننده AMPK کبدی)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>حساس‌کننده به انسولین و کاهنده قند خون (Euglycaemic Agent)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>کیناز فعال‌شده با AMP (AMPK) در سلول‌های کبد و میتوکندری</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار گلوکونئوژنز کبد، کاهش جذب روده‌ای گلوکز و افزایش برداشت و مصرف گلوکز در عضلات اسکلتی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>کاهش تولید قند در کبد و افزایش حساسیت بافت‌ها به انسولین بدون ایجاد هیپوگلیسمی یا افزایش وزن.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>خط اول درمان دیابت نوع ۲. همراه غذا مصرف شود؛ در نارسایی شدید کلیه (eGFR&lt;30) منع مصرف دارد.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Biguanides (Metformin / Hepatic AMPK Activator)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-metformin</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Biguanides (Metformin / Hepatic AMPK Activator)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Insulin Sensitizer / AMPK Activator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Hepatic AMP-activated protein kinase (AMPK) &amp; complex I</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Suppresses hepatic gluconeogenesis and stimulates peripheral glucose uptake in skeletal muscle.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>First-line oral hypoglycemic that reduces hepatic glucose output without hypoglycemia risk.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>First-line for type 2 diabetes. Take with meals; contraindicated in severe renal impairment.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-metformin"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-bisphosphonates",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "بیس‌فسفونات‌ها (مهارکننده فارنسیل پیروفسفات سنتاز / ضدتحلیل استخوان)",
+    "title_en": "Bisphosphonates (FPPS Inhibitors / Antiresorptive)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">بیس‌فسفونات‌ها (مهارکننده فارنسیل پیروفسفات سنتاز / ضدتحلیل استخوان)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-bisphosphonates</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>بیس‌فسفونات‌ها (مهارکننده فارنسیل پیروفسفات سنتاز / ضدتحلیل استخوان)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>enzyme_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>مهارکننده بازجذب استخوان و ضدپوکی استخوان</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>آنزیم فارنسیل پیروفسفات سنتاز (FPPS) در استئوکلاست‌ها و هیدروکسی‌آپاتیت استخوان</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>اتصال محکم به ماتریکس معدنی استخوان، القای آپوپتوز در استئوکلاست‌ها و توقف تخریب استخوان.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>کاهش سرعت تحلیل استخوان، افزایش تراکم معدنی استخوان (BMD) و کاهش چشمگیر شکستگی‌های فشاری.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>خط اول پوکی استخوان (Osteoporosis). مصرف ناشتا با یک لیوان پر آب و باقی ماندن در حالت ایستاده/نشسته به مدت ۳۰ دقیقه.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Bisphosphonates (FPPS Inhibitors / Antiresorptive)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-bisphosphonates</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Bisphosphonates (FPPS Inhibitors / Antiresorptive)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>enzyme_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Bone Antiresorptive Agent</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Osteoclast Farnesyl Pyrophosphate Synthase (FPPS) &amp; Bone Hydroxyapatite</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Binds bone mineral, disrupts osteoclast ruffled border prenylation and triggers osteoclast apoptosis.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Inhibits osteoclastic bone resorption to increase bone mineral density and reduce fracture risk.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>First-line for osteoporosis. Take fasting with a full glass of plain water; remain upright for 30 minutes.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-bisphosphonates"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-systemic-steroid",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "کورتیکواستروئیدهای سیستمیک (پردنیزولون)",
+    "title_en": "Systemic Glucocorticoids (Prednisolone)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">کورتیکواستروئیدهای سیستمیک (پردنیزولون)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-systemic-steroid</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>کورتیکواستروئیدهای سیستمیک (پردنیزولون)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>anti_inflammatory</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>ضدالتهاب و سرکوب‌کننده ایمنی سیستمیک</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های گلوکوکورتیکوئیدی سیتوپلاسمی (GR) در تمام سلول‌های ایمنی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار فاکتور رونویسی NF-κB، مهار تولید سایتوکاین‌های التهابی (IL-1, IL-6, TNF-α) و مهار فسفولیپاز A2.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>سرکوب سریع و قدرتمند پاسخ‌های التهابی و خودایمنی در شعله‌ور شدن بیماری‌های حاد.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>حملات حاد آسم، بیماری‌های خودایمنی و التهابی. مصرف صبح‌ها همراه غذا؛ قطع دارو در دوره‌های طولانی باید تدریجی باشد.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Systemic Glucocorticoids (Prednisolone)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-systemic-steroid</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Systemic Glucocorticoids (Prednisolone)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>anti_inflammatory</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Systemic Anti-inflammatory &amp; Immunosuppressant</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Cytoplasmic Glucocorticoid Receptors (GR)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Inhibits NF-κB transcription factor and suppresses pro-inflammatory cytokines and arachidonic acid cascade.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Provides potent systemic anti-inflammatory and immunosuppressive action for acute flare-ups.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Acute asthma exacerbations and autoimmune flares. Take in the morning with food; taper off gradually if used &gt;2 weeks.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-systemic-steroid"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-isoxazolyl-penicillin",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "پنی‌سیلین‌های ضد استافیلوکوک (فلوکلوگزاسیلین)",
+    "title_en": "Anti-Staphylococcal Penicillins (Flucloxacillin)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">پنی‌سیلین‌های ضد استافیلوکوک (فلوکلوگزاسیلین)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-isoxazolyl-penicillin</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>پنی‌سیلین‌های ضد استافیلوکوک (فلوکلوگزاسیلین)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>bactericidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>آنتی‌بیوتیک باکتریوسید مقاوم به پنی‌سیلیناز</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>پروتئین‌های متصل‌شونده به پنی‌سیلین (PBPs) در دیواره باکتری‌های گرم مثبت</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار اتصالات پپتیدوگلیکان دیواره باکتری با مقاومت در برابر هیدرولیز توسط آنزیم بتالاکتاماز استافیلوکوک.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>داروی انتخابی عفونت‌های پوستی و بافت نرم ناشی از استافیلوکوکوس اورئوس حساس به متی‌سیلین (MSSA).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>خط اول سلولیت و عفونت‌های چرکی پوست. با معده خالی (۱ ساعت قبل یا ۲ ساعت بعد از غذا) مصرف شود.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Anti-Staphylococcal Penicillins (Flucloxacillin)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-isoxazolyl-penicillin</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Anti-Staphylococcal Penicillins (Flucloxacillin)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>bactericidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Penicillinase-Resistant Bactericidal Antibiotic</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Bacterial cell wall Penicillin-Binding Proteins (PBPs)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Inhibits peptidoglycan cell wall synthesis while resisting staphylococcal beta-lactamase degradation.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>First-line treatment for MSSA skin and soft tissue infections (cellulitis, wound infections).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>First-line for cellulitis. Must be taken on an empty stomach (1 hour before or 2 hours after meals).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-isoxazolyl-penicillin"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-glycopeptide",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "گلیکوپپتیدها (ونکومایسین / مهار D-Ala-D-Ala دیواره باکتری)",
+    "title_en": "Glycopeptides (Vancomycin)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">گلیکوپپتیدها (ونکومایسین / مهار D-Ala-D-Ala دیواره باکتری)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-glycopeptide</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>گلیکوپپتیدها (ونکومایسین / مهار D-Ala-D-Ala دیواره باکتری)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>bactericidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>آنتی‌بیوتیک باکتریوسید گلیکوپپتیدی علیه گرم مثبت‌های مقاوم</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>پایانه D-Alanyl-D-Alanine در زنجیره‌های پپتیدوگلیکان دیواره باکتری</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>تشکیل پیوند هیدروژنی با D-Ala-D-Ala، مهار پلیمریزاسیون گلیکان و لیز سریع باکتری‌های گرم مثبت.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>درمان عفونت‌های شدید و مقاوم گرم مثبت از جمله MRSA و کولیت با غشای کاذب ناشی از کلستریدیوم دیفیسیل.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>داروی با پنجره درمانی باریک (NTI). نیازمند پایش سطح سرمی (TDM) و انفوزیون آهسته جهت پیشگیری از سندرم مرد قرمز.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Glycopeptides (Vancomycin)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-glycopeptide</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Glycopeptides (Vancomycin)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>bactericidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Bactericidal Glycopeptide Antibacterial</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>D-Alanyl-D-Alanine terminal residues of bacterial peptidoglycan</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Sterically blocks transglycosylase cross-linking, causing bacterial wall disruption and lysis.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Essential antibiotic for MRSA infections and severe Clostridioides difficile colitis.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Strict Narrow Therapeutic Index (NTI). Requires TDM and slow IV infusion (&gt;60 min) to avoid Red Man Syndrome.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-glycopeptide"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-aminoglycoside",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "آمینوگلیکوزیدها (جنتامایسین / مهار زیرواحد 30S ریبوزوم باکتری)",
+    "title_en": "Aminoglycosides (Gentamicin)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">آمینوگلیکوزیدها (جنتامایسین / مهار زیرواحد 30S ریبوزوم باکتری)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-aminoglycoside</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>آمینوگلیکوزیدها (جنتامایسین / مهار زیرواحد 30S ریبوزوم باکتری)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>bactericidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>آنتی‌بیوتیک باکتریوسید غلظت‌وابسته علیه باسیل‌های گرم منفی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>زیرواحد 30S ریبوزوم باکتریایی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>ایجاد خطای خواندن در کد ژنتیکی mRNA، تولید پروتئین‌های معیوب و تخریب غشای سلولی باکتری.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>کشتن سریع و غلظت‌وابسته باکتری‌های پاتوژن گرم منفی در سپسیس و عفونت‌های شدید بیمارستانی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>داروی با پنجره درمانی باریک (NTI). پایش دقیق غلظت پیک و تراف و ارزیابی عملکرد کلیه جهت پیشگیری از سمیت کلیوی و شنوایی الزامی است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Aminoglycosides (Gentamicin)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-aminoglycoside</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Aminoglycosides (Gentamicin)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>bactericidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Concentration-Dependent Bactericidal Aminoglycoside</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Bacterial 30S ribosomal subunit</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Causes misreading of mRNA genetic code and disrupts bacterial outer membrane integrity.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Potent concentration-dependent bactericidal action for severe Gram-negative systemic infections.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Strict NTI requiring TDM. High risk of nephrotoxicity and ototoxicity with elevated trough levels.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-aminoglycoside"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-fluoroquinolone",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "فلوروکینولون‌ها (سیپروفلوکساسین / مهار DNA جیراز و توپوایزومراز IV)",
+    "title_en": "Fluoroquinolones (Ciprofloxacin)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">فلوروکینولون‌ها (سیپروفلوکساسین / مهار DNA جیراز و توپوایزومراز IV)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-fluoroquinolone</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>فلوروکینولون‌ها (سیپروفلوکساسین / مهار DNA جیراز و توپوایزومراز IV)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>bactericidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>باکتریوسید با مهار همانندسازی DNA باکتری</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>آنزیم‌های DNA جیراز (توپوایزومراز II) و توپوایزومراز IV باکتریایی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>جلوگیری از سوپرکویلینگ DNA باکتری، ایجاد شکست‌های دو رشته‌ای در DNA و مرگ باکتری.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>آنتی‌بیوتیک وسیع‌الطیف با نفوذ بافتی عالی جهت درمان عفونت‌های ادراری پیچیده، تنفسی و گوارشی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>عفونت‌های پیچیده ادراری و سودومونا. احتیاط: تداخل کلات‌شدن با آنتی‌اسیدها و آهن؛ خطر تاندونیت آشیل.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Fluoroquinolones (Ciprofloxacin)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-fluoroquinolone</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Fluoroquinolones (Ciprofloxacin)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>bactericidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Bactericidal DNA Gyrase Inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Bacterial DNA Gyrase &amp; Topoisomerase IV</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Inhibits DNA uncoiling and induces fatal double-stranded DNA breaks.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Broad-spectrum antibacterial targeting Gram-negative and atypical pathogens with high bioavailability.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Complex UTIs and Pseudomonas. Chelates with polyvalent cations (Fe/Ca/Mg); tendonitis risk.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-fluoroquinolone"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-nitroimidazole",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "نیتروایمیدازول‌ها (مترونیدازول / تخریب ساختار DNA بی‌هوازی‌ها)",
+    "title_en": "Nitroimidazoles (Metronidazole)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">نیتروایمیدازول‌ها (مترونیدازول / تخریب ساختار DNA بی‌هوازی‌ها)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-nitroimidazole</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>نیتروایمیدازول‌ها (مترونیدازول / تخریب ساختار DNA بی‌هوازی‌ها)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>bactericidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>ضدبی‌هوازی و ضدانگل باکتریوسید</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>پروتئین‌های فرودوکسین باکتری‌های بی‌هوازی و ساختار مارپیچ DNA</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>احیای گروه نیترو به رادیکال‌های آزاد سمی ناپایدار که به مارپیچ DNA متصل شده و رشته‌های آن را می‌کند.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>ریشه‌کنی اختصاصی باکتری‌های بی‌هوازی و تک‌یاخته‌های بیماری‌زا (تریکوموناس، ژیاردیا، آمیب).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>عفونت‌های دندانی، واژینوز باکتریایی و ژیاردیا. هشدار حیاتی: پرهیز مطلق از الکل تا ۲۴ ساعت پس از قطع دارو (واکنش شبه دی‌سولفیرام).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Nitroimidazoles (Metronidazole)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-nitroimidazole</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Nitroimidazoles (Metronidazole)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>bactericidal</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Antianaerobic &amp; Antiprotozoal Bactericidal Agent</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Anaerobic ferredoxin electron transport proteins &amp; helical DNA structure</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Reduced intracellularly to toxic nitro radicals that induce fatal DNA strand breakage in anaerobes.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Highly effective against anaerobic bacteria (Bacteroides, Clostridioides) and protozoa.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Dental infections and anaerobic pelvic infections. Strictly avoid alcohol during and 24h post-therapy.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-nitroimidazole"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-barbiturate",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "باربیتورات‌ها (تیوپنتال / مدولاتور آلوستریک GABAA)",
+    "title_en": "Barbiturates (Thiopental Sodium)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">باربیتورات‌ها (تیوپنتال / مدولاتور آلوستریک GABAA)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-barbiturate</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>باربیتورات‌ها (تیوپنتال / مدولاتور آلوستریک GABAA)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>بیهوش‌کننده عمومی و مهارکننده CNS</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های GABAA در سیستم عصبی مرکزی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>افزایش مدت‌زمان باز بودن کانال کلراید، هایپرپلاریزاسیون نورونی و فرونشاندن فعالیت قشر مغز.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>القا سریع بیهوشی عمومی ظرف چند ثانیه و کاهش فشار درون‌جمجمه‌ای.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>القا بیهوشی و وضعیت صرعی مقاوم. منع مصرف مطلق در پورفیری حاد (تحریک سنتز ALA سنتاز).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-indigo-500/20 text-indigo-300 border-indigo-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Barbiturates (Thiopental Sodium)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-barbiturate</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Barbiturates (Thiopental Sodium)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Ultrashort-Acting General Anaesthetic</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Neuronal GABAA receptor chloride ionophore complex</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Prolongs GABAA chloride channel opening time, hyperpolarizing neuronal membranes.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Ultrashort-acting intravenous anaesthetic that rapidly induces loss of consciousness.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Anaesthetic induction. Absolute contraindication in acute intermittent porphyria.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-indigo-500/20 text-indigo-300 border-indigo-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-barbiturate"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-antiarrhythmic-class3",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "ضد آریتمی‌های کلاس III (آمیودارون / مسدودکننده کانال‌های پتاسیمی)",
+    "title_en": "Class III Antiarrhythmics (Amiodarone)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">ضد آریتمی‌های کلاس III (آمیودارون / مسدودکننده کانال‌های پتاسیمی)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-antiarrhythmic-class3</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>ضد آریتمی‌های کلاس III (آمیودارون / مسدودکننده کانال‌های پتاسیمی)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>ion_channel_blocker</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>ضدآریتمی طولانی‌کننده پتانسیل عمل قلب</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>کانال‌های پتاسیمی تاخیری (IKr/IKs)، کانال‌های سدیم و گیرنده‌های بتا در قلب</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>طولانی کردن مدت پتانسیل عمل و دوره تحریک‌ناپذیری موثر دهلیزها و بطن‌ها بدون کاهش شیب هدایت.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>سرکوب و پیشگیری از آریتمی‌های کشنده بطنی و دهلیزی (فیبریلاسیون دهلیزی و بطنی).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>داروی با نیمه‌عمر بسیار طولانی (چند هفته). پایش عملکرد تیروئید، کبد، چشم و ریه در مصرف درازمدت الزامی است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Class III Antiarrhythmics (Amiodarone)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-antiarrhythmic-class3</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Class III Antiarrhythmics (Amiodarone)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>ion_channel_blocker</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Class III Antiarrhythmic / Multi-Channel Blocker</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Cardiac voltage-gated potassium channels (IKr) &amp; cardiac myocyte ionophores</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Prolongs action potential duration and refractory period across all cardiac tissues.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Broad-spectrum antiarrhythmic suppressing refractory ventricular and supraventricular arrhythmias.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Extremely long half-life (~50 days). Requires baseline and ongoing thyroid, liver, lung, and eye monitoring.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-antiarrhythmic-class3"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-dhfr-inhibitor",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "مهارکننده‌های دی‌هیدروفولات ردوکتاز (متوترکسات / ضد اسید فولیک)",
+    "title_en": "Dihydrofolate Reductase Inhibitors (Methotrexate / DMARD)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">مهارکننده‌های دی‌هیدروفولات ردوکتاز (متوترکسات / ضد اسید فولیک)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-dhfr-inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>مهارکننده‌های دی‌هیدروفولات ردوکتاز (متوترکسات / ضد اسید فولیک)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>enzyme_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>تعدیل‌کننده سیستم ایمنی و ضد روماتیسم (DMARD)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>آنزیم دی‌هیدروفولات ردوکتاز (DHFR) و آنزیم AICAR ترانسفورمیلاز</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار سنتز تیمیدین و پورین‌ها، تجمع آدنوزین ضدالتهابی خارج‌سلولی و توقف تکثیر لنفوسیت‌های T فعال.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>مهار تکثیر سلول‌های التهابی و کنترل بیماری‌های خودایمنی مزمن (آرتریت روماتوئید و پسوریازیس).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>دوز مصرفی: اکیداً فقط «یک‌بار در هفته»؛ مصرف روزانه کشنده است. تجویز مکمل اسید فولیک در روزهای دیگر الزامی است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Dihydrofolate Reductase Inhibitors (Methotrexate / DMARD)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-dhfr-inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Dihydrofolate Reductase Inhibitors (Methotrexate / DMARD)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>enzyme_inhibitor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Immunomodulating Antimetabolite / DMARD</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Dihydrofolate Reductase (DHFR) &amp; AICAR transformylase</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Inhibits purine/pyrimidine synthesis and increases extracellular anti-inflammatory adenosine.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Gold standard DMARD that attenuates systemic inflammation and joint destruction.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Strict ONCE-WEEKLY oral dosing. Prescribe folic acid on non-methotrexate days to prevent toxicity.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-dhfr-inhibitor"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-progestin-contraceptive",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "پروژستین‌های ضدبارداری (لوونورژسترل / پیشگیری اضطراری)",
+    "title_en": "Progestin Contraceptives (Levonorgestrel / EHC)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">پروژستین‌های ضدبارداری (لوونورژسترل / پیشگیری اضطراری)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-progestin-contraceptive</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>پروژستین‌های ضدبارداری (لوونورژسترل / پیشگیری اضطراری)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>hormone_replacement</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>پیشگیری از بارداری و مهار تخمک‌گذاری (Contraceptive)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های پروژسترون در محور هیپوتالاموس-هیپوفیز و اندومتر رحم</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار ترشح هورمون لوتئینه‌کننده (LH)، به تاخیر انداختن تخمک‌گذاری و غلیظ کردن ترشحات موکوس دهانه رحم.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>پیشگیری اضطراری از بارداری ناخواسته پس از رابطه جنسی محافظت‌نشده ظرف ۷۲ ساعت.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>قرص اورژانسی پیشگیری از بارداری (EHC). مصرف در کوتاه‌ترین زمان ممکن حداکثر کارایی را دارد. در صورت استفراغ ظرف ۲ ساعت دوز باید تکرار شود.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-pink-500/20 text-pink-300 border-pink-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Progestin Contraceptives (Levonorgestrel / EHC)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-progestin-contraceptive</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Progestin Contraceptives (Levonorgestrel / EHC)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>hormone_replacement</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Emergency Hormonal Contraceptive / Progestin</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Hypothalamic-pituitary progesterone receptors &amp; cervical endometrium</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Suppresses mid-cycle LH surge to postpone follicular rupture and thickens cervical mucus.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Delivers high-dose progestin to reliably prevent ovulation within 72 hours of unprotected intercourse.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Schedule 3 Pharmacist Only. Take as early as possible within 72h. Repeat dose if vomiting within 2h.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-pink-500/20 text-pink-300 border-pink-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-progestin-contraceptive"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-sprm",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "تعدیل‌کننده‌های انتخابی گیرنده پروژسترون (یولی‌پریستال / EllaOne)",
+    "title_en": "Selective Progesterone Receptor Modulators (SPRM / Ulipristal)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">تعدیل‌کننده‌های انتخابی گیرنده پروژسترون (یولی‌پریستال / EllaOne)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-sprm</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>تعدیل‌کننده‌های انتخابی گیرنده پروژسترون (یولی‌پریستال / EllaOne)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>پیشگیری اضطراری از بارداری پیشرفته تا ۱۲۰ ساعت</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های هسته‌ای پروژسترون در فولیکول‌های تخمدانی و آندومتر</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار یا به تاخیر انداختن پارگی فولیکول و تخمک‌گذاری حتی در زمان آغاز ترشح و افزایش پیک LH.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>پیشگیری اضطراری از بارداری تا ۱۲۰ ساعت (۵ روز) پس از رابطه جنسی با کارایی بالاتر در روزهای پایانی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>اثربخشی تا ۵ روز بعد از تماس جنسی. در صورت نیاز به ادامه قرص‌های معمول ضدبارداری، باید ۵ روز تا شروع مجدد فاصله انداخته شود.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Selective Progesterone Receptor Modulators (SPRM / Ulipristal)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-sprm</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Selective Progesterone Receptor Modulators (SPRM / Ulipristal)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Selective Progesterone Receptor Modulator (EHC up to 120h)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Ovarian follicular progesterone receptors</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Inhibits or delays follicular rupture even when LH levels have already started to rise.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Maintains efficacy for up to 120 hours (5 days) post-coitus by delaying ovulation even after LH surge begins.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Effective up to 120 hours (5 days). Wait 5 days before resuming regular hormonal contraception.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-sprm"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-pgas",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "آنالوگ‌های پروستاگلاندین چشمی (لاتانوپروست / کاهش فشار چشم)",
+    "title_en": "Ophthalmic Prostaglandin F2α Analogues (Latanoprost)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">آنالوگ‌های پروستاگلاندین چشمی (لاتانوپروست / کاهش فشار چشم)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-pgas</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>آنالوگ‌های پروستاگلاندین چشمی (لاتانوپروست / کاهش فشار چشم)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_agonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>کاهنده فشار داخل چشم در گلوکوم (IOP Lowering)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های پروستانوئید FP در عضله مژگانی چشم</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>تعدیل ماتریس متالوروپروتئینازها و افزایش چشمگیر خروج مایع زلالیه از مسیر یووواسکلرال.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>کاهش مؤثر فشار داخل کره چشم (IOP) جهت پیشگیری از آسیب به عصب بینایی در گلوکوم زاویه باز.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>یک قطره در شب‌ها. عوارض موضعی: تیره شدن رنگ عنبیه، بلند شدن مژه‌ها و پرخونی خفیف ملتحمه.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Ophthalmic Prostaglandin F2α Analogues (Latanoprost)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-pgas</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Ophthalmic Prostaglandin F2α Analogues (Latanoprost)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_agonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Uveoscleral Outflow Enhancer</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Ciliary muscle prostanoid FP receptors</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Increases uveoscleral outflow of aqueous humor by remodeling the ciliary extracellular matrix.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>First-line therapy for open-angle glaucoma, reducing intraocular pressure safely.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Instil once daily at night. Side effects: iris hyperpigmentation and eyelash growth.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-pgas"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-ocular-beta-blocker",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "بتابلوکرهای موضعی چشمی (تیمولول)",
+    "title_en": "Ophthalmic Beta-Adrenoceptor Antagonists (Timolol)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">بتابلوکرهای موضعی چشمی (تیمولول)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-ocular-beta-blocker</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>بتابلوکرهای موضعی چشمی (تیمولول)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_antagonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>کاهنده تولید مایع زلالیه در گلوکوم</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های بتا-۲ آدرنرژیک اپیتلیوم ترشحی جسم مژگانی چشم</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار ساخت cAMP در اپیتلیوم مژگانی و کاهش ترشح مایع زلالیه به اتاق قدامی چشم.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>کاهش فشار داخل کره چشم از طریق کاهش مستقیم تولید مایع زلالیه.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>گلوکوم زاویه باز. هشدار: انسداد مجرای اشکی (Punctal occlusion) پس از چکاندن قطره جهت پیشگیری از جذب سیستمیک و اسپاسم تنفسی در آسم الزامی است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-cyan-500/20 text-cyan-300 border-cyan-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Ophthalmic Beta-Adrenoceptor Antagonists (Timolol)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-ocular-beta-blocker</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Ophthalmic Beta-Adrenoceptor Antagonists (Timolol)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_antagonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Aqueous Inflow Suppressor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Ciliary body beta-2 adrenoceptors</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Decreases ciliary cAMP production, suppressing aqueous humor synthesis.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Reduces intraocular pressure by decreasing the rate of aqueous humor formation.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Apply punctal occlusion for 1-2 min to prevent systemic absorption. Contraindicated in severe asthma.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-cyan-500/20 text-cyan-300 border-cyan-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-ocular-beta-blocker"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-ics-laba",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "ترکیب کورتیکواستروئید استنشاقی و برونکودیلاتور طولانی‌اثر (ICS / LABA)",
+    "title_en": "Inhaled Corticosteroid & Long-Acting Beta-2 Agonist (ICS/LABA)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">ترکیب کورتیکواستروئید استنشاقی و برونکودیلاتور طولانی‌اثر (ICS / LABA)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-ics-laba</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>ترکیب کورتیکواستروئید استنشاقی و برونکودیلاتور طولانی‌اثر (ICS / LABA)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>anti_inflammatory</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>پیشگیری‌کننده و کنترل‌کننده آسم و COPD</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های گلوکوکورتیکوئید و گیرنده‌های بتا-۲ آدرنرژیک در عضلات صاف مجاری تنفسی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>سرکوب التهاب ائوزینوفیلی مجاری تنفسی همراه با شل کردن مداوم عضلات صاف برونش برای بیش از ۱۲ ساعت.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>کنترل پایدار آسم و COPD و پیشگیری از حملات حاد تنگی نفس و کاهش نیاز به بستری.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>شستشوی دهان و غرغره با آب پس از هر بار استنشاق جهت پیشگیری از برفک دهانی و خشونت صدا الزامی است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-sky-500/20 text-sky-300 border-sky-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Inhaled Corticosteroid &amp; Long-Acting Beta-2 Agonist (ICS/LABA)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-ics-laba</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Inhaled Corticosteroid &amp; Long-Acting Beta-2 Agonist (ICS/LABA)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>anti_inflammatory</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Maintenance &amp; Reliever Inhaled Combination</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Bronchial smooth muscle beta-2 receptors &amp; mucosal glucocorticoid receptors</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Suppresses airway inflammation and provides sustained 12-24h bronchodilation.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Gold standard maintenance and preventer therapy for moderate-to-severe asthma and COPD.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Rinse mouth and gargle with water after inhalation to prevent oral candidiasis and dysphonia.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-sky-500/20 text-sky-300 border-sky-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-ics-laba"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-laba",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "آگونیست‌های بتا-۲ طولانی‌اثر (LABA)",
+    "title_en": "Long-Acting Beta-2 Agonists (LABA)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">آگونیست‌های بتا-۲ طولانی‌اثر (LABA)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-laba</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>آگونیست‌های بتا-۲ طولانی‌اثر (LABA)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_agonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>گشادکننده طولانی‌مدت برونش (Long-acting Bronchodilator)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های بتا-۲ آدرنرژیک عضلات صاف ریه</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>اتصال پایدار و لیپوفیل به اگزوسایت گیرنده بتا-۲ و گشادی مداوم مجاری تنفسی به مدت حداقل ۱۲ ساعت.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>گشاد نگه داشتن مجاری هوایی و پیشگیری از تنگی نفس شبانه در آسم و انسداد مزمن ریه (COPD).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>در آسم هرگز نباید به عنوان تک‌دارو مصرف شود (باید حتماً همراه با کورتون استنشاقی ICS باشد).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Long-Acting Beta-2 Agonists (LABA)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-laba</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Long-Acting Beta-2 Agonists (LABA)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_agonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Long-acting Bronchodilator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Bronchial smooth muscle Beta-2 adrenoceptors</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Lipophilic side-chain anchors to beta-2 exosite, providing sustained &gt;12h relaxation.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Provides prolonged bronchodilation for maintenance therapy in chronic respiratory disease.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Never use as monotherapy in asthma; must always be co-prescribed with an ICS.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-laba"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-nitrates",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "نیترات‌های آلی (گلیسریل تری‌نیترات / نیتروگلیسیرین)",
+    "title_en": "Organic Nitrates (Glyceryl Trinitrate / GTN)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">نیترات‌های آلی (گلیسریل تری‌نیترات / نیتروگلیسیرین)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-nitrates</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>نیترات‌های آلی (گلیسریل تری‌نیترات / نیتروگلیسیرین)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>گشادکننده عروق کرونر و وریدی (Antianginal Vasodilator)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>آنزیم میتوکندریایی آلدهید دهیدروژناز (ALDH2) و گوانیلات سیکلاز محلول (sGC)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>آزادسازی نیتریک اکسید (NO)، افزایش cGMP داخل سلولی، اتساع وریدی و کاهش پیش‌بار قلب و مصرف اکسیژن میوکارد.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>تسکین فوری درد قفسه سینه در آنژین صدری از طریق کاهش فشار روی قلب و گشادی عروق کرونر.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>اسپری یا قرص زیرزبانی در حالت نشسته مصرف شود. منع مصرف مطلق و کشنده با مهارکننده‌های PDE5 (سیلدنافیل/تادالافیل).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Organic Nitrates (Glyceryl Trinitrate / GTN)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-nitrates</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Organic Nitrates (Glyceryl Trinitrate / GTN)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Coronary &amp; Venous Vasodilator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Mitochondrial ALDH2 &amp; soluble guanylyl cyclase (sGC)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Donates nitric oxide (NO) to activate cGMP, causing venodilation and reduced cardiac preload.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Rapid sublingual relief of acute angina by reducing myocardial oxygen demand and dilating collaterals.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Use sublingually while seated. Absolute fatal contraindication with PDE5 inhibitors (Viagra/Cialis).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-nitrates"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-antitussive",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "ضدسرفه‌های مرکزی (دکسترومتورفان)",
+    "title_en": "Central Antitussives (Dextromethorphan)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">ضدسرفه‌های مرکزی (دکسترومتورفان)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-antitussive</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>ضدسرفه‌های مرکزی (دکسترومتورفان)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_agonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>سرکوب‌کننده مرکز سرفه (Cough Suppressant)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های سیگما-۱ و مرکز سرفه در بصل‌النخاع مغز</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>افزایش آستانه تحریک مرکز سرفه در مغز و مهار انتقال سیگنال‌های واگال سرفه خشک.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>تسکین و قطع سرفه‌های خشک، تحریکی و آزاردهنده بدون اثرات خواب‌آلودگی شدید یا سرکوب تنفسی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>سرفه‌های خشک و آزاردهنده سرماخوردگی. در سرفه‌های خلط‌دار یا همراه با مهارکننده‌های MAOI منع مصرف دارد.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-indigo-500/20 text-indigo-300 border-indigo-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Central Antitussives (Dextromethorphan)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-antitussive</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Central Antitussives (Dextromethorphan)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_agonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Central Cough Suppressant / Sigma-1 Agonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Medullary cough center Sigma-1 receptors</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Elevates the sensory threshold of the medullary cough center to attenuate dry non-productive cough.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Suppresses dry hacking cough spasms by acting directly on central brainstem centers.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Indicated for dry irritating cough. Contraindicated with MAOIs or in productive chesty cough.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-indigo-500/20 text-indigo-300 border-indigo-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-antitussive"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-stool-softener",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "نرم‌کننده‌های مدفوع و سرومنولیتیک (دوکوزات سدیم)",
+    "title_en": "Stool Softeners & Cerumenolytics (Docusate Sodium)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">نرم‌کننده‌های مدفوع و سرومنولیتیک (دوکوزات سدیم)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-stool-softener</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>نرم‌کننده‌های مدفوع و سرومنولیتیک (دوکوزات سدیم)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>neutralizer</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>سورفکتانت آنیونی کاهنده کشش سطحی (Surfactant)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>کشش سطحی لایه چربی و آب در مدفوع و جرم گوش (Cerumen)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>کاهش کشش سطحی، تسهیل نفوذ آب و چربی به توده خشک مدفوع یا جرم گوش و نرم ساختن آن.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>جلوگیری از زور زدن هنگام دفع در هموروئید و رفع گرفتگی و نرم کردن جرم گوش.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>ملین بدون تحریک روده برای بعد از جراحی و هموروئید؛ قطره گوش دوکوزات برای رفع جرم فشرده قبل از شستشو.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Stool Softeners &amp; Cerumenolytics (Docusate Sodium)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-stool-softener</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Stool Softeners &amp; Cerumenolytics (Docusate Sodium)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>neutralizer</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Anionic Surfactant Stool Softener &amp; Ear Wax Drops</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Fecal lipid-water interface and auditory canal cerumen</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Lowers surface tension to allow water and lipids to penetrate and soften hard fecal or cerumen masses.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Facilitates gentle bowel evacuation and disintegrates impacted cerumen plugs in ears.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Ideal for post-operative recovery and hemorrhoids. Ear drops soften impacted wax.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-stool-softener"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-zoster-vaccine",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "واکسن نوترکیب زیرواحد زوستر (Shingrix / ادجوانت AS01B)",
+    "title_en": "Recombinant Varicella Zoster Subunit Vaccine",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">واکسن نوترکیب زیرواحد زوستر (Shingrix / ادجوانت AS01B)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-zoster-vaccine</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>واکسن نوترکیب زیرواحد زوستر (Shingrix / ادجوانت AS01B)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>تحریک ایمنی اختصاصی ضد ویروس زوستر (Immunisation)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>لنفوسیت‌های T کمکی CD4+ و سلول‌های B ترشح‌کننده آنتی‌بادی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>القای پاسخ ایمنی سلولی قدرتمند و پایدار علیه گلیکوپروتئین E ویروس واریسلا زوستر (VZV).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>پیشگیری موثر از بیماری زونا و درد مزمن عصبی پس از زونا (Post-herpetic Neuralgia) در بزرگسالان بالای ۵۰ سال.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>تزریق عضلانی دو دوز به فاصله ۲ تا ۶ ماه. واکسن غیرزنده است و در افراد با نقص ایمنی نیز قابل استفاده است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Recombinant Varicella Zoster Subunit Vaccine</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-zoster-vaccine</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Recombinant Varicella Zoster Subunit Vaccine</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Recombinant Subunit Vaccine / Immunostimulant</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Host CD4+ T-lymphocytes &amp; antibody-producing B cells</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Induces robust, long-lasting gE-specific cellular and humoral immunity against VZV reactivation.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>High-efficacy prevention of herpes zoster (shingles) and post-herpetic neuralgia in adults 50+.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>2-dose intramuscular schedule (months 0 and 2-6). Safe in immunocompromised patients.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-zoster-vaccine"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-iron",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "املاح آهن و کمپلکس پلی‌مالتوز (خون‌ساز / درمان کم‌خونی)",
+    "title_en": "Oral Iron Salts & Iron Polymaltose Complex (Hematinic)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">املاح آهن و کمپلکس پلی‌مالتوز (خون‌ساز / درمان کم‌خونی)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-iron</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>املاح آهن و کمپلکس پلی‌مالتوز (خون‌ساز / درمان کم‌خونی)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>hormone_replacement</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>جایگزین عنصر آهن و ساخت هموگلوبین (Hematinic)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>مغز استخوان و پیش‌سازهای اریتروئید در فرآیند اریتروپوئز</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>ترکیب با پروتوپورفیرین IX جهت تشکیل گروه هِم و ساخت هموگلوبین، میوگلوبین و آنزیم‌های سیتوکروم.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>جبران کمبود آهن، پر کردن ذخایر فریتین و درمان کم‌خونی فقر آهن (Iron Deficiency Anemia).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>همراه با ویتامین C جذب آهن فروس بیشتر می‌شود. کمپلکس پلی‌مالتوز (Maltofer) عوارض گوارشی کمتری دارد.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Oral Iron Salts &amp; Iron Polymaltose Complex (Hematinic)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-iron</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Oral Iron Salts &amp; Iron Polymaltose Complex (Hematinic)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>hormone_replacement</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Essential Mineral / Hemoglobin Precursor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Bone marrow erythroid precursors and ferritin storage depots</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Incorporated into protoporphyrin IX to synthesize functional heme, hemoglobin and cytochromes.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Replenishes systemic iron stores and restores oxygen transport capacity in iron deficiency.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Take with Vitamin C to enhance absorption. Maltofer provides lower GI irritation.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-iron"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-magnesium",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "یون منیزیم و کلات‌های آمینواسیدی (کوفاکتور آنزیمی و شل‌کننده عضلانی)",
+    "title_en": "Magnesium Amino Acid Chelates (Enzyme Cofactor)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">یون منیزیم و کلات‌های آمینواسیدی (کوفاکتور آنزیمی و شل‌کننده عضلانی)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-magnesium</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>یون منیزیم و کلات‌های آمینواسیدی (کوفاکتور آنزیمی و شل‌کننده عضلانی)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>تعدیل‌کننده انقباض عضلانی و عملکرد عصبی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>بیش از ۳۰۰ سیستم آنزیمی وابسته به ATP و کانال‌های کلسیمی و NMDA نورونی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>بلوک فیزیولوژیک کانال‌های کلسیم و NMDA، کاهش تحریک‌پذیری عصبی-عضلانی و ریلکسیشن عضلات صاف و اسکلتی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>رفع گرفتگی عضلات، بهبود کیفیت خواب و حمایت از عملکرد سیستم عصبی در خستگی مزمن.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>ملح بیس‌گلیسینات جذب بالاتری دارد و کمترین عارضه گوارشی (اسهال) را ایجاد می‌کند.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-indigo-500/20 text-indigo-300 border-indigo-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Magnesium Amino Acid Chelates (Enzyme Cofactor)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-magnesium</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Magnesium Amino Acid Chelates (Enzyme Cofactor)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Neuromuscular Modulator &amp; Cofactor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>ATP-dependent enzymatic pathways, NMDA channels and calcium transporters</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Acts as natural calcium antagonist, regulating muscle contraction and neuronal excitability.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Relieves muscle cramps, supports muscle relaxation and maintains nervous system function.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Chelated bisglycinate offers superior absorption with minimal laxative side effects.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-indigo-500/20 text-indigo-300 border-indigo-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-magnesium"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-vitamins-d-b12",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "ویتامین‌های D3 و B12 (تنظیم هومئوستاز کلسیم و متیلاسیون سلولی)",
+    "title_en": "Vitamins D3 & B12 (Cellular Cofactors)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">ویتامین‌های D3 و B12 (تنظیم هومئوستاز کلسیم و متیلاسیون سلولی)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-vitamins-d-b12</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>ویتامین‌های D3 و B12 (تنظیم هومئوستاز کلسیم و متیلاسیون سلولی)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>hormone_replacement</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>ویتامین‌های ضروری سلامت استخوان و سیستم عصبی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های هسته‌ای ویتامین D (VDR) در روده و آنزیم متیونین سنتاز در سلول‌های عصبی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>افزایش جذب روده‌ای کلسیم و فسفات توسط D3؛ ساخت غلاف میلین اعصاب و سنتز DNA توسط B12.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>حفظ تراکم استخوان، پیشگیری از پوکی استخوان و حفظ سلامت اعصاب و خون‌سازی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>ویتامین D محلول در چربی است و بهتر است همراه با غذای حاوی چربی میل شود.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Vitamins D3 &amp; B12 (Cellular Cofactors)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-vitamins-d-b12</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Vitamins D3 &amp; B12 (Cellular Cofactors)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>hormone_replacement</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Essential Metabolic Vitamins</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Intestinal nuclear VDR receptors &amp; neuronal methionine synthase</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Promotes intestinal calcium absorption and maintains neuronal myelin sheath synthesis.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Essential for bone mineralization, hematopoiesis, and nervous system integrity.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Take Vitamin D with a fat-containing meal for optimal absorption.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-vitamins-d-b12"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-folate",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "اسید فولیک (ویتامین B9 / کوفاکتور سنتز DNA و تکثیر سلولی)",
+    "title_en": "Folic Acid (Vitamin B9 / DNA Synthesis Cofactor)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">اسید فولیک (ویتامین B9 / کوفاکتور سنتز DNA و تکثیر سلولی)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-folate</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>اسید فولیک (ویتامین B9 / کوفاکتور سنتز DNA و تکثیر سلولی)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>hormone_replacement</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>پیشگیری از نقایص لوله عصبی جنین (Neural Tube Defect Prevention)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>آنزیم‌های چرخه انتقال یک‌کربنه و سنتز بازهای پورین و تیمیدین DNA</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>تامین گروه‌های متیل برای سنتز DNA و تقسیم طبیعی سلول‌های جنینی و خون‌ساز.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>پیشگیری از نقایص لوله عصبی جنین (اسپینا بیفیدا) و درمان کم‌خونی مگالوبلاستیک.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>مصرف ۵۰۰ میکروگرم روزانه از حداقل ۱ ماه قبل از بارداری تا انتهای سه ماهه اول الزامی است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Folic Acid (Vitamin B9 / DNA Synthesis Cofactor)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-folate</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Folic Acid (Vitamin B9 / DNA Synthesis Cofactor)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>hormone_replacement</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Essential Folate Cofactor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Cellular one-carbon transfer enzymes &amp; thymidylate synthase</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Supplies one-carbon units for purine/thymidine biosynthesis and fetal neural crest development.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Essential peri-conceptional nutrient to prevent neural tube defects and megaloblastic anemia.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Take 500mcg daily at least 1 month prior to conception through the 1st trimester.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-folate"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-st-johns-wort",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "عصاره علف چای (هایپرفورین / هایپریسین / مهار بازجذب منوآمین‌ها)",
+    "title_en": "St John’s Wort Extract (Hypericum perforatum)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">عصاره علف چای (هایپرفورین / هایپریسین / مهار بازجذب منوآمین‌ها)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-st-johns-wort</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>عصاره علف چای (هایپرفورین / هایپریسین / مهار بازجذب منوآمین‌ها)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>ضدافسردگی گیاهی و القاکننده قوی CYP3A4</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>ناقل‌های بازجذب سروتونین، نورآدرنالین، دوپامین و گیرنده PXR کبدی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار غیراختصاصی بازجذب نوروترانسمیترها در مغز همراه با القای شدید آنزیم سیتوکروم CYP3A4 و P-gp در کبد و روده.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>تسکین افسردگی خفیف تا متوسط؛ دارای شدیدترین تداخلات دارویی در میان مکمل‌های گیاهی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>هشدار حیاتی: کاهش شدید سطح خونی داروهای ضدبارداری (OCP)، وارفارین، سیکلوسپورین، دیگوکسین و ریسک سندرم سروتونین با SSRIs.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">St John’s Wort Extract (Hypericum perforatum)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-st-johns-wort</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>St John’s Wort Extract (Hypericum perforatum)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Herbal Monoamine Modulator &amp; Potent CYP3A4 Inducer</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Neuronal monoamine transporters (SERT/NET/DAT) &amp; Hepatic PXR</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Inhibits monoamine reuptake while potently upregulating CYP3A4 and P-glycoprotein efflux pumps.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Herbal antidepressant with profound pharmacokinetic enzyme induction risks.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>High interaction risk: reduces efficacy of OCPs, warfarin, cyclosporin, and causes serotonin syndrome with SSRIs.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-st-johns-wort"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-ginkgo",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "عصاره برگ جینکو بیلوبا (EGb 761 / مهار PAF و آنتی‌اکسیدان)",
+    "title_en": "Ginkgo Biloba Extract (EGb 761)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">عصاره برگ جینکو بیلوبا (EGb 761 / مهار PAF و آنتی‌اکسیدان)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-ginkgo</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>عصاره برگ جینکو بیلوبا (EGb 761 / مهار PAF و آنتی‌اکسیدان)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>بهبود گردش خون محیطی و مغزی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های فاکتور فعال‌کننده پلاکت (PAF) و رادیکال‌های آزاد اندوتلیوم عروق</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار تجمع پلاکتی ناشی از PAF، کاهش ویسکوزیته خون، محافظت از نورون‌ها در برابر استرس اکسیداتیو و اتساع میکروسیرکولاسیون.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>حمایت از عملکرد شناختی، حافظه و بهبود علائم اختلال گردش خون محیطی (سردی دست و پا).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>احتیاط در مصرف همزمان با داروهای ضدانعقاد و ضدپلاکت (وارفارین، آسپرین) به دلیل افزایش خطر خونریزی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Ginkgo Biloba Extract (EGb 761)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-ginkgo</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Ginkgo Biloba Extract (EGb 761)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Circulatory Modulator &amp; PAF Antagonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Platelet-Activating Factor (PAF) receptors &amp; vascular endothelium</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Antagonizes PAF, scavenges free radicals and enhances peripheral microvascular perfusion.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Improves peripheral microcirculation and provides neuroprotective free radical scavenging.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Caution with anticoagulants and antiplatelets due to increased bleeding risk.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-ginkgo"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-cranberry",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "پروآنتوسیانیدین‌های عصاره کرنبری (PAC-A / ضدچسبندگی باکتری به مثانه)",
+    "title_en": "Cranberry Proanthocyanidins (PAC Type-A / Anti-Adhesion)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">پروآنتوسیانیدین‌های عصاره کرنبری (PAC-A / ضدچسبندگی باکتری به مثانه)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-cranberry</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>پروآنتوسیانیدین‌های عصاره کرنبری (PAC-A / ضدچسبندگی باکتری به مثانه)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>neutralizer</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>ضدچسبندگی باکتری در مجاری ادراری (Anti-adherence)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>فیمبریه‌های نوع ۱ و نوع P در باکتری اشریشیا کلی (Uropathogenic E. coli)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>اتصال انتخابی به فیمبریه‌های باکتری E. coli و مهار چسبیدن آن به سلول‌های اپیتلیوم مخاط مثانه.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>پیشگیری از عود عفونت‌های مجاری ادراری (سیستیت) با شسته‌شدن باکتری‌ها در جریان ادرار.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>پیشگیری از عفونت ادراری مکرر. جایگزین آنتی‌بیوتیک در عفونت فعال حاد کلیه یا مثانه نیست.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Cranberry Proanthocyanidins (PAC Type-A / Anti-Adhesion)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-cranberry</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Cranberry Proanthocyanidins (PAC Type-A / Anti-Adhesion)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>neutralizer</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Bacterial Anti-Adhesion Agent</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>P-fimbriae of uropathogenic Escherichia coli (UPEC)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Binds P-fimbriae to block UPEC adhesion to uroepithelial cell receptors.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Prevents recurrent urinary tract infections by promoting mechanical bacterial clearance.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>For prophylaxis of recurrent cystitis; not a substitute for antibiotics in acute infection.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-cranberry"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-probiotics",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "پروبیوتیک‌ها (لاکتوباسیلوس و بیفیدوباکتریوم / ترمیم فلور میکروبی)",
+    "title_en": "Probiotics (Lactobacillus & Bifidobacterium)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">پروبیوتیک‌ها (لاکتوباسیلوس و بیفیدوباکتریوم / ترمیم فلور میکروبی)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-probiotics</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>پروبیوتیک‌ها (لاکتوباسیلوس و بیفیدوباکتریوم / ترمیم فلور میکروبی)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>ترمیم فلور طبیعی روده و مهار پاتوژن‌ها</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>مخاط پوششی روده و اکوسیستم میکروبیوم گوارش</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>تولید اسید لاکتیک و اسیدهای چرب کوتاه‌زنجیر (SCFA)، کاهش pH لومن، تولید باکتریوسین و تقویت اتصالات محکم مخاطی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>بهبود علائم سندرم روده تحریک‌پذیر (IBS) و پیشگیری از اسهال ناشی از مصرف آنتی‌بیوتیک.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>در صورت مصرف همزمان با آنتی‌بیوتیک، حداقل ۲ تا ۳ ساعت فاصله زمانی رعایت شود.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Probiotics (Lactobacillus &amp; Bifidobacterium)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-probiotics</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Probiotics (Lactobacillus &amp; Bifidobacterium)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Gut Microbiome Restorative</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Intestinal mucosal barrier and luminal gut microbiota</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Lowers luminal pH, secretes antimicrobial bacteriocins and reinforces epithelial tight junctions.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Restores healthy microbial balance, reducing antibiotic-associated diarrhea and IBS discomfort.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Space at least 2-3 hours apart from oral antibiotic doses.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-probiotics"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-glucosamine",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "گلوکوزآمین سولفات (پیش‌ساز سنتز گلیکوزآمینوگلیکان‌های غضروف)",
+    "title_en": "Glucosamine Sulfate (Cartilage Matrix Precursor)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">گلوکوزآمین سولفات (پیش‌ساز سنتز گلیکوزآمینوگلیکان‌های غضروف)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-glucosamine</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>گلوکوزآمین سولفات (پیش‌ساز سنتز گلیکوزآمینوگلیکان‌های غضروف)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>محافظت از غضروف مفصلی در آرتروز (Chondroprotective)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>کندروسیت‌های غضروف مفصلی و مایع سینوویال</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>فراهم ساختن سوبسترای بیوسنتز گلیکوزآمینوگلیکان‌ها، پروتئوگلیکان‌ها و هیالورونان در ماتریکس غضروف.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>کاهش تخریب غضروف و تسکین درد و خشکی مفاصل در آرتروز خفیف تا متوسط زانو.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>ملح سولفات شواهد بالینی بهتری دارد. در افراد با حساسیت شدید به صدف/سخت‌پوستان دریایی احتیاط شود.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-cyan-500/20 text-cyan-300 border-cyan-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Glucosamine Sulfate (Cartilage Matrix Precursor)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-glucosamine</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Glucosamine Sulfate (Cartilage Matrix Precursor)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>modulator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Cartilage Chondroprotective Precursor</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Articular chondrocytes &amp; synovial extracellular matrix</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Serves as building block for glycosaminoglycan and proteoglycan cartilage synthesis.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Supplements essential cartilage matrix building blocks to support joint mobility in osteoarthritis.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Sulfate formulation preferred. Caution in severe shellfish allergy.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-cyan-500/20 text-cyan-300 border-cyan-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-glucosamine"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-minoxidil",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "ماینوکسیدیل موضعی ۵٪ (بازکننده کانال پتاسیم / محرک رشد مو)",
+    "title_en": "Topical Minoxidil (KATP Channel Opener / Hair Stimulator)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">ماینوکسیدیل موضعی ۵٪ (بازکننده کانال پتاسیم / محرک رشد مو)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-minoxidil</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>ماینوکسیدیل موضعی ۵٪ (بازکننده کانال پتاسیم / محرک رشد مو)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>ion_channel_blocker</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>محرک فاز آناژن و خون‌رسانی فولیکول مو (Hair Growth Stimulant)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>کانال‌های پتاسیمی حساس به ATP عروق پوست سر و سلول‌های پاپیلای درمال فولیکول مو</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>افزایش خون‌رسانی موضعی، القای فاکتور رشد اندوتلیال عروقی (VEGF) و طولانی کردن فاز رشد فعال (آناژن) مو.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>درمان ریزش موی آندروژنیک (طاسی با الگوی مردانه و زنانه) و افزایش ضخامت و تراکم تارهای مو.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>مصرف مداوم روزانه روی پوست سر کاملاً خشک. ریزش اولیه در ۲ تا ۶ هفته اول طبیعی و نشانه ورود به فاز رشد جدید است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-purple-500/20 text-purple-300 border-purple-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Topical Minoxidil (KATP Channel Opener / Hair Stimulator)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-minoxidil</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Topical Minoxidil (KATP Channel Opener / Hair Stimulator)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>ion_channel_blocker</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Follicular Vascular &amp; Anagen Stimulant</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>ATP-sensitive K+ channels in scalp arterioles &amp; follicular dermal papillae</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Opens KATP channels, enhances scalp microcirculation and prolongs follicular anagen growth phase.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Clinically proven topical therapy to stimulate hair follicle regrowth in androgenetic alopecia.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Apply twice daily to dry scalp. Initial shedding in weeks 2-6 is normal (telogen shedding).</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-purple-500/20 text-purple-300 border-purple-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-minoxidil"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-chloramphenicol",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "کلرامفنیکل چشمی (مهارکننده سنتز پروتئین باکتری / اتصال به 50S)",
+    "title_en": "Ophthalmic Chloramphenicol (50S Ribosomal Inhibitor)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">کلرامفنیکل چشمی (مهارکننده سنتز پروتئین باکتری / اتصال به 50S)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-chloramphenicol</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>کلرامفنیکل چشمی (مهارکننده سنتز پروتئین باکتری / اتصال به 50S)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>bacteriostatic</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>آنتی‌بیوتیک باکتریواستاتیک وسیع‌الطیف چشمی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>زیرواحد 50S ریبوزوم باکتریایی و آنزیم پپتیدیل ترانسفراز</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>مهار انتقال پپتیدیل و جلوگیری از طویل‌سازی زنجیره پلی‌پپتیدی پروتئین‌های باکتری.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>درمان خط اول کنژنکتیویت حاد چرکی باکتریایی (Bacterial Conjunctivitis) در چشم.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>قطره یا پماد چشمی. نگهداری در یخچال (۲ تا ۸ درجه)؛ پس از باز شدن حداکثر ۴ هفته قابل استفاده است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Ophthalmic Chloramphenicol (50S Ribosomal Inhibitor)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-chloramphenicol</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Ophthalmic Chloramphenicol (50S Ribosomal Inhibitor)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>bacteriostatic</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Broad-Spectrum Ophthalmic Antibacterial</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Bacterial 50S ribosomal subunit &amp; peptidyl transferase</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Inhibits peptidyl transferase to arrest bacterial protein synthesis.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>First-line topical treatment for acute bacterial conjunctivitis and surface eye infections.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Store in refrigerator (2-8°C). Discard 28 days after opening.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-chloramphenicol"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-naloxone",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "نالوکسان هیدروکلراید (آنتاگونیست خالص گیرنده‌های مو-اپیوئید / پادزهر اورژانس)",
+    "title_en": "Naloxone Hydrochloride (Pure Opioid Antagonist / Emergency Antidote)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">نالوکسان هیدروکلراید (آنتاگونیست خالص گیرنده‌های مو-اپیوئید / پادزهر اورژانس)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-naloxone</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>نالوکسان هیدروکلراید (آنتاگونیست خالص گیرنده‌های مو-اپیوئید / پادزهر اورژانس)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_antagonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>پادزهر اورژانس مسمومیت و دپرسیون تنفسی اپیوئیدها</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های مو (MOR)، کاپا (KOR) و دلتا (DOR) در سیستم عصبی مرکزی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>جدا کردن فوری مولکول‌های اپیوئید از گیرنده‌های مو، بازگشت هدایت تنفسی بصل‌النخاع و هوشیاری بیمار ظرف ۲ تا ۵ دقیقه.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>درمان اورژانسی نجات‌بخش در اوردوز و تنگی نفس حاد کشنده ناشی از مصرف مورفین، اکسی‌کدون، متادون و هروئین.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>اسپری بینی Nyxoid یا آمپول تزریقی (برنامه دسترسی رایگان استرالیا). نیمه‌عمر نالوکسان کوتاه‌تر از اکثر اپیوئیدهاست و تماس با اورژانس (000) الزامی است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Naloxone Hydrochloride (Pure Opioid Antagonist / Emergency Antidote)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-naloxone</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Naloxone Hydrochloride (Pure Opioid Antagonist / Emergency Antidote)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_antagonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Emergency Opioid Antidote / MOR Antagonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Central Mu (MOR), Kappa (KOR) and Delta (DOR) opioid receptors</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Competitively displaces opioids from MOR receptors, rapidly restoring respiratory drive.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>First-line emergency antidote for reversing opioid-induced life-threatening respiratory depression.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Nyxoid nasal spray. Call 000 immediately; naloxone duration is shorter than most opioids.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-rose-500/20 text-rose-300 border-rose-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-naloxone"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-glucagon-antidote",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "گلوکاگون تزریقی (پادزهر مسمومیت بتابلوکرها و CCB / افزایش cAMP مستقل از بتا)",
+    "title_en": "Glucagon (Beta-Blocker / CCB Toxicity Antidote)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">گلوکاگون تزریقی (پادزهر مسمومیت بتابلوکرها و CCB / افزایش cAMP مستقل از بتا)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-glucagon-antidote</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>گلوکاگون تزریقی (پادزهر مسمومیت بتابلوکرها و CCB / افزایش cAMP مستقل از بتا)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_agonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>پادزهر اینوتروپ مثبت مستقل از گیرنده بتا</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>گیرنده‌های اختصاصی گلوکاگون در غشای سلول‌های عضلانی قلب (میوکارد)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>فعال‌سازی آدنیلات سیکلاز و افزایش cAMP درون‌سلولی میوکارد بدون نیاز به اتصال به گیرنده‌های بتا آدرنرژیک مسدودشده.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>افزایش ضربان قلب و قدرت انقباضی میوکارد در مسمومیت شدید و شوک ناشی از اوردوز بتابلوکرها و مسدودکننده‌های کانال کلسیم.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>پادزهر بیمارستانی خط اول برادی‌کاردی و کلاپس قلبی ناشی از اوردوز مسدودکننده‌های بتا و کلسیم.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Glucagon (Beta-Blocker / CCB Toxicity Antidote)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-glucagon-antidote</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Glucagon (Beta-Blocker / CCB Toxicity Antidote)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>receptor_agonist</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Inotropic Antidote / Non-Adrenergic cAMP Activator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Myocardial specific glucagon G-protein coupled receptors</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Directly stimulates adenylyl cyclase via Gs protein, bypassing blocked beta-adrenoceptors to raise cAMP.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Restores cardiac chronotropy and inotropy in severe beta-blocker and calcium channel blocker overdoses.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Emergency inotrope for beta-blocker/CCB overdose refractory to atropine.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-glucagon-antidote"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-bicarbonate-alkalinisation",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "بی‌کربنات سدیم (قلیایی‌سازی ادرار و پلاسما / به دام انداختن یونی سالیسیلات‌ها)",
+    "title_en": "Sodium Bicarbonate (Urinary Alkalinisation & Ion Trapping)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">بی‌کربنات سدیم (قلیایی‌سازی ادرار و پلاسما / به دام انداختن یونی سالیسیلات‌ها)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-bicarbonate-alkalinisation</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>بی‌کربنات سدیم (قلیایی‌سازی ادرار و پلاسما / به دام انداختن یونی سالیسیلات‌ها)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>neutralizer</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>قلیایی‌کننده پلاسما و افزایش دفع کلیوی اسیدهای ضعیف</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>لوله‌های کلیوی و مایع خارج سلولی پلاسما</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>افزایش pH ادرار (&gt;7.5)، تبدیل اسید سالیسیلیک به فرم یونیزه باردار (Salicylate-)، مهار بازجذب توبولار و دفع سریع کلیوی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>درمان اورژانسی مسمومیت حاد با آسپرین و سالیسیلات‌ها از طریق فرآیند Ion Trapping در کلیه‌ها.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>پروتکل اورژانس مسمومیت با آسپرین. پایش همزمان پتاسیم سرم و گازهای خونی شریانی (ABG) الزامی است.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Sodium Bicarbonate (Urinary Alkalinisation &amp; Ion Trapping)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-bicarbonate-alkalinisation</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Sodium Bicarbonate (Urinary Alkalinisation &amp; Ion Trapping)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>neutralizer</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Systemic Alkaliniser / Salicylate Clearance Accelerator</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Renal tubular lumen and extracellular plasma compartment</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Elevates urinary pH to ionize weak acids (salicylates), preventing tubular reabsorption and accelerating clearance.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Emergency treatment for salicylate poisoning that forces renal excretion via urinary ion trapping.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Critical for moderate-to-severe salicylate toxicity. Monitor arterial blood gases and potassium.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-emerald-500/20 text-emerald-300 border-emerald-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-bicarbonate-alkalinisation"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-emollient",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "امولینت‌ها و سرامیدها (سد محافظ چربی و ترمیم هیدراتاسیون پوست)",
+    "title_en": "Emollients & Barrier Repair Lipids (Ceramides / Glycerol)",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">امولینت‌ها و سرامیدها (سد محافظ چربی و ترمیم هیدراتاسیون پوست)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-emollient</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>امولینت‌ها و سرامیدها (سد محافظ چربی و ترمیم هیدراتاسیون پوست)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>neutralizer</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>ترمیم سد دفاعی پوست و آبرسانی لایه شاخی</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>لایه شاخی اپیدرم (Stratum Corneum) و اتصالات بین‌سلولی پوست</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>ایجاد لایه انسدادی هیدروفوبیک، کاهش تبخیر نامحسوس آب (TEWL) و بازسازی ماتریکس سرامید و اسیدهای چرب پوست.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>درمان پایه اگزما، درماتیت و خشکی شدید پوست با حفظ رطوبت و جلوگیری از نفوذ آلرژن‌ها و محرک‌ها.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>پایه اصلی درمان اگزما؛ استفاده سخاوتمندانه بلافاصله پس از استحمام (ظرف ۳ دقیقه) جهت حبس رطوبت پوست.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Emollients &amp; Barrier Repair Lipids (Ceramides / Glycerol)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-emollient</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Emollients &amp; Barrier Repair Lipids (Ceramides / Glycerol)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>neutralizer</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Epidermal Barrier Restorative</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Stratum corneum intercellular lipid matrix</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Forms an occlusive lipid film, reducing transepidermal water loss (TEWL) and restoring skin barrier integrity.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>Foundational daily management for atopic eczema and xerosis, locking in moisture and shielding from irritants.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Apply generously within 3 minutes of bathing to trap moisture. Essential for eczema management.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-teal-500/20 text-teal-300 border-teal-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-emollient"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
+    "created_at": "2026-03-20T00:00:00.000Z",
+    "updated_at": "2026-03-20T00:00:00.000Z"
+  },
+  {
+    "id": "doc-mechanism-mech-sunscreen",
+    "user_id": "guest",
+    "folder_id": "folder-pharm-mechanisms",
+    "title": "فیلترهای ضدآفتاب وسیع‌الطیف SPF 50+ (جذب و بازتاب اشعه‌های UV-A و UV-B)",
+    "title_en": "Broad-Spectrum Therapeutic Sunscreen SPF 50+",
+    "content_html": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"rtl\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">فیلترهای ضدآفتاب وسیع‌الطیف SPF 50+ (جذب و بازتاب اشعه‌های UV-A و UV-B)</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-sunscreen</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>فیلترهای ضدآفتاب وسیع‌الطیف SPF 50+ (جذب و بازتاب اشعه‌های UV-A و UV-B)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>neutralizer</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>سپر فوتوپروتکتیو محافظت از DNA پوست در برابر اشعه فرابنفش</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>سطح اپیدرم پوست در برابر فوتون‌های تابشی نور خورشید (۲۹۰ تا ۴۰۰ نانومتر)</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>جذب فوتون‌های پرانرژی UV و تبدیل آن به گرمای بی‌ضرر و بازتاب امواج ماوراء بنفش جهت جلوگیری از ایجاد دایمرهای تیمین در DNA سلولی.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">توضیح</dt><dd class=\"text-foreground/85\"><span>پیشگیری از سرطان‌های پوست (ملانوما، BCC، SCC)، آفتاب‌سوختگی حاد و پیری زودرس ناشی از نور خورشید.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>۲۰ دقیقه قبل از خروج به مقدار کافی (یک قاشق چای‌خوری برای هر اندام) مالیده شود و هر ۲ ساعت تجدید گردد.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "content_en": "<article class=\"knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7\" dir=\"ltr\">\n    <header class=\"rounded-2xl border border-primary/20 bg-primary/5 p-5\">\n      <h2 class=\"text-xl font-bold leading-8\">Broad-Spectrum Therapeutic Sunscreen SPF 50+</h2>\n      <p class=\"mt-2 text-xs text-muted-foreground\" dir=\"ltr\">Source: data/mechanismsRegistry.ts</p>\n    </header>\n    <dl class=\"space-y-2\"><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Code</dt><dd class=\"text-foreground/85\"><span>mech-sunscreen</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">class Name</dt><dd class=\"text-foreground/85\"><span>Broad-Spectrum Therapeutic Sunscreen SPF 50+</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Classification</dt><dd class=\"text-foreground/85\"><span>neutralizer</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">action Type Label</dt><dd class=\"text-foreground/85\"><span>Broad-Spectrum Photoprotective Barrier</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">target Site</dt><dd class=\"text-foreground/85\"><span>Skin epidermal surface against solar UV-A and UV-B radiation</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">cellular Effect</dt><dd class=\"text-foreground/85\"><span>Absorbs and scatters UV photons, preventing DNA thymine dimer mutations and photoaging.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">Description</dt><dd class=\"text-foreground/85\"><span>High-level protection against skin cancers, solar keratosis, sunburn and premature photoaging.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">clinical Relevance</dt><dd class=\"text-foreground/85\"><span>Apply liberally 20 minutes before sun exposure; reapply every 2 hours and after swimming.</span></dd></div><div class=\"rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed\"><dt class=\"font-semibold text-foreground mb-1\">color Class</dt><dd class=\"text-foreground/85\"><span>bg-amber-500/20 text-amber-300 border-amber-500/40</span></dd></div></dl>\n  </article>",
+    "preferred_language": "bilingual",
+    "direction": "rtl",
+    "tags": [
+      "Pharmacology",
+      "Mechanism",
+      "mech-sunscreen"
+    ],
+    "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/mechanismsRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6384,6 +8444,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "resp"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/diseasesRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6402,6 +8463,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "resp"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/diseasesRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6420,6 +8482,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "cardio"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/diseasesRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6438,6 +8501,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "cardio"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/diseasesRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6456,6 +8520,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "cardio"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/diseasesRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6474,6 +8539,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "cardio"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/diseasesRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6492,6 +8558,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "cardio"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/diseasesRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6510,6 +8577,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "cardio"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/diseasesRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6528,6 +8596,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "pain"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/diseasesRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6546,6 +8615,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "pain"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/diseasesRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6564,6 +8634,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "pain"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/diseasesRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6582,6 +8653,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "pain"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/diseasesRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6600,6 +8672,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "neuro"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/diseasesRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6618,6 +8691,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "neuro"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/diseasesRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6636,6 +8710,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "neuro"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/diseasesRegistry.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6654,6 +8729,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "OTC & Primary Care"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalDomains.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6672,6 +8748,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Cardiovascular & Renal"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalDomains.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6690,6 +8767,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "CNS & Mental Health"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalDomains.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6708,6 +8786,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Endocrine & Metabolic"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalDomains.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6726,6 +8805,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Anti-Infectives"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/clinicalDomains.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6744,6 +8824,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Module 1"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/studyTracksData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6762,6 +8843,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Module 2"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/studyTracksData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6780,6 +8862,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Module 1"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/studyTracksData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6798,6 +8881,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Module 4"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/studyTracksData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6816,6 +8900,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "Module 3"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/studyTracksData.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6834,6 +8919,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "mod1"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6852,6 +8938,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "mod2"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6870,6 +8957,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "mod3"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6888,6 +8976,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "mod4"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6906,6 +8995,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "mod5"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6924,6 +9014,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "mod6"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   },
@@ -6942,6 +9033,7 @@ export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = [
       "mod3"
     ],
     "source_url": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/lib/pharmacy-data.ts",
+    "content_review_status": "unreviewed",
     "created_at": "2026-03-20T00:00:00.000Z",
     "updated_at": "2026-03-20T00:00:00.000Z"
   }

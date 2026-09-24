@@ -102,6 +102,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   isImportingPharmacy = false,
 }) => {
   const { isEn } = useBilingual();
+  const isPharmacySourceFile = document?.source_url?.includes("github.com/hamedharami-hub/pharmacy/blob/") ?? false;
   const [viewMode, setViewMode] = useState<DocumentViewMode>("reader");
   const [docLangMode, setDocLangMode] = useState<DocumentLanguageMode>("fa");
   const [fontSize, setFontSize] = useState<number>(15);
@@ -696,11 +697,22 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                     className="text-primary hover:underline flex items-center gap-1 font-medium"
                   >
                     <Globe className="w-3 h-3" />
-                    <span>{isEn ? "Source Reference" : "منبع سند"}</span>
+                    <span>{isPharmacySourceFile
+                      ? isEn ? "Pharmacy source file" : "فایل مبدأ Pharmacy"
+                      : isEn ? "Source Reference" : "منبع سند"}</span>
                   </a>
                 )}
               </div>
             </div>
+
+            {(document.content_review_status === "unreviewed" ||
+              (isPharmacySourceFile && document.content_review_status !== "reviewed")) && (
+              <div role="note" className="mb-5 rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-foreground">
+                {isEn
+                  ? "Imported educational content. It has not been independently checked against current Australian clinical references or state and territory rules. Verify the current primary source before using it in practice."
+                  : "محتوای آموزشیِ واردشده است و با منابع اولیهٔ بالینیِ جاری یا قوانین ایالت‌ها و قلمروهای استرالیا به‌طور مستقل تطبیق داده نشده؛ پیش از استفادهٔ حرفه‌ای، منبع اولیهٔ روز را بررسی کنید."}
+              </div>
+            )}
 
             {persianBodyIncomplete && docLangMode !== "en" && (
               <div role="status" className="mb-5 rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-foreground">

@@ -160,4 +160,38 @@ describe("knowledgeService", () => {
     const single = await getKnowledgeDocument(userId, doc.id);
     expect(single).toBeNull();
   });
+
+  it("reparents knowledge documents and child folders before deleting a folder", async () => {
+    const parent = await createKnowledgeFolder(userId, { name: "Parent" });
+    const target = await createKnowledgeFolder(userId, { name: "To remove", parent_id: parent.id });
+    const child = await createKnowledgeFolder(userId, { name: "Keep child", parent_id: target.id });
+    const nested = await createKnowledgeFolder(userId, { name: "Keep nested", parent_id: child.id });
+    const doc = await createKnowledgeDocument(userId, {
+      folder_id: target.id,
+      title: "Keep this knowledge",
+      content_html: "<p>Preserved content</p>",
+    });
+
+    expect(await deleteKnowledgeFolder(userId, target.id)).toBe(true);
+
+    const folders = await getKnowledgeFolders(userId);
+    const documents = await getKnowledgeDocuments(userId);
+    expect(folders.some((item) => item.id === target.id)).toBe(false);
+    expect(folders.find((item) => item.id === child.id)?.parent_id).toBe(parent.id);
+    expect(folders.find((item) => item.id === nested.id)?.parent_id).toBe(child.id);
+    expect(documents.find((item) => item.id === doc.id)?.folder_id).toBe(parent.id);
+    expect(saveEntityToFirestore).toHaveBeenCalledWith(
+      userId,
+      "knowledge_folders",
+      child.id,
+      expect.objectContaining({ parent_id: parent.id }),
+    );
+    expect(saveEntityToFirestore).toHaveBeenCalledWith(
+      userId,
+      "knowledge_documents",
+      doc.id,
+      expect.objectContaining({ folder_id: parent.id }),
+    );
+    expect(deleteEntityFromFirestore).toHaveBeenCalledWith(userId, "knowledge_folders", target.id);
+  });
 });

@@ -36,6 +36,45 @@ function stripHtmlToPlainText(html: string): string {
     .trim();
 }
 
+type KnowledgeCollection = "knowledge_folders" | "knowledge_documents";
+
+async function saveKnowledgeRowOrQueue(
+  userId: string,
+  collection: KnowledgeCollection,
+  op: "insert" | "update",
+  item: { id: string },
+): Promise<boolean> {
+  if (isOnline()) {
+    try {
+      if (await saveEntityToFirestore(userId, collection, item.id, item)) return true;
+    } catch {
+      // A failed server write can still be safely accepted by the outbox.
+    }
+  }
+  return enqueueOp({
+    ownerId: userId,
+    table: collection,
+    op,
+    payload: item,
+    match: op === "update" ? { id: item.id } : undefined,
+  });
+}
+
+async function deleteKnowledgeRowOrQueue(userId: string, collection: KnowledgeCollection, id: string): Promise<boolean> {
+  if (isOnline()) {
+    try {
+      if (await deleteEntityFromFirestore(userId, collection, id)) return true;
+    } catch {
+      // A failed server delete can still be safely accepted by the outbox.
+    }
+  }
+  return enqueueOp({ ownerId: userId, table: collection, op: "delete", match: { id } });
+}
+
+function requireMutationAccepted(accepted: boolean, action: string): void {
+  if (!accepted) throw new Error(`${action} was not confirmed or safely queued. Your local data was not changed.`);
+}
+
 /* ==========================================================================
    FOLDERS CRUD
    ========================================================================== */
@@ -95,23 +134,14 @@ export async function createKnowledgeFolder(
     updated_at: now,
   };
 
+  requireMutationAccepted(
+    await saveKnowledgeRowOrQueue(userId, "knowledge_folders", "insert", folder),
+    "Folder creation",
+  );
+
   const cacheKey = getFoldersCacheKey(userId);
   const existing = (await cacheGet<KnowledgeFolder[]>(cacheKey)) || [];
   await cacheSet(cacheKey, [...existing, folder]);
-
-  if (isOnline()) {
-    try {
-      const ok = await saveEntityToFirestore(userId, "knowledge_folders", folder.id, folder);
-      if (!ok) {
-        await enqueueOp({ table: "knowledge_folders", op: "insert", payload: folder });
-      }
-    } catch (e) {
-      console.warn("Could not save folder to firestore immediately, enqueuing", e);
-      await enqueueOp({ table: "knowledge_folders", op: "insert", payload: folder });
-    }
-  } else {
-    await enqueueOp({ table: "knowledge_folders", op: "insert", payload: folder });
-  }
 
   return folder;
 }
@@ -134,22 +164,14 @@ export async function updateKnowledgeFolder(
     updated_at: new Date().toISOString(),
   };
 
+  requireMutationAccepted(
+    await saveKnowledgeRowOrQueue(userId, "knowledge_folders", "update", updated),
+    "Folder update",
+  );
+
   const next = [...existing];
   next[idx] = updated;
   await cacheSet(cacheKey, next);
-
-  if (isOnline()) {
-    try {
-      const ok = await saveEntityToFirestore(userId, "knowledge_folders", folderId, updated);
-      if (!ok) {
-        await enqueueOp({ table: "knowledge_folders", op: "update", payload: updated, match: { id: folderId } });
-      }
-    } catch (e) {
-      await enqueueOp({ table: "knowledge_folders", op: "update", payload: updated, match: { id: folderId } });
-    }
-  } else {
-    await enqueueOp({ table: "knowledge_folders", op: "update", payload: updated, match: { id: folderId } });
-  }
 
   return updated;
 }
@@ -157,29 +179,55 @@ export async function updateKnowledgeFolder(
 export async function deleteKnowledgeFolder(userId: string, folderId: string): Promise<boolean> {
   if (!userId || !folderId) return false;
 
-  const cacheKey = getFoldersCacheKey(userId);
-  const existing = (await cacheGet<KnowledgeFolder[]>(cacheKey)) || [];
-  const filtered = existing.filter((f) => f.id !== folderId && f.parent_id !== folderId);
-  await cacheSet(cacheKey, filtered);
-
-  // Also move documents in this folder to root or delete them
+  const folderCacheKey = getFoldersCacheKey(userId);
   const docsCacheKey = getDocsCacheKey(userId);
+  const existingFolders = (await cacheGet<KnowledgeFolder[]>(folderCacheKey)) || [];
   const existingDocs = (await cacheGet<KnowledgeDocument[]>(docsCacheKey)) || [];
-  const updatedDocs = existingDocs.map((d) => (d.folder_id === folderId ? { ...d, folder_id: null } : d));
-  await cacheSet(docsCacheKey, updatedDocs);
+  const folder = existingFolders.find((item) => item.id === folderId);
+  if (!folder) return false;
 
-  if (isOnline()) {
-    try {
-      const ok = await deleteEntityFromFirestore(userId, "knowledge_folders", folderId);
-      if (!ok) {
-        await enqueueOp({ table: "knowledge_folders", op: "delete", match: { id: folderId } });
-      }
-    } catch (e) {
-      await enqueueOp({ table: "knowledge_folders", op: "delete", match: { id: folderId } });
+  // Deleting a knowledge folder must never implicitly delete its content.
+  // Keep direct documents and child folders by moving them to the deleted
+  // folder's parent (or the root when deleting a root folder).
+  const destinationFolderId = folder.parent_id || null;
+  const now = new Date().toISOString();
+  const movedFolders = existingFolders
+    .filter((item) => item.parent_id === folderId)
+    .map((item) => ({ ...item, parent_id: destinationFolderId, updated_at: now }));
+  const movedDocuments = existingDocs
+    .filter((item) => item.folder_id === folderId)
+    .map((item) => ({ ...item, folder_id: destinationFolderId, updated_at: now }));
+
+  // Update related rows before deleting the parent. Bounded batches avoid
+  // flooding Firestore when a large imported knowledge folder is removed.
+  const relatedUpdates = [
+    ...movedFolders.map((item) => ({ collection: "knowledge_folders" as const, item })),
+    ...movedDocuments.map((item) => ({ collection: "knowledge_documents" as const, item })),
+  ];
+  const batchSize = 8;
+  for (let start = 0; start < relatedUpdates.length; start += batchSize) {
+    const batch = relatedUpdates.slice(start, start + batchSize);
+    const accepted = await Promise.all(batch.map(({ collection, item }) =>
+      saveKnowledgeRowOrQueue(userId, collection, "update", item)
+    ));
+    if (accepted.some((ok) => !ok)) {
+      throw new Error("Could not safely preserve all knowledge items; the folder was not removed. Retry after storage is available.");
     }
-  } else {
-    await enqueueOp({ table: "knowledge_folders", op: "delete", match: { id: folderId } });
   }
+
+  const folderDeleted = await deleteKnowledgeRowOrQueue(userId, "knowledge_folders", folderId);
+  if (!folderDeleted) {
+    throw new Error("Could not confirm or queue folder removal. Your knowledge items were kept; retry when storage is available.");
+  }
+
+  const nextFolders = existingFolders
+    .filter((item) => item.id !== folderId)
+    .map((item) => movedFolders.find((moved) => moved.id === item.id) || item);
+  const nextDocuments = existingDocs.map((item) =>
+    movedDocuments.find((moved) => moved.id === item.id) || item
+  );
+  await cacheSet(folderCacheKey, nextFolders);
+  await cacheSet(docsCacheKey, nextDocuments);
 
   return true;
 }
@@ -279,22 +327,14 @@ export async function createKnowledgeDocument(
     updated_at: now,
   };
 
+  requireMutationAccepted(
+    await saveKnowledgeRowOrQueue(userId, "knowledge_documents", "insert", doc),
+    "Document creation",
+  );
+
   const cacheKey = getDocsCacheKey(userId);
   const existing = (await cacheGet<KnowledgeDocument[]>(cacheKey)) || [];
   await cacheSet(cacheKey, [doc, ...existing]);
-
-  if (isOnline()) {
-    try {
-      const ok = await saveEntityToFirestore(userId, "knowledge_documents", doc.id, doc);
-      if (!ok) {
-        await enqueueOp({ table: "knowledge_documents", op: "insert", payload: doc });
-      }
-    } catch (e) {
-      await enqueueOp({ table: "knowledge_documents", op: "insert", payload: doc });
-    }
-  } else {
-    await enqueueOp({ table: "knowledge_documents", op: "insert", payload: doc });
-  }
 
   return doc;
 }
@@ -322,22 +362,14 @@ export async function updateKnowledgeDocument(
     updated_at: new Date().toISOString(),
   };
 
+  requireMutationAccepted(
+    await saveKnowledgeRowOrQueue(userId, "knowledge_documents", "update", updated),
+    "Document update",
+  );
+
   const next = [...existing];
   next[idx] = updated;
   await cacheSet(cacheKey, next);
-
-  if (isOnline()) {
-    try {
-      const ok = await saveEntityToFirestore(userId, "knowledge_documents", docId, updated);
-      if (!ok) {
-        await enqueueOp({ table: "knowledge_documents", op: "update", payload: updated, match: { id: docId } });
-      }
-    } catch (e) {
-      await enqueueOp({ table: "knowledge_documents", op: "update", payload: updated, match: { id: docId } });
-    }
-  } else {
-    await enqueueOp({ table: "knowledge_documents", op: "update", payload: updated, match: { id: docId } });
-  }
 
   return updated;
 }
@@ -347,21 +379,15 @@ export async function deleteKnowledgeDocument(userId: string, docId: string): Pr
 
   const cacheKey = getDocsCacheKey(userId);
   const existing = (await cacheGet<KnowledgeDocument[]>(cacheKey)) || [];
+  if (!existing.some((document) => document.id === docId)) return false;
+
+  requireMutationAccepted(
+    await deleteKnowledgeRowOrQueue(userId, "knowledge_documents", docId),
+    "Document deletion",
+  );
+
   const filtered = existing.filter((d) => d.id !== docId);
   await cacheSet(cacheKey, filtered);
-
-  if (isOnline()) {
-    try {
-      const ok = await deleteEntityFromFirestore(userId, "knowledge_documents", docId);
-      if (!ok) {
-        await enqueueOp({ table: "knowledge_documents", op: "delete", match: { id: docId } });
-      }
-    } catch (e) {
-      await enqueueOp({ table: "knowledge_documents", op: "delete", match: { id: docId } });
-    }
-  } else {
-    await enqueueOp({ table: "knowledge_documents", op: "delete", match: { id: docId } });
-  }
 
   return true;
 }

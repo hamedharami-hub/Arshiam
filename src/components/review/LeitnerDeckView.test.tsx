@@ -3,6 +3,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { LeitnerDeckView } from "./LeitnerDeckView";
 import type { LeitnerCard } from "@/lib/leitnerTypes";
+import { reviewLeitnerCardWithRating } from "@/lib/leitnerService";
 
 vi.mock("@/hooks/useBilingual", () => ({
   useBilingual: () => ({ isEn: false }),
@@ -145,5 +146,28 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
       expect(screen.getByText("فراموش کردم (جعبه ۱)")).toBeDefined();
       expect(screen.getByText("بلدم (انتقال به جعبه بعدی)")).toBeDefined();
     });
+  });
+
+  it("prevents a second rating while the first save is still pending", async () => {
+    let resolveReview!: (card: LeitnerCard) => void;
+    vi.mocked(reviewLeitnerCardWithRating).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveReview = resolve;
+      }),
+    );
+
+    render(<LeitnerDeckView userId="user-test" />);
+    fireEvent.click(await screen.findByRole("button", { name: /شروع مرور/ }));
+    fireEvent.click(await screen.findByTestId("flip-card"));
+
+    const ratingButton = await screen.findByRole("button", { name: /فراموش کردم/ });
+    fireEvent.click(ratingButton);
+    fireEvent.click(ratingButton);
+
+    expect(reviewLeitnerCardWithRating).toHaveBeenCalledTimes(1);
+    expect((ratingButton as HTMLButtonElement).disabled).toBe(true);
+
+    resolveReview({ ...mockCards[0] });
+    await waitFor(() => expect((ratingButton as HTMLButtonElement).disabled).toBe(false));
   });
 });

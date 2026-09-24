@@ -20,10 +20,24 @@ import { KnowledgeDocumentReader } from "@/components/knowledge/KnowledgeDocumen
 import { KnowledgeDocumentEditorModal } from "@/components/knowledge/KnowledgeDocumentEditorModal";
 import { StudyTaskScheduleModal } from "@/components/knowledge/StudyTaskScheduleModal";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getPharmacyImportStatus, importPharmacyKnowledge, type PharmacyImportStatus } from "@/lib/pharmacyImportService";
 import { PHARMACY_ROOT_FOLDER_ID } from "@/lib/pharmacyConstants";
+
+type KnowledgeDeleteTarget =
+  | { type: "folder"; id: string; title: string }
+  | { type: "document"; id: string; title: string };
 
 export const KnowledgeBaseView: React.FC = () => {
   const { user } = useAuth();
@@ -90,6 +104,8 @@ export const KnowledgeBaseView: React.FC = () => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingDoc, setEditingDoc] = useState<KnowledgeDocument | null>(null);
   const [editorInitialFolderId, setEditorInitialFolderId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<KnowledgeDeleteTarget | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const userId = user?.id || "anonymous-kb-user";
 
@@ -222,16 +238,50 @@ export const KnowledgeBaseView: React.FC = () => {
     }
   };
 
-  const handleDeleteFolder = async (folderId: string) => {
+  const handleDeleteFolder = (folderId: string) => {
+    const folder = folders.find((item) => item.id === folderId);
+    if (folder) setDeleteTarget({ type: "folder", id: folderId, title: folder.name });
+  };
+
+  const handleDeleteDoc = (docId: string) => {
+    const doc = documents.find((item) => item.id === docId);
+    if (doc) setDeleteTarget({ type: "document", id: docId, title: doc.title });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget || isDeleting) return;
+    setIsDeleting(true);
     try {
-      await deleteKnowledgeFolder(userId, folderId);
-      setFolders((prev) => prev.filter((f) => f.id !== folderId && f.parent_id !== folderId));
-      setDocuments((prev) =>
-        prev.map((d) => (d.folder_id === folderId ? { ...d, folder_id: null } : d))
-      );
-      toast.success(isEn ? "Folder deleted" : "فولدر حذف شد");
+      if (deleteTarget.type === "folder") {
+        const folder = folders.find((item) => item.id === deleteTarget.id);
+        if (!folder || !(await deleteKnowledgeFolder(userId, deleteTarget.id))) {
+          throw new Error(isEn ? "Folder not found or could not be removed" : "فولدر پیدا نشد یا حذف آن تأیید نشد");
+        }
+        const destinationFolderId = folder.parent_id || null;
+        setFolders((prev) => prev
+          .filter((item) => item.id !== deleteTarget.id)
+          .map((item) => item.parent_id === deleteTarget.id
+            ? { ...item, parent_id: destinationFolderId }
+            : item));
+        setDocuments((prev) => prev.map((item) => item.folder_id === deleteTarget.id
+          ? { ...item, folder_id: destinationFolderId }
+          : item));
+        if (selectedFolderId === deleteTarget.id) setSelectedFolderId(destinationFolderId);
+        toast.success(isEn ? "Folder removed; documents and subfolders were kept" : "فولدر حذف شد؛ اسناد و زیرفولدرها حفظ شدند");
+      } else {
+        await deleteKnowledgeDocument(userId, deleteTarget.id);
+        setDocuments((prev) => prev.filter((item) => item.id !== deleteTarget.id));
+        if (selectedDocId === deleteTarget.id) {
+          const remaining = documents.filter((item) => item.id !== deleteTarget.id);
+          setSelectedDocId(remaining.length > 0 ? remaining[0].id : null);
+        }
+        toast.success(isEn ? "Document deleted" : "سند حذف شد");
+      }
+      setDeleteTarget(null);
     } catch (e: any) {
-      toast.error(e.message || "Error deleting folder");
+      toast.error(e.message || (isEn ? "Could not complete deletion" : "حذف انجام نشد"));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -266,20 +316,6 @@ export const KnowledgeBaseView: React.FC = () => {
       setDocuments((prev) => [created, ...prev]);
       setSelectedDocId(created.id);
       toast.success(isEn ? "Document added" : "سند جدید اضافه شد");
-    }
-  };
-
-  const handleDeleteDoc = async (docId: string) => {
-    try {
-      await deleteKnowledgeDocument(userId, docId);
-      setDocuments((prev) => prev.filter((d) => d.id !== docId));
-      if (selectedDocId === docId) {
-        const remaining = documents.filter((d) => d.id !== docId);
-        setSelectedDocId(remaining.length > 0 ? remaining[0].id : null);
-      }
-      toast.success(isEn ? "Document deleted" : "سند حذف شد");
-    } catch (e: any) {
-      toast.error(e.message || "Error deleting document");
     }
   };
 
@@ -437,6 +473,47 @@ export const KnowledgeBaseView: React.FC = () => {
           />
         </div>
       </div>
+
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent dir={isEn ? "ltr" : "rtl"}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deleteTarget?.type === "folder"
+                ? isEn ? `Remove folder “${deleteTarget.title}”?` : `حذف فولدر «${deleteTarget.title}»؟`
+                : isEn ? `Delete document “${deleteTarget?.title || ""}”?` : `حذف سند «${deleteTarget?.title || ""}»؟`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.type === "folder"
+                ? isEn
+                  ? "Its documents and direct subfolders will be moved to the parent folder (or root). Their contents will not be deleted."
+                  : "اسناد و زیرفولدرهای مستقیم به فولدر والد (یا ریشه) منتقل می‌شوند؛ محتوایشان حذف نمی‌شود."
+                : isEn
+                  ? "This document will be removed from your knowledge base."
+                  : "این سند از پایگاه دانش شما حذف می‌شود."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>
+              {isEn ? "Cancel" : "انصراف"}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmDelete();
+              }}
+            >
+              {isDeleting ? (isEn ? "Working…" : "در حال انجام…") : (isEn ? "Confirm" : "تأیید")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Document Create/Edit Modal */}
       <KnowledgeDocumentEditorModal

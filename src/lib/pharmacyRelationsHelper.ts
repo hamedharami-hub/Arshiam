@@ -1,9 +1,25 @@
 import type { KnowledgeDocument } from "./knowledgeTypes";
+import {
+  PHARMACY_CLINICAL_ENTITIES,
+  PHARMACY_CLINICAL_RELATIONS,
+} from "./pharmacyClinicalGraph.generated";
 
 export type ClinicalEntityType = "product" | "disease" | "scenario" | "pharmacology" | "regulation" | "general";
+export type SourceRelationConfidence = "verified" | "suggested";
+
+export interface SourceRelationDetail {
+  id: string;
+  type: string;
+  confidence: SourceRelationConfidence;
+  source: string;
+  reason?: string;
+  direction: "outgoing" | "incoming";
+}
 
 export interface ConnectedEntity {
   id: string;
+  /** Present only when this related item can open an available knowledge document. */
+  documentId?: string;
   title: string;
   titleEn?: string;
   categoryFa?: string;
@@ -13,6 +29,7 @@ export interface ConnectedEntity {
   badgeEn: string;
   colorClass: string;
   subtitle?: string;
+  sourceRelations?: SourceRelationDetail[];
 }
 
 export interface DocumentRelationsGroup {
@@ -53,6 +70,7 @@ export function getClinicalEntityType(
   if (
     folder.startsWith("folder-clinical-") ||
     id.startsWith("doc-disease-") ||
+    id.startsWith("doc-core-disease-") ||
     tags.includes("Clinical Atlas")
   ) {
     return "disease";
@@ -95,8 +113,7 @@ export function getClinicalEntityType(
 /**
  * Returns badge and color for each clinical entity type
  */
-function getEntityBadgeAndColor(doc: KnowledgeDocument, type: ConnectedEntity["type"]) {
-  const tags = doc.tags || [];
+function getEntityBadgeAndColor(tags: string[], type: ConnectedEntity["type"]) {
   const scheduleTag = tags.find((t) => t.startsWith("Schedule S") || t === "Unscheduled");
 
   switch (type) {
@@ -202,22 +219,67 @@ export function getConnectedClinicalEntities(
     }
   }
 
-  // 3. Convert IDs to ConnectedEntity objects
+  // 3. Merge HTML-derived links with the source repository's typed graph.
   const products: ConnectedEntity[] = [];
   const diseases: ConnectedEntity[] = [];
   const scenarios: ConnectedEntity[] = [];
   const pharmacology: ConnectedEntity[] = [];
   const regulations: ConnectedEntity[] = [];
+  const groups: Record<ClinicalEntityType, ConnectedEntity[]> = {
+    product: products,
+    disease: diseases,
+    scenario: scenarios,
+    pharmacology,
+    regulation: regulations,
+    general: diseases,
+  };
+  const entitiesById = new Map<string, ConnectedEntity>();
+
+  const addEntity = (entity: ConnectedEntity) => {
+    const existing = entitiesById.get(entity.id);
+    if (existing) {
+      if (existing.type !== entity.type) {
+        const previousGroup = groups[existing.type];
+        const previousIndex = previousGroup.indexOf(existing);
+        if (previousIndex >= 0) previousGroup.splice(previousIndex, 1);
+        existing.type = entity.type;
+        existing.badgeFa = entity.badgeFa;
+        existing.badgeEn = entity.badgeEn;
+        existing.colorClass = entity.colorClass;
+        groups[entity.type].push(existing);
+      }
+      const relations = new Map((existing.sourceRelations || []).map((item) => [item.id, item]));
+      for (const relation of entity.sourceRelations || []) relations.set(relation.id, relation);
+      if (relations.size) existing.sourceRelations = [...relations.values()];
+      if (!existing.subtitle && entity.subtitle) existing.subtitle = entity.subtitle;
+      if (!existing.documentId && entity.documentId) existing.documentId = entity.documentId;
+      return;
+    }
+    entitiesById.set(entity.id, entity);
+    groups[entity.type].push(entity);
+  };
+
+  const graphEntityByDocumentId = new Map(
+    PHARMACY_CLINICAL_ENTITIES.flatMap((entity) => entity.documentId ? [[entity.documentId, entity] as const] : []),
+  );
+  const graphEntityById = new Map(PHARMACY_CLINICAL_ENTITIES.map((entity) => [entity.id, entity]));
+
+  const getGraphEntityType = (type: string): ConnectedEntity["type"] => {
+    if (type === "product" || type === "medicine") return "product";
+    if (type === "disease") return "disease";
+    if (type === "triage-scenario") return "scenario";
+    return "pharmacology";
+  };
 
   for (const id of connectedIds) {
     const targetDoc = docMap.get(id);
     if (!targetDoc) continue;
 
     const entityType = getClinicalEntityType(targetDoc);
-    const { badgeFa, badgeEn, colorClass } = getEntityBadgeAndColor(targetDoc, entityType);
-
-    const entity: ConnectedEntity = {
+    const { badgeFa, badgeEn, colorClass } = getEntityBadgeAndColor(targetDoc.tags || [], entityType);
+    addEntity({
       id: targetDoc.id,
+      documentId: targetDoc.id,
       title: targetDoc.title,
       titleEn: targetDoc.title_en,
       type: entityType,
@@ -225,37 +287,47 @@ export function getConnectedClinicalEntities(
       badgeEn,
       colorClass,
       subtitle: targetDoc.tags?.slice(0, 2).join(" • "),
-    };
+    });
+  }
 
-    switch (entityType) {
-      case "product":
-        products.push(entity);
-        break;
-      case "disease":
-        diseases.push(entity);
-        break;
-      case "scenario":
-        scenarios.push(entity);
-        break;
-      case "pharmacology":
-        pharmacology.push(entity);
-        break;
-      case "regulation":
-        regulations.push(entity);
-        break;
-      default:
-        // Group general under pharmacology or diseases as fallback
-        diseases.push(entity);
-        break;
+  const currentGraphEntity = graphEntityByDocumentId.get(currentDoc.id);
+  if (currentGraphEntity) {
+    const sourceRelations = PHARMACY_CLINICAL_RELATIONS.filter(
+      (relation) => relation.fromId === currentGraphEntity.id || relation.toId === currentGraphEntity.id,
+    );
+    for (const relation of sourceRelations) {
+      const direction = relation.fromId === currentGraphEntity.id ? "outgoing" : "incoming";
+      const otherId = direction === "outgoing" ? relation.toId : relation.fromId;
+      const target = graphEntityById.get(otherId);
+      if (!target) continue;
+
+      const targetDoc = target.documentId ? docMap.get(target.documentId) : undefined;
+      const entityType = targetDoc ? getClinicalEntityType(targetDoc) : getGraphEntityType(target.type);
+      const { badgeFa, badgeEn, colorClass } = getEntityBadgeAndColor(targetDoc?.tags || [], entityType);
+      addEntity({
+        id: targetDoc?.id || `clinical:${target.id}`,
+        ...(targetDoc ? { documentId: targetDoc.id } : {}),
+        title: targetDoc?.title || target.title.fa,
+        titleEn: targetDoc?.title_en || target.title.en,
+        ...(!targetDoc && target.category ? { categoryEn: target.category } : {}),
+        type: entityType,
+        badgeFa: target.type === "medicine" ? "مادهٔ مؤثره" : badgeFa,
+        badgeEn: target.type === "medicine" ? "Active ingredient" : badgeEn,
+        colorClass,
+        subtitle: targetDoc?.tags?.slice(0, 2).join(" • ") || (!targetDoc ? target.category : undefined),
+        sourceRelations: [{
+          id: relation.id,
+          type: relation.type,
+          confidence: relation.confidence,
+          source: relation.source,
+          ...(relation.reason ? { reason: relation.reason } : {}),
+          direction,
+        }],
+      });
     }
   }
 
-  const totalCount =
-    products.length +
-    diseases.length +
-    scenarios.length +
-    pharmacology.length +
-    regulations.length;
+  const totalCount = entitiesById.size;
 
   return {
     products,

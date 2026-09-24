@@ -1,25 +1,42 @@
 import { callAI } from "@/lib/ai";
+import DOMPurify from "dompurify";
+
+const KNOWLEDGE_HTML_DATA_ATTRIBUTES = [
+  "data-doc-link",
+  "data-correct",
+  "data-rationale",
+  "data-pairs-total",
+  "data-pairs-count",
+  "data-pair-id",
+  "data-side",
+  "data-next-step",
+  "data-step",
+  "data-answer",
+  "data-target-node",
+  "data-node-id",
+  "data-current-node",
+  "data-card-id",
+  "data-type",
+  "data-checked",
+] as const;
 
 /**
- * Zero-dependency, secure HTML sanitizer for educational and clinical documents.
- * Strips dangerous executable tags, event handlers, and javascript: links,
- * while preserving formatting, callouts, tables, accordions, and images.
+ * Sanitizes untrusted educational HTML while preserving the app's delegated
+ * document links, interactive-learning data attributes, and Markdown task lists.
  */
 export function sanitizeKnowledgeHtml(rawHtml: string): string {
   if (!rawHtml) return "";
 
-  return rawHtml
-    // Remove script tags and content
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-    // Remove style tags that could corrupt global theme styles
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
-    // Remove inline event handlers (onload, onerror, onclick, etc.)
-    .replace(/\son[a-z]+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, "")
-    // Remove javascript: pseudo-protocol
-    .replace(/href\s*=\s*(?:'javascript:[^']*'|"javascript:[^"]*"|javascript:[^\s>]+)/gi, 'href="#"')
-    .replace(/src\s*=\s*(?:'javascript:[^']*'|"javascript:[^"]*"|javascript:[^\s>]+)/gi, 'src=""')
-    // Remove dangerous embedding tags
-    .replace(/<(applet|object|embed)\b[^>]*>.*?<\/\1>/gi, "");
+  return DOMPurify.sanitize(rawHtml, {
+    // Knowledge content is HTML only; SVG and MathML are unnecessary here.
+    USE_PROFILES: { html: true },
+    // Keep only the explicit inert data attributes used by delegated listeners.
+    ALLOW_DATA_ATTR: false,
+    ADD_ATTR: [...KNOWLEDGE_HTML_DATA_ATTRIBUTES],
+    // Styling comes from app classes; imported inline CSS and forms are not needed.
+    FORBID_TAGS: ["style", "iframe", "form"],
+    FORBID_ATTR: ["style"],
+  });
 }
 
 /**

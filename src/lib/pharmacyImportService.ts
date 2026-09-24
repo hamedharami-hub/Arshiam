@@ -83,14 +83,19 @@ export function comparePharmacySeed(seed: SeedData, remote: Snapshot): PharmacyI
 
 function matchesUneditedLegacy(
   current: KnowledgeDocument,
-  legacy: LegacySeedData["PHARMACY_SEED_DOCUMENTS"][number],
+  legacy: LegacySeedData["PHARMACY_SEED_DOCUMENTS"][number] & {
+    source_url?: string;
+    content_review_status?: KnowledgeDocument["content_review_status"];
+  },
 ): boolean {
   return current.title === legacy.title &&
     current.title_en === legacy.title_en &&
     current.folder_id === legacy.folder_id &&
     current.content_html === legacy.content_html &&
     current.content_en === legacy.content_en &&
-    JSON.stringify(current.tags || []) === JSON.stringify(legacy.tags || []);
+    JSON.stringify(current.tags || []) === JSON.stringify(legacy.tags || []) &&
+    (current.source_url || undefined) === (legacy.source_url || undefined) &&
+    current.content_review_status === legacy.content_review_status;
 }
 
 function getUpgradeableDocuments(seed: SeedData, legacy: LegacySeedData, remote: Snapshot): KnowledgeDocument[] {
@@ -100,7 +105,10 @@ function getUpgradeableDocuments(seed: SeedData, legacy: LegacySeedData, remote:
     const old = oldById.get(doc.id);
     const next = newById.get(doc.id);
     return old && next && matchesUneditedLegacy(doc, old) &&
-      (doc.content_html !== next.content_html || doc.content_en !== next.content_en || doc.folder_id !== next.folder_id);
+      (doc.content_html !== next.content_html || doc.content_en !== next.content_en ||
+        doc.folder_id !== next.folder_id || doc.title !== next.title || doc.title_en !== next.title_en ||
+        JSON.stringify(doc.tags || []) !== JSON.stringify(next.tags || []) || doc.source_url !== next.source_url ||
+        doc.content_review_status !== next.content_review_status);
   });
 }
 
@@ -229,6 +237,7 @@ export async function importPharmacyKnowledge(
       plain_text: plainText(next),
       tags: next.tags,
       source_url: next.source_url,
+      content_review_status: next.content_review_status,
       updated_at: now,
     };
   });

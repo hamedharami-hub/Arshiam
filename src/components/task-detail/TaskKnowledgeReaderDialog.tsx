@@ -2,6 +2,7 @@ import React from "react";
 import { BookOpen, X, ExternalLink } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
 import type { KnowledgeDocument } from "@/lib/knowledgeTypes";
+import { sanitizeKnowledgeHtml } from "@/lib/knowledgeBeautifier";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface TaskKnowledgeReaderDialogProps {
@@ -32,7 +33,7 @@ export const TaskKnowledgeReaderDialog: React.FC<TaskKnowledgeReaderDialogProps>
         <div className="flex-1 overflow-y-auto p-4 md:p-6 text-xs text-foreground select-text leading-relaxed">
           <div
             className="knowledge-html-content"
-            dangerouslySetInnerHTML={{ __html: document.content_html }}
+            dangerouslySetInnerHTML={{ __html: sanitizeKnowledgeHtml(document.content_html) }}
           />
         </div>
 
