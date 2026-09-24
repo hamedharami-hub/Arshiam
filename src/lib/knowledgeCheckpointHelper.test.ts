@@ -193,4 +193,57 @@ describe("knowledgeCheckpointHelper", () => {
       matchedTitleWords: [],
     });
   });
+
+  it("does not treat repeated title headings as specific subject overlap", () => {
+    const current: KnowledgeDocument = {
+      ...sampleOtcDoc,
+      title: "Clinical Triage: C4",
+      tags: ["Clinical Triage"],
+    };
+    const sameHeadingDocs = Array.from({ length: 4 }, (_, index) => ({
+      ...unrelatedDoc,
+      id: `doc-heading-${index}`,
+      folder_id: `folder-${index}`,
+      title: `Clinical Triage Case ${index}`,
+      tags: ["Clinical Triage"],
+    }));
+
+    const suggestions = getRelatedDocumentSuggestions(
+      current,
+      [current, ...sameHeadingDocs],
+      1
+    );
+
+    expect(suggestions[0]).toEqual({
+      document: sameHeadingDocs[0],
+      match: "shared-category",
+      matchedTags: ["Clinical Triage"],
+      matchedTitleWords: [],
+    });
+  });
+
+  it("matches exact, specific title words instead of substrings", () => {
+    const current = { ...sampleOtcDoc, title: "Pain relief plan", tags: [] };
+    const matching = { ...unrelatedDoc, title: "Pain relief options", tags: [] };
+    const substringOnly = {
+      ...unrelatedDoc,
+      id: "doc-painting",
+      title: "Painting overview",
+      tags: [],
+    };
+
+    const suggestions = getRelatedDocumentSuggestions(
+      current,
+      [current, matching, substringOnly],
+      2
+    );
+
+    expect(suggestions[0]).toEqual({
+      document: matching,
+      match: "title-overlap",
+      matchedTags: [],
+      matchedTitleWords: ["pain", "relief"],
+    });
+    expect(suggestions).toHaveLength(1);
+  });
 });

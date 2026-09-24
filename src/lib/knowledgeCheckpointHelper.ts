@@ -193,6 +193,49 @@ export type RelatedDocumentSuggestion = {
   matchedTitleWords: string[];
 };
 
+const TITLE_STOP_WORDS = new Set([
+  "and",
+  "the",
+  "for",
+  "of",
+  "to",
+  "in",
+  "on",
+  "with",
+  "a",
+  "an",
+  "or",
+  "from",
+  "as",
+  "برای",
+  "های",
+  "را",
+  "در",
+  "از",
+  "با",
+  "که",
+  "این",
+  "آن",
+  "یک",
+  "به",
+  "تا",
+  "می",
+  "شده",
+  "است",
+]);
+
+function getTitleWords(title: string): string[] {
+  return Array.from(
+    new Set(
+      title
+        .normalize("NFKC")
+        .toLowerCase()
+        .split(/[^\p{L}\p{N}]+/u)
+        .filter((word) => word.length > 2 && !TITLE_STOP_WORDS.has(word))
+    )
+  );
+}
+
 /**
  * Suggests documents using explicit, displayable matching reasons. A shared
  * folder is a useful navigation fallback, but must not be presented as a
@@ -213,10 +256,18 @@ export function getRelatedDocumentSuggestions(
     }
   }
   const commonTagThreshold = Math.max(3, Math.ceil(allDocs.length * 0.05));
-  const currentTitleWords = (currentDoc.title || "")
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((w) => w.length > 2);
+  const titleWordDocumentCounts = new Map<string, number>();
+  const titleWordsByDocument = new Map<string, Set<string>>();
+  for (const doc of allDocs) {
+    const words = new Set(getTitleWords(doc.title || ""));
+    titleWordsByDocument.set(doc.id, words);
+    for (const word of words) {
+      titleWordDocumentCounts.set(word, (titleWordDocumentCounts.get(word) || 0) + 1);
+    }
+  }
+  const currentTitleWords = Array.from(titleWordsByDocument.get(currentDoc.id) || []).filter(
+    (word) => (titleWordDocumentCounts.get(word) || 0) <= commonTagThreshold
+  );
 
   const scoredDocs = allDocs
     .filter((d) => d.id !== currentDoc.id)
@@ -228,10 +279,10 @@ export function getRelatedDocumentSuggestions(
         (tag) => (tagDocumentCounts.get(tag.toLowerCase()) || 0) <= commonTagThreshold
       ).length;
       const commonTagCount = matchedTags.length - specificTagCount;
-      const docTitle = (doc.title || "").toLowerCase();
+      const docTitleWords = titleWordsByDocument.get(doc.id) || new Set<string>();
       const matchedTitleWords: string[] = [];
       for (const w of currentTitleWords) {
-        if (docTitle.includes(w)) {
+        if (docTitleWords.has(w)) {
           matchedTitleWords.push(w);
         }
       }
