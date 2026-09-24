@@ -96,8 +96,8 @@ export async function saveEntityToFirestore(
           const remoteTime = new Date(remoteUpdatedAt).getTime();
           const localTime = new Date(localUpdatedAt).getTime();
           if (remoteTime > localTime) {
-            console.info(`[FirestoreSync] Remote document is newer than local cache for ${collectionName}/${docId}. Skipping overwrite.`);
-            return true;
+            console.info(`[FirestoreSync] Remote document is newer than local data for ${collectionName}/${docId}. Rejecting stale write.`);
+            return false;
           }
         }
       }

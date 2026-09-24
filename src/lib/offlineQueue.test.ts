@@ -1,6 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { canReplayForOwner, clearQueue, enqueueOp, flushQueue, getQueue, type QueuedOp } from "./offlineQueue";
 import * as offlineDb from "./offlineDb";
+import { firebaseStore } from "./firebaseStore";
+
+vi.mock("@/lib/firebaseStore", () => ({
+  firebaseStore: {
+    from: vi.fn(() => ({
+      insert: vi.fn(),
+      upsert: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    })),
+  },
+}));
 
 vi.mock("@/lib/firebase", () => ({ auth: { currentUser: { uid: "account-a" } } }));
 vi.mock("@/lib/firestoreSync", () => ({
@@ -92,5 +104,25 @@ describe("offline outbox persistence", () => {
     expect(await flushQueue()).toEqual({ ok: 1, failed: 0 });
     expect(await getQueue()).toHaveLength(0);
     expect(indexedDb.delete).not.toHaveBeenCalled();
+  });
+
+  it("keeps Firestore conflicts queued instead of retrying through the legacy adapter", async () => {
+    const { saveEntityToFirestore } = await import("./firestoreSync");
+    vi.mocked(saveEntityToFirestore).mockResolvedValue(false);
+    const accepted = await enqueueOp({
+      ownerId: "account-a",
+      table: "knowledge_documents",
+      op: "update",
+      payload: { id: "doc-conflict", user_id: "account-a", updated_at: "2026-01-01T00:00:00.000Z" },
+      match: { id: "doc-conflict" },
+    });
+    expect(accepted).toBe(true);
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+
+    expect(await flushQueue()).toEqual({ ok: 0, failed: 1 });
+    expect(await getQueue()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ table: "knowledge_documents", match: { id: "doc-conflict" } }),
+    ]));
+    expect(firebaseStore.from).not.toHaveBeenCalled();
   });
 });

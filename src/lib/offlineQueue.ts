@@ -233,11 +233,11 @@ async function replayItem(item: QueuedOp, userId: string): Promise<boolean> {
     console.warn("[offlineQueue] Firestore replay warning:", error);
   }
 
-  // For supported entities, the direct Firestore path is authoritative. The legacy
-  // mirror is used only if the direct path was not attempted or failed.
-  if (firestoreSucceeded) return true;
-  if (firestoreAttempted || !firestoreSucceeded) return replayWithLegacyStore(item);
-  return false;
+  // For supported entities, the direct Firestore path is authoritative. Never
+  // bypass a failed write (including a stale-write conflict) via the legacy
+  // adapter: it targets the same Firestore documents without conflict checks.
+  if (firestoreAttempted) return firestoreSucceeded;
+  return replayWithLegacyStore(item);
 }
 
 let syncing = false;
