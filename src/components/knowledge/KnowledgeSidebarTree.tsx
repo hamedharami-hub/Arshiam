@@ -263,6 +263,7 @@ interface KnowledgeSidebarTreeProps {
   onToggleCollapse?: () => void;
   onImportPharmacy?: (force?: boolean) => Promise<void>;
   isPharmacyImported?: boolean;
+  pharmacyImportStatus?: import("@/lib/pharmacyImportService").PharmacyImportStatus | null;
   isImportingPharmacy?: boolean;
 }
 
@@ -300,6 +301,7 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
   onToggleCollapse,
   onImportPharmacy,
   isPharmacyImported = true,
+  pharmacyImportStatus = null,
   isImportingPharmacy = false,
 }) => {
   const { isEn } = useBilingual();
@@ -481,7 +483,7 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="text-xs">
                   <DropdownMenuItem
-                    onClick={() => onImportPharmacy(isPharmacyImported)}
+                    onClick={() => onImportPharmacy(false)}
                     disabled={isImportingPharmacy}
                     className="cursor-pointer gap-2"
                   >
@@ -493,11 +495,11 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
                     <span>
                       {isPharmacyImported
                         ? isEn
-                          ? "Re-sync Pharmacy Encyclopedia (330 lessons & 35 cards)"
-                          : "تازه‌سازی دایره‌المعارف دارویی (۳۳۰ درس و ۳۵ کارت)"
+                          ? "Verify and add missing pharmacy content"
+                          : "بررسی و افزودن مطالب داروییِ جاافتاده"
                         : isEn
-                        ? "Import Pharmacy Encyclopedia (330 lessons & 35 cards)"
-                        : "واردسازی دایره‌المعارف دارویی (۳۳۰ درس و ۳۵ کارت)"}
+                        ? "Import missing pharmacy content"
+                        : "افزودن مطالب داروییِ جاافتاده"}
                     </span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -557,6 +559,7 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
         {/* Pharmacy Quick Import Banner */}
         <PharmacyImportBanner
           isPharmacyImported={isPharmacyImported}
+          status={pharmacyImportStatus}
           isImportingPharmacy={isImportingPharmacy}
           onImportPharmacy={onImportPharmacy}
           isEn={isEn}

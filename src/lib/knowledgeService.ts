@@ -415,7 +415,9 @@ export async function searchKnowledgeDocuments(
   return docs.filter((d) => {
     return (
       d.title.toLowerCase().includes(q) ||
+      (d.title_en && d.title_en.toLowerCase().includes(q)) ||
       (d.plain_text && d.plain_text.toLowerCase().includes(q)) ||
+      (d.content_en && stripHtmlToPlainText(d.content_en).toLowerCase().includes(q)) ||
       (d.tags && d.tags.some((t) => t.toLowerCase().includes(q)))
     );
   });

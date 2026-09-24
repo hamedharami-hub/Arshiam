@@ -110,6 +110,13 @@ describe("knowledgeService", () => {
     const tagResults = await searchKnowledgeDocuments(userId, "Benzodiazepine");
     expect(tagResults.length).toBe(1);
     expect(tagResults[0].title).toBe("دیازپام (Diazepam)");
+
+    // Older imports indexed Persian in plain_text but not the English body.
+    await updateKnowledgeDocument(userId, tagResults[0].id, {
+      content_en: "<p>Enteral administration reference</p>",
+    });
+    const englishResults = await searchKnowledgeDocuments(userId, "Enteral administration");
+    expect(englishResults.map((item) => item.id)).toContain(tagResults[0].id);
   });
 
   it("4. builds folder tree with document counts", async () => {

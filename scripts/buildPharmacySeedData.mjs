@@ -1,9 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import ts from 'typescript';
+import { fileURLToPath } from 'url';
 
-const pharmacyDir = 'C:/Users/hamed/.gemini/antigravity/scratch/pharmacy';
-const targetDir = 'C:/Users/hamed/.gemini/antigravity/scratch/Arshiam/src/lib';
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const pharmacyDir = process.env.PHARMACY_SOURCE_DIR || path.resolve(scriptDir, '../../pharmacy');
+const targetDir = path.resolve(scriptDir, '../src/lib');
 
 function extractExports(filePath) {
   const rawCode = fs.readFileSync(filePath, 'utf8')
@@ -594,5 +596,5 @@ export const PHARMACY_SEED_DOCUMENTS: PharmacyDocSeed[] = ${JSON.stringify(docum
 export const PHARMACY_SEED_CARDS: PharmacyCardSeed[] = ${JSON.stringify(cards, null, 2)};
 `;
 
-fs.writeFileSync(path.join(targetDir, 'pharmacySeedData.ts'), fileContent, 'utf8');
-console.log('Successfully written src/lib/pharmacySeedData.ts');
+fs.writeFileSync(path.join(targetDir, 'pharmacyLegacySeedData.ts'), fileContent, 'utf8');
+console.log('Successfully written src/lib/pharmacyLegacySeedData.ts');

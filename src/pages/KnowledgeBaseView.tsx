@@ -22,7 +22,8 @@ import { StudyTaskScheduleModal } from "@/components/knowledge/StudyTaskSchedule
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { isPharmacyImported, importPharmacyKnowledge } from "@/lib/pharmacyImportService";
+import { getPharmacyImportStatus, importPharmacyKnowledge, type PharmacyImportStatus } from "@/lib/pharmacyImportService";
+import { PHARMACY_ROOT_FOLDER_ID } from "@/lib/pharmacyConstants";
 
 export const KnowledgeBaseView: React.FC = () => {
   const { user } = useAuth();
@@ -38,6 +39,7 @@ export const KnowledgeBaseView: React.FC = () => {
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [hasPharmacy, setHasPharmacy] = useState<boolean>(true);
+  const [pharmacyImportStatus, setPharmacyImportStatus] = useState<PharmacyImportStatus | null>(null);
   const [isImportingPharmacy, setIsImportingPharmacy] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -93,41 +95,49 @@ export const KnowledgeBaseView: React.FC = () => {
 
   const loadData = useCallback(async () => {
     try {
-      const [fList, dList, imported] = await Promise.all([
+      const [fList, dList] = await Promise.all([
         getKnowledgeFolders(userId),
         getKnowledgeDocuments(userId),
-        isPharmacyImported(userId),
       ]);
 
       setFolders(fList);
       setDocuments(dList);
-      setHasPharmacy(imported);
       setSelectedDocId((prev) => prev || (dList.length > 0 ? dList[0].id : null));
+      try {
+        const status = await getPharmacyImportStatus(userId);
+        setPharmacyImportStatus(status);
+        setHasPharmacy(
+          status.foldersMissing === 0 && status.docsMissing === 0 && status.docsUpgradeable === 0 && status.cardsMissing === 0,
+        );
+      } catch (statusError) {
+        // Knowledge documents must remain usable when import status cannot be verified.
+        console.warn("Could not verify pharmacy import status", statusError);
+      }
     } catch (e) {
       console.error("Error loading knowledge base data", e);
     }
   }, [userId]);
 
-  const handleImportPharmacy = useCallback(async (force = false) => {
+  const handleImportPharmacy = useCallback(async (_force = false) => {
     setIsImportingPharmacy(true);
     const toastId = toast.loading(
       isEn
-        ? "Importing Pharmacy Encyclopedia (330 clinical lessons & 35 cards)..."
-        : "در حال بارگذاری دایره‌المعارف دارویی (۳۳۰ درس و سند بالینی و ۳۵ کارت لایتنر)..."
+        ? "Adding missing pharmacy knowledge without replacing existing work..."
+        : "در حال افزودن مطالب داروییِ جاافتاده، بدون بازنویسی اطلاعات قبلی..."
     );
     try {
-      const result = await importPharmacyKnowledge(userId, { force, importCards: true });
+      const result = await importPharmacyKnowledge(userId, { importCards: true });
       await loadData();
-      setHasPharmacy(true);
-      setSelectedFolderId("pharmacy-root");
+      setSelectedFolderId(PHARMACY_ROOT_FOLDER_ID);
       toast.success(
         isEn
-          ? `Imported ${result.docsCount} lessons and ${result.cardsCount} flashcards!`
-          : `بسته دارویی با موفقیت وارد شد (${result.docsCount} درس و ${result.cardsCount} کارت لایتنر)`,
+          ? `Verified: ${result.docsCount} new lessons, ${result.docsUpdated} safely refreshed lessons and ${result.cardsCount} new cards.`
+          : `${result.docsCount} سند جدید، ${result.docsUpdated} سند قدیمیِ بدون ویرایش و ${result.cardsCount} کارت جدید تأیید شد.`,
         { id: toastId }
       );
     } catch (err: any) {
       console.error("Pharmacy import failed:", err);
+      await loadData();
       toast.error(
         err.message || (isEn ? "Failed to import pharmacy knowledge" : "خطا در بارگذاری دایره‌المعارف دارویی"),
         { id: toastId }
@@ -273,6 +283,13 @@ export const KnowledgeBaseView: React.FC = () => {
     }
   };
 
+  // Include the English body even for older imports whose plain_text only indexed Persian.
+  const searchTextById = useMemo(() => new Map(documents.map((doc) => [
+    doc.id,
+    `${doc.title} ${doc.title_en || ""} ${doc.plain_text || ""} ${doc.content_en || ""}`
+      .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").toLowerCase(),
+  ])), [documents]);
+
   // Search & Tag filter
   const filteredDocuments = useMemo(() => {
     let docs = documents;
@@ -286,14 +303,9 @@ export const KnowledgeBaseView: React.FC = () => {
     }
     if (!debouncedSearch.trim()) return docs;
     const q = debouncedSearch.toLowerCase();
-    return docs.filter(
-      (d) =>
-        d.title.toLowerCase().includes(q) ||
-        (d.title_en && d.title_en.toLowerCase().includes(q)) ||
-        (d.plain_text && d.plain_text.toLowerCase().includes(q)) ||
-        (d.tags && d.tags.some((t) => t.toLowerCase().includes(q)))
-    );
-  }, [documents, selectedTag, debouncedSearch]);
+    return docs.filter((d) => searchTextById.get(d.id)?.includes(q) ||
+      d.tags?.some((tag) => tag.toLowerCase().includes(q)));
+  }, [documents, selectedTag, debouncedSearch, searchTextById]);
 
 
   return (
@@ -353,6 +365,7 @@ export const KnowledgeBaseView: React.FC = () => {
             onToggleCollapse={toggleSidebar}
             onImportPharmacy={handleImportPharmacy}
             isPharmacyImported={hasPharmacy}
+            pharmacyImportStatus={pharmacyImportStatus}
             isImportingPharmacy={isImportingPharmacy}
           />
         </div>
@@ -395,6 +408,7 @@ export const KnowledgeBaseView: React.FC = () => {
               onSelectTag={setSelectedTag}
               onImportPharmacy={handleImportPharmacy}
               isPharmacyImported={hasPharmacy}
+              pharmacyImportStatus={pharmacyImportStatus}
               isImportingPharmacy={isImportingPharmacy}
             />
           </SheetContent>

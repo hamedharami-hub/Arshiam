@@ -58,6 +58,17 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
     expect(screen.getByText("داروی ضد افسردگی SSRI")).toBeInTheDocument();
   });
 
+  it("warns when a legacy Persian view still contains mostly English body text", () => {
+    const mixedDoc: KnowledgeDocument = {
+      ...dummyDoc,
+      preferred_language: "fa",
+      content_html: "<h3>علائم بالینی</h3><p>Dry, itchy and inflamed skin with persistent symptoms that require professional assessment.</p>",
+      content_en: "<p>Dry, itchy and inflamed skin with persistent symptoms that require professional assessment.</p>",
+    };
+    render(<KnowledgeDocumentReader document={mixedDoc} folder={dummyFolder} onEdit={() => {}} onDelete={() => {}} />);
+    expect(screen.getByRole("status")).toBeInTheDocument();
+  });
+
   it("3. switches between Reader Mode and Original HTML mode", () => {
     render(
       <KnowledgeDocumentReader

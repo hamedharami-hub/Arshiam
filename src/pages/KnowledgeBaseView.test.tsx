@@ -23,6 +23,14 @@ vi.mock("@/hooks/use-mobile", () => ({
   useIsMobile: () => false,
 }));
 
+vi.mock("@/lib/pharmacyImportService", () => ({
+  getPharmacyImportStatus: vi.fn().mockResolvedValue({
+    foldersTotal: 34, docsTotal: 362, cardsTotal: 35,
+    foldersMissing: 0, docsMissing: 0, docsUpgradeable: 0, cardsMissing: 0, legacyDetected: false,
+  }),
+  importPharmacyKnowledge: vi.fn(),
+}));
+
 vi.mock("sonner", () => ({
   toast: {
     success: vi.fn(),

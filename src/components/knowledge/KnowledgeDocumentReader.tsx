@@ -231,6 +231,14 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
     return sanitizeKnowledgeHtml(document.content_html);
   }, [document?.content_html]);
 
+  const persianBodyIncomplete = React.useMemo(() => {
+    if (!document?.content_html || !document.content_en) return false;
+    const text = document.content_html.replace(/<[^>]+>/g, " ");
+    const persianCharacters = (text.match(/[\u0600-\u06ff]/g) || []).length;
+    const latinCharacters = (text.match(/[a-z]/gi) || []).length;
+    return persianCharacters > 0 && persianCharacters < 200 && latinCharacters > persianCharacters * 2;
+  }, [document?.content_html, document?.content_en]);
+
   const safeHtmlEn = React.useMemo(() => {
     if (!document?.content_en) return "";
     return sanitizeKnowledgeHtml(document.content_en);
@@ -342,8 +350,8 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
             </div>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
               {isEn
-                ? "Instant access to 97 clinical guides, drug monographs, CYP interactions, triage cases, and 17 Leitner cards."
-                : "دسترسی فوری به ۹۷ درس بالینی، راهنمای تریاژ بیماری‌های OTC، تداخلات آنزیمی CYP و ۱۷ فلش‌کارت لایتنر."}
+                ? "Add the missing pharmacy reference documents and study cards without replacing your work."
+                : "اسناد و کارت‌های داروییِ جاافتاده را بدون بازنویسی کارهای فعلی اضافه کن."}
             </p>
             <button
               type="button"
@@ -693,6 +701,14 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                 )}
               </div>
             </div>
+
+            {persianBodyIncomplete && docLangMode !== "en" && (
+              <div role="status" className="mb-5 rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-foreground">
+                {isEn
+                  ? "This older document has Persian headings but much of its body is still English. Its Persian translation is incomplete."
+                  : "ترجمهٔ فارسی این سند قدیمی کامل نیست؛ بعضی بخش‌ها با وجود تیتر فارسی هنوز انگلیسی‌اند."}
+              </div>
+            )}
 
             {/* TAB 1: PERSIAN ONLY VIEW (RTL) */}
             {docLangMode === "fa" && (

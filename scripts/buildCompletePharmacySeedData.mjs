@@ -1,14 +1,17 @@
 import fs from 'fs';
 import path from 'path';
 import ts from 'typescript';
+import { fileURLToPath } from 'url';
+import { execFileSync } from 'child_process';
 
-const pharmacyDir = 'C:/Users/hamed/.gemini/antigravity/scratch/pharmacy';
-const targetDir = 'C:/Users/hamed/.gemini/antigravity/scratch/Arshiam/src/lib';
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const pharmacyDir = process.env.PHARMACY_SOURCE_DIR || path.resolve(scriptDir, '../../pharmacy');
+const targetDir = path.resolve(scriptDir, '../src/lib');
+const sourceCommit = execFileSync('git', ['-C', pharmacyDir, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 
 function extractExports(filePath) {
   if (!fs.existsSync(filePath)) {
-    console.warn(`File not found: ${filePath}`);
-    return {};
+    throw new Error(`Required source file not found: ${filePath}`);
   }
   const rawCode = fs.readFileSync(filePath, 'utf8').replace(/import\s+[^;]+;/g, '');
   const transpiled = ts.transpileModule(rawCode, {
@@ -17,6 +20,28 @@ function extractExports(filePath) {
   const moduleObj = { exports: {} };
   new Function('module', 'exports', transpiled)(moduleObj, moduleObj.exports);
   return moduleObj.exports;
+}
+
+// Some source collections are intentionally module-private. Read only their
+// literal initializer instead of evaluating imports or silently dropping them.
+function extractLiteralArray(filePath, variableName) {
+  if (!fs.existsSync(filePath)) throw new Error(`Required source file not found: ${filePath}`);
+  const source = ts.createSourceFile(filePath, fs.readFileSync(filePath, 'utf8'), ts.ScriptTarget.Latest, true);
+  for (const statement of source.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (declaration.name.getText(source) !== variableName || !declaration.initializer) continue;
+      const expression = declaration.initializer.getText(source);
+      const js = ts.transpileModule(`module.exports = ${expression};`, {
+        compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
+      }).outputText;
+      const moduleObj = { exports: null };
+      new Function('module', js)(moduleObj);
+      if (!Array.isArray(moduleObj.exports)) throw new Error(`${variableName} must be an array`);
+      return moduleObj.exports;
+    }
+  }
+  throw new Error(`Required source collection not found: ${variableName} in ${filePath}`);
 }
 
 console.log('--- Loading Complete Pharmacy Source Data ---');
@@ -66,10 +91,19 @@ const { ADMIN_SCENARIOS } = extractExports(path.join(pharmacyDir, 'data/scenario
 const { REALISTIC_SCRIPTS_DATABASE } = extractExports(path.join(pharmacyDir, 'data/realisticScriptsData.ts'));
 const { AUSTRALIAN_SCRIPT_TYPES_DATA } = extractExports(path.join(pharmacyDir, 'data/scriptTypesData.ts'));
 
-// 12. Sample Leitner Cards (35 curated flashcards)
+// 12. Source-provided sample Leitner cards (plus disease cards below)
 const { INITIAL_SAMPLE_LEITNER_CARDS } = extractExports(path.join(pharmacyDir, 'lib/sample-leitner-cards.ts'));
 
-console.log('--- Defining 29 Folders with Deep Hierarchical Taxonomy ---');
+// Authored source collections omitted by the original 330-document conversion.
+const CORE_CLINICAL_DISEASES = extractLiteralArray(path.join(pharmacyDir, 'data/diseasesRegistry.ts'), 'CORE_CLINICAL_DISEASES');
+const { CLINICAL_DOMAINS } = extractExports(path.join(pharmacyDir, 'data/shelf/clinicalDomains.ts'));
+const { STUDY_TRACKS_DATABASE } = extractExports(path.join(pharmacyDir, 'data/studyTracksData.ts'));
+const { SAMPLE_QUIZ_QUESTIONS } = extractExports(path.join(pharmacyDir, 'lib/pharmacy-data.ts'));
+for (const [label, rows] of Object.entries({ CORE_CLINICAL_DISEASES, CLINICAL_DOMAINS, STUDY_TRACKS_DATABASE, SAMPLE_QUIZ_QUESTIONS })) {
+  if (!Array.isArray(rows) || rows.length === 0) throw new Error(`Required source collection is empty: ${label}`);
+}
+
+console.log('--- Defining pharmacy folders with deep hierarchical taxonomy ---');
 
 const PHARMACY_ROOT_FOLDER_ID = 'folder-pharmacy-root';
 
@@ -326,6 +360,46 @@ const PHARMACY_FOLDERS = [
     color: '#075985',
     parent_id: 'folder-pharmacy-cat-academic-modules',
     position: 29
+  },
+  {
+    id: 'folder-clinical-core',
+    name: 'بیماری‌های اصلی و مزمن (Core Clinical Conditions)',
+    icon: 'HeartPulse',
+    color: '#0d9488',
+    parent_id: 'folder-pharmacy-cat-clinical-atlas',
+    position: 30
+  },
+  {
+    id: 'folder-mono-domains',
+    name: 'حوزه‌های بالینی و راهنمای قفسه (Clinical Domains)',
+    icon: 'Library',
+    color: '#d97706',
+    parent_id: 'folder-pharmacy-cat-monographs',
+    position: 31
+  },
+  {
+    id: 'folder-pharmacy-cat-learning',
+    name: 'مسیرهای یادگیری و آزمون‌ها (Study Paths & Quizzes)',
+    icon: 'GraduationCap',
+    color: '#2563eb',
+    parent_id: PHARMACY_ROOT_FOLDER_ID,
+    position: 32
+  },
+  {
+    id: 'folder-learning-tracks',
+    name: 'مسیرهای یادگیری (Study Tracks)',
+    icon: 'Route',
+    color: '#3b82f6',
+    parent_id: 'folder-pharmacy-cat-learning',
+    position: 33
+  },
+  {
+    id: 'folder-learning-quizzes',
+    name: 'پرسش‌های تمرینی (Practice Questions)',
+    icon: 'ListChecks',
+    color: '#6366f1',
+    parent_id: 'folder-pharmacy-cat-learning',
+    position: 34
   }
 ];
 
@@ -548,7 +622,7 @@ for (const hb of handbookDiseases) {
 
   // Linked Triage Scenario Banner
   if (matchingScenario) {
-    const scDocId = `doc-scenario-${matchingScenario.mode === 'MODE_B_SLANG' ? 'slang' : 'clinical'}-${matchingScenario.id}`;
+    const scDocId = `doc-scenario-${(SLANG_SCENARIOS || []).some(s => s.id === matchingScenario.id) ? 'slang' : 'clinical'}-${matchingScenario.id}`;
     htmlFa += `
   <div class="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-center justify-between gap-2 cursor-pointer hover:bg-rose-500/15 transition group" data-doc-link="${scDocId}">
     <div>
@@ -656,7 +730,7 @@ for (const hb of handbookDiseases) {
   }
 
   if (matchingScenario) {
-    const scDocId = `doc-scenario-${matchingScenario.mode === 'MODE_B_SLANG' ? 'slang' : 'clinical'}-${matchingScenario.id}`;
+    const scDocId = `doc-scenario-${(SLANG_SCENARIOS || []).some(s => s.id === matchingScenario.id) ? 'slang' : 'clinical'}-${matchingScenario.id}`;
     htmlEn += `
   <div class="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-center justify-between gap-2 cursor-pointer hover:bg-rose-500/15 transition group" data-doc-link="${scDocId}">
     <div>
@@ -1697,7 +1771,123 @@ for (const card of (ALL_PHARMACY_CARDS || [])) {
 console.log(`Generated ${ALL_PHARMACY_CARDS.length} Module Lessons in Pillar 5`);
 
 // =========================================================================
-// SECTION 6: CURATED HIGH-YIELD LEITNER CARDS (35 items)
+// SECTION 6: SOURCE COLLECTIONS OMITTED BY THE FIRST CONVERSION
+// =========================================================================
+
+const sourceLabels = {
+  title: ['عنوان', 'Title'],
+  subtitle: ['زیرعنوان', 'Subtitle'],
+  description: ['توضیح', 'Description'],
+  overview: ['نمای کلی', 'Overview'],
+  pathophysiology: ['پاتوفیزیولوژی و نشانه‌ها', 'Pathophysiology & symptoms'],
+  treatment: ['درمان', 'Treatment'],
+  firstLine: ['درمان خط اول', 'First-line treatment'],
+  otcOptions: ['گزینه‌های بدون نسخه', 'OTC options'],
+  rxOptions: ['گزینه‌های نسخه‌ای', 'Prescription options'],
+  instructions: ['دستورالعمل و مشاوره', 'Instructions & counselling'],
+  redFlags: ['علائم هشدار', 'Red flags'],
+  medicines: ['داروها', 'Medicines'],
+  nonPharmAdvice: ['مراقبت غیردارویی', 'Non-pharmacological advice'],
+  clinicalNotes: ['نکات بالینی', 'Clinical notes'],
+  relatedShelfProducts: ['محصولات مرتبط', 'Related shelf products'],
+  subcategories: ['زیرگروه‌ها', 'Subcategories'],
+  clinicalPearls: ['نکات بالینی', 'Clinical pearls'],
+  schedulingRules: ['قوانین طبقه‌بندی و عرضه', 'Scheduling rules'],
+  targetFocus: ['هدف یادگیری', 'Learning focus'],
+  targetItemIds: ['شناسهٔ مطالب مرتبط', 'Related study items'],
+  milestones: ['مراحل یادگیری', 'Milestones'],
+  options: ['گزینه‌ها', 'Options'],
+  explanation: ['توضیح پاسخ', 'Answer explanation'],
+};
+
+function labelFor(key, lang) {
+  return sourceLabels[key]?.[lang === 'fa' ? 0 : 1] || key.replace(/([a-z])([A-Z])/g, '$1 $2');
+}
+
+function renderSourceValue(value, lang, depth = 0) {
+  if (value === null || value === undefined || value === '') return '';
+  if (typeof value !== 'object') return `<span>${escapeHtml(value)}</span>`;
+  if (Array.isArray(value)) {
+    return `<ul class="space-y-2 ps-5 list-disc">${value.map(item => `<li class="leading-relaxed">${renderSourceValue(item, lang, depth + 1)}</li>`).join('')}</ul>`;
+  }
+  if (typeof value[lang] === 'string' && Object.keys(value).every(key => key === 'fa' || key === 'en')) {
+    return `<span>${escapeHtml(value[lang] || value.fa || value.en)}</span>`;
+  }
+  return `<dl class="space-y-2">${Object.entries(value).map(([key, item]) => {
+    const suffix = key.match(/(Fa|En)$/);
+    const pairedKey = suffix ? `${key.slice(0, -2)}${suffix[1] === 'Fa' ? 'En' : 'Fa'}` : null;
+    if (pairedKey && Object.hasOwn(value, pairedKey) && suffix[1] !== (lang === 'fa' ? 'Fa' : 'En')) return '';
+    const body = renderSourceValue(item, lang, depth + 1);
+    if (!body) return '';
+    const displayKey = pairedKey && Object.hasOwn(value, pairedKey) ? key.slice(0, -2) : key;
+    return `<div class="rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed"><dt class="font-semibold text-foreground mb-1">${escapeHtml(labelFor(displayKey, lang))}</dt><dd class="text-foreground/85">${body}</dd></div>`;
+  }).join('')}</dl>`;
+}
+
+function sourceDocument({ id, folderId, titleFa, titleEn, data, sourceFile, tags }) {
+  const render = (lang) => `<article class="knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7" dir="${lang === 'fa' ? 'rtl' : 'ltr'}">
+    <header class="rounded-2xl border border-primary/20 bg-primary/5 p-5">
+      <h2 class="text-xl font-bold leading-8">${escapeHtml(lang === 'fa' ? titleFa : titleEn)}</h2>
+      <p class="mt-2 text-xs text-muted-foreground" dir="ltr">Source: ${escapeHtml(sourceFile)}</p>
+    </header>
+    ${renderSourceValue(data, lang)}
+  </article>`;
+  documents.push({
+    id, folder_id: folderId, title: titleFa, title_en: titleEn,
+    content_html: render('fa'), content_en: render('en'),
+    preferred_language: 'bilingual', direction: 'rtl', tags,
+    source_url: `https://github.com/hamedharami-hub/pharmacy/blob/${sourceCommit}/${sourceFile}`
+  });
+}
+
+for (const disease of CORE_CLINICAL_DISEASES) {
+  sourceDocument({
+    id: `doc-core-disease-${disease.id}`,
+    folderId: 'folder-clinical-core',
+    titleFa: disease.name?.fa || disease.id,
+    titleEn: disease.name?.en || disease.id,
+    data: disease,
+    sourceFile: 'data/diseasesRegistry.ts',
+    tags: ['Core Clinical', disease.categoryId || 'Disease']
+  });
+}
+for (const domain of CLINICAL_DOMAINS) {
+  sourceDocument({
+    id: `doc-clinical-domain-${domain.id}`,
+    folderId: 'folder-mono-domains',
+    titleFa: domain.titleFa || domain.id,
+    titleEn: domain.titleEn || domain.id,
+    data: domain,
+    sourceFile: 'data/shelf/clinicalDomains.ts',
+    tags: ['Clinical Domain', domain.badgeEn || 'Shelf']
+  });
+}
+for (const track of STUDY_TRACKS_DATABASE) {
+  sourceDocument({
+    id: `doc-study-track-${track.id}`,
+    folderId: 'folder-learning-tracks',
+    titleFa: track.title?.fa || track.id,
+    titleEn: track.title?.en || track.id,
+    data: track,
+    sourceFile: 'data/studyTracksData.ts',
+    tags: ['Study Track', `Module ${track.primaryModule || ''}`]
+  });
+}
+for (const question of SAMPLE_QUIZ_QUESTIONS) {
+  sourceDocument({
+    id: `doc-practice-question-${question.id}`,
+    folderId: 'folder-learning-quizzes',
+    titleFa: question.question?.fa || question.id,
+    titleEn: question.question?.en || question.id,
+    data: question,
+    sourceFile: 'lib/pharmacy-data.ts',
+    tags: ['Practice Question', question.moduleId || 'Quiz']
+  });
+}
+console.log(`Generated ${CORE_CLINICAL_DISEASES.length} core diseases, ${CLINICAL_DOMAINS.length} domains, ${STUDY_TRACKS_DATABASE.length} study tracks and ${SAMPLE_QUIZ_QUESTIONS.length} questions`);
+
+// =========================================================================
+// SECTION 7: CURATED HIGH-YIELD LEITNER CARDS (35 items)
 // =========================================================================
 
 function extractText(val) {
@@ -1718,7 +1908,7 @@ const cards = (INITIAL_SAMPLE_LEITNER_CARDS || []).map((card, idx) => ({
   front: extractText(card.front || card.question || card.title || `Flashcard ${idx + 1}`),
   back: extractText(card.back || card.answer || card.pearl || ''),
   clue: extractText(card.clue || card.topic || 'Pharmacy Pearl'),
-  document_id: card.documentId || 'doc-card-1',
+  document_id: card.documentId || null,
   folder_id: PHARMACY_ROOT_FOLDER_ID,
   box: 1,
   next_review_at: '2026-03-20T00:00:00.000Z',
@@ -1763,7 +1953,7 @@ const diseaseCards = handbookDiseases.slice(0, 28).map((hb, idx) => {
   };
 });
 
-const finalCards = [...cards, ...diseaseCards].slice(0, 35);
+const finalCards = [...cards, ...diseaseCards];
 
 const finalizedFolders = PHARMACY_FOLDERS.map((f, idx) => ({
   id: f.id,
@@ -1788,6 +1978,7 @@ const finalizedDocuments = documents.map(d => ({
   preferred_language: d.preferred_language || 'bilingual',
   direction: d.direction || 'rtl',
   tags: d.tags || [],
+  source_url: d.source_url,
   created_at: '2026-03-20T00:00:00.000Z',
   updated_at: '2026-03-20T00:00:00.000Z'
 }));
@@ -1810,6 +2001,7 @@ const code = `/**
  * - 8 Australian State Storage Laws
  * - 13 Realistic PBS Scripts & Legal Dispensary Formats
  * - 36 Academic Module Lessons
+ * - Core clinical diseases, domain guides, study tracks and questions
  */
 
 import type { KnowledgeFolder, KnowledgeDocument } from './knowledgeTypes';
@@ -1826,4 +2018,3 @@ export const PHARMACY_SEED_CARDS: LeitnerCard[] = ${JSON.stringify(finalCards, n
 
 fs.writeFileSync(path.join(targetDir, 'pharmacySeedData.ts'), code, 'utf8');
 console.log('Successfully written to src/lib/pharmacySeedData.ts!');
-

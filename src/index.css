@@ -756,6 +756,25 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
   color: hsl(var(--foreground));
 }
 
+/* Imported clinical pages were authored with 10-12px utility classes. Keep
+   their hierarchy, but make the body readable on phones and wide screens. */
+.knowledge-html-content > .knowledge-card {
+  max-width: 52rem;
+  margin-inline: auto;
+}
+
+.knowledge-html-content .knowledge-card .text-xs {
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.knowledge-html-content .knowledge-card [class*="text-[11px]"],
+.knowledge-html-content .knowledge-card [class*="text-[10px]"],
+.knowledge-html-content .knowledge-card [class*="text-[9px]"] {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
 .knowledge-html-content p,
 .knowledge-html-content li,
 .knowledge-html-content div:not([class*="callout"]):not([class*="table"]):not([class*="checklist"]) {

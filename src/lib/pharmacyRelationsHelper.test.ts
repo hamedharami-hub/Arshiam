@@ -53,6 +53,10 @@ describe("pharmacyRelationsHelper", () => {
       expect(getClinicalEntityType(mockDoc({ id: "doc-storage-nsw" }))).toBe("regulation");
       expect(getClinicalEntityType(mockDoc({ id: "doc-custom", folder_id: "folder-mono-cal" }))).toBe("regulation");
     });
+
+    it("does not label clinical domain guides as product monographs", () => {
+      expect(getClinicalEntityType(mockDoc({ id: "doc-clinical-domain-cat-1", folder_id: "folder-mono-domains" }))).toBe("general");
+    });
   });
 
   describe("extractExplicitDocumentLinks", () => {

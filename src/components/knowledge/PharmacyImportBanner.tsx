@@ -3,6 +3,7 @@ import { Sparkles, Loader2, BookOpen } from "lucide-react";
 
 interface PharmacyImportBannerProps {
   isPharmacyImported: boolean;
+  status?: import("@/lib/pharmacyImportService").PharmacyImportStatus | null;
   isImportingPharmacy: boolean;
   onImportPharmacy?: (force?: boolean) => Promise<void>;
   isEn?: boolean;
@@ -11,6 +12,7 @@ interface PharmacyImportBannerProps {
 export const PharmacyImportBanner: React.FC<PharmacyImportBannerProps> = React.memo(
   ({
     isPharmacyImported,
+    status,
     isImportingPharmacy,
     onImportPharmacy,
     isEn = false,
@@ -28,9 +30,13 @@ export const PharmacyImportBanner: React.FC<PharmacyImportBannerProps> = React.m
               {isEn ? "Pharmacy Encyclopedia" : "بسته جامع دارویی استرالیا"}
             </div>
             <div className="text-[10px] text-muted-foreground truncate">
-              {isEn
-                ? "330 lessons, clinical atlas & 35 cards"
-                : "۳۳۰ درس، اطلس بالینی و ۳۵ کارت لایتنر"}
+              {status
+                ? isEn
+                  ? `${status.docsMissing} new documents, ${status.docsUpgradeable} safe updates, ${status.cardsMissing} cards`
+                  : `${status.docsMissing} سند جدید، ${status.docsUpgradeable} به‌روزرسانی امن، ${status.cardsMissing} کارت`
+                : isEn
+                ? "Add missing content without replacing your work"
+                : "افزودن مطالب جاافتاده بدون بازنویسی اطلاعات فعلی"}
             </div>
           </div>
         </div>

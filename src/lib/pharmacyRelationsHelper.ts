@@ -37,7 +37,8 @@ export function getClinicalEntityType(
   if (
     (folder.startsWith("folder-mono-") || folder === "folder-pharmacy-cat-monographs") &&
     folder !== "folder-mono-cal" &&
-    folder !== "folder-mono-storage"
+    folder !== "folder-mono-storage" &&
+    folder !== "folder-mono-domains"
   ) {
     return "product";
   }

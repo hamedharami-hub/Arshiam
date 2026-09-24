@@ -1,218 +1,278 @@
 import { firebaseStore } from "./firebaseStore";
-import { cacheGet, cacheSet, enqueueOp } from "./offlineQueue";
+import { cacheGet, cacheSet } from "./offlineQueue";
 import { saveEntityToFirestore } from "./firestoreSync";
-import type { KnowledgeFolder, KnowledgeDocument } from "./knowledgeTypes";
+import type { KnowledgeDocument, KnowledgeFolder } from "./knowledgeTypes";
 import type { LeitnerCard } from "./leitnerTypes";
-import { getFoldersCacheKey, getDocsCacheKey, isOnline } from "./knowledgeService";
-import { getLeitnerCardsCacheKey, calculateNextReviewDate } from "./leitnerService";
+import { getDocsCacheKey, getFoldersCacheKey, isOnline } from "./knowledgeService";
+import { calculateNextReviewDate, getLeitnerCardsCacheKey } from "./leitnerService";
 import { PHARMACY_ROOT_FOLDER_ID } from "./pharmacyConstants";
 
-/**
- * Checks whether the Pharmacy Knowledge Base has already been imported for this user.
- */
+type SeedData = typeof import("./pharmacySeedData");
+type LegacySeedData = typeof import("./pharmacyLegacySeedData");
+type CollectionName = "knowledge_folders" | "knowledge_documents" | "leitner_cards";
+
+export interface PharmacyImportStatus {
+  foldersTotal: number;
+  docsTotal: number;
+  cardsTotal: number;
+  foldersMissing: number;
+  docsMissing: number;
+  docsUpgradeable: number;
+  cardsMissing: number;
+  legacyDetected: boolean;
+}
+
+export interface PharmacyImportResult {
+  foldersCount: number;
+  docsCount: number;
+  cardsCount: number;
+  docsUpdated: number;
+  status: PharmacyImportStatus;
+}
+
+type Snapshot = {
+  folders: KnowledgeFolder[];
+  documents: KnowledgeDocument[];
+  cards: LeitnerCard[];
+};
+
+function assertUser(userId: string): void {
+  if (!userId || userId === "anonymous-kb-user") {
+    throw new Error("Sign in before importing pharmacy knowledge.");
+  }
+  if (!isOnline()) {
+    throw new Error("A verified connection is required to import pharmacy knowledge. Try again when online.");
+  }
+}
+
+async function readCollection<T>(userId: string, collection: CollectionName): Promise<T[]> {
+  const result = await firebaseStore.from(collection).select("*").eq("user_id", userId);
+  if (result.error || !Array.isArray(result.data)) {
+    throw result.error || new Error(`Could not read ${collection} from the server.`);
+  }
+  return result.data as T[];
+}
+
+async function readRemote(userId: string): Promise<Snapshot> {
+  const [folders, documents, cards] = await Promise.all([
+    readCollection<KnowledgeFolder>(userId, "knowledge_folders"),
+    readCollection<KnowledgeDocument>(userId, "knowledge_documents"),
+    readCollection<LeitnerCard>(userId, "leitner_cards"),
+  ]);
+  return { folders, documents, cards };
+}
+
+export function comparePharmacySeed(seed: SeedData, remote: Snapshot): PharmacyImportStatus {
+  const folderIds = new Set(remote.folders.map((item) => item.id));
+  const docIds = new Set(remote.documents.map((item) => item.id));
+  const cardIds = new Set(remote.cards.map((item) => item.id));
+  return {
+    foldersTotal: seed.PHARMACY_SEED_FOLDERS.length,
+    docsTotal: seed.PHARMACY_SEED_DOCUMENTS.length,
+    cardsTotal: seed.PHARMACY_SEED_CARDS.length,
+    foldersMissing: seed.PHARMACY_SEED_FOLDERS.filter((item) => !folderIds.has(item.id)).length,
+    docsMissing: seed.PHARMACY_SEED_DOCUMENTS.filter((item) => !docIds.has(item.id)).length,
+    docsUpgradeable: 0,
+    cardsMissing: seed.PHARMACY_SEED_CARDS.filter((item) => !cardIds.has(item.id)).length,
+    legacyDetected: remote.folders.some(
+      (item) => item.id !== PHARMACY_ROOT_FOLDER_ID &&
+        (item.name.includes("دایره‌المعارف و آموزش دارویی") || item.name.includes("Pharmacy Knowledge")),
+    ),
+  };
+}
+
+function matchesUneditedLegacy(
+  current: KnowledgeDocument,
+  legacy: LegacySeedData["PHARMACY_SEED_DOCUMENTS"][number],
+): boolean {
+  return current.title === legacy.title &&
+    current.title_en === legacy.title_en &&
+    current.folder_id === legacy.folder_id &&
+    current.content_html === legacy.content_html &&
+    current.content_en === legacy.content_en &&
+    JSON.stringify(current.tags || []) === JSON.stringify(legacy.tags || []);
+}
+
+function getUpgradeableDocuments(seed: SeedData, legacy: LegacySeedData, remote: Snapshot): KnowledgeDocument[] {
+  const newById = new Map(seed.PHARMACY_SEED_DOCUMENTS.map((item) => [item.id, item]));
+  const oldById = new Map(legacy.PHARMACY_SEED_DOCUMENTS.map((item) => [item.id, item]));
+  return remote.documents.filter((doc) => {
+    const old = oldById.get(doc.id);
+    const next = newById.get(doc.id);
+    return old && next && matchesUneditedLegacy(doc, old) &&
+      (doc.content_html !== next.content_html || doc.content_en !== next.content_en || doc.folder_id !== next.folder_id);
+  });
+}
+
+export async function getPharmacyImportStatus(userId: string): Promise<PharmacyImportStatus> {
+  assertUser(userId);
+  const [seed, legacy, remote] = await Promise.all([
+    import("./pharmacySeedData"), import("./pharmacyLegacySeedData"), readRemote(userId),
+  ]);
+  const status = comparePharmacySeed(seed, remote);
+  status.docsUpgradeable = getUpgradeableDocuments(seed, legacy, remote).length;
+  return status;
+}
+
 export async function isPharmacyImported(userId: string): Promise<boolean> {
-  if (!userId) return false;
-  try {
-    const cacheKey = getFoldersCacheKey(userId);
-    const cached = (await cacheGet<KnowledgeFolder[]>(cacheKey)) || [];
-    return cached.some(
-      (f) =>
-        f.id === PHARMACY_ROOT_FOLDER_ID ||
-        f.name.includes("دایره‌المعارف و آموزش دارویی") ||
-        f.name.includes("Pharmacy Knowledge")
-    );
-  } catch (err) {
-    console.warn("Error checking pharmacy import status:", err);
-    return false;
+  if (!userId || userId === "anonymous-kb-user") return false;
+  const status = await getPharmacyImportStatus(userId);
+  return status.foldersMissing === 0 && status.docsMissing === 0 && status.docsUpgradeable === 0 && status.cardsMissing === 0;
+}
+
+function plainText(document: KnowledgeDocument): string {
+  return `${document.content_html || ""} ${document.content_en || ""}`
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function mergePreservingExisting<T extends { id: string }>(
+  remote: T[], local: T[], additions: T[],
+): T[] {
+  const map = new Map<string, T>();
+  for (const item of additions) map.set(item.id, item);
+  for (const item of remote) map.set(item.id, item);
+  for (const item of local) {
+    const existing = map.get(item.id) as (T & { updated_at?: string }) | undefined;
+    const localUpdated = (item as T & { updated_at?: string }).updated_at;
+    if (!existing || (localUpdated && new Date(localUpdated).getTime() > new Date(existing.updated_at || 0).getTime())) {
+      map.set(item.id, item);
+    }
+  }
+  return [...map.values()];
+}
+
+async function saveMissing<T extends { id: string }>(
+  userId: string,
+  collection: CollectionName,
+  items: T[],
+  onProgress?: (completed: number, total: number) => void,
+  progress?: { completed: number; total: number },
+): Promise<void> {
+  const batchSize = 8;
+  for (let start = 0; start < items.length; start += batchSize) {
+    const batch = items.slice(start, start + batchSize);
+    const results = await Promise.allSettled(batch.map(async (item) => {
+      const ok = await saveEntityToFirestore(userId, collection, item.id, item);
+      if (!ok) throw new Error(`Could not save ${collection}/${item.id}`);
+    }));
+    const failed = results.find((result) => result.status === "rejected");
+    if (progress) {
+      progress.completed += results.filter((result) => result.status === "fulfilled").length;
+      onProgress?.(progress.completed, progress.total);
+    }
+    if (failed?.status === "rejected") throw failed.reason;
   }
 }
 
 /**
- * Imports the complete Pharmacy Knowledge Base:
- * 1. 29 Structured Folders (Root + 5 Pillars + 23 Subcategories)
- * 2. 330 Comprehensive Bilingual Clinical Documents
- * 3. 35 High-Yield Leitner Spaced-Repetition Cards
- *
- * Seed data is dynamically imported on demand to avoid inflating the initial bundle size.
+ * Adds only IDs absent from the server. Existing server documents and Leitner progress
+ * are never overwritten. Local-only rows are uploaded in preference to seed copies.
+ * A partial failure is safe to retry: the next run checks the server again.
  */
 export async function importPharmacyKnowledge(
   userId: string,
-  options?: { importCards?: boolean; force?: boolean }
-): Promise<{ foldersCount: number; docsCount: number; cardsCount: number }> {
-  if (!userId) throw new Error("User ID is required for importing pharmacy knowledge");
-
-  // Dynamically import seed data on demand so KnowledgeBaseView stays lightweight
-  const {
-    PHARMACY_SEED_FOLDERS,
-    PHARMACY_SEED_DOCUMENTS,
-    PHARMACY_SEED_CARDS,
-  } = await import("./pharmacySeedData");
-
-  const alreadyImported = await isPharmacyImported(userId);
-  if (alreadyImported && !options?.force) {
-    return {
-      foldersCount: PHARMACY_SEED_FOLDERS.length,
-      docsCount: PHARMACY_SEED_DOCUMENTS.length,
-      cardsCount: PHARMACY_SEED_CARDS.length,
-    };
-  }
-
+  options?: { importCards?: boolean; force?: boolean; onProgress?: (completed: number, total: number) => void },
+): Promise<PharmacyImportResult> {
+  assertUser(userId);
+  const [seed, legacy] = await Promise.all([import("./pharmacySeedData"), import("./pharmacyLegacySeedData")]);
+  const remote = await readRemote(userId);
   const now = new Date().toISOString();
 
-  // 1. Process and Insert Folders
-  const foldersCacheKey = getFoldersCacheKey(userId);
-  const existingFolders = (await cacheGet<KnowledgeFolder[]>(foldersCacheKey)) || [];
+  const [localFolders, localDocs, localCards] = await Promise.all([
+    cacheGet<KnowledgeFolder[]>(getFoldersCacheKey(userId)).then((items) => items || []),
+    cacheGet<KnowledgeDocument[]>(getDocsCacheKey(userId)).then((items) => items || []),
+    cacheGet<LeitnerCard[]>(getLeitnerCardsCacheKey(userId)).then((items) => items || []),
+  ]);
+  const localFolderMap = new Map(localFolders.map((item) => [item.id, item]));
+  const localDocMap = new Map(localDocs.map((item) => [item.id, item]));
+  const localCardMap = new Map(localCards.map((item) => [item.id, item]));
+  const remoteFolderIds = new Set(remote.folders.map((item) => item.id));
+  const remoteDocIds = new Set(remote.documents.map((item) => item.id));
+  const remoteCardIds = new Set(remote.cards.map((item) => item.id));
+  const legacyRoot = remote.folders.find((item) => item.id !== PHARMACY_ROOT_FOLDER_ID &&
+    (item.name.includes("دایره‌المعارف و آموزش دارویی") || item.name.includes("Pharmacy Knowledge")));
 
-  const newFolders: KnowledgeFolder[] = PHARMACY_SEED_FOLDERS.map((f) => ({
-    id: f.id,
-    user_id: userId,
-    parent_id: f.parent_id,
-    name: f.name,
-    icon: f.icon,
-    color: f.color,
-    position: f.position,
-    created_at: now,
-    updated_at: now,
-  }));
-
-  // Merge avoiding duplicates by ID
-  const folderMap = new Map<string, KnowledgeFolder>();
-  for (const f of existingFolders) folderMap.set(f.id, f);
-  for (const f of newFolders) folderMap.set(f.id, f);
-  const mergedFolders = Array.from(folderMap.values());
-  await cacheSet(foldersCacheKey, mergedFolders);
-
-  // 2. Process and Insert Documents
-  const docsCacheKey = getDocsCacheKey(userId);
-  const existingDocs = (await cacheGet<KnowledgeDocument[]>(docsCacheKey)) || [];
-
-  const newDocs: KnowledgeDocument[] = PHARMACY_SEED_DOCUMENTS.map((d) => ({
-    id: d.id,
-    user_id: userId,
-    folder_id: d.folder_id,
-    title: d.title,
-    title_en: d.title_en,
-    content_html: d.content_html,
-    content_en: d.content_en,
-    preferred_language: (d.preferred_language as "fa" | "en" | "bilingual") || "bilingual",
-    direction: (d.direction as "rtl" | "ltr" | "auto") || "rtl",
-    plain_text: d.content_html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
-    tags: d.tags || ["Pharmacy"],
-    is_favorite: false,
-    is_pinned: false,
-    is_archived: false,
-    read_count: 0,
-    view_count: 0,
-    created_at: now,
-    updated_at: now,
-  }));
-
-  const docMap = new Map<string, KnowledgeDocument>();
-  for (const d of existingDocs) docMap.set(d.id, d);
-  for (const d of newDocs) docMap.set(d.id, d);
-  const mergedDocs = Array.from(docMap.values());
-  await cacheSet(docsCacheKey, mergedDocs);
-
-  // 3. Process and Insert Leitner Cards (if requested)
-  let cardsCount = 0;
-  let newCards: LeitnerCard[] = [];
-  if (options?.importCards !== false) {
-    const cardsCacheKey = getLeitnerCardsCacheKey(userId);
-    const existingCards = (await cacheGet<LeitnerCard[]>(cardsCacheKey)) || [];
-
-    newCards = PHARMACY_SEED_CARDS.map((c) => ({
-      id: c.id,
+  const folders = seed.PHARMACY_SEED_FOLDERS
+    .filter((item) => !remoteFolderIds.has(item.id))
+    .map((item) => localFolderMap.get(item.id) || {
+      ...item,
+      parent_id: item.id === PHARMACY_ROOT_FOLDER_ID && legacyRoot ? legacyRoot.id : item.parent_id,
       user_id: userId,
-      front: c.front,
-      back: c.back,
-      clue: c.clue || undefined,
-      box: c.box || 1,
-      next_review_at: calculateNextReviewDate(c.box || 1),
-      consecutive_correct: 0,
-      review_count: 0,
-      ease_factor: 2.5,
-      interval_days: 1,
-      lapse_count: 0,
-      stability: 1.0,
-      difficulty: 5.0,
-      document_id: c.document_id || null,
-      folder_id: c.folder_id || null,
       created_at: now,
       updated_at: now,
-    }));
+    });
+  const documents = seed.PHARMACY_SEED_DOCUMENTS
+    .filter((item) => !remoteDocIds.has(item.id))
+    .map((item) => localDocMap.get(item.id) || {
+      ...item,
+      user_id: userId,
+      plain_text: plainText(item),
+      created_at: now,
+      updated_at: now,
+    });
+  const seedDocMap = new Map(seed.PHARMACY_SEED_DOCUMENTS.map((item) => [item.id, item]));
+  const upgradedDocuments = getUpgradeableDocuments(seed, legacy, remote).map((old) => {
+    const next = seedDocMap.get(old.id)!;
+    return {
+      ...old,
+      folder_id: next.folder_id,
+      title: next.title,
+      title_en: next.title_en,
+      content_html: next.content_html,
+      content_en: next.content_en,
+      plain_text: plainText(next),
+      tags: next.tags,
+      source_url: next.source_url,
+      updated_at: now,
+    };
+  });
+  const cards = options?.importCards === false ? [] : seed.PHARMACY_SEED_CARDS
+    .filter((item) => !remoteCardIds.has(item.id))
+    .map((item) => localCardMap.get(item.id) || {
+      ...item,
+      user_id: userId,
+      document_id: item.document_id && (
+        remoteDocIds.has(item.document_id) || seed.PHARMACY_SEED_DOCUMENTS.some((doc) => doc.id === item.document_id)
+      ) ? item.document_id : null,
+      next_review_at: calculateNextReviewDate(1),
+      created_at: now,
+      updated_at: now,
+    });
 
-    const cardMap = new Map<string, LeitnerCard>();
-    for (const c of existingCards) cardMap.set(c.id, c);
-    for (const c of newCards) cardMap.set(c.id, c);
-    const mergedCards = Array.from(cardMap.values());
-    await cacheSet(cardsCacheKey, mergedCards);
-    cardsCount = newCards.length;
+  const progress = { completed: 0, total: folders.length + documents.length + upgradedDocuments.length + cards.length };
+  try {
+    await saveMissing(userId, "knowledge_folders", folders, options?.onProgress, progress);
+    await saveMissing(userId, "knowledge_documents", documents, options?.onProgress, progress);
+    await saveMissing(userId, "knowledge_documents", upgradedDocuments, options?.onProgress, progress);
+    await saveMissing(userId, "leitner_cards", cards, options?.onProgress, progress);
+  } finally {
+    // Refresh the cache from confirmed remote state even if a batch stopped midway.
+    const verified = await readRemote(userId);
+    await Promise.all([
+      cacheSet(getFoldersCacheKey(userId), mergePreservingExisting(verified.folders, localFolders, [])),
+      cacheSet(getDocsCacheKey(userId), mergePreservingExisting(verified.documents, localDocs, [])),
+      cacheSet(getLeitnerCardsCacheKey(userId), mergePreservingExisting(verified.cards, localCards, [])),
+    ]);
   }
 
-  // 4. Asynchronous Background Sync to Firestore / Firebase
-  // Runs detached from the main thread so UI is instantly updated and responsive
-  (async () => {
-    // Folders
-    for (const f of newFolders) {
-      try {
-        await firebaseStore.from("knowledge_folders").insert(f);
-        if (isOnline()) {
-          await saveEntityToFirestore(userId, "knowledge_folders", f.id, f);
-        } else {
-          await enqueueOp({ table: "knowledge_folders", op: "insert", payload: f });
-        }
-      } catch {
-        enqueueOp({ table: "knowledge_folders", op: "insert", payload: f }).catch(() => {});
-      }
-    }
-
-    // Documents in chunks
-    const CHUNK_SIZE = 10;
-    for (let i = 0; i < newDocs.length; i += CHUNK_SIZE) {
-      const chunk = newDocs.slice(i, i + CHUNK_SIZE);
-      await Promise.allSettled(
-        chunk.map(async (d) => {
-          try {
-            await firebaseStore.from("knowledge_documents").insert(d);
-            if (isOnline()) {
-              await saveEntityToFirestore(userId, "knowledge_documents", d.id, d);
-            } else {
-              await enqueueOp({ table: "knowledge_documents", op: "insert", payload: d });
-            }
-          } catch {
-            await enqueueOp({ table: "knowledge_documents", op: "insert", payload: d });
-          }
-        })
-      );
-    }
-
-    // Cards in chunks
-    if (newCards.length > 0) {
-      for (let i = 0; i < newCards.length; i += CHUNK_SIZE) {
-        const chunk = newCards.slice(i, i + CHUNK_SIZE);
-        await Promise.allSettled(
-          chunk.map(async (c) => {
-            try {
-              await firebaseStore.from("leitner_cards").insert(c);
-              if (isOnline()) {
-                await saveEntityToFirestore(userId, "leitner_cards", c.id, c);
-              } else {
-                await enqueueOp({ table: "leitner_cards", op: "insert", payload: c });
-              }
-            } catch {
-              await enqueueOp({ table: "leitner_cards", op: "insert", payload: c });
-            }
-          })
-        );
-      }
-    }
-  })().catch((err) => {
-    console.warn("Background pharmacy sync finished with notices:", err);
-  });
+  const verified = await readRemote(userId);
+  const status = comparePharmacySeed(seed, verified);
+  status.docsUpgradeable = getUpgradeableDocuments(seed, legacy, verified).length;
+  const remaining = status.foldersMissing + status.docsMissing + status.docsUpgradeable +
+    (options?.importCards === false ? 0 : status.cardsMissing);
+  if (remaining > 0) {
+    throw new Error(`${remaining} pharmacy items were not verified on the server. Retry to resume safely.`);
+  }
 
   return {
-    foldersCount: newFolders.length,
-    docsCount: newDocs.length,
-    cardsCount,
+    foldersCount: folders.length,
+    docsCount: documents.length,
+    cardsCount: cards.length,
+    docsUpdated: upgradedDocuments.length,
+    status,
   };
 }
