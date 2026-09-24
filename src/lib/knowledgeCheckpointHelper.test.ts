@@ -246,4 +246,18 @@ describe("knowledgeCheckpointHelper", () => {
     });
     expect(suggestions).toHaveLength(1);
   });
+
+  it("does not suggest documents based only on generic medical title terms", () => {
+    const current = { ...sampleOtcDoc, title: "Drug guide", tags: [] };
+    const unrelatedMedicalDoc = {
+      ...unrelatedDoc,
+      folder_id: "folder-other",
+      title: "Drug protocol",
+      tags: [],
+    };
+
+    expect(
+      getRelatedDocumentSuggestions(current, [current, unrelatedMedicalDoc])
+    ).toEqual([]);
+  });
 });
