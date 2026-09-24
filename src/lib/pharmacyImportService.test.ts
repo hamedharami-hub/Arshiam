@@ -27,6 +27,9 @@ vi.mock("./firebaseStore", () => ({
 vi.mock("./firestoreSync", () => ({
   saveEntityToFirestore: vi.fn(async (_userId: string, table: MockCollection, id: string, data: Record<string, unknown>) => {
     if (id === remote.failId) return false;
+    const hasUndefined = (value: unknown): boolean => value === undefined ||
+      (value !== null && typeof value === "object" && Object.values(value).some(hasUndefined));
+    if (hasUndefined(data)) return false;
     remote[table].set(id, data);
     return true;
   }),

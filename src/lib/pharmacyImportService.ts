@@ -156,7 +156,9 @@ async function saveMissing<T extends { id: string }>(
   for (let start = 0; start < items.length; start += batchSize) {
     const batch = items.slice(start, start + batchSize);
     const results = await Promise.allSettled(batch.map(async (item) => {
-      const ok = await saveEntityToFirestore(userId, collection, item.id, item);
+      // Firestore rejects undefined, including optional fields inherited from legacy seed rows.
+      const firestoreItem = JSON.parse(JSON.stringify(item)) as T;
+      const ok = await saveEntityToFirestore(userId, collection, item.id, firestoreItem);
       if (!ok) throw new Error(`Could not save ${collection}/${item.id}`);
     }));
     const failed = results.find((result) => result.status === "rejected");
