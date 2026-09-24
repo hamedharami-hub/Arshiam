@@ -25,8 +25,8 @@ describe("pharmacyImportService", () => {
 
   it("should have valid pharmacy seed constants", () => {
     expect(PHARMACY_ROOT_FOLDER_ID).toBe("folder-pharmacy-root");
-    expect(PHARMACY_SEED_FOLDERS.length).toBe(24); // Root + 5 Pillars + 18 Subcategories
-    expect(PHARMACY_SEED_DOCUMENTS.length).toBe(144); // 43 Diseases + 6 CYP + 14 Mechanisms + 25 Monographs + 20 Scenarios + 36 Lessons
+    expect(PHARMACY_SEED_FOLDERS.length).toBe(29); // Root + 5 Pillars + 23 Subcategories
+    expect(PHARMACY_SEED_DOCUMENTS.length).toBe(330); // 43 Diseases + 55 Pharmacology + 151 Monographs & Regs + 45 Scenarios & Scripts + 36 Lessons
     expect(PHARMACY_SEED_CARDS.length).toBe(35); // 35 High-Yield flashcards
 
     // Verify root folder structure
@@ -38,11 +38,11 @@ describe("pharmacyImportService", () => {
     const pillarFolders = PHARMACY_SEED_FOLDERS.filter((f) => f.parent_id === PHARMACY_ROOT_FOLDER_ID);
     expect(pillarFolders.length).toBe(5);
 
-    // Verify 18 subcategories point to pillars
+    // Verify 23 subcategories point to pillars
     const subcategoryFolders = PHARMACY_SEED_FOLDERS.filter(
       (f) => f.parent_id !== null && f.parent_id !== PHARMACY_ROOT_FOLDER_ID
     );
-    expect(subcategoryFolders.length).toBe(18);
+    expect(subcategoryFolders.length).toBe(23);
   });
 
   it("correctly identifies unimported status initially", async () => {
@@ -53,8 +53,8 @@ describe("pharmacyImportService", () => {
   it("successfully imports all folders, documents, and flashcards", async () => {
     const result = await importPharmacyKnowledge(testUserId, { importCards: true });
 
-    expect(result.foldersCount).toBe(24);
-    expect(result.docsCount).toBe(144);
+    expect(result.foldersCount).toBe(29);
+    expect(result.docsCount).toBe(330);
     expect(result.cardsCount).toBe(35);
 
     // Verify isPharmacyImported returns true now
@@ -63,14 +63,14 @@ describe("pharmacyImportService", () => {
 
     // Verify cached folders
     const cachedFolders = (await cacheGet<any[]>(getFoldersCacheKey(testUserId))) || [];
-    expect(cachedFolders.length).toBe(24);
+    expect(cachedFolders.length).toBe(29);
     const rootFolder = cachedFolders.find((f) => f.id === PHARMACY_ROOT_FOLDER_ID);
     expect(rootFolder).toBeDefined();
     expect(rootFolder.user_id).toBe(testUserId);
 
     // Verify cached documents
     const cachedDocs = (await cacheGet<any[]>(getDocsCacheKey(testUserId))) || [];
-    expect(cachedDocs.length).toBe(144);
+    expect(cachedDocs.length).toBe(330);
     for (const d of cachedDocs) {
       expect(d.user_id).toBe(testUserId);
       expect(d.folder_id).toBeTruthy();
@@ -92,8 +92,8 @@ describe("pharmacyImportService", () => {
     await importPharmacyKnowledge(testUserId);
     const secondCall = await importPharmacyKnowledge(testUserId, { force: false });
 
-    expect(secondCall.docsCount).toBe(144);
+    expect(secondCall.docsCount).toBe(330);
     const cachedDocs = (await cacheGet<any[]>(getDocsCacheKey(testUserId))) || [];
-    expect(cachedDocs.length).toBe(144);
+    expect(cachedDocs.length).toBe(330);
   });
 });

@@ -5,12 +5,7 @@ import type { KnowledgeFolder, KnowledgeDocument } from "./knowledgeTypes";
 import type { LeitnerCard } from "./leitnerTypes";
 import { getFoldersCacheKey, getDocsCacheKey, isOnline } from "./knowledgeService";
 import { getLeitnerCardsCacheKey, calculateNextReviewDate } from "./leitnerService";
-import {
-  PHARMACY_ROOT_FOLDER_ID,
-  PHARMACY_SEED_FOLDERS,
-  PHARMACY_SEED_DOCUMENTS,
-  PHARMACY_SEED_CARDS,
-} from "./pharmacySeedData";
+import { PHARMACY_ROOT_FOLDER_ID } from "./pharmacyConstants";
 
 /**
  * Checks whether the Pharmacy Knowledge Base has already been imported for this user.
@@ -34,15 +29,24 @@ export async function isPharmacyImported(userId: string): Promise<boolean> {
 
 /**
  * Imports the complete Pharmacy Knowledge Base:
- * 1. 5 Structured Folders (Root + 4 Subcategories)
- * 2. 97 Comprehensive Bilingual Clinical Documents
- * 3. 17 High-Yield Leitner Spaced-Repetition Cards
+ * 1. 29 Structured Folders (Root + 5 Pillars + 23 Subcategories)
+ * 2. 330 Comprehensive Bilingual Clinical Documents
+ * 3. 35 High-Yield Leitner Spaced-Repetition Cards
+ *
+ * Seed data is dynamically imported on demand to avoid inflating the initial bundle size.
  */
 export async function importPharmacyKnowledge(
   userId: string,
   options?: { importCards?: boolean; force?: boolean }
 ): Promise<{ foldersCount: number; docsCount: number; cardsCount: number }> {
   if (!userId) throw new Error("User ID is required for importing pharmacy knowledge");
+
+  // Dynamically import seed data on demand so KnowledgeBaseView stays lightweight
+  const {
+    PHARMACY_SEED_FOLDERS,
+    PHARMACY_SEED_DOCUMENTS,
+    PHARMACY_SEED_CARDS,
+  } = await import("./pharmacySeedData");
 
   const alreadyImported = await isPharmacyImported(userId);
   if (alreadyImported && !options?.force) {

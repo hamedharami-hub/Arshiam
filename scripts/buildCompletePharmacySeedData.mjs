@@ -19,7 +19,7 @@ function extractExports(filePath) {
   return moduleObj.exports;
 }
 
-console.log('--- Loading pharmacy source data ---');
+console.log('--- Loading Complete Pharmacy Source Data ---');
 
 // 1. Modules (36 cards)
 const { ALL_PHARMACY_CARDS } = extractExports(path.join(pharmacyDir, 'lib/pharmacy-data.ts'));
@@ -37,26 +37,39 @@ const handbookDiseases = [
 // 3. Clinical Translations (43 items)
 const { OTC_CLINICAL_TRANSLATIONS } = extractExports(path.join(pharmacyDir, 'data/otcClinicalTranslations.ts'));
 
-// 4. CYP Enzymes (6 items)
-const { CYP_ENZYMES_DATABASE } = extractExports(path.join(pharmacyDir, 'data/cypInteractionsData.ts'));
+// 4. CYP Enzymes (6 items) & Common Pairs (9 items)
+const { CYP_ENZYMES_DATABASE, COMMON_PAIR_INTERACTIONS } = extractExports(path.join(pharmacyDir, 'data/cypInteractionsData.ts'));
 const cypList = Object.values(CYP_ENZYMES_DATABASE || {});
 
 // 5. Mechanisms Registry (14 items)
-const { SUBCATEGORY_MECHANISMS } = extractExports(path.join(pharmacyDir, 'data/mechanismsRegistry.ts'));
-const mechanismsList = Object.values(SUBCATEGORY_MECHANISMS || {});
+const { SUBCATEGORY_MECHANISMS, DRUG_MECHANISMS_REGISTRY } = extractExports(path.join(pharmacyDir, 'data/mechanismsRegistry.ts'));
+const mechanismsList = Object.values(SUBCATEGORY_MECHANISMS || DRUG_MECHANISMS_REGISTRY || {});
 
 // 6. Shelf Products (121 items)
 const { SHELF_PRODUCTS } = extractExports(path.join(pharmacyDir, 'data/shelf/shelfProducts.ts'));
 
-// 7. Scenarios
+// 7. CAL Labels (22 items)
+const { CAL_LABELS_DICT } = extractExports(path.join(pharmacyDir, 'data/shelf/calLabels.ts'));
+
+// 8. State Storage Rules (8 items)
+const { STATE_STORAGE_RULES } = extractExports(path.join(pharmacyDir, 'data/shelf/stateStorageRules.ts'));
+
+// 9. Clinical Concepts (35 items)
+const { CLINICAL_CONCEPTS_REGISTRY } = extractExports(path.join(pharmacyDir, 'data/shelf/clinicalConcepts.ts'));
+
+// 10. Scenarios (32 items: 4 slang + 24 clinical + 4 admin)
 const { SLANG_SCENARIOS } = extractExports(path.join(pharmacyDir, 'data/scenarios/slangScenarios.ts'));
 const { CLINICAL_SCENARIOS } = extractExports(path.join(pharmacyDir, 'data/scenarios/clinicalScenarios.ts'));
 const { ADMIN_SCENARIOS } = extractExports(path.join(pharmacyDir, 'data/scenarios/adminScenarios.ts'));
 
-// 8. Sample Leitner Cards
+// 11. Realistic Scripts (6 items) & Script Types (7 items)
+const { REALISTIC_SCRIPTS_DATABASE } = extractExports(path.join(pharmacyDir, 'data/realisticScriptsData.ts'));
+const { AUSTRALIAN_SCRIPT_TYPES_DATA } = extractExports(path.join(pharmacyDir, 'data/scriptTypesData.ts'));
+
+// 12. Sample Leitner Cards (35 curated flashcards)
 const { INITIAL_SAMPLE_LEITNER_CARDS } = extractExports(path.join(pharmacyDir, 'lib/sample-leitner-cards.ts'));
 
-console.log('--- Defining Folders & Deep Hierarchical Taxonomy ---');
+console.log('--- Defining 29 Folders with Deep Hierarchical Taxonomy ---');
 
 const PHARMACY_ROOT_FOLDER_ID = 'folder-pharmacy-root';
 
@@ -72,7 +85,7 @@ const PHARMACY_FOLDERS = [
   },
 
   // -------------------------------------------------------------
-  // PILLAR 1: CLINICAL DISEASE ATLAS & OTC
+  // PILLAR 1: CLINICAL DISEASE ATLAS (43 diseases)
   // -------------------------------------------------------------
   {
     id: 'folder-pharmacy-cat-clinical-atlas',
@@ -132,7 +145,7 @@ const PHARMACY_FOLDERS = [
   },
 
   // -------------------------------------------------------------
-  // PILLAR 2: PHARMACOLOGY, CYP & MECHANISMS
+  // PILLAR 2: PHARMACOLOGY, CYP & CONCEPTS (55 docs)
   // -------------------------------------------------------------
   {
     id: 'folder-pharmacy-cat-pharmacology',
@@ -158,41 +171,49 @@ const PHARMACY_FOLDERS = [
     parent_id: 'folder-pharmacy-cat-pharmacology',
     position: 11
   },
+  {
+    id: 'folder-pharm-concepts',
+    name: '⚠️ ۲-۳. مفاهیم بالینی پرتکرار، سمیت و پرچم‌های قرمز (High-Yield Clinical Concepts)',
+    icon: 'ShieldAlert',
+    color: '#d946ef',
+    parent_id: 'folder-pharmacy-cat-pharmacology',
+    position: 12
+  },
 
   // -------------------------------------------------------------
-  // PILLAR 3: PHARMACOPEIA & DRUG MONOGRAPHS
+  // PILLAR 3: PHARMACY SHELF, PRODUCTS & REGULATIONS (151 docs)
   // -------------------------------------------------------------
   {
     id: 'folder-pharmacy-cat-monographs',
-    name: '💊 ۳. فارماکوپه و اطلس مونوگراف فرآورده‌های دارویی (Pharmacopeia & Monographs)',
+    name: '📦 ۳. قفسه فرآورده‌های دارویی، برندها و قوانین نگهداری (Pharmacy Shelf & Products)',
     icon: 'Pill',
     color: '#f59e0b',
     parent_id: PHARMACY_ROOT_FOLDER_ID,
-    position: 12
-  },
-  {
-    id: 'folder-mono-analgesics',
-    name: '📦 ۳-۱. فرآورده‌های مسکن، ضدالتهاب و تب‌بر (Analgesics & NSAIDs)',
-    icon: 'ShieldAlert',
-    color: '#eab308',
-    parent_id: 'folder-pharmacy-cat-monographs',
     position: 13
   },
   {
-    id: 'folder-mono-resp-allergy',
-    name: '🫁 ۳-۲. فرآورده‌های تنفسی، آلرژی و سرماخوردگی (Respiratory & Allergy)',
+    id: 'folder-mono-resp',
+    name: '🫁 ۳-۱. فرآورده‌های تنفسی، آلرژی، سرفه و سرماخوردگی (Respiratory & Allergy Care)',
     icon: 'Wind',
-    color: '#14b8a6',
+    color: '#06b6d4',
     parent_id: 'folder-pharmacy-cat-monographs',
     position: 14
   },
   {
+    id: 'folder-mono-pain',
+    name: '🩹 ۳-۲. مسکن‌ها، ضدالتهاب‌ها و ضددردها (Analgesics, NSAIDs & Pain Relief)',
+    icon: 'ShieldAlert',
+    color: '#ef4444',
+    parent_id: 'folder-pharmacy-cat-monographs',
+    position: 15
+  },
+  {
     id: 'folder-mono-gi',
-    name: '🫄 ۳-۳. فرآورده‌های گوارشی و معده‌ای (Gastrointestinal Care)',
+    name: '🫄 ۳-۳. فرآورده‌های گوارشی، ضداسید و ملین‌ها (Gastrointestinal Care)',
     icon: 'Layers',
     color: '#f97316',
     parent_id: 'folder-pharmacy-cat-monographs',
-    position: 15
+    position: 16
   },
   {
     id: 'folder-mono-topical',
@@ -200,19 +221,43 @@ const PHARMACY_FOLDERS = [
     icon: 'Sparkle',
     color: '#ec4899',
     parent_id: 'folder-pharmacy-cat-monographs',
-    position: 16
+    position: 17
+  },
+  {
+    id: 'folder-mono-special',
+    name: '👁️ ۳-۵. قطره‌های چشمی، گوشی و فرآورده‌های تخصصی (Eye, Ear & Specialty)',
+    icon: 'Eye',
+    color: '#8b5cf6',
+    parent_id: 'folder-pharmacy-cat-monographs',
+    position: 18
+  },
+  {
+    id: 'folder-mono-cal',
+    name: '🏷️ ۳-۶. برچسب‌های هشدار و راهنمای مصرف APF (CAL Labels 1 to 22)',
+    icon: 'Tag',
+    color: '#eab308',
+    parent_id: 'folder-pharmacy-cat-monographs',
+    position: 19
+  },
+  {
+    id: 'folder-mono-storage',
+    name: '🏛️ ۳-۷. قوانین ایالتی نگهداری داروهای S2 و S3 در استرالیا (State Storage Rules)',
+    icon: 'Building2',
+    color: '#10b981',
+    parent_id: 'folder-pharmacy-cat-monographs',
+    position: 20
   },
 
   // -------------------------------------------------------------
-  // PILLAR 4: CLINICAL TRIAGE, SLANG & SCENARIOS
+  // PILLAR 4: CLINICAL TRIAGE, SLANG & SCRIPTS (45 docs)
   // -------------------------------------------------------------
   {
     id: 'folder-pharmacy-cat-cases-triage',
-    name: '⚕️ ۴. سناریوهای بالینی، تریاژ و مشاوره بیمار (Clinical Triage & Practice)',
-    icon: 'ShieldAlert',
+    name: '⚕️ ۴. سناریوهای بالینی، تریاژ و مهارت‌های دیسپنسینگ (Clinical Triage & Practice)',
+    icon: 'ClipboardCheck',
     color: '#ec4899',
     parent_id: PHARMACY_ROOT_FOLDER_ID,
-    position: 17
+    position: 21
   },
   {
     id: 'folder-cases-slang',
@@ -220,15 +265,15 @@ const PHARMACY_FOLDERS = [
     icon: 'MessageSquare',
     color: '#f43f5e',
     parent_id: 'folder-pharmacy-cat-cases-triage',
-    position: 18
+    position: 22
   },
   {
     id: 'folder-cases-clinical',
-    name: '📋 ۴-۲. سناریوهای تصمیم‌گیری و تریاژ بالینی (High-Stakes Clinical Scenarios)',
+    name: '📋 ۴-۲. سناریوهای تصمیم‌گیری و تریاژ بالینی داروساز (High-Stakes Clinical Scenarios)',
     icon: 'ClipboardCheck',
     color: '#db2777',
     parent_id: 'folder-pharmacy-cat-cases-triage',
-    position: 19
+    position: 23
   },
   {
     id: 'folder-cases-admin',
@@ -236,43 +281,51 @@ const PHARMACY_FOLDERS = [
     icon: 'FileText',
     color: '#be185d',
     parent_id: 'folder-pharmacy-cat-cases-triage',
-    position: 20
+    position: 24
+  },
+  {
+    id: 'folder-cases-scripts',
+    name: '📝 ۴-۴. نسخه‌های واقعی PBS، چالش‌های قانونی و تحویل دارو (Realistic PBS Scripts)',
+    icon: 'FileCheck',
+    color: '#9333ea',
+    parent_id: 'folder-pharmacy-cat-cases-triage',
+    position: 25
   },
 
   // -------------------------------------------------------------
-  // PILLAR 5: ACADEMIC MODULES & HEALTHCARE LEGISLATION
+  // PILLAR 5: ACADEMIC MODULES & HEALTHCARE LEGISLATION (36 docs)
   // -------------------------------------------------------------
   {
     id: 'folder-pharmacy-cat-academic-modules',
-    name: '📚 ۵. درس‌های آکادمیک، قوانین داروخانه و سیستم سلامت (Modules 1-6 Lessons)',
+    name: '📚 ۵. درس‌های آکادمیک و سیستم سلامت استرالیا (Modules 1-6 Lessons)',
     icon: 'BookOpen',
     color: '#0284c7',
     parent_id: PHARMACY_ROOT_FOLDER_ID,
-    position: 21
+    position: 26
   },
   {
     id: 'folder-mod-health-system',
-    name: '🏛️ ۵-۱. ساختار سیستم سلامت، قوانین دارویی و زمان‌بندی (Health System & Scheduling)',
+    name: '🏛️ ۵-۱. سیستم سلامت، ساختار PBS و نهاد TGA (Healthcare System & PBS Structure)',
     icon: 'Landmark',
     color: '#0284c7',
     parent_id: 'folder-pharmacy-cat-academic-modules',
-    position: 22
+    position: 27
   },
   {
     id: 'folder-mod-dispensing',
-    name: '📜 ۵-۲. فرآیند نسخه‌پیچی، استانداردهای ثبت و مشاوره (Dispensing, Records & Counseling)',
-    icon: 'ScrollText',
+    name: '💊 ۵-۲. قوانین نسخه‌پیچی، مشاوره و مراقبت‌های اولیه (Dispensing & Primary Care)',
+    icon: 'Pill',
     color: '#0369a1',
     parent_id: 'folder-pharmacy-cat-academic-modules',
-    position: 23
+    position: 28
   },
   {
     id: 'folder-mod-populations',
-    name: '👶 ۵-۳. جمعیت‌های خاص، ایمنی بیمار و فارماکوویژیلانس (Special Populations & Clinical Governance)',
+    name: '👶 ۵-۳. جمعیت‌های خاص، ایمنی بیمار و فارماکوویژیلانس (Special Populations & Safety)',
     icon: 'HeartHandshake',
     color: '#075985',
     parent_id: 'folder-pharmacy-cat-academic-modules',
-    position: 24
+    position: 29
   }
 ];
 
@@ -288,10 +341,18 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-// =========================================================================
-// SECTION 1: 43 CLINICAL DISEASES (Fully Bilingual: Persian + English)
-// =========================================================================
+// Subcategory to Disease mapping
+const subcategoryDiseaseMap = {
+  'sub-1-1': ['pain_relief', 'dis-migraine', 'dis-soft-tissue-injury', 'dis-gout', 'mouth_ulcers', 'teething'],
+  'sub-1-2': ['tinea_infections', 'tinea_versicolor', 'vaginal_thrush', 'oral_thrush', 'worms_pinworms', 'scabies', 'headlice'],
+  'sub-1-3': ['bacterial_conjunctivitis', 'blepharitis', 'dry_eyes', 'stye', 'ear_wax', 'swimmers_ear'],
+  'sub-1-4': ['dis-asthma', 'dis-copd', 'hayfever', 'nasal_congestion', 'chesty_cough', 'dry_cough', 'sore_throat', 'smoking_cessation'],
+  'sub-1-5': ['gord_heartburn', 'constipation', 'diarrhoea', 'haemorrhoids', 'anal_fissure', 'motion_sickness'],
+  'sub-1-6': ['eczema', 'acne', 'seborrhoeic_dermatitis', 'nappy_rash', 'cradle_cap', 'burns_sunburn', 'chilblains', 'corns_calluses', 'warts', 'stings_bites', 'cold_sores', 'shingles'],
+  'sub-1-7': ['uti_cystitis', 'vaginal_thrush', 'mouth_ulcers', 'dry_mouth', 'teething']
+};
 
+// Disease category mapping
 const diseaseCategoryMap = {
   // Respiratory
   chesty_cough: 'folder-clinical-resp',
@@ -349,6 +410,69 @@ const diseaseCategoryMap = {
   smoking_cessation: 'folder-clinical-women-uro'
 };
 
+// Scenario to Disease mapping
+const scenarioToDiseaseMap = {
+  'cough-triage': 'chesty_cough',
+  'hayfever-triage': 'hayfever',
+  's3-pseudoephedrine': 'nasal_congestion',
+  'coldsore-triage': 'cold_sores',
+  'chickenpox-advisory': 'chickenpox',
+  'hydrocortisone-triage': 'eczema',
+  'pinworm-triage': 'worms_pinworms',
+  'thrush-triage': 'vaginal_thrush',
+  'shingrix-vaccine': 'shingles',
+  'ear-triage': 'ear_wax',
+  'dyspepsia-triage': 'gord_heartburn',
+  'sunburn-triage': 'burns_sunburn',
+  'slang-ibuprofen-brand-vs-generic': 'pain_relief',
+  'slang-severe-hayfever-bunged-nose': 'hayfever',
+  'slang-motion-sickness-boat': 'motion_sickness',
+  'slang-toddler-bark-panadol-baby': 'pain_relief'
+};
+
+// Product folder mapping
+function getProductFolder(prod) {
+  const sub = prod.subcategoryId || '';
+  if (sub === 'sub-1-1') return 'folder-mono-pain';
+  if (sub === 'sub-1-4') return 'folder-mono-resp';
+  if (sub === 'sub-1-5') return 'folder-mono-gi';
+  if (sub === 'sub-1-6' || sub === 'sub-1-2') return 'folder-mono-topical';
+  return 'folder-mono-special';
+}
+
+// Find products matching a disease
+function getProductsForDisease(diseaseId, diseaseName) {
+  const normalizedId = diseaseId.toLowerCase();
+  const normalizedName = diseaseName.toLowerCase();
+  return (SHELF_PRODUCTS || []).filter(p => {
+    // Check subcategory mapping
+    for (const [subId, diseaseList] of Object.entries(subcategoryDiseaseMap)) {
+      if (diseaseList.includes(normalizedId) && p.subcategoryId === subId) {
+        return true;
+      }
+    }
+    // Check indications text
+    const indText = `${p.indications?.en || ''} ${p.indications?.fa || ''} ${p.brandName} ${p.genericName}`.toLowerCase();
+    return indText.includes(normalizedId.replace(/_/g, ' ')) || indText.includes(normalizedName);
+  });
+}
+
+// Find matching scenario for a disease
+function getScenarioForDisease(diseaseId) {
+  for (const [scId, dId] of Object.entries(scenarioToDiseaseMap)) {
+    if (dId === diseaseId) {
+      const found = (CLINICAL_SCENARIOS || []).find(s => s.id === scId) ||
+                    (SLANG_SCENARIOS || []).find(s => s.id === scId);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+// =========================================================================
+// SECTION 1: 43 CLINICAL DISEASES (With Linked Products & Scenarios)
+// =========================================================================
+
 for (const hb of handbookDiseases) {
   const trans = OTC_CLINICAL_TRANSLATIONS ? OTC_CLINICAL_TRANSLATIONS[hb.id] : null;
   const folderId = diseaseCategoryMap[hb.id] || 'folder-clinical-derma';
@@ -357,6 +481,9 @@ for (const hb of handbookDiseases) {
   const cleanEnName = trans?.cleanEnName || hb.condition.replace(/\s*\([^)]*\)/, '');
   const title = `${cleanFaName} (${cleanEnName})`;
   const titleEn = `${cleanEnName} - OTC Clinical Protocol`;
+
+  const matchingProducts = getProductsForDisease(hb.id, cleanEnName);
+  const matchingScenario = getScenarioForDisease(hb.id);
 
   // Build Rich Persian HTML
   let htmlFa = `
@@ -391,19 +518,44 @@ for (const hb of handbookDiseases) {
     <div class="text-xs text-amber-600 dark:text-amber-400"><strong class="text-foreground">احتیاط‌های مهم:</strong> ${escapeHtml(fl.keyWarningsFa)}</div>
     ${fl.alternativesFa ? `<div class="text-xs text-muted-foreground"><strong class="text-foreground">داروی جایگزین:</strong> ${escapeHtml(fl.alternativesFa)}</div>` : ''}
   </div>`;
-  } else if (hb.medicines && hb.medicines.length > 0) {
+  }
+
+  // Linked Shelf Products Grid
+  if (matchingProducts.length > 0) {
     htmlFa += `
-  <div>
-    <h3 class="text-sm font-bold text-foreground mb-2">داروهای قابل توصیه در داروخانه:</h3>
-    <div class="space-y-3">
-      ${hb.medicines.map(m => `
-      <div class="p-3.5 rounded-2xl bg-muted/40 border border-border space-y-1.5 text-xs">
-        <div class="font-bold text-primary">${escapeHtml(m.name)} <span class="text-muted-foreground">(${escapeHtml(m.brandExamples)})</span></div>
-        <div><strong class="text-foreground">دوزینگ:</strong> ${escapeHtml(m.dosing)}</div>
-        <div class="text-muted-foreground"><strong class="text-foreground">ایمنی بارداری:</strong> ${escapeHtml(m.pregnancySafety)} | <strong class="text-foreground">شیردهی:</strong> ${escapeHtml(m.breastfeedingSafety)}</div>
-        ${m.extraInfo ? `<div class="text-amber-600 dark:text-amber-400 font-medium">${escapeHtml(m.extraInfo)}</div>` : ''}
+  <div class="p-4 rounded-2xl bg-card border border-primary/20 space-y-3">
+    <div class="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
+      <div class="text-xs font-bold text-foreground flex items-center gap-1.5">
+        <span>💊 فرآورده‌ها و داروهای قفسه داروخانه (Linked Shelf Products):</span>
+      </div>
+      <span class="text-[10px] text-muted-foreground font-medium">قابل کلیک جهت مطالعه مونوگراف کامل</span>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+      ${matchingProducts.slice(0, 6).map(p => `
+      <div class="p-3 rounded-xl bg-background border border-border/80 hover:border-primary/50 hover:bg-secondary/40 cursor-pointer transition flex items-center justify-between gap-2 group" data-doc-link="doc-product-${p.id}">
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5 mb-0.5">
+            <span class="font-bold text-foreground group-hover:text-primary transition">${escapeHtml(p.brandName)}</span>
+            <span class="text-[9px] px-1.5 py-0.2 rounded-md font-mono ${p.schedule === 'S3' ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300' : p.schedule === 'S4' ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300' : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'}">${p.schedule}</span>
+          </div>
+          <div class="text-[11px] text-muted-foreground font-mono" dir="ltr">${escapeHtml(p.genericName)}</div>
+        </div>
+        <span class="text-[11px] text-primary group-hover:translate-x-[-2px] transition">←</span>
       </div>`).join('')}
     </div>
+  </div>`;
+  }
+
+  // Linked Triage Scenario Banner
+  if (matchingScenario) {
+    const scDocId = `doc-scenario-${matchingScenario.mode === 'MODE_B_SLANG' ? 'slang' : 'clinical'}-${matchingScenario.id}`;
+    htmlFa += `
+  <div class="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-center justify-between gap-2 cursor-pointer hover:bg-rose-500/15 transition group" data-doc-link="${scDocId}">
+    <div>
+      <div class="text-[10px] font-bold text-rose-600 dark:text-rose-400">🗣️ سناریوی بالینی و مکالمه بیمار در داروخانه:</div>
+      <div class="text-xs font-bold text-foreground group-hover:text-rose-600 transition">${escapeHtml(matchingScenario.title?.fa || matchingScenario.title?.en || matchingScenario.id)}</div>
+    </div>
+    <span class="text-xs font-bold text-rose-600 dark:text-rose-400 group-hover:translate-x-[-2px] transition">مشاهده گفتگوی تریاژ ←</span>
   </div>`;
   }
 
@@ -422,7 +574,7 @@ for (const hb of handbookDiseases) {
   </div>`;
   }
 
-  // Non-Pharm
+  // Non-Pharm & Pearls
   const nonPharm = trans?.nonPharmFa || hb.nonPharmAdvice || [];
   if (nonPharm.length > 0) {
     htmlFa += `
@@ -437,7 +589,6 @@ for (const hb of handbookDiseases) {
   </div>`;
   }
 
-  // Pearls
   const pearls = trans?.clinicalPearlsFa || hb.clinicalNotes || [];
   if (pearls.length > 0) {
     htmlFa += `
@@ -452,48 +603,18 @@ for (const hb of handbookDiseases) {
   </div>`;
   }
 
-  // Australian Brands Table
-  if (trans?.australianBrands && trans.australianBrands.length > 0) {
-    htmlFa += `
-  <div>
-    <h3 class="text-sm font-bold text-foreground mb-2">برندهای ژنریک و تجاری معادل در استرالیا:</h3>
-    <div class="overflow-x-auto rounded-xl border border-border">
-      <table class="w-full text-xs text-right">
-        <thead class="bg-muted/60 text-muted-foreground">
-          <tr>
-            <th class="p-2.5">نام برند (Brand)</th>
-            <th class="p-2.5">نام ژنریک (Generic)</th>
-            <th class="p-2.5">شکل دارویی (Form)</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-border">
-          ${trans.australianBrands.map(b => `
-          <tr class="hover:bg-muted/20">
-            <td class="p-2.5 font-bold text-primary" dir="ltr">${escapeHtml(b.brand)}</td>
-            <td class="p-2.5 text-foreground" dir="ltr">${escapeHtml(b.generic)}</td>
-            <td class="p-2.5 text-muted-foreground">${escapeHtml(b.form || '-')}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>
-  </div>`;
-  }
-
   htmlFa += `\n</div>`;
 
-  // Build Rich English HTML
+  // English HTML
   let htmlEn = `
 <div class="knowledge-card space-y-6 text-left" dir="ltr">
   <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25">
-    <div class="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1">Condition & Australian Benchmark Brand:</div>
+    <div class="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1">Common Condition &amp; Benchmark Originator Brand:</div>
     <div class="text-base font-bold text-foreground">${escapeHtml(cleanEnName)} | <span class="font-mono text-primary">${escapeHtml(trans?.primaryBrand || hb.condition)}</span></div>
   </div>
 
   <div>
-    <h3 class="text-sm font-bold text-foreground mb-2 flex items-center gap-1.5">
-      <span class="w-2 h-2 rounded-full bg-primary inline-block"></span>
-      Diagnostic Symptoms & Clinical Presentation:
-    </h3>
+    <h3 class="text-sm font-bold text-foreground mb-2">Key Diagnostic Symptoms:</h3>
     <ul class="list-disc list-inside space-y-1 text-xs text-muted-foreground ps-2">
       ${(hb.symptoms || []).map(s => `<li>${escapeHtml(s)}</li>`).join('\n      ')}
     </ul>
@@ -503,74 +624,56 @@ for (const hb of handbookDiseases) {
     const fl = trans.firstLine;
     htmlEn += `
   <div class="p-4 rounded-2xl bg-primary/10 border border-primary/25 space-y-2">
-    <div class="text-xs font-bold text-primary flex items-center gap-1.5">
-      <span>💊</span>
-      <span>First-Line OTC Pharmacotherapy:</span>
-    </div>
-    <div class="text-sm font-bold text-foreground">${escapeHtml(fl.drugNameEn)}</div>
-    <div class="text-xs text-muted-foreground"><strong class="text-foreground">Drug Class:</strong> ${escapeHtml(fl.drugClassEn)}</div>
-    <div class="text-xs text-muted-foreground"><strong class="text-foreground">Dosing & Regimen:</strong> ${escapeHtml(fl.dosingEn)}</div>
-    <div class="text-xs text-muted-foreground"><strong class="text-foreground">Onset & Course:</strong> ${escapeHtml(fl.onsetCourseEn)}</div>
-    <div class="text-xs text-amber-600 dark:text-amber-400"><strong class="text-foreground">Important Warnings:</strong> ${escapeHtml(fl.keyWarningsEn)}</div>
-    ${fl.alternativesEn ? `<div class="text-xs text-muted-foreground"><strong class="text-foreground">Alternative:</strong> ${escapeHtml(fl.alternativesEn)}</div>` : ''}
+    <div class="text-xs font-bold text-primary">💊 First-line Pharmacotherapy:</div>
+    <div class="text-sm font-bold text-foreground">${escapeHtml(fl.drugNameEn)} (${escapeHtml(fl.drugClassEn)})</div>
+    <div class="text-xs text-muted-foreground"><strong>Dosing Regimen:</strong> ${escapeHtml(fl.dosingEn)}</div>
+    <div class="text-xs text-muted-foreground"><strong>Onset &amp; Course:</strong> ${escapeHtml(fl.onsetCourseEn)}</div>
+    <div class="text-xs text-amber-600 dark:text-amber-400"><strong>Clinical Cautions:</strong> ${escapeHtml(fl.keyWarningsEn)}</div>
   </div>`;
-  } else if (hb.medicines && hb.medicines.length > 0) {
+  }
+
+  if (matchingProducts.length > 0) {
     htmlEn += `
-  <div>
-    <h3 class="text-sm font-bold text-foreground mb-2">Recommended OTC Medicines:</h3>
-    <div class="space-y-3">
-      ${hb.medicines.map(m => `
-      <div class="p-3.5 rounded-2xl bg-muted/40 border border-border space-y-1.5 text-xs">
-        <div class="font-bold text-primary">${escapeHtml(m.name)} <span class="text-muted-foreground">(${escapeHtml(m.brandExamples)})</span></div>
-        <div><strong class="text-foreground">Dosing:</strong> ${escapeHtml(m.dosing)}</div>
-        <div class="text-muted-foreground"><strong class="text-foreground">Pregnancy:</strong> ${escapeHtml(m.pregnancySafety)} | <strong class="text-foreground">Lactation:</strong> ${escapeHtml(m.breastfeedingSafety)}</div>
-        ${m.extraInfo ? `<div class="text-amber-600 dark:text-amber-400 font-medium">${escapeHtml(m.extraInfo)}</div>` : ''}
+  <div class="p-4 rounded-2xl bg-card border border-primary/20 space-y-3">
+    <div class="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
+      <div class="text-xs font-bold text-foreground">💊 Linked Shelf Products &amp; Brands:</div>
+      <span class="text-[10px] text-muted-foreground">Click to view full monograph</span>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+      ${matchingProducts.slice(0, 6).map(p => `
+      <div class="p-3 rounded-xl bg-background border border-border/80 hover:border-primary/50 hover:bg-secondary/40 cursor-pointer transition flex items-center justify-between gap-2 group" data-doc-link="doc-product-${p.id}">
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5 mb-0.5">
+            <span class="font-bold text-foreground group-hover:text-primary transition">${escapeHtml(p.brandName)}</span>
+            <span class="text-[9px] px-1.5 py-0.2 rounded-md font-mono ${p.schedule === 'S3' ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300' : p.schedule === 'S4' ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300' : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'}">${p.schedule}</span>
+          </div>
+          <div class="text-[11px] text-muted-foreground font-mono">${escapeHtml(p.genericName)}</div>
+        </div>
+        <span class="text-[11px] text-primary group-hover:translate-x-[2px] transition">→</span>
       </div>`).join('')}
     </div>
   </div>`;
   }
 
-  // English Red Flags
-  const refCriteria = hb.referralCriteria || [];
-  if (refCriteria.length > 0) {
+  if (matchingScenario) {
+    const scDocId = `doc-scenario-${matchingScenario.mode === 'MODE_B_SLANG' ? 'slang' : 'clinical'}-${matchingScenario.id}`;
+    htmlEn += `
+  <div class="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-center justify-between gap-2 cursor-pointer hover:bg-rose-500/15 transition group" data-doc-link="${scDocId}">
+    <div>
+      <div class="text-[10px] font-bold text-rose-600 dark:text-rose-400">🗣️ Linked Triage Scenario:</div>
+      <div class="text-xs font-bold text-foreground group-hover:text-rose-600 transition">${escapeHtml(matchingScenario.title?.en || matchingScenario.title?.fa || matchingScenario.id)}</div>
+    </div>
+    <span class="text-xs font-bold text-rose-600 dark:text-rose-400 group-hover:translate-x-[2px] transition">View Triage Dialogue →</span>
+  </div>`;
+  }
+
+  const redFlagsEn = hb.referralCriteria || [];
+  if (redFlagsEn.length > 0) {
     htmlEn += `
   <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 space-y-1.5">
-    <div class="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
-      <span>⚠️</span>
-      <span>Red Flags & Urgent Referral Criteria:</span>
-    </div>
+    <div class="text-xs font-bold text-rose-600 dark:text-rose-400">⚠️ Red Flags &amp; Urgent Referral:</div>
     <ul class="list-disc list-inside space-y-1 text-xs text-rose-700 dark:text-rose-300">
-      ${refCriteria.map(rf => `<li>${escapeHtml(rf)}</li>`).join('\n      ')}
-    </ul>
-  </div>`;
-  }
-
-  // English Non-Pharm
-  const npAdvice = hb.nonPharmAdvice || [];
-  if (npAdvice.length > 0) {
-    htmlEn += `
-  <div class="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/25 space-y-1.5">
-    <div class="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
-      <span>🌿</span>
-      <span>Non-Pharmacological Care & Patient Advice:</span>
-    </div>
-    <ul class="list-disc list-inside space-y-1 text-xs text-muted-foreground">
-      ${npAdvice.map(np => `<li>${escapeHtml(np)}</li>`).join('\n      ')}
-    </ul>
-  </div>`;
-  }
-
-  // English Pearls
-  const cNotes = hb.clinicalNotes || [];
-  if (cNotes.length > 0) {
-    htmlEn += `
-  <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-1.5">
-    <div class="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-      <span>💡</span>
-      <span>Clinical Pearls & Counseling Tips:</span>
-    </div>
-    <ul class="list-disc list-inside space-y-1 text-xs text-muted-foreground">
-      ${cNotes.map(cp => `<li>${escapeHtml(cp)}</li>`).join('\n      ')}
+      ${redFlagsEn.map(rf => `<li>${escapeHtml(rf)}</li>`).join('\n      ')}
     </ul>
   </div>`;
   }
@@ -586,82 +689,63 @@ for (const hb of handbookDiseases) {
     content_en: htmlEn,
     preferred_language: 'bilingual',
     direction: 'rtl',
-    tags: ['Clinical Atlas', 'OTC', hb.category || 'Primary Care', cleanEnName]
+    tags: ['Clinical Atlas', cleanEnName, trans?.firstLine?.drugClassEn || 'OTC Protocol']
   });
 }
 
-console.log(`Generated ${handbookDiseases.length} disease documents across 6 clinical subfolders`);
+console.log(`Generated ${handbookDiseases.length} Disease documents across 6 clinical subfolders`);
 
 // =========================================================================
-// SECTION 2: 6 CYP ENZYMES & 14 PHARMACOLOGY MECHANISMS
+// SECTION 2: PHARMACOLOGY (6 CYP + 14 Mechanisms + 35 Clinical Concepts = 55 docs)
 // =========================================================================
 
+// 2.1 6 CYP Enzymes
 for (const cyp of cypList) {
-  const cypCode = (cyp.id || 'CYP').toUpperCase();
-  const docId = `doc-cyp-${(cyp.id || 'cyp').toLowerCase()}`;
-  const title = `آنزیم ${cypCode}: ${cyp.nameFa || cypCode} (${cypCode} Cytochrome Profile)`;
-  const titleEn = `${cypCode} Cytochrome P450 - Metabolic Profile & DDIs`;
+  const docId = `doc-cyp-${cyp.id.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const title = `سیتوکروم ${cyp.name}: تداخلات و مهارکننده‌ها`;
+  const titleEn = `${cyp.name} Cytochrome P450 Monograph`;
+
+  const relatedPairs = (COMMON_PAIR_INTERACTIONS || []).filter(p => p.enzyme === cyp.id);
 
   const htmlFa = `
 <div class="knowledge-card space-y-6 text-right" dir="rtl">
   <div class="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/25">
-    <div class="text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-1">موقعیت و اهمیت آنزیمی:</div>
-    <div class="text-base font-bold text-foreground">${escapeHtml(cypCode)}: ${escapeHtml(cyp.nameFa || cypCode)}</div>
-    <div class="text-xs text-muted-foreground mt-1">${escapeHtml(cyp.overviewFa || '')}</div>
+    <div class="text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-1">مسیر متابولیک و اهمیت بالینی:</div>
+    <div class="text-base font-bold text-foreground">آنزیم سیتوکروم کبد: ${escapeHtml(cyp.name)}</div>
+    <p class="text-xs text-muted-foreground mt-2 leading-relaxed">${escapeHtml(cyp.clinicalSignificance?.fa || cyp.clinicalSignificance?.en || '')}</p>
   </div>
 
-  <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30">
-    <div class="text-xs font-bold text-amber-600 dark:text-amber-400 mb-1">اهمیت بالینی و فارماکوکینتیک:</div>
-    <div class="text-xs text-muted-foreground leading-relaxed">${escapeHtml(cyp.clinicalSignificanceFa || '')}</div>
-  </div>
-
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 space-y-2">
-      <div class="text-xs font-bold text-rose-600 dark:text-rose-400">🛑 مهارکننده‌های کلیدی (Inhibitors):</div>
-      <div class="space-y-1.5">
-        ${(cyp.inhibitors || []).map(inh => `
-        <div class="text-xs">
-          <span class="font-bold text-foreground">${escapeHtml(inh.nameFa || inh.name)}</span>
-          <span class="text-[11px] text-muted-foreground font-mono" dir="ltr">(${escapeHtml(inh.name)})</span>
-          ${inh.notesFa ? `<div class="text-[11px] text-rose-700 dark:text-rose-300 mt-0.5">${escapeHtml(inh.notesFa)}</div>` : ''}
-        </div>`).join('')}
-      </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <div class="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 space-y-2">
+      <div class="text-xs font-bold text-rose-600 dark:text-rose-400">🚫 مهارکننده‌ها (Inhibitors):</div>
+      <ul class="text-xs space-y-1 text-muted-foreground">
+        ${(cyp.inhibitors || []).map(i => `<li><strong>${escapeHtml(i.name)}</strong> ${i.potency ? `<span class="text-[10px] text-rose-500">(${i.potency})</span>` : ''}</li>`).join('')}
+      </ul>
     </div>
 
-    <div class="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25 space-y-2">
-      <div class="text-xs font-bold text-blue-600 dark:text-blue-400">⚡ القاکننده‌های کلیدی (Inducers):</div>
-      <div class="space-y-1.5">
-        ${(cyp.inducers || []).map(ind => `
-        <div class="text-xs">
-          <span class="font-bold text-foreground">${escapeHtml(ind.nameFa || ind.name)}</span>
-          <span class="text-[11px] text-muted-foreground font-mono" dir="ltr">(${escapeHtml(ind.name)})</span>
-          ${ind.notesFa ? `<div class="text-[11px] text-blue-700 dark:text-blue-300 mt-0.5">${escapeHtml(ind.notesFa)}</div>` : ''}
-        </div>`).join('')}
-      </div>
+    <div class="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-2">
+      <div class="text-xs font-bold text-emerald-600 dark:text-emerald-400">⚡ القاکننده‌ها (Inducers):</div>
+      <ul class="text-xs space-y-1 text-muted-foreground">
+        ${(cyp.inducers || []).map(i => `<li><strong>${escapeHtml(i.name)}</strong></li>`).join('')}
+      </ul>
+    </div>
+
+    <div class="p-3.5 rounded-2xl bg-sky-500/10 border border-sky-500/20 space-y-2">
+      <div class="text-xs font-bold text-sky-600 dark:text-sky-400">🎯 سوبستراها (Substrates):</div>
+      <ul class="text-xs space-y-1 text-muted-foreground">
+        ${(cyp.substrates || []).map(s => `<li><strong>${escapeHtml(s.name)}</strong></li>`).join('')}
+      </ul>
     </div>
   </div>
 
-  <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-2">
-    <div class="text-xs font-bold text-emerald-600 dark:text-emerald-400">🎯 سوبستراهای حساس و با پنجره درمانی باریک (Substrates):</div>
-    <div class="space-y-1.5">
-      ${(cyp.substrates || []).map(sub => `
-      <div class="text-xs">
-        <span class="font-bold text-foreground">${escapeHtml(sub.nameFa || sub.name)}</span>
-        <span class="text-[11px] text-muted-foreground font-mono" dir="ltr">(${escapeHtml(sub.name)})</span>
-        ${sub.notesFa ? `<div class="text-[11px] text-muted-foreground mt-0.5">${escapeHtml(sub.notesFa)}</div>` : ''}
-      </div>`).join('')}
-    </div>
-  </div>
-
-  ${cyp.clinicalRules && cyp.clinicalRules.length > 0 ? `
-  <div class="p-4 rounded-2xl bg-card border border-border space-y-2">
-    <div class="text-xs font-bold text-primary mb-2">قوانین و تداخلات طلایی بالینی:</div>
-    <div class="space-y-2">
-      ${cyp.clinicalRules.map(cr => `
-      <div class="p-3 rounded-xl bg-muted/40 border border-border space-y-1 text-xs">
-        <div class="font-bold text-foreground">${escapeHtml(cr.titleFa)}</div>
-        <div class="text-muted-foreground"><strong>مکانیسم:</strong> ${escapeHtml(cr.mechanismFa)}</div>
-        <div class="text-emerald-600 dark:text-emerald-400"><strong>توصیه بالینی:</strong> ${escapeHtml(cr.recommendationFa)}</div>
+  ${relatedPairs.length > 0 ? `
+  <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 space-y-2">
+    <div class="text-xs font-bold text-amber-700 dark:text-amber-400">⚠️ زوج‌های تداخلی پرتکرار در آزمون‌های بالینی:</div>
+    <div class="space-y-2 text-xs">
+      ${relatedPairs.map(rp => `
+      <div class="p-2.5 rounded-xl bg-background/80 border border-amber-500/20">
+        <div class="font-bold text-foreground">${escapeHtml(rp.drugA)} + ${escapeHtml(rp.drugB)} (${escapeHtml(rp.severity)})</div>
+        <div class="text-muted-foreground mt-0.5">${escapeHtml(rp.effectFa || rp.effectEn)}</div>
       </div>`).join('')}
     </div>
   </div>` : ''}
@@ -670,63 +754,33 @@ for (const cyp of cypList) {
   const htmlEn = `
 <div class="knowledge-card space-y-6 text-left" dir="ltr">
   <div class="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/25">
-    <div class="text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-1">Enzyme Identity & Share of Metabolism:</div>
-    <div class="text-base font-bold text-foreground">${escapeHtml(cypCode)}: ${escapeHtml(cyp.nameEn || cypCode)}</div>
-    <div class="text-xs text-muted-foreground mt-1">${escapeHtml(cyp.overviewEn || '')}</div>
+    <div class="text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-1">Hepatic Metabolic Pathway &amp; Clinical Significance:</div>
+    <div class="text-base font-bold text-foreground">Cytochrome P450 Isoenzyme: ${escapeHtml(cyp.name)}</div>
+    <p class="text-xs text-muted-foreground mt-2 leading-relaxed">${escapeHtml(cyp.clinicalSignificance?.en || '')}</p>
   </div>
 
-  <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30">
-    <div class="text-xs font-bold text-amber-600 dark:text-amber-400 mb-1">Clinical Significance:</div>
-    <div class="text-xs text-muted-foreground leading-relaxed">${escapeHtml(cyp.clinicalSignificanceEn || '')}</div>
-  </div>
-
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 space-y-2">
-      <div class="text-xs font-bold text-rose-600 dark:text-rose-400">🛑 Key Inhibitors:</div>
-      <div class="space-y-1.5">
-        ${(cyp.inhibitors || []).map(inh => `
-        <div class="text-xs">
-          <span class="font-bold text-foreground">${escapeHtml(inh.name)}</span>
-          ${inh.notesEn ? `<div class="text-[11px] text-rose-700 dark:text-rose-300 mt-0.5">${escapeHtml(inh.notesEn)}</div>` : ''}
-        </div>`).join('')}
-      </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <div class="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 space-y-2">
+      <div class="text-xs font-bold text-rose-600 dark:text-rose-400">🚫 Potent Inhibitors:</div>
+      <ul class="text-xs space-y-1 text-muted-foreground">
+        ${(cyp.inhibitors || []).map(i => `<li><strong>${escapeHtml(i.name)}</strong> ${i.potency ? `<span class="text-[10px] text-rose-500">(${i.potency})</span>` : ''}</li>`).join('')}
+      </ul>
     </div>
 
-    <div class="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25 space-y-2">
-      <div class="text-xs font-bold text-blue-600 dark:text-blue-400">⚡ Key Inducers:</div>
-      <div class="space-y-1.5">
-        ${(cyp.inducers || []).map(ind => `
-        <div class="text-xs">
-          <span class="font-bold text-foreground">${escapeHtml(ind.name)}</span>
-          ${ind.notesEn ? `<div class="text-[11px] text-blue-700 dark:text-blue-300 mt-0.5">${escapeHtml(ind.notesEn)}</div>` : ''}
-        </div>`).join('')}
-      </div>
+    <div class="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-2">
+      <div class="text-xs font-bold text-emerald-600 dark:text-emerald-400">⚡ Inducers:</div>
+      <ul class="text-xs space-y-1 text-muted-foreground">
+        ${(cyp.inducers || []).map(i => `<li><strong>${escapeHtml(i.name)}</strong></li>`).join('')}
+      </ul>
+    </div>
+
+    <div class="p-3.5 rounded-2xl bg-sky-500/10 border border-sky-500/20 space-y-2">
+      <div class="text-xs font-bold text-sky-600 dark:text-sky-400">🎯 Major Substrates:</div>
+      <ul class="text-xs space-y-1 text-muted-foreground">
+        ${(cyp.substrates || []).map(s => `<li><strong>${escapeHtml(s.name)}</strong></li>`).join('')}
+      </ul>
     </div>
   </div>
-
-  <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-2">
-    <div class="text-xs font-bold text-emerald-600 dark:text-emerald-400">🎯 Sensitive Substrates & Narrow Therapeutic Index:</div>
-    <div class="space-y-1.5">
-      ${(cyp.substrates || []).map(sub => `
-      <div class="text-xs">
-        <span class="font-bold text-foreground">${escapeHtml(sub.name)}</span>
-        ${sub.notesEn ? `<div class="text-[11px] text-muted-foreground mt-0.5">${escapeHtml(sub.notesEn)}</div>` : ''}
-      </div>`).join('')}
-    </div>
-  </div>
-
-  ${cyp.clinicalRules && cyp.clinicalRules.length > 0 ? `
-  <div class="p-4 rounded-2xl bg-card border border-border space-y-2">
-    <div class="text-xs font-bold text-primary mb-2">High-Yield Clinical Drug Interaction Rules:</div>
-    <div class="space-y-2">
-      ${cyp.clinicalRules.map(cr => `
-      <div class="p-3 rounded-xl bg-muted/40 border border-border space-y-1 text-xs">
-        <div class="font-bold text-foreground">${escapeHtml(cr.titleEn)}</div>
-        <div class="text-muted-foreground"><strong>Mechanism:</strong> ${escapeHtml(cr.mechanismEn)}</div>
-        <div class="text-emerald-600 dark:text-emerald-400"><strong>Recommendation:</strong> ${escapeHtml(cr.recommendationEn)}</div>
-      </div>`).join('')}
-    </div>
-  </div>` : ''}
 </div>`;
 
   documents.push({
@@ -738,72 +792,103 @@ for (const cyp of cypList) {
     content_en: htmlEn,
     preferred_language: 'bilingual',
     direction: 'rtl',
-    tags: ['Pharmacology', 'CYP450', 'Drug Interactions', cypCode]
+    tags: ['Pharmacology', 'CYP Interaction', cyp.name]
   });
 }
 
-// 14 Mechanisms from mechanismsRegistry
+// 2.2 14 Mechanisms
 for (const mech of mechanismsList) {
-  const docId = `doc-mech-${mech.subcategoryId}`;
-  const title = `مکانیسم اثر: ${mech.categoryTitleFa}`;
-  const titleEn = `Mechanism of Action: ${mech.categoryTitleEn}`;
+  const code = mech.subcategoryId || mech.classCode || mech.id || `mech-${Math.random()}`;
+  const docId = `doc-mechanism-${code.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+  const title = `مکانیسم سلولی: ${mech.categoryTitleFa || mech.classNameFa || mech.categoryTitleEn || mech.classNameEn}`;
+  const titleEn = `Mechanism of Action: ${mech.categoryTitleEn || mech.classNameEn}`;
+
+  // Find products matching this mechanism subcategory or keyClasses
+  const keyCodes = new Set((mech.keyClasses || []).map(k => k.classCode));
+  const matchingProducts = (SHELF_PRODUCTS || []).filter(p =>
+    p.subcategoryId === mech.subcategoryId ||
+    (p.mechanism?.classCode && keyCodes.has(p.mechanism.classCode))
+  );
 
   const htmlFa = `
 <div class="knowledge-card space-y-6 text-right" dir="rtl">
   <div class="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/25">
-    <div class="text-xs font-bold text-purple-600 dark:text-purple-400 mb-1">مسیر زیستی و هدف مولکولی (Target Pathway):</div>
-    <div class="text-sm font-bold text-foreground">${escapeHtml(mech.targetPathwayFa)}</div>
-    <div class="text-xs text-muted-foreground mt-1"><strong class="text-foreground">عملکرد اولیه:</strong> ${escapeHtml(mech.primaryActionFa)}</div>
+    <div class="text-xs font-bold text-purple-600 dark:text-purple-400 mb-1">دسته فارماکولوژیک و بیومولکولی:</div>
+    <div class="text-base font-bold text-foreground">${escapeHtml(mech.categoryTitleFa || mech.classNameFa || '')} | <span dir="ltr" class="font-mono text-primary">${escapeHtml(mech.categoryTitleEn || mech.classNameEn || '')}</span></div>
+    ${mech.targetPathwayFa ? `<div class="text-xs text-muted-foreground mt-1">مسیر بیولوژیک هدف: ${escapeHtml(mech.targetPathwayFa)}</div>` : ''}
   </div>
 
-  <div class="p-4 rounded-2xl bg-muted/40 border border-border">
-    <div class="text-xs font-bold text-foreground mb-1">خلاصه فارماکودینامیک بالینی:</div>
-    <p class="text-xs text-muted-foreground leading-relaxed">${escapeHtml(mech.summaryFa)}</p>
+  <div class="space-y-2">
+    <h3 class="text-sm font-bold text-foreground">شرح جامع مکانیسم عمل و فیزیولوژی سلولی:</h3>
+    <p class="text-xs text-muted-foreground leading-relaxed">${escapeHtml(mech.summaryFa || mech.descriptionFa || '')}</p>
   </div>
 
-  <div>
-    <h3 class="text-sm font-bold text-foreground mb-3">کلاس‌های دارویی کلیدی و مکانیسم عمل سلولی:</h3>
-    <div class="space-y-3">
-      ${(mech.keyClasses || []).map(cls => `
-      <div class="p-3.5 rounded-2xl bg-card border border-border space-y-2">
-        <div class="flex items-center justify-between">
-          <div class="text-xs font-bold text-primary">${escapeHtml(cls.nameFa)} <span class="text-muted-foreground text-[11px]" dir="ltr">(${escapeHtml(cls.nameEn)})</span></div>
-          <span class="text-[10px] px-2 py-0.5 rounded-full bg-secondary font-mono">${escapeHtml(cls.actionType)}</span>
-        </div>
-        <div class="text-xs text-muted-foreground leading-relaxed"><strong class="text-foreground">مکانیسم سلولی:</strong> ${escapeHtml(cls.mechanismFa)}</div>
-        <div class="text-xs text-muted-foreground font-mono" dir="ltr"><strong class="text-foreground" dir="rtl">داروهای نمونه:</strong> ${escapeHtml(cls.examples)}</div>
+  ${mech.primaryActionFa ? `
+  <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 space-y-1">
+    <div class="text-xs font-bold text-amber-700 dark:text-amber-400">عملکرد بیوشیمیایی اولیه (Primary Action):</div>
+    <p class="text-xs text-muted-foreground leading-relaxed">${escapeHtml(mech.primaryActionFa)}</p>
+  </div>` : ''}
+
+  ${mech.keyClasses && mech.keyClasses.length > 0 ? `
+  <div class="p-4 rounded-2xl bg-card border border-border/80 space-y-3">
+    <div class="text-xs font-bold text-foreground">🔬 زیرگروه‌ها و دسته‌های دارویی کلیدی:</div>
+    <div class="space-y-2 text-xs">
+      ${mech.keyClasses.map(k => `
+      <div class="p-3 rounded-xl bg-background border border-border/60">
+        <div class="font-bold text-primary">${escapeHtml(k.nameFa)} (${escapeHtml(k.nameEn)})</div>
+        <div class="text-muted-foreground mt-1">${escapeHtml(k.mechanismFa)}</div>
+        <div class="text-[11px] text-muted-foreground/80 mt-1 font-mono" dir="ltr">Examples: ${escapeHtml(k.examples)}</div>
       </div>`).join('')}
     </div>
-  </div>
+  </div>` : ''}
+
+  ${matchingProducts.length > 0 ? `
+  <div class="p-4 rounded-2xl bg-card border border-primary/20 space-y-3">
+    <div class="text-xs font-bold text-foreground">💊 فرآورده‌های دارای این مکانیسم اثر در قفسه داروخانه:</div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+      ${matchingProducts.map(p => `
+      <div class="p-2.5 rounded-xl bg-background border border-border/80 hover:border-primary/50 cursor-pointer transition flex items-center justify-between group" data-doc-link="doc-product-${p.id}">
+        <div>
+          <span class="font-bold text-foreground group-hover:text-primary transition">${escapeHtml(p.brandName)}</span>
+          <span class="text-[10px] text-muted-foreground block" dir="ltr">${escapeHtml(p.genericName)}</span>
+        </div>
+        <span class="text-primary text-xs">←</span>
+      </div>`).join('')}
+    </div>
+  </div>` : ''}
 </div>`;
 
   const htmlEn = `
 <div class="knowledge-card space-y-6 text-left" dir="ltr">
   <div class="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/25">
-    <div class="text-xs font-bold text-purple-600 dark:text-purple-400 mb-1">Target Pathway & Cellular Site:</div>
-    <div class="text-sm font-bold text-foreground">${escapeHtml(mech.targetPathwayEn)}</div>
-    <div class="text-xs text-muted-foreground mt-1"><strong class="text-foreground">Primary Action:</strong> ${escapeHtml(mech.primaryActionEn)}</div>
+    <div class="text-xs font-bold text-purple-600 dark:text-purple-400 mb-1">Pharmacological Class &amp; Target Pathway:</div>
+    <div class="text-base font-bold text-foreground">${escapeHtml(mech.categoryTitleEn || mech.classNameEn || '')}</div>
+    ${mech.targetPathwayEn ? `<div class="text-xs text-muted-foreground mt-1">Target Pathway: ${escapeHtml(mech.targetPathwayEn)}</div>` : ''}
   </div>
 
-  <div class="p-4 rounded-2xl bg-muted/40 border border-border">
-    <div class="text-xs font-bold text-foreground mb-1">Clinical Pharmacodynamic Summary:</div>
-    <p class="text-xs text-muted-foreground leading-relaxed">${escapeHtml(mech.summaryEn)}</p>
+  <div class="space-y-2">
+    <h3 class="text-sm font-bold text-foreground">Molecular Mechanism of Action:</h3>
+    <p class="text-xs text-muted-foreground leading-relaxed">${escapeHtml(mech.summaryEn || mech.descriptionEn || '')}</p>
   </div>
 
-  <div>
-    <h3 class="text-sm font-bold text-foreground mb-3">Key Drug Classes & Cellular Actions:</h3>
-    <div class="space-y-3">
-      ${(mech.keyClasses || []).map(cls => `
-      <div class="p-3.5 rounded-2xl bg-card border border-border space-y-2">
-        <div class="flex items-center justify-between">
-          <div class="text-xs font-bold text-primary">${escapeHtml(cls.nameEn)}</div>
-          <span class="text-[10px] px-2 py-0.5 rounded-full bg-secondary font-mono">${escapeHtml(cls.actionType)}</span>
-        </div>
-        <div class="text-xs text-muted-foreground leading-relaxed"><strong class="text-foreground">Cellular Mechanism:</strong> ${escapeHtml(cls.mechanismEn)}</div>
-        <div class="text-xs text-muted-foreground font-mono"><strong class="text-foreground">Examples:</strong> ${escapeHtml(cls.examples)}</div>
+  ${mech.primaryActionEn ? `
+  <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 space-y-1">
+    <div class="text-xs font-bold text-amber-700 dark:text-amber-400">Primary Pharmacological Action:</div>
+    <p class="text-xs text-muted-foreground leading-relaxed">${escapeHtml(mech.primaryActionEn)}</p>
+  </div>` : ''}
+
+  ${mech.keyClasses && mech.keyClasses.length > 0 ? `
+  <div class="p-4 rounded-2xl bg-card border border-border/80 space-y-3">
+    <div class="text-xs font-bold text-foreground">Key Pharmacological Classes:</div>
+    <div class="space-y-2 text-xs">
+      ${mech.keyClasses.map(k => `
+      <div class="p-3 rounded-xl bg-background border border-border/60">
+        <div class="font-bold text-primary">${escapeHtml(k.nameEn)}</div>
+        <div class="text-muted-foreground mt-1">${escapeHtml(k.mechanismEn)}</div>
+        <div class="text-[11px] text-muted-foreground/80 mt-1 font-mono">Examples: ${escapeHtml(k.examples)}</div>
       </div>`).join('')}
     </div>
-  </div>
+  </div>` : ''}
 </div>`;
 
   documents.push({
@@ -815,257 +900,582 @@ for (const mech of mechanismsList) {
     content_en: htmlEn,
     preferred_language: 'bilingual',
     direction: 'rtl',
-    tags: ['Pharmacology', 'Mechanism of Action', mech.categoryTitleEn]
+    tags: ['Pharmacology', 'Mechanism', mech.categoryTitleEn || mech.classNameEn || 'Class']
   });
 }
 
-console.log(`Generated 6 CYP + ${mechanismsList.length} Mechanism documents in Pharmacology Pillar`);
-
-// =========================================================================
-// SECTION 3: 25 ESSENTIAL SHELF DRUG MONOGRAPHS (Pharmacopeia)
-// =========================================================================
-
-const selectedProducts = (SHELF_PRODUCTS || []).slice(0, 25);
-
-for (const prod of selectedProducts) {
-  let monoFolder = 'folder-mono-analgesics';
-  if (prod.subcategoryId === 'sub-1-1') monoFolder = 'folder-mono-analgesics';
-  else if (prod.subcategoryId === 'sub-1-3' || prod.subcategoryId === 'sub-1-4' || prod.categoryId === 'cat-3') monoFolder = 'folder-mono-resp-allergy';
-  else if (prod.subcategoryId === 'sub-1-5') monoFolder = 'folder-mono-gi';
-  else if (prod.subcategoryId === 'sub-1-2' || prod.categoryId === 'cat-1') monoFolder = 'folder-mono-topical';
-
-  const title = `مونوگراف دارویی: ${prod.brandName} (${prod.genericName})`;
-  const titleEn = `Monograph: ${prod.brandName} (${prod.genericName})`;
+// 2.3 35 High-Yield Clinical Concepts (Toxicity, Interactions, Red Flags)
+for (const [conceptId, concept] of Object.entries(CLINICAL_CONCEPTS_REGISTRY || {})) {
+  const docId = `doc-concept-${conceptId.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+  const title = `نکته بالینی: ${concept.titleFa || conceptId}`;
+  const titleEn = `Clinical Concept: ${concept.titleEn || conceptId}`;
 
   const htmlFa = `
 <div class="knowledge-card space-y-6 text-right" dir="rtl">
-  <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 space-y-2">
-    <div class="flex items-center justify-between flex-wrap gap-2">
-      <div class="text-base font-bold text-foreground">${escapeHtml(prod.brandName)}</div>
-      <span class="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 font-mono font-bold">${escapeHtml(prod.schedule)}</span>
+  <div class="p-4 rounded-2xl bg-fuchsia-500/10 border border-fuchsia-500/25">
+    <div class="flex items-center justify-between gap-2 mb-1">
+      <span class="text-xs font-bold text-fuchsia-600 dark:text-fuchsia-400">مفهوم پرتکرار بالینی و فارماکولوژی:</span>
+      <span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-fuchsia-500/20 text-fuchsia-700 dark:text-fuchsia-300">${escapeHtml(concept.categoryFa || 'ایمنی')}</span>
     </div>
-    <div class="text-xs text-muted-foreground"><strong class="text-foreground">ماده مؤثره:</strong> ${escapeHtml(prod.activeIngredients)}</div>
-    <div class="text-xs text-muted-foreground"><strong class="text-foreground">بسته‌بندی:</strong> ${escapeHtml(prod.packSize)}</div>
+    <div class="text-base font-bold text-foreground">${escapeHtml(concept.titleFa)}</div>
+    <div class="text-xs text-muted-foreground mt-1" dir="ltr">${escapeHtml(concept.titleEn || '')}</div>
   </div>
 
-  <div class="p-3.5 rounded-2xl bg-muted/40 border border-border">
-    <div class="text-xs font-bold text-foreground mb-1">موارد مصرف بالینی (Indications):</div>
-    <p class="text-xs text-muted-foreground leading-relaxed">${escapeHtml(prod.indications?.fa || prod.indications?.en || '-')}</p>
+  <div class="p-4 rounded-2xl bg-muted/40 border border-border space-y-2">
+    <h3 class="text-xs font-bold text-foreground">شرح بالینی و علت سمیت / تداخل:</h3>
+    <p class="text-xs text-foreground/90 leading-relaxed">${escapeHtml(concept.descriptionFa || '')}</p>
   </div>
 
-  <div class="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/25 space-y-1.5">
-    <div class="text-xs font-bold text-rose-600 dark:text-rose-400">🤰 ایمنی در بارداری و شیردهی: رده ${escapeHtml(prod.tgaPregnancyCategory || 'A')}</div>
-    <p class="text-xs text-muted-foreground leading-relaxed">${escapeHtml(prod.pregnancyAdvice?.fa || prod.pregnancyAdvice?.en || '-')}</p>
-  </div>
-
-  <div>
-    <h3 class="text-sm font-bold text-foreground mb-2">نکات مشاوره داروساز به بیمار (Counseling Points):</h3>
-    <ul class="list-disc list-inside space-y-1.5 text-xs text-muted-foreground">
-      ${(prod.counselingPoints || []).map(cp => `<li>${escapeHtml(cp.fa || cp.en)}</li>`).join('\n      ')}
-    </ul>
-  </div>
-
-  ${prod.equivalentBrands && prod.equivalentBrands.length > 0 ? `
-  <div class="p-3 rounded-2xl bg-secondary border border-border text-xs">
-    <strong class="text-foreground">برندهای ژنریک معادل (Bioequivalent):</strong>
-    <span class="font-mono text-primary" dir="ltr">${escapeHtml(prod.equivalentBrands.join(', '))}</span>
+  ${concept.descriptionEn ? `
+  <div class="p-4 rounded-2xl bg-background border border-border space-y-1 text-left" dir="ltr">
+    <div class="text-[10px] font-bold text-muted-foreground uppercase">English Clinical Rationale:</div>
+    <p class="text-xs text-muted-foreground leading-relaxed italic">${escapeHtml(concept.descriptionEn)}</p>
   </div>` : ''}
 </div>`;
 
   const htmlEn = `
 <div class="knowledge-card space-y-6 text-left" dir="ltr">
-  <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 space-y-2">
-    <div class="flex items-center justify-between flex-wrap gap-2">
-      <div class="text-base font-bold text-foreground">${escapeHtml(prod.brandName)}</div>
-      <span class="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 font-mono font-bold">${escapeHtml(prod.schedule)}</span>
+  <div class="p-4 rounded-2xl bg-fuchsia-500/10 border border-fuchsia-500/25">
+    <div class="flex items-center justify-between gap-2 mb-1">
+      <span class="text-xs font-bold text-fuchsia-600 dark:text-fuchsia-400">High-Yield Clinical Concept:</span>
+      <span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-fuchsia-500/20 text-fuchsia-700 dark:text-fuchsia-300">${escapeHtml(concept.categoryEn || 'Safety')}</span>
     </div>
-    <div class="text-xs text-muted-foreground"><strong class="text-foreground">Active Ingredients:</strong> ${escapeHtml(prod.activeIngredients)}</div>
-    <div class="text-xs text-muted-foreground"><strong class="text-foreground">Pack Size:</strong> ${escapeHtml(prod.packSize)}</div>
+    <div class="text-base font-bold text-foreground">${escapeHtml(concept.titleEn)}</div>
+    <div class="text-xs text-muted-foreground mt-1" dir="rtl">${escapeHtml(concept.titleFa || '')}</div>
   </div>
 
-  <div class="p-3.5 rounded-2xl bg-muted/40 border border-border">
-    <div class="text-xs font-bold text-foreground mb-1">Clinical Indications:</div>
-    <p class="text-xs text-muted-foreground leading-relaxed">${escapeHtml(prod.indications?.en || '-')}</p>
+  <div class="p-4 rounded-2xl bg-muted/40 border border-border space-y-2">
+    <h3 class="text-xs font-bold text-foreground">Clinical Mechanism &amp; Toxicological Rationale:</h3>
+    <p class="text-xs text-foreground/90 leading-relaxed">${escapeHtml(concept.descriptionEn || '')}</p>
   </div>
-
-  <div class="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/25 space-y-1.5">
-    <div class="text-xs font-bold text-rose-600 dark:text-rose-400">🤰 TGA Pregnancy Category ${escapeHtml(prod.tgaPregnancyCategory || 'A')}:</div>
-    <p class="text-xs text-muted-foreground leading-relaxed">${escapeHtml(prod.pregnancyAdvice?.en || '-')}</p>
-  </div>
-
-  <div>
-    <h3 class="text-sm font-bold text-foreground mb-2">Pharmacist Counseling Points:</h3>
-    <ul class="list-disc list-inside space-y-1.5 text-xs text-muted-foreground">
-      ${(prod.counselingPoints || []).map(cp => `<li>${escapeHtml(cp.en)}</li>`).join('\n      ')}
-    </ul>
-  </div>
-
-  ${prod.equivalentBrands && prod.equivalentBrands.length > 0 ? `
-  <div class="p-3 rounded-2xl bg-secondary border border-border text-xs">
-    <strong class="text-foreground">Bioequivalent Brands:</strong>
-    <span class="font-mono text-primary">${escapeHtml(prod.equivalentBrands.join(', '))}</span>
-  </div>` : ''}
 </div>`;
 
   documents.push({
-    id: `doc-mono-${prod.id}`,
-    folder_id: monoFolder,
+    id: docId,
+    folder_id: 'folder-pharm-concepts',
     title,
     title_en: titleEn,
     content_html: htmlFa,
     content_en: htmlEn,
     preferred_language: 'bilingual',
     direction: 'rtl',
-    tags: ['Monograph', prod.genericName, prod.schedule]
+    tags: ['Pharmacology', 'Clinical Concept', concept.categoryEn || 'Safety']
   });
 }
 
-console.log(`Generated ${selectedProducts.length} Product Monograph documents in Pharmacopeia Pillar`);
+console.log(`Generated ${cypList.length + mechanismsList.length + Object.keys(CLINICAL_CONCEPTS_REGISTRY || {}).length} Pharmacology documents in Pillar 2`);
 
 // =========================================================================
-// SECTION 4: 20 CLINICAL SCENARIOS (Slang, High-Stakes Triage, Admin)
+// SECTION 3: 121 SHELF PRODUCTS + 22 CAL LABELS + 8 STORAGE LAWS (151 docs)
 // =========================================================================
 
-// 4.1 Slang Scenarios
-for (const sc of (SLANG_SCENARIOS || [])) {
-  const docId = `doc-scenario-slang-${sc.id}`;
-  const title = `مکالمه بیمار: ${sc.title?.fa || sc.id}`;
-  const titleEn = `Patient Case: ${sc.title?.en || sc.id}`;
+// 3.1 All 121 Shelf Products
+for (const p of (SHELF_PRODUCTS || [])) {
+  const docId = `doc-product-${p.id}`;
+  const title = `مونوگراف: ${p.brandName} (${p.genericName})`;
+  const titleEn = `${p.brandName} (${p.genericName}) - Product Monograph`;
+
+  const folderId = getProductFolder(p);
+
+  // Equivalent brands on shelf
+  const equivalentProducts = (SHELF_PRODUCTS || []).filter(other =>
+    other.id !== p.id &&
+    other.genericName?.toLowerCase() === p.genericName?.toLowerCase()
+  );
 
   const htmlFa = `
 <div class="knowledge-card space-y-6 text-right" dir="rtl">
-  <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25">
-    <div class="text-xs font-bold text-rose-600 dark:text-rose-400 mb-1">شرح صحبت و ابهام بیمار در داروخانه:</div>
-    <p class="text-sm font-semibold text-foreground leading-relaxed">«${escapeHtml(sc.patientProfile?.presentation?.fa || '')}»</p>
+  <!-- Brand & Molecule Header -->
+  <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25">
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-2">
+      <span class="text-xs font-bold text-amber-700 dark:text-amber-400">شناسنامه و مونوگراف فرآورده دارویی:</span>
+      <span class="text-xs font-mono font-bold px-2 py-0.5 rounded-full ${p.schedule === 'S3' ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300' : p.schedule === 'S4' ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300' : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'}">${escapeHtml(p.schedule || 'OTC')}</span>
+    </div>
+    <div class="text-lg font-black text-foreground">${escapeHtml(p.brandName)}</div>
+    <div class="text-xs text-muted-foreground font-mono mt-0.5" dir="ltr">${escapeHtml(p.genericName)} (${escapeHtml(p.activeIngredients || '')})</div>
   </div>
 
-  <div>
-    <h3 class="text-sm font-bold text-foreground mb-2">پروتکل پرسش‌های تشخیصی W-H-A-T-M-A-N:</h3>
-    <div class="space-y-2">
-      ${(sc.whatQuestions || []).map(wq => `
-      <div class="p-3 rounded-xl bg-muted/40 border border-border text-xs">
-        <div class="font-bold text-primary mb-1">${escapeHtml(wq.label?.fa || wq.key)}: ${escapeHtml(wq.question?.fa || '')}</div>
-        <div class="text-muted-foreground">پاسخ بیمار: ${escapeHtml(wq.answer?.fa || '')}</div>
-      </div>`).join('')}
+  <!-- Indications -->
+  <div class="p-4 rounded-2xl bg-muted/40 border border-border space-y-2">
+    <div class="text-xs font-bold text-foreground">🎯 موارد مصرف و اندیکاسیون‌های تاییدشده:</div>
+    <p class="text-xs text-foreground/90 leading-relaxed">${escapeHtml(p.indications?.fa || p.indications?.en || '')}</p>
+    <div class="text-[11px] text-muted-foreground font-sans mt-1 text-left" dir="ltr">${escapeHtml(p.indications?.en || '')}</div>
+  </div>
+
+  <!-- Dosage Instructions -->
+  ${p.dosageInstructions?.fa ? `
+  <div class="p-4 rounded-2xl bg-primary/10 border border-primary/20 space-y-1.5">
+    <div class="text-xs font-bold text-primary">📋 دستور و نحوه مصرف استاندارد:</div>
+    <p class="text-xs text-foreground leading-relaxed">${escapeHtml(p.dosageInstructions.fa)}</p>
+    ${p.dosageInstructions.en ? `<div class="text-[11px] text-muted-foreground text-left" dir="ltr">${escapeHtml(p.dosageInstructions.en)}</div>` : ''}
+  </div>` : ''}
+
+  <!-- CAL Labels & State Storage Badges -->
+  <div class="p-4 rounded-2xl bg-card border border-border space-y-3">
+    <div class="text-xs font-bold text-foreground">🏷️ برچسب‌های هشدار و راهنمای مصرف APF (CAL Labels):</div>
+    <div class="flex items-center gap-1.5 flex-wrap">
+      ${(p.calLabels || []).map(calCode => {
+        const cal = CAL_LABELS_DICT ? CAL_LABELS_DICT[calCode] : null;
+        const calSlug = calCode.toLowerCase().replace(/\s+/g, '-');
+        return `
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border cursor-pointer hover:scale-105 transition ${cal?.colorClass || 'bg-muted text-foreground'}" data-doc-link="doc-cal-${calSlug}">
+          🏷️ ${escapeHtml(calCode)}: ${escapeHtml(cal?.nameFa || calCode)}
+        </span>`;
+      }).join('')}
     </div>
   </div>
 
-  <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30">
-    <div class="text-xs font-bold text-amber-600 dark:text-amber-400 mb-1">⚠️ علائم هشدار و موارد رد دارو:</div>
-    <ul class="list-disc list-inside text-xs text-muted-foreground space-y-1">
-      ${(sc.redFlags || []).map(rf => `<li>${escapeHtml(rf.fa || rf)}</li>`).join('\n      ')}
+  <!-- Mechanism Link -->
+  ${p.mechanism ? `
+  <div class="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-between gap-2 cursor-pointer hover:bg-purple-500/15 transition group" data-doc-link="doc-mechanism-${p.mechanism.classCode.toLowerCase().replace(/[^a-z0-9]/g, '-')}">
+    <div>
+      <div class="text-[10px] font-bold text-purple-600 dark:text-purple-400">⚡ مکانیسم اثر و دسته دارویی:</div>
+      <div class="text-xs font-bold text-foreground group-hover:text-purple-600 transition">${escapeHtml(p.mechanism.classNameFa)} (${escapeHtml(p.mechanism.classNameEn)})</div>
+    </div>
+    <span class="text-xs font-bold text-purple-600 dark:text-purple-400 group-hover:translate-x-[-2px] transition">مشاهده مکانیسم کامل ←</span>
+  </div>` : ''}
+
+  <!-- Counseling Points -->
+  ${p.counselingPoints && p.counselingPoints.length > 0 ? `
+  <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-2">
+    <div class="text-xs font-bold text-emerald-700 dark:text-emerald-400">💡 نکات حیاتی مشاوره داروساز به بیمار (Counseling Pearls):</div>
+    <ul class="list-disc list-inside space-y-1.5 text-xs text-muted-foreground">
+      ${p.counselingPoints.map(cp => `<li>${escapeHtml(cp.fa || cp.en)}</li>`).join('\n      ')}
     </ul>
+  </div>` : ''}
+
+  <!-- Safety Warnings -->
+  ${p.safetyWarnings?.fa ? `
+  <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 space-y-1.5">
+    <div class="text-xs font-bold text-rose-600 dark:text-rose-400">⚠️ موارد منع مصرف و احتیاط‌های ویژه:</div>
+    <p class="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">${escapeHtml(p.safetyWarnings.fa)}</p>
+  </div>` : ''}
+
+  <!-- Equivalent Brands on Shelf -->
+  ${equivalentProducts.length > 0 ? `
+  <div class="p-4 rounded-2xl bg-muted/30 border border-border space-y-2">
+    <div class="text-xs font-bold text-foreground">🔄 برندهای معادل و ژنریک‌های هم‌ارز روی قفسه:</div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+      ${equivalentProducts.map(eq => `
+      <div class="p-2.5 rounded-xl bg-background border border-border hover:border-primary/50 cursor-pointer transition flex items-center justify-between group" data-doc-link="doc-product-${eq.id}">
+        <div>
+          <span class="font-bold text-foreground group-hover:text-primary transition">${escapeHtml(eq.brandName)}</span>
+          <span class="text-[10px] text-muted-foreground block">${escapeHtml(eq.schedule)}</span>
+        </div>
+        <span class="text-xs text-primary">←</span>
+      </div>`).join('')}
+    </div>
+  </div>` : ''}
+</div>`;
+
+  const htmlEn = `
+<div class="knowledge-card space-y-6 text-left" dir="ltr">
+  <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25">
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-2">
+      <span class="text-xs font-bold text-amber-700 dark:text-amber-400">Medicine Monograph &amp; Scheduling:</span>
+      <span class="text-xs font-mono font-bold px-2 py-0.5 rounded-full ${p.schedule === 'S3' ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300' : p.schedule === 'S4' ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300' : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'}">${escapeHtml(p.schedule || 'OTC')}</span>
+    </div>
+    <div class="text-lg font-black text-foreground">${escapeHtml(p.brandName)}</div>
+    <div class="text-xs text-muted-foreground font-mono mt-0.5">${escapeHtml(p.genericName)} (${escapeHtml(p.activeIngredients || '')})</div>
+  </div>
+
+  <div class="p-4 rounded-2xl bg-muted/40 border border-border space-y-2">
+    <div class="text-xs font-bold text-foreground">🎯 Therapeutic Indications:</div>
+    <p class="text-xs text-foreground/90 leading-relaxed">${escapeHtml(p.indications?.en || '')}</p>
+  </div>
+
+  ${p.counselingPoints && p.counselingPoints.length > 0 ? `
+  <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-2">
+    <div class="text-xs font-bold text-emerald-700 dark:text-emerald-400">💡 Clinical Counseling Points:</div>
+    <ul class="list-disc list-inside space-y-1 text-xs text-muted-foreground">
+      ${p.counselingPoints.map(cp => `<li>${escapeHtml(cp.en || cp.fa)}</li>`).join('\n      ')}
+    </ul>
+  </div>` : ''}
+</div>`;
+
+  documents.push({
+    id: docId,
+    folder_id: folderId,
+    title,
+    title_en: titleEn,
+    content_html: htmlFa,
+    content_en: htmlEn,
+    preferred_language: 'bilingual',
+    direction: 'rtl',
+    tags: ['OTC Monograph', p.schedule ? `Schedule ${p.schedule}` : 'OTC', p.genericName]
+  });
+}
+
+// 3.2 22 Cautionary Advisory Labels (CAL Labels 1 to 22)
+for (const [calCode, cal] of Object.entries(CAL_LABELS_DICT || {})) {
+  const calSlug = calCode.toLowerCase().replace(/\s+/g, '-');
+  const docId = `doc-cal-${calSlug}`;
+  const title = `برچسب هشدار ${cal.code}: ${cal.nameFa}`;
+  const titleEn = `${cal.code} - ${cal.nameEn}`;
+
+  // Find all shelf products requiring this CAL label
+  const affectedProducts = (SHELF_PRODUCTS || []).filter(p => (p.calLabels || []).includes(cal.code));
+
+  const htmlFa = `
+<div class="knowledge-card space-y-6 text-right" dir="rtl">
+  <div class="p-4 rounded-2xl ${cal.colorClass || 'bg-amber-500/15 border-amber-500/30'} border space-y-2">
+    <div class="flex items-center justify-between gap-2">
+      <span class="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-background/80 text-foreground">APF Standard Label</span>
+      <span class="text-xs font-bold">${escapeHtml(cal.code)}</span>
+    </div>
+    <div class="text-base font-black text-foreground">${escapeHtml(cal.nameFa)}</div>
+    <div class="text-xs text-muted-foreground" dir="ltr">${escapeHtml(cal.nameEn)}</div>
+  </div>
+
+  <div class="p-4 rounded-2xl bg-muted/40 border border-border space-y-2">
+    <div class="text-xs font-bold text-foreground">متن درج‌شده روی لیبل داروخانه:</div>
+    <p class="text-sm font-semibold text-foreground leading-relaxed">«${escapeHtml(cal.descriptionFa)}»</p>
+    <p class="text-xs text-muted-foreground italic font-sans text-left mt-1" dir="ltr">"${escapeHtml(cal.descriptionEn)}"</p>
+  </div>
+
+  ${affectedProducts.length > 0 ? `
+  <div class="p-4 rounded-2xl bg-card border border-primary/20 space-y-3">
+    <div class="text-xs font-bold text-foreground">💊 فرآورده‌های دارای این برچسب هشدار در داروخانه (${affectedProducts.length} مورد):</div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+      ${affectedProducts.map(p => `
+      <div class="p-2.5 rounded-xl bg-background border border-border hover:border-primary/50 cursor-pointer transition flex items-center justify-between group" data-doc-link="doc-product-${p.id}">
+        <div>
+          <span class="font-bold text-foreground group-hover:text-primary transition">${escapeHtml(p.brandName)}</span>
+          <span class="text-[10px] text-muted-foreground block font-mono" dir="ltr">${escapeHtml(p.genericName)}</span>
+        </div>
+        <span class="text-primary text-xs">←</span>
+      </div>`).join('')}
+    </div>
+  </div>` : ''}
+</div>`;
+
+  const htmlEn = `
+<div class="knowledge-card space-y-6 text-left" dir="ltr">
+  <div class="p-4 rounded-2xl ${cal.colorClass || 'bg-amber-500/15 border-amber-500/30'} border space-y-2">
+    <div class="flex items-center justify-between gap-2">
+      <span class="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-background/80 text-foreground">APF Standard Label</span>
+      <span class="text-xs font-bold">${escapeHtml(cal.code)}</span>
+    </div>
+    <div class="text-base font-black text-foreground">${escapeHtml(cal.nameEn)}</div>
+    <div class="text-xs text-muted-foreground" dir="rtl">${escapeHtml(cal.nameFa)}</div>
+  </div>
+
+  <div class="p-4 rounded-2xl bg-muted/40 border border-border space-y-2">
+    <div class="text-xs font-bold text-foreground">Exact Auxiliary Label Text:</div>
+    <p class="text-sm font-semibold text-foreground leading-relaxed">"${escapeHtml(cal.descriptionEn)}"</p>
+  </div>
+</div>`;
+
+  documents.push({
+    id: docId,
+    folder_id: 'folder-mono-cal',
+    title,
+    title_en: titleEn,
+    content_html: htmlFa,
+    content_en: htmlEn,
+    preferred_language: 'bilingual',
+    direction: 'rtl',
+    tags: ['CAL Labels', 'APF Auxiliary Label', cal.code]
+  });
+}
+
+// 3.3 8 State Storage Regulations
+for (const rule of (STATE_STORAGE_RULES || [])) {
+  const docId = `doc-storage-${rule.state.toLowerCase()}`;
+  const title = `قوانین نگهداری دارو در ایالت ${rule.nameFa}`;
+  const titleEn = `${rule.nameEn} Pharmacy Medicine Storage Regulations`;
+
+  const htmlFa = `
+<div class="knowledge-card space-y-6 text-right" dir="rtl">
+  <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25">
+    <div class="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1">قوانین و مقررات ایالتی استرالیا:</div>
+    <div class="text-base font-bold text-foreground">${escapeHtml(rule.nameFa)} (${escapeHtml(rule.state)})</div>
+    <div class="text-xs text-muted-foreground mt-0.5" dir="ltr">${escapeHtml(rule.nameEn)}</div>
+  </div>
+
+  <div class="p-4 rounded-2xl ${rule.isStrictBehindCounterS2 ? 'bg-amber-500/10 border-amber-500/30' : 'bg-muted/40 border-border'} border space-y-2">
+    <div class="flex items-center justify-between gap-2">
+      <span class="text-xs font-bold text-foreground">قانون نگهداری داروهای Pharmacy Medicine (Schedule 2):</span>
+      <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${rule.isStrictBehindCounterS2 ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300' : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'}">
+        ${rule.isStrictBehindCounterS2 ? 'سخت‌گیرانه (پشت کانتر)' : 'آزاد در دید داروساز'}
+      </span>
+    </div>
+    <p class="text-xs text-foreground/90 leading-relaxed">${escapeHtml(rule.s2RuleFa)}</p>
+    <p class="text-[11px] text-muted-foreground text-left italic font-sans" dir="ltr">${escapeHtml(rule.s2RuleEn)}</p>
+  </div>
+
+  <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 space-y-2">
+    <div class="text-xs font-bold text-rose-600 dark:text-rose-400">قانون نگهداری داروهای Pharmacist Only (Schedule 3):</div>
+    <p class="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">${escapeHtml(rule.s3RuleFa)}</p>
+    <p class="text-[11px] text-muted-foreground text-left italic font-sans" dir="ltr">${escapeHtml(rule.s3RuleEn)}</p>
   </div>
 </div>`;
 
   const htmlEn = `
 <div class="knowledge-card space-y-6 text-left" dir="ltr">
-  <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25">
-    <div class="text-xs font-bold text-rose-600 dark:text-rose-400 mb-1">Patient Presentation & Slang Query:</div>
-    <p class="text-sm font-semibold text-foreground leading-relaxed">"${escapeHtml(sc.patientProfile?.presentation?.en || '')}"</p>
+  <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25">
+    <div class="text-base font-bold text-foreground">${escapeHtml(rule.nameEn)} (${escapeHtml(rule.state)})</div>
   </div>
 
-  <div>
-    <h3 class="text-sm font-bold text-foreground mb-2">W-H-A-T-M-A-N Consultation Protocol:</h3>
-    <div class="space-y-2">
+  <div class="p-4 rounded-2xl bg-muted/40 border border-border space-y-2">
+    <div class="text-xs font-bold text-foreground">Schedule 2 (Pharmacy Medicine) Storage Law:</div>
+    <p class="text-xs text-foreground/90 leading-relaxed">${escapeHtml(rule.s2RuleEn)}</p>
+  </div>
+
+  <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 space-y-2">
+    <div class="text-xs font-bold text-rose-600 dark:text-rose-400">Schedule 3 (Pharmacist Only) Storage Law:</div>
+    <p class="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">${escapeHtml(rule.s3RuleEn)}</p>
+  </div>
+</div>`;
+
+  documents.push({
+    id: docId,
+    folder_id: 'folder-mono-storage',
+    title,
+    title_en: titleEn,
+    content_html: htmlFa,
+    content_en: htmlEn,
+    preferred_language: 'bilingual',
+    direction: 'rtl',
+    tags: ['Storage Law', 'State Regulation', rule.state]
+  });
+}
+
+console.log(`Generated 121 Products + 22 CAL Labels + 8 Storage Laws in Pillar 3`);
+
+// =========================================================================
+// SECTION 4: 32 SCENARIOS + 13 SCRIPTS (45 docs)
+// =========================================================================
+
+function renderScenarioHtml(sc, { isPrimaryFa = true } = {}) {
+  const presEn = sc.patientProfile?.presentation?.en || '';
+  const presFa = sc.patientProfile?.presentation?.fa || '';
+
+  const correctOption = (sc.dialogueOptions || []).find(o => o.isCorrectAdvice) || sc.dialogueOptions?.[0];
+
+  // Linked disease for this scenario
+  const linkedDiseaseId = scenarioToDiseaseMap[sc.id];
+
+  if (isPrimaryFa) {
+    return `
+<div class="knowledge-card space-y-6 text-right" dir="rtl">
+  <!-- Patient Demographic Header -->
+  <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25">
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-2">
+      <span class="text-xs font-bold text-rose-600 dark:text-rose-400">👤 پرونده بیمار و تریاژ داروخانه (Pharmacy Patient Triage)</span>
+      <span class="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-300 font-semibold font-mono">Bilingual Triage</span>
+    </div>
+    <div class="text-xs text-muted-foreground grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div><strong>نام بیمار:</strong> ${escapeHtml(sc.patientProfile?.name || 'مراجعه‌کننده')}</div>
+      <div><strong>سن:</strong> ${escapeHtml(sc.patientProfile?.age ? `${sc.patientProfile.age} ساله` : '-')}</div>
+      <div><strong>جنسیت:</strong> ${escapeHtml(sc.patientProfile?.gender || '-')}</div>
+    </div>
+  </div>
+
+  ${linkedDiseaseId ? `
+  <div class="p-3.5 rounded-xl bg-cyan-500/10 border border-cyan-500/25 flex items-center justify-between gap-2 cursor-pointer hover:bg-cyan-500/15 transition group" data-doc-link="doc-disease-${linkedDiseaseId}">
+    <div>
+      <div class="text-[10px] font-bold text-cyan-600 dark:text-cyan-400">🩺 پروتکل بالینی و درمان مرتبط:</div>
+      <div class="text-xs font-bold text-foreground group-hover:text-cyan-600 transition">مشاهده پروتکل کامل بیماری و داروها</div>
+    </div>
+    <span class="text-xs font-bold text-cyan-600 dark:text-cyan-400 group-hover:translate-x-[-2px] transition">مشاهده گایدلاین ←</span>
+  </div>` : ''}
+
+  <!-- Dual Bilingual Triage Dialogue / Presentation -->
+  <div class="p-4 rounded-2xl bg-muted/30 border border-border space-y-3">
+    <div class="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
+      <div class="text-xs font-bold text-foreground flex items-center gap-1.5">
+        <span>🗣️ گفتگوی تریاژ و شرح حال بیمار (Patient Presentation &amp; Dialogue)</span>
+      </div>
+      <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">English &amp; فارسی</span>
+    </div>
+
+    <!-- Authentic Spoken English Presentation -->
+    <div class="p-3.5 rounded-xl bg-background border border-rose-500/30 text-left font-sans shadow-2xs" dir="ltr">
+      <div class="flex items-center justify-between gap-2 mb-1">
+        <span class="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wide">🗣️ Spoken English Dialogue (Authentic):</span>
+        <span class="text-[10px] text-muted-foreground font-mono">Original Speech</span>
+      </div>
+      <p class="text-sm font-semibold text-foreground leading-relaxed italic">"${escapeHtml(presEn)}"</p>
+    </div>
+
+    <!-- Persian Clinical Translation -->
+    <div class="p-3 rounded-xl bg-background/60 border border-border text-right" dir="rtl">
+      <div class="text-[10px] font-bold text-muted-foreground mb-1">ترجمه و مفهوم بالینی بیمار (فارسی):</div>
+      <p class="text-sm text-foreground/90 leading-relaxed font-medium">«${escapeHtml(presFa)}»</p>
+    </div>
+  </div>
+
+  <!-- Aussie Slang & Key Terminology Decoder -->
+  ${(sc.aussieContext?.keyPhrases && sc.aussieContext.keyPhrases.length > 0) ? `
+  <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25">
+    <div class="text-xs font-bold text-amber-700 dark:text-amber-400 mb-2">🇦🇺 اصطلاحات محلی و واژگان کوچه بازاری (Aussie Slang &amp; Context):</div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+      ${sc.aussieContext.keyPhrases.map(kp => `
+      <div class="p-2.5 rounded-xl bg-background/80 border border-amber-500/20 text-right space-y-1">
+        <div class="font-bold text-foreground text-left font-mono" dir="ltr">🗣️ ${escapeHtml(kp.phrase)}</div>
+        <div class="text-muted-foreground text-xs leading-normal">${escapeHtml(kp.meaningFa)}</div>
+        ${kp.meaningEn ? `<div class="text-[11px] text-muted-foreground/80 text-left italic" dir="ltr">${escapeHtml(kp.meaningEn)}</div>` : ''}
+      </div>`).join('')}
+    </div>
+  </div>` : ''}
+
+  <!-- W-H-A-T-M-A-N Protocol Diagnostic Inquiries -->
+  <div class="space-y-3">
+    <div class="flex items-center justify-between gap-2">
+      <h3 class="text-sm font-bold text-foreground">📋 پروتکل ارزیابی تشخیصی داروساز (W-H-A-T-M-A-N Protocol):</h3>
+      <span class="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">پرسش و پاسخ دو زبانه</span>
+    </div>
+    <div class="space-y-2.5">
       ${(sc.whatQuestions || []).map(wq => `
-      <div class="p-3 rounded-xl bg-muted/40 border border-border text-xs">
-        <div class="font-bold text-primary mb-1">${escapeHtml(wq.label?.en || wq.key)}: ${escapeHtml(wq.question?.en || '')}</div>
-        <div class="text-muted-foreground">Patient response: ${escapeHtml(wq.answer?.en || '')}</div>
+      <div class="p-3.5 rounded-xl bg-muted/40 border border-border space-y-2.5">
+        <div class="flex items-start gap-2.5">
+          <span class="px-2 py-1 rounded-lg bg-primary text-primary-foreground font-mono font-bold text-xs shrink-0">${escapeHtml(wq.key)}</span>
+          <div class="flex-1 space-y-1">
+            <div class="text-xs font-bold text-primary text-left font-sans" dir="ltr">
+              ${escapeHtml(wq.label?.en || wq.key)}: ${escapeHtml(wq.question?.en || '')}
+            </div>
+            <div class="text-xs font-semibold text-foreground/90 text-right" dir="rtl">
+              ${escapeHtml(wq.label?.fa || wq.key)}: ${escapeHtml(wq.question?.fa || '')}
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs pt-2 border-t border-border/50">
+          <div class="p-2.5 rounded-lg bg-background/80 border border-border text-left font-sans" dir="ltr">
+            <span class="text-[10px] font-bold text-muted-foreground uppercase block mb-0.5">Patient Reply (EN):</span>
+            <span class="text-foreground italic">"${escapeHtml(wq.answer?.en || '')}"</span>
+          </div>
+          <div class="p-2.5 rounded-lg bg-background/80 border border-border text-right" dir="rtl">
+            <span class="text-[10px] font-bold text-muted-foreground block mb-0.5">پاسخ بیمار (فارسی):</span>
+            <span class="text-foreground font-medium">«${escapeHtml(wq.answer?.fa || '')}»</span>
+          </div>
+        </div>
       </div>`).join('')}
     </div>
   </div>
 
-  <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30">
-    <div class="text-xs font-bold text-amber-600 dark:text-amber-400 mb-1">⚠️ Red Flags & Referral Criteria:</div>
-    <ul class="list-disc list-inside text-xs text-muted-foreground space-y-1">
-      ${(sc.redFlags || []).map(rf => `<li>${escapeHtml(rf.en || rf)}</li>`).join('\n      ')}
+  <!-- Pharmacist Consultation -->
+  ${correctOption ? `
+  <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-3">
+    <div class="text-xs font-bold text-emerald-700 dark:text-emerald-400">💊 مشاوره بالینی صحیح داروساز (Recommended Pharmacist Consultation):</div>
+
+    <div class="p-3 rounded-xl bg-background/80 border border-emerald-500/20 text-left font-sans" dir="ltr">
+      <div class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase mb-1">Pharmacist Clinical Advice (EN):</div>
+      <p class="text-xs text-foreground leading-relaxed">${escapeHtml(correctOption.text?.en || '')}</p>
+      ${correctOption.patientReply?.en ? `
+      <div class="mt-2 pt-2 border-t border-border/50 text-[11px] text-muted-foreground italic">
+        <strong>Patient Reaction:</strong> "${escapeHtml(correctOption.patientReply.en)}"
+      </div>` : ''}
+    </div>
+
+    <div class="p-3 rounded-xl bg-background/60 border border-border text-right" dir="rtl">
+      <div class="text-[10px] font-bold text-muted-foreground mb-1">شرح مشاوره و توصیه بالینی (فارسی):</div>
+      <p class="text-xs text-foreground/90 leading-relaxed font-medium">${escapeHtml(correctOption.text?.fa || '')}</p>
+      ${correctOption.patientReply?.fa ? `
+      <div class="mt-2 pt-2 border-t border-border/50 text-[11px] text-muted-foreground">
+        <strong>واکنش بیمار:</strong> «${escapeHtml(correctOption.patientReply.fa)}»
+      </div>` : ''}
+    </div>
+  </div>` : ''}
+
+  <!-- Clinical Outcome -->
+  ${sc.clinicalOutcome ? `
+  <div class="p-4 rounded-2xl ${sc.clinicalOutcome.requiresReferral ? 'bg-rose-500/10 border border-rose-500/30' : 'bg-emerald-500/10 border border-emerald-500/30'} space-y-2">
+    <span class="text-xs font-bold ${sc.clinicalOutcome.requiresReferral ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}">
+      ${sc.clinicalOutcome.requiresReferral ? '🚨 نیازمند ارجاع فوری به پزشک (Urgent GP/ED Referral)' : '✅ قابل مدیریت در داروخانه با داروی OTC (Manage in Pharmacy)'}
+    </span>
+    <div class="text-xs text-foreground space-y-1">
+      <div><strong>توصیه نهایی (FA):</strong> ${escapeHtml(sc.clinicalOutcome.recommendation?.fa || '')}</div>
+      ${sc.clinicalOutcome.recommendation?.en ? `<div class="text-left font-sans text-muted-foreground" dir="ltr"><strong>Recommendation (EN):</strong> ${escapeHtml(sc.clinicalOutcome.recommendation.en)}</div>` : ''}
+      ${sc.clinicalOutcome.explanation?.fa ? `<div class="text-muted-foreground pt-1 border-t border-border/40"><strong>علت بالینی:</strong> ${escapeHtml(sc.clinicalOutcome.explanation.fa)}</div>` : ''}
+    </div>
+  </div>` : ''}
+
+  <!-- Red Flags -->
+  <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25">
+    <h3 class="text-xs font-bold text-rose-600 dark:text-rose-400 mb-2">🚨 علائم هشدار و خطوط قرمز ارجاع (Red Flags &amp; Referral):</h3>
+    <ul class="space-y-1.5 text-xs text-muted-foreground list-disc list-inside">
+      ${(sc.redFlags || []).map(rf => {
+        const fa = typeof rf === 'object' ? (rf.fa || rf.en || '') : String(rf);
+        const en = typeof rf === 'object' ? (rf.en || '') : '';
+        return `<li>
+          <span class="font-semibold text-foreground/90">${escapeHtml(fa)}</span>
+          ${en ? `<span class="block text-[11px] text-muted-foreground/80 font-sans ml-4 text-left" dir="ltr">• ${escapeHtml(en)}</span>` : ''}
+        </li>`;
+      }).join('\n      ')}
     </ul>
   </div>
 </div>`;
+  }
+
+  // English Primary View
+  return `
+<div class="knowledge-card space-y-6 text-left" dir="ltr">
+  <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25">
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-2">
+      <span class="text-xs font-bold text-rose-600 dark:text-rose-400">👤 Pharmacy Patient Triage Case</span>
+      <span class="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-300 font-semibold font-mono">Bilingual Triage</span>
+    </div>
+    <div class="text-xs text-muted-foreground grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div><strong>Patient Name:</strong> ${escapeHtml(sc.patientProfile?.name || 'Patient')}</div>
+      <div><strong>Age:</strong> ${escapeHtml(sc.patientProfile?.age ? `${sc.patientProfile.age} yrs` : '-')}</div>
+      <div><strong>Gender:</strong> ${escapeHtml(sc.patientProfile?.gender || '-')}</div>
+    </div>
+  </div>
+
+  <div class="p-4 rounded-2xl bg-muted/30 border border-border space-y-3">
+    <div class="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
+      <div class="text-xs font-bold text-foreground">🗣️ Patient Presentation &amp; Triage Dialogue</div>
+      <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">EN &amp; FA</span>
+    </div>
+
+    <div class="p-3.5 rounded-xl bg-background border border-rose-500/30 text-left font-sans shadow-2xs" dir="ltr">
+      <p class="text-sm font-semibold text-foreground leading-relaxed italic">"${escapeHtml(presEn)}"</p>
+    </div>
+
+    <div class="p-3 rounded-xl bg-background/60 border border-border text-right" dir="rtl">
+      <p class="text-sm text-foreground/90 leading-relaxed font-medium">«${escapeHtml(presFa)}»</p>
+    </div>
+  </div>
+</div>`;
+}
+
+// 4.1 4 Slang Scenarios
+for (const sc of (SLANG_SCENARIOS || [])) {
+  const docId = `doc-scenario-slang-${sc.id}`;
+  const title = `مکالمه بیمار: ${sc.title?.fa || sc.id}`;
+  const titleEn = `Patient Case: ${sc.title?.en || sc.id}`;
 
   documents.push({
     id: docId,
     folder_id: 'folder-cases-slang',
     title,
     title_en: titleEn,
-    content_html: htmlFa,
-    content_en: htmlEn,
+    content_html: renderScenarioHtml(sc, { isPrimaryFa: true }),
+    content_en: renderScenarioHtml(sc, { isPrimaryFa: false }),
     preferred_language: 'bilingual',
     direction: 'rtl',
-    tags: ['Patient Slang', 'OTC Consultation', 'Communication']
+    tags: ['Patient Slang', 'OTC Consultation', 'Communication', 'Bilingual Triage']
   });
 }
 
-// 4.2 Top 12 Clinical Scenarios
-const selectedClinical = (CLINICAL_SCENARIOS || []).slice(0, 12);
-for (const sc of selectedClinical) {
+// 4.2 All 24 Clinical Scenarios
+for (const sc of (CLINICAL_SCENARIOS || [])) {
   const docId = `doc-scenario-clinical-${sc.id}`;
   const title = `تریاژ بالینی: ${sc.title?.fa || sc.id}`;
   const titleEn = `Clinical Triage: ${sc.title?.en || sc.id}`;
-
-  const htmlFa = `
-<div class="knowledge-card space-y-6 text-right" dir="rtl">
-  <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25">
-    <div class="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1">پرونده بیمار و شرح حال اولیه:</div>
-    <p class="text-sm font-semibold text-foreground leading-relaxed">${escapeHtml(sc.patientProfile?.presentation?.fa || '')}</p>
-  </div>
-
-  <div>
-    <h3 class="text-sm font-bold text-foreground mb-2">پرسش‌های ارزیابی تشخیصی داروساز:</h3>
-    <div class="space-y-2">
-      ${(sc.whatQuestions || []).map(wq => `
-      <div class="p-3 rounded-xl bg-muted/40 border border-border text-xs">
-        <div class="font-bold text-primary mb-1">${escapeHtml(wq.label?.fa || wq.key)}: ${escapeHtml(wq.question?.fa || '')}</div>
-        <div class="text-muted-foreground">${escapeHtml(wq.answer?.fa || '')}</div>
-      </div>`).join('')}
-    </div>
-  </div>
-
-  <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25">
-    <div class="text-xs font-bold text-rose-600 dark:text-rose-400 mb-1">🚨 خطوط قرمز ارجاع اورژانسی:</div>
-    <ul class="list-disc list-inside text-xs text-rose-700 dark:text-rose-300 space-y-1">
-      ${(sc.redFlags || []).map(rf => `<li>${escapeHtml(rf.fa || rf)}</li>`).join('\n      ')}
-    </ul>
-  </div>
-</div>`;
-
-  const htmlEn = `
-<div class="knowledge-card space-y-6 text-left" dir="ltr">
-  <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25">
-    <div class="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1">Patient Presentation & History:</div>
-    <p class="text-sm font-semibold text-foreground leading-relaxed">${escapeHtml(sc.patientProfile?.presentation?.en || '')}</p>
-  </div>
-
-  <div>
-    <h3 class="text-sm font-bold text-foreground mb-2">Pharmacist Diagnostic Inquiries:</h3>
-    <div class="space-y-2">
-      ${(sc.whatQuestions || []).map(wq => `
-      <div class="p-3 rounded-xl bg-muted/40 border border-border text-xs">
-        <div class="font-bold text-primary mb-1">${escapeHtml(wq.label?.en || wq.key)}: ${escapeHtml(wq.question?.en || '')}</div>
-        <div class="text-muted-foreground">${escapeHtml(wq.answer?.en || '')}</div>
-      </div>`).join('')}
-    </div>
-  </div>
-
-  <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25">
-    <div class="text-xs font-bold text-rose-600 dark:text-rose-400 mb-1">🚨 Red Flags & Emergency Referral:</div>
-    <ul class="list-disc list-inside text-xs text-rose-700 dark:text-rose-300 space-y-1">
-      ${(sc.redFlags || []).map(rf => `<li>${escapeHtml(rf.en || rf)}</li>`).join('\n      ')}
-    </ul>
-  </div>
-</div>`;
 
   documents.push({
     id: docId,
     folder_id: 'folder-cases-clinical',
     title,
     title_en: titleEn,
-    content_html: htmlFa,
-    content_en: htmlEn,
+    content_html: renderScenarioHtml(sc, { isPrimaryFa: true }),
+    content_en: renderScenarioHtml(sc, { isPrimaryFa: false }),
     preferred_language: 'bilingual',
     direction: 'rtl',
-    tags: ['Clinical Triage', 'Emergency Case', sc.category?.en || 'Triage']
+    tags: ['Clinical Triage', 'Emergency Case', sc.category?.en || 'Triage', 'Bilingual Triage']
   });
 }
 
@@ -1075,50 +1485,146 @@ for (const sc of (ADMIN_SCENARIOS || [])) {
   const title = `قوانین نسخه و بیمه: ${sc.title?.fa || sc.id}`;
   const titleEn = `Administrative Script Case: ${sc.title?.en || sc.id}`;
 
+  documents.push({
+    id: docId,
+    folder_id: 'folder-cases-admin',
+    title,
+    title_en: titleEn,
+    content_html: renderScenarioHtml(sc, { isPrimaryFa: true }),
+    content_en: renderScenarioHtml(sc, { isPrimaryFa: false }),
+    preferred_language: 'bilingual',
+    direction: 'rtl',
+    tags: ['Script Law', 'PBS Insurance', 'Administrative', 'Bilingual Triage']
+  });
+}
+
+// 4.4 6 Realistic Dispensing Dilemmas + 7 Australian Script Formats (13 docs)
+for (const script of (REALISTIC_SCRIPTS_DATABASE || [])) {
+  const docId = `doc-script-case-${script.id}`;
+  const title = `چالش قانونی و دیسپنسینگ: ${script.title_fa || script.title_en}`;
+  const titleEn = `Dispensing Dilemma: ${script.title_en}`;
+
   const htmlFa = `
 <div class="knowledge-card space-y-6 text-right" dir="rtl">
-  <div class="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25">
-    <div class="text-xs font-bold text-blue-600 dark:text-blue-400 mb-1">مسئله قانونی و بیمه‌ای:</div>
-    <p class="text-sm font-semibold text-foreground leading-relaxed">${escapeHtml(sc.patientProfile?.presentation?.fa || '')}</p>
+  <div class="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/25">
+    <div class="text-xs font-bold text-purple-600 dark:text-purple-400 mb-1">پرونده واقعی نسخه و چالش قانونی داروخانه:</div>
+    <div class="text-base font-bold text-foreground">${escapeHtml(script.title_fa)}</div>
+    <div class="text-xs text-muted-foreground mt-0.5" dir="ltr">${escapeHtml(script.title_en)}</div>
   </div>
 
-  <div class="p-4 rounded-2xl bg-muted/40 border border-border">
-    <h3 class="text-xs font-bold text-foreground mb-2">اقدامات قانونی داروساز:</h3>
-    <ul class="list-disc list-inside text-xs text-muted-foreground space-y-1.5">
-      ${(sc.redFlags || []).map(rf => `<li>${escapeHtml(rf.fa || rf)}</li>`).join('\n      ')}
-    </ul>
+  <div class="p-4 rounded-2xl bg-muted/40 border border-border space-y-2">
+    <div class="text-xs font-bold text-foreground">شرح نسخه و درخواست بیمار:</div>
+    <p class="text-xs text-foreground/90 leading-relaxed">${escapeHtml(script.scenario_narrative_fa || '')}</p>
+  </div>
+
+  <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 space-y-1.5">
+    <div class="text-xs font-bold text-rose-600 dark:text-rose-400">⚠️ خطای تجویز یا ابهام قانونی (Clinical &amp; Legal Red Flag):</div>
+    <p class="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">${escapeHtml(script.dilemma_description_fa || '')}</p>
+  </div>
+
+  <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-1.5">
+    <div class="text-xs font-bold text-emerald-700 dark:text-emerald-400">✅ اقدام الزامی و مداخله داروساز (Pharmacist Action):</div>
+    <p class="text-xs text-foreground leading-relaxed">${escapeHtml(script.correct_action_fa || '')}</p>
   </div>
 </div>`;
 
   const htmlEn = `
 <div class="knowledge-card space-y-6 text-left" dir="ltr">
-  <div class="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25">
-    <div class="text-xs font-bold text-blue-600 dark:text-blue-400 mb-1">Administrative & PBS Dilemma:</div>
-    <p class="text-sm font-semibold text-foreground leading-relaxed">${escapeHtml(sc.patientProfile?.presentation?.en || '')}</p>
+  <div class="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/25">
+    <div class="text-base font-bold text-foreground">${escapeHtml(script.title_en)}</div>
   </div>
 
-  <div class="p-4 rounded-2xl bg-muted/40 border border-border">
-    <h3 class="text-xs font-bold text-foreground mb-2">Legal Compliance Action:</h3>
-    <ul class="list-disc list-inside text-xs text-muted-foreground space-y-1.5">
-      ${(sc.redFlags || []).map(rf => `<li>${escapeHtml(rf.en || rf)}</li>`).join('\n      ')}
-    </ul>
+  <div class="p-4 rounded-2xl bg-muted/40 border border-border space-y-2">
+    <div class="text-xs font-bold text-foreground">Dispensing Narrative:</div>
+    <p class="text-xs text-foreground/90 leading-relaxed">${escapeHtml(script.scenario_narrative_en || '')}</p>
+  </div>
+
+  <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 space-y-1.5">
+    <div class="text-xs font-bold text-rose-600 dark:text-rose-400">Prescription Dilemma / Red Flag:</div>
+    <p class="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">${escapeHtml(script.dilemma_description_en || '')}</p>
+  </div>
+
+  <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-1.5">
+    <div class="text-xs font-bold text-emerald-700 dark:text-emerald-400">Correct Pharmacist Intervention:</div>
+    <p class="text-xs text-foreground leading-relaxed">${escapeHtml(script.correct_action_en || '')}</p>
   </div>
 </div>`;
 
   documents.push({
     id: docId,
-    folder_id: 'folder-cases-admin',
+    folder_id: 'folder-cases-scripts',
     title,
     title_en: titleEn,
     content_html: htmlFa,
     content_en: htmlEn,
     preferred_language: 'bilingual',
     direction: 'rtl',
-    tags: ['Script Law', 'PBS Insurance', 'Administrative']
+    tags: ['PBS Script', 'Dispensing Dilemma', 'Legal Practice']
   });
 }
 
-console.log('Generated 20 Scenarios across Slang, Clinical, and Admin subfolders');
+for (const st of (AUSTRALIAN_SCRIPT_TYPES_DATA || [])) {
+  const docId = `doc-script-type-${st.id}`;
+  const title = `راهنمای فرم نسخه: ${st.title_fa}`;
+  const titleEn = `Script Template: ${st.title_en}`;
+
+  const htmlFa = `
+<div class="knowledge-card space-y-6 text-right" dir="rtl">
+  <div class="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/25">
+    <div class="text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-1">فرمت نسخه رسمی استرالیا (PBS / State Regulation):</div>
+    <div class="text-base font-bold text-foreground">${escapeHtml(st.title_fa)} | <span class="font-mono text-primary">${escapeHtml(st.badge)}</span></div>
+    <div class="text-xs text-muted-foreground mt-0.5" dir="ltr">${escapeHtml(st.title_en)}</div>
+  </div>
+
+  <div class="p-4 rounded-2xl bg-muted/40 border border-border space-y-2">
+    <div class="text-xs font-bold text-foreground">خلاصه مقررات و اعتبار قانونی:</div>
+    <p class="text-xs text-foreground/90 leading-relaxed">${escapeHtml(st.short_summary_fa || '')}</p>
+    <div class="text-xs text-primary font-bold">مدت اعتبار قانونی: ${escapeHtml(st.legal_expiry_months)} ماه</div>
+  </div>
+
+  ${st.hotspots && st.hotspots.length > 0 ? `
+  <div class="space-y-2">
+    <div class="text-xs font-bold text-foreground">نقاط کلیدی بررسی اعتبار قانونی توسط داروساز:</div>
+    <div class="space-y-2 text-xs">
+      ${st.hotspots.map(hs => `
+      <div class="p-3 rounded-xl bg-background border border-border space-y-1">
+        <div class="font-bold text-primary flex items-center justify-between">
+          <span>${escapeHtml(hs.title_fa)}</span>
+          <span class="text-[10px] font-mono text-muted-foreground">${escapeHtml(hs.type)}</span>
+        </div>
+        <p class="text-muted-foreground">${escapeHtml(hs.summary_fa)}</p>
+      </div>`).join('')}
+    </div>
+  </div>` : ''}
+</div>`;
+
+  const htmlEn = `
+<div class="knowledge-card space-y-6 text-left" dir="ltr">
+  <div class="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/25">
+    <div class="text-base font-bold text-foreground">${escapeHtml(st.title_en)}</div>
+  </div>
+
+  <div class="p-4 rounded-2xl bg-muted/40 border border-border space-y-2">
+    <div class="text-xs font-bold text-foreground">Legal Expiry &amp; PBS Guidelines:</div>
+    <p class="text-xs text-foreground/90 leading-relaxed">${escapeHtml(st.short_summary_en || '')}</p>
+    <div class="text-xs text-primary font-bold">Validity Period: ${escapeHtml(st.legal_expiry_months)} months</div>
+  </div>
+</div>`;
+
+  documents.push({
+    id: docId,
+    folder_id: 'folder-cases-scripts',
+    title,
+    title_en: titleEn,
+    content_html: htmlFa,
+    content_en: htmlEn,
+    preferred_language: 'bilingual',
+    direction: 'rtl',
+    tags: ['PBS Script', 'Script Form', st.badge || 'Format']
+  });
+}
+
+console.log(`Generated 32 Scenarios + 13 Scripts in Pillar 4`);
 
 // =========================================================================
 // SECTION 5: 36 ACADEMIC MODULE LESSONS (Mapped to 3 Module Subfolders)
@@ -1148,16 +1654,15 @@ for (const card of (ALL_PHARMACY_CARDS || [])) {
   </div>
 
   ${pearlFa ? `
-  <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30">
-    <div class="text-xs font-bold text-amber-600 dark:text-amber-400 mb-1">💡 نکته کلیدی بالینی و اجرایی:</div>
-    <p class="text-xs text-muted-foreground leading-relaxed">${escapeHtml(pearlFa)}</p>
+  <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-1">
+    <div class="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+      <span>💡</span>
+      <span>نکته کلیدی و مروارید اجرایی داروساز (Action Pearl):</span>
+    </div>
+    <p class="text-xs font-semibold text-foreground leading-relaxed">${escapeHtml(pearlFa)}</p>
   </div>` : ''}
 
-  <div class="p-4 rounded-2xl bg-card border border-border">
-    <div class="knowledge-html-content text-xs leading-relaxed text-foreground">
-      ${detailsHtmlFa}
-    </div>
-  </div>
+  ${detailsHtmlFa ? `<div class="prose dark:prose-invert max-w-none text-xs leading-relaxed">${detailsHtmlFa}</div>` : ''}
 </div>`;
 
   const htmlEn = `
@@ -1168,310 +1673,157 @@ for (const card of (ALL_PHARMACY_CARDS || [])) {
   </div>
 
   ${pearlEn ? `
-  <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30">
-    <div class="text-xs font-bold text-amber-600 dark:text-amber-400 mb-1">💡 Clinical / Governance Pearl:</div>
-    <p class="text-xs text-muted-foreground leading-relaxed">${escapeHtml(pearlEn)}</p>
+  <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-1">
+    <div class="text-xs font-bold text-amber-600 dark:text-amber-400">💡 Action Pearl:</div>
+    <p class="text-xs font-semibold text-foreground leading-relaxed">${escapeHtml(pearlEn)}</p>
   </div>` : ''}
 
-  <div class="p-4 rounded-2xl bg-card border border-border">
-    <div class="knowledge-html-content text-xs leading-relaxed text-foreground">
-      ${detailsHtmlEn}
-    </div>
-  </div>
+  ${detailsHtmlEn ? `<div class="prose dark:prose-invert max-w-none text-xs leading-relaxed">${detailsHtmlEn}</div>` : ''}
 </div>`;
 
   documents.push({
     id: docId,
     folder_id: modFolder,
-    title: `درس ماژول ${modNum}: ${titleFa}`,
-    title_en: `Module ${modNum}: ${titleEn}`,
+    title: titleFa,
+    title_en: titleEn,
     content_html: htmlFa,
     content_en: htmlEn,
     preferred_language: 'bilingual',
     direction: 'rtl',
-    tags: ['Academic Module', `Module ${modNum}`, categoryEn]
+    tags: [`Module ${modNum}`, categoryEn, 'Academic Lesson']
   });
 }
 
-console.log(`Total Generated Documents: ${documents.length}`);
+console.log(`Generated ${ALL_PHARMACY_CARDS.length} Module Lessons in Pillar 5`);
 
 // =========================================================================
-// SECTION 6: 35 HIGH-YIELD BILINGUAL LEITNER FLASHCARDS
+// SECTION 6: CURATED HIGH-YIELD LEITNER CARDS (35 items)
 // =========================================================================
 
-const leitnerCards = [];
-
-// Sample cards from pharmacy
-for (const sc of (INITIAL_SAMPLE_LEITNER_CARDS || [])) {
-  leitnerCards.push({
-    id: `card-${sc.id}`,
-    front: sc.question.fa,
-    back: sc.answer.fa,
-    clue: sc.pearl ? sc.pearl.fa : undefined,
-    box: 1,
-    folder_id: 'folder-mod-dispensing',
-    document_id: null
-  });
-}
-
-// Cards from CYP
-for (const cyp of cypList) {
-  const cypCode = (cyp.id || 'CYP').toUpperCase();
-  const cypInhibitors = (cyp.inhibitors || []).slice(0, 3).map(i => i.nameFa || i.name).join('، ');
-  const cypSubstrates = (cyp.substrates || []).slice(0, 3).map(s => s.nameFa || s.name).join('، ');
-  leitnerCards.push({
-    id: `card-cyp-${(cyp.id || 'cyp').toLowerCase()}`,
-    front: `مهم‌ترین مهارکننده‌ها و سوبستراهای آنزیم ${cypCode} کدامند و خطر اصلی تداخل چیست؟`,
-    back: `مهارکننده‌ها: ${cypInhibitors || '-'}\nسوبستراها: ${cypSubstrates || '-'}\nخطر: مهار این آنزیم مانع کلیرانس دارو شده و غلظت پلاسمایی سوبسترا را تا حد سمیت شدید افزایش می‌دهد.`,
-    clue: (cyp.clinicalSignificanceFa || '').slice(0, 100) + '...',
-    box: 1,
-    folder_id: 'folder-pharm-cyp',
-    document_id: `doc-cyp-${(cyp.id || 'cyp').toLowerCase()}`
-  });
-}
-
-// Cards from Diseases (Red flags and first-line)
-const sampleDiseaseCards = [
-  {
-    id: 'card-disease-anal-fissure',
-    front: 'منع مصرف حیاتی پماد رکتوجزیک (گلیسریل تری‌نیترات ۰.۲٪) در شقاق مقعد چیست؟',
-    back: 'مصرف همزمان یا طی ۲۴ تا ۴۸ ساعت گذشته از مهارکننده‌های PDE5 (مانند سیلدنافیل، تادالافیل) به دلیل خطر افت فشار خون شدید و کلاپس قلبی-عروقی اکیداً ممنوع است.',
-    clue: 'تداخل خطرناک نیترات با داروهای ناتوانی جنسی',
-    box: 1,
-    folder_id: 'folder-clinical-gi',
-    document_id: 'doc-disease-anal_fissure'
-  },
-  {
-    id: 'card-disease-acne-bp',
-    front: 'تفاوت غلظت‌های ۲.۵٪، ۵٪ و ۱۰٪ بنزوئیل پروکساید در آکنه چیست و چه هشداری به بیمار ضروری است؟',
-    back: 'غلظت‌های ۲.۵٪ و ۵٪ اثربخشی کاملاً مشابه ۱۰٪ دارند اما عوارض تحریک و قرمزی پوست در آن‌ها بسیار کمتر است. هشدار مهم: این دارو رنگ لباس، ملافه و مو را سفید می‌کند.',
-    clue: 'اثربخشی معادل با عارضه کمتر و سفید شدن پارچه‌ها',
-    box: 1,
-    folder_id: 'folder-clinical-derma',
-    document_id: 'doc-disease-acne'
-  },
-  {
-    id: 'card-disease-gord-ppi',
-    front: 'بهترین زمان مصرف پنتوپرازول یا ازومپرازول برای سوزش سردل و ریفلاکس چیست؟',
-    back: '۳۰ تا ۶۰ دقیقه قبل از اولین وعده غذایی روز (صبحانه) با یک لیوان آب، زیرا پمپ‌های پروتون در هنگام غذا خوردن فعال می‌شوند و بیشترین مهار اتفاق می‌افتد.',
-    clue: 'نیاز به فعال شدن پمپ‌ها با تحریک غذا',
-    box: 1,
-    folder_id: 'folder-clinical-gi',
-    document_id: 'doc-disease-gord_heartburn'
-  },
-  {
-    id: 'card-disease-vaginal-thrush',
-    front: 'معیارهای ارجاع فوری بیمار با علائم کاندیدیازیس واژینال (Thrush) به پزشک چیست؟',
-    back: '۱. بارداری یا سن زیر ۱۶ / بالای ۶۰ سال\n۲. بیش از ۲ بار عود در ۶ ماه گذشته\n۳. ترشحات بدبو یا خون‌آلود\n۴. درد زیر شکم یا تب\n۵. عدم بهبود پس از ۷ روز از درمان OTC.',
-    clue: 'بارداری، عود مکرر، ترشح بدبو و درد شکمی',
-    box: 1,
-    folder_id: 'folder-clinical-women-uro',
-    document_id: 'doc-disease-vaginal_thrush'
-  },
-  {
-    id: 'card-disease-conjunctivitis',
-    front: 'تفاوت تشخیصی کنژونکتیویت باکتریایی، ویروسی و آلرژیک چیست؟',
-    back: 'باکتریایی: ترشح چرکی غلیظ زرد/سبز و چسبندگی شدید پلک‌ها در صبح.\nویروسی: ترشح آبکی، قرمزی و درگیری دوطرفه با علائم سرماخوردگی.\nآلرژیک: خارش شدید دوطرفه چشم همراه با رینیت و عطسه.',
-    clue: 'خارش (آلرژیک) در برابر ترشح چرکی (باکتریایی)',
-    box: 1,
-    folder_id: 'folder-clinical-eyes-ears',
-    document_id: 'doc-disease-bacterial_conjunctivitis'
-  },
-  {
-    id: 'card-disease-headlice',
-    front: 'روش صحیح استفاده از لوسیون پرمترین ۱٪ در درمان شپش سر چیست؟',
-    back: 'روی موهای شسته شده و با حوله خشک شده مالیده شود، پس از ۱۰ دقیقه با آب گرم شسته شود. تکرار درمان دقیقاً پس از ۷ روز برای کشتن لاروهای تازه از تخم درآمده الزامی است.',
-    clue: 'تکرار الزامی بعد از ۷ روز',
-    box: 1,
-    folder_id: 'folder-clinical-derma',
-    document_id: 'doc-disease-headlice'
+function extractText(val) {
+  if (!val) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'object') {
+    if (val.fa && val.en) return `${val.fa} (${val.en})`;
+    if (val.fa) return val.fa;
+    if (val.en) return val.en;
+    return JSON.stringify(val);
   }
-];
-
-for (const c of sampleDiseaseCards) {
-  leitnerCards.push(c);
+  return String(val);
 }
 
-// Cards from Mechanisms
-const sampleMechanismCards = [
-  {
-    id: 'card-mech-cox',
-    front: 'چرا مهارکننده‌های انتخابی COX-2 (مثل سلکوکسیب) خطر ترومبوز قلبی-عروقی دارند؟',
-    back: 'سلکوکسیب با مهار اختصاصی COX-2 مانع تولید پروستاسایکلین اندوتلیال (PGI2 گشادکننده عروق و مهارکننده تجمع پلاکت) می‌شود، در حالی که ترومبوکسان A2 پلاکتی (تولیدشده توسط COX-1) مهار نشده باقی می‌ماند و کفه ترازو به سمت ترومبوز و تنگی عروق سنگین می‌شود.',
-    clue: 'بهم خوردن تعادل پروستاسایکلین و ترومبوکسان',
-    box: 1,
-    folder_id: 'folder-pharm-mechanisms',
-    document_id: 'doc-mech-sub-1-1'
-  },
-  {
-    id: 'card-mech-antifungals',
-    front: 'تفاوت مکانیسم قارچ‌کشی آلیل‌آمین‌ها (تربینافین) با آزول‌ها (فلوکونازول) چیست؟',
-    back: 'آزول‌ها آنزیم 14α-دمتیلاز را مهار کرده و سنتز ارگوسترول را متوقف می‌کنند (Fungistatic)، اما تربینافین آنزیم اسکوالن اپوکسیداز را مهار می‌کند که منجر به تجمع مقادیر سمی اسکوالن در سلول قارچ و لیز سریع دیواره می‌شود (Fungicidal).',
-    clue: 'مهار اسکوالن اپوکسیداز و سمیت تجمعی',
-    box: 1,
-    folder_id: 'folder-pharm-mechanisms',
-    document_id: 'doc-mech-sub-1-2'
-  },
-  {
-    id: 'card-mech-antihistamines',
-    front: 'چرا آنتی‌هیستامین‌های نسل دوم (فکسوفنادین، لوراتادین) خواب‌آلودگی کمتری نسبت به نسل اول دارند؟',
-    back: 'نسل دوم مولکول‌های بزرگتر و قطبی‌تری هستند، سوبسترای پمپ P-glycoprotein هستند و از سد خونی مغزی (BBB) عبور نمی‌کنند، بنابراین گیرنده‌های H1 سیستم عصبی مرکزی را مسدود نمی‌کنند.',
-    clue: 'عدم عبور از سد خونی مغزی (BBB)',
-    box: 1,
-    folder_id: 'folder-pharm-mechanisms',
-    document_id: 'doc-mech-sub-1-4'
-  }
-];
+const cards = (INITIAL_SAMPLE_LEITNER_CARDS || []).map((card, idx) => ({
+  id: `card-pharmacy-${card.id || idx + 1}`,
+  user_id: 'guest',
+  front: extractText(card.front || card.question || card.title || `Flashcard ${idx + 1}`),
+  back: extractText(card.back || card.answer || card.pearl || ''),
+  clue: extractText(card.clue || card.topic || 'Pharmacy Pearl'),
+  document_id: card.documentId || 'doc-card-1',
+  folder_id: PHARMACY_ROOT_FOLDER_ID,
+  box: 1,
+  next_review_at: '2026-03-20T00:00:00.000Z',
+  last_reviewed_at: null,
+  review_count: 0,
+  lapse_count: 0,
+  interval_days: 1,
+  ease_factor: 2.5,
+  created_at: '2026-03-20T00:00:00.000Z',
+  updated_at: '2026-03-20T00:00:00.000Z'
+}));
 
-for (const c of sampleMechanismCards) {
-  leitnerCards.push(c);
-}
+// Add rich clinical flashcards from diseases
+const diseaseCards = handbookDiseases.slice(0, 28).map((hb, idx) => {
+  const trans = OTC_CLINICAL_TRANSLATIONS ? OTC_CLINICAL_TRANSLATIONS[hb.id] : null;
+  const cleanFa = trans?.cleanFaName || hb.condition;
+  const cleanEn = trans?.cleanEnName || hb.condition;
+  const fl = trans?.firstLine;
 
-// Cards from Slang & Triage
-const sampleTriageCards = [
-  {
-    id: 'card-triage-thunderclap',
-    front: 'اقدام حیاتی در مواجهه با بیماری که از سردرد ناگهانی شدید «مثل رعد و برق» شکایت دارد چیست؟',
-    back: 'ارجاع فوری به اورژانس (تماس با ۱۱۵). سردرد رعدآسا (Thunderclap Headache) که در عرض ثانیه‌ها به اوج شدت می‌رسد نشانه پاتوقنومیک خونریزی زیر عنکبوتیه (SAH) ناشی از پارگی آنوریسم مغزی است.',
-    clue: 'خونریزی زیر عنکبوتیه (SAH) و اورژانس مطلق',
-    box: 1,
-    folder_id: 'folder-cases-clinical',
-    document_id: 'doc-scenario-clinical-sc-01-thunderclap-headache'
-  },
-  {
-    id: 'card-triage-warfarin-bleeding',
-    front: 'چه تداخلی بین وارفارین و آنتی‌بیوتیک‌های خوراکی (مثل مترونیدازول یا سیپروفلوکساسین) رخ می‌دهد؟',
-    back: 'آنتی‌بیوتیک‌ها با مهار متابولیسم کبدی وارفارین (مهار CYP2C9 توسط مترونیدازول) و کشتن باکتری‌های روده‌ای تولیدکننده ویتامین K، باعث افزایش شدید INR و خونریزی‌های تهدیدکننده حیات می‌شوند.',
-    clue: 'مهار CYP2C9 و کاهش ویتامین K روده',
-    box: 1,
-    folder_id: 'folder-cases-clinical',
-    document_id: 'doc-scenario-clinical-sc-04-warfarin-interaction'
-  },
-  {
-    id: 'card-triage-emergency-contraception',
-    front: 'تفاوت پنجره زمانی اثربخشی لوونورژسترل (Postinor) با اولی‌پریستال (Ella) در اورژانس پیشگیری چیست؟',
-    back: 'لوونورژسترل تا ۷۲ ساعت (۳ روز) پس از رابطه محافظت‌نشده اثربخش است (با افت تدریجی اثربخشی). اولی‌پریستال تا ۱۲۰ ساعت (۵ روز) اثربخشی پایدار خود را حفظ می‌کند و مهار تخمک‌گذاری را حتی پس از شروع موج LH انجام می‌دهد.',
-    clue: '۷۲ ساعت (لوونورژسترل) در برابر ۱۲۰ ساعت (اولی‌پریستال)',
-    box: 1,
-    folder_id: 'folder-cases-clinical',
-    document_id: 'doc-scenario-clinical-sc-05-emergency-contraception'
-  },
-  {
-    id: 'card-clinical-simvastatin-macrolide',
-    front: 'چرا مصرف همزمان سیمواستاتین با کلاریترومایسین یا اریترومایسین اکیداً ممنوع (Contraindicated) است؟',
-    back: 'ماکرولیدها مهارکننده بسیار قوی CYP3A4 هستند و سطح خونی سیمواستاتین را بیش از ۱۰ برابر افزایش می‌دهند که منجر به رابدومیولیز شدید (تخریب بافت عضلانی)، میوگلوبینوری و نارسایی حاد کلیه می‌شود.',
-    clue: 'خطر رابدومیولیز کشنده و نارسایی حاد کلیه',
-    box: 1,
-    folder_id: 'folder-pharm-cyp',
-    document_id: 'doc-cyp-cyp3a4'
-  },
-  {
-    id: 'card-clinical-codeine-cyp2d6',
-    front: 'چرا در افراد با فنوتیپ Poor Metabolizer آنزیم CYP2D6 مصرف استامینوفن کدئین هیچ‌گونه اثر ضد دردی ایجاد نمی‌کند؟',
-    back: 'کدئین یک پیش‌دارو (Prodrug) غیرفعال است و برای تبدیل به مورفین فعال به ایزوآنزیم CYP2D6 نیاز دارد. در افراد فاقد این آنزیم، تبدیل به مورفین رخ نداده و تنها عوارض جانبی ایجاد می‌شود.',
-    clue: 'نیاز به تبدیل کدئین به مورفین توسط CYP2D6',
-    box: 1,
-    folder_id: 'folder-pharm-cyp',
-    document_id: 'doc-cyp-cyp2d6'
-  },
-  {
-    id: 'card-clinical-clopidogrel-omeprazole',
-    front: 'تداخل بالینی مهم بین کلوپیدوگرل (Plavix) و امپرازول چیست و گایدلاین استرالیا چه جایگزینی پیشنهاد می‌دهد؟',
-    back: 'کلوپیدوگرل پیش‌دارویی است که برای فعال‌سازی ضد پلاکتی به CYP2C19 نیاز دارد. امپرازول این آنزیم را مهار کرده و اثربخشی محافظتی در برابر لخته را به شدت کاهش می‌دهد. در صورت نیاز به PPI، پنتوپرازول جایگزین امن‌تری است.',
-    clue: 'کاهش اثر ضدپلاکتی کلوپیدوگرل و جایگزینی با پنتوپرازول',
-    box: 1,
-    folder_id: 'folder-pharm-cyp',
-    document_id: 'doc-cyp-cyp2c19'
-  },
-  {
-    id: 'card-clinical-paracetamol-nac',
-    front: 'پادزهر اختصاصی مسمومیت حاد با استامینوفن (Paracetamol Overdose) چیست و مکانیسم محافظت کبدی آن چیست؟',
-    back: 'ان-استیل سیستئین (NAC). با بازسازی ذخایر گلوتاتیون کبدی و اتصال مستقیم به متابولیت سمی NAPQI (تولید شده توسط CYP2E1)، مانع از نکروز سلول‌های کبدی می‌شود. بهترین زمان شروع ظرف ۸ ساعت اول مسمومیت است.',
-    clue: 'بازسازی گلوتاتیون و خنثی‌سازی NAPQI',
-    box: 1,
-    folder_id: 'folder-pharm-cyp',
-    document_id: 'doc-cyp-cyp2e1'
-  },
-  {
-    id: 'card-clinical-gout-allopurinol',
-    front: 'چرا آلوپورینول هرگز نباید در حین یک حمله حاد نقرس (Acute Gout Attack) آغاز شود؟',
-    back: 'تغییر ناگهانی و افت سریع اسید اوریک سرم باعث حل شدن کریستال‌های اورات از مفاصل و ایجاد یک فاز تشدید التهابی شدید و طولانی‌مدت می‌شود. آلوپورینول باید حداقل ۲ تا ۴ هفته پس از فروکش کامل حمله آغاز شود.',
-    clue: 'تحریک مجدد حمله با نوسان ناگهانی سطح اسید اوریک',
-    box: 1,
-    folder_id: 'folder-clinical-pain',
-    document_id: 'doc-disease-pain_relief'
-  },
-  {
-    id: 'card-clinical-asthma-cal',
-    front: 'برچسب احتیاطی الزامی (CAL Label) پس از مصرف اسپری‌های کورتیکواستروئید استنشاقی (ICS) چیست و دلیل آن چیست؟',
-    back: '«پس از مصرف، دهان را با آب بشویید و آب را بیرون بریزید». دلیل: جلوگیری از رسوب دارو در مخاط دهان و حلق که می‌تواند باعث برفک دهانی (Oral Candidiasis) و خشونت صدا (Dysphonia) شود.',
-    clue: 'پیشگیری از برفک دهانی و تغییر صدا',
-    box: 1,
-    folder_id: 'folder-mono-resp-allergy',
-    document_id: 'doc-mono-prod-ventolin-inhaler'
-  },
-  {
-    id: 'card-clinical-s8-regulations',
-    front: 'بر اساس قوانین داروسازی استرالیا، حداکثر اعتبار قانونی نسخه داروهای مخدر Schedule 8 چقدر است و نگهداری آن چگونه باید باشد؟',
-    back: 'حداکثر ۶ ماه از تاریخ صدور نسخه توسط پزشک. این داروها باید حتماً در گاوصندوق فولادی مقاوم به سرقت و متصل به زمین یا دیوار (S8 Safe) نگهداری شوند و ورود و خروج آن‌ها در دفتر ثبت مخدر (S8 Register) ثبت گردد.',
-    clue: 'اعتبار ۶ ماه و نگهداری در گاوصندوق فولادی',
-    box: 1,
-    folder_id: 'folder-mod-dispensing',
-    document_id: null
-  },
-  {
-    id: 'card-clinical-warfarin-inr',
-    front: 'محدوده هدف استاندارد INR برای بیمار مبتلا به فیبریلاسیون دهلیزی (AF) چقدر است و پادزهر سریع وارفارین چیست؟',
-    back: 'محدوده هدف ۲.۰ تا ۳.۰ است. پادزهر دارویی خوراکی/وریدی فیتومنادیون (ویتامین K1) است و در خونریزی‌های تهدیدکننده حیات کنسانتره کمپلکس پروترومبین (Prothrombinex-VF) تزریق می‌شود.',
-    clue: 'INR هدف ۲ تا ۳ و ویتامین K1',
-    box: 1,
-    folder_id: 'folder-pharm-mechanisms',
-    document_id: 'doc-mech-sub-2-4'
-  },
-  {
-    id: 'card-clinical-cal-sedation',
-    front: 'برچسب CAL 1 (هشدار خواب‌آلودگی و الکل) الزامی برای چه داروهایی است؟',
-    back: 'برای آنتی‌هیستامین‌های نسل اول (کلرفنیرامین، پرومتازین، دیفن‌هیدرامین)، بنزودیازپین‌ها، شل‌کننده‌های عضلانی و مسکن‌های اپیوئیدی. به بیمار هشدار می‌دهد که این دارو باعث گیجی شده و با الکل تشدید می‌شود.',
-    clue: 'هشدار رانندگی و هم‌افزایی با الکل',
-    box: 1,
-    folder_id: 'folder-mod-dispensing',
-    document_id: null
-  },
-  {
-    id: 'card-clinical-reg49',
-    front: 'قانون مقررات ۴۹ (Regulation 49 / Emergency Supply) در استرالیا چیست؟',
-    back: 'به داروساز اجازه می‌دهد در شرایط اضطراری که بیمار به دلیل فاصله جغرافیایی یا اورژانس پزشکی قادر به دریافت داروی حیاتی مزمن نیست، تمام تکرارهای نسخه (Original + Repeats) را به صورت یکجا به بیمار تحویل دهد.',
-    clue: 'تحویل یکجای تکرارها در شرایط اضطراری',
-    box: 1,
-    folder_id: 'folder-cases-admin',
-    document_id: null
-  }
-];
+  const front = `خط اول درمان OTC برای «${cleanFa}» (${cleanEn}) چیست؟`;
+  const back = fl
+    ? `داروی خط اول: ${fl.drugNameFa} (${fl.drugNameEn})\nدوز: ${fl.dosingFa}\nنکته مهم: ${fl.keyWarningsFa}`
+    : `درمان‌های استاندارد OTC: ${hb.medicines?.map(m => m.name).join('، ') || 'مشاوره داروساز'}`;
 
-for (const c of sampleTriageCards) {
-  leitnerCards.push(c);
-}
+  return {
+    id: `card-disease-${hb.id}`,
+    user_id: 'guest',
+    front,
+    back,
+    clue: cleanEn,
+    document_id: `doc-disease-${hb.id}`,
+    folder_id: diseaseCategoryMap[hb.id] || 'folder-clinical-derma',
+    box: 1,
+    next_review_at: '2026-03-20T00:00:00.000Z',
+    last_reviewed_at: null,
+    review_count: 0,
+    lapse_count: 0,
+    interval_days: 1,
+    ease_factor: 2.5,
+    created_at: '2026-03-20T00:00:00.000Z',
+    updated_at: '2026-03-20T00:00:00.000Z'
+  };
+});
 
-console.log(`Total Generated Flashcards: ${leitnerCards.length}`);
+const finalCards = [...cards, ...diseaseCards].slice(0, 35);
 
-// Output compiled dataset to src/lib/pharmacySeedData.ts
-const fileContent = `/**
- * Complete Pharmacy Knowledge Base & Encyclopedia Seed Data
- * Automatically compiled from pharmacy source repositories with full bilingual depth.
- * Contains:
- * - 23 Folders (1 Root + 5 Main Pillars + 17 Specialized Clinical Subcategories)
- * - ${documents.length} Comprehensive Bilingual Documents (Diseases, CYP Enzymes, Mechanisms, Monographs, Scenarios, Lessons)
- * - ${leitnerCards.length} High-Yield Clinical Leitner Spaced-Repetition Cards
+const finalizedFolders = PHARMACY_FOLDERS.map((f, idx) => ({
+  id: f.id,
+  user_id: 'guest',
+  parent_id: f.parent_id,
+  name: f.name,
+  icon: f.icon || 'Folder',
+  color: f.color || '#6366f1',
+  position: f.position ?? idx + 1,
+  created_at: '2026-03-20T00:00:00.000Z',
+  updated_at: '2026-03-20T00:00:00.000Z'
+}));
+
+const finalizedDocuments = documents.map(d => ({
+  id: d.id,
+  user_id: 'guest',
+  folder_id: d.folder_id,
+  title: d.title,
+  title_en: d.title_en || d.title,
+  content_html: d.content_html,
+  content_en: d.content_en || '',
+  preferred_language: d.preferred_language || 'bilingual',
+  direction: d.direction || 'rtl',
+  tags: d.tags || [],
+  created_at: '2026-03-20T00:00:00.000Z',
+  updated_at: '2026-03-20T00:00:00.000Z'
+}));
+
+console.log(`Total Generated Documents: ${finalizedDocuments.length}`);
+console.log(`Total Generated Flashcards: ${finalCards.length}`);
+console.log(`Total Folders: ${finalizedFolders.length}`);
+
+// Write out to src/lib/pharmacySeedData.ts
+const code = `/**
+ * Complete Australian Pharmacy Knowledge & Clinical Encyclopedia Seed Data
+ * Auto-generated with complete interconnected graph across:
+ * - 43 Clinical Diseases
+ * - 121 Shelf Products & Brand Monographs
+ * - 32 Triage Scenarios & Slang Dialogues
+ * - 6 CYP Enzymes & 9 High-Stakes Pairs
+ * - 14 Cellular Mechanisms
+ * - 35 High-Yield Clinical Concepts & Toxicity Red Flags
+ * - 22 APF Cautionary Advisory Labels (CAL Labels 1-22)
+ * - 8 Australian State Storage Laws
+ * - 13 Realistic PBS Scripts & Legal Dispensary Formats
+ * - 36 Academic Module Lessons
  */
 
-export const PHARMACY_ROOT_FOLDER_ID = '${PHARMACY_ROOT_FOLDER_ID}';
+import type { KnowledgeFolder, KnowledgeDocument } from './knowledgeTypes';
+import type { LeitnerCard } from './leitnerTypes';
 
-export const PHARMACY_SEED_FOLDERS = ${JSON.stringify(PHARMACY_FOLDERS, null, 2)};
+export { PHARMACY_ROOT_FOLDER_ID } from './pharmacyConstants';
 
-export const PHARMACY_SEED_DOCUMENTS = ${JSON.stringify(documents, null, 2)};
+export const PHARMACY_SEED_FOLDERS: KnowledgeFolder[] = ${JSON.stringify(finalizedFolders, null, 2)};
 
-export const PHARMACY_SEED_CARDS = ${JSON.stringify(leitnerCards, null, 2)};
+export const PHARMACY_SEED_DOCUMENTS: KnowledgeDocument[] = ${JSON.stringify(finalizedDocuments, null, 2)};
+
+export const PHARMACY_SEED_CARDS: LeitnerCard[] = ${JSON.stringify(finalCards, null, 2)};
 `;
 
-fs.writeFileSync(path.join(targetDir, 'pharmacySeedData.ts'), fileContent, 'utf8');
+fs.writeFileSync(path.join(targetDir, 'pharmacySeedData.ts'), code, 'utf8');
 console.log('Successfully written to src/lib/pharmacySeedData.ts!');
+

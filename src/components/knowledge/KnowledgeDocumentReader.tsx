@@ -43,6 +43,11 @@ import { createLeitnerCard } from "@/lib/leitnerService";
 import { TextSelectionFloatingBar } from "./TextSelectionFloatingBar";
 import { AiQuestionGeneratorModal } from "./AiQuestionGeneratorModal";
 import { InteractiveLearningModal } from "./InteractiveLearningModal";
+const ClinicalRelationsNetwork = React.lazy(() =>
+  import("./ClinicalRelationsNetwork").then((m) => ({
+    default: m.ClinicalRelationsNetwork,
+  }))
+);
 import { toast } from "sonner";
 
 interface KnowledgeDocumentReaderProps {
@@ -165,6 +170,32 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
       return cleanup;
     }
   }, [viewMode, document?.content_html, document?.content_en, docLangMode]);
+
+  // Delegated click listener for in-content cross-document links [data-doc-link="..."]
+  useEffect(() => {
+    const container = contentContainerRef.current;
+    if (!container || viewMode !== "reader") return;
+
+    const handleDocLinkClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const linkEl = target.closest("[data-doc-link]") as HTMLElement | null;
+      if (linkEl) {
+        e.preventDefault();
+        e.stopPropagation();
+        const targetDocId = linkEl.getAttribute("data-doc-link");
+        if (targetDocId && onSelectDocument) {
+          onSelectDocument(targetDocId);
+          container.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      }
+    };
+
+    container.addEventListener("click", handleDocLinkClick);
+    return () => {
+      container.removeEventListener("click", handleDocLinkClick);
+    };
+  }, [onSelectDocument, viewMode, document?.id]);
 
   const handleInsertInteractive = async (html: string, mode: "append" | "replace") => {
     if (!document) return;
@@ -872,6 +903,16 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                 </div>
               </div>
             )}
+
+            {/* Interconnected Clinical & Drug Relations Network */}
+            <React.Suspense fallback={null}>
+              <ClinicalRelationsNetwork
+                document={document}
+                allDocuments={allDocuments}
+                onSelectDocument={onSelectDocument}
+                isEn={isEn}
+              />
+            </React.Suspense>
 
             {/* Smart Related Knowledge & Products Section */}
             {relatedDocuments.length > 0 && (
