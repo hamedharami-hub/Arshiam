@@ -1,5 +1,5 @@
 import { firebaseStore } from "./firebaseStore";
-import { cacheGet, cacheSet } from "./offlineQueue";
+import { cacheSet, getPendingOps } from "./offlineQueue";
 import { saveEntityToFirestore } from "./firestoreSync";
 import type { KnowledgeDocument, KnowledgeFolder } from "./knowledgeTypes";
 import type { LeitnerCard } from "./leitnerTypes";
@@ -137,22 +137,6 @@ function plainText(document: KnowledgeDocument): string {
     .trim();
 }
 
-function mergePreservingExisting<T extends { id: string }>(
-  remote: T[], local: T[], additions: T[],
-): T[] {
-  const map = new Map<string, T>();
-  for (const item of additions) map.set(item.id, item);
-  for (const item of remote) map.set(item.id, item);
-  for (const item of local) {
-    const existing = map.get(item.id) as (T & { updated_at?: string }) | undefined;
-    const localUpdated = (item as T & { updated_at?: string }).updated_at;
-    if (!existing || (localUpdated && new Date(localUpdated).getTime() > new Date(existing.updated_at || 0).getTime())) {
-      map.set(item.id, item);
-    }
-  }
-  return [...map.values()];
-}
-
 async function saveMissing<T extends { id: string }>(
   userId: string,
   collection: CollectionName,
@@ -180,7 +164,7 @@ async function saveMissing<T extends { id: string }>(
 
 /**
  * Adds only IDs absent from the server. Existing server documents and Leitner progress
- * are never overwritten. Local-only rows are uploaded in preference to seed copies.
+ * are never overwritten. Pending offline edits must sync before an import starts.
  * A partial failure is safe to retry: the next run checks the server again.
  */
 export async function importPharmacyKnowledge(
@@ -188,18 +172,14 @@ export async function importPharmacyKnowledge(
   options?: { importCards?: boolean; force?: boolean; onProgress?: (completed: number, total: number) => void },
 ): Promise<PharmacyImportResult> {
   assertUser(userId);
+  const pending = await getPendingOps();
+  if (pending.some((op) => op.ownerId === userId &&
+    (op.table === "knowledge_folders" || op.table === "knowledge_documents" || op.table === "leitner_cards"))) {
+    throw new Error("Sync pending knowledge changes before importing pharmacy content.");
+  }
   const [seed, legacy] = await Promise.all([import("./pharmacySeedData"), import("./pharmacyLegacySeedData")]);
   const remote = await readRemote(userId);
   const now = new Date().toISOString();
-
-  const [localFolders, localDocs, localCards] = await Promise.all([
-    cacheGet<KnowledgeFolder[]>(getFoldersCacheKey(userId)).then((items) => items || []),
-    cacheGet<KnowledgeDocument[]>(getDocsCacheKey(userId)).then((items) => items || []),
-    cacheGet<LeitnerCard[]>(getLeitnerCardsCacheKey(userId)).then((items) => items || []),
-  ]);
-  const localFolderMap = new Map(localFolders.map((item) => [item.id, item]));
-  const localDocMap = new Map(localDocs.map((item) => [item.id, item]));
-  const localCardMap = new Map(localCards.map((item) => [item.id, item]));
   const remoteFolderIds = new Set(remote.folders.map((item) => item.id));
   const remoteDocIds = new Set(remote.documents.map((item) => item.id));
   const remoteCardIds = new Set(remote.cards.map((item) => item.id));
@@ -208,22 +188,22 @@ export async function importPharmacyKnowledge(
 
   const folders = seed.PHARMACY_SEED_FOLDERS
     .filter((item) => !remoteFolderIds.has(item.id))
-    .map((item) => localFolderMap.get(item.id) || {
+    .map((item) => ({
       ...item,
       parent_id: item.id === PHARMACY_ROOT_FOLDER_ID && legacyRoot ? legacyRoot.id : item.parent_id,
       user_id: userId,
       created_at: now,
       updated_at: now,
-    });
+    }));
   const documents = seed.PHARMACY_SEED_DOCUMENTS
     .filter((item) => !remoteDocIds.has(item.id))
-    .map((item) => localDocMap.get(item.id) || {
+    .map((item) => ({
       ...item,
       user_id: userId,
       plain_text: plainText(item),
       created_at: now,
       updated_at: now,
-    });
+    }));
   const seedDocMap = new Map(seed.PHARMACY_SEED_DOCUMENTS.map((item) => [item.id, item]));
   const upgradedDocuments = getUpgradeableDocuments(seed, legacy, remote).map((old) => {
     const next = seedDocMap.get(old.id)!;
@@ -243,7 +223,7 @@ export async function importPharmacyKnowledge(
   });
   const cards = options?.importCards === false ? [] : seed.PHARMACY_SEED_CARDS
     .filter((item) => !remoteCardIds.has(item.id))
-    .map((item) => localCardMap.get(item.id) || {
+    .map((item) => ({
       ...item,
       user_id: userId,
       document_id: item.document_id && (
@@ -252,7 +232,7 @@ export async function importPharmacyKnowledge(
       next_review_at: calculateNextReviewDate(1),
       created_at: now,
       updated_at: now,
-    });
+    }));
 
   const progress = { completed: 0, total: folders.length + documents.length + upgradedDocuments.length + cards.length };
   try {
@@ -261,12 +241,13 @@ export async function importPharmacyKnowledge(
     await saveMissing(userId, "knowledge_documents", upgradedDocuments, options?.onProgress, progress);
     await saveMissing(userId, "leitner_cards", cards, options?.onProgress, progress);
   } finally {
-    // Refresh the cache from confirmed remote state even if a batch stopped midway.
+    // A successful remote read is authoritative; stale cache rows must not
+    // reappear after an import or after a deletion on another device.
     const verified = await readRemote(userId);
     await Promise.all([
-      cacheSet(getFoldersCacheKey(userId), mergePreservingExisting(verified.folders, localFolders, [])),
-      cacheSet(getDocsCacheKey(userId), mergePreservingExisting(verified.documents, localDocs, [])),
-      cacheSet(getLeitnerCardsCacheKey(userId), mergePreservingExisting(verified.cards, localCards, [])),
+      cacheSet(getFoldersCacheKey(userId), verified.folders),
+      cacheSet(getDocsCacheKey(userId), verified.documents),
+      cacheSet(getLeitnerCardsCacheKey(userId), verified.cards),
     ]);
   }
 

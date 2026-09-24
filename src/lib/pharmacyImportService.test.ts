@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { cacheGet, cacheSet } from "./offlineQueue";
+import { cacheGet, cacheSet, getPendingOps } from "./offlineQueue";
 import { getDocsCacheKey, getFoldersCacheKey } from "./knowledgeService";
 import { getLeitnerCardsCacheKey } from "./leitnerService";
 import { PHARMACY_ROOT_FOLDER_ID, PHARMACY_SEED_CARDS, PHARMACY_SEED_DOCUMENTS, PHARMACY_SEED_FOLDERS } from "./pharmacySeedData";
@@ -13,6 +13,11 @@ const remote = vi.hoisted(() => ({
   failId: "",
 }));
 type MockCollection = "knowledge_folders" | "knowledge_documents" | "leitner_cards";
+
+vi.mock("./offlineQueue", async (importOriginal) => {
+  const original = await importOriginal<typeof import("./offlineQueue")>();
+  return { ...original, getPendingOps: vi.fn(async () => []) };
+});
 
 vi.mock("./firebaseStore", () => ({
   firebaseStore: {
@@ -39,6 +44,7 @@ describe("pharmacyImportService", () => {
   const userId = "test-pharmacy-user-123";
 
   beforeEach(async () => {
+    vi.mocked(getPendingOps).mockResolvedValue([]);
     remote.knowledge_folders.clear();
     remote.knowledge_documents.clear();
     remote.leitner_cards.clear();
@@ -124,11 +130,24 @@ describe("pharmacyImportService", () => {
     expect(second).toMatchObject({ foldersCount: 0, docsCount: 0, cardsCount: 0 });
   });
 
-  it("prefers a locally edited copy over a seed copy when the server lacks that ID", async () => {
+  it("does not resurrect a stale cached copy when the server lacks that ID", async () => {
     const local = { ...PHARMACY_SEED_DOCUMENTS[0], user_id: userId, title: "Saved offline edit" };
     await cacheSet(getDocsCacheKey(userId), [local]);
     await importPharmacyKnowledge(userId);
-    expect(remote.knowledge_documents.get(local.id)?.title).toBe("Saved offline edit");
+    expect(remote.knowledge_documents.get(local.id)?.title).toBe(PHARMACY_SEED_DOCUMENTS[0].title);
+    expect((await cacheGet<typeof local[]>(getDocsCacheKey(userId)))?.find((doc) => doc.id === local.id)?.title)
+      .toBe(PHARMACY_SEED_DOCUMENTS[0].title);
+  });
+
+  it("stops before writing when this user's knowledge changes are pending offline", async () => {
+    vi.mocked(getPendingOps).mockResolvedValue([{
+      table: "knowledge_documents", op: "update", ownerId: userId,
+      payload: { id: PHARMACY_SEED_DOCUMENTS[0].id, title: "Pending edit" },
+      createdAt: 1, attempts: 0,
+    }]);
+    await expect(importPharmacyKnowledge(userId)).rejects.toThrow(/Sync pending knowledge changes/);
+    expect(remote.knowledge_folders.size).toBe(0);
+    expect(remote.knowledge_documents.size).toBe(0);
   });
 
   it("refreshes only an unchanged legacy document and retains personal reading state", async () => {
