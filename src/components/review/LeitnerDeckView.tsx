@@ -28,7 +28,12 @@ import {
   CalendarPlus,
 } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
-import type { LeitnerCard, LeitnerBoxStats, LeitnerRating } from "@/lib/leitnerTypes";
+import type {
+  LeitnerCard,
+  LeitnerBoxStats,
+  LeitnerRating,
+  LeitnerSchedulingAlgorithm,
+} from "@/lib/leitnerTypes";
 import type { KnowledgeDocument } from "@/lib/knowledgeTypes";
 import {
   getLeitnerCards,
@@ -40,6 +45,7 @@ import {
   deleteLeitnerCard,
   getLeitnerBoxStats,
   getCramCards,
+  getLeitnerSchedulingAlgorithm,
   type CramFilterOptions,
 } from "@/lib/leitnerService";
 import { getKnowledgeDocuments } from "@/lib/knowledgeService";
@@ -107,6 +113,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   const [backInput, setBackInput] = useState("");
   const [clueInput, setClueInput] = useState("");
   const [selectedDocId, setSelectedDocId] = useState<string>("");
+  const [newCardAlgorithm, setNewCardAlgorithm] = useState<LeitnerSchedulingAlgorithm>("fsrs6");
 
   // Card List Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -220,7 +227,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
     setIsStudying(true);
   };
 
-  // Review answer with SM-2 4-tier rating
+  // Apply the card's persisted scheduler using the same four recall ratings.
   const handleReviewAnswer = useCallback(async (rating: LeitnerRating) => {
     if (!activeCard || !isFlipped || ratingSubmissionRef.current) return;
     ratingSubmissionRef.current = true;
@@ -228,29 +235,30 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
     try {
       await reviewLeitnerCardWithRating(userId, activeCard.id, rating);
 
+      const usesFsrs = getLeitnerSchedulingAlgorithm(activeCard) === "fsrs6";
       if (rating === 1) {
         toast.error(
           isEn
-            ? "Reset to Box 1 (Re-queued in session)"
-            : "به جعبه ۱ بازگشت (در پایان جلسه تکرار می‌شود)"
+            ? usesFsrs ? "Again — scheduled soon (re-queued at session end)" : "Reset to Box 1 (re-queued in session)"
+            : usesFsrs ? "دوباره — زمان مرور دوباره تنظیم شد (در پایان جلسه تکرار می‌شود)" : "به جعبه ۱ بازگشت (در پایان جلسه تکرار می‌شود)"
         );
       } else if (rating === 2) {
         toast.info(
           isEn
-            ? "Hard - Interval gently increased"
-            : "سخت - تمدید با فاصله کوتاه‌تر"
+            ? usesFsrs ? "Hard — FSRS scheduled a shorter interval" : "Hard - Interval gently increased"
+            : usesFsrs ? "سخت — زمان‌بندی FSRS با فاصله کوتاه‌تر" : "سخت - تمدید با فاصله کوتاه‌تر"
         );
       } else if (rating === 3) {
         toast.success(
           isEn
-            ? "Good! Moved to next box"
-            : "آفرین! به جعبه بعدی منتقل شد."
+            ? usesFsrs ? "Good — next review scheduled by FSRS" : "Good! Moved to next box"
+            : usesFsrs ? "خوب — زمان مرور بعدی با FSRS تنظیم شد" : "آفرین! به جعبه بعدی منتقل شد."
         );
       } else if (rating === 4) {
         toast.success(
           isEn
-            ? "Easy! Rapid mastery leap"
-            : "عالی! جهش سریع به جعبه‌های بالاتر."
+            ? usesFsrs ? "Easy — next review scheduled by FSRS" : "Easy! Rapid mastery leap"
+            : usesFsrs ? "آسان — زمان مرور بعدی با FSRS تنظیم شد" : "عالی! جهش سریع به جعبه‌های بالاتر."
         );
       }
 
@@ -335,11 +343,13 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
         back: backInput.trim(),
         clue: clueInput.trim() || undefined,
         document_id: selectedDocId || null,
+        scheduling_algorithm: newCardAlgorithm,
       });
       setFrontInput("");
       setBackInput("");
       setClueInput("");
       setSelectedDocId("");
+      setNewCardAlgorithm("fsrs6");
       setOpenNewCard(false);
       toast.success(isEn ? "Flashcard created" : "فلش‌کارت لایتنر ساخته شد");
       await loadData();
@@ -812,7 +822,13 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               )}
             </div>
 
-            {/* Modern 4-Tier SM-2 Rating Buttons */}
+            <div className="flex justify-center">
+              <span className="px-2 py-0.5 rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
+                {getLeitnerSchedulingAlgorithm(activeCard) === "fsrs6" ? "FSRS 6" : "SM-2"}
+              </span>
+            </div>
+
+            {/* Four ratings are shared by the selected per-card scheduler. */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full">
               {/* Rating 1: Again */}
               <button
@@ -823,7 +839,9 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               >
                 <div className="flex items-center gap-1">
                   <XCircle className="w-3.5 h-3.5" />
-                  <span>{isEn ? "Forgot (Box 1)" : "فراموش کردم (جعبه ۱)"}</span>
+                  <span>{getLeitnerSchedulingAlgorithm(activeCard) === "fsrs6"
+                    ? (isEn ? "Again" : "دوباره")
+                    : (isEn ? "Forgot (Box 1)" : "فراموش کردم (جعبه ۱)")}</span>
                 </div>
                 <span className="text-[10px] opacity-80 mt-0.5 font-mono">
                   {isEn ? preview1.textEn : preview1.textFa} • [1]
@@ -855,7 +873,9 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               >
                 <div className="flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>{isEn ? "Remembered (+1 Box)" : "بلدم (انتقال به جعبه بعدی)"}</span>
+                  <span>{getLeitnerSchedulingAlgorithm(activeCard) === "fsrs6"
+                    ? (isEn ? "Good" : "خوب")
+                    : (isEn ? "Remembered (+1 Box)" : "بلدم (انتقال به جعبه بعدی)")}</span>
                 </div>
                 <span className="text-[10px] opacity-80 mt-0.5 font-mono">
                   +{isEn ? preview3.textEn : preview3.textFa} • [3]
@@ -871,7 +891,9 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               >
                 <div className="flex items-center gap-1">
                   <Award className="w-3.5 h-3.5" />
-                  <span>{isEn ? "Easy (Master)" : "آسان (جهش سریع)"}</span>
+                  <span>{getLeitnerSchedulingAlgorithm(activeCard) === "fsrs6"
+                    ? (isEn ? "Easy" : "آسان")
+                    : (isEn ? "Easy (Master)" : "آسان (جهش سریع)")}</span>
                 </div>
                 <span className="text-[10px] opacity-80 mt-0.5 font-mono">
                   +{isEn ? preview4.textEn : preview4.textFa} • [4]
@@ -1157,6 +1179,26 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
                 </select>
               </div>
             )}
+
+            <div>
+              <label htmlFor="new-card-scheduler" className="block text-[11px] text-muted-foreground mb-1">
+                {isEn ? "Review scheduling" : "روش زمان‌بندی مرور"}
+              </label>
+              <select
+                id="new-card-scheduler"
+                value={newCardAlgorithm}
+                onChange={(event) => setNewCardAlgorithm(event.target.value as LeitnerSchedulingAlgorithm)}
+                className="w-full py-1.5 px-3 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                <option value="fsrs6">{isEn ? "FSRS 6 (recommended)" : "FSRS 6 (پیشنهادی)"}</option>
+                <option value="sm2">{isEn ? "SM-2 (legacy)" : "SM-2 (قدیمی)"}</option>
+              </select>
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                {isEn
+                  ? "Applies only to this new card; existing cards and review dates remain unchanged."
+                  : "فقط روی همین کارت تازه اعمال می‌شود؛ کارت‌ها و تاریخ‌های مرور قبلی تغییر نمی‌کنند."}
+              </p>
+            </div>
 
             <div className="flex items-center justify-end gap-2 pt-2">
               <button

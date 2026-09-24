@@ -1,8 +1,20 @@
 import { firebaseStore } from "./firebaseStore";
 import { cacheGet, cacheSet, enqueueOp, getPendingOps } from "./offlineQueue";
 import { saveEntityToFirestore, deleteEntityFromFirestore } from "./firestoreSync";
-import type { LeitnerCard, LeitnerBoxStats, LeitnerRating } from "./leitnerTypes";
+import type {
+  LeitnerCard,
+  LeitnerBoxStats,
+  LeitnerRating,
+  LeitnerSchedulingAlgorithm,
+} from "./leitnerTypes";
 import { reconcileRemoteRowsWithPending } from "./offlineReconcile";
+import {
+  createEmptyFsrsCard,
+  deserializeFsrsCard,
+  previewFsrsReviews,
+  scheduleFsrsReview,
+  serializeFsrsCard,
+} from "./fsrsScheduler";
 
 const makeId = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
@@ -171,6 +183,47 @@ export function calculateSM2Schedule(
   };
 }
 
+export function getLeitnerSchedulingAlgorithm(
+  card: Pick<LeitnerCard, "scheduling_algorithm">,
+): LeitnerSchedulingAlgorithm {
+  // Existing records predate the explicit algorithm field and must retain SM-2.
+  return card.scheduling_algorithm ?? "sm2";
+}
+
+function getFsrsCardState(card: LeitnerCard) {
+  if (!card.fsrs_state) {
+    throw new Error("FSRS card state is missing; the review was not applied.");
+  }
+  return deserializeFsrsCard(card.fsrs_state);
+}
+
+function formatFsrsInterval(
+  due: Date,
+  scheduledDays: number,
+  fromDate: Date,
+): { days: number; textFa: string; textEn: string } {
+  if (scheduledDays > 0) {
+    if (scheduledDays < 30) {
+      return {
+        days: scheduledDays,
+        textFa: `${scheduledDays} روز`,
+        textEn: `${scheduledDays} ${scheduledDays === 1 ? "day" : "days"}`,
+      };
+    }
+
+    const months = Math.max(1, Math.round(scheduledDays / 30));
+    return { days: scheduledDays, textFa: `${months} ماه`, textEn: `${months} mo` };
+  }
+
+  const minutes = Math.max(1, Math.ceil((due.getTime() - fromDate.getTime()) / 60_000));
+  if (minutes < 60) {
+    return { days: minutes / 1440, textFa: `${minutes} دقیقه`, textEn: `${minutes} min` };
+  }
+
+  const hours = Math.ceil(minutes / 60);
+  return { days: minutes / 1440, textFa: `${hours} ساعت`, textEn: `${hours} hr` };
+}
+
 /**
  * Predicts next interval text to display live on study action buttons
  */
@@ -178,6 +231,13 @@ export function previewNextInterval(
   card: LeitnerCard,
   rating: LeitnerRating
 ): { days: number; textFa: string; textEn: string } {
+  if (getLeitnerSchedulingAlgorithm(card) === "fsrs6") {
+    const now = new Date();
+    const fsrsCard = getFsrsCardState(card);
+    const next = previewFsrsReviews(fsrsCard, now)[rating];
+    return formatFsrsInterval(next.due, next.scheduled_days, now);
+  }
+
   const res = calculateSM2Schedule(card, rating);
   const days = res.intervalDays;
 
@@ -414,6 +474,7 @@ export async function createLeitnerCard(
     document_id?: string | null;
     folder_id?: string | null;
     box?: number;
+    scheduling_algorithm?: LeitnerSchedulingAlgorithm;
   }
 ): Promise<LeitnerCard> {
   if (!userId) throw new Error("User ID is required");
@@ -424,6 +485,7 @@ export async function createLeitnerCard(
   const now = new Date();
   const initialBox = data.box && data.box >= 1 && data.box <= 5 ? data.box : 1;
   const nextReview = now.toISOString(); // New cards are due immediately
+  const schedulingAlgorithm = data.scheduling_algorithm ?? "fsrs6";
 
   const card: LeitnerCard = {
     id: makeId(),
@@ -445,6 +507,10 @@ export async function createLeitnerCard(
     lapse_count: 0,
     created_at: now.toISOString(),
     updated_at: now.toISOString(),
+    scheduling_algorithm: schedulingAlgorithm,
+    ...(schedulingAlgorithm === "fsrs6"
+      ? { fsrs_state: serializeFsrsCard(createEmptyFsrsCard(now)) }
+      : {}),
   };
 
   const cacheKey = getLeitnerCardsCacheKey(userId);
@@ -484,7 +550,7 @@ export async function createLeitnerCard(
 }
 
 /**
- * Advanced review function applying the SM-2 algorithm rating (1: Again, 2: Hard, 3: Good, 4: Easy)
+ * Applies the card's persisted scheduler without changing schedules on legacy cards.
  */
 export async function reviewLeitnerCardWithRating(
   userId: string,
@@ -500,22 +566,44 @@ export async function reviewLeitnerCardWithRating(
 
   const current = existing[idx];
   const now = new Date();
-  const schedule = calculateSM2Schedule(current, rating, now);
+  let updated: LeitnerCard;
 
-  const updated: LeitnerCard = {
-    ...current,
-    box: schedule.box,
-    interval_days: schedule.intervalDays,
-    ease_factor: schedule.easeFactor,
-    consecutive_correct: schedule.consecutiveCorrect,
-    lapse_count: schedule.lapseCount,
-    stability: schedule.stability,
-    difficulty: schedule.difficulty,
-    next_review_at: schedule.nextReviewAt,
-    last_reviewed_at: now.toISOString(),
-    review_count: current.review_count + 1,
-    updated_at: now.toISOString(),
-  };
+  if (getLeitnerSchedulingAlgorithm(current) === "fsrs6") {
+    const fsrsCard = scheduleFsrsReview(getFsrsCardState(current), rating, now);
+    const scheduledDays = Math.max(0, fsrsCard.scheduled_days);
+    const nextReviewAt = fsrsCard.due.toISOString();
+    updated = {
+      ...current,
+      scheduling_algorithm: "fsrs6",
+      fsrs_state: serializeFsrsCard(fsrsCard),
+      box: mapIntervalToBox(Math.max(1, scheduledDays)),
+      interval_days: scheduledDays,
+      consecutive_correct: rating === 1 ? 0 : (current.consecutive_correct ?? 0) + 1,
+      // App-level lapse analytics count every "Again" answer. FSRS itself only
+      // increments its lapses field after a card has entered review state.
+      lapse_count: rating === 1 ? (current.lapse_count ?? 0) + 1 : (current.lapse_count ?? 0),
+      next_review_at: nextReviewAt,
+      last_reviewed_at: now.toISOString(),
+      review_count: current.review_count + 1,
+      updated_at: now.toISOString(),
+    };
+  } else {
+    const schedule = calculateSM2Schedule(current, rating, now);
+    updated = {
+      ...current,
+      box: schedule.box,
+      interval_days: schedule.intervalDays,
+      ease_factor: schedule.easeFactor,
+      consecutive_correct: schedule.consecutiveCorrect,
+      lapse_count: schedule.lapseCount,
+      stability: schedule.stability,
+      difficulty: schedule.difficulty,
+      next_review_at: schedule.nextReviewAt,
+      last_reviewed_at: now.toISOString(),
+      review_count: current.review_count + 1,
+      updated_at: now.toISOString(),
+    };
+  }
 
   const next = [...existing];
   next[idx] = updated;

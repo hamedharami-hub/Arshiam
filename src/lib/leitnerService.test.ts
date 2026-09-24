@@ -10,6 +10,8 @@ import {
   updateLeitnerCard,
   deleteLeitnerCard,
   getLeitnerBoxStats,
+  getLeitnerSchedulingAlgorithm,
+  previewNextInterval,
 } from "./leitnerService";
 import { clearQueue } from "./offlineQueue";
 import * as offlineQueue from "./offlineQueue";
@@ -66,6 +68,46 @@ describe("leitnerService", () => {
     expect(all.length).toBe(1);
   });
 
+  it("creates new cards with a valid FSRS-6 state and schedules each rating", async () => {
+    const card = await createLeitnerCard(userId, { front: "New FSRS card", back: "Answer" });
+
+    expect(card.scheduling_algorithm).toBe("fsrs6");
+    expect(card.fsrs_state).toMatchObject({ state: 0, reps: 0, lapses: 0 });
+    expect(Number.isFinite(Date.parse(card.fsrs_state!.due))).toBe(true);
+    expect(getLeitnerSchedulingAlgorithm(card)).toBe("fsrs6");
+    expect([1, 2, 3, 4].map((rating) => previewNextInterval(card, rating as 1 | 2 | 3 | 4).textEn))
+      .toEqual(expect.arrayContaining([expect.stringMatching(/\d+ (min|hr|day|days|mo)/)]));
+
+    const reviewed = await reviewLeitnerCardWithRating(userId, card.id, 3);
+    expect(reviewed.scheduling_algorithm).toBe("fsrs6");
+    expect(reviewed.fsrs_state?.reps).toBe(1);
+    expect(reviewed.review_count).toBe(1);
+    expect(reviewed.next_review_at).toBe(reviewed.fsrs_state?.due);
+    expect(Date.parse(reviewed.next_review_at)).toBeGreaterThan(Date.now());
+  });
+
+  it("keeps pre-existing cards on SM-2 when the scheduler field is absent", () => {
+    expect(getLeitnerSchedulingAlgorithm({})).toBe("sm2");
+  });
+
+  it("does not overwrite a card when its stored FSRS state is corrupt", async () => {
+    const card = await createLeitnerCard(userId, { front: "Corrupt FSRS", back: "Keep schedule" });
+    const corrupt = await updateLeitnerCard(userId, card.id, {
+      fsrs_state: { ...card.fsrs_state!, due: "not-a-date" },
+    });
+
+    await expect(reviewLeitnerCardWithRating(userId, card.id, 4)).rejects.toThrow(/FSRS card state/);
+    expect(await getLeitnerCards(userId)).toContainEqual(corrupt);
+  });
+
+  it("does not reset an FSRS card when its stored state is missing", async () => {
+    const card = await createLeitnerCard(userId, { front: "Missing FSRS", back: "Keep schedule" });
+    const incomplete = await updateLeitnerCard(userId, card.id, { fsrs_state: null });
+
+    await expect(reviewLeitnerCardWithRating(userId, card.id, 4)).rejects.toThrow(/state is missing/);
+    expect(await getLeitnerCards(userId)).toContainEqual(incomplete);
+  });
+
   it("does not report a card saved when offline queue storage rejects it", async () => {
     vi.spyOn(offlineQueue, "enqueueOp").mockResolvedValueOnce(false);
 
@@ -111,6 +153,7 @@ describe("leitnerService", () => {
     const card = await createLeitnerCard(userId, {
       front: "اندیکاسیون سرترالین",
       back: "MDD, OCD, Panic Disorder",
+      scheduling_algorithm: "sm2",
     });
 
     const reviewed = await reviewLeitnerCard(userId, card.id, true);
@@ -129,6 +172,7 @@ describe("leitnerService", () => {
       front: "دوز شروع اس‌سیتالوپرام",
       back: "10 میلی‌گرم در روز",
       box: 4, // Starts in Box 4
+      scheduling_algorithm: "sm2",
     });
 
     const lapsed = await reviewLeitnerCard(userId, card.id, false);
@@ -163,6 +207,7 @@ describe("leitnerService", () => {
     const card = await createLeitnerCard(userId, {
       front: "وارفارین و INR",
       back: "هدف معمول ۲ تا ۳",
+      scheduling_algorithm: "sm2",
     });
 
     // Rating 2: Hard

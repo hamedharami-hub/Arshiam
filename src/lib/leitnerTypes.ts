@@ -1,4 +1,18 @@
+export interface SerializedFsrsCard {
+  due: string;
+  stability: number;
+  difficulty: number;
+  elapsed_days: number;
+  scheduled_days: number;
+  learning_steps: number;
+  reps: number;
+  lapses: number;
+  state: number;
+  last_review: string | null;
+}
+
 export type LeitnerRating = 1 | 2 | 3 | 4; // 1: Again (دوباره), 2: Hard (سخت), 3: Good (خوب), 4: Easy (آسان)
+export type LeitnerSchedulingAlgorithm = "sm2" | "fsrs6";
 
 export interface LeitnerCard {
   id: string;
@@ -14,12 +28,14 @@ export interface LeitnerCard {
   review_count: number;
   lapse_count: number;
 
-  // Modern Spaced Repetition (SM-2 / FSRS) parameters:
+  // Legacy SM-2 compatibility fields. FSRS state is stored separately below.
   ease_factor?: number;        // Default 2.5, min 1.3
   interval_days?: number;      // Current calculated interval in days
   consecutive_correct?: number;// Number of consecutive successful recalls
-  difficulty?: number;         // 0 to 1 scale
-  stability?: number;          // Estimated memory half-life in days
+  difficulty?: number;         // Legacy SM-2 proxy, 0 to 1 scale
+  stability?: number;          // Legacy interval proxy in days
+  scheduling_algorithm?: LeitnerSchedulingAlgorithm;
+  fsrs_state?: SerializedFsrsCard | null;
 
   created_at: string;
   updated_at: string;

@@ -3,7 +3,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor, cleanup, act } from "@testing-library/react";
 import { LeitnerDeckView } from "./LeitnerDeckView";
 import type { LeitnerCard } from "@/lib/leitnerTypes";
-import { reviewLeitnerCardWithRating } from "@/lib/leitnerService";
+import { createLeitnerCard, reviewLeitnerCardWithRating } from "@/lib/leitnerService";
 
 vi.mock("@/hooks/useBilingual", () => ({
   useBilingual: () => ({ isEn: false }),
@@ -88,6 +88,7 @@ vi.mock("@/lib/leitnerService", () => ({
   ),
   getCramCards: vi.fn().mockImplementation(() => Promise.resolve([...mockCards])),
   deleteLeitnerCard: vi.fn().mockResolvedValue(true),
+  getLeitnerSchedulingAlgorithm: vi.fn((card: LeitnerCard) => card?.scheduling_algorithm ?? "sm2"),
 }));
 
 vi.mock("@/lib/knowledgeService", () => ({
@@ -124,6 +125,30 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("flip-card")).toBeDefined();
+    });
+  });
+
+  it("lets a new card explicitly choose and save its scheduler", async () => {
+    render(<LeitnerDeckView userId="user-test" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "کارت جدید" }));
+    const schedulerSelect = await screen.findByLabelText("روش زمان‌بندی مرور");
+    expect((schedulerSelect as HTMLSelectElement).value).toBe("fsrs6");
+    fireEvent.change(schedulerSelect, { target: { value: "sm2" } });
+    fireEvent.change(screen.getByPlaceholderText("مثلاً مکانیسم اثر فلوکستین..."), {
+      target: { value: "Question" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("مثلاً مهارکننده انتخابی بازجذب سروتونین (SSRI)..."), {
+      target: { value: "Answer" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "ایجاد کارت" }));
+
+    await waitFor(() => {
+      expect(createLeitnerCard).toHaveBeenCalledWith("user-test", expect.objectContaining({
+        front: "Question",
+        back: "Answer",
+        scheduling_algorithm: "sm2",
+      }));
     });
   });
 
