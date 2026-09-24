@@ -77,6 +77,36 @@ describe("leitnerService", () => {
     expect(await getLeitnerCards(userId)).toEqual([]);
   });
 
+  it("restores the previous review schedule when the offline queue rejects a rating", async () => {
+    const card = await createLeitnerCard(userId, { front: "Review rollback", back: "Original schedule" });
+    vi.spyOn(offlineQueue, "enqueueOp").mockResolvedValueOnce(false);
+
+    await expect(reviewLeitnerCardWithRating(userId, card.id, 4)).rejects.toThrow(
+      "sync queue storage is unavailable",
+    );
+    expect(await getLeitnerCards(userId)).toContainEqual(card);
+  });
+
+  it("restores the existing card when an edit cannot be synced or queued", async () => {
+    const card = await createLeitnerCard(userId, { front: "Original front", back: "Original back" });
+    vi.spyOn(offlineQueue, "enqueueOp").mockResolvedValueOnce(false);
+
+    await expect(updateLeitnerCard(userId, card.id, { front: "Unsaved edit" })).rejects.toThrow(
+      "sync queue storage is unavailable",
+    );
+    expect(await getLeitnerCards(userId)).toContainEqual(card);
+  });
+
+  it("keeps a card when deletion cannot be synced or durably queued", async () => {
+    const card = await createLeitnerCard(userId, { front: "Keep card", back: "Keep answer" });
+    vi.spyOn(offlineQueue, "enqueueOp").mockResolvedValueOnce(false);
+
+    await expect(deleteLeitnerCard(userId, card.id)).rejects.toThrow(
+      "sync queue storage is unavailable",
+    );
+    expect(await getLeitnerCards(userId)).toContainEqual(card);
+  });
+
   it("2. advances card to Box 2 on successful review", async () => {
     const card = await createLeitnerCard(userId, {
       front: "اندیکاسیون سرترالین",

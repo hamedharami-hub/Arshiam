@@ -26,6 +26,35 @@ export function getAllNotesCacheKey(userId: string): string {
   return `notes:all:${userId}`;
 }
 
+async function persistNoteOrQueue(
+  userId: string,
+  operation: "insert" | "update" | "delete",
+  note: TaskNote,
+): Promise<void> {
+  let synced = false;
+  if (isOnline()) {
+    try {
+      synced = operation === "delete"
+        ? await deleteEntityFromFirestore(userId, "notes", note.id)
+        : await saveEntityToFirestore(userId, "notes", note.id, note);
+    } catch {
+      synced = false;
+    }
+  }
+  if (synced) return;
+
+  const queued = await enqueueOp({
+    ownerId: userId,
+    table: "notes",
+    op: operation,
+    ...(operation === "delete" ? {} : { payload: note }),
+    match: { id: note.id },
+  });
+  if (!queued) {
+    throw new Error("Could not safely save this note: sync queue storage is unavailable. Your previous data was restored.");
+  }
+}
+
 const queueMap = new Map<string, Promise<unknown>>();
 
 async function runSynchronized<T>(key: string, task: () => Promise<T>): Promise<T> {
@@ -138,22 +167,13 @@ export async function createTaskNote(
     const allNotes = (await cacheGet<any[]>(allKey)) || [];
     await cacheSet(allKey, [note, ...allNotes.filter((n) => n.id !== note.id)]);
 
-    // 2. Persist to Firestore or queue offline
-    let synced = false;
-    if (isOnline()) {
-      try {
-        synced = await saveEntityToFirestore(userId, "notes", note.id, note);
-      } catch {
-        synced = false;
-      }
-    }
-
-    if (!synced) {
-      await enqueueOp({
-        table: "notes",
-        op: "insert",
-        payload: note,
-      });
+    // 2. Persist to Firestore or durable outbox. Roll back if neither accepts it.
+    try {
+      await persistNoteOrQueue(userId, "insert", note);
+    } catch (error) {
+      await cacheSet(taskKey, currentTaskNotes);
+      await cacheSet(allKey, allNotes);
+      throw error;
     }
 
     return note;
@@ -196,23 +216,13 @@ export async function updateTaskNote(
     const allNotes = (await cacheGet<any[]>(allKey)) || [];
     await cacheSet(allKey, allNotes.map((n) => (n.id === noteId ? { ...n, ...updated } : n)));
 
-    // 2. Persist to Firestore or queue offline
-    let synced = false;
-    if (isOnline()) {
-      try {
-        synced = await saveEntityToFirestore(userId, "notes", noteId, updated);
-      } catch {
-        synced = false;
-      }
-    }
-
-    if (!synced) {
-      await enqueueOp({
-        table: "notes",
-        op: "update",
-        payload: updated,
-        match: { id: noteId },
-      });
+    // 2. Persist to Firestore or durable outbox. Roll back if neither accepts it.
+    try {
+      await persistNoteOrQueue(userId, "update", updated);
+    } catch (error) {
+      await cacheSet(taskKey, currentTaskNotes);
+      await cacheSet(allKey, allNotes);
+      throw error;
     }
 
     return updated;
@@ -241,22 +251,22 @@ export async function deleteTaskNote(
     const allNotes = (await cacheGet<any[]>(allKey)) || [];
     await cacheSet(allKey, allNotes.filter((n) => n.id !== noteId));
 
-    // 2. Persist delete to Firestore or queue offline
-    let synced = false;
-    if (isOnline()) {
-      try {
-        synced = await deleteEntityFromFirestore(userId, "notes", noteId);
-      } catch {
-        synced = false;
-      }
-    }
-
-    if (!synced) {
-      await enqueueOp({
-        table: "notes",
-        op: "delete",
-        match: { id: noteId },
-      });
+    // 2. Persist delete to Firestore or durable outbox; restore caches on failure.
+    const noteToDelete = currentTaskNotes.find((note) => note.id === noteId) || {
+      id: noteId,
+      user_id: userId,
+      task_id: taskId,
+      title: "",
+      content: "",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    try {
+      await persistNoteOrQueue(userId, "delete", noteToDelete);
+    } catch (error) {
+      await cacheSet(taskKey, currentTaskNotes);
+      await cacheSet(allKey, allNotes);
+      throw error;
     }
 
     return true;

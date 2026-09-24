@@ -23,6 +23,35 @@ export function getLeitnerCardsCacheKey(userId: string): string {
   return `leitner_cards:${userId}`;
 }
 
+async function persistExistingCardMutation(
+  userId: string,
+  operation: "update" | "delete",
+  card: LeitnerCard,
+): Promise<void> {
+  let savedRemotely = false;
+  if (isOnline()) {
+    try {
+      savedRemotely = operation === "delete"
+        ? await deleteEntityFromFirestore(userId, "leitner_cards", card.id)
+        : await saveEntityToFirestore(userId, "leitner_cards", card.id, card);
+    } catch {
+      savedRemotely = false;
+    }
+  }
+  if (savedRemotely) return;
+
+  const queued = await enqueueOp({
+    ownerId: userId,
+    table: "leitner_cards",
+    op: operation,
+    ...(operation === "update" ? { payload: card } : {}),
+    match: { id: card.id },
+  });
+  if (!queued) {
+    throw new Error("Could not safely save this flashcard change: sync queue storage is unavailable. Your previous card state was restored.");
+  }
+}
+
 // Spaced repetition intervals in days for Boxes 1 through 5 (fallback/baseline)
 export const BOX_INTERVALS_DAYS: Record<number, number> = {
   1: 1,
@@ -492,17 +521,11 @@ export async function reviewLeitnerCardWithRating(
   next[idx] = updated;
   await cacheSet(cacheKey, next);
 
-  if (isOnline()) {
-    try {
-      const ok = await saveEntityToFirestore(userId, "leitner_cards", cardId, updated);
-      if (!ok) {
-        await enqueueOp({ table: "leitner_cards", op: "update", payload: updated, match: { id: cardId } });
-      }
-    } catch (e) {
-      await enqueueOp({ table: "leitner_cards", op: "update", payload: updated, match: { id: cardId } });
-    }
-  } else {
-    await enqueueOp({ table: "leitner_cards", op: "update", payload: updated, match: { id: cardId } });
+  try {
+    await persistExistingCardMutation(userId, "update", updated);
+  } catch (error) {
+    await cacheSet(cacheKey, existing);
+    throw error;
   }
 
   return updated;
@@ -547,17 +570,11 @@ export async function updateLeitnerCard(
   next[idx] = updated;
   await cacheSet(cacheKey, next);
 
-  if (isOnline()) {
-    try {
-      const ok = await saveEntityToFirestore(userId, "leitner_cards", cardId, updated);
-      if (!ok) {
-        await enqueueOp({ table: "leitner_cards", op: "update", payload: updated, match: { id: cardId } });
-      }
-    } catch (e) {
-      await enqueueOp({ table: "leitner_cards", op: "update", payload: updated, match: { id: cardId } });
-    }
-  } else {
-    await enqueueOp({ table: "leitner_cards", op: "update", payload: updated, match: { id: cardId } });
+  try {
+    await persistExistingCardMutation(userId, "update", updated);
+  } catch (error) {
+    await cacheSet(cacheKey, existing);
+    throw error;
   }
 
   return updated;
@@ -568,20 +585,15 @@ export async function deleteLeitnerCard(userId: string, cardId: string): Promise
 
   const cacheKey = getLeitnerCardsCacheKey(userId);
   const existing = (await cacheGet<LeitnerCard[]>(cacheKey)) || [];
+  const cardToDelete = existing.find((card) => card.id === cardId) || ({ id: cardId } as LeitnerCard);
   const filtered = existing.filter((c) => c.id !== cardId);
   await cacheSet(cacheKey, filtered);
 
-  if (isOnline()) {
-    try {
-      const ok = await deleteEntityFromFirestore(userId, "leitner_cards", cardId);
-      if (!ok) {
-        await enqueueOp({ table: "leitner_cards", op: "delete", match: { id: cardId } });
-      }
-    } catch (e) {
-      await enqueueOp({ table: "leitner_cards", op: "delete", match: { id: cardId } });
-    }
-  } else {
-    await enqueueOp({ table: "leitner_cards", op: "delete", match: { id: cardId } });
+  try {
+    await persistExistingCardMutation(userId, "delete", cardToDelete);
+  } catch (error) {
+    await cacheSet(cacheKey, existing);
+    throw error;
   }
 
   return true;

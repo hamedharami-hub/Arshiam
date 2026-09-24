@@ -7,6 +7,7 @@ import {
 } from "./taskNotesService";
 import { cacheSet, clearQueue, getPendingOps } from "./offlineQueue";
 import { saveEntityToFirestore, deleteEntityFromFirestore } from "./firestoreSync";
+import * as offlineQueue from "./offlineQueue";
 
 // Mock Firestore sync and store
 vi.mock("@/lib/firebaseStore", () => ({
@@ -46,6 +47,7 @@ describe("taskNotesService", () => {
   });
 
   afterEach(async () => {
+    vi.restoreAllMocks();
     localStorage.clear();
     await clearQueue();
   });
@@ -171,5 +173,41 @@ describe("taskNotesService", () => {
     // Local getTaskNotes still returns the note seamlessly
     const notes = await getTaskNotes(taskId, userId);
     expect(notes.some((n) => n.id === offlineNote.id)).toBe(true);
+  });
+
+  it("does not report a new note saved when neither Firestore nor the durable queue accepts it", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    vi.spyOn(offlineQueue, "enqueueOp").mockResolvedValueOnce(false);
+    (saveEntityToFirestore as any).mockResolvedValueOnce(false);
+
+    await expect(createTaskNote(userId, taskId, {
+      title: "Not durably saved",
+      content: "Must roll back",
+    })).rejects.toThrow("sync queue storage is unavailable");
+    expect(await getTaskNotes(taskId, userId)).toEqual([]);
+  });
+
+  it("restores an existing note when an edit cannot be synced or queued", async () => {
+    const original = await createTaskNote(userId, taskId, { title: "Original", content: "Keep this" });
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    vi.spyOn(offlineQueue, "enqueueOp").mockResolvedValueOnce(false);
+    (saveEntityToFirestore as any).mockResolvedValueOnce(false);
+
+    await expect(updateTaskNote(userId, original.id, taskId, { content: "Unsaved edit" })).rejects.toThrow(
+      "sync queue storage is unavailable",
+    );
+    expect(await getTaskNotes(taskId, userId)).toContainEqual(original);
+  });
+
+  it("restores a note when deletion cannot be synced or queued", async () => {
+    const original = await createTaskNote(userId, taskId, { title: "Keep me", content: "Still needed" });
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    vi.spyOn(offlineQueue, "enqueueOp").mockResolvedValueOnce(false);
+    (deleteEntityFromFirestore as any).mockResolvedValueOnce(false);
+
+    await expect(deleteTaskNote(userId, original.id, taskId)).rejects.toThrow(
+      "sync queue storage is unavailable",
+    );
+    expect(await getTaskNotes(taskId, userId)).toContainEqual(original);
   });
 });
