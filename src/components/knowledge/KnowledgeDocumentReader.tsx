@@ -877,11 +877,11 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                  {relatedSuggestions.map(({ document: rDoc, match }) => (
+                  {relatedSuggestions.map((suggestion) => (
                     <button
-                      key={rDoc.id}
+                      key={suggestion.document.id}
                       type="button"
-                      onClick={() => onSelectDocument?.(rDoc.id)}
+                      onClick={() => onSelectDocument?.(suggestion.document.id)}
                       className="flex flex-col justify-between p-3 rounded-2xl bg-card hover:bg-secondary/70 border border-border/80 hover:border-primary/50 transition text-start group cursor-pointer shadow-2xs space-y-2"
                     >
                       <div className="flex items-start gap-2">
@@ -890,26 +890,28 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                         </span>
                         <div className="min-w-0">
                           <h4 className="text-xs font-bold text-foreground group-hover:text-primary transition line-clamp-2">
-                            {isEn && rDoc.title_en ? rDoc.title_en : rDoc.title}
+                            {isEn && suggestion.document.title_en ? suggestion.document.title_en : suggestion.document.title}
                           </h4>
                           <span className="mt-1 inline-flex rounded-full bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground">
-                            {match === "shared-tag"
-                              ? isEn ? "Shared tag" : "برچسب مشترک"
-                              : match === "title-overlap"
-                                ? isEn ? "Title overlap" : "هم‌پوشانی عنوان"
-                                : isEn ? "Same folder" : "همین پوشه"}
+                            {suggestion.match === "shared-tag"
+                              ? `${isEn ? "Specific tag" : "برچسب موضوعی"}: ${suggestion.matchedTags.slice(0, 2).join(", ")}`
+                              : suggestion.match === "shared-category"
+                                ? `${isEn ? "Broad category" : "دسته‌بندی مشترک"}: ${suggestion.matchedTags.slice(0, 2).join(", ")}`
+                                : suggestion.match === "title-overlap"
+                                  ? `${isEn ? "Title overlap" : "هم‌پوشانی عنوان"}: ${suggestion.matchedTitleWords.slice(0, 2).join(", ")}`
+                                  : isEn ? "Same folder" : "همین پوشه"}
                           </span>
-                          {rDoc.title_en && !isEn && (
+                          {suggestion.document.title_en && !isEn && (
                             <p className="text-[10px] text-muted-foreground line-clamp-1" dir="ltr">
-                              {rDoc.title_en}
+                              {suggestion.document.title_en}
                             </p>
                           )}
                         </div>
                       </div>
 
-                      {rDoc.tags && rDoc.tags.length > 0 && (
+                      {suggestion.document.tags && suggestion.document.tags.length > 0 && (
                         <div className="flex items-center gap-1 flex-wrap pt-1 border-t border-border/40">
-                          {rDoc.tags.slice(0, 2).map((t, idx) => (
+                          {suggestion.document.tags.slice(0, 2).map((t, idx) => (
                             <span
                               key={idx}
                               className="text-[9px] px-1.5 py-0.2 rounded-md bg-muted text-muted-foreground"

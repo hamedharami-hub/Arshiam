@@ -227,7 +227,7 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
 
     expect(screen.getByText("پیشنهاد برای مطالعهٔ بیشتر")).toBeInTheDocument();
     expect(screen.getByText("سرترالین ۵۰ میلی‌گرم")).toBeInTheDocument();
-    expect(screen.getByText("برچسب مشترک")).toBeInTheDocument();
+    expect(screen.getByText("برچسب موضوعی: SSRI")).toBeInTheDocument();
 
     // Click related card
     fireEvent.click(screen.getByText("سرترالین ۵۰ میلی‌گرم"));

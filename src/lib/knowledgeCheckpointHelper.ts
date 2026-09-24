@@ -188,7 +188,9 @@ export function extractDocumentCheckpoints(doc: KnowledgeDocument): KnowledgeChe
 
 export type RelatedDocumentSuggestion = {
   document: KnowledgeDocument;
-  match: "shared-tag" | "title-overlap" | "same-folder";
+  match: "shared-tag" | "shared-category" | "title-overlap" | "same-folder";
+  matchedTags: string[];
+  matchedTitleWords: string[];
 };
 
 /**
@@ -204,6 +206,13 @@ export function getRelatedDocumentSuggestions(
   if (!currentDoc || !allDocs || allDocs.length <= 1) return [];
 
   const currentTags = new Set((currentDoc.tags || []).map((t) => t.toLowerCase()));
+  const tagDocumentCounts = new Map<string, number>();
+  for (const doc of allDocs) {
+    for (const tag of new Set((doc.tags || []).map((value) => value.toLowerCase()))) {
+      tagDocumentCounts.set(tag, (tagDocumentCounts.get(tag) || 0) + 1);
+    }
+  }
+  const commonTagThreshold = Math.max(3, Math.ceil(allDocs.length * 0.05));
   const currentTitleWords = (currentDoc.title || "")
     .toLowerCase()
     .split(/\s+/)
@@ -212,35 +221,51 @@ export function getRelatedDocumentSuggestions(
   const scoredDocs = allDocs
     .filter((d) => d.id !== currentDoc.id)
     .map((doc) => {
-      const sharedTagCount = (doc.tags || []).filter((tag) =>
+      const matchedTags = Array.from(new Set(doc.tags || [])).filter((tag) =>
         currentTags.has(tag.toLowerCase())
+      );
+      const specificTagCount = matchedTags.filter(
+        (tag) => (tagDocumentCounts.get(tag.toLowerCase()) || 0) <= commonTagThreshold
       ).length;
+      const commonTagCount = matchedTags.length - specificTagCount;
       const docTitle = (doc.title || "").toLowerCase();
-      let titleOverlapCount = 0;
+      const matchedTitleWords: string[] = [];
       for (const w of currentTitleWords) {
         if (docTitle.includes(w)) {
-          titleOverlapCount += 1;
+          matchedTitleWords.push(w);
         }
       }
+      const titleOverlapCount = matchedTitleWords.length;
       const sameFolder = Boolean(
         doc.folder_id && doc.folder_id === currentDoc.folder_id
       );
       const match: RelatedDocumentSuggestion["match"] =
-        sharedTagCount > 0
+        specificTagCount > 0
           ? "shared-tag"
           : titleOverlapCount > 0
             ? "title-overlap"
-            : "same-folder";
-      const score = sharedTagCount * 3 + titleOverlapCount * 2 + (sameFolder ? 1 : 0);
+            : sameFolder
+              ? "same-folder"
+              : "shared-category";
+      const score =
+        specificTagCount * 3 +
+        titleOverlapCount * 2 +
+        (sameFolder ? 1 : 0) +
+        commonTagCount * 0.25;
 
-      return { document: doc, match, score };
+      return { document: doc, match, score, matchedTags, matchedTitleWords };
     })
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score || a.document.title.localeCompare(b.document.title));
 
   return scoredDocs
     .slice(0, limit)
-    .map(({ document, match }) => ({ document, match }));
+    .map(({ document, match, matchedTags, matchedTitleWords }) => ({
+      document,
+      match,
+      matchedTags,
+      matchedTitleWords,
+    }));
 }
 
 /** Computes suggested documents, preserving the legacy document-only API. */

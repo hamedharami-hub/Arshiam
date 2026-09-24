@@ -123,7 +123,12 @@ describe("knowledgeCheckpointHelper", () => {
     );
 
     expect(suggestions).toEqual([
-      { document: sameFolderOnly, match: "same-folder" },
+      {
+        document: sameFolderOnly,
+        match: "same-folder",
+        matchedTags: [],
+        matchedTitleWords: [],
+      },
     ]);
   });
 
@@ -150,7 +155,42 @@ describe("knowledgeCheckpointHelper", () => {
     expect(suggestions[0]).toEqual({
       document: crossFolderTagMatch,
       match: "shared-tag",
+      matchedTags: ["Respiratory"],
+      matchedTitleWords: [],
     });
-    expect(suggestions[1]).toEqual({ document: folderOnly, match: "same-folder" });
+    expect(suggestions[1]).toEqual({
+      document: folderOnly,
+      match: "same-folder",
+      matchedTags: [],
+      matchedTitleWords: [],
+    });
+  });
+
+  it("classifies a frequently reused tag as a broad category rather than a topic", () => {
+    const current: KnowledgeDocument = {
+      ...sampleOtcDoc,
+      title: "Asthma treatment",
+      tags: ["Clinical Triage"],
+    };
+    const sameCategoryDocs = Array.from({ length: 4 }, (_, index) => ({
+      ...unrelatedDoc,
+      id: `doc-category-${index}`,
+      folder_id: `folder-${index}`,
+      title: `Inventory topic ${index}`,
+      tags: ["Clinical Triage"],
+    }));
+
+    const suggestions = getRelatedDocumentSuggestions(
+      current,
+      [current, ...sameCategoryDocs],
+      1
+    );
+
+    expect(suggestions[0]).toEqual({
+      document: sameCategoryDocs[0],
+      match: "shared-category",
+      matchedTags: ["Clinical Triage"],
+      matchedTitleWords: [],
+    });
   });
 });
