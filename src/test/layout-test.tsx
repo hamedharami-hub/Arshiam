@@ -180,5 +180,9 @@ function Harness() {
 
 const rootEl = document.getElementById("root");
 if (rootEl) {
+  // Keep the first-run dialog from masking the layout under test.
+  try {
+    window.localStorage.setItem("onboarded_v1", "1");
+  } catch {}
   createRoot(rootEl).render(<Harness />);
 }

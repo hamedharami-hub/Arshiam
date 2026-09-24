@@ -40,5 +40,4 @@ export interface KnowledgeFolderNode extends KnowledgeFolder {
   document_count: number;
 }
 
-export type DocumentViewMode = "reader" | "original" | "split";
 export type DocumentLanguageMode = "fa" | "en" | "bilingual";

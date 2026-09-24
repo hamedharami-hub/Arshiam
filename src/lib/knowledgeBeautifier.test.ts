@@ -39,6 +39,36 @@ describe("knowledgeBeautifier", () => {
     expect(result).toContain("<td>سیتالوپرام</td>");
   });
 
+  it("formats consecutive Persian-numbered prose as a semantic list without changing its items", () => {
+    const input = "<p>مراحل: ۱) هویت را بررسی کنید ۲) هشدار را ارزیابی کنید ۳) با پزشک تماس بگیرید</p>";
+    const result = sanitizeKnowledgeHtml(input);
+
+    expect(result).toContain("<p>مراحل:</p>");
+    expect(result).toContain("<ol>");
+    expect(result).toContain("<li>هویت را بررسی کنید</li>");
+    expect(result).toContain("<li>هشدار را ارزیابی کنید</li>");
+    expect(result).toContain("<li>با پزشک تماس بگیرید</li>");
+  });
+
+  it("formats consecutive Arabic-numbered prose in an English document", () => {
+    const input = "<p>Protocol: 1. Review the alert 2. Contact the prescriber 3. Document the decision</p>";
+    const result = sanitizeKnowledgeHtml(input);
+
+    expect(result).toContain("<p>Protocol:</p>");
+    expect(result).toContain("<li>Review the alert</li>");
+    expect(result).toContain("<li>Contact the prescriber</li>");
+    expect(result).toContain("<li>Document the decision</li>");
+  });
+
+  it("does not convert non-consecutive numbering or decimal measurements", () => {
+    const input = "<p>Dose 1.5 mg; taper 2.5 mg; section 4) notes</p><p>1) First step 3) Third step</p>";
+    const result = sanitizeKnowledgeHtml(input);
+
+    expect(result).toContain("Dose 1.5 mg; taper 2.5 mg; section 4) notes");
+    expect(result).toContain("1) First step 3) Third step");
+    expect(result).not.toContain("<ol");
+  });
+
   it("preserves pre-formatted callout HTML", () => {
     const input = '<div class="callout-pearl">Already structured</div>';
     const result = beautifyKnowledgeContent(input);

@@ -2,10 +2,10 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   BookOpen,
   Globe,
+  Check,
+  Eye,
   Edit,
   Trash2,
-  Copy,
-  Check,
   ZoomIn,
   ZoomOut,
   Folder,
@@ -14,14 +14,12 @@ import {
   Sparkles,
   Languages,
   Loader2,
-  Columns,
   PanelLeftClose,
   PanelLeftOpen,
   ArrowLeft,
   ArrowRight,
   Gamepad2,
   CalendarPlus,
-  Eye,
   Layers,
   FileText,
 } from "lucide-react";
@@ -29,7 +27,6 @@ import { useBilingual } from "@/hooks/useBilingual";
 import type {
   KnowledgeDocument,
   KnowledgeFolder,
-  DocumentViewMode,
   DocumentLanguageMode,
 } from "@/lib/knowledgeTypes";
 import { sanitizeKnowledgeHtml } from "@/lib/knowledgeBeautifier";
@@ -107,10 +104,8 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 }) => {
   const { isEn } = useBilingual();
   const isPharmacySourceFile = document?.source_url?.includes("github.com/hamedharami-hub/pharmacy/blob/") ?? false;
-  const [viewMode, setViewMode] = useState<DocumentViewMode>("reader");
-  const [docLangMode, setDocLangMode] = useState<DocumentLanguageMode>("fa");
+  const [docLangMode, setDocLangMode] = useState<DocumentLanguageMode>("en");
   const [fontSize, setFontSize] = useState<number>(15);
-  const [isCopied, setIsCopied] = useState(false);
   const [isGeneratingBilingual, setIsGeneratingBilingual] = useState(false);
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [interactiveModalOpen, setInteractiveModalOpen] = useState(false);
@@ -165,31 +160,21 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 
   // Initialize language mode based on document properties
   useEffect(() => {
-    if (document) {
-      if (document.preferred_language) {
-        setDocLangMode(document.preferred_language);
-      } else if (document.content_en && document.content_html) {
-        setDocLangMode("bilingual");
-      } else if (!isPersianText(document.content_html)) {
-        setDocLangMode("en");
-      } else {
-        setDocLangMode("fa");
-      }
-    }
+    if (document) setDocLangMode(document.preferred_language || "en");
   }, [document?.id, document?.preferred_language, document?.content_en]);
 
   // Attach interactive delegated click listeners (flip cards, quizzes, pairs, cases, etc.)
   useEffect(() => {
-    if (viewMode === "reader" && contentContainerRef.current) {
+    if (contentContainerRef.current) {
       const cleanup = attachInteractiveListeners(contentContainerRef.current);
       return cleanup;
     }
-  }, [viewMode, document?.content_html, document?.content_en, docLangMode]);
+  }, [document?.content_html, document?.content_en, docLangMode]);
 
   // Delegated click listener for in-content cross-document links [data-doc-link="..."]
   useEffect(() => {
     const container = contentContainerRef.current;
-    if (!container || viewMode !== "reader") return;
+    if (!container) return;
 
     const handleDocLinkClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
@@ -210,7 +195,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
     return () => {
       container.removeEventListener("click", handleDocLinkClick);
     };
-  }, [onSelectDocument, viewMode, document?.id]);
+  }, [onSelectDocument, document?.id]);
 
   const handleInsertInteractive = async (html: string, mode: "append" | "replace") => {
     if (!document) return;
@@ -251,34 +236,6 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
     return sanitizeKnowledgeHtml(document.content_en);
   }, [document?.content_en]);
 
-  const handleCopyAll = async () => {
-    if (!document) return;
-    const textToCopy =
-      docLangMode === "en" && document.content_en
-        ? document.content_en.replace(/<[^>]+>/g, " ").trim()
-        : document.plain_text || document.title;
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(textToCopy);
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000);
-      }
-    } catch (e) {
-      console.warn("Clipboard copy failed:", e);
-    }
-  };
-
-  const handleOpenExternal = () => {
-    if (!document) return;
-    const content =
-      docLangMode === "en" && document.content_en
-        ? document.content_en
-        : document.content_html;
-    const blob = new Blob([content], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
-  };
-
   const handleTriggerAiFromSelection = (text: string) => {
     setSelectedSnippetForAi(text);
     setAiModalOpen(true);
@@ -291,6 +248,18 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
     setSelectedSnippetForAi(targetText);
     setAiModalOpen(true);
   };
+
+  const cycleDocumentLanguage = () => {
+    setDocLangMode((current) =>
+      current === "en" ? "fa" : current === "fa" ? "bilingual" : "en"
+    );
+  };
+
+  const languageModeLabel =
+    docLangMode === "en" ? "EN" : docLangMode === "fa" ? "فا" : "فا + EN";
+  const languageModeAccessibleLabel = isEn
+    ? `Reading language: ${docLangMode === "en" ? "English" : docLangMode === "fa" ? "Persian" : "bilingual"}`
+    : `زبان مطالعه: ${docLangMode === "en" ? "انگلیسی" : docLangMode === "fa" ? "فارسی" : "دوزبانه"}`;
 
   // AI Bilingual Generation
   const handleGenerateBilingualLesson = async () => {
@@ -448,55 +417,26 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 
         {/* View Mode & Actions Toolbar */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          {/* Bilingual Language Switcher Pills */}
-          <div className="flex items-center p-0.5 rounded-xl bg-muted/60 border border-border text-xs">
-            <button
-              type="button"
-              onClick={() => setDocLangMode("fa")}
-              className={`px-2 py-1 rounded-lg font-medium transition cursor-pointer text-xs ${
-                docLangMode === "fa"
-                  ? "bg-background text-foreground shadow-xs font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              title={isEn ? "Persian view (RTL)" : "نمایش فارسی (راست‌چین)"}
-            >
-              <span>فارسی</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setDocLangMode("en")}
-              className={`px-2 py-1 rounded-lg font-medium transition cursor-pointer text-xs ${
-                docLangMode === "en"
-                  ? "bg-background text-foreground shadow-xs font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              title={isEn ? "English view (LTR)" : "نمایش انگلیسی (چپ‌چین)"}
-            >
-              <span>English</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setDocLangMode("bilingual")}
-              className={`flex items-center gap-1 px-2 py-1 rounded-lg font-medium transition cursor-pointer text-xs ${
-                docLangMode === "bilingual"
-                  ? "bg-background text-foreground shadow-xs font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              title={isEn ? "Side-by-side bilingual comparison" : "نمایش دوزبانه (مقایسه‌ای)"}
-            >
-              <Columns className="w-3 h-3 text-primary" />
-              <span>{isEn ? "Bilingual" : "دو زبانه"}</span>
-            </button>
-          </div>
+          {/* Compact language control: English → Persian → bilingual. */}
+          <button
+            type="button"
+            onClick={cycleDocumentLanguage}
+            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-border bg-muted/60 px-2 text-xs font-semibold text-foreground transition hover:bg-muted"
+            aria-label={languageModeAccessibleLabel}
+            title={isEn ? `${languageModeAccessibleLabel} · click to change` : `${languageModeAccessibleLabel} · برای تغییر کلیک کنید`}
+          >
+            <Languages className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+            <span aria-hidden="true">{languageModeLabel}</span>
+          </button>
 
           {/* AI Bilingual Generator Button */}
           <button
             type="button"
             disabled={isGeneratingBilingual}
             onClick={handleGenerateBilingualLesson}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground border border-border text-xs font-semibold transition cursor-pointer"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-secondary text-foreground transition hover:bg-secondary/80 disabled:cursor-wait disabled:opacity-60"
+            aria-label={isEn ? "Generate bilingual version with AI" : "دوزبانه کردن و ترجمه درس با هوش مصنوعی"}
+            aria-busy={isGeneratingBilingual}
             title={
               isEn
                 ? "Generate bilingual version with AI"
@@ -508,42 +448,36 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
             ) : (
               <Languages className="w-3.5 h-3.5 text-primary" />
             )}
-            <span className="hidden sm:inline">
-              {isEn ? "AI Bilingual" : "دوزبانه (AI)"}
-            </span>
           </button>
 
           {/* AI Flashcard Generator Button */}
           <button
             type="button"
             onClick={handleTriggerAiFromToolbar}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs shadow-xs transition cursor-pointer"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs transition hover:bg-primary/90"
+            aria-label={isEn ? "Generate Leitner and Mind Map cards with AI" : "تولید سوالات لایتنر و نقشه ذهنی با هوش مصنوعی"}
             title={
               isEn
                 ? "Generate Leitner & Mind Map questions with AI"
                 : "تولید سوالات لایتنر و نقشه ذهنی با هوش مصنوعی"
             }
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-            <span className="hidden sm:inline">{isEn ? "Generate Cards" : "تولید کارت هوشمند"}</span>
-            <span className="sm:hidden">{isEn ? "Cards" : "کارت"}</span>
+            <Sparkles className="h-4 w-4 text-amber-300" aria-hidden="true" />
           </button>
 
           {/* Interactive Learning Studio Button */}
           <button
             type="button"
             onClick={() => setInteractiveModalOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground border border-border text-xs font-semibold transition cursor-pointer"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-secondary text-foreground transition hover:bg-secondary/80"
+            aria-label={isEn ? "Interactive learning studio" : "آموزش تعاملی"}
             title={
               isEn
                 ? "Generate 3D cards, quizzes, scenarios & games"
                 : "تولید کارت‌های ۳ بعدی، کوییز تشخیصی، سناریوی بالینی و بازی‌ها"
             }
           >
-            <Gamepad2 className="w-3.5 h-3.5 text-primary" />
-            <span className="hidden sm:inline">
-              {isEn ? "Interactive Studio" : "آموزش تعاملی"}
-            </span>
+            <Gamepad2 className="h-4 w-4 text-primary" aria-hidden="true" />
           </button>
 
           {/* Schedule Study Task Button */}
@@ -551,90 +485,47 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
             <button
               type="button"
               onClick={() => onScheduleStudy(document)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 text-xs font-semibold transition cursor-pointer shadow-2xs"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-emerald-500/25 bg-emerald-500/10 text-emerald-600 shadow-2xs transition hover:bg-emerald-500/20 dark:text-emerald-400"
+              aria-label={isEn ? "Schedule a study or review task for this lesson" : "برنامه‌ریزی مطالعه و ایجاد تسک برای این درس"}
               title={
                 isEn
                   ? "Schedule a study/review task for this lesson"
                   : "برنامه‌ریزی مطالعه و ایجاد تسک برای این درس"
               }
             >
-              <CalendarPlus className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">
-                {isEn ? "Study Task" : "برنامه‌ریزی مطالعه"}
-              </span>
+              <CalendarPlus className="h-4 w-4" aria-hidden="true" />
             </button>
           )}
 
-          {/* Mode Switcher */}
-          <div className="flex items-center p-0.5 rounded-xl bg-muted/60 border border-border text-xs">
-            <button
-              type="button"
-              onClick={() => setViewMode("reader")}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition cursor-pointer ${
-                viewMode === "reader"
-                  ? "bg-background text-foreground shadow-xs font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <BookOpen className="w-3.5 h-3.5 text-primary" />
-              <span>{isEn ? "Reader" : "مطالعه بومی"}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("original")}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition cursor-pointer ${
-                viewMode === "original"
-                  ? "bg-background text-foreground shadow-xs font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Globe className="w-3.5 h-3.5 text-sky-500" />
-              <span>{isEn ? "Original HTML" : "سند اصلی (HTML)"}</span>
-            </button>
+          <div className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-border bg-background/70 px-2 text-xs font-medium text-muted-foreground" aria-label={isEn ? "Reader mode" : "حالت مطالعه Reader"}>
+            <BookOpen className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+            <span>Reader</span>
           </div>
 
-          {/* Font Resizer (Reader Mode only) */}
-          {viewMode === "reader" && (
-            <div className="hidden sm:flex items-center rounded-xl bg-muted/50 border border-border p-0.5">
+          {/* Font Resizer */}
+          <div className="flex items-center rounded-xl border border-border bg-muted/50 p-0.5">
               <button
                 type="button"
                 onClick={() => setFontSize((s) => Math.max(12, s - 1))}
                 className="p-1 text-muted-foreground hover:text-foreground rounded transition cursor-pointer"
+                aria-label={isEn ? "Smaller text" : "کوچک‌تر کردن متن"}
                 title={isEn ? "Smaller text" : "کوچک‌تر"}
               >
                 <ZoomOut className="w-3.5 h-3.5" />
               </button>
-              <span className="text-[10px] text-muted-foreground px-1 font-mono">{fontSize}</span>
+              <output className="px-1 font-mono text-[10px] text-muted-foreground" aria-live="polite" aria-label={isEn ? `Font size ${fontSize}` : `اندازهٔ قلم ${fontSize}`}>
+                {fontSize}
+              </output>
               <button
                 type="button"
                 onClick={() => setFontSize((s) => Math.min(24, s + 1))}
                 className="p-1 text-muted-foreground hover:text-foreground rounded transition cursor-pointer"
+                aria-label={isEn ? "Larger text" : "بزرگ‌تر کردن متن"}
                 title={isEn ? "Larger text" : "بزرگ‌تر"}
               >
                 <ZoomIn className="w-3.5 h-3.5" />
               </button>
-            </div>
-          )}
-
-          {/* Copy Full Text */}
-          <button
-            type="button"
-            onClick={handleCopyAll}
-            className="p-1.5 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground transition cursor-pointer border border-border"
-            title={isEn ? "Copy content" : "کپی محتوا"}
-          >
-            {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-          </button>
-
-          {/* Open in external tab */}
-          <button
-            type="button"
-            onClick={handleOpenExternal}
-            className="p-1.5 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground transition cursor-pointer border border-border"
-            title={isEn ? "Open in browser window" : "باز کردن در تب مرورگر"}
-          >
-            <Globe className="w-3.5 h-3.5" />
-          </button>
+          </div>
 
           {/* Edit Document */}
           <button
@@ -675,9 +566,8 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 
       {/* Reader Content Body */}
       <div className="flex-1 overflow-y-auto p-4 md:p-8" ref={contentContainerRef}>
-        {viewMode === "reader" ? (
-          <div
-            style={{ fontSize: `${fontSize}px` }}
+        <div
+            style={{ "--knowledge-reader-font-size": `${fontSize}px` } as React.CSSProperties}
             className="knowledge-reader-prose max-w-5xl mx-auto leading-relaxed space-y-6 select-text"
           >
             {/* Header banner in reader mode */}
@@ -1027,30 +917,16 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                 </div>
               </div>
             )}
-          </div>
-        ) : (
-          /* Original HTML in sandboxed iframe */
-          <div className="w-full h-full min-h-[500px] rounded-2xl overflow-hidden border border-border bg-background shadow-xs">
-            <iframe
-              srcDoc={document.content_html}
-              title={document.title}
-              sandbox="allow-same-origin allow-popups allow-forms"
-              className="w-full h-full min-h-[500px] border-0"
-            />
-          </div>
-        )}
+        </div>
       </div>
 
-      {/* Text Selection Floating Bar (active in Reader mode) */}
-      {viewMode === "reader" && (
-        <TextSelectionFloatingBar
-          containerRef={contentContainerRef}
-          onAddToNote={onAddToNote}
-          onAddToTask={onAddToTask}
-          onAiAction={onAiAction}
-          onGenerateQuestions={handleTriggerAiFromSelection}
-        />
-      )}
+      <TextSelectionFloatingBar
+        containerRef={contentContainerRef}
+        onAddToNote={onAddToNote}
+        onAddToTask={onAddToTask}
+        onAiAction={onAiAction}
+        onGenerateQuestions={handleTriggerAiFromSelection}
+      />
 
       {/* AI Question & Flashcard Generator Modal */}
       {aiModalOpen && (

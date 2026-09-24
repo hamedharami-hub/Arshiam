@@ -749,8 +749,13 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
   text-align: left;
 }
 
+.knowledge-reader-prose {
+  font-size: var(--knowledge-reader-font-size, 15px);
+}
+
 .knowledge-html-content {
   font-family: inherit;
+  font-size: var(--knowledge-reader-font-size, 15px);
   line-height: 1.9;
   letter-spacing: normal;
   color: hsl(var(--foreground));
@@ -763,16 +768,49 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
   margin-inline: auto;
 }
 
-.knowledge-html-content .knowledge-card .text-xs {
-  font-size: 0.875rem;
+.knowledge-html-content [class~="text-xs"] {
+  font-size: calc(var(--knowledge-reader-font-size, 15px) * 0.8);
+}
+
+.knowledge-html-content .knowledge-card [class~="text-xs"] {
+  font-size: calc(var(--knowledge-reader-font-size, 15px) * 0.933333);
+}
+
+.knowledge-html-content [class~="text-sm"] {
+  font-size: calc(var(--knowledge-reader-font-size, 15px) * 0.933333);
+}
+
+.knowledge-html-content [class~="text-base"] {
+  font-size: calc(var(--knowledge-reader-font-size, 15px) * 1.066667);
+}
+
+.knowledge-html-content [class~="text-lg"] {
+  font-size: calc(var(--knowledge-reader-font-size, 15px) * 1.2);
+}
+
+.knowledge-html-content [class~="text-xl"] {
+  font-size: calc(var(--knowledge-reader-font-size, 15px) * 1.333333);
+}
+
+.knowledge-html-content [class~="text-2xl"] {
+  font-size: calc(var(--knowledge-reader-font-size, 15px) * 1.6);
+}
+
+.knowledge-html-content .knowledge-card [class~="text-xs"] {
   line-height: 1.7;
 }
 
 .knowledge-html-content .knowledge-card [class*="text-[11px]"],
 .knowledge-html-content .knowledge-card [class*="text-[10px]"],
 .knowledge-html-content .knowledge-card [class*="text-[9px]"] {
-  font-size: 0.8125rem;
+  font-size: calc(var(--knowledge-reader-font-size, 15px) * 0.866667);
   line-height: 1.5;
+}
+
+.knowledge-html-content [class*="text-[11px]"],
+.knowledge-html-content [class*="text-[10px]"],
+.knowledge-html-content [class*="text-[9px]"] {
+  font-size: calc(var(--knowledge-reader-font-size, 15px) * 0.866667);
 }
 
 .knowledge-html-content p,

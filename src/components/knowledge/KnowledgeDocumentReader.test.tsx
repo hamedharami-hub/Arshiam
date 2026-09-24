@@ -15,6 +15,7 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
     folder_id: "folder-1",
     title: "راهنمای فلوکستین",
     content_html: "<h1>فلوکستین</h1><p>داروی ضد افسردگی SSRI</p>",
+    preferred_language: "fa",
     plain_text: "فلوکستین داروی ضد افسردگی SSRI",
     tags: ["SSRI"],
     created_at: new Date().toISOString(),
@@ -66,11 +67,38 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
       content_en: "<p>Dry, itchy and inflamed skin with persistent symptoms that require professional assessment.</p>",
     };
     render(<KnowledgeDocumentReader document={mixedDoc} folder={dummyFolder} onEdit={() => {}} onDelete={() => {}} />);
-    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByText(/ترجمهٔ فارسی این سند قدیمی کامل نیست/)).toBeInTheDocument();
   });
 
-  it("3. switches between Reader Mode and Original HTML mode", () => {
-    render(
+  it("renders consecutive inline numbered advice as a readable list without editing the source", () => {
+    const sourceMarkup =
+      '<p dir="ltr">Protocol: 1) Communicate calmly 2) Check the alert 3) Contact the prescriber</p>';
+    const docWithInlineSteps: KnowledgeDocument = {
+      ...dummyDoc,
+      content_html: sourceMarkup,
+      preferred_language: "fa",
+    };
+
+    const { container } = render(
+      <KnowledgeDocumentReader
+        document={docWithInlineSteps}
+        folder={dummyFolder}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />
+    );
+
+    const orderedList = container.querySelector(".knowledge-html-content ol");
+    expect(orderedList).toBeInTheDocument();
+    expect(orderedList?.querySelectorAll("li")).toHaveLength(3);
+    expect(orderedList?.textContent).toBe(
+      "Communicate calmlyCheck the alertContact the prescriber"
+    );
+    expect(docWithInlineSteps.content_html).toBe(sourceMarkup);
+  });
+
+  it("keeps one Reader view and removes raw HTML and export actions", () => {
+    const { container } = render(
       <KnowledgeDocumentReader
         document={dummyDoc}
         folder={dummyFolder}
@@ -79,11 +107,57 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
       />
     );
 
-    const originalModeBtn = screen.getByRole("button", { name: /سند اصلی/i });
-    fireEvent.click(originalModeBtn);
+    expect(screen.getByText("Reader")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /original html|سند اصلی/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /copy content|کپی محتوا/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /open in browser|باز کردن در تب مرورگر/i })).not.toBeInTheDocument();
+    expect(container.querySelector("iframe")).not.toBeInTheDocument();
+    expect(screen.getByText("داروی ضد افسردگی SSRI")).toBeInTheDocument();
+  });
 
-    // In original HTML mode, an iframe should be present
-    expect(screen.getByTitle("راهنمای فلوکستین")).toBeInTheDocument();
+  it("defaults to English and cycles the compact language control", () => {
+    const bilingualDoc: KnowledgeDocument = {
+      ...dummyDoc,
+      preferred_language: undefined,
+      title_en: "Fluoxetine guide",
+      content_html: "<p>توضیح فارسی</p>",
+      content_en: "<p>English lesson text</p>",
+    };
+    render(
+      <KnowledgeDocumentReader
+        document={bilingualDoc}
+        folder={dummyFolder}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />
+    );
+
+    const languageButton = screen.getByRole("button", { name: "زبان مطالعه: انگلیسی" });
+    expect(screen.getByText("English lesson text")).toBeInTheDocument();
+    fireEvent.click(languageButton);
+    expect(screen.getByRole("button", { name: "زبان مطالعه: فارسی" })).toBeInTheDocument();
+    expect(screen.getByText("توضیح فارسی")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "زبان مطالعه: فارسی" }));
+    expect(screen.getByRole("button", { name: "زبان مطالعه: دوزبانه" })).toBeInTheDocument();
+    expect(screen.getByText("English lesson text")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "زبان مطالعه: دوزبانه" }));
+    expect(screen.getByRole("button", { name: "زبان مطالعه: انگلیسی" })).toBeInTheDocument();
+  });
+
+  it("changes the reader font-size setting when the larger-text control is used", () => {
+    const { container } = render(
+      <KnowledgeDocumentReader
+        document={dummyDoc}
+        folder={dummyFolder}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />
+    );
+    const reader = container.querySelector(".knowledge-reader-prose");
+    expect(reader?.getAttribute("style")).toContain("--knowledge-reader-font-size: 15px");
+
+    fireEvent.click(screen.getByRole("button", { name: "بزرگ‌تر کردن متن" }));
+    expect(reader?.getAttribute("style")).toContain("--knowledge-reader-font-size: 16px");
   });
 
   it("4. renders Active Recall Checkpoints and reveals answer on click", () => {

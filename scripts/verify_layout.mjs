@@ -313,14 +313,30 @@ async function runTests() {
     await client.send("Page.navigate", { url: devServerUrl });
     await sleep(500);
 
-    // Wait for React hydration and layout elements to be present
-    for (let attempt = 0; attempt < 40; attempt++) {
+    // Wait for the complete harness, not only the app shell. The first Vite
+    // transform can be cold and is occasionally slower than the old 10s limit.
+    let harnessReady = false;
+    for (let attempt = 0; attempt < 160; attempt++) {
       const readyCheck = await client.send("Runtime.evaluate", {
-        expression: "Boolean(document.querySelector('[data-sidebar=\"sidebar\"]') && document.querySelector('main'))",
+        expression: "Boolean(document.querySelector('[data-sidebar=\"sidebar\"]') && document.querySelector('main') && document.querySelector('[data-testid=\"task-list-section\"]') && document.querySelectorAll('[data-testid^=\"task-item-\"]').length >= 20)",
         returnByValue: true,
       });
-      if (readyCheck?.result?.value) break;
+      if (readyCheck?.result?.value) {
+        harnessReady = true;
+        break;
+      }
       await sleep(250);
+    }
+
+    if (!harnessReady) {
+      console.error("  ❌ Layout harness did not finish rendering the sidebar, main area, and mock task list.");
+      results.push({
+        config: cfg.name,
+        width: cfg.width,
+        pass: false,
+        reason: "layout harness did not become ready",
+      });
+      continue;
     }
 
     // Apply configuration to storage and DOM

@@ -1,57 +1,78 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AiQuestionGeneratorModal } from "./AiQuestionGeneratorModal";
 
+const mocks = vi.hoisted(() => ({
+  isEn: false,
+  generateQuestionsFromText: vi.fn(),
+  createLeitnerCard: vi.fn(),
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
+
 vi.mock("@/hooks/useBilingual", () => ({
-  useBilingual: () => ({ isEn: false }),
+  useBilingual: () => ({ isEn: mocks.isEn }),
 }));
-
-vi.mock("@/lib/leitnerService", () => ({
-  createLeitnerCard: vi.fn().mockImplementation((userId, data) =>
-    Promise.resolve({
-      id: "card-mock-1",
-      user_id: userId,
-      ...data,
-      box: 1,
-    })
-  ),
-}));
-
 vi.mock("@/lib/knowledgeQuestionGenerator", () => ({
-  generateQuestionsFromText: vi.fn().mockResolvedValue([
-    {
-      id: "card-cand-1",
-      front: "مکانیسم داروی سرترالین چیست؟",
-      back: "مهارکننده انتخابی بازجذب سروتونین (SSRI)",
-      clue: "SSRI",
-      type: "clinical_pearl",
-      selected: true,
-    },
-    {
-      id: "card-cand-2",
-      front: "مهم‌ترین عارضه گوارشی سرترالین چیست؟",
-      back: "تهوع و اسهال در شروع درمان",
-      clue: "GI symptoms",
-      type: "warning",
-      selected: true,
-    },
-  ]),
+  generateQuestionsFromText: mocks.generateQuestionsFromText,
+}));
+vi.mock("@/lib/leitnerService", () => ({
+  createLeitnerCard: mocks.createLeitnerCard,
+}));
+vi.mock("sonner", () => ({
+  toast: { success: mocks.toastSuccess, error: mocks.toastError },
 }));
 
-vi.mock("sonner", () => ({
-  toast: {
-    success: vi.fn(),
-    error: vi.fn(),
+const persianCandidates = [
+  {
+    id: "card-cand-1",
+    front: "مکانیسم داروی سرترالین چیست؟",
+    back: "مهارکننده انتخابی بازجذب سروتونین (SSRI)",
+    clue: "SSRI",
+    type: "clinical_pearl",
+    selected: true,
   },
-}));
+  {
+    id: "card-cand-2",
+    front: "مهم‌ترین عارضه گوارشی سرترالین چیست؟",
+    back: "تهوع و اسهال در شروع درمان",
+    clue: "GI symptoms",
+    type: "warning",
+    selected: true,
+  },
+];
+
+const englishCandidates = [
+  { id: "candidate-1", front: "Question one?", back: "Answer one", selected: true },
+  { id: "candidate-2", front: "Question two?", back: "Answer two", selected: true },
+];
+
+function renderModal(onCardsSaved = vi.fn()) {
+  const props = {
+    open: true,
+    onClose: vi.fn(),
+    initialText: "A sufficiently long clinical study excerpt for generating cards.",
+    documentId: "doc-1",
+    documentTitle: "Clinical topic",
+    folderId: "folder-1",
+    userId: "user-1",
+    onCardsSaved,
+  };
+  return { ...render(<AiQuestionGeneratorModal {...props} />), props, onCardsSaved };
+}
 
 describe("AiQuestionGeneratorModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.isEn = false;
+    mocks.generateQuestionsFromText.mockResolvedValue(persianCandidates);
+    mocks.createLeitnerCard.mockImplementation((userId, data) =>
+      Promise.resolve({ id: "card-mock-1", user_id: userId, ...data, box: 1 })
+    );
   });
 
-  it("1. does not render when open is false", () => {
+  it("does not render when open is false", () => {
     render(
       <AiQuestionGeneratorModal
         open={false}
@@ -63,7 +84,7 @@ describe("AiQuestionGeneratorModal", () => {
     expect(screen.queryByText(/تولید هوشمند سوالات لایتنر/i)).not.toBeInTheDocument();
   });
 
-  it("2. renders modal and auto-generates cards when text is provided", async () => {
+  it("renders and saves generated cards when source text is provided", async () => {
     const onCardsSaved = vi.fn();
     const { createLeitnerCard } = await import("@/lib/leitnerService");
 
@@ -80,21 +101,14 @@ describe("AiQuestionGeneratorModal", () => {
       />
     );
 
-    // Modal title should be displayed
     expect(screen.getByText(/تولید هوشمند سوالات لایتنر و نقشه ذهنی/i)).toBeInTheDocument();
-
-    // Candidate questions should appear in inputs
     await waitFor(() => {
       expect(screen.getByDisplayValue("مکانیسم داروی سرترالین چیست؟")).toBeInTheDocument();
       expect(screen.getByDisplayValue("مهارکننده انتخابی بازجذب سروتونین (SSRI)")).toBeInTheDocument();
     });
 
-    // Save button should show count of selected cards
-    const saveBtn = screen.getByRole("button", { name: /افزودن \(2\) کارت به لایتنر و نقشه ذهنی/i });
-    expect(saveBtn).toBeInTheDocument();
-
-    // Click save
-    fireEvent.click(saveBtn);
+    const saveButton = screen.getByRole("button", { name: /افزودن \(2\) کارت به لایتنر و نقشه ذهنی/i });
+    fireEvent.click(saveButton);
 
     await waitFor(() => {
       expect(createLeitnerCard).toHaveBeenCalledTimes(2);
@@ -110,7 +124,7 @@ describe("AiQuestionGeneratorModal", () => {
     });
   });
 
-  it("3. switches to manual tab and adds a custom card", async () => {
+  it("switches to manual mode and saves a custom card", async () => {
     const onCardsSaved = vi.fn();
     const { createLeitnerCard } = await import("@/lib/leitnerService");
 
@@ -125,18 +139,14 @@ describe("AiQuestionGeneratorModal", () => {
       />
     );
 
-    const manualTabBtn = screen.getByRole("button", { name: /افزودن دستی کارت/i });
-    fireEvent.click(manualTabBtn);
-
-    // Fill manual inputs
-    const frontInput = screen.getByPlaceholderText(/مکانیسم اثر فلوکستین چیست؟/i);
-    const backInput = screen.getByPlaceholderText(/مهارکننده انتخابی بازجذب سروتونین/i);
-
-    fireEvent.change(frontInput, { target: { value: "دوز شروع سرترالین؟" } });
-    fireEvent.change(backInput, { target: { value: "۲۵ تا ۵۰ میلی‌گرم روزانه" } });
-
-    const submitBtn = screen.getByRole("button", { name: /افزودن کارت به لایتنر و نقشه ذهنی/i });
-    fireEvent.click(submitBtn);
+    fireEvent.click(screen.getByRole("button", { name: /افزودن دستی کارت/i }));
+    fireEvent.change(screen.getByPlaceholderText(/مکانیسم اثر فلوکستین چیست؟/i), {
+      target: { value: "دوز شروع سرترالین؟" },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/مهارکننده انتخابی بازجذب سروتونین/i), {
+      target: { value: "۲۵ تا ۵۰ میلی‌گرم روزانه" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /افزودن کارت به لایتنر و نقشه ذهنی/i }));
 
     await waitFor(() => {
       expect(createLeitnerCard).toHaveBeenCalledWith("user-test-1", {
@@ -149,5 +159,34 @@ describe("AiQuestionGeneratorModal", () => {
       });
       expect(onCardsSaved).toHaveBeenCalledWith(1);
     });
+  });
+
+  it("auto-generates only once for the same source when the modal rerenders", async () => {
+    mocks.isEn = true;
+    mocks.generateQuestionsFromText.mockResolvedValue(englishCandidates);
+    const { rerender, props } = renderModal();
+
+    await waitFor(() => expect(mocks.generateQuestionsFromText).toHaveBeenCalledTimes(1));
+    rerender(<AiQuestionGeneratorModal {...props} />);
+
+    expect(mocks.generateQuestionsFromText).toHaveBeenCalledTimes(1);
+    expect(await screen.findByDisplayValue("Question one?")).toBeTruthy();
+  });
+
+  it("keeps saved cards out of preview and reports a later save failure", async () => {
+    mocks.isEn = true;
+    mocks.generateQuestionsFromText.mockResolvedValue(englishCandidates);
+    const { onCardsSaved } = renderModal();
+    await screen.findByDisplayValue("Question one?");
+    mocks.createLeitnerCard
+      .mockResolvedValueOnce({ id: "saved-card-1" })
+      .mockRejectedValueOnce(new Error("sync queue storage is unavailable"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Add (2) Cards to Leitner & Mind Map" }));
+
+    await waitFor(() => expect(onCardsSaved).toHaveBeenCalledWith(1));
+    expect(screen.queryByDisplayValue("Question one?")).toBeNull();
+    expect(screen.getByDisplayValue("Question two?")).toBeTruthy();
+    expect(await screen.findByText(/The remaining cards were not saved/)).toBeTruthy();
   });
 });

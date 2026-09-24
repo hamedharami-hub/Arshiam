@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import KnowledgeBaseView from "./KnowledgeBaseView";
+import type { KnowledgeDocument } from "@/lib/knowledgeTypes";
 
 const mockUser = { id: "test-user-123", email: "test@example.com" };
 vi.mock("@/hooks/useAuth", () => ({
@@ -54,7 +55,7 @@ const mockFolders = [
   },
 ];
 
-const mockDocs = [
+const mockDocs: KnowledgeDocument[] = [
   {
     id: "doc-1",
     user_id: "test-user-123",
@@ -179,9 +180,9 @@ describe("KnowledgeBaseView (/app/knowledge) Page Verification", { timeout: 1500
 
   it("opens an in-content document link and restores the previous document with browser Back", async () => {
     currentDocs = [
-      { ...mockDocs[0], content_html: '<p data-doc-link="doc-2">باز کردن سند دوم</p>' },
+      { ...mockDocs[0], preferred_language: "fa", content_html: '<p data-doc-link="doc-2">باز کردن سند دوم</p>' },
       {
-        ...mockDocs[0], id: "doc-2", title: "سند دوم", title_en: "Second document",
+        ...mockDocs[0], id: "doc-2", title: "سند دوم", title_en: "Second document", preferred_language: "fa",
         content_html: "<p>متن سند دوم</p>", tags: ["SSRI"],
       },
     ];
