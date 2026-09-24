@@ -38,11 +38,6 @@ export const ClinicalRelationsNetwork: React.FC<ClinicalRelationsNetworkProps> =
     return getConnectedClinicalEntities(document, allDocuments);
   }, [document, allDocuments]);
 
-  // If no connections found, do not render
-  if (relations.totalCount === 0) {
-    return null;
-  }
-
   const { products, diseases, scenarios, pharmacology, regulations, totalCount } = relations;
 
   // Determine active list based on selected tab
@@ -69,6 +64,11 @@ export const ClinicalRelationsNetwork: React.FC<ClinicalRelationsNetworkProps> =
         ];
     }
   }, [activeTab, products, diseases, scenarios, pharmacology, regulations]);
+
+  // Hooks must run in the same order even for documents without relations.
+  if (totalCount === 0) {
+    return null;
+  }
 
   const tabs: Array<{ key: TabKey; labelFa: string; labelEn: string; count: number; icon: React.ReactNode }> = [
     {
