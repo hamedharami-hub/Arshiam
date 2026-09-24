@@ -45,4 +45,39 @@ describe("StudyTaskScheduleModal authentication boundary", () => {
     });
     expect(mocks.createStudyTask).not.toHaveBeenCalled();
   });
+
+  it("schedules a Leitner task for the selected lesson instead of all cards", async () => {
+    mocks.user = { id: "synthetic-user" };
+    mocks.createStudyTask.mockResolvedValueOnce({
+      ok: true,
+      task: { id: "study-task-1", user_id: "synthetic-user" },
+    });
+    const onOpenChange = vi.fn();
+
+    render(
+      <StudyTaskScheduleModal
+        open
+        onOpenChange={onOpenChange}
+        targetType="leitner"
+        targetId="all"
+        targetTitle="همهٔ کارت‌های لایتنر"
+        targetOptions={[{ id: "doc-1", title: "درس نمونه" }]}
+      />
+    );
+
+    const targetSelect = await screen.findByRole("combobox", { name: "مجموعهٔ مرور" });
+    fireEvent.change(targetSelect, { target: { value: "doc-1" } });
+    expect(screen.getByDisplayValue("مرور لایتنر: درس نمونه")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "ثبت تسک مطالعه" }));
+
+    await waitFor(() => {
+      expect(mocks.createStudyTask).toHaveBeenCalledWith(expect.objectContaining({
+        targetType: "leitner",
+        targetId: "doc-1",
+        targetTitle: "درس نمونه",
+        title: "مرور لایتنر: درس نمونه",
+      }));
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+  });
 });

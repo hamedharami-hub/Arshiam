@@ -57,11 +57,13 @@ import { toast } from "sonner";
 interface LeitnerDeckViewProps {
   userId: string;
   onOpenDocument?: (docId: string) => void;
+  initialStudyDocumentId?: string;
 }
 
 export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   userId,
   onOpenDocument,
+  initialStudyDocumentId,
 }) => {
   const { isEn } = useBilingual();
   const [cards, setCards] = useState<LeitnerCard[]>([]);
@@ -87,6 +89,14 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   const [cramBoxFilter, setCramBoxFilter] = useState<number | "all">("all");
   const [cramDocFilter, setCramDocFilter] = useState<string>("all");
   const [cramLapsedOnly, setCramLapsedOnly] = useState<boolean>(false);
+
+  const scheduledReviewCards = useMemo(
+    () => initialStudyDocumentId
+      ? dueCards.filter((card) => card.document_id === initialStudyDocumentId)
+      : dueCards,
+    [dueCards, initialStudyDocumentId],
+  );
+  const scheduledReviewDocument = documents.find((document) => document.id === initialStudyDocumentId);
 
   // Study Session State
   const [isStudying, setIsStudying] = useState(false);
@@ -158,6 +168,10 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    setCramDocFilter(initialStudyDocumentId || "all");
+  }, [initialStudyDocumentId]);
+
   // Cram cards calculation based on active filters
   const cramCards = useMemo(() => {
     return cards.filter((c) => {
@@ -206,7 +220,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
 
   // Start study session
   const handleStartStudy = (mode: "due" | "cram" = studyMode) => {
-    const queue = mode === "due" ? [...dueCards] : [...cramCards];
+    const queue = mode === "due" ? [...scheduledReviewCards] : [...cramCards];
     if (queue.length === 0) {
       toast.info(
         mode === "due"
@@ -504,7 +518,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
           >
             <Zap className="w-4 h-4 text-amber-300 animate-pulse" />
             <span>
-              {isEn ? `Study (${dueCards.length})` : `شروع مرور (${dueCards.length} آماده)`}
+              {isEn ? `Study (${scheduledReviewCards.length})` : `شروع مرور (${scheduledReviewCards.length} آماده)`}
             </span>
           </button>
         </div>
@@ -589,6 +603,15 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
         </div>
       </div>
 
+      {initialStudyDocumentId && (
+        <div className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+          {isEn ? "This review task is limited to due cards for:" : "این تسک فقط کارت‌های موعددارِ درس زیر را مرور می‌کند:"}{" "}
+          <span className="font-semibold text-foreground">
+            {scheduledReviewDocument ? (isEn ? scheduledReviewDocument.title_en || scheduledReviewDocument.title : scheduledReviewDocument.title) : initialStudyDocumentId}
+          </span>
+        </div>
+      )}
+
       {/* Mode Switcher: Scheduled Review vs Cram Practice */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-muted/40 border border-border">
         <div className="flex items-center gap-2">
@@ -602,7 +625,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
             }`}
           >
             <Zap className="w-3.5 h-3.5" />
-            <span>{isEn ? `Scheduled Due (${dueCards.length})` : `مرورهای موعد رسیده (${dueCards.length})`}</span>
+            <span>{isEn ? `Scheduled Due (${scheduledReviewCards.length})` : `مرورهای موعد رسیده (${scheduledReviewCards.length})`}</span>
           </button>
 
           <button
@@ -1227,6 +1250,10 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
           targetType="leitner"
           targetId="all"
           targetTitle={isEn ? "Leitner Flashcard Review" : "مرور کارت‌های لایتنر"}
+          targetOptions={documents.map((document) => ({
+            id: document.id,
+            title: isEn ? document.title_en || document.title : document.title,
+          }))}
         />
       )}
     </div>

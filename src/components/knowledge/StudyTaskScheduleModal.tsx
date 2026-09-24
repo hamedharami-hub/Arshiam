@@ -43,6 +43,7 @@ export interface StudyTaskScheduleModalProps {
   targetTitle: string;
   folderBreadcrumb?: string;
   onTaskCreated?: (task: Task) => void;
+  targetOptions?: Array<{ id: string; title: string }>;
 }
 
 interface StudyTaskScheduleModalBaseProps extends StudyTaskScheduleModalProps {
@@ -58,6 +59,7 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
   folderBreadcrumb,
   onTaskCreated,
   navigate,
+  targetOptions,
 }) => {
   const { user } = useAuth();
   const { isEn, T } = useBilingual();
@@ -80,10 +82,16 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
   const [priority, setPriority] = useState<Priority>("medium");
   const [estimatedMinutes, setEstimatedMinutes] = useState<number>(30);
   const [saving, setSaving] = useState(false);
+  const [selectedTargetId, setSelectedTargetId] = useState(targetId);
+
+  const selectedTargetTitle = selectedTargetId === targetId
+    ? targetTitle
+    : targetOptions?.find((option) => option.id === selectedTargetId)?.title || targetTitle;
 
   // Initialize or reset form when opened or target changes
   useEffect(() => {
     if (open) {
+      setSelectedTargetId(targetId);
       let defaultTitle = "";
       if (targetType === "leitner") {
         defaultTitle = isEn
@@ -117,7 +125,7 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
       setPriority("medium");
       setEstimatedMinutes(30);
     }
-  }, [open, targetType, targetTitle, isEn]);
+  }, [open, targetType, targetId, targetTitle, isEn]);
 
   // Quick Date Setters
   const setQuickDate = (daysFromNow: number, hours = 10) => {
@@ -146,8 +154,8 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
       const res = await createStudyTask({
         userId,
         targetType,
-        targetId,
-        targetTitle,
+        targetId: selectedTargetId,
+        targetTitle: selectedTargetTitle,
         title: title.trim(),
         description: description.trim() || undefined,
         dueDate,
@@ -254,7 +262,7 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
             )}
             <div className="min-w-0">
               <div className="font-semibold text-foreground truncate">
-                {targetTitle}
+                {selectedTargetTitle}
               </div>
               {folderBreadcrumb && (
                 <div className="text-[11px] text-muted-foreground truncate">
@@ -282,6 +290,40 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
         </div>
 
         <form onSubmit={handleSave} className="space-y-4 pt-1">
+          {isLeitner && (targetOptions?.length || 0) > 0 && (
+            <div className="space-y-1.5">
+              <label htmlFor="study-review-target" className="text-xs font-semibold text-foreground">
+                {T("مجموعهٔ مرور", "Review set")}
+              </label>
+              <select
+                id="study-review-target"
+                value={selectedTargetId}
+                onChange={(event) => {
+                  const nextId = event.target.value;
+                  const nextTitle = nextId === targetId
+                    ? targetTitle
+                    : targetOptions?.find((option) => option.id === nextId)?.title || targetTitle;
+                  setSelectedTargetId(nextId);
+                  setTitle(nextId === targetId
+                    ? (isEn ? "Review Leitner Flashcards" : "خواندن و مرور کارت‌های لایتنر")
+                    : (isEn ? `Review Leitner: ${nextTitle}` : `مرور لایتنر: ${nextTitle}`));
+                }}
+                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value={targetId}>{isEn ? "All Leitner cards" : "همهٔ کارت‌های لایتنر"}</option>
+                {targetOptions?.map((option) => (
+                  <option key={option.id} value={option.id}>{option.title}</option>
+                ))}
+              </select>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                {T(
+                  "اگر یک درس را انتخاب کنید، با بازکردن این تسک فقط کارت‌های موعددار همان درس وارد جلسه می‌شوند.",
+                  "Choosing a lesson limits this task to due cards linked to that lesson."
+                )}
+              </p>
+            </div>
+          )}
+
           {/* Title */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-foreground">

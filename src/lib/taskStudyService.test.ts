@@ -117,6 +117,12 @@ describe("taskStudyService", () => {
     expect(leitnerNav.navUrl).toBe("/app/review?tab=leitner");
     expect(leitnerNav.badgeLabelFa).toBe("مرور لایتنر");
 
+    const scopedLeitnerNav = getStudyTaskNavigation({
+      source_type: "leitner",
+      source_id: "lesson / 1",
+    });
+    expect(scopedLeitnerNav.navUrl).toBe("/app/review?tab=leitner&studyDocId=lesson%20%2F%201");
+
     const noneNav = getStudyTaskNavigation({
       source_type: "cbt_thought",
       source_id: "cbt-1",

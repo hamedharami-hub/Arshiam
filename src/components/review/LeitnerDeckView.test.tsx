@@ -3,7 +3,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor, cleanup, act } from "@testing-library/react";
 import { LeitnerDeckView } from "./LeitnerDeckView";
 import type { LeitnerCard } from "@/lib/leitnerTypes";
-import { createLeitnerCard, reviewLeitnerCardWithRating } from "@/lib/leitnerService";
+import { createLeitnerCard, getDueLeitnerCards, reviewLeitnerCardWithRating } from "@/lib/leitnerService";
 
 vi.mock("@/hooks/useBilingual", () => ({
   useBilingual: () => ({ isEn: false }),
@@ -126,6 +126,23 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
     await waitFor(() => {
       expect(screen.getByTestId("flip-card")).toBeDefined();
     });
+  });
+
+  it("limits a scheduled review session to due cards from its selected lesson", async () => {
+    vi.mocked(getDueLeitnerCards).mockResolvedValueOnce([
+      { ...mockCards[0], id: "card-a", document_id: "doc-a", front: "سؤال درس الف" },
+      { ...mockCards[0], id: "card-b", document_id: "doc-b", front: "سؤال درس ب" },
+    ]);
+
+    render(<LeitnerDeckView userId="user-test" initialStudyDocumentId="doc-b" />);
+
+    const startButton = await screen.findByRole("button", { name: "شروع مرور (1 آماده)" });
+    expect(screen.getByText(/این تسک فقط کارت‌های موعددارِ درس زیر را مرور می‌کند/)).toBeInTheDocument();
+    fireEvent.click(startButton);
+
+    await screen.findByTestId("flip-card");
+    expect(screen.getByText("سؤال درس ب")).toBeInTheDocument();
+    expect(screen.queryByText("سؤال درس الف")).not.toBeInTheDocument();
   });
 
   it("lets a new card explicitly choose and save its scheduler", async () => {

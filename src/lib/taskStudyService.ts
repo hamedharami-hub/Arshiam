@@ -132,11 +132,14 @@ export function getStudyTaskNavigation(task: Partial<Task>): {
   }
 
   if (type === "leitner") {
+    const targetQuery = id && id !== "all"
+      ? `&studyDocId=${encodeURIComponent(id)}`
+      : "";
     return {
       isStudyTask: true,
       isMindMap: false,
       isKnowledge: false,
-      navUrl: `/app/review?tab=leitner`,
+      navUrl: `/app/review?tab=leitner${targetQuery}`,
       badgeLabelFa: "مرور لایتنر",
       badgeLabelEn: "Leitner Review",
       actionTextFa: "شروع مرور کارت‌های لایتنر",

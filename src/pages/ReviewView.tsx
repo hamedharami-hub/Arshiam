@@ -13,6 +13,7 @@ export const ReviewView: React.FC = () => {
   const [searchParams] = useSearchParams();
   const urlFolderId = searchParams.get("folderId");
   const urlDocId = searchParams.get("docId");
+  const studyDocId = searchParams.get("studyDocId");
   const urlTab = searchParams.get("tab");
 
   const [activeTab, setActiveTab] = useState<"leitner" | "mindmap">(() => {
@@ -92,7 +93,11 @@ export const ReviewView: React.FC = () => {
       {/* Main Tab Content with Zero-Latency State Preservation */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-background relative">
         <div className={`flex-1 flex flex-col h-full min-h-0 ${activeTab === "leitner" ? "" : "hidden"}`}>
-          <LeitnerDeckView userId={userId} onOpenDocument={handleOpenDoc} />
+          <LeitnerDeckView
+            userId={userId}
+            onOpenDocument={handleOpenDoc}
+            initialStudyDocumentId={studyDocId || undefined}
+          />
         </div>
         <div className={`flex-1 flex flex-col h-full min-h-0 ${activeTab === "mindmap" ? "" : "hidden"}`}>
           <KnowledgeMindMapView
