@@ -27,6 +27,17 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // Assistant grants and audit records are managed only by trusted server code.
+      match /assistant_grants/{docId=**} {
+        allow read, write: if false;
+      }
+      match /assistant_audit/{docId=**} {
+        allow read, write: if false;
+      }
+      match /assistant_trash/{docId=**} {
+        allow read, write: if false;
+      }
+
       match /{subcollection}/{docId=**} {
         allow read, write: if isOwner(userId);
       }

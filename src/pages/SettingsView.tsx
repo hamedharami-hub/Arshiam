@@ -44,6 +44,7 @@ import { CrisisSupportSettings } from "./settings/CrisisSupportSettings";
 import { SidebarQuickLinksSettings } from "./settings/SidebarQuickLinksSettings";
 import { AISettingsTab } from "./settings/AISettingsTab";
 import { AppearanceSettingsSection } from "./settings/AppearanceSettingsSection";
+import { AssistantAccessSettings } from "./settings/AssistantAccessSettings";
 
 const AUTO_UPDATE_KEY = "arshnaz_auto_update";
 
@@ -744,6 +745,7 @@ export default function SettingsView() {
         </TabsContent>
 
         <TabsContent value="tasks" className="space-y-5 mt-5">
+          <AssistantAccessSettings />
           {reminders && (
             <TaskDefaultSettings
               value={reminders.task_defaults || {}}
