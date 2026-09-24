@@ -32,6 +32,13 @@ export async function createStudyTask(
   opts: CreateStudyTaskOptions
 ): Promise<{ ok: boolean; task?: Task; error?: string }> {
   try {
+    if (!opts.userId?.trim()) {
+      return { ok: false };
+    }
+    if (!opts.targetId?.trim()) {
+      return { ok: false };
+    }
+
     const taskId = `task_study_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
     // Generate smart default title if not provided
@@ -74,9 +81,12 @@ export async function createStudyTask(
     };
 
     const ok = await upsertTask(opts.userId, taskData);
+    if (!ok) {
+      return { ok: false };
+    }
 
     // If it's a knowledge document, also try to add a task-knowledge link
-    if (ok && (opts.targetType === "knowledge_doc" || opts.targetType === "mindmap_doc") && opts.targetId) {
+    if (opts.targetType === "knowledge_doc" || opts.targetType === "mindmap_doc") {
       try {
         const { linkTaskToDocument } = await import("@/lib/taskKnowledgeService");
         await linkTaskToDocument(taskId, opts.targetId, opts.userId, "Study Task");
@@ -85,7 +95,7 @@ export async function createStudyTask(
       }
     }
 
-    return { ok, task: taskData };
+    return { ok: true, task: taskData };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     return { ok: false, error: message };

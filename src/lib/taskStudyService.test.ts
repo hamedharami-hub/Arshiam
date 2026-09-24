@@ -1,15 +1,59 @@
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { createStudyTask, getStudyTaskNavigation } from "./taskStudyService";
 
-vi.mock("@/lib/firestoreDataService", () => ({
-  upsertTask: vi.fn().mockResolvedValue(true),
+const mocks = vi.hoisted(() => ({
+  upsertTask: vi.fn(),
+  linkTaskToDocument: vi.fn(),
 }));
 
+vi.mock("@/lib/firestoreDataService", () => ({ upsertTask: mocks.upsertTask }));
+
 vi.mock("@/lib/taskKnowledgeService", () => ({
-  linkTaskToDocument: vi.fn().mockResolvedValue(true),
+  linkTaskToDocument: mocks.linkTaskToDocument,
 }));
 
 describe("taskStudyService", () => {
+  beforeEach(() => {
+    mocks.upsertTask.mockReset().mockResolvedValue(true);
+    mocks.linkTaskToDocument.mockReset().mockResolvedValue(true);
+  });
+
+  it("does not create a task without a real user and target identifier", async () => {
+    const missingUser = await createStudyTask({
+      userId: "   ",
+      targetType: "knowledge_doc",
+      targetId: "doc-1",
+      targetTitle: "A lesson",
+    });
+    const missingTarget = await createStudyTask({
+      userId: "u123",
+      targetType: "knowledge_doc",
+      targetId: "  ",
+      targetTitle: "A lesson",
+    });
+
+    expect(missingUser).toMatchObject({ ok: false });
+    expect(missingUser.task).toBeUndefined();
+    expect(missingTarget).toMatchObject({ ok: false });
+    expect(missingTarget.task).toBeUndefined();
+    expect(mocks.upsertTask).not.toHaveBeenCalled();
+  });
+
+  it("does not return an unsaved task as if it were created", async () => {
+    mocks.upsertTask.mockResolvedValueOnce(false);
+
+    const res = await createStudyTask({
+      userId: "u123",
+      targetType: "knowledge_doc",
+      targetId: "doc-1",
+      targetTitle: "A lesson",
+    });
+
+    expect(res).toMatchObject({ ok: false });
+    expect(res.task).toBeUndefined();
+    expect(mocks.linkTaskToDocument).not.toHaveBeenCalled();
+  });
+
   it("creates a knowledge folder study task with smart default title", async () => {
     const res = await createStudyTask({
       userId: "u123",

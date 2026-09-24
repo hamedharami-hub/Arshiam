@@ -134,7 +134,12 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
       return;
     }
 
-    const userId = user?.id || "anonymous-study-user";
+    const userId = user?.id?.trim();
+    if (!userId) {
+      toast.error(T("برای زمان‌بندی مطالعه ابتدا وارد حساب خود شوید", "Sign in before scheduling a study task"));
+      return;
+    }
+
     setSaving(true);
 
     try {
