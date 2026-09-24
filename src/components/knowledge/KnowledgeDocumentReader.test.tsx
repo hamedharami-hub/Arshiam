@@ -74,4 +74,78 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
     // In original HTML mode, an iframe should be present
     expect(screen.getByTitle("راهنمای فلوکستین")).toBeInTheDocument();
   });
+
+  it("4. renders Active Recall Checkpoints and reveals answer on click", () => {
+    const otcDoc: KnowledgeDocument = {
+      id: "doc-otc-asthma",
+      user_id: "user-1",
+      folder_id: "folder-1",
+      title: "آسم حاد",
+      content_html: `
+        <h2>🎯 داروی خط اول و پروتکل دوزاژ</h2>
+        <p>سالبوتامول ۴ پاف با دمیار</p>
+      `,
+      tags: ["Respiratory"],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    render(
+      <KnowledgeDocumentReader
+        document={otcDoc}
+        folder={dummyFolder}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />
+    );
+
+    // Should render the Active Recall section
+    expect(screen.getByText(/خودآزمایی سریع و نکات کلیدی/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/داروی خط اول/i).length).toBeGreaterThan(0);
+
+    // Add to Leitner button is hidden initially
+    expect(screen.queryByText(/افزودن به جعبه لایتنر/i)).not.toBeInTheDocument();
+
+    // Click "مشاهده پاسخ"
+    const showBtn = screen.getByRole("button", { name: /مشاهده پاسخ/i });
+    fireEvent.click(showBtn);
+
+    // Answer and Add to Leitner button are now visible
+    expect(screen.getByText(/افزودن به جعبه لایتنر/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /مخفی‌سازی/i })).toBeInTheDocument();
+  });
+
+  it("5. renders smart related documents and triggers onSelectDocument on click", () => {
+    const relatedDoc: KnowledgeDocument = {
+      id: "doc-related-sertraline",
+      user_id: "user-1",
+      folder_id: "folder-1",
+      title: "سرترالین ۵۰ میلی‌گرم",
+      content_html: "<p>ضد افسردگی مرتبط</p>",
+      tags: ["SSRI"],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const handleSelect = vi.fn();
+
+    render(
+      <KnowledgeDocumentReader
+        document={dummyDoc}
+        folder={dummyFolder}
+        allDocuments={[dummyDoc, relatedDoc]}
+        onSelectDocument={handleSelect}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />
+    );
+
+    // Should display related documents section
+    expect(screen.getByText(/اسناد و فرآورده‌های دارویی مرتبط/i)).toBeInTheDocument();
+    expect(screen.getByText("سرترالین ۵۰ میلی‌گرم")).toBeInTheDocument();
+
+    // Click related card
+    fireEvent.click(screen.getByText("سرترالین ۵۰ میلی‌گرم"));
+    expect(handleSelect).toHaveBeenCalledWith("doc-related-sertraline");
+  });
 });

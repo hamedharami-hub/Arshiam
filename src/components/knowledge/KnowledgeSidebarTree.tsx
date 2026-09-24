@@ -257,11 +257,26 @@ interface KnowledgeSidebarTreeProps {
   onScheduleDocStudy?: (doc: KnowledgeDocument) => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
+  selectedTag?: string | null;
+  onSelectTag?: (tag: string | null) => void;
   onToggleCollapse?: () => void;
   onImportPharmacy?: (force?: boolean) => Promise<void>;
   isPharmacyImported?: boolean;
   isImportingPharmacy?: boolean;
 }
+
+export const HIGH_YIELD_TAG_FILTERS = [
+  { id: "all", labelFa: "همه", labelEn: "All", icon: "✨" },
+  { id: "Respiratory", labelFa: "تنفسی", labelEn: "Respiratory", icon: "🫁" },
+  { id: "Gastrointestinal", labelFa: "گوارش", labelEn: "GI", icon: "🫄" },
+  { id: "Dermatology", labelFa: "پوست", labelEn: "Derma", icon: "🧴" },
+  { id: "Pain", labelFa: "درد", labelEn: "Pain", icon: "⚡" },
+  { id: "CYP", labelFa: "سیتوکروم", labelEn: "CYP", icon: "🧬" },
+  { id: "Monograph", labelFa: "مونوگراف", labelEn: "Monograph", icon: "💊" },
+  { id: "RedFlags", labelFa: "علائم هشدار", labelEn: "Red Flags", icon: "🚨" },
+  { id: "Slang", labelFa: "اصطلاحات", labelEn: "Slang", icon: "🗣️" },
+  { id: "Scenario", labelFa: "سناریو بالینی", labelEn: "Scenario", icon: "📋" },
+];
 
 export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
   tree,
@@ -279,6 +294,8 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
   onScheduleDocStudy,
   searchQuery,
   onSearchChange,
+  selectedTag,
+  onSelectTag,
   onToggleCollapse,
   onImportPharmacy,
   isPharmacyImported = true,
@@ -475,11 +492,11 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
                     <span>
                       {isPharmacyImported
                         ? isEn
-                          ? "Re-sync Pharmacy Encyclopedia (97 lessons)"
-                          : "تازه‌سازی دایره‌المعارف دارویی (۹۷ درس)"
+                          ? "Re-sync Pharmacy Encyclopedia (144 lessons & 35 cards)"
+                          : "تازه‌سازی دایره‌المعارف دارویی (۱۴۴ درس و ۳۵ کارت)"
                         : isEn
-                        ? "Import Pharmacy Encyclopedia (97 lessons)"
-                        : "واردسازی دایره‌المعارف دارویی (۹۷ درس)"}
+                        ? "Import Pharmacy Encyclopedia (144 lessons & 35 cards)"
+                        : "واردسازی دایره‌المعارف دارویی (۱۴۴ درس و ۳۵ کارت)"}
                     </span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -511,6 +528,31 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
           />
         </div>
 
+        {/* High-Yield Category Tag Filter Chips */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 -mx-0.5 px-0.5">
+          {HIGH_YIELD_TAG_FILTERS.map((tag) => {
+            const isTagActive =
+              tag.id === "all" ? !selectedTag : selectedTag?.toLowerCase() === tag.id.toLowerCase();
+            return (
+              <button
+                key={tag.id}
+                type="button"
+                onClick={() =>
+                  onSelectTag?.(tag.id === "all" ? null : isTagActive ? null : tag.id)
+                }
+                className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold shrink-0 transition flex items-center gap-1 cursor-pointer border ${
+                  isTagActive
+                    ? "bg-primary text-primary-foreground border-primary shadow-2xs"
+                    : "bg-background hover:bg-secondary text-muted-foreground hover:text-foreground border-border"
+                }`}
+              >
+                <span>{tag.icon}</span>
+                <span>{isEn ? tag.labelEn : tag.labelFa}</span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* Pharmacy Quick Import Banner */}
         {!isPharmacyImported && onImportPharmacy && (
           <div className="p-2.5 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-primary/15 border border-emerald-500/30 flex items-center justify-between gap-2 shadow-2xs animate-in fade-in">
@@ -521,7 +563,9 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
                   {isEn ? "Pharmacy Encyclopedia" : "بسته جامع دارویی"}
                 </div>
                 <div className="text-[10px] text-muted-foreground truncate">
-                  {isEn ? "97 lessons, clinical atlas & cards" : "۹۷ درس، اطلس بالینی و لایتنر"}
+                  {isEn
+                    ? "144 lessons, clinical atlas & 35 cards"
+                    : "۱۴۴ درس، اطلس بالینی و ۳۵ کارت لایتنر"}
                 </div>
               </div>
             </div>

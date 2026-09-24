@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   BookOpen,
   Globe,
@@ -19,6 +19,9 @@ import {
   PanelLeftOpen,
   Gamepad2,
   CalendarPlus,
+  Eye,
+  Layers,
+  FileText,
 } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
 import type {
@@ -31,6 +34,12 @@ import { sanitizeKnowledgeHtml } from "@/lib/knowledgeBeautifier";
 import { isPersianText, detectDirection, generateBilingualLesson } from "@/lib/bilingualHelper";
 import { updateKnowledgeDocument } from "@/lib/knowledgeService";
 import { attachInteractiveListeners } from "@/lib/interactiveLearningHelper";
+import {
+  extractDocumentCheckpoints,
+  getRelatedDocuments,
+  type KnowledgeCheckpoint,
+} from "@/lib/knowledgeCheckpointHelper";
+import { createLeitnerCard } from "@/lib/leitnerService";
 import { TextSelectionFloatingBar } from "./TextSelectionFloatingBar";
 import { AiQuestionGeneratorModal } from "./AiQuestionGeneratorModal";
 import { InteractiveLearningModal } from "./InteractiveLearningModal";
@@ -39,6 +48,8 @@ import { toast } from "sonner";
 interface KnowledgeDocumentReaderProps {
   document: KnowledgeDocument | null;
   folder: KnowledgeFolder | null;
+  allDocuments?: KnowledgeDocument[];
+  onSelectDocument?: (docId: string) => void;
   onEdit: (doc: KnowledgeDocument) => void;
   onDelete: (docId: string) => void;
   userId?: string;
@@ -60,6 +71,8 @@ interface KnowledgeDocumentReaderProps {
 export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = ({
   document,
   folder,
+  allDocuments = [],
+  onSelectDocument,
   onEdit,
   onDelete,
   userId = "guest",
@@ -84,7 +97,51 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [interactiveModalOpen, setInteractiveModalOpen] = useState(false);
   const [selectedSnippetForAi, setSelectedSnippetForAi] = useState("");
+  const [revealedCheckpoints, setRevealedCheckpoints] = useState<Record<string, boolean>>({});
+  const [addedToLeitner, setAddedToLeitner] = useState<Record<string, boolean>>({});
   const contentContainerRef = useRef<HTMLDivElement>(null);
+
+  // Compute active recall checkpoints from current document
+  const checkpoints = useMemo(() => {
+    return document ? extractDocumentCheckpoints(document) : [];
+  }, [document]);
+
+  // Compute smart related documents
+  const relatedDocuments = useMemo(() => {
+    return document && allDocuments.length > 0
+      ? getRelatedDocuments(document, allDocuments, 3)
+      : [];
+  }, [document, allDocuments]);
+
+  // Reset revealed answers when document changes
+  useEffect(() => {
+    setRevealedCheckpoints({});
+  }, [document?.id]);
+
+  const handleAddCheckpointToLeitner = async (cp: KnowledgeCheckpoint) => {
+    if (!document || !userId) return;
+    try {
+      const question = isEn && cp.questionEn ? cp.questionEn : cp.questionFa;
+      const answer = isEn && cp.answerEn ? cp.answerEn : cp.answerFa;
+      await createLeitnerCard(userId, {
+        front: question,
+        back: answer,
+        clue: isEn ? cp.badgeEn : cp.badgeFa,
+        document_id: document.id,
+        folder_id: document.folder_id,
+        box: 1,
+      });
+      setAddedToLeitner((prev) => ({ ...prev, [cp.id]: true }));
+      toast.success(
+        isEn
+          ? "Checkpoint added to your Leitner deck!"
+          : "نکته کلیدی به جعبه مرور لایتنر شما اضافه شد!"
+      );
+    } catch (err: any) {
+      console.error("Failed to add checkpoint to Leitner", err);
+      toast.error(err.message || (isEn ? "Failed to add card" : "خطا در افزودن به لایتنر"));
+    }
+  };
 
   // Initialize language mode based on document properties
   useEffect(() => {
@@ -688,6 +745,191 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                       </button>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Active Recall & Key Checkpoints Section */}
+            {checkpoints.length > 0 && (
+              <div className="mt-10 pt-6 border-t border-border/80 space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="p-2 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                      <Sparkles className="w-4 h-4" />
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                        <span>
+                          {isEn
+                            ? "Active Recall & Key Checkpoints"
+                            : "خودآزمایی سریع و نکات کلیدی (Active Recall)"}
+                        </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-semibold">
+                          {checkpoints.length} {isEn ? "Checkpoints" : "نکته کلیدی"}
+                        </span>
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        {isEn
+                          ? "Test your clinical retention, reveal answers, and add them directly into your Leitner deck"
+                          : "درک مطلب خود را بیازمایید و نکات مهم را با یک کلیک به جعبه لایتنر بفرستید"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3">
+                  {checkpoints.map((cp) => {
+                    const isRevealed = !!revealedCheckpoints[cp.id];
+                    const isAdded = !!addedToLeitner[cp.id];
+                    const questionText = isEn && cp.questionEn ? cp.questionEn : cp.questionFa;
+                    const answerText = isEn && cp.answerEn ? cp.answerEn : cp.answerFa;
+
+                    return (
+                      <div
+                        key={cp.id}
+                        className="p-4 rounded-2xl bg-card border border-border/80 shadow-2xs space-y-3 transition hover:border-primary/40"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1.5 min-w-0">
+                            <span
+                              className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md border"
+                              style={{
+                                color: cp.color,
+                                borderColor: `${cp.color}40`,
+                                backgroundColor: `${cp.color}15`,
+                              }}
+                            >
+                              {isEn ? cp.badgeEn : cp.badgeFa}
+                            </span>
+                            <h4 className="text-xs md:text-sm font-semibold text-foreground leading-snug">
+                              {questionText}
+                            </h4>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setRevealedCheckpoints((prev) => ({
+                                  ...prev,
+                                  [cp.id]: !prev[cp.id],
+                                }))
+                              }
+                              className="px-2.5 py-1 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground text-xs font-medium border border-border transition cursor-pointer flex items-center gap-1"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-primary" />
+                              <span>
+                                {isRevealed
+                                  ? isEn
+                                    ? "Hide"
+                                    : "مخفی‌سازی"
+                                  : isEn
+                                  ? "Show Answer"
+                                  : "مشاهده پاسخ"}
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Revealed Answer Content */}
+                        {isRevealed && (
+                          <div className="pt-2 border-t border-border/50 text-xs md:text-sm text-foreground/90 space-y-2.5 animate-in fade-in duration-200">
+                            <div className="p-3 rounded-xl bg-muted/40 border border-border/60 leading-relaxed font-sans select-text">
+                              {answerText}
+                            </div>
+
+                            <div className="flex items-center justify-end">
+                              <button
+                                type="button"
+                                disabled={isAdded}
+                                onClick={() => handleAddCheckpointToLeitner(cp)}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer border ${
+                                  isAdded
+                                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 cursor-default"
+                                    : "bg-primary hover:bg-primary/90 text-primary-foreground border-transparent shadow-2xs"
+                                }`}
+                              >
+                                {isAdded ? (
+                                  <>
+                                    <Check className="w-3.5 h-3.5" />
+                                    <span>{isEn ? "Added to Leitner" : "✓ به لایتنر اضافه شد"}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    <span>
+                                      {isEn ? "Add to Leitner Deck" : "⚡ افزودن به جعبه لایتنر"}
+                                    </span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Smart Related Knowledge & Products Section */}
+            {relatedDocuments.length > 0 && (
+              <div className="mt-8 pt-6 border-t border-border/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs md:text-sm font-bold text-foreground flex items-center gap-2">
+                    <span className="p-1 rounded-lg bg-primary/10 text-primary">
+                      <Layers className="w-3.5 h-3.5" />
+                    </span>
+                    <span>
+                      {isEn
+                        ? "Related Clinical Knowledge & Products"
+                        : "اسناد و فرآورده‌های دارویی مرتبط"}
+                    </span>
+                  </h3>
+                  <span className="text-[11px] text-muted-foreground font-medium">
+                    {relatedDocuments.length} {isEn ? "linked topics" : "مورد مرتبط"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  {relatedDocuments.map((rDoc) => (
+                    <button
+                      key={rDoc.id}
+                      type="button"
+                      onClick={() => onSelectDocument?.(rDoc.id)}
+                      className="flex flex-col justify-between p-3 rounded-2xl bg-card hover:bg-secondary/70 border border-border/80 hover:border-primary/50 transition text-start group cursor-pointer shadow-2xs space-y-2"
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className="p-1.5 rounded-xl bg-primary/10 text-primary shrink-0 group-hover:scale-105 transition">
+                          <FileText className="w-3.5 h-3.5" />
+                        </span>
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-bold text-foreground group-hover:text-primary transition line-clamp-2">
+                            {isEn && rDoc.title_en ? rDoc.title_en : rDoc.title}
+                          </h4>
+                          {rDoc.title_en && !isEn && (
+                            <p className="text-[10px] text-muted-foreground line-clamp-1" dir="ltr">
+                              {rDoc.title_en}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {rDoc.tags && rDoc.tags.length > 0 && (
+                        <div className="flex items-center gap-1 flex-wrap pt-1 border-t border-border/40">
+                          {rDoc.tags.slice(0, 2).map((t, idx) => (
+                            <span
+                              key={idx}
+                              className="text-[9px] px-1.5 py-0.2 rounded-md bg-muted text-muted-foreground"
+                            >
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}

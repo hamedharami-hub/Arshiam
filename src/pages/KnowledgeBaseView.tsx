@@ -41,6 +41,7 @@ export const KnowledgeBaseView: React.FC = () => {
   const [isImportingPharmacy, setIsImportingPharmacy] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [mobileTreeOpen, setMobileTreeOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
     try {
@@ -111,8 +112,8 @@ export const KnowledgeBaseView: React.FC = () => {
     setIsImportingPharmacy(true);
     const toastId = toast.loading(
       isEn
-        ? "Importing Pharmacy Encyclopedia (97 clinical lessons)..."
-        : "در حال بارگذاری دایره‌المعارف دارویی (۹۷ درس و اطلس بالینی)..."
+        ? "Importing Pharmacy Encyclopedia (144 clinical lessons & 35 cards)..."
+        : "در حال بارگذاری دایره‌المعارف دارویی (۱۴۴ درس و ۳۵ کارت لایتنر)..."
     );
     try {
       const result = await importPharmacyKnowledge(userId, { force, importCards: true });
@@ -272,17 +273,27 @@ export const KnowledgeBaseView: React.FC = () => {
     }
   };
 
-  // Search filter
+  // Search & Tag filter
   const filteredDocuments = useMemo(() => {
-    if (!debouncedSearch.trim()) return documents;
+    let docs = documents;
+    if (selectedTag) {
+      const t = selectedTag.toLowerCase();
+      docs = docs.filter((d) => {
+        if (d.tags?.some((tag) => tag.toLowerCase().includes(t))) return true;
+        if (d.title?.toLowerCase().includes(t) || d.title_en?.toLowerCase().includes(t)) return true;
+        return false;
+      });
+    }
+    if (!debouncedSearch.trim()) return docs;
     const q = debouncedSearch.toLowerCase();
-    return documents.filter(
+    return docs.filter(
       (d) =>
         d.title.toLowerCase().includes(q) ||
+        (d.title_en && d.title_en.toLowerCase().includes(q)) ||
         (d.plain_text && d.plain_text.toLowerCase().includes(q)) ||
         (d.tags && d.tags.some((t) => t.toLowerCase().includes(q)))
     );
-  }, [documents, debouncedSearch]);
+  }, [documents, selectedTag, debouncedSearch]);
 
 
   return (
@@ -337,6 +348,8 @@ export const KnowledgeBaseView: React.FC = () => {
             onScheduleDocStudy={handleScheduleDocStudy}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
+            selectedTag={selectedTag}
+            onSelectTag={setSelectedTag}
             onToggleCollapse={toggleSidebar}
             onImportPharmacy={handleImportPharmacy}
             isPharmacyImported={hasPharmacy}
@@ -378,6 +391,8 @@ export const KnowledgeBaseView: React.FC = () => {
               }}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
+              selectedTag={selectedTag}
+              onSelectTag={setSelectedTag}
               onImportPharmacy={handleImportPharmacy}
               isPharmacyImported={hasPharmacy}
               isImportingPharmacy={isImportingPharmacy}
@@ -390,6 +405,8 @@ export const KnowledgeBaseView: React.FC = () => {
           <KnowledgeDocumentReader
             document={currentDoc}
             folder={currentFolder}
+            allDocuments={documents}
+            onSelectDocument={(docId) => setSelectedDocId(docId)}
             onEdit={handleOpenEditDoc}
             onDelete={handleDeleteDoc}
             userId={userId}
