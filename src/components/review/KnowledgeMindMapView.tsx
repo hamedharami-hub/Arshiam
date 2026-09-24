@@ -1474,7 +1474,8 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
             transformOrigin: "0 0",
             width: `${Math.max(4500, bounds.width + 1200)}px`,
             height: `${Math.max(3500, bounds.height + 1200)}px`,
-            position: "relative",
+            position: "absolute",
+            inset: 0,
             willChange: isDragging ? "transform" : "auto",
           }}
         >
