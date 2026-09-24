@@ -40,6 +40,8 @@ interface InteractiveLearningModalProps {
   documentTitle: string;
   documentContent: string;
   onInsertContent: (html: string, mode: "append" | "replace") => void;
+  presentationMode?: "editor" | "standalone";
+  languageOverride?: "fa" | "en";
 }
 
 export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> = ({
@@ -48,8 +50,11 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
   documentTitle,
   documentContent,
   onInsertContent,
+  presentationMode = "editor",
+  languageOverride,
 }) => {
-  const { isEn } = useBilingual();
+  const { isEn: appIsEn } = useBilingual();
+  const isEn = languageOverride ? languageOverride === "en" : appIsEn;
   const [selectedPresets, setSelectedPresets] = useState<InteractiveWidgetType[]>([
     "flip_card",
     "quiz_mcq",
@@ -153,15 +158,19 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
   const handleApply = (mode: "append" | "replace") => {
     if (!generatedHtml) return;
     onInsertContent(generatedHtml, mode);
-    toast.success(
-      mode === "append"
-        ? isEn
-          ? "Interactive widgets appended to lesson!"
-          : "ماژول‌های تعاملی به انتهای درس اضافه شدند!"
-        : isEn
-        ? "Lesson content replaced with interactive module!"
-        : "محتوای درس با ماژول تعاملی جایگزین شد!"
-    );
+    if (presentationMode === "standalone") {
+      toast.success(isEn ? "Interactive study session is ready." : "جلسهٔ آموزش تعاملی آماده است.");
+    } else {
+      toast.success(
+        mode === "append"
+          ? isEn
+            ? "Interactive widgets appended to lesson!"
+            : "ماژول‌های تعاملی به انتهای درس اضافه شدند!"
+          : isEn
+            ? "Lesson content replaced with interactive module!"
+            : "محتوای درس با ماژول تعاملی جایگزین شد!"
+      );
+    }
     onOpenChange(false);
   };
 
@@ -397,23 +406,36 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
               </button>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleApply("append")}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground border border-border text-xs font-bold transition cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5 text-primary" />
-                  <span>{isEn ? "Append to Lesson" : "افزودن به انتهای درس"}</span>
-                </button>
+                {presentationMode === "standalone" ? (
+                  <button
+                    type="button"
+                    onClick={() => handleApply("replace")}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold shadow-xs transition cursor-pointer"
+                  >
+                    <Gamepad2 className="w-3.5 h-3.5" />
+                    <span>{isEn ? "Start study session" : "شروع جلسهٔ مطالعه"}</span>
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleApply("append")}
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground border border-border text-xs font-bold transition cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-primary" />
+                      <span>{isEn ? "Append to Lesson" : "افزودن به انتهای درس"}</span>
+                    </button>
 
-                <button
-                  type="button"
-                  onClick={() => handleApply("replace")}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold shadow-xs transition cursor-pointer"
-                >
-                  <Wand2 className="w-3.5 h-3.5" />
-                  <span>{isEn ? "Replace Full Lesson" : "جایگزینی کل محتوا"}</span>
-                </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApply("replace")}
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold shadow-xs transition cursor-pointer"
+                    >
+                      <Wand2 className="w-3.5 h-3.5" />
+                      <span>{isEn ? "Replace Full Lesson" : "جایگزینی کل محتوا"}</span>
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>

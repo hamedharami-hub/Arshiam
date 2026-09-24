@@ -44,6 +44,7 @@ export const SIDEBAR_QUICK_LINK_OPTIONS: SidebarQuickLink[] = [
   { url: "/app/garden", labelFa: "باغ رشد", labelEn: "Garden", group: "grow" },
   { url: "/app/habits", labelFa: "عادت‌ها", labelEn: "Habits", group: "grow" },
   { url: "/app/notes", labelFa: "نوت‌ها", labelEn: "Notes", group: "grow" },
+  { url: "/app/interactive-study", labelFa: "استودیوی مطالعه تعاملی", labelEn: "Interactive Study Studio", group: "grow" },
   { url: "/app/cycle", labelFa: "سیکل پریود", labelEn: "Period Cycle", group: "grow" },
 
   // 4. Mind (ذهن)

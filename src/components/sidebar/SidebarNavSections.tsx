@@ -4,7 +4,7 @@ import {
   Target, Timer, Calendar, ChevronDown, Sparkles, LayoutGrid,
   TrendingUp, Activity, MessageCircleQuestion, Zap, ShieldAlert, BookOpen, Sun,
   ListTodo, BrainCircuit, GripVertical, User, Shield,
-  BarChart3, Sprout, Wind, Compass, Users,
+  BarChart3, Sprout, Wind, Compass, Users, Gamepad2,
 } from "lucide-react";
 import {
   SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -59,6 +59,7 @@ export const EN_LABELS: Record<string, string> = {
   "باغ رشد": "Garden",
   "افراد": "Contacts",
   "کتابخانه دانش": "Knowledge Base",
+  "استودیوی مطالعه تعاملی": "Interactive Study Studio",
 };
 
 export const FA_LABELS: Record<string, string> = {
@@ -107,6 +108,7 @@ export const SECTIONS: Section[] = [
       { url: "/app/habits", icon: Target, label: "عادت‌ها" },
       { url: "/app/notes", icon: FileText, label: "نوت‌ها" },
       { url: "/app/knowledge", icon: BookOpen, label: "کتابخانه دانش" },
+      { url: "/app/interactive-study", icon: Gamepad2, label: "استودیوی مطالعه تعاملی" },
       { url: "/app/review", icon: BrainCircuit, label: "مرور (SR)" },
       { url: "/app/cycle", icon: Calendar, label: "سیکل پریود" },
     ],
