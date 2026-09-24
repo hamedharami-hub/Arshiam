@@ -956,7 +956,15 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     }
     if (lastCenteredSearchRef.current === query || !containerRef.current) return;
 
-    const firstMatch = nodes.find((node) => mindMapNodeMatchesSearch(node, searchResult));
+    // Prefer the most specific visible result. A card answer can also appear in
+    // its parent document content; centering the parent first would leave the
+    // highlighted card at the edge of (or outside) the viewport.
+    const matchTypePriority: MindMapNode["type"][] = ["card", "doc", "subfolder", "folder"];
+    const firstMatch = matchTypePriority
+      .map((type) =>
+        nodes.find((node) => node.type === type && mindMapNodeMatchesSearch(node, searchResult)),
+      )
+      .find((node): node is MindMapNode => Boolean(node));
     if (!firstMatch) return;
 
     const timer = setTimeout(() => {
