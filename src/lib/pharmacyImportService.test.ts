@@ -4,6 +4,7 @@ import { getDocsCacheKey, getFoldersCacheKey } from "./knowledgeService";
 import { getLeitnerCardsCacheKey } from "./leitnerService";
 import { PHARMACY_ROOT_FOLDER_ID, PHARMACY_SEED_CARDS, PHARMACY_SEED_DOCUMENTS, PHARMACY_SEED_FOLDERS } from "./pharmacySeedData";
 import { PHARMACY_SEED_DOCUMENTS as LEGACY_DOCUMENTS } from "./pharmacyLegacySeedData";
+import { applyPharmacyClinicalEditorialOverrides } from "./pharmacyClinicalEditorialOverrides";
 import { comparePharmacySeed, getPharmacyImportStatus, importPharmacyKnowledge, isPharmacyImported, normalizePharmacySeedData } from "./pharmacyImportService";
 import { sanitizeKnowledgeHtml } from "./knowledgeHtmlSanitizer";
 import { PHARMACY_CLINICAL_ENTITIES } from "./pharmacyClinicalGraph.generated";
@@ -295,6 +296,59 @@ describe("pharmacyImportService", () => {
     expect(importedExample?.content_html).toBe(sanitizeKnowledgeHtml(PHARMACY_SEED_DOCUMENTS[0].content_html));
     expect(importedExample?.content_en).toBe(sanitizeKnowledgeHtml(PHARMACY_SEED_DOCUMENTS[0].content_en || ""));
     expect(await isPharmacyImported(userId)).toBe(true);
+  }, 15_000);
+
+  it("adds a cited UTI safety correction without mutating IDs, links, provenance, or review status", () => {
+    const original = PHARMACY_SEED_DOCUMENTS.find((item) => item.id === "doc-disease-uti_cystitis")!;
+    const linkedIds = [...original.content_html.matchAll(/data-doc-link="([^"]+)"/g)].map((match) => match[1]);
+    const result = applyPharmacyClinicalEditorialOverrides({ PHARMACY_SEED_DOCUMENTS: [original] });
+    const corrected = result.PHARMACY_SEED_DOCUMENTS[0];
+
+    expect(corrected.id).toBe(original.id);
+    expect(corrected.folder_id).toBe(original.folder_id);
+    expect(corrected.source_url).toBe(original.source_url);
+    expect(corrected.tags).toEqual(original.tags);
+    expect(corrected.content_review_status).toBe("unreviewed");
+    expect(original.content_html).toContain("First-line OTC Pharmacotherapy");
+    expect(corrected.content_html).not.toContain("First-line OTC Pharmacotherapy");
+    expect(corrected.content_html).not.toContain("within 30 minutes");
+    expect(corrected.content_html).toContain("اثربخشی این فرآورده‌ها برای تسکین علامتی UTI ثابت نشده است");
+    expect(corrected.content_en).toContain("Symptomatic relief only (not first-line UTI treatment)");
+    expect(corrected.content_en).toContain("efficacy for symptomatic UTI relief has not been established");
+    expect(corrected.content_html).toContain("practice-standards-uti.pdf");
+    expect(corrected.content_en).toContain("PCCM_full.pdf");
+    expect([...corrected.content_html.matchAll(/data-doc-link="([^"]+)"/g)].map((match) => match[1]))
+      .toEqual(linkedIds);
+    expect(sanitizeKnowledgeHtml(corrected.content_html)).toContain("practice-standards-uti.pdf");
+    expect(sanitizeKnowledgeHtml(corrected.content_en)).toContain("protocol-for-management-of-urinary-tract-infections.pdf");
+  });
+
+  it("offers the UTI correction as a safe upgrade for an unchanged prior full-seed document", async () => {
+    for (const folder of PHARMACY_SEED_FOLDERS) {
+      remote.knowledge_folders.set(folder.id, { ...folder, user_id: userId });
+    }
+    const original = PHARMACY_SEED_DOCUMENTS.find((item) => item.id === "doc-disease-uti_cystitis")!;
+    for (const document of PHARMACY_SEED_DOCUMENTS) {
+      remote.knowledge_documents.set(document.id, {
+        ...document,
+        user_id: userId,
+        ...(document.id === original.id ? {} : { content_html: `${document.content_html}<p>Personal test edit</p>` }),
+      });
+    }
+    remote.knowledge_documents.set(original.id, { ...original, user_id: userId, read_count: 9, is_favorite: true });
+
+    expect((await getPharmacyImportStatus(userId)).docsUpgradeable).toBe(1);
+    const result = await importPharmacyKnowledge(userId, { importCards: false });
+    const updated = remote.knowledge_documents.get(original.id)!;
+
+    expect(result.docsUpdated).toBe(1);
+    expect(String(updated.content_html)).toContain("یادداشت ایمنی و حوزه‌ای");
+    expect(String(updated.content_html)).toContain("practice-standards-uti.pdf");
+    expect(String(updated.content_en)).toContain("Symptomatic relief only (not first-line UTI treatment)");
+    expect(updated.content_review_status).toBe("unreviewed");
+    expect(updated.read_count).toBe(9);
+    expect(updated.is_favorite).toBe(true);
+    expect(result.status.docsUpgradeable).toBe(0);
   }, 15_000);
 
   it("preserves existing edits and review progress even when force is requested", async () => {

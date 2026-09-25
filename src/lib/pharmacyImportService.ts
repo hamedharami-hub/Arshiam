@@ -7,6 +7,7 @@ import { getDocsCacheKey, getFoldersCacheKey, isOnline, normalizeKnowledgeDocume
 import { calculateNextReviewDate, getLeitnerCardsCacheKey } from "./leitnerService";
 import { PHARMACY_ROOT_FOLDER_ID } from "./pharmacyConstants";
 import { getSafeKnowledgeExternalUrl } from "./knowledgeReviewEvidence";
+import { applyPharmacyClinicalEditorialOverrides } from "./pharmacyClinicalEditorialOverrides";
 
 type SeedData = typeof import("./pharmacySeedData");
 type LegacySeedData = typeof import("./pharmacyLegacySeedData");
@@ -46,7 +47,8 @@ export function normalizePharmacySeedDocument(document: KnowledgeDocument): Know
 }
 
 export function normalizePharmacySeedData(seed: SeedData): SeedData {
-  return { ...seed, PHARMACY_SEED_DOCUMENTS: seed.PHARMACY_SEED_DOCUMENTS.map(normalizePharmacySeedDocument) };
+  const editorialSeed = applyPharmacyClinicalEditorialOverrides(seed);
+  return { ...editorialSeed, PHARMACY_SEED_DOCUMENTS: editorialSeed.PHARMACY_SEED_DOCUMENTS.map(normalizePharmacySeedDocument) };
 }
 
 function assertUser(userId: string): void {
@@ -96,7 +98,9 @@ export function comparePharmacySeed(seed: SeedData, remote: Snapshot): PharmacyI
 
 function matchesUneditedLegacy(
   current: KnowledgeDocument,
-  legacy: LegacySeedData["PHARMACY_SEED_DOCUMENTS"][number] & {
+  legacy: Pick<KnowledgeDocument, "title" | "folder_id" | "content_html" | "content_en"> & {
+    title_en?: string;
+    tags?: KnowledgeDocument["tags"];
     source_url?: string;
     content_review_status?: KnowledgeDocument["content_review_status"];
   },
@@ -111,13 +115,23 @@ function matchesUneditedLegacy(
     current.content_review_status === legacy.content_review_status;
 }
 
-function getUpgradeableDocuments(seed: SeedData, legacy: LegacySeedData, remote: Snapshot): KnowledgeDocument[] {
+function getUpgradeableDocuments(
+  seed: SeedData,
+  legacy: LegacySeedData,
+  remote: Snapshot,
+  previousCurrentSeed?: SeedData,
+): KnowledgeDocument[] {
   const newById = new Map(seed.PHARMACY_SEED_DOCUMENTS.map((item) => [item.id, item]));
   const oldById = new Map(legacy.PHARMACY_SEED_DOCUMENTS.map((item) => [item.id, item]));
+  const previousById = new Map((previousCurrentSeed?.PHARMACY_SEED_DOCUMENTS || []).map((item) => [item.id, item]));
   return remote.documents.filter((doc) => {
     const old = oldById.get(doc.id);
+    const previous = previousById.get(doc.id);
     const next = newById.get(doc.id);
-    return old && next && matchesUneditedLegacy(doc, old) &&
+    const matchesKnownBaseline = Boolean(
+      (old && matchesUneditedLegacy(doc, old)) || (previous && matchesUneditedLegacy(doc, previous)),
+    );
+    return matchesKnownBaseline && next &&
       (doc.content_html !== next.content_html || doc.content_en !== next.content_en ||
         doc.folder_id !== next.folder_id || doc.title !== next.title || doc.title_en !== next.title_en ||
         JSON.stringify(doc.tags || []) !== JSON.stringify(next.tags || []) || doc.source_url !== next.source_url ||
@@ -127,11 +141,12 @@ function getUpgradeableDocuments(seed: SeedData, legacy: LegacySeedData, remote:
 
 export async function getPharmacyImportStatus(userId: string): Promise<PharmacyImportStatus> {
   assertUser(userId);
-  const [seed, legacy, remote] = await Promise.all([
+  const [rawSeed, legacy, remote] = await Promise.all([
     import("./pharmacySeedData"), import("./pharmacyLegacySeedData"), readRemote(userId),
   ]);
+  const seed = applyPharmacyClinicalEditorialOverrides(rawSeed);
   const status = comparePharmacySeed(seed, remote);
-  status.docsUpgradeable = getUpgradeableDocuments(seed, legacy, remote).length;
+  status.docsUpgradeable = getUpgradeableDocuments(seed, legacy, remote, rawSeed).length;
   return status;
 }
 
@@ -190,7 +205,8 @@ export async function importPharmacyKnowledge(
     (op.table === "knowledge_folders" || op.table === "knowledge_documents" || op.table === "leitner_cards"))) {
     throw new Error("Sync pending knowledge changes before importing pharmacy content.");
   }
-  const [seed, legacy] = await Promise.all([import("./pharmacySeedData"), import("./pharmacyLegacySeedData")]);
+  const [rawSeed, legacy] = await Promise.all([import("./pharmacySeedData"), import("./pharmacyLegacySeedData")]);
+  const seed = applyPharmacyClinicalEditorialOverrides(rawSeed);
   const remote = await readRemote(userId);
   const now = new Date().toISOString();
   const remoteFolderIds = new Set(remote.folders.map((item) => item.id));
@@ -221,7 +237,7 @@ export async function importPharmacyKnowledge(
       };
     });
   const seedDocMap = new Map(seed.PHARMACY_SEED_DOCUMENTS.map((item) => [item.id, item]));
-  const upgradedDocuments = getUpgradeableDocuments(seed, legacy, remote).map((old) => {
+  const upgradedDocuments = getUpgradeableDocuments(seed, legacy, remote, rawSeed).map((old) => {
     const next = seedDocMap.get(old.id)!;
     const normalizedNext = normalizePharmacySeedDocument(next);
     return {
@@ -270,7 +286,7 @@ export async function importPharmacyKnowledge(
 
   const verified = await readRemote(userId);
   const status = comparePharmacySeed(seed, verified);
-  status.docsUpgradeable = getUpgradeableDocuments(seed, legacy, verified).length;
+  status.docsUpgradeable = getUpgradeableDocuments(seed, legacy, verified, rawSeed).length;
   const remaining = status.foldersMissing + status.docsMissing + status.docsUpgradeable +
     (options?.importCards === false ? 0 : status.cardsMissing);
   if (remaining > 0) {
