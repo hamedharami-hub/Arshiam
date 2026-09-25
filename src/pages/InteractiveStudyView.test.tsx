@@ -175,17 +175,24 @@ describe("InteractiveStudyView", () => {
     expect(screen.queryByText("بازبینی منبع تأیید نشده")).not.toBeInTheDocument();
 
     await actEvent(() => fireEvent.click(sampleLesson));
-    await screen.findByRole("button", { name: /انتخاب نوع تمرین/i });
+    await screen.findByRole("button", { name: /ساخت تمرین از این درس/i });
     expect(screen.getByText("درس انتخاب‌شده")).toBeInTheDocument();
+    const workflow = screen.getByRole("list", { name: "مسیر مطالعه" });
+    expect(workflow).toBeInTheDocument();
+    expect(workflow.querySelector('[aria-current="step"]')).toHaveTextContent("انتخاب تمرین");
     expect(screen.getByText("اینجا چه تمرین‌هایی می‌توانم بسازم؟")).toBeInTheDocument();
     expect(screen.getByText(/فلش‌کارت، آزمون، بازی تطبیق/)).toBeInTheDocument();
     expect(screen.getByText(/کارت لایتنر یا تسک مرور نمی‌سازد/)).toBeInTheDocument();
     expect(screen.getByText("بازبینی منبع تأیید نشده")).toBeInTheDocument();
+    const sourcePreview = screen.getByText("متن درسی را که مبنای تمرین است ببین");
+    fireEvent.click(sourcePreview);
+    expect(screen.getByText("English source text")).toBeInTheDocument();
     await waitFor(() => expect(mockLoadStudyDraft).toHaveBeenCalledWith("study-user", "doc-1", "en"));
-    await actEvent(() => fireEvent.click(screen.getByRole("button", { name: /انتخاب نوع تمرین/i })));
+    await actEvent(() => fireEvent.click(screen.getByRole("button", { name: /ساخت تمرین از این درس/i })));
     await actEvent(() => fireEvent.click(screen.getByRole("button", { name: "Build test session" })));
 
     await waitFor(() => expect(container.querySelector(".interactive-flip-card")).not.toBeNull());
+    expect(workflow.querySelector('[aria-current="step"]')).toHaveTextContent("تمرین و ذخیره");
     const widget = container.querySelector(".interactive-flip-card");
     expect(screen.getAllByRole("note")).toHaveLength(2);
     expect(screen.getByText("پیشرفت تعامل‌ها جدا از متن درس ذخیره می‌شود.")).toBeInTheDocument();
@@ -206,8 +213,8 @@ describe("InteractiveStudyView", () => {
     const { container } = renderStudio();
     const sampleLesson = await screen.findByRole("button", { name: /Sample guide/i });
     await actEvent(() => fireEvent.click(sampleLesson));
-    await screen.findByRole("button", { name: /انتخاب نوع تمرین/i });
-    await actEvent(() => fireEvent.click(screen.getByRole("button", { name: /انتخاب نوع تمرین/i })));
+    await screen.findByRole("button", { name: /ساخت تمرین از این درس/i });
+    await actEvent(() => fireEvent.click(screen.getByRole("button", { name: /ساخت تمرین از این درس/i })));
     await actEvent(() => fireEvent.click(screen.getByRole("button", { name: "Build test session" })));
     await waitFor(() => expect(container.querySelector(".interactive-flip-card")).not.toBeNull());
     await actEvent(() => fireEvent.click(screen.getByRole("button", { name: /Second guide/i })));

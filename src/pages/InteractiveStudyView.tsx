@@ -204,6 +204,7 @@ export const InteractiveStudyView: React.FC = () => {
   const safeSourceUrl = getSafeKnowledgeExternalUrl(selectedDocument?.source_url);
 
   const safeSessionHtml = useMemo(() => sanitizeKnowledgeHtml(sessionHtml), [sessionHtml]);
+  const safeDocumentPreviewHtml = useMemo(() => sanitizeKnowledgeHtml(documentContent), [documentContent]);
 
   const persistSessionHtml = useCallback(async (html: string): Promise<SessionFlushResult> => {
     const current = activeSessionRef.current;
@@ -515,9 +516,15 @@ export const InteractiveStudyView: React.FC = () => {
       : "فلش‌کارت · آزمون · تطبیق · سناریو · درخت تصمیم · بازی حافظه",
     browseLessons: isEn ? "Browse lessons" : "رفتن به فهرست درس‌ها",
     chooseLanguage: isEn ? "Study language" : "زبان مطالعه",
-    start: isEn ? "Choose practice formats" : "انتخاب نوع تمرین",
+    start: isEn ? "Build practice from this lesson" : "ساخت تمرین از این درس",
     selectedLesson: isEn ? "Selected lesson" : "درس انتخاب‌شده",
     whatYouCanPractice: isEn ? "What can I practice here?" : "اینجا چه تمرین‌هایی می‌توانم بسازم؟",
+    workflow: isEn ? "Study flow" : "مسیر مطالعه",
+    stepSource: isEn ? "Choose a lesson" : "انتخاب درس",
+    stepFormats: isEn ? "Choose practice" : "انتخاب تمرین",
+    stepPractice: isEn ? "Practice & save" : "تمرین و ذخیره",
+    sourcePreview: isEn ? "Review the lesson used for practice" : "متن درسی را که مبنای تمرین است ببین",
+    sourcePreviewHint: isEn ? "The generator uses this lesson only; it does not change the source." : "هوش مصنوعی فقط از همین درس استفاده می‌کند و متن اصلی را تغییر نمی‌دهد.",
     practiceFormats: isEn
       ? "Flashcards, quizzes, matching games, step-by-step cases, fill-in-the-blanks, decision trees, and memory games."
       : "فلش‌کارت، آزمون، بازی تطبیق، سناریوی مرحله‌ای، جای‌خالی، درخت تصمیم و بازی حافظه.",
@@ -639,7 +646,28 @@ export const InteractiveStudyView: React.FC = () => {
             </div>
           </section>
 
-          <section aria-label={labels.sessionReady} className="flex min-h-[340px] min-w-0 flex-col rounded-3xl border border-border bg-card p-4 sm:p-5">
+          <section aria-label={labels.sessionReady} className="flex min-h-[340px] min-w-0 flex-col overflow-y-auto rounded-3xl border border-border bg-card p-4 sm:p-5 min-[720px]:min-h-0">
+            {selectedDocument && (
+              <ol aria-label={labels.workflow} className="mb-4 grid grid-cols-3 gap-2">
+                {[labels.stepSource, labels.stepFormats, labels.stepPractice].map((step, index) => {
+                  const activeStep = sessionHtml ? 2 : 1;
+                  const isComplete = index < activeStep;
+                  const isCurrent = index === activeStep;
+                  return (
+                    <li
+                      key={step}
+                      aria-current={isCurrent ? "step" : undefined}
+                      className={`min-w-0 rounded-xl border px-2 py-2 text-center text-[10px] leading-4 sm:text-xs ${isCurrent ? "border-primary/40 bg-primary/5 text-foreground" : isComplete ? "border-emerald-500/20 bg-emerald-500/5 text-foreground" : "border-border bg-muted/25 text-muted-foreground"}`}
+                    >
+                      <span className={`mx-auto mb-1 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${isCurrent ? "bg-primary text-primary-foreground" : isComplete ? "bg-emerald-600 text-white" : "bg-muted text-muted-foreground"}`}>
+                        {isComplete ? "✓" : index + 1}
+                      </span>
+                      <span className="block break-words">{step}</span>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
             {sessionHtml ? (
               <>
                 <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-border pb-3">
@@ -691,6 +719,13 @@ export const InteractiveStudyView: React.FC = () => {
                   )}
                   {selectedDocument.tags?.length ? <div className="mt-3 flex flex-wrap gap-1.5">{selectedDocument.tags.map((tag) => <span key={tag} className="rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">{tag}</span>)}</div> : null}
                   {safeSourceUrl ? <a href={safeSourceUrl} target="_blank" rel="noreferrer" className="mt-3 inline-block break-all text-xs text-primary underline-offset-4 hover:underline">{safeSourceUrl}</a> : null}
+                  <details className="mt-3 rounded-2xl border border-border bg-muted/20">
+                    <summary className="cursor-pointer px-3 py-2.5 text-xs font-semibold text-foreground marker:text-primary">{labels.sourcePreview}</summary>
+                    <div className="border-t border-border px-3 py-3">
+                      <p className="mb-2 text-[11px] leading-5 text-muted-foreground">{labels.sourcePreviewHint}</p>
+                      <div dir={language === "en" ? "ltr" : "rtl"} className="knowledge-html-content max-h-64 overflow-y-auto rounded-xl bg-background p-3 text-xs leading-6" dangerouslySetInnerHTML={{ __html: safeDocumentPreviewHtml }} />
+                    </div>
+                  </details>
                   <div className="mt-4 rounded-2xl border border-primary/15 bg-primary/[0.035] p-3 sm:p-4">
                     <h3 className="text-sm font-semibold">{labels.whatYouCanPractice}</h3>
                     <p className="mt-1.5 text-xs leading-6 text-muted-foreground">{labels.practiceFormats}</p>
