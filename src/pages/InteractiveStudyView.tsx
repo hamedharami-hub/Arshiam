@@ -116,6 +116,7 @@ export const InteractiveStudyView: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [studioOpen, setStudioOpen] = useState(false);
+  const lessonSearchRef = useRef<HTMLInputElement>(null);
   const sessionContainerRef = useRef<HTMLDivElement>(null);
   const activeSessionRef = useRef<InteractiveStudySession | null>(null);
   const draftLoadSequenceRef = useRef(0);
@@ -339,6 +340,13 @@ export const InteractiveStudyView: React.FC = () => {
     void loadSelectedDraft(user.id, selectedDocument.id, language);
   }, [isLoadingDraft, language, loadSelectedDraft, selectedDocument, user?.id]);
 
+  const handleBrowseLessons = useCallback(() => {
+    const input = lessonSearchRef.current;
+    if (!input) return;
+    input.focus();
+    input.scrollIntoView?.({ behavior: "smooth", block: "center" });
+  }, []);
+
   const handleSelectDocument = useCallback((documentId: string) => {
     if (documentId === selectedDocId) return;
     const requestSequence = ++documentChangeSequenceRef.current;
@@ -495,6 +503,17 @@ export const InteractiveStudyView: React.FC = () => {
     documents: isEn ? "Your lessons" : "درس‌های شما",
     search: isEn ? "Search lessons or tags…" : "جست‌وجوی درس یا برچسب…",
     selectLesson: isEn ? "Select a lesson to begin" : "برای شروع یک درس انتخاب کن",
+    emptyDescription: isEn
+      ? "Interactive Study turns one Knowledge lesson into a separate practice session. Choose a lesson, build the activities you want, then continue from your saved progress."
+      : "مطالعهٔ تعاملی، یک درس از کتابخانهٔ دانش را به جلسه‌ای جداگانه برای تمرین تبدیل می‌کند. درس را انتخاب کن، تمرین‌های دلخواهت را بساز و بعداً از پیشرفت ذخیره‌شده ادامه بده.",
+    emptyStepsTitle: isEn ? "How it works" : "روش کار",
+    emptyStepChoose: isEn ? "Choose a lesson" : "یک درس انتخاب کن",
+    emptyStepBuild: isEn ? "Choose formats and generate" : "قالب‌ها را انتخاب و تولید کن",
+    emptyStepPractice: isEn ? "Practice; progress saves separately" : "تمرین کن؛ پیشرفت جدا ذخیره می‌شود",
+    emptyFormats: isEn
+      ? "Flashcards · quizzes · matching · cases · decision trees · memory games"
+      : "فلش‌کارت · آزمون · تطبیق · سناریو · درخت تصمیم · بازی حافظه",
+    browseLessons: isEn ? "Browse lessons" : "رفتن به فهرست درس‌ها",
     chooseLanguage: isEn ? "Study language" : "زبان مطالعه",
     start: isEn ? "Choose practice formats" : "انتخاب نوع تمرین",
     selectedLesson: isEn ? "Selected lesson" : "درس انتخاب‌شده",
@@ -590,7 +609,7 @@ export const InteractiveStudyView: React.FC = () => {
             </label>
             <label className="relative mb-3 block">
               <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={search} onChange={(event) => handleSearchChange(event.target.value)} placeholder={labels.search} className="rounded-xl ps-9" />
+              <Input ref={lessonSearchRef} value={search} onChange={(event) => handleSearchChange(event.target.value)} placeholder={labels.search} className="rounded-xl ps-9" />
             </label>
             <div className="min-h-0 max-h-64 flex-1 space-y-1 overflow-y-auto pe-1 min-[720px]:max-h-none">
               {isLoading ? (
@@ -686,7 +705,28 @@ export const InteractiveStudyView: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center text-muted-foreground"><BookOpen className="h-9 w-9 opacity-50" /><p className="text-sm">{labels.selectLesson}</p></div>
+              <div className="flex flex-1 flex-col items-center justify-center gap-4 px-1 py-5 text-center">
+                <div className="rounded-2xl bg-primary/10 p-3 text-primary"><BookOpen className="h-7 w-7" aria-hidden="true" /></div>
+                <div className="space-y-2">
+                  <h2 className="text-base font-bold text-foreground">{labels.selectLesson}</h2>
+                  <p className="mx-auto max-w-xl text-sm leading-6 text-muted-foreground">{labels.emptyDescription}</p>
+                </div>
+                <div className="w-full max-w-2xl space-y-2">
+                  <p className="text-xs font-semibold text-foreground">{labels.emptyStepsTitle}</p>
+                  <ol className="grid gap-2 text-start sm:grid-cols-3">
+                    {[labels.emptyStepChoose, labels.emptyStepBuild, labels.emptyStepPractice].map((step, index) => (
+                      <li key={step} className="flex items-start gap-2 rounded-xl border border-border bg-muted/30 p-2.5 text-xs leading-5 text-muted-foreground">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary" aria-hidden="true">{index + 1}</span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+                <p className="max-w-xl text-xs leading-5 text-muted-foreground">{labels.emptyFormats}</p>
+                <Button type="button" variant="outline" className="rounded-xl" onClick={handleBrowseLessons}>
+                  <Search className="me-2 h-4 w-4" />{labels.browseLessons}
+                </Button>
+              </div>
             )}
           </section>
         </div>

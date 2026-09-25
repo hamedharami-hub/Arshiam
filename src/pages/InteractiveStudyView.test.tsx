@@ -168,6 +168,10 @@ describe("InteractiveStudyView", () => {
     expect(lessonGrid).toHaveClass("min-[720px]:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.5fr)]");
     expect(Array.from(lessonGrid?.querySelectorAll("section") || []).every((section) => section.classList.contains("min-w-0"))).toBe(true);
     expect(screen.getByText("برای شروع یک درس انتخاب کن")).toBeInTheDocument();
+    expect(screen.getByText(/مطالعهٔ تعاملی، یک درس از کتابخانهٔ دانش را به جلسه‌ای جداگانه/)).toBeInTheDocument();
+    expect(screen.getByText("روش کار")).toBeInTheDocument();
+    await actEvent(() => fireEvent.click(screen.getByRole("button", { name: "رفتن به فهرست درس‌ها" })));
+    expect(screen.getByPlaceholderText("جست‌وجوی درس یا برچسب…")).toHaveFocus();
     expect(screen.queryByText("بازبینی منبع تأیید نشده")).not.toBeInTheDocument();
 
     await actEvent(() => fireEvent.click(sampleLesson));
