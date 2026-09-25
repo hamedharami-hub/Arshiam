@@ -1,6 +1,9 @@
-import { upsertTask } from "@/lib/firestoreDataService";
+import { persistTask, upsertTask } from "@/lib/firestoreDataService";
+import { getCachedTasks } from "@/features/tasks/taskService";
+import { db, doc, getDoc } from "@/lib/firebase";
 import type { Task, ReminderPlan } from "@/lib/taskTypes";
 import type { Priority } from "@/lib/priority";
+import type { LeitnerCard } from "@/lib/leitnerTypes";
 
 export type StudyTargetType =
   | "knowledge_folder"
@@ -23,6 +26,80 @@ export interface CreateStudyTaskOptions {
   reminderAt?: string | null;
   reminderPlan?: ReminderPlan | null;
   folderId?: string | null;
+}
+
+export interface RescheduleLeitnerStudyTaskOptions {
+  userId: string;
+  taskId: string;
+  targetId: string;
+  nextReviewAt: string;
+}
+
+export type RescheduleLeitnerStudyTaskResult =
+  | { ok: true; status: "saved" | "queued"; dueDate: string }
+  | { ok: false; error: string };
+
+/** Finds the next scheduled card date in a deck or one selected lesson. */
+export function getNextLeitnerReviewAt(
+  cards: Array<Pick<LeitnerCard, "document_id" | "next_review_at">>,
+  targetId: string,
+): string | null {
+  let earliest = Number.POSITIVE_INFINITY;
+
+  for (const card of cards) {
+    if (targetId !== "all" && card.document_id !== targetId) continue;
+    const reviewTime = Date.parse(card.next_review_at);
+    if (Number.isFinite(reviewTime) && reviewTime < earliest) earliest = reviewTime;
+  }
+
+  return Number.isFinite(earliest) ? new Date(earliest).toISOString() : null;
+}
+
+/**
+ * Moves a linked review task to the scheduler's next date after a full session.
+ * The task is read and ownership/target-checked before the write so a URL query
+ * cannot turn an unrelated task into a Leitner task.
+ */
+export async function rescheduleLeitnerStudyTaskAfterSession(
+  options: RescheduleLeitnerStudyTaskOptions,
+): Promise<RescheduleLeitnerStudyTaskResult> {
+  const { userId, taskId, targetId, nextReviewAt } = options;
+  if (!userId?.trim() || !taskId?.trim() || !targetId?.trim() || !Number.isFinite(Date.parse(nextReviewAt))) {
+    return { ok: false, error: "Invalid review task schedule." };
+  }
+
+  try {
+    const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+    let task: Task | undefined;
+    if (isOffline) {
+      task = (await getCachedTasks(userId)).find((candidate) => candidate.id === taskId);
+    } else {
+      const snapshot = await getDoc(doc(db, "users", userId, "tasks", taskId));
+      if (!snapshot.exists()) return { ok: false, error: "Review task not found." };
+      task = snapshot.data() as Task;
+    }
+    if (!task) return { ok: false, error: "Review task not found." };
+    if (task.source_type !== "leitner" || task.source_id !== targetId || task.completed) {
+      return { ok: false, error: "Review task no longer matches this study session." };
+    }
+
+    const status = await persistTask(userId, {
+      id: taskId,
+      due_date: nextReviewAt,
+      completed: false,
+      status: "todo",
+      completed_at: null,
+    });
+    if (status === "failed") return { ok: false, error: "Could not save the next review date." };
+
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("tasks-changed"));
+    return { ok: true, status, dueDate: nextReviewAt };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not update the review task.",
+    };
+  }
 }
 
 /**
@@ -135,11 +212,12 @@ export function getStudyTaskNavigation(task: Partial<Task>): {
     const targetQuery = id && id !== "all"
       ? `&studyDocId=${encodeURIComponent(id)}`
       : "";
+    const taskQuery = task.id ? `&studyTaskId=${encodeURIComponent(task.id)}` : "";
     return {
       isStudyTask: true,
       isMindMap: false,
       isKnowledge: false,
-      navUrl: `/app/review?tab=leitner${targetQuery}`,
+      navUrl: `/app/review?tab=leitner${targetQuery}${taskQuery}`,
       badgeLabelFa: "مرور لایتنر",
       badgeLabelEn: "Leitner Review",
       actionTextFa: "شروع مرور کارت‌های لایتنر",

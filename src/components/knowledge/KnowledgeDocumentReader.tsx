@@ -39,7 +39,7 @@ import {
   type KnowledgeCheckpoint,
 } from "@/lib/knowledgeCheckpointHelper";
 import { createLeitnerCard } from "@/lib/leitnerService";
-import { getKnowledgeReviewState, isPharmacyKnowledgeDocument } from "@/lib/knowledgeReviewEvidence";
+import { getKnowledgeReviewState, getSafeKnowledgeExternalUrl, isPharmacyKnowledgeDocument } from "@/lib/knowledgeReviewEvidence";
 import { hasSubstantialPersianInEnglish } from "@/lib/bilingualHelper";
 import { TextSelectionFloatingBar } from "./TextSelectionFloatingBar";
 const AiQuestionGeneratorModal = React.lazy(() =>
@@ -247,6 +247,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
     if (!document?.content_en) return "";
     return sanitizeKnowledgeHtml(document.content_en);
   }, [document?.content_en]);
+  const safeSourceUrl = getSafeKnowledgeExternalUrl(document?.source_url);
 
   const handleTriggerAiFromSelection = (text: string) => {
     setSelectedSnippetForAi(text);
@@ -608,9 +609,9 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                     )}
                   </span>
                 </div>
-                {document.source_url && (
+                {safeSourceUrl && (
                   <a
-                    href={document.source_url}
+                    href={safeSourceUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="text-primary hover:underline flex items-center gap-1 font-medium"

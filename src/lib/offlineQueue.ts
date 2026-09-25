@@ -236,6 +236,7 @@ async function replayItem(item: QueuedOp, userId: string): Promise<boolean> {
     const firestoreTables = [
       "tasks", "notes", "habits", "folders", "tags", "contacts", "task_contacts",
       "knowledge_folders", "knowledge_documents", "leitner_cards", "leitner_reviews", "task_knowledge_links",
+      "interactive_study_sessions",
     ];
     if (userId && firestoreTables.includes(item.table)) {
       firestoreAttempted = true;

@@ -3,7 +3,8 @@ import { cacheGet, cacheSet, enqueueOp, getPendingOps } from "./offlineQueue";
 import { saveEntityToFirestore, deleteEntityFromFirestore } from "./firestoreSync";
 import type { KnowledgeFolder, KnowledgeDocument, KnowledgeFolderNode } from "./knowledgeTypes";
 import { reconcileRemoteRowsWithPending } from "./offlineReconcile";
-import { hasCompleteKnowledgeReviewEvidence } from "./knowledgeReviewEvidence";
+import { getSafeKnowledgeExternalUrl, hasCompleteKnowledgeReviewEvidence } from "./knowledgeReviewEvidence";
+import { sanitizeKnowledgeHtml } from "./knowledgeHtmlSanitizer";
 
 const makeId = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
@@ -36,6 +37,30 @@ function stripHtmlToPlainText(html: string): string {
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function normalizeKnowledgeDocument(document: KnowledgeDocument): KnowledgeDocument {
+  const contentHtml = sanitizeKnowledgeHtml(typeof document.content_html === "string" ? document.content_html : "");
+  const contentEn = typeof document.content_en === "string"
+    ? sanitizeKnowledgeHtml(document.content_en)
+    : document.content_en;
+  const contentPlain = typeof document.content_plain === "string" ? document.content_plain : "";
+
+  return {
+    ...document,
+    content_html: contentHtml,
+    content_en: contentEn,
+    plain_text: stripHtmlToPlainText(contentHtml) || stripHtmlToPlainText(contentPlain),
+    source_url: getSafeKnowledgeExternalUrl(document.source_url) || undefined,
+  };
+}
+
+function normalizeSourceUrl(value: string | undefined): string {
+  const trimmed = value?.trim();
+  if (!trimmed) return "";
+  const safeUrl = getSafeKnowledgeExternalUrl(trimmed);
+  if (!safeUrl) throw new Error("Source URL must be a valid HTTP or HTTPS link without credentials.");
+  return safeUrl;
 }
 
 type KnowledgeCollection = "knowledge_folders" | "knowledge_documents";
@@ -246,7 +271,12 @@ export async function getKnowledgeDocuments(
 ): Promise<KnowledgeDocument[]> {
   if (!userId) return [];
   const cacheKey = getDocsCacheKey(userId);
-  const cached = (await cacheGet<KnowledgeDocument[]>(cacheKey)) || [];
+  const cachedRaw = (await cacheGet<KnowledgeDocument[]>(cacheKey)) || [];
+  const cached = cachedRaw.map(normalizeKnowledgeDocument);
+  if (JSON.stringify(cachedRaw) !== JSON.stringify(cached)) {
+    // Migrate older local cache entries to the sanitized representation too.
+    await cacheSet(cacheKey, cached);
+  }
 
   if (isOnline()) {
     try {
@@ -257,7 +287,7 @@ export async function getKnowledgeDocuments(
         .order("updated_at", { ascending: false });
 
       if (!res.error && Array.isArray(res.data)) {
-        const remote = res.data as KnowledgeDocument[];
+        const remote = (res.data as KnowledgeDocument[]).map(normalizeKnowledgeDocument);
         const pending = await getPendingOps("knowledge_documents");
         const merged = reconcileRemoteRowsWithPending(
           remote,
@@ -318,7 +348,9 @@ export async function createKnowledgeDocument(
   }
   const titleTrimmed = data.title.trim() || "Untitled Document";
   const now = new Date().toISOString();
-  const plainText = stripHtmlToPlainText(data.content_html);
+  const contentHtml = sanitizeKnowledgeHtml(data.content_html);
+  const contentEn = data.content_en === undefined ? undefined : sanitizeKnowledgeHtml(data.content_en);
+  const plainText = stripHtmlToPlainText(contentHtml);
 
   const doc: KnowledgeDocument = {
     id: makeId(),
@@ -326,13 +358,13 @@ export async function createKnowledgeDocument(
     folder_id: data.folder_id || null,
     title: titleTrimmed,
     title_en: data.title_en?.trim(),
-    content_html: data.content_html,
-    content_en: data.content_en,
+    content_html: contentHtml,
+    content_en: contentEn,
     preferred_language: data.preferred_language,
     direction: data.direction,
     plain_text: plainText,
     tags: data.tags || [],
-    source_url: data.source_url || "",
+    source_url: normalizeSourceUrl(data.source_url),
     ...(data.content_review_status ? { content_review_status: data.content_review_status } : {}),
     ...(data.content_review_evidence ? { content_review_evidence: data.content_review_evidence } : {}),
     is_favorite: false,
@@ -366,18 +398,24 @@ export async function updateKnowledgeDocument(
   if (idx === -1) throw new Error("Document not found");
 
   const current = existing[idx];
+  const normalizedPatch: Partial<KnowledgeDocument> = {
+    ...patch,
+    ...(patch.content_html !== undefined ? { content_html: sanitizeKnowledgeHtml(patch.content_html) } : {}),
+    ...(patch.content_en !== undefined ? { content_en: sanitizeKnowledgeHtml(patch.content_en) } : {}),
+    ...(patch.source_url !== undefined ? { source_url: normalizeSourceUrl(patch.source_url) } : {}),
+  };
   const contentChanged =
-    (patch.title !== undefined && patch.title !== current.title) ||
-    (patch.title_en !== undefined && patch.title_en !== current.title_en) ||
-    (patch.content_html !== undefined && patch.content_html !== current.content_html) ||
-    (patch.content_en !== undefined && patch.content_en !== current.content_en);
-  if (patch.content_review_status === "reviewed" &&
-    !hasCompleteKnowledgeReviewEvidence(patch.content_review_evidence)) {
+    (normalizedPatch.title !== undefined && normalizedPatch.title !== current.title) ||
+    (normalizedPatch.title_en !== undefined && normalizedPatch.title_en !== current.title_en) ||
+    (normalizedPatch.content_html !== undefined && normalizedPatch.content_html !== current.content_html) ||
+    (normalizedPatch.content_en !== undefined && normalizedPatch.content_en !== current.content_en);
+  if (normalizedPatch.content_review_status === "reviewed" &&
+    !hasCompleteKnowledgeReviewEvidence(normalizedPatch.content_review_evidence)) {
     throw new Error("Review status requires complete review evidence.");
   }
-  const safePatch = contentChanged && patch.content_review_status !== "reviewed"
-    ? { ...patch, content_review_status: "unreviewed" as const }
-    : patch;
+  const safePatch = contentChanged && normalizedPatch.content_review_status !== "reviewed"
+    ? { ...normalizedPatch, content_review_status: "unreviewed" as const }
+    : normalizedPatch;
   const nextHtml = safePatch.content_html !== undefined ? safePatch.content_html : current.content_html;
   const plainText = safePatch.content_html !== undefined ? stripHtmlToPlainText(nextHtml) : current.plain_text;
 
@@ -433,6 +471,7 @@ export function buildFolderTree(
     }
   }
 
+  const parentById = getSafeFolderParentMap(folders);
   const nodeMap = new Map<string, KnowledgeFolderNode>();
   for (const f of folders) {
     nodeMap.set(f.id, {
@@ -446,14 +485,76 @@ export function buildFolderTree(
 
   for (const f of folders) {
     const node = nodeMap.get(f.id)!;
-    if (f.parent_id && nodeMap.has(f.parent_id)) {
-      nodeMap.get(f.parent_id)!.children.push(node);
+    const parentId = parentById.get(f.id);
+    if (parentId && nodeMap.has(parentId)) {
+      nodeMap.get(parentId)!.children.push(node);
     } else {
       rootNodes.push(node);
     }
   }
 
   return rootNodes;
+}
+
+/**
+ * Returns a deterministic acyclic parent map. Missing parents become roots;
+ * for each malformed cycle, the lexicographically smallest folder ID is
+ * detached so every folder and its documents remain reachable.
+ */
+function getSafeFolderParentMap(folders: KnowledgeFolder[]): Map<string, string | null> {
+  const folderById = new Map(folders.map((folder) => [folder.id, folder]));
+  const parentById = new Map<string, string | null>();
+  for (const folder of folders) {
+    parentById.set(
+      folder.id,
+      folder.parent_id && folderById.has(folder.parent_id) ? folder.parent_id : null,
+    );
+  }
+
+  const checkedIds = new Set<string>();
+  for (const folder of [...folders].sort((a, b) => a.id.localeCompare(b.id))) {
+    const path: string[] = [];
+    const indexById = new Map<string, number>();
+    let cursor: string | null = folder.id;
+
+    while (cursor && !checkedIds.has(cursor)) {
+      const seenAt = indexById.get(cursor);
+      if (seenAt !== undefined) {
+        const cycleIds = path.slice(seenAt);
+        const cutId = [...cycleIds].sort((a, b) => a.localeCompare(b))[0];
+        if (cutId) parentById.set(cutId, null);
+        break;
+      }
+
+      indexById.set(cursor, path.length);
+      path.push(cursor);
+      cursor = parentById.get(cursor) ?? null;
+    }
+
+    path.forEach((id) => checkedIds.add(id));
+  }
+
+  return parentById;
+}
+
+/** Returns the selected folder and its ancestors once, even for corrupt cycles. */
+export function getFolderAncestorIds(
+  folderId: string | null | undefined,
+  folders: KnowledgeFolder[],
+): string[] {
+  if (!folderId) return [];
+  const parentById = getSafeFolderParentMap(folders);
+  const ancestors: string[] = [];
+  const seenIds = new Set<string>();
+  let currentId: string | null = folderId;
+
+  while (currentId && parentById.has(currentId) && !seenIds.has(currentId)) {
+    seenIds.add(currentId);
+    ancestors.push(currentId);
+    currentId = parentById.get(currentId) ?? null;
+  }
+
+  return ancestors;
 }
 
 export async function searchKnowledgeDocuments(

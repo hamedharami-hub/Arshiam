@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getSafeKnowledgeExternalUrl,
   getKnowledgeReviewState,
   hasCompleteKnowledgeReviewEvidence,
   isPharmacyKnowledgeDocument,
@@ -21,6 +22,13 @@ const completeEvidence: KnowledgeContentReviewEvidence = {
 };
 
 describe("knowledge review evidence", () => {
+  it("only exposes external links with HTTP(S) protocols and no embedded credentials", () => {
+    expect(getSafeKnowledgeExternalUrl("https://example.org/path")).toBe("https://example.org/path");
+    expect(getSafeKnowledgeExternalUrl("http://example.org/path")).toBe("http://example.org/path");
+    expect(getSafeKnowledgeExternalUrl("javascript:alert(1)")).toBeNull();
+    expect(getSafeKnowledgeExternalUrl("https://user:pass@example.org")).toBeNull();
+  });
+
   it("recognizes existing Pharmacy seed imports even when legacy metadata is absent", () => {
     expect(isPharmacyKnowledgeDocument({ id: "doc-scenario-clinical-safescript-early-refill-s8" })).toBe(true);
     expect(isPharmacyKnowledgeDocument({ id: "doc-m1-sec2" })).toBe(true);

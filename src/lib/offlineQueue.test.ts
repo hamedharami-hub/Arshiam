@@ -119,6 +119,27 @@ describe("offline outbox persistence", () => {
     expect(indexedDb.delete).not.toHaveBeenCalled();
   });
 
+  it("replays interactive study sessions through the owner-scoped Firestore adapter", async () => {
+    const { saveEntityToFirestore } = await import("./firestoreSync");
+    vi.mocked(saveEntityToFirestore).mockResolvedValue(true);
+    const session = { id: "session-1", user_id: "account-a", document_id: "doc-1" };
+    const accepted = await enqueueOp({
+      ownerId: "account-a",
+      table: "interactive_study_sessions",
+      op: "upsert",
+      payload: session,
+      match: { id: session.id },
+    });
+    expect(accepted).toBe(true);
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+
+    expect(await flushQueue()).toEqual({ ok: 1, failed: 0 });
+    expect(saveEntityToFirestore).toHaveBeenCalledWith(
+      "account-a", "interactive_study_sessions", "session-1", session,
+    );
+    expect(firebaseStore.from).not.toHaveBeenCalled();
+  });
+
   it("keeps Firestore conflicts queued instead of retrying through the legacy adapter", async () => {
     const { saveEntityToFirestore } = await import("./firestoreSync");
     vi.mocked(saveEntityToFirestore).mockResolvedValue(false);

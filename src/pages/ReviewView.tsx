@@ -14,6 +14,7 @@ export const ReviewView: React.FC = () => {
   const urlFolderId = searchParams.get("folderId");
   const urlDocId = searchParams.get("docId");
   const studyDocId = searchParams.get("studyDocId");
+  const studyTaskId = searchParams.get("studyTaskId");
   const urlTab = searchParams.get("tab");
 
   const [activeTab, setActiveTab] = useState<"leitner" | "mindmap">(() => {
@@ -97,6 +98,7 @@ export const ReviewView: React.FC = () => {
             userId={userId}
             onOpenDocument={handleOpenDoc}
             initialStudyDocumentId={studyDocId || undefined}
+            initialStudyTaskId={studyTaskId || undefined}
           />
         </div>
         <div className={`flex-1 flex flex-col h-full min-h-0 ${activeTab === "mindmap" ? "" : "hidden"}`}>

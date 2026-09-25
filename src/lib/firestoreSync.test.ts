@@ -45,4 +45,44 @@ describe("Firestore stale-write protection", () => {
     expect(saved).toBe(false);
     expect(setDocMock).not.toHaveBeenCalled();
   });
+
+  it("compares interactive-study drafts by their version timestamp, not later sync receipt time", async () => {
+    getDocMock.mockResolvedValue({
+      exists: () => true,
+      data: () => ({
+        updated_at: "2026-09-25T00:00:00.000Z",
+        updatedAt: "2026-09-25T00:00:05.000Z",
+      }),
+    });
+
+    const saved = await saveEntityToFirestore(
+      "user-sync-test",
+      "interactive_study_sessions",
+      "session-1",
+      { id: "session-1", updated_at: "2026-09-25T00:00:01.000Z" },
+    );
+
+    expect(saved).toBe(true);
+    expect(setDocMock).toHaveBeenCalledOnce();
+  });
+
+  it("still rejects an interactive-study draft older than the saved application version", async () => {
+    getDocMock.mockResolvedValue({
+      exists: () => true,
+      data: () => ({
+        updated_at: "2026-09-25T00:00:02.000Z",
+        updatedAt: "2026-09-25T00:00:05.000Z",
+      }),
+    });
+
+    const saved = await saveEntityToFirestore(
+      "user-sync-test",
+      "interactive_study_sessions",
+      "session-1",
+      { id: "session-1", updated_at: "2026-09-25T00:00:01.000Z" },
+    );
+
+    expect(saved).toBe(false);
+    expect(setDocMock).not.toHaveBeenCalled();
+  });
 });

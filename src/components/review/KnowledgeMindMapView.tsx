@@ -20,6 +20,8 @@ import {
   X,
   Check,
   CalendarPlus,
+  ListTree,
+  MoreHorizontal,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -39,6 +41,7 @@ import { getLeitnerCards } from "@/lib/leitnerService";
 import { TaskKnowledgeReaderDialog } from "@/components/task-detail/TaskKnowledgeReaderDialog";
 import { StudyTaskScheduleModal } from "@/components/knowledge/StudyTaskScheduleModal";
 import { buildKnowledgeMindMapSearch, mindMapNodeMatchesSearch } from "@/lib/knowledgeMindMapSearch";
+import { buildMindMapOutline, getMindMapNodeDimensions, type MindMapOutlineEntry } from "@/lib/knowledgeMindMapLayout";
 
 interface KnowledgeMindMapViewProps {
   userId: string;
@@ -89,7 +92,199 @@ interface MindMapNodeItemProps {
   onToggleExpand: (nodeId: string) => void;
   onFocusScope?: (scopeId: string) => void;
   onScheduleTask?: (node: MindMapNode) => void;
+  canScheduleTask?: boolean;
 }
+
+interface MindMapNodeActionsProps {
+  node: MindMapNode;
+  isEn: boolean;
+  canFocus: boolean;
+  canSchedule: boolean;
+  onOpenPreview: (doc: KnowledgeDocument) => void;
+  onFocusScope: (scopeId: string) => void;
+  onScheduleTask: (node: MindMapNode) => void;
+}
+
+const MindMapNodeActions = React.memo<MindMapNodeActionsProps>(({
+  node,
+  isEn,
+  canFocus,
+  canSchedule,
+  onOpenPreview,
+  onFocusScope,
+  onScheduleTask,
+}) => {
+  const hasReadAction = node.type === "doc" && Boolean(node.docRef);
+  if (!hasReadAction && !canFocus && !canSchedule) return null;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={isEn ? `Actions for ${node.title}` : `گزینه‌های ${node.title}`}
+          title={isEn ? "More actions" : "گزینه‌های بیشتر"}
+          data-no-longpress
+          onClick={(event) => event.stopPropagation()}
+          className="shrink-0 rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        {hasReadAction && (
+          <DropdownMenuItem onSelect={() => node.docRef && onOpenPreview(node.docRef)}>
+            <Eye className="me-2 h-4 w-4 text-primary" />
+            {isEn ? "Open in Reader" : "باز کردن در مطالعه"}
+          </DropdownMenuItem>
+        )}
+        {canFocus && (
+          <DropdownMenuItem onSelect={() => onFocusScope(node.id)}>
+            <GitBranch className="me-2 h-4 w-4 text-primary" />
+            {isEn ? "Focus on this branch" : "تمرکز روی این شاخه"}
+          </DropdownMenuItem>
+        )}
+        {canSchedule && (
+          <DropdownMenuItem onSelect={() => onScheduleTask(node)}>
+            <CalendarPlus className="me-2 h-4 w-4 text-indigo-500" />
+            {node.type === "card"
+              ? isEn ? "Schedule source lesson" : "زمان‌بندی مرور درس مادر"
+              : isEn ? "Schedule a review task" : "زمان‌بندی تسک مرور"}
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+});
+
+MindMapNodeActions.displayName = "MindMapNodeActions";
+
+interface MindMapOutlineItemProps {
+  entry: MindMapOutlineEntry<MindMapNode>;
+  depth: number;
+  isEn: boolean;
+  isCurrentScopeRoot: boolean;
+  canScheduleNode: (node: MindMapNode) => boolean;
+  onOpenPreview: (doc: KnowledgeDocument) => void;
+  onToggleExpand: (nodeId: string) => void;
+  onFocusScope: (scopeId: string) => void;
+  onScheduleTask: (node: MindMapNode) => void;
+}
+
+const MindMapOutlineItem = React.memo<MindMapOutlineItemProps>(({
+  entry,
+  depth,
+  isEn,
+  isCurrentScopeRoot,
+  canScheduleNode,
+  onOpenPreview,
+  onToggleExpand,
+  onFocusScope,
+  onScheduleTask,
+}) => {
+  const { node } = entry;
+  const titleDirection = isPersianText(node.title) ? "rtl" : "ltr";
+  const isFolder = node.type === "folder" || node.type === "subfolder" || node.type === "root";
+  const isDoc = node.type === "doc";
+  const itemIsScopeRoot = isCurrentScopeRoot || node.type === "root";
+  const Icon = node.type === "root" ? Sparkles : isFolder ? Folder : isDoc ? FileText : Layers;
+  const canFocus = node.type !== "root" && !isCurrentScopeRoot && (isFolder || isDoc);
+
+  const openOrExpand = () => {
+    if (isDoc && node.docRef) onOpenPreview(node.docRef);
+    else if (node.hasChildren) onToggleExpand(node.id);
+  };
+
+  return (
+    <li className="min-w-0 list-none" style={{ contentVisibility: "auto", containIntrinsicSize: "auto 68px" }}>
+      <div
+        className={`group flex min-w-0 items-start gap-2 rounded-xl border px-3 py-2.5 shadow-sm transition-colors ${
+          itemIsScopeRoot
+            ? "border-primary/35 bg-primary/8"
+            : isFolder
+              ? "border-emerald-500/20 bg-card hover:border-emerald-500/45"
+              : isDoc
+                ? "border-primary/20 bg-card hover:border-primary/40"
+                : "border-pink-500/20 bg-card hover:border-pink-500/40"
+        }`}
+        style={{ marginInlineStart: depth ? Math.min(depth, 8) * 18 : 0 }}
+      >
+        <button
+          type="button"
+          aria-label={node.hasChildren
+            ? node.isExpanded
+              ? isEn ? `Collapse ${node.title}` : `بستن ${node.title}`
+              : isEn ? `Expand ${node.title}` : `باز کردن ${node.title}`
+            : isDoc
+              ? isEn ? `Read ${node.title}` : `مطالعه ${node.title}`
+              : node.title}
+          aria-expanded={node.hasChildren ? node.isExpanded : undefined}
+          onClick={() => node.hasChildren ? onToggleExpand(node.id) : openOrExpand()}
+          className="mt-0.5 flex min-h-8 min-w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          {node.hasChildren
+            ? node.isExpanded
+              ? <ChevronDown className="h-4 w-4" />
+              : titleDirection === "rtl"
+                ? <ChevronLeft className="h-4 w-4" />
+                : <ChevronRight className="h-4 w-4" />
+            : <span className="h-1.5 w-1.5 rounded-full bg-border" />}
+        </button>
+        <Icon className={`mt-1 h-4 w-4 shrink-0 ${
+          node.type === "root" ? "text-amber-500" : isFolder ? "text-emerald-600" : isDoc ? "text-primary" : "text-pink-500"
+        }`} aria-hidden="true" />
+        <button
+          type="button"
+          dir={titleDirection}
+          aria-label={isDoc
+            ? isEn ? `Read document ${node.title}` : `مطالعه سند ${node.title}`
+            : node.title}
+          onClick={openOrExpand}
+          className={`min-w-0 flex-1 whitespace-normal break-words text-sm font-medium leading-6 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+            titleDirection === "rtl" ? "text-right" : "text-left"
+          }`}
+          style={{ overflowWrap: "anywhere" }}
+        >
+          {node.title}
+          {node.subtitle && (
+            <span className="mt-0.5 block whitespace-normal text-xs font-normal leading-5 text-muted-foreground">
+              {node.subtitle}
+            </span>
+          )}
+        </button>
+        <MindMapNodeActions
+          node={node}
+          isEn={isEn}
+          canFocus={canFocus}
+          canSchedule={canScheduleNode(node)}
+          onOpenPreview={onOpenPreview}
+          onFocusScope={onFocusScope}
+          onScheduleTask={onScheduleTask}
+        />
+      </div>
+      {entry.children.length > 0 && (
+        <ul className="mt-2 space-y-2 border-s border-border/70 ps-3">
+          {entry.children.map((child) => (
+            <MindMapOutlineItem
+              key={child.node.id}
+              entry={child}
+              depth={depth + 1}
+              isEn={isEn}
+              isCurrentScopeRoot={isCurrentScopeRoot}
+              canScheduleNode={canScheduleNode}
+              onOpenPreview={onOpenPreview}
+              onToggleExpand={onToggleExpand}
+              onFocusScope={onFocusScope}
+              onScheduleTask={onScheduleTask}
+            />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+});
+
+MindMapOutlineItem.displayName = "MindMapOutlineItem";
 
 const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
   ({
@@ -102,6 +297,7 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
     onToggleExpand,
     onFocusScope,
     onScheduleTask,
+    canScheduleTask = false,
   }) => {
     const isDoc = node.type === "doc";
     const isFolder = node.type === "folder" || node.type === "subfolder";
@@ -114,7 +310,7 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
 
     const longPress = useLongPress({
       onLongPress: () => {
-        onScheduleTask?.(node);
+        if (canScheduleTask) onScheduleTask?.(node);
       },
       delay: 500,
     });
@@ -130,7 +326,7 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
           height: `${node.height}px`,
           zIndex: 2,
         }}
-        className={`mindmap-interactive-node p-2.5 rounded-2xl border flex items-center justify-between gap-2 shadow-xs backdrop-blur-xl transition-all duration-150 cursor-pointer ${
+        className={`mindmap-interactive-node p-2.5 rounded-2xl border flex items-start justify-between gap-2 shadow-xs backdrop-blur-xl transition-all duration-150 cursor-pointer ${
           isHighlighted ? "ring-2 ring-amber-400 shadow-md shadow-amber-400/25 scale-105" : ""
         } ${
           isCurrentScopeRoot || isRoot
@@ -154,7 +350,7 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
         {/* Node Icon & Labels */}
         <div
           dir={isTitlePersian ? "rtl" : "ltr"}
-          className="flex items-center gap-2 min-w-0 flex-1"
+          className="flex items-start gap-2 min-w-0 flex-1"
         >
           <div className="shrink-0">
             {isRoot && <Sparkles className="w-4 h-4 text-amber-300" />}
@@ -166,22 +362,24 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
           <div className="min-w-0 flex-1 space-y-0.5">
             <div
               dir={isTitlePersian ? "rtl" : "ltr"}
-              className={`truncate text-xs font-semibold ${
+              className={`whitespace-normal break-words text-xs font-semibold leading-4 ${
                 isTitlePersian ? "text-right" : "text-left"
               } ${
                 isRoot || isCurrentScopeRoot ? "text-primary-foreground" : "text-foreground"
               }`}
+              style={{ overflowWrap: "anywhere" }}
             >
               {node.title}
             </div>
             {node.subtitle && (
               <div
                 dir={isSubtitlePersian ? "rtl" : "ltr"}
-                className={`truncate text-[10px] ${
+                className={`whitespace-normal break-words text-[10px] leading-3 ${
                   isSubtitlePersian ? "text-right" : "text-left"
                 } ${
                   isRoot || isCurrentScopeRoot ? "text-primary-foreground/80" : "text-muted-foreground"
                 }`}
+                style={{ overflowWrap: "anywhere" }}
               >
                 {node.subtitle}
               </div>
@@ -189,8 +387,39 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
           </div>
         </div>
 
-        {/* Node Actions / Badges */}
-        <div className="flex items-center gap-1 shrink-0">
+        {/* Keep canvas nodes quiet; the compact action menu holds secondary actions. */}
+        <div className="flex items-start gap-1 shrink-0">
+          <MindMapNodeActions
+            node={node}
+            isEn={isEn}
+            canFocus={!isRoot && !isCurrentScopeRoot && Boolean(onFocusScope) && (isFolder || isDoc)}
+            canSchedule={canScheduleTask}
+            onOpenPreview={onOpenPreview}
+            onFocusScope={(scopeId) => onFocusScope?.(scopeId)}
+            onScheduleTask={(target) => onScheduleTask?.(target)}
+          />
+          {node.hasChildren && (
+            <button
+              type="button"
+              aria-label={node.isExpanded
+                ? isEn ? `Collapse ${node.title}` : `بستن ${node.title}`
+                : isEn ? `Expand ${node.title}` : `باز کردن ${node.title}`}
+              aria-expanded={node.isExpanded}
+              data-no-longpress
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleExpand(node.id);
+              }}
+              className={`rounded-lg p-1 transition ${
+                isRoot || isCurrentScopeRoot
+                  ? "text-primary-foreground hover:bg-primary-foreground/20"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              {node.isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : isTreeRtl ? <ChevronLeft className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            </button>
+          )}
+          <div className="hidden">
           {/* For Document: Direct Read Button */}
           {isDoc && (
             <button
@@ -269,6 +498,7 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
               )}
             </button>
           )}
+          </div>
         </div>
       </div>
     );
@@ -314,6 +544,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<KnowledgeDocument | null>(null);
+  const [viewMode, setViewMode] = useState<"canvas" | "outline">("canvas");
 
   const containerRef = useRef<HTMLDivElement>(null);
   const dragStartPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -547,17 +778,31 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
           targetTitle: doc?.title || node.title,
           folderBreadcrumb: parent?.name,
         });
-      } else {
+      } else if (node.type === "card" && node.parentId?.startsWith("doc-")) {
+        const sourceDocId = node.parentId.slice("doc-".length);
+        const sourceDoc = documents.find((doc) => doc.id === sourceDocId);
+        if (!sourceDoc) return;
+        const parent = folders.find((folder) => folder.id === sourceDoc.folder_id);
         setScheduleTarget({
-          targetType: "mindmap_all",
-          targetId: "all",
-          targetTitle: node.title,
+          targetType: "mindmap_doc",
+          targetId: sourceDoc.id,
+          targetTitle: sourceDoc.title,
+          folderBreadcrumb: parent?.name,
         });
+      } else {
+        return;
       }
       setScheduleModalOpen(true);
     },
     [folders, documents, isEn]
   );
+
+  const canScheduleNode = useCallback((node: MindMapNode) => {
+    if (node.type !== "card") return true;
+    if (!node.parentId?.startsWith("doc-")) return false;
+    const sourceDocId = node.parentId.slice("doc-".length);
+    return documents.some((document) => document.id === sourceDocId);
+  }, [documents]);
 
   const handleScheduleCurrentScope = useCallback(() => {
     if (selectedScopeId === "all") {
@@ -596,22 +841,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     const items: MindMapNode[] = [];
     const linkList: MindMapLink[] = [];
 
-    // Calculate dimensions
-    const getNodeDimensions = (type: MindMapNode["type"]) => {
-      switch (type) {
-        case "root":
-          return { width: 220, height: 58 };
-        case "folder":
-        case "subfolder":
-          return { width: 200, height: 50 };
-        case "doc":
-          return { width: 220, height: 54 };
-        case "card":
-          return { width: 190, height: 44 };
-      }
-    };
-
-    const colSpacing = 300;
+    const colSpacing = 340;
     let currentY = 60;
 
     // Recursively layout tree
@@ -630,7 +860,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       childrenData: Array<() => { y: number; height: number }> = []
     ): { y: number; height: number } {
       const isExpanded = !!expandedNodeIds[id];
-      const { width, height } = getNodeDimensions(type);
+      const { width, height } = getMindMapNodeDimensions(type, title, subtitle);
       const hasChildren = childrenData.length > 0;
       const visibleChildren = isExpanded ? childrenData : [];
 
@@ -908,6 +1138,8 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       },
     };
   }, [folders, documents, cards, expandedNodeIds, isEn, treeDirection, selectedScopeId]);
+
+  const outlineEntries = useMemo(() => buildMindMapOutline(nodes), [nodes]);
 
   // Fit View To Container
   const fitViewToContainer = useCallback(() => {
@@ -1394,6 +1626,26 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
 
         {/* Right: Expand/Collapse & Quick Search */}
         <div className="flex items-center gap-2 pointer-events-auto">
+          <div role="group" aria-label={isEn ? "Mind map view" : "حالت نمایش نقشه ذهنی"} className="flex items-center gap-1 rounded-2xl border border-border bg-card/90 p-1.5 shadow-lg backdrop-blur-xl">
+            <button
+              type="button"
+              aria-label={isEn ? "Canvas view" : "نمای نقشه‌ای"}
+              aria-pressed={viewMode === "canvas"}
+              onClick={() => setViewMode("canvas")}
+              className={`rounded-xl p-1.5 transition ${viewMode === "canvas" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}
+            >
+              <GitBranch className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label={isEn ? "Outline view" : "نمای فهرستی"}
+              aria-pressed={viewMode === "outline"}
+              onClick={() => setViewMode("outline")}
+              className={`rounded-xl p-1.5 transition ${viewMode === "outline" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}
+            >
+              <ListTree className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
           <div className="hidden sm:flex items-center gap-1.5 p-1.5 rounded-2xl bg-card/90 border border-border backdrop-blur-xl shadow-lg">
             <button
               type="button"
@@ -1472,6 +1724,8 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
         </div>
       )}
 
+      {viewMode === "canvas" ? (
+      <>
       {/* Bottom Info Badge */}
       <div className="absolute bottom-3 left-3 z-20 hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-card/80 border border-border text-xs text-muted-foreground backdrop-blur-md shadow-md">
         <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
@@ -1558,11 +1812,42 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
                 onToggleExpand={handleToggleExpand}
                 onFocusScope={setSelectedScopeId}
                 onScheduleTask={handleScheduleNodeTask}
+                canScheduleTask={canScheduleNode(node)}
               />
             );
           })}
         </div>
       </div>
+      </>
+      ) : (
+        <div
+          aria-label={isEn ? "Knowledge mind map outline" : "فهرست نقشه ذهنی پایگاه دانش"}
+          className="absolute inset-0 overflow-y-auto overscroll-contain px-3 pb-24 pt-32 sm:px-6 sm:pt-28"
+        >
+          {outlineEntries.length > 0 ? (
+            <ul className="mx-auto max-w-4xl space-y-3" aria-label={isEn ? "Knowledge hierarchy" : "ساختار مطالب"}>
+              {outlineEntries.map((entry) => (
+                <MindMapOutlineItem
+                  key={entry.node.id}
+                  entry={entry}
+                  depth={0}
+                  isEn={isEn}
+                  isCurrentScopeRoot={entry.node.id === selectedScopeId}
+                  canScheduleNode={canScheduleNode}
+                  onOpenPreview={setPreviewDoc}
+                  onToggleExpand={handleToggleExpand}
+                  onFocusScope={setSelectedScopeId}
+                  onScheduleTask={handleScheduleNodeTask}
+                />
+              ))}
+            </ul>
+          ) : (
+            <div className="mx-auto mt-16 max-w-md rounded-2xl border border-dashed border-border bg-card/70 p-6 text-center text-sm text-muted-foreground">
+              {isEn ? "No visible items in this branch." : "در این شاخه مورد قابل‌نمایشی نیست."}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Embedded Document Reader Modal */}
       {previewDoc && (

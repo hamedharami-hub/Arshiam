@@ -12,8 +12,8 @@ vi.mock("@/hooks/useBilingual", () => ({
 }));
 
 vi.mock("@/components/review/LeitnerDeckView", () => ({
-  LeitnerDeckView: ({ initialStudyDocumentId }: { initialStudyDocumentId?: string }) => (
-    <div data-testid="leitner-deck" data-study-document-id={initialStudyDocumentId || ""} />
+  LeitnerDeckView: ({ initialStudyDocumentId, initialStudyTaskId }: { initialStudyDocumentId?: string; initialStudyTaskId?: string }) => (
+    <div data-testid="leitner-deck" data-study-document-id={initialStudyDocumentId || ""} data-study-task-id={initialStudyTaskId || ""} />
   ),
 }));
 
@@ -22,9 +22,9 @@ vi.mock("@/components/review/KnowledgeMindMapView", () => ({
 }));
 
 describe("ReviewView scoped Leitner task navigation", () => {
-  it("keeps a studyDocId task in Leitner and passes its document target through", () => {
+  it("keeps a scoped study task in Leitner and passes both target and task IDs through", () => {
     render(
-      <MemoryRouter initialEntries={["/app/review?tab=leitner&studyDocId=doc-7"]}>
+      <MemoryRouter initialEntries={["/app/review?tab=leitner&studyDocId=doc-7&studyTaskId=task-4"]}>
         <Routes>
           <Route path="/app/review" element={<ReviewView />} />
         </Routes>
@@ -32,6 +32,7 @@ describe("ReviewView scoped Leitner task navigation", () => {
     );
 
     expect(screen.getByTestId("leitner-deck")).toHaveAttribute("data-study-document-id", "doc-7");
+    expect(screen.getByTestId("leitner-deck")).toHaveAttribute("data-study-task-id", "task-4");
     expect(screen.getByTestId("knowledge-mind-map").parentElement).toHaveClass("hidden");
   });
 });

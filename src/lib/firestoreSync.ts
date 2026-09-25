@@ -33,6 +33,7 @@ export type SupportedFirestoreCollection =
   | "leitner_cards"
   | "leitner_reviews"
   | "task_knowledge_links"
+  | "interactive_study_sessions"
   | "cycle_profiles"
   | "cycle_logs"
   | "mind_values"
@@ -90,8 +91,16 @@ export async function saveEntityToFirestore(
       const snap = await getDoc(docRef);
       if (snap.exists()) {
         const remoteData = snap.data();
-        const remoteUpdatedAt = remoteData?.updatedAt || remoteData?.updated_at;
-        const localUpdatedAt = data.updatedAt || data.updated_at;
+        // Interactive-study rows keep an application version timestamp in
+        // updated_at. updatedAt is only the Firestore sync receipt time and can
+        // be later than the next local draft even when that draft is newer.
+        const useApplicationTimestamp = collectionName === "interactive_study_sessions";
+        const remoteUpdatedAt = useApplicationTimestamp
+          ? remoteData?.updated_at || remoteData?.updatedAt
+          : remoteData?.updatedAt || remoteData?.updated_at;
+        const localUpdatedAt = useApplicationTimestamp
+          ? data.updated_at || data.updatedAt
+          : data.updatedAt || data.updated_at;
         if (remoteUpdatedAt && localUpdatedAt) {
           const remoteTime = new Date(remoteUpdatedAt).getTime();
           const localTime = new Date(localUpdatedAt).getTime();

@@ -22,13 +22,19 @@ function isValidCalendarDate(value: string, now: Date): boolean {
     parsed.getDate() === day && parsed.getTime() <= today.getTime();
 }
 
-function isSafeReferenceUrl(value: string): boolean {
+export function getSafeKnowledgeExternalUrl(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
   try {
-    const url = new URL(value);
-    return url.protocol === "https:" && !url.username && !url.password;
+    const url = new URL(value.trim());
+    if ((url.protocol !== "https:" && url.protocol !== "http:") || url.username || url.password) return null;
+    return url.href;
   } catch {
-    return false;
+    return null;
   }
+}
+
+function isSafeReferenceUrl(value: string): boolean {
+  return getSafeKnowledgeExternalUrl(value)?.startsWith("https://") === true;
 }
 
 export function hasCompleteKnowledgeReviewEvidence(

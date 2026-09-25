@@ -52,6 +52,32 @@ describe("interactiveLearningHelper", () => {
     ).rejects.toThrow("without the required interactive controls");
   });
 
+  it("rejects memory games with unmatched or unpaired tiles", async () => {
+    vi.mocked(callAI).mockResolvedValueOnce({
+      text: `<div class="interactive-learning-block"><div class="memory-tile" data-card-id="1"></div><div class="memory-tile" data-card-id="1"></div><div class="memory-tile" data-card-id="1"></div><div class="memory-tile" data-card-id="2"></div></div>`,
+    });
+
+    await expect(generateInteractiveContent({
+      title: "Lesson",
+      content: "Source passage.",
+      selectedPresets: ["memory_game"],
+      language: "en",
+    })).rejects.toThrow("without the required interactive controls");
+  });
+
+  it("rejects pair games unless every item belongs to exactly one left-right pair", async () => {
+    vi.mocked(callAI).mockResolvedValueOnce({
+      text: `<div class="interactive-learning-block"><button class="interactive-pair-btn" data-pair-id="1" data-side="left"></button><button class="interactive-pair-btn" data-pair-id="1" data-side="right"></button><button class="interactive-pair-btn" data-pair-id="2" data-side="left"></button><button class="interactive-pair-btn" data-pair-id="3" data-side="right"></button></div>`,
+    });
+
+    await expect(generateInteractiveContent({
+      title: "Lesson",
+      content: "Source passage.",
+      selectedPresets: ["pair_match"],
+      language: "en",
+    })).rejects.toThrow("without the required interactive controls");
+  });
+
   it("fails visibly instead of substituting canned clinical examples when AI is unavailable", async () => {
     vi.mocked(callAI).mockRejectedValueOnce(new Error("offline"));
 
@@ -103,7 +129,8 @@ describe("interactiveLearningHelper", () => {
           </div>
         </div>
       `;
-      cleanup = attachInteractiveListeners(container);
+      const onChange = vi.fn();
+      cleanup = attachInteractiveListeners(container, onChange);
 
       const card = container.querySelector(".interactive-flip-card") as HTMLElement;
       const btn = container.querySelector(".inner-btn") as HTMLElement;
@@ -112,9 +139,11 @@ describe("interactiveLearningHelper", () => {
 
       btn.click();
       expect(card.classList.contains("is-flipped")).toBe(true);
+      expect(onChange).toHaveBeenLastCalledWith(expect.stringContaining('class="interactive-flip-card is-flipped"'));
 
       btn.click();
       expect(card.classList.contains("is-flipped")).toBe(false);
+      expect(onChange).toHaveBeenCalledTimes(2);
     });
 
     it("evaluates quiz answers and shows explanation", () => {
@@ -142,6 +171,24 @@ describe("interactiveLearningHelper", () => {
       expect(explanation.textContent).toContain("نادرست است");
     });
 
+    it("renders quiz rationale as text instead of interpreting injected HTML", () => {
+      const payload = '<img src=x onerror="alert(1)">';
+      container.innerHTML = `
+        <div class="interactive-quiz-card">
+          <button class="interactive-quiz-option" data-correct="false" data-rationale="&lt;img src=x onerror=&quot;alert(1)&quot;&gt;">A</button>
+          <div class="quiz-explanation hidden"></div>
+        </div>
+      `;
+      cleanup = attachInteractiveListeners(container);
+
+      (container.querySelector(".interactive-quiz-option") as HTMLButtonElement).click();
+
+      const explanation = container.querySelector(".quiz-explanation") as HTMLElement;
+      expect(explanation.textContent).toBe(`❌ ${payload}`);
+      expect(explanation.querySelector("img")).toBeNull();
+      expect(explanation.querySelector("strong")?.textContent).toBe("❌ ");
+    });
+
     it("matches pairs when corresponding items are clicked", () => {
       container.innerHTML = `
         <div class="interactive-pair-container">
@@ -166,6 +213,54 @@ describe("interactiveLearningHelper", () => {
       expect(btnLeft.classList.contains("is-matched")).toBe(true);
       expect(btnRight.classList.contains("is-matched")).toBe(true);
       expect(feedback.classList.contains("hidden")).toBe(false);
+      expect(feedback).toHaveAttribute("role", "status");
+      expect(feedback.textContent).toContain("آفرین");
+    });
+
+    it("shows matching completion in the selected language", () => {
+      container.innerHTML = `
+        <div class="interactive-pair-container">
+          <button class="interactive-pair-btn" data-pair-id="1" data-side="left">A</button>
+          <button class="interactive-pair-btn" data-pair-id="1" data-side="right">A</button>
+          <div class="pair-feedback hidden"></div>
+        </div>
+      `;
+      cleanup = attachInteractiveListeners(container, undefined, "en");
+
+      const buttons = container.querySelectorAll<HTMLButtonElement>(".interactive-pair-btn");
+      buttons[0].click();
+      buttons[1].click();
+
+      const feedback = container.querySelector<HTMLElement>(".pair-feedback");
+      expect(feedback?.textContent).toContain("All pairs are matched");
+    });
+
+    it("shows live memory-game progress and completion", () => {
+      container.innerHTML = `
+        <div class="interactive-memory-game">
+          <button class="memory-tile" data-card-id="1">A1</button>
+          <button class="memory-tile" data-card-id="2">B1</button>
+          <button class="memory-tile" data-card-id="1">A2</button>
+          <button class="memory-tile" data-card-id="2">B2</button>
+        </div>
+      `;
+      const onChange = vi.fn();
+      cleanup = attachInteractiveListeners(container, onChange, "en");
+
+      const tiles = container.querySelectorAll<HTMLButtonElement>(".memory-tile");
+      tiles[0].click();
+      tiles[2].click();
+
+      const status = container.querySelector<HTMLElement>(".memory-status");
+      expect(status?.textContent).toBe("Matched 1 of 2 pairs.");
+      expect(status).toHaveAttribute("aria-live", "polite");
+
+      tiles[1].click();
+      tiles[3].click();
+      expect(status?.textContent).toBe("🎉 All pairs found!");
+      expect(Array.from(tiles).every((tile) => tile.classList.contains("is-matched"))).toBe(true);
+      expect(onChange).toHaveBeenLastCalledWith(expect.stringContaining('class="memory-tile is-flipped is-matched"'));
+      expect(onChange).toHaveBeenLastCalledWith(expect.stringContaining("All pairs found!"));
     });
 
     it("advances clinical case steps on next button click", () => {

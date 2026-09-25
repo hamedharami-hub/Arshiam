@@ -20,6 +20,7 @@ import { useNavigate } from "react-router-dom";
 import { useBilingual } from "@/hooks/useBilingual";
 import { useLongPress } from "@/lib/useLongPress";
 import type { KnowledgeFolder, KnowledgeDocument, KnowledgeFolderNode } from "@/lib/knowledgeTypes";
+import { getFolderAncestorIds } from "@/lib/knowledgeService";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -334,26 +335,18 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
     const doc = documents.find((d) => d.id === selectedDocId);
     if (!doc || !doc.folder_id) return;
 
-    const toExpand: Record<string, boolean> = {};
-    let currentFolderId: string | null = doc.folder_id;
-    while (currentFolderId) {
-      toExpand[currentFolderId] = true;
-      const parent = allFolders.find((f) => f.id === currentFolderId);
-      currentFolderId = parent?.parent_id || null;
-    }
+    const toExpand = Object.fromEntries(
+      getFolderAncestorIds(doc.folder_id, allFolders).map((folderId) => [folderId, true]),
+    );
     setExpandedFolders((prev) => ({ ...prev, ...toExpand }));
   }, [selectedDocId, documents, allFolders]);
 
   // Auto-expand ancestor folders when selectedFolderId is activated
   React.useEffect(() => {
     if (!selectedFolderId) return;
-    const toExpand: Record<string, boolean> = { [selectedFolderId]: true };
-    let currentFolderId: string | null = selectedFolderId;
-    while (currentFolderId) {
-      toExpand[currentFolderId] = true;
-      const parent = allFolders.find((f) => f.id === currentFolderId);
-      currentFolderId = parent?.parent_id || null;
-    }
+    const toExpand = Object.fromEntries(
+      getFolderAncestorIds(selectedFolderId, allFolders).map((folderId) => [folderId, true]),
+    );
     setExpandedFolders((prev) => ({ ...prev, ...toExpand }));
   }, [selectedFolderId, allFolders]);
 
@@ -391,7 +384,11 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
     return map;
   }, [documents]);
 
-  const rootDocuments = docsByFolder.get("__root__") || [];
+  const folderIds = React.useMemo(() => new Set(allFolders.map((folder) => folder.id)), [allFolders]);
+  const unfiledDocuments = React.useMemo(
+    () => documents.filter((doc) => !doc.folder_id || !folderIds.has(doc.folder_id)),
+    [documents, folderIds],
+  );
 
   const renderFolderNode = (node: KnowledgeFolderNode, depth = 0) => {
     const isExpanded = !!expandedFolders[node.id];
@@ -618,7 +615,7 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
 
       {/* Folder Tree & Root Docs */}
       <div className="flex-1 overflow-y-auto p-2.5 space-y-1">
-        {tree.length === 0 && rootDocuments.length === 0 && (
+        {tree.length === 0 && unfiledDocuments.length === 0 && (
           <div className="p-6 text-center text-xs text-muted-foreground">
             {isEn ? "No folders or documents yet." : "هنوز فولدر یا سندی ایجاد نشده است."}
           </div>
@@ -627,13 +624,13 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
         {/* Tree Nodes */}
         {tree.map((node) => renderFolderNode(node, 0))}
 
-        {/* Root Documents without folder */}
-        {rootDocuments.length > 0 && (
+        {/* Keep root and orphaned documents visible instead of hiding broken folder links. */}
+        {unfiledDocuments.length > 0 && (
           <div className="pt-2 border-t border-border/70 space-y-0.5">
             <div className="text-[10px] uppercase font-bold text-muted-foreground px-2 pb-1">
-              {isEn ? "Root Documents" : "اسناد بدون فولدر"}
+              {isEn ? "Unfiled or unavailable-folder documents" : "اسناد بدون فولدر یا با فولدر ناموجود"}
             </div>
-            {rootDocuments.map((doc) => (
+            {unfiledDocuments.map((doc) => (
               <DocumentRowItem
                 key={doc.id}
                 doc={doc}

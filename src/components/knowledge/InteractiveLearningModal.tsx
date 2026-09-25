@@ -133,10 +133,10 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
   // Attach interactive click listeners to preview
   useEffect(() => {
     if (activeTab === "preview" && previewContainerRef.current && generatedHtml) {
-      const cleanup = attachInteractiveListeners(previewContainerRef.current);
+      const cleanup = attachInteractiveListeners(previewContainerRef.current, undefined, isEn ? "en" : "fa");
       return cleanup;
     }
-  }, [activeTab, generatedHtml]);
+  }, [activeTab, generatedHtml, isEn]);
 
   // Copy HTML
   const handleCopyHtml = async () => {
@@ -249,10 +249,12 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
                   {INTERACTIVE_PRESETS.map((preset) => {
                     const isSelected = selectedPresets.includes(preset.id);
                     return (
-                      <div
+                      <button
+                        type="button"
                         key={preset.id}
+                        aria-pressed={isSelected}
                         onClick={() => togglePreset(preset.id)}
-                        className={`group p-3 rounded-2xl border transition-all cursor-pointer select-none flex flex-col justify-between gap-2 ${
+                        className={`group w-full p-3 rounded-2xl border text-start transition-all cursor-pointer select-none flex flex-col justify-between gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                           isSelected
                             ? "bg-primary/10 border-primary shadow-xs ring-1 ring-primary/30"
                             : "bg-muted/30 border-border hover:bg-muted/60 hover:border-border/80"
@@ -275,6 +277,7 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
                           </div>
 
                           <div
+                            aria-hidden="true"
                             className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition ${
                               isSelected
                                 ? "bg-primary border-primary text-primary-foreground"
@@ -292,7 +295,7 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
                         <div className="flex items-center justify-between pt-1 border-t border-border/40 text-[10px]">
                           <span className="text-primary font-medium">{preset.tag}</span>
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>

@@ -114,11 +114,17 @@ function hasFunctionalWidget(root: ParentNode, type: InteractiveWidgetType): boo
     }
     case "pair_match": {
       const buttons = Array.from(root.querySelectorAll(INTERACTIVE_MARKERS.pair_match));
-      return buttons.some((left) =>
-        left.getAttribute("data-side") === "left" &&
-        buttons.some((right) => right.getAttribute("data-side") === "right" &&
-          right.getAttribute("data-pair-id") === left.getAttribute("data-pair-id"))
-      );
+      const pairs = new Map<string, Set<string>>();
+      buttons.forEach((button) => {
+        const pairId = button.getAttribute("data-pair-id");
+        const side = button.getAttribute("data-side");
+        if (!pairId || (side !== "left" && side !== "right")) return;
+        const sides = pairs.get(pairId) || new Set<string>();
+        sides.add(side);
+        pairs.set(pairId, sides);
+      });
+      return buttons.length >= 4 && buttons.length === pairs.size * 2 &&
+        pairs.size >= 2 && Array.from(pairs.values()).every((sides) => sides.size === 2);
     }
     case "clinical_case": {
       const steps = Array.from(root.querySelectorAll(".case-step[data-step]"));
@@ -143,7 +149,8 @@ function hasFunctionalWidget(root: ParentNode, type: InteractiveWidgetType): boo
         const cardId = tile.getAttribute("data-card-id");
         if (cardId) counts.set(cardId, (counts.get(cardId) || 0) + 1);
       });
-      return tiles.length >= 4 && Array.from(counts.values()).filter((count) => count >= 2).length >= 2;
+      return tiles.length >= 4 && tiles.length % 2 === 0 && counts.size * 2 === tiles.length &&
+        counts.size >= 2 && Array.from(counts.values()).every((count) => count === 2);
     }
   }
 }
@@ -578,7 +585,29 @@ export function generateDeterministicInteractiveWidgets(
  * to handle all interactive learning widgets seamlessly.
  * Returns an unsubscribe cleanup function.
  */
-export function attachInteractiveListeners(container: HTMLElement): () => void {
+export function attachInteractiveListeners(
+  container: HTMLElement,
+  onChange?: (serializedHtml: string) => void,
+  language: "fa" | "en" = "fa",
+): () => void {
+  const notifyChange = () => onChange?.(container.innerHTML);
+  const isEnglish = language === "en";
+  const showStatus = (element: HTMLElement | null, message: string) => {
+    if (!element) return;
+    element.textContent = message;
+    element.classList.remove("hidden");
+    element.setAttribute("role", "status");
+    element.setAttribute("aria-live", "polite");
+  };
+  const ensureStatus = (parent: Element, selector: string, className: string) => {
+    let status = parent.querySelector<HTMLElement>(selector);
+    if (!status) {
+      status = document.createElement("div");
+      status.className = className;
+      parent.appendChild(status);
+    }
+    return status;
+  };
   const handleClick = (e: MouseEvent) => {
     const target = e.target as HTMLElement | null;
     if (!target) return;
@@ -588,6 +617,7 @@ export function attachInteractiveListeners(container: HTMLElement): () => void {
     if (flipCard) {
       e.stopPropagation();
       flipCard.classList.toggle("is-flipped");
+      notifyChange();
       return;
     }
 
@@ -617,10 +647,15 @@ export function attachInteractiveListeners(container: HTMLElement): () => void {
       // Show rationale explanation
       const explanationEl = quizCard.querySelector(".quiz-explanation");
       if (explanationEl) {
-        explanationEl.innerHTML = `<strong>${isCorrect ? "✅ " : "❌ "}</strong>${rationale}`;
+        const marker = document.createElement("strong");
+        marker.textContent = isCorrect ? "✅ " : "❌ ";
+        // Rationale comes from generated/stored lesson markup. It is text, not
+        // trusted HTML; never reinterpret it after the initial sanitization.
+        explanationEl.replaceChildren(marker, document.createTextNode(rationale));
         explanationEl.classList.remove("hidden");
         explanationEl.classList.add("is-visible");
       }
+      notifyChange();
       return;
     }
 
@@ -635,11 +670,13 @@ export function attachInteractiveListeners(container: HTMLElement): () => void {
 
       if (!previouslySelected) {
         pairBtn.classList.add("is-selected");
+        notifyChange();
         return;
       }
 
       if (previouslySelected === pairBtn) {
         pairBtn.classList.remove("is-selected");
+        notifyChange();
         return;
       }
 
@@ -649,6 +686,7 @@ export function attachInteractiveListeners(container: HTMLElement): () => void {
       if (side1 === side2) {
         previouslySelected.classList.remove("is-selected");
         pairBtn.classList.add("is-selected");
+        notifyChange();
         return;
       }
 
@@ -665,12 +703,15 @@ export function attachInteractiveListeners(container: HTMLElement): () => void {
 
         const remaining = pairContainer.querySelectorAll(".interactive-pair-btn:not(.is-matched)");
         if (remaining.length === 0) {
-          const feedback = pairContainer.querySelector(".pair-feedback");
-          if (feedback) {
-            feedback.innerHTML = "🎉 آفرین! تمام جفت‌ها با موفقیت تطبیق داده شدند!";
-            feedback.classList.remove("hidden");
-          }
+          const feedback = ensureStatus(pairContainer, ".pair-feedback", "pair-feedback");
+          showStatus(
+            feedback,
+            isEnglish
+              ? "🎉 Great work! All pairs are matched."
+              : "🎉 آفرین! همهٔ جفت‌ها با موفقیت تطبیق داده شدند.",
+          );
         }
+        notifyChange();
       } else {
         // MISMATCH!
         previouslySelected.classList.add("is-mismatch");
@@ -678,7 +719,9 @@ export function attachInteractiveListeners(container: HTMLElement): () => void {
         setTimeout(() => {
           previouslySelected.classList.remove("is-mismatch", "is-selected");
           pairBtn.classList.remove("is-mismatch", "is-selected");
+          notifyChange();
         }, 450);
+        notifyChange();
       }
       return;
     }
@@ -704,6 +747,7 @@ export function attachInteractiveListeners(container: HTMLElement): () => void {
         targetStepEl.classList.remove("hidden");
         targetStepEl.classList.add("active");
       }
+      notifyChange();
       return;
     }
 
@@ -715,6 +759,7 @@ export function attachInteractiveListeners(container: HTMLElement): () => void {
       if (answer && !clozeBlank.classList.contains("is-revealed")) {
         clozeBlank.textContent = answer;
         clozeBlank.classList.add("is-revealed");
+        notifyChange();
       }
       return;
     }
@@ -740,6 +785,7 @@ export function attachInteractiveListeners(container: HTMLElement): () => void {
         targetNodeEl.classList.remove("hidden");
         targetNodeEl.classList.add("active");
       }
+      notifyChange();
       return;
     }
 
@@ -757,6 +803,7 @@ export function attachInteractiveListeners(container: HTMLElement): () => void {
       if (currentlyFlipped.length >= 2) return;
 
       memoryTile.classList.add("is-flipped");
+      notifyChange();
 
       if (currentlyFlipped.length === 1) {
         const tile1 = currentlyFlipped[0];
@@ -767,12 +814,31 @@ export function attachInteractiveListeners(container: HTMLElement): () => void {
         if (id1 === id2) {
           tile1.classList.add("is-matched");
           tile2.classList.add("is-matched");
+          const tiles = Array.from(memoryGame.querySelectorAll<HTMLElement>(".memory-tile"));
+          const matchedTiles = tiles.filter((tile) => tile.classList.contains("is-matched")).length;
+          const totalPairs = Math.ceil(tiles.length / 2);
+          const matchedPairs = Math.floor(matchedTiles / 2);
+          showStatus(
+            ensureStatus(memoryGame, ".memory-status", "memory-status"),
+            matchedTiles === tiles.length
+              ? (isEnglish ? "🎉 All pairs found!" : "🎉 همهٔ جفت‌ها پیدا شدند!")
+              : (isEnglish
+                ? `Matched ${matchedPairs} of ${totalPairs} pairs.`
+                : `${matchedPairs} جفت از ${totalPairs} جفت پیدا شد.`),
+          );
         } else {
+          showStatus(
+            ensureStatus(memoryGame, ".memory-status", "memory-status"),
+            isEnglish ? "Not a match yet. Try another pair." : "این دو کارت جفت نیستند؛ یک جفت دیگر را امتحان کن.",
+          );
           setTimeout(() => {
             tile1.classList.remove("is-flipped");
             tile2.classList.remove("is-flipped");
+            notifyChange();
           }, 800);
         }
+        // Persist the resolved match/status state, not only the transient flipped tiles.
+        notifyChange();
       }
       return;
     }
@@ -789,6 +855,7 @@ export function attachInteractiveListeners(container: HTMLElement): () => void {
         e.preventDefault();
         e.stopPropagation();
         flipCard.classList.toggle("is-flipped");
+        notifyChange();
         return;
       }
 
@@ -801,6 +868,7 @@ export function attachInteractiveListeners(container: HTMLElement): () => void {
         if (answer && !clozeBlank.classList.contains("is-revealed")) {
           clozeBlank.textContent = answer;
           clozeBlank.classList.add("is-revealed");
+          notifyChange();
         }
         return;
       }

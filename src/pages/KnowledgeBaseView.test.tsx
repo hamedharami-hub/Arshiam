@@ -140,6 +140,30 @@ describe("KnowledgeBaseView (/app/knowledge) Page Verification", { timeout: 1500
     }, { timeout: 10000 });
   });
 
+  it("keeps documents visible and ancestor expansion bounded for malformed folder links", async () => {
+    currentFolders = [
+      { ...mockFolders[0], id: "folder-a", parent_id: "folder-b", name: "Folder A" },
+      { ...mockFolders[0], id: "folder-b", parent_id: "folder-a", name: "Folder B" },
+    ];
+    currentDocs = [
+      { ...mockDocs[0], id: "doc-cycle", folder_id: "folder-b", title: "Cycle lesson" },
+      { ...mockDocs[0], id: "doc-orphan", folder_id: "missing-folder", title: "Orphan lesson" },
+    ];
+
+    render(
+      <MemoryRouter initialEntries={["/app/knowledge"]}>
+        <Routes>
+          <Route path="/app/knowledge" element={<KnowledgeBaseView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Folder A")).toBeInTheDocument();
+    expect(screen.getAllByText("Folder B").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("اسناد بدون فولدر یا با فولدر ناموجود")).toBeInTheDocument();
+    expect(screen.getAllByText("Orphan lesson").length).toBeGreaterThanOrEqual(2);
+  });
+
   it("renders empty state cleanly without crashing when user has no documents", async () => {
     currentFolders = [];
     currentDocs = [];

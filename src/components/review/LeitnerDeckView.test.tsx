@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import React from "react";
-import { render, screen, fireEvent, waitFor, cleanup, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup, act, within } from "@testing-library/react";
 import { LeitnerDeckView } from "./LeitnerDeckView";
 import type { LeitnerCard } from "@/lib/leitnerTypes";
-import { createLeitnerCard, getDueLeitnerCards, reviewLeitnerCardWithRating } from "@/lib/leitnerService";
+import { createLeitnerCard, getDueLeitnerCards, getLeitnerCards, reviewLeitnerCardWithRating } from "@/lib/leitnerService";
+import { getKnowledgeDocuments, getKnowledgeFolders } from "@/lib/knowledgeService";
+import { getNextLeitnerReviewAt, rescheduleLeitnerStudyTaskAfterSession } from "@/lib/taskStudyService";
 
 vi.mock("@/hooks/useBilingual", () => ({
   useBilingual: () => ({ isEn: false }),
@@ -93,6 +95,13 @@ vi.mock("@/lib/leitnerService", () => ({
 
 vi.mock("@/lib/knowledgeService", () => ({
   getKnowledgeDocuments: vi.fn().mockResolvedValue([]),
+  getKnowledgeFolders: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/lib/taskStudyService", () => ({
+  createStudyTask: vi.fn().mockResolvedValue({ ok: true }),
+  getNextLeitnerReviewAt: vi.fn(),
+  rescheduleLeitnerStudyTaskAfterSession: vi.fn(),
 }));
 
 describe("LeitnerDeckView", { timeout: 15000 }, () => {
@@ -143,6 +152,176 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
     await screen.findByTestId("flip-card");
     expect(screen.getByText("سؤال درس ب")).toBeInTheDocument();
     expect(screen.queryByText("سؤال درس الف")).not.toBeInTheDocument();
+  });
+
+  it("shows cards in a folder-to-lesson outline and filters due cards by service IDs", async () => {
+    const dueCard = {
+      ...mockCards[0],
+      id: "outline-due-card",
+      document_id: "outline-doc",
+      folder_id: "outline-root",
+      front: "Due outline question",
+    };
+    const upcomingCard = {
+      ...mockCards[1],
+      id: "outline-upcoming-card",
+      document_id: "outline-doc",
+      folder_id: "outline-root",
+      front: "Upcoming outline question",
+    };
+    vi.mocked(getLeitnerCards).mockResolvedValueOnce([dueCard, upcomingCard]);
+    vi.mocked(getDueLeitnerCards).mockResolvedValueOnce([dueCard]);
+    vi.mocked(getKnowledgeDocuments).mockResolvedValueOnce([{
+      id: "outline-doc",
+      user_id: "user-test",
+      folder_id: "outline-child",
+      title: "Cardiology lesson",
+      content_html: "",
+      created_at: "2026-09-01T00:00:00.000Z",
+      updated_at: "2026-09-01T00:00:00.000Z",
+    }]);
+    vi.mocked(getKnowledgeFolders).mockResolvedValueOnce([
+      {
+        id: "outline-root",
+        user_id: "user-test",
+        parent_id: null,
+        name: "Pharmacology",
+        position: 1,
+        created_at: "2026-09-01T00:00:00.000Z",
+        updated_at: "2026-09-01T00:00:00.000Z",
+      },
+      {
+        id: "outline-child",
+        user_id: "user-test",
+        parent_id: "outline-root",
+        name: "Cardiology",
+        position: 1,
+        created_at: "2026-09-01T00:00:00.000Z",
+        updated_at: "2026-09-01T00:00:00.000Z",
+      },
+    ]);
+
+    render(<LeitnerDeckView userId="user-test" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "نمای درختی" }));
+    expect(await screen.findByTestId("leitner-outline-card-outline-due-card")).toBeInTheDocument();
+    expect(screen.getByTestId("leitner-outline-card-outline-upcoming-card")).toBeInTheDocument();
+    const rootFolder = screen.getByRole("button", { name: "Pharmacology 2" });
+    expect(rootFolder).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(rootFolder);
+    expect(rootFolder).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByTestId("leitner-outline-card-outline-due-card")).not.toBeInTheDocument();
+    fireEvent.click(rootFolder);
+    expect(screen.getByTestId("leitner-outline-card-outline-due-card")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "موعد مرور" }));
+    expect(screen.getByTestId("leitner-outline-card-outline-due-card")).toBeInTheDocument();
+    expect(screen.queryByTestId("leitner-outline-card-outline-upcoming-card")).not.toBeInTheDocument();
+  });
+
+  it("starts a task-safe review from a folder branch and does not advance the linked task", async () => {
+    const taskCard = {
+      ...mockCards[0],
+      id: "branch-task-card",
+      document_id: "task-doc",
+      front: "Task lesson question",
+    };
+    const otherDueCard = {
+      ...mockCards[0],
+      id: "branch-other-card",
+      document_id: "other-doc",
+      front: "Other lesson question",
+    };
+    const documents = [
+      {
+        id: "task-doc",
+        user_id: "user-test",
+        folder_id: "branch-folder",
+        title: "Task lesson",
+        content_html: "",
+        created_at: "2026-09-01T00:00:00.000Z",
+        updated_at: "2026-09-01T00:00:00.000Z",
+      },
+      {
+        id: "other-doc",
+        user_id: "user-test",
+        folder_id: "branch-folder",
+        title: "Other lesson",
+        content_html: "",
+        created_at: "2026-09-01T00:00:00.000Z",
+        updated_at: "2026-09-01T00:00:00.000Z",
+      },
+    ];
+    vi.mocked(getLeitnerCards).mockResolvedValue([taskCard, otherDueCard]);
+    vi.mocked(getDueLeitnerCards).mockResolvedValue([taskCard, otherDueCard]);
+    vi.mocked(getKnowledgeDocuments).mockResolvedValue(documents);
+    vi.mocked(getKnowledgeFolders).mockResolvedValue([{
+      id: "branch-folder",
+      user_id: "user-test",
+      parent_id: null,
+      name: "Study folder",
+      created_at: "2026-09-01T00:00:00.000Z",
+      updated_at: "2026-09-01T00:00:00.000Z",
+    }]);
+
+    render(
+      <LeitnerDeckView
+        userId="user-test"
+        initialStudyDocumentId="task-doc"
+        initialStudyTaskId="task-review-7"
+      />
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "نمای درختی" }));
+    fireEvent.click(await screen.findByRole("button", { name: /مرور 1 کارت موعددار در Study folder/ }));
+
+    const activeFlipCard = await screen.findByTestId("flip-card");
+    expect(within(activeFlipCard).getByText("Task lesson question")).toBeInTheDocument();
+    expect(within(activeFlipCard).queryByText("Other lesson question")).not.toBeInTheDocument();
+    fireEvent.click(activeFlipCard);
+    fireEvent.click(screen.getByRole("button", { name: /بلدم/ }));
+
+    await waitFor(() => {
+      expect(getNextLeitnerReviewAt).not.toHaveBeenCalled();
+      expect(rescheduleLeitnerStudyTaskAfterSession).not.toHaveBeenCalled();
+    });
+    expect(getKnowledgeDocuments).toHaveBeenCalledTimes(1);
+    expect(getKnowledgeFolders).toHaveBeenCalledTimes(1);
+  });
+
+  it("moves the linked study task to the next scheduled date after a due session", async () => {
+    const nextReviewAt = "2026-10-02T09:30:00.000Z";
+    const dueCard = { ...mockCards[0], id: "card-doc-7", document_id: "doc-7" };
+    vi.mocked(getLeitnerCards).mockResolvedValue([dueCard]);
+    vi.mocked(getDueLeitnerCards).mockResolvedValue([dueCard]);
+    vi.mocked(getNextLeitnerReviewAt).mockReturnValue(nextReviewAt);
+    vi.mocked(rescheduleLeitnerStudyTaskAfterSession).mockResolvedValue({
+      ok: true,
+      status: "saved",
+      dueDate: nextReviewAt,
+    });
+
+    render(
+      <LeitnerDeckView
+        userId="user-test"
+        initialStudyDocumentId="doc-7"
+        initialStudyTaskId="task-review-7"
+      />
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /شروع مرور/ }));
+    fireEvent.click(await screen.findByTestId("flip-card"));
+    fireEvent.click(await screen.findByRole("button", { name: /بلدم/ }));
+
+    await waitFor(() => {
+      expect(getNextLeitnerReviewAt).toHaveBeenCalledWith([dueCard], "doc-7");
+      expect(rescheduleLeitnerStudyTaskAfterSession).toHaveBeenCalledWith({
+        userId: "user-test",
+        taskId: "task-review-7",
+        targetId: "doc-7",
+        nextReviewAt,
+      });
+    });
   });
 
   it("lets a new card explicitly choose and save its scheduler", async () => {

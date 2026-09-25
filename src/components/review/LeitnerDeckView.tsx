@@ -26,6 +26,8 @@ import {
   Keyboard,
   Shuffle,
   CalendarPlus,
+  List,
+  ListTree,
 } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
 import type {
@@ -34,7 +36,7 @@ import type {
   LeitnerRating,
   LeitnerSchedulingAlgorithm,
 } from "@/lib/leitnerTypes";
-import type { KnowledgeDocument } from "@/lib/knowledgeTypes";
+import type { KnowledgeDocument, KnowledgeFolder } from "@/lib/knowledgeTypes";
 import {
   getLeitnerCards,
   getDueLeitnerCards,
@@ -48,7 +50,13 @@ import {
   getLeitnerSchedulingAlgorithm,
   type CramFilterOptions,
 } from "@/lib/leitnerService";
-import { getKnowledgeDocuments } from "@/lib/knowledgeService";
+import {
+  getNextLeitnerReviewAt,
+  rescheduleLeitnerStudyTaskAfterSession,
+} from "@/lib/taskStudyService";
+import { getKnowledgeDocuments, getKnowledgeFolders } from "@/lib/knowledgeService";
+import { buildLeitnerOutline, filterLeitnerCards } from "@/lib/leitnerOutline";
+import { LeitnerOutlineView } from "@/components/review/LeitnerOutlineView";
 import { isPersianText } from "@/lib/bilingualHelper";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StudyTaskScheduleModal } from "@/components/knowledge/StudyTaskScheduleModal";
@@ -58,12 +66,20 @@ interface LeitnerDeckViewProps {
   userId: string;
   onOpenDocument?: (docId: string) => void;
   initialStudyDocumentId?: string;
+  initialStudyTaskId?: string;
+}
+
+interface StudyStartOptions {
+  queue?: LeitnerCard[];
+  scopeLabel?: string;
+  rescheduleLinkedTask?: boolean;
 }
 
 export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   userId,
   onOpenDocument,
   initialStudyDocumentId,
+  initialStudyTaskId,
 }) => {
   const { isEn } = useBilingual();
   const [cards, setCards] = useState<LeitnerCard[]>([]);
@@ -83,6 +99,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
     streakDays: 0,
   });
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
+  const [folders, setFolders] = useState<KnowledgeFolder[]>([]);
 
   // Mode: "due" (Scheduled Spaced Repetition) vs "cram" (Free Practice / Custom Cram)
   const [studyMode, setStudyMode] = useState<"due" | "cram">("due");
@@ -96,11 +113,17 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
       : dueCards,
     [dueCards, initialStudyDocumentId],
   );
+  const eligibleStudyCardIds = useMemo(
+    () => new Set(scheduledReviewCards.map((card) => card.id)),
+    [scheduledReviewCards],
+  );
   const scheduledReviewDocument = documents.find((document) => document.id === initialStudyDocumentId);
 
   // Study Session State
   const [isStudying, setIsStudying] = useState(false);
   const [activeQueue, setActiveQueue] = useState<LeitnerCard[]>([]);
+  const [activeStudyScopeLabel, setActiveStudyScopeLabel] = useState<string | null>(null);
+  const [shouldRescheduleLinkedTask, setShouldRescheduleLinkedTask] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const ratingSubmissionRef = React.useRef(false);
@@ -128,14 +151,16 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   // Card List Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBoxTab, setSelectedBoxTab] = useState<number | "all">("all");
+  const [dueFilter, setDueFilter] = useState<"all" | "due" | "not-due">("all");
+  const [lapsedOnly, setLapsedOnly] = useState(false);
+  const [cardViewMode, setCardViewMode] = useState<"list" | "outline">("list");
 
   const loadData = useCallback(async () => {
     try {
-      const [allCards, due, s, docs] = await Promise.all([
+      const [allCards, due, s] = await Promise.all([
         getLeitnerCards(userId),
         getDueLeitnerCards(userId),
         getLeitnerBoxStats(userId),
-        getKnowledgeDocuments(userId),
       ]);
       setCards(allCards);
       setDueCards(due);
@@ -158,15 +183,28 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
         },
         streakDays: s?.streakDays ?? 0,
       });
-      setDocuments(docs);
     } catch (e) {
       console.error("Error loading Leitner data", e);
     }
   }, [userId]);
 
+  const loadKnowledgeStructure = useCallback(async () => {
+    try {
+      const [docs, knowledgeFolders] = await Promise.all([
+        getKnowledgeDocuments(userId),
+        getKnowledgeFolders(userId).catch(() => []),
+      ]);
+      setDocuments(docs);
+      setFolders(knowledgeFolders);
+    } catch (e) {
+      console.error("Error loading Leitner outline structure", e);
+    }
+  }, [userId]);
+
   useEffect(() => {
     loadData();
-  }, [loadData]);
+    loadKnowledgeStructure();
+  }, [loadData, loadKnowledgeStructure]);
 
   useEffect(() => {
     setCramDocFilter(initialStudyDocumentId || "all");
@@ -219,8 +257,8 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   );
 
   // Start study session
-  const handleStartStudy = (mode: "due" | "cram" = studyMode) => {
-    const queue = mode === "due" ? [...scheduledReviewCards] : [...cramCards];
+  const handleStartStudy = useCallback((mode: "due" | "cram" = studyMode, options: StudyStartOptions = {}) => {
+    const queue = options.queue ? [...options.queue] : mode === "due" ? [...scheduledReviewCards] : [...cramCards];
     if (queue.length === 0) {
       toast.info(
         mode === "due"
@@ -233,13 +271,31 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
       );
       return;
     }
+    setStudyMode(mode);
+    setShouldRescheduleLinkedTask(
+      options.rescheduleLinkedTask ?? (mode === "due" && Boolean(initialStudyTaskId) && !options.queue),
+    );
+    setActiveStudyScopeLabel(options.scopeLabel ?? null);
     setActiveQueue(queue);
     setCurrentIndex(0);
     setIsFlipped(false);
     setShowClue(false);
     setCardDirectionOverride(null);
     setIsStudying(true);
-  };
+  }, [cramCards, initialStudyTaskId, isEn, scheduledReviewCards, studyMode]);
+
+  const handleStudyOutlineCards = useCallback((branchCards: LeitnerCard[], scopeLabel: string) => {
+    const currentCardsById = new Map(cards.map((card) => [card.id, card]));
+    const queue = branchCards
+      .map((card) => currentCardsById.get(card.id))
+      .filter((card): card is LeitnerCard => Boolean(card) && eligibleStudyCardIds.has(card.id));
+
+    handleStartStudy("due", {
+      queue,
+      scopeLabel,
+      rescheduleLinkedTask: false,
+    });
+  }, [cards, eligibleStudyCardIds, handleStartStudy]);
 
   // Apply the card's persisted scheduler using the same four recall ratings.
   const handleReviewAnswer = useCallback(async (rating: LeitnerRating) => {
@@ -291,9 +347,60 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
         setCurrentIndex((i) => i + 1);
       } else {
         setIsStudying(false);
-        toast.success(
-          isEn ? "Review session completed!" : "جلسه مرور امروز به پایان رسید!"
-        );
+        if (initialStudyTaskId && shouldRescheduleLinkedTask) {
+          try {
+            const latestCards = await getLeitnerCards(userId);
+            const targetId = initialStudyDocumentId || "all";
+            const nextReviewAt = getNextLeitnerReviewAt(latestCards, targetId);
+
+            if (!nextReviewAt) {
+              toast.info(
+                isEn
+                  ? "Session finished, but no next review date was found; the task was left unchanged."
+                  : "جلسه تمام شد، اما موعد مرور بعدی پیدا نشد؛ تاریخ تسک تغییر نکرد."
+              );
+            } else {
+              const result = await rescheduleLeitnerStudyTaskAfterSession({
+                userId,
+                taskId: initialStudyTaskId,
+                targetId,
+                nextReviewAt,
+              });
+
+              if (!result.ok) {
+                toast.info(
+                  isEn
+                    ? "Session finished, but the review task could not be moved to its next date."
+                    : "جلسه تمام شد، اما انتقال تسک مرور به موعد بعدی ذخیره نشد."
+                );
+              } else if (result.status === "queued") {
+                toast.info(
+                  isEn
+                    ? "Session completed; the next review date is saved locally and will sync online."
+                    : "جلسه تمام شد؛ موعد بعدی محلی ذخیره شد و با اتصال همگام می‌شود."
+                );
+              } else {
+                toast.success(
+                  isEn
+                    ? "Review session completed; the task moved to the next scheduled review."
+                    : "جلسه مرور تمام شد؛ تسک به موعد مرور بعدی منتقل شد."
+                );
+              }
+            }
+          } catch {
+            toast.info(
+              isEn
+                ? "Session finished, but the next review date could not be read; the task was left unchanged."
+                : "جلسه تمام شد، اما موعد بعدی خوانده نشد؛ تاریخ تسک تغییر نکرد."
+            );
+          }
+        } else {
+          toast.success(
+            isEn
+              ? activeStudyScopeLabel ? `Review completed: ${activeStudyScopeLabel}` : "Review session completed!"
+              : activeStudyScopeLabel ? `مرور «${activeStudyScopeLabel}» تمام شد.` : "جلسه مرور امروز به پایان رسید!"
+          );
+        }
       }
       await loadData();
     } catch (e) {
@@ -302,7 +409,27 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
       ratingSubmissionRef.current = false;
       setIsSubmittingRating(false);
     }
-  }, [activeCard, activeQueue, currentIndex, isEn, isFlipped, loadData, userId]);
+  }, [
+    activeCard,
+    activeQueue,
+    activeStudyScopeLabel,
+    currentIndex,
+    initialStudyDocumentId,
+    initialStudyTaskId,
+    isEn,
+    isFlipped,
+    loadData,
+    shouldRescheduleLinkedTask,
+    userId,
+  ]);
+
+  const openEditModal = useCallback((card: LeitnerCard) => {
+    setEditingCard(card);
+    setEditFront(card.front);
+    setEditBack(card.back);
+    setEditClue(card.clue || "");
+    setEditBox(card.box);
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -345,7 +472,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isStudying, activeCard, isFlipped, handleSpeak, handleReviewAnswer, activeQueue, currentIndex]);
+  }, [isStudying, activeCard, isFlipped, handleSpeak, handleReviewAnswer, activeQueue, currentIndex, openEditModal]);
 
   const handleCreateCard = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -370,14 +497,6 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
     } catch (e: any) {
       toast.error(e.message || "Error creating card");
     }
-  };
-
-  const openEditModal = (card: LeitnerCard) => {
-    setEditingCard(card);
-    setEditFront(card.front);
-    setEditBack(card.back);
-    setEditClue(card.clue || "");
-    setEditBox(card.box);
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -407,7 +526,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
     }
   };
 
-  const handleDeleteCard = async (cardId: string) => {
+  const handleDeleteCard = useCallback(async (cardId: string) => {
     try {
       await deleteLeitnerCard(userId, cardId);
       toast.success(isEn ? "Card deleted" : "کارت حذف شد");
@@ -415,7 +534,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
     } catch (e) {
       toast.error("Error deleting card");
     }
-  };
+  }, [isEn, loadData, userId]);
 
   const boxesConfig = useMemo(
     () => [
@@ -459,19 +578,21 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   );
 
   // Filtered card list for the bottom table
-  const displayedCards = useMemo(() => {
-    return cards.filter((c) => {
-      if (selectedBoxTab !== "all" && c.box !== selectedBoxTab) return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchFront = c.front.toLowerCase().includes(q);
-        const matchBack = c.back.toLowerCase().includes(q);
-        const matchClue = c.clue?.toLowerCase().includes(q);
-        if (!matchFront && !matchBack && !matchClue) return false;
-      }
-      return true;
-    });
-  }, [cards, selectedBoxTab, searchQuery]);
+  const dueCardIds = useMemo(() => new Set(dueCards.map((card) => card.id)), [dueCards]);
+  const displayedCards = useMemo(
+    () => filterLeitnerCards(cards, {
+      query: searchQuery,
+      box: selectedBoxTab,
+      due: dueFilter,
+      lapsedOnly,
+      dueCardIds,
+    }),
+    [cards, dueCardIds, dueFilter, lapsedOnly, searchQuery, selectedBoxTab],
+  );
+  const displayedOutline = useMemo(
+    () => buildLeitnerOutline(displayedCards, folders, documents, eligibleStudyCardIds),
+    [displayedCards, documents, eligibleStudyCardIds, folders],
+  );
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto p-4 md:p-6 space-y-6">
@@ -713,9 +834,16 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
           <div className="p-6 rounded-3xl bg-card border-2 border-primary/50 shadow-xl flex flex-col items-center justify-center text-center space-y-6 animate-in zoom-in-95 duration-200 max-w-2xl mx-auto w-full">
             {/* Session Top Bar */}
             <div className="w-full flex items-center justify-between text-xs text-muted-foreground border-b border-border pb-3">
-              <span className="font-mono text-primary font-bold">
-                {currentIndex + 1} / {activeQueue.length}
-              </span>
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="shrink-0 font-mono font-bold text-primary">
+                  {currentIndex + 1} / {activeQueue.length}
+                </span>
+                {activeStudyScopeLabel && (
+                  <span className="max-w-[35vw] truncate text-muted-foreground" title={activeStudyScopeLabel}>
+                    {activeStudyScopeLabel}
+                  </span>
+                )}
+              </div>
 
               <div className="flex items-center gap-1.5">
                 <button
@@ -952,6 +1080,55 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div role="group" aria-label={isEn ? "Card inventory view" : "نمای فهرست کارت‌ها"} className="inline-flex rounded-xl border border-border bg-muted/40 p-1">
+            <button
+              type="button"
+              aria-label={isEn ? "List view" : "نمای فهرستی"}
+              aria-pressed={cardViewMode === "list"}
+              onClick={() => setCardViewMode("list")}
+              className={`rounded-lg p-2 transition ${cardViewMode === "list" ? "bg-background text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <List aria-hidden="true" className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label={isEn ? "Outline view" : "نمای درختی"}
+              aria-pressed={cardViewMode === "outline"}
+              onClick={() => setCardViewMode("outline")}
+              className={`rounded-lg p-2 transition ${cardViewMode === "outline" ? "bg-background text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <ListTree aria-hidden="true" className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            {([
+              ["all", isEn ? "All dates" : "همه موعدها"],
+              ["due", isEn ? "Due now" : "موعد مرور"],
+              ["not-due", isEn ? "Upcoming" : "موعدهای بعدی"],
+            ] as const).map(([filter, label]) => (
+              <button
+                key={filter}
+                type="button"
+                aria-pressed={dueFilter === filter}
+                onClick={() => setDueFilter(filter)}
+                className={`shrink-0 rounded-xl border px-3 py-1.5 font-semibold transition ${dueFilter === filter ? "border-primary bg-primary text-primary-foreground" : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"}`}
+              >
+                {label}
+              </button>
+            ))}
+            <button
+              type="button"
+              aria-pressed={lapsedOnly}
+              onClick={() => setLapsedOnly((current) => !current)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 font-semibold transition ${lapsedOnly ? "border-rose-500 bg-rose-500/10 text-rose-600 dark:text-rose-300" : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"}`}
+            >
+              <Filter aria-hidden="true" className="h-3.5 w-3.5" />
+              {isEn ? "Lapsed only" : "فقط کارت‌های نیازمند تقویت"}
+            </button>
+          </div>
+        </div>
+
         {/* Box Filter Tab Chips */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
           <button
@@ -987,6 +1164,16 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               ? "No flashcards match your criteria."
               : "کارتی با معیارهای انتخابی یافت نشد."}
           </div>
+        ) : cardViewMode === "outline" ? (
+          <LeitnerOutlineView
+            outline={displayedOutline}
+            dueCardIds={dueCardIds}
+            eligibleStudyCardIds={eligibleStudyCardIds}
+            isEn={isEn}
+            onEdit={openEditModal}
+            onDelete={handleDeleteCard}
+            onStudyDueCards={handleStudyOutlineCards}
+          />
         ) : (
           <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
             {displayedCards.map((c) => {
