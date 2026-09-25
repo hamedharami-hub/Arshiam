@@ -298,9 +298,10 @@ describe("pharmacyImportService", () => {
     expect(await isPharmacyImported(userId)).toBe(true);
   }, 15_000);
 
-  it("adds a cited UTI safety correction without mutating IDs, links, provenance, or review status", () => {
+  it("adds sourced Ural and Hiprex safety corrections without mutating IDs, links, provenance, or review status", () => {
     const original = PHARMACY_SEED_DOCUMENTS.find((item) => item.id === "doc-disease-uti_cystitis")!;
     const linkedIds = [...original.content_html.matchAll(/data-doc-link="([^"]+)"/g)].map((match) => match[1]);
+    const linkedEnglishIds = [...(original.content_en || "").matchAll(/data-doc-link="([^"]+)"/g)].map((match) => match[1]);
     const result = applyPharmacyClinicalEditorialOverrides({ PHARMACY_SEED_DOCUMENTS: [original] });
     const corrected = result.PHARMACY_SEED_DOCUMENTS[0];
 
@@ -315,12 +316,31 @@ describe("pharmacyImportService", () => {
     expect(corrected.content_html).toContain("اثربخشی این فرآورده‌ها برای تسکین علامتی UTI ثابت نشده است");
     expect(corrected.content_en).toContain("Symptomatic relief only (not first-line UTI treatment)");
     expect(corrected.content_en).toContain("efficacy for symptomatic UTI relief has not been established");
+    expect(corrected.content_html).toContain("Hiprex (methenamine hippurate)");
+    expect(corrected.content_en).toContain("that indication alone does not establish it as treatment for acute cystitis or as a first-line option");
+    expect(corrected.content_html).toContain("زیر ۱۲ سال را توصیه نمی‌کند");
+    expect(corrected.content_en).toContain("not recommended under 12");
+    expect(corrected.content_en).toContain("breast-milk transfer is unknown");
+    expect(corrected.content_en).toContain("the linked sources do not state a fixed urine-pH target");
+    expect(corrected.content_en).toMatch(/the CMI makes it conditional on urinary pH or clinical response/i);
+    expect(`${corrected.content_html}\n${corrected.content_en}`).not.toMatch(
+      /Ural Sachets \/ Hiprex \/ Ural Effervescent|Adults >12yo: 1 tablet BD|Child 6-11yo:|Safe in pregnancy|Considered safe in breastfeeding|For UTI PROPHYLAXIS ONLY|requires acidic urine pH|urine pH <5\.5/i,
+    );
+    expect(corrected.content_html).toContain("hiprex.com.au/product/hiprex-urinary-tract-antibacterial-tab/");
+    expect(corrected.content_html).toContain("iachipre11117.pdf");
+    expect(corrected.content_html).toContain("healthdirect.gov.au/medicines/brand/");
     expect(corrected.content_html).toContain("practice-standards-uti.pdf");
     expect(corrected.content_en).toContain("PCCM_full.pdf");
     expect([...corrected.content_html.matchAll(/data-doc-link="([^"]+)"/g)].map((match) => match[1]))
       .toEqual(linkedIds);
+    expect([...(corrected.content_en || "").matchAll(/data-doc-link="([^"]+)"/g)].map((match) => match[1]))
+      .toEqual(linkedEnglishIds);
     expect(sanitizeKnowledgeHtml(corrected.content_html)).toContain("practice-standards-uti.pdf");
+    expect(sanitizeKnowledgeHtml(corrected.content_html)).toContain("iachipre11117.pdf");
+    expect(sanitizeKnowledgeHtml(corrected.content_en || "")).toContain("hiprex.com.au/product/hiprex-urinary-tract-antibacterial-tab/");
     expect(sanitizeKnowledgeHtml(corrected.content_en)).toContain("protocol-for-management-of-urinary-tract-infections.pdf");
+    expect(applyPharmacyClinicalEditorialOverrides({ PHARMACY_SEED_DOCUMENTS: [corrected] }).PHARMACY_SEED_DOCUMENTS[0])
+      .toBe(corrected);
   });
 
   it("offers the UTI correction as a safe upgrade for an unchanged prior full-seed document", async () => {
@@ -348,6 +368,36 @@ describe("pharmacyImportService", () => {
     expect(updated.content_review_status).toBe("unreviewed");
     expect(updated.read_count).toBe(9);
     expect(updated.is_favorite).toBe(true);
+    expect(result.status.docsUpgradeable).toBe(0);
+  }, 15_000);
+
+  it("safely upgrades an unchanged legacy UTI record with the current sourced correction", async () => {
+    for (const folder of PHARMACY_SEED_FOLDERS) {
+      remote.knowledge_folders.set(folder.id, { ...folder, user_id: userId });
+    }
+    const legacyUti = LEGACY_DOCUMENTS.find((item) => item.id === "doc-disease-uti_cystitis")!;
+    const currentUti = PHARMACY_SEED_DOCUMENTS.find((item) => item.id === legacyUti.id)!;
+    for (const document of PHARMACY_SEED_DOCUMENTS) {
+      remote.knowledge_documents.set(document.id, document.id === legacyUti.id
+        ? { ...legacyUti, user_id: userId, read_count: 14, is_favorite: true }
+        : { ...document, user_id: userId, content_html: `${document.content_html}<p>Personal test edit</p>` });
+    }
+
+    expect((await getPharmacyImportStatus(userId)).docsUpgradeable).toBe(1);
+    const result = await importPharmacyKnowledge(userId, { importCards: false });
+    const upgraded = remote.knowledge_documents.get(legacyUti.id)!;
+
+    expect(result.docsUpdated).toBe(1);
+    expect(upgraded.id).toBe(legacyUti.id);
+    expect(upgraded.folder_id).toBe(currentUti.folder_id);
+    expect(upgraded.source_url).toBe(currentUti.source_url);
+    expect(upgraded.content_review_status).toBe("unreviewed");
+    expect(String(upgraded.content_html)).toContain("یادداشت ایمنی و حوزه‌ای");
+    expect(String(upgraded.content_html)).toContain("iachipre11117.pdf");
+    expect(String(upgraded.content_en)).toContain("not recommended under 12");
+    expect(String(upgraded.content_en)).not.toContain("Child 6-11yo:");
+    expect(upgraded.read_count).toBe(14);
+    expect(upgraded.is_favorite).toBe(true);
     expect(result.status.docsUpgradeable).toBe(0);
   }, 15_000);
 

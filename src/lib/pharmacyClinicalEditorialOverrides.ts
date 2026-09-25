@@ -24,6 +24,21 @@ const UTI_SOURCES = [
     fa: "پروتکل مدیریت UTI در برنامهٔ داروسازان ویکتوریا (ژانویهٔ ۲۰۲۶)",
     en: "Victorian Community Pharmacist UTI Protocol (January 2026)",
   },
+  {
+    url: "https://hiprex.com.au/product/hiprex-urinary-tract-antibacterial-tab/",
+    fa: "دستور جاری سازندهٔ Hiprex (کد استرالیا AU-2025-09-0065)",
+    en: "Hiprex manufacturer product directions (Australian code AU-2025-09-0065)",
+  },
+  {
+    url: "https://www.healthdirect.gov.au/medicines/medinfo_Information/10558/CMI/iachipre11117.pdf",
+    fa: "برگهٔ اطلاعات مصرف‌کنندهٔ Hiprex در Healthdirect (تهیه‌شده در نوامبر ۲۰۱۷)",
+    en: "Healthdirect Hiprex Consumer Medicine Information (prepared November 2017)",
+  },
+  {
+    url: "https://www.healthdirect.gov.au/medicines/brand/amt%2C2978011000036104/hiprex",
+    fa: "اطلاعات دارویی Hiprex در Healthdirect و داده‌های ARTG",
+    en: "Healthdirect Hiprex medicine information and ARTG data",
+  },
 ];
 
 function renderUtiEditorialNote(language: "fa" | "en"): string {
@@ -35,11 +50,14 @@ function renderUtiEditorialNote(language: "fa" | "en"): string {
   const body = isPersian
     ? "این سند وارداتی هنوز بازبینی بالینی واجدصلاحیت نشده است. قلیایی‌کننده‌های ادرار عفونت باکتریایی را درمان نمی‌کنند. NSW Health می‌گوید اثربخشی آن‌ها برای تسکین علامتی UTI ثابت نشده، هرچند برخی افراد آن‌ها را مفید می‌دانند؛ همچنین اثر ضدمیکروبی نیتروفورانتوئین را به‌طور قابل‌توجهی کاهش می‌دهند، پس همراه نیتروفورانتوئین مصرف نشوند. راهنمای Queensland ایمنی و اثربخشی این فرآورده‌ها را نامعلوم می‌داند و برای cystitis نوشیدن مایعات به‌اندازهٔ رفع تشنگی را توصیه می‌کند؛ مقدار ثابت ۲ تا ۲٫۵ لیتر برای همه را تعمیم ندهید و محدودیت مایعات فردی را رعایت کنید. دستور سازندهٔ Ural برای افراد ۱۲ سال به بالا ۱ تا ۲ ساشه، حداکثر ۴ بار در روز است؛ برچسب همان فرآورده را دنبال کنید. ارزیابی یا درمان UTI به‌وسیلهٔ داروساز نیز فقط در حوزه‌های قضایی و برنامه‌های مجاز، با آموزش و طبق پروتکل جاری همان محل انجام می‌شود. این یادداشت جایگزین ارزیابی بیمار یا راهنمای محلی نیست."
     : "This imported document has not had qualified clinical review. Urinary alkalinisers do not treat bacterial infection. NSW Health says their efficacy for symptomatic UTI relief has not been established, although some people find them useful; they also significantly reduce nitrofurantoin's antimicrobial effect, so do not use them with nitrofurantoin. The Queensland manual describes their safety and efficacy as unknown and advises enough fluids to avoid thirst for cystitis; do not generalise a fixed 2–2.5 L target to everyone, and follow individual fluid restrictions. Ural's manufacturer directions for people aged 12 years and over are 1–2 sachets, up to 4 times daily; follow the specific product label. Pharmacist assessment or treatment of UTI is available only under authorised jurisdiction-specific programs, training and current local protocols. This note is not a substitute for patient assessment or local guidance.";
+  const hiprexBody = isPersian
+    ? "Hiprex (methenamine hippurate) را با Ural یکی نگیرید. سازنده مصرف آن را برای پیشگیری یا سرکوب باکتری ادرارِ مرتبط با UTI مزمن یا عودکننده معرفی می‌کند؛ از این اندیکاسیون به‌تنهایی نمی‌توان مصرف برای درمان حاد سیستیت یا خط اول بودن را نتیجه گرفت. دستور فعلی سازنده برای بزرگسالان و افراد ۱۲ سال به بالا ۱ قرص ۱ گرمی، دو بار در روز است و مصرف زیر ۱۲ سال را توصیه نمی‌کند؛ یک CMI عمومیِ قدیمی‌تر (نوامبر ۲۰۱۷) دوز متفاوتی برای برخی کودکان دارد، بنابراین هیچ دوز کودکان را از این سند نقل نکنید و بسته/CMI جاری را با داروساز تطبیق دهید. CMI دربارهٔ پایین‌بودن pH ادرار، تداخل احتمالی داروهای قلیایی‌کننده و داروهای سولفا، و لزوم اطلاع‌دادن سابقهٔ مشکلات کلیه یا کبد توضیح می‌دهد؛ اما در منابع پیوندشده هدف ثابت pH برابر با ۵٫۵ یا کمتر ذکر نشده است. در بارداری با پزشک/داروساز مشورت شود؛ CMI می‌گوید عبور دارو به شیر مادر معلوم نیست و دربارهٔ شیردهی نیز باید مشورت شود. ویتامین C را درمان الزامی و همگانی معرفی نکنید؛ CMI مصرف آن را بر اساس pH یا پاسخ بالینی مطرح می‌کند."
+    : "Do not treat Hiprex (methenamine hippurate) as interchangeable with Ural. The manufacturer describes it for prevention or suppression of urinary bacteria associated with chronic or recurrent UTIs; that indication alone does not establish it as treatment for acute cystitis or as a first-line option. Current manufacturer directions are 1 g twice daily for adults and people aged 12 years or older, and say it is not recommended under 12; an older public CMI (November 2017) contains different directions for some children, so do not reproduce a paediatric dose from this document and verify the current pack/CMI with a pharmacist. The CMI discusses low urine pH, possible interactions with urine-alkalising and sulphonamide medicines, and the need to disclose kidney or liver problems; the linked sources do not state a fixed urine-pH target of 5.5 or lower. During pregnancy, discuss use with a doctor or pharmacist; the CMI says breast-milk transfer is unknown and also advises professional discussion about breastfeeding. Do not present vitamin C as universally required; the CMI makes it conditional on urinary pH or clinical response.";
   const refs = UTI_SOURCES.map((source) =>
     `<li><a href="${source.url}" target="_blank" rel="noopener noreferrer">${isPersian ? source.fa : source.en}</a></li>`,
   ).join("");
 
-  return `<section ${UTI_EDITORIAL_MARKER} dir="${direction}" class="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 space-y-2"><h3 class="text-sm font-bold">${heading}</h3><p class="text-xs leading-relaxed">${body}</p><ul class="list-disc list-inside text-xs space-y-1">${refs}</ul></section>`;
+  return `<section ${UTI_EDITORIAL_MARKER} dir="${direction}" class="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 space-y-2"><h3 class="text-sm font-bold">${heading}</h3><p class="text-xs leading-relaxed">${body}</p><p class="text-xs leading-relaxed">${hiprexBody}</p><ul class="list-disc list-inside text-xs space-y-1">${refs}</ul></section>`;
 }
 
 function replaceRequiredOnce(value: string, before: string, after: string, field: string): string {
@@ -57,6 +75,12 @@ function correctUtiDocument(document: KnowledgeDocument): KnowledgeDocument {
   if (hasFaNote !== hasEnNote) throw new Error("The Persian and English UTI editorial notes are inconsistent.");
 
   let contentHtml = document.content_html;
+  contentHtml = replaceRequiredOnce(
+    contentHtml,
+    "Ural Sachets / Hiprex / Ural Effervescent",
+    "Ural Effervescent Granules (تسکین علامتی)",
+    "content_html condition/brand label",
+  );
   contentHtml = replaceRequiredOnce(
     contentHtml,
     "درمان دارویی خط اول (First-line OTC Pharmacotherapy)",
@@ -89,6 +113,12 @@ function correctUtiDocument(document: KnowledgeDocument): KnowledgeDocument {
   );
 
   let contentEn = document.content_en || "";
+  contentEn = replaceRequiredOnce(
+    contentEn,
+    "Ural Sachets / Hiprex / Ural Effervescent",
+    "Ural Effervescent Granules (symptom relief)",
+    "content_en condition/brand label",
+  );
   contentEn = replaceRequiredOnce(
     contentEn,
     "First-line Pharmacotherapy:",
