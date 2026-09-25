@@ -219,6 +219,79 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
     expect(screen.queryByTestId("leitner-outline-card-outline-upcoming-card")).not.toBeInTheDocument();
   });
 
+  it("combines selected due cards across lessons into one unique review session", async () => {
+    const firstDueCard = {
+      ...mockCards[0],
+      id: "multi-due-a",
+      document_id: "multi-doc-a",
+      folder_id: "multi-folder",
+      front: "Selected lesson A question",
+    };
+    const secondDueCard = {
+      ...mockCards[0],
+      id: "multi-due-b",
+      document_id: "multi-doc-b",
+      folder_id: "multi-folder",
+      front: "Selected lesson B question",
+    };
+    const upcomingCard = {
+      ...mockCards[1],
+      id: "multi-upcoming",
+      document_id: "multi-doc-a",
+      folder_id: "multi-folder",
+      front: "Upcoming lesson question",
+    };
+    vi.mocked(getLeitnerCards).mockResolvedValueOnce([firstDueCard, secondDueCard, upcomingCard]);
+    vi.mocked(getDueLeitnerCards).mockResolvedValueOnce([firstDueCard, secondDueCard]);
+    vi.mocked(getKnowledgeFolders).mockResolvedValueOnce([{
+      id: "multi-folder",
+      user_id: "user-test",
+      parent_id: null,
+      name: "Study folder",
+      created_at: "2026-09-01T00:00:00.000Z",
+      updated_at: "2026-09-01T00:00:00.000Z",
+    }]);
+    vi.mocked(getKnowledgeDocuments).mockResolvedValueOnce([
+      {
+        id: "multi-doc-a",
+        user_id: "user-test",
+        folder_id: "multi-folder",
+        title: "Lesson A",
+        content_html: "",
+        created_at: "2026-09-01T00:00:00.000Z",
+        updated_at: "2026-09-01T00:00:00.000Z",
+      },
+      {
+        id: "multi-doc-b",
+        user_id: "user-test",
+        folder_id: "multi-folder",
+        title: "Lesson B",
+        content_html: "",
+        created_at: "2026-09-01T00:00:00.000Z",
+        updated_at: "2026-09-01T00:00:00.000Z",
+      },
+    ]);
+
+    render(<LeitnerDeckView userId="user-test" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "نمای درختی" }));
+    expect(await screen.findByTestId("leitner-outline-card-multi-due-a")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "انتخاب کارت موعددار Upcoming lesson question" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "انتخاب 1 کارت موعددار از Lesson A" }));
+    fireEvent.click(screen.getByRole("button", { name: "انتخاب 1 کارت موعددار از Lesson B" }));
+
+    expect(screen.getByText("2 کارت موعددار انتخاب شده")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "مرور انتخاب‌شده‌ها" }));
+    let activeCard = await screen.findByTestId("flip-card");
+    expect(within(activeCard).getByText("Selected lesson A question")).toBeInTheDocument();
+    fireEvent.click(activeCard);
+    fireEvent.click(await screen.findByRole("button", { name: /بلدم/ }));
+
+    activeCard = await screen.findByTestId("flip-card");
+    expect(within(activeCard).getByText("Selected lesson B question")).toBeInTheDocument();
+    expect(within(activeCard).queryByText("Upcoming lesson question")).not.toBeInTheDocument();
+  });
+
   it("starts a task-safe review from a folder branch and does not advance the linked task", async () => {
     const taskCard = {
       ...mockCards[0],
