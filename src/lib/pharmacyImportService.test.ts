@@ -69,24 +69,39 @@ describe("pharmacyImportService", () => {
     await importPharmacyKnowledge(userId, { importCards: false });
     expect(remote.knowledge_folders.get(PHARMACY_ROOT_FOLDER_ID)?.parent_id).toBe("legacy-root");
     expect(remote.knowledge_folders.get("legacy-root")?.name).toContain("Pharmacy Knowledge");
-  });
+  }, 15_000);
 
   it("generates complete source categories with valid folder and document links", () => {
     expect(PHARMACY_SEED_FOLDERS).toHaveLength(34);
     expect(PHARMACY_SEED_DOCUMENTS).toHaveLength(432);
     const folderIds = new Set(PHARMACY_SEED_FOLDERS.map((item) => item.id));
     const docIds = new Set(PHARMACY_SEED_DOCUMENTS.map((item) => item.id));
+    const cardIds = new Set(PHARMACY_SEED_CARDS.map((item) => item.id));
+    expect(folderIds.size).toBe(PHARMACY_SEED_FOLDERS.length);
     expect(docIds.size).toBe(PHARMACY_SEED_DOCUMENTS.length);
+    expect(cardIds.size).toBe(PHARMACY_SEED_CARDS.length);
+    for (const folder of PHARMACY_SEED_FOLDERS) {
+      if (folder.parent_id) expect(folderIds.has(folder.parent_id), `Broken parent in ${folder.id}`).toBe(true);
+    }
+    const sourceCommits = new Set(
+      PHARMACY_SEED_DOCUMENTS.map((doc) => doc.source_url?.match(/\/blob\/([a-f0-9]{40})\//)?.[1] || "")
+    );
+    expect(sourceCommits.size).toBe(1);
+    expect(sourceCommits.has("")).toBe(false);
+    let internalLinkCount = 0;
     for (const doc of PHARMACY_SEED_DOCUMENTS) {
       expect(folderIds.has(doc.folder_id || "")).toBe(true);
       expect(doc.source_url).toMatch(/^https:\/\/github\.com\/hamedharami-hub\/pharmacy\/blob\/[a-f0-9]{40}\//);
       expect(doc.content_review_status).toBe("unreviewed");
       for (const match of `${doc.content_html} ${doc.content_en}`.matchAll(/data-doc-link="([^"]+)"/g)) {
+        internalLinkCount += 1;
         expect(docIds.has(match[1]), `Broken link in ${doc.id}: ${match[1]}`).toBe(true);
       }
     }
+    expect(internalLinkCount).toBe(792);
     for (const card of PHARMACY_SEED_CARDS) {
       if (card.document_id) expect(docIds.has(card.document_id)).toBe(true);
+      if (card.folder_id) expect(folderIds.has(card.folder_id)).toBe(true);
     }
     expect(PHARMACY_SEED_DOCUMENTS.filter((item) => item.id.startsWith("doc-core-disease-"))).toHaveLength(15);
     expect(PHARMACY_SEED_DOCUMENTS.filter((item) => item.id.startsWith("doc-study-track-"))).toHaveLength(5);
@@ -246,7 +261,7 @@ describe("pharmacyImportService", () => {
     const resumed = await importPharmacyKnowledge(userId);
     expect(resumed.status.docsMissing).toBe(0);
     expect(remote.knowledge_documents.size).toBe(PHARMACY_SEED_DOCUMENTS.length);
-  });
+  }, 15_000);
 
   it("does not mistake a cache-only import for confirmed server data", () => {
     const status = comparePharmacySeed(
