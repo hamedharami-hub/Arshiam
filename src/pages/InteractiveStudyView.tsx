@@ -103,6 +103,7 @@ export const InteractiveStudyView: React.FC = () => {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [folders, setFolders] = useState<KnowledgeFolder[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [isLessonPickerCollapsed, setIsLessonPickerCollapsed] = useState(false);
   const [folderFilter, setFolderFilter] = useState(ALL_FOLDERS);
   const [search, setSearch] = useState("");
   const [language, setLanguage] = useState<"en" | "fa">("en");
@@ -137,6 +138,7 @@ export const InteractiveStudyView: React.FC = () => {
         setDocuments([]);
         setFolders([]);
         setSelectedDocId(null);
+        setIsLessonPickerCollapsed(false);
         setFolderFilter(ALL_FOLDERS);
         setSearch("");
         setSessionHtml("");
@@ -146,6 +148,7 @@ export const InteractiveStudyView: React.FC = () => {
       }
 
       setSelectedDocId(null);
+      setIsLessonPickerCollapsed(false);
       setSessionHtml("");
       setStudioOpen(false);
       setFolderFilter(ALL_FOLDERS);
@@ -348,6 +351,15 @@ export const InteractiveStudyView: React.FC = () => {
     input.scrollIntoView?.({ behavior: "smooth", block: "center" });
   }, []);
 
+  const handleChangeLesson = useCallback(() => {
+    setIsLessonPickerCollapsed(false);
+  }, []);
+
+  useEffect(() => {
+    if (isLessonPickerCollapsed || !selectedDocId) return;
+    handleBrowseLessons();
+  }, [handleBrowseLessons, isLessonPickerCollapsed, selectedDocId]);
+
   const handleSelectDocument = useCallback((documentId: string) => {
     if (documentId === selectedDocId) return;
     const requestSequence = ++documentChangeSequenceRef.current;
@@ -357,6 +369,7 @@ export const InteractiveStudyView: React.FC = () => {
       const document = documents.find((candidate) => candidate.id === documentId && candidate.user_id === user?.id);
       if (!document) return;
       setSelectedDocId(documentId);
+      setIsLessonPickerCollapsed(true);
       setSessionHtml("");
     })();
   }, [documents, selectedDocId, user?.id]);
@@ -459,6 +472,7 @@ export const InteractiveStudyView: React.FC = () => {
         const result = await flushPendingSessionSaveRef.current();
         if (result === "failed") return;
         setSelectedDocId(null);
+        setIsLessonPickerCollapsed(false);
         setSessionHtml("");
         setStudioOpen(false);
       })();
@@ -473,6 +487,7 @@ export const InteractiveStudyView: React.FC = () => {
         const result = await flushPendingSessionSaveRef.current();
         if (result === "failed") return;
         setSelectedDocId(null);
+        setIsLessonPickerCollapsed(false);
         setSessionHtml("");
         setStudioOpen(false);
       })();
@@ -518,6 +533,7 @@ export const InteractiveStudyView: React.FC = () => {
     chooseLanguage: isEn ? "Study language" : "زبان مطالعه",
     start: isEn ? "Build practice from this lesson" : "ساخت تمرین از این درس",
     selectedLesson: isEn ? "Selected lesson" : "درس انتخاب‌شده",
+    changeLesson: isEn ? "Change lesson" : "تغییر درس",
     whatYouCanPractice: isEn ? "What can I practice here?" : "اینجا چه تمرین‌هایی می‌توانم بسازم؟",
     workflow: isEn ? "Study flow" : "مسیر مطالعه",
     stepSource: isEn ? "Choose a lesson" : "انتخاب درس",
@@ -579,7 +595,7 @@ export const InteractiveStudyView: React.FC = () => {
         </aside>
 
         <div className="grid min-h-[420px] min-w-0 grid-cols-1 gap-4 min-[720px]:h-[68vh] min-[720px]:max-h-[680px] min-[720px]:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.5fr)] lg:grid-cols-[minmax(270px,0.8fr)_minmax(0,1.6fr)]">
-          <section aria-label={labels.documents} className="flex min-h-0 min-w-0 flex-col rounded-3xl border border-border bg-card p-3 sm:p-4">
+          <section data-testid="interactive-study-lesson-picker" aria-label={labels.documents} className={`${isLessonPickerCollapsed && selectedDocument ? "hidden min-[720px]:flex" : "flex"} min-h-0 min-w-0 flex-col rounded-3xl border border-border bg-card p-3 sm:p-4`}>
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="text-sm font-bold">{labels.documents}</h2>
               <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground" aria-live="polite">
@@ -684,6 +700,9 @@ export const InteractiveStudyView: React.FC = () => {
                     {selectedDocument?.content_review_status !== "reviewed" && <p role="note" className="mt-2 inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5 text-[11px] text-amber-800 dark:text-amber-300"><CircleAlert className="h-3.5 w-3.5" />{labels.unreviewed}</p>}
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
+                    <Button type="button" variant="outline" size="sm" className="rounded-xl min-[720px]:hidden" onClick={handleChangeLesson}>
+                      <BookOpen className="me-1.5 h-4 w-4" />{labels.changeLesson}
+                    </Button>
                     <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setStudioOpen(true)}><Gamepad2 className="me-1.5 h-4 w-4" />{labels.change}</Button>
                     <Button variant="ghost" size="sm" className="rounded-xl" onClick={handleEndSession}><X className="me-1.5 h-4 w-4" />{labels.end}</Button>
                   </div>
@@ -699,6 +718,9 @@ export const InteractiveStudyView: React.FC = () => {
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">{labels.selectedLesson}</p>
                   <h2 className="mt-2 break-words text-xl font-bold">{documentTitle}</h2>
+                  <Button type="button" variant="outline" size="sm" className="mt-3 rounded-xl min-[720px]:hidden" onClick={handleChangeLesson}>
+                    <BookOpen className="me-1.5 h-4 w-4" />{labels.changeLesson}
+                  </Button>
                   {draftLoadError && (
                     <div role="alert" className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs leading-5 text-amber-800 dark:text-amber-300">
                       <p>{labels.draftLoadError}</p>

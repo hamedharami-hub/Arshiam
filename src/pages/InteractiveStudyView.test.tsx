@@ -213,10 +213,14 @@ describe("InteractiveStudyView", () => {
     const { container } = renderStudio();
     const sampleLesson = await screen.findByRole("button", { name: /Sample guide/i });
     await actEvent(() => fireEvent.click(sampleLesson));
+    const lessonPicker = screen.getByTestId("interactive-study-lesson-picker");
+    expect(lessonPicker).toHaveClass("hidden", "min-[720px]:flex");
     await screen.findByRole("button", { name: /ساخت تمرین از این درس/i });
     await actEvent(() => fireEvent.click(screen.getByRole("button", { name: /ساخت تمرین از این درس/i })));
     await actEvent(() => fireEvent.click(screen.getByRole("button", { name: "Build test session" })));
     await waitFor(() => expect(container.querySelector(".interactive-flip-card")).not.toBeNull());
+    await actEvent(() => fireEvent.click(screen.getByRole("button", { name: "تغییر درس" })));
+    expect(lessonPicker).not.toHaveClass("hidden");
     await actEvent(() => fireEvent.click(screen.getByRole("button", { name: /Second guide/i })));
     await waitFor(() => expect(container.querySelector(".interactive-flip-card")).toBeNull());
     expect(screen.getAllByText("Second guide").length).toBeGreaterThan(0);
@@ -226,6 +230,7 @@ describe("InteractiveStudyView", () => {
     renderStudio();
     const otherLesson = await screen.findByRole("button", { name: /Other lesson/i });
     await actEvent(() => fireEvent.click(otherLesson));
+    await actEvent(() => fireEvent.click(screen.getByRole("button", { name: "تغییر درس" })));
 
     await actEvent(() => fireEvent.change(screen.getByRole("combobox", { name: "فیلتر بر اساس پوشه" }), { target: { value: "folder-root" } }));
     expect(screen.getAllByText("Sample guide").length).toBeGreaterThan(0);
