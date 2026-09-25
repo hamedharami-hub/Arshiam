@@ -3,9 +3,10 @@ import { cacheSet, getPendingOps } from "./offlineQueue";
 import { saveEntityToFirestore } from "./firestoreSync";
 import type { KnowledgeDocument, KnowledgeFolder } from "./knowledgeTypes";
 import type { LeitnerCard } from "./leitnerTypes";
-import { getDocsCacheKey, getFoldersCacheKey, isOnline } from "./knowledgeService";
+import { getDocsCacheKey, getFoldersCacheKey, isOnline, normalizeKnowledgeDocument } from "./knowledgeService";
 import { calculateNextReviewDate, getLeitnerCardsCacheKey } from "./leitnerService";
 import { PHARMACY_ROOT_FOLDER_ID } from "./pharmacyConstants";
+import { getSafeKnowledgeExternalUrl } from "./knowledgeReviewEvidence";
 
 type SeedData = typeof import("./pharmacySeedData");
 type LegacySeedData = typeof import("./pharmacyLegacySeedData");
@@ -35,6 +36,18 @@ type Snapshot = {
   documents: KnowledgeDocument[];
   cards: LeitnerCard[];
 };
+
+export function normalizePharmacySeedDocument(document: KnowledgeDocument): KnowledgeDocument {
+  const sourceUrl = getSafeKnowledgeExternalUrl(document.source_url);
+  if (!sourceUrl?.startsWith("https://")) {
+    throw new Error(`Pharmacy source URL is missing or invalid for ${document.id}.`);
+  }
+  return normalizeKnowledgeDocument({ ...document, source_url: sourceUrl });
+}
+
+export function normalizePharmacySeedData(seed: SeedData): SeedData {
+  return { ...seed, PHARMACY_SEED_DOCUMENTS: seed.PHARMACY_SEED_DOCUMENTS.map(normalizePharmacySeedDocument) };
+}
 
 function assertUser(userId: string): void {
   if (!userId || userId === "anonymous-kb-user") {
@@ -197,27 +210,31 @@ export async function importPharmacyKnowledge(
     }));
   const documents = seed.PHARMACY_SEED_DOCUMENTS
     .filter((item) => !remoteDocIds.has(item.id))
-    .map((item) => ({
-      ...item,
-      user_id: userId,
-      plain_text: plainText(item),
-      created_at: now,
-      updated_at: now,
-    }));
+    .map((item) => {
+      const safeDocument = normalizePharmacySeedDocument(item);
+      return {
+        ...safeDocument,
+        user_id: userId,
+        plain_text: plainText(safeDocument),
+        created_at: now,
+        updated_at: now,
+      };
+    });
   const seedDocMap = new Map(seed.PHARMACY_SEED_DOCUMENTS.map((item) => [item.id, item]));
   const upgradedDocuments = getUpgradeableDocuments(seed, legacy, remote).map((old) => {
     const next = seedDocMap.get(old.id)!;
+    const normalizedNext = normalizePharmacySeedDocument(next);
     return {
       ...old,
       folder_id: next.folder_id,
       title: next.title,
       title_en: next.title_en,
-      content_html: next.content_html,
-      content_en: next.content_en,
-      plain_text: plainText(next),
-      tags: next.tags,
-      source_url: next.source_url,
-      content_review_status: next.content_review_status,
+      content_html: normalizedNext.content_html,
+      content_en: normalizedNext.content_en,
+      plain_text: plainText(normalizedNext),
+      tags: normalizedNext.tags,
+      source_url: normalizedNext.source_url,
+      content_review_status: normalizedNext.content_review_status,
       updated_at: now,
     };
   });

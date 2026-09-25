@@ -4,7 +4,8 @@ import { getDocsCacheKey, getFoldersCacheKey } from "./knowledgeService";
 import { getLeitnerCardsCacheKey } from "./leitnerService";
 import { PHARMACY_ROOT_FOLDER_ID, PHARMACY_SEED_CARDS, PHARMACY_SEED_DOCUMENTS, PHARMACY_SEED_FOLDERS } from "./pharmacySeedData";
 import { PHARMACY_SEED_DOCUMENTS as LEGACY_DOCUMENTS } from "./pharmacyLegacySeedData";
-import { comparePharmacySeed, getPharmacyImportStatus, importPharmacyKnowledge, isPharmacyImported } from "./pharmacyImportService";
+import { comparePharmacySeed, getPharmacyImportStatus, importPharmacyKnowledge, isPharmacyImported, normalizePharmacySeedData } from "./pharmacyImportService";
+import { sanitizeKnowledgeHtml } from "./knowledgeHtmlSanitizer";
 
 const remote = vi.hoisted(() => ({
   knowledge_folders: new Map<string, Record<string, unknown>>(),
@@ -102,6 +103,39 @@ describe("pharmacyImportService", () => {
     expect(PHARMACY_SEED_DOCUMENTS.find((item) => item.id === "doc-cyp-cyp2d6")?.title).toBe("\u0633\u06cc\u062a\u0648\u06a9\u0631\u0648\u0645 CYP2D6: \u062a\u062f\u0627\u062e\u0644\u0627\u062a \u0648 \u0645\u0647\u0627\u0631\u06a9\u0646\u0646\u062f\u0647\u200c\u0647\u0627");
   });
 
+  it("sanitizes untrusted bilingual seed HTML while retaining internal knowledge links", () => {
+    const fixture = {
+      PHARMACY_SEED_DOCUMENTS: [{
+        ...PHARMACY_SEED_DOCUMENTS[0],
+        id: "doc-synthetic-import",
+        content_html: '<p>Safe lesson</p><a data-doc-link="doc-synthetic-import" href="javascript:alert(1)">related</a><script>bad()</script>',
+        content_en: '<img src="x" onerror="alert(1)"><p>English lesson</p>',
+      }],
+    } as Parameters<typeof normalizePharmacySeedData>[0];
+
+    const normalized = normalizePharmacySeedData(fixture).PHARMACY_SEED_DOCUMENTS[0];
+
+    expect(normalized.id).toBe("doc-synthetic-import");
+    expect(normalized.content_html).toContain("Safe lesson");
+    expect(normalized.content_html).toContain('data-doc-link="doc-synthetic-import"');
+    expect(normalized.content_html).not.toMatch(/<script|javascript:/i);
+    expect(normalized.content_en).toContain("English lesson");
+    expect(normalized.content_en).not.toMatch(/onerror/i);
+    expect(normalized.source_url).toBe(PHARMACY_SEED_DOCUMENTS[0].source_url);
+  });
+
+  it("rejects seed provenance links that are missing or unsafe", () => {
+    const fixture = {
+      PHARMACY_SEED_DOCUMENTS: [{
+        ...PHARMACY_SEED_DOCUMENTS[0],
+        id: "doc-synthetic-import",
+        source_url: "javascript:alert(1)",
+      }],
+    } as Parameters<typeof normalizePharmacySeedData>[0];
+
+    expect(() => normalizePharmacySeedData(fixture)).toThrow(/source URL is missing or invalid/i);
+  });
+
   it("imports missing rows and verifies them on the server", async () => {
     const result = await importPharmacyKnowledge(userId);
     expect(result).toMatchObject({
@@ -112,6 +146,9 @@ describe("pharmacyImportService", () => {
     expect(result.status).toMatchObject({ foldersMissing: 0, docsMissing: 0, cardsMissing: 0 });
     expect(remote.knowledge_documents.size).toBe(PHARMACY_SEED_DOCUMENTS.length);
     expect((await cacheGet<unknown[]>(getDocsCacheKey(userId)))?.length).toBe(PHARMACY_SEED_DOCUMENTS.length);
+    const importedExample = remote.knowledge_documents.get(PHARMACY_SEED_DOCUMENTS[0].id);
+    expect(importedExample?.content_html).toBe(sanitizeKnowledgeHtml(PHARMACY_SEED_DOCUMENTS[0].content_html));
+    expect(importedExample?.content_en).toBe(sanitizeKnowledgeHtml(PHARMACY_SEED_DOCUMENTS[0].content_en || ""));
     expect(await isPharmacyImported(userId)).toBe(true);
   });
 

@@ -39,7 +39,7 @@ function stripHtmlToPlainText(html: string): string {
     .trim();
 }
 
-function normalizeKnowledgeDocument(document: KnowledgeDocument): KnowledgeDocument {
+export function normalizeKnowledgeDocument(document: KnowledgeDocument): KnowledgeDocument {
   const contentHtml = sanitizeKnowledgeHtml(typeof document.content_html === "string" ? document.content_html : "");
   const contentEn = typeof document.content_en === "string"
     ? sanitizeKnowledgeHtml(document.content_en)
