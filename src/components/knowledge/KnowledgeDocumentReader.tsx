@@ -1019,6 +1019,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
           <InteractiveLearningModal
             open={interactiveModalOpen}
             onOpenChange={setInteractiveModalOpen}
+            documentId={document?.id}
             documentTitle={document?.title || ""}
             documentContent={document?.content_html || ""}
             onInsertContent={handleInsertInteractive}

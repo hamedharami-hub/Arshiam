@@ -668,6 +668,7 @@ export const InteractiveStudyView: React.FC = () => {
 
       {selectedDocument && (
         <InteractiveLearningModal
+          documentId={selectedDocument.id}
           open={studioOpen}
           onOpenChange={setStudioOpen}
           documentTitle={documentTitle}

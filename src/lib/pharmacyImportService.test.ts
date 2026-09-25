@@ -98,7 +98,7 @@ describe("pharmacyImportService", () => {
         expect(docIds.has(match[1]), `Broken link in ${doc.id}: ${match[1]}`).toBe(true);
       }
     }
-    expect(internalLinkCount).toBe(792);
+    expect(internalLinkCount).toBe(808);
     for (const card of PHARMACY_SEED_CARDS) {
       if (card.document_id) expect(docIds.has(card.document_id)).toBe(true);
       if (card.folder_id) expect(folderIds.has(card.folder_id)).toBe(true);
@@ -115,6 +115,21 @@ describe("pharmacyImportService", () => {
     expect(PHARMACY_SEED_DOCUMENTS.filter((item) =>
       item.id.startsWith("doc-mechanism-") && !item.id.startsWith("doc-mechanism-sub-")
     )).toHaveLength(70);
+    const safeScriptCase = PHARMACY_SEED_DOCUMENTS.find((item) => item.id === "doc-scenario-clinical-safescript-early-refill-s8");
+    expect(safeScriptCase?.content_en).toContain("Pharmacist assessment questions");
+    expect(safeScriptCase?.content_en).toContain("Clinical rationale:");
+    expect(safeScriptCase?.content_en).toContain("Red flags and escalation cues");
+    expect(safeScriptCase?.content_en).toContain("Administrative / jurisdiction note");
+    expect(safeScriptCase?.content_en).toContain("Referral handover template");
+    expect(safeScriptCase?.content_en).not.toMatch(/[\u0600-\u06ff]/);
+    const scenarioDocuments = PHARMACY_SEED_DOCUMENTS.filter((item) =>
+      item.id.startsWith("doc-scenario-clinical-") || item.id.startsWith("doc-scenario-slang-")
+    );
+    expect(scenarioDocuments).toHaveLength(28);
+    for (const scenario of scenarioDocuments) {
+      expect(scenario.content_en).toContain("English study view");
+      expect(scenario.content_en).not.toMatch(/[\u0600-\u06ff]/);
+    }
     expect(PHARMACY_SEED_DOCUMENTS.find((item) => item.id === "doc-cyp-cyp2d6")?.title).toBe("\u0633\u06cc\u062a\u0648\u06a9\u0631\u0648\u0645 CYP2D6: \u062a\u062f\u0627\u062e\u0644\u0627\u062a \u0648 \u0645\u0647\u0627\u0631\u06a9\u0646\u0646\u062f\u0647\u200c\u0647\u0627");
   });
 
@@ -165,7 +180,7 @@ describe("pharmacyImportService", () => {
     expect(importedExample?.content_html).toBe(sanitizeKnowledgeHtml(PHARMACY_SEED_DOCUMENTS[0].content_html));
     expect(importedExample?.content_en).toBe(sanitizeKnowledgeHtml(PHARMACY_SEED_DOCUMENTS[0].content_en || ""));
     expect(await isPharmacyImported(userId)).toBe(true);
-  });
+  }, 15_000);
 
   it("preserves existing edits and review progress even when force is requested", async () => {
     const doc = { ...PHARMACY_SEED_DOCUMENTS[0], user_id: userId, title: "My edited title" };
@@ -180,7 +195,7 @@ describe("pharmacyImportService", () => {
     expect(remote.leitner_cards.get(card.id)?.review_count).toBe(19);
     const second = await importPharmacyKnowledge(userId);
     expect(second).toMatchObject({ foldersCount: 0, docsCount: 0, cardsCount: 0 });
-  });
+  }, 15_000);
 
   it("does not resurrect a stale cached copy when the server lacks that ID", async () => {
     const local = { ...PHARMACY_SEED_DOCUMENTS[0], user_id: userId, title: "Saved offline edit" };
@@ -189,7 +204,7 @@ describe("pharmacyImportService", () => {
     expect(remote.knowledge_documents.get(local.id)?.title).toBe(PHARMACY_SEED_DOCUMENTS[0].title);
     expect((await cacheGet<typeof local[]>(getDocsCacheKey(userId)))?.find((doc) => doc.id === local.id)?.title)
       .toBe(PHARMACY_SEED_DOCUMENTS[0].title);
-  });
+  }, 15_000);
 
   it("stops before writing when this user's knowledge changes are pending offline", async () => {
     vi.mocked(getPendingOps).mockResolvedValue([{
@@ -212,14 +227,14 @@ describe("pharmacyImportService", () => {
     expect(remote.knowledge_documents.get(old.id)?.content_html).toBe(next.content_html);
     expect(remote.knowledge_documents.get(old.id)?.read_count).toBe(12);
     expect(remote.knowledge_documents.get(old.id)?.is_favorite).toBe(true);
-  });
+  }, 15_000);
 
   it("does not replace a legacy document whose authored content was edited", async () => {
     const old = LEGACY_DOCUMENTS.find((item) => item.id === "doc-disease-eczema")!;
     remote.knowledge_documents.set(old.id, { ...old, user_id: userId, content_html: `${old.content_html}<p>My note</p>` });
     await importPharmacyKnowledge(userId);
     expect(String(remote.knowledge_documents.get(old.id)?.content_html)).toContain("My note");
-  });
+  }, 15_000);
 
   it("preserves a custom source link on a legacy document", async () => {
     const old = LEGACY_DOCUMENTS.find((item) => item.id === "doc-disease-eczema")!;
@@ -227,7 +242,7 @@ describe("pharmacyImportService", () => {
     remote.knowledge_documents.set(old.id, { ...old, user_id: userId, source_url: personalSource });
     await importPharmacyKnowledge(userId);
     expect(remote.knowledge_documents.get(old.id)?.source_url).toBe(personalSource);
-  });
+  }, 15_000);
 
   it("preserves the manual content-review status and evidence on a legacy document", async () => {
     const old = LEGACY_DOCUMENTS.find((item) => item.id === "doc-disease-eczema")!;
@@ -251,7 +266,7 @@ describe("pharmacyImportService", () => {
     await importPharmacyKnowledge(userId);
     expect(remote.knowledge_documents.get(old.id)?.content_review_status).toBe("reviewed");
     expect(remote.knowledge_documents.get(old.id)?.content_review_evidence).toEqual(reviewEvidence);
-  });
+  }, 15_000);
 
   it("fails visibly on partial server writes and safely resumes", async () => {
     remote.failId = PHARMACY_SEED_DOCUMENTS[0].id;

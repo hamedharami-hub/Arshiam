@@ -1330,6 +1330,102 @@ console.log(`Generated 121 Products + 22 CAL Labels + 8 Storage Laws in Pillar 3
 // SECTION 4: 32 SCENARIOS + 13 SCRIPTS (45 docs)
 // =========================================================================
 
+function renderScenarioEnglishHtml(sc, linkedDiseaseId, correctOption) {
+  const patient = sc.patientProfile || {};
+  const hasArabic = (value) => Array.from(String(value || '')).some((char) => {
+    const codePoint = char.codePointAt(0);
+    return codePoint >= 0x0600 && codePoint <= 0x06ff;
+  });
+  const rawName = typeof patient.name === 'string' ? patient.name : '';
+  const nameStart = rawName.lastIndexOf('(');
+  const nameEnd = rawName.lastIndexOf(')');
+  const nameNote = nameStart >= 0 && nameEnd > nameStart ? rawName.slice(nameStart + 1, nameEnd) : '';
+  const patientName = hasArabic(nameNote) ? rawName.slice(0, nameStart).trim() : (rawName || 'Patient');
+  const rawGender = typeof patient.gender === 'string' ? patient.gender : patient.gender?.en || '';
+  const genderStart = rawGender.lastIndexOf('(');
+  const genderEnd = rawGender.lastIndexOf(')');
+  const genderNote = genderStart >= 0 && genderEnd > genderStart ? rawGender.slice(genderStart + 1, genderEnd) : '';
+  const gender = hasArabic(genderNote)
+    ? rawGender.slice(0, genderStart).trim()
+    : (genderNote || (hasArabic(rawGender) ? '' : rawGender));
+  const questions = sc.whatQuestions || [];
+  const redFlags = sc.redFlags || [];
+  const keyPhrases = sc.aussieContext?.keyPhrases || [];
+  const outcome = sc.clinicalOutcome;
+  const referral = outcome?.referralLetterTemplate;
+  const english = (value, fallback = 'English translation unavailable in source data.') => {
+    const text = typeof value === 'string' ? value : value?.en;
+    return text
+      ? escapeHtml(text)
+      : '<span class="text-amber-700 dark:text-amber-400">' + escapeHtml(fallback) + '</span>';
+  };
+  const html = [];
+
+  html.push('<div class="knowledge-card space-y-6 text-left" dir="ltr">');
+  html.push('<div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25"><div class="flex items-center justify-between flex-wrap gap-2 mb-2"><span class="text-xs font-bold text-rose-600 dark:text-rose-400">👤 Pharmacy Patient Triage Case</span><span class="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-300 font-semibold font-mono">English study view</span></div><div class="text-xs text-muted-foreground grid grid-cols-1 sm:grid-cols-3 gap-2"><div><strong>Patient:</strong> ' + escapeHtml(patientName) + '</div><div><strong>Age:</strong> ' + escapeHtml(patient.age ? String(patient.age) + ' years' : 'Not supplied') + '</div><div><strong>Gender:</strong> ' + escapeHtml(gender || 'Not supplied') + '</div></div></div>');
+
+  if (linkedDiseaseId) {
+    html.push('<div class="p-3.5 rounded-xl bg-cyan-500/10 border border-cyan-500/25 flex items-center justify-between gap-2 cursor-pointer hover:bg-cyan-500/15 transition group" data-doc-link="doc-disease-' + escapeHtml(linkedDiseaseId) + '"><div><div class="text-[10px] font-bold text-cyan-600 dark:text-cyan-400">🩺 Related clinical protocol</div><div class="text-xs font-bold text-foreground group-hover:text-cyan-600 transition">Open the related disease and treatment guide</div></div><span class="text-xs font-bold text-cyan-600 dark:text-cyan-400">Open guide →</span></div>');
+  }
+
+  html.push('<section class="p-4 rounded-2xl bg-muted/30 border border-border space-y-2"><h3 class="text-sm font-bold text-foreground">🗣️ Patient presentation</h3><p class="p-3.5 rounded-xl bg-background border border-rose-500/30 text-sm font-semibold text-foreground leading-relaxed italic">"' + english(patient.presentation) + '"</p></section>');
+
+  if (sc.aussieContext?.en) {
+    html.push('<section class="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/25 space-y-2"><h3 class="text-sm font-bold text-sky-700 dark:text-sky-400">🇦🇺 Australian practice context</h3><p class="text-xs text-foreground leading-relaxed">' + english(sc.aussieContext.en) + '</p></section>');
+  }
+
+  if (keyPhrases.length) {
+    html.push('<section class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 space-y-3"><h3 class="text-sm font-bold text-amber-700 dark:text-amber-400">Key terms and local language</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-2">');
+    for (const phrase of keyPhrases) {
+      html.push('<article class="p-3 rounded-xl bg-background/80 border border-amber-500/20 space-y-1"><div class="font-bold text-foreground">' + english(phrase.phrase) + '</div><p class="text-xs text-muted-foreground leading-relaxed">' + english(phrase.meaningEn, 'English definition unavailable in source data.') + '</p></article>');
+    }
+    html.push('</div></section>');
+  }
+
+  if (questions.length) {
+    html.push('<section class="space-y-3"><div class="flex items-center justify-between gap-2"><h3 class="text-sm font-bold text-foreground">📋 Pharmacist assessment questions (W-H-A-T-M-A-N)</h3><span class="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">Question and patient answer</span></div><div class="space-y-2.5">');
+    for (const question of questions) {
+      html.push('<article class="p-3.5 rounded-xl bg-muted/40 border border-border space-y-2"><div class="flex items-start gap-2.5"><span class="px-2 py-1 rounded-lg bg-primary text-primary-foreground font-mono font-bold text-xs shrink-0">' + escapeHtml(question.key || '?') + '</span><div class="space-y-1"><div class="text-xs font-bold text-primary">' + english(question.label?.en || question.key) + ': ' + english(question.question) + '</div></div></div><div class="p-2.5 rounded-lg bg-background/80 border border-border text-xs"><span class="text-[10px] font-bold text-muted-foreground uppercase block mb-0.5">Patient reply</span><span class="text-foreground italic">"' + english(question.answer) + '"</span></div></article>');
+    }
+    html.push('</div></section>');
+  }
+
+  if (correctOption) {
+    html.push('<section class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-2"><h3 class="text-sm font-bold text-emerald-700 dark:text-emerald-400">💊 Recommended pharmacist consultation</h3><p class="p-3 rounded-xl bg-background/80 border border-emerald-500/20 text-xs text-foreground leading-relaxed">' + english(correctOption.text) + '</p>');
+    if (correctOption.patientReply?.en) {
+      html.push('<p class="text-xs text-muted-foreground italic"><strong>Patient reaction:</strong> "' + english(correctOption.patientReply.en) + '"</p>');
+    }
+    html.push('</section>');
+  }
+
+  if (outcome) {
+    const outcomeColor = outcome.requiresReferral ? 'rose' : 'emerald';
+    const outcomeLabel = outcome.requiresReferral ? '🚨 Referral required' : '✅ Pharmacy management pathway';
+    html.push('<section class="p-4 rounded-2xl bg-' + outcomeColor + '-500/10 border border-' + outcomeColor + '-500/30 space-y-2"><h3 class="text-sm font-bold text-' + outcomeColor + '-600 dark:text-' + outcomeColor + '-400">' + outcomeLabel + '</h3><p class="text-xs text-foreground leading-relaxed"><strong>Recommendation:</strong> ' + english(outcome.recommendation) + '</p>');
+    if (outcome.explanation?.en) {
+      html.push('<p class="text-xs text-muted-foreground leading-relaxed border-t border-border/40 pt-2"><strong>Clinical rationale:</strong> ' + english(outcome.explanation.en) + '</p>');
+    }
+    html.push('</section>');
+  }
+
+  if (redFlags.length) {
+    html.push('<section class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 space-y-2"><h3 class="text-sm font-bold text-rose-600 dark:text-rose-400">🚨 Red flags and escalation cues</h3><ul class="space-y-1.5 text-xs text-muted-foreground list-disc list-inside">');
+    for (const flag of redFlags) html.push('<li>' + english(flag) + '</li>');
+    html.push('</ul></section>');
+  }
+
+  if (sc.aussieContext?.adminRule) {
+    html.push('<section class="p-4 rounded-2xl bg-violet-500/10 border border-violet-500/25 space-y-2"><h3 class="text-sm font-bold text-violet-700 dark:text-violet-400">⚖️ Administrative / jurisdiction note</h3><p class="text-xs text-foreground leading-relaxed">' + english(sc.aussieContext.adminRule) + '</p></section>');
+  }
+
+  if (referral) {
+    html.push('<section class="p-4 rounded-2xl bg-muted/30 border border-border space-y-2"><h3 class="text-sm font-bold text-foreground">📨 Referral handover template</h3><dl class="grid grid-cols-1 gap-2 text-xs"><div><dt class="font-bold text-muted-foreground">To</dt><dd>' + english(referral.to) + '</dd></div><div><dt class="font-bold text-muted-foreground">Reason</dt><dd>' + english(referral.reason) + '</dd></div><div><dt class="font-bold text-muted-foreground">Summary</dt><dd>' + english(referral.symptomSummary) + '</dd></div><div><dt class="font-bold text-muted-foreground">Current medicines</dt><dd>' + english(referral.currentMeds) + '</dd></div><div><dt class="font-bold text-muted-foreground">Suggested action</dt><dd>' + english(referral.suggestedAction) + '</dd></div></dl></section>');
+  }
+
+  html.push('</div>');
+  return html.join('');
+}
+
 function renderScenarioHtml(sc, { isPrimaryFa = true } = {}) {
   const presEn = sc.patientProfile?.presentation?.en || '';
   const presFa = sc.patientProfile?.presentation?.fa || '';
@@ -1492,36 +1588,7 @@ function renderScenarioHtml(sc, { isPrimaryFa = true } = {}) {
 </div>`;
   }
 
-  // English Primary View
-  return `
-<div class="knowledge-card space-y-6 text-left" dir="ltr">
-  <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25">
-    <div class="flex items-center justify-between flex-wrap gap-2 mb-2">
-      <span class="text-xs font-bold text-rose-600 dark:text-rose-400">👤 Pharmacy Patient Triage Case</span>
-      <span class="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-300 font-semibold font-mono">Bilingual Triage</span>
-    </div>
-    <div class="text-xs text-muted-foreground grid grid-cols-1 sm:grid-cols-3 gap-2">
-      <div><strong>Patient Name:</strong> ${escapeHtml(sc.patientProfile?.name || 'Patient')}</div>
-      <div><strong>Age:</strong> ${escapeHtml(sc.patientProfile?.age ? `${sc.patientProfile.age} yrs` : '-')}</div>
-      <div><strong>Gender:</strong> ${escapeHtml(sc.patientProfile?.gender || '-')}</div>
-    </div>
-  </div>
-
-  <div class="p-4 rounded-2xl bg-muted/30 border border-border space-y-3">
-    <div class="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
-      <div class="text-xs font-bold text-foreground">🗣️ Patient Presentation &amp; Triage Dialogue</div>
-      <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">EN &amp; FA</span>
-    </div>
-
-    <div class="p-3.5 rounded-xl bg-background border border-rose-500/30 text-left font-sans shadow-2xs" dir="ltr">
-      <p class="text-sm font-semibold text-foreground leading-relaxed italic">"${escapeHtml(presEn)}"</p>
-    </div>
-
-    <div class="p-3 rounded-xl bg-background/60 border border-border text-right" dir="rtl">
-      <p class="text-sm text-foreground/90 leading-relaxed font-medium">«${escapeHtml(presFa)}»</p>
-    </div>
-  </div>
-</div>`;
+  return renderScenarioEnglishHtml(sc, linkedDiseaseId, correctOption);
 }
 
 // 4.1 4 Slang Scenarios

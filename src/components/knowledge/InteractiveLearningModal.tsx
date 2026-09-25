@@ -37,6 +37,7 @@ import { sanitizeKnowledgeHtml } from "@/lib/knowledgeBeautifier";
 interface InteractiveLearningModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  documentId?: string;
   documentTitle: string;
   documentContent: string;
   onInsertContent: (html: string, mode: "append" | "replace") => void;
@@ -47,6 +48,7 @@ interface InteractiveLearningModalProps {
 export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> = ({
   open,
   onOpenChange,
+  documentId,
   documentTitle,
   documentContent,
   onInsertContent,
@@ -66,6 +68,19 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
   const [isCopied, setIsCopied] = useState(false);
 
   const previewContainerRef = useRef<HTMLDivElement>(null);
+  const generationSequenceRef = useRef(0);
+
+  // A preview belongs to one source lesson and language. Never carry generated
+  // content across a source change, and ignore a late AI response for old input.
+  useEffect(() => {
+    generationSequenceRef.current += 1;
+    setSelectedPresets(["flip_card", "quiz_mcq"]);
+    setCustomPrompt("");
+    setActiveTab("presets");
+    setGeneratedHtml("");
+    setIsGenerating(false);
+    setIsCopied(false);
+  }, [documentContent, documentId, documentTitle, isEn]);
 
   // Toggle a preset chip
   const togglePreset = (id: InteractiveWidgetType) => {
@@ -107,6 +122,7 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
       return;
     }
 
+    const generationSequence = ++generationSequenceRef.current;
     setIsGenerating(true);
     try {
       const html = await generateInteractiveContent({
@@ -117,16 +133,18 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
         language: isEn ? "en" : "fa",
       });
 
+      if (generationSequence !== generationSequenceRef.current) return;
       setGeneratedHtml(html);
       setActiveTab("preview");
       toast.success(
         isEn ? "Interactive widgets generated!" : "ماژول‌های تعاملی با موفقیت ساخته شدند!"
       );
     } catch (err: any) {
+      if (generationSequence !== generationSequenceRef.current) return;
       console.error("Error generating interactive widgets:", err);
       toast.error(err.message || (isEn ? "Generation failed" : "خطا در تولید محتوای تعاملی"));
     } finally {
-      setIsGenerating(false);
+      if (generationSequence === generationSequenceRef.current) setIsGenerating(false);
     }
   };
 

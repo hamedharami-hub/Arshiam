@@ -807,6 +807,7 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
       <InteractiveLearningModal
         open={interactiveModalOpen}
         onOpenChange={setInteractiveModalOpen}
+        documentId={document?.id}
         documentTitle={langTab === "fa" ? title : titleEn || title}
         documentContent={langTab === "fa" ? contentHtml : contentEn}
         onInsertContent={handleInsertInteractive}
