@@ -118,6 +118,7 @@ export const InteractiveStudyView: React.FC = () => {
   const [studioOpen, setStudioOpen] = useState(false);
   const sessionContainerRef = useRef<HTMLDivElement>(null);
   const activeSessionRef = useRef<InteractiveStudySession | null>(null);
+  const draftLoadSequenceRef = useRef(0);
   const isEnRef = useRef(isEn);
   isEnRef.current = isEn;
   const sessionSaveQueueRef = useRef<Promise<SessionFlushResult>>(Promise.resolve("none"));
@@ -278,20 +279,8 @@ export const InteractiveStudyView: React.FC = () => {
     return () => window.removeEventListener("beforeunload", guardUnsavedExit);
   }, [sessionHtml, sessionSaveState]);
 
-  useEffect(() => {
-    let isCurrent = true;
-    if (!user?.id || !selectedDocId || selectedDocument?.id !== selectedDocId || selectedDocument.user_id !== user.id) {
-      activeSessionRef.current = null;
-      setIsLoadingDraft(false);
-      setDraftLoadError("");
-      setSessionHtml("");
-      setIsRestoredDraft(false);
-      setSessionSaveError("");
-      setSessionSaveState("idle");
-      setSessionNotice("");
-      return () => { isCurrent = false; };
-    }
-
+  const loadSelectedDraft = useCallback(async (userId: string, documentId: string, draftLanguage: "en" | "fa") => {
+    const requestSequence = ++draftLoadSequenceRef.current;
     activeSessionRef.current = null;
     setIsLoadingDraft(true);
     setDraftLoadError("");
@@ -301,8 +290,9 @@ export const InteractiveStudyView: React.FC = () => {
     setSessionSaveState("loading");
     setSessionNotice("");
 
-    void loadLatestInteractiveStudyDraft(user.id, selectedDocId, language).then((result) => {
-      if (!isCurrent) return;
+    try {
+      const result = await loadLatestInteractiveStudyDraft(userId, documentId, draftLanguage);
+      if (requestSequence !== draftLoadSequenceRef.current) return;
       setIsLoadingDraft(false);
       if (result.ok === false) {
         setDraftLoadError(result.error);
@@ -317,16 +307,37 @@ export const InteractiveStudyView: React.FC = () => {
       } else {
         setSessionSaveState("idle");
       }
-    }).catch((error) => {
-      if (!isCurrent) return;
+    } catch (error) {
+      if (requestSequence !== draftLoadSequenceRef.current) return;
       console.warn("Could not load interactive study draft", error);
       setIsLoadingDraft(false);
-      setDraftLoadError(isEnRef.current ? "Saved practice could not be checked. Your existing sessions were not changed." : "بررسی جلسه‌های ذخیره‌شده ممکن نشد؛ جلسه‌های قبلی تغییری نکرده‌اند.");
+      setDraftLoadError(error instanceof Error ? error.message : "Saved practice could not be checked.");
       setSessionSaveState("idle");
-    });
+    }
+  }, []);
 
-    return () => { isCurrent = false; };
-  }, [language, selectedDocId, selectedDocument?.id, selectedDocument?.user_id, user?.id]);
+  useEffect(() => {
+    if (!user?.id || !selectedDocId || selectedDocument?.id !== selectedDocId || selectedDocument.user_id !== user.id) {
+      draftLoadSequenceRef.current += 1;
+      activeSessionRef.current = null;
+      setIsLoadingDraft(false);
+      setDraftLoadError("");
+      setSessionHtml("");
+      setIsRestoredDraft(false);
+      setSessionSaveError("");
+      setSessionSaveState("idle");
+      setSessionNotice("");
+      return;
+    }
+
+    void loadSelectedDraft(user.id, selectedDocId, language);
+    return () => { draftLoadSequenceRef.current += 1; };
+  }, [language, loadSelectedDraft, selectedDocId, selectedDocument?.id, selectedDocument?.user_id, user?.id]);
+
+  const handleRetryDraftLoad = useCallback(() => {
+    if (isLoadingDraft || !user?.id || !selectedDocument || selectedDocument.user_id !== user.id) return;
+    void loadSelectedDraft(user.id, selectedDocument.id, language);
+  }, [isLoadingDraft, language, loadSelectedDraft, selectedDocument, user?.id]);
 
   const handleSelectDocument = useCallback((documentId: string) => {
     if (documentId === selectedDocId) return;
@@ -511,6 +522,8 @@ export const InteractiveStudyView: React.FC = () => {
     sessionReady: isEn ? "Practice session" : "جلسهٔ تمرین",
     autosave: isEn ? "Your interaction progress is saved separately from the source lesson." : "پیشرفت تعامل‌ها جدا از متن درس ذخیره می‌شود.",
     draftLoadError: isEn ? "A saved session could not be checked. Starting a new one will not delete older data." : "جلسه‌های قبلی بررسی نشدند؛ ساخت جلسهٔ تازه دادهٔ قبلی را حذف نمی‌کند.",
+    retryDraftLoad: isEn ? "Retry check" : "بررسی دوباره",
+    draftLoadErrorDetails: isEn ? "Technical details" : "جزئیات فنی",
     loadingDraft: isEn ? "Checking for a saved session…" : "در حال بررسی جلسهٔ ذخیره‌شده…",
     restored: isEn ? "Continue your saved session." : "جلسهٔ ذخیره‌شده را ادامه بده.",
     retrySave: isEn ? "Retry save" : "تلاش دوباره برای ذخیره",
@@ -639,7 +652,20 @@ export const InteractiveStudyView: React.FC = () => {
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">{labels.selectedLesson}</p>
                   <h2 className="mt-2 break-words text-xl font-bold">{documentTitle}</h2>
-                  {draftLoadError && <p role="alert" className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs leading-5 text-amber-800 dark:text-amber-300">{labels.draftLoadError}</p>}
+                  {draftLoadError && (
+                    <div role="alert" className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs leading-5 text-amber-800 dark:text-amber-300">
+                      <p>{labels.draftLoadError}</p>
+                      <div className="mt-2 flex flex-wrap items-start gap-3">
+                        <Button type="button" variant="outline" size="sm" className="rounded-lg" onClick={handleRetryDraftLoad} disabled={isLoadingDraft}>
+                          {labels.retryDraftLoad}
+                        </Button>
+                        <details className="min-w-0 flex-1">
+                          <summary className="cursor-pointer underline underline-offset-2">{labels.draftLoadErrorDetails}</summary>
+                          <code dir="ltr" className="mt-1 block max-h-20 overflow-auto break-words text-[10px] text-muted-foreground">{draftLoadError.slice(0, 300)}</code>
+                        </details>
+                      </div>
+                    </div>
+                  )}
                   {sessionNotice && <p role="status" className="mt-3 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs leading-5">{sessionNotice}</p>}
                   {selectedDocument.content_review_status !== "reviewed" && (
                     <p role="note" className="mt-3 inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-800 dark:text-amber-300"><CircleAlert className="h-4 w-4" />{labels.unreviewed}</p>

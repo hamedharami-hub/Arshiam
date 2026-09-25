@@ -7,6 +7,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
+    maxWorkers: 2,
+    minWorkers: 2,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}", "api/**/*.{test,spec}.{ts,tsx}"],
   },

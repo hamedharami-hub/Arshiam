@@ -284,4 +284,37 @@ describe("InteractiveStudyView", () => {
     await waitFor(() => expect(screen.getByText("جلسه تکمیل و ذخیره شد.")).toBeInTheDocument());
     expect(container.querySelector(".interactive-flip-card")).toBeNull();
   });
+
+  it("shows saved-session check details and retries the check without changing session data", async () => {
+    const savedDraft = {
+      id: "saved-session-after-retry",
+      user_id: "study-user",
+      document_id: "doc-1",
+      document_title: "Sample guide",
+      language: "en",
+      content_html: '<div class="interactive-learning-block"><div class="interactive-flip-card">Recovered card</div></div>',
+      status: "in_progress",
+      created_at: "2026-09-24T12:00:00.000Z",
+      updated_at: "2026-09-25T00:00:00.000Z",
+    };
+    mockLoadStudyDraft
+      .mockResolvedValueOnce({ ok: false, error: "FirebaseError: RESOURCE_EXHAUSTED" })
+      .mockResolvedValueOnce({ ok: true, session: savedDraft, source: "remote" });
+
+    const { container } = renderStudio();
+    const sampleLesson = await screen.findByRole("button", { name: /Sample guide/i });
+    await actEvent(() => fireEvent.click(sampleLesson));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("جلسه‌های قبلی بررسی نشدند");
+    expect(mockPersistStudySession).not.toHaveBeenCalled();
+
+    await actEvent(() => fireEvent.click(screen.getByText("جزئیات فنی")));
+    expect(screen.getByText("FirebaseError: RESOURCE_EXHAUSTED")).toBeVisible();
+
+    await actEvent(() => fireEvent.click(screen.getByRole("button", { name: "بررسی دوباره" })));
+    await waitFor(() => expect(mockLoadStudyDraft).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("جلسهٔ ذخیره‌شده را ادامه بده.")).toBeInTheDocument();
+    expect(container.querySelector(".interactive-flip-card")).toHaveTextContent("Recovered card");
+    expect(mockPersistStudySession).not.toHaveBeenCalled();
+  });
 });
