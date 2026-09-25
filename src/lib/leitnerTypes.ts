@@ -21,6 +21,10 @@ export interface LeitnerCard {
   folder_id?: string | null;
   front: string; // Question / Concept
   back: string;  // Answer / Clinical note / Solution
+  front_fa?: string;
+  back_fa?: string;
+  front_en?: string;
+  back_en?: string;
   clue?: string; // Optional hint
   box: number;   // 1 to 5 (mapped for visual boxes)
   next_review_at: string;

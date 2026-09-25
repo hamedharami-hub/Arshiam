@@ -83,7 +83,15 @@ export function buildKnowledgeMindMapSearch(
   }
 
   for (const card of cards) {
-    if (!includesQuery([card.front, card.back, card.clue], query)) continue;
+    if (!includesQuery([
+      card.front,
+      card.back,
+      card.front_fa,
+      card.back_fa,
+      card.front_en,
+      card.back_en,
+      card.clue,
+    ], query)) continue;
     result.cardIds.add(card.id);
     if (card.document_id) {
       result.expandedNodeIds[`doc-${card.document_id}`] = true;

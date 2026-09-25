@@ -50,7 +50,15 @@ export function filterLeitnerCards(
     if (filters.due === "not-due" && dueCardIds.has(card.id)) return false;
     if (!query) return true;
 
-    return [card.front, card.back, card.clue ?? ""].some((text) =>
+    return [
+      card.front,
+      card.back,
+      card.front_fa ?? "",
+      card.back_fa ?? "",
+      card.front_en ?? "",
+      card.back_en ?? "",
+      card.clue ?? "",
+    ].some((text) =>
       text.toLocaleLowerCase().includes(query),
     );
   });

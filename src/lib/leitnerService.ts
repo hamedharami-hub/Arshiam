@@ -456,8 +456,8 @@ export async function getCramCards(
     if (options.onlyLapsed && (c.lapse_count || 0) === 0) return false;
     if (options.search) {
       const q = options.search.toLowerCase();
-      const matchFront = c.front.toLowerCase().includes(q);
-      const matchBack = c.back.toLowerCase().includes(q);
+      const matchFront = [c.front, c.front_fa, c.front_en].some((text) => text?.toLowerCase().includes(q));
+      const matchBack = [c.back, c.back_fa, c.back_en].some((text) => text?.toLowerCase().includes(q));
       const matchClue = c.clue?.toLowerCase().includes(q);
       if (!matchFront && !matchBack && !matchClue) return false;
     }
@@ -470,6 +470,10 @@ export async function createLeitnerCard(
   data: {
     front: string;
     back: string;
+    front_fa?: string;
+    back_fa?: string;
+    front_en?: string;
+    back_en?: string;
     clue?: string;
     document_id?: string | null;
     folder_id?: string | null;
@@ -494,6 +498,10 @@ export async function createLeitnerCard(
     folder_id: data.folder_id || null,
     front,
     back,
+    ...(data.front_fa?.trim() ? { front_fa: data.front_fa.trim() } : {}),
+    ...(data.back_fa?.trim() ? { back_fa: data.back_fa.trim() } : {}),
+    ...(data.front_en?.trim() ? { front_en: data.front_en.trim() } : {}),
+    ...(data.back_en?.trim() ? { back_en: data.back_en.trim() } : {}),
     clue: data.clue?.trim() || "",
     box: initialBox,
     ease_factor: 2.5,

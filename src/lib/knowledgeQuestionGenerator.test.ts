@@ -63,6 +63,31 @@ describe("knowledgeQuestionGenerator", () => {
     expect(result.some((card) => card.back.includes("MAO inhibitor"))).toBe(true);
   });
 
+  it("preserves reviewed Persian and English question/answer pairs from AI output", async () => {
+    const { callAI } = await import("./ai");
+    const text = "Aspirin irreversibly inhibits cyclooxygenase and reduces platelet aggregation.";
+    vi.mocked(callAI).mockResolvedValueOnce({
+      text: JSON.stringify([{
+        front: "How does aspirin affect platelet aggregation?",
+        back: "It irreversibly inhibits cyclooxygenase, reducing platelet aggregation.",
+        front_fa: "آسپرین چه اثری بر تجمع پلاکتی دارد؟",
+        back_fa: "با مهار برگشت‌ناپذیر سیکلواکسیژناز، تجمع پلاکتی را کاهش می‌دهد.",
+        front_en: "How does aspirin affect platelet aggregation?",
+        back_en: "It irreversibly inhibits cyclooxygenase, reducing platelet aggregation.",
+      }]),
+    });
+
+    const result = await generateQuestionsFromText({ text, documentTitle: "Aspirin" });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      front_fa: "آسپرین چه اثری بر تجمع پلاکتی دارد؟",
+      back_fa: "با مهار برگشت‌ناپذیر سیکلواکسیژناز، تجمع پلاکتی را کاهش می‌دهد.",
+      front_en: "How does aspirin affect platelet aggregation?",
+      back_en: "It irreversibly inhibits cyclooxygenase, reducing platelet aggregation.",
+    });
+  });
+
   it("falls back to offline generator when callAI throws an error", async () => {
     const { callAI } = await import("./ai");
     vi.mocked(callAI).mockRejectedValueOnce(new Error("Network offline"));
@@ -77,5 +102,26 @@ describe("knowledgeQuestionGenerator", () => {
     expect(result[0].front).toContain("Aspirin");
     expect(result[0].back).toContain("cyclooxygenase");
     expect(result[0].selected).toBe(true);
+  });
+
+  it("forwards an abort signal and skips fallback when an AI request is canceled", async () => {
+    const { callAI } = await import("./ai");
+    const controller = new AbortController();
+    let rejectPending!: (reason: unknown) => void;
+    vi.mocked(callAI).mockReturnValueOnce(new Promise((_, reject) => {
+      rejectPending = reject;
+    }));
+
+    const pending = generateQuestionsFromText({
+      text: "Aspirin: An irreversible cyclooxygenase inhibitor used for antiplatelet therapy.",
+      documentTitle: "Aspirin",
+      signal: controller.signal,
+    });
+
+    expect(vi.mocked(callAI).mock.lastCall?.[5]?.signal).toBe(controller.signal);
+    controller.abort();
+    rejectPending(new DOMException("Request canceled", "AbortError"));
+
+    await expect(pending).resolves.toEqual([]);
   });
 });

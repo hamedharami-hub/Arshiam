@@ -1,4 +1,5 @@
 import { callAI } from "./ai";
+import { isPersianText } from "./bilingualHelper";
 
 export interface QuestionGenOptions {
   text: string;
@@ -6,12 +7,17 @@ export interface QuestionGenOptions {
   mode?: "auto" | "clinical_pearl" | "mcq" | "warning" | "dosing";
   customPrompt?: string;
   count?: number;
+  signal?: AbortSignal;
 }
 
 export interface GeneratedQuestionItem {
   id: string;
   front: string;
   back: string;
+  front_fa?: string;
+  back_fa?: string;
+  front_en?: string;
+  back_en?: string;
   clue?: string;
   type?: "clinical_pearl" | "mcq" | "warning" | "dosing" | "concept";
   selected: boolean;
@@ -121,9 +127,12 @@ GUIDELINES:
 4. Structure:
    - "front": Clear, specific question or prompt. (If in Persian, write in fluent Persian; if English, write in English. Match the input text language).
    - "back": Clear, concise, accurate answer or explanation.
+   - "front_fa" and "back_fa": faithful Persian versions of the question and answer.
+   - "front_en" and "back_en": faithful English versions of the question and answer.
+   Keep drug names, doses, units, warnings, and clinical meaning equivalent in both languages; do not add facts. If a translation cannot be made confidently, use an empty string for that localized field.
    - "clue": (Optional) Short hint, mnemonic, or key takeaway.
    - "type": "clinical_pearl" | "warning" | "dosing" | "concept" | "mcq"
-5. Output format: Return ONLY a valid JSON array of objects with keys: front, back, clue, type.
+5. Output format: Return ONLY a valid JSON array of objects with keys: front, back, front_fa, back_fa, front_en, back_en, clue, type.
 Do NOT include markdown formatting or commentary outside the JSON array.`;
 
 /**
@@ -283,7 +292,7 @@ export async function generateQuestionsFromText(
 ): Promise<GeneratedQuestionItem[]> {
   const { text, documentTitle, mode = "auto", customPrompt, count = 4 } = options;
 
-  if (!text || !text.trim()) {
+  if (options.signal?.aborted || !text || !text.trim()) {
     return [];
   }
 
@@ -307,7 +316,7 @@ export async function generateQuestionsFromText(
       undefined,
       "generate_flashcards",
       undefined,
-      { systemPromptOverride: SYSTEM_PROMPT }
+      { systemPromptOverride: SYSTEM_PROMPT, signal: options.signal }
     );
 
     const rawOutput = typeof aiRes === "string" ? aiRes : aiRes?.text || JSON.stringify(aiRes);
@@ -322,6 +331,10 @@ export async function generateQuestionsFromText(
         const questionKey = normalizeForComparison(front);
         if (!isUsefulCandidate(front, back, cleanText) || seenQuestions.has(questionKey)) return cards;
         seenQuestions.add(questionKey);
+        const frontFa = normalizeStudyText(String(item.front_fa || ""));
+        const backFa = normalizeStudyText(String(item.back_fa || ""));
+        const frontEn = normalizeStudyText(String(item.front_en || ""));
+        const backEn = normalizeStudyText(String(item.back_en || ""));
         const rawType = String(item.type || "");
         const type: GeneratedQuestionItem["type"] = ["clinical_pearl", "mcq", "warning", "dosing", "concept"].includes(rawType)
           ? rawType as GeneratedQuestionItem["type"]
@@ -330,6 +343,14 @@ export async function generateQuestionsFromText(
           id: `gen-ai-${Date.now()}-${idx}`,
           front,
           back,
+          ...(frontFa ? { front_fa: frontFa } : {}),
+          ...(backFa ? { back_fa: backFa } : {}),
+          ...(frontEn ? { front_en: frontEn } : {}),
+          ...(backEn ? { back_en: backEn } : {}),
+          ...(!frontFa && isPersianText(front) ? { front_fa: front } : {}),
+          ...(!frontEn && !isPersianText(front) ? { front_en: front } : {}),
+          ...(!backFa && isPersianText(back) ? { back_fa: back } : {}),
+          ...(!backEn && !isPersianText(back) ? { back_en: back } : {}),
           clue: item.clue || item.pearl || item.hint ? normalizeStudyText(String(item.clue || item.pearl || item.hint)) : undefined,
           type,
           selected: true,
@@ -342,6 +363,7 @@ export async function generateQuestionsFromText(
       }
     }
   } catch (err) {
+    if (options.signal?.aborted) return [];
     console.warn("AI generation failed or offline, falling back to deterministic extractor:", err);
   }
 

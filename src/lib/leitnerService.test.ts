@@ -68,6 +68,35 @@ describe("leitnerService", () => {
     expect(all.length).toBe(1);
   });
 
+  it("persists, edits, and reads bilingual sides without changing the scheduling state", async () => {
+    const card = await createLeitnerCard(userId, {
+      front: "What is the mechanism?",
+      back: "Selective serotonin reuptake inhibition.",
+      front_fa: "مکانیسم چیست؟",
+      back_fa: "مهار انتخابی بازجذب سروتونین.",
+      front_en: "What is the mechanism?",
+      back_en: "Selective serotonin reuptake inhibition.",
+    });
+
+    const edited = await updateLeitnerCard(userId, card.id, {
+      back_fa: "مهار انتخابی بازجذب سروتونین (SSRI).",
+    });
+    const persisted = (await getLeitnerCards(userId)).find((item) => item.id === card.id);
+
+    expect(persisted).toMatchObject({
+      front: "What is the mechanism?",
+      back: "Selective serotonin reuptake inhibition.",
+      front_fa: "مکانیسم چیست؟",
+      back_fa: "مهار انتخابی بازجذب سروتونین (SSRI).",
+      front_en: "What is the mechanism?",
+      back_en: "Selective serotonin reuptake inhibition.",
+      scheduling_algorithm: "fsrs6",
+      review_count: 0,
+    });
+    expect(edited.fsrs_state).toEqual(card.fsrs_state);
+    expect(edited.next_review_at).toBe(card.next_review_at);
+  });
+
   it("creates new cards with a valid FSRS-6 state and schedules each rating", async () => {
     const card = await createLeitnerCard(userId, { front: "New FSRS card", back: "Answer" });
 

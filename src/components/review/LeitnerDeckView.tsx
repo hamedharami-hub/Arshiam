@@ -58,12 +58,14 @@ import { getKnowledgeDocuments, getKnowledgeFolders } from "@/lib/knowledgeServi
 import { buildLeitnerOutline, filterLeitnerCards } from "@/lib/leitnerOutline";
 import { LeitnerOutlineView } from "@/components/review/LeitnerOutlineView";
 import { isPersianText } from "@/lib/bilingualHelper";
+import { resolveLeitnerCardContent, type StudyContentLanguage } from "@/lib/leitnerCardLanguage";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StudyTaskScheduleModal } from "@/components/knowledge/StudyTaskScheduleModal";
 import { toast } from "sonner";
 
 interface LeitnerDeckViewProps {
   userId: string;
+  cardLanguage?: StudyContentLanguage;
   onOpenDocument?: (docId: string) => void;
   initialStudyDocumentId?: string;
   initialStudyTaskId?: string;
@@ -77,6 +79,7 @@ interface StudyStartOptions {
 
 export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   userId,
+  cardLanguage = "fa",
   onOpenDocument,
   initialStudyDocumentId,
   initialStudyTaskId,
@@ -136,6 +139,10 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   const [editingCard, setEditingCard] = useState<LeitnerCard | null>(null);
   const [editFront, setEditFront] = useState("");
   const [editBack, setEditBack] = useState("");
+  const [editFrontFa, setEditFrontFa] = useState("");
+  const [editBackFa, setEditBackFa] = useState("");
+  const [editFrontEn, setEditFrontEn] = useState("");
+  const [editBackEn, setEditBackEn] = useState("");
   const [editClue, setEditClue] = useState("");
   const [editBox, setEditBox] = useState<number>(1);
 
@@ -144,6 +151,10 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [frontInput, setFrontInput] = useState("");
   const [backInput, setBackInput] = useState("");
+  const [frontFaInput, setFrontFaInput] = useState("");
+  const [backFaInput, setBackFaInput] = useState("");
+  const [frontEnInput, setFrontEnInput] = useState("");
+  const [backEnInput, setBackEnInput] = useState("");
   const [clueInput, setClueInput] = useState("");
   const [selectedDocId, setSelectedDocId] = useState<string>("");
   const [newCardAlgorithm, setNewCardAlgorithm] = useState<LeitnerSchedulingAlgorithm>("fsrs6");
@@ -427,6 +438,10 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
     setEditingCard(card);
     setEditFront(card.front);
     setEditBack(card.back);
+    setEditFrontFa(card.front_fa || "");
+    setEditBackFa(card.back_fa || "");
+    setEditFrontEn(card.front_en || "");
+    setEditBackEn(card.back_en || "");
     setEditClue(card.clue || "");
     setEditBox(card.box);
   }, []);
@@ -459,7 +474,9 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
         setShowClue((c) => !c);
       } else if (e.key.toLowerCase() === "s") {
         e.preventDefault();
-        const currentText = isFlipped ? activeCard.back : activeCard.front;
+        const localizedCard = resolveLeitnerCardContent(activeCard, cardLanguage);
+        const currentSide = isFlipped ? localizedCard.back : localizedCard.front;
+        const currentText = currentSide.text;
         handleSpeak(currentText);
       } else if (e.key.toLowerCase() === "r") {
         e.preventDefault();
@@ -472,7 +489,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isStudying, activeCard, isFlipped, handleSpeak, handleReviewAnswer, activeQueue, currentIndex, openEditModal]);
+  }, [isStudying, activeCard, isFlipped, handleSpeak, handleReviewAnswer, activeQueue, currentIndex, openEditModal, cardLanguage]);
 
   const handleCreateCard = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -482,12 +499,20 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
       await createLeitnerCard(userId, {
         front: frontInput.trim(),
         back: backInput.trim(),
+        ...(frontFaInput.trim() ? { front_fa: frontFaInput.trim() } : {}),
+        ...(backFaInput.trim() ? { back_fa: backFaInput.trim() } : {}),
+        ...(frontEnInput.trim() ? { front_en: frontEnInput.trim() } : {}),
+        ...(backEnInput.trim() ? { back_en: backEnInput.trim() } : {}),
         clue: clueInput.trim() || undefined,
         document_id: selectedDocId || null,
         scheduling_algorithm: newCardAlgorithm,
       });
       setFrontInput("");
       setBackInput("");
+      setFrontFaInput("");
+      setBackFaInput("");
+      setFrontEnInput("");
+      setBackEnInput("");
       setClueInput("");
       setSelectedDocId("");
       setNewCardAlgorithm("fsrs6");
@@ -507,6 +532,10 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
       const updated = await updateLeitnerCard(userId, editingCard.id, {
         front: editFront.trim(),
         back: editBack.trim(),
+        front_fa: editFrontFa.trim(),
+        back_fa: editBackFa.trim(),
+        front_en: editFrontEn.trim(),
+        back_en: editBackEn.trim(),
         clue: editClue.trim() || "",
         box: editBox,
       });
@@ -822,7 +851,9 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
 
       {/* Active Study Session Runner */}
       {isStudying && activeCard ? (() => {
-        const currentText = isFlipped ? activeCard.back : activeCard.front;
+        const localizedCard = resolveLeitnerCardContent(activeCard, cardLanguage);
+        const currentSide = isFlipped ? localizedCard.back : localizedCard.front;
+        const currentText = currentSide.text;
         const isCardRtl = cardDirectionOverride ? cardDirectionOverride === "rtl" : isPersianText(currentText);
 
         const preview1 = previewNextInterval(activeCard, 1);
@@ -926,6 +957,14 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               >
                 {currentText}
               </div>
+
+              {currentSide.translationMissing && (
+                <p role="status" className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-[10px] leading-4 text-amber-800 dark:text-amber-200">
+                  {isEn
+                    ? `${cardLanguage === "fa" ? "Persian" : "English"} version is not available; showing the original text (${currentSide.language === "fa" ? "Persian" : "English"}).`
+                    : `نسخهٔ ${cardLanguage === "fa" ? "فارسی" : "انگلیسی"} موجود نیست؛ متن اصلی ${currentSide.language === "fa" ? "فارسی" : "انگلیسی"} نمایش داده شده است.`}
+                </p>
+              )}
 
               {/* Clue button */}
               {!isFlipped && activeCard.clue && (
@@ -1170,6 +1209,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
             dueCardIds={dueCardIds}
             eligibleStudyCardIds={eligibleStudyCardIds}
             isEn={isEn}
+            cardLanguage={cardLanguage}
             onEdit={openEditModal}
             onDelete={handleDeleteCard}
             onStudyDueCards={handleStudyOutlineCards}
@@ -1177,8 +1217,9 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
         ) : (
           <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
             {displayedCards.map((c) => {
-              const isFrontRtl = isPersianText(c.front);
-              const isBackRtl = isPersianText(c.back);
+              const localized = resolveLeitnerCardContent(c, cardLanguage);
+              const isFrontRtl = isPersianText(localized.front.text);
+              const isBackRtl = isPersianText(localized.back.text);
               return (
                 <div
                   key={c.id}
@@ -1189,14 +1230,19 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
                       dir={isFrontRtl ? "rtl" : "ltr"}
                       className={`font-bold text-foreground truncate ${isFrontRtl ? "text-right" : "text-left"}`}
                     >
-                      {c.front}
+                      {localized.front.text}
                     </div>
                     <div
                       dir={isBackRtl ? "rtl" : "ltr"}
                       className={`text-[11px] text-muted-foreground truncate ${isBackRtl ? "text-right" : "text-left"}`}
                     >
-                      {c.back}
+                      {localized.back.text}
                     </div>
+                    {(localized.front.translationMissing || localized.back.translationMissing) && (
+                      <span className="inline-block text-[10px] leading-4 text-amber-700 dark:text-amber-300">
+                        {isEn ? "Translation missing; original shown" : "ترجمه موجود نیست؛ متن اصلی نمایش داده می‌شود"}
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
@@ -1265,6 +1311,30 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
                 className="w-full p-2.5 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
               />
             </div>
+
+            <details className="rounded-xl border border-border bg-muted/20 px-3 py-2">
+              <summary className="cursor-pointer text-[11px] font-semibold text-primary">
+                {isEn ? "Persian / English versions" : "نسخه‌های فارسی و انگلیسی"}
+              </summary>
+              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <label className="space-y-1 text-[10px] font-semibold text-muted-foreground">
+                  <span>{isEn ? "Question — فارسی" : "پرسش — فارسی"}</span>
+                  <textarea dir="rtl" rows={2} value={editFrontFa} onChange={(e) => setEditFrontFa(e.target.value)} className="w-full rounded-lg border border-border bg-background p-2 text-xs font-normal text-foreground" />
+                </label>
+                <label className="space-y-1 text-[10px] font-semibold text-muted-foreground">
+                  <span>{isEn ? "Answer — فارسی" : "پاسخ — فارسی"}</span>
+                  <textarea dir="rtl" rows={2} value={editBackFa} onChange={(e) => setEditBackFa(e.target.value)} className="w-full rounded-lg border border-border bg-background p-2 text-xs font-normal text-foreground" />
+                </label>
+                <label className="space-y-1 text-[10px] font-semibold text-muted-foreground">
+                  <span>{isEn ? "Question — English" : "پرسش — English"}</span>
+                  <textarea dir="ltr" rows={2} value={editFrontEn} onChange={(e) => setEditFrontEn(e.target.value)} className="w-full rounded-lg border border-border bg-background p-2 text-xs font-normal text-foreground" />
+                </label>
+                <label className="space-y-1 text-[10px] font-semibold text-muted-foreground">
+                  <span>{isEn ? "Answer — English" : "پاسخ — English"}</span>
+                  <textarea dir="ltr" rows={2} value={editBackEn} onChange={(e) => setEditBackEn(e.target.value)} className="w-full rounded-lg border border-border bg-background p-2 text-xs font-normal text-foreground" />
+                </label>
+              </div>
+            </details>
 
             <div>
               <label className="block text-[11px] text-muted-foreground mb-1">
@@ -1355,6 +1425,30 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
                 className="w-full p-2.5 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
               />
             </div>
+
+            <details className="rounded-xl border border-border bg-muted/20 px-3 py-2">
+              <summary className="cursor-pointer text-[11px] font-semibold text-primary">
+                {isEn ? "Optional Persian / English versions" : "نسخه‌های فارسی و انگلیسی (اختیاری)"}
+              </summary>
+              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <label className="space-y-1 text-[10px] font-semibold text-muted-foreground">
+                  <span>{isEn ? "Question — فارسی" : "پرسش — فارسی"}</span>
+                  <textarea dir="rtl" rows={2} value={frontFaInput} onChange={(e) => setFrontFaInput(e.target.value)} className="w-full rounded-lg border border-border bg-background p-2 text-xs font-normal text-foreground" />
+                </label>
+                <label className="space-y-1 text-[10px] font-semibold text-muted-foreground">
+                  <span>{isEn ? "Answer — فارسی" : "پاسخ — فارسی"}</span>
+                  <textarea dir="rtl" rows={2} value={backFaInput} onChange={(e) => setBackFaInput(e.target.value)} className="w-full rounded-lg border border-border bg-background p-2 text-xs font-normal text-foreground" />
+                </label>
+                <label className="space-y-1 text-[10px] font-semibold text-muted-foreground">
+                  <span>{isEn ? "Question — English" : "پرسش — English"}</span>
+                  <textarea dir="ltr" rows={2} value={frontEnInput} onChange={(e) => setFrontEnInput(e.target.value)} className="w-full rounded-lg border border-border bg-background p-2 text-xs font-normal text-foreground" />
+                </label>
+                <label className="space-y-1 text-[10px] font-semibold text-muted-foreground">
+                  <span>{isEn ? "Answer — English" : "پاسخ — English"}</span>
+                  <textarea dir="ltr" rows={2} value={backEnInput} onChange={(e) => setBackEnInput(e.target.value)} className="w-full rounded-lg border border-border bg-background p-2 text-xs font-normal text-foreground" />
+                </label>
+              </div>
+            </details>
 
             <div>
               <label className="block text-[11px] text-muted-foreground mb-1">

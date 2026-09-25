@@ -33,6 +33,10 @@ vi.mock("@/lib/leitnerService", () => ({
       document_id: "doc-1",
       front: "What is the lesson review card?",
       back: "A synthetic answer",
+      front_fa: "پرسش کارت مرور درس چیست؟",
+      back_fa: "یک پاسخ آزمایشی",
+      front_en: "What is the lesson review card?",
+      back_en: "A synthetic answer",
       box: 1,
       next_review_at: "2026-01-01T00:00:00.000Z",
       created_at: "2026-01-01T00:00:00.000Z",
@@ -58,7 +62,7 @@ describe("KnowledgeMindMapView outline mode", () => {
 
   it("shows the full wrapped hierarchy and keeps node actions in a compact menu", async () => {
     const title = "A deliberately long lesson title that must remain fully visible in the mind map outline";
-    render(<KnowledgeMindMapView userId="user-1" />);
+    render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);
 
     const outlineToggle = screen.getByRole("button", { name: "Outline view" });
     fireEvent.click(outlineToggle);
@@ -74,7 +78,7 @@ describe("KnowledgeMindMapView outline mode", () => {
   });
 
   it("offers review scheduling for a flashcard through its source lesson, not all knowledge", async () => {
-    render(<KnowledgeMindMapView userId="user-1" />);
+    render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);
     fireEvent.click(screen.getByRole("button", { name: "Outline view" }));
     const lessonTitle = "A deliberately long lesson title that must remain fully visible in the mind map outline";
 
@@ -87,7 +91,7 @@ describe("KnowledgeMindMapView outline mode", () => {
   });
 
   it("keeps expand and collapse available in the compact toolbar and preserves the scope root", async () => {
-    render(<KnowledgeMindMapView userId="user-1" />);
+    render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);
     fireEvent.click(screen.getByRole("button", { name: "Outline view" }));
 
     const lessonTitle = "A deliberately long lesson title that must remain fully visible in the mind map outline";
@@ -104,5 +108,14 @@ describe("KnowledgeMindMapView outline mode", () => {
     fireEvent.click(screen.getByRole("button", { name: "Expand All" }));
     expect(screen.getByRole("button", { name: "Collapse Study Folder" })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("button", { name: `Read document ${lessonTitle}` })).toBeInTheDocument();
+  }, 10000);
+
+  it("shows the selected Persian flashcard text in the mind map outline", async () => {
+    render(<KnowledgeMindMapView userId="user-1" cardLanguage="fa" />);
+    fireEvent.click(screen.getByRole("button", { name: "Outline view" }));
+
+    const lessonTitle = "A deliberately long lesson title that must remain fully visible in the mind map outline";
+    fireEvent.click(await screen.findByRole("button", { name: `Expand ${lessonTitle}` }));
+    expect(await screen.findByText("پرسش کارت مرور درس چیست؟")).toBeInTheDocument();
   });
 });

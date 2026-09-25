@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AiQuestionGeneratorModal } from "./AiQuestionGeneratorModal";
 
@@ -29,6 +29,10 @@ const persianCandidates = [
     id: "card-cand-1",
     front: "مکانیسم داروی سرترالین چیست؟",
     back: "مهارکننده انتخابی بازجذب سروتونین (SSRI)",
+    front_fa: "مکانیسم داروی سرترالین چیست؟",
+    back_fa: "مهارکننده انتخابی بازجذب سروتونین (SSRI)",
+    front_en: "What is sertraline's mechanism of action?",
+    back_en: "Selective serotonin reuptake inhibitor (SSRI).",
     clue: "SSRI",
     type: "clinical_pearl",
     selected: true,
@@ -84,7 +88,7 @@ describe("AiQuestionGeneratorModal", () => {
     expect(screen.queryByText(/تولید هوشمند سوالات لایتنر/i)).not.toBeInTheDocument();
   });
 
-  it("renders and saves generated cards when source text is provided", async () => {
+  it("does not send the source to AI until requested, then renders and saves reviewed cards", async () => {
     const onCardsSaved = vi.fn();
     const { createLeitnerCard } = await import("@/lib/leitnerService");
 
@@ -102,9 +106,19 @@ describe("AiQuestionGeneratorModal", () => {
     );
 
     expect(screen.getByText(/تولید هوشمند سوالات لایتنر و نقشه ذهنی/i)).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent(/با فشردن «تولید»، عنوان درس، متن انتخابی/i);
+    expect(screen.getByRole("note")).toHaveTextContent(/در صورت فعال‌بودن شخصی‌سازی/i);
+    expect(mocks.generateQuestionsFromText).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /تولید سوالات با هوش مصنوعی/i }));
+
     await waitFor(() => {
-      expect(screen.getByDisplayValue("مکانیسم داروی سرترالین چیست؟")).toBeInTheDocument();
-      expect(screen.getByDisplayValue("مهارکننده انتخابی بازجذب سروتونین (SSRI)")).toBeInTheDocument();
+      expect(screen.getAllByLabelText("پرسش — فارسی")[0]).toHaveValue("مکانیسم داروی سرترالین چیست؟");
+      expect(screen.getAllByLabelText("پاسخ — فارسی")[0]).toHaveValue("مهارکننده انتخابی بازجذب سروتونین (SSRI)");
+    });
+
+    fireEvent.click(screen.getAllByText("نسخه‌های فارسی و انگلیسی — پیش از ذخیره بررسی کنید")[0]);
+    fireEvent.change(screen.getAllByLabelText("پاسخ — English")[0], {
+      target: { value: "Reviewed: selective serotonin reuptake inhibitor (SSRI)." },
     });
 
     const saveButton = screen.getByRole("button", { name: /افزودن \(2\) کارت به لایتنر و نقشه ذهنی/i });
@@ -115,6 +129,10 @@ describe("AiQuestionGeneratorModal", () => {
       expect(createLeitnerCard).toHaveBeenCalledWith("user-test-1", {
         front: "مکانیسم داروی سرترالین چیست؟",
         back: "مهارکننده انتخابی بازجذب سروتونین (SSRI)",
+        front_fa: "مکانیسم داروی سرترالین چیست؟",
+        back_fa: "مهارکننده انتخابی بازجذب سروتونین (SSRI)",
+        front_en: "What is sertraline's mechanism of action?",
+        back_en: "Reviewed: selective serotonin reuptake inhibitor (SSRI).",
         clue: "SSRI",
         document_id: "doc-test-1",
         folder_id: "folder-test-1",
@@ -146,12 +164,21 @@ describe("AiQuestionGeneratorModal", () => {
     fireEvent.change(screen.getByPlaceholderText(/مهارکننده انتخابی بازجذب سروتونین/i), {
       target: { value: "۲۵ تا ۵۰ میلی‌گرم روزانه" },
     });
+    fireEvent.click(screen.getByText("افزودن نسخه‌های فارسی و انگلیسی (اختیاری)"));
+    fireEvent.change(screen.getByLabelText("پرسش — English"), {
+      target: { value: "What is the starting dose of sertraline?" },
+    });
+    fireEvent.change(screen.getByLabelText("پاسخ — English"), {
+      target: { value: "25 to 50 mg daily." },
+    });
     fireEvent.click(screen.getByRole("button", { name: /افزودن کارت به لایتنر و نقشه ذهنی/i }));
 
     await waitFor(() => {
       expect(createLeitnerCard).toHaveBeenCalledWith("user-test-1", {
         front: "دوز شروع سرترالین؟",
         back: "۲۵ تا ۵۰ میلی‌گرم روزانه",
+        front_en: "What is the starting dose of sertraline?",
+        back_en: "25 to 50 mg daily.",
         clue: "",
         document_id: "doc-test-2",
         folder_id: null,
@@ -161,22 +188,68 @@ describe("AiQuestionGeneratorModal", () => {
     });
   });
 
-  it("auto-generates only once for the same source when the modal rerenders", async () => {
+  it("does not generate on open or rerender, and generates once after the explicit action", async () => {
     mocks.isEn = true;
     mocks.generateQuestionsFromText.mockResolvedValue(englishCandidates);
     const { rerender, props } = renderModal();
 
-    await waitFor(() => expect(mocks.generateQuestionsFromText).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("note")).toHaveTextContent(/Nothing is sent just by opening this window/i);
+    expect(mocks.generateQuestionsFromText).not.toHaveBeenCalled();
     rerender(<AiQuestionGeneratorModal {...props} />);
+    expect(mocks.generateQuestionsFromText).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate Questions with AI" }));
+    await waitFor(() => expect(mocks.generateQuestionsFromText).toHaveBeenCalledTimes(1));
 
     expect(mocks.generateQuestionsFromText).toHaveBeenCalledTimes(1);
     expect(await screen.findByDisplayValue("Question one?")).toBeTruthy();
+  });
+
+  it("aborts and ignores a late result after the selected lesson changes", async () => {
+    mocks.isEn = true;
+    const staleCards = [{ id: "stale", front: "Old lesson question?", back: "Old lesson answer", selected: true }];
+    const currentCards = [{ id: "current", front: "New lesson question?", back: "New lesson answer", selected: true }];
+    let resolveStale!: (cards: typeof staleCards) => void;
+    const staleResponse = new Promise<typeof staleCards>((resolve) => {
+      resolveStale = resolve;
+    });
+    mocks.generateQuestionsFromText
+      .mockReturnValueOnce(staleResponse)
+      .mockResolvedValueOnce(currentCards);
+
+    const { rerender, props } = renderModal();
+    fireEvent.click(screen.getByRole("button", { name: "Generate Questions with AI" }));
+    await waitFor(() => expect(mocks.generateQuestionsFromText).toHaveBeenCalledTimes(1));
+
+    rerender(
+      <AiQuestionGeneratorModal
+        {...props}
+        initialText="A different source excerpt for another lesson."
+        documentTitle="New lesson"
+        documentId="doc-2"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Generate Questions with AI" })).toBeEnabled();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Generate Questions with AI" }));
+    expect(await screen.findByDisplayValue("New lesson question?")).toBeInTheDocument();
+
+    await act(async () => {
+      resolveStale(staleCards);
+    });
+
+    expect(screen.queryByDisplayValue("Old lesson question?")).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue("New lesson question?")).toBeInTheDocument();
   });
 
   it("keeps saved cards out of preview and reports a later save failure", async () => {
     mocks.isEn = true;
     mocks.generateQuestionsFromText.mockResolvedValue(englishCandidates);
     const { onCardsSaved } = renderModal();
+    expect(mocks.generateQuestionsFromText).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Generate Questions with AI" }));
     await screen.findByDisplayValue("Question one?");
     mocks.createLeitnerCard
       .mockResolvedValueOnce({ id: "saved-card-1" })

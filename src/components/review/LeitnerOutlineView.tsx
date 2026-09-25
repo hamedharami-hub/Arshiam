@@ -2,6 +2,7 @@ import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { BookOpen, ChevronDown, ChevronRight, Edit3, FileText, Folder, Trash2, Zap } from "lucide-react";
 import type { LeitnerCard } from "@/lib/leitnerTypes";
 import { isPersianText } from "@/lib/bilingualHelper";
+import { resolveLeitnerCardContent, type StudyContentLanguage } from "@/lib/leitnerCardLanguage";
 import type { LeitnerOutline, LeitnerOutlineNode } from "@/lib/leitnerOutline";
 
 interface LeitnerOutlineViewProps {
@@ -9,6 +10,7 @@ interface LeitnerOutlineViewProps {
   dueCardIds: ReadonlySet<string>;
   eligibleStudyCardIds: ReadonlySet<string>;
   isEn: boolean;
+  cardLanguage: StudyContentLanguage;
   onEdit: (card: LeitnerCard) => void;
   onDelete: (cardId: string) => void;
   onStudyDueCards: (cards: LeitnerCard[], scopeLabel: string) => void;
@@ -20,14 +22,16 @@ interface OutlineCardRowProps {
   eligible: boolean;
   selected: boolean;
   isEn: boolean;
+  cardLanguage: StudyContentLanguage;
   onToggleSelection: (cardId: string) => void;
   onEdit: (card: LeitnerCard) => void;
   onDelete: (cardId: string) => void;
 }
 
-const OutlineCardRow = memo(function OutlineCardRow({ card, due, eligible, selected, isEn, onToggleSelection, onEdit, onDelete }: OutlineCardRowProps) {
-  const frontRtl = isPersianText(card.front);
-  const backRtl = isPersianText(card.back);
+const OutlineCardRow = memo(function OutlineCardRow({ card, due, eligible, selected, isEn, cardLanguage, onToggleSelection, onEdit, onDelete }: OutlineCardRowProps) {
+  const localized = resolveLeitnerCardContent(card, cardLanguage);
+  const frontRtl = isPersianText(localized.front.text);
+  const backRtl = isPersianText(localized.back.text);
 
   return (
     <article
@@ -38,11 +42,16 @@ const OutlineCardRow = memo(function OutlineCardRow({ card, due, eligible, selec
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-1.5">
           <p dir={frontRtl ? "rtl" : "ltr"} className={`whitespace-pre-wrap break-words text-xs font-semibold text-foreground ${frontRtl ? "text-right" : "text-left"}`}>
-            {card.front}
+            {localized.front.text}
           </p>
           <p dir={backRtl ? "rtl" : "ltr"} className={`whitespace-pre-wrap break-words text-[11px] leading-relaxed text-muted-foreground ${backRtl ? "text-right" : "text-left"}`}>
-            {card.back}
+            {localized.back.text}
           </p>
+          {(localized.front.translationMissing || localized.back.translationMissing) && (
+            <p className="text-[10px] leading-4 text-amber-700 dark:text-amber-300">
+              {isEn ? "Translation missing; original text shown." : "ترجمه موجود نیست؛ متن اصلی نمایش داده شده است."}
+            </p>
+          )}
           <div className="flex flex-wrap items-center gap-1.5 pt-1">
             <span className="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-bold text-primary">B{card.box}</span>
             <span className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${due ? "bg-amber-500/10 text-amber-700 dark:text-amber-300" : "bg-muted text-muted-foreground"}`}>
@@ -62,14 +71,14 @@ const OutlineCardRow = memo(function OutlineCardRow({ card, due, eligible, selec
             disabled={!eligible}
             onChange={() => onToggleSelection(card.id)}
             aria-label={selected
-              ? (isEn ? "Remove due card from selection " + card.front : "حذف کارت موعددار از انتخاب " + card.front)
-              : (isEn ? "Select due card " + card.front : "انتخاب کارت موعددار " + card.front)}
+              ? (isEn ? "Remove due card from selection " + localized.front.text : "حذف کارت موعددار از انتخاب " + localized.front.text)
+              : (isEn ? "Select due card " + localized.front.text : "انتخاب کارت موعددار " + localized.front.text)}
             className="h-4 w-4 cursor-pointer accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
           />
           <button
             type="button"
             onClick={() => onEdit(card)}
-            aria-label={isEn ? `Edit ${card.front}` : `ویرایش ${card.front}`}
+            aria-label={isEn ? `Edit ${localized.front.text}` : `ویرایش ${localized.front.text}`}
             className="rounded-lg p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
           >
             <Edit3 aria-hidden="true" className="h-3.5 w-3.5" />
@@ -77,7 +86,7 @@ const OutlineCardRow = memo(function OutlineCardRow({ card, due, eligible, selec
           <button
             type="button"
             onClick={() => onDelete(card.id)}
-            aria-label={isEn ? `Delete ${card.front}` : `حذف ${card.front}`}
+            aria-label={isEn ? `Delete ${localized.front.text}` : `حذف ${localized.front.text}`}
             className="rounded-lg p-2 text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-600"
           >
             <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />
@@ -95,6 +104,7 @@ interface OutlineBranchProps {
   eligibleStudyCardIds: ReadonlySet<string>;
   selectedCardIds: ReadonlySet<string>;
   isEn: boolean;
+  cardLanguage: StudyContentLanguage;
   onToggleCards: (cards: readonly LeitnerCard[]) => void;
   onToggleCard: (cardId: string) => void;
   onEdit: (card: LeitnerCard) => void;
@@ -109,6 +119,7 @@ const OutlineBranch = memo(function OutlineBranch({
   eligibleStudyCardIds,
   selectedCardIds,
   isEn,
+  cardLanguage,
   onToggleCards,
   onToggleCard,
   onEdit,
@@ -183,7 +194,7 @@ const OutlineBranch = memo(function OutlineBranch({
           {isFolder && node.cards.length > 0 && (
             <div className="space-y-2" style={{ marginInlineStart: "12px" }}>
               {node.cards.map((card) => (
-                <OutlineCardRow key={card.id} card={card} due={dueCardIds.has(card.id)} eligible={eligibleStudyCardIds.has(card.id)} selected={selectedCardIds.has(card.id)} isEn={isEn} onToggleSelection={onToggleCard} onEdit={onEdit} onDelete={onDelete} />
+                <OutlineCardRow key={card.id} card={card} due={dueCardIds.has(card.id)} eligible={eligibleStudyCardIds.has(card.id)} selected={selectedCardIds.has(card.id)} isEn={isEn} cardLanguage={cardLanguage} onToggleSelection={onToggleCard} onEdit={onEdit} onDelete={onDelete} />
               ))}
             </div>
           )}
@@ -196,6 +207,7 @@ const OutlineBranch = memo(function OutlineBranch({
               eligibleStudyCardIds={eligibleStudyCardIds}
               selectedCardIds={selectedCardIds}
               isEn={isEn}
+              cardLanguage={cardLanguage}
               onToggleCards={onToggleCards}
               onToggleCard={onToggleCard}
               onEdit={onEdit}
@@ -204,7 +216,7 @@ const OutlineBranch = memo(function OutlineBranch({
             />
           ))}
           {!isFolder && node.cards.map((card) => (
-            <OutlineCardRow key={card.id} card={card} due={dueCardIds.has(card.id)} eligible={eligibleStudyCardIds.has(card.id)} selected={selectedCardIds.has(card.id)} isEn={isEn} onToggleSelection={onToggleCard} onEdit={onEdit} onDelete={onDelete} />
+            <OutlineCardRow key={card.id} card={card} due={dueCardIds.has(card.id)} eligible={eligibleStudyCardIds.has(card.id)} selected={selectedCardIds.has(card.id)} isEn={isEn} cardLanguage={cardLanguage} onToggleSelection={onToggleCard} onEdit={onEdit} onDelete={onDelete} />
           ))}
         </div>
       )}
@@ -240,6 +252,7 @@ export const LeitnerOutlineView = memo(function LeitnerOutlineView({
   dueCardIds,
   eligibleStudyCardIds,
   isEn,
+  cardLanguage,
   onEdit,
   onDelete,
   onStudyDueCards,
@@ -315,6 +328,7 @@ export const LeitnerOutlineView = memo(function LeitnerOutlineView({
           eligibleStudyCardIds={eligibleStudyCardIds}
           selectedCardIds={selectedCardIds}
           isEn={isEn}
+          cardLanguage={cardLanguage}
           onToggleCards={handleToggleCards}
           onToggleCard={handleToggleCard}
           onEdit={onEdit}
@@ -356,7 +370,7 @@ export const LeitnerOutlineView = memo(function LeitnerOutlineView({
           </div>
           <div className="space-y-2">
             {outline.unfiledCards.map((card) => (
-              <OutlineCardRow key={card.id} card={card} due={dueCardIds.has(card.id)} eligible={eligibleStudyCardIds.has(card.id)} selected={selectedCardIds.has(card.id)} isEn={isEn} onToggleSelection={handleToggleCard} onEdit={onEdit} onDelete={onDelete} />
+              <OutlineCardRow key={card.id} card={card} due={dueCardIds.has(card.id)} eligible={eligibleStudyCardIds.has(card.id)} selected={selectedCardIds.has(card.id)} isEn={isEn} cardLanguage={cardLanguage} onToggleSelection={handleToggleCard} onEdit={onEdit} onDelete={onDelete} />
             ))}
           </div>
         </section>

@@ -35,6 +35,7 @@ import {
 import { useBilingual } from "@/hooks/useBilingual";
 import { useLongPress } from "@/lib/useLongPress";
 import { isPersianText } from "@/lib/bilingualHelper";
+import { resolveLeitnerCardText, type StudyContentLanguage } from "@/lib/leitnerCardLanguage";
 import type { KnowledgeFolder, KnowledgeDocument } from "@/lib/knowledgeTypes";
 import type { LeitnerCard } from "@/lib/leitnerTypes";
 import { getKnowledgeFolders, getKnowledgeDocuments } from "@/lib/knowledgeService";
@@ -46,6 +47,7 @@ import { buildMindMapOutline, getMindMapNodeDimensions, type MindMapOutlineEntry
 
 interface KnowledgeMindMapViewProps {
   userId: string;
+  cardLanguage?: StudyContentLanguage;
   onOpenDocument?: (docId: string) => void;
   initialFolderId?: string;
   initialDocId?: string;
@@ -510,6 +512,7 @@ MindMapNodeItem.displayName = "MindMapNodeItem";
 
 export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   userId,
+  cardLanguage = "fa",
   onOpenDocument,
   initialFolderId,
   initialDocId,
@@ -926,7 +929,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
           return layoutNode(
             `card-${card.id}`,
             "card",
-            card.front,
+            resolveLeitnerCardText(card, "front", cardLanguage).text,
             depth + 1,
             x + colSpacing,
             docId,
@@ -1139,7 +1142,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
         height: maxY - minY + 160,
       },
     };
-  }, [folders, documents, cards, expandedNodeIds, isEn, treeDirection, selectedScopeId]);
+  }, [folders, documents, cards, expandedNodeIds, isEn, treeDirection, selectedScopeId, cardLanguage]);
 
   const outlineEntries = useMemo(() => buildMindMapOutline(nodes), [nodes]);
 
