@@ -85,4 +85,24 @@ describe("KnowledgeMindMapView outline mode", () => {
     expect(await screen.findByText("What is the lesson review card?")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Actions for What is the lesson review card?" })).toBeVisible();
   });
+
+  it("keeps expand and collapse available in the compact toolbar and preserves the scope root", async () => {
+    render(<KnowledgeMindMapView userId="user-1" />);
+    fireEvent.click(screen.getByRole("button", { name: "Outline view" }));
+
+    const lessonTitle = "A deliberately long lesson title that must remain fully visible in the mind map outline";
+    await screen.findByText(lessonTitle);
+    const actionsButton = screen.getByRole("button", { name: "Mind map actions" });
+    expect(actionsButton.parentElement).toHaveClass("sm:hidden");
+    expect(screen.getByRole("button", { name: "Expand All" }).parentElement).toHaveClass("hidden", "sm:flex");
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse All" }));
+    expect(screen.getByRole("button", { name: "Collapse Knowledge Base" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Expand Study Folder" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: `Read document ${lessonTitle}` })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand All" }));
+    expect(screen.getByRole("button", { name: "Collapse Study Folder" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: `Read document ${lessonTitle}` })).toBeInTheDocument();
+  });
 });

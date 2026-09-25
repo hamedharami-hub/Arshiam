@@ -27,6 +27,7 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuLabel,
@@ -685,7 +686,8 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
 
   // Collapse All
   const handleCollapseAll = useCallback(() => {
-    setExpandedNodeIds({ [selectedScopeId]: true });
+    const scopeRootId = selectedScopeId === "all" ? "root-kb" : selectedScopeId;
+    setExpandedNodeIds({ [scopeRootId]: true });
   }, [selectedScopeId]);
 
   // Current scope title for toolbar
@@ -1661,6 +1663,30 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
             >
               {isEn ? "Collapse All" : "جمع کردن همه"}
             </button>
+          </div>
+          <div className="sm:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={isEn ? "Mind map actions" : "گزینه‌های نقشه ذهنی"}
+                  title={isEn ? "Mind map actions" : "گزینه‌های نقشه ذهنی"}
+                  className="rounded-xl border border-border bg-card/90 p-2 text-muted-foreground shadow-lg backdrop-blur-xl transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-40">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onSelect={handleExpandAll}>
+                    {isEn ? "Expand All" : "گسترش همه"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={handleCollapseAll}>
+                    {isEn ? "Collapse All" : "جمع کردن همه"}
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <div className="relative">

@@ -114,82 +114,47 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
     try { return crypto.randomUUID(); } catch { return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`; }
   };
 
-  const FOLDERS_KEY = user ? `folders:${user.id}` : "";
-  const TAGS_KEY = user ? `tags:${user.id}` : "";
-
-  const load = async () => {
-    if (!user) return;
-    const cachedFolders = await cacheGet<Folder[]>(FOLDERS_KEY);
-    const cachedTags = await cacheGet<TagT[]>(TAGS_KEY);
-    if (cachedFolders) setFolders(cachedFolders);
-    if (cachedTags) setTags(cachedTags);
-
-    if (typeof navigator !== "undefined" && !navigator.onLine) return;
-
-    // 1. Primary: load folders & tags from Firebase Firestore
-    try {
-      const { collection, getDocs } = await import("firebase/firestore");
-      const { db } = await import("@/lib/firebase");
-      const [foldersSnap, tagsSnap] = await Promise.all([
-        getDocs(collection(db, "users", user.id, "folders")),
-        getDocs(collection(db, "users", user.id, "tags")),
-      ]);
-      const fList: Folder[] = [];
-      foldersSnap.forEach((d) => fList.push({ id: d.id, ...(d.data() as any) }));
-      fList.sort((a, b) => ((a as any).position ?? 0) - ((b as any).position ?? 0));
-      setFolders(fList);
-      await cacheSet(FOLDERS_KEY, fList);
-
-      const tList: TagT[] = [];
-      tagsSnap.forEach((d) => tList.push({ id: d.id, ...(d.data() as any) }));
-      tList.sort((a, b) => a.name.localeCompare(b.name));
-      setTags(tList);
-      await cacheSet(TAGS_KEY, tList);
-    } catch {
-      // 2. Secondary fallback: check firebaseStore
-      try {
-        const [f, t] = await Promise.all([
-          firebaseStore.from("folders").select("*").order("position"),
-          firebaseStore.from("tags").select("*").order("name"),
-        ]);
-        if (f.data) {
-          setFolders((f.data as unknown) as Folder[]);
-          await cacheSet(FOLDERS_KEY, f.data);
-        }
-        if (t.data) {
-          setTags((t.data as unknown) as TagT[]);
-          await cacheSet(TAGS_KEY, t.data);
-        }
-      } catch {
-        void 0;
-      }
-    }
-  };
+  const userId = user?.id || null;
+  const FOLDERS_KEY = userId ? `folders:${userId}` : "";
+  const TAGS_KEY = userId ? `tags:${userId}` : "";
 
   useEffect(() => {
-    if (!user) return;
-    load();
-    let fsUnsubF = () => {};
-    let fsUnsubT = () => {};
-    import("@/lib/firestoreDataService").then(({ subscribeFolders, subscribeTags }) => {
-      fsUnsubF = subscribeFolders(user.id, (flist) => {
-        setFolders((flist || []) as Folder[]);
-      });
-      fsUnsubT = subscribeTags(user.id, (tlist) => {
-        setTags((tlist || []) as TagT[]);
-      });
-    });
-    const ch = firebaseStore
-      .channel("sidebar")
-      .on("postgres_changes", { event: "*", schema: "public", table: "folders" }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "tags" }, load)
-      .subscribe();
-    return () => {
-      fsUnsubF();
-      fsUnsubT();
-      firebaseStore.removeChannel(ch);
+    if (!userId) {
+      setFolders([]);
+      setTags([]);
+      return;
+    }
+
+    let active = true;
+    let unsubscribeFolders = () => {};
+    let unsubscribeTags = () => {};
+
+    const connectTaxonomy = async () => {
+      const [cachedFolders, cachedTags] = await Promise.all([
+        cacheGet<Folder[]>(FOLDERS_KEY).catch(() => null),
+        cacheGet<TagT[]>(TAGS_KEY).catch(() => null),
+      ]);
+      if (!active) return;
+      if (cachedFolders) setFolders(cachedFolders);
+      if (cachedTags) setTags(cachedTags);
+
+      try {
+        const { subscribeFolders, subscribeTags } = await import("@/lib/firestoreDataService");
+        if (!active) return;
+        unsubscribeFolders = subscribeFolders(userId, (items) => setFolders((items || []) as Folder[]));
+        unsubscribeTags = subscribeTags(userId, (items) => setTags((items || []) as TagT[]));
+      } catch (error) {
+        if (active) console.warn("Could not subscribe to sidebar folders and tags", error);
+      }
     };
-  }, [user]);
+
+    void connectTaxonomy();
+    return () => {
+      active = false;
+      unsubscribeFolders();
+      unsubscribeTags();
+    };
+  }, [userId, FOLDERS_KEY, TAGS_KEY]);
 
   const closeOnMobile = () => { if (isMobile) setOpenMobile(false); };
 
@@ -624,7 +589,6 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
           onOpenChange={(v) => !v && setDelFolder(null)}
           folderId={delFolder.id}
           folderName={delFolder.name}
-          onDone={load}
         />
       )}
       {delTag && (
@@ -633,7 +597,6 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
           onOpenChange={(v) => !v && setDelTag(null)}
           tagId={delTag.id}
           tagName={delTag.name}
-          onDone={load}
         />
       )}
       <SidebarItemSheet
@@ -642,14 +605,12 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
         onOpenChange={(v) => !v && setSheetFolder(null)}
         onDelete={() => sheetFolder && setDelFolder(sheetFolder)}
         onAIChat={() => sheetFolder && setAiFolder(sheetFolder)}
-        onChanged={load}
       />
       <SidebarItemSheet
         item={sheetTag}
         kind="tag"
         onOpenChange={(v) => !v && setSheetTag(null)}
         onDelete={() => sheetTag && setDelTag(sheetTag)}
-        onChanged={load}
       />
     </Sidebar>
   );
