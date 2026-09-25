@@ -3727,8 +3727,8 @@ export const PHARMACY_CLINICAL_ENTITIES: readonly PharmacyClinicalEntity[] = [
     "id": "triage:safescript-early-refill-s8",
     "type": "triage-scenario",
     "title": {
-      "fa": "C4. هشدار سامانه مانیتورینگ SafeScript برای تکرار زودهنگام داروی S8/S4 (SafeScript NSW Red Alert & Early Refill)",
-      "en": "C4. Early Refill / Suspicious S4/S8 Prescription (SafeScript Alert)"
+      "fa": "C4. هشدار SafeScript و درخواست جایگزینی زودهنگام داروی S8/S4 (NSW)",
+      "en": "C4. SafeScript Alert & Early Replacement Request (NSW; S8/S4)"
     },
     "source": "data/scenarios/index.ts",
     "sourceId": "safescript-early-refill-s8",

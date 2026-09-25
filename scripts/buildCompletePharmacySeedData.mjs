@@ -1400,7 +1400,7 @@ function renderScenarioEnglishHtml(sc, linkedDiseaseId, correctOption) {
 
   if (outcome) {
     const outcomeColor = outcome.requiresReferral ? 'rose' : 'emerald';
-    const outcomeLabel = outcome.requiresReferral ? '🚨 Referral required' : '✅ Pharmacy management pathway';
+    const outcomeLabel = outcome.headline?.en || (outcome.requiresReferral ? '🚨 Referral required' : '✅ Pharmacy management pathway');
     html.push('<section class="p-4 rounded-2xl bg-' + outcomeColor + '-500/10 border border-' + outcomeColor + '-500/30 space-y-2"><h3 class="text-sm font-bold text-' + outcomeColor + '-600 dark:text-' + outcomeColor + '-400">' + outcomeLabel + '</h3><p class="text-xs text-foreground leading-relaxed"><strong>Recommendation:</strong> ' + english(outcome.recommendation) + '</p>');
     if (outcome.explanation?.en) {
       html.push('<p class="text-xs text-muted-foreground leading-relaxed border-t border-border/40 pt-2"><strong>Clinical rationale:</strong> ' + english(outcome.explanation.en) + '</p>');
@@ -1422,8 +1422,29 @@ function renderScenarioEnglishHtml(sc, linkedDiseaseId, correctOption) {
     html.push('<section class="p-4 rounded-2xl bg-muted/30 border border-border space-y-2"><h3 class="text-sm font-bold text-foreground">📨 Referral handover template</h3><dl class="grid grid-cols-1 gap-2 text-xs"><div><dt class="font-bold text-muted-foreground">To</dt><dd>' + english(referral.to) + '</dd></div><div><dt class="font-bold text-muted-foreground">Reason</dt><dd>' + english(referral.reason) + '</dd></div><div><dt class="font-bold text-muted-foreground">Summary</dt><dd>' + english(referral.symptomSummary) + '</dd></div><div><dt class="font-bold text-muted-foreground">Current medicines</dt><dd>' + english(referral.currentMeds) + '</dd></div><div><dt class="font-bold text-muted-foreground">Suggested action</dt><dd>' + english(referral.suggestedAction) + '</dd></div></dl></section>');
   }
 
+  if (sc.aussieContext?.officialReferences?.length) {
+    html.push('<section class="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/25 space-y-2"><h3 class="text-sm font-bold text-sky-700 dark:text-sky-400">Official NSW references</h3><p class="text-xs text-muted-foreground">ARSHNAZ editorial adaptation; educational content remains unreviewed. Sources accessed 25 September 2026.</p><ul class="space-y-1 text-xs">');
+    for (const reference of sc.aussieContext.officialReferences) {
+      html.push('<li><a class="text-primary underline underline-offset-2" href="' + escapeHtml(reference.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(reference.title.en) + '</a></li>');
+    }
+    html.push('</ul></section>');
+  }
+
   html.push('</div>');
   return html.join('');
+}
+
+function renderOfficialReferencesFa(sc) {
+  const references = sc.aussieContext?.officialReferences || [];
+  if (!references.length) return '';
+  return `
+  <section class="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/25 space-y-2 text-right">
+    <h3 class="text-xs font-bold text-sky-700 dark:text-sky-400">منابع رسمی NSW و یادداشت ویرایشی</h3>
+    <p class="text-xs text-muted-foreground">این سناریو برای هم‌راستایی با راهنمای رسمی NSW ویرایش شده است؛ محتوای آموزشی همچنان بازبینی‌نشده است. منابع در ۲۵ سپتامبر ۲۰۲۶ بررسی شدند.</p>
+    <ul class="space-y-1 text-xs">${references.map(reference => `
+      <li><a class="text-primary underline underline-offset-2" href="${escapeHtml(reference.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(reference.title.fa)}</a><span class="block text-[11px] text-muted-foreground" dir="ltr">${escapeHtml(reference.title.en)}</span></li>`).join('')}
+    </ul>
+  </section>`;
 }
 
 function renderScenarioHtml(sc, { isPrimaryFa = true } = {}) {
@@ -1562,7 +1583,7 @@ function renderScenarioHtml(sc, { isPrimaryFa = true } = {}) {
   ${sc.clinicalOutcome ? `
   <div class="p-4 rounded-2xl ${sc.clinicalOutcome.requiresReferral ? 'bg-rose-500/10 border border-rose-500/30' : 'bg-emerald-500/10 border border-emerald-500/30'} space-y-2">
     <span class="text-xs font-bold ${sc.clinicalOutcome.requiresReferral ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}">
-      ${sc.clinicalOutcome.requiresReferral ? '🚨 نیازمند ارجاع فوری به پزشک (Urgent GP/ED Referral)' : '✅ قابل مدیریت در داروخانه با داروی OTC (Manage in Pharmacy)'}
+      ${escapeHtml(sc.clinicalOutcome.headline?.fa || (sc.clinicalOutcome.requiresReferral ? '🚨 نیازمند ارجاع فوری به پزشک (Urgent GP/ED Referral)' : '✅ قابل مدیریت در داروخانه با داروی OTC (Manage in Pharmacy)'))}
     </span>
     <div class="text-xs text-foreground space-y-1">
       <div><strong>توصیه نهایی (FA):</strong> ${escapeHtml(sc.clinicalOutcome.recommendation?.fa || '')}</div>
@@ -1584,7 +1605,7 @@ function renderScenarioHtml(sc, { isPrimaryFa = true } = {}) {
         </li>`;
       }).join('\n      ')}
     </ul>
-  </div>
+  </div>${renderOfficialReferencesFa(sc)}
 </div>`;
   }
 
@@ -1610,8 +1631,106 @@ for (const sc of (SLANG_SCENARIOS || [])) {
   });
 }
 
+function applySafeScriptEditorialCorrection(sourceScenario) {
+  if (sourceScenario.id !== 'safescript-early-refill-s8') return sourceScenario;
+
+  // Keep the Pharmacy source and stable IDs as provenance; this local editorial
+  // correction is grounded in the linked NSW guidance and remains unreviewed.
+  const sc = JSON.parse(JSON.stringify(sourceScenario));
+  sc.title = {
+    fa: 'C4. هشدار SafeScript و درخواست جایگزینی زودهنگام داروی S8/S4 (NSW)',
+    en: 'C4. SafeScript Alert & Early Replacement Request (NSW; S8/S4)',
+  };
+  sc.redFlags = [
+    {
+      fa: 'هشدار SafeScript یک علامت برای بررسی است، نه دستور یا منع خودکار عرضه. متن واقعی هشدار و سابقهٔ ثبت‌شده را بررسی کنید؛ درخواست زودهنگام به‌تنهایی وجود هشدار قرمز را ثابت نمی‌کند.',
+      en: 'A SafeScript alert is a prompt for review, not an instruction or automatic prohibition on supply. Check the actual alert and recorded history; an early request alone does not establish a red alert.',
+    },
+    {
+      fa: 'مصرف هم‌زمان اکسی‌کودون و تمازپام می‌تواند خطر سرکوب تنفسی و آسیب جدی را افزایش دهد. مقدار و زمان مصرف، هم‌زمانی داروها، سطح هوشیاری و تنفس بیمار را ارزیابی کنید.',
+      en: 'Concurrent oxycodone and temazepam can increase the risk of respiratory depression and serious harm. Assess doses, timing, co-use, alertness, and breathing.',
+    },
+    {
+      fa: 'خواب‌آلودگی شدید، دشواری تنفس، بیدار نشدن یا کاهش هوشیاری نشانهٔ نیاز به ارزیابی اورژانسی است؛ این سناریو جایگزین قضاوت بالینی نیست.',
+      en: 'Marked sedation, difficulty breathing, inability to wake, or reduced consciousness requires urgent emergency assessment; this scenario does not replace clinical judgment.',
+    },
+  ];
+  const alertQuestion = {
+    key: 'A',
+    label: { fa: 'A - جزئیات هشدار و ارزیابی مصرف هم‌زمان؟', en: 'A - Alert details and co-use assessment?' },
+    question: {
+      fa: 'لطفاً جزئیات هشدار ثبت‌شده را بررسی کنیم: آخرین بار چه زمانی اکسی‌کودون و تمازپام مصرف کردید و آیا اکنون خواب‌آلودگی غیرعادی یا دشواری تنفس دارید؟',
+      en: 'Can we review the actual alert and check when you last took oxycodone and temazepam, and whether you have unusual drowsiness or breathing difficulty now?',
+    },
+    answer: {
+      fa: 'شب‌ها تمازپام مصرف می‌کنم؛ باید زمان دقیق آخرین مصرف اکسی‌کودون را بررسی کنم. هنوز دربارهٔ علائم فعلی از من سؤال نشده است.',
+      en: 'I take temazepam at night; I need to check exactly when I last took oxycodone. I have not yet been asked about current symptoms.',
+    },
+  };
+  sc.whatQuestions = (sc.whatQuestions || []).map(question => question.key === 'A' ? alertQuestion : question);
+  sc.dialogueOptions = (sc.dialogueOptions || []).map(option => option.id !== 'ss2' ? option : ({
+    ...option,
+    text: {
+      fa: 'مدیریت بی‌قضاوت و مبتنی بر ارزیابی موردی: ۱) نگرانی بیمار را با همدلی بشنوید و او را متهم نکنید. ۲) جزئیات هشدار واقعی SafeScript، نسخه و دستور مصرف معتبر، سوابق تحویل و زمان‌بندی را بررسی کنید؛ صرف درخواست زودهنگام را با وجود هشدار قرمز یا ممنوعیت قانونی یکی ندانید. ۳) در این پرونده، ادعای مفقودی، دریافت اخیر دارو و مصرف هم‌زمان اکسی‌کودون و تمازپام، ارزیابی دقیق خطر و تماس با نسخه‌نویس را در صورت اقتضای بالینی مهم می‌کند. هوشیاری، تنفس، دوزها و زمان مصرف را بسنجید و در علائم حاد، ارجاع اورژانسی دهید. ۴) راهنمای NSW می‌گوید بیمار لازم نیست مفقودی داروی تحویلی را به Pharmaceutical Services گزارش کند؛ گزارش پلیس الزام همگانی یا پیش‌شرط خودکار جایگزینی نیست و فرد می‌تواند در صورت نگرانی با پلیس تماس بگیرد. داروساز ممکن است بسته به نوع دارو، سابقه و شرایط بتواند یا نتواند جایگزین بدهد. بدون بررسی نسخه، مقررات جاری NSW و شرایط بیمار، دربارهٔ تحویل یا مسکن جایگزین وعده ندهید؛ تصمیم و علت را مستند کنید.',
+      en: 'Use a non-judgmental, case-specific safety assessment: 1) Acknowledge the patient’s concern without treating them as a suspect. 2) Review the actual SafeScript alert, valid prescription and directions, dispensing history, and timing; do not equate an early request with proof of a red alert or a legal prohibition. 3) In this case, the reported loss, recent supply, and oxycodone–temazepam combination warrant careful risk assessment and prescriber liaison when clinically indicated. Check alertness, breathing, doses, and timing; escalate urgently if acute symptoms are present. 4) NSW patient guidance says a person does not need to notify Pharmaceutical Services about lost or stolen dispensed medicine. A police report is not a universal prerequisite for replacement; the patient may contact police if concerned. Depending on the medicine, history, and circumstances, a pharmacist may or may not be able to provide a replacement. Do not promise supply or interim analgesia before checking the prescription, current NSW requirements, and individual suitability; document the decision and rationale.',
+    },
+    patientReply: {
+      fa: 'متوجه شدم؛ ممنون که موضوع را بدون قضاوت بررسی می‌کنید. لطفاً هشدار و سابقه را ببینید و اگر لازم بود با پزشکم هماهنگ کنید.',
+      en: 'I understand. Thank you for reviewing this without judgment. Please check the alert and history, and contact my prescriber if needed.',
+    },
+  }));
+  sc.clinicalOutcome = {
+    ...sc.clinicalOutcome,
+    requiresReferral: false,
+    headline: {
+      fa: 'تصمیم فردی پس از بررسی ایمنی',
+      en: 'Individual decision after safety review',
+    },
+    recommendation: {
+      fa: 'پیش از تصمیم دربارهٔ جایگزینی، هشدار و سوابق واقعی، نسخه و دستور مصرف و خطر مصرف هم‌زمان را بررسی کنید؛ در صورت نیاز بالینی با نسخه‌نویس هماهنگ و تصمیم را مستند کنید.',
+      en: 'Before deciding about replacement, review the actual alert and dispensing history, prescription and directions, and co-use risks; liaise with the prescriber when clinically indicated and document the decision.',
+    },
+    explanation: {
+      fa: 'طبق راهنمای NSW، هشدار SafeScript به‌تنهایی دستور یا منع عرضه نیست و تصمیم را باید متخصص با توجه به ایمنی و تناسب بالینی بگیرد. در این پرونده، ترکیب اپیوئید و بنزودیازپین یک خطر بالینی مهم است؛ اما نه مفقودی ادعاشده و نه نبود گزارش پلیس به‌تنهایی پاسخ قانونی یا بالینی را تعیین نمی‌کند.',
+      en: 'NSW guidance states that a SafeScript alert is not itself an order or prohibition; the practitioner decides whether supply is clinically safe and appropriate. The opioid–benzodiazepine combination is a material clinical risk in this case, but neither a reported loss nor the absence of a police report alone determines the legal or clinical decision.',
+    },
+    referralLetterTemplate: {
+      ...sc.clinicalOutcome.referralLetterTemplate,
+      reason: 'Case-specific SafeScript alert review and early replacement request',
+      symptomSummary: '39-year-old requests replacement of oxycodone and temazepam reported lost; recent supply and possible concurrent use require review of the actual alert, prescription directions, timing, and current symptoms.',
+      suggestedAction: 'Review the actual SafeScript alert and dispensing history, verify prescription validity and directions, assess opioid–benzodiazepine co-use and acute symptoms, clarify the reported loss, and advise on replacement under current NSW requirements. Escalate urgently if acute overdose symptoms are present. A police report is not a universal prerequisite.',
+    },
+  };
+  sc.aussieContext = {
+    ...sc.aussieContext,
+    fa: 'SafeScript در NSW ابزار پایش و ارائهٔ هشدار برای کمک به ارزیابی است؛ خود هشدار به‌تنهایی عرضه را ممنوع یا مجاز نمی‌کند. تصمیم موردی با داروساز/نسخه‌نویس و بر پایهٔ وضعیت بالینی، مقررات جاری و اطلاعات واقعی است.',
+    en: 'In NSW, SafeScript provides monitoring information and alerts to support assessment; an alert alone neither prohibits nor authorises supply. Decisions are case-specific and depend on clinical circumstances, current requirements, and the actual record.',
+    adminRule: {
+      fa: 'راهنمای بیمار NSW: برای مفقودی یا سرقت داروی تحویلی، بیمار لازم نیست به Pharmaceutical Services گزارش دهد؛ تماس با پلیس اختیاری است و گزارش پلیس پیش‌شرط همگانی جایگزینی نیست. داروساز بسته به دارو، سابقه و شرایط ممکن است بتواند یا نتواند جایگزین عرضه کند. الزامات جاری NSW و سیاست محل کار را جداگانه بررسی کنید.',
+      en: 'NSW patient guidance: a patient does not need to notify Pharmaceutical Services about lost or stolen dispensed medicine. Contacting police is optional, not a universal prerequisite for replacement. A pharmacist may or may not be able to replace it depending on the medicine, history, and circumstances. Check current NSW requirements and workplace policy.',
+    },
+    keyPhrases: [
+      { phrase: 'SafeScript / RTPM', meaningFa: 'سامانه پایش برخط نسخه‌های مشمول در NSW؛ دامنهٔ داروها و هشدارها را از راهنمای جاری سامانه بررسی کنید.', meaningEn: 'NSW real-time prescription monitoring for in-scope medicines; check current system guidance for scope and alerts.' },
+      { phrase: 'SafeScript alert', meaningFa: 'نشانه‌ای برای بررسی سوابق و ارزیابی موردی؛ به‌تنهایی دستور یا منع خودکار عرضه نیست.', meaningEn: 'A prompt to review records and assess the case; not by itself an order or automatic prohibition on supply.' },
+      { phrase: 'Schedule 8 (S8)', meaningFa: 'رده‌ای از داروهای تحت کنترل؛ تکالیف به دارو، نسخه، شرایط و مقررات جاری ایالت بستگی دارد.', meaningEn: 'A category of controlled medicines; obligations depend on the medicine, prescription, circumstances, and current state requirements.' },
+    ],
+    officialReferences: [
+      {
+        title: { fa: 'اعلان‌ها و هشدارهای SafeScript برای متخصصان', en: 'SafeScript pop-up notifications and alerts' },
+        url: 'https://www.health.nsw.gov.au/pharmaceutical/safescript/practitioners/Pages/pop-up-notifications-and-alerts.aspx',
+      },
+      {
+        title: { fa: 'راهنمای بیمار دربارهٔ داروی گم‌شده یا سرقت‌شده', en: 'If a patient has lost or had medicines stolen' },
+        url: 'https://www.health.nsw.gov.au/pharmaceutical/patients/Pages/lost-stolen-return-medicines.aspx',
+      },
+    ],
+  };
+  return sc;
+}
+
 // 4.2 All 24 Clinical Scenarios
-for (const sc of (CLINICAL_SCENARIOS || [])) {
+for (const sourceScenario of (CLINICAL_SCENARIOS || [])) {
+  const sc = applySafeScriptEditorialCorrection(sourceScenario);
   const docId = `doc-scenario-clinical-${sc.id}`;
   const title = `تریاژ بالینی: ${sc.title?.fa || sc.id}`;
   const titleEn = `Clinical Triage: ${sc.title?.en || sc.id}`;

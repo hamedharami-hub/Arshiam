@@ -58,10 +58,16 @@ const documentIdFor = (entity) => {
 const entities = registry.CLINICAL_ENTITIES_UNIQUE.map((entity) => {
   const candidate = documentIdFor(entity);
   const documentId = candidate && documentIds.has(candidate) ? candidate : undefined;
+  const localTitle = entity.id === 'triage:safescript-early-refill-s8'
+    ? {
+        fa: 'C4. هشدار SafeScript و درخواست جایگزینی زودهنگام داروی S8/S4 (NSW)',
+        en: 'C4. SafeScript Alert & Early Replacement Request (NSW; S8/S4)',
+      }
+    : entity.title;
   return {
     id: entity.id,
     type: entity.type,
-    title: entity.title,
+    title: localTitle,
     source: entity.source,
     sourceId: entity.sourceId,
     ...(entity.category ? { category: entity.category } : {}),

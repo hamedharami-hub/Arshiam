@@ -6,6 +6,7 @@ import { PHARMACY_ROOT_FOLDER_ID, PHARMACY_SEED_CARDS, PHARMACY_SEED_DOCUMENTS, 
 import { PHARMACY_SEED_DOCUMENTS as LEGACY_DOCUMENTS } from "./pharmacyLegacySeedData";
 import { comparePharmacySeed, getPharmacyImportStatus, importPharmacyKnowledge, isPharmacyImported, normalizePharmacySeedData } from "./pharmacyImportService";
 import { sanitizeKnowledgeHtml } from "./knowledgeHtmlSanitizer";
+import { PHARMACY_CLINICAL_ENTITIES } from "./pharmacyClinicalGraph.generated";
 
 const remote = vi.hoisted(() => ({
   knowledge_folders: new Map<string, Record<string, unknown>>(),
@@ -122,6 +123,28 @@ describe("pharmacyImportService", () => {
     expect(safeScriptCase?.content_en).toContain("Administrative / jurisdiction note");
     expect(safeScriptCase?.content_en).toContain("Referral handover template");
     expect(safeScriptCase?.content_en).not.toMatch(/[\u0600-\u06ff]/);
+    expect(safeScriptCase).toMatchObject({
+      folder_id: "folder-cases-clinical",
+      content_review_status: "unreviewed",
+    });
+    expect(safeScriptCase?.content_review_evidence).toBeUndefined();
+    expect(safeScriptCase?.source_url).toMatch(/\/data\/scenarios\/clinicalScenarios\.ts$/);
+    expect(PHARMACY_CLINICAL_ENTITIES.find((entity) => entity.id === "triage:safescript-early-refill-s8"))
+      .toMatchObject({
+        documentId: "doc-scenario-clinical-safescript-early-refill-s8",
+        title: { en: "C4. SafeScript Alert & Early Replacement Request (NSW; S8/S4)" },
+      });
+    expect(safeScriptCase?.title_en).not.toMatch(/suspicious/i);
+    expect(safeScriptCase?.content_html).toContain("منابع رسمی NSW و یادداشت ویرایشی");
+    expect(safeScriptCase?.content_en).toContain("Official NSW references");
+    expect(safeScriptCase?.content_en).toContain("SafeScript pop-up notifications and alerts");
+    expect(safeScriptCase?.content_en).toContain("If a patient has lost or had medicines stolen");
+    const sanitizedSafeScript = sanitizeKnowledgeHtml(safeScriptCase?.content_html || "");
+    expect(sanitizedSafeScript).toContain('href="https://www.health.nsw.gov.au/pharmaceutical/safescript/');
+    expect(sanitizedSafeScript).toContain('href="https://www.health.nsw.gov.au/pharmaceutical/patients/');
+    expect(`${safeScriptCase?.content_html} ${safeScriptCase?.content_en}`).not.toMatch(
+      /Police Event Number|legally and ethically required|strictly unlawful|all Schedule 8 and monitored medicines are tracked in real-time via SafeScript/i,
+    );
     const scenarioDocuments = PHARMACY_SEED_DOCUMENTS.filter((item) =>
       item.id.startsWith("doc-scenario-clinical-") || item.id.startsWith("doc-scenario-slang-")
     );
