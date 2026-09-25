@@ -145,6 +145,98 @@ describe("pharmacyImportService", () => {
     expect(`${safeScriptCase?.content_html} ${safeScriptCase?.content_en}`).not.toMatch(
       /Police Event Number|legally and ethically required|strictly unlawful|all Schedule 8 and monitored medicines are tracked in real-time via SafeScript/i,
     );
+    const lostEScriptCase = PHARMACY_SEED_DOCUMENTS.find((item) => item.id === "doc-scenario-admin-admin-lost-escript-mysl");
+    expect(lostEScriptCase).toMatchObject({
+      folder_id: "folder-cases-admin",
+      content_review_status: "unreviewed",
+    });
+    expect(lostEScriptCase?.content_review_evidence).toBeUndefined();
+    expect(lostEScriptCase?.source_url).toMatch(/\/data\/scenarios\/adminScenarios\.ts$/);
+    expect(lostEScriptCase?.title_en).not.toMatch(/Lookup \(MySL\)/i);
+    expect(lostEScriptCase?.content_en).toContain("they do not have an ASL");
+    expect(lostEScriptCase?.content_en).toContain("contact the prescriber to resend it");
+    expect(lostEScriptCase?.content_en).toContain("required SMS/email process");
+    expect(lostEScriptCase?.content_en).toContain("Active Script List Privacy Framework");
+    expect(lostEScriptCase?.content_en).toContain("Official Australian references");
+    expect(lostEScriptCase?.content_html).toContain("منابع رسمی استرالیا و یادداشت ویرایشی");
+    expect(lostEScriptCase?.content_html).not.toContain("منابع رسمی NSW");
+    expect(lostEScriptCase?.content_en).not.toMatch(/[\u0600-\u06ff]/);
+    expect(`${lostEScriptCase?.content_html} ${lostEScriptCase?.content_en}`).toContain(
+      "every deleted SMS token is automatically retrievable",
+    );
+    expect(`${lostEScriptCase?.content_html} ${lostEScriptCase?.content_en}`).toContain(
+      "Opening an ASL before identity checks",
+    );
+    expect(`${lostEScriptCase?.content_html} ${lostEScriptCase?.content_en}`).not.toMatch(
+      /Accessing MySL without valid patient consent &amp; IHI verification|Mismatch in Individual Healthcare Identifier \(IHI\) and Medicare details|Official NSW references/i,
+    );
+    expect(PHARMACY_CLINICAL_ENTITIES.find((entity) => entity.id === "triage:admin-lost-escript-mysl"))
+      .toMatchObject({
+        documentId: "doc-scenario-admin-admin-lost-escript-mysl",
+        title: { en: "A1. Lost eScript Token: ASL/MySL Eligibility & Recovery" },
+      });
+    expect(`${lostEScriptCase?.content_html} ${lostEScriptCase?.content_en}`).not.toMatch(
+      /retrieve active eScript tokens directly from the national MySL repository|verbal consent and verify Medicare\/IHI/i,
+    );
+    const pregnancyThrushCase = PHARMACY_SEED_DOCUMENTS.find((item) => item.id === "doc-scenario-clinical-thrush-triage");
+    expect(pregnancyThrushCase).toMatchObject({
+      folder_id: "folder-cases-clinical",
+      content_review_status: "unreviewed",
+    });
+    expect(pregnancyThrushCase?.content_review_evidence).toBeUndefined();
+    expect(pregnancyThrushCase?.source_url).toMatch(/\/data\/scenarios\/clinicalScenarios\.ts$/);
+    expect(pregnancyThrushCase?.title_en).not.toMatch(/Pregnancy Red Flag|Contraindicated/i);
+    expect(pregnancyThrushCase?.content_en).toContain("This is my first episode");
+    expect(pregnancyThrushCase?.content_en).toMatch(/do not recommend or supply oral fluconazole for self-treatment/i);
+    expect(pregnancyThrushCase?.content_en).toContain("possible second-line option after the first trimester");
+    expect(pregnancyThrushCase?.content_en).toContain("vaginal applicators may be used with care");
+    expect(pregnancyThrushCase?.content_en).toContain("Official NSW and Australian references");
+    expect(pregnancyThrushCase?.content_html).toContain("این نخستین بار است");
+    expect(pregnancyThrushCase?.content_html).toContain("مگر پزشک توصیه کند");
+    expect(pregnancyThrushCase?.content_html).toContain("گزینهٔ خط دوم");
+    expect(pregnancyThrushCase?.content_html).toContain("اپلیکاتور با احتیاط قابل استفاده است");
+    expect(pregnancyThrushCase?.content_html).toContain("منابع رسمی NSW و استرالیا و یادداشت ویرایشی");
+    expect(pregnancyThrushCase?.content_html).toContain("ThrushinPregnancyJuly152024.pdf");
+    expect(pregnancyThrushCase?.content_en).toContain("Prescribing medicines in pregnancy database (updated 19 May 2026)");
+    expect(pregnancyThrushCase?.content_en).not.toMatch(/strictly contraindicated in pregnancy due to risks of spontaneous abortion|safe gold standard|avoid deep applicator insertion/i);
+    expect(pregnancyThrushCase?.content_html).not.toMatch(/اکیداً ممنوع|استاندارد طلایی ایمن|اپلیکاتور نباید عمیق/i);
+    expect(pregnancyThrushCase?.content_en).not.toMatch(/[\u0600-\u06ff]/);
+    expect(PHARMACY_CLINICAL_ENTITIES.find((entity) => entity.id === "triage:thrush-triage"))
+      .toMatchObject({
+        documentId: "doc-scenario-clinical-thrush-triage",
+        title: { en: "8. Vaginal Thrush in Pregnancy: Confirm Diagnosis & Individualise Treatment" },
+      });
+    const chickenpoxCase = PHARMACY_SEED_DOCUMENTS.find((item) => item.id === "doc-scenario-clinical-chickenpox-advisory");
+    expect(chickenpoxCase).toMatchObject({
+      folder_id: "folder-cases-clinical",
+      content_review_status: "unreviewed",
+    });
+    expect(chickenpoxCase?.content_review_evidence).toBeUndefined();
+    expect(chickenpoxCase?.source_url).toMatch(/\/data\/scenarios\/clinicalScenarios\.ts$/);
+    expect(chickenpoxCase?.title_en).not.toMatch(/Bath & Fever Advisory|NSAID Contraindications/i);
+    expect(chickenpoxCase?.content_en).toContain("official guidance differs");
+    expect(chickenpoxCase?.content_en).toContain("the updated Sydney Children’s Hospitals Network factsheet in NSW");
+    expect(chickenpoxCase?.content_en).toContain("do not give ibuprofen based on this scenario alone");
+    expect(chickenpoxCase?.content_en).toContain("colloidal oatmeal baths may help");
+    expect(chickenpoxCase?.content_en).toContain("Official Australian references");
+    expect(chickenpoxCase?.content_en).toContain("updated 13 April 2026; differing advice");
+    expect(chickenpoxCase?.content_en).toContain("reviewed July 2021; updated July 2025");
+    expect(chickenpoxCase?.content_en).toContain("Chickenpox clinical practice guideline (last updated July 2021)");
+    expect(chickenpoxCase?.content_en).toContain("https://www.rch.org.au/clinicalguide/guideline_index/Chickenpox_varicella/");
+    expect(chickenpoxCase?.content_html).toContain("چون راهنمای رسمی اختلاف دارد");
+    expect(chickenpoxCase?.content_html).toContain("فقط با اتکا به این سناریو ایبوپروفن ندهید");
+    expect(chickenpoxCase?.content_html).toContain("حمام جو دوسر کلوئیدی ممکن است کمک کند");
+    expect(chickenpoxCase?.content_html).toContain("منابع رسمی استرالیا و یادداشت ویرایشی");
+    expect(chickenpoxCase?.content_html).toContain("updated 13 April 2026; differing advice");
+    expect(`${chickenpoxCase?.content_html} ${chickenpoxCase?.content_en}`).not.toMatch(
+      /warm\/hot baths and oils are contraindicated|Ibuprofen\/NSAIDs are strictly contraindicated in Varicella due to increased risk of severe necrotising fasciitis|Paracetamol is the sole antipyretic of choice|حمام آب گرم\/داغ و ماساژ روغن.*گرما را حبس|منع قطعی ایبوپروفن\/NSAIDs/i,
+    );
+    expect(chickenpoxCase?.content_en).not.toMatch(/[\u0600-\u06ff]/);
+    expect(PHARMACY_CLINICAL_ENTITIES.find((entity) => entity.id === "triage:chickenpox-advisory"))
+      .toMatchObject({
+        documentId: "doc-scenario-clinical-chickenpox-advisory",
+        title: { en: "5. Childhood Chickenpox: Symptom Relief & Conflicting Ibuprofen Advice" },
+      });
     const scenarioDocuments = PHARMACY_SEED_DOCUMENTS.filter((item) =>
       item.id.startsWith("doc-scenario-clinical-") || item.id.startsWith("doc-scenario-slang-")
     );

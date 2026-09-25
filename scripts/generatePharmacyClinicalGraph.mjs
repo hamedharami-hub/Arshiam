@@ -55,19 +55,32 @@ const documentIdFor = (entity) => {
   }
 };
 
+const localTitleOverrides = {
+  'triage:safescript-early-refill-s8': {
+    fa: 'C4. هشدار SafeScript و درخواست جایگزینی زودهنگام داروی S8/S4 (NSW)',
+    en: 'C4. SafeScript Alert & Early Replacement Request (NSW; S8/S4)',
+  },
+  'triage:admin-lost-escript-mysl': {
+    fa: 'A1. توکن نسخهٔ الکترونیک گم‌شده: مسیر ASL/MySL و بازیابی',
+    en: 'A1. Lost eScript Token: ASL/MySL Eligibility & Recovery',
+  },
+  'triage:thrush-triage': {
+    fa: '۸. برفک واژینال در بارداری: تأیید تشخیص و انتخاب درمان',
+    en: '8. Vaginal Thrush in Pregnancy: Confirm Diagnosis & Individualise Treatment',
+  },
+  'triage:chickenpox-advisory': {
+    fa: '۵. آبله‌مرغان کودک: تسکین علائم و تفاوت راهنماهای ایبوپروفن',
+    en: '5. Childhood Chickenpox: Symptom Relief & Conflicting Ibuprofen Advice',
+  },
+};
+
 const entities = registry.CLINICAL_ENTITIES_UNIQUE.map((entity) => {
   const candidate = documentIdFor(entity);
   const documentId = candidate && documentIds.has(candidate) ? candidate : undefined;
-  const localTitle = entity.id === 'triage:safescript-early-refill-s8'
-    ? {
-        fa: 'C4. هشدار SafeScript و درخواست جایگزینی زودهنگام داروی S8/S4 (NSW)',
-        en: 'C4. SafeScript Alert & Early Replacement Request (NSW; S8/S4)',
-      }
-    : entity.title;
   return {
     id: entity.id,
     type: entity.type,
-    title: localTitle,
+    title: localTitleOverrides[entity.id] || entity.title,
     source: entity.source,
     sourceId: entity.sourceId,
     ...(entity.category ? { category: entity.category } : {}),

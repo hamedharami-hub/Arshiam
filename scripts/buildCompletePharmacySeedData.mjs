@@ -1353,6 +1353,12 @@ function renderScenarioEnglishHtml(sc, linkedDiseaseId, correctOption) {
   const keyPhrases = sc.aussieContext?.keyPhrases || [];
   const outcome = sc.clinicalOutcome;
   const referral = outcome?.referralLetterTemplate;
+  const referenceScope = sc.aussieContext?.referenceScope || (sc.id === 'admin-lost-escript-mysl' ? 'national' : 'nsw');
+  const referenceHeading = referenceScope === 'national' || referenceScope === 'australian'
+    ? 'Official Australian references'
+    : referenceScope === 'mixed'
+      ? 'Official NSW and Australian references'
+      : 'Official NSW references';
   const english = (value, fallback = 'English translation unavailable in source data.') => {
     const text = typeof value === 'string' ? value : value?.en;
     return text
@@ -1423,7 +1429,7 @@ function renderScenarioEnglishHtml(sc, linkedDiseaseId, correctOption) {
   }
 
   if (sc.aussieContext?.officialReferences?.length) {
-    html.push('<section class="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/25 space-y-2"><h3 class="text-sm font-bold text-sky-700 dark:text-sky-400">Official NSW references</h3><p class="text-xs text-muted-foreground">ARSHNAZ editorial adaptation; educational content remains unreviewed. Sources accessed 25 September 2026.</p><ul class="space-y-1 text-xs">');
+    html.push('<section class="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/25 space-y-2"><h3 class="text-sm font-bold text-sky-700 dark:text-sky-400">' + escapeHtml(referenceHeading) + '</h3><p class="text-xs text-muted-foreground">ARSHNAZ editorial adaptation; educational content remains unreviewed. Sources accessed 25 September 2026.</p><ul class="space-y-1 text-xs">');
     for (const reference of sc.aussieContext.officialReferences) {
       html.push('<li><a class="text-primary underline underline-offset-2" href="' + escapeHtml(reference.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(reference.title.en) + '</a></li>');
     }
@@ -1437,10 +1443,25 @@ function renderScenarioEnglishHtml(sc, linkedDiseaseId, correctOption) {
 function renderOfficialReferencesFa(sc) {
   const references = sc.aussieContext?.officialReferences || [];
   if (!references.length) return '';
+  const referenceScope = sc.aussieContext?.referenceScope || (sc.id === 'admin-lost-escript-mysl' ? 'national' : 'nsw');
+  const heading = referenceScope === 'national'
+    ? 'منابع رسمی استرالیا و یادداشت ویرایشی'
+    : referenceScope === 'australian'
+      ? 'منابع رسمی استرالیا و یادداشت ویرایشی'
+    : referenceScope === 'mixed'
+      ? 'منابع رسمی NSW و استرالیا و یادداشت ویرایشی'
+      : 'منابع رسمی NSW و یادداشت ویرایشی';
+  const editorialNote = referenceScope === 'national'
+    ? 'این سناریو با ارجاع به منابع رسمی ملی استرالیا به‌صورت ویرایشی اصلاح شده است؛ بازبینی علمی/بالینی واجدصلاحیت هنوز انجام نشده است. منابع در ۲۵ سپتامبر ۲۰۲۶ بررسی شدند.'
+    : referenceScope === 'australian'
+      ? 'این سناریو با ارجاع به منابع رسمی ایالتی و ملی استرالیا به‌صورت ویرایشی اصلاح شده است؛ بازبینی علمی/بالینی واجدصلاحیت هنوز انجام نشده است. منابع در ۲۵ سپتامبر ۲۰۲۶ بررسی شدند.'
+    : referenceScope === 'mixed'
+      ? 'این سناریو با ارجاع به منابع رسمی NSW و استرالیا به‌صورت ویرایشی اصلاح شده است؛ بازبینی علمی/بالینی واجدصلاحیت هنوز انجام نشده است. منابع در ۲۵ سپتامبر ۲۰۲۶ بررسی شدند.'
+      : 'این سناریو برای هم‌راستایی با راهنمای رسمی NSW ویرایش شده است؛ محتوای آموزشی همچنان بازبینی‌نشده است. منابع در ۲۵ سپتامبر ۲۰۲۶ بررسی شدند.';
   return `
   <section class="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/25 space-y-2 text-right">
-    <h3 class="text-xs font-bold text-sky-700 dark:text-sky-400">منابع رسمی NSW و یادداشت ویرایشی</h3>
-    <p class="text-xs text-muted-foreground">این سناریو برای هم‌راستایی با راهنمای رسمی NSW ویرایش شده است؛ محتوای آموزشی همچنان بازبینی‌نشده است. منابع در ۲۵ سپتامبر ۲۰۲۶ بررسی شدند.</p>
+    <h3 class="text-xs font-bold text-sky-700 dark:text-sky-400">${escapeHtml(heading)}</h3>
+    <p class="text-xs text-muted-foreground">${escapeHtml(editorialNote)}</p>
     <ul class="space-y-1 text-xs">${references.map(reference => `
       <li><a class="text-primary underline underline-offset-2" href="${escapeHtml(reference.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(reference.title.fa)}</a><span class="block text-[11px] text-muted-foreground" dir="ltr">${escapeHtml(reference.title.en)}</span></li>`).join('')}
     </ul>
@@ -1728,9 +1749,196 @@ function applySafeScriptEditorialCorrection(sourceScenario) {
   return sc;
 }
 
+function applyChickenpoxEditorialCorrection(sourceScenario) {
+  if (sourceScenario.id !== 'chickenpox-advisory') return sourceScenario;
+
+  // Keep the source record and stable mapping. Australian guidance on NSAIDs
+  // is not uniform, so expose the conflict and leave clinical sign-off open.
+  const sc = JSON.parse(JSON.stringify(sourceScenario));
+  sc.title = {
+    fa: '۵. آبله‌مرغان کودک: تسکین علائم و تفاوت راهنماهای ایبوپروفن',
+    en: '5. Childhood Chickenpox: Symptom Relief & Conflicting Ibuprofen Advice',
+  };
+  sc.redFlags = [
+    {
+      fa: 'تفاوت راهنمای NSAID: راهنمای RCH و Healthdirect از مصرف ایبوپروفن/NSAID در آبله‌مرغان پرهیز می‌دهند؛ برگهٔ به‌روز شبکهٔ بیمارستان‌های کودکان NSW (۱۳ آوریل ۲۰۲۶) ایبوپروفن یا پاراستامول را برای تب/درد ذکر می‌کند. از تعمیم یک حکم مطلق بدون بررسی راهنمای بالینی محلی پرهیز کنید.',
+      en: 'NSAID guidance differs: RCH and Healthdirect advise avoiding ibuprofen/NSAIDs in chickenpox; the Sydney Children’s Hospitals Network factsheet (13 April 2026) lists ibuprofen or paracetamol for fever/pain. Do not generalise a blanket rule without checking current local clinical guidance.',
+    },
+    {
+      fa: 'مناطق بزرگ، دردناک و قرمز اطراف تاول‌ها؛ تب بالا، بدحالی یا خواب‌آلودگی فزاینده، تنفس دشوار، کم‌آبی، درد گردن، درد/تغییر بینایی یا ناتوانی در نوشیدن نیازمند ارزیابی پزشکی است؛ در علائم شدید، کمک فوری بگیرید.',
+      en: 'Large, sore, red areas around blisters; high fever, worsening illness or drowsiness, breathing difficulty, dehydration, neck pain, eye pain/vision changes, or inability to drink need medical assessment; seek urgent care for severe symptoms.',
+    },
+    {
+      fa: 'حمام و فرآورده‌های پوستی را بر پایهٔ راحتی و راهنمای محصول انتخاب کنید؛ منابع بررسی‌شده از ادعای اینکه هر روغن حمام گرما را حبس می‌کند یا عفونت باکتریایی ایجاد می‌کند پشتیبانی نمی‌کنند. آب بسیار داغ را اگر ناراحتی را بدتر می‌کند به‌کار نبرید.',
+      en: 'Choose bathing and skin products based on comfort and product guidance; the sources reviewed do not support a claim that all bath oils trap heat or cause bacterial infection. Avoid very hot water if it worsens discomfort.',
+    },
+  ];
+  sc.dialogueOptions = (sc.dialogueOptions || []).map(option => option.id !== 'cp2' ? option : ({
+    ...option,
+    text: {
+      fa: '۱) راهنمای مناسب سن کودک و محل کار را بررسی کنید: RCH و Healthdirect در آبله‌مرغان از NSAIDها مثل ایبوپروفن پرهیز می‌دهند، اما برگهٔ به‌روز Sydney Children’s Hospitals Network در NSW، ایبوپروفن یا پاراستامول را برای تب/درد فهرست می‌کند. چون راهنمای رسمی اختلاف دارد، فقط با اتکا به این سناریو ایبوپروفن ندهید؛ راهنمای جاری محل و سابقهٔ کودک را با پزشک/داروساز بررسی کنید. ۲) اگر کودک به‌دلیل درد یا تب ناراحت است، پاراستامول را فقط طبق دوز سنی/وزنی و برچسب محصول در نظر بگیرید؛ به کودک آسپیرین ندهید. ۳) برای خارش از فرآوردهٔ تسکین‌دهندهٔ مناسب با راهنمایی داروساز استفاده کنید؛ Healthdirect لوسیون‌های تسکین‌دهنده را ذکر می‌کند و Better Health Channel می‌گوید حمام جو دوسر کلوئیدی ممکن است کمک کند. حمام و روغن را منع مطلق ندانید و ادعای افزایش عفونت باکتریایی به‌علت روغن را تکرار نکنید. ۴) مایعات و استراحت را تشویق کنید و ناخن‌ها را کوتاه نگه دارید. برای قرمزی/درد گسترده اطراف تاول، تب بالا، بی‌حالی، تنفس دشوار، کم‌آبی یا علائم چشم/گردن ارزیابی فوری بگیرید.',
+      en: '1) Check age-appropriate guidance for the child and your jurisdiction: RCH and Healthdirect advise avoiding NSAIDs such as ibuprofen in chickenpox, while the updated Sydney Children’s Hospitals Network factsheet in NSW lists ibuprofen or paracetamol for fever/pain. Because official guidance differs, do not give ibuprofen based on this scenario alone; check current local guidance and the child’s history with a doctor/pharmacist. 2) If fever or pain is making the child uncomfortable, consider paracetamol only according to the age/weight directions and product label; do not give aspirin. 3) For itch, choose a suitable soothing product with pharmacist advice; Healthdirect mentions soothing lotions and Better Health Channel says colloidal oatmeal baths may help. Do not describe all baths or oils as absolutely prohibited, and do not repeat the unsupported claim that oils increase bacterial infection. 4) Encourage fluids and rest and keep nails short. Seek urgent assessment for extensive painful redness around blisters, high fever, drowsiness, breathing difficulty, dehydration, or eye/neck symptoms.',
+    },
+    patientReply: {
+      fa: 'متوجه شدم؛ دربارهٔ ایبوپروفن راهنماها یکسان نیستند، پس پیش از تصمیم از داروساز یا پزشک می‌پرسم و برای خارش از گزینهٔ تسکین‌دهندهٔ مناسب راهنمایی می‌گیرم.',
+      en: 'I understand. The guidance on ibuprofen differs, so I will check with a pharmacist or doctor before deciding and ask about a suitable soothing option for the itch.',
+    },
+  }));
+  sc.clinicalOutcome = {
+    ...sc.clinicalOutcome,
+    requiresReferral: false,
+    headline: { fa: 'تسکین علائم؛ راهنمای محلی را برای NSAID بررسی کنید', en: 'Symptom relief; check local NSAID guidance' },
+    recommendation: {
+      fa: 'ایبوپروفن را فقط بر پایهٔ این سناریو توصیه نکنید: منابع استرالیایی بررسی‌شده در توصیهٔ مربوط به آبله‌مرغان اختلاف دارند. تا تأیید راهنمای جاری و وضعیت کودک، با GP/داروساز مشورت کنید؛ برای ناراحتی، پاراستامول را فقط طبق برچسب در نظر بگیرید و آسپیرین ندهید. برای خارش از روش تسکین‌دهندهٔ مناسب استفاده کنید و علائم هشدار را پایش کنید.',
+      en: 'Do not recommend ibuprofen from this scenario alone: the Australian sources reviewed differ in their chickenpox advice. Check current local guidance and the child’s situation with a GP/pharmacist; for discomfort, consider paracetamol only as labelled and do not give aspirin. Use an appropriate itch-relief measure and monitor for red flags.',
+    },
+    explanation: {
+      fa: 'Healthdirect (بازبینی مه ۲۰۲۵) و RCH (بازبینی ژوئیهٔ ۲۰۲۱) توصیه می‌کنند در آبله‌مرغان از NSAID/ایبوپروفن پرهیز شود و به افزایش خطر عوارض اشاره می‌کنند. در مقابل، برگهٔ Sydney Children’s Hospitals Network در NSW که ۱۳ آوریل ۲۰۲۶ به‌روز شده، داروی بدون نسخه مثل پاراستامول یا ایبوپروفن را برای تب/درد ذکر می‌کند. بنابراین عبارت «ایبوپروفن در همهٔ موارد منع قطعی است» یا ادعای خطر اثبات‌شدهٔ نکروز فاشیا برای هر مصرف، بدون حل این اختلاف دقیق نیست. دربارهٔ حمام و روغن نیز منابع این ممیزی می‌گویند لوسیون تسکین‌دهنده و حمام جو دوسر ممکن است به خارش کمک کند؛ آن‌ها ادعای حبس گرما/ایجاد عفونت به‌وسیلهٔ همهٔ روغن‌ها را تأیید نمی‌کنند. این اختلاف باید پیش از ارتقای محتوا توسط بازبین بالینی و با تعیین حوزهٔ قضایی حل شود.',
+      en: 'Healthdirect (reviewed May 2025) and RCH advise avoiding NSAIDs/ibuprofen in chickenpox and note increased complication risk. The RCH parent factsheet was reviewed in July 2021 and updated in July 2025; its clinical practice guideline (last updated July 2021) says to avoid NSAIDs because of increased invasive group A Streptococcus risk. In contrast, the Sydney Children’s Hospitals Network NSW factsheet, updated 13 April 2026, lists OTC medicine such as paracetamol or ibuprofen for fever/pain. Therefore, “ibuprofen is absolutely contraindicated in every case” or a proven risk of necrotising fasciitis from any use is not accurate without resolving this discrepancy. For bathing and oils, the reviewed sources say soothing lotions and colloidal oatmeal baths may help itching; they do not support a claim that all oils trap heat or cause infection. A qualified clinical reviewer must resolve this conflict and define jurisdiction before the content can be upgraded.',
+    },
+  };
+  sc.aussieContext = {
+    ...sc.aussieContext,
+    referenceScope: 'australian',
+    fa: 'راهنماهای استرالیایی دربارهٔ ایبوپروفن در آبله‌مرغان هم‌نظر نیستند: Healthdirect و RCH توصیه به پرهیز دارند، اما برگهٔ جدیدتر Sydney Children’s Hospitals Network در NSW ایبوپروفن یا پاراستامول را ذکر می‌کند. تا بازبینی بالینی، راهنمای محلی و وضعیت کودک را با پزشک/داروساز بررسی کنید. برای خارش، لوسیون تسکین‌دهنده یا حمام جو دوسر کلوئیدی ممکن است کمک کند.',
+    en: 'Australian guidance on ibuprofen in chickenpox is not uniform: Healthdirect and RCH advise avoidance, while the newer Sydney Children’s Hospitals Network NSW factsheet lists ibuprofen or paracetamol. Until clinical review, check local guidance and the child’s situation with a doctor/pharmacist. For itch, soothing lotions or a colloidal oatmeal bath may help.',
+    adminRule: {
+      fa: 'برای کودک ۵ساله، Healthdirect و RCH پرهیز از NSAID/ایبوپروفن را توصیه می‌کنند؛ منبع به‌روز NSW خلاف آن را در گزینه‌های OTC می‌آورد. این سناریو عمداً اختلاف را نشان می‌دهد و قانون عرضه تعیین نمی‌کند. راهنمای جاری محل، محصول، سن/وزن و سابقهٔ کودک باید توسط متخصص بررسی شود.',
+      en: 'For this 5-year-old, Healthdirect and RCH advise avoiding NSAIDs/ibuprofen; a more recent NSW source lists it among OTC options. This scenario intentionally exposes the discrepancy and does not determine supply. A clinician should review current jurisdictional guidance, product, age/weight, and child history.',
+    },
+    keyPhrases: [
+      { phrase: 'NSAID / Ibuprofen', meaningFa: 'داروهای ضدالتهاب غیراستروئیدی؛ منابع رسمی دربارهٔ آبله‌مرغان اختلاف دارند و باید راهنمای محلی بررسی شود.', meaningEn: 'Australian sources differ on NSAIDs in chickenpox; check current local guidance.' },
+      { phrase: 'Colloidal oatmeal bath', meaningFa: 'حمام جو دوسر کلوئیدی؛ ممکن است برای کاهش خارش کمک کند، اما درمان ویروس نیست.', meaningEn: 'May help soothe itch; it does not treat the virus.' },
+    ],
+    officialReferences: [
+      {
+        title: { fa: 'Healthdirect Australia: آبله‌مرغان (بازبینی مهٔ ۲۰۲۵)', en: 'Healthdirect Australia: Chickenpox (reviewed May 2025)' },
+        url: 'https://www.healthdirect.gov.au/amp/article/chickenpox',
+      },
+      {
+        title: { fa: 'Royal Children’s Hospital Melbourne: برگهٔ والدین آبله‌مرغان (بازبینی ژوئیهٔ ۲۰۲۱؛ به‌روزرسانی ژوئیهٔ ۲۰۲۵)', en: 'Royal Children’s Hospital Melbourne: Chickenpox parent fact sheet (reviewed July 2021; updated July 2025)' },
+        url: 'https://www.rch.org.au/kidsinfo/fact_sheets/Chickenpox/',
+      },
+      {
+        title: { fa: 'Royal Children’s Hospital Melbourne: راهنمای بالینی آبله‌مرغان (آخرین به‌روزرسانی ژوئیهٔ ۲۰۲۱)', en: 'Royal Children’s Hospital Melbourne: Chickenpox clinical practice guideline (last updated July 2021)' },
+        url: 'https://www.rch.org.au/clinicalguide/guideline_index/Chickenpox_varicella/',
+      },
+      {
+        title: { fa: 'Sydney Children’s Hospitals Network NSW: برگهٔ آبله‌مرغان (به‌روزرسانی ۱۳ آوریل ۲۰۲۶؛ توصیهٔ متفاوت)', en: 'Sydney Children’s Hospitals Network NSW: Chickenpox factsheet (updated 13 April 2026; differing advice)' },
+        url: 'https://www.schn.health.nsw.gov.au/factsheets/chickenpox',
+      },
+      {
+        title: { fa: 'Better Health Channel Victoria: مراقبت از آبله‌مرغان (بازبینی ۲۳ اکتبر ۲۰۲۳)', en: 'Better Health Channel Victoria: Chickenpox care (reviewed 23 October 2023)' },
+        url: 'https://www.betterhealth.vic.gov.au/health/conditionsandtreatments/chickenpox',
+      },
+    ],
+  };
+  return sc;
+}
+
+function applyPregnancyThrushEditorialCorrection(sourceScenario) {
+  if (sourceScenario.id !== 'thrush-triage') return sourceScenario;
+
+  // Preserve the Pharmacy scenario/source IDs. This sourced local edit remains
+  // educational draft content and must not be promoted to clinically reviewed.
+  const sc = JSON.parse(JSON.stringify(sourceScenario));
+  sc.title = {
+    fa: '۸. برفک واژینال در بارداری: تأیید تشخیص و انتخاب درمان',
+    en: '8. Vaginal Thrush in Pregnancy: Confirm Diagnosis & Individualise Treatment',
+  };
+  sc.redFlags = [
+    {
+      fa: 'بارداری (هفتهٔ ۱۴) و نخستین بروز علائم: خودتشخیصی قابل اتکا نیست؛ پیش از شروع درمان، تشخیص را با پزشک یا ماما تأیید کنید و در صورت نیاز بررسی/سواب انجام شود.',
+      en: 'Pregnancy (14 weeks) with a first episode: self-diagnosis is unreliable; confirm the diagnosis with a doctor or midwife before treatment, with testing or a swab if needed.',
+    },
+    {
+      fa: 'فلوکونازول خوراکی را برای خوددرمانی توصیه یا عرضه نکنید. Healthdirect می‌گوید در بارداری از آن پرهیز شود مگر پزشک توصیه کند؛ MotherSafe آن را پس از سه‌ماههٔ اول، فقط در شرایط مشخص، گزینهٔ خط دوم می‌داند.',
+      en: 'Do not recommend or supply oral fluconazole for self-treatment. Healthdirect advises avoiding it in pregnancy unless a doctor recommends it; MotherSafe considers it a possible second-line option after the first trimester in specific circumstances.',
+    },
+    {
+      fa: 'درد لگنی، خونریزی غیرطبیعی، عود یا عدم پاسخ به درمان نیازمند ارزیابی پزشکی است؛ علائم مشابه ممکن است علت دیگری داشته باشند.',
+      en: 'Pelvic pain, abnormal bleeding, recurrence, or failure to improve needs medical assessment; similar symptoms can have another cause.',
+    },
+  ];
+  sc.whatQuestions = [
+    ...(sc.whatQuestions || []),
+    {
+      key: 'N',
+      label: { fa: 'N - نخستین بروز یا سابقهٔ تشخیص؟', en: 'N - First episode or previously diagnosed?' },
+      question: {
+        fa: 'آیا پیش از این توسط پزشک تشخیص برفک گرفته‌اید یا این نخستین بار است؟',
+        en: 'Have you previously had thrush diagnosed by a doctor, or is this your first episode?',
+      },
+      answer: {
+        fa: 'این نخستین بار است و قبلاً تشخیص پزشکی نداشته‌ام.',
+        en: 'This is my first episode and I have not had a previous medical diagnosis.',
+      },
+    },
+  ];
+  sc.dialogueOptions = (sc.dialogueOptions || []).map(option => option.id !== 'vt2' ? option : ({
+    ...option,
+    text: {
+      fa: '۱) چون باردارید و این نخستین بروز علائم است، ظاهر ترشحات به‌تنهایی تشخیص را قطعی نمی‌کند؛ پیش از درمان با GP یا ماما مشورت کنید، چون ممکن است معاینه یا سواب لازم باشد. ۲) فلوکونازول خوراکی را برای خوددرمانی توصیه یا عرضه نکنید؛ Healthdirect می‌گوید در بارداری از آن پرهیز شود مگر پزشک توصیه کند. ۳) ضدقارچ واژینال مانند کلوتریمازول یا نیستاتین معمولاً گزینهٔ ترجیحی بارداری است. MotherSafe NSW برای کلوتریمازول ۱٪ کرم یا پِساری ۱۰۰ میلی‌گرم، شبانه به‌مدت ۶ روز را ذکر می‌کند و می‌گوید اپلیکاتور با احتیاط قابل استفاده است. انتخاب محصول را با ارزیابی فردی و راهنمای جاری انجام دهید. ۴) ممنوعیت مطلق برای هر تک‌دوز فلوکونازول بیان نکنید: MotherSafe آن را پس از سه‌ماههٔ اول، در صورت شکست یا عدم تحمل درمان موضعی، گزینهٔ خط دوم می‌داند؛ این به معنی خوددرمانی یا عرضه بدون توصیهٔ حرفه‌ای نیست. ۵) برای درد لگنی، خونریزی غیرطبیعی، عود یا عدم پاسخ، ارزیابی پزشکی لازم است.',
+      en: '1) Because you are pregnant and this is your first episode, symptoms alone cannot confirm thrush; speak with your GP or midwife before treatment because examination or a swab may be needed. 2) Do not recommend or supply oral fluconazole for self-treatment; Healthdirect advises avoiding it in pregnancy unless a doctor recommends it. 3) Vaginal antifungals such as clotrimazole or nystatin are generally preferred in pregnancy. MotherSafe NSW lists clotrimazole 1% cream or a 100 mg pessary nightly for 6 days and says vaginal applicators may be used with care. Select a product after individual assessment and against current guidance. 4) Do not describe every single fluconazole dose as absolutely contraindicated: MotherSafe considers it a possible second-line option after the first trimester if topical treatment fails or is not tolerated; this does not mean self-treatment or supply without professional advice. 5) Pelvic pain, abnormal bleeding, recurrence, or failure to improve needs medical assessment.',
+    },
+    patientReply: {
+      fa: 'متوجه شدم؛ پیش از شروع درمان با پزشک یا ماما دربارهٔ تأیید تشخیص و گزینهٔ مناسب بارداری صحبت می‌کنم.',
+      en: 'I understand. I will speak with my doctor or midwife to confirm the diagnosis and choose an appropriate treatment in pregnancy before starting therapy.',
+    },
+  }));
+  sc.clinicalOutcome = {
+    ...sc.clinicalOutcome,
+    requiresReferral: true,
+    headline: { fa: 'ارزیابی غیرفوری پزشک/ماما پیش از درمان', en: 'Non-urgent GP/midwife review before treatment' },
+    recommendation: {
+      fa: 'به‌دلیل بارداری و نخستین بروز علائم، بیمار را برای تأیید تشخیص و انتخاب درمان به GP یا ماما ارجاع دهید. فلوکونازول را برای خوددرمانی توصیه نکنید؛ درمان موضعی معمولاً ترجیح دارد و هر گزینه باید طبق راهنمای جاری و ارزیابی فردی انتخاب شود.',
+      en: 'Because the patient is pregnant and this is a first episode, arrange GP or midwife review to confirm the diagnosis and select treatment. Do not recommend fluconazole for self-treatment; topical therapy is generally preferred and any option requires individual assessment under current guidance.',
+    },
+    explanation: {
+      fa: 'Healthdirect توصیه می‌کند فرد باردار پیش از شروع درمان با پزشک یا داروساز مشورت کند و برای برفک در بارداری از فلوکونازول پرهیز کند مگر پزشک توصیه کرده باشد. MotherSafe NSW درمان واژینال را ترجیح می‌دهد، اما فلوکونازول را پس از سه‌ماههٔ اول در صورت شکست یا عدم تحمل درمان موضعی خط دوم می‌داند؛ همچنین اپلیکاتور را با احتیاط قابل استفاده می‌داند. پایگاه TGA گزارش‌های مربوط به ۱۵۰ میلی‌گرم در سه‌ماههٔ اول و خطر دوزهای مکرر بالا را ذکر می‌کند. بنابراین عبارت «منع مطلق برای هر تک‌دوز» یا «افزایش اثبات‌شدهٔ خطر در همهٔ موارد» دقیق نیست. این سناریو بازبینی‌نشده است و جایگزین ارزیابی بالینی، اطلاعات محصول یا راهنمای جاری نیست.',
+      en: 'Healthdirect advises pregnant people to speak with a doctor or pharmacist before starting treatment and to avoid fluconazole unless advised by a doctor. MotherSafe NSW prefers vaginal treatment but considers oral fluconazole a possible second-line option after the first trimester if topical treatment fails or is not tolerated; it also says applicators may be used with care. The TGA database notes reports involving 150 mg in the first trimester and concerns with repeated high doses. Therefore, “absolutely contraindicated for every single dose” or “proven increased risk in every case” is not accurate. This scenario remains unreviewed and does not replace clinical assessment, product information, or current guidance.',
+    },
+  };
+  sc.aussieContext = {
+    ...sc.aussieContext,
+    referenceScope: 'mixed',
+    fa: 'در بارداری، تشخیص برفک را پیش از درمان با پزشک/ماما تأیید کنید. Healthdirect درمان موضعی کلوتریمازول یا نیستاتین را ذکر می‌کند و توصیه می‌کند فلوکونازول فقط با توصیهٔ پزشک مصرف شود. MotherSafe NSW درمان واژینال را ترجیح می‌دهد و فلوکونازول خوراکی را پس از سه‌ماههٔ اول، در صورت شکست یا عدم تحمل درمان موضعی، خط دوم می‌داند. اپلیکاتور واژینال با احتیاط قابل استفاده است؛ محدودیت‌های نامستند را به شکل منع مطلق آموزش ندهید.',
+    en: 'In pregnancy, confirm the diagnosis with a doctor or midwife before treatment. Healthdirect lists topical clotrimazole or nystatin and advises using fluconazole only if a doctor recommends it. MotherSafe NSW prefers vaginal treatment and considers oral fluconazole second line after the first trimester if topical treatment fails or is not tolerated. Vaginal applicators may be used with care; do not teach unsupported absolute restrictions.',
+    adminRule: {
+      fa: 'این پرونده مربوط به بیمار باردار ۱۴ هفته‌ای با نخستین بروز علائم است؛ تشخیص ممکن است به معاینه یا سواب نیاز داشته باشد. پیش از شروع درمان به GP یا ماما ارجاع دهید. از راهنمای جاری محصول و الزامات محلی پیروی کنید و وضعیت Schedule 3 را جایگزین ارزیابی بارداری و تشخیص ندانید.',
+      en: 'This case concerns a 14-week pregnant patient with a first episode; diagnosis may require examination or a swab. Refer to a GP or midwife before treatment. Follow current product guidance and local requirements; Schedule 3 status does not replace pregnancy assessment or diagnostic review.',
+    },
+    keyPhrases: [
+      { phrase: 'Vulvovaginal candidiasis', meaningFa: 'کاندیدیازیس واژینال؛ علائم به‌تنهایی تشخیص را در نخستین بروز قطعی نمی‌کند.', meaningEn: 'Symptoms alone do not confirm the diagnosis in a first episode.' },
+      { phrase: 'Second-line treatment', meaningFa: 'گزینهٔ درمانی بعدی در شرایط مشخص، نه انتخاب خودکار یا خوددرمانی.', meaningEn: 'A later option in specific circumstances, not an automatic choice or self-treatment.' },
+    ],
+    officialReferences: [
+      {
+        title: { fa: 'MotherSafe NSW: برفک واژینال در بارداری (ژوئیهٔ ۲۰۲۴)', en: 'MotherSafe NSW: Thrush in pregnancy (July 2024)' },
+        url: 'https://www.seslhd.health.nsw.gov.au/sites/default/files/groups/Royal_Hospital_for_Women/Mothersafe/documents/Factsheets/ThrushinPregnancyJuly152024.pdf',
+      },
+      {
+        title: { fa: 'Healthdirect Australia: برفک واژینال (بازبینی نوامبر ۲۰۲۵)', en: 'Healthdirect Australia: Vaginal thrush (reviewed November 2025)' },
+        url: 'https://www.healthdirect.gov.au/vaginal-thrush',
+      },
+      {
+        title: { fa: 'Healthdirect Australia: داروها در بارداری (بازبینی ژوئن ۲۰۲۴)', en: 'Healthdirect Australia: Medicines during pregnancy (reviewed June 2024)' },
+        url: 'https://www.healthdirect.gov.au/medicines-during-pregnancy',
+      },
+      {
+        title: { fa: 'TGA: پایگاه داروهای بارداری (به‌روزرسانی ۱۹ مهٔ ۲۰۲۶)', en: 'TGA: Prescribing medicines in pregnancy database (updated 19 May 2026)' },
+        url: 'https://www.tga.gov.au/resources/health-professional-information-and-resources/australian-categorisation-system-prescribing-medicines-pregnancy/prescribing-medicines-pregnancy-database',
+      },
+    ],
+  };
+  return sc;
+}
+
 // 4.2 All 24 Clinical Scenarios
 for (const sourceScenario of (CLINICAL_SCENARIOS || [])) {
-  const sc = applySafeScriptEditorialCorrection(sourceScenario);
+  const sc = applyChickenpoxEditorialCorrection(
+    applyPregnancyThrushEditorialCorrection(applySafeScriptEditorialCorrection(sourceScenario)),
+  );
   const docId = `doc-scenario-clinical-${sc.id}`;
   const title = `تریاژ بالینی: ${sc.title?.fa || sc.id}`;
   const titleEn = `Clinical Triage: ${sc.title?.en || sc.id}`;
@@ -1748,8 +1956,136 @@ for (const sourceScenario of (CLINICAL_SCENARIOS || [])) {
   });
 }
 
+function applyActiveScriptListEditorialCorrection(sourceScenario) {
+  if (sourceScenario.id !== 'admin-lost-escript-mysl') return sourceScenario;
+
+  // Retain the Pharmacy source and stable IDs; clarify ASL eligibility,
+  // identity and consent using current Australian Government guidance.
+  const sc = JSON.parse(JSON.stringify(sourceScenario));
+  sc.title = {
+    fa: 'A1. توکن نسخهٔ الکترونیک گم‌شده: مسیر ASL/MySL و بازیابی',
+    en: 'A1. Lost eScript Token: ASL/MySL Eligibility & Recovery',
+  };
+  sc.whatQuestions = [
+    {
+      key: 'W',
+      label: { fa: 'W - هویت و ثبت‌نام ASL؟', en: 'W - Identity and ASL registration?' },
+      question: {
+        fa: 'طبق روند احراز هویت داروخانه، آیا قبلاً برای Active Script List (ASL/MySL) ثبت‌نام کرده‌اید؟',
+        en: 'After we verify your identity under pharmacy policy, have you already registered for an Active Script List (ASL/MySL)?',
+      },
+      answer: {
+        fa: 'کارت مدیکر و مدرک شناسایی دارم، اما تا حالا فقط توکن‌ها را با پیامک گرفته‌ام و مطمئن نیستم ASL داشته باشم.',
+        en: 'I have my Medicare card and photo ID, but I have only received prescription tokens by SMS and do not think I have registered for an ASL.',
+      },
+    },
+    (sc.whatQuestions || []).find(question => question.key === 'H'),
+    {
+      key: 'A',
+      label: { fa: 'A - دسترسی قبلی داروخانه به ASL؟', en: 'A - Has this pharmacy been granted ASL access?' },
+      question: {
+        fa: 'اگر ASL دارید، آیا قبلاً این داروخانه را برای دسترسی انتخاب کرده‌اید یا درخواست دسترسی جدید را در برنامه تأیید کرده‌اید؟',
+        en: 'If you have an ASL, has this pharmacy already been granted access, or have you confirmed a new access request in the system?',
+      },
+      answer: {
+        fa: 'فکر نمی‌کنم ASL ثبت‌نام کرده باشم و درخواست دسترسی پیامکی یا ایمیلی را هم تأیید نکرده‌ام.',
+        en: 'I do not think I have an ASL, and I have not confirmed an access request by SMS or email.',
+      },
+    },
+    {
+      key: 'T',
+      label: { fa: 'T - توکن اصلی یا تکرار نسخه؟', en: 'T - Original or repeat token?' },
+      question: {
+        fa: 'این توکن مربوط به نسخهٔ اصلیِ تازه‌صادرشده است یا توکن تکراری که داروخانه‌ای قبلاً صادر کرده؟',
+        en: 'Is this the original token for a newly issued prescription, or a repeat token previously issued by a pharmacy?',
+      },
+      answer: {
+        fa: 'نسخهٔ اصلی را پزشکم همین امروز صادر کرد؛ تکرار نسخه نیست.',
+        en: 'My GP issued the original prescription this morning; it is not a repeat.',
+      },
+    },
+  ];
+  sc.redFlags = [
+    {
+      fa: 'باز کردن ASL پیش از احراز هویت مصرف‌کننده و تأیید ثبت‌نام/دسترسی مجاز و رضایت لازم در workflow نرم‌افزار.',
+      en: 'Opening an ASL before identity checks and confirmation of registration, authorised access and required consent in the dispensing-software workflow.',
+    },
+    {
+      fa: 'فرض اینکه هر توکن پیامکیِ حذف‌شده، حتی بدون ثبت‌نام ASL، خودکار در MySL قابل بازیابی است.',
+      en: 'Assuming every deleted SMS token is automatically retrievable in MySL even when the consumer is not registered for an ASL.',
+    },
+    {
+      fa: 'دیسپنس پیش از بازیابی واقعی، اعتبارسنجی نسخه و بررسی الزامات مرتبط.',
+      en: 'Dispensing before the prescription is retrieved, validated and checked against applicable requirements.',
+    },
+  ];
+  sc.dialogueOptions = (sc.dialogueOptions || []).map(option => {
+    if (option.id === 'a1_opt1') return {
+      ...option,
+      patientReply: {
+        fa: 'متوجه شدم. می‌توانید اول بررسی کنید آیا برای ASL ثبت‌نام کرده‌ام و داروخانه به فهرستم دسترسی مجاز دارد؟ اگر نه، برای همین نسخه چه راهی دارم؟',
+        en: 'I understand. Could you first check whether I am registered for an ASL and whether your pharmacy has authorised access? If not, what can I do for this prescription?',
+      },
+    };
+    if (option.id !== 'a1_opt2') return option;
+    return {
+    ...option,
+    text: {
+      fa: 'مسیر درست را بدون وعدهٔ بازیابی خودکار توضیح دهید: ۱) ابتدا هویت بیمار را طبق سیاست جاری داروخانه احراز کنید. ASL/MySL فقط وقتی جای توکن را می‌گیرد که مصرف‌کننده برای ASL ثبت شده و نسخهٔ فعالِ واجدشرایط در آن قابل مشاهده باشد. ۲) اگر ASL ثبت است و داروخانه قبلاً دسترسی مجاز دارد، جزئیات نسخه را از نرم‌افزار دیسپنسینگ بررسی کنید. اگر دسترسی ندارید، درخواست دسترسی را از workflow نرم‌افزار ارسال کنید و فقط پس از تأیید رضایت مصرف‌کننده از مسیر پیامک/ایمیل و اعطای دسترسی، فهرست را باز کنید. رضایت شفاهی به‌تنهایی جای این تأیید سامانه‌ای را نمی‌گیرد. ۳) اگر بیمار ASL ندارد—همان‌طور که در این پرونده می‌گوید—فرض نکنید توکن پیامکیِ حذف‌شده اکنون در MySL قابل بازیابی است. برای توکن نسخهٔ اصلیِ گم‌شده، با نسخه‌نویس تماس بگیرید تا توکن را دوباره ارسال کند؛ برای توکن تکرار، با داروخانهٔ صادرکننده تماس بگیرید. ۴) می‌توانید برای آینده، در صورت تمایل بیمار، ثبت‌نام ASL را از راه نرم‌افزار و با احراز هویت، دریافت/تأیید IHI از HI Service و رضایت‌های لازم توضیح دهید؛ ثبت‌نام یا دسترسی را کامل‌شده فرض نکنید. نسخه را فقط پس از بازیابی و اعتبارسنجی واقعی و رعایت مقررات مرتبط دیسپنس کنید.',
+      en: 'Explain the correct path without promising automatic recovery: 1) First verify the consumer’s identity under current pharmacy policy. ASL/MySL replaces the need to present a token only when the consumer is registered for an ASL and the active prescription is available there. 2) If an ASL is already registered and this pharmacy has authorised access, check the prescription in the dispensing software. If access is not already granted, request it through the software workflow and open the list only after the consumer confirms consent through the required SMS/email process and access is granted; verbal consent alone does not replace this system confirmation. 3) This patient says they do not have an ASL, so do not assume the deleted SMS token is now retrievable from MySL. For a lost token for an original prescription, contact the prescriber to resend it; for a repeat token, contact the pharmacy that issued it. 4) If the patient wishes, explain assisted ASL registration for future use. The dispensing software must complete the identity, IHI/HI Service and consent steps; do not imply registration or access is already complete. Dispense only after the prescription has actually been retrieved and validated and all applicable requirements are met.',
+    },
+    patientReply: {
+      fa: 'متوجه شدم. لطفاً برای همین نسخه با پزشکم تماس بگیرید و اگر بخواهم، مراحل ثبت‌نام ASL را هم برای دفعات بعد توضیح دهید.',
+      en: 'I understand. Please contact my GP about this prescription, and explain ASL registration for future prescriptions if I choose to use it.',
+    },
+    };
+  });
+  sc.clinicalOutcome = {
+    ...sc.clinicalOutcome,
+    headline: { fa: 'اول مسیر بازیابی را تأیید کنید', en: 'Confirm the recovery pathway first' },
+    recommendation: {
+      fa: 'برای این نسخهٔ اصلیِ فاقد توکن، با نسخه‌نویس تماس بگیرید؛ ASL را فقط پس از تأیید ثبت‌نام، هویت و دسترسی مجاز بررسی کنید. پیش از بازیابی و اعتبارسنجی نسخه، دیسپنس نکنید.',
+      en: 'For this original prescription with no token and no registered ASL, contact the prescriber. Use ASL only after confirming registration, identity and authorised access. Do not dispense until the prescription is retrieved and validated.',
+    },
+    explanation: {
+      fa: 'راهنمای ADHA می‌گوید ASL یک راهکار مدیریت توکن است. دسترسی به نسخهٔ فعال به ثبت ASL و دسترسی/رضایت لازم وابسته است؛ اگر دسترسی جدید درخواست شود، مصرف‌کننده باید تأیید پیامکی/ایمیلی مقرر را انجام دهد. راهنمای مصرف‌کننده برای توکنِ نسخهٔ اصلیِ گم‌شده، تماس با نسخه‌نویس و برای توکن تکرار، تماس با داروخانهٔ صادرکننده را پیشنهاد می‌کند. این سناریو بازبینی‌نشده است و جایگزین راهنمای نرم‌افزار، سیاست محل کار یا مقررات جاری نیست.',
+      en: 'ADHA describes an ASL as a token-management solution. Access to an active prescription depends on ASL registration and the required access/consent; if new access is requested, the consumer must complete the required SMS/email confirmation. ADHA consumer guidance says to contact the prescriber for a lost original token and the issuing pharmacy for a lost repeat token. This scenario remains unreviewed and does not replace dispensing-software guidance, workplace policy or current requirements.',
+    },
+  };
+  sc.aussieContext = {
+    ...sc.aussieContext,
+    fa: 'Active Script List (ASL/MySL) راهکار مدیریت توکن‌های نسخه‌های الکترونیک فعال است، نه فهرستی که هر نسخهٔ پیامکیِ گم‌شده را بدون ثبت‌نام و دسترسی مجاز خودکار بازیابی کند. هویت، ثبت ASL، دسترسی و رضایت لازم باید از طریق workflow نرم‌افزار بررسی شود.',
+    en: 'An Active Script List (ASL/MySL) is a token-management solution for eligible active ePrescriptions, not a universal lookup that automatically recovers every lost SMS token. Verify identity, ASL registration, access and required consent through the dispensing-software workflow.',
+    adminRule: {
+      fa: 'برای ASL موجود، هویت بیمار را طبق سیاست جاری بررسی کنید؛ اگر دسترسی داروخانه موجود نیست، از نرم‌افزار درخواست دهید و تا تأیید رضایت مصرف‌کننده در workflow مقرر پیامکی/ایمیلی، به فهرست دسترسی نگیرید. ثبت‌نام ASL از مسیر جداگانهٔ احراز هویت و IHI/HI Service می‌گذرد. توکن اصلیِ گم‌شده: نسخه‌نویس؛ توکن تکرار: داروخانهٔ صادرکننده. قبل از بازیابی/اعتبارسنجی نسخه، وعدهٔ دیسپنس ندهید.',
+      en: 'For an existing ASL, verify the consumer under current identity policy. If pharmacy access is not already granted, request it in the dispensing software and do not access the list until the required consumer SMS/email consent is confirmed. ASL registration is a separate identity and IHI/HI Service workflow. Lost original token: contact the prescriber; lost repeat token: contact the issuing pharmacy. Do not promise dispensing before retrieval and validation.',
+    },
+    keyPhrases: [
+      { phrase: 'Active Script List (ASL/MySL)', meaningFa: 'فهرست/راهکار مدیریت توکن نسخه‌های الکترونیک فعال؛ ثبت‌نام و اعطای دسترسی لازم است.', meaningEn: 'A token-management list for active ePrescriptions; registration and authorised access are required.' },
+      { phrase: 'IHI (Individual Healthcare Identifier)', meaningFa: 'شناسهٔ سلامت یکتای فرد؛ نرم‌افزار ثبت ASL آن را از HI Service دریافت یا تأیید می‌کند. خود شمارهٔ IHI همان شمارهٔ کارت Medicare نیست.', meaningEn: 'A unique healthcare identifier obtained or verified through the HI Service in the ASL registration workflow; it is not the Medicare card number itself.' },
+      { phrase: 'eScript token', meaningFa: 'توکنِ ارائه‌شده با پیامک/ایمیل برای دسترسی به نسخه؛ برای توکن اصلیِ گم‌شده با نسخه‌نویس و برای تکرار با داروخانهٔ صادرکننده پیگیری کنید.', meaningEn: 'A token delivered by SMS/email to access an ePrescription; contact the prescriber for a lost original token or the issuing pharmacy for a lost repeat.' },
+    ],
+    officialReferences: [
+      {
+        title: { fa: 'راهنمای ADHA برای دیسپنسرها: توکن نسخه و ASL', en: 'ADHA: Electronic prescribing for dispensers' },
+        url: 'https://www.digitalhealth.gov.au/healthcare-providers/initiatives-and-programs/electronic-prescribing/for-dispensers',
+      },
+      {
+        title: { fa: 'راهنمای مصرف‌کننده: نسخهٔ الکترونیک و توکن گم‌شده', en: 'ADHA: Electronic prescriptions and lost tokens' },
+        url: 'https://www.digitalhealth.gov.au/initiatives-and-programs/electronic-prescriptions',
+      },
+      {
+        title: { fa: 'چارچوب حریم خصوصی ASL، نسخه‌های ۱ و ۲', en: 'Australian Government: Active Script List Privacy Framework' },
+        url: 'https://www.health.gov.au/sites/default/files/2025-08/electronic-prescribing-active-script-list-privacy-framework.pdf',
+      },
+    ],
+  };
+  return sc;
+}
+
 // 4.3 4 Admin Scenarios
-for (const sc of (ADMIN_SCENARIOS || [])) {
+for (const sourceScenario of (ADMIN_SCENARIOS || [])) {
+  const sc = applyActiveScriptListEditorialCorrection(sourceScenario);
   const docId = `doc-scenario-admin-${sc.id}`;
   const title = `قوانین نسخه و بیمه: ${sc.title?.fa || sc.id}`;
   const titleEn = `Administrative Script Case: ${sc.title?.en || sc.id}`;

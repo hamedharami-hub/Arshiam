@@ -3355,8 +3355,8 @@ export const PHARMACY_CLINICAL_ENTITIES: readonly PharmacyClinicalEntity[] = [
     "id": "triage:admin-lost-escript-mysl",
     "type": "triage-scenario",
     "title": {
-      "fa": "A1. استعلام نسخه الکترونیک گم‌شده در MySL (Lost eScript / Active Script List)",
-      "en": "A1. Lost eScript SMS & Active Script List (MySL) Lookup"
+      "fa": "A1. توکن نسخهٔ الکترونیک گم‌شده: مسیر ASL/MySL و بازیابی",
+      "en": "A1. Lost eScript Token: ASL/MySL Eligibility & Recovery"
     },
     "source": "data/scenarios/index.ts",
     "sourceId": "admin-lost-escript-mysl",
@@ -3499,8 +3499,8 @@ export const PHARMACY_CLINICAL_ENTITIES: readonly PharmacyClinicalEntity[] = [
     "id": "triage:chickenpox-advisory",
     "type": "triage-scenario",
     "title": {
-      "fa": "۵. آبله‌مرغان کودک، منع حمام گرم/روغن و منع ایبوپروفن (Chickenpox Bath & Fever Advisory)",
-      "en": "5. Pediatric Chickenpox: Bathing, Oil & NSAID Contraindications"
+      "fa": "۵. آبله‌مرغان کودک: تسکین علائم و تفاوت راهنماهای ایبوپروفن",
+      "en": "5. Childhood Chickenpox: Symptom Relief & Conflicting Ibuprofen Advice"
     },
     "source": "data/scenarios/index.ts",
     "sourceId": "chickenpox-advisory",
@@ -3535,8 +3535,8 @@ export const PHARMACY_CLINICAL_ENTITIES: readonly PharmacyClinicalEntity[] = [
     "id": "triage:thrush-triage",
     "type": "triage-scenario",
     "title": {
-      "fa": "۸. کاندیدیازیس واژینال، فلوکونازول و پرچم قرمز بارداری (Vaginal Candidiasis & Pregnancy Red Flag)",
-      "en": "8. Vaginal Thrush: Oral Fluconazole S3 vs Pregnancy Red Flag Triage"
+      "fa": "۸. برفک واژینال در بارداری: تأیید تشخیص و انتخاب درمان",
+      "en": "8. Vaginal Thrush in Pregnancy: Confirm Diagnosis & Individualise Treatment"
     },
     "source": "data/scenarios/index.ts",
     "sourceId": "thrush-triage",
