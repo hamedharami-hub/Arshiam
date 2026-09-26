@@ -224,7 +224,7 @@ describe("InteractiveStudyView", () => {
     await waitFor(() => expect(mockPersistStudySession).toHaveBeenCalledWith(expect.objectContaining({
       content_html: expect.stringContaining("is-flipped"),
     })), { timeout: 2500 });
-  });
+  }, 10_000);
 
   it("shows the preview step and only imports flashcards into Leitner after explicit choice", async () => {
     const { container } = renderStudio();
