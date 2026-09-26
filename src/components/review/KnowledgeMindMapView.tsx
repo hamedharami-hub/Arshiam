@@ -54,6 +54,7 @@ import {
   layoutKnowledgeMindMapRadial,
   layoutKnowledgeMindMapVertical,
   type KnowledgeMindMapConnectorStyle,
+  type KnowledgeMindMapNodeDensity,
   type MindMapOutlineEntry,
 } from "@/lib/knowledgeMindMapLayout";
 import {
@@ -116,6 +117,7 @@ interface MindMapNodeItemProps {
   node: MindMapNode;
   isHighlighted: boolean;
   isEn: boolean;
+  compactLabels: boolean;
   treeDirection?: "rtl" | "ltr";
   isCurrentScopeRoot?: boolean;
   onOpenPreview: (doc: KnowledgeDocument) => void;
@@ -450,6 +452,7 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
     node,
     isHighlighted,
     isEn,
+    compactLabels,
     treeDirection = "ltr",
     isCurrentScopeRoot = false,
     onOpenPreview,
@@ -551,7 +554,7 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
                 {node.secondaryTitle}
               </div>
             )}
-            {node.subtitle && (
+            {node.subtitle && !compactLabels && (
               <div
                 dir={isSubtitlePersian ? "rtl" : "ltr"}
                 className={`whitespace-normal break-words text-[10px] leading-3 ${
@@ -730,6 +733,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   const [viewMode, setViewMode] = useState<"canvas" | "outline">("canvas");
   const [canvasLayout, setCanvasLayout] = useState<"horizontal" | "vertical" | "radial">("horizontal");
   const [connectorStyle, setConnectorStyle] = useState<KnowledgeMindMapConnectorStyle>("auto");
+  const [compactLabels, setCompactLabels] = useState(false);
   const [nodeAppearanceState, setNodeAppearanceState] = useState(() => ({
     ownerId: userId,
     styles: loadKnowledgeMindMapNodeStyles(userId),
@@ -1078,7 +1082,8 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       secondaryTitle?: string,
     ): { y: number; height: number } {
       const isExpanded = !!expandedNodeIds[id];
-      const { width, height } = getMindMapNodeDimensions(type, title, subtitle, secondaryTitle);
+      const density: KnowledgeMindMapNodeDensity = compactLabels ? "compact" : "detailed";
+      const { width, height } = getMindMapNodeDimensions(type, title, subtitle, secondaryTitle, density);
       const hasChildren = childrenData.length > 0;
       const visibleChildren = isExpanded ? childrenData : [];
 
@@ -1359,7 +1364,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
         height: maxY - minY + 160,
       },
     };
-  }, [folders, documents, cards, expandedNodeIds, isEn, treeDirection, selectedScopeId, cardLanguage]);
+  }, [folders, documents, cards, expandedNodeIds, isEn, treeDirection, selectedScopeId, cardLanguage, compactLabels]);
 
   const canvasLayoutResult = useMemo(
     () => {
@@ -1406,13 +1411,13 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     setPanOffset({ x: targetPanX, y: targetPanY });
   }, [bounds]);
 
-  const previousCanvasViewRef = useRef({ canvasLayout, viewMode });
+  const previousCanvasViewRef = useRef({ canvasLayout, viewMode, compactLabels });
   useEffect(() => {
     const previous = previousCanvasViewRef.current;
-    previousCanvasViewRef.current = { canvasLayout, viewMode };
-    const viewChanged = previous.canvasLayout !== canvasLayout || previous.viewMode !== viewMode;
+    previousCanvasViewRef.current = { canvasLayout, viewMode, compactLabels };
+    const viewChanged = previous.canvasLayout !== canvasLayout || previous.viewMode !== viewMode || previous.compactLabels !== compactLabels;
     if (viewChanged && viewMode === "canvas" && hasLoadedData) fitViewToContainer();
-  }, [canvasLayout, fitViewToContainer, hasLoadedData, viewMode]);
+  }, [canvasLayout, compactLabels, fitViewToContainer, hasLoadedData, viewMode]);
 
   // Auto-center on initial load
   useEffect(() => {
@@ -1946,6 +1951,21 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+          {viewMode === "canvas" && (
+            <button
+              type="button"
+              aria-label={isEn ? "Compact node labels" : "نمایش فشرده گره‌ها"}
+              aria-pressed={compactLabels}
+              title={compactLabels
+                ? isEn ? "Show full node details" : "نمایش جزئیات کامل گره‌ها"
+                : isEn ? "Show compact node labels" : "نمایش فشرده گره‌ها"}
+              onClick={() => setCompactLabels((current) => !current)}
+              className={`hidden sm:flex items-center gap-1.5 rounded-xl border border-border bg-card/90 px-2 py-1.5 text-xs shadow-lg backdrop-blur-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${compactLabels ? "text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+            >
+              <span aria-hidden="true" className="font-semibold leading-none">Aa</span>
+              <span>{compactLabels ? isEn ? "Compact" : "فشرده" : isEn ? "Full" : "کامل"}</span>
+            </button>
+          )}
           <div role="group" aria-label={isEn ? "Mind map view" : "حالت نمایش نقشه ذهنی"} className="flex items-center gap-1 rounded-2xl border border-border bg-card/90 p-1.5 shadow-lg backdrop-blur-xl">
             <button
               type="button"
@@ -2001,6 +2021,11 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
                   </DropdownMenuItem>
                   <DropdownMenuItem onSelect={handleCollapseAll}>
                     {isEn ? "Collapse All" : "جمع کردن همه"}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => setCompactLabels((current) => !current)} className="gap-2">
+                    <span className="flex-1">{isEn ? "Compact node labels" : "نمایش فشرده گره‌ها"}</span>
+                    {compactLabels && <Check className="h-3.5 w-3.5 text-primary" aria-hidden="true" />}
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
               </DropdownMenuContent>
@@ -2152,6 +2177,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
                 node={node}
                 isHighlighted={isHighlighted}
                 isEn={isEn}
+                compactLabels={compactLabels}
                 treeDirection={treeDirection}
                 isCurrentScopeRoot={isCurrentScopeRoot}
                 onOpenPreview={setPreviewDoc}

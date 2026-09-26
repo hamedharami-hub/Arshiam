@@ -40,6 +40,17 @@ describe("knowledge mind-map layout helpers", () => {
     expect(dimensions.height).toBe(112);
   });
 
+  it("compacts secondary metadata without truncating bilingual card text", () => {
+    const title = "پرسش فارسی نسبتاً طولانی برای نمایش در نقشه";
+    const translation = "A complete English translation that still needs room to wrap";
+    const detailed = getMindMapNodeDimensions("card", title, "جعبه ۳", translation);
+    const compact = getMindMapNodeDimensions("card", title, "جعبه ۳", translation, "compact");
+
+    expect(compact.width).toBe(detailed.width);
+    expect(compact.height).toBeLessThan(detailed.height);
+    expect(compact.height).toBeGreaterThan(getMindMapNodeDimensions("card", title, undefined, translation).height - 1);
+  });
+
   it("builds an ordered nested outline from the visible canvas nodes", () => {
     const nodes = [
       { id: "doc-b", parentId: "folder-a", y: 220, title: "Second document" },

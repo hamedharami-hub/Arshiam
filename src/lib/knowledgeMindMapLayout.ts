@@ -1,4 +1,5 @@
 export type KnowledgeMindMapNodeKind = "root" | "folder" | "subfolder" | "doc" | "card";
+export type KnowledgeMindMapNodeDensity = "detailed" | "compact";
 
 export interface MindMapNodeDimensions {
   width: number;
@@ -171,13 +172,14 @@ export function getMindMapNodeDimensions(
   title: string,
   subtitle?: string,
   secondaryTitle?: string,
+  density: KnowledgeMindMapNodeDensity = "detailed",
 ): MindMapNodeDimensions {
   const config = NODE_SIZE_CONFIG[type];
   const titleLines = Math.max(1, Math.ceil(Array.from(title.trim()).length / config.titleCharactersPerLine));
   const secondaryTitleLines = secondaryTitle
     ? Math.max(1, Math.ceil(Array.from(secondaryTitle.trim()).length / BODY_CHARACTERS_PER_LINE))
     : 0;
-  const subtitleLines = subtitle
+  const subtitleLines = subtitle && density === "detailed"
     ? Math.max(1, Math.ceil(Array.from(subtitle.trim()).length / BODY_CHARACTERS_PER_LINE))
     : 0;
   const contentHeight = 24 + titleLines * 16 + secondaryTitleLines * 12 + subtitleLines * 12;

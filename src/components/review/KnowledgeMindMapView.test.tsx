@@ -173,4 +173,25 @@ describe("KnowledgeMindMapView outline mode", () => {
     expect(screen.getByText("What is the lesson review card?")).toBeInTheDocument();
   });
 
+  it("compacts canvas metadata without hiding a card title or its translation", async () => {
+    render(<KnowledgeMindMapView userId="user-1" cardLanguage="bilingual" />);
+
+    const lessonTitle = "A deliberately long lesson title that must remain fully visible in the mind map outline";
+    fireEvent.click(await screen.findByRole("button", { name: `Expand ${lessonTitle}` }));
+    expect(await screen.findByText("Box 1")).toBeInTheDocument();
+
+    const densityToggle = screen.getByRole("button", { name: "Compact node labels", hidden: true });
+    expect(densityToggle).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(densityToggle);
+
+    expect(densityToggle).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText("Box 1")).not.toBeInTheDocument();
+    expect(screen.getByText("پرسش کارت مرور درس چیست؟")).toBeInTheDocument();
+    expect(screen.getByText("What is the lesson review card?")).toBeInTheDocument();
+
+    fireEvent.click(densityToggle);
+    expect(densityToggle).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByText("Box 1")).toBeInTheDocument();
+  }, 15000);
+
 });
