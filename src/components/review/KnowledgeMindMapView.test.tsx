@@ -1,29 +1,35 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { KnowledgeMindMapView } from "./KnowledgeMindMapView";
+import { getKnowledgeDocuments, getKnowledgeFolders } from "@/lib/knowledgeService";
+import type { KnowledgeDocument, KnowledgeFolder } from "@/lib/knowledgeTypes";
 
 vi.mock("@/hooks/useBilingual", () => ({
   useBilingual: () => ({ isEn: true }),
 }));
 
-vi.mock("@/lib/knowledgeService", () => ({
-  getKnowledgeFolders: vi.fn().mockResolvedValue([
-    { id: "folder-1", user_id: "user-1", parent_id: null, name: "Study Folder", created_at: "2026-01-01", updated_at: "2026-01-01" },
-  ]),
-  getKnowledgeDocuments: vi.fn().mockResolvedValue([
-    {
-      id: "doc-1",
-      user_id: "user-1",
-      folder_id: "folder-1",
-      title: "A deliberately long lesson title that must remain fully visible in the mind map outline",
-      content_html: "<p>Lesson content</p>",
-      plain_text: "Lesson content",
-      tags: [],
-      created_at: "2026-01-01",
-      updated_at: "2026-01-01",
-    },
-  ]),
-}));
+vi.mock("@/lib/knowledgeService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/knowledgeService")>();
+  return {
+    ...actual,
+    getKnowledgeFolders: vi.fn().mockResolvedValue([
+      { id: "folder-1", user_id: "user-1", parent_id: null, name: "Study Folder", created_at: "2026-01-01", updated_at: "2026-01-01" },
+    ]),
+    getKnowledgeDocuments: vi.fn().mockResolvedValue([
+      {
+        id: "doc-1",
+        user_id: "user-1",
+        folder_id: "folder-1",
+        title: "A deliberately long lesson title that must remain fully visible in the mind map outline",
+        content_html: "<p>Lesson content</p>",
+        plain_text: "Lesson content",
+        tags: [],
+        created_at: "2026-01-01",
+        updated_at: "2026-01-01",
+      },
+    ]),
+  };
+});
 
 vi.mock("@/lib/leitnerService", () => ({
   getLeitnerCards: vi.fn().mockResolvedValue([
@@ -92,6 +98,38 @@ describe("KnowledgeMindMapView outline mode", () => {
       expect(screen.getByRole("button", { name: "All Knowledge Base" })).toBeInTheDocument();
     });
   }, 10000);
+
+  it("keeps lessons and folders with broken parent links visible through safe display roots", async () => {
+    const makeFolder = (id: string, parent_id: string | null, name: string): KnowledgeFolder => ({
+      id, user_id: "user-1", parent_id, name, created_at: "2026-01-01", updated_at: "2026-01-01",
+    });
+    const malformedFolders: KnowledgeFolder[] = [
+      makeFolder("cycle-b", "cycle-a", "Cycle B"),
+      makeFolder("cycle-a", "cycle-b", "Cycle A"),
+      makeFolder("orphan-folder", "missing-parent", "Recovered folder"),
+    ];
+    const makeDocument = (id: string, folder_id: string | null, title: string): KnowledgeDocument => ({
+      id, user_id: "user-1", folder_id, title, content_html: `<p>${title}</p>`,
+      plain_text: title, tags: [], created_at: "2026-01-01", updated_at: "2026-01-01",
+    });
+    const detachedDocuments: KnowledgeDocument[] = [
+      makeDocument("doc-cycle", "cycle-a", "Cycle lesson"),
+      makeDocument("doc-detached", "missing-folder", "Detached lesson"),
+      makeDocument("doc-unfiled", null, "Unfiled lesson"),
+    ];
+    vi.mocked(getKnowledgeFolders).mockResolvedValueOnce(malformedFolders);
+    vi.mocked(getKnowledgeDocuments).mockResolvedValueOnce(detachedDocuments);
+
+    render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);
+    fireEvent.click(screen.getByRole("button", { name: "Outline view" }));
+
+    expect(await screen.findByText("Cycle lesson")).toBeInTheDocument();
+    expect(screen.getByText("Detached lesson")).toBeInTheDocument();
+    expect(screen.getByText("Unfiled lesson")).toBeInTheDocument();
+    expect(screen.getByText("Recovered folder")).toBeInTheDocument();
+    expect(screen.getAllByText(/Recovered for display; original link kept/)).toHaveLength(2);
+    expect(screen.getByText("Missing folder link")).toBeInTheDocument();
+  });
 
   it("switches between horizontal, vertical, radial, and matrix layouts without losing the visible lesson tree", async () => {
     render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);

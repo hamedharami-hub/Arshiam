@@ -40,9 +40,9 @@ import { useBilingual } from "@/hooks/useBilingual";
 import { useLongPress } from "@/lib/useLongPress";
 import { isPersianText } from "@/lib/bilingualHelper";
 import { resolveLeitnerCardText, type StudyContentLanguage } from "@/lib/leitnerCardLanguage";
-import type { KnowledgeFolder, KnowledgeDocument } from "@/lib/knowledgeTypes";
+import type { KnowledgeFolder, KnowledgeFolderNode, KnowledgeDocument } from "@/lib/knowledgeTypes";
 import type { LeitnerCard } from "@/lib/leitnerTypes";
-import { getKnowledgeFolders, getKnowledgeDocuments } from "@/lib/knowledgeService";
+import { buildFolderTree, getKnowledgeFolders, getKnowledgeDocuments } from "@/lib/knowledgeService";
 import { getLeitnerCards } from "@/lib/leitnerService";
 import { TaskKnowledgeReaderDialog } from "@/components/task-detail/TaskKnowledgeReaderDialog";
 import { StudyTaskScheduleModal } from "@/components/knowledge/StudyTaskScheduleModal";
@@ -854,10 +854,10 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       setCards(c);
       setHasLoadedData(true);
 
-      // Default expand root and first 3 top-level folders
+      // Default expand the safe visual roots, including recovered orphan/cycle roots.
       setExpandedNodeIds((prev) => {
         const next = { ...prev, "root-kb": true };
-        const rootFolders = f.filter((folder) => !folder.parent_id);
+        const rootFolders = buildFolderTree(f, d);
         rootFolders.forEach((rf) => {
           next[`folder-${rf.id}`] = true;
         });
@@ -1059,8 +1059,22 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     setScheduleModalOpen(true);
   }, [selectedScopeId, folders, documents, currentScopeTitle, isEn]);
 
-  const rootFoldersList = useMemo(() => folders.filter((f) => !f.parent_id), [folders]);
-  const unfiledDocsCount = useMemo(() => documents.filter((d) => !d.folder_id).length, [documents]);
+  const rootFoldersList = useMemo(() => buildFolderTree(folders, documents), [folders, documents]);
+  const folderTreeNodeById = useMemo(() => {
+    const byId = new Map<string, KnowledgeFolderNode>();
+    const visit = (nodes: KnowledgeFolderNode[]) => nodes.forEach((node) => {
+      byId.set(node.id, node);
+      visit(node.children);
+    });
+    visit(rootFoldersList);
+    return byId;
+  }, [rootFoldersList]);
+  const folderIds = useMemo(() => new Set(folders.map((folder) => folder.id)), [folders]);
+  const otherDocuments = useMemo(
+    () => documents.filter((doc) => !doc.folder_id || !folderIds.has(doc.folder_id)),
+    [documents, folderIds],
+  );
+  const unfiledDocsCount = otherDocuments.length;
 
   // Compute Tree Layout (Pharmacy layout algorithm: Center parent to children and prevent subtree overlap)
   const baseLayout = useMemo(() => {
@@ -1142,10 +1156,19 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       doc: KnowledgeDocument,
       depth: number,
       x: number,
-      parentId?: string
+      parentId?: string,
+      missingFolderReference = false,
     ): { y: number; height: number } => {
       const docId = `doc-${doc.id}`;
       const docCards = cards.filter((c) => c.document_id === doc.id);
+      const subtitleParts = [
+        docCards.length > 0
+          ? isEn ? `${docCards.length} Cards` : `${docCards.length} کارت`
+          : undefined,
+        missingFolderReference
+          ? isEn ? "Missing folder link" : "ارجاع فولدر ناموجود"
+          : undefined,
+      ].filter((part): part is string => Boolean(part));
 
       const cardFns: Array<() => { y: number; height: number }> = [];
       docCards.slice(0, 15).forEach((card) => {
@@ -1180,25 +1203,21 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
         "#818cf8",
         doc.id,
         doc,
-        docCards.length > 0
-          ? isEn
-            ? `${docCards.length} Cards`
-            : `${docCards.length} کارت`
-          : undefined,
+        subtitleParts.join(" · ") || undefined,
         cardFns
       );
     };
 
     // Helper to recursively build a folder subtree (its subfolders and documents)
     const buildFolderSubtree = (
-      folder: KnowledgeFolder,
+      folder: KnowledgeFolderNode,
       depth: number,
       x: number,
       parentId?: string,
       isScopeRoot = false
     ): { y: number; height: number } => {
       const folderId = `folder-${folder.id}`;
-      const subFolders = folders.filter((f) => f.parent_id === folder.id);
+      const subFolders = folder.children;
       const folderDocs = documents.filter((d) => d.folder_id === folder.id);
 
       const childrenFns: Array<() => { y: number; height: number }> = [];
@@ -1218,11 +1237,17 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       });
 
       const totalItems = subFolders.length + folderDocs.length;
-      const subtitle = `${totalItems} ${isEn ? "items" : "مورد"}`;
+      const subtitleParts = [
+        parentId === "root-kb" && folder.parent_id
+          ? isEn ? "Recovered for display; original link kept" : "فقط برای نمایش بازیابی شد؛ پیوند اصلی حفظ شده"
+          : undefined,
+        `${totalItems} ${isEn ? "items" : "مورد"}`,
+      ].filter((part): part is string => Boolean(part));
+      const subtitle = subtitleParts.join(" · ");
 
       return layoutNode(
         folderId,
-        isScopeRoot ? "root" : folder.parent_id ? "subfolder" : "folder",
+        isScopeRoot ? "root" : parentId === "root-kb" ? "folder" : "subfolder",
         folder.name,
         depth,
         x,
@@ -1237,8 +1262,8 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     };
 
     if (selectedScopeId === "all") {
-      const rootFolders = folders.filter((f) => !f.parent_id);
-      const unfiledDocs = documents.filter((d) => !d.folder_id);
+      const rootFolders = rootFoldersList;
+      const unfiledDocs = otherDocuments;
 
       const rootChildrenFns: Array<() => { y: number; height: number }> = [];
 
@@ -1247,7 +1272,8 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       });
 
       unfiledDocs.forEach((doc) => {
-        rootChildrenFns.push(() => buildDocNode(doc, 1, 60 + colSpacing, "root-kb"));
+        const missingFolderReference = Boolean(doc.folder_id && !folderIds.has(doc.folder_id));
+        rootChildrenFns.push(() => buildDocNode(doc, 1, 60 + colSpacing, "root-kb", missingFolderReference));
       });
 
       layoutNode(
@@ -1266,7 +1292,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       );
     } else if (selectedScopeId.startsWith("folder-")) {
       const targetFolderId = selectedScopeId.replace("folder-", "");
-      const targetFolder = folders.find((f) => f.id === targetFolderId);
+      const targetFolder = folderTreeNodeById.get(targetFolderId);
       if (targetFolder) {
         buildFolderSubtree(targetFolder, 0, 60, undefined, true);
       } else {
@@ -1369,7 +1395,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
         height: maxY - minY + 160,
       },
     };
-  }, [folders, documents, cards, expandedNodeIds, isEn, treeDirection, selectedScopeId, cardLanguage, compactLabels]);
+  }, [documents, cards, expandedNodeIds, isEn, treeDirection, selectedScopeId, cardLanguage, compactLabels, rootFoldersList, folderTreeNodeById, otherDocuments, folderIds]);
 
   const canvasLayoutResult = useMemo(
     () => {
@@ -1787,7 +1813,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
               </DropdownMenuLabel>
 
               {rootFoldersList.map((rf) => {
-                const subF = folders.filter((f) => f.parent_id === rf.id);
+                const subF = rf.children;
                 const rfDocs = documents.filter((d) => d.folder_id === rf.id);
                 const isRfSelected = selectedScopeId === `folder-${rf.id}`;
 
@@ -1832,9 +1858,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
                   <DropdownMenuLabel className="text-[10px] text-muted-foreground uppercase px-2 py-1">
                     {isEn ? "Other Documents" : "سایر اسناد"}
                   </DropdownMenuLabel>
-                  {documents
-                    .filter((d) => !d.folder_id)
-                    .map((doc) => {
+                  {otherDocuments.map((doc) => {
                       const isDocSelected = selectedScopeId === `doc-${doc.id}`;
                       return (
                         <DropdownMenuItem
@@ -1847,7 +1871,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
                           {isDocSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
                         </DropdownMenuItem>
                       );
-                    })}
+                  })}
                 </>
               )}
             </DropdownMenuContent>

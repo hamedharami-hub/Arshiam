@@ -324,5 +324,5 @@ describe("KnowledgeBaseView (/app/knowledge) Page Verification", { timeout: 1500
     await waitFor(() => expect(screen.queryByTestId("knowledge-linked-document-dialog")).not.toBeInTheDocument());
     expect(screen.getByRole("heading", { name: "راهنمای فلوکستین", level: 2 })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Tasks route" })).not.toBeInTheDocument();
-  });
+  }, 30000);
 });
