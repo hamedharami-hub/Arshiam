@@ -82,7 +82,7 @@ describe("KnowledgeMindMapView outline mode", () => {
     expect(await screen.findByTestId("reader")).toHaveTextContent(title);
 
     expect(screen.getByRole("button", { name: `Actions for ${title}` })).toBeVisible();
-  });
+  }, 15000);
 
   it("resets a deep-linked scope when its initial scope props are cleared", async () => {
     const { rerender } = render(

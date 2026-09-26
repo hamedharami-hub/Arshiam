@@ -25,6 +25,7 @@ import {
   ListTree,
   MoreHorizontal,
   Palette,
+  BookOpen,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -44,6 +45,11 @@ import type { KnowledgeFolder, KnowledgeFolderNode, KnowledgeDocument } from "@/
 import type { LeitnerCard } from "@/lib/leitnerTypes";
 import { buildFolderTree, getKnowledgeFolders, getKnowledgeDocuments } from "@/lib/knowledgeService";
 import { getLeitnerCards } from "@/lib/leitnerService";
+import {
+  getKnowledgeMindMapReviewableScopeIds,
+  resolveKnowledgeMindMapReviewScope,
+  type KnowledgeMindMapReviewScope,
+} from "@/lib/knowledgeMindMapReview";
 import { TaskKnowledgeReaderDialog } from "@/components/task-detail/TaskKnowledgeReaderDialog";
 import { StudyTaskScheduleModal } from "@/components/knowledge/StudyTaskScheduleModal";
 import { buildKnowledgeMindMapSearch, mindMapNodeMatchesSearch } from "@/lib/knowledgeMindMapSearch";
@@ -78,6 +84,7 @@ interface KnowledgeMindMapViewProps {
   userId: string;
   cardLanguage?: StudyContentLanguage;
   onOpenDocument?: (docId: string) => void;
+  onStartReview?: (scope: KnowledgeMindMapReviewScope) => void;
   initialFolderId?: string;
   initialDocId?: string;
 }
@@ -102,6 +109,8 @@ interface MindMapNode {
   dataId?: string;
   docRef?: KnowledgeDocument;
 }
+
+type MindMapReviewScopeResolver = (node: MindMapNode) => KnowledgeMindMapReviewScope | null;
 
 interface MindMapLink {
   id: string;
@@ -129,6 +138,8 @@ interface MindMapNodeItemProps {
   onScheduleTask?: (node: MindMapNode) => void;
   canScheduleTask?: boolean;
   onCustomizeAppearance: (nodeId: string) => void;
+  resolveReviewScope: MindMapReviewScopeResolver;
+  onStartReview?: (scope: KnowledgeMindMapReviewScope) => void;
 }
 
 interface MindMapNodeActionsProps {
@@ -141,6 +152,8 @@ interface MindMapNodeActionsProps {
   onScheduleTask: (node: MindMapNode) => void;
   canCustomize: boolean;
   onCustomizeAppearance: (nodeId: string) => void;
+  reviewScope: KnowledgeMindMapReviewScope | null;
+  onStartReview?: (scope: KnowledgeMindMapReviewScope) => void;
 }
 
 const MIND_MAP_COLOR_LABELS: Record<KnowledgeMindMapColor, { en: string; fa: string; swatch: string; node: string; title: string }> = {
@@ -171,9 +184,12 @@ const MindMapNodeActions = React.memo<MindMapNodeActionsProps>(({
   onScheduleTask,
   canCustomize,
   onCustomizeAppearance,
+  reviewScope,
+  onStartReview,
 }) => {
   const hasReadAction = node.type === "doc" && Boolean(node.docRef);
-  if (!hasReadAction && !canFocus && !canSchedule && !canCustomize) return null;
+  const canReviewScope = Boolean(reviewScope && onStartReview);
+  if (!hasReadAction && !canFocus && !canSchedule && !canCustomize && !canReviewScope) return null;
 
   return (
     <>
@@ -201,6 +217,12 @@ const MindMapNodeActions = React.memo<MindMapNodeActionsProps>(({
             <DropdownMenuItem onSelect={() => onFocusScope(node.id)}>
               <GitBranch className="me-2 h-4 w-4 text-primary" />
               {isEn ? "Focus on this branch" : "تمرکز روی این شاخه"}
+            </DropdownMenuItem>
+          )}
+          {canReviewScope && reviewScope && onStartReview && (
+            <DropdownMenuItem onSelect={() => onStartReview(reviewScope)}>
+              <BookOpen className="me-2 h-4 w-4 text-primary" />
+              {isEn ? "Review this scope in Leitner" : "مرور این محدوده در لایتنر"}
             </DropdownMenuItem>
           )}
           {canSchedule && (
@@ -313,6 +335,8 @@ interface MindMapOutlineItemProps {
   onFocusScope: (scopeId: string) => void;
   onScheduleTask: (node: MindMapNode) => void;
   onCustomizeAppearance: (nodeId: string) => void;
+  resolveReviewScope: MindMapReviewScopeResolver;
+  onStartReview?: (scope: KnowledgeMindMapReviewScope) => void;
 }
 
 const MindMapOutlineItem = React.memo<MindMapOutlineItemProps>(({
@@ -326,6 +350,8 @@ const MindMapOutlineItem = React.memo<MindMapOutlineItemProps>(({
   onFocusScope,
   onScheduleTask,
   onCustomizeAppearance,
+  resolveReviewScope,
+  onStartReview,
 }) => {
   const { node } = entry;
   const titleDirection = isPersianText(node.title) ? "rtl" : "ltr";
@@ -423,6 +449,8 @@ const MindMapOutlineItem = React.memo<MindMapOutlineItemProps>(({
           onScheduleTask={onScheduleTask}
           canCustomize={node.id !== "root-kb"}
           onCustomizeAppearance={onCustomizeAppearance}
+          reviewScope={resolveReviewScope(node)}
+          onStartReview={onStartReview}
         />
       </div>
       {entry.children.length > 0 && (
@@ -440,6 +468,8 @@ const MindMapOutlineItem = React.memo<MindMapOutlineItemProps>(({
               onFocusScope={onFocusScope}
               onScheduleTask={onScheduleTask}
               onCustomizeAppearance={onCustomizeAppearance}
+              resolveReviewScope={resolveReviewScope}
+              onStartReview={onStartReview}
             />
           ))}
         </ul>
@@ -464,6 +494,8 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
     onScheduleTask,
     canScheduleTask = false,
     onCustomizeAppearance,
+    resolveReviewScope,
+    onStartReview,
   }) => {
     const isDoc = node.type === "doc";
     const isFolder = node.type === "folder" || node.type === "subfolder";
@@ -585,6 +617,8 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
             onScheduleTask={(target) => onScheduleTask?.(target)}
             canCustomize={node.id !== "root-kb"}
             onCustomizeAppearance={onCustomizeAppearance}
+            reviewScope={resolveReviewScope(node)}
+            onStartReview={onStartReview}
           />
           {node.hasChildren && (
             <button
@@ -699,6 +733,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   userId,
   cardLanguage = "fa",
   onOpenDocument,
+  onStartReview,
   initialFolderId,
   initialDocId,
 }) => {
@@ -1074,6 +1109,13 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     () => documents.filter((doc) => !doc.folder_id || !folderIds.has(doc.folder_id)),
     [documents, folderIds],
   );
+  const reviewableScopeIds = useMemo(() => {
+    return getKnowledgeMindMapReviewableScopeIds(cards, folders, documents);
+  }, [cards, documents, folders]);
+  const resolveReviewScope = useCallback((node: MindMapNode): KnowledgeMindMapReviewScope | null => {
+    if (!onStartReview) return null;
+    return resolveKnowledgeMindMapReviewScope(node, cards.length > 0, reviewableScopeIds);
+  }, [cards.length, onStartReview, reviewableScopeIds]);
   const unfiledDocsCount = otherDocuments.length;
 
   // Compute Tree Layout (Pharmacy layout algorithm: Center parent to children and prevent subtree overlap)
@@ -2227,6 +2269,8 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
                 onScheduleTask={handleScheduleNodeTask}
                 canScheduleTask={canScheduleNode(node)}
                 onCustomizeAppearance={setAppearanceNodeId}
+                resolveReviewScope={resolveReviewScope}
+                onStartReview={onStartReview}
               />
             );
           })}
@@ -2253,6 +2297,8 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
                   onFocusScope={setSelectedScopeId}
                   onScheduleTask={handleScheduleNodeTask}
                   onCustomizeAppearance={setAppearanceNodeId}
+                  resolveReviewScope={resolveReviewScope}
+                  onStartReview={onStartReview}
                 />
               ))}
             </ul>

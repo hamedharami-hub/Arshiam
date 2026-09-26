@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
 import { LeitnerDeckView } from "@/components/review/LeitnerDeckView";
 import { KnowledgeMindMapView } from "@/components/review/KnowledgeMindMapView";
+import type { KnowledgeMindMapReviewScope } from "@/lib/knowledgeMindMapReview";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   loadStudyContentLanguage,
@@ -53,6 +54,13 @@ export const ReviewView: React.FC = () => {
 
   const handleOpenDoc = (docId: string) => {
     navigate(`/app/knowledge?docId=${docId}`);
+  };
+
+  const handleStartMindMapReview = (scope: KnowledgeMindMapReviewScope) => {
+    const params = new URLSearchParams({ tab: "leitner" });
+    if (scope.kind === "folder") params.set("studyFolderId", scope.id);
+    if (scope.kind === "document") params.set("studyDocId", scope.id);
+    navigate(`/app/review?${params.toString()}`);
   };
 
   return (
@@ -152,6 +160,7 @@ export const ReviewView: React.FC = () => {
               initialFolderId={urlFolderId || undefined}
               initialDocId={urlDocId || undefined}
               cardLanguage={cardLanguage}
+              onStartReview={handleStartMindMapReview}
             />
           </div>
         )}

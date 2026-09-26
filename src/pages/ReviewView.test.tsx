@@ -12,13 +12,17 @@ vi.mock("@/hooks/useBilingual", () => ({
 }));
 
 vi.mock("@/components/review/LeitnerDeckView", () => ({
-  LeitnerDeckView: ({ initialStudyDocumentId, initialStudyTaskId, cardLanguage }: { initialStudyDocumentId?: string; initialStudyTaskId?: string; cardLanguage?: string }) => (
-    <div data-testid="leitner-deck" data-study-document-id={initialStudyDocumentId || ""} data-study-task-id={initialStudyTaskId || ""} data-card-language={cardLanguage || ""} />
+  LeitnerDeckView: ({ initialStudyDocumentId, initialStudyFolderId, initialStudyTaskId, cardLanguage }: { initialStudyDocumentId?: string; initialStudyFolderId?: string; initialStudyTaskId?: string; cardLanguage?: string }) => (
+    <div data-testid="leitner-deck" data-study-document-id={initialStudyDocumentId || ""} data-study-folder-id={initialStudyFolderId || ""} data-study-task-id={initialStudyTaskId || ""} data-card-language={cardLanguage || ""} />
   ),
 }));
 
 vi.mock("@/components/review/KnowledgeMindMapView", () => ({
-  KnowledgeMindMapView: ({ cardLanguage }: { cardLanguage?: string }) => <div data-testid="knowledge-mind-map" data-card-language={cardLanguage || ""} />,
+  KnowledgeMindMapView: ({ cardLanguage, onStartReview }: { cardLanguage?: string; onStartReview?: (scope: { kind: "all" } | { kind: "folder" | "document"; id: string }) => void }) => (
+    <div data-testid="knowledge-mind-map" data-card-language={cardLanguage || ""}>
+      <button type="button" onClick={() => onStartReview?.({ kind: "folder", id: "folder-7" })}>Review folder in Leitner</button>
+    </div>
+  ),
 }));
 
 describe("ReviewView scoped Leitner task navigation", () => {
@@ -34,6 +38,25 @@ describe("ReviewView scoped Leitner task navigation", () => {
     expect(screen.getByTestId("leitner-deck")).toHaveAttribute("data-study-document-id", "doc-7");
     expect(screen.getByTestId("leitner-deck")).toHaveAttribute("data-study-task-id", "task-4");
     expect(screen.queryByTestId("knowledge-mind-map")).not.toBeInTheDocument();
+  });
+
+  it("opens the selected mind-map folder in Leitner without losing its scope", () => {
+    const LocationProbe = () => <output data-testid="review-search">{useLocation().search}</output>;
+    render(
+      <MemoryRouter initialEntries={["/app/review?tab=mindmap"]}>
+        <LocationProbe />
+        <Routes>
+          <Route path="/app/review" element={<ReviewView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Review folder in Leitner" }));
+
+    expect(screen.getByTestId("review-search")).toHaveTextContent("tab=leitner");
+    expect(screen.getByTestId("review-search")).toHaveTextContent("studyFolderId=folder-7");
+    expect(screen.getByTestId("leitner-deck")).toHaveAttribute("data-study-folder-id", "folder-7");
+    expect(screen.getByTestId("leitner-deck").parentElement).not.toHaveClass("hidden");
   });
 
   it("passes the selected bilingual language to the mind map when it is first opened", () => {
