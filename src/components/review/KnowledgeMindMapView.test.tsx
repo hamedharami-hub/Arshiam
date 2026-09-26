@@ -78,23 +78,35 @@ describe("KnowledgeMindMapView outline mode", () => {
     expect(screen.getByRole("button", { name: `Actions for ${title}` })).toBeVisible();
   });
 
-  it("switches between horizontal and vertical canvas layouts without losing the visible lesson tree", async () => {
+  it("switches between horizontal, vertical, and radial canvas layouts without losing the visible lesson tree", async () => {
     render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);
     const title = "A deliberately long lesson title that must remain fully visible in the mind map outline";
     await screen.findByText(title);
 
     const horizontalLayout = screen.getByRole("button", { name: "Horizontal tree layout" });
     const verticalLayout = screen.getByRole("button", { name: "Vertical tree layout" });
+    const radialLayout = screen.getByRole("button", { name: "Radial tree layout" });
     expect(horizontalLayout).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(verticalLayout);
 
     expect(verticalLayout).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText(title)).toBeInTheDocument();
 
+    fireEvent.click(radialLayout);
+    expect(radialLayout).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText(title)).toBeInTheDocument();
+
     fireEvent.click(horizontalLayout);
 
     expect(horizontalLayout).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText(title)).toBeInTheDocument();
+  }, 10000);
+
+  it("allows the canvas to zoom out to a true overview for large maps", () => {
+    render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);
+    const zoomOut = screen.getByTitle("Zoom Out");
+    for (let step = 0; step < 6; step += 1) fireEvent.click(zoomOut);
+    expect(screen.getByText("2%")).toBeInTheDocument();
   });
 
   it("offers review scheduling for a flashcard through its source lesson, not all knowledge", async () => {

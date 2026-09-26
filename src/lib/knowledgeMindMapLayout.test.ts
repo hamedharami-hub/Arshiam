@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildMindMapOutline,
   getMindMapNodeDimensions,
+  layoutKnowledgeMindMapRadial,
   layoutKnowledgeMindMapVertical,
 } from "./knowledgeMindMapLayout";
 
@@ -124,5 +125,88 @@ describe("knowledge mind-map layout helpers", () => {
     expect(malformed.nodes).toHaveLength(3);
     expect(malformed.links).toHaveLength(1);
     expect(malformed.bounds.height).toBeGreaterThan(0);
+  });
+
+  it("spaces a radial mind map by node size and branch weight without overlap", () => {
+    const nodes = [
+      { id: "root", x: 0, y: 0, width: 180, height: 80, type: "root", color: "#123" },
+      { id: "branch-a", parentId: "root", x: 200, y: 0, width: 140, height: 68, type: "folder", color: "#234" },
+      { id: "branch-b", parentId: "root", x: 200, y: 100, width: 150, height: 70, type: "folder", color: "#345" },
+      { id: "doc-a1", parentId: "branch-a", x: 380, y: 0, width: 220, height: 96, type: "doc", color: "#456" },
+      { id: "doc-a2", parentId: "branch-a", x: 380, y: 120, width: 250, height: 104, type: "doc", color: "#567" },
+      { id: "doc-b", parentId: "branch-b", x: 380, y: 240, width: 310, height: 146, type: "doc", color: "#678" },
+      { id: "card-b", parentId: "doc-b", x: 720, y: 240, width: 190, height: 76, type: "card", color: "#789" },
+    ];
+
+    const layout = layoutKnowledgeMindMapRadial(nodes);
+    const byId = new Map(layout.nodes.map((node) => [node.id, node]));
+
+    expect(layout.nodes.map((node) => node.id).sort()).toEqual(nodes.map((node) => node.id).sort());
+    expect(layout.links).toHaveLength(nodes.length - 1);
+    for (let leftIndex = 0; leftIndex < layout.nodes.length; leftIndex += 1) {
+      for (let rightIndex = leftIndex + 1; rightIndex < layout.nodes.length; rightIndex += 1) {
+        const left = layout.nodes[leftIndex];
+        const right = layout.nodes[rightIndex];
+        const overlaps = left.x < right.x + right.width && left.x + left.width > right.x &&
+          left.y < right.y + right.height && left.y + left.height > right.y;
+        expect(overlaps, `${left.id} overlaps ${right.id}`).toBe(false);
+      }
+    }
+
+    const root = byId.get("root")!;
+    const branchA = byId.get("branch-a")!;
+    const card = byId.get("card-b")!;
+    expect(Math.hypot(branchA.x - root.x, branchA.y - root.y)).toBeGreaterThan(0);
+    expect(card.x + card.width / 2).not.toBe(root.x + root.width / 2);
+    expect(layout.bounds.width).toBeGreaterThan(800);
+
+    const rtl = layoutKnowledgeMindMapRadial(nodes, "rtl");
+    const rtlById = new Map(rtl.nodes.map((node) => [node.id, node]));
+    expect(rtlById.get("branch-a")!.x + rtlById.get("branch-a")!.width / 2)
+      .toBeCloseTo(2 * (root.x + root.width / 2) - (branchA.x + branchA.width / 2));
+    expect(rtlById.get("branch-a")!.y).toBeCloseTo(branchA.y);
+  });
+
+  it("keeps cyclic and disconnected radial nodes finite and linked once", () => {
+    const layout = layoutKnowledgeMindMapRadial([
+      { id: "cycle-a", parentId: "cycle-b", x: 0, y: 10, width: 120, height: 52 },
+      { id: "cycle-b", parentId: "cycle-a", x: 0, y: 20, width: 120, height: 52 },
+      { id: "orphan", parentId: "missing", x: 0, y: 30, width: 120, height: 52 },
+    ]);
+
+    expect(layout.nodes).toHaveLength(3);
+    expect(layout.links).toHaveLength(1);
+    expect(Number.isFinite(layout.bounds.width)).toBe(true);
+    expect(Number.isFinite(layout.bounds.height)).toBe(true);
+    expect(layout.bounds.width).toBeGreaterThan(0);
+    expect(layout.bounds.height).toBeGreaterThan(0);
+  });
+
+  it("uses enough radial circumference for a large sibling fan", () => {
+    const nodes = [
+      { id: "root", x: 0, y: 0, width: 180, height: 80, type: "root" },
+      ...Array.from({ length: 96 }, (_, index) => ({
+        id: `doc-${index}`,
+        parentId: "root",
+        x: 220,
+        y: index * 110,
+        width: 250,
+        height: 112,
+        type: "doc",
+      })),
+    ];
+    const layout = layoutKnowledgeMindMapRadial(nodes);
+
+    expect(layout.nodes).toHaveLength(nodes.length);
+    expect(layout.links).toHaveLength(nodes.length - 1);
+    for (let leftIndex = 0; leftIndex < layout.nodes.length; leftIndex += 1) {
+      for (let rightIndex = leftIndex + 1; rightIndex < layout.nodes.length; rightIndex += 1) {
+        const left = layout.nodes[leftIndex];
+        const right = layout.nodes[rightIndex];
+        const overlaps = left.x < right.x + right.width && left.x + left.width > right.x &&
+          left.y < right.y + right.height && left.y + left.height > right.y;
+        expect(overlaps, `${left.id} overlaps ${right.id}`).toBe(false);
+      }
+    }
   });
 });

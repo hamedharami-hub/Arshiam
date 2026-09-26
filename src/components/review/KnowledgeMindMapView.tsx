@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import {
   ZoomIn,
   ZoomOut,
+  Circle,
   Maximize2,
   Minimize2,
   Folder,
@@ -48,6 +49,7 @@ import { buildKnowledgeMindMapSearch, mindMapNodeMatchesSearch } from "@/lib/kno
 import {
   buildMindMapOutline,
   getMindMapNodeDimensions,
+  layoutKnowledgeMindMapRadial,
   layoutKnowledgeMindMapVertical,
   type MindMapOutlineEntry,
 } from "@/lib/knowledgeMindMapLayout";
@@ -62,6 +64,8 @@ import {
   type KnowledgeMindMapShape,
 } from "@/lib/knowledgeMindMapAppearance";
 import { toast } from "sonner";
+
+const MIN_MIND_MAP_ZOOM = 0.02;
 
 interface KnowledgeMindMapViewProps {
   userId: string;
@@ -721,7 +725,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<KnowledgeDocument | null>(null);
   const [viewMode, setViewMode] = useState<"canvas" | "outline">("canvas");
-  const [canvasLayout, setCanvasLayout] = useState<"horizontal" | "vertical">("horizontal");
+  const [canvasLayout, setCanvasLayout] = useState<"horizontal" | "vertical" | "radial">("horizontal");
   const [nodeAppearanceState, setNodeAppearanceState] = useState(() => ({
     ownerId: userId,
     styles: loadKnowledgeMindMapNodeStyles(userId),
@@ -1354,9 +1358,11 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   }, [folders, documents, cards, expandedNodeIds, isEn, treeDirection, selectedScopeId, cardLanguage]);
 
   const canvasLayoutResult = useMemo(
-    () => canvasLayout === "vertical"
-      ? layoutKnowledgeMindMapVertical(baseLayout.nodes, treeDirection)
-      : baseLayout,
+    () => {
+      if (canvasLayout === "vertical") return layoutKnowledgeMindMapVertical(baseLayout.nodes, treeDirection);
+      if (canvasLayout === "radial") return layoutKnowledgeMindMapRadial(baseLayout.nodes, treeDirection);
+      return baseLayout;
+    },
     [baseLayout, canvasLayout, treeDirection],
   );
   const { nodes, links, bounds } = canvasLayoutResult;
@@ -1382,7 +1388,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
 
     const scaleX = (cw - 80) / bWidth;
     const scaleY = (ch - 80) / bHeight;
-    const optimalScale = Math.min(1.1, Math.max(0.35, Math.min(scaleX, scaleY)));
+    const optimalScale = Math.min(1.1, Math.max(MIN_MIND_MAP_ZOOM, Math.min(scaleX, scaleY)));
     const finalZoom = +optimalScale.toFixed(2);
 
     const contentCenterX = (bounds.minX + bounds.maxX) / 2;
@@ -1502,7 +1508,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     []
   );
   const handleZoomOut = useCallback(
-    () => setZoomLevel((z) => Math.max(0.3, +(z - 0.15).toFixed(2))),
+    () => setZoomLevel((z) => Math.max(MIN_MIND_MAP_ZOOM, +(z - 0.15).toFixed(2))),
     []
   );
 
@@ -1519,7 +1525,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     const zoomMultiplier = e.deltaY < 0 ? 1.12 : 0.88;
 
     setZoomLevel((prevZoom) => {
-      const nextZoom = Math.min(2.5, Math.max(0.3, +(prevZoom * zoomMultiplier).toFixed(3)));
+      const nextZoom = Math.min(2.5, Math.max(MIN_MIND_MAP_ZOOM, +(prevZoom * zoomMultiplier).toFixed(3)));
       if (nextZoom === prevZoom) return prevZoom;
 
       setPanOffset((prevPan) => {
@@ -1641,7 +1647,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       const scaleMultiplier = currentDist / touchGestureRef.current.startDist;
       const newZoom = Math.min(
         2.5,
-        Math.max(0.35, +(touchGestureRef.current.startZoom * scaleMultiplier).toFixed(3))
+        Math.max(MIN_MIND_MAP_ZOOM, +(touchGestureRef.current.startZoom * scaleMultiplier).toFixed(3))
       );
 
       const stageRect = containerRef.current?.getBoundingClientRect();
@@ -1888,6 +1894,17 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
                 <Layers className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden xl:inline text-[11px] font-medium">{isEn ? "Vertical" : "عمودی"}</span>
               </button>
+              <button
+                type="button"
+                aria-label={isEn ? "Radial tree layout" : "چیدمان درخت شعاعی"}
+                aria-pressed={canvasLayout === "radial"}
+                title={isEn ? "Radial tree" : "درخت شعاعی"}
+                onClick={() => setCanvasLayout("radial")}
+                className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition ${canvasLayout === "radial" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+              >
+                <Circle className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden xl:inline text-[11px] font-medium">{isEn ? "Radial" : "شعاعی"}</span>
+              </button>
             </div>
           )}
           <div role="group" aria-label={isEn ? "Mind map view" : "حالت نمایش نقشه ذهنی"} className="flex items-center gap-1 rounded-2xl border border-border bg-card/90 p-1.5 shadow-lg backdrop-blur-xl">
@@ -2066,9 +2083,11 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
               const dx = Math.max(30, Math.abs(endX - startX) * 0.5);
               const dirSign = endX >= startX ? 1 : -1;
               const horizontalPath = `M ${startX} ${startY} C ${startX + dx * dirSign} ${startY}, ${endX - dx * dirSign} ${endY}, ${endX} ${endY}`;
-              const pathData = canvasLayout === "vertical"
-                ? `M ${startX} ${startY} C ${startX} ${startY + (endY - startY) * 0.5}, ${endX} ${endY - (endY - startY) * 0.5}, ${endX} ${endY}`
-                : horizontalPath;
+              const pathData = canvasLayout === "radial"
+                ? `M ${startX} ${startY} L ${endX} ${endY}`
+                : canvasLayout === "vertical"
+                  ? `M ${startX} ${startY} C ${startX} ${startY + (endY - startY) * 0.5}, ${endX} ${endY - (endY - startY) * 0.5}, ${endX} ${endY}`
+                  : horizontalPath;
 
               return (
                 <path
