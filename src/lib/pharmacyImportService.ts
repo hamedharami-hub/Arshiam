@@ -8,6 +8,7 @@ import { calculateNextReviewDate, getLeitnerCardsCacheKey } from "./leitnerServi
 import { PHARMACY_ROOT_FOLDER_ID } from "./pharmacyConstants";
 import { getSafeKnowledgeExternalUrl } from "./knowledgeReviewEvidence";
 import { applyPharmacyClinicalEditorialOverrides } from "./pharmacyClinicalEditorialOverrides";
+import { applyPharmacyPbsEditorialOverrides } from "./pharmacyPbsEditorialOverrides";
 import {
   PHARMACY_SEED_UPGRADE_CARD_BASELINES,
   PHARMACY_SEED_UPGRADE_DOCUMENT_BASELINES,
@@ -53,7 +54,7 @@ export function normalizePharmacySeedDocument(document: KnowledgeDocument): Know
 }
 
 export function normalizePharmacySeedData(seed: SeedData): SeedData {
-  const editorialSeed = applyPharmacyClinicalEditorialOverrides(seed);
+  const editorialSeed = applyPharmacyPbsEditorialOverrides(applyPharmacyClinicalEditorialOverrides(seed));
   return { ...editorialSeed, PHARMACY_SEED_DOCUMENTS: editorialSeed.PHARMACY_SEED_DOCUMENTS.map(normalizePharmacySeedDocument) };
 }
 
@@ -181,7 +182,7 @@ export async function getPharmacyImportStatus(userId: string): Promise<PharmacyI
   const [rawSeed, legacy, remote] = await Promise.all([
     import("./pharmacySeedData"), import("./pharmacyLegacySeedData"), readRemote(userId),
   ]);
-  const seed = applyPharmacyClinicalEditorialOverrides(rawSeed);
+  const seed = applyPharmacyPbsEditorialOverrides(applyPharmacyClinicalEditorialOverrides(rawSeed));
   const status = comparePharmacySeed(seed, remote);
   status.docsUpgradeable = getUpgradeableDocuments(seed, legacy, remote, rawSeed).length;
   status.cardsUpgradeable = getUpgradeableCards(seed, remote).length;
@@ -246,7 +247,7 @@ export async function importPharmacyKnowledge(
     throw new Error("Sync pending knowledge changes before importing pharmacy content.");
   }
   const [rawSeed, legacy] = await Promise.all([import("./pharmacySeedData"), import("./pharmacyLegacySeedData")]);
-  const seed = applyPharmacyClinicalEditorialOverrides(rawSeed);
+  const seed = applyPharmacyPbsEditorialOverrides(applyPharmacyClinicalEditorialOverrides(rawSeed));
   const remote = await readRemote(userId);
   const now = new Date().toISOString();
   const remoteFolderIds = new Set(remote.folders.map((item) => item.id));

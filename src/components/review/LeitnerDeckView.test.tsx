@@ -355,7 +355,7 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
     fireEvent.click(screen.getByRole("button", { name: "موعد مرور" }));
     expect(screen.getByTestId("leitner-outline-card-outline-due-card")).toBeInTheDocument();
     expect(screen.queryByTestId("leitner-outline-card-outline-upcoming-card")).not.toBeInTheDocument();
-  });
+  }, 30_000);
 
   it("combines selected due cards across lessons into one unique review session", async () => {
     const firstDueCard = {

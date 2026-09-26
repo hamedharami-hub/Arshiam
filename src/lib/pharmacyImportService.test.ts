@@ -6,6 +6,7 @@ import { PHARMACY_ROOT_FOLDER_ID, PHARMACY_SEED_CARDS, PHARMACY_SEED_DOCUMENTS, 
 import { PHARMACY_SEED_DOCUMENTS as LEGACY_DOCUMENTS } from "./pharmacyLegacySeedData";
 import { PHARMACY_SEED_UPGRADE_CARD_BASELINES, PHARMACY_SEED_UPGRADE_DOCUMENT_BASELINES } from "./pharmacySeedUpgradeBaseline";
 import { applyPharmacyClinicalEditorialOverrides } from "./pharmacyClinicalEditorialOverrides";
+import { applyPharmacyPbsEditorialOverrides } from "./pharmacyPbsEditorialOverrides";
 import { comparePharmacySeed, getPharmacyImportStatus, importPharmacyKnowledge, isPharmacyImported, normalizePharmacySeedData } from "./pharmacyImportService";
 import { sanitizeKnowledgeHtml } from "./knowledgeHtmlSanitizer";
 import { PHARMACY_CLINICAL_ENTITIES } from "./pharmacyClinicalGraph.generated";
@@ -349,6 +350,33 @@ describe("pharmacyImportService", () => {
       .toBe(corrected);
   });
 
+  it("updates the administrative PBS case to official 2026 rates without changing provenance or review status", () => {
+    const original = PHARMACY_SEED_DOCUMENTS.find(
+      (item) => item.id === "doc-scenario-admin-admin-medicare-copayment-safetynet",
+    )!;
+    const result = applyPharmacyPbsEditorialOverrides({ PHARMACY_SEED_DOCUMENTS: [original] });
+    const corrected = result.PHARMACY_SEED_DOCUMENTS[0];
+    const allCopy = `${corrected.title}\n${corrected.title_en}\n${corrected.content_html}\n${corrected.content_en}`;
+
+    expect(corrected.id).toBe(original.id);
+    expect(corrected.folder_id).toBe(original.folder_id);
+    expect(corrected.source_url).toBe(original.source_url);
+    expect(corrected.tags).toEqual(original.tags);
+    expect(corrected.content_review_status).toBe("unreviewed");
+    expect(original.title).toContain("$31.60");
+    expect(corrected.title).toContain("$25.00");
+    expect(corrected.title_en).toContain("(2026)");
+    expect(allCopy).not.toContain("$31.60");
+    expect(corrected.content_html).toContain("۲۵ دلار");
+    expect(corrected.content_en).toContain("$1,748.20");
+    expect(corrected.content_html).toContain("pbs-safety-net-thresholds?context=22016");
+    expect(corrected.content_en).toContain("/explanatory-notes/front/fee");
+    expect(sanitizeKnowledgeHtml(corrected.content_html)).toContain("pbs-safety-net-thresholds?context=22016");
+    expect(sanitizeKnowledgeHtml(corrected.content_en)).toContain("/explanatory-notes/front/fee");
+    expect(applyPharmacyPbsEditorialOverrides({ PHARMACY_SEED_DOCUMENTS: [corrected] }).PHARMACY_SEED_DOCUMENTS[0])
+      .toBe(corrected);
+  });
+
   it("offers the UTI correction as a safe upgrade for an unchanged prior full-seed document", async () => {
     for (const folder of PHARMACY_SEED_FOLDERS) {
       remote.knowledge_folders.set(folder.id, { ...folder, user_id: userId });
@@ -375,6 +403,57 @@ describe("pharmacyImportService", () => {
     expect(updated.read_count).toBe(9);
     expect(updated.is_favorite).toBe(true);
     expect(result.status.docsUpgradeable).toBe(0);
+  }, 15_000);
+
+  it("safely upgrades the unchanged PBS co-payment case while preserving personal study state", async () => {
+    for (const folder of PHARMACY_SEED_FOLDERS) {
+      remote.knowledge_folders.set(folder.id, { ...folder, user_id: userId });
+    }
+    const target = PHARMACY_SEED_DOCUMENTS.find(
+      (item) => item.id === "doc-scenario-admin-admin-medicare-copayment-safetynet",
+    )!;
+    for (const document of PHARMACY_SEED_DOCUMENTS) {
+      remote.knowledge_documents.set(document.id, document.id === target.id
+        ? { ...document, user_id: userId, read_count: 6, is_favorite: true }
+        : { ...document, user_id: userId, content_html: `${document.content_html}<p>Personal test edit</p>` });
+    }
+
+    expect((await getPharmacyImportStatus(userId)).docsUpgradeable).toBe(1);
+    const result = await importPharmacyKnowledge(userId, { importCards: false });
+    const updated = remote.knowledge_documents.get(target.id)!;
+
+    expect(result.docsUpdated).toBe(1);
+    expect(updated.id).toBe(target.id);
+    expect(updated.folder_id).toBe(target.folder_id);
+    expect(updated.source_url).toBe(target.source_url);
+    expect(updated.content_review_status).toBe("unreviewed");
+    expect(String(updated.title)).toContain("$25.00");
+    expect(String(updated.content_html)).toContain("pbs-safety-net-thresholds?context=22016");
+    expect(String(updated.content_en)).not.toContain("$31.60");
+    expect(updated.read_count).toBe(6);
+    expect(updated.is_favorite).toBe(true);
+    expect(result.status.docsUpgradeable).toBe(0);
+  }, 15_000);
+
+  it("does not overwrite a user-edited PBS co-payment case during the safe seed upgrade", async () => {
+    for (const folder of PHARMACY_SEED_FOLDERS) {
+      remote.knowledge_folders.set(folder.id, { ...folder, user_id: userId });
+    }
+    const target = PHARMACY_SEED_DOCUMENTS.find(
+      (item) => item.id === "doc-scenario-admin-admin-medicare-copayment-safetynet",
+    )!;
+    const personalCopy = { ...target, user_id: userId, content_html: `${target.content_html}<p>My note</p>` };
+    for (const document of PHARMACY_SEED_DOCUMENTS) {
+      remote.knowledge_documents.set(document.id, document.id === target.id
+        ? personalCopy
+        : { ...document, user_id: userId, content_html: `${document.content_html}<p>Personal test edit</p>` });
+    }
+
+    expect((await getPharmacyImportStatus(userId)).docsUpgradeable).toBe(0);
+    const result = await importPharmacyKnowledge(userId, { importCards: false });
+
+    expect(result.docsUpdated).toBe(0);
+    expect(remote.knowledge_documents.get(target.id)?.content_html).toBe(personalCopy.content_html);
   }, 15_000);
 
   it("refreshes only unchanged historical pseudoephedrine lessons and preserves personal state", async () => {
