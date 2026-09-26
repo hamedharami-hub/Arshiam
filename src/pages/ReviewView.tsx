@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Layers, Languages, Network } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
@@ -33,6 +33,15 @@ export const ReviewView: React.FC = () => {
       : urlFolderId || urlDocId
         ? "mindmap"
         : "leitner";
+
+  const [visitedTabs, setVisitedTabs] = useState<Record<"leitner" | "mindmap", boolean>>(() => ({
+    leitner: activeTab === "leitner",
+    mindmap: activeTab === "mindmap",
+  }));
+
+  useEffect(() => {
+    setVisitedTabs((previous) => previous[activeTab] ? previous : { ...previous, [activeTab]: true });
+  }, [activeTab]);
 
   const selectTab = (tab: "leitner" | "mindmap") => {
     const nextParams = new URLSearchParams(searchParams);
@@ -123,25 +132,29 @@ export const ReviewView: React.FC = () => {
 
       {/* Main Tab Content with Zero-Latency State Preservation */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-background relative">
-        <div className={`flex-1 flex flex-col h-full min-h-0 ${activeTab === "leitner" ? "" : "hidden"}`}>
-          <LeitnerDeckView
-            userId={userId}
-            onOpenDocument={handleOpenDoc}
-            initialStudyDocumentId={studyDocId || undefined}
-            initialStudyFolderId={studyFolderId || undefined}
-            initialStudyTaskId={studyTaskId || undefined}
-            cardLanguage={cardLanguage}
-          />
-        </div>
-        <div className={`flex-1 flex flex-col h-full min-h-0 ${activeTab === "mindmap" ? "" : "hidden"}`}>
-          <KnowledgeMindMapView
-            userId={userId}
-            onOpenDocument={handleOpenDoc}
-            initialFolderId={urlFolderId || undefined}
-            initialDocId={urlDocId || undefined}
-            cardLanguage={cardLanguage}
-          />
-        </div>
+        {(visitedTabs.leitner || activeTab === "leitner") && (
+          <div className={`flex-1 flex flex-col h-full min-h-0 ${activeTab === "leitner" ? "" : "hidden"}`}>
+            <LeitnerDeckView
+              userId={userId}
+              onOpenDocument={handleOpenDoc}
+              initialStudyDocumentId={studyDocId || undefined}
+              initialStudyFolderId={studyFolderId || undefined}
+              initialStudyTaskId={studyTaskId || undefined}
+              cardLanguage={cardLanguage}
+            />
+          </div>
+        )}
+        {(visitedTabs.mindmap || activeTab === "mindmap") && (
+          <div className={`flex-1 flex flex-col h-full min-h-0 ${activeTab === "mindmap" ? "" : "hidden"}`}>
+            <KnowledgeMindMapView
+              userId={userId}
+              onOpenDocument={handleOpenDoc}
+              initialFolderId={urlFolderId || undefined}
+              initialDocId={urlDocId || undefined}
+              cardLanguage={cardLanguage}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
