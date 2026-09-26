@@ -13,6 +13,7 @@ import { firebaseStore } from "./firebaseStore";
 import { cacheGet, cacheSet } from "./offlineDb";
 import { extractTasksFromCache, createTaskCacheEnvelope } from "@/features/tasks/taskCache";
 import type { Task } from "./taskTypes";
+import { prepareFirestoreBackupRecord } from "./backupRecord";
 
 export interface AppUser {
   id: string;
@@ -48,6 +49,8 @@ export interface SyncStats {
   habitsCount: number;
   checkinsCount: number;
   lastSyncedAt: string | null;
+  failedTasksCount?: number;
+  failedNotesCount?: number;
 }
 
 /**
@@ -179,10 +182,15 @@ export async function backupAllToFirestore(
   if (!user || !user.id) {
     return {
       success: false,
-      stats: { tasksCount: 0, notesCount: 0, habitsCount: 0, checkinsCount: 0, lastSyncedAt: null },
+      stats: { tasksCount: 0, notesCount: 0, habitsCount: 0, checkinsCount: 0, lastSyncedAt: null, failedTasksCount: 0, failedNotesCount: 0 },
       message: "کاربر وارد نشده است",
     };
   }
+
+  let savedTasks = 0;
+  let savedNotes = 0;
+  let failedTasks = 0;
+  let failedNotes = 0;
 
   try {
     // 1. Gather tasks from all potential sources
@@ -200,15 +208,23 @@ export async function backupAllToFirestore(
     // If still empty and online, try fetching from firebaseStore
     if (!tasksToSync.length && typeof navigator !== "undefined" && navigator.onLine) {
       try {
-        const { data: supaTasks } = await (firebaseStore.from("tasks") as any)
+        const response = await (firebaseStore.from("tasks") as any)
           .select("*")
           .eq("user_id", user.id)
           .limit(2000);
-        if (Array.isArray(supaTasks) && supaTasks.length) {
-          tasksToSync = supaTasks as Task[];
+        if (response.error || !Array.isArray(response.data)) {
+          throw response.error || new Error("Task source could not be verified");
+        }
+        if (response.data.length) {
+          tasksToSync = response.data as Task[];
           await cacheSet(`tasks:all:${user.id}`, createTaskCacheEnvelope(tasksToSync));
         }
-      } catch {}
+      } catch (error) {
+        console.warn("[FirestoreSync] Could not verify task source for backup:", error);
+        throw new Error("تسک‌های موجود از منبع ابری قابل بررسی نبودند؛ برای جلوگیری از گزارش موفقیت ناقص، همگام‌سازی انجام نشد.");
+      }
+    } else if (!tasksToSync.length && typeof navigator !== "undefined" && !navigator.onLine) {
+      throw new Error("اتصال اینترنت نیست و نسخهٔ محلی تسک‌ها برای همگام‌سازی پیدا نشد.");
     }
 
     // 2. Gather notes from all potential sources
@@ -233,88 +249,123 @@ export async function backupAllToFirestore(
     // If still empty and online, try fetching notes from firebaseStore
     if (!notesToSync.length && typeof navigator !== "undefined" && navigator.onLine) {
       try {
-        const { data: supaNotes } = await (firebaseStore.from("notes") as any)
+        const response = await (firebaseStore.from("notes") as any)
           .select("*")
           .eq("user_id", user.id)
           .limit(1000);
-        if (Array.isArray(supaNotes) && supaNotes.length) {
-          notesToSync = supaNotes;
+        if (response.error || !Array.isArray(response.data)) {
+          throw response.error || new Error("Note source could not be verified");
+        }
+        if (response.data.length) {
+          notesToSync = response.data;
           await cacheSet(`notes:all:${user.id}`, notesToSync);
         }
-      } catch {}
+      } catch (error) {
+        console.warn("[FirestoreSync] Could not verify note source for backup:", error);
+        throw new Error("یادداشت‌های موجود از منبع ابری قابل بررسی نبودند؛ برای جلوگیری از گزارش موفقیت ناقص، همگام‌سازی انجام نشد.");
+      }
+    } else if (!notesToSync.length && typeof navigator !== "undefined" && !navigator.onLine) {
+      throw new Error("اتصال اینترنت نیست و نسخهٔ محلی یادداشت‌ها برای همگام‌سازی پیدا نشد.");
     }
-
-    let savedTasks = 0;
-    let savedNotes = 0;
 
     // Batch sync tasks
     for (const t of tasksToSync) {
-      if (!t.id) continue;
-      const ok = await saveEntityToFirestore(user.id, "tasks", t.id, {
-        title: t.title || "",
-        description: t.description || "",
-        completed: !!t.completed,
-        priority: t.priority || "none",
-        due_date: t.due_date || null,
-        created_at: (t as any).created_at || new Date().toISOString(),
-        folder_id: t.folder_id || null,
-        pinned: !!t.pinned,
-        status: t.status || "todo",
-      });
+      if (!t || typeof t.id !== "string" || !t.id.trim()) {
+        failedTasks++;
+        continue;
+      }
+      const ok = await saveEntityToFirestore(
+        user.id,
+        "tasks",
+        t.id,
+        prepareFirestoreBackupRecord(t as unknown as Record<string, unknown>, user.id),
+      );
       if (ok) savedTasks++;
+      else failedTasks++;
     }
 
     // Batch sync notes
     for (const n of notesToSync) {
-      if (!n.id) continue;
-      const ok = await saveEntityToFirestore(user.id, "notes", n.id, {
-        title: n.title || "",
-        content: n.content || "",
-        folder_id: n.folder_id || null,
-        created_at: n.created_at || new Date().toISOString(),
-        pinned: !!n.pinned,
-      });
+      if (!n || typeof n.id !== "string" || !n.id.trim()) {
+        failedNotes++;
+        continue;
+      }
+      const ok = await saveEntityToFirestore(
+        user.id,
+        "notes",
+        n.id,
+        prepareFirestoreBackupRecord(n as Record<string, unknown>, user.id),
+      );
       if (ok) savedNotes++;
+      else failedNotes++;
     }
 
-    // Update user sync status doc in Firestore
     const nowIso = new Date().toISOString();
-    const syncStatusRef = doc(db, "users", user.id, "syncMeta", "current");
-    await setDoc(
-      syncStatusRef,
-      {
-        userId: user.id,
-        userEmail: user.email,
-        lastSyncedAt: nowIso,
-        lastSyncedTimestamp: Date.now(),
-        tasksCount: savedTasks,
-        notesCount: savedNotes,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
-
     const stats: SyncStats = {
       tasksCount: savedTasks,
       notesCount: savedNotes,
       habitsCount: 0,
       checkinsCount: 0,
       lastSyncedAt: nowIso,
+      failedTasksCount: failedTasks,
+      failedNotesCount: failedNotes,
     };
 
-    // Cache sync meta locally
-    cacheSet(`firestore_sync_stats_${user.id}`, stats);
+    let syncStatusSaved = true;
+    try {
+      const syncStatusRef = doc(db, "users", user.id, "syncMeta", "current");
+      await setDoc(
+        syncStatusRef,
+        {
+          userId: user.id,
+          userEmail: user.email,
+          lastSyncedAt: nowIso,
+          lastSyncedTimestamp: Date.now(),
+          tasksCount: savedTasks,
+          notesCount: savedNotes,
+          failedTasksCount: failedTasks,
+          failedNotesCount: failedNotes,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (error) {
+      syncStatusSaved = false;
+      console.warn("[FirestoreSync] Could not save backup status:", error);
+    }
+
+    try {
+      await cacheSet(`firestore_sync_stats_${user.id}`, stats);
+    } catch (error) {
+      // All data rows can still be safely backed up even if this display-only
+      // cache cannot be updated; the Firestore sync status is authoritative.
+      console.warn("[FirestoreSync] Could not cache backup status:", error);
+    }
+
+    const allRowsSaved = failedTasks === 0 && failedNotes === 0;
+    const success = allRowsSaved && syncStatusSaved;
+    const message = success
+      ? `همگام‌سازی ابری کامل شد: ${savedTasks} تسک و ${savedNotes} یادداشت در Firestore ذخیره شدند.`
+      : `همگام‌سازی کامل نشد: ${savedTasks} از ${tasksToSync.length} تسک و ${savedNotes} از ${notesToSync.length} یادداشت ذخیره شدند؛ ${failedTasks} تسک و ${failedNotes} یادداشت ناموفق بودند.${syncStatusSaved ? "" : " وضعیت همگام‌سازی هم ذخیره نشد."}`;
 
     return {
-      success: true,
+      success,
       stats,
-      message: `همگام‌سازی ابری کامل شد: ${savedTasks} تسک و ${savedNotes} یادداشت در Firestore ذخیره شدند.`,
+      message,
     };
   } catch (error: any) {
     console.error("[FirestoreSync] Backup error:", error);
     return {
       success: false,
-      stats: { tasksCount: 0, notesCount: 0, habitsCount: 0, checkinsCount: 0, lastSyncedAt: null },
+      stats: {
+        tasksCount: savedTasks,
+        notesCount: savedNotes,
+        habitsCount: 0,
+        checkinsCount: 0,
+        lastSyncedAt: savedTasks + savedNotes > 0 ? new Date().toISOString() : null,
+        failedTasksCount: failedTasks,
+        failedNotesCount: failedNotes,
+      },
       message: error?.message || "خطا در همگام‌سازی ابری فایربیس",
     };
   }
@@ -379,6 +430,8 @@ export async function getFirestoreSyncStats(userId: string): Promise<SyncStats |
         habitsCount: d.habitsCount || 0,
         checkinsCount: d.checkinsCount || 0,
         lastSyncedAt: d.lastSyncedAt || null,
+        failedTasksCount: d.failedTasksCount || 0,
+        failedNotesCount: d.failedNotesCount || 0,
       };
       await cacheSet(`firestore_sync_stats_${userId}`, stats);
       return stats;

@@ -70,8 +70,10 @@ export default function FirebaseSyncCard() {
     setSyncing(true);
     try {
       const res = await backupAllToFirestore(user);
-      if (res.success) {
+      if (res.stats.lastSyncedAt || (res.stats.failedTasksCount || 0) > 0 || (res.stats.failedNotesCount || 0) > 0) {
         setStats(res.stats);
+      }
+      if (res.success) {
         toast.success("همگام‌سازی با Firestore انجام شد", {
           description: res.message,
         });
@@ -239,6 +241,12 @@ export default function FirebaseSyncCard() {
                 زمان آخرین ارسال: {new Date(stats.lastSyncedAt).toLocaleString("fa-IR")}
               </div>
             )}
+          </div>
+        )}
+
+        {stats && ((stats.failedTasksCount || 0) > 0 || (stats.failedNotesCount || 0) > 0) && (
+          <div role="status" className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+            همگام‌سازی قبلی ناقص بود: {stats.failedTasksCount || 0} تسک و {stats.failedNotesCount || 0} یادداشت ذخیره نشدند. از «همگام‌سازی ابری اکنون» دوباره تلاش کنید.
           </div>
         )}
 

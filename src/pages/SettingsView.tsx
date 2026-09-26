@@ -29,7 +29,8 @@ import { useTheme } from "next-themes";
 import { applyTheme, getBaseTheme } from "@/lib/theme";
 import { TaskDefaultSettings } from "@/components/TaskDefaultSettings";
 import FirebaseSyncCard from "@/components/FirebaseSyncCard";
-import { fetchFromFirestore, saveEntityToFirestore } from "@/lib/firestoreSync";
+import { fetchFromFirestore } from "@/lib/firestoreSync";
+import { restoreBackupRows } from "@/lib/backupRestoreService";
 import { cacheGet, cacheSet } from "@/lib/offlineQueue";
 import { extractTasksFromCache, createTaskCacheEnvelope } from "@/features/tasks/taskCache";
 import type { TaskDefaults } from "@/lib/reminders";
@@ -566,83 +567,78 @@ export default function SettingsView() {
       const text = await file.text();
       const data = JSON.parse(text) as Record<string, any>;
 
-      if (!data || typeof data !== "object") {
+      if (!data || typeof data !== "object" || Array.isArray(data)) {
         throw new Error(isEn ? "Invalid backup file format" : "قالب فایل پشتیبان نامعتبر است");
       }
       if (!Array.isArray(data.tasks) && !Array.isArray(data.notes)) {
         throw new Error(isEn ? "No tasks or notes found in backup file" : "هیچ تسک یا یادداشتی در فایل یافت نشد");
       }
       
-      let importedTasks = 0;
-      let importedNotes = 0;
-
-      // Import tasks
       const tasksList = (Array.isArray(data.tasks) ? data.tasks : []) as any[];
-      const existingCachedRaw = (await cacheGet<any>(`tasks:all:${user.id}`)) ?? (await cacheGet<any>("tasks"));
-      const existingCached = extractTasksFromCache(existingCachedRaw);
-      const mergedTasks = [...existingCached];
-
-      for (const t of tasksList) {
-        if (!t?.id) continue;
-        const taskObj = {
-          ...t,
-          user_id: user.id,
-          updated_at: new Date().toISOString(),
-        };
-        // 1. Save to Firestore
-        await saveEntityToFirestore(user.id, "tasks", t.id, taskObj);
-        // 2. Also save to firebaseStore if possible
-        try {
-          await fromTable("tasks").upsert(taskObj);
-        } catch {}
-        // 3. Merge into local
-        const idx = mergedTasks.findIndex((x) => x.id === t.id);
-        if (idx >= 0) mergedTasks[idx] = taskObj;
-        else mergedTasks.push(taskObj);
-        importedTasks++;
-      }
-      await cacheSet(`tasks:all:${user.id}`, createTaskCacheEnvelope(mergedTasks));
-      await cacheSet("tasks", mergedTasks);
-
-      // Import notes
       const notesList = (Array.isArray(data.notes) ? data.notes : []) as any[];
-      for (const n of notesList) {
-        if (!n?.id) continue;
-        const noteObj = {
-          ...n,
-          user_id: user.id,
-          updated_at: new Date().toISOString(),
-        };
-        await saveEntityToFirestore(user.id, "notes", n.id, noteObj);
+      const taskResult = await restoreBackupRows(user.id, "tasks", tasksList);
+      const noteResult = await restoreBackupRows(user.id, "notes", notesList);
+      const acceptedTasks = [...taskResult.saved, ...taskResult.queued];
+      const acceptedNotes = [...noteResult.saved, ...noteResult.queued];
+      let localCacheWarning = false;
+
+      if (acceptedTasks.length) {
         try {
-          await fromTable("notes").upsert(noteObj);
-        } catch {}
-        importedNotes++;
+          const existingCachedRaw = (await cacheGet<any>(`tasks:all:${user.id}`)) ?? (await cacheGet<any>("tasks"));
+          const mergedTasks = extractTasksFromCache(existingCachedRaw);
+          for (const task of acceptedTasks) {
+            const index = mergedTasks.findIndex((existing) => existing.id === task.id);
+            if (index >= 0) mergedTasks[index] = task as any;
+            else mergedTasks.push(task as any);
+          }
+          await cacheSet(`tasks:all:${user.id}`, createTaskCacheEnvelope(mergedTasks));
+          await cacheSet("tasks", mergedTasks);
+        } catch {
+          localCacheWarning = true;
+        }
       }
 
-      // Update local notes cache as well
-      try {
-        const rawNotes = localStorage.getItem("arshnaz_notes") || localStorage.getItem("notes");
-        let existingNotesList = rawNotes ? JSON.parse(rawNotes) : [];
-        if (!Array.isArray(existingNotesList)) existingNotesList = [];
-        for (const n of notesList) {
-          if (!n?.id) continue;
-          const idx = existingNotesList.findIndex((x: any) => x.id === n.id);
-          if (idx >= 0) existingNotesList[idx] = n;
-          else existingNotesList.push(n);
+      if (acceptedNotes.length) {
+        try {
+          const existingCachedNotes = await cacheGet<any>(`notes:all:${user.id}`);
+          let mergedNotes: any[];
+          if (Array.isArray(existingCachedNotes)) {
+            mergedNotes = existingCachedNotes;
+          } else {
+            const rawNotes = localStorage.getItem("arshnaz_notes") || localStorage.getItem("notes");
+            const parsedNotes = rawNotes ? JSON.parse(rawNotes) : [];
+            mergedNotes = Array.isArray(parsedNotes) ? parsedNotes : [];
+          }
+          for (const note of acceptedNotes) {
+            const index = mergedNotes.findIndex((existing) => existing.id === note.id);
+            if (index >= 0) mergedNotes[index] = note;
+            else mergedNotes.push(note);
+          }
+          await cacheSet(`notes:all:${user.id}`, mergedNotes);
+          localStorage.setItem("arshnaz_notes", JSON.stringify(mergedNotes));
+        } catch {
+          localCacheWarning = true;
         }
-        localStorage.setItem("arshnaz_notes", JSON.stringify(existingNotesList));
-      } catch {}
+      }
 
-      // Notify application of changes
-      window.dispatchEvent(new Event("arshnaz:tasks-updated"));
-      window.dispatchEvent(new Event("offline_queue_synced"));
+      if (acceptedTasks.length) window.dispatchEvent(new Event("arshnaz:tasks-updated"));
 
-      toast.success(
-        isEn
-          ? `Restored ${importedTasks} tasks and ${importedNotes} notes to Firestore cloud!`
-          : `بازیابی با موفقیت انجام شد: ${importedTasks} تسک و ${importedNotes} یادداشت در دیتابیس Firestore ثبت گردید!`
-      );
+      const savedTasks = taskResult.saved.length;
+      const savedNotes = noteResult.saved.length;
+      const queuedRows = taskResult.queued.length + noteResult.queued.length;
+      const failedRows = taskResult.failedIds.length + noteResult.failedIds.length;
+      const skippedRows = taskResult.skipped + noteResult.skipped;
+      const details = isEn
+        ? `Saved to cloud: ${savedTasks} tasks, ${savedNotes} notes. Queued offline: ${taskResult.queued.length} tasks, ${noteResult.queued.length} notes. Failed: ${failedRows}; skipped invalid rows: ${skippedRows}${localCacheWarning ? ". Local cache refresh failed." : ""}`
+        : `ذخیره‌شده در ابر: ${savedTasks} تسک و ${savedNotes} یادداشت؛ صف آفلاین: ${taskResult.queued.length} تسک و ${noteResult.queued.length} یادداشت؛ ناموفق: ${failedRows}؛ ردیفِ ردشده به‌دلیل شناسه نامعتبر: ${skippedRows}${localCacheWarning ? "؛ به‌روزرسانی حافظهٔ محلی کامل نشد." : ""}`;
+
+      if (failedRows || skippedRows || localCacheWarning) {
+        toast.error(isEn ? "Backup restore was incomplete" : "بازیابی پشتیبان کامل نشد", { description: details });
+      } else if (queuedRows) {
+        toast.info(isEn ? "Backup safely queued for sync" : "پشتیبان برای همگام‌سازی در صف امن قرار گرفت", { description: details });
+      } else {
+        toast.success(isEn ? "Backup restored to Firestore" : "بازیابی پشتیبان در Firestore انجام شد", { description: details });
+      }
     } catch (e: any) {
       toast.error(e?.message || (isEn ? "Import error" : "خطا در خواندن و وارد کردن فایل"));
     } finally {
