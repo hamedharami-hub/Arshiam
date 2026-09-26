@@ -78,6 +78,25 @@ describe("KnowledgeMindMapView outline mode", () => {
     expect(screen.getByRole("button", { name: `Actions for ${title}` })).toBeVisible();
   });
 
+  it("switches between horizontal and vertical canvas layouts without losing the visible lesson tree", async () => {
+    render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);
+    const title = "A deliberately long lesson title that must remain fully visible in the mind map outline";
+    await screen.findByText(title);
+
+    const horizontalLayout = screen.getByRole("button", { name: "Horizontal tree layout" });
+    const verticalLayout = screen.getByRole("button", { name: "Vertical tree layout" });
+    expect(horizontalLayout).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(verticalLayout);
+
+    expect(verticalLayout).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText(title)).toBeInTheDocument();
+
+    fireEvent.click(horizontalLayout);
+
+    expect(horizontalLayout).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText(title)).toBeInTheDocument();
+  });
+
   it("offers review scheduling for a flashcard through its source lesson, not all knowledge", async () => {
     render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);
     fireEvent.click(screen.getByRole("button", { name: "Outline view" }));

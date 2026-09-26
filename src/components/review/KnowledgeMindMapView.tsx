@@ -45,7 +45,12 @@ import { getLeitnerCards } from "@/lib/leitnerService";
 import { TaskKnowledgeReaderDialog } from "@/components/task-detail/TaskKnowledgeReaderDialog";
 import { StudyTaskScheduleModal } from "@/components/knowledge/StudyTaskScheduleModal";
 import { buildKnowledgeMindMapSearch, mindMapNodeMatchesSearch } from "@/lib/knowledgeMindMapSearch";
-import { buildMindMapOutline, getMindMapNodeDimensions, type MindMapOutlineEntry } from "@/lib/knowledgeMindMapLayout";
+import {
+  buildMindMapOutline,
+  getMindMapNodeDimensions,
+  layoutKnowledgeMindMapVertical,
+  type MindMapOutlineEntry,
+} from "@/lib/knowledgeMindMapLayout";
 import {
   KNOWLEDGE_MIND_MAP_COLORS,
   KNOWLEDGE_MIND_MAP_SHAPES,
@@ -716,6 +721,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<KnowledgeDocument | null>(null);
   const [viewMode, setViewMode] = useState<"canvas" | "outline">("canvas");
+  const [canvasLayout, setCanvasLayout] = useState<"horizontal" | "vertical">("horizontal");
   const [nodeAppearanceState, setNodeAppearanceState] = useState(() => ({
     ownerId: userId,
     styles: loadKnowledgeMindMapNodeStyles(userId),
@@ -1040,7 +1046,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   const unfiledDocsCount = useMemo(() => documents.filter((d) => !d.folder_id).length, [documents]);
 
   // Compute Tree Layout (Pharmacy layout algorithm: Center parent to children and prevent subtree overlap)
-  const { nodes, links, bounds } = useMemo(() => {
+  const baseLayout = useMemo(() => {
     const items: MindMapNode[] = [];
     const linkList: MindMapLink[] = [];
 
@@ -1347,6 +1353,14 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     };
   }, [folders, documents, cards, expandedNodeIds, isEn, treeDirection, selectedScopeId, cardLanguage]);
 
+  const canvasLayoutResult = useMemo(
+    () => canvasLayout === "vertical"
+      ? layoutKnowledgeMindMapVertical(baseLayout.nodes, treeDirection)
+      : baseLayout,
+    [baseLayout, canvasLayout, treeDirection],
+  );
+  const { nodes, links, bounds } = canvasLayoutResult;
+
   const displayNodes = useMemo(
     () => nodes.map((node) => ({
       ...node,
@@ -1380,6 +1394,14 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     setZoomLevel(finalZoom);
     setPanOffset({ x: targetPanX, y: targetPanY });
   }, [bounds]);
+
+  const previousCanvasViewRef = useRef({ canvasLayout, viewMode });
+  useEffect(() => {
+    const previous = previousCanvasViewRef.current;
+    previousCanvasViewRef.current = { canvasLayout, viewMode };
+    const viewChanged = previous.canvasLayout !== canvasLayout || previous.viewMode !== viewMode;
+    if (viewChanged && viewMode === "canvas" && hasLoadedData) fitViewToContainer();
+  }, [canvasLayout, fitViewToContainer, hasLoadedData, viewMode]);
 
   // Auto-center on initial load
   useEffect(() => {
@@ -1842,6 +1864,32 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
 
         {/* Right: Expand/Collapse & Quick Search */}
         <div className="flex items-center gap-2 pointer-events-auto">
+          {viewMode === "canvas" && (
+            <div role="group" aria-label={isEn ? "Canvas layout" : "چیدمان نقشه"} className="flex items-center gap-0.5 rounded-xl border border-border bg-card/90 p-1 shadow-lg backdrop-blur-xl">
+              <button
+                type="button"
+                aria-label={isEn ? "Horizontal tree layout" : "چیدمان درخت افقی"}
+                aria-pressed={canvasLayout === "horizontal"}
+                title={isEn ? "Horizontal tree" : "درخت افقی"}
+                onClick={() => setCanvasLayout("horizontal")}
+                className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition ${canvasLayout === "horizontal" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+              >
+                <GitBranch className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden xl:inline text-[11px] font-medium">{isEn ? "Horizontal" : "افقی"}</span>
+              </button>
+              <button
+                type="button"
+                aria-label={isEn ? "Vertical tree layout" : "چیدمان درخت عمودی"}
+                aria-pressed={canvasLayout === "vertical"}
+                title={isEn ? "Vertical tree" : "درخت عمودی"}
+                onClick={() => setCanvasLayout("vertical")}
+                className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition ${canvasLayout === "vertical" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+              >
+                <Layers className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden xl:inline text-[11px] font-medium">{isEn ? "Vertical" : "عمودی"}</span>
+              </button>
+            </div>
+          )}
           <div role="group" aria-label={isEn ? "Mind map view" : "حالت نمایش نقشه ذهنی"} className="flex items-center gap-1 rounded-2xl border border-border bg-card/90 p-1.5 shadow-lg backdrop-blur-xl">
             <button
               type="button"
@@ -2017,7 +2065,10 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
               const { startX, startY, endX, endY } = link;
               const dx = Math.max(30, Math.abs(endX - startX) * 0.5);
               const dirSign = endX >= startX ? 1 : -1;
-              const pathData = `M ${startX} ${startY} C ${startX + dx * dirSign} ${startY}, ${endX - dx * dirSign} ${endY}, ${endX} ${endY}`;
+              const horizontalPath = `M ${startX} ${startY} C ${startX + dx * dirSign} ${startY}, ${endX - dx * dirSign} ${endY}, ${endX} ${endY}`;
+              const pathData = canvasLayout === "vertical"
+                ? `M ${startX} ${startY} C ${startX} ${startY + (endY - startY) * 0.5}, ${endX} ${endY - (endY - startY) * 0.5}, ${endX} ${endY}`
+                : horizontalPath;
 
               return (
                 <path

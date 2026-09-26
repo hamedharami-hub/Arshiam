@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildMindMapOutline, getMindMapNodeDimensions } from "./knowledgeMindMapLayout";
+import {
+  buildMindMapOutline,
+  getMindMapNodeDimensions,
+  layoutKnowledgeMindMapVertical,
+} from "./knowledgeMindMapLayout";
 
 describe("knowledge mind-map layout helpers", () => {
   it("reserves additional height for wrapped long titles and subtitles", () => {
@@ -63,5 +67,62 @@ describe("knowledge mind-map layout helpers", () => {
       entries.flatMap(({ node, children }) => [node.id, ...flattenIds(children)]);
 
     expect(flattenIds(outline).sort()).toEqual(["cycle-a", "cycle-b", "orphan"]);
+  });
+
+  it("lays out nested mind-map branches vertically without sibling overlap or ID changes", () => {
+    const nodes = [
+      { id: "doc-a", parentId: "folder-a", x: 260, y: 160, width: 180, height: 72, type: "doc", color: "#456" },
+      { id: "root", x: 20, y: 20, width: 160, height: 64, type: "root", color: "#123" },
+      { id: "folder-a", parentId: "root", x: 220, y: 100, width: 150, height: 58, type: "folder", color: "#234" },
+      { id: "card-a", parentId: "doc-a", x: 460, y: 180, width: 200, height: 74, type: "card", color: "#567" },
+      { id: "folder-b", parentId: "root", x: 220, y: 260, width: 160, height: 60, type: "folder", color: "#345" },
+    ];
+
+    const layout = layoutKnowledgeMindMapVertical(nodes);
+    const byId = new Map(layout.nodes.map((node) => [node.id, node]));
+    const root = byId.get("root")!;
+    const folderA = byId.get("folder-a")!;
+    const folderB = byId.get("folder-b")!;
+    const doc = byId.get("doc-a")!;
+    const card = byId.get("card-a")!;
+
+    expect(layout.nodes.map((node) => node.id).sort()).toEqual(nodes.map((node) => node.id).sort());
+    expect(root.y).toBeLessThan(folderA.y);
+    expect(folderA.y).toBe(folderB.y);
+    expect(folderA.x + folderA.width).toBeLessThanOrEqual(folderB.x);
+    expect(doc.y).toBeGreaterThan(folderA.y);
+    expect(card.y).toBeGreaterThan(doc.y);
+    expect(layout.links).toHaveLength(4);
+    expect(layout.links.find((link) => link.targetId === "doc-a")).toMatchObject({
+      startY: folderA.y + folderA.height,
+      endY: doc.y,
+    });
+    expect(layout.bounds.maxX).toBeGreaterThan(card.x + card.width);
+    expect(layout.bounds.maxY).toBeGreaterThan(card.y + card.height);
+  });
+
+  it("mirrors vertical sibling order for RTL and makes malformed cycles finite", () => {
+    const nodes = [
+      { id: "root", x: 20, y: 20, width: 140, height: 60 },
+      { id: "first", parentId: "root", x: 200, y: 100, width: 120, height: 52 },
+      { id: "second", parentId: "root", x: 200, y: 180, width: 120, height: 52 },
+    ];
+    const ltr = layoutKnowledgeMindMapVertical(nodes, "ltr");
+    const rtl = layoutKnowledgeMindMapVertical(nodes, "rtl");
+    const ltrById = new Map(ltr.nodes.map((node) => [node.id, node]));
+    const rtlById = new Map(rtl.nodes.map((node) => [node.id, node]));
+
+    expect(ltrById.get("first")!.x).toBeLessThan(ltrById.get("second")!.x);
+    expect(rtlById.get("first")!.x).toBeGreaterThan(rtlById.get("second")!.x);
+
+    const malformed = layoutKnowledgeMindMapVertical([
+      { id: "cycle-a", parentId: "cycle-b", x: 0, y: 10, width: 100, height: 50 },
+      { id: "cycle-b", parentId: "cycle-a", x: 0, y: 20, width: 100, height: 50 },
+      { id: "orphan", parentId: "missing", x: 0, y: 30, width: 100, height: 50 },
+    ]);
+
+    expect(malformed.nodes).toHaveLength(3);
+    expect(malformed.links).toHaveLength(1);
+    expect(malformed.bounds.height).toBeGreaterThan(0);
   });
 });
