@@ -78,7 +78,7 @@ describe("KnowledgeMindMapView outline mode", () => {
     expect(screen.getByRole("button", { name: `Actions for ${title}` })).toBeVisible();
   });
 
-  it("switches between horizontal, vertical, and radial canvas layouts without losing the visible lesson tree", async () => {
+  it("switches between horizontal, vertical, radial, and matrix layouts without losing the visible lesson tree", async () => {
     render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);
     const title = "A deliberately long lesson title that must remain fully visible in the mind map outline";
     await screen.findByText(title);
@@ -86,6 +86,7 @@ describe("KnowledgeMindMapView outline mode", () => {
     const horizontalLayout = screen.getByRole("button", { name: "Horizontal tree layout" });
     const verticalLayout = screen.getByRole("button", { name: "Vertical tree layout" });
     const radialLayout = screen.getByRole("button", { name: "Radial tree layout" });
+    const matrixLayout = screen.getByRole("button", { name: "Matrix grid layout" });
     expect(horizontalLayout).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(verticalLayout);
 
@@ -94,6 +95,10 @@ describe("KnowledgeMindMapView outline mode", () => {
 
     fireEvent.click(radialLayout);
     expect(radialLayout).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText(title)).toBeInTheDocument();
+
+    fireEvent.click(matrixLayout);
+    expect(matrixLayout).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText(title)).toBeInTheDocument();
 
     fireEvent.click(horizontalLayout);

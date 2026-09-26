@@ -55,7 +55,7 @@ export interface KnowledgeMindMapCanvasLayout<TNode extends KnowledgeMindMapCanv
   bounds: KnowledgeMindMapCanvasBounds;
 }
 
-export type KnowledgeMindMapCanvasLayoutMode = "horizontal" | "vertical" | "radial";
+export type KnowledgeMindMapCanvasLayoutMode = "horizontal" | "vertical" | "radial" | "matrix";
 export type KnowledgeMindMapConnectorStyle =
   | "auto"
   | "smooth_bezier"
@@ -409,6 +409,157 @@ export function layoutKnowledgeMindMapVertical<TNode extends KnowledgeMindMapCan
       startY: parent.y + parent.height,
       endX: child.x + child.width / 2,
       endY: child.y,
+      color: child.color || "hsl(var(--primary))",
+      isDashed: child.type === "card",
+    });
+  }
+
+  const padding = 64;
+  const minX = Math.min(...placedNodes.map((node) => node.x));
+  const minY = Math.min(...placedNodes.map((node) => node.y));
+  const maxX = Math.max(...placedNodes.map((node) => node.x + node.width));
+  const maxY = Math.max(...placedNodes.map((node) => node.y + node.height));
+  const boundsMinX = Math.min(0, minX - padding);
+  const boundsMinY = Math.min(0, minY - padding);
+  const boundsMaxX = maxX + padding;
+  const boundsMaxY = maxY + padding;
+
+  return {
+    nodes: placedNodes,
+    links,
+    bounds: {
+      minX: boundsMinX,
+      minY: boundsMinY,
+      maxX: boundsMaxX,
+      maxY: boundsMaxY,
+      width: boundsMaxX - boundsMinX,
+      height: boundsMaxY - boundsMinY,
+    },
+  };
+}
+
+/**
+ * Place each hierarchy depth in its own matrix column. A node occupies the
+ * vertical span of its leaf descendants, which keeps sibling branches grouped
+ * without changing IDs or parent relationships.
+ */
+export function layoutKnowledgeMindMapMatrix<TNode extends KnowledgeMindMapCanvasNode>(
+  sourceNodes: TNode[],
+  direction: "rtl" | "ltr" = "ltr",
+): KnowledgeMindMapCanvasLayout<TNode> {
+  const { nodesInCanvasOrder, roots, childrenByParent, layoutParentById } =
+    buildSafeKnowledgeMindMapCanvasForest(sourceNodes);
+  if (nodesInCanvasOrder.length === 0) {
+    return {
+      nodes: [],
+      links: [],
+      bounds: { minX: 0, minY: 0, maxX: 800, maxY: 600, width: 800, height: 600 },
+    };
+  }
+
+  const traversal: Array<{ node: TNode; depth: number }> = [];
+  const depthById = new Map<string, number>();
+  const stack = roots.slice().reverse().map((node) => ({ node, depth: 0 }));
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    if (depthById.has(current.node.id)) continue;
+    depthById.set(current.node.id, current.depth);
+    traversal.push(current);
+    const children = childrenByParent.get(current.node.id) || [];
+    for (let index = children.length - 1; index >= 0; index -= 1) {
+      stack.push({ node: children[index], depth: current.depth + 1 });
+    }
+  }
+
+  const leafSlotsById = new Map<string, number>();
+  const widthByDepth = new Map<number, number>();
+  const maxNodeHeight = nodesInCanvasOrder.reduce((max, node) => Math.max(max, node.height), 0);
+  for (const { node, depth } of traversal) {
+    widthByDepth.set(depth, Math.max(widthByDepth.get(depth) || 0, node.width));
+  }
+  for (let index = traversal.length - 1; index >= 0; index -= 1) {
+    const { node } = traversal[index];
+    const children = childrenByParent.get(node.id) || [];
+    const slots = children.length === 0
+      ? 1
+      : children.reduce((total, child) => total + (leafSlotsById.get(child.id) || 1), 0);
+    leafSlotsById.set(node.id, slots);
+  }
+
+  const columnGap = 96;
+  const rowGap = 48;
+  const topPadding = 64;
+  const rowStep = maxNodeHeight + rowGap;
+  const maxDepth = Math.max(...depthById.values());
+  const xByDepth = new Map<number, number>();
+  let nextX = 64;
+  for (let depth = 0; depth <= maxDepth; depth += 1) {
+    xByDepth.set(depth, nextX);
+    nextX += (widthByDepth.get(depth) || 0) + columnGap;
+  }
+
+  const startSlotByRoot = new Map<string, number>();
+  let nextRootSlot = 0;
+  for (const root of roots) {
+    startSlotByRoot.set(root.id, nextRootSlot);
+    nextRootSlot += (leafSlotsById.get(root.id) || 1) + 1;
+  }
+
+  const positionById = new Map<string, { x: number; y: number }>();
+  const placementStack = roots.slice().reverse().map((node) => ({
+    node,
+    startSlot: startSlotByRoot.get(node.id) || 0,
+  }));
+  while (placementStack.length > 0) {
+    const { node, startSlot } = placementStack.pop()!;
+    const depth = depthById.get(node.id) || 0;
+    const span = leafSlotsById.get(node.id) || 1;
+    const centerSlot = startSlot + (span - 1) / 2;
+    positionById.set(node.id, {
+      x: (xByDepth.get(depth) || 64) + ((widthByDepth.get(depth) || node.width) - node.width) / 2,
+      y: topPadding + centerSlot * rowStep + (maxNodeHeight - node.height) / 2,
+    });
+
+    const children = childrenByParent.get(node.id) || [];
+    let childStartSlot = startSlot;
+    const childPlacements = children.map((child) => {
+      const placement = { node: child, startSlot: childStartSlot };
+      childStartSlot += leafSlotsById.get(child.id) || 1;
+      return placement;
+    });
+    for (let index = childPlacements.length - 1; index >= 0; index -= 1) {
+      placementStack.push(childPlacements[index]);
+    }
+  }
+
+  let placedNodes = nodesInCanvasOrder.map((node) => {
+    const position = positionById.get(node.id);
+    return position ? { ...node, ...position } : node;
+  });
+  if (direction === "rtl" && placedNodes.length > 0) {
+    const minX = Math.min(...placedNodes.map((node) => node.x));
+    const maxX = Math.max(...placedNodes.map((node) => node.x + node.width));
+    placedNodes = placedNodes.map((node) => ({
+      ...node,
+      x: minX + maxX - node.x - node.width,
+    }));
+  }
+
+  const placedById = new Map(placedNodes.map((node) => [node.id, node]));
+  const links: KnowledgeMindMapCanvasLink[] = [];
+  const isRtl = direction === "rtl";
+  for (const [childId, parentId] of layoutParentById) {
+    const child = placedById.get(childId);
+    const parent = placedById.get(parentId);
+    if (!child || !parent) continue;
+    links.push({
+      id: `link-${parent.id}-${child.id}`,
+      sourceId: parent.id,
+      targetId: child.id,
+      startX: isRtl ? parent.x : parent.x + parent.width,
+      startY: parent.y + parent.height / 2,
+      endX: isRtl ? child.x + child.width : child.x,
+      endY: child.y + child.height / 2,
       color: child.color || "hsl(var(--primary))",
       isDashed: child.type === "card",
     });

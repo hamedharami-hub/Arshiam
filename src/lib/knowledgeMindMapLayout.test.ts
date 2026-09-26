@@ -4,6 +4,7 @@ import {
   buildMindMapOutline,
   getKnowledgeMindMapConnectorPath,
   getMindMapNodeDimensions,
+  layoutKnowledgeMindMapMatrix,
   layoutKnowledgeMindMapRadial,
   layoutKnowledgeMindMapVertical,
 } from "./knowledgeMindMapLayout";
@@ -138,6 +139,56 @@ describe("knowledge mind-map layout helpers", () => {
     expect(malformed.nodes).toHaveLength(3);
     expect(malformed.links).toHaveLength(1);
     expect(malformed.bounds.height).toBeGreaterThan(0);
+  });
+
+  it("lays out a non-overlapping depth matrix, preserves hierarchy links, and mirrors for RTL", () => {
+    const nodes = [
+      { id: "doc-a2", parentId: "branch-a", x: 420, y: 240, width: 260, height: 104, type: "doc" },
+      { id: "root-b", x: 20, y: 420, width: 180, height: 80, type: "root" },
+      { id: "root-a", x: 20, y: 20, width: 180, height: 80, type: "root" },
+      { id: "branch-b", parentId: "root-a", x: 220, y: 300, width: 160, height: 72, type: "folder" },
+      { id: "doc-b", parentId: "branch-b", x: 420, y: 320, width: 220, height: 76, type: "doc" },
+      { id: "branch-a", parentId: "root-a", x: 220, y: 100, width: 170, height: 68, type: "folder" },
+      { id: "doc-a1", parentId: "branch-a", x: 420, y: 160, width: 240, height: 88, type: "doc" },
+    ];
+
+    const ltr = layoutKnowledgeMindMapMatrix(nodes);
+    const byId = new Map(ltr.nodes.map((node) => [node.id, node]));
+    expect(ltr.nodes.map((node) => node.id).sort()).toEqual(nodes.map((node) => node.id).sort());
+    expect(ltr.links).toHaveLength(5);
+    expect(byId.get("root-a")!.x).toBeLessThan(byId.get("branch-a")!.x);
+    expect(byId.get("branch-a")!.x).toBeLessThan(byId.get("doc-a1")!.x);
+    expect(byId.get("branch-a")!.y).toBeLessThan(byId.get("branch-b")!.y);
+    expect(byId.get("root-a")!.y + byId.get("root-a")!.height / 2).toBeCloseTo(
+      ((byId.get("branch-a")!.y + byId.get("branch-a")!.height / 2) * 2 +
+        byId.get("branch-b")!.y + byId.get("branch-b")!.height / 2) / 3,
+    );
+
+    for (let leftIndex = 0; leftIndex < ltr.nodes.length; leftIndex += 1) {
+      for (let rightIndex = leftIndex + 1; rightIndex < ltr.nodes.length; rightIndex += 1) {
+        const left = ltr.nodes[leftIndex];
+        const right = ltr.nodes[rightIndex];
+        const overlaps = left.x < right.x + right.width && left.x + left.width > right.x &&
+          left.y < right.y + right.height && left.y + left.height > right.y;
+        expect(overlaps, `${left.id} overlaps ${right.id}`).toBe(false);
+      }
+    }
+
+    const rtl = layoutKnowledgeMindMapMatrix(nodes, "rtl");
+    const rtlById = new Map(rtl.nodes.map((node) => [node.id, node]));
+    expect(rtlById.get("root-a")!.x).toBeGreaterThan(rtlById.get("branch-a")!.x);
+    expect(rtlById.get("branch-a")!.x).toBeGreaterThan(rtlById.get("doc-a1")!.x);
+    expect(rtlById.get("branch-a")!.y).toBeCloseTo(byId.get("branch-a")!.y);
+
+    const malformed = layoutKnowledgeMindMapMatrix([
+      { id: "cycle-a", parentId: "cycle-b", x: 0, y: 10, width: 120, height: 52 },
+      { id: "cycle-b", parentId: "cycle-a", x: 0, y: 20, width: 120, height: 52 },
+      { id: "orphan", parentId: "missing", x: 0, y: 30, width: 120, height: 52 },
+    ]);
+    expect(malformed.nodes).toHaveLength(3);
+    expect(malformed.links).toHaveLength(1);
+    expect(Number.isFinite(malformed.bounds.width)).toBe(true);
+    expect(Number.isFinite(malformed.bounds.height)).toBe(true);
   });
 
   it("spaces a radial mind map by node size and branch weight without overlap", () => {

@@ -18,6 +18,7 @@ import {
   Eye,
   ArrowRightLeft,
   GitBranch,
+  LayoutGrid,
   X,
   Check,
   CalendarPlus,
@@ -51,9 +52,11 @@ import {
   buildMindMapRootCenterByNodeId,
   getKnowledgeMindMapConnectorPath,
   getMindMapNodeDimensions,
+  layoutKnowledgeMindMapMatrix,
   layoutKnowledgeMindMapRadial,
   layoutKnowledgeMindMapVertical,
   type KnowledgeMindMapConnectorStyle,
+  type KnowledgeMindMapCanvasLayoutMode,
   type KnowledgeMindMapNodeDensity,
   type MindMapOutlineEntry,
 } from "@/lib/knowledgeMindMapLayout";
@@ -731,7 +734,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<KnowledgeDocument | null>(null);
   const [viewMode, setViewMode] = useState<"canvas" | "outline">("canvas");
-  const [canvasLayout, setCanvasLayout] = useState<"horizontal" | "vertical" | "radial">("horizontal");
+  const [canvasLayout, setCanvasLayout] = useState<KnowledgeMindMapCanvasLayoutMode>("horizontal");
   const [connectorStyle, setConnectorStyle] = useState<KnowledgeMindMapConnectorStyle>("auto");
   const [compactLabels, setCompactLabels] = useState(false);
   const [nodeAppearanceState, setNodeAppearanceState] = useState(() => ({
@@ -1370,6 +1373,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     () => {
       if (canvasLayout === "vertical") return layoutKnowledgeMindMapVertical(baseLayout.nodes, treeDirection);
       if (canvasLayout === "radial") return layoutKnowledgeMindMapRadial(baseLayout.nodes, treeDirection);
+      if (canvasLayout === "matrix") return layoutKnowledgeMindMapMatrix(baseLayout.nodes, treeDirection);
       return baseLayout;
     },
     [baseLayout, canvasLayout, treeDirection],
@@ -1914,6 +1918,17 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
               >
                 <Circle className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden xl:inline text-[11px] font-medium">{isEn ? "Radial" : "شعاعی"}</span>
+              </button>
+              <button
+                type="button"
+                aria-label={isEn ? "Matrix grid layout" : "چیدمان شبکه‌ای ماتریسی"}
+                aria-pressed={canvasLayout === "matrix"}
+                title={isEn ? "Matrix grid" : "شبکهٔ ماتریسی"}
+                onClick={() => setCanvasLayout("matrix")}
+                className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition ${canvasLayout === "matrix" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+              >
+                <LayoutGrid className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden xl:inline text-[11px] font-medium">{isEn ? "Matrix" : "ماتریسی"}</span>
               </button>
             </div>
           )}
