@@ -3,7 +3,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor, cleanup, act, within } from "@testing-library/react";
 import { LeitnerDeckView } from "./LeitnerDeckView";
 import type { LeitnerCard } from "@/lib/leitnerTypes";
-import { createLeitnerCard, getDueLeitnerCards, getLeitnerCards, reviewLeitnerCardWithRating } from "@/lib/leitnerService";
+import { createLeitnerCard, getDueLeitnerCards, getLeitnerBoxStats, getLeitnerCards, reviewLeitnerCardWithRating } from "@/lib/leitnerService";
 import { getKnowledgeDocuments, getKnowledgeFolders } from "@/lib/knowledgeService";
 import { getNextLeitnerReviewAt, rescheduleLeitnerStudyTaskAfterSession } from "@/lib/taskStudyService";
 
@@ -123,6 +123,12 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
       expect(screen.getByText("جعبه ۴ (۱۴ روز)")).toBeDefined();
       expect(screen.getByText("جعبه ۵ (تسلط کامل)")).toBeDefined();
     });
+    expect(getLeitnerCards).toHaveBeenCalledTimes(1);
+    const [, dueSnapshot, dueEvaluatedAt] = vi.mocked(getDueLeitnerCards).mock.calls[0];
+    const [, statsSnapshot, statsEvaluatedAt] = vi.mocked(getLeitnerBoxStats).mock.calls[0];
+    expect(dueSnapshot).toEqual(expect.arrayContaining([mockCards[0]]));
+    expect(dueSnapshot).toBe(statsSnapshot);
+    expect(dueEvaluatedAt).toBe(statsEvaluatedAt);
   });
 
   it("enters study session when clicking start review button", async () => {

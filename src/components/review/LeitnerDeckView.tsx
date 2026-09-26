@@ -184,10 +184,11 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
 
   const loadData = useCallback(async () => {
     try {
-      const [allCards, due, s] = await Promise.all([
-        getLeitnerCards(userId),
-        getDueLeitnerCards(userId),
-        getLeitnerBoxStats(userId),
+      const allCards = await getLeitnerCards(userId);
+      const evaluatedAt = new Date();
+      const [due, s] = await Promise.all([
+        getDueLeitnerCards(userId, allCards, evaluatedAt),
+        getLeitnerBoxStats(userId, allCards, evaluatedAt),
       ]);
       setCards(allCards);
       setDueCards(due);

@@ -430,9 +430,14 @@ export function computeBoxStats(
   };
 }
 
-export async function getDueLeitnerCards(userId: string): Promise<LeitnerCard[]> {
-  const cards = await getLeitnerCards(userId);
-  return computeDueCards(cards);
+export async function getDueLeitnerCards(
+  userId: string,
+  cards?: LeitnerCard[],
+  referenceTime: number | Date = new Date(),
+): Promise<LeitnerCard[]> {
+  if (!userId) return [];
+  const snapshot = cards ?? (await getLeitnerCards(userId));
+  return computeDueCards(snapshot, referenceTime);
 }
 
 export interface CramFilterOptions {
@@ -695,7 +700,12 @@ export async function deleteLeitnerCard(userId: string, cardId: string): Promise
   return true;
 }
 
-export async function getLeitnerBoxStats(userId: string): Promise<LeitnerBoxStats> {
-  const cards = await getLeitnerCards(userId);
-  return computeBoxStats(cards);
+export async function getLeitnerBoxStats(
+  userId: string,
+  cards?: LeitnerCard[],
+  referenceTime: number | Date = new Date(),
+): Promise<LeitnerBoxStats> {
+  if (!userId) return computeBoxStats([], referenceTime);
+  const snapshot = cards ?? (await getLeitnerCards(userId));
+  return computeBoxStats(snapshot, referenceTime);
 }

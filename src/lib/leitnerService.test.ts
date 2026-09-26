@@ -15,19 +15,24 @@ import {
 } from "./leitnerService";
 import { clearQueue } from "./offlineQueue";
 import * as offlineQueue from "./offlineQueue";
+import type { LeitnerCard } from "./leitnerTypes";
+
+const { fromMock } = vi.hoisted(() => ({
+  fromMock: vi.fn(() => ({
+    select: vi.fn(() => ({
+      eq: vi.fn(() => ({
+        order: vi.fn().mockResolvedValue({ data: [], error: null }),
+      })),
+    })),
+    insert: vi.fn().mockResolvedValue({ data: null, error: null }),
+    update: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ data: null, error: null }) })),
+    delete: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ data: null, error: null }) })),
+  })),
+}));
 
 vi.mock("@/lib/firebaseStore", () => ({
   firebaseStore: {
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          order: () => Promise.resolve({ data: [], error: null }),
-        }),
-      }),
-      insert: () => Promise.resolve({ data: null, error: null }),
-      update: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
-      delete: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
-    }),
+    from: fromMock,
   },
 }));
 
@@ -38,12 +43,13 @@ vi.mock("@/lib/firestoreSync", () => ({
 
 describe("leitnerService", () => {
   const userId = "user-leitner-test";
+  let onlineSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(async () => {
     localStorage.clear();
     await clearQueue();
     vi.clearAllMocks();
-    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
+    onlineSpy = vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
   });
 
   afterEach(async () => {
@@ -66,6 +72,31 @@ describe("leitnerService", () => {
 
     const all = await getLeitnerCards(userId);
     expect(all.length).toBe(1);
+  });
+
+  it("derives due cards and statistics from a supplied snapshot without rereading Firestore", async () => {
+    onlineSpy.mockReturnValue(true);
+    const referenceTime = new Date();
+    const card: LeitnerCard = {
+      id: "preloaded-due",
+      user_id: userId,
+      front: "Question",
+      back: "Answer",
+      box: 2,
+      next_review_at: new Date(referenceTime.getTime() - 60_000).toISOString(),
+      review_count: 2,
+      lapse_count: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    expect(await getDueLeitnerCards(userId, [card], referenceTime)).toEqual([card]);
+    expect(await getLeitnerBoxStats(userId, [card], referenceTime)).toMatchObject({
+      totalCards: 1,
+      dueToday: 1,
+      box2: 1,
+    });
+    expect(fromMock).not.toHaveBeenCalled();
   });
 
   it("persists, edits, and reads bilingual sides without changing the scheduling state", async () => {
