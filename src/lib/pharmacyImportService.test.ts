@@ -419,6 +419,68 @@ describe("pharmacyImportService", () => {
     expect(result.status.docsUpgradeable).toBe(0);
   }, 15_000);
 
+  it("preserves a user-customized English title on an otherwise upgradeable Pharmacy document", async () => {
+    for (const folder of PHARMACY_SEED_FOLDERS) {
+      remote.knowledge_folders.set(folder.id, { ...folder, user_id: userId });
+    }
+    for (const document of PHARMACY_SEED_DOCUMENTS) {
+      remote.knowledge_documents.set(document.id, { ...document, user_id: userId });
+    }
+    for (const card of PHARMACY_SEED_CARDS) {
+      remote.leitner_cards.set(card.id, { ...card, user_id: userId });
+    }
+
+    const baseline = PHARMACY_SEED_UPGRADE_DOCUMENT_BASELINES.find(
+      (item) => item.id === "doc-scenario-clinical-s3-pseudoephedrine",
+    )!;
+    const current = PHARMACY_SEED_DOCUMENTS.find((item) => item.id === baseline.id)!;
+    expect(current.title_en).not.toBe(baseline.title_en);
+    remote.knowledge_documents.set(baseline.id, { ...baseline, user_id: userId });
+    const upgradeableBeforePersonalEdit = (await getPharmacyImportStatus(userId)).docsUpgradeable;
+
+    const customTitle = "My personal English study title";
+    remote.knowledge_documents.set(baseline.id, {
+      ...baseline, user_id: userId, title_en: customTitle,
+    });
+
+    expect((await getPharmacyImportStatus(userId)).docsUpgradeable).toBe(upgradeableBeforePersonalEdit - 1);
+    const result = await importPharmacyKnowledge(userId);
+
+    expect(result.docsUpdated).toBeGreaterThanOrEqual(1);
+    expect(remote.knowledge_documents.get(baseline.id)?.title_en).toBe(customTitle);
+  }, 15_000);
+
+  it("preserves user-customized tags on an otherwise upgradeable Pharmacy document", async () => {
+    for (const folder of PHARMACY_SEED_FOLDERS) {
+      remote.knowledge_folders.set(folder.id, { ...folder, user_id: userId });
+    }
+    for (const document of PHARMACY_SEED_DOCUMENTS) {
+      remote.knowledge_documents.set(document.id, { ...document, user_id: userId });
+    }
+    for (const card of PHARMACY_SEED_CARDS) {
+      remote.leitner_cards.set(card.id, { ...card, user_id: userId });
+    }
+
+    const baseline = PHARMACY_SEED_UPGRADE_DOCUMENT_BASELINES.find(
+      (item) => item.id === "doc-scenario-clinical-s3-pseudoephedrine",
+    )!;
+    const current = PHARMACY_SEED_DOCUMENTS.find((item) => item.id === baseline.id)!;
+    expect(current.tags).not.toEqual(baseline.tags);
+    remote.knowledge_documents.set(baseline.id, { ...baseline, user_id: userId });
+    const upgradeableBeforePersonalEdit = (await getPharmacyImportStatus(userId)).docsUpgradeable;
+
+    const customTags = [...(baseline.tags || []), "My personal study tag"];
+    remote.knowledge_documents.set(baseline.id, {
+      ...baseline, user_id: userId, tags: customTags,
+    });
+
+    expect((await getPharmacyImportStatus(userId)).docsUpgradeable).toBe(upgradeableBeforePersonalEdit - 1);
+    const result = await importPharmacyKnowledge(userId);
+
+    expect(result.docsUpdated).toBeGreaterThanOrEqual(1);
+    expect(remote.knowledge_documents.get(baseline.id)?.tags).toEqual(customTags);
+  }, 15_000);
+
   it("refreshes an unchanged historical Leitner card without resetting review progress", async () => {
     for (const folder of PHARMACY_SEED_FOLDERS) {
       remote.knowledge_folders.set(folder.id, { ...folder, user_id: userId });
