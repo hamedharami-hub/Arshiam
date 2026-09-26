@@ -78,6 +78,21 @@ describe("KnowledgeMindMapView outline mode", () => {
     expect(screen.getByRole("button", { name: `Actions for ${title}` })).toBeVisible();
   });
 
+  it("resets a deep-linked scope when its initial scope props are cleared", async () => {
+    const { rerender } = render(
+      <KnowledgeMindMapView userId="user-1" cardLanguage="en" initialFolderId="folder-1" />,
+    );
+
+    expect(await screen.findByRole("button", { name: "Reset to full tree" })).toBeInTheDocument();
+
+    rerender(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);
+
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Reset to full tree" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "All Knowledge Base" })).toBeInTheDocument();
+    });
+  }, 10000);
+
   it("switches between horizontal, vertical, radial, and matrix layouts without losing the visible lesson tree", async () => {
     render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);
     const title = "A deliberately long lesson title that must remain fully visible in the mind map outline";

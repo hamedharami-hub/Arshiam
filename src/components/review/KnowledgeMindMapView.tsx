@@ -721,6 +721,8 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       setSelectedScopeId(`folder-${initialFolderId}`);
     } else if (initialDocId) {
       setSelectedScopeId(`doc-${initialDocId}`);
+    } else {
+      setSelectedScopeId("all");
     }
   }, [initialFolderId, initialDocId]);
 
