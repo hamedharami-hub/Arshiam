@@ -33,7 +33,12 @@ import type {
 import { sanitizeKnowledgeHtml } from "@/lib/knowledgeBeautifier";
 import { isPersianText, detectDirection, generateBilingualLesson } from "@/lib/bilingualHelper";
 import { updateKnowledgeDocument } from "@/lib/knowledgeService";
-import { attachInteractiveListeners } from "@/lib/interactiveLearningHelper";
+import {
+  attachInteractiveListeners,
+  markAsBilingualMirror,
+  stripBilingualMirrorBlocks,
+  tagPrimaryBilingualBlock,
+} from "@/lib/interactiveLearningHelper";
 import {
   extractDocumentCheckpoints,
   getCheckpointTextLanguage,
@@ -322,21 +327,56 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 
   const handleInsertInteractive = async (html: string, mode: "append" | "replace") => {
     if (!document) return;
-    const newContent =
-      mode === "append"
-        ? `${document.content_html || ""}\n<hr class="my-6 border-border/60" />\n${html}`
-        : html;
+
+    const sanitizedHtml = sanitizeKnowledgeHtml(html);
+    let patch: Partial<KnowledgeDocument>;
+
+    if (docLangMode === "en") {
+      const existing = document.content_en || "";
+      const newContentEn =
+        mode === "append" && existing.trim()
+          ? `${existing}\n<hr class="my-6 border-border/60" />\n${sanitizedHtml}`
+          : sanitizedHtml;
+      patch = { content_en: newContentEn };
+    } else if (docLangMode === "fa") {
+      const existing = document.content_html || "";
+      const newContentFa =
+        mode === "append" && existing.trim()
+          ? `${existing}\n<hr class="my-6 border-border/60" />\n${sanitizedHtml}`
+          : sanitizedHtml;
+      patch = { content_html: newContentFa };
+    } else {
+      // docLangMode === "bilingual"
+      const existingFa = document.content_html || "";
+      const existingEn = document.content_en || "";
+      const blockId = `bilingual-block-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const primaryHtml = tagPrimaryBilingualBlock(sanitizedHtml, blockId);
+      const sanitizedPrimaryHtml = sanitizeKnowledgeHtml(primaryHtml);
+      const mirrorHtml = markAsBilingualMirror(sanitizedHtml, blockId);
+      const sanitizedMirrorHtml = sanitizeKnowledgeHtml(mirrorHtml);
+
+      const newContentFa =
+        mode === "append" && existingFa.trim()
+          ? `${existingFa}\n<hr class="my-6 border-border/60" />\n${sanitizedPrimaryHtml}`
+          : sanitizedPrimaryHtml;
+      const newContentEn =
+        mode === "append" && existingEn.trim()
+          ? `${existingEn}\n<hr class="my-6 border-border/60" />\n${sanitizedMirrorHtml}`
+          : sanitizedMirrorHtml;
+      patch = {
+        content_html: newContentFa,
+        content_en: newContentEn,
+      };
+    }
 
     try {
-      const updated = await updateKnowledgeDocument(userId, document.id, {
-        content_html: newContent,
-      });
+      const updated = await updateKnowledgeDocument(userId, document.id, patch);
       if (onDocumentUpdated) {
         onDocumentUpdated(updated);
       }
     } catch (err: any) {
       console.error("Error saving interactive content:", err);
-      toast.error(err.message || "Failed to update document");
+      throw err;
     }
   };
 
@@ -363,6 +403,12 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
     if (!document?.content_en) return "";
     return sanitizeKnowledgeHtml(document.content_en);
   }, [document?.content_en]);
+
+  // Strip paired bilingual mirror blocks in side-by-side presentation so modules are not duplicated
+  const safeHtmlEnBilingual = React.useMemo(() => {
+    if (!safeHtmlEn) return "";
+    return stripBilingualMirrorBlocks(safeHtmlEn, safeHtmlFa);
+  }, [safeHtmlEn, safeHtmlFa]);
   const originalContentIsPersian = isPersianText(
     document?.content_html || document?.plain_text || document?.title || ""
   );
@@ -927,11 +973,11 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                     </span>
                   </div>
 
-                  {safeHtmlEn ? (
+                  {safeHtmlEnBilingual ? (
                     <div
                       dir="ltr"
                       className="knowledge-html-content dir-ltr text-left"
-                      dangerouslySetInnerHTML={{ __html: safeHtmlEn }}
+                      dangerouslySetInnerHTML={{ __html: safeHtmlEnBilingual }}
                     />
                   ) : !originalContentIsPersian && hasOriginalContent ? (
                     safeHtmlFa ? (
@@ -1211,8 +1257,19 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
             open={interactiveModalOpen}
             onOpenChange={setInteractiveModalOpen}
             documentId={document?.id}
-            documentTitle={document?.title || ""}
-            documentContent={document?.content_html || ""}
+            documentTitle={
+              docLangMode === "en"
+                ? document?.title_en?.trim() || document?.title || ""
+                : document?.title || ""
+            }
+            documentContent={
+              docLangMode === "en"
+                ? document?.content_en || document?.content_html || ""
+                : document?.content_html || ""
+            }
+            documentTitleEn={document?.title_en?.trim() || ""}
+            documentContentEn={document?.content_en || ""}
+            languageOverride={docLangMode}
             onInsertContent={handleInsertInteractive}
           />
         </React.Suspense>

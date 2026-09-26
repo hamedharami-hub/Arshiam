@@ -5,8 +5,39 @@ import { KnowledgeDocumentReader } from "./KnowledgeDocumentReader";
 import type { KnowledgeDocument, KnowledgeFolder } from "@/lib/knowledgeTypes";
 
 const mockCreateLeitnerCard = vi.hoisted(() => vi.fn());
+const mockUpdateKnowledgeDocument = vi.hoisted(() => vi.fn());
+const mockInteractiveLearningModal = vi.hoisted(() => vi.fn());
+
 vi.mock("@/lib/leitnerService", () => ({
   createLeitnerCard: mockCreateLeitnerCard,
+}));
+
+vi.mock("@/lib/knowledgeService", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/knowledgeService")>("@/lib/knowledgeService");
+  return {
+    ...actual,
+    updateKnowledgeDocument: mockUpdateKnowledgeDocument,
+  };
+});
+
+vi.mock("./InteractiveLearningModal", () => ({
+  InteractiveLearningModal: (props: any) => {
+    mockInteractiveLearningModal(props);
+    return props.open ? (
+      <div data-testid="interactive-modal">
+        <button
+          onClick={() =>
+            props.onInsertContent(
+              '<div class="interactive-learning-block"><p>Generated widget</p></div>',
+              "append",
+            )
+          }
+        >
+          Insert Append
+        </button>
+      </div>
+    ) : null;
+  },
 }));
 
 let mockIsEn = false;
@@ -18,6 +49,11 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
   beforeEach(() => {
     mockIsEn = false;
     mockCreateLeitnerCard.mockReset().mockResolvedValue(undefined);
+    mockUpdateKnowledgeDocument.mockReset().mockImplementation(async (_u, _id, patch) => ({
+      ...dummyDoc,
+      ...patch,
+    }));
+    mockInteractiveLearningModal.mockReset();
   });
 
   const dummyDoc: KnowledgeDocument = {
@@ -646,5 +682,295 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
     const checkpointAnswerNode = answerElements.find((el) => el.getAttribute("dir") === "auto");
     expect(checkpointAnswerNode).toBeDefined();
     expect(checkpointAnswerNode?.getAttribute("dir")).toBe("auto");
+  });
+
+  describe("Interactive Learning bilingual connection", () => {
+    const bilingualDoc: KnowledgeDocument = {
+      ...dummyDoc,
+      title: "راهنمای فلوکستین",
+      title_en: "Fluoxetine Guide",
+      content_html: "<p>متن فارسی فلوکستین</p>",
+      content_en: "<p>English Fluoxetine text</p>",
+      preferred_language: "bilingual",
+    };
+
+    it("passes English content to modal in English reading mode and saves to content_en only", async () => {
+      render(
+        <KnowledgeDocumentReader
+          userId="user-1"
+          document={bilingualDoc}
+          folder={dummyFolder}
+          onEdit={() => {}}
+          onDelete={() => {}}
+        />
+      );
+
+      // Reader defaults to EN mode when documentId is present
+      const studioBtn = screen.getByRole("button", { name: /آموزش تعاملی|interactive learning/i });
+      fireEvent.click(studioBtn);
+
+      await waitFor(() => {
+        expect(mockInteractiveLearningModal).toHaveBeenCalledWith(
+          expect.objectContaining({
+            open: true,
+            languageOverride: "en",
+            documentTitle: "Fluoxetine Guide",
+            documentContent: "<p>English Fluoxetine text</p>",
+            documentTitleEn: "Fluoxetine Guide",
+            documentContentEn: "<p>English Fluoxetine text</p>",
+          })
+        );
+      });
+
+      // Insert content via modal
+      const insertBtn = await screen.findByRole("button", { name: "Insert Append" });
+      fireEvent.click(insertBtn);
+
+      await waitFor(() => {
+        expect(mockUpdateKnowledgeDocument).toHaveBeenCalledWith(
+          "user-1",
+          "doc-1",
+          expect.objectContaining({
+            content_en: expect.stringContaining("Generated widget"),
+          })
+        );
+      });
+
+      // Crucial: content_html must NOT be in the patch
+      const patch = mockUpdateKnowledgeDocument.mock.calls[0][2];
+      expect(patch.content_html).toBeUndefined();
+    });
+
+    it("passes Persian content to modal in Persian reading mode and saves to content_html only", async () => {
+      render(
+        <KnowledgeDocumentReader
+          userId="user-1"
+          document={bilingualDoc}
+          folder={dummyFolder}
+          onEdit={() => {}}
+          onDelete={() => {}}
+        />
+      );
+
+      // Cycle language from EN to FA
+      const langToggle = screen.getByRole("button", { name: /زبان مطالعه: انگلیسی/ });
+      fireEvent.click(langToggle); // cycles to fa
+
+      const studioBtn = screen.getByRole("button", { name: /آموزش تعاملی|interactive learning/i });
+      fireEvent.click(studioBtn);
+
+      await waitFor(() => {
+        expect(mockInteractiveLearningModal).toHaveBeenCalledWith(
+          expect.objectContaining({
+            open: true,
+            languageOverride: "fa",
+            documentTitle: "راهنمای فلوکستین",
+            documentContent: "<p>متن فارسی فلوکستین</p>",
+          })
+        );
+      });
+
+      const insertBtn = await screen.findByRole("button", { name: "Insert Append" });
+      fireEvent.click(insertBtn);
+
+      await waitFor(() => {
+        expect(mockUpdateKnowledgeDocument).toHaveBeenCalledWith(
+          "user-1",
+          "doc-1",
+          expect.objectContaining({
+            content_html: expect.stringContaining("Generated widget"),
+          })
+        );
+      });
+
+      // Crucial: content_en must NOT be in the patch
+      const patch = mockUpdateKnowledgeDocument.mock.calls[0][2];
+      expect(patch.content_en).toBeUndefined();
+    });
+
+    it("passes both languages to modal in bilingual mode and writes to both content_html and content_en with shared block ID", async () => {
+      render(
+        <KnowledgeDocumentReader
+          userId="user-1"
+          document={bilingualDoc}
+          folder={dummyFolder}
+          onEdit={() => {}}
+          onDelete={() => {}}
+        />
+      );
+
+      // Cycle EN -> FA -> bilingual
+      const langToggle = screen.getByRole("button", { name: /زبان مطالعه: انگلیسی/ });
+      fireEvent.click(langToggle); // to fa
+      fireEvent.click(langToggle); // to bilingual
+
+      const studioBtn = screen.getByRole("button", { name: /آموزش تعاملی|interactive learning/i });
+      fireEvent.click(studioBtn);
+
+      await waitFor(() => {
+        expect(mockInteractiveLearningModal).toHaveBeenCalledWith(
+          expect.objectContaining({
+            open: true,
+            languageOverride: "bilingual",
+            documentTitle: "راهنمای فلوکستین",
+            documentContent: "<p>متن فارسی فلوکستین</p>",
+            documentTitleEn: "Fluoxetine Guide",
+            documentContentEn: "<p>English Fluoxetine text</p>",
+          })
+        );
+      });
+
+      const insertBtn = await screen.findByRole("button", { name: "Insert Append" });
+      fireEvent.click(insertBtn);
+
+      await waitFor(() => {
+        expect(mockUpdateKnowledgeDocument).toHaveBeenCalledWith(
+          "user-1",
+          "doc-1",
+          expect.objectContaining({
+            content_html: expect.stringContaining("Generated widget"),
+            content_en: expect.stringContaining('data-bilingual-mirror="true"'),
+          })
+        );
+      });
+
+      const patch = mockUpdateKnowledgeDocument.mock.calls[0][2];
+      const htmlBlockIdMatch = patch.content_html.match(/data-bilingual-block-id="([^"]+)"/);
+      const enBlockIdMatch = patch.content_en.match(/data-bilingual-block-id="([^"]+)"/);
+      expect(htmlBlockIdMatch).not.toBeNull();
+      expect(enBlockIdMatch).not.toBeNull();
+      expect(htmlBlockIdMatch![1]).toBe(enBlockIdMatch![1]);
+    });
+
+    it("renders mirror interactive widget in single English view, but suppresses it in bilingual side-by-side view to avoid duplication", () => {
+      const docWithMirror: KnowledgeDocument = {
+        ...bilingualDoc,
+        id: "doc-mirror",
+        content_html:
+          '<p>متن فارسی درس</p><div class="interactive-learning-block" data-bilingual-block-id="pair-block-1"><p>Interactive Module Widget</p></div>',
+        content_en:
+          '<p>English lesson text</p><hr class="my-6 border-border/60" /><div class="interactive-learning-block bilingual-mirror-block" data-bilingual-mirror="true" data-bilingual-block-id="pair-block-1"><p>Interactive Module Widget</p></div>',
+      };
+
+      const { container } = render(
+        <KnowledgeDocumentReader
+          userId="user-1"
+          document={docWithMirror}
+          folder={dummyFolder}
+          onEdit={() => {}}
+          onDelete={() => {}}
+        />
+      );
+
+      // Default opens in English mode
+      expect(screen.getByText("English lesson text")).toBeInTheDocument();
+      expect(screen.getByText("Interactive Module Widget")).toBeInTheDocument();
+
+      // Cycle to Persian mode
+      const langToggle = screen.getByRole("button", { name: /reading language: english|زبان مطالعه: انگلیسی/i });
+      fireEvent.click(langToggle);
+      expect(screen.getByText("متن فارسی درس")).toBeInTheDocument();
+      expect(screen.getByText("Interactive Module Widget")).toBeInTheDocument();
+
+      // Cycle to Bilingual mode
+      const faLangToggle = screen.getByRole("button", { name: /reading language: persian|زبان مطالعه: فارسی/i });
+      fireEvent.click(faLangToggle);
+
+      // In bilingual mode, Persian column has the widget and English column has the English text without the duplicate mirror
+      const widgets = screen.getAllByText("Interactive Module Widget");
+      expect(widgets).toHaveLength(1);
+
+      const colFa = container.querySelector(".bilingual-col-fa");
+      const colEn = container.querySelector(".bilingual-col-en");
+      expect(colFa).toContainElement(widgets[0]);
+      expect(colEn).not.toContainElement(widgets[0]);
+      expect(colEn?.textContent).toContain("English lesson text");
+    });
+
+    it("preserves orphan or unpaired mirror interactive widgets in the English column in bilingual view", () => {
+      const docWithOrphanMirror: KnowledgeDocument = {
+        ...bilingualDoc,
+        id: "doc-orphan-mirror",
+        content_html: '<p>متن فارسی درس</p>',
+        content_en:
+          '<p>English lesson text</p><div class="interactive-learning-block bilingual-mirror-block" data-bilingual-mirror="true" data-bilingual-block-id="orphan-block-99"><p>Orphan Mirror Widget</p></div>',
+      };
+
+      const { container } = render(
+        <KnowledgeDocumentReader
+          userId="user-1"
+          document={docWithOrphanMirror}
+          folder={dummyFolder}
+          onEdit={() => {}}
+          onDelete={() => {}}
+        />
+      );
+
+      // Cycle to Bilingual mode: default EN -> FA -> bilingual
+      const langToggle = screen.getByRole("button", { name: /reading language: english|زبان مطالعه: انگلیسی/i });
+      fireEvent.click(langToggle);
+      const faLangToggle = screen.getByRole("button", { name: /reading language: persian|زبان مطالعه: فارسی/i });
+      fireEvent.click(faLangToggle);
+
+      // In bilingual mode, since content_html lacks "orphan-block-99", the mirror is NOT stripped and remains in the English column!
+      const colEn = container.querySelector(".bilingual-col-en");
+      expect(colEn?.textContent).toContain("Orphan Mirror Widget");
+    });
+
+    it("does not strip pre-existing non-mirror interactive widgets in bilingual mode", () => {
+      const docWithRegularWidget: KnowledgeDocument = {
+        ...bilingualDoc,
+        id: "doc-reg",
+        content_html:
+          '<p>متن فارسی</p><div class="interactive-learning-block"><p>Persian Module</p></div>',
+        content_en:
+          '<p>English text</p><div class="interactive-learning-block"><p>English Standalone Module</p></div>',
+      };
+
+      const { container } = render(
+        <KnowledgeDocumentReader
+          userId="user-1"
+          document={docWithRegularWidget}
+          folder={dummyFolder}
+          onEdit={() => {}}
+          onDelete={() => {}}
+        />
+      );
+
+      // Cycle to bilingual mode: EN -> FA -> bilingual
+      const langToggle = screen.getByRole("button", { name: /reading language: english|زبان مطالعه: انگلیسی/i });
+      fireEvent.click(langToggle);
+      const faLangToggle = screen.getByRole("button", { name: /reading language: persian|زبان مطالعه: فارسی/i });
+      fireEvent.click(faLangToggle);
+
+      const colEn = container.querySelector(".bilingual-col-en");
+      expect(colEn?.textContent).toContain("English Standalone Module");
+    });
+
+    it("propagates save rejection from updateKnowledgeDocument to caller without swallowing", async () => {
+      mockUpdateKnowledgeDocument.mockRejectedValueOnce(new Error("Database disconnected"));
+
+      render(
+        <KnowledgeDocumentReader
+          userId="user-1"
+          document={bilingualDoc}
+          folder={dummyFolder}
+          onEdit={() => {}}
+          onDelete={() => {}}
+        />
+      );
+
+      const studioBtn = screen.getByRole("button", { name: /آموزش تعاملی|interactive learning/i });
+      fireEvent.click(studioBtn);
+
+      await waitFor(() => {
+        expect(mockInteractiveLearningModal).toHaveBeenCalled();
+      });
+
+      const modalProps = mockInteractiveLearningModal.mock.calls.at(-1)[0];
+      await expect(
+        modalProps.onInsertContent('<div class="interactive-learning-block"><p>Widget</p></div>', "append")
+      ).rejects.toThrow("Database disconnected");
+    });
   });
 });

@@ -17,6 +17,8 @@ const KNOWLEDGE_HTML_DATA_ATTRIBUTES = [
   "data-card-id",
   "data-type",
   "data-checked",
+  "data-bilingual-mirror",
+  "data-bilingual-block-id",
 ] as const;
 
 const ORDERED_LIST_DIGITS: Record<string, string> = {

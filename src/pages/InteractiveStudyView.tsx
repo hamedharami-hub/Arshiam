@@ -19,6 +19,7 @@ import type { KnowledgeDocument, KnowledgeFolder } from "@/lib/knowledgeTypes";
 import { sanitizeKnowledgeHtml } from "@/lib/knowledgeBeautifier";
 import { getSafeKnowledgeExternalUrl } from "@/lib/knowledgeReviewEvidence";
 import { createLeitnerCard, getLeitnerCards } from "@/lib/leitnerService";
+import { isPersianText } from "@/lib/bilingualHelper";
 
 const ALL_FOLDERS = "__all__";
 const UNFILED_FOLDER = "__unfiled__";
@@ -97,15 +98,108 @@ function filterStudyDocuments(
   );
 }
 
-function extractStudyFlipCards(html: string): Array<{ front: string; back: string }> {
+export interface ExtractedStudyFlipCard {
+  front: string;
+  back: string;
+  front_fa?: string;
+  back_fa?: string;
+  front_en?: string;
+  back_en?: string;
+}
+
+function parseCardSideText(
+  container: Element | null,
+  activeLanguage: "fa" | "en" = "fa",
+): {
+  text: string;
+  fa?: string;
+  en?: string;
+} {
+  if (!container) return { text: "" };
+
+  const textContainer = container.querySelector(".flip-text") || container;
+
+  // Explicit bilingual child markers
+  const faEl =
+    textContainer.querySelector(".flip-lang-fa, [data-lang='fa']") ||
+    textContainer.querySelector(":scope > [lang='fa']") ||
+    container.querySelector(".flip-lang-fa, [data-lang='fa']");
+
+  const enEl =
+    textContainer.querySelector(".flip-lang-en, [data-lang='en']") ||
+    textContainer.querySelector(":scope > [lang='en']") ||
+    container.querySelector(".flip-lang-en, [data-lang='en']");
+
+  const explicitFa = faEl?.textContent?.replace(/\s+/g, " ").trim();
+  const explicitEn = enEl?.textContent?.replace(/\s+/g, " ").trim();
+
+  const attrFa = (textContainer.getAttribute("data-lang-fa") || container.getAttribute("data-lang-fa") || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const attrEn = (textContainer.getAttribute("data-lang-en") || container.getAttribute("data-lang-en") || "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const finalFa = explicitFa || attrFa || undefined;
+  const finalEn = explicitEn || attrEn || undefined;
+
+  if (finalFa && finalEn) {
+    const text = activeLanguage === "en" ? finalEn : finalFa;
+    return { text, fa: finalFa, en: finalEn };
+  }
+
+  if (finalFa && !finalEn) {
+    return { text: finalFa, fa: finalFa };
+  }
+
+  if (finalEn && !finalFa) {
+    return { text: finalEn, en: finalEn };
+  }
+
+  // Single language or no explicit marker
+  const fullText = textContainer.textContent?.replace(/\s+/g, " ").trim() || "";
+  if (!fullText) return { text: "" };
+
+  if (isPersianText(fullText)) {
+    return { text: fullText, fa: fullText };
+  }
+  return { text: fullText, en: fullText };
+}
+
+export function extractStudyFlipCards(
+  html: string,
+  activeLanguage: "fa" | "en" = "fa",
+): ExtractedStudyFlipCard[] {
   if (!html || typeof DOMParser === "undefined") return [];
   const parsed = new DOMParser().parseFromString(html, "text/html");
   return Array.from(parsed.querySelectorAll(".interactive-flip-card"))
-    .map((card) => ({
-      front: card.querySelector(".flip-card-front .flip-text")?.textContent?.replace(/\s+/g, " ").trim() || "",
-      back: card.querySelector(".flip-card-back .flip-text")?.textContent?.replace(/\s+/g, " ").trim() || "",
-    }))
-    .filter((card) => Boolean(card.front && card.back));
+    .map((card) => {
+      const front = parseCardSideText(card.querySelector(".flip-card-front"), activeLanguage);
+      const back = parseCardSideText(card.querySelector(".flip-card-back"), activeLanguage);
+      if (!front.text || !back.text) return null;
+
+      const result: ExtractedStudyFlipCard = {
+        front: front.text,
+        back: back.text,
+        ...(front.fa ? { front_fa: front.fa } : {}),
+        ...(front.en ? { front_en: front.en } : {}),
+        ...(back.fa ? { back_fa: back.fa } : {}),
+        ...(back.en ? { back_en: back.en } : {}),
+      };
+
+      // Honest fallback: if language is known and side lacked detection
+      if (!result.front_fa && !result.front_en) {
+        if (activeLanguage === "en") result.front_en = result.front;
+        else result.front_fa = result.front;
+      }
+      if (!result.back_fa && !result.back_en) {
+        if (activeLanguage === "en") result.back_en = result.back;
+        else result.back_fa = result.back;
+      }
+
+      return result;
+    })
+    .filter((card): card is ExtractedStudyFlipCard => Boolean(card));
 }
 
 function normalizeStudyCardText(text: string): string {
@@ -227,7 +321,7 @@ export const InteractiveStudyView: React.FC = () => {
 
   const safeSessionHtml = useMemo(() => sanitizeKnowledgeHtml(sessionHtml), [sessionHtml]);
   const safeDocumentPreviewHtml = useMemo(() => sanitizeKnowledgeHtml(documentContent), [documentContent]);
-  const studyFlipCards = useMemo(() => extractStudyFlipCards(safeSessionHtml), [safeSessionHtml]);
+  const studyFlipCards = useMemo(() => extractStudyFlipCards(safeSessionHtml, language), [safeSessionHtml, language]);
 
   const persistSessionHtml = useCallback(async (html: string): Promise<SessionFlushResult> => {
     const current = activeSessionRef.current;
@@ -445,25 +539,42 @@ export const InteractiveStudyView: React.FC = () => {
     setLeitnerImportNotice("");
     try {
       const existingCards = await getLeitnerCards(user.id);
-      const existingKeys = new Set(existingCards
-        .filter((card) => card.document_id === selectedDocument.id)
-        .map((card) => `${normalizeStudyCardText(card.front)}\u0000${normalizeStudyCardText(card.back)}`));
+      const existingKeys = new Set<string>();
+      for (const card of existingCards.filter((c) => c.document_id === selectedDocument.id)) {
+        if (card.front && card.back) {
+          existingKeys.add(`${normalizeStudyCardText(card.front)}\u0000${normalizeStudyCardText(card.back)}`);
+        }
+        if (card.front_fa && card.back_fa) {
+          existingKeys.add(`fa:${normalizeStudyCardText(card.front_fa)}\u0000${normalizeStudyCardText(card.back_fa)}`);
+        }
+        if (card.front_en && card.back_en) {
+          existingKeys.add(`en:${normalizeStudyCardText(card.front_en)}\u0000${normalizeStudyCardText(card.back_en)}`);
+        }
+      }
       let added = 0;
       let skipped = 0;
       for (const card of studyFlipCards) {
         const key = `${normalizeStudyCardText(card.front)}\u0000${normalizeStudyCardText(card.back)}`;
-        if (existingKeys.has(key)) {
+        const keyFa = card.front_fa && card.back_fa ? `fa:${normalizeStudyCardText(card.front_fa)}\u0000${normalizeStudyCardText(card.back_fa)}` : null;
+        const keyEn = card.front_en && card.back_en ? `en:${normalizeStudyCardText(card.front_en)}\u0000${normalizeStudyCardText(card.back_en)}` : null;
+
+        if (existingKeys.has(key) || (keyFa && existingKeys.has(keyFa)) || (keyEn && existingKeys.has(keyEn))) {
           skipped += 1;
           continue;
         }
         await createLeitnerCard(user.id, {
           front: card.front,
           back: card.back,
-          ...(language === "en" ? { front_en: card.front, back_en: card.back } : { front_fa: card.front, back_fa: card.back }),
+          ...(card.front_fa ? { front_fa: card.front_fa } : {}),
+          ...(card.back_fa ? { back_fa: card.back_fa } : {}),
+          ...(card.front_en ? { front_en: card.front_en } : {}),
+          ...(card.back_en ? { back_en: card.back_en } : {}),
           document_id: selectedDocument.id,
           folder_id: selectedDocument.folder_id || null,
         });
         existingKeys.add(key);
+        if (keyFa) existingKeys.add(keyFa);
+        if (keyEn) existingKeys.add(keyEn);
         added += 1;
       }
       setLeitnerImportNotice(isEnRef.current
@@ -903,6 +1014,8 @@ export const InteractiveStudyView: React.FC = () => {
           onOpenChange={setStudioOpen}
           documentTitle={documentTitle}
           documentContent={documentContent}
+          documentTitleEn={selectedDocument.title_en?.trim() || ""}
+          documentContentEn={selectedDocument.content_en || ""}
           onInsertContent={handleSessionReady}
           onWorkflowStepChange={setModalWorkflowStep}
           presentationMode="standalone"

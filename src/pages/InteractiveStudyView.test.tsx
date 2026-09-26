@@ -2,7 +2,7 @@ import React from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
-import InteractiveStudyView from "./InteractiveStudyView";
+import InteractiveStudyView, { extractStudyFlipCards } from "./InteractiveStudyView";
 
 const {
   mockGetKnowledgeDocuments,
@@ -382,5 +382,161 @@ describe("InteractiveStudyView", () => {
     expect(await screen.findByText("جلسهٔ ذخیره‌شده را ادامه بده.")).toBeInTheDocument();
     expect(container.querySelector(".interactive-flip-card")).toHaveTextContent("Recovered card");
     expect(mockPersistStudySession).not.toHaveBeenCalled();
+  });
+
+  describe("extractStudyFlipCards and Leitner import deduplication", () => {
+    it("extracts bilingual flip cards with separated language fields instead of flattening them", () => {
+      const bilingualHtml = `
+        <div class="interactive-learning-block">
+          <div class="interactive-flip-card">
+            <div class="flip-card-front">
+              <p class="flip-text">
+                <span class="flip-lang-fa" lang="fa" dir="rtl">سوال فارسی ۱</span>
+                <span class="flip-lang-en" lang="en" dir="ltr">Question English 1</span>
+              </p>
+            </div>
+            <div class="flip-card-back">
+              <p class="flip-text">
+                <span class="flip-lang-fa" lang="fa" dir="rtl">پاسخ فارسی ۱</span>
+                <span class="flip-lang-en" lang="en" dir="ltr">Answer English 1</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const cardsEn = extractStudyFlipCards(bilingualHtml, "en");
+      expect(cardsEn).toHaveLength(1);
+      expect(cardsEn[0].front).toBe("Question English 1");
+      expect(cardsEn[0].back).toBe("Answer English 1");
+      expect(cardsEn[0].front_fa).toBe("سوال فارسی ۱");
+      expect(cardsEn[0].front_en).toBe("Question English 1");
+      expect(cardsEn[0].back_fa).toBe("پاسخ فارسی ۱");
+      expect(cardsEn[0].back_en).toBe("Answer English 1");
+
+      const cardsFa = extractStudyFlipCards(bilingualHtml, "fa");
+      expect(cardsFa[0].front).toBe("سوال فارسی ۱");
+      expect(cardsFa[0].back).toBe("پاسخ فارسی ۱");
+      expect(cardsFa[0].front_fa).toBe("سوال فارسی ۱");
+      expect(cardsFa[0].front_en).toBe("Question English 1");
+    });
+
+    it("extracts monolingual Persian and English cards with honest fallback without fake translations", () => {
+      const persianHtml = `
+        <div class="interactive-flip-card">
+          <div class="flip-card-front"><p class="flip-text">کاربرد متفورمین چیست؟</p></div>
+          <div class="flip-card-back"><p class="flip-text">کاهش گلوکز خون در دیابت نوع ۲</p></div>
+        </div>
+      `;
+      const cardsFa = extractStudyFlipCards(persianHtml, "fa");
+      expect(cardsFa).toHaveLength(1);
+      expect(cardsFa[0].front_fa).toBe("کاربرد متفورمین چیست؟");
+      expect(cardsFa[0].front_en).toBeUndefined();
+
+      const englishHtml = `
+        <div class="interactive-flip-card">
+          <div class="flip-card-front"><p class="flip-text">What is the indication for Metformin?</p></div>
+          <div class="flip-card-back"><p class="flip-text">Type 2 diabetes mellitus glycemic control</p></div>
+        </div>
+      `;
+      const cardsEn = extractStudyFlipCards(englishHtml, "en");
+      expect(cardsEn).toHaveLength(1);
+      expect(cardsEn[0].front_en).toBe("What is the indication for Metformin?");
+      expect(cardsEn[0].front_fa).toBeUndefined();
+    });
+
+    it("imports bilingual flashcards to Leitner deck and skips duplicates cleanly", async () => {
+      const savedDraft = {
+        id: "bilingual-session",
+        user_id: "study-user",
+        document_id: "doc-1",
+        document_title: "Sample guide",
+        language: "en",
+        content_html: `
+          <div class="interactive-learning-block">
+            <div class="interactive-flip-card">
+              <div class="flip-card-front">
+                <p class="flip-text">
+                  <span class="flip-lang-fa">سوال یک</span>
+                  <span class="flip-lang-en">Question One</span>
+                </p>
+              </div>
+              <div class="flip-card-back">
+                <p class="flip-text">
+                  <span class="flip-lang-fa">پاسخ یک</span>
+                  <span class="flip-lang-en">Answer One</span>
+                </p>
+              </div>
+            </div>
+            <div class="interactive-flip-card">
+              <div class="flip-card-front">
+                <p class="flip-text">
+                  <span class="flip-lang-fa">سوال دو</span>
+                  <span class="flip-lang-en">Question Two</span>
+                </p>
+              </div>
+              <div class="flip-card-back">
+                <p class="flip-text">
+                  <span class="flip-lang-fa">پاسخ دو</span>
+                  <span class="flip-lang-en">Answer Two</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        `,
+        status: "in_progress",
+        created_at: "2026-09-24T12:00:00.000Z",
+        updated_at: "2026-09-25T00:00:00.000Z",
+      };
+
+      // Mock existing cards: Card One already exists in the Leitner deck for doc-1
+      mockGetLeitnerCards.mockResolvedValueOnce([
+        {
+          id: "existing-card-1",
+          user_id: "study-user",
+          document_id: "doc-1",
+          front: "Question One",
+          back: "Answer One",
+          front_en: "Question One",
+          back_en: "Answer One",
+          front_fa: "سوال یک",
+          back_fa: "پاسخ یک",
+          box: 1,
+          next_review_at: new Date().toISOString(),
+          review_count: 0,
+          lapse_count: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ]);
+      mockLoadStudyDraft.mockResolvedValueOnce({ ok: true, session: savedDraft, source: "remote" });
+
+      renderStudio();
+      const sampleLesson = await screen.findByRole("button", { name: /Sample guide/i });
+      await actEvent(() => fireEvent.click(sampleLesson));
+
+      // Wait for session and Leitner button
+      const addCardsBtn = await screen.findByRole("button", { name: /افزودن کارت‌ها|Add flashcards/i });
+      expect(addCardsBtn).toBeEnabled();
+
+      await actEvent(() => fireEvent.click(addCardsBtn));
+
+      // Should only add Card Two (Card One was skipped as duplicate)
+      await waitFor(() => expect(mockCreateLeitnerCard).toHaveBeenCalledTimes(1));
+      expect(mockCreateLeitnerCard).toHaveBeenCalledWith("study-user", expect.objectContaining({
+        front: "Question Two",
+        back: "Answer Two",
+        front_fa: "سوال دو",
+        back_fa: "پاسخ دو",
+        front_en: "Question Two",
+        back_en: "Answer Two",
+        document_id: "doc-1",
+        folder_id: "folder-root",
+      }));
+
+      // Status notice reports 1 added and 1 skipped
+      expect(screen.getByText(/1 فلش‌کارت به لایتنر اضافه شد|1 flashcard added/i)).toBeInTheDocument();
+      expect(screen.getByText(/1 مورد تکراری رد شد|1 duplicate skipped/i)).toBeInTheDocument();
+    });
   });
 });

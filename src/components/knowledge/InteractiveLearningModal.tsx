@@ -39,9 +39,11 @@ interface InteractiveLearningModalProps {
   documentId?: string;
   documentTitle: string;
   documentContent: string;
-  onInsertContent: (html: string, mode: "append" | "replace") => void;
+  documentTitleEn?: string;
+  documentContentEn?: string;
+  onInsertContent: (html: string, mode: "append" | "replace") => void | Promise<void>;
   presentationMode?: "editor" | "standalone";
-  languageOverride?: "fa" | "en";
+  languageOverride?: "fa" | "en" | "bilingual";
   onWorkflowStepChange?: (step: 2 | 3) => void;
 }
 
@@ -51,13 +53,19 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
   documentId,
   documentTitle,
   documentContent,
+  documentTitleEn,
+  documentContentEn,
   onInsertContent,
   presentationMode = "editor",
   languageOverride,
   onWorkflowStepChange,
 }) => {
   const { isEn: appIsEn } = useBilingual();
-  const isEn = languageOverride ? languageOverride === "en" : appIsEn;
+  const effectiveLanguage: "fa" | "en" | "bilingual" =
+    languageOverride ?? (appIsEn ? "en" : "fa");
+  const isEn = effectiveLanguage === "en";
+  const isBilingual = effectiveLanguage === "bilingual";
+  const [isApplying, setIsApplying] = useState(false);
   const [selectedPresets, setSelectedPresets] = useState<InteractiveWidgetType[]>([
     "flip_card",
     "quiz_mcq",
@@ -79,7 +87,7 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
     setActiveTab("presets");
     setGeneratedHtml("");
     setIsGenerating(false);
-  }, [documentContent, documentId, documentTitle, isEn]);
+  }, [documentContent, documentContentEn, documentId, documentTitle, documentTitleEn, effectiveLanguage]);
 
   useEffect(() => {
     if (!open) return;
@@ -132,7 +140,9 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
       toast.error(
         isEn
           ? "Please select at least one preset or write custom instructions."
-          : "لطفاً حداقل یک الگوی تعاملی انتخاب کنید یا توضیحات سفارشی خود را بنویسید."
+          : isBilingual
+            ? "Please select at least one preset or write custom instructions. / لطفاً حداقل یک الگوی تعاملی انتخاب کنید."
+            : "لطفاً حداقل یک الگوی تعاملی انتخاب کنید یا توضیحات سفارشی خود را بنویسید."
       );
       return;
     }
@@ -143,21 +153,34 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
       const html = await generateInteractiveContent({
         title: documentTitle || (isEn ? "Interactive Lesson" : "درس تعاملی"),
         content: documentContent || "",
+        titleEn: documentTitleEn,
+        contentEn: documentContentEn,
         selectedPresets,
         customPrompt,
-        language: isEn ? "en" : "fa",
+        language: effectiveLanguage,
       });
 
       if (generationSequence !== generationSequenceRef.current) return;
       setGeneratedHtml(html);
       showPreview();
       toast.success(
-        isEn ? "Interactive widgets generated!" : "ماژول‌های تعاملی با موفقیت ساخته شدند!"
+        isEn
+          ? "Interactive widgets generated!"
+          : isBilingual
+            ? "Interactive widgets generated! / ماژول‌های تعاملی با موفقیت ساخته شدند!"
+            : "ماژول‌های تعاملی با موفقیت ساخته شدند!"
       );
     } catch (err: any) {
       if (generationSequence !== generationSequenceRef.current) return;
       console.error("Error generating interactive widgets:", err);
-      toast.error(err.message || (isEn ? "Generation failed" : "خطا در تولید محتوای تعاملی"));
+      toast.error(
+        err.message ||
+          (isEn
+            ? "Generation failed"
+            : isBilingual
+              ? "Generation failed / خطا در تولید محتوای تعاملی"
+              : "خطا در تولید محتوای تعاملی")
+      );
     } finally {
       if (generationSequence === generationSequenceRef.current) setIsGenerating(false);
     }
@@ -166,32 +189,45 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
   // Attach interactive click listeners to preview
   useEffect(() => {
     if (activeTab === "preview" && previewContainerRef.current && generatedHtml) {
-      const cleanup = attachInteractiveListeners(previewContainerRef.current, undefined, isEn ? "en" : "fa");
+      const cleanup = attachInteractiveListeners(previewContainerRef.current, undefined, effectiveLanguage);
       return cleanup;
     }
-  }, [activeTab, generatedHtml, isEn]);
+  }, [activeTab, effectiveLanguage, generatedHtml]);
 
-  const handleApply = (mode: "append" | "replace") => {
-    if (!generatedHtml) return;
-    onInsertContent(generatedHtml, mode);
-    if (presentationMode === "standalone") {
-      toast.success(isEn ? "Interactive study session is ready." : "جلسهٔ آموزش تعاملی آماده است.");
-    } else {
-      toast.success(
-        mode === "append"
-          ? isEn
-            ? "Interactive widgets appended to lesson!"
-            : "ماژول‌های تعاملی به انتهای درس اضافه شدند!"
-          : isEn
-            ? "Lesson content replaced with interactive module!"
-            : "محتوای درس با ماژول تعاملی جایگزین شد!"
+  const handleApply = async (mode: "append" | "replace") => {
+    if (!generatedHtml || isApplying) return;
+    setIsApplying(true);
+    try {
+      await onInsertContent(generatedHtml, mode);
+      if (presentationMode === "standalone") {
+        toast.success(isEn ? "Interactive study session is ready." : "جلسهٔ آموزش تعاملی آماده است.");
+      } else {
+        toast.success(
+          mode === "append"
+            ? isEn
+              ? "Interactive widgets appended to lesson!"
+              : "ماژول‌های تعاملی به انتهای درس اضافه شدند!"
+            : isEn
+              ? "Lesson content replaced with interactive module!"
+              : "محتوای درس با ماژول تعاملی جایگزین شد!"
+        );
+      }
+      onOpenChange(false);
+    } catch (err: any) {
+      console.error("Error applying interactive content:", err);
+      toast.error(
+        err?.message ||
+          (isEn
+            ? "Failed to save interactive content"
+            : "خطا در ذخیره محتوای تعاملی")
       );
+    } finally {
+      setIsApplying(false);
     }
-    onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(val) => { if (!isApplying) onOpenChange(val); }}>
       <DialogContent
         dir={isEn ? "ltr" : "rtl"}
         className="max-w-4xl w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden bg-card border border-border rounded-3xl shadow-xl"
@@ -397,8 +433,9 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
           <div className="flex flex-wrap items-center justify-end gap-2 w-full sm:w-auto">
             <button
               type="button"
+              disabled={isApplying}
               onClick={() => onOpenChange(false)}
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground transition cursor-pointer"
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground transition cursor-pointer disabled:opacity-50"
             >
               {isEn ? "Close" : "بستن"}
             </button>
@@ -422,29 +459,44 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
                 {presentationMode === "standalone" ? (
                   <button
                     type="button"
+                    disabled={isApplying}
                     onClick={() => handleApply("replace")}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold shadow-xs transition cursor-pointer"
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold shadow-xs transition cursor-pointer disabled:opacity-50"
                   >
-                    <Gamepad2 className="w-3.5 h-3.5" />
+                    {isApplying ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Gamepad2 className="w-3.5 h-3.5" />
+                    )}
                     <span>{isEn ? "Start study session" : "شروع جلسهٔ مطالعه"}</span>
                   </button>
                 ) : (
                   <>
                     <button
                       type="button"
+                      disabled={isApplying}
                       onClick={() => handleApply("append")}
-                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground border border-border text-xs font-bold transition cursor-pointer"
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground border border-border text-xs font-bold transition cursor-pointer disabled:opacity-50"
                     >
-                      <Plus className="w-3.5 h-3.5 text-primary" />
+                      {isApplying ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Plus className="w-3.5 h-3.5 text-primary" />
+                      )}
                       <span>{isEn ? "Append to Lesson" : "افزودن به انتهای درس"}</span>
                     </button>
 
                     <button
                       type="button"
+                      disabled={isApplying}
                       onClick={() => handleApply("replace")}
-                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold shadow-xs transition cursor-pointer"
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold shadow-xs transition cursor-pointer disabled:opacity-50"
                     >
-                      <Wand2 className="w-3.5 h-3.5" />
+                      {isApplying ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Wand2 className="w-3.5 h-3.5" />
+                      )}
                       <span>{isEn ? "Replace Full Lesson" : "جایگزینی کل محتوا"}</span>
                     </button>
                   </>
