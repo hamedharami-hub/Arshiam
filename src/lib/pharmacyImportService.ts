@@ -8,6 +8,10 @@ import { calculateNextReviewDate, getLeitnerCardsCacheKey } from "./leitnerServi
 import { PHARMACY_ROOT_FOLDER_ID } from "./pharmacyConstants";
 import { getSafeKnowledgeExternalUrl } from "./knowledgeReviewEvidence";
 import { applyPharmacyClinicalEditorialOverrides } from "./pharmacyClinicalEditorialOverrides";
+import {
+  PHARMACY_SEED_UPGRADE_CARD_BASELINES,
+  PHARMACY_SEED_UPGRADE_DOCUMENT_BASELINES,
+} from "./pharmacySeedUpgradeBaseline";
 
 type SeedData = typeof import("./pharmacySeedData");
 type LegacySeedData = typeof import("./pharmacyLegacySeedData");
@@ -21,6 +25,7 @@ export interface PharmacyImportStatus {
   docsMissing: number;
   docsUpgradeable: number;
   cardsMissing: number;
+  cardsUpgradeable: number;
   legacyDetected: boolean;
 }
 
@@ -29,6 +34,7 @@ export interface PharmacyImportResult {
   docsCount: number;
   cardsCount: number;
   docsUpdated: number;
+  cardsUpdated: number;
   status: PharmacyImportStatus;
 }
 
@@ -89,6 +95,7 @@ export function comparePharmacySeed(seed: SeedData, remote: Snapshot): PharmacyI
     docsMissing: seed.PHARMACY_SEED_DOCUMENTS.filter((item) => !docIds.has(item.id)).length,
     docsUpgradeable: 0,
     cardsMissing: seed.PHARMACY_SEED_CARDS.filter((item) => !cardIds.has(item.id)).length,
+    cardsUpgradeable: 0,
     legacyDetected: remote.folders.some(
       (item) => item.id !== PHARMACY_ROOT_FOLDER_ID &&
         (item.name.includes("دایره‌المعارف و آموزش دارویی") || item.name.includes("Pharmacy Knowledge")),
@@ -120,22 +127,52 @@ function getUpgradeableDocuments(
   legacy: LegacySeedData,
   remote: Snapshot,
   previousCurrentSeed?: SeedData,
+  historicalBaselines: typeof PHARMACY_SEED_UPGRADE_DOCUMENT_BASELINES = PHARMACY_SEED_UPGRADE_DOCUMENT_BASELINES,
 ): KnowledgeDocument[] {
   const newById = new Map(seed.PHARMACY_SEED_DOCUMENTS.map((item) => [item.id, item]));
   const oldById = new Map(legacy.PHARMACY_SEED_DOCUMENTS.map((item) => [item.id, item]));
   const previousById = new Map((previousCurrentSeed?.PHARMACY_SEED_DOCUMENTS || []).map((item) => [item.id, item]));
+  const historicalById = new Map(historicalBaselines.map((item) => [item.id, item]));
   return remote.documents.filter((doc) => {
     const old = oldById.get(doc.id);
     const previous = previousById.get(doc.id);
+    const historical = historicalById.get(doc.id);
     const next = newById.get(doc.id);
     const matchesKnownBaseline = Boolean(
-      (old && matchesUneditedLegacy(doc, old)) || (previous && matchesUneditedLegacy(doc, previous)),
+      (old && matchesUneditedLegacy(doc, old)) ||
+      (previous && matchesUneditedLegacy(doc, previous)) ||
+      (historical && matchesUneditedLegacy(doc, historical)),
     );
     return matchesKnownBaseline && next &&
       (doc.content_html !== next.content_html || doc.content_en !== next.content_en ||
         doc.folder_id !== next.folder_id || doc.title !== next.title || doc.title_en !== next.title_en ||
         JSON.stringify(doc.tags || []) !== JSON.stringify(next.tags || []) || doc.source_url !== next.source_url ||
         doc.content_review_status !== next.content_review_status);
+  });
+}
+
+function matchesUneditedCard(
+  current: LeitnerCard,
+  baseline: typeof PHARMACY_SEED_UPGRADE_CARD_BASELINES[number],
+): boolean {
+  return current.id === baseline.id && current.front === baseline.front && current.back === baseline.back &&
+    current.clue === baseline.clue && current.document_id === baseline.document_id &&
+    current.folder_id === baseline.folder_id;
+}
+
+function getUpgradeableCards(
+  seed: SeedData,
+  remote: Snapshot,
+  historicalBaselines = PHARMACY_SEED_UPGRADE_CARD_BASELINES,
+): LeitnerCard[] {
+  const currentById = new Map(seed.PHARMACY_SEED_CARDS.map((item) => [item.id, item]));
+  const historicalById = new Map(historicalBaselines.map((item) => [item.id, item]));
+  return remote.cards.filter((card) => {
+    const baseline = historicalById.get(card.id);
+    const next = currentById.get(card.id);
+    return Boolean(baseline && next && matchesUneditedCard(card, baseline) &&
+      (card.front !== next.front || card.back !== next.back || card.clue !== next.clue ||
+        card.document_id !== next.document_id || card.folder_id !== next.folder_id));
   });
 }
 
@@ -147,13 +184,15 @@ export async function getPharmacyImportStatus(userId: string): Promise<PharmacyI
   const seed = applyPharmacyClinicalEditorialOverrides(rawSeed);
   const status = comparePharmacySeed(seed, remote);
   status.docsUpgradeable = getUpgradeableDocuments(seed, legacy, remote, rawSeed).length;
+  status.cardsUpgradeable = getUpgradeableCards(seed, remote).length;
   return status;
 }
 
 export async function isPharmacyImported(userId: string): Promise<boolean> {
   if (!userId || userId === "anonymous-kb-user") return false;
   const status = await getPharmacyImportStatus(userId);
-  return status.foldersMissing === 0 && status.docsMissing === 0 && status.docsUpgradeable === 0 && status.cardsMissing === 0;
+  return status.foldersMissing === 0 && status.docsMissing === 0 && status.docsUpgradeable === 0 &&
+    status.cardsMissing === 0 && status.cardsUpgradeable === 0;
 }
 
 function plainText(document: KnowledgeDocument): string {
@@ -191,8 +230,9 @@ async function saveMissing<T extends { id: string }>(
 }
 
 /**
- * Adds only IDs absent from the server. Existing server documents and Leitner progress
- * are never overwritten. Pending offline edits must sync before an import starts.
+ * Adds missing IDs and refreshes only records that still exactly match a known authored
+ * seed baseline. Personal content edits are left untouched; Leitner scheduling state is
+ * preserved when an unchanged seed card is refreshed. Pending edits must sync first.
  * A partial failure is safe to retry: the next run checks the server again.
  */
 export async function importPharmacyKnowledge(
@@ -254,6 +294,19 @@ export async function importPharmacyKnowledge(
       updated_at: now,
     };
   });
+  const seedCardMap = new Map(seed.PHARMACY_SEED_CARDS.map((item) => [item.id, item]));
+  const upgradedCards = options?.importCards === false ? [] : getUpgradeableCards(seed, remote).map((old) => {
+    const next = seedCardMap.get(old.id)!;
+    return {
+      ...old,
+      front: next.front,
+      back: next.back,
+      clue: next.clue,
+      document_id: next.document_id,
+      folder_id: next.folder_id,
+      updated_at: now,
+    };
+  });
   const cards = options?.importCards === false ? [] : seed.PHARMACY_SEED_CARDS
     .filter((item) => !remoteCardIds.has(item.id))
     .map((item) => ({
@@ -267,12 +320,16 @@ export async function importPharmacyKnowledge(
       updated_at: now,
     }));
 
-  const progress = { completed: 0, total: folders.length + documents.length + upgradedDocuments.length + cards.length };
+  const progress = {
+    completed: 0,
+    total: folders.length + documents.length + upgradedDocuments.length + cards.length + upgradedCards.length,
+  };
   try {
     await saveMissing(userId, "knowledge_folders", folders, options?.onProgress, progress);
     await saveMissing(userId, "knowledge_documents", documents, options?.onProgress, progress);
     await saveMissing(userId, "knowledge_documents", upgradedDocuments, options?.onProgress, progress);
     await saveMissing(userId, "leitner_cards", cards, options?.onProgress, progress);
+    await saveMissing(userId, "leitner_cards", upgradedCards, options?.onProgress, progress);
   } finally {
     // A successful remote read is authoritative; stale cache rows must not
     // reappear after an import or after a deletion on another device.
@@ -287,8 +344,9 @@ export async function importPharmacyKnowledge(
   const verified = await readRemote(userId);
   const status = comparePharmacySeed(seed, verified);
   status.docsUpgradeable = getUpgradeableDocuments(seed, legacy, verified, rawSeed).length;
+  status.cardsUpgradeable = getUpgradeableCards(seed, verified).length;
   const remaining = status.foldersMissing + status.docsMissing + status.docsUpgradeable +
-    (options?.importCards === false ? 0 : status.cardsMissing);
+    (options?.importCards === false ? 0 : status.cardsMissing + status.cardsUpgradeable);
   if (remaining > 0) {
     throw new Error(`${remaining} pharmacy items were not verified on the server. Retry to resume safely.`);
   }
@@ -298,6 +356,7 @@ export async function importPharmacyKnowledge(
     docsCount: documents.length,
     cardsCount: cards.length,
     docsUpdated: upgradedDocuments.length,
+    cardsUpdated: upgradedCards.length,
     status,
   };
 }

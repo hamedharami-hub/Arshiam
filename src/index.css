@@ -829,31 +829,48 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
   text-align: left;
 }
 
+.knowledge-html-content {
+  overflow-wrap: anywhere;
+}
+
 /* Bilingual Dual Column Grid */
+.knowledge-reader-shell {
+  min-width: 0;
+  container: knowledge-reader / inline-size;
+}
+
 .bilingual-dual-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.5rem;
 }
 
-@media (min-width: 768px) {
+@container knowledge-reader (min-width: 760px) {
   .bilingual-dual-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 2rem;
+  }
+
+  .bilingual-col-fa {
+    border-inline-end: 1px solid hsl(var(--border) / 0.7);
+    padding-inline-end: 1.25rem;
+  }
+
+  .bilingual-col-en {
+    padding-inline-start: 0.25rem;
   }
 }
 
 .bilingual-col-fa {
+  min-width: 0;
   direction: rtl;
   text-align: right;
-  border-inline-end: 1px solid hsl(var(--border) / 0.7);
-  padding-inline-end: 1.25rem;
 }
 
 .bilingual-col-en {
+  min-width: 0;
   direction: ltr;
   text-align: left;
-  padding-inline-start: 0.25rem;
 }
 
 .knowledge-html-content h1,
@@ -865,6 +882,7 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
   margin-top: 1.5em;
   margin-bottom: 0.6em;
   line-height: 1.35;
+  text-wrap: pretty;
 }
 
 .knowledge-html-content h1 {
@@ -1180,6 +1198,63 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
   box-shadow: 0 8px 30px -10px hsl(var(--primary) / 0.12);
   position: relative;
   overflow: hidden;
+}
+
+/* Interactive study output may mix Persian and English in the same widget.
+   Let each text block establish its own bidi base without flipping the layout
+   direction of the surrounding controls or cards. */
+.interactive-learning-block :is(
+  .interactive-block-title,
+  .flip-badge,
+  .flip-badge-answer,
+  .flip-text,
+  .quiz-badge,
+  .quiz-question,
+  .option-text,
+  .quiz-explanation,
+  .pair-instruction,
+  .interactive-pair-btn,
+  .pair-feedback,
+  .case-badge,
+  .case-title,
+  .step-num,
+  .step-text,
+  .step-key-point,
+  .step-completed-badge,
+  .cloze-title,
+  .interactive-cloze-title,
+  .cloze-paragraph,
+  .interactive-cloze-blank,
+  .node-question,
+  .decision-choice-btn,
+  .node-alert,
+  .memory-instruction,
+  .tile-back
+) {
+  unicode-bidi: plaintext;
+  overflow-wrap: anywhere;
+}
+
+.interactive-learning-block :is(
+  .interactive-block-title,
+  .flip-badge,
+  .flip-badge-answer,
+  .flip-text,
+  .quiz-question,
+  .quiz-explanation,
+  .pair-instruction,
+  .case-title,
+  .step-num,
+  .step-text,
+  .step-key-point,
+  .cloze-title,
+  .interactive-cloze-title,
+  .cloze-paragraph,
+  .node-question,
+  .node-alert,
+  .memory-instruction
+) {
+  text-align: start;
 }
 
 .interactive-block-header {
@@ -1795,6 +1870,49 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
   0%, 100% { transform: translateX(0); }
   20%, 60% { transform: translateX(-6px); }
   40%, 80% { transform: translateX(6px); }
+}
+
+.leitner-focus-dialog {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.leitner-focus-dialog > button:last-of-type {
+  display: none;
+}
+
+.leitner-focus-dialog[data-study-theme="oled"] {
+  --background: 0 0% 0%;
+  --foreground: 210 20% 96%;
+  --card: 0 0% 6%;
+  --card-foreground: 210 20% 96%;
+  --popover: 0 0% 7%;
+  --popover-foreground: 210 20% 96%;
+  --secondary: 0 0% 13%;
+  --secondary-foreground: 210 20% 96%;
+  --muted: 0 0% 13%;
+  --muted-foreground: 210 10% 68%;
+  --accent: 0 0% 17%;
+  --accent-foreground: 210 20% 96%;
+  --border: 0 0% 20%;
+  --input: 0 0% 20%;
+}
+
+.leitner-focus-dialog[data-study-theme="paper"] {
+  --background: 42 42% 96%;
+  --foreground: 26 22% 16%;
+  --card: 42 50% 99%;
+  --card-foreground: 26 22% 16%;
+  --popover: 42 50% 99%;
+  --popover-foreground: 26 22% 16%;
+  --secondary: 38 25% 91%;
+  --secondary-foreground: 26 22% 16%;
+  --muted: 38 28% 92%;
+  --muted-foreground: 28 12% 42%;
+  --accent: 38 35% 88%;
+  --accent-foreground: 26 22% 16%;
+  --border: 35 20% 82%;
+  --input: 35 20% 82%;
 }
 
 

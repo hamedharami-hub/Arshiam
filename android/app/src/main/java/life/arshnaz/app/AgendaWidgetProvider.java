@@ -79,6 +79,7 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
                 v.setViewVisibility(R.id.agenda_compact_done,View.INVISIBLE);
             } else {
                 boolean completed = primary.optBoolean("completed") || "done".equals(primary.optString("status"));
+                boolean studyReview = AgendaData.isLeitnerStudyTask(primary) && !completed;
                 String summary = primary.optString("title","Untitled task");
                 if (tasks.size() > 1) summary += "\n+ "+(tasks.size()-1)+" more tasks";
                 v.setTextViewText(R.id.agenda_summary,summary);
@@ -86,10 +87,12 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
                     ? (light?R.drawable.widget_checkbox_checked_light:R.drawable.widget_checkbox_checked)
                     : (light?R.drawable.widget_checkbox_background_light:R.drawable.widget_checkbox_background));
                 v.setTextViewText(R.id.agenda_compact_done,completed ? "✓" : "☐");
+                if (studyReview) v.setTextViewText(R.id.agenda_compact_done, "↻");
                 v.setTextColor(R.id.agenda_compact_done,Color.parseColor(completed ? "#FFFFFF" : "#C4B5FD"));
                 v.setViewVisibility(R.id.agenda_compact_done,View.VISIBLE);
                 v.setOnClickPendingIntent(R.id.agenda_summary,taskOpen(c,primary.optString("id"),72000+id));
-                v.setOnClickPendingIntent(R.id.agenda_compact_done,AndroidActionsReceiver.taskPending(c,primary.optString("id"),completed,72010+id));
+                if (studyReview) v.setOnClickPendingIntent(R.id.agenda_compact_done, taskOpen(c,primary.optString("id"),72010+id));
+                else v.setOnClickPendingIntent(R.id.agenda_compact_done,AndroidActionsReceiver.taskPending(c,primary.optString("id"),completed,72010+id));
             }
             v.setTextColor(R.id.agenda_summary,fg);
         } else {
@@ -127,6 +130,20 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
             .setData(Uri.parse("arshnaz://widget-action/open?taskId="+Uri.encode(safeTaskId)+"&owner="+Uri.encode(owner)+"&_uid="+Uri.encode(safeTaskId)))
             .putExtra("taskId", safeTaskId);
         return PendingIntent.getActivity(c,reqCode,intent,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+    }
+    static String studyReviewRoute(JSONObject task, String owner) {
+        if (!AgendaData.isLeitnerStudyTask(task)) return "";
+        String type = task.optString("source_type");
+        String targetId = task.optString("source_id");
+        StringBuilder route = new StringBuilder("review?tab=leitner");
+        if (!targetId.isEmpty() && !"all".equals(targetId)) {
+            route.append("leitner_folder".equals(type) ? "&studyFolderId=" : "&studyDocId=")
+                .append(Uri.encode(targetId));
+        }
+        String taskId = task.optString("id");
+        if (!taskId.isEmpty()) route.append("&studyTaskId=").append(Uri.encode(taskId));
+        if (owner != null && !owner.isEmpty()) route.append("&owner=").append(Uri.encode(owner));
+        return route.toString();
     }
     static Intent appIntent(Context c, String route) {
         Uri data = Uri.parse("arshnaz://"+route);

@@ -12,22 +12,42 @@ import {
   buildFolderTree,
   getFolderAncestorIds,
   searchKnowledgeDocuments,
+  getFoldersCacheKey,
   getDocsCacheKey,
 } from "./knowledgeService";
-import { cacheGet, cacheSet, clearQueue, getPendingOps } from "./offlineQueue";
+import { cacheGet, cacheSet, clearQueue, enqueueOp, getPendingOps } from "./offlineQueue";
+import { deleteEntityFromFirestore, saveEntityToFirestore } from "./firestoreSync";
 import type { KnowledgeDocument } from "./knowledgeTypes";
 
-const { remoteKnowledgeRows } = vi.hoisted(() => ({
+const { remoteKnowledgeRows, remoteFolderRows, remoteLeitnerRows, remoteReadFailure } = vi.hoisted(() => ({
   remoteKnowledgeRows: [] as Record<string, unknown>[],
+  remoteFolderRows: [] as Record<string, unknown>[],
+  remoteLeitnerRows: [] as Record<string, unknown>[],
+  remoteReadFailure: { value: false },
 }));
 
 vi.mock("@/lib/firebaseStore", () => ({
   firebaseStore: {
-    from: () => ({
+    from: (table: string) => ({
       select: () => ({
-        eq: () => ({
-          order: () => Promise.resolve({ data: remoteKnowledgeRows, error: null }),
-        }),
+        eq: () => {
+          const result = remoteReadFailure.value
+            ? { data: null, error: new Error("remote read failed") }
+            : {
+                data: table === "knowledge_folders"
+                  ? remoteFolderRows
+                  : table === "leitner_cards"
+                    ? remoteLeitnerRows
+                    : remoteKnowledgeRows,
+                error: null,
+              };
+          const promise = Promise.resolve(result);
+          return {
+            order: () => promise,
+            then: (resolve: (value: typeof result) => unknown, reject?: (reason: unknown) => unknown) =>
+              promise.then(resolve, reject),
+          };
+        },
       }),
       insert: () => Promise.resolve({ data: null, error: null }),
       update: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
@@ -41,12 +61,38 @@ vi.mock("@/lib/firestoreSync", () => ({
   deleteEntityFromFirestore: vi.fn().mockResolvedValue(true),
 }));
 
+function mockSuccessfulFirestoreWrites() {
+  vi.mocked(saveEntityToFirestore).mockImplementation(async (_userId, collection, id, data) => {
+    const rows = collection === "knowledge_folders"
+      ? remoteFolderRows
+      : collection === "leitner_cards"
+        ? remoteLeitnerRows
+        : remoteKnowledgeRows;
+    const index = rows.findIndex((row) => row.id === id);
+    if (index >= 0) rows[index] = { ...rows[index], ...(data || {}) };
+    return true;
+  });
+  vi.mocked(deleteEntityFromFirestore).mockImplementation(async (_userId, collection, id) => {
+    const rows = collection === "knowledge_folders"
+      ? remoteFolderRows
+      : collection === "leitner_cards"
+        ? remoteLeitnerRows
+        : remoteKnowledgeRows;
+    const index = rows.findIndex((row) => row.id === id);
+    if (index >= 0) rows.splice(index, 1);
+    return true;
+  });
+}
+
 describe("knowledgeService", () => {
   const userId = "user-kb-test";
 
   beforeEach(async () => {
     localStorage.clear();
     remoteKnowledgeRows.length = 0;
+    remoteFolderRows.length = 0;
+    remoteLeitnerRows.length = 0;
+    remoteReadFailure.value = false;
     await clearQueue();
     vi.clearAllMocks();
     vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
@@ -173,6 +219,62 @@ describe("knowledgeService", () => {
       source_url: "javascript:alert(1)",
     })).rejects.toThrow("valid HTTP or HTTPS link");
     expect(await getPendingOps("knowledge_documents")).toHaveLength(0);
+  });
+
+  it("uses the user-scoped Firestore CRUD contract for online document mutations", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    mockSuccessfulFirestoreWrites();
+
+    const document = await createKnowledgeDocument(userId, {
+      title: "Persistence contract",
+      content_html: "<p>Original</p>",
+    });
+    expect(saveEntityToFirestore).toHaveBeenCalledWith(
+      userId,
+      "knowledge_documents",
+      document.id,
+      expect.objectContaining({ id: document.id, user_id: userId }),
+    );
+
+    const updated = await updateKnowledgeDocument(userId, document.id, { title: "Updated title" });
+    expect(saveEntityToFirestore).toHaveBeenCalledWith(
+      userId,
+      "knowledge_documents",
+      document.id,
+      expect.objectContaining({ id: document.id, title: "Updated title" }),
+    );
+
+    await expect(deleteKnowledgeDocument(userId, updated.id)).resolves.toBe(true);
+    expect(deleteEntityFromFirestore).toHaveBeenCalledWith(userId, "knowledge_documents", document.id);
+    const pendingForDocument = (await getPendingOps("knowledge_documents")).filter((item) =>
+      (item.payload as Partial<KnowledgeDocument> | undefined)?.id === document.id ||
+      item.match?.id === document.id,
+    );
+    expect(pendingForDocument).toHaveLength(0);
+  });
+
+  it("keeps a rejected online write in the durable owner-scoped outbox", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    vi.mocked(saveEntityToFirestore).mockResolvedValue(false);
+
+    const document = await createKnowledgeDocument(userId, {
+      title: "Pending sync",
+      content_html: "<p>Keep this change until Firestore accepts it</p>",
+    });
+
+    const pending = (await getPendingOps("knowledge_documents")).find((item) =>
+      (item.payload as Partial<KnowledgeDocument> | undefined)?.id === document.id,
+    );
+    expect(pending).toEqual(expect.objectContaining({
+      ownerId: userId,
+      table: "knowledge_documents",
+      op: "insert",
+    }));
+    expect(pending?.payload).toEqual(expect.objectContaining({
+      id: document.id,
+      title: "Pending sync",
+      user_id: userId,
+    }));
   });
 
   it("persists structured review evidence without adding it to documents that do not opt in", async () => {
@@ -315,6 +417,8 @@ describe("knowledgeService", () => {
   });
 
   it("5. updates and deletes documents cleanly", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    mockSuccessfulFirestoreWrites();
     const doc = await createKnowledgeDocument(userId, {
       title: "Draft Doc",
       content_html: "<p>Old Content</p>",
@@ -335,45 +439,194 @@ describe("knowledgeService", () => {
     expect(single).toBeNull();
   });
 
-  it("reparents knowledge documents and child folders before deleting a folder", async () => {
-    const parent = await createKnowledgeFolder(userId, { name: "Parent" });
-    const target = await createKnowledgeFolder(userId, { name: "To remove", parent_id: parent.id });
-    const child = await createKnowledgeFolder(userId, { name: "Keep child", parent_id: target.id });
-    const nested = await createKnowledgeFolder(userId, { name: "Keep nested", parent_id: child.id });
-    const doc = await createKnowledgeDocument(userId, {
-      folder_id: target.id,
-      title: "Keep this knowledge",
-      content_html: "<p>Preserved content</p>",
+  it("keeps a lesson when remote Leitner cards still reference it", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    const doc: KnowledgeDocument = {
+      id: "linked-lesson",
+      user_id: userId,
+      folder_id: null,
+      title: "Linked lesson",
+      content_html: "<p>Keep the source lesson</p>",
+      created_at: "2026-09-20T00:00:00.000Z",
+      updated_at: "2026-09-20T00:00:00.000Z",
+    };
+    remoteKnowledgeRows.push(doc as unknown as Record<string, unknown>);
+    remoteLeitnerRows.push({ id: "linked-card", user_id: userId, document_id: doc.id });
+    await cacheSet(getDocsCacheKey(userId), [doc]);
+
+    await expect(deleteKnowledgeDocument(userId, doc.id)).rejects.toMatchObject({
+      reason: "linked-cards",
+      linkedCardCount: 1,
     });
+
+    expect(remoteKnowledgeRows).toContainEqual(doc);
+    expect(deleteEntityFromFirestore).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id);
+  });
+
+  it("also blocks deletion for a linked card waiting in the durable outbox", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    const doc: KnowledgeDocument = {
+      id: "queued-card-lesson",
+      user_id: userId,
+      folder_id: null,
+      title: "Queued card lesson",
+      content_html: "<p>Keep the source lesson</p>",
+      created_at: "2026-09-20T00:00:00.000Z",
+      updated_at: "2026-09-20T00:00:00.000Z",
+    };
+    remoteKnowledgeRows.push(doc as unknown as Record<string, unknown>);
+    await cacheSet(getDocsCacheKey(userId), [doc]);
+    await enqueueOp({
+      ownerId: userId,
+      table: "leitner_cards",
+      op: "insert",
+      payload: { id: "queued-card", user_id: userId, document_id: doc.id },
+    });
+
+    await expect(deleteKnowledgeDocument(userId, doc.id)).rejects.toMatchObject({
+      reason: "linked-cards",
+      linkedCardCount: 1,
+    });
+    expect(deleteEntityFromFirestore).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id);
+  });
+
+  it("fails closed when linked cards cannot be checked, including while offline", async () => {
+    const doc: KnowledgeDocument = {
+      id: "unverified-lesson",
+      user_id: userId,
+      folder_id: null,
+      title: "Unverified lesson",
+      content_html: "<p>Keep the source lesson</p>",
+      created_at: "2026-09-20T00:00:00.000Z",
+      updated_at: "2026-09-20T00:00:00.000Z",
+    };
+    await cacheSet(getDocsCacheKey(userId), [doc]);
+
+    await expect(deleteKnowledgeDocument(userId, doc.id)).rejects.toMatchObject({ reason: "offline" });
+    expect(deleteEntityFromFirestore).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id);
+
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    remoteReadFailure.value = true;
+    await expect(deleteKnowledgeDocument(userId, doc.id)).rejects.toMatchObject({ reason: "verify-cards" });
+    expect(deleteEntityFromFirestore).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id);
+  });
+
+  it("reparents knowledge documents and child folders before deleting a folder", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    const parent = { id: "parent", user_id: userId, parent_id: null, name: "Parent", created_at: "2026-09-01", updated_at: "2026-09-01" };
+    const target = { id: "target", user_id: userId, parent_id: parent.id, name: "To remove", created_at: "2026-09-02", updated_at: "2026-09-02" };
+    const child = { id: "child", user_id: userId, parent_id: target.id, name: "Keep child", created_at: "2026-09-03", updated_at: "2026-09-03" };
+    const nested = { id: "nested", user_id: userId, parent_id: child.id, name: "Keep nested", created_at: "2026-09-04", updated_at: "2026-09-04" };
+    const doc = {
+      id: "document", user_id: userId, folder_id: target.id, title: "Keep this knowledge",
+      content_html: "<p>Preserved content</p>", created_at: "2026-09-05", updated_at: "2026-09-05",
+    };
+    remoteFolderRows.push(parent, target, child, nested);
+    remoteKnowledgeRows.push(doc);
+    await cacheSet(getFoldersCacheKey(userId), [parent, target, child, nested]);
+    await cacheSet(getDocsCacheKey(userId), [doc]);
+    mockSuccessfulFirestoreWrites();
 
     expect(await deleteKnowledgeFolder(userId, target.id)).toBe(true);
 
-    const folders = await getKnowledgeFolders(userId);
-    const documents = await getKnowledgeDocuments(userId);
+    const folders = await cacheGet<typeof remoteFolderRows>(getFoldersCacheKey(userId));
+    const documents = await cacheGet<KnowledgeDocument[]>(getDocsCacheKey(userId));
     expect(folders.some((item) => item.id === target.id)).toBe(false);
     expect(folders.find((item) => item.id === child.id)?.parent_id).toBe(parent.id);
     expect(folders.find((item) => item.id === nested.id)?.parent_id).toBe(child.id);
     expect(documents.find((item) => item.id === doc.id)?.folder_id).toBe(parent.id);
-    const pendingFolders = await getPendingOps("knowledge_folders");
-    const pendingDocuments = await getPendingOps("knowledge_documents");
-    expect(pendingFolders).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        ownerId: userId,
-        op: "update",
-        payload: expect.objectContaining({ id: child.id, parent_id: parent.id }),
-      }),
-      expect.objectContaining({
-        ownerId: userId,
-        op: "delete",
-        match: { id: target.id },
-      }),
-    ]));
-    expect(pendingDocuments).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        ownerId: userId,
-        op: "update",
-        payload: expect.objectContaining({ id: doc.id, folder_id: parent.id }),
-      }),
-    ]));
+    expect(saveEntityToFirestore).toHaveBeenCalledWith(
+      userId, "knowledge_folders", child.id, expect.objectContaining({ parent_id: parent.id }),
+    );
+    expect(saveEntityToFirestore).toHaveBeenCalledWith(
+      userId, "knowledge_documents", doc.id, expect.objectContaining({ folder_id: parent.id }),
+    );
+    expect(deleteEntityFromFirestore).toHaveBeenCalledWith(userId, "knowledge_folders", target.id);
+  });
+
+  it("loads the current remote subtree before deleting so uncached linked content is preserved", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    const parent = {
+      id: "fresh-parent", user_id: userId, parent_id: null, name: "Current parent",
+      created_at: "2026-09-20T00:00:00.000Z", updated_at: "2026-09-20T00:00:00.000Z",
+    };
+    const remoteChild = {
+      id: "fresh-child", user_id: userId, parent_id: parent.id, name: "Not in cache",
+      created_at: "2026-09-21T00:00:00.000Z", updated_at: "2026-09-21T00:00:00.000Z",
+    };
+    const remoteDocument = {
+      id: "fresh-document", user_id: userId, folder_id: parent.id, title: "Remote-only lesson",
+      content_html: "<p>Keep this lesson</p>", created_at: "2026-09-22T00:00:00.000Z",
+      updated_at: "2026-09-22T00:00:00.000Z",
+    };
+    remoteFolderRows.push(parent, remoteChild);
+    remoteKnowledgeRows.push(remoteDocument);
+    await cacheSet(getFoldersCacheKey(userId), [parent]);
+    await cacheSet(getDocsCacheKey(userId), []);
+    mockSuccessfulFirestoreWrites();
+
+    await expect(deleteKnowledgeFolder(userId, parent.id)).resolves.toBe(true);
+
+    expect(saveEntityToFirestore).toHaveBeenCalledWith(
+      userId, "knowledge_folders", remoteChild.id, expect.objectContaining({ parent_id: null }),
+    );
+    expect(saveEntityToFirestore).toHaveBeenCalledWith(
+      userId, "knowledge_documents", remoteDocument.id, expect.objectContaining({ folder_id: null }),
+    );
+    expect(deleteEntityFromFirestore).toHaveBeenCalledWith(userId, "knowledge_folders", parent.id);
+  });
+
+  it("does not delete a folder offline when it cannot verify all remote descendants", async () => {
+    const parent = {
+      id: "offline-parent", user_id: userId, parent_id: null, name: "Cached parent",
+      created_at: "2026-09-20T00:00:00.000Z", updated_at: "2026-09-20T00:00:00.000Z",
+    };
+    await cacheSet(getFoldersCacheKey(userId), [parent]);
+
+    await expect(deleteKnowledgeFolder(userId, parent.id)).rejects.toThrow(/reconnect/i);
+    expect(saveEntityToFirestore).not.toHaveBeenCalled();
+    expect(deleteEntityFromFirestore).not.toHaveBeenCalled();
+  });
+
+  it("keeps a folder intact when a fresh remote subtree read fails", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    remoteReadFailure.value = true;
+    const parent = {
+      id: "unreadable-parent", user_id: userId, parent_id: null, name: "Unreadable parent",
+      created_at: "2026-09-20T00:00:00.000Z", updated_at: "2026-09-20T00:00:00.000Z",
+    };
+    await cacheSet(getFoldersCacheKey(userId), [parent]);
+
+    await expect(deleteKnowledgeFolder(userId, parent.id)).rejects.toThrow(/current knowledge/i);
+    expect(saveEntityToFirestore).not.toHaveBeenCalled();
+    expect(deleteEntityFromFirestore).not.toHaveBeenCalled();
+  });
+
+  it("waits for queued mutations to sync before moving folder contents", async () => {
+    const pendingFolder = await createKnowledgeFolder(userId, { name: "Pending folder" });
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+
+    await expect(deleteKnowledgeFolder(userId, pendingFolder.id)).rejects.toThrow(/sync pending changes/i);
+    expect(saveEntityToFirestore).not.toHaveBeenCalled();
+    expect(deleteEntityFromFirestore).not.toHaveBeenCalled();
+  });
+
+  it("keeps the parent folder when a reparent write is queued but not yet remote", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    const parent = {
+      id: "verify-parent", user_id: userId, parent_id: null, name: "Parent",
+      created_at: "2026-09-20T00:00:00.000Z", updated_at: "2026-09-20T00:00:00.000Z",
+    };
+    const child = {
+      id: "verify-child", user_id: userId, parent_id: parent.id, name: "Child",
+      created_at: "2026-09-21T00:00:00.000Z", updated_at: "2026-09-21T00:00:00.000Z",
+    };
+    remoteFolderRows.push(parent, child);
+    await cacheSet(getFoldersCacheKey(userId), [parent, child]);
+    vi.mocked(saveEntityToFirestore).mockResolvedValue(false);
+
+    await expect(deleteKnowledgeFolder(userId, parent.id)).rejects.toThrow(/still linked/i);
+    expect(deleteEntityFromFirestore).not.toHaveBeenCalled();
+    expect(remoteFolderRows).toContainEqual(expect.objectContaining({ id: child.id, parent_id: parent.id }));
   });
 });

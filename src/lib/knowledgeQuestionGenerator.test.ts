@@ -124,4 +124,25 @@ describe("knowledgeQuestionGenerator", () => {
 
     await expect(pending).resolves.toEqual([]);
   });
+
+  it("does not synthesize fake _fa or _en for mixed language offline cards and uses correct pearl title", () => {
+    const mixedText = "مکانیسم اثر دارو: مهار کننده CYP3A4 توسط Ketoconazole در بدن است.";
+    const cards = generateOfflineQuestions(mixedText, "کتوکونازول");
+    expect(cards.length).toBeGreaterThan(0);
+    const card = cards[0];
+    // Front is Persian ("در بخش ... چه مواردی..." or "ویژگی یا تعریف..."), back has Persian & English (Ketoconazole, CYP3A4)
+    expect(card.back).toContain("Ketoconazole");
+    expect(card.back).toContain("مهار کننده");
+    // Since back is mixed, back_fa and back_en should NOT be synthesized
+    expect(card.back_fa).toBeUndefined();
+    expect(card.back_en).toBeUndefined();
+
+    // Verify clinical pearl label is "نکتهٔ درمانی" (not "نککته درمانی")
+    const pearlText = "درمان عفونت قارچی نیازمند پایش آنزیم‌های کبدی در طول دوره مصرف است.";
+    const pearlCards = generateOfflineQuestions(pearlText);
+    const pearlCard = pearlCards.find((c) => c.type === "clinical_pearl");
+    if (pearlCard) {
+      expect(pearlCard.clue).toBe("نکتهٔ درمانی");
+    }
+  });
 });

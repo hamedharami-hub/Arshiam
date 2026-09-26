@@ -28,6 +28,10 @@ import {
   CalendarPlus,
   List,
   ListTree,
+  Maximize2,
+  Minimize2,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
 import type {
@@ -55,7 +59,12 @@ import {
   rescheduleLeitnerStudyTaskAfterSession,
 } from "@/lib/taskStudyService";
 import { getKnowledgeDocuments, getKnowledgeFolders } from "@/lib/knowledgeService";
-import { buildLeitnerOutline, filterLeitnerCards } from "@/lib/leitnerOutline";
+import {
+  buildLeitnerOutline,
+  filterLeitnerCards,
+  getKnowledgeFolderBreadcrumb,
+  getLeitnerCardsForFolderBranch,
+} from "@/lib/leitnerOutline";
 import { LeitnerOutlineView } from "@/components/review/LeitnerOutlineView";
 import { isPersianText } from "@/lib/bilingualHelper";
 import { resolveLeitnerCardContent, type StudyContentLanguage } from "@/lib/leitnerCardLanguage";
@@ -68,6 +77,7 @@ interface LeitnerDeckViewProps {
   cardLanguage?: StudyContentLanguage;
   onOpenDocument?: (docId: string) => void;
   initialStudyDocumentId?: string;
+  initialStudyFolderId?: string;
   initialStudyTaskId?: string;
 }
 
@@ -82,6 +92,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   cardLanguage = "fa",
   onOpenDocument,
   initialStudyDocumentId,
+  initialStudyFolderId,
   initialStudyTaskId,
 }) => {
   const { isEn } = useBilingual();
@@ -110,20 +121,25 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   const [cramDocFilter, setCramDocFilter] = useState<string>("all");
   const [cramLapsedOnly, setCramLapsedOnly] = useState<boolean>(false);
 
-  const scheduledReviewCards = useMemo(
-    () => initialStudyDocumentId
+  const scheduledReviewCards = useMemo(() => {
+    if (initialStudyFolderId) {
+      return getLeitnerCardsForFolderBranch(dueCards, folders, documents, initialStudyFolderId);
+    }
+    return initialStudyDocumentId
       ? dueCards.filter((card) => card.document_id === initialStudyDocumentId)
-      : dueCards,
-    [dueCards, initialStudyDocumentId],
-  );
+      : dueCards;
+  }, [documents, dueCards, folders, initialStudyDocumentId, initialStudyFolderId]);
   const eligibleStudyCardIds = useMemo(
     () => new Set(scheduledReviewCards.map((card) => card.id)),
     [scheduledReviewCards],
   );
   const scheduledReviewDocument = documents.find((document) => document.id === initialStudyDocumentId);
+  const scheduledReviewFolder = folders.find((folder) => folder.id === initialStudyFolderId);
 
   // Study Session State
   const [isStudying, setIsStudying] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false);
+  const [focusTheme, setFocusTheme] = useState<"oled" | "paper">("oled");
   const [activeQueue, setActiveQueue] = useState<LeitnerCard[]>([]);
   const [activeStudyScopeLabel, setActiveStudyScopeLabel] = useState<string | null>(null);
   const [shouldRescheduleLinkedTask, setShouldRescheduleLinkedTask] = useState(false);
@@ -292,6 +308,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
     setIsFlipped(false);
     setShowClue(false);
     setCardDirectionOverride(null);
+    setIsFocusMode(false);
     setIsStudying(true);
   }, [cramCards, initialStudyTaskId, isEn, scheduledReviewCards, studyMode]);
 
@@ -358,11 +375,18 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
         setCurrentIndex((i) => i + 1);
       } else {
         setIsStudying(false);
+        setIsFocusMode(false);
         if (initialStudyTaskId && shouldRescheduleLinkedTask) {
           try {
             const latestCards = await getLeitnerCards(userId);
-            const targetId = initialStudyDocumentId || "all";
-            const nextReviewAt = getNextLeitnerReviewAt(latestCards, targetId);
+            const targetId = initialStudyFolderId || initialStudyDocumentId || "all";
+            const scopedCards = initialStudyFolderId
+              ? getLeitnerCardsForFolderBranch(latestCards, folders, documents, initialStudyFolderId)
+              : latestCards;
+            const nextReviewAt = getNextLeitnerReviewAt(
+              scopedCards,
+              initialStudyFolderId ? "all" : targetId,
+            );
 
             if (!nextReviewAt) {
               toast.info(
@@ -374,6 +398,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               const result = await rescheduleLeitnerStudyTaskAfterSession({
                 userId,
                 taskId: initialStudyTaskId,
+                targetType: initialStudyFolderId ? "leitner_folder" : "leitner",
                 targetId,
                 nextReviewAt,
               });
@@ -425,11 +450,14 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
     activeQueue,
     activeStudyScopeLabel,
     currentIndex,
+    documents,
     initialStudyDocumentId,
+    initialStudyFolderId,
     initialStudyTaskId,
     isEn,
     isFlipped,
     loadData,
+    folders,
     shouldRescheduleLinkedTask,
     userId,
   ]);
@@ -457,6 +485,12 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
       if (e.code === "Space" || e.code === "Enter") {
         e.preventDefault();
         setIsFlipped((f) => !f);
+      } else if (e.key === "Escape" && isFocusMode) {
+        e.preventDefault();
+        setIsFocusMode(false);
+      } else if (e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        setIsFocusMode((focused) => !focused);
       } else if (e.key === "1") {
         e.preventDefault();
         if (isFlipped) handleReviewAnswer(1);
@@ -489,7 +523,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isStudying, activeCard, isFlipped, handleSpeak, handleReviewAnswer, activeQueue, currentIndex, openEditModal, cardLanguage]);
+  }, [isStudying, activeCard, isFlipped, isFocusMode, handleSpeak, handleReviewAnswer, activeQueue, currentIndex, openEditModal, cardLanguage]);
 
   const handleCreateCard = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -607,21 +641,50 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   );
 
   // Filtered card list for the bottom table
-  const dueCardIds = useMemo(() => new Set(dueCards.map((card) => card.id)), [dueCards]);
+  const scopedInventoryCards = useMemo(() => {
+    if (initialStudyFolderId) {
+      return getLeitnerCardsForFolderBranch(cards, folders, documents, initialStudyFolderId);
+    }
+    return initialStudyDocumentId
+      ? cards.filter((card) => card.document_id === initialStudyDocumentId)
+      : cards;
+  }, [cards, documents, folders, initialStudyDocumentId, initialStudyFolderId]);
+  const dueCardIds = useMemo(
+    () => new Set((initialStudyFolderId || initialStudyDocumentId ? scheduledReviewCards : dueCards).map((card) => card.id)),
+    [dueCards, initialStudyDocumentId, initialStudyFolderId, scheduledReviewCards],
+  );
   const displayedCards = useMemo(
-    () => filterLeitnerCards(cards, {
+    () => filterLeitnerCards(scopedInventoryCards, {
       query: searchQuery,
       box: selectedBoxTab,
       due: dueFilter,
       lapsedOnly,
       dueCardIds,
     }),
-    [cards, dueCardIds, dueFilter, lapsedOnly, searchQuery, selectedBoxTab],
+    [scopedInventoryCards, dueCardIds, dueFilter, lapsedOnly, searchQuery, selectedBoxTab],
   );
   const displayedOutline = useMemo(
     () => buildLeitnerOutline(displayedCards, folders, documents, eligibleStudyCardIds),
     [displayedCards, documents, eligibleStudyCardIds, folders],
   );
+  const scheduleTargetOptions = useMemo(() => {
+    const folderOptions = folders
+      .filter((folder) => getLeitnerCardsForFolderBranch(cards, folders, documents, folder.id).length > 0)
+      .map((folder) => ({
+        id: folder.id,
+        title: getKnowledgeFolderBreadcrumb(folders, folder.id, isEn ? " › " : " ← "),
+        targetType: "leitner_folder" as const,
+      }));
+    const linkedDocumentIds = new Set(cards.flatMap((card) => card.document_id ? [card.document_id] : []));
+    const documentOptions = documents
+      .filter((document) => linkedDocumentIds.has(document.id))
+      .map((document) => ({
+        id: document.id,
+        title: isEn ? document.title_en || document.title : document.title,
+        targetType: "leitner" as const,
+      }));
+    return [...folderOptions, ...documentOptions];
+  }, [cards, documents, folders, isEn]);
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto p-4 md:p-6 space-y-6">
@@ -753,11 +816,19 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
         </div>
       </div>
 
-      {initialStudyDocumentId && (
+      {(initialStudyDocumentId || initialStudyFolderId) && (
         <div className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
-          {isEn ? "This review task is limited to due cards for:" : "این تسک فقط کارت‌های موعددارِ درس زیر را مرور می‌کند:"}{" "}
+          {initialStudyFolderId
+            ? (isEn ? "This review task includes due cards in this folder and its subfolders:" : "این تسک کارت‌های موعددارِ این پوشه و زیرپوشه‌هایش را مرور می‌کند:")
+            : (isEn ? "This review task is limited to due cards for:" : "این تسک فقط کارت‌های موعددارِ درس زیر را مرور می‌کند:")}{" "}
           <span className="font-semibold text-foreground">
-            {scheduledReviewDocument ? (isEn ? scheduledReviewDocument.title_en || scheduledReviewDocument.title : scheduledReviewDocument.title) : initialStudyDocumentId}
+            {initialStudyFolderId
+              ? (scheduledReviewFolder
+                ? getKnowledgeFolderBreadcrumb(folders, scheduledReviewFolder.id, isEn ? " › " : " ← ")
+                : initialStudyFolderId)
+              : scheduledReviewDocument
+                ? (isEn ? scheduledReviewDocument.title_en || scheduledReviewDocument.title : scheduledReviewDocument.title)
+                : initialStudyDocumentId}
           </span>
         </div>
       )}
@@ -861,8 +932,11 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
         const preview3 = previewNextInterval(activeCard, 3);
         const preview4 = previewNextInterval(activeCard, 4);
 
-        return (
-          <div className="p-6 rounded-3xl bg-card border-2 border-primary/50 shadow-xl flex flex-col items-center justify-center text-center space-y-6 animate-in zoom-in-95 duration-200 max-w-2xl mx-auto w-full">
+        const sessionCard = (
+          <div className={isFocusMode
+            ? "mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center space-y-6 p-4 text-center sm:p-8"
+            : "p-6 rounded-3xl bg-card border-2 border-primary/50 shadow-xl flex flex-col items-center justify-center text-center space-y-6 animate-in zoom-in-95 duration-200 max-w-2xl mx-auto w-full"}
+          >
             {/* Session Top Bar */}
             <div className="w-full flex items-center justify-between text-xs text-muted-foreground border-b border-border pb-3">
               <div className="flex min-w-0 items-center gap-2">
@@ -886,6 +960,18 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
                   <Edit3 className="w-3.5 h-3.5" />
                 </button>
 
+                {!isFocusMode && (
+                  <button
+                    type="button"
+                    aria-label={isEn ? "Enter focus mode" : "حالت مطالعهٔ متمرکز"}
+                    title={isEn ? "Distraction-free focus mode (Z)" : "حالت مطالعهٔ بدون حواس‌پرتی (Z)"}
+                    onClick={() => setIsFocusMode(true)}
+                    className="p-1 rounded-lg text-muted-foreground hover:text-foreground transition cursor-pointer"
+                  >
+                    <Maximize2 aria-hidden="true" className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() =>
@@ -906,12 +992,56 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
 
               <button
                 type="button"
-                onClick={() => setIsStudying(false)}
+                onClick={() => {
+                  setIsFocusMode(false);
+                  setIsStudying(false);
+                }}
                 className="text-muted-foreground hover:text-foreground transition cursor-pointer text-xs"
               >
                 {isEn ? "Exit" : "خروج"}
               </button>
             </div>
+
+            {isFocusMode && (
+              <div className="flex w-full flex-wrap items-center justify-between gap-3">
+                <div
+                  role="group"
+                  aria-label={isEn ? "Focus reading theme" : "تم مطالعهٔ متمرکز"}
+                  className="inline-flex items-center gap-1 rounded-xl border border-border bg-muted/50 p-1"
+                >
+                  <button
+                    type="button"
+                    aria-label={isEn ? "OLED dark theme" : "تم تیرهٔ OLED"}
+                    aria-pressed={focusTheme === "oled"}
+                    onClick={() => setFocusTheme("oled")}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${focusTheme === "oled" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    <Moon aria-hidden="true" className="h-3.5 w-3.5" />
+                    OLED
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={isEn ? "Warm paper theme" : "تم کاغذی گرم"}
+                    aria-pressed={focusTheme === "paper"}
+                    onClick={() => setFocusTheme("paper")}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${focusTheme === "paper" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    <Sun aria-hidden="true" className="h-3.5 w-3.5" />
+                    {isEn ? "Paper" : "کاغذی"}
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  aria-label={isEn ? "Exit focus mode" : "خروج از حالت متمرکز"}
+                  onClick={() => setIsFocusMode(false)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-muted/50 px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:text-foreground"
+                >
+                  <Minimize2 aria-hidden="true" className="h-3.5 w-3.5" />
+                  {isEn ? "Exit focus (Esc)" : "خروج از تمرکز (Esc)"}
+                </button>
+              </div>
+            )}
 
             {/* Flip Card Body */}
             <div
@@ -950,19 +1080,29 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
 
               {/* Card Question / Answer Text */}
               <div
-                dir={isCardRtl ? "rtl" : "ltr"}
-                className={`text-base sm:text-lg font-bold text-foreground leading-relaxed max-w-lg w-full ${
-                  isCardRtl ? "text-right" : "text-left"
-                }`}
+                dir={cardDirectionOverride ? cardDirectionOverride : "auto"}
+                className="text-base sm:text-lg font-bold text-foreground leading-relaxed max-w-lg w-full text-start"
               >
-                {currentText}
+                <span className="block whitespace-pre-wrap">{currentText}</span>
+                {currentSide.secondaryText && (
+                  <span
+                    dir="auto"
+                    className="mt-2 block border-t border-border/70 pt-2 text-sm font-medium text-muted-foreground text-start"
+                  >
+                    {currentSide.secondaryText}
+                  </span>
+                )}
               </div>
 
               {currentSide.translationMissing && (
                 <p role="status" className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-[10px] leading-4 text-amber-800 dark:text-amber-200">
-                  {isEn
-                    ? `${cardLanguage === "fa" ? "Persian" : "English"} version is not available; showing the original text (${currentSide.language === "fa" ? "Persian" : "English"}).`
-                    : `نسخهٔ ${cardLanguage === "fa" ? "فارسی" : "انگلیسی"} موجود نیست؛ متن اصلی ${currentSide.language === "fa" ? "فارسی" : "انگلیسی"} نمایش داده شده است.`}
+                  {cardLanguage === "bilingual"
+                    ? isEn
+                      ? "One language version is missing; showing the available card text."
+                      : "یکی از نسخه‌های زبانی موجود نیست؛ متن موجود نمایش داده شده است."
+                    : isEn
+                      ? `${cardLanguage === "fa" ? "Persian" : "English"} version is not available; showing the original text (${currentSide.language === "fa" ? "Persian" : "English"}).`
+                      : `نسخهٔ ${cardLanguage === "fa" ? "فارسی" : "انگلیسی"} موجود نیست؛ متن اصلی ${currentSide.language === "fa" ? "فارسی" : "انگلیسی"} نمایش داده شده است.`}
                 </p>
               )}
 
@@ -1091,6 +1231,22 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               </button>
             </div>
           </div>
+        );
+
+        if (!isFocusMode) return sessionCard;
+
+        return (
+          <Dialog open onOpenChange={setIsFocusMode}>
+            <DialogContent
+              data-study-theme={focusTheme}
+              className="leitner-focus-dialog h-[100dvh] max-h-[100dvh] w-screen max-w-none gap-0 overflow-y-auto rounded-none border-0 p-0 shadow-none sm:rounded-none"
+            >
+              <DialogTitle className="sr-only">
+                {isEn ? "Leitner focus study" : "مطالعهٔ متمرکز لایتنر"}
+              </DialogTitle>
+              {sessionCard}
+            </DialogContent>
+          </Dialog>
         );
       })() : null}
 
@@ -1227,17 +1383,27 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
                 >
                   <div className="space-y-1 min-w-0 flex-1">
                     <div
-                      dir={isFrontRtl ? "rtl" : "ltr"}
-                      className={`font-bold text-foreground truncate ${isFrontRtl ? "text-right" : "text-left"}`}
+                      dir="auto"
+                      className="font-bold text-foreground break-words text-start"
                     >
                       {localized.front.text}
                     </div>
+                    {localized.front.secondaryText && (
+                      <div dir="auto" className="break-words text-[11px] text-muted-foreground text-start">
+                        {localized.front.secondaryText}
+                      </div>
+                    )}
                     <div
-                      dir={isBackRtl ? "rtl" : "ltr"}
-                      className={`text-[11px] text-muted-foreground truncate ${isBackRtl ? "text-right" : "text-left"}`}
+                      dir="auto"
+                      className="text-[11px] text-muted-foreground break-words text-start"
                     >
                       {localized.back.text}
                     </div>
+                    {localized.back.secondaryText && (
+                      <div dir="auto" className="break-words text-[10px] text-muted-foreground/80 text-start">
+                        {localized.back.secondaryText}
+                      </div>
+                    )}
                     {(localized.front.translationMissing || localized.back.translationMissing) && (
                       <span className="inline-block text-[10px] leading-4 text-amber-700 dark:text-amber-300">
                         {isEn ? "Translation missing; original shown" : "ترجمه موجود نیست؛ متن اصلی نمایش داده می‌شود"}
@@ -1531,10 +1697,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
           targetType="leitner"
           targetId="all"
           targetTitle={isEn ? "Leitner Flashcard Review" : "مرور کارت‌های لایتنر"}
-          targetOptions={documents.map((document) => ({
-            id: document.id,
-            title: isEn ? document.title_en || document.title : document.title,
-          }))}
+          targetOptions={scheduleTargetOptions}
         />
       )}
     </div>

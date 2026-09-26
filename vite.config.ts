@@ -141,7 +141,11 @@ export default defineConfig(({ mode }) => {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         // Pharmacy import catalogs are large and only needed on-demand; importing them
         // requires a verified online session, so they should not inflate first-install PWA caching.
-        globIgnores: ["**/pharmacySeedData-*.js", "**/pharmacyLegacySeedData-*.js"],
+        globIgnores: [
+          "**/pharmacySeedData-*.js",
+          "**/pharmacyLegacySeedData-*.js",
+          "**/pharmacyImportService-*.js",
+        ],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         clientsClaim: true,
         skipWaiting: true,

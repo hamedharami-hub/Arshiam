@@ -3,6 +3,7 @@ import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.content.*;
 import android.net.Uri;
+import org.json.JSONObject;
 
 public class AndroidActionsReceiver extends BroadcastReceiver {
     static PendingIntent pending(Context c,String action,int id) {
@@ -35,6 +36,11 @@ public class AndroidActionsReceiver extends BroadcastReceiver {
             String taskId = data.getQueryParameter("taskId");
             if (taskId == null || taskId.isEmpty()) return;
 
+            if ("open-review".equals(operation)) {
+                openReview(c, taskId, owner, activeOwner);
+                return;
+            }
+
             if ("toggle".equals(operation)) {
                 boolean targetCompleted;
                 if (data.getQueryParameter("targetCompleted") != null) {
@@ -46,6 +52,7 @@ public class AndroidActionsReceiver extends BroadcastReceiver {
                 } else {
                     targetCompleted = !intent.getBooleanExtra("completed", false);
                 }
+                if (targetCompleted && openReview(c, taskId, owner, activeOwner)) return;
                 AgendaData.setCompleted(c, taskId, targetCompleted);
                 AgendaData.prefs(c).edit().putString("syncStatus", targetCompleted ? "Saving completion from widget…" : "Reopening task from widget…").commit();
                 AgendaWidgetProvider.redraw(c);
@@ -83,6 +90,7 @@ public class AndroidActionsReceiver extends BroadcastReceiver {
                 return;
             } else if ("open".equals(operation)) {
                 String routeOwner = (owner != null && !owner.isEmpty()) ? owner : activeOwner;
+                if (openReview(c, taskId, routeOwner, activeOwner)) return;
                 Intent open = AgendaWidgetProvider.appIntent(c,
                     "task?taskId=" + Uri.encode(taskId) + "&owner=" + Uri.encode(routeOwner) + "&fromWidget=1");
                 open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -118,6 +126,7 @@ public class AndroidActionsReceiver extends BroadcastReceiver {
             } else {
                 targetCompleted = !intent.getBooleanExtra("completed", false);
             }
+            if (targetCompleted && openReview(c, taskId, owner, activeOwner)) return;
             AgendaData.setCompleted(c, taskId, targetCompleted);
             AgendaData.prefs(c).edit().putString("syncStatus", targetCompleted ? "Saving completion from widget…" : "Reopening task from widget…").commit();
             AgendaWidgetProvider.redraw(c);
@@ -143,5 +152,14 @@ public class AndroidActionsReceiver extends BroadcastReceiver {
             }
             AgendaWidgetProvider.redraw(c);
         }
+    }
+    static boolean openReview(Context c, String taskId, String owner, String activeOwner) {
+        JSONObject task = AgendaData.task(c, taskId);
+        if (!AgendaData.isLeitnerStudyTask(task)) return false;
+        String route = AgendaWidgetProvider.studyReviewRoute(task,
+            owner != null && !owner.isEmpty() ? owner : activeOwner);
+        Intent review = AgendaWidgetProvider.appIntent(c, route).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        c.startActivity(review);
+        return true;
     }
 }

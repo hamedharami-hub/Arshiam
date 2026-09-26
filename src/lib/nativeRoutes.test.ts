@@ -9,6 +9,9 @@ describe("Android deep links", () => {
     expect(nativeRoute("arshnaz://complete-task?taskId=A%26B")).toBe(
       "/app/today?completeTaskId=A%26B",
     );
+    expect(nativeRoute("arshnaz://review?tab=leitner&studyDocId=doc%2F1&studyTaskId=task%26A&owner=u", "u"))
+      .toBe("/app/review?tab=leitner&studyDocId=doc%2F1&studyTaskId=task%26A");
+    expect(nativeRoute("arshnaz://review?tab=unknown")).toBeNull();
   });
   it("rejects foreign schemes and cross-account task links", () => {
     expect(nativeRoute("https://example.com/new-task")).toBeNull();

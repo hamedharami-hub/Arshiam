@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   extractDocumentCheckpoints,
+  getCheckpointTextLanguage,
+  getCheckpointTextForLanguage,
   getRelatedDocumentSuggestions,
   getRelatedDocuments,
 } from "./knowledgeCheckpointHelper";
@@ -77,6 +79,28 @@ describe("knowledgeCheckpointHelper", () => {
     const pearls = checkpoints.find((c) => c.type === "pearls");
     expect(pearls).toBeDefined();
     expect(pearls?.answerFa).toContain("دمیار");
+  });
+
+  it("selects checkpoint language consistently, including a labeled bilingual card", () => {
+    expect(getCheckpointTextForLanguage("پرسش فارسی", "English question", "fa")).toBe("پرسش فارسی");
+    expect(getCheckpointTextForLanguage("پرسش فارسی", "English question", "en")).toBe("English question");
+    expect(getCheckpointTextForLanguage("پرسش فارسی", "English question", "bilingual")).toBe(
+      "فارسی:\nپرسش فارسی\n\nEnglish:\nEnglish question",
+    );
+    expect(getCheckpointTextForLanguage("پاسخ فارسی", undefined, "en")).toBe("پاسخ فارسی");
+  });
+
+  it("does not duplicate text when Persian and English checkpoint texts are identical", () => {
+    expect(getCheckpointTextForLanguage("Amoxicillin 500mg", "Amoxicillin 500mg", "bilingual")).toBe("Amoxicillin 500mg");
+    expect(getCheckpointTextForLanguage("Amoxicillin 500mg", "Amoxicillin 500mg", "fa")).toBe("Amoxicillin 500mg");
+    expect(getCheckpointTextForLanguage("Amoxicillin 500mg", "Amoxicillin 500mg", "en")).toBe("Amoxicillin 500mg");
+  });
+
+  it("reports the actual fallback language so checkpoint direction follows the rendered text", () => {
+    expect(getCheckpointTextLanguage("", "English text", "fa")).toBe("en");
+    expect(getCheckpointTextLanguage("متن فارسی", undefined, "en")).toBe("fa");
+    expect(getCheckpointTextLanguage("متن فارسی", "English text", "fa")).toBe("fa");
+    expect(getCheckpointTextLanguage("متن فارسی", "English text", "en")).toBe("en");
   });
 
   it("falls back to general concept checkpoint when no specific markers exist", () => {

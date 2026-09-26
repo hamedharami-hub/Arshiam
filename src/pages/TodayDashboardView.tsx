@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { endOfDay, startOfDay } from "date-fns";
 import {
   Star, ChevronDown, ChevronRight, CheckSquare, Columns2,
@@ -11,6 +11,7 @@ import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { formatDate, toPersianDigits } from "@/lib/jalali";
 import { PRIORITY_META } from "@/lib/priority";
+import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
 import type { Task, TaskStatus, ConfirmState } from "@/lib/taskTypes";
 import { persistTask } from "@/lib/firestoreDataService";
 import { deleteTaskCascade } from "@/features/tasks/taskService";
@@ -42,6 +43,7 @@ import { Card } from "@/components/ui/card";
 export default function TodayDashboardView() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { T, isEn } = useBilingual();
   const { isPhone } = useDeviceFormFactor();
 
@@ -182,9 +184,18 @@ export default function TodayDashboardView() {
     return allTasks.filter((t) => isStandaloneTaskForScope(t, isDueToday, taskMap));
   }, [allTasks, isDueToday, taskMap]);
 
+  const todayStudyTasks = useMemo(
+    () => todayTasks.filter((task) => getStudyTaskNavigation(task).isStudyTask),
+    [todayTasks],
+  );
+  const todayPersonalTasks = useMemo(
+    () => todayTasks.filter((task) => !getStudyTaskNavigation(task).isStudyTask),
+    [todayTasks],
+  );
+
   // Active today tasks: sorted by pinned, then priority, then due date
   const activeTodayTasks = useMemo(() => {
-    return todayTasks
+    return todayPersonalTasks
       .filter((t) => !t.completed)
       .sort((a, b) => {
         if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
@@ -195,7 +206,27 @@ export default function TodayDashboardView() {
         if (aDue !== bDue) return aDue - bDue;
         return a.id.localeCompare(b.id);
       });
-  }, [todayTasks]);
+  }, [todayPersonalTasks]);
+
+  const activeTodayStudyTasks = useMemo(() => todayStudyTasks
+    .filter((task) => !task.completed)
+    .sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      const priorityDiff = (PRIORITY_META[a.priority]?.rank ?? 3) - (PRIORITY_META[b.priority]?.rank ?? 3);
+      if (priorityDiff !== 0) return priorityDiff;
+      const aDue = taskDueTimestamp(a.due_date);
+      const bDue = taskDueTimestamp(b.due_date);
+      if (aDue !== bDue) return aDue - bDue;
+      return a.id.localeCompare(b.id);
+    }), [todayStudyTasks]);
+  const completedTodayStudyTasks = useMemo(() => todayStudyTasks
+    .filter((task) => task.completed)
+    .sort((a, b) => {
+      const aTime = a.completed_at ? new Date(a.completed_at).getTime() : 0;
+      const bTime = b.completed_at ? new Date(b.completed_at).getTime() : 0;
+      if (aTime !== bTime) return bTime - aTime;
+      return a.id.localeCompare(b.id);
+    }), [todayStudyTasks]);
 
   // Top priorities: up to three urgent or high priority tasks from today
   const priorityTasks = useMemo(() => {
@@ -213,7 +244,7 @@ export default function TodayDashboardView() {
 
   // Completed today tasks
   const completedTodayTasks = useMemo(() => {
-    return todayTasks
+    return todayPersonalTasks
       .filter((t) => t.completed)
       .sort((a, b) => {
         const aTime = a.completed_at ? new Date(a.completed_at).getTime() : 0;
@@ -221,7 +252,7 @@ export default function TodayDashboardView() {
         if (aTime !== bTime) return bTime - aTime;
         return a.id.localeCompare(b.id);
       });
-  }, [todayTasks]);
+  }, [todayPersonalTasks]);
 
   // Overdue tasks: open tasks with due date strictly before start of today
   const isDueOverdue = useCallback((t: Task) => {
@@ -232,7 +263,7 @@ export default function TodayDashboardView() {
 
   const overdueTasks = useMemo(() => {
     return allTasks
-      .filter((t) => isStandaloneTaskForScope(t, isDueOverdue, taskMap))
+      .filter((t) => isStandaloneTaskForScope(t, isDueOverdue, taskMap) && !getStudyTaskNavigation(t).isStudyTask)
       .sort((a, b) => {
         if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
         const aDue = taskDueTimestamp(a.due_date);
@@ -244,8 +275,19 @@ export default function TodayDashboardView() {
       });
   }, [allTasks, isDueOverdue, taskMap]);
 
+  const overdueStudyTasks = useMemo(() => allTasks
+    .filter((task) => isStandaloneTaskForScope(task, isDueOverdue, taskMap) && getStudyTaskNavigation(task).isStudyTask)
+    .sort((a, b) => {
+      const aDue = taskDueTimestamp(a.due_date);
+      const bDue = taskDueTimestamp(b.due_date);
+      if (aDue !== bDue) return aDue - bDue;
+      const priorityDiff = (PRIORITY_META[a.priority]?.rank ?? 3) - (PRIORITY_META[b.priority]?.rank ?? 3);
+      if (priorityDiff !== 0) return priorityDiff;
+      return a.id.localeCompare(b.id);
+    }), [allTasks, isDueOverdue, taskMap]);
+
   const totalCount = todayTasks.length;
-  const completedCount = completedTodayTasks.length;
+  const completedCount = completedTodayTasks.length + completedTodayStudyTasks.length;
 
   // Sync selected task with latest data
   useEffect(() => {
@@ -301,6 +343,10 @@ export default function TodayDashboardView() {
   // 4. Canonical persistence with optimistic update & rollback
   const handleToggleTask = useCallback(async (task: Task) => {
     const nextCompleted = !task.completed;
+    if (nextCompleted && isLeitnerStudyTask(task)) {
+      navigate(getStudyTaskNavigation(task).navUrl);
+      return;
+    }
     const nextStatus: TaskStatus = nextCompleted ? "done" : "todo";
     const nextCompletedAt = nextCompleted ? new Date().toISOString() : null;
     const patch = { completed: nextCompleted, status: nextStatus, completed_at: nextCompletedAt };
@@ -319,7 +365,23 @@ export default function TodayDashboardView() {
       setAllTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)));
       toast.error(err instanceof Error ? err.message : T("بروزرسانی تسک با خطا مواجه شد", "Could not update task"));
     }
-  }, [T, user?.id, setAllTasks]);
+  }, [T, user?.id, setAllTasks, navigate]);
+
+  useEffect(() => {
+    const taskId = searchParams.get("completeTaskId");
+    if (!taskId) return;
+    const task = allTasks.find((item) => item.id === taskId);
+    if (!task) return;
+
+    if (isLeitnerStudyTask(task) && !task.completed) {
+      navigate(getStudyTaskNavigation(task).navUrl, { replace: true });
+      return;
+    }
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("completeTaskId");
+    setSearchParams(nextParams, { replace: true });
+    if (!task.completed) void handleToggleTask(task);
+  }, [allTasks, handleToggleTask, navigate, searchParams, setSearchParams]);
 
   const handlePatchTask = useCallback(async (id: string, patch: Partial<Task>) => {
     const prevTask = allTasks.find((t) => t.id === id);
@@ -385,10 +447,13 @@ export default function TodayDashboardView() {
     return [
       ...priorityTasks.map((t) => t.id),
       ...activeRemaining.map((t) => t.id),
+      ...activeTodayStudyTasks.map((t) => t.id),
       ...completedTodayTasks.map((t) => t.id),
+      ...completedTodayStudyTasks.map((t) => t.id),
       ...overdueTasks.map((t) => t.id),
+      ...overdueStudyTasks.map((t) => t.id),
     ];
-  }, [priorityTasks, activeRemaining, completedTodayTasks, overdueTasks]);
+  }, [priorityTasks, activeRemaining, activeTodayStudyTasks, completedTodayTasks, completedTodayStudyTasks, overdueTasks, overdueStudyTasks]);
 
   const todayJalali = formatDate(new Date(), "EEEE، d MMMM yyyy", "jalali");
   const todayGregorian = formatDate(new Date(), "EEEE, MMMM d, yyyy", "gregorian");
@@ -426,7 +491,7 @@ export default function TodayDashboardView() {
     />
   );
 
-  const isEmpty = totalCount === 0 && overdueTasks.length === 0;
+  const isEmpty = totalCount === 0 && overdueTasks.length === 0 && overdueStudyTasks.length === 0;
 
   return (
     <div
@@ -562,7 +627,7 @@ export default function TodayDashboardView() {
               <div className="space-y-2">
                 {/* اولویت‌های برتر (تا ۳ تسک فوری یا بالا) با تمایز ملایم */}
                 {priorityTasks.length > 0 && (
-                  <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.03] p-1.5 sm:p-2 space-y-1">
+                  <div data-testid="top-priorities" className="rounded-xl border border-amber-500/25 bg-amber-500/[0.03] p-1.5 sm:p-2 space-y-1">
                     <div className="flex items-center px-1 pt-0.5 pb-0.5" title={T("اولویت‌های برتر", "Top Priorities")}>
                       <Star
                         className="w-3.5 h-3.5 fill-amber-500/20 text-amber-500 shrink-0"
@@ -581,6 +646,19 @@ export default function TodayDashboardView() {
                   <div className="space-y-1">
                     {activeRemaining.map((t) => renderTaskItem(t))}
                   </div>
+                )}
+
+                {(activeTodayStudyTasks.length > 0 || completedTodayStudyTasks.length > 0) && (
+                  <section data-testid="study-due-today" aria-label={T("مرورهای امروز", "Study due today")} className="rounded-xl border border-primary/20 bg-primary/[0.025] p-1.5 sm:p-2 space-y-1">
+                    <div className="flex items-center justify-between px-1 py-0.5 text-xs sm:text-sm font-semibold text-primary">
+                      <span>{T("مرورهای امروز", "Study due today")}</span>
+                      <span className="text-xs font-normal text-muted-foreground">{toPersianDigits(todayStudyTasks.length)}</span>
+                    </div>
+                    <div className="space-y-1">
+                      {activeTodayStudyTasks.map((task) => renderTaskItem(task))}
+                      {completedTodayStudyTasks.map((task) => renderTaskItem(task))}
+                    </div>
+                  </section>
                 )}
 
                 {/* تسک‌های تکمیل‌شده امروز به صورت تاشو و فشرده */}
@@ -606,7 +684,7 @@ export default function TodayDashboardView() {
 
                 {/* تسک‌های به‌تعویق‌افتاده، حتماً بعد و پایین تسک‌های امروز */}
                 {overdueTasks.length > 0 && (
-                  <div className="space-y-1 pt-3">
+                  <section data-testid="overdue-tasks" className="space-y-1 pt-3">
                     <div className="sticky top-0 z-[5] bg-background/95 backdrop-blur py-1 px-1 text-xs sm:text-sm font-semibold text-rose-500 flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
                         <span>{T("به‌تعویق‌افتاده", "Overdue")}</span>
@@ -618,7 +696,19 @@ export default function TodayDashboardView() {
                     <div className="space-y-1">
                       {overdueTasks.map((t) => renderTaskItem(t))}
                     </div>
-                  </div>
+                  </section>
+                )}
+
+                {overdueStudyTasks.length > 0 && (
+                  <section data-testid="overdue-study" aria-label={T("مرورهای عقب‌افتاده", "Overdue study")} className="space-y-1 pt-3">
+                    <div className="sticky top-0 z-[5] bg-background/95 backdrop-blur py-1 px-1 text-xs sm:text-sm font-semibold text-primary flex items-center justify-between">
+                      <span>{T("مرورهای عقب‌افتاده", "Overdue study")}</span>
+                      <span className="text-xs text-muted-foreground font-normal">{toPersianDigits(overdueStudyTasks.length)}</span>
+                    </div>
+                    <div className="space-y-1">
+                      {overdueStudyTasks.map((task) => renderTaskItem(task))}
+                    </div>
+                  </section>
                 )}
 
                 {/* حالت خالی */}

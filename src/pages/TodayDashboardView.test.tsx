@@ -1,6 +1,6 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import type { Task } from "@/lib/taskTypes";
 
 const mockSetAllTasks = vi.fn();
@@ -51,6 +51,11 @@ vi.mock("@/components/TaskDetail", () => ({
 }));
 
 import TodayDashboardView from "./TodayDashboardView";
+
+function LocationProbe() {
+  const location = useLocation();
+  return <output data-testid="location-probe">{location.pathname + location.search}</output>;
+}
 
 describe("TodayDashboardView visual and structural requirements", { timeout: 15000 }, () => {
   const now = new Date();
@@ -143,6 +148,23 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
     // 5. Overdue section is present
     expect(screen.getByText("Overdue")).toBeInTheDocument();
     expect(screen.getByText("Overdue Report")).toBeInTheDocument();
+  });
+
+  it("opens Leitner review instead of completing it from a widget deep link", async () => {
+    mockTasks = [{
+      id: "review-task", title: "Review study cards", due_date: new Date().toISOString(),
+      completed: false, status: "todo", source_type: "leitner", source_id: "doc-7",
+    } as Task];
+    render(
+      <MemoryRouter initialEntries={["/app/today?completeTaskId=review-task"]}>
+        <LocationProbe />
+        <TodayDashboardView />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByTestId("location-probe")).toHaveTextContent(
+      "/app/review?tab=leitner&studyDocId=doc-7&studyTaskId=review-task",
+    ));
+    expect(mockSetAllTasks).not.toHaveBeenCalled();
   });
 
   it("renders split view on wide screens with placeholder and opens task in embedded left panel when clicked", () => {
@@ -333,5 +355,70 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
     expect(screen.getByTitle("View parent task")).toBeInTheDocument();
     expect(screen.getByText("Big Overarching Project")).toBeInTheDocument();
   });
-});
 
+  it("separates due and overdue study items from ordinary tasks and priorities", () => {
+    mockTasks = [
+      {
+        id: "personal-urgent",
+        user_id: "user-123",
+        title: "Urgent personal task",
+        completed: false,
+        status: "todo",
+        priority: "urgent",
+        due_date: todayIso,
+        folder_id: null,
+        parent_id: null,
+      },
+      {
+        id: "study-due",
+        user_id: "user-123",
+        title: "Leitner cards due today",
+        completed: false,
+        status: "todo",
+        priority: "urgent",
+        due_date: todayIso,
+        source_type: "leitner",
+        source_id: "doc-7",
+        folder_id: null,
+        parent_id: null,
+      },
+      {
+        id: "personal-overdue",
+        user_id: "user-123",
+        title: "Overdue personal task",
+        completed: false,
+        status: "todo",
+        priority: "medium",
+        due_date: yesterdayIso,
+        folder_id: null,
+        parent_id: null,
+      },
+      {
+        id: "study-overdue",
+        user_id: "user-123",
+        title: "Overdue lesson",
+        completed: false,
+        status: "todo",
+        priority: "medium",
+        due_date: yesterdayIso,
+        source_type: "knowledge_doc",
+        source_id: "doc-8",
+        folder_id: null,
+        parent_id: null,
+      },
+    ];
+
+    render(
+      <MemoryRouter>
+        <TodayDashboardView />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId("top-priorities")).toHaveTextContent("Urgent personal task");
+    expect(screen.getByTestId("top-priorities")).not.toHaveTextContent("Leitner cards due today");
+    expect(screen.getByTestId("study-due-today")).toHaveTextContent("Leitner cards due today");
+    expect(screen.getByTestId("overdue-tasks")).toHaveTextContent("Overdue personal task");
+    expect(screen.getByTestId("overdue-tasks")).not.toHaveTextContent("Overdue lesson");
+    expect(screen.getByTestId("overdue-study")).toHaveTextContent("Overdue lesson");
+  });
+});

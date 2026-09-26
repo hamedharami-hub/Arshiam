@@ -36,4 +36,19 @@ describe("TaskDetail initial render", () => {
     expect(html).not.toContain("Task progress");
     expect(html).not.toContain("Description");
   });
+
+  it("offers a Leitner review action instead of a generic completion action", () => {
+    const task = {
+      id: "review-task-1", user_id: "owner-1", title: "Review pharmacology",
+      description: null, completed: false, status: "todo", priority: "none",
+      folder_id: null, parent_id: null, due_date: null,
+      source_type: "leitner", source_id: "doc-7",
+    } as Task;
+
+    const html = renderToString(
+      <TaskDetail task={task} mode="page" onClose={() => {}} onChanged={() => {}} setConfirm={() => {}} />,
+    );
+
+    expect(html).toContain('aria-label="Open Leitner review"');
+  });
 });

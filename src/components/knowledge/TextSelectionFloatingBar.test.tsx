@@ -14,18 +14,11 @@ describe("TextSelectionFloatingBar", () => {
 
   it("1. does not render when no text is selected", () => {
     render(<TextSelectionFloatingBar />);
-    expect(screen.queryByTitle(/کپی/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /copy|کپی/i })).not.toBeInTheDocument();
   });
 
-  it("2. shows actions when text is selected and handles copy", async () => {
+  it("shows only the requested AI action when text is selected", async () => {
     const onGenerateQuestions = vi.fn();
-
-    // Mock clipboard
-    Object.assign(navigator, {
-      clipboard: {
-        writeText: vi.fn().mockImplementation(() => Promise.resolve()),
-      },
-    });
 
     // Mock window.getSelection
     window.getSelection = vi.fn().mockReturnValue({
@@ -54,16 +47,8 @@ describe("TextSelectionFloatingBar", () => {
       await new Promise((r) => setTimeout(r, 100));
     });
 
-    // Elements should now be visible
-    const copyBtns = screen.getAllByTitle(/کپی/i);
-    expect(copyBtns.length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /copy|کپی/i })).not.toBeInTheDocument();
 
-    await act(async () => {
-      fireEvent.click(copyBtns[0]);
-    });
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith("Fluoxetine 20mg");
-
-    // Check AI Question button
     const aiBtns = screen.getAllByTitle(/تولید کارت‌های لایتنر/i);
     expect(aiBtns.length).toBeGreaterThan(0);
 

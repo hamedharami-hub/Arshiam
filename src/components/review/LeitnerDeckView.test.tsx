@@ -137,6 +137,53 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
     });
   });
 
+  it("shows the front and back in Persian and English when bilingual mode is selected", async () => {
+    const bilingualCard = {
+      ...mockCards[0],
+      front_fa: "پرسش فارسی",
+      front_en: "English question",
+      back_fa: "پاسخ فارسی",
+      back_en: "English answer",
+    };
+    vi.mocked(getLeitnerCards).mockResolvedValueOnce([bilingualCard]);
+    vi.mocked(getDueLeitnerCards).mockResolvedValueOnce([bilingualCard]);
+
+    render(<LeitnerDeckView userId="user-test" cardLanguage="bilingual" />);
+    fireEvent.click(await screen.findByRole("button", { name: /شروع مرور/ }));
+
+    const flipCard = await screen.findByTestId("flip-card");
+    expect(within(flipCard).getByText("پرسش فارسی")).toBeInTheDocument();
+    expect(within(flipCard).getByText("English question")).toBeInTheDocument();
+
+    fireEvent.click(flipCard);
+    expect(within(flipCard).getByText("پاسخ فارسی")).toBeInTheDocument();
+    expect(within(flipCard).getByText("English answer")).toBeInTheDocument();
+  });
+
+  it("opens focus mode with Z, switches its reading theme, and exits with Escape", async () => {
+    render(<LeitnerDeckView userId="user-test" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /شروع مرور/ }));
+    fireEvent.keyDown(document, { key: "z" });
+
+    const dialog = await screen.findByRole("dialog", { name: "مطالعهٔ متمرکز لایتنر" });
+    expect(dialog).toHaveAttribute("data-study-theme", "oled");
+
+    const paperTheme = within(dialog).getByRole("button", { name: "تم کاغذی گرم" });
+    fireEvent.click(paperTheme);
+    expect(paperTheme).toHaveAttribute("aria-pressed", "true");
+    expect(dialog).toHaveAttribute("data-study-theme", "paper");
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByTestId("flip-card")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "z" });
+    expect(await screen.findByRole("dialog", { name: "مطالعهٔ متمرکز لایتنر" })).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
   it("limits a scheduled review session to due cards from its selected lesson", async () => {
     vi.mocked(getDueLeitnerCards).mockResolvedValueOnce([
       { ...mockCards[0], id: "card-a", document_id: "doc-a", front: "سؤال درس الف" },
@@ -152,6 +199,31 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
     await screen.findByTestId("flip-card");
     expect(screen.getByText("سؤال درس ب")).toBeInTheDocument();
     expect(screen.queryByText("سؤال درس الف")).not.toBeInTheDocument();
+  });
+
+  it("limits a scheduled review session to due cards in a selected folder and nested folders", async () => {
+    const nestedCard = { ...mockCards[0], id: "card-nested", document_id: "doc-nested", front: "Nested lesson question" };
+    const outsideCard = { ...mockCards[0], id: "card-outside", document_id: "doc-outside", front: "Outside lesson question" };
+    vi.mocked(getDueLeitnerCards).mockResolvedValueOnce([nestedCard, outsideCard]);
+    vi.mocked(getKnowledgeDocuments).mockResolvedValueOnce([
+      { id: "doc-nested", user_id: "user-test", folder_id: "folder-child", title: "Nested lesson", content_html: "", created_at: "", updated_at: "" },
+      { id: "doc-outside", user_id: "user-test", folder_id: "folder-other", title: "Other lesson", content_html: "", created_at: "", updated_at: "" },
+    ]);
+    vi.mocked(getKnowledgeFolders).mockResolvedValueOnce([
+      { id: "folder-root", user_id: "user-test", parent_id: null, name: "Pharmacology", created_at: "", updated_at: "" },
+      { id: "folder-child", user_id: "user-test", parent_id: "folder-root", name: "Cardiology", created_at: "", updated_at: "" },
+      { id: "folder-other", user_id: "user-test", parent_id: null, name: "Mathematics", created_at: "", updated_at: "" },
+    ]);
+
+    render(<LeitnerDeckView userId="user-test" initialStudyFolderId="folder-root" />);
+
+    const startButton = await screen.findByRole("button", { name: "شروع مرور (1 آماده)" });
+    expect(screen.getByText(/این تسک کارت‌های موعددارِ این پوشه و زیرپوشه‌هایش را مرور می‌کند/)).toBeInTheDocument();
+    fireEvent.click(startButton);
+
+    const activeCard = await screen.findByTestId("flip-card");
+    expect(within(activeCard).getByText("Nested lesson question")).toBeInTheDocument();
+    expect(within(activeCard).queryByText("Outside lesson question")).not.toBeInTheDocument();
   });
 
   it("shows cards in a folder-to-lesson outline and filters due cards by service IDs", async () => {
@@ -207,10 +279,25 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
     expect(await screen.findByTestId("leitner-outline-card-outline-due-card")).toBeInTheDocument();
     expect(screen.getByTestId("leitner-outline-card-outline-upcoming-card")).toBeInTheDocument();
     const rootFolder = screen.getByRole("button", { name: "Pharmacology 2" });
+    expect(screen.getByRole("button", { name: "Cardiology 2" })).toHaveAttribute("aria-expanded", "true");
     expect(rootFolder).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(screen.getByRole("button", { name: "بستن همه" }));
+    expect(rootFolder).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByTestId("leitner-outline-card-outline-due-card")).not.toBeInTheDocument();
+    fireEvent.click(rootFolder);
+    expect(screen.getByRole("button", { name: "Cardiology 2" })).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(screen.getByRole("button", { name: "بازکردن همه" }));
+    expect(rootFolder).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Cardiology 2" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId("leitner-outline-card-outline-due-card")).toBeInTheDocument();
     fireEvent.click(rootFolder);
     expect(rootFolder).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByTestId("leitner-outline-card-outline-due-card")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "بازکردن همه" }));
+    expect(rootFolder).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId("leitner-outline-card-outline-due-card")).toBeInTheDocument();
+    fireEvent.click(rootFolder);
+    expect(rootFolder).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(rootFolder);
     expect(screen.getByTestId("leitner-outline-card-outline-due-card")).toBeInTheDocument();
 
@@ -391,7 +478,49 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
       expect(rescheduleLeitnerStudyTaskAfterSession).toHaveBeenCalledWith({
         userId: "user-test",
         taskId: "task-review-7",
+        targetType: "leitner",
         targetId: "doc-7",
+        nextReviewAt,
+      });
+    });
+  });
+
+  it("reschedules a folder review task using only cards still in that folder branch", async () => {
+    const nextReviewAt = "2026-10-04T09:30:00.000Z";
+    const dueCard = { ...mockCards[0], id: "card-folder-child", document_id: "doc-folder-child", front: "Folder review question" };
+    const staleFolderCard = { ...mockCards[1], id: "card-stale-folder", document_id: "doc-outside", folder_id: "folder-root" };
+    const otherCard = { ...mockCards[1], id: "card-other", document_id: "doc-outside", folder_id: "folder-other" };
+    vi.mocked(getLeitnerCards).mockResolvedValueOnce([dueCard, staleFolderCard, otherCard]);
+    vi.mocked(getLeitnerCards).mockResolvedValueOnce([dueCard, staleFolderCard, otherCard]);
+    vi.mocked(getDueLeitnerCards).mockResolvedValueOnce([dueCard]);
+    vi.mocked(getKnowledgeDocuments).mockResolvedValueOnce([
+      { id: "doc-folder-child", user_id: "user-test", folder_id: "folder-child", title: "Child", content_html: "", created_at: "", updated_at: "" },
+      { id: "doc-outside", user_id: "user-test", folder_id: "folder-other", title: "Outside", content_html: "", created_at: "", updated_at: "" },
+    ]);
+    vi.mocked(getKnowledgeFolders).mockResolvedValueOnce([
+      { id: "folder-root", user_id: "user-test", parent_id: null, name: "Root", created_at: "", updated_at: "" },
+      { id: "folder-child", user_id: "user-test", parent_id: "folder-root", name: "Child", created_at: "", updated_at: "" },
+      { id: "folder-other", user_id: "user-test", parent_id: null, name: "Other", created_at: "", updated_at: "" },
+    ]);
+    vi.mocked(getNextLeitnerReviewAt).mockReturnValue(nextReviewAt);
+    vi.mocked(rescheduleLeitnerStudyTaskAfterSession).mockResolvedValue({
+      ok: true,
+      status: "saved",
+      dueDate: nextReviewAt,
+    });
+
+    render(<LeitnerDeckView userId="user-test" initialStudyFolderId="folder-root" initialStudyTaskId="folder-review-task" />);
+    fireEvent.click(await screen.findByRole("button", { name: /شروع مرور/ }));
+    fireEvent.click(await screen.findByTestId("flip-card"));
+    fireEvent.click(await screen.findByRole("button", { name: /بلدم/ }));
+
+    await waitFor(() => {
+      expect(getNextLeitnerReviewAt).toHaveBeenCalledWith([dueCard], "all");
+      expect(rescheduleLeitnerStudyTaskAfterSession).toHaveBeenCalledWith({
+        userId: "user-test",
+        taskId: "folder-review-task",
+        targetType: "leitner_folder",
+        targetId: "folder-root",
         nextReviewAt,
       });
     });

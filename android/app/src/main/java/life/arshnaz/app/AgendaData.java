@@ -25,7 +25,7 @@ final class AgendaData {
             if (f == null) continue;
             String path = doc.optString("name");
             JSONObject t = new JSONObject().put("id", path.substring(path.lastIndexOf('/') + 1));
-            for (String key : new String[]{"title","due_date","priority","status","reminder_at","folder_id","parent_id"})
+            for (String key : new String[]{"title","due_date","priority","status","reminder_at","folder_id","parent_id","source_type","source_id"})
                 t.put(key, WidgetTasks.string(f, key));
             JSONObject done = f.optJSONObject("completed");
             t.put("completed", done != null && done.optBoolean("booleanValue"));
@@ -164,6 +164,14 @@ final class AgendaData {
         }
         return null;
     }
+    static boolean isLeitnerStudyTask(JSONObject task) {
+        if (task == null) return false;
+        String sourceType = task.optString("source_type");
+        return "leitner".equals(sourceType) || "leitner_folder".equals(sourceType);
+    }
+    static boolean canSetCompleted(JSONObject task, boolean completed) {
+        return !completed || !isLeitnerStudyTask(task);
+    }
     /**
      * Updates the launcher snapshot before its background Firestore action runs.
      * A widget tap must feel immediate even when the network is slow.  The worker
@@ -176,6 +184,7 @@ final class AgendaData {
         for (int i = 0; i < rows.length(); i++) {
             JSONObject row = rows.optJSONObject(i);
             if (row == null || !id.equals(row.optString("id"))) continue;
+            if (!canSetCompleted(row, completed)) return false;
             try {
                 row.put("completed", completed);
                 row.put("status", completed ? "done" : "todo");

@@ -4,7 +4,7 @@ import {
   Target, Timer, Calendar, ChevronDown, Sparkles, LayoutGrid,
   TrendingUp, Activity, MessageCircleQuestion, Zap, ShieldAlert, BookOpen, Sun,
   ListTodo, BrainCircuit, GripVertical, User, Shield,
-  BarChart3, Sprout, Wind, Compass, Users, Gamepad2,
+  BarChart3, Sprout, Wind, Compass, Users, Gamepad2, PackageSearch, ClipboardCheck, Keyboard,
 } from "lucide-react";
 import {
   SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -60,6 +60,9 @@ export const EN_LABELS: Record<string, string> = {
   "افراد": "Contacts",
   "کتابخانه دانش": "Knowledge Base",
   "استودیوی مطالعه تعاملی": "Interactive Study Studio",
+  "فهرست محصولات دارویی": "Pharmacy Products",
+  "تمرین سناریوهای دارویی": "Pharmacy Scenario Practice",
+  "تمرین نسخه FRED": "FRED Practice",
 };
 
 export const FA_LABELS: Record<string, string> = {
@@ -69,6 +72,9 @@ export const FA_LABELS: Record<string, string> = {
   "Contacts": "افراد",
   "Knowledge Base": "کتابخانه دانش",
   "Review (SR)": "مرور (SR)",
+  "Pharmacy Products": "فهرست محصولات دارویی",
+  "Pharmacy Scenario Practice": "تمرین سناریوهای دارویی",
+  "FRED Practice": "تمرین نسخه FRED",
 };
 
 export function useLabel() {
@@ -108,6 +114,9 @@ export const SECTIONS: Section[] = [
       { url: "/app/habits", icon: Target, label: "عادت‌ها" },
       { url: "/app/notes", icon: FileText, label: "نوت‌ها" },
       { url: "/app/knowledge", icon: BookOpen, label: "کتابخانه دانش" },
+      { url: "/app/pharmacy-products", icon: PackageSearch, label: "فهرست محصولات دارویی" },
+      { url: "/app/pharmacy-scenario-practice", icon: ClipboardCheck, label: "تمرین سناریوهای دارویی" },
+      { url: "/app/pharmacy-fred-practice", icon: Keyboard, label: "تمرین نسخه FRED" },
       { url: "/app/interactive-study", icon: Gamepad2, label: "استودیوی مطالعه تعاملی" },
       { url: "/app/review", icon: BrainCircuit, label: "مرور (SR)" },
       { url: "/app/cycle", icon: Calendar, label: "سیکل پریود" },

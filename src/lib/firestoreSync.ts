@@ -91,16 +91,12 @@ export async function saveEntityToFirestore(
       const snap = await getDoc(docRef);
       if (snap.exists()) {
         const remoteData = snap.data();
-        // Interactive-study rows keep an application version timestamp in
-        // updated_at. updatedAt is only the Firestore sync receipt time and can
-        // be later than the next local draft even when that draft is newer.
-        const useApplicationTimestamp = collectionName === "interactive_study_sessions";
-        const remoteUpdatedAt = useApplicationTimestamp
-          ? remoteData?.updated_at || remoteData?.updatedAt
-          : remoteData?.updatedAt || remoteData?.updated_at;
-        const localUpdatedAt = useApplicationTimestamp
-          ? data.updated_at || data.updatedAt
-          : data.updatedAt || data.updated_at;
+        // `updated_at` is the application's revision timestamp when available.
+        // `updatedAt` is refreshed here as a Firestore sync receipt timestamp,
+        // so preferring it can incorrectly reject a newer local application edit.
+        // Keep `updatedAt` as a fallback for legacy/camel-case-only entities.
+        const remoteUpdatedAt = remoteData?.updated_at || remoteData?.updatedAt;
+        const localUpdatedAt = data.updated_at || data.updatedAt;
         if (remoteUpdatedAt && localUpdatedAt) {
           const remoteTime = new Date(remoteUpdatedAt).getTime();
           const localTime = new Date(localUpdatedAt).getTime();
@@ -110,8 +106,11 @@ export async function saveEntityToFirestore(
           }
         }
       }
-    } catch {
-      // Offline or network error reading remote: proceed to setDoc
+    } catch (error) {
+      // A durable outbox may retry this mutation later, but writing without a
+      // readable current revision could overwrite a newer remote document.
+      console.warn(`[FirestoreSync] Could not verify ${collectionName}/${docId}; refusing the write.`, error);
+      return false;
     }
 
     await setDoc(

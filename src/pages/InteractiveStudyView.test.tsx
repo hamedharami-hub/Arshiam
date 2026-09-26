@@ -10,12 +10,16 @@ const {
   mockCreateStudyDraft,
   mockLoadStudyDraft,
   mockPersistStudySession,
+  mockGetLeitnerCards,
+  mockCreateLeitnerCard,
 } = vi.hoisted(() => ({
   mockGetKnowledgeDocuments: vi.fn(),
   mockGetKnowledgeFolders: vi.fn(),
   mockCreateStudyDraft: vi.fn(),
   mockLoadStudyDraft: vi.fn(),
   mockPersistStudySession: vi.fn(),
+  mockGetLeitnerCards: vi.fn(),
+  mockCreateLeitnerCard: vi.fn(),
 }));
 
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: "study-user" } }) }));
@@ -29,25 +33,31 @@ vi.mock("@/lib/interactiveStudyService", () => ({
   loadLatestInteractiveStudyDraft: mockLoadStudyDraft,
   persistInteractiveStudySession: mockPersistStudySession,
 }));
+vi.mock("@/lib/leitnerService", () => ({
+  getLeitnerCards: mockGetLeitnerCards,
+  createLeitnerCard: mockCreateLeitnerCard,
+}));
 vi.mock("@/components/knowledge/InteractiveLearningModal", async () => {
   const ReactModule = await import("react");
   type Props = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onInsertContent: (html: string, mode: "append" | "replace") => void;
+    onWorkflowStepChange: (step: 2 | 3) => void;
   };
+  const sessionHtml = '<div class="interactive-learning-block"><div class="interactive-flip-card"><div class="flip-card-front"><p class="flip-text">Question one</p></div><div class="flip-card-back"><p class="flip-text">Answer one</p></div></div><div class="interactive-flip-card"><div class="flip-card-front"><p class="flip-text">Question two</p></div><div class="flip-card-back"><p class="flip-text">Answer two</p></div></div></div>';
+  const bilingualQuizHtml = '<div class="interactive-learning-block"><div class="interactive-quiz-card"><h4 class="quiz-question">پرسش: Study plan — مرور روزانه؟</h4><p class="quiz-explanation is-visible">پاسخ: Review one topic at a time.</p></div></div>';
   return {
-    InteractiveLearningModal: ({ open, onOpenChange, onInsertContent }: Props) => open
+    InteractiveLearningModal: ({ open, onOpenChange, onInsertContent, onWorkflowStepChange }: Props) => open
       ? ReactModule.createElement(
           "div",
           { role: "dialog", "aria-label": "Study session builder" },
+          ReactModule.createElement("button", { type: "button", onClick: () => onWorkflowStepChange(3) }, "Preview formats"),
+          ReactModule.createElement("button", { type: "button", onClick: () => onWorkflowStepChange(2) }, "Edit formats"),
           ReactModule.createElement("button", {
             type: "button",
             onClick: () => {
-              onInsertContent(
-                '<div class="interactive-learning-block"><div class="interactive-flip-card">Session test card</div></div>',
-                "replace",
-              );
+              onInsertContent(`${sessionHtml}${bilingualQuizHtml}`, "replace");
               onOpenChange(false);
             },
           }, "Build test session"),
@@ -137,6 +147,8 @@ describe("InteractiveStudyView", () => {
     mockCreateStudyDraft.mockReset();
     mockLoadStudyDraft.mockReset();
     mockPersistStudySession.mockReset();
+    mockGetLeitnerCards.mockReset();
+    mockCreateLeitnerCard.mockReset();
     mockGetKnowledgeDocuments.mockResolvedValue(studyDocuments);
     mockGetKnowledgeFolders.mockResolvedValue(studyFolders);
     mockCreateStudyDraft.mockImplementation((userId, documentId, title, language, html) => ({
@@ -155,6 +167,8 @@ describe("InteractiveStudyView", () => {
       status: "saved",
       session: { ...session, updated_at: "2026-09-25T00:01:00.000Z" },
     }));
+    mockGetLeitnerCards.mockResolvedValue([]);
+    mockCreateLeitnerCard.mockImplementation(async (userId, data) => ({ id: `leitner-${userId}`, user_id: userId, ...data }));
   });
 
   it("requires an explicit lesson choice, persists a practice session, and saves interactions", async () => {
@@ -165,7 +179,7 @@ describe("InteractiveStudyView", () => {
     expect(mockGetKnowledgeFolders).toHaveBeenCalledWith("study-user");
     const lessonGrid = container.querySelector("main > div.grid");
     expect(lessonGrid).toHaveClass("min-w-0", "grid-cols-1");
-    expect(lessonGrid).toHaveClass("min-[720px]:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.5fr)]");
+    expect(lessonGrid).toHaveClass("min-[900px]:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.5fr)]");
     expect(Array.from(lessonGrid?.querySelectorAll("section") || []).every((section) => section.classList.contains("min-w-0"))).toBe(true);
     expect(screen.getByText("برای شروع یک درس انتخاب کن")).toBeInTheDocument();
     expect(screen.getByText(/مطالعهٔ تعاملی، یک درس از کتابخانهٔ دانش را به جلسه‌ای جداگانه/)).toBeInTheDocument();
@@ -177,9 +191,10 @@ describe("InteractiveStudyView", () => {
     await actEvent(() => fireEvent.click(sampleLesson));
     await screen.findByRole("button", { name: /ساخت تمرین از این درس/i });
     expect(screen.getByText("درس انتخاب‌شده")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Sample guide" })).toHaveAttribute("dir", "auto");
     const workflow = screen.getByRole("list", { name: "مسیر مطالعه" });
     expect(workflow).toBeInTheDocument();
-    expect(workflow.querySelector('[aria-current="step"]')).toHaveTextContent("انتخاب تمرین");
+    expect(workflow.querySelector('[aria-current="step"]')).toHaveTextContent("انتخاب قالب‌ها");
     expect(screen.getByText("اینجا چه تمرین‌هایی می‌توانم بسازم؟")).toBeInTheDocument();
     expect(screen.getByText(/فلش‌کارت، آزمون، بازی تطبیق/)).toBeInTheDocument();
     expect(screen.getByText(/کارت لایتنر یا تسک مرور نمی‌سازد/)).toBeInTheDocument();
@@ -192,7 +207,9 @@ describe("InteractiveStudyView", () => {
     await actEvent(() => fireEvent.click(screen.getByRole("button", { name: "Build test session" })));
 
     await waitFor(() => expect(container.querySelector(".interactive-flip-card")).not.toBeNull());
-    expect(workflow.querySelector('[aria-current="step"]')).toHaveTextContent("تمرین و ذخیره");
+    expect(container.querySelector(".interactive-quiz-card .quiz-question")).toHaveTextContent("پرسش: Study plan — مرور روزانه؟");
+    expect(container.querySelector(".interactive-quiz-card .quiz-explanation")).toHaveTextContent("پاسخ: Review one topic at a time.");
+    expect(workflow.querySelector('[aria-current="step"]')).toHaveTextContent("ادامهٔ جلسه");
     const widget = container.querySelector(".interactive-flip-card");
     expect(screen.getAllByRole("note")).toHaveLength(2);
     expect(screen.getByText("پیشرفت تعامل‌ها جدا از متن درس ذخیره می‌شود.")).toBeInTheDocument();
@@ -209,12 +226,45 @@ describe("InteractiveStudyView", () => {
     })), { timeout: 2500 });
   });
 
+  it("shows the preview step and only imports flashcards into Leitner after explicit choice", async () => {
+    const { container } = renderStudio();
+    const sampleLesson = await screen.findByRole("button", { name: /Sample guide/i });
+    await actEvent(() => fireEvent.click(sampleLesson));
+    const workflow = screen.getByRole("list", { name: "مسیر مطالعه" });
+    await actEvent(() => fireEvent.click(screen.getByRole("button", { name: /ساخت تمرین از این درس/i })));
+    await actEvent(() => fireEvent.click(screen.getByRole("button", { name: "Preview formats" })));
+    expect(workflow.querySelector('[aria-current="step"]')).toHaveTextContent("پیش‌نمایش");
+    await actEvent(() => fireEvent.click(screen.getByRole("button", { name: "Build test session" })));
+    await waitFor(() => expect(container.querySelectorAll(".interactive-flip-card")).toHaveLength(2));
+    await waitFor(() => expect(screen.getByRole("button", { name: "افزودن کارت‌ها" })).toBeEnabled());
+    expect(mockCreateLeitnerCard).not.toHaveBeenCalled();
+
+    mockGetLeitnerCards.mockResolvedValueOnce([{
+      id: "existing-card",
+      user_id: "study-user",
+      document_id: "doc-1",
+      front: "Question one",
+      back: "Answer one",
+    }]);
+    await actEvent(() => fireEvent.click(screen.getByRole("button", { name: "افزودن کارت‌ها" })));
+    await waitFor(() => expect(mockCreateLeitnerCard).toHaveBeenCalledTimes(1));
+    expect(mockCreateLeitnerCard).toHaveBeenCalledWith("study-user", expect.objectContaining({
+      front: "Question two",
+      back: "Answer two",
+      front_en: "Question two",
+      back_en: "Answer two",
+      document_id: "doc-1",
+      folder_id: "folder-root",
+    }));
+    expect(await screen.findByText(/1 فلش‌کارت به لایتنر اضافه شد؛ 1 مورد تکراری رد شد/)).toBeInTheDocument();
+  });
+
   it("clears the visible session when the selected source lesson changes", async () => {
     const { container } = renderStudio();
     const sampleLesson = await screen.findByRole("button", { name: /Sample guide/i });
     await actEvent(() => fireEvent.click(sampleLesson));
     const lessonPicker = screen.getByTestId("interactive-study-lesson-picker");
-    expect(lessonPicker).toHaveClass("hidden", "min-[720px]:flex");
+    expect(lessonPicker).toHaveClass("hidden", "min-[900px]:flex");
     await screen.findByRole("button", { name: /ساخت تمرین از این درس/i });
     await actEvent(() => fireEvent.click(screen.getByRole("button", { name: /ساخت تمرین از این درس/i })));
     await actEvent(() => fireEvent.click(screen.getByRole("button", { name: "Build test session" })));

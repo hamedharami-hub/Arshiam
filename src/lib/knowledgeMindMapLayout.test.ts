@@ -9,9 +9,28 @@ describe("knowledge mind-map layout helpers", () => {
       "A detailed document heading that should wrap onto several readable lines",
       "A long subtitle describing the contents of this document",
     );
+    const bilingual = getMindMapNodeDimensions(
+      "card",
+      "پرسش فارسی نسبتاً طولانی برای نمایش در نقشه",
+      "Box 1",
+      "A longer English translation that should wrap without clipping",
+    );
+    const cardWithoutTranslation = getMindMapNodeDimensions("card", "پرسش فارسی نسبتاً طولانی برای نمایش در نقشه", "Box 1");
 
     expect(long.width).toBe(short.width);
     expect(long.height).toBeGreaterThan(short.height);
+    expect(bilingual.height).toBeGreaterThan(cardWithoutTranslation.height);
+  });
+
+  it("reserves multiple conservative lines for long bilingual canvas text", () => {
+    const dimensions = getMindMapNodeDimensions(
+      "card",
+      "Short title",
+      "S".repeat(70),
+      "E".repeat(70),
+    );
+
+    expect(dimensions.height).toBe(112);
   });
 
   it("builds an ordered nested outline from the visible canvas nodes", () => {

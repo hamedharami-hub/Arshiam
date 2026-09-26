@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { KnowledgeDocument, KnowledgeFolder } from "@/lib/knowledgeTypes";
 import type { LeitnerCard } from "@/lib/leitnerTypes";
-import { buildLeitnerOutline, filterLeitnerCards, type LeitnerOutlineNode } from "./leitnerOutline";
+import {
+  buildLeitnerOutline,
+  filterLeitnerCards,
+  getKnowledgeFolderBranchIds,
+  getKnowledgeFolderBreadcrumb,
+  getLeitnerCardsForFolderBranch,
+  type LeitnerOutlineNode,
+} from "./leitnerOutline";
 
 const makeCard = (overrides: Partial<LeitnerCard> & Pick<LeitnerCard, "id">): LeitnerCard => ({
   user_id: "user-1",
@@ -47,6 +54,44 @@ function collectCardIds(nodes: LeitnerOutlineNode[]): string[] {
 }
 
 describe("Leitner outline helpers", () => {
+  it("scopes review cards to a folder and its descendants using the linked lesson as source of truth", () => {
+    const folders = [
+      makeFolder({ id: "root", name: "داروشناسی" }),
+      makeFolder({ id: "child", name: "قلب", parent_id: "root" }),
+      makeFolder({ id: "nested", name: "فشار خون", parent_id: "child" }),
+      makeFolder({ id: "other", name: "ریاضی" }),
+    ];
+    const documents = [
+      makeDocument({ id: "doc-inside", title: "Hypertension", folder_id: "nested" }),
+      makeDocument({ id: "doc-outside", title: "Algebra", folder_id: "other" }),
+    ];
+    const cards = [
+      makeCard({ id: "linked-inside", document_id: "doc-inside", folder_id: "other" }),
+      makeCard({ id: "direct-child", folder_id: "child" }),
+      makeCard({ id: "linked-outside", document_id: "doc-outside", folder_id: "root" }),
+      makeCard({ id: "orphan-fallback", document_id: "deleted-doc", folder_id: "root" }),
+      makeCard({ id: "unfiled" }),
+    ];
+
+    expect([...getKnowledgeFolderBranchIds(folders, "root")]).toEqual(["root", "child", "nested"]);
+    expect(getKnowledgeFolderBreadcrumb(folders, "nested")).toBe("داروشناسی / قلب / فشار خون");
+    expect(getLeitnerCardsForFolderBranch(cards, folders, documents, "root").map((card) => card.id)).toEqual([
+      "linked-inside",
+      "direct-child",
+      "orphan-fallback",
+    ]);
+    expect(getLeitnerCardsForFolderBranch(cards, folders, documents, "missing")).toEqual([]);
+  });
+
+  it("traverses folder branches safely when legacy folders contain cycles", () => {
+    const folders = [
+      makeFolder({ id: "cycle-a", name: "A", parent_id: "cycle-b" }),
+      makeFolder({ id: "cycle-b", name: "B", parent_id: "cycle-a" }),
+      makeFolder({ id: "cycle-child", name: "C", parent_id: "cycle-b" }),
+    ];
+    expect(getKnowledgeFolderBranchIds(folders, "cycle-a")).toEqual(new Set(["cycle-a", "cycle-b", "cycle-child"]));
+  });
+
   it("filters by query, box, due state, and lapse without changing cards", () => {
     const cards = [
       makeCard({ id: "due-lapsed", front: "Aspirin dose", box: 2, lapse_count: 1 }),

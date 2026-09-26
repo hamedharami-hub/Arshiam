@@ -66,7 +66,8 @@ describe("StudyTaskScheduleModal authentication boundary", () => {
     );
 
     const targetSelect = await screen.findByRole("combobox", { name: "مجموعهٔ مرور" });
-    fireEvent.change(targetSelect, { target: { value: "doc-1" } });
+    const lessonOption = screen.getByRole("option", { name: "درس نمونه" });
+    fireEvent.change(targetSelect, { target: { value: lessonOption.getAttribute("value") } });
     expect(screen.getByDisplayValue("مرور لایتنر: درس نمونه")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "ثبت تسک مطالعه" }));
 
@@ -78,6 +79,45 @@ describe("StudyTaskScheduleModal authentication boundary", () => {
         title: "مرور لایتنر: درس نمونه",
       }));
       expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+  });
+
+  it("creates a folder-scoped Leitner task for all nested lessons", async () => {
+    mocks.user = { id: "synthetic-user" };
+    mocks.createStudyTask.mockResolvedValueOnce({
+      ok: true,
+      task: { id: "folder-study-task", user_id: "synthetic-user" },
+    });
+
+    render(
+      <StudyTaskScheduleModal
+        open
+        onOpenChange={vi.fn()}
+        targetType="leitner"
+        targetId="all"
+        targetTitle="همهٔ کارت‌های لایتنر"
+        targetOptions={[
+          { id: "folder-root", title: "داروشناسی", targetType: "leitner_folder" },
+          { id: "folder-child", title: "داروشناسی › قلب", targetType: "leitner_folder" },
+          { id: "doc-1", title: "درس نمونه", targetType: "leitner" },
+        ]}
+      />,
+    );
+
+    const targetSelect = await screen.findByRole("combobox", { name: "مجموعهٔ مرور" });
+    const folderOption = screen.getByRole("option", { name: "داروشناسی › قلب" });
+    fireEvent.change(targetSelect, { target: { value: folderOption.getAttribute("value") } });
+    expect(screen.getByDisplayValue("مرور لایتنر: داروشناسی › قلب")).toBeInTheDocument();
+    expect(screen.getByText("این تسک کارت‌های موعددارِ این پوشه و همهٔ زیرپوشه‌های آن را مرور می‌کند.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "ثبت تسک مطالعه" }));
+
+    await waitFor(() => {
+      expect(mocks.createStudyTask).toHaveBeenCalledWith(expect.objectContaining({
+        targetType: "leitner_folder",
+        targetId: "folder-child",
+        targetTitle: "داروشناسی › قلب",
+        title: "مرور لایتنر: داروشناسی › قلب",
+      }));
     });
   });
 });

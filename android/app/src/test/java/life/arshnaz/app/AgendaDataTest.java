@@ -86,4 +86,17 @@ public class AgendaDataTest {
         assertEquals(100,AgendaListService.Factory.normalizeLimit(10000));
         assertEquals(1,AgendaListService.Factory.normalizeLimit(0));
     }
+    @Test public void preservesLeitnerSourceAndBuildsSafeReviewRoute() throws Exception {
+        String response = new JSONArray().put(new JSONObject().put("document", new JSONObject()
+            .put("name", "projects/p/databases/d/documents/users/u/tasks/review-task")
+            .put("fields", new JSONObject()
+                .put("source_type", new JSONObject().put("stringValue", "leitner_folder"))
+                .put("source_id", new JSONObject().put("stringValue", "folder/one & two")))))
+            .toString();
+        JSONObject task = AgendaData.fromFirestore(response).getJSONObject(0);
+        assertTrue(AgendaData.isLeitnerStudyTask(task));
+        assertEquals("folder/one & two", task.getString("source_id"));
+        assertFalse(AgendaData.canSetCompleted(task, true));
+        assertTrue(AgendaData.canSetCompleted(task, false));
+    }
 }

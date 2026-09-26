@@ -35,6 +35,71 @@ export interface LeitnerCardFilters {
   dueCardIds?: ReadonlySet<string>;
 }
 
+/** Returns a folder and all of its nested folders, even if legacy data contains a cycle. */
+export function getKnowledgeFolderBranchIds(
+  folders: KnowledgeFolder[],
+  rootFolderId: string,
+): Set<string> {
+  const folderById = new Map(folders.map((folder) => [folder.id, folder]));
+  if (!folderById.has(rootFolderId)) return new Set();
+
+  const childrenByParent = new Map<string, string[]>();
+  for (const folder of folders) {
+    if (!folder.parent_id || !folderById.has(folder.parent_id)) continue;
+    const children = childrenByParent.get(folder.parent_id) ?? [];
+    children.push(folder.id);
+    childrenByParent.set(folder.parent_id, children);
+  }
+
+  const branchIds = new Set<string>();
+  const queue = [rootFolderId];
+  for (let index = 0; index < queue.length; index += 1) {
+    const folderId = queue[index];
+    if (!folderId || branchIds.has(folderId)) continue;
+    branchIds.add(folderId);
+    queue.push(...(childrenByParent.get(folderId) ?? []));
+  }
+  return branchIds;
+}
+
+/** Builds a readable folder path while safely cutting malformed parent cycles. */
+export function getKnowledgeFolderBreadcrumb(
+  folders: KnowledgeFolder[],
+  folderId: string,
+  separator = " / ",
+): string {
+  const folderById = new Map(folders.map((folder) => [folder.id, folder]));
+  const path: string[] = [];
+  const visited = new Set<string>();
+  let current = folderById.get(folderId);
+
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id);
+    path.push(current.name);
+    current = current.parent_id ? folderById.get(current.parent_id) : undefined;
+  }
+
+  return path.reverse().join(separator);
+}
+
+/** Filters cards into the selected folder branch; a valid lesson link is authoritative over legacy card.folder_id. */
+export function getLeitnerCardsForFolderBranch(
+  cards: LeitnerCard[],
+  folders: KnowledgeFolder[],
+  documents: KnowledgeDocument[],
+  rootFolderId: string,
+): LeitnerCard[] {
+  const branchIds = getKnowledgeFolderBranchIds(folders, rootFolderId);
+  if (branchIds.size === 0) return [];
+
+  const documentById = new Map(documents.map((document) => [document.id, document]));
+  return cards.filter((card) => {
+    const linkedDocument = card.document_id ? documentById.get(card.document_id) : undefined;
+    const effectiveFolderId = linkedDocument ? linkedDocument.folder_id : card.folder_id;
+    return Boolean(effectiveFolderId && branchIds.has(effectiveFolderId));
+  });
+}
+
 /** Applies inventory filters without changing card scheduling state. */
 export function filterLeitnerCards(
   cards: LeitnerCard[],

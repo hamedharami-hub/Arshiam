@@ -4,6 +4,7 @@ import { getDocsCacheKey, getFoldersCacheKey } from "./knowledgeService";
 import { getLeitnerCardsCacheKey } from "./leitnerService";
 import { PHARMACY_ROOT_FOLDER_ID, PHARMACY_SEED_CARDS, PHARMACY_SEED_DOCUMENTS, PHARMACY_SEED_FOLDERS } from "./pharmacySeedData";
 import { PHARMACY_SEED_DOCUMENTS as LEGACY_DOCUMENTS } from "./pharmacyLegacySeedData";
+import { PHARMACY_SEED_UPGRADE_CARD_BASELINES, PHARMACY_SEED_UPGRADE_DOCUMENT_BASELINES } from "./pharmacySeedUpgradeBaseline";
 import { applyPharmacyClinicalEditorialOverrides } from "./pharmacyClinicalEditorialOverrides";
 import { comparePharmacySeed, getPharmacyImportStatus, importPharmacyKnowledge, isPharmacyImported, normalizePharmacySeedData } from "./pharmacyImportService";
 import { sanitizeKnowledgeHtml } from "./knowledgeHtmlSanitizer";
@@ -79,9 +80,14 @@ describe("pharmacyImportService", () => {
     const folderIds = new Set(PHARMACY_SEED_FOLDERS.map((item) => item.id));
     const docIds = new Set(PHARMACY_SEED_DOCUMENTS.map((item) => item.id));
     const cardIds = new Set(PHARMACY_SEED_CARDS.map((item) => item.id));
+    const graphDocumentIds = PHARMACY_CLINICAL_ENTITIES.flatMap((entity) => entity.documentId ? [entity.documentId] : []);
     expect(folderIds.size).toBe(PHARMACY_SEED_FOLDERS.length);
     expect(docIds.size).toBe(PHARMACY_SEED_DOCUMENTS.length);
     expect(cardIds.size).toBe(PHARMACY_SEED_CARDS.length);
+    expect(new Set(graphDocumentIds).size).toBe(graphDocumentIds.length);
+    for (const documentId of graphDocumentIds) {
+      expect(docIds.has(documentId), `Clinical graph points to missing seed document ${documentId}`).toBe(true);
+    }
     for (const folder of PHARMACY_SEED_FOLDERS) {
       if (folder.parent_id) expect(folderIds.has(folder.parent_id), `Broken parent in ${folder.id}`).toBe(true);
     }
@@ -371,6 +377,115 @@ describe("pharmacyImportService", () => {
     expect(result.status.docsUpgradeable).toBe(0);
   }, 15_000);
 
+  it("refreshes only unchanged historical pseudoephedrine lessons and preserves personal state", async () => {
+    for (const folder of PHARMACY_SEED_FOLDERS) {
+      remote.knowledge_folders.set(folder.id, { ...folder, user_id: userId });
+    }
+    for (const document of PHARMACY_SEED_DOCUMENTS) {
+      remote.knowledge_documents.set(document.id, { ...document, user_id: userId });
+    }
+    for (const card of PHARMACY_SEED_CARDS) {
+      remote.leitner_cards.set(card.id, { ...card, user_id: userId });
+    }
+
+    const exactBaseline = PHARMACY_SEED_UPGRADE_DOCUMENT_BASELINES.find(
+      (item) => item.id === "doc-scenario-clinical-s3-pseudoephedrine",
+    )!;
+    const manuallyEditedBaseline = PHARMACY_SEED_UPGRADE_DOCUMENT_BASELINES.find(
+      (item) => item.id === "doc-scenario-clinical-s3-pseudoephedrine-conflict",
+    )!;
+    const effectiveSeed = normalizePharmacySeedData(await import("./pharmacySeedData"));
+    const current = effectiveSeed.PHARMACY_SEED_DOCUMENTS.find((item) => item.id === exactBaseline.id)!;
+    remote.knowledge_documents.set(exactBaseline.id, {
+      ...exactBaseline, user_id: userId, read_count: 9, is_favorite: true,
+    });
+    remote.knowledge_documents.set(manuallyEditedBaseline.id, {
+      ...manuallyEditedBaseline,
+      user_id: userId,
+      content_html: `${manuallyEditedBaseline.content_html}<p>Personal study note</p>`,
+    });
+
+    expect((await getPharmacyImportStatus(userId)).docsUpgradeable).toBeGreaterThanOrEqual(1);
+    const result = await importPharmacyKnowledge(userId);
+
+    const refreshed = remote.knowledge_documents.get(exactBaseline.id)!;
+    const preserved = remote.knowledge_documents.get(manuallyEditedBaseline.id)!;
+    expect(result.docsUpdated).toBeGreaterThanOrEqual(1);
+    expect(refreshed.content_html).toBe(current.content_html);
+    expect(refreshed.content_en).toBe(current.content_en);
+    expect(refreshed.read_count).toBe(9);
+    expect(refreshed.is_favorite).toBe(true);
+    expect(String(preserved.content_html)).toContain("Personal study note");
+    expect(result.status.docsUpgradeable).toBe(0);
+  }, 15_000);
+
+  it("refreshes an unchanged historical Leitner card without resetting review progress", async () => {
+    for (const folder of PHARMACY_SEED_FOLDERS) {
+      remote.knowledge_folders.set(folder.id, { ...folder, user_id: userId });
+    }
+    for (const document of PHARMACY_SEED_DOCUMENTS) {
+      remote.knowledge_documents.set(document.id, { ...document, user_id: userId });
+    }
+    for (const card of PHARMACY_SEED_CARDS) {
+      remote.leitner_cards.set(card.id, { ...card, user_id: userId });
+    }
+
+    const baseline = PHARMACY_SEED_UPGRADE_CARD_BASELINES.find(
+      (item) => item.id === "card-pharmacy-sample-card-s3-pseudoephedrine",
+    )!;
+    const current = PHARMACY_SEED_CARDS.find((item) => item.id === baseline.id)!;
+    const nextReviewAt = "2026-10-12T09:30:00.000Z";
+    remote.leitner_cards.set(baseline.id, {
+      ...baseline,
+      user_id: userId,
+      box: 4,
+      review_count: 17,
+      lapse_count: 3,
+      next_review_at: nextReviewAt,
+      last_reviewed_at: "2026-09-24T09:30:00.000Z",
+      fsrs_state: {
+        due: nextReviewAt, stability: 18, difficulty: 4, elapsed_days: 2,
+        scheduled_days: 18, learning_steps: 0, reps: 17, lapses: 3, state: 2,
+        last_review: "2026-09-24T09:30:00.000Z",
+      },
+    });
+
+    expect((await getPharmacyImportStatus(userId)).cardsUpgradeable).toBe(1);
+    const result = await importPharmacyKnowledge(userId);
+    const refreshed = remote.leitner_cards.get(baseline.id)!;
+
+    expect(result.cardsUpdated).toBe(1);
+    expect(refreshed.front).toBe(current.front);
+    expect(refreshed.back).toBe(current.back);
+    expect(refreshed.box).toBe(4);
+    expect(refreshed.review_count).toBe(17);
+    expect(refreshed.lapse_count).toBe(3);
+    expect(refreshed.next_review_at).toBe(nextReviewAt);
+    expect(refreshed.last_reviewed_at).toBe("2026-09-24T09:30:00.000Z");
+    expect(refreshed.fsrs_state).toMatchObject({ stability: 18, reps: 17, lapses: 3 });
+    expect(result.status.cardsUpgradeable).toBe(0);
+  }, 15_000);
+
+  it("does not overwrite a manually edited historical Leitner card", async () => {
+    const baseline = PHARMACY_SEED_UPGRADE_CARD_BASELINES.find(
+      (item) => item.id === "card-pharmacy-sample-card-s3-pseudoephedrine",
+    )!;
+    remote.leitner_cards.set(baseline.id, {
+      ...baseline,
+      user_id: userId,
+      back: `${baseline.back} Personal card note.`,
+      box: 3,
+      review_count: 8,
+    });
+
+    expect((await getPharmacyImportStatus(userId)).cardsUpgradeable).toBe(0);
+    await importPharmacyKnowledge(userId);
+    const preserved = remote.leitner_cards.get(baseline.id)!;
+    expect(String(preserved.back)).toContain("Personal card note.");
+    expect(preserved.box).toBe(3);
+    expect(preserved.review_count).toBe(8);
+  }, 15_000);
+
   it("safely upgrades an unchanged legacy UTI record with the current sourced correction", async () => {
     for (const folder of PHARMACY_SEED_FOLDERS) {
       remote.knowledge_folders.set(folder.id, { ...folder, user_id: userId });
@@ -495,7 +610,8 @@ describe("pharmacyImportService", () => {
     const resumed = await importPharmacyKnowledge(userId);
     expect(resumed.status.docsMissing).toBe(0);
     expect(remote.knowledge_documents.size).toBe(PHARMACY_SEED_DOCUMENTS.length);
-  }, 15_000);
+  // This recovery fixture writes hundreds of seed rows across two import attempts.
+  }, 45_000);
 
   it("does not mistake a cache-only import for confirmed server data", () => {
     const status = comparePharmacySeed(

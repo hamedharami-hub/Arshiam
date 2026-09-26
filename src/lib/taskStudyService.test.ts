@@ -3,6 +3,7 @@ import {
   createStudyTask,
   getNextLeitnerReviewAt,
   getStudyTaskNavigation,
+  isLeitnerStudyTask,
   rescheduleLeitnerStudyTaskAfterSession,
 } from "./taskStudyService";
 
@@ -156,6 +157,14 @@ describe("taskStudyService", () => {
     });
     expect(scopedLeitnerNav.navUrl).toBe("/app/review?tab=leitner&studyDocId=lesson%20%2F%201&studyTaskId=task%2F42");
 
+    const folderLeitnerNav = getStudyTaskNavigation({
+      id: "folder-review-task",
+      source_type: "leitner_folder",
+      source_id: "folder-cardiology",
+    });
+    expect(folderLeitnerNav.isStudyTask).toBe(true);
+    expect(folderLeitnerNav.navUrl).toBe("/app/review?tab=leitner&studyFolderId=folder-cardiology&studyTaskId=folder-review-task");
+
     const noneNav = getStudyTaskNavigation({
       source_type: "cbt_thought",
       source_id: "cbt-1",
@@ -173,6 +182,22 @@ describe("taskStudyService", () => {
     expect(res.ok).toBe(true);
     expect(res.task?.title).toBe("خواندن و مرور کارت‌های لایتنر");
     expect(res.task?.source_type).toBe("leitner");
+  });
+
+  it("creates a folder-scoped Leitner task with its explicit source type and branch target", async () => {
+    const res = await createStudyTask({
+      userId: "u123",
+      targetType: "leitner_folder",
+      targetId: "folder-cardio",
+      targetTitle: "داروشناسی / قلب",
+    });
+
+    expect(res.ok).toBe(true);
+    expect(res.task).toMatchObject({
+      title: "خواندن و مرور کارت‌های لایتنر",
+      source_type: "leitner_folder",
+      source_id: "folder-cardio",
+    });
   });
 
   it("finds the earliest next review date within the selected lesson", () => {
@@ -194,6 +219,7 @@ describe("taskStudyService", () => {
     const result = await rescheduleLeitnerStudyTaskAfterSession({
       userId: "u123",
       taskId: "task-7",
+      targetType: "leitner",
       targetId: "doc-7",
       nextReviewAt,
     });
@@ -209,21 +235,67 @@ describe("taskStudyService", () => {
     expect(result).toEqual({ ok: true, status: "saved", dueDate: nextReviewAt });
   });
 
+  it("moves a folder review task only when the linked task type and folder still match", async () => {
+    const nextReviewAt = "2026-10-04T09:30:00.000Z";
+    mocks.getDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ source_type: "leitner_folder", source_id: "folder-cardio", completed: false }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ source_type: "leitner", source_id: "folder-cardio", completed: false }),
+      });
+
+    const matching = await rescheduleLeitnerStudyTaskAfterSession({
+      userId: "u123",
+      taskId: "folder-task",
+      targetType: "leitner_folder",
+      targetId: "folder-cardio",
+      nextReviewAt,
+    });
+    const mismatched = await rescheduleLeitnerStudyTaskAfterSession({
+      userId: "u123",
+      taskId: "legacy-doc-task",
+      targetType: "leitner_folder",
+      targetId: "folder-cardio",
+      nextReviewAt,
+    });
+
+    expect(matching).toEqual({ ok: true, status: "saved", dueDate: nextReviewAt });
+    expect(mismatched).toMatchObject({ ok: false });
+    expect(mocks.persistTask).toHaveBeenCalledTimes(1);
+  });
+
   it("does not change tasks that are unrelated, completed, or have invalid dates", async () => {
     mocks.getDoc.mockResolvedValueOnce({
       exists: () => true,
       data: () => ({ source_type: "knowledge_doc", source_id: "doc-7", completed: false }),
     });
     const unrelated = await rescheduleLeitnerStudyTaskAfterSession({
-      userId: "u123", taskId: "task-7", targetId: "doc-7", nextReviewAt: "2026-09-28T09:00:00.000Z",
+      userId: "u123", taskId: "task-7", targetType: "leitner", targetId: "doc-7", nextReviewAt: "2026-09-28T09:00:00.000Z",
     });
     const invalid = await rescheduleLeitnerStudyTaskAfterSession({
-      userId: "u123", taskId: "task-7", targetId: "doc-7", nextReviewAt: "not-a-date",
+      userId: "u123", taskId: "task-7", targetType: "leitner", targetId: "doc-7", nextReviewAt: "not-a-date",
     });
 
     expect(unrelated.ok).toBe(false);
     expect(invalid.ok).toBe(false);
     expect(mocks.persistTask).not.toHaveBeenCalled();
+  });
+
+  it("recognizes document and folder Leitner tasks without treating other study tasks as Leitner", () => {
+    expect(isLeitnerStudyTask({ source_type: "leitner" })).toBe(true);
+    expect(isLeitnerStudyTask({ source_type: "leitner_folder" })).toBe(true);
+    expect(isLeitnerStudyTask({ source_type: "knowledge_doc" })).toBe(false);
+    expect(isLeitnerStudyTask({})).toBe(false);
+  });
+
+  it("recognizes document and folder Leitner tasks without treating other study tasks as Leitner", () => {
+    expect(isLeitnerStudyTask({ source_type: "leitner" })).toBe(true);
+    expect(isLeitnerStudyTask({ source_type: "leitner_folder" })).toBe(true);
+    expect(isLeitnerStudyTask({ source_type: "knowledge_doc" })).toBe(false);
+    expect(isLeitnerStudyTask({})).toBe(false);
   });
 
   it("validates a cached owned study task and queues its next date while offline", async () => {
@@ -233,6 +305,7 @@ describe("taskStudyService", () => {
     const result = await rescheduleLeitnerStudyTaskAfterSession({
       userId: "u123",
       taskId: "task-7",
+      targetType: "leitner",
       targetId: "doc-7",
       nextReviewAt: "2026-09-28T09:00:00.000Z",
     });

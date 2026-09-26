@@ -12,6 +12,54 @@ export interface KnowledgeCheckpoint {
   color: string;
 }
 
+export type KnowledgeCheckpointLanguageMode = "en" | "fa" | "bilingual";
+export type KnowledgeCheckpointTextLanguage = "en" | "fa";
+
+export interface ResolvedKnowledgeCheckpointText {
+  text: string;
+  language: KnowledgeCheckpointTextLanguage;
+}
+
+/** Resolves both the selected copy and the direction of the actual text displayed. */
+export function resolveCheckpointTextForLanguage(
+  persianText: string,
+  englishText: string | undefined,
+  languageMode: KnowledgeCheckpointLanguageMode,
+): ResolvedKnowledgeCheckpointText {
+  const fa = persianText.trim();
+  const en = englishText?.trim() ?? "";
+  const fallbackLanguage: KnowledgeCheckpointTextLanguage = fa ? "fa" : en ? "en" : languageMode === "fa" ? "fa" : "en";
+
+  if (languageMode === "fa") {
+    return fa ? { text: fa, language: "fa" } : { text: en, language: en ? "en" : "fa" };
+  }
+  if (languageMode === "en") {
+    return en ? { text: en, language: "en" } : { text: fa, language: fa ? "fa" : "en" };
+  }
+  if (fa && en && fa !== en) {
+    return { text: ["فارسی:", fa, "", "English:", en].join("\n"), language: "fa" };
+  }
+  return { text: fa || en, language: fallbackLanguage };
+}
+
+/** Reports the actual source language, including when the requested translation is missing. */
+export function getCheckpointTextLanguage(
+  persianText: string,
+  englishText: string | undefined,
+  languageMode: Exclude<KnowledgeCheckpointLanguageMode, "bilingual">,
+): KnowledgeCheckpointTextLanguage {
+  return resolveCheckpointTextForLanguage(persianText, englishText, languageMode).language;
+}
+
+/** Returns the checkpoint copy selected for reading or its Leitner card. */
+export function getCheckpointTextForLanguage(
+  persianText: string,
+  englishText: string | undefined,
+  languageMode: KnowledgeCheckpointLanguageMode,
+): string {
+  return resolveCheckpointTextForLanguage(persianText, englishText, languageMode).text;
+}
+
 /**
  * Strips HTML tags and collapses whitespace
  */

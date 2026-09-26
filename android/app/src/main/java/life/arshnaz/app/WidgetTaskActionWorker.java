@@ -74,7 +74,14 @@ public final class WidgetTaskActionWorker extends Worker {
             String action = getInputData().getString("action");
             String taskId = getInputData().getString("taskId");
             if ("create".equals(action)) create(project, database, uid, token);
-            else if (validId(taskId) && ("complete".equals(action) || "reopen".equals(action))) setCompleted(project, database, uid, taskId, token, "complete".equals(action));
+            else if (validId(taskId) && ("complete".equals(action) || "reopen".equals(action))) {
+                boolean complete = "complete".equals(action);
+                if (complete && !AgendaData.canSetCompleted(AgendaData.task(c, taskId), true)) {
+                    status(c, "Open the Leitner review in ARSHNAZ instead of completing it from the widget");
+                    return Result.failure();
+                }
+                setCompleted(project, database, uid, taskId, token, complete);
+            }
             else if (validId(taskId) && "edit".equals(action)) edit(project, database, uid, taskId, token,
                 getInputData().getBoolean("preserveDueDate", false));
             else if (validId(taskId) && "delete".equals(action)) delete(project, database, uid, taskId, token);

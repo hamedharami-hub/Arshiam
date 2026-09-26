@@ -14,13 +14,16 @@ import { ThemeProvider } from "next-themes";
 import { getStoredTheme, getBaseTheme } from "@/lib/theme";
 import { nativeRoute } from "@/lib/nativeRoutes";
 
-function usePwaUpdateToast() {
+export const PWA_UPDATE_TOAST_ID = "pwa-update-available";
+
+export function usePwaUpdateToast() {
   useEffect(() => {
     const onUpdate = () => {
       // Detect language from i18next or localStorage for the toast
       const lang = (() => { try { return localStorage.getItem("i18nextLng") || "fa"; } catch { return "fa"; } })();
       const isEn = lang.startsWith("en");
       toast(isEn ? "A new version is ready" : "نسخه‌ی جدید برنامه آماده است", {
+        id: PWA_UPDATE_TOAST_ID,
         description: isEn
           ? "Refresh to get the latest features."
           : "برای دریافت امکانات جدید، برنامه را به‌روزرسانی کن.",
@@ -87,6 +90,9 @@ const ArticleRewriteView = lazy(() => import("./pages/ArticleRewriteView"));
 const WidgetsView = lazy(() => import("./pages/WidgetsView"));
 const ContactsView = lazy(() => import("./pages/ContactsView"));
 const KnowledgeBaseView = lazy(() => import("./pages/KnowledgeBaseView"));
+const PharmacyProductsView = lazy(() => import("./pages/PharmacyProductsView"));
+const PharmacyScenarioPracticeView = lazy(() => import("./pages/PharmacyScenarioPracticeView"));
+const PharmacyFredPracticeView = lazy(() => import("./pages/PharmacyFredPracticeView"));
 const InteractiveStudyView = lazy(() => import("./pages/InteractiveStudyView"));
 const ReviewView = lazy(() => import("./pages/ReviewView"));
 
@@ -320,6 +326,9 @@ const App = () => {
                       <Route path="calendar" element={<CalendarView />} />
                       <Route path="contacts" element={<ContactsView />} />
                       <Route path="knowledge" element={<KnowledgeBaseView />} />
+                      <Route path="pharmacy-products" element={<PharmacyProductsView />} />
+                      <Route path="pharmacy-scenario-practice" element={<PharmacyScenarioPracticeView />} />
+                      <Route path="pharmacy-fred-practice" element={<PharmacyFredPracticeView />} />
                       <Route path="interactive-study" element={<InteractiveStudyView />} />
                       <Route path="review" element={<ReviewView />} />
                       <Route path="stats" element={<StatsView />} />

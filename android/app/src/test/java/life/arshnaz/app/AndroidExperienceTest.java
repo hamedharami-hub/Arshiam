@@ -58,6 +58,27 @@ public class AndroidExperienceTest {
         AgendaData.prefs(c).edit().putString("dataUserId","userB").commit();
         assertNull(today.getViewAt(0)); // A late launcher request cannot show the previous account.
     }
+    @Test public void widgetCompletionCannotMarkAnActiveLeitnerReviewDone() throws Exception {
+        JSONObject review = new JSONObject().put("id", "review-task").put("title", "Review cards")
+            .put("due_date", LocalDate.now().toString()).put("completed", false).put("status", "todo")
+            .put("source_type", "leitner").put("source_id", "doc-1");
+        AgendaData.prefs(c).edit().putBoolean("sessionReady", true)
+            .putString("agendaTasks", new JSONArray().put(review).toString()).commit();
+
+        assertFalse(AgendaData.setCompleted(c, "review-task", true));
+        assertFalse(AgendaData.task(c, "review-task").optBoolean("completed"));
+        assertTrue(AgendaData.setCompleted(c, "review-task", false));
+    }
+    @Test public void LeitnerWidgetRouteCarriesEncodedTargetAndTask() throws Exception {
+        JSONObject task = new JSONObject().put("id", "review-task").put("source_type", "leitner_folder")
+            .put("source_id", "folder/one & two");
+        android.net.Uri route = android.net.Uri.parse("arshnaz://" + AgendaWidgetProvider.studyReviewRoute(task, "user-1"));
+        assertEquals("review", route.getHost());
+        assertEquals("leitner", route.getQueryParameter("tab"));
+        assertEquals("folder/one & two", route.getQueryParameter("studyFolderId"));
+        assertEquals("review-task", route.getQueryParameter("studyTaskId"));
+        assertEquals("user-1", route.getQueryParameter("owner"));
+    }
     @Test public void providerBuildsRealCollectionRemoteViews() throws Exception {
         login();
         View view=AgendaWidgetProvider.views(c,1).apply(c,new FrameLayout(c));

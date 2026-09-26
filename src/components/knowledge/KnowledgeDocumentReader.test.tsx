@@ -1,14 +1,25 @@
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { KnowledgeDocumentReader } from "./KnowledgeDocumentReader";
 import type { KnowledgeDocument, KnowledgeFolder } from "@/lib/knowledgeTypes";
 
+const mockCreateLeitnerCard = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/leitnerService", () => ({
+  createLeitnerCard: mockCreateLeitnerCard,
+}));
+
+let mockIsEn = false;
 vi.mock("@/hooks/useBilingual", () => ({
-  useBilingual: () => ({ isEn: false }),
+  useBilingual: () => ({ isEn: mockIsEn }),
 }));
 
 describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
+  beforeEach(() => {
+    mockIsEn = false;
+    mockCreateLeitnerCard.mockReset().mockResolvedValue(undefined);
+  });
+
   const dummyDoc: KnowledgeDocument = {
     id: "doc-1",
     user_id: "user-1",
@@ -52,6 +63,7 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
         onDelete={() => {}}
       />
     );
+    fireEvent.click(screen.getByRole("button", { name: /زبان مطالعه: انگلیسی/ }));
 
     expect(screen.getAllByText("راهنمای فلوکستین").length).toBeGreaterThan(0);
     expect(screen.getByText("ضد افسردگی‌ها")).toBeInTheDocument();
@@ -67,6 +79,7 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
       content_en: "<p>Dry, itchy and inflamed skin with persistent symptoms that require professional assessment.</p>",
     };
     render(<KnowledgeDocumentReader document={mixedDoc} folder={dummyFolder} onEdit={() => {}} onDelete={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /زبان مطالعه: انگلیسی/ }));
     expect(screen.getByText(/ترجمهٔ فارسی این سند قدیمی کامل نیست/)).toBeInTheDocument();
   });
 
@@ -164,6 +177,7 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
         onDelete={() => {}}
       />
     );
+    fireEvent.click(screen.getByRole("button", { name: /زبان مطالعه: انگلیسی/ }));
 
     const orderedList = container.querySelector(".knowledge-html-content ol");
     expect(orderedList).toBeInTheDocument();
@@ -183,6 +197,7 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
         onDelete={() => {}}
       />
     );
+    fireEvent.click(screen.getByRole("button", { name: /زبان مطالعه: انگلیسی/ }));
 
     expect(screen.getByText("Reader")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /original html|سند اصلی/i })).not.toBeInTheDocument();
@@ -190,6 +205,31 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
     expect(screen.queryByRole("button", { name: /open in browser|باز کردن در تب مرورگر/i })).not.toBeInTheDocument();
     expect(container.querySelector("iframe")).not.toBeInTheDocument();
     expect(screen.getByText("داروی ضد افسردگی SSRI")).toBeInTheDocument();
+  });
+
+  it("renders imported lesson HTML only after removing active content and unsafe links", () => {
+    const hostileMarkup = '<p>Safe lesson text</p>' +
+      '<script>window.__arshnazReaderXss = true</script>' +
+      '<img src="x" onerror="window.__arshnazReaderXss = true">' +
+      '<a href="javascript:window.__arshnazReaderXss=true" onclick="alert(1)">Unsafe link</a>' +
+      '<iframe src="https://example.invalid"></iframe>';
+    const { container } = render(
+      <KnowledgeDocumentReader
+        document={{ ...dummyDoc, content_en: hostileMarkup }}
+        folder={dummyFolder}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />
+    );
+
+    const renderedLesson = container.querySelector(".knowledge-html-content");
+    expect(renderedLesson?.textContent).toContain("Safe lesson text");
+    expect(renderedLesson?.querySelector("script, iframe, form, svg")).not.toBeInTheDocument();
+    expect(renderedLesson?.querySelector("[onclick], [onerror], [srcdoc]")).not.toBeInTheDocument();
+    const renderedLink = renderedLesson?.querySelector("a");
+    expect(renderedLink).toBeInTheDocument();
+    expect(renderedLink?.getAttribute("href") ?? "").not.toMatch(/^javascript:/i);
+    expect((window as Window & { __arshnazReaderXss?: boolean }).__arshnazReaderXss).toBeUndefined();
   });
 
   it("defaults to English and cycles the compact language control", () => {
@@ -221,6 +261,113 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
     expect(screen.getByRole("button", { name: "زبان مطالعه: انگلیسی" })).toBeInTheDocument();
   });
 
+  it("keeps the original Persian lesson visible when its English translation is missing", () => {
+    const { container } = render(
+      <KnowledgeDocumentReader
+        document={dummyDoc}
+        folder={dummyFolder}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />
+    );
+
+    expect(screen.getByText(/ترجمهٔ انگلیسی موجود نیست/)).toBeInTheDocument();
+    expect(screen.getByText("داروی ضد افسردگی SSRI")).toBeInTheDocument();
+    expect(container.querySelector(".knowledge-html-content")?.getAttribute("dir")).toBe("rtl");
+    expect(screen.getByRole("button", { name: "تولید نسخه انگلیسی با هوش مصنوعی" })).toBeInTheDocument();
+  });
+
+  it("shows existing English source text without an empty-translation prompt", () => {
+    const { container } = render(
+      <KnowledgeDocumentReader
+        document={{
+          ...dummyDoc,
+          content_html: "<p>Original English lesson text</p>",
+          plain_text: "Original English lesson text",
+        }}
+        folder={dummyFolder}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />
+    );
+
+    expect(screen.getByText(/نسخهٔ انگلیسیِ جداگانه موجود نیست/)).toBeInTheDocument();
+    expect(screen.getByText("Original English lesson text")).toBeInTheDocument();
+    expect(container.querySelector(".knowledge-html-content")?.getAttribute("dir")).toBe("ltr");
+    expect(screen.queryByRole("button", { name: "تولید نسخه انگلیسی با هوش مصنوعی" })).not.toBeInTheDocument();
+  });
+
+  it("keeps English-only source content in the English column in bilingual mode", () => {
+    const { container } = render(
+      <KnowledgeDocumentReader
+        document={{
+          ...dummyDoc,
+          content_html: "<p>Original English lesson text</p>",
+          plain_text: "Original English lesson text",
+        }}
+        folder={dummyFolder}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "زبان مطالعه: انگلیسی" }));
+    fireEvent.click(screen.getByRole("button", { name: "زبان مطالعه: فارسی" }));
+
+    expect(screen.getByText(/نسخهٔ فارسی موجود نیست/)).toBeInTheDocument();
+    expect(screen.getByText("Original English lesson text")).toBeInTheDocument();
+    expect(container.querySelector(".bilingual-col-en .knowledge-html-content")?.getAttribute("dir")).toBe("ltr");
+    expect(container.querySelector(".bilingual-col-fa .knowledge-html-content")).not.toBeInTheDocument();
+  });
+
+  it("keeps long reader titles and section headings intact instead of truncating them", () => {
+    const longTitle = "A comprehensive pharmacy practice guide for long-term learning and review";
+    const longHeading = "A detailed section heading that should wrap naturally across narrow reader widths";
+    const { container } = render(
+      <KnowledgeDocumentReader
+        document={{
+          ...dummyDoc,
+          title_en: longTitle,
+          content_en: `<h2>${longHeading}</h2><p>Reading content</p>`,
+        }}
+        folder={dummyFolder}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />
+    );
+
+    const title = screen.getByRole("heading", { name: longTitle, level: 1 });
+    const sectionHeading = container.querySelector(".knowledge-html-content h2");
+    expect(title).toHaveClass("break-words");
+    expect(title).toHaveTextContent(longTitle);
+    expect(sectionHeading).toHaveTextContent(longHeading);
+    expect(sectionHeading).not.toHaveClass("truncate");
+  });
+
+  it("opens documents marked bilingual in the English reading mode by default", () => {
+    const bilingualDoc: KnowledgeDocument = {
+      ...dummyDoc,
+      preferred_language: "bilingual",
+      title_en: "Fluoxetine guide",
+      content_html: "<p>Persian source text</p>",
+      content_en: "<p>English lesson text</p>",
+    };
+
+    render(
+      <KnowledgeDocumentReader
+        document={bilingualDoc}
+        folder={dummyFolder}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "زبان مطالعه: انگلیسی" })).toBeInTheDocument();
+    expect(screen.getByText("English lesson text")).toBeInTheDocument();
+    expect(screen.queryByText("Persian source text")).not.toBeInTheDocument();
+    expect(bilingualDoc.preferred_language).toBe("bilingual");
+  });
+
   it("changes the reader font-size setting when the larger-text control is used", () => {
     const { container } = render(
       <KnowledgeDocumentReader
@@ -237,16 +384,18 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
     expect(reader?.getAttribute("style")).toContain("--knowledge-reader-font-size: 16px");
   });
 
-  it("4. renders Active Recall Checkpoints and reveals answer on click", () => {
+  it("follows reader language for Active Recall and Leitner cards", async () => {
     const otcDoc: KnowledgeDocument = {
       id: "doc-otc-asthma",
       user_id: "user-1",
       folder_id: "folder-1",
       title: "آسم حاد",
+      title_en: "Acute asthma",
       content_html: `
         <h2>🎯 داروی خط اول و پروتکل دوزاژ</h2>
         <p>سالبوتامول ۴ پاف با دمیار</p>
       `,
+      content_en: "<h2>🎯 First-Line Treatment and Dosing</h2><p>English display-only answer text.</p>",
       tags: ["Respiratory"],
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -261,20 +410,45 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
       />
     );
 
-    // Should render the Active Recall section
     expect(screen.getByText(/خودآزمایی سریع و نکات کلیدی/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/داروی خط اول/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/What is the first-line medication and standard dosing for/)).toBeInTheDocument();
+    expect(screen.getByText("First-Line Dosing")).toBeInTheDocument();
 
-    // Add to Leitner button is hidden initially
     expect(screen.queryByText(/افزودن به جعبه لایتنر/i)).not.toBeInTheDocument();
 
-    // Click "مشاهده پاسخ"
     const showBtn = screen.getByRole("button", { name: /مشاهده پاسخ/i });
     fireEvent.click(showBtn);
 
-    // Answer and Add to Leitner button are now visible
+    expect(screen.getAllByText("English display-only answer text.").length).toBeGreaterThan(1);
     expect(screen.getByText(/افزودن به جعبه لایتنر/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /مخفی‌سازی/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /زبان مطالعه: انگلیسی/ }));
+    expect(screen.getByText(/داروی خط اول و دستور مصرف استاندارد برای/)).toBeInTheDocument();
+    expect(screen.getByText("خط اول درمان")).toBeInTheDocument();
+    expect(screen.getAllByText(/سالبوتامول ۴ پاف با دمیار/).length).toBeGreaterThan(1);
+
+    fireEvent.click(screen.getByRole("button", { name: /زبان مطالعه: فارسی/ }));
+    expect(screen.getByText(/What is the first-line medication and standard dosing for/)).toBeInTheDocument();
+    expect(screen.getAllByText(/English display-only answer text/).length).toBeGreaterThan(1);
+    expect(screen.getByText(/داروی خط اول و دستور مصرف استاندارد برای/)).toBeInTheDocument();
+    expect(screen.getAllByText(/سالبوتامول ۴ پاف با دمیار/).length).toBeGreaterThan(1);
+    expect(screen.getByText(/خط اول درمان/)).toBeInTheDocument();
+    expect(screen.getByText(/First-Line Dosing/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /افزودن به جعبه لایتنر/i }));
+    await waitFor(() => expect(mockCreateLeitnerCard).toHaveBeenCalledTimes(1));
+    expect(mockCreateLeitnerCard).toHaveBeenCalledWith("guest", expect.objectContaining({
+      front: expect.stringMatching(/[\u0600-\u06ff]/),
+      back: expect.stringMatching(/[\u0600-\u06ff]/),
+      front_fa: expect.stringMatching(/[\u0600-\u06ff]/),
+      front_en: expect.stringMatching(/[a-z]/i),
+      back_fa: expect.stringMatching(/[\u0600-\u06ff]/),
+      back_en: expect.stringMatching(/[a-z]/i),
+      clue: expect.stringContaining("English:"),
+      document_id: otcDoc.id,
+      folder_id: otcDoc.folder_id,
+    }));
   });
 
   it("5. renders suggested further reading with its match basis and opens the selected document", () => {
@@ -311,6 +485,29 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
     expect(handleSelect).toHaveBeenCalledWith("doc-related-sertraline");
   });
 
+  it("keeps the bilingual layout scoped to the reader panel", () => {
+    mockIsEn = true;
+    const { container } = render(
+      <KnowledgeDocumentReader
+        document={{
+          ...dummyDoc,
+          content_html: "<p>Persian lesson</p>",
+          content_en: "<p>English lesson</p>",
+        }}
+        folder={dummyFolder}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Reading language: English" }));
+    fireEvent.click(screen.getByRole("button", { name: "Reading language: Persian" }));
+
+    expect(container.querySelector(".knowledge-reader-shell")).toBeInTheDocument();
+    expect(container.querySelectorAll(".bilingual-dual-grid > .bilingual-col-fa, .bilingual-dual-grid > .bilingual-col-en"))
+      .toHaveLength(2);
+  });
+
   it("labels same-folder suggestions without implying a clinical relationship", () => {
     const folderNeighbor: KnowledgeDocument = {
       ...dummyDoc,
@@ -331,5 +528,123 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
 
     expect(screen.getByText("Inventory accounting overview")).toBeInTheDocument();
     expect(screen.getByText("همین پوشه")).toBeInTheDocument();
+  });
+
+  it("saves and restores scroll position during round-trip inter-document navigation", () => {
+    const scrollMap = new Map<string, number>();
+    const docA: KnowledgeDocument = {
+      ...dummyDoc,
+      id: "doc-alpha",
+      title: "درس اول الفا",
+      content_html: '<p data-doc-link="doc-beta">برو به درس بتا</p><p>' + 'محتوای طولانی... '.repeat(100) + '</p>',
+    };
+    const docB: KnowledgeDocument = {
+      ...dummyDoc,
+      id: "doc-beta",
+      title: "درس دوم بتا",
+      content_html: '<p>محتوای درس دوم</p>',
+    };
+
+    const handleSelect = vi.fn();
+    const { rerender, container } = render(
+      <KnowledgeDocumentReader
+        document={docA}
+        folder={dummyFolder}
+        allDocuments={[docA, docB]}
+        onSelectDocument={handleSelect}
+        scrollPositionsMap={scrollMap}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />
+    );
+
+    const scrollContainer = container.querySelector(".overflow-y-auto") as HTMLDivElement;
+    expect(scrollContainer).toBeInTheDocument();
+
+    // User scrolls to 450px in docA
+    Object.defineProperty(scrollContainer, "scrollTop", { value: 450, writable: true });
+    fireEvent.scroll(scrollContainer);
+
+    // Verify scroll position was recorded for docA
+    expect(scrollMap.get("doc-alpha")).toBe(450);
+
+    // User clicks inter-document link
+    const link = container.querySelector('[data-doc-link="doc-beta"]')!;
+    fireEvent.click(link);
+    expect(handleSelect).toHaveBeenCalledWith("doc-beta");
+
+    // Host app switches document to docB
+    rerender(
+      <KnowledgeDocumentReader
+        document={docB}
+        folder={dummyFolder}
+        allDocuments={[docA, docB]}
+        onSelectDocument={handleSelect}
+        scrollPositionsMap={scrollMap}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />
+    );
+
+    // DocB has no saved scroll; defaults to 0
+    expect(scrollContainer.scrollTop).toBe(0);
+
+    // Host app navigates back to docA
+    rerender(
+      <KnowledgeDocumentReader
+        document={docA}
+        folder={dummyFolder}
+        allDocuments={[docA, docB]}
+        onSelectDocument={handleSelect}
+        scrollPositionsMap={scrollMap}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />
+    );
+
+    // DocA's scroll position (450) is restored
+    expect(scrollContainer.scrollTop).toBe(450);
+  });
+
+  it("renders checkpoint with identical Persian and English text once with dir=auto and no missing-translation warning", () => {
+    const docWithIdenticalCheckpoint: KnowledgeDocument = {
+      ...dummyDoc,
+      preferred_language: "bilingual",
+      title: "پروتکل آموکسی‌سیلین",
+      content_html: `
+        <h2>🎯 داروی خط اول و پروتکل دوزاژ (First-Line Drug & Dosage)</h2>
+        <p>Amoxicillin 500mg TDS</p>
+      `,
+      content_en: `
+        <h2>🎯 First-line Drug & Standard Dosing</h2>
+        <p>Amoxicillin 500mg TDS</p>
+      `,
+    };
+
+    render(
+      <KnowledgeDocumentReader
+        document={docWithIdenticalCheckpoint}
+        folder={dummyFolder}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />
+    );
+
+    // Click show answer on the checkpoint
+    const showAnswerBtn = screen.getByRole("button", { name: /مشاهده پاسخ|show answer/i });
+    fireEvent.click(showAnswerBtn);
+
+    // Answer text "Amoxicillin 500mg TDS" is rendered
+    const answerElements = screen.getAllByText("Amoxicillin 500mg TDS");
+    // Should not render missing translation alerts
+    expect(screen.queryByText(/نسخهٔ انگلیسی موجود نیست/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/English version is not available/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/نسخهٔ فارسی موجود نیست/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Persian version is not available/i)).not.toBeInTheDocument();
+
+    // Verify the rendered answer in the checkpoint has dir="auto"
+    const checkpointAnswerNode = answerElements.find((el) => el.getAttribute("dir") === "auto");
+    expect(checkpointAnswerNode).toBeDefined();
+    expect(checkpointAnswerNode?.getAttribute("dir")).toBe("auto");
   });
 });

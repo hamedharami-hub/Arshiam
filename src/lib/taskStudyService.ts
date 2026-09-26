@@ -11,7 +11,12 @@ export type StudyTargetType =
   | "mindmap_folder"
   | "mindmap_doc"
   | "mindmap_all"
-  | "leitner";
+  | "leitner"
+  | "leitner_folder";
+
+export function isLeitnerStudyTask(task: Partial<Task>): boolean {
+  return task.source_type === "leitner" || task.source_type === "leitner_folder";
+}
 
 export interface CreateStudyTaskOptions {
   userId: string;
@@ -31,6 +36,7 @@ export interface CreateStudyTaskOptions {
 export interface RescheduleLeitnerStudyTaskOptions {
   userId: string;
   taskId: string;
+  targetType: "leitner" | "leitner_folder";
   targetId: string;
   nextReviewAt: string;
 }
@@ -79,7 +85,7 @@ export async function rescheduleLeitnerStudyTaskAfterSession(
       task = snapshot.data() as Task;
     }
     if (!task) return { ok: false, error: "Review task not found." };
-    if (task.source_type !== "leitner" || task.source_id !== targetId || task.completed) {
+    if (task.source_type !== options.targetType || task.source_id !== targetId || task.completed) {
       return { ok: false, error: "Review task no longer matches this study session." };
     }
 
@@ -121,7 +127,7 @@ export async function createStudyTask(
     // Generate smart default title if not provided
     let defaultTitle = opts.title?.trim();
     if (!defaultTitle) {
-      if (opts.targetType === "leitner") {
+      if (opts.targetType === "leitner" || opts.targetType === "leitner_folder") {
         defaultTitle = "خواندن و مرور کارت‌های لایتنر";
       } else if (opts.targetType === "knowledge_folder") {
         defaultTitle = `مطالعه شاخه: ${opts.targetTitle}`;
@@ -195,7 +201,8 @@ export function getStudyTaskNavigation(task: Partial<Task>): {
   const type = task.source_type as StudyTargetType | undefined;
   const id = task.source_id || "";
 
-  if (!type || (!type.startsWith("knowledge_") && !type.startsWith("mindmap_") && type !== "leitner")) {
+  if (!type || (!type.startsWith("knowledge_") && !type.startsWith("mindmap_") &&
+    type !== "leitner" && type !== "leitner_folder")) {
     return {
       isStudyTask: false,
       isMindMap: false,
@@ -208,10 +215,12 @@ export function getStudyTaskNavigation(task: Partial<Task>): {
     };
   }
 
-  if (type === "leitner") {
-    const targetQuery = id && id !== "all"
-      ? `&studyDocId=${encodeURIComponent(id)}`
-      : "";
+  if (type === "leitner" || type === "leitner_folder") {
+    const targetQuery = !id || id === "all"
+      ? ""
+      : type === "leitner_folder"
+        ? `&studyFolderId=${encodeURIComponent(id)}`
+        : `&studyDocId=${encodeURIComponent(id)}`;
     const taskQuery = task.id ? `&studyTaskId=${encodeURIComponent(task.id)}` : "";
     return {
       isStudyTask: true,

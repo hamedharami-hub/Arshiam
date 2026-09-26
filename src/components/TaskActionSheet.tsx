@@ -21,8 +21,9 @@ import {
   Check, Trash2, FolderInput, Network, Pencil, Copy, Share2,
   Sparkles, CopyPlus, Pin, PinOff, Timer, ListTree, Paperclip,
   Tag as TagIcon, MoreHorizontal, MessageSquare, MapPin, X,
-  ArrowRight, Loader2, Save, StickyNote, LayoutList, History,
+  ArrowRight, Loader2, Save, StickyNote, LayoutList, History, BookOpen,
 } from "lucide-react";
+import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
 
 type View = "main" | "more" | "activities" | "subtask" | "comment" | "location";
 
@@ -67,8 +68,10 @@ export default function TaskActionSheet({
   const isOwner = propIsOwner ?? fallbackIsOwner;
   const canEdit = propCanEdit ?? isOwner;
   const canComment = propCanComment ?? canEdit;
-
   if (!task) return null;
+
+  const isScheduledLeitnerReview = isLeitnerStudyTask(task);
+  const studyNavigation = getStudyTaskNavigation(task);
 
   const close = () => {
     setView("main");
@@ -302,7 +305,11 @@ export default function TaskActionSheet({
           </>
         ) : (
           <>
-            <Row icon={Check} label={task.completed ? T("بازگشایی تکمیل", "Reopen") : T("تکمیل", "Done")} onClick={() => { onComplete(); close(); }} disabled={!canComment} />
+            {isScheduledLeitnerReview && !task.completed ? (
+              <Row icon={BookOpen} label={T("شروع مرور لایتنر", "Open Leitner review")} onClick={() => { navigate(studyNavigation.navUrl); close(); }} disabled={!studyNavigation.navUrl} />
+            ) : (
+              <Row icon={Check} label={task.completed ? T("بازگشایی تکمیل", "Reopen") : T("تکمیل", "Done")} onClick={() => { onComplete(); close(); }} disabled={!canComment} />
+            )}
             <Row icon={Pencil} label={T("ویرایش / باز کردن", "Edit / Open")} onClick={() => { onEdit(); close(); }} />
             <Row icon={Sparkles} label="AI" onClick={() => { navigate(`/app/tasks/${task.id}?ai=1`); close(); }} disabled={!canEdit} />
             <Row icon={Timer} label={T("پومودورو", "Pomodoro")} onClick={() => { onPomodoro?.(); close(); }} />

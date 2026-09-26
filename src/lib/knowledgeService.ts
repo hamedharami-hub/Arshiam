@@ -65,6 +65,16 @@ function normalizeSourceUrl(value: string | undefined): string {
 
 type KnowledgeCollection = "knowledge_folders" | "knowledge_documents";
 
+export class KnowledgeDocumentDeletionError extends Error {
+  constructor(
+    readonly reason: "offline" | "verify-cards" | "pending-cards" | "linked-cards",
+    readonly linkedCardCount = 0,
+  ) {
+    super(reason);
+    this.name = "KnowledgeDocumentDeletionError";
+  }
+}
+
 async function saveKnowledgeRowOrQueue(
   userId: string,
   collection: KnowledgeCollection,
@@ -205,13 +215,79 @@ export async function updateKnowledgeFolder(
   return updated;
 }
 
+async function loadCurrentKnowledgeForFolderDeletion(userId: string): Promise<{
+  folders: KnowledgeFolder[];
+  documents: KnowledgeDocument[];
+  pendingFolderOps: Awaited<ReturnType<typeof getPendingOps>>;
+  pendingDocumentOps: Awaited<ReturnType<typeof getPendingOps>>;
+}> {
+  if (!isOnline()) {
+    throw new Error("Reconnect before deleting a folder so all linked lessons and subfolders can be verified.");
+  }
+
+  const [cachedFolders, cachedDocuments, folderResult, documentResult, pendingFolderOps, pendingDocumentOps] =
+    await Promise.all([
+      cacheGet<KnowledgeFolder[]>(getFoldersCacheKey(userId)),
+      cacheGet<KnowledgeDocument[]>(getDocsCacheKey(userId)),
+      firebaseStore.from("knowledge_folders").select("*").eq("user_id", userId),
+      firebaseStore.from("knowledge_documents").select("*").eq("user_id", userId),
+      getPendingOps("knowledge_folders"),
+      getPendingOps("knowledge_documents"),
+    ]);
+
+  if (folderResult.error || !Array.isArray(folderResult.data) ||
+      documentResult.error || !Array.isArray(documentResult.data)) {
+    throw new Error("Could not load the current knowledge folders and lessons. Nothing was deleted; retry when storage is available.");
+  }
+
+  return {
+    folders: reconcileRemoteRowsWithPending(
+      folderResult.data as KnowledgeFolder[],
+      cachedFolders || [],
+      pendingFolderOps,
+      "knowledge_folders",
+      userId,
+    ),
+    documents: reconcileRemoteRowsWithPending(
+      (documentResult.data as KnowledgeDocument[]).map(normalizeKnowledgeDocument),
+      (cachedDocuments || []).map(normalizeKnowledgeDocument),
+      pendingDocumentOps,
+      "knowledge_documents",
+      userId,
+    ).map(normalizeKnowledgeDocument),
+    pendingFolderOps,
+    pendingDocumentOps,
+  };
+}
+
+async function verifyFolderHasNoDirectContents(userId: string, folderId: string): Promise<void> {
+  const [folderResult, documentResult] = await Promise.all([
+    firebaseStore.from("knowledge_folders").select("*").eq("user_id", userId),
+    firebaseStore.from("knowledge_documents").select("*").eq("user_id", userId),
+  ]);
+
+  if (folderResult.error || !Array.isArray(folderResult.data) ||
+      documentResult.error || !Array.isArray(documentResult.data)) {
+    throw new Error("Could not verify that all lessons and subfolders were moved. The folder was kept; retry when storage is available.");
+  }
+
+  const hasDirectChildren = (folderResult.data as KnowledgeFolder[])
+    .some((item) => item.parent_id === folderId);
+  const hasDirectDocuments = (documentResult.data as KnowledgeDocument[])
+    .some((item) => item.folder_id === folderId);
+  if (hasDirectChildren || hasDirectDocuments) {
+    throw new Error("Some lessons or subfolders are still linked to this folder. They were kept; sync changes and retry.");
+  }
+}
+
 export async function deleteKnowledgeFolder(userId: string, folderId: string): Promise<boolean> {
   if (!userId || !folderId) return false;
 
   const folderCacheKey = getFoldersCacheKey(userId);
   const docsCacheKey = getDocsCacheKey(userId);
-  const existingFolders = (await cacheGet<KnowledgeFolder[]>(folderCacheKey)) || [];
-  const existingDocs = (await cacheGet<KnowledgeDocument[]>(docsCacheKey)) || [];
+  const current = await loadCurrentKnowledgeForFolderDeletion(userId);
+  const existingFolders = current.folders;
+  const existingDocs = current.documents;
   const folder = existingFolders.find((item) => item.id === folderId);
   if (!folder) return false;
 
@@ -226,6 +302,25 @@ export async function deleteKnowledgeFolder(userId: string, folderId: string): P
   const movedDocuments = existingDocs
     .filter((item) => item.folder_id === folderId)
     .map((item) => ({ ...item, folder_id: destinationFolderId, updated_at: now }));
+
+  // A queued mutation for one of the rows being moved could replay later and
+  // restore its old parent/folder relation. Require the queue to settle first.
+  const movedFolderIds = new Set([folderId, ...movedFolders.map((item) => item.id)]);
+  const movedDocumentIds = new Set(movedDocuments.map((item) => item.id));
+  const hasConflictingPendingWrite = [
+    ...current.pendingFolderOps.filter((op) => op.ownerId === userId),
+    ...current.pendingDocumentOps.filter((op) => op.ownerId === userId),
+  ].some((op) => {
+    const id = typeof op.payload === "object" && op.payload !== null && "id" in op.payload
+      ? String((op.payload as { id?: unknown }).id || "")
+      : String(op.match?.id || "");
+    return op.table === "knowledge_folders"
+      ? movedFolderIds.has(id)
+      : op.table === "knowledge_documents" && movedDocumentIds.has(id);
+  });
+  if (hasConflictingPendingWrite) {
+    throw new Error("Sync pending changes to this folder or its direct contents before deleting it.");
+  }
 
   // Update related rows before deleting the parent. Bounded batches avoid
   // flooding Firestore when a large imported knowledge folder is removed.
@@ -243,6 +338,11 @@ export async function deleteKnowledgeFolder(userId: string, folderId: string): P
       throw new Error("Could not safely preserve all knowledge items; the folder was not removed. Retry after storage is available.");
     }
   }
+
+  // The write helper may safely queue a failed write. Verify the live remote
+  // relationships before deleting the parent so queued updates cannot leave
+  // orphaned references when the parent delete succeeds first.
+  await verifyFolderHasNoDirectContents(userId, folderId);
 
   const folderDeleted = await deleteKnowledgeRowOrQueue(userId, "knowledge_folders", folderId);
   if (!folderDeleted) {
@@ -444,6 +544,46 @@ export async function deleteKnowledgeDocument(userId: string, docId: string): Pr
   const cacheKey = getDocsCacheKey(userId);
   const existing = (await cacheGet<KnowledgeDocument[]>(cacheKey)) || [];
   if (!existing.some((document) => document.id === docId)) return false;
+
+  // A lesson can be the source for Leitner cards. Never delete it based only
+  // on a local cache: an uncached/remote card would retain a broken document_id.
+  if (!isOnline()) {
+    throw new KnowledgeDocumentDeletionError("offline");
+  }
+
+  let remoteCards: unknown;
+  try {
+    const result = await firebaseStore
+      .from("leitner_cards")
+      .select("*")
+      .eq("user_id", userId)
+      .order("next_review_at", { ascending: true });
+    if (result.error || !Array.isArray(result.data)) {
+      throw new Error("Leitner card read failed");
+    }
+    remoteCards = result.data;
+  } catch {
+    throw new KnowledgeDocumentDeletionError("verify-cards");
+  }
+
+  let pendingCards: Awaited<ReturnType<typeof getPendingOps>>;
+  try {
+    pendingCards = await getPendingOps("leitner_cards");
+  } catch {
+    throw new KnowledgeDocumentDeletionError("pending-cards");
+  }
+
+  const currentCards = reconcileRemoteRowsWithPending(
+    remoteCards as Array<{ id: string; document_id?: string | null }>,
+    [],
+    pendingCards,
+    "leitner_cards",
+    userId,
+  );
+  const linkedCardCount = currentCards.filter((card) => card.document_id === docId).length;
+  if (linkedCardCount > 0) {
+    throw new KnowledgeDocumentDeletionError("linked-cards", linkedCardCount);
+  }
 
   requireMutationAccepted(
     await deleteKnowledgeRowOrQueue(userId, "knowledge_documents", docId),

@@ -1,0 +1,96 @@
+// Generated from Pharmacy main at 5b4f7d2443a3ed97aea752c1d0d18583ce6d0067; do not edit by hand.
+import type { PharmacyFredPracticeEntry } from "./pharmacyFredPractice";
+
+export const PHARMACY_FRED_PRACTICE_SCENARIOS: PharmacyFredPracticeEntry[] = [
+  {
+    "id": "script-1",
+    "type": "eScript",
+    "scriptType": "typeC",
+    "prescribedDrug": "Lipitor 20mg Tablets",
+    "pbsCode": "2018H",
+    "aFlagGenericSubstitute": "Atorvastatin 20mg (A-Flag Brand Substitute)",
+    "schedule": "S4",
+    "scriptDate": "01/08/2026",
+    "quantity": 30,
+    "repeats": 5,
+    "directions": "Take ONE tablet daily at bedtime.",
+    "sourceUrl": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/components/FredDispenseModule.tsx",
+    "contentReviewStatus": "unreviewed"
+  },
+  {
+    "id": "script-2",
+    "type": "Paper",
+    "scriptType": "typeA",
+    "prescribedDrug": "Atorvastatin 20mg Tablets (Std Duplicate Paper)",
+    "pbsCode": "2018H",
+    "aFlagGenericSubstitute": "Atorvastatin 20mg (A-Flag Brand Substitute)",
+    "schedule": "S4",
+    "scriptDate": "01/08/2026",
+    "quantity": 30,
+    "repeats": 5,
+    "directions": "Take ONE tablet daily at bedtime.",
+    "sourceUrl": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/components/FredDispenseModule.tsx",
+    "contentReviewStatus": "unreviewed"
+  },
+  {
+    "id": "script-repeat",
+    "type": "Paper",
+    "scriptType": "typeRepeat",
+    "prescribedDrug": "Rosuvastatin 10mg Tablets (Yellow Repeat Form PB 24)",
+    "pbsCode": "8214K",
+    "aFlagGenericSubstitute": "Rosuvastatin 10mg (A-Flag Brand Substitute)",
+    "schedule": "S4",
+    "scriptDate": "10/08/2026",
+    "quantity": 30,
+    "repeats": 4,
+    "directions": "Take ONE tablet daily at bedtime (4 of 5 Repeats Remaining).",
+    "sourceUrl": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/components/FredDispenseModule.tsx",
+    "contentReviewStatus": "unreviewed"
+  },
+  {
+    "id": "script-3",
+    "type": "Paper",
+    "scriptType": "typeB",
+    "prescribedDrug": "OxyContin 10mg Tablets (S8 Controlled Drug)",
+    "pbsCode": "3192K",
+    "aFlagGenericSubstitute": "Oxycodone SR 10mg",
+    "schedule": "S8",
+    "scriptDate": "01/01/2026",
+    "quantity": 28,
+    "repeats": 0,
+    "directions": "Take ONE tablet every 12 hours.",
+    "isExpiredS8": true,
+    "sourceUrl": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/components/FredDispenseModule.tsx",
+    "contentReviewStatus": "unreviewed"
+  },
+  {
+    "id": "script-4",
+    "type": "Chart",
+    "scriptType": "typeD",
+    "prescribedDrug": "Coversyl Plus 5mg/1.25mg (RACF Chart)",
+    "pbsCode": "8291F",
+    "aFlagGenericSubstitute": "Perindopril / Indapamide 5mg/1.25mg",
+    "schedule": "S4",
+    "scriptDate": "10/08/2026",
+    "quantity": 30,
+    "repeats": 5,
+    "directions": "Take ONE tablet daily in the morning for hypertension.",
+    "sourceUrl": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/components/FredDispenseModule.tsx",
+    "contentReviewStatus": "unreviewed"
+  },
+  {
+    "id": "script-5",
+    "type": "Paper",
+    "scriptType": "typeE",
+    "prescribedDrug": "Methadone Liquid 5mg/mL (NSW ODT S8 Form)",
+    "pbsCode": "1820X",
+    "aFlagGenericSubstitute": "Methadone Oral Liquid 5mg/mL",
+    "schedule": "S8",
+    "scriptDate": "10/08/2026",
+    "quantity": 1,
+    "repeats": 0,
+    "directions": "Supervised 60mg Mon-Fri, 2 Takeaway bottles Sat-Sun.",
+    "sourceUrl": "https://github.com/hamedharami-hub/pharmacy/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/components/FredDispenseModule.tsx",
+    "contentReviewStatus": "unreviewed"
+  }
+];

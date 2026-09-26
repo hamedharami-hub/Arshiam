@@ -9,7 +9,6 @@ import {
   GitFork,
   Gamepad2,
   Check,
-  Copy,
   Plus,
   ArrowRight,
   Layers,
@@ -43,6 +42,7 @@ interface InteractiveLearningModalProps {
   onInsertContent: (html: string, mode: "append" | "replace") => void;
   presentationMode?: "editor" | "standalone";
   languageOverride?: "fa" | "en";
+  onWorkflowStepChange?: (step: 2 | 3) => void;
 }
 
 export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> = ({
@@ -54,6 +54,7 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
   onInsertContent,
   presentationMode = "editor",
   languageOverride,
+  onWorkflowStepChange,
 }) => {
   const { isEn: appIsEn } = useBilingual();
   const isEn = languageOverride ? languageOverride === "en" : appIsEn;
@@ -65,7 +66,6 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
   const [activeTab, setActiveTab] = useState<"presets" | "preview">("presets");
   const [generatedHtml, setGeneratedHtml] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
 
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const generationSequenceRef = useRef(0);
@@ -79,8 +79,23 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
     setActiveTab("presets");
     setGeneratedHtml("");
     setIsGenerating(false);
-    setIsCopied(false);
   }, [documentContent, documentId, documentTitle, isEn]);
+
+  useEffect(() => {
+    if (!open) return;
+    setActiveTab("presets");
+    onWorkflowStepChange?.(2);
+  }, [onWorkflowStepChange, open]);
+
+  const showFormats = () => {
+    setActiveTab("presets");
+    onWorkflowStepChange?.(2);
+  };
+
+  const showPreview = () => {
+    setActiveTab("preview");
+    onWorkflowStepChange?.(3);
+  };
 
   // Toggle a preset chip
   const togglePreset = (id: InteractiveWidgetType) => {
@@ -135,7 +150,7 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
 
       if (generationSequence !== generationSequenceRef.current) return;
       setGeneratedHtml(html);
-      setActiveTab("preview");
+      showPreview();
       toast.success(
         isEn ? "Interactive widgets generated!" : "ماژول‌های تعاملی با موفقیت ساخته شدند!"
       );
@@ -155,23 +170,6 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
       return cleanup;
     }
   }, [activeTab, generatedHtml, isEn]);
-
-  // Copy HTML
-  const handleCopyHtml = async () => {
-    if (!generatedHtml) return;
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(generatedHtml);
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000);
-        toast.success(isEn ? "HTML copied to clipboard" : "کد HTML کپی شد");
-      } else {
-        toast.error(isEn ? "Clipboard not available" : "دسترسی به کلیپ‌بورد مقدور نیست");
-      }
-    } catch {
-      toast.error(isEn ? "Failed to copy HTML" : "خطا در کپی HTML");
-    }
-  };
 
   const handleApply = (mode: "append" | "replace") => {
     if (!generatedHtml) return;
@@ -221,7 +219,7 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
             <div className="flex items-center p-0.5 rounded-xl bg-muted/60 border border-border text-xs self-stretch sm:self-auto justify-center">
               <button
                 type="button"
-                onClick={() => setActiveTab("presets")}
+                onClick={showFormats}
                 className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg font-medium transition cursor-pointer text-center ${
                   activeTab === "presets"
                     ? "bg-background text-foreground shadow-xs font-semibold"
@@ -233,7 +231,7 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
               <button
                 type="button"
                 disabled={!generatedHtml}
-                onClick={() => setActiveTab("preview")}
+                onClick={showPreview}
                 className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                   activeTab === "preview"
                     ? "bg-background text-foreground shadow-xs font-semibold"
@@ -262,6 +260,12 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
                     {selectedPresets.length} {isEn ? "selected" : "مورد انتخاب شده"}
                   </span>
                 </div>
+
+                <p className="rounded-xl border border-primary/15 bg-primary/[0.04] px-3 py-2 text-[11px] leading-5 text-muted-foreground">
+                  {isEn
+                    ? "Recommended starting point: flashcards support active recall and quizzes check understanding. These are optional defaults—choose any combination that fits this lesson."
+                    : "پیشنهاد برای شروع: فلش‌کارت به یادآوری فعال کمک می‌کند و آزمون میزان فهم را می‌سنجد. این‌ها فقط پیش‌فرض پیشنهادی‌اند؛ هر ترکیبی را متناسب با درس انتخاب کن."}
+                </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                   {INTERACTIVE_PRESETS.map((preset) => {
@@ -360,23 +364,11 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
           ) : (
             /* Live Interactive Preview Tab */
             <div className="space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-border">
+              <div className="flex items-center gap-2 pb-2 border-b border-border">
                 <span className="text-xs font-bold text-primary flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>{isEn ? "Interactive Widgets Test Drive (Click items to test)" : "تست زنده ماژول‌های تعاملی (روی المان‌ها کلیک کنید):"}</span>
                 </span>
-                <button
-                  type="button"
-                  onClick={handleCopyHtml}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground text-xs font-medium border border-border transition cursor-pointer"
-                >
-                  {isCopied ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-500" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                  <span>{isEn ? "Copy HTML" : "کپی HTML"}</span>
-                </button>
               </div>
 
               <div
@@ -394,7 +386,7 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
             {activeTab === "preview" && (
               <button
                 type="button"
-                onClick={() => setActiveTab("presets")}
+                onClick={showFormats}
                 className="px-3 py-1.5 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground transition cursor-pointer"
               >
                 {isEn ? "Edit Settings" : "ویرایش تنظیمات"}

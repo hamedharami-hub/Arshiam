@@ -1,5 +1,5 @@
 import {
-  MoreHorizontal, Pin, PinOff, Circle, CheckCircle2, Timer, FolderInput,
+  MoreHorizontal, Pin, PinOff, Circle, CheckCircle2, Timer, FolderInput, BookOpen,
   Network, Link as LinkIcon, Copy, Sparkles, CheckSquare, FileText,
   Paperclip, GitBranch, Trash2,
 } from "lucide-react";
@@ -12,6 +12,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Task } from "@/lib/taskTypes";
+import { useNavigate } from "react-router-dom";
+import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
 
 export interface TaskDetailActionsMenuProps {
   task: Task;
@@ -54,6 +56,9 @@ export function TaskDetailActionsMenu({
   onOpenActionMenu,
   onDeleteTask,
 }: TaskDetailActionsMenuProps) {
+  const navigate = useNavigate();
+  const isActiveLeitnerReview = isLeitnerStudyTask(task) && !task.completed;
+
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
@@ -76,12 +81,16 @@ export function TaskDetailActionsMenu({
           <span>{task.pinned ? T("حذف پین", "Unpin task") : T("پین کردن تسک", "Pin task")}</span>
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={onToggleCompletion}
-          disabled={!canEdit}
+          onClick={isActiveLeitnerReview ? () => navigate(getStudyTaskNavigation(task).navUrl) : onToggleCompletion}
+          disabled={isActiveLeitnerReview ? !getStudyTaskNavigation(task).navUrl : !canEdit}
           className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-accent focus:bg-accent"
         >
-          {task.completed ? <Circle className="w-4 h-4 text-muted-foreground" /> : <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-          <span>{task.completed ? T("بازگشایی تسک", "Reopen task") : T("تکمیل تسک", "Complete task")}</span>
+          {isActiveLeitnerReview
+            ? <BookOpen className="w-4 h-4 text-primary" />
+            : task.completed ? <Circle className="w-4 h-4 text-muted-foreground" /> : <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+          <span>{isActiveLeitnerReview
+            ? T("شروع مرور لایتنر", "Open Leitner review")
+            : task.completed ? T("بازگشایی تسک", "Reopen task") : T("تکمیل تسک", "Complete task")}</span>
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={onOpenFocus}

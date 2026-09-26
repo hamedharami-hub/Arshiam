@@ -173,17 +173,20 @@ public class WidgetTaskActionActivity extends Activity {
 
         if (!create) {
             boolean done = task.optBoolean("completed") || "done".equals(task.optString("status"));
+            boolean studyReview = AgendaData.isLeitnerStudyTask(task) && !done;
 
             // Toggle Complete Button
             Button complete = new Button(this);
             complete.setText(done ? (isFa ? "↺ علامت‌گذاری به عنوان انجام نشده" : "Mark not complete") : (isFa ? "✓ انجام شد (تیک زدن)" : "Mark complete"));
             complete.setTextColor(Color.parseColor("#C4B5FD"));
+            if (studyReview) complete.setText(isFa ? "شروع مرور لایتنر" : "Start Leitner review");
             complete.setBackgroundResource(R.drawable.widget_btn_secondary);
             LinearLayout.LayoutParams compLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 46 * dp);
             compLp.topMargin = 10 * dp;
             complete.setLayoutParams(compLp);
             root.addView(complete);
             complete.setOnClickListener(v -> {
+                if (studyReview) { openTaskInApp(taskId, task); return; }
                 AgendaData.setCompleted(this, taskId, !done);
                 WidgetTaskActionWorker.enqueue(this, done ? "reopen" : "complete", taskId, "", "", "");
                 AgendaWidgetProvider.redraw(this);
@@ -201,8 +204,7 @@ public class WidgetTaskActionActivity extends Activity {
             full.setLayoutParams(fullLp);
             root.addView(full);
             full.setOnClickListener(v -> {
-                startActivity(AgendaWidgetProvider.appIntent(this, "task?taskId=" + Uri.encode(taskId) + "&owner=" + Uri.encode(AgendaData.prefs(this).getString("dataUserId", "")) + "&fromWidget=1"));
-                finish();
+                openTaskInApp(taskId, task);
             });
         }
     }
@@ -235,6 +237,7 @@ public class WidgetTaskActionActivity extends Activity {
         card.addView(title);
 
         boolean done = task.optBoolean("completed") || "done".equals(task.optString("status"));
+        boolean studyReview = AgendaData.isLeitnerStudyTask(task) && !done;
         String priorityStr = task.optString("priority", "none");
         String metaText = (done ? (isFa ? "وضعیت: انجام‌شده ✓ · " : "Status: Done · ") : (isFa ? "وضعیت: در انتظار · " : "Status: Todo · "))
             + (isFa ? "اولویت: " + ("urgent".equals(priorityStr) ? "فوری و مهم (Urgent)" : "high".equals(priorityStr) ? "زیاد (High)" : "medium".equals(priorityStr) ? "متوسط (Medium)" : "low".equals(priorityStr) ? "کم (Low)" : "عادی (بدون اولویت)") : "Priority: " + ("urgent".equals(priorityStr) ? "Urgent" : priorityStr));
@@ -252,12 +255,14 @@ public class WidgetTaskActionActivity extends Activity {
         complete.setText(done ? (isFa ? "↺ علامت‌گذاری به عنوان انجام‌نشده" : "Mark not complete") : (isFa ? "✓ تیک زدن و انجام شد" : "Mark complete"));
         complete.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         complete.setTextColor(Color.WHITE);
+        if (studyReview) complete.setText(isFa ? "شروع مرور لایتنر" : "Start Leitner review");
         complete.setBackgroundResource(R.drawable.widget_btn_primary);
         LinearLayout.LayoutParams compLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 46 * dp);
         compLp.bottomMargin = 8 * dp;
         complete.setLayoutParams(compLp);
         root.addView(complete);
         complete.setOnClickListener(v -> {
+            if (studyReview) { openTaskInApp(taskId, task); return; }
             AgendaData.setCompleted(this, taskId, !done);
             WidgetTaskActionWorker.enqueue(this, done ? "reopen" : "complete", taskId, "", "", "");
             AgendaWidgetProvider.redraw(this);
@@ -332,8 +337,7 @@ public class WidgetTaskActionActivity extends Activity {
         open.setLayoutParams(openLp);
         root.addView(open);
         open.setOnClickListener(v -> {
-            startActivity(AgendaWidgetProvider.appIntent(this, "task?taskId=" + Uri.encode(taskId) + "&owner=" + Uri.encode(AgendaData.prefs(this).getString("dataUserId", "")) + "&fromWidget=1"));
-            finish();
+            openTaskInApp(taskId, task);
         });
 
         // 5. Delete Task Action
@@ -352,6 +356,14 @@ public class WidgetTaskActionActivity extends Activity {
             Toast.makeText(this, isFa ? "تسک حذف شد" : "Task deleted", Toast.LENGTH_SHORT).show();
             finish();
         });
+    }
+
+    private void openTaskInApp(String taskId, JSONObject task) {
+        String owner = AgendaData.prefs(this).getString("dataUserId", "");
+        String route = AgendaWidgetProvider.studyReviewRoute(task, owner);
+        if (route.isEmpty()) route = "task?taskId=" + Uri.encode(taskId) + "&owner=" + Uri.encode(owner) + "&fromWidget=1";
+        startActivity(AgendaWidgetProvider.appIntent(this, route));
+        finish();
     }
 
     /** Trigger Android native speech recognizer */

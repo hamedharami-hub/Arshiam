@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Copy, Check, Sparkles, X, BookOpen } from "lucide-react";
+import { Sparkles, X, BookOpen } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
 
 interface TextSelectionFloatingBarProps {
@@ -20,7 +20,6 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
   const { isEn } = useBilingual();
   const [selectedText, setSelectedText] = useState("");
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
-  const [isCopied, setIsCopied] = useState(false);
   const desktopBubbleRef = useRef<HTMLDivElement>(null);
   const mobileBubbleRef = useRef<HTMLDivElement>(null);
 
@@ -105,21 +104,6 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
     };
   }, [checkSelection]);
 
-  const handleCopy = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!selectedText) return;
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(selectedText);
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000);
-      }
-    } catch (err) {
-      console.warn("Failed to copy selected text:", err);
-    }
-  };
-
   const handleDismiss = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -162,27 +146,6 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
           }}
           className="hidden md:flex items-center gap-1.5 p-1.5 rounded-2xl bg-slate-900/95 border border-purple-500/60 shadow-2xl backdrop-blur-xl ring-1 ring-purple-400/20 text-xs animate-in fade-in zoom-in-95 duration-150 select-none"
         >
-          {/* Copy Button */}
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={handleCopy}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-medium transition cursor-pointer"
-            title={isEn ? "Copy text" : "کپی متن"}
-          >
-            {isCopied ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-emerald-400">{isEn ? "Copied" : "کپی شد"}</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5 text-slate-300" />
-                <span>{isEn ? "Copy" : "کپی"}</span>
-              </>
-            )}
-          </button>
-
           {/* AI Flashcard & Question Generation Button */}
           {hasAiAction && (
             <button
@@ -197,7 +160,7 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
             </button>
           )}
 
-          <div className="w-px h-4 bg-slate-700 mx-0.5" />
+          {hasAiAction && <div className="w-px h-4 bg-slate-700 mx-0.5" />}
 
           <button
             type="button"
@@ -241,28 +204,8 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
             </button>
           </div>
 
-          {/* Action Row */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={handleCopy}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs transition cursor-pointer"
-            >
-              {isCopied ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-emerald-400">{isEn ? "Copied" : "کپی شد"}</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>{isEn ? "Copy" : "کپی"}</span>
-                </>
-              )}
-            </button>
-
-            {hasAiAction && (
+          {hasAiAction && (
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
@@ -272,8 +215,8 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
                 <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
                 <span>{isEn ? "Generate Cards (AI)" : "تولید سوال هوشمند (AI)"}</span>
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </>

@@ -3,10 +3,11 @@ import path from 'path';
 import ts from 'typescript';
 import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';
+import { renderSourceValue } from './pharmacySeedRenderer.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const pharmacyDir = process.env.PHARMACY_SOURCE_DIR || path.resolve(scriptDir, '../../pharmacy');
-const targetDir = path.resolve(scriptDir, '../src/lib');
+const targetDir = path.resolve(scriptDir, process.env.PHARMACY_SEED_OUTPUT_DIR || '../src/lib');
 const sourceCommit = execFileSync('git', ['-C', pharmacyDir, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 
 function extractExports(filePath) {
@@ -546,10 +547,314 @@ function getScenarioForDisease(diseaseId) {
     if (dId === diseaseId) {
       const found = (CLINICAL_SCENARIOS || []).find(s => s.id === scId) ||
                     (SLANG_SCENARIOS || []).find(s => s.id === scId);
-      if (found) return found;
+      if (found) return applyPseudoephedrineScenarioEditorialCorrection(found);
     }
   }
   return null;
+}
+
+const PSEUDOEPHEDRINE_REFERENCE_ACCESS_DATE = '26 September 2026';
+const PSEUDOEPHEDRINE_OFFICIAL_REFERENCES = [
+  {
+    title: { fa: 'NSW Health: الزامات ثبت فروش سودوافدرین', en: 'NSW Health: Requirements for recording pseudoephedrine sales' },
+    url: 'https://www.health.nsw.gov.au/pharmaceutical/Pages/recording-of-pseudoephedrine-sales.aspx',
+  },
+  {
+    title: { fa: 'NSW Health: تغییر قوانین دارویی از ۵ نوامبر ۲۰۲۶', en: 'NSW Health: Legislation changes for pharmacists (from 5 November 2026)' },
+    url: 'https://www.health.nsw.gov.au/pharmaceutical/Pages/medicine-laws-pharmacists.aspx',
+  },
+  {
+    title: { fa: 'مقررات دارویی Queensland (نسخهٔ ۳۰ آوریل ۲۰۲۶)', en: 'Queensland Medicines and Poisons (Medicines) Regulation 2021 (30 April 2026)' },
+    url: 'https://www.legislation.qld.gov.au/view/whole/html/2026-04-30/sl-2021-0140',
+  },
+  {
+    title: { fa: 'استاندارد Queensland Health برای ثبت سودوافدرین، نسخهٔ ۱', en: 'Queensland Health Departmental Standard: Pseudoephedrine recording, version 1' },
+    url: 'https://www.health.qld.gov.au/__data/assets/pdf_file/0030/1108938/ds-pseudoephedrine-recording.pdf',
+  },
+  {
+    title: { fa: 'HealthyWA: کار با داروهای S2 و S3', en: 'HealthyWA: Working with Schedule 2 and 3 medicines' },
+    url: 'https://www.healthywa.wa.gov.au/sitecore/content/Corporate/Articles/U_Z/Working-with-Schedule-2-and-3-medicines',
+  },
+  {
+    title: { fa: 'استاندارد سموم ژوئن ۲۰۲۶ استرالیا (Poisons Standard)', en: 'Australian Poisons Standard—June 2026' },
+    url: 'https://www.legislation.gov.au/F2026L00633',
+  },
+];
+
+const PSEUDOEPHEDRINE_RECORDING_CONTEXT_FA = 'الزامات ثبت فروش و احراز هویت سودوافدرین S3 به ایالت/قلمرو وابسته است؛ منابع بررسی‌شده الزام یکسان و ملی برای برند Project STOP را تأیید نمی‌کنند. در NSW، در ۲۶ سپتامبر ۲۰۲۶، فروش بدون نسخه باید هنگام عرضه در فرم الکترونیکی آنلاین و بلادرنگِ مورد تأیید ثبت شود؛ Project STOP تنها فرم تأییدشده است. اگر هویت خریدار برای داروساز شناخته‌شده نباشد، شناسهٔ مدرک عکس‌دار ثبت می‌شود. NSW Health اعلام کرده از ۵ نوامبر ۲۰۲۶ ثبت فروش S3 سودوافدرین در NSW لازم نخواهد بود. در Queensland، ثبت آنلاین و بلادرنگ طبق استاندارد ایالتی لازم است، اما استاندارد نام Project STOP را مشخص نمی‌کند. در WA، HealthyWA می‌گوید مدرک عکس‌دار مشاهده و نام/نشانی در سامانهٔ مورد تأیید ثبت شود. برای ACT، Tasmania و هر حوزهٔ دیگر، قانون و سامانهٔ جاری همان محل را بررسی کنید.';
+const PSEUDOEPHEDRINE_RECORDING_CONTEXT_EN = 'Pseudoephedrine S3 recording and identity requirements depend on the state or territory; the sources reviewed do not support one Australia-wide mandate for the Project STOP brand. In NSW, as at 26 September 2026, OTC sales must be recorded at supply in the approved online, real-time electronic form; Project STOP is the only approved form. If the purchaser is not known to the pharmacist, the unique reference number of photo identification must be recorded. NSW Health says recording S3 pseudoephedrine sales will no longer be required in NSW from 5 November 2026. Queensland requires online, real-time records under its state standard, which does not specify the Project STOP brand. HealthyWA says to sight photo ID and record purchaser name/address in an approved system in WA. Check current ACT, Tasmania and other applicable local requirements.';
+const PSEUDOEPHEDRINE_PACK_SCHEDULE_FA = 'طبق Poisons Standard ژوئن ۲۰۲۶، سودوافدرینِ غیرمحرک و غیرِ کاهندهٔ وزن در بستهٔ اولیه، برای فرآورده‌های غیرمایع تا ۷۲۰ میلی‌گرم و برای مایعات تا ۸۰۰ میلی‌گرم در Schedule 3 قرار می‌گیرد. این آستانه به طبقه‌بندیِ مقدارِ بستهٔ اولیه مربوط است؛ سقف خرید هر فرد یا حد فروش در هر تراکنش نیست.';
+const PSEUDOEPHEDRINE_PACK_SCHEDULE_EN = 'Under the June 2026 Poisons Standard, non-stimulant/non-weight-control pseudoephedrine in a primary pack is Schedule 3 at up to 720 mg in other preparations or 800 mg in liquids. This is a primary-pack scheduling threshold, not a per-person purchase or per-transaction limit.';
+const PSEUDOEPHEDRINE_EDITORIAL_NOTE = {
+  fa: `اصلاح تحریریه بر پایهٔ منابع رسمیِ بررسی‌شده در ${PSEUDOEPHEDRINE_REFERENCE_ACCESS_DATE}؛ بازبینی بالینی واجدصلاحیت هنوز انجام نشده است. این متن جایگزین قانون جاری ایالت/قلمرو، سیاست داروخانه یا ارزیابی بیمار نیست.`,
+  en: `Editorial correction based on official sources accessed ${PSEUDOEPHEDRINE_REFERENCE_ACCESS_DATE}; qualified clinical review has not occurred. This does not replace current state/territory law, pharmacy policy, or patient assessment.`,
+};
+
+function cloneSourceRecord(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function replaceRequiredSourceText(value, original, replacement, sourceId) {
+  if (typeof value !== 'string' || !value.includes(original)) {
+    throw new Error(`Expected pseudoephedrine source text was not found in ${sourceId}.`);
+  }
+  return value.replace(original, replacement);
+}
+
+function renderPseudoephedrineReferenceSection(lang) {
+  const isFa = lang === 'fa';
+  const key = isFa ? 'fa' : 'en';
+  const direction = isFa ? 'rtl' : 'ltr';
+  const heading = isFa ? 'یادداشت حوزهٔ قضایی و منابع رسمی' : 'Jurisdiction note & official references';
+  const references = PSEUDOEPHEDRINE_OFFICIAL_REFERENCES.map(reference =>
+    `<li><a class="text-primary underline underline-offset-2" href="${escapeHtml(reference.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(reference.title[key])}</a></li>`
+  ).join('');
+  return `<section dir="${direction}" class="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/25 space-y-2"><h3 class="text-xs font-bold text-sky-700 dark:text-sky-400">${heading}</h3><p class="text-xs text-muted-foreground leading-relaxed">${escapeHtml(PSEUDOEPHEDRINE_EDITORIAL_NOTE[key])}</p><ul class="space-y-1 text-xs">${references}</ul></section>`;
+}
+
+function applyPseudoephedrineTranslationEditorialCorrection(id, sourceTranslation) {
+  if (id !== 'nasal_congestion' || !sourceTranslation) return sourceTranslation;
+  const translation = cloneSourceRecord(sourceTranslation);
+  translation.clinicalPearlsFa = (translation.clinicalPearlsFa || []).filter(pearl => !/project\s*stop|pseudoephedrine|سودو/i.test(pearl));
+  translation.clinicalPearlsFa.push(PSEUDOEPHEDRINE_RECORDING_CONTEXT_FA);
+  translation.clinicalPearlsEn = (translation.clinicalPearlsEn || []).filter(pearl => !/project\s*stop|pseudoephedrine/i.test(pearl));
+  translation.clinicalPearlsEn.push(PSEUDOEPHEDRINE_RECORDING_CONTEXT_EN);
+  return translation;
+}
+
+function applyPseudoephedrineProductEditorialCorrection(sourceProduct) {
+  if (sourceProduct.id !== 'prod-sudafed-sinus-decongestant') return sourceProduct;
+  const product = cloneSourceRecord(sourceProduct);
+  product.counselingPoints = [
+    {
+      fa: `${PSEUDOEPHEDRINE_RECORDING_CONTEXT_FA} ${PSEUDOEPHEDRINE_PACK_SCHEDULE_FA}`,
+      en: `${PSEUDOEPHEDRINE_RECORDING_CONTEXT_EN} ${PSEUDOEPHEDRINE_PACK_SCHEDULE_EN}`,
+    },
+    ...(product.counselingPoints || []).slice(1),
+  ];
+  return product;
+}
+
+function applyPseudoephedrineConceptEditorialCorrection(sourceConcept) {
+  if (sourceConcept.id !== 'concept-project-stop') return sourceConcept;
+  const concept = cloneSourceRecord(sourceConcept);
+  concept.titleFa = 'ثبت حوزه‌محور سودوافدرین S3 و کاربرد Project STOP در NSW';
+  concept.titleEn = 'Jurisdiction-Specific Pseudoephedrine S3 Recording & Project STOP in NSW';
+  concept.descriptionFa = `${PSEUDOEPHEDRINE_RECORDING_CONTEXT_FA} ${PSEUDOEPHEDRINE_PACK_SCHEDULE_FA}`;
+  concept.descriptionEn = `${PSEUDOEPHEDRINE_RECORDING_CONTEXT_EN} ${PSEUDOEPHEDRINE_PACK_SCHEDULE_EN}`;
+  return concept;
+}
+
+function applyPseudoephedrineDomainEditorialCorrection(sourceDomain) {
+  if (!(sourceDomain.subcategories || []).some(subcategory => subcategory.id === 'sub-1-4')) return sourceDomain;
+  const domain = cloneSourceRecord(sourceDomain);
+  domain.subcategories = domain.subcategories.map(subcategory => {
+    if (subcategory.id !== 'sub-1-4') return subcategory;
+    const corrected = cloneSourceRecord(subcategory);
+    corrected.clinicalPearlsFa = (corrected.clinicalPearlsFa || []).filter(pearl => !/project\s*stop|pseudoephedrine|سودو/i.test(pearl));
+    corrected.clinicalPearlsFa.push(PSEUDOEPHEDRINE_RECORDING_CONTEXT_FA);
+    corrected.clinicalPearlsEn = (corrected.clinicalPearlsEn || []).filter(pearl => !/project\s*stop|pseudoephedrine/i.test(pearl));
+    corrected.clinicalPearlsEn.push(PSEUDOEPHEDRINE_RECORDING_CONTEXT_EN);
+    corrected.schedulingRulesFa = replaceRequiredSourceText(
+      corrected.schedulingRulesFa,
+      'سودوائفدرین S3 با ثبت Project Stop',
+      'سودوافدرین S3 بر پایهٔ مقدار بستهٔ اولیه و با الزامات ثبت حوزه‌محور',
+      'sub-1-4 schedulingRulesFa',
+    );
+    corrected.schedulingRulesEn = replaceRequiredSourceText(
+      corrected.schedulingRulesEn,
+      'pseudoephedrine is S3 with Project Stop',
+      'pseudoephedrine pack scheduling and recording are jurisdiction-specific',
+      'sub-1-4 schedulingRulesEn',
+    );
+    corrected.schedulingRulesFa += ` ${PSEUDOEPHEDRINE_PACK_SCHEDULE_FA}`;
+    corrected.schedulingRulesEn += ` ${PSEUDOEPHEDRINE_PACK_SCHEDULE_EN}`;
+    return corrected;
+  });
+  return domain;
+}
+
+function applyPseudoephedrineModuleEditorialCorrection(sourceCard) {
+  if (!['m2-sec3', 'm3-sec2'].includes(sourceCard.id)) return sourceCard;
+  const card = cloneSourceRecord(sourceCard);
+  if (card.id === 'm2-sec3') {
+    card.detailsHtml.fa = replaceRequiredSourceText(card.detailsHtml.fa,
+      'در WA و QLD استفاده از سیستم <strong>Project Stop</strong> کاملاً الزامی است.',
+      'WA: مشاهدهٔ مدرک عکس‌دار و ثبت نام/نشانی در سامانهٔ مورد تأیید؛ QLD: ثبت online/real-time در سامانهٔ منطبق با استاندارد Queensland Health؛ نام Project STOP در این استاندارد الزام نشده است.', card.id);
+    card.detailsHtml.fa = replaceRequiredSourceText(card.detailsHtml.fa,
+      'ارائه کارت شناسایی عکس‌دار الزامی است.',
+      'مدارک هویتی و سامانهٔ ثبت را طبق قانون جاری ACT و Tasmania بررسی کنید؛ Project STOP را الزام یکسانِ ملی فرض نکنید.', card.id);
+    card.detailsHtml.fa = replaceRequiredSourceText(card.detailsHtml.fa,
+      'ثبت با کارت شناسایی عکس‌دار و ترجیحاً Project Stop انجام شود.',
+      'تا ۴ نوامبر ۲۰۲۶: ثبت online/real-time در NSW با فرم تأییدشدهٔ Project STOP لازم است؛ اگر هویت خریدار برای داروساز شناخته‌شده نیست، مدرک عکس‌دار لازم است. از ۵ نوامبر ۲۰۲۶ ثبت فروش S3 سودوافدرین در NSW حذف می‌شود؛ قانون جاری آن تاریخ را دوباره بررسی کنید.', card.id);
+    card.detailsHtml.en = replaceRequiredSourceText(card.detailsHtml.en,
+      'Mandatory real-time electronic recording via <strong>Project Stop</strong> system.',
+      'WA: sight photo ID and record purchaser name/address in an approved system; QLD: keep online, real-time records in a system meeting the Queensland Health standard, which does not name Project STOP as the required brand.', card.id);
+    card.detailsHtml.en = replaceRequiredSourceText(card.detailsHtml.en,
+      'Mandatory photo ID check and record keeping.',
+      'Check the current ACT and Tasmania laws for accepted identity documents and recording systems; do not infer a uniform national Project STOP rule.', card.id);
+    card.detailsHtml.en = replaceRequiredSourceText(card.detailsHtml.en,
+      'Photo ID check required, electronic Project Stop recording recommended.',
+      'Until 4 November 2026: NSW requires online, real-time recording in the approved Project STOP form; photo ID is required if the purchaser is not known to the pharmacist. NSW says recording S3 pseudoephedrine sales ends from 5 November 2026; re-check the law in force on that date.', card.id);
+  } else {
+    card.detailsHtml.fa = replaceRequiredSourceText(card.detailsHtml.fa,
+      'S3 یا S4 (۶۰ میلی‌گرم هر ۴-۶ ساعت)؛ ثبت کارت شناسایی عکس‌دار در سیستم Project Stop الزامی است.',
+      `${PSEUDOEPHEDRINE_PACK_SCHEDULE_FA} دوز را از برچسب همین فرآورده بررسی کنید؛ ثبت/احراز هویت تابع قانون ایالت/قلمرو است و Project STOP الزام ملی نیست.`, card.id);
+    card.detailsHtml.en = replaceRequiredSourceText(card.detailsHtml.en,
+      'S3/S4 (60mg q4-6h); mandatory photo ID check and electronic Project Stop recording.',
+      `${PSEUDOEPHEDRINE_PACK_SCHEDULE_EN} Check this product’s label for dosing; recording/identity rules depend on jurisdiction and Project STOP is not a national mandate.`, card.id);
+  }
+  return card;
+}
+
+function applyPseudoephedrineLeitnerEditorialCorrection(sourceCard) {
+  if (sourceCard.id !== 'sample-card-s3-pseudoephedrine') return sourceCard;
+  const card = cloneSourceRecord(sourceCard);
+  card.question = {
+    fa: 'الزامات ثبت حوزه‌محور، آستانهٔ بسته برای S3 و نکتهٔ ایمنیِ سودوافدرین خوراکی چیست؟',
+    en: 'What are the jurisdiction-specific recording rules, primary-pack S3 threshold, and key safety checks for oral pseudoephedrine?',
+  };
+  card.answer = {
+    fa: `۱) پیش از عرضه، نیاز درمانی و مناسب‌بودن دارو را ارزیابی و دستور محصول را بررسی کنید. ۲) ثبت معامله و احراز هویت تابع ایالت/قلمرو است؛ Project STOP الزام ملی نیست. ${PSEUDOEPHEDRINE_RECORDING_CONTEXT_FA} ۳) ${PSEUDOEPHEDRINE_PACK_SCHEDULE_FA} ۴) موارد منع/احتیاط را از برچسب و اطلاعات جاری همان فرآورده و وضعیت بیمار بررسی کنید؛ این کارت فهرست جامع یا راهنمای عرضه نیست.`,
+    en: `1) Assess therapeutic need and suitability and check the product directions. 2) Transaction recording and identity requirements vary by jurisdiction; Project STOP is not a national mandate. ${PSEUDOEPHEDRINE_RECORDING_CONTEXT_EN} 3) ${PSEUDOEPHEDRINE_PACK_SCHEDULE_EN} 4) Check contraindications and precautions against the current product information and the patient’s circumstances; this card is not exhaustive or a supply protocol.`,
+  };
+  card.pearl = {
+    fa: PSEUDOEPHEDRINE_PACK_SCHEDULE_FA,
+    en: PSEUDOEPHEDRINE_PACK_SCHEDULE_EN,
+  };
+  card.documentId = 'doc-concept-concept-project-stop';
+  card.knowledgeTree.microTopic = {
+    fa: 'ثبت فروش حوزه‌محور، Project STOP در NSW و آستانهٔ بستهٔ اولیه',
+    en: 'Jurisdiction-specific recording, Project STOP in NSW & primary-pack threshold',
+  };
+  card.knowledgeTree.clinicalAspect = { ...card.knowledgeTree.microTopic };
+  card.knowledgeTree.path = {
+    fa: [...card.knowledgeTree.path.fa.slice(0, -1), card.knowledgeTree.microTopic.fa],
+    en: [...card.knowledgeTree.path.en.slice(0, -1), card.knowledgeTree.microTopic.en],
+  };
+  return card;
+}
+
+function applyPseudoephedrineScenarioEditorialCorrection(sourceScenario) {
+  if (!['s3-pseudoephedrine', 's3-pseudoephedrine-conflict'].includes(sourceScenario.id)) return sourceScenario;
+
+  const scenario = cloneSourceRecord(sourceScenario);
+  const isConflict = scenario.id === 's3-pseudoephedrine-conflict';
+  const caseContext = {
+    fa: 'سناریو در NSW و بر اساس منابع بررسی‌شده در ۲۶ سپتامبر ۲۰۲۶ است؛ خریدار برای داروساز شناخته‌شده نیست.',
+    en: 'This scenario is set in NSW and reflects sources checked on 26 September 2026; the purchaser is not known to the pharmacist.',
+  };
+
+  scenario.title = isConflict
+    ? { fa: 'C1. مدیریت تعارض و ثبت حوزه‌محور سودوافدرین S3 در NSW', en: 'C1. De-escalation & jurisdiction-specific pseudoephedrine S3 recording in NSW' }
+    : { fa: '۳. احتقان بینی و ارزیابی سودوافدرین S3 در NSW', en: '3. Nasal congestion & pseudoephedrine S3 assessment in NSW' };
+  scenario.category = { fa: 'ارزیابی بالینی و الزامات محلی S3', en: 'Clinical assessment & local S3 requirements' };
+  scenario.patientProfile = scenario.patientProfile || {};
+  scenario.patientProfile.presentation = {
+    fa: `${caseContext.fa} ${scenario.patientProfile.presentation?.fa || ''}`,
+    en: `${caseContext.en} ${scenario.patientProfile.presentation?.en || ''}`,
+  };
+  scenario.whatQuestions = (scenario.whatQuestions || []).map(question => {
+    const corrected = cloneSourceRecord(question);
+    if (question.key === 'A') {
+      corrected.question = {
+        fa: 'آیا داروی ضداحتقان یا داروی دیگری، از جمله مهارکنندهٔ MAO، مصرف کرده‌اید؟',
+        en: 'Have you used another decongestant or any other medicine, including an MAOI?',
+      };
+      corrected.answer = {
+        fa: 'فقط سرم نمکی استفاده کرده‌ام؛ داروی دیگری یا مهارکنندهٔ MAO مصرف نمی‌کنم.',
+        en: 'Only saline; I take no other medicines and no MAOI.',
+      };
+    }
+    if (question.key === 'T') {
+      corrected.question = {
+        fa: isConflict
+          ? 'سابقهٔ فشار خون بالا، بیماری قلبی، پرکاری تیروئید یا مصرف مهارکنندهٔ MAO دارید؟'
+          : 'باردار هستید یا سابقهٔ فشار خون بالا، بیماری قلبی، پرکاری تیروئید یا مصرف مهارکنندهٔ MAO دارید؟',
+        en: isConflict
+          ? 'Do you have hypertension, heart disease, hyperthyroidism or MAOI use?'
+          : 'Are you pregnant, or do you have hypertension, heart disease, hyperthyroidism or MAOI use?',
+      };
+      corrected.answer = {
+        fa: isConflict
+          ? 'خیر؛ فشار خون، بیماری قلبی یا تیروئید ندارم و مهارکنندهٔ MAO هم مصرف نمی‌کنم.'
+          : 'خیر؛ باردار نیستم و فشار خون، بیماری قلبی یا تیروئید ندارم و مهارکنندهٔ MAO هم مصرف نمی‌کنم.',
+        en: isConflict
+          ? 'No hypertension, heart disease or thyroid disease, and no MAOI use.'
+          : 'No pregnancy, hypertension, heart disease or thyroid disease, and no MAOI use.',
+      };
+    }
+    return corrected;
+  });
+
+  scenario.redFlags = (scenario.redFlags || []).map(flag => {
+    const corrected = cloneSourceRecord(flag);
+    const combinedText = `${flag.fa || ''} ${flag.en || ''}`;
+    if (/امتناع پرخاشگرانه|aggressive refusal/i.test(combinedText)) {
+      corrected.fa = 'خریدهای مکرر یا الگوی نگران‌کننده را بر اساس شواهد و رویهٔ محلی ارزیابی کنید؛ صرفِ ناراحتی یا پرسش دربارهٔ مدرک هویتی اثبات سوءمصرف نیست.';
+      corrected.en = 'Assess repeated purchases or a concerning pattern using evidence and local procedures; discomfort or a question about ID alone does not establish misuse.';
+    } else if (/خریدهای مکرر|frequent repeat purchases/i.test(combinedText)) {
+      corrected.fa = 'درخواست‌های تکراری یا الگوی نگران‌کننده را بی‌طرفانه و بر اساس شواهد و رویهٔ محلی بررسی کنید؛ تکرار خرید به‌تنهایی سوءمصرف را ثابت نمی‌کند.';
+      corrected.en = 'Review repeat requests or a concerning pattern impartially using evidence and local procedures; repeat purchasing alone does not prove misuse.';
+    } else if (/تحویل داروی S3|S3 Pharmacist-Only supply/i.test(combinedText)) {
+      corrected.fa = 'نیاز درمانی، منع مصرف و تناسب فرآورده را ارزیابی کنید؛ احراز هویت و ثبت فروش تابع قانون جاری همان ایالت/قلمرو است.';
+      corrected.en = 'Assess therapeutic need, contraindications and product suitability; identity and recording requirements follow current state/territory law.';
+    }
+    return corrected;
+  });
+
+  scenario.dialogueOptions = (scenario.dialogueOptions || []).map(option => {
+    const corrected = cloneSourceRecord(option);
+    if (option.id === 'p1' || option.id === 'ps1') {
+      corrected.text = {
+        fa: 'برای پایان‌دادن به گفتگو، بدون ارزیابی درمانی یا رعایت الزام ثبتِ محل عرضه دارو را فوراً تحویل بدهم.',
+        en: 'To end the conversation, supply immediately without therapeutic assessment or the recording required at the place of supply.',
+      };
+      corrected.patientReply = { fa: 'پس لازم نیست وضعیت سلامتی یا مقررات محل را بررسی کنیم؟', en: 'So we do not need to check my health or the local requirements?' };
+      corrected.isCorrectAdvice = false;
+    }
+    if (option.id === 'p2') {
+      corrected.text = {
+        fa: 'ابتدا نیاز درمانی، علائم هشدار، داروهای هم‌زمان و برچسب فرآورده را ارزیابی کنید. در این موردِ NSW، تا ۴ نوامبر ۲۰۲۶ فروش را هنگام عرضه در Project STOP ثبت کنید؛ چون خریدار برای داروساز ناشناس است، شناسهٔ مدرک عکس‌دار را نیز ثبت کنید. مدت مصرف را از برچسب همان فرآورده بگویید و قانون جاری را دوباره بررسی کنید.',
+        en: 'First assess therapeutic need, red flags, concurrent medicines and the product label. In this NSW case, through 4 November 2026, record the sale in Project STOP at supply; because the purchaser is not known to the pharmacist, also record the photo-ID reference. Use this product’s label for duration advice and re-check current law.',
+      };
+      corrected.patientReply = { fa: 'ممنون که پیش از تصمیم‌گیری هم وضعیت من و هم مقررات NSW را بررسی کردید.', en: 'Thank you for checking both my health and the NSW requirements before deciding.' };
+      corrected.isCorrectAdvice = true;
+    }
+    if (option.id === 'ps2') {
+      corrected.text = {
+        fa: 'با آرامش همدلی کنید و توضیح دهید که هدف، ارزیابی ایمنی و اجرای مقررات محل عرضه است، نه متهم‌کردن مشتری. در این سناریوی NSW، تا ۴ نوامبر ۲۰۲۶ ثبت آنلاین و بلادرنگ در فرم تأییدشدهٔ Project STOP لازم است؛ چون مشتری برای داروساز ناشناس است، مدرک عکس‌دار و شناسهٔ آن را طبق مقررات بررسی/ثبت کنید. دربارهٔ محرمانگی یا سقف خرید وعدهٔ کلی ندهید؛ به سیاست حریم خصوصی داروخانه و منبع رسمی ارجاع دهید. ارزیابی درمانی را کامل کنید و فقط در صورت مناسب‌بودن، مطابق برچسب فرآورده اقدام کنید.',
+        en: 'Respond calmly and explain that the purpose is safety assessment and compliance with the place-of-supply rules, not an accusation. In this NSW case, through 4 November 2026, online real-time recording in the approved Project STOP form is required; because the customer is not known to the pharmacist, check and record photo-ID details as required. Make no blanket promises about privacy or purchase limits; refer to the pharmacy privacy policy and official guidance. Complete the therapeutic assessment and proceed only if appropriate, following the product label.',
+      };
+      corrected.patientReply = { fa: 'از توضیحتان ممنونم؛ لطفاً سیاست حریم خصوصی داروخانه را هم برایم توضیح دهید.', en: 'Thank you for explaining. Please also explain the pharmacy privacy policy.' };
+      corrected.isCorrectAdvice = true;
+    }
+    return corrected;
+  });
+
+  scenario.clinicalOutcome = scenario.clinicalOutcome || {};
+  scenario.clinicalOutcome.recommendation = isConflict
+    ? { fa: 'مدیریت محترمانهٔ تعارض، ارزیابی درمانی و رعایت الزامات جاری NSW در تاریخ عرضه؛ بدون فرض سقف ملی خرید یا تضمین کلی حریم خصوصی', en: 'Respectful de-escalation, therapeutic assessment and compliance with NSW requirements in force on the supply date; no assumed national purchase cap or blanket privacy assurance' }
+    : { fa: 'ارزیابی کامل بیمار؛ در صورت مناسب‌بودن، ثبت فروش و احراز هویت طبق قانون جاری NSW و مشاوره بر اساس برچسب فرآورده', en: 'Complete patient assessment; if appropriate, record the sale and verify identity under current NSW law, then counsel using the product label' };
+  scenario.clinicalOutcome.explanation = {
+    fa: `${caseContext.fa} NSW Health می‌گوید فروش OTC سودوافدرین تا ۴ نوامبر ۲۰۲۶ باید هنگام عرضه در فرم آنلاین و بلادرنگِ تأییدشده ثبت شود؛ اگر هویت خریدار برای داروساز شناخته‌شده نیست، شناسهٔ مدرک عکس‌دار ثبت می‌شود. از ۵ نوامبر ۲۰۲۶ ثبت فروش S3 سودوافدرین در NSW لازم نخواهد بود؛ این تغییر ارزیابی درمانی و سایر الزامات S3 را حذف نمی‌کند. آستانهٔ مقدار بسته برای طبقه‌بندی Schedule را با سقف خرید فردی/تراکنش اشتباه نگیرید. ${PSEUDOEPHEDRINE_EDITORIAL_NOTE.fa}`,
+    en: `${caseContext.en} NSW Health says OTC pseudoephedrine sales must be recorded in the approved online, real-time form at supply through 4 November 2026; the photo-ID reference is recorded when the purchaser is not known to the pharmacist. From 5 November 2026, recording S3 pseudoephedrine sales in NSW will no longer be required; this does not remove therapeutic assessment or other S3 requirements. Do not confuse a primary-pack scheduling threshold with an individual or transaction purchase cap. ${PSEUDOEPHEDRINE_EDITORIAL_NOTE.en}`,
+  };
+
+  if (scenario.aussieContext) {
+    scenario.aussieContext.fa = 'قانون و رویهٔ ثبت سودوافدرین بین ایالت‌ها و قلمروها تفاوت دارد و ممکن است تغییر کند؛ پاسخ را به محل و تاریخ واقعی عرضه محدود کنید.';
+    scenario.aussieContext.en = 'Pseudoephedrine recording rules vary across states and territories and can change; qualify advice by the actual place and date of supply.';
+    scenario.aussieContext.keyPhrases = [
+      { phrase: 'Project STOP', meaningFa: 'فرم تأییدشدهٔ ثبت فروش در NSW تا ۴ نوامبر ۲۰۲۶؛ الزام یکسان ملی برای این برند نیست.', meaningEn: 'The approved NSW recording form through 4 November 2026; not a uniform Australia-wide brand mandate.' },
+      { phrase: 'I am not a criminal', meaningFa: 'همدلانه و بی‌طرفانه هدف ارزیابی و الزام محلی را توضیح دهید؛ از اتهام‌زنی و وعدهٔ حقوقی کلی پرهیز کنید.', meaningEn: 'Explain the local safety and legal process empathetically; avoid accusations or blanket legal/privacy promises.' },
+      { phrase: 'Pharmacist-Only (S3)', meaningFa: 'داروی Schedule 3؛ نیاز درمانی و تناسب آن را طبق الزامات جاری ارزیابی کنید.', meaningEn: 'A Schedule 3 medicine; assess therapeutic need and suitability under current requirements.' },
+    ];
+    scenario.aussieContext.adminRule = {
+      fa: 'در NSW تا ۴ نوامبر ۲۰۲۶ ثبت هنگام عرضه در فرم آنلاین تأییدشده لازم است و اگر هویت خریدار برای داروساز شناخته‌شده نباشد، مدرک عکس‌دار لازم است؛ از ۵ نوامبر الزام ثبت S3 سودوافدرین حذف می‌شود. قانون جاری را بررسی کنید.',
+      en: 'In NSW through 4 November 2026, record at supply in the approved online form; photo ID is required when the purchaser is not known to the pharmacist. Recording S3 pseudoephedrine sales ends from 5 November; verify current law.',
+    };
+  }
+  return scenario;
 }
 
 // =========================================================================
@@ -557,7 +862,10 @@ function getScenarioForDisease(diseaseId) {
 // =========================================================================
 
 for (const hb of handbookDiseases) {
-  const trans = OTC_CLINICAL_TRANSLATIONS ? OTC_CLINICAL_TRANSLATIONS[hb.id] : null;
+  const trans = applyPseudoephedrineTranslationEditorialCorrection(
+    hb.id,
+    OTC_CLINICAL_TRANSLATIONS ? OTC_CLINICAL_TRANSLATIONS[hb.id] : null,
+  );
   const folderId = diseaseCategoryMap[hb.id] || 'folder-clinical-derma';
 
   const cleanFaName = trans?.cleanFaName || hb.condition;
@@ -686,6 +994,8 @@ for (const hb of handbookDiseases) {
   </div>`;
   }
 
+  if (hb.id === 'nasal_congestion') htmlFa += renderPseudoephedrineReferenceSection('fa');
+
   htmlFa += `\n</div>`;
 
   // English HTML
@@ -760,6 +1070,8 @@ for (const hb of handbookDiseases) {
     </ul>
   </div>`;
   }
+
+  if (hb.id === 'nasal_congestion') htmlEn += renderPseudoephedrineReferenceSection('en');
 
   htmlEn += `\n</div>`;
 
@@ -988,7 +1300,8 @@ for (const mech of mechanismsList) {
 }
 
 // 2.3 35 High-Yield Clinical Concepts (Toxicity, Interactions, Red Flags)
-for (const [conceptId, concept] of Object.entries(CLINICAL_CONCEPTS_REGISTRY || {})) {
+for (const [conceptId, sourceConcept] of Object.entries(CLINICAL_CONCEPTS_REGISTRY || {})) {
+  const concept = applyPseudoephedrineConceptEditorialCorrection(sourceConcept);
   const docId = `doc-concept-${conceptId.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
   const title = `نکته بالینی: ${concept.titleFa || conceptId}`;
   const titleEn = `Clinical Concept: ${concept.titleEn || conceptId}`;
@@ -1014,7 +1327,7 @@ for (const [conceptId, concept] of Object.entries(CLINICAL_CONCEPTS_REGISTRY || 
     <div class="text-[10px] font-bold text-muted-foreground uppercase">English Clinical Rationale:</div>
     <p class="text-xs text-muted-foreground leading-relaxed italic">${escapeHtml(concept.descriptionEn)}</p>
   </div>` : ''}
-</div>`;
+</div>${concept.id === 'concept-project-stop' ? renderPseudoephedrineReferenceSection('fa') : ''}`;
 
   const htmlEn = `
 <div class="knowledge-card space-y-6 text-left" dir="ltr">
@@ -1031,7 +1344,7 @@ for (const [conceptId, concept] of Object.entries(CLINICAL_CONCEPTS_REGISTRY || 
     <h3 class="text-xs font-bold text-foreground">Clinical Mechanism &amp; Toxicological Rationale:</h3>
     <p class="text-xs text-foreground/90 leading-relaxed">${escapeHtml(concept.descriptionEn || '')}</p>
   </div>
-</div>`;
+</div>${concept.id === 'concept-project-stop' ? renderPseudoephedrineReferenceSection('en') : ''}`;
 
   documents.push({
     id: docId,
@@ -1053,7 +1366,8 @@ console.log(`Generated ${cypList.length + mechanismsList.length + Object.keys(CL
 // =========================================================================
 
 // 3.1 All 121 Shelf Products
-for (const p of (SHELF_PRODUCTS || [])) {
+for (const sourceProduct of (SHELF_PRODUCTS || [])) {
+  const p = applyPseudoephedrineProductEditorialCorrection(sourceProduct);
   const docId = `doc-product-${p.id}`;
   const title = `مونوگراف: ${p.brandName} (${p.genericName})`;
   const titleEn = `${p.brandName} (${p.genericName}) - Product Monograph`;
@@ -1149,7 +1463,7 @@ for (const p of (SHELF_PRODUCTS || [])) {
       </div>`).join('')}
     </div>
   </div>` : ''}
-</div>`;
+</div>${p.id === 'prod-sudafed-sinus-decongestant' ? renderPseudoephedrineReferenceSection('fa') : ''}`;
 
   const htmlEn = `
 <div class="knowledge-card space-y-6 text-left" dir="ltr">
@@ -1174,7 +1488,7 @@ for (const p of (SHELF_PRODUCTS || [])) {
       ${p.counselingPoints.map(cp => `<li>${escapeHtml(cp.en || cp.fa)}</li>`).join('\n      ')}
     </ul>
   </div>` : ''}
-</div>`;
+</div>${p.id === 'prod-sudafed-sinus-decongestant' ? renderPseudoephedrineReferenceSection('en') : ''}`;
 
   documents.push({
     id: docId,
@@ -1633,8 +1947,69 @@ function renderScenarioHtml(sc, { isPrimaryFa = true } = {}) {
   return renderScenarioEnglishHtml(sc, linkedDiseaseId, correctOption);
 }
 
+function buildPracticeScenarioEntry(sc, kind) {
+  const idPrefix = kind === 'slang' ? 'doc-scenario-slang-' : `doc-scenario-${kind}-`;
+  const sourceFile = kind === 'slang'
+    ? 'data/scenarios/slangScenarios.ts'
+    : kind === 'clinical'
+      ? 'data/scenarios/clinicalScenarios.ts'
+      : 'data/scenarios/adminScenarios.ts';
+  const normalizeBilingual = (value) => ({ fa: value?.fa || '', en: value?.en || '' });
+  const mode = sc.mode || (kind === 'admin'
+    ? 'MODE_A_ADMIN'
+    : sc.id === 's3-pseudoephedrine' || sc.id === 'emergency-supply' || sc.id.includes('conflict') || sc.id === 'nsaids-triple-whammy'
+      ? 'MODE_C_CONFLICT'
+      : 'MODE_B_SLANG');
+  return {
+    id: sc.id,
+    documentId: `${idPrefix}${sc.id}`,
+    titleFa: sc.title?.fa || sc.id,
+    titleEn: sc.title?.en || sc.id,
+    mode,
+    categoryFa: sc.category?.fa || '',
+    categoryEn: sc.category?.en || '',
+    presentationFa: sc.patientProfile?.presentation?.fa || '',
+    presentationEn: sc.patientProfile?.presentation?.en || '',
+    patientName: sc.patientProfile?.name || '',
+    patientAge: Number.isFinite(sc.patientProfile?.age) ? sc.patientProfile.age : null,
+    patientGender: sc.patientProfile?.gender || '',
+    questions: (sc.whatQuestions || []).map((question) => ({
+      key: question.key || '',
+      labelFa: question.label?.fa || '',
+      labelEn: question.label?.en || '',
+      questionFa: question.question?.fa || '',
+      questionEn: question.question?.en || '',
+      answerFa: question.answer?.fa || '',
+      answerEn: question.answer?.en || '',
+    })),
+    redFlags: (sc.redFlags || []).map((flag) => typeof flag === 'string'
+      ? { fa: flag, en: '' }
+      : normalizeBilingual(flag)),
+    dialogueOptions: (sc.dialogueOptions || []).map((option) => ({
+      id: option.id,
+      textFa: option.text?.fa || '',
+      textEn: option.text?.en || '',
+      patientReplyFa: option.patientReply?.fa || '',
+      patientReplyEn: option.patientReply?.en || '',
+      sourceMarksRecommended: Boolean(option.isCorrectAdvice),
+      sourceMarksRedFlagResponse: Boolean(option.isRedFlagDetector),
+    })),
+    outcome: sc.clinicalOutcome ? {
+      requiresReferral: Boolean(sc.clinicalOutcome.requiresReferral),
+      recommendationFa: sc.clinicalOutcome.recommendation?.fa || '',
+      recommendationEn: sc.clinicalOutcome.recommendation?.en || '',
+      explanationFa: sc.clinicalOutcome.explanation?.fa || '',
+      explanationEn: sc.clinicalOutcome.explanation?.en || '',
+    } : null,
+    sourceUrl: `https://github.com/hamedharami-hub/pharmacy/blob/${sourceCommit}/${sourceFile}`,
+    contentReviewStatus: 'unreviewed',
+  };
+}
+
 // 4.1 4 Slang Scenarios
+const pharmacyPracticeScenarios = [];
 for (const sc of (SLANG_SCENARIOS || [])) {
+  pharmacyPracticeScenarios.push(buildPracticeScenarioEntry(sc, 'slang'));
   const docId = `doc-scenario-slang-${sc.id}`;
   const title = `مکالمه بیمار: ${sc.title?.fa || sc.id}`;
   const titleEn = `Patient Case: ${sc.title?.en || sc.id}`;
@@ -1936,9 +2311,12 @@ function applyPregnancyThrushEditorialCorrection(sourceScenario) {
 
 // 4.2 All 24 Clinical Scenarios
 for (const sourceScenario of (CLINICAL_SCENARIOS || [])) {
-  const sc = applyChickenpoxEditorialCorrection(
-    applyPregnancyThrushEditorialCorrection(applySafeScriptEditorialCorrection(sourceScenario)),
+  const sc = applyPseudoephedrineScenarioEditorialCorrection(
+    applyChickenpoxEditorialCorrection(
+      applyPregnancyThrushEditorialCorrection(applySafeScriptEditorialCorrection(sourceScenario)),
+    ),
   );
+  pharmacyPracticeScenarios.push(buildPracticeScenarioEntry(sc, 'clinical'));
   const docId = `doc-scenario-clinical-${sc.id}`;
   const title = `تریاژ بالینی: ${sc.title?.fa || sc.id}`;
   const titleEn = `Clinical Triage: ${sc.title?.en || sc.id}`;
@@ -1948,8 +2326,8 @@ for (const sourceScenario of (CLINICAL_SCENARIOS || [])) {
     folder_id: 'folder-cases-clinical',
     title,
     title_en: titleEn,
-    content_html: renderScenarioHtml(sc, { isPrimaryFa: true }),
-    content_en: renderScenarioHtml(sc, { isPrimaryFa: false }),
+    content_html: `${renderScenarioHtml(sc, { isPrimaryFa: true })}${['s3-pseudoephedrine', 's3-pseudoephedrine-conflict'].includes(sc.id) ? renderPseudoephedrineReferenceSection('fa') : ''}`,
+    content_en: `${renderScenarioHtml(sc, { isPrimaryFa: false })}${['s3-pseudoephedrine', 's3-pseudoephedrine-conflict'].includes(sc.id) ? renderPseudoephedrineReferenceSection('en') : ''}`,
     preferred_language: 'bilingual',
     direction: 'rtl',
     tags: ['Clinical Triage', 'Emergency Case', sc.category?.en || 'Triage', 'Bilingual Triage']
@@ -2086,6 +2464,7 @@ function applyActiveScriptListEditorialCorrection(sourceScenario) {
 // 4.3 4 Admin Scenarios
 for (const sourceScenario of (ADMIN_SCENARIOS || [])) {
   const sc = applyActiveScriptListEditorialCorrection(sourceScenario);
+  pharmacyPracticeScenarios.push(buildPracticeScenarioEntry(sc, 'admin'));
   const docId = `doc-scenario-admin-${sc.id}`;
   const title = `قوانین نسخه و بیمه: ${sc.title?.fa || sc.id}`;
   const titleEn = `Administrative Script Case: ${sc.title?.en || sc.id}`;
@@ -2235,7 +2614,8 @@ console.log(`Generated 32 Scenarios + 13 Scripts in Pillar 4`);
 // SECTION 5: 36 ACADEMIC MODULE LESSONS (Mapped to 3 Module Subfolders)
 // =========================================================================
 
-for (const card of (ALL_PHARMACY_CARDS || [])) {
+for (const sourceCard of (ALL_PHARMACY_CARDS || [])) {
+  const card = applyPseudoephedrineModuleEditorialCorrection(sourceCard);
   const docId = `doc-${card.id}`;
   let modFolder = 'folder-mod-health-system';
   const modNum = String(card.module || '').replace('mod', '');
@@ -2268,7 +2648,7 @@ for (const card of (ALL_PHARMACY_CARDS || [])) {
   </div>` : ''}
 
   ${detailsHtmlFa ? `<div class="prose dark:prose-invert max-w-none text-xs leading-relaxed">${detailsHtmlFa}</div>` : ''}
-</div>`;
+</div>${['m2-sec3', 'm3-sec2'].includes(card.id) ? renderPseudoephedrineReferenceSection('fa') : ''}`;
 
   const htmlEn = `
 <div class="knowledge-card space-y-6 text-left" dir="ltr">
@@ -2284,7 +2664,7 @@ for (const card of (ALL_PHARMACY_CARDS || [])) {
   </div>` : ''}
 
   ${detailsHtmlEn ? `<div class="prose dark:prose-invert max-w-none text-xs leading-relaxed">${detailsHtmlEn}</div>` : ''}
-</div>`;
+</div>${['m2-sec3', 'm3-sec2'].includes(card.id) ? renderPseudoephedrineReferenceSection('en') : ''}`;
 
   documents.push({
     id: docId,
@@ -2306,13 +2686,28 @@ console.log(`Generated ${ALL_PHARMACY_CARDS.length} Module Lessons in Pillar 5`)
 // =========================================================================
 
 const sourceLabels = {
+  id: ['شناسه', 'ID'],
   title: ['عنوان', 'Title'],
   subtitle: ['زیرعنوان', 'Subtitle'],
   description: ['توضیح', 'Description'],
+  name: ['نام', 'Name'],
+  categoryId: ['شناسهٔ دسته‌بندی', 'Category ID'],
+  moduleId: ['شناسهٔ درس', 'Module ID'],
+  conceptIds: ['شناسه‌های مفهوم مرتبط', 'Related concept IDs'],
+  synonyms: ['نام‌ها و کلیدواژه‌های مرتبط', 'Related names and keywords'],
+  text: ['متن', 'Text'],
+  question: ['پرسش', 'Question'],
+  correctOptionId: ['شناسهٔ گزینهٔ درست', 'Correct option ID'],
   overview: ['نمای کلی', 'Overview'],
   pathophysiology: ['پاتوفیزیولوژی و نشانه‌ها', 'Pathophysiology & symptoms'],
   treatment: ['درمان', 'Treatment'],
   firstLine: ['درمان خط اول', 'First-line treatment'],
+  dosing: ['مقدار و روش مصرف', 'Dose and directions'],
+  brandExamples: ['نمونه‌های نام تجاری', 'Brand examples'],
+  pregnancySafety: ['ایمنی در بارداری', 'Pregnancy safety'],
+  breastfeedingSafety: ['ایمنی در شیردهی', 'Breastfeeding safety'],
+  minAge: ['حداقل سن', 'Minimum age'],
+  extraInfo: ['اطلاعات تکمیلی', 'Additional information'],
   otcOptions: ['گزینه‌های بدون نسخه', 'OTC options'],
   rxOptions: ['گزینه‌های نسخه‌ای', 'Prescription options'],
   instructions: ['دستورالعمل و مشاوره', 'Instructions & counselling'],
@@ -2320,6 +2715,25 @@ const sourceLabels = {
   medicines: ['داروها', 'Medicines'],
   nonPharmAdvice: ['مراقبت غیردارویی', 'Non-pharmacological advice'],
   clinicalNotes: ['نکات بالینی', 'Clinical notes'],
+  clinicalRelevance: ['کاربرد بالینی', 'Clinical relevance'],
+  actionClassification: ['رده‌بندی عملکرد', 'Action classification'],
+  actionTypeLabel: ['نوع اثر', 'Action type'],
+  cellularEffect: ['اثر سلولی', 'Cellular effect'],
+  targetSite: ['محل اثر', 'Target site'],
+  className: ['نام ردهٔ دارویی', 'Class name'],
+  classCode: ['شناسهٔ ردهٔ دارویی', 'Class code'],
+  colorClass: ['ردهٔ رنگ', 'Color class'],
+  badge: ['برچسب', 'Badge'],
+  badgeColor: ['رنگ برچسب', 'Badge color'],
+  iconName: ['نام آیکون', 'Icon name'],
+  iconType: ['نوع آیکون', 'Icon type'],
+  primaryModule: ['درس اصلی', 'Primary module'],
+  trackNumber: ['شمارهٔ مسیر', 'Track number'],
+  currentMedicines: ['داروهای فعلی', 'Current medicines'],
+  suggestedAction: ['اقدام پیشنهادی', 'Suggested action'],
+  to: ['گیرنده', 'To'],
+  reason: ['دلیل', 'Reason'],
+  summary: ['خلاصه', 'Summary'],
   relatedShelfProducts: ['محصولات مرتبط', 'Related shelf products'],
   subcategories: ['زیرگروه‌ها', 'Subcategories'],
   clinicalPearls: ['نکات بالینی', 'Clinical pearls'],
@@ -2331,37 +2745,13 @@ const sourceLabels = {
   explanation: ['توضیح پاسخ', 'Answer explanation'],
 };
 
-function labelFor(key, lang) {
-  return sourceLabels[key]?.[lang === 'fa' ? 0 : 1] || key.replace(/([a-z])([A-Z])/g, '$1 $2');
-}
-
-function renderSourceValue(value, lang, depth = 0) {
-  if (value === null || value === undefined || value === '') return '';
-  if (typeof value !== 'object') return `<span>${escapeHtml(value)}</span>`;
-  if (Array.isArray(value)) {
-    return `<ul class="space-y-2 ps-5 list-disc">${value.map(item => `<li class="leading-relaxed">${renderSourceValue(item, lang, depth + 1)}</li>`).join('')}</ul>`;
-  }
-  if (typeof value[lang] === 'string' && Object.keys(value).every(key => key === 'fa' || key === 'en')) {
-    return `<span>${escapeHtml(value[lang] || value.fa || value.en)}</span>`;
-  }
-  return `<dl class="space-y-2">${Object.entries(value).map(([key, item]) => {
-    const suffix = key.match(/(Fa|En)$/);
-    const pairedKey = suffix ? `${key.slice(0, -2)}${suffix[1] === 'Fa' ? 'En' : 'Fa'}` : null;
-    if (pairedKey && Object.hasOwn(value, pairedKey) && suffix[1] !== (lang === 'fa' ? 'Fa' : 'En')) return '';
-    const body = renderSourceValue(item, lang, depth + 1);
-    if (!body) return '';
-    const displayKey = pairedKey && Object.hasOwn(value, pairedKey) ? key.slice(0, -2) : key;
-    return `<div class="rounded-xl border border-border/60 bg-card/50 p-3 leading-relaxed"><dt class="font-semibold text-foreground mb-1">${escapeHtml(labelFor(displayKey, lang))}</dt><dd class="text-foreground/85">${body}</dd></div>`;
-  }).join('')}</dl>`;
-}
-
-function sourceDocument({ id, folderId, titleFa, titleEn, data, sourceFile, tags }) {
+function sourceDocument({ id, folderId, titleFa, titleEn, data, sourceFile, tags, additionalHtml = {} }) {
   const render = (lang) => `<article class="knowledge-card mx-auto max-w-3xl space-y-5 text-sm leading-7" dir="${lang === 'fa' ? 'rtl' : 'ltr'}">
     <header class="rounded-2xl border border-primary/20 bg-primary/5 p-5">
       <h2 class="text-xl font-bold leading-8">${escapeHtml(lang === 'fa' ? titleFa : titleEn)}</h2>
       <p class="mt-2 text-xs text-muted-foreground" dir="ltr">Source: ${escapeHtml(sourceFile)}</p>
     </header>
-    ${renderSourceValue(data, lang)}
+    ${renderSourceValue(data, lang, sourceLabels)}${additionalHtml[lang] || ''}
   </article>`;
   documents.push({
     id, folder_id: folderId, title: titleFa, title_en: titleEn,
@@ -2398,7 +2788,8 @@ for (const disease of CORE_CLINICAL_DISEASES) {
     tags: ['Core Clinical', disease.categoryId || 'Disease']
   });
 }
-for (const domain of CLINICAL_DOMAINS) {
+for (const sourceDomain of CLINICAL_DOMAINS) {
+  const domain = applyPseudoephedrineDomainEditorialCorrection(sourceDomain);
   sourceDocument({
     id: `doc-clinical-domain-${domain.id}`,
     folderId: 'folder-mono-domains',
@@ -2406,6 +2797,9 @@ for (const domain of CLINICAL_DOMAINS) {
     titleEn: domain.titleEn || domain.id,
     data: domain,
     sourceFile: 'data/shelf/clinicalDomains.ts',
+    additionalHtml: (domain.subcategories || []).some(subcategory => subcategory.id === 'sub-1-4')
+      ? { fa: renderPseudoephedrineReferenceSection('fa'), en: renderPseudoephedrineReferenceSection('en') }
+      : {},
     tags: ['Clinical Domain', domain.badgeEn || 'Shelf']
   });
 }
@@ -2449,7 +2843,9 @@ function extractText(val) {
   return String(val);
 }
 
-const cards = (INITIAL_SAMPLE_LEITNER_CARDS || []).map((card, idx) => ({
+const cards = (INITIAL_SAMPLE_LEITNER_CARDS || [])
+  .map(applyPseudoephedrineLeitnerEditorialCorrection)
+  .map((card, idx) => ({
   id: `card-pharmacy-${card.id || idx + 1}`,
   user_id: 'guest',
   front: extractText(card.front || card.question || card.title || `Flashcard ${idx + 1}`),
@@ -2589,3 +2985,47 @@ export const PHARMACY_SEED_CARDS: LeitnerCard[] = ${JSON.stringify(finalCards, n
 
 fs.writeFileSync(path.join(targetDir, 'pharmacySeedData.ts'), code, 'utf8');
 console.log('Successfully written to src/lib/pharmacySeedData.ts!');
+
+const pharmacyProductCatalog = SHELF_PRODUCTS.map((product) => {
+  const category = CLINICAL_DOMAINS.find((item) => item.id === product.categoryId);
+  const subcategory = category?.subcategories.find((item) => item.id === product.subcategoryId);
+  return {
+    id: product.id,
+    documentId: `doc-product-${product.id}`,
+    brandName: product.brandName,
+    genericName: product.genericName,
+    activeIngredients: product.activeIngredients || '',
+    packSize: product.packSize || '',
+    schedule: product.schedule,
+    categoryId: product.categoryId || null,
+    categoryFa: category?.titleFa || '',
+    categoryEn: category?.titleEn || '',
+    subcategoryId: product.subcategoryId || null,
+    subcategoryFa: subcategory?.titleFa || '',
+    subcategoryEn: subcategory?.titleEn || '',
+    sourceUrl: `https://github.com/hamedharami-hub/pharmacy/blob/${sourceCommit}/data/shelf/shelfProducts.ts`,
+    contentReviewStatus: 'unreviewed',
+  };
+});
+
+const productCatalogCode = `// Generated from Pharmacy main at ${sourceCommit}; do not edit by hand.
+import type { PharmacyProductCatalogEntry } from './pharmacyProductCatalog';
+
+export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = ${JSON.stringify(pharmacyProductCatalog, null, 2)};
+`;
+fs.writeFileSync(path.join(targetDir, 'pharmacyProductCatalogData.ts'), productCatalogCode, 'utf8');
+console.log(`Successfully written ${pharmacyProductCatalog.length} metadata-only product index entries to src/lib/pharmacyProductCatalogData.ts!`);
+
+if (pharmacyPracticeScenarios.length !== 32) {
+  throw new Error(`Expected 32 Pharmacy practice scenarios, got ${pharmacyPracticeScenarios.length}`);
+}
+const scenarioIds = pharmacyPracticeScenarios.map((scenario) => scenario.id);
+if (new Set(scenarioIds).size !== scenarioIds.length) throw new Error('Duplicate Pharmacy scenario IDs');
+
+const scenarioPracticeCode = `// Generated from Pharmacy main at ${sourceCommit}; do not edit by hand.
+import type { PharmacyPracticeScenario } from './pharmacyScenarioPractice';
+
+export const PHARMACY_PRACTICE_SCENARIOS: PharmacyPracticeScenario[] = ${JSON.stringify(pharmacyPracticeScenarios, null, 2)};
+`;
+fs.writeFileSync(path.join(targetDir, 'pharmacyScenarioPracticeData.ts'), scenarioPracticeCode, 'utf8');
+console.log(`Successfully written ${pharmacyPracticeScenarios.length} structured, unreviewed practice scenarios to src/lib/pharmacyScenarioPracticeData.ts!`);

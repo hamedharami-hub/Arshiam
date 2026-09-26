@@ -91,4 +91,36 @@ describe("TaskListItem subtasks progress rendering", () => {
     expect(html).toContain("Parent Task");
     expect(html).toContain("0/1");
   });
+
+  it("routes active Leitner reviews instead of allowing ordinary completion", () => {
+    const html = renderToString(
+      <TaskListItem
+        t={{ ...parentTask, id: "leitner-1", title: "Review lesson", source_type: "leitner", source_id: "doc-1" }}
+        subs={[]}
+        open={false}
+        onToggleExpand={vi.fn()}
+        onSelectTask={vi.fn()}
+        onToggleTask={vi.fn()}
+        onActionTask={vi.fn()}
+        onDeleteTask={vi.fn()}
+        onPatchTask={vi.fn()}
+        onMoveTask={vi.fn()}
+        isSelected={false}
+        splitView={false}
+        layout="compact"
+        isEn={true}
+        T={(_fa, en) => en}
+        navigate={vi.fn()}
+        outcomeByTaskId={{}}
+        outcomeById={{}}
+        childrenMap={{}}
+        expanded={{}}
+        getProgress={() => ({ done: 0, total: 0 })}
+        taskMap={new Map()}
+      />,
+    );
+
+    expect(html).toContain('aria-label="Open Leitner review"');
+    expect(html).not.toContain('role="checkbox"');
+  });
 });

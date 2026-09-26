@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { BookOpen, Menu, Plus, Sparkles, FolderPlus, ArrowLeft, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
@@ -12,6 +12,7 @@ import {
   createKnowledgeDocument,
   updateKnowledgeDocument,
   deleteKnowledgeDocument,
+  KnowledgeDocumentDeletionError,
   buildFolderTree,
   searchKnowledgeDocuments,
 } from "@/lib/knowledgeService";
@@ -20,6 +21,7 @@ import { KnowledgeDocumentReader } from "@/components/knowledge/KnowledgeDocumen
 import { KnowledgeDocumentEditorModal } from "@/components/knowledge/KnowledgeDocumentEditorModal";
 import { StudyTaskScheduleModal } from "@/components/knowledge/StudyTaskScheduleModal";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,12 +34,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
-import { getPharmacyImportStatus, importPharmacyKnowledge, type PharmacyImportStatus } from "@/lib/pharmacyImportService";
+import type { PharmacyImportStatus } from "@/lib/pharmacyImportService";
 import { PHARMACY_ROOT_FOLDER_ID } from "@/lib/pharmacyConstants";
 
 type KnowledgeDeleteTarget =
   | { type: "folder"; id: string; title: string }
   | { type: "document"; id: string; title: string };
+
+const EMPTY_KNOWLEDGE_LOCATION_STATE: Record<string, unknown> = {};
 
 export const KnowledgeBaseView: React.FC = () => {
   const { user } = useAuth();
@@ -52,6 +56,13 @@ export const KnowledgeBaseView: React.FC = () => {
   const [folders, setFolders] = useState<KnowledgeFolder[]>([]);
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const locationState = location.state && typeof location.state === "object"
+    ? location.state as Record<string, unknown>
+    : EMPTY_KNOWLEDGE_LOCATION_STATE;
+  const linkedDocumentStack = useMemo(() => {
+    const stack = locationState.knowledgeLinkedDocumentStack;
+    return Array.isArray(stack) ? stack.filter((id): id is string => typeof id === "string") : [];
+  }, [locationState]);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [hasPharmacy, setHasPharmacy] = useState<boolean>(true);
   const [pharmacyImportStatus, setPharmacyImportStatus] = useState<PharmacyImportStatus | null>(null);
@@ -109,6 +120,7 @@ export const KnowledgeBaseView: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const userId = user?.id || "anonymous-kb-user";
+  const documentScrollPositionsRef = useRef<Map<string, number>>(new Map());
 
   const loadData = useCallback(async () => {
     try {
@@ -120,16 +132,10 @@ export const KnowledgeBaseView: React.FC = () => {
       setFolders(fList);
       setDocuments(dList);
       setSelectedDocId((prev) => prev || (dList.length > 0 ? dList[0].id : null));
-      try {
-        const status = await getPharmacyImportStatus(userId);
-        setPharmacyImportStatus(status);
-        setHasPharmacy(
-          status.foldersMissing === 0 && status.docsMissing === 0 && status.docsUpgradeable === 0 && status.cardsMissing === 0,
-        );
-      } catch (statusError) {
-        // Knowledge documents must remain usable when import status cannot be verified.
-        console.warn("Could not verify pharmacy import status", statusError);
-      }
+      // Existing saved lessons are already available from the normal data load.
+      // Do not download the multi-megabyte source seed just to render install status.
+      setHasPharmacy(fList.some((folder) => folder.id === PHARMACY_ROOT_FOLDER_ID));
+      setPharmacyImportStatus(null);
     } catch (e) {
       console.error("Error loading knowledge base data", e);
     }
@@ -143,13 +149,19 @@ export const KnowledgeBaseView: React.FC = () => {
         : "در حال افزودن مطالب داروییِ جاافتاده، بدون بازنویسی اطلاعات قبلی..."
     );
     try {
+      const { importPharmacyKnowledge } = await import("@/lib/pharmacyImportService");
       const result = await importPharmacyKnowledge(userId, { importCards: true });
       await loadData();
+      setPharmacyImportStatus(result.status);
+      setHasPharmacy(
+        result.status.foldersMissing === 0 && result.status.docsMissing === 0 && result.status.docsUpgradeable === 0 &&
+        result.status.cardsMissing === 0 && result.status.cardsUpgradeable === 0,
+      );
       setSelectedFolderId(PHARMACY_ROOT_FOLDER_ID);
       toast.success(
         isEn
-          ? `Verified: ${result.docsCount} new lessons, ${result.docsUpdated} safely refreshed lessons and ${result.cardsCount} new cards.`
-          : `${result.docsCount} سند جدید، ${result.docsUpdated} سند قدیمیِ بدون ویرایش و ${result.cardsCount} کارت جدید تأیید شد.`,
+          ? `Verified: ${result.docsCount} new lessons, ${result.docsUpdated} safely refreshed lessons, ${result.cardsCount} new cards and ${result.cardsUpdated} safely refreshed cards.`
+          : `بررسی شد: ${result.docsCount} درس جدید، ${result.docsUpdated} درس بدون ویرایش شخصیِ به‌روزشده، ${result.cardsCount} کارت جدید و ${result.cardsUpdated} کارت بدون تغییر شخصیِ به‌روزشده.`,
         { id: toastId }
       );
     } catch (err: any) {
@@ -196,7 +208,36 @@ export const KnowledgeBaseView: React.FC = () => {
     setSelectedDocId(docId);
   }, [documents, isEn, location.pathname, location.search, navigate, selectedDocId]);
 
-  const previousDocId = (location.state as { knowledgePreviousDocId?: unknown } | null)?.knowledgePreviousDocId;
+  const handleOpenLinkedDocument = useCallback((docId: string) => {
+    const target = documents.find((doc) => doc.id === docId);
+    if (!target) {
+      toast.error(isEn ? "Linked document is unavailable" : "سند پیوندشده پیدا نشد");
+      return;
+    }
+
+    const currentStack = Array.isArray(locationState.knowledgeLinkedDocumentStack)
+      ? locationState.knowledgeLinkedDocumentStack.filter((id): id is string => typeof id === "string")
+      : [];
+    const currentDocumentId = currentStack[currentStack.length - 1] ?? selectedDocId;
+    if (currentDocumentId === docId) return;
+
+    navigate({
+      pathname: location.pathname,
+      search: location.search,
+      hash: location.hash,
+    }, {
+      state: {
+        ...locationState,
+        knowledgeLinkedDocumentStack: [...currentStack, docId],
+      },
+    });
+  }, [documents, isEn, location.hash, location.pathname, location.search, locationState, navigate, selectedDocId]);
+
+  const handleBackLinkedDocument = useCallback(() => {
+    if (linkedDocumentStack.length > 0) navigate(-1);
+  }, [linkedDocumentStack.length, navigate]);
+
+  const previousDocId = locationState.knowledgePreviousDocId;
   const canGoBackDocument = typeof previousDocId === "string" &&
     documents.some((doc) => doc.id === previousDocId);
 
@@ -248,6 +289,14 @@ export const KnowledgeBaseView: React.FC = () => {
     return documents.find((d) => d.id === selectedDocId) || null;
   }, [documents, selectedDocId]);
 
+  const linkedDocument = useMemo(() => {
+    const linkedDocId = linkedDocumentStack[linkedDocumentStack.length - 1];
+    return linkedDocId ? documents.find((doc) => doc.id === linkedDocId) ?? null : null;
+  }, [documents, linkedDocumentStack]);
+  const linkedDocumentFolder = linkedDocument?.folder_id
+    ? folders.find((folder) => folder.id === linkedDocument.folder_id) ?? null
+    : null;
+
   const currentFolder = useMemo(() => {
     if (!currentDoc || !currentDoc.folder_id) return null;
     return folders.find((f) => f.id === currentDoc.folder_id) || null;
@@ -284,18 +333,23 @@ export const KnowledgeBaseView: React.FC = () => {
           throw new Error(isEn ? "Folder not found or could not be removed" : "فولدر پیدا نشد یا حذف آن تأیید نشد");
         }
         const destinationFolderId = folder.parent_id || null;
-        setFolders((prev) => prev
-          .filter((item) => item.id !== deleteTarget.id)
-          .map((item) => item.parent_id === deleteTarget.id
-            ? { ...item, parent_id: destinationFolderId }
-            : item));
-        setDocuments((prev) => prev.map((item) => item.folder_id === deleteTarget.id
-          ? { ...item, folder_id: destinationFolderId }
-          : item));
-        if (selectedFolderId === deleteTarget.id) setSelectedFolderId(destinationFolderId);
+        const [freshFolders, freshDocuments] = await Promise.all([
+          getKnowledgeFolders(userId),
+          getKnowledgeDocuments(userId),
+        ]);
+        setFolders(freshFolders);
+        setDocuments(freshDocuments);
+        if (selectedFolderId === deleteTarget.id) {
+          setSelectedFolderId(destinationFolderId && freshFolders.some((item) => item.id === destinationFolderId)
+            ? destinationFolderId
+            : null);
+        }
         toast.success(isEn ? "Folder removed; documents and subfolders were kept" : "فولدر حذف شد؛ اسناد و زیرفولدرها حفظ شدند");
       } else {
-        await deleteKnowledgeDocument(userId, deleteTarget.id);
+        const deleted = await deleteKnowledgeDocument(userId, deleteTarget.id);
+        if (!deleted) {
+          throw new Error(isEn ? "Document not found or removal was not confirmed" : "سند پیدا نشد یا حذف آن تأیید نشد");
+        }
         setDocuments((prev) => prev.filter((item) => item.id !== deleteTarget.id));
         if (selectedDocId === deleteTarget.id) {
           const remaining = documents.filter((item) => item.id !== deleteTarget.id);
@@ -305,11 +359,39 @@ export const KnowledgeBaseView: React.FC = () => {
           else params.delete("docId");
           navigate({ pathname: location.pathname, search: params.toString() }, { replace: true, state: null });
           setSelectedDocId(nextDocId);
+        } else if (linkedDocumentStack.includes(deleteTarget.id)) {
+          const nextStack = linkedDocumentStack.filter((id) => id !== deleteTarget.id);
+          const nextLocationState = { ...locationState };
+          delete nextLocationState.knowledgeLinkedDocumentStack;
+          if (nextStack.length > 0) nextLocationState.knowledgeLinkedDocumentStack = nextStack;
+          navigate({ pathname: location.pathname, search: location.search, hash: location.hash }, {
+            replace: true,
+            state: Object.keys(nextLocationState).length > 0 ? nextLocationState : null,
+          });
         }
         toast.success(isEn ? "Document deleted" : "سند حذف شد");
       }
       setDeleteTarget(null);
     } catch (e: any) {
+      if (e instanceof KnowledgeDocumentDeletionError) {
+        const message = e.reason === "offline"
+          ? isEn
+            ? "Reconnect to check linked review cards before deleting this lesson."
+            : "برای بررسی کارت‌های مرورِ پیوندخورده، به اینترنت وصل شو و دوباره تلاش کن."
+          : e.reason === "verify-cards"
+            ? isEn
+              ? "Linked review cards could not be checked. The lesson was kept; reconnect and retry."
+              : "بررسی کارت‌های مرور ناموفق بود؛ درس حذف نشد. اتصال را بررسی و دوباره تلاش کن."
+            : e.reason === "pending-cards"
+              ? isEn
+                ? "Pending review-card changes could not be checked. The lesson was kept; sync and retry."
+                : "تغییرات در صفِ کارت‌های مرور بررسی نشد؛ درس حذف نشد. همگام‌سازی و دوباره تلاش کن."
+              : isEn
+                ? `This lesson is linked to ${e.linkedCardCount} Leitner card${e.linkedCardCount === 1 ? "" : "s"}. Reassign or unlink the cards first.`
+                : `این درس به ${e.linkedCardCount} کارت لایتنر پیوند دارد. ابتدا کارت‌ها را به درس دیگری منتقل یا پیوندشان را جدا کن.`;
+        toast.error(message);
+        return;
+      }
       toast.error(e.message || (isEn ? "Could not complete deletion" : "حذف انجام نشد"));
     } finally {
       setIsDeleting(false);
@@ -494,7 +576,7 @@ export const KnowledgeBaseView: React.FC = () => {
             document={currentDoc}
             folder={currentFolder}
             allDocuments={documents}
-            onSelectDocument={handleSelectDocument}
+            onSelectDocument={handleOpenLinkedDocument}
             onBackDocument={canGoBackDocument ? () => navigate(-1) : undefined}
             onEdit={handleOpenEditDoc}
             onDelete={handleDeleteDoc}
@@ -509,9 +591,51 @@ export const KnowledgeBaseView: React.FC = () => {
             onImportPharmacy={handleImportPharmacy}
             isPharmacyImported={hasPharmacy}
             isImportingPharmacy={isImportingPharmacy}
+            scrollPositionsMap={documentScrollPositionsRef.current}
           />
         </div>
       </div>
+
+      <Dialog
+        open={Boolean(linkedDocument)}
+        onOpenChange={(open) => {
+          if (!open && linkedDocumentStack.length > 0) navigate(-1);
+        }}
+      >
+        <DialogContent
+          dir={isEn ? "ltr" : "rtl"}
+          data-testid="knowledge-linked-document-dialog"
+          className="flex h-[calc(100dvh-1rem)] min-h-0 w-[calc(100vw-1rem)] max-w-[96rem] flex-col gap-0 overflow-hidden rounded-2xl p-2 sm:h-[92dvh] sm:w-[94vw] sm:rounded-3xl sm:p-3 [&>button:last-child]:hidden"
+        >
+          {linkedDocument && (
+            <>
+              <DialogTitle className="sr-only" dir="auto">
+                {linkedDocument.title_en || linkedDocument.title}
+              </DialogTitle>
+              <KnowledgeDocumentReader
+                document={linkedDocument}
+                folder={linkedDocumentFolder}
+                allDocuments={documents}
+                onSelectDocument={handleOpenLinkedDocument}
+                onBackDocument={handleBackLinkedDocument}
+                onClosePopup={handleBackLinkedDocument}
+                onEdit={handleOpenEditDoc}
+                onDelete={handleDeleteDoc}
+                userId={userId}
+                onOpenReview={() => navigate("/app/review")}
+                onDocumentUpdated={(updated) => {
+                  setDocuments((prev) => prev.map((doc) => doc.id === updated.id ? updated : doc));
+                }}
+                onScheduleStudy={handleScheduleDocStudy}
+                onImportPharmacy={handleImportPharmacy}
+                isPharmacyImported={hasPharmacy}
+                isImportingPharmacy={isImportingPharmacy}
+                scrollPositionsMap={documentScrollPositionsRef.current}
+              />
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={Boolean(deleteTarget)}

@@ -58,6 +58,7 @@ vi.mock("@/components/knowledge/StudyTaskScheduleModal", () => ({
 describe("KnowledgeMindMapView outline mode", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   it("shows the full wrapped hierarchy and keeps node actions in a compact menu", async () => {
@@ -118,4 +119,27 @@ describe("KnowledgeMindMapView outline mode", () => {
     fireEvent.click(await screen.findByRole("button", { name: `Expand ${lessonTitle}` }));
     expect(await screen.findByText("پرسش کارت مرور درس چیست؟")).toBeInTheDocument();
   });
+
+  it("shows both languages for a flashcard in the mind map outline", async () => {
+    render(<KnowledgeMindMapView userId="user-1" cardLanguage="bilingual" />);
+    fireEvent.click(screen.getByRole("button", { name: "Outline view" }));
+
+    const lessonTitle = "A deliberately long lesson title that must remain fully visible in the mind map outline";
+    fireEvent.click(await screen.findByRole("button", { name: `Expand ${lessonTitle}` }));
+
+    expect(await screen.findByText("پرسش کارت مرور درس چیست؟")).toBeInTheDocument();
+    expect(screen.getByText("What is the lesson review card?")).toBeInTheDocument();
+    expect(screen.getByText("Box 1")).toBeInTheDocument();
+  });
+
+  it("shows both languages for a flashcard in the canvas map", async () => {
+    render(<KnowledgeMindMapView userId="user-1" cardLanguage="bilingual" />);
+
+    const lessonTitle = "A deliberately long lesson title that must remain fully visible in the mind map outline";
+    fireEvent.click(await screen.findByRole("button", { name: `Expand ${lessonTitle}` }));
+
+    expect(await screen.findByText("پرسش کارت مرور درس چیست؟")).toBeInTheDocument();
+    expect(screen.getByText("What is the lesson review card?")).toBeInTheDocument();
+  });
+
 });

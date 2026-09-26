@@ -30,10 +30,12 @@ public final class WidgetRouterActivity extends Activity {
         if (taskId == null || taskId.isEmpty()) { finish(); return; }
         String routeOwner = (owner != null && !owner.isEmpty()) ? owner : activeOwner;
         if ("open".equals(operation)) {
-            Intent open = AgendaWidgetProvider.appIntent(this,
-                "task?taskId=" + Uri.encode(taskId) + "&owner=" + Uri.encode(routeOwner) + "&fromWidget=1");
-            open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(open);
+            if (!AndroidActionsReceiver.openReview(this, taskId, routeOwner, activeOwner)) {
+                Intent open = AgendaWidgetProvider.appIntent(this,
+                    "task?taskId=" + Uri.encode(taskId) + "&owner=" + Uri.encode(routeOwner) + "&fromWidget=1");
+                open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(open);
+            }
         } else if ("toggle".equals(operation)) {
             boolean targetCompleted;
             if (data.getQueryParameter("targetCompleted") != null) {
@@ -41,6 +43,10 @@ public final class WidgetRouterActivity extends Activity {
             } else {
                 boolean completed = "1".equals(data.getQueryParameter("completed"));
                 targetCompleted = !completed;
+            }
+            if (targetCompleted && AndroidActionsReceiver.openReview(this, taskId, routeOwner, activeOwner)) {
+                finish();
+                return;
             }
             AgendaData.setCompleted(this, taskId, targetCompleted);
             AgendaData.prefs(this).edit().putString("syncStatus",

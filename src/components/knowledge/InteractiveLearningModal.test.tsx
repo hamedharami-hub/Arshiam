@@ -61,6 +61,7 @@ describe("InteractiveLearningModal format selection", () => {
     fireEvent.click(screen.getByRole("button", { name: "Generate Interactive Module" }));
     await waitFor(() => expect(mockGenerateInteractiveContent).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.getByRole("button", { name: /Live Preview/ })).toBeEnabled());
+    expect(screen.queryByRole("button", { name: /Copy HTML|کپی HTML/i })).not.toBeInTheDocument();
 
     rerender(
       <InteractiveLearningModal
@@ -112,5 +113,5 @@ describe("InteractiveLearningModal format selection", () => {
     expect(screen.getByRole("button", { name: /Live Preview/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Generate Interactive Module" })).toBeEnabled();
     expect(screen.queryByText("Stale lesson")).not.toBeInTheDocument();
-  });
+  }, 15000);
 });

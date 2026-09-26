@@ -22,6 +22,7 @@ import {
   CalendarPlus,
   ListTree,
   MoreHorizontal,
+  Palette,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -32,6 +33,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useBilingual } from "@/hooks/useBilingual";
 import { useLongPress } from "@/lib/useLongPress";
 import { isPersianText } from "@/lib/bilingualHelper";
@@ -44,6 +46,17 @@ import { TaskKnowledgeReaderDialog } from "@/components/task-detail/TaskKnowledg
 import { StudyTaskScheduleModal } from "@/components/knowledge/StudyTaskScheduleModal";
 import { buildKnowledgeMindMapSearch, mindMapNodeMatchesSearch } from "@/lib/knowledgeMindMapSearch";
 import { buildMindMapOutline, getMindMapNodeDimensions, type MindMapOutlineEntry } from "@/lib/knowledgeMindMapLayout";
+import {
+  KNOWLEDGE_MIND_MAP_COLORS,
+  KNOWLEDGE_MIND_MAP_SHAPES,
+  loadKnowledgeMindMapNodeStyles,
+  saveKnowledgeMindMapNodeStyles,
+  type KnowledgeMindMapColor,
+  type KnowledgeMindMapNodeStyle,
+  type KnowledgeMindMapNodeStyles,
+  type KnowledgeMindMapShape,
+} from "@/lib/knowledgeMindMapAppearance";
+import { toast } from "sonner";
 
 interface KnowledgeMindMapViewProps {
   userId: string;
@@ -57,6 +70,7 @@ interface MindMapNode {
   id: string;
   type: "root" | "folder" | "subfolder" | "doc" | "card";
   title: string;
+  secondaryTitle?: string;
   subtitle?: string;
   x: number;
   y: number;
@@ -68,6 +82,7 @@ interface MindMapNode {
   childCount: number;
   color: string;
   accentColor: string;
+  appearance?: KnowledgeMindMapNodeStyle;
   dataId?: string;
   docRef?: KnowledgeDocument;
 }
@@ -96,6 +111,7 @@ interface MindMapNodeItemProps {
   onFocusScope?: (scopeId: string) => void;
   onScheduleTask?: (node: MindMapNode) => void;
   canScheduleTask?: boolean;
+  onCustomizeAppearance: (nodeId: string) => void;
 }
 
 interface MindMapNodeActionsProps {
@@ -106,7 +122,27 @@ interface MindMapNodeActionsProps {
   onOpenPreview: (doc: KnowledgeDocument) => void;
   onFocusScope: (scopeId: string) => void;
   onScheduleTask: (node: MindMapNode) => void;
+  canCustomize: boolean;
+  onCustomizeAppearance: (nodeId: string) => void;
 }
+
+const MIND_MAP_COLOR_LABELS: Record<KnowledgeMindMapColor, { en: string; fa: string; swatch: string; node: string; title: string }> = {
+  default: { en: "Default", fa: "پیش‌فرض", swatch: "bg-primary", node: "", title: "" },
+  violet: { en: "Violet", fa: "بنفش", swatch: "bg-violet-500", node: "border-violet-500/50 bg-violet-500/10", title: "text-violet-700 dark:text-violet-300" },
+  blue: { en: "Blue", fa: "آبی", swatch: "bg-blue-500", node: "border-blue-500/50 bg-blue-500/10", title: "text-blue-700 dark:text-blue-300" },
+  emerald: { en: "Emerald", fa: "سبز", swatch: "bg-emerald-500", node: "border-emerald-500/50 bg-emerald-500/10", title: "text-emerald-700 dark:text-emerald-300" },
+  amber: { en: "Amber", fa: "کهربایی", swatch: "bg-amber-500", node: "border-amber-500/50 bg-amber-500/10", title: "text-amber-800 dark:text-amber-300" },
+  rose: { en: "Rose", fa: "صورتی", swatch: "bg-rose-500", node: "border-rose-500/50 bg-rose-500/10", title: "text-rose-700 dark:text-rose-300" },
+};
+
+const MIND_MAP_SHAPE_LABELS: Record<KnowledgeMindMapShape, { en: string; fa: string; preview: string }> = {
+  rounded: { en: "Rounded", fa: "گرد", preview: "rounded-xl" },
+  "soft-square": { en: "Soft square", fa: "گوشه‌ملایم", preview: "rounded-md" },
+  square: { en: "Square", fa: "مربع", preview: "rounded-sm" },
+};
+
+const DEFAULT_NODE_STYLE: KnowledgeMindMapNodeStyle = { color: "default", shape: "rounded" };
+const EMPTY_NODE_STYLES: KnowledgeMindMapNodeStyles = Object.freeze({});
 
 const MindMapNodeActions = React.memo<MindMapNodeActionsProps>(({
   node,
@@ -116,51 +152,138 @@ const MindMapNodeActions = React.memo<MindMapNodeActionsProps>(({
   onOpenPreview,
   onFocusScope,
   onScheduleTask,
+  canCustomize,
+  onCustomizeAppearance,
 }) => {
   const hasReadAction = node.type === "doc" && Boolean(node.docRef);
-  if (!hasReadAction && !canFocus && !canSchedule) return null;
+  if (!hasReadAction && !canFocus && !canSchedule && !canCustomize) return null;
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label={isEn ? `Actions for ${node.title}` : `گزینه‌های ${node.title}`}
-          title={isEn ? "More actions" : "گزینه‌های بیشتر"}
-          data-no-longpress
-          onClick={(event) => event.stopPropagation()}
-          className="shrink-0 rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
-        {hasReadAction && (
-          <DropdownMenuItem onSelect={() => node.docRef && onOpenPreview(node.docRef)}>
-            <Eye className="me-2 h-4 w-4 text-primary" />
-            {isEn ? "Open in Reader" : "باز کردن در مطالعه"}
-          </DropdownMenuItem>
-        )}
-        {canFocus && (
-          <DropdownMenuItem onSelect={() => onFocusScope(node.id)}>
-            <GitBranch className="me-2 h-4 w-4 text-primary" />
-            {isEn ? "Focus on this branch" : "تمرکز روی این شاخه"}
-          </DropdownMenuItem>
-        )}
-        {canSchedule && (
-          <DropdownMenuItem onSelect={() => onScheduleTask(node)}>
-            <CalendarPlus className="me-2 h-4 w-4 text-indigo-500" />
-            {node.type === "card"
-              ? isEn ? "Schedule source lesson" : "زمان‌بندی مرور درس مادر"
-              : isEn ? "Schedule a review task" : "زمان‌بندی تسک مرور"}
-          </DropdownMenuItem>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label={isEn ? `Actions for ${node.title}` : `گزینه‌های ${node.title}`}
+            title={isEn ? "More actions" : "گزینه‌های بیشتر"}
+            data-no-longpress
+            onClick={(event) => event.stopPropagation()}
+            className="shrink-0 rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          {hasReadAction && (
+            <DropdownMenuItem onSelect={() => node.docRef && onOpenPreview(node.docRef)}>
+              <Eye className="me-2 h-4 w-4 text-primary" />
+              {isEn ? "Open in Reader" : "باز کردن در مطالعه"}
+            </DropdownMenuItem>
+          )}
+          {canFocus && (
+            <DropdownMenuItem onSelect={() => onFocusScope(node.id)}>
+              <GitBranch className="me-2 h-4 w-4 text-primary" />
+              {isEn ? "Focus on this branch" : "تمرکز روی این شاخه"}
+            </DropdownMenuItem>
+          )}
+          {canSchedule && (
+            <DropdownMenuItem onSelect={() => onScheduleTask(node)}>
+              <CalendarPlus className="me-2 h-4 w-4 text-indigo-500" />
+              {node.type === "card"
+                ? isEn ? "Schedule source lesson" : "زمان‌بندی مرور درس مادر"
+                : isEn ? "Schedule a review task" : "زمان‌بندی تسک مرور"}
+            </DropdownMenuItem>
+          )}
+          {canCustomize && (
+            <>
+              {(hasReadAction || canFocus || canSchedule) && <DropdownMenuSeparator />}
+              <DropdownMenuItem onSelect={() => onCustomizeAppearance(node.id)}>
+                <Palette className="me-2 h-4 w-4 text-primary" />
+                {isEn ? "Customize appearance" : "تغییر ظاهر گره"}
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
   );
 });
 
 MindMapNodeActions.displayName = "MindMapNodeActions";
+
+interface MindMapNodeAppearanceDialogProps {
+  node: MindMapNode | null;
+  isEn: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAppearanceChange: (nodeId: string, patch: Partial<KnowledgeMindMapNodeStyle>) => void;
+}
+
+const MindMapNodeAppearanceDialog = React.memo<MindMapNodeAppearanceDialogProps>(({
+  node,
+  isEn,
+  onOpenChange,
+  onAppearanceChange,
+}) => (
+  <Dialog open={Boolean(node)} onOpenChange={onOpenChange}>
+    {node && (
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{isEn ? "Customize node appearance" : "تنظیم ظاهر گره"}</DialogTitle>
+          <DialogDescription className="break-words">
+            {node.title} · {isEn ? "Saved on this device only." : "فقط روی همین دستگاه ذخیره می‌شود."}
+          </DialogDescription>
+        </DialogHeader>
+
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-semibold">{isEn ? "Color" : "رنگ"}</legend>
+          <div className="grid grid-cols-2 gap-2">
+            {KNOWLEDGE_MIND_MAP_COLORS.map((color) => {
+              const label = isEn ? MIND_MAP_COLOR_LABELS[color].en : MIND_MAP_COLOR_LABELS[color].fa;
+              return (
+                <label key={color} className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-2.5 py-2 text-sm hover:bg-muted has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                  <input
+                    type="radio"
+                    name={`mind-map-color-${node.id}`}
+                    value={color}
+                    checked={(node.appearance?.color ?? "default") === color}
+                    onChange={() => onAppearanceChange(node.id, { color })}
+                    className="sr-only"
+                  />
+                  <span aria-hidden="true" className={`h-3 w-3 shrink-0 rounded-full ${MIND_MAP_COLOR_LABELS[color].swatch}`} />
+                  <span>{label}</span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-semibold">{isEn ? "Shape" : "شکل"}</legend>
+          <div className="grid grid-cols-3 gap-2">
+            {KNOWLEDGE_MIND_MAP_SHAPES.map((shape) => {
+              const label = isEn ? MIND_MAP_SHAPE_LABELS[shape].en : MIND_MAP_SHAPE_LABELS[shape].fa;
+              const selected = (node.appearance?.shape ?? "rounded") === shape;
+              return (
+                <button
+                  key={shape}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => onAppearanceChange(node.id, { shape })}
+                  className={`flex min-h-12 flex-col items-center justify-center gap-1 border px-2 py-1.5 text-xs transition ${MIND_MAP_SHAPE_LABELS[shape].preview} ${selected ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:bg-muted"}`}
+                >
+                  <span aria-hidden="true" className={`h-3 w-7 border border-current ${MIND_MAP_SHAPE_LABELS[shape].preview}`} />
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+      </DialogContent>
+    )}
+  </Dialog>
+));
+
+MindMapNodeAppearanceDialog.displayName = "MindMapNodeAppearanceDialog";
 
 interface MindMapOutlineItemProps {
   entry: MindMapOutlineEntry<MindMapNode>;
@@ -172,6 +295,7 @@ interface MindMapOutlineItemProps {
   onToggleExpand: (nodeId: string) => void;
   onFocusScope: (scopeId: string) => void;
   onScheduleTask: (node: MindMapNode) => void;
+  onCustomizeAppearance: (nodeId: string) => void;
 }
 
 const MindMapOutlineItem = React.memo<MindMapOutlineItemProps>(({
@@ -184,14 +308,20 @@ const MindMapOutlineItem = React.memo<MindMapOutlineItemProps>(({
   onToggleExpand,
   onFocusScope,
   onScheduleTask,
+  onCustomizeAppearance,
 }) => {
   const { node } = entry;
   const titleDirection = isPersianText(node.title) ? "rtl" : "ltr";
+  const secondaryTitleDirection = node.secondaryTitle && isPersianText(node.secondaryTitle) ? "rtl" : "ltr";
   const isFolder = node.type === "folder" || node.type === "subfolder" || node.type === "root";
   const isDoc = node.type === "doc";
   const itemIsScopeRoot = isCurrentScopeRoot || node.type === "root";
   const Icon = node.type === "root" ? Sparkles : isFolder ? Folder : isDoc ? FileText : Layers;
   const canFocus = node.type !== "root" && !isCurrentScopeRoot && (isFolder || isDoc);
+  const nodeColor = node.appearance?.color ?? "default";
+  const nodeShape = node.appearance?.shape ?? "rounded";
+  const customColor = nodeColor === "default" ? "" : MIND_MAP_COLOR_LABELS[nodeColor].node;
+  const customTitleColor = nodeColor === "default" ? "" : MIND_MAP_COLOR_LABELS[nodeColor].title;
 
   const openOrExpand = () => {
     if (isDoc && node.docRef) onOpenPreview(node.docRef);
@@ -201,14 +331,14 @@ const MindMapOutlineItem = React.memo<MindMapOutlineItemProps>(({
   return (
     <li className="min-w-0 list-none" style={{ contentVisibility: "auto", containIntrinsicSize: "auto 68px" }}>
       <div
-        className={`group flex min-w-0 items-start gap-2 rounded-xl border px-3 py-2.5 shadow-sm transition-colors ${
-          itemIsScopeRoot
+        className={`group flex min-w-0 items-start gap-2 border px-3 py-2.5 shadow-sm transition-colors ${MIND_MAP_SHAPE_LABELS[nodeShape].preview} ${
+          customColor || (itemIsScopeRoot
             ? "border-primary/35 bg-primary/8"
             : isFolder
               ? "border-emerald-500/20 bg-card hover:border-emerald-500/45"
               : isDoc
                 ? "border-primary/20 bg-card hover:border-primary/40"
-                : "border-pink-500/20 bg-card hover:border-pink-500/40"
+                : "border-pink-500/20 bg-card hover:border-pink-500/40")
         }`}
         style={{ marginInlineStart: depth ? Math.min(depth, 8) * 18 : 0 }}
       >
@@ -243,12 +373,23 @@ const MindMapOutlineItem = React.memo<MindMapOutlineItemProps>(({
             ? isEn ? `Read document ${node.title}` : `مطالعه سند ${node.title}`
             : node.title}
           onClick={openOrExpand}
-          className={`min-w-0 flex-1 whitespace-normal break-words text-sm font-medium leading-6 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+          className={`min-w-0 flex-1 whitespace-normal break-words text-sm font-medium leading-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${customTitleColor || "text-foreground"} ${
             titleDirection === "rtl" ? "text-right" : "text-left"
           }`}
           style={{ overflowWrap: "anywhere" }}
         >
           {node.title}
+          {node.secondaryTitle && (
+            <span
+              dir={secondaryTitleDirection}
+              className={`mt-0.5 block whitespace-normal break-words text-xs font-normal leading-5 text-muted-foreground ${
+                secondaryTitleDirection === "rtl" ? "text-right" : "text-left"
+              }`}
+              style={{ overflowWrap: "anywhere" }}
+            >
+              {node.secondaryTitle}
+            </span>
+          )}
           {node.subtitle && (
             <span className="mt-0.5 block whitespace-normal text-xs font-normal leading-5 text-muted-foreground">
               {node.subtitle}
@@ -263,6 +404,8 @@ const MindMapOutlineItem = React.memo<MindMapOutlineItemProps>(({
           onOpenPreview={onOpenPreview}
           onFocusScope={onFocusScope}
           onScheduleTask={onScheduleTask}
+          canCustomize={node.id !== "root-kb"}
+          onCustomizeAppearance={onCustomizeAppearance}
         />
       </div>
       {entry.children.length > 0 && (
@@ -279,6 +422,7 @@ const MindMapOutlineItem = React.memo<MindMapOutlineItemProps>(({
               onToggleExpand={onToggleExpand}
               onFocusScope={onFocusScope}
               onScheduleTask={onScheduleTask}
+              onCustomizeAppearance={onCustomizeAppearance}
             />
           ))}
         </ul>
@@ -301,6 +445,7 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
     onFocusScope,
     onScheduleTask,
     canScheduleTask = false,
+    onCustomizeAppearance,
   }) => {
     const isDoc = node.type === "doc";
     const isFolder = node.type === "folder" || node.type === "subfolder";
@@ -308,8 +453,13 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
     const isCard = node.type === "card";
 
     const isTitlePersian = isPersianText(node.title);
+    const isSecondaryTitlePersian = node.secondaryTitle ? isPersianText(node.secondaryTitle) : false;
     const isSubtitlePersian = node.subtitle ? isPersianText(node.subtitle) : isTitlePersian;
     const isTreeRtl = treeDirection === "rtl";
+    const nodeColor = node.appearance?.color ?? "default";
+    const nodeShape = node.appearance?.shape ?? "rounded";
+    const customColor = nodeColor === "default" ? "" : MIND_MAP_COLOR_LABELS[nodeColor].node;
+    const customTitleColor = nodeColor === "default" ? "" : MIND_MAP_COLOR_LABELS[nodeColor].title;
 
     const longPress = useLongPress({
       onLongPress: () => {
@@ -329,16 +479,20 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
           height: `${node.height}px`,
           zIndex: 2,
         }}
-        className={`mindmap-interactive-node p-2.5 rounded-2xl border flex items-start justify-between gap-2 shadow-xs backdrop-blur-xl transition-all duration-150 cursor-pointer ${
+        className={`mindmap-interactive-node p-2.5 ${MIND_MAP_SHAPE_LABELS[nodeShape].preview} border flex items-start justify-between gap-2 shadow-xs backdrop-blur-xl transition-all duration-150 cursor-pointer ${
           isHighlighted ? "ring-2 ring-amber-400 shadow-md shadow-amber-400/25 scale-105" : ""
         } ${
-          isCurrentScopeRoot || isRoot
+          node.id === "root-kb"
             ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 font-bold ring-2 ring-primary/30"
-            : isFolder
-            ? "bg-card text-card-foreground border-emerald-500/40 hover:border-emerald-500 hover:shadow-sm"
-            : isDoc
-            ? "bg-card text-card-foreground border-primary/40 hover:border-primary hover:shadow-sm hover:bg-primary/5"
-            : "bg-card text-card-foreground border-pink-500/30 hover:border-pink-500 hover:shadow-xs"
+            : customColor
+              ? `${customColor} text-card-foreground`
+              : isCurrentScopeRoot || isRoot
+                ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 font-bold ring-2 ring-primary/30"
+                : isFolder
+                  ? "bg-card text-card-foreground border-emerald-500/40 hover:border-emerald-500 hover:shadow-sm"
+                  : isDoc
+                    ? "bg-card text-card-foreground border-primary/40 hover:border-primary hover:shadow-sm hover:bg-primary/5"
+                    : "bg-card text-card-foreground border-pink-500/30 hover:border-pink-500 hover:shadow-xs"
         }`}
         onClick={(e) => {
           if (longPress.didFire()) return;
@@ -368,12 +522,23 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
               className={`whitespace-normal break-words text-xs font-semibold leading-4 ${
                 isTitlePersian ? "text-right" : "text-left"
               } ${
-                isRoot || isCurrentScopeRoot ? "text-primary-foreground" : "text-foreground"
+                customTitleColor || (isRoot || isCurrentScopeRoot ? "text-primary-foreground" : "text-foreground")
               }`}
               style={{ overflowWrap: "anywhere" }}
             >
               {node.title}
             </div>
+            {node.secondaryTitle && (
+              <div
+                dir={isSecondaryTitlePersian ? "rtl" : "ltr"}
+                className={`whitespace-normal break-words text-[10px] leading-3 ${
+                  isSecondaryTitlePersian ? "text-right" : "text-left"
+                } text-muted-foreground`}
+                style={{ overflowWrap: "anywhere" }}
+              >
+                {node.secondaryTitle}
+              </div>
+            )}
             {node.subtitle && (
               <div
                 dir={isSubtitlePersian ? "rtl" : "ltr"}
@@ -400,6 +565,8 @@ const MindMapNodeItem = React.memo<MindMapNodeItemProps>(
             onOpenPreview={onOpenPreview}
             onFocusScope={(scopeId) => onFocusScope?.(scopeId)}
             onScheduleTask={(target) => onScheduleTask?.(target)}
+            canCustomize={node.id !== "root-kb"}
+            onCustomizeAppearance={onCustomizeAppearance}
           />
           {node.hasChildren && (
             <button
@@ -549,6 +716,37 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<KnowledgeDocument | null>(null);
   const [viewMode, setViewMode] = useState<"canvas" | "outline">("canvas");
+  const [nodeAppearanceState, setNodeAppearanceState] = useState(() => ({
+    ownerId: userId,
+    styles: loadKnowledgeMindMapNodeStyles(userId),
+  }));
+  const nodeStyles = nodeAppearanceState.ownerId === userId
+    ? nodeAppearanceState.styles
+    : EMPTY_NODE_STYLES;
+  const [appearanceNodeId, setAppearanceNodeId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (nodeAppearanceState.ownerId !== userId) {
+      setNodeAppearanceState({ ownerId: userId, styles: loadKnowledgeMindMapNodeStyles(userId) });
+    }
+  }, [nodeAppearanceState.ownerId, userId]);
+
+  const handleAppearanceChange = useCallback((nodeId: string, patch: Partial<KnowledgeMindMapNodeStyle>) => {
+    const currentStyles = nodeAppearanceState.ownerId === userId
+      ? nodeAppearanceState.styles
+      : loadKnowledgeMindMapNodeStyles(userId);
+    const currentStyle = currentStyles[nodeId] ?? DEFAULT_NODE_STYLE;
+    const nextStyles = {
+      ...currentStyles,
+      [nodeId]: { ...currentStyle, ...patch },
+    };
+    if (!saveKnowledgeMindMapNodeStyles(userId, nextStyles)) {
+      toast.error(isEn
+        ? "Appearance could not be saved on this device."
+        : "تنظیم ظاهری روی این دستگاه ذخیره نشد.");
+    }
+    setNodeAppearanceState({ ownerId: userId, styles: nextStyles });
+  }, [isEn, nodeAppearanceState, userId]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const dragStartPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -862,10 +1060,11 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       dataId?: string,
       docRef?: KnowledgeDocument,
       subtitle?: string,
-      childrenData: Array<() => { y: number; height: number }> = []
+      childrenData: Array<() => { y: number; height: number }> = [],
+      secondaryTitle?: string,
     ): { y: number; height: number } {
       const isExpanded = !!expandedNodeIds[id];
-      const { width, height } = getMindMapNodeDimensions(type, title, subtitle);
+      const { width, height } = getMindMapNodeDimensions(type, title, subtitle, secondaryTitle);
       const hasChildren = childrenData.length > 0;
       const visibleChildren = isExpanded ? childrenData : [];
 
@@ -894,6 +1093,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
         id,
         type,
         title,
+        secondaryTitle,
         subtitle,
         x,
         y: nodeY,
@@ -926,10 +1126,11 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       const cardFns: Array<() => { y: number; height: number }> = [];
       docCards.slice(0, 15).forEach((card) => {
         cardFns.push(() => {
+          const cardText = resolveLeitnerCardText(card, "front", cardLanguage);
           return layoutNode(
             `card-${card.id}`,
             "card",
-            resolveLeitnerCardText(card, "front", cardLanguage).text,
+            cardText.text,
             depth + 1,
             x + colSpacing,
             docId,
@@ -937,7 +1138,9 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
             "#ec4899",
             card.id,
             undefined,
-            isEn ? `Box ${card.box}` : `جعبه ${card.box}`
+            isEn ? `Box ${card.box}` : `جعبه ${card.box}`,
+            [],
+            cardText.secondaryText,
           );
         });
       });
@@ -1144,7 +1347,15 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     };
   }, [folders, documents, cards, expandedNodeIds, isEn, treeDirection, selectedScopeId, cardLanguage]);
 
-  const outlineEntries = useMemo(() => buildMindMapOutline(nodes), [nodes]);
+  const displayNodes = useMemo(
+    () => nodes.map((node) => ({
+      ...node,
+      appearance: nodeStyles[node.id] ?? DEFAULT_NODE_STYLE,
+    })),
+    [nodeStyles, nodes],
+  );
+  const appearanceNode = displayNodes.find((node) => node.id === appearanceNodeId) ?? null;
+  const outlineEntries = useMemo(() => buildMindMapOutline(displayNodes), [displayNodes]);
 
   // Fit View To Container
   const fitViewToContainer = useCallback(() => {
@@ -1823,7 +2034,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
           </svg>
 
           {/* Render Memoized Nodes */}
-          {nodes.map((node) => {
+          {displayNodes.map((node) => {
             const isHighlighted =
               debouncedSearch.trim() !== "" &&
               mindMapNodeMatchesSearch(node, searchResult);
@@ -1842,6 +2053,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
                 onFocusScope={setSelectedScopeId}
                 onScheduleTask={handleScheduleNodeTask}
                 canScheduleTask={canScheduleNode(node)}
+                onCustomizeAppearance={setAppearanceNodeId}
               />
             );
           })}
@@ -1867,6 +2079,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
                   onToggleExpand={handleToggleExpand}
                   onFocusScope={setSelectedScopeId}
                   onScheduleTask={handleScheduleNodeTask}
+                  onCustomizeAppearance={setAppearanceNodeId}
                 />
               ))}
             </ul>
@@ -1877,6 +2090,13 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
           )}
         </div>
       )}
+
+      <MindMapNodeAppearanceDialog
+        node={appearanceNode}
+        isEn={isEn}
+        onOpenChange={(open) => !open && setAppearanceNodeId(null)}
+        onAppearanceChange={handleAppearanceChange}
+      />
 
       {/* Embedded Document Reader Modal */}
       {previewDoc && (

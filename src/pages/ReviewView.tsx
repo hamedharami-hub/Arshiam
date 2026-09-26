@@ -18,27 +18,27 @@ export const ReviewView: React.FC = () => {
     () => loadStudyContentLanguage(isEn ? "en" : "fa"),
   );
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const urlFolderId = searchParams.get("folderId");
   const urlDocId = searchParams.get("docId");
   const studyDocId = searchParams.get("studyDocId");
+  const studyFolderId = searchParams.get("studyFolderId");
   const studyTaskId = searchParams.get("studyTaskId");
   const urlTab = searchParams.get("tab");
 
-  const [activeTab, setActiveTab] = useState<"leitner" | "mindmap">(() => {
-    if (urlTab === "mindmap" || urlFolderId || urlDocId) {
-      return "mindmap";
-    }
-    return "leitner";
-  });
+  const activeTab: "leitner" | "mindmap" = urlTab === "mindmap"
+    ? "mindmap"
+    : urlTab === "leitner"
+      ? "leitner"
+      : urlFolderId || urlDocId
+        ? "mindmap"
+        : "leitner";
 
-  React.useEffect(() => {
-    if (urlTab === "mindmap" || urlFolderId || urlDocId) {
-      setActiveTab("mindmap");
-    } else if (urlTab === "leitner") {
-      setActiveTab("leitner");
-    }
-  }, [urlTab, urlFolderId, urlDocId]);
+  const selectTab = (tab: "leitner" | "mindmap") => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("tab", tab);
+    setSearchParams(nextParams, { replace: true });
+  };
 
   const userId = user?.id || "anonymous-review-user";
 
@@ -74,7 +74,8 @@ export const ReviewView: React.FC = () => {
           <div className="flex items-center p-1 rounded-2xl bg-muted/60 border border-border text-xs">
             <button
               type="button"
-              onClick={() => setActiveTab("leitner")}
+              aria-pressed={activeTab === "leitner"}
+              onClick={() => selectTab("leitner")}
               className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer ${
                 activeTab === "leitner"
                   ? "bg-primary text-primary-foreground shadow-sm"
@@ -87,7 +88,8 @@ export const ReviewView: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => setActiveTab("mindmap")}
+              aria-pressed={activeTab === "mindmap"}
+              onClick={() => selectTab("mindmap")}
               className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer ${
                 activeTab === "mindmap"
                   ? "bg-primary text-primary-foreground shadow-sm"
@@ -101,7 +103,7 @@ export const ReviewView: React.FC = () => {
 
           <div role="group" aria-label={isEn ? "Flashcard content language" : "زبان محتوای کارت‌ها"} className="flex items-center gap-1 rounded-2xl border border-border bg-card p-1 text-xs">
             <Languages aria-hidden="true" className="mx-1 h-4 w-4 text-muted-foreground" />
-            {(["fa", "en"] as const).map((language) => (
+            {(["fa", "en", "bilingual"] as const).map((language) => (
               <button
                 key={language}
                 type="button"
@@ -112,7 +114,7 @@ export const ReviewView: React.FC = () => {
                 }}
                 className={`rounded-xl px-2.5 py-1.5 font-semibold transition ${cardLanguage === language ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >
-                {language === "fa" ? "فارسی" : "English"}
+                {language === "fa" ? "فارسی" : language === "en" ? "English" : isEn ? "Bilingual" : "دوزبانه"}
               </button>
             ))}
           </div>
@@ -126,6 +128,7 @@ export const ReviewView: React.FC = () => {
             userId={userId}
             onOpenDocument={handleOpenDoc}
             initialStudyDocumentId={studyDocId || undefined}
+            initialStudyFolderId={studyFolderId || undefined}
             initialStudyTaskId={studyTaskId || undefined}
             cardLanguage={cardLanguage}
           />

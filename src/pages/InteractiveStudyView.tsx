@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, CircleAlert, Gamepad2, Loader2, Search, X } from "lucide-react";
+import { BookOpen, CircleAlert, Gamepad2, Layers, Loader2, Search, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import { getKnowledgeDocuments, getKnowledgeFolders } from "@/lib/knowledgeServi
 import type { KnowledgeDocument, KnowledgeFolder } from "@/lib/knowledgeTypes";
 import { sanitizeKnowledgeHtml } from "@/lib/knowledgeBeautifier";
 import { getSafeKnowledgeExternalUrl } from "@/lib/knowledgeReviewEvidence";
+import { createLeitnerCard, getLeitnerCards } from "@/lib/leitnerService";
 
 const ALL_FOLDERS = "__all__";
 const UNFILED_FOLDER = "__unfiled__";
@@ -96,6 +97,21 @@ function filterStudyDocuments(
   );
 }
 
+function extractStudyFlipCards(html: string): Array<{ front: string; back: string }> {
+  if (!html || typeof DOMParser === "undefined") return [];
+  const parsed = new DOMParser().parseFromString(html, "text/html");
+  return Array.from(parsed.querySelectorAll(".interactive-flip-card"))
+    .map((card) => ({
+      front: card.querySelector(".flip-card-front .flip-text")?.textContent?.replace(/\s+/g, " ").trim() || "",
+      back: card.querySelector(".flip-card-back .flip-text")?.textContent?.replace(/\s+/g, " ").trim() || "",
+    }))
+    .filter((card) => Boolean(card.front && card.back));
+}
+
+function normalizeStudyCardText(text: string): string {
+  return text.normalize("NFKC").replace(/\s+/g, " ").trim().toLocaleLowerCase();
+}
+
 export const InteractiveStudyView: React.FC = () => {
   const { user } = useAuth();
   const { isEn } = useBilingual();
@@ -117,6 +133,9 @@ export const InteractiveStudyView: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [studioOpen, setStudioOpen] = useState(false);
+  const [modalWorkflowStep, setModalWorkflowStep] = useState<2 | 3>(2);
+  const [isImportingLeitner, setIsImportingLeitner] = useState(false);
+  const [leitnerImportNotice, setLeitnerImportNotice] = useState("");
   const lessonSearchRef = useRef<HTMLInputElement>(null);
   const sessionContainerRef = useRef<HTMLDivElement>(null);
   const activeSessionRef = useRef<InteractiveStudySession | null>(null);
@@ -208,6 +227,7 @@ export const InteractiveStudyView: React.FC = () => {
 
   const safeSessionHtml = useMemo(() => sanitizeKnowledgeHtml(sessionHtml), [sessionHtml]);
   const safeDocumentPreviewHtml = useMemo(() => sanitizeKnowledgeHtml(documentContent), [documentContent]);
+  const studyFlipCards = useMemo(() => extractStudyFlipCards(safeSessionHtml), [safeSessionHtml]);
 
   const persistSessionHtml = useCallback(async (html: string): Promise<SessionFlushResult> => {
     const current = activeSessionRef.current;
@@ -371,6 +391,7 @@ export const InteractiveStudyView: React.FC = () => {
       setSelectedDocId(documentId);
       setIsLessonPickerCollapsed(true);
       setSessionHtml("");
+      setLeitnerImportNotice("");
     })();
   }, [documents, selectedDocId, user?.id]);
 
@@ -399,12 +420,64 @@ export const InteractiveStudyView: React.FC = () => {
     activeSessionRef.current = session;
     pendingSessionHtmlRef.current = null;
     setSessionHtml(session.content_html);
+    setStudioOpen(false);
+    setModalWorkflowStep(2);
+    setLeitnerImportNotice("");
     setIsRestoredDraft(false);
     setSessionNotice("");
     setSessionSaveError("");
     setSessionSaveState("saving");
     await persistSessionHtmlRef.current(session.content_html);
   }, [documentTitle, language, selectedDocument, user?.id]);
+
+  const handleOpenStudio = useCallback(() => {
+    setModalWorkflowStep(2);
+    setStudioOpen(true);
+  }, []);
+
+  const handleImportFlipCardsToLeitner = useCallback(async () => {
+    if (
+      isImportingLeitner || !user?.id || !selectedDocument || selectedDocument.user_id !== user.id ||
+      studyFlipCards.length === 0 || (sessionSaveState !== "saved" && sessionSaveState !== "queued")
+    ) return;
+
+    setIsImportingLeitner(true);
+    setLeitnerImportNotice("");
+    try {
+      const existingCards = await getLeitnerCards(user.id);
+      const existingKeys = new Set(existingCards
+        .filter((card) => card.document_id === selectedDocument.id)
+        .map((card) => `${normalizeStudyCardText(card.front)}\u0000${normalizeStudyCardText(card.back)}`));
+      let added = 0;
+      let skipped = 0;
+      for (const card of studyFlipCards) {
+        const key = `${normalizeStudyCardText(card.front)}\u0000${normalizeStudyCardText(card.back)}`;
+        if (existingKeys.has(key)) {
+          skipped += 1;
+          continue;
+        }
+        await createLeitnerCard(user.id, {
+          front: card.front,
+          back: card.back,
+          ...(language === "en" ? { front_en: card.front, back_en: card.back } : { front_fa: card.front, back_fa: card.back }),
+          document_id: selectedDocument.id,
+          folder_id: selectedDocument.folder_id || null,
+        });
+        existingKeys.add(key);
+        added += 1;
+      }
+      setLeitnerImportNotice(isEnRef.current
+        ? `${added} flashcard${added === 1 ? "" : "s"} added to Leitner${skipped ? `; ${skipped} duplicate${skipped === 1 ? "" : "s"} skipped` : ""}.`
+        : `${added} فلش‌کارت به لایتنر اضافه شد${skipped ? `؛ ${skipped} مورد تکراری رد شد` : ""}.`);
+    } catch (error) {
+      console.error("Could not add interactive flashcards to Leitner", error);
+      setLeitnerImportNotice(isEnRef.current
+        ? "Some cards could not be added. Check Leitner and retry; existing cards are kept."
+        : "افزودن بعضی کارت‌ها انجام نشد. لایتنر را بررسی و دوباره تلاش کن؛ کارت‌های قبلی حفظ شده‌اند.");
+    } finally {
+      setIsImportingLeitner(false);
+    }
+  }, [isImportingLeitner, language, selectedDocument, sessionSaveState, studyFlipCards, user?.id]);
 
   const finishCompletedSessionUi = useCallback((saveResult: InteractiveStudySaveStatus) => {
     activeSessionRef.current = null;
@@ -524,8 +597,9 @@ export const InteractiveStudyView: React.FC = () => {
       : "مطالعهٔ تعاملی، یک درس از کتابخانهٔ دانش را به جلسه‌ای جداگانه برای تمرین تبدیل می‌کند. درس را انتخاب کن، تمرین‌های دلخواهت را بساز و بعداً از پیشرفت ذخیره‌شده ادامه بده.",
     emptyStepsTitle: isEn ? "How it works" : "روش کار",
     emptyStepChoose: isEn ? "Choose a lesson" : "یک درس انتخاب کن",
-    emptyStepBuild: isEn ? "Choose formats and generate" : "قالب‌ها را انتخاب و تولید کن",
-    emptyStepPractice: isEn ? "Practice; progress saves separately" : "تمرین کن؛ پیشرفت جدا ذخیره می‌شود",
+    emptyStepBuild: isEn ? "Choose practice formats" : "قالب‌های تمرین را انتخاب کن",
+    emptyStepPreview: isEn ? "Preview and adjust" : "پیش‌نمایش و بازبینی کن",
+    emptyStepPractice: isEn ? "Start; progress saves separately" : "جلسه را شروع کن؛ پیشرفت جدا ذخیره می‌شود",
     emptyFormats: isEn
       ? "Flashcards · quizzes · matching · cases · decision trees · memory games"
       : "فلش‌کارت · آزمون · تطبیق · سناریو · درخت تصمیم · بازی حافظه",
@@ -537,8 +611,9 @@ export const InteractiveStudyView: React.FC = () => {
     whatYouCanPractice: isEn ? "What can I practice here?" : "اینجا چه تمرین‌هایی می‌توانم بسازم؟",
     workflow: isEn ? "Study flow" : "مسیر مطالعه",
     stepSource: isEn ? "Choose a lesson" : "انتخاب درس",
-    stepFormats: isEn ? "Choose practice" : "انتخاب تمرین",
-    stepPractice: isEn ? "Practice & save" : "تمرین و ذخیره",
+    stepFormats: isEn ? "Choose formats" : "انتخاب قالب‌ها",
+    stepPreview: isEn ? "Preview" : "پیش‌نمایش",
+    stepPractice: isEn ? "Continue session" : "ادامهٔ جلسه",
     sourcePreview: isEn ? "Review the lesson used for practice" : "متن درسی را که مبنای تمرین است ببین",
     sourcePreviewHint: isEn ? "The generator uses this lesson only; it does not change the source." : "هوش مصنوعی فقط از همین درس استفاده می‌کند و متن اصلی را تغییر نمی‌دهد.",
     practiceFormats: isEn
@@ -550,6 +625,12 @@ export const InteractiveStudyView: React.FC = () => {
     separateFromLeitner: isEn
       ? "Practice progress is saved separately. This does not create Leitner cards or review tasks."
       : "پیشرفت تمرین جداگانه ذخیره می‌شود؛ این بخش کارت لایتنر یا تسک مرور نمی‌سازد.",
+    leitnerOptionalTitle: isEn ? "Optional: add flashcards to Leitner" : "اختیاری: افزودن فلش‌کارت‌ها به لایتنر",
+    leitnerOptionalDescription: isEn
+      ? "Only question-and-answer flashcards are copied; quizzes and games stay in this session. This happens only if you choose it."
+      : "فقط فلش‌کارت‌های پرسش‌وپاسخ منتقل می‌شوند؛ آزمون‌ها و بازی‌ها در همین جلسه می‌مانند. این کار فقط با انتخاب خودت انجام می‌شود.",
+    addToLeitner: isEn ? "Add flashcards" : "افزودن کارت‌ها",
+    noFlashcards: isEn ? "This session has no flashcards to add." : "این جلسه فلش‌کارتی برای افزودن ندارد.",
     change: isEn ? "Change formats or regenerate" : "تغییر قالب‌ها یا ساخت دوباره",
     end: isEn ? "End session" : "پایان جلسه",
     openLibrary: isEn ? "Open Knowledge Base" : "رفتن به کتابخانهٔ دانش",
@@ -594,8 +675,8 @@ export const InteractiveStudyView: React.FC = () => {
           <div><strong className="block">{labels.safetyTitle}</strong><span className="text-muted-foreground">{labels.safetyText}</span></div>
         </aside>
 
-        <div className="grid min-h-[420px] min-w-0 grid-cols-1 gap-4 min-[720px]:h-[68vh] min-[720px]:max-h-[680px] min-[720px]:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.5fr)] lg:grid-cols-[minmax(270px,0.8fr)_minmax(0,1.6fr)]">
-          <section data-testid="interactive-study-lesson-picker" aria-label={labels.documents} className={`${isLessonPickerCollapsed && selectedDocument ? "hidden min-[720px]:flex" : "flex"} min-h-0 min-w-0 flex-col rounded-3xl border border-border bg-card p-3 sm:p-4`}>
+        <div className="grid min-h-[420px] min-w-0 grid-cols-1 gap-4 min-[900px]:h-[68vh] min-[900px]:max-h-[680px] min-[900px]:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.5fr)] lg:grid-cols-[minmax(270px,0.8fr)_minmax(0,1.6fr)]">
+          <section data-testid="interactive-study-lesson-picker" aria-label={labels.documents} className={`${isLessonPickerCollapsed && selectedDocument ? "hidden min-[900px]:flex" : "flex"} min-h-0 min-w-0 flex-col rounded-3xl border border-border bg-card p-3 sm:p-4`}>
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="text-sm font-bold">{labels.documents}</h2>
               <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground" aria-live="polite">
@@ -634,7 +715,7 @@ export const InteractiveStudyView: React.FC = () => {
               <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input ref={lessonSearchRef} value={search} onChange={(event) => handleSearchChange(event.target.value)} placeholder={labels.search} className="rounded-xl ps-9" />
             </label>
-            <div className="min-h-0 max-h-64 flex-1 space-y-1 overflow-y-auto pe-1 min-[720px]:max-h-none">
+            <div className="min-h-0 max-h-64 flex-1 space-y-1 overflow-y-auto pe-1 min-[900px]:max-h-none">
               {isLoading ? (
                 <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />{labels.loading}</div>
               ) : loadError ? (
@@ -652,9 +733,10 @@ export const InteractiveStudyView: React.FC = () => {
                     type="button"
                     aria-pressed={isSelected}
                     onClick={() => handleSelectDocument(document.id)}
+                    title={title}
                     className={`w-full rounded-2xl border px-3 py-3 text-start transition ${isSelected ? "border-primary/50 bg-primary/5 shadow-sm" : "border-transparent hover:border-border hover:bg-muted/60"}`}
                   >
-                    <span className="block truncate text-sm font-semibold">{title}</span>
+                    <span dir="auto" className="block line-clamp-2 break-words text-sm font-semibold">{title}</span>
                     <span className="mt-1 block truncate text-[11px] text-muted-foreground">{(document.tags || []).slice(0, 3).join(" · ") || (isEn ? "Lesson" : "درس")}</span>
                   </button>
                 );
@@ -662,13 +744,13 @@ export const InteractiveStudyView: React.FC = () => {
             </div>
           </section>
 
-          <section aria-label={labels.sessionReady} className="flex min-h-[340px] min-w-0 flex-col overflow-y-auto rounded-3xl border border-border bg-card p-4 sm:p-5 min-[720px]:min-h-0">
+          <section aria-label={labels.sessionReady} className="flex min-h-[340px] min-w-0 flex-col overflow-y-auto rounded-3xl border border-border bg-card p-4 sm:p-5 min-[900px]:min-h-0">
             {selectedDocument && (
-              <ol aria-label={labels.workflow} className="mb-4 grid grid-cols-3 gap-2">
-                {[labels.stepSource, labels.stepFormats, labels.stepPractice].map((step, index) => {
-                  const activeStep = sessionHtml ? 2 : 1;
-                  const isComplete = index < activeStep;
-                  const isCurrent = index === activeStep;
+              <ol aria-label={labels.workflow} className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {[labels.stepSource, labels.stepFormats, labels.stepPreview, labels.stepPractice].map((step, index) => {
+                  const activeStep = studioOpen ? modalWorkflowStep : sessionHtml ? 4 : selectedDocument ? 2 : 1;
+                  const isComplete = index + 1 < activeStep;
+                  const isCurrent = index + 1 === activeStep;
                   return (
                     <li
                       key={step}
@@ -689,7 +771,7 @@ export const InteractiveStudyView: React.FC = () => {
                 <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-border pb-3">
                   <div className="min-w-0">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">{labels.sessionReady}</p>
-                    <h2 className="mt-1 truncate text-base font-bold">{documentTitle}</h2>
+                    <h2 dir="auto" className="mt-1 break-words text-base font-bold">{documentTitle}</h2>
                     <p className="mt-1 text-[11px] text-muted-foreground">{labels.autosave}</p>
                     {isRestoredDraft && <p className="mt-1 text-[11px] text-muted-foreground">{labels.restored}</p>}
                     {saveStatusText && <p role="status" aria-live="polite" className="mt-1 text-[11px] text-muted-foreground">{saveStatusText}</p>}
@@ -700,12 +782,37 @@ export const InteractiveStudyView: React.FC = () => {
                     {selectedDocument?.content_review_status !== "reviewed" && <p role="note" className="mt-2 inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5 text-[11px] text-amber-800 dark:text-amber-300"><CircleAlert className="h-3.5 w-3.5" />{labels.unreviewed}</p>}
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
-                    <Button type="button" variant="outline" size="sm" className="rounded-xl min-[720px]:hidden" onClick={handleChangeLesson}>
+                    <Button type="button" variant="outline" size="sm" className="rounded-xl min-[900px]:hidden" onClick={handleChangeLesson}>
                       <BookOpen className="me-1.5 h-4 w-4" />{labels.changeLesson}
                     </Button>
-                    <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setStudioOpen(true)}><Gamepad2 className="me-1.5 h-4 w-4" />{labels.change}</Button>
+                    <Button variant="outline" size="sm" className="rounded-xl" onClick={handleOpenStudio}><Gamepad2 className="me-1.5 h-4 w-4" />{labels.change}</Button>
                     <Button variant="ghost" size="sm" className="rounded-xl" onClick={handleEndSession}><X className="me-1.5 h-4 w-4" />{labels.end}</Button>
                   </div>
+                </div>
+                <div className="mt-4 rounded-2xl border border-border bg-muted/20 p-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-start gap-2.5">
+                      <Layers className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold">{labels.leitnerOptionalTitle}</p>
+                        <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
+                          {studyFlipCards.length ? labels.leitnerOptionalDescription : labels.noFlashcards}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0 rounded-xl"
+                      onClick={() => void handleImportFlipCardsToLeitner()}
+                      disabled={studyFlipCards.length === 0 || isImportingLeitner || (sessionSaveState !== "saved" && sessionSaveState !== "queued")}
+                    >
+                      {isImportingLeitner ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Layers className="me-2 h-4 w-4" />}
+                      {labels.addToLeitner}
+                    </Button>
+                  </div>
+                  {leitnerImportNotice && <p role="status" aria-live="polite" className="mt-2 text-xs text-muted-foreground">{leitnerImportNotice}</p>}
                 </div>
                 <div dir={language === "en" ? "ltr" : "rtl"} className="knowledge-html-content min-w-0 flex-1 overflow-x-hidden">
                   <div ref={sessionContainerRef} dangerouslySetInnerHTML={{ __html: safeSessionHtml }} />
@@ -717,8 +824,8 @@ export const InteractiveStudyView: React.FC = () => {
               <div className="flex flex-1 flex-col justify-between gap-6">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">{labels.selectedLesson}</p>
-                  <h2 className="mt-2 break-words text-xl font-bold">{documentTitle}</h2>
-                  <Button type="button" variant="outline" size="sm" className="mt-3 rounded-xl min-[720px]:hidden" onClick={handleChangeLesson}>
+                  <h2 dir="auto" className="mt-2 break-words text-xl font-bold">{documentTitle}</h2>
+                  <Button type="button" variant="outline" size="sm" className="mt-3 rounded-xl min-[900px]:hidden" onClick={handleChangeLesson}>
                     <BookOpen className="me-1.5 h-4 w-4" />{labels.changeLesson}
                   </Button>
                   {draftLoadError && (
@@ -756,7 +863,7 @@ export const InteractiveStudyView: React.FC = () => {
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-xs leading-5 text-muted-foreground">{labels.nextStep}</p>
-                  <Button className="shrink-0 rounded-xl" onClick={() => setStudioOpen(true)}>
+                  <Button className="shrink-0 rounded-xl" onClick={handleOpenStudio}>
                     <Gamepad2 className="me-2 h-4 w-4" />{labels.start}
                   </Button>
                 </div>
@@ -770,8 +877,8 @@ export const InteractiveStudyView: React.FC = () => {
                 </div>
                 <div className="w-full max-w-2xl space-y-2">
                   <p className="text-xs font-semibold text-foreground">{labels.emptyStepsTitle}</p>
-                  <ol className="grid gap-2 text-start sm:grid-cols-3">
-                    {[labels.emptyStepChoose, labels.emptyStepBuild, labels.emptyStepPractice].map((step, index) => (
+                  <ol className="grid gap-2 text-start sm:grid-cols-2 xl:grid-cols-4">
+                    {[labels.emptyStepChoose, labels.emptyStepBuild, labels.emptyStepPreview, labels.emptyStepPractice].map((step, index) => (
                       <li key={step} className="flex items-start gap-2 rounded-xl border border-border bg-muted/30 p-2.5 text-xs leading-5 text-muted-foreground">
                         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary" aria-hidden="true">{index + 1}</span>
                         <span>{step}</span>
@@ -797,6 +904,7 @@ export const InteractiveStudyView: React.FC = () => {
           documentTitle={documentTitle}
           documentContent={documentContent}
           onInsertContent={handleSessionReady}
+          onWorkflowStepChange={setModalWorkflowStep}
           presentationMode="standalone"
           languageOverride={language}
         />

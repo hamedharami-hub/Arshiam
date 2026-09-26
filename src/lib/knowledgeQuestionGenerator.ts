@@ -1,5 +1,6 @@
 import { callAI } from "./ai";
 import { isPersianText } from "./bilingualHelper";
+import { detectTextLanguageKind } from "./leitnerCardLanguage";
 
 export interface QuestionGenOptions {
   text: string;
@@ -179,6 +180,27 @@ export function extractJsonFromResponse(rawText: string): any[] {
  * Offline / Fallback Question Generator
  * Deterministically extracts high-yield questions from text when offline or when AI is unavailable.
  */
+function makeOfflineCard(
+  id: string,
+  front: string,
+  back: string,
+  clue?: string,
+  type?: GeneratedQuestionItem["type"],
+): GeneratedQuestionItem {
+  const frontKind = detectTextLanguageKind(front);
+  const backKind = detectTextLanguageKind(back);
+  return {
+    id,
+    front,
+    back,
+    ...(frontKind === "fa-only" ? { front_fa: front } : frontKind === "en-only" ? { front_en: front } : {}),
+    ...(backKind === "fa-only" ? { back_fa: back } : backKind === "en-only" ? { back_en: back } : {}),
+    clue,
+    type,
+    selected: true,
+  };
+}
+
 export function generateOfflineQuestions(text: string, title?: string): GeneratedQuestionItem[] {
   const clean = normalizeStudyText(text);
 
@@ -194,14 +216,15 @@ export function generateOfflineQuestions(text: string, title?: string): Generate
     const answerKey = normalizeForComparison(section.value);
     if (!answerKey || seenAnswers.has(answerKey) || !isUsefulCandidate("A specific question about this labelled section?", section.value, clean)) continue;
     seenAnswers.add(answerKey);
-    results.push({
-      id: `gen-offline-${Date.now()}-${results.length}`,
-      front: makeSectionQuestion(section.label, title, isPersian),
-      back: section.value,
-      clue: section.label,
-      type: section.type,
-      selected: true,
-    });
+    results.push(
+      makeOfflineCard(
+        `gen-offline-${Date.now()}-${results.length}`,
+        makeSectionQuestion(section.label, title, isPersian),
+        section.value,
+        section.label,
+        section.type,
+      ),
+    );
     if (results.length >= 5) return results;
   }
 
@@ -230,14 +253,15 @@ export function generateOfflineQuestions(text: string, title?: string): Generate
       const answerKey = normalizeForComparison(detail);
       if (!isUsefulCandidate(front, detail, clean) || fallbackAnswers.has(answerKey)) continue;
       fallbackAnswers.add(answerKey);
-      fallbackResults.push({
-        id: `gen-offline-${Date.now()}-${fallbackResults.length}`,
-        front,
-        back: detail,
-        clue: isPersian ? "نکات ایمنی و منع مصرف" : "Safety warning",
-        type: "warning",
-        selected: true,
-      });
+      fallbackResults.push(
+        makeOfflineCard(
+          `gen-offline-${Date.now()}-${fallbackResults.length}`,
+          front,
+          detail,
+          isPersian ? "نکات ایمنی و منع مصرف" : "Safety warning",
+          "warning",
+        ),
+      );
       continue;
     }
 
@@ -249,14 +273,15 @@ export function generateOfflineQuestions(text: string, title?: string): Generate
       const answerKey = normalizeForComparison(detail);
       if (!isUsefulCandidate(front, detail, clean) || fallbackAnswers.has(answerKey)) continue;
       fallbackAnswers.add(answerKey);
-      fallbackResults.push({
-        id: `gen-offline-${Date.now()}-${fallbackResults.length}`,
-        front,
-        back: detail,
-        clue: title || subject,
-        type: "concept",
-        selected: true,
-      });
+      fallbackResults.push(
+        makeOfflineCard(
+          `gen-offline-${Date.now()}-${fallbackResults.length}`,
+          front,
+          detail,
+          title || subject,
+          "concept",
+        ),
+      );
       continue;
     }
 
@@ -268,14 +293,15 @@ export function generateOfflineQuestions(text: string, title?: string): Generate
       const answerKey = normalizeForComparison(s);
       if (!isUsefulCandidate(front, s, clean) || fallbackAnswers.has(answerKey)) continue;
       fallbackAnswers.add(answerKey);
-      fallbackResults.push({
-        id: `gen-offline-${Date.now()}-${fallbackResults.length}`,
-        front,
-        back: s,
-        clue: title || (isPersian ? "نکته درمانی" : "Clinical Pearl"),
-        type: "clinical_pearl",
-        selected: true,
-      });
+      fallbackResults.push(
+        makeOfflineCard(
+          `gen-offline-${Date.now()}-${fallbackResults.length}`,
+          front,
+          s,
+          title || (isPersian ? "نکتهٔ درمانی" : "Clinical Pearl"),
+          "clinical_pearl",
+        ),
+      );
       continue;
     }
   }

@@ -41,15 +41,27 @@ const OutlineCardRow = memo(function OutlineCardRow({ card, due, eligible, selec
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-1.5">
-          <p dir={frontRtl ? "rtl" : "ltr"} className={`whitespace-pre-wrap break-words text-xs font-semibold text-foreground ${frontRtl ? "text-right" : "text-left"}`}>
+          <p dir="auto" className="whitespace-pre-wrap break-words text-xs font-semibold text-foreground text-start">
             {localized.front.text}
           </p>
-          <p dir={backRtl ? "rtl" : "ltr"} className={`whitespace-pre-wrap break-words text-[11px] leading-relaxed text-muted-foreground ${backRtl ? "text-right" : "text-left"}`}>
+          {localized.front.secondaryText && (
+            <p dir="auto" className="whitespace-pre-wrap break-words text-[11px] leading-relaxed text-muted-foreground text-start">
+              {localized.front.secondaryText}
+            </p>
+          )}
+          <p dir="auto" className="whitespace-pre-wrap break-words text-[11px] leading-relaxed text-muted-foreground text-start">
             {localized.back.text}
           </p>
+          {localized.back.secondaryText && (
+            <p dir="auto" className="whitespace-pre-wrap break-words text-[10px] leading-relaxed text-muted-foreground/80 text-start">
+              {localized.back.secondaryText}
+            </p>
+          )}
           {(localized.front.translationMissing || localized.back.translationMissing) && (
             <p className="text-[10px] leading-4 text-amber-700 dark:text-amber-300">
-              {isEn ? "Translation missing; original text shown." : "ترجمه موجود نیست؛ متن اصلی نمایش داده شده است."}
+              {cardLanguage === "bilingual"
+                ? isEn ? "One language version is missing; available text shown." : "یکی از نسخه‌های زبانی موجود نیست؛ متن موجود نمایش داده شده است."
+                : isEn ? "Translation missing; original text shown." : "ترجمه موجود نیست؛ متن اصلی نمایش داده شده است."}
             </p>
           )}
           <div className="flex flex-wrap items-center gap-1.5 pt-1">
@@ -100,6 +112,7 @@ const OutlineCardRow = memo(function OutlineCardRow({ card, due, eligible, selec
 interface OutlineBranchProps {
   node: LeitnerOutlineNode;
   depth: number;
+  collapsedNodeIds: ReadonlySet<string>;
   dueCardIds: ReadonlySet<string>;
   eligibleStudyCardIds: ReadonlySet<string>;
   selectedCardIds: ReadonlySet<string>;
@@ -107,6 +120,7 @@ interface OutlineBranchProps {
   cardLanguage: StudyContentLanguage;
   onToggleCards: (cards: readonly LeitnerCard[]) => void;
   onToggleCard: (cardId: string) => void;
+  onToggleExpanded: (nodeId: string) => void;
   onEdit: (card: LeitnerCard) => void;
   onDelete: (cardId: string) => void;
   onStudyDueCards: (cards: LeitnerCard[], scopeLabel: string) => void;
@@ -115,6 +129,7 @@ interface OutlineBranchProps {
 const OutlineBranch = memo(function OutlineBranch({
   node,
   depth,
+  collapsedNodeIds,
   dueCardIds,
   eligibleStudyCardIds,
   selectedCardIds,
@@ -122,16 +137,17 @@ const OutlineBranch = memo(function OutlineBranch({
   cardLanguage,
   onToggleCards,
   onToggleCard,
+  onToggleExpanded,
   onEdit,
   onDelete,
   onStudyDueCards,
 }: OutlineBranchProps) {
-  const [expanded, setExpanded] = useState(true);
   const isFolder = node.type === "folder";
   const label = isFolder ? node.name : node.title;
   const childNodes = isFolder ? node.children : [];
   const groupId = `leitner-outline-${node.type}-${node.id}`;
-  const toggle = useCallback(() => setExpanded((current) => !current), []);
+  const expanded = !collapsedNodeIds.has(groupId);
+  const toggle = useCallback(() => onToggleExpanded(groupId), [groupId, onToggleExpanded]);
   const eligibleBranchCards = useMemo(
     () => collectNodeCards(node).filter((card) => eligibleStudyCardIds.has(card.id)),
     [eligibleStudyCardIds, node],
@@ -203,6 +219,7 @@ const OutlineBranch = memo(function OutlineBranch({
               key={`${child.type}-${child.id}`}
               node={child}
               depth={depth + 1}
+              collapsedNodeIds={collapsedNodeIds}
               dueCardIds={dueCardIds}
               eligibleStudyCardIds={eligibleStudyCardIds}
               selectedCardIds={selectedCardIds}
@@ -210,6 +227,7 @@ const OutlineBranch = memo(function OutlineBranch({
               cardLanguage={cardLanguage}
               onToggleCards={onToggleCards}
               onToggleCard={onToggleCard}
+              onToggleExpanded={onToggleExpanded}
               onEdit={onEdit}
               onDelete={onDelete}
               onStudyDueCards={onStudyDueCards}
@@ -247,6 +265,20 @@ function collectNodeCards(node: LeitnerOutlineNode): LeitnerCard[] {
   return cards;
 }
 
+function collectOutlineGroupIds(nodes: readonly LeitnerOutlineNode[]): ReadonlySet<string> {
+  const ids = new Set<string>();
+  const pending = [...nodes];
+
+  while (pending.length > 0) {
+    const node = pending.pop();
+    if (!node) continue;
+    ids.add(`leitner-outline-${node.type}-${node.id}`);
+    if (node.type === "folder") pending.push(...node.children);
+  }
+
+  return ids;
+}
+
 export const LeitnerOutlineView = memo(function LeitnerOutlineView({
   outline,
   dueCardIds,
@@ -258,6 +290,7 @@ export const LeitnerOutlineView = memo(function LeitnerOutlineView({
   onStudyDueCards,
 }: LeitnerOutlineViewProps) {
   const [selectedCardIds, setSelectedCardIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [collapsedNodeIds, setCollapsedNodeIds] = useState<ReadonlySet<string>>(() => new Set());
   const visibleCardsById = useMemo(() => {
     const result = new Map<string, LeitnerCard>();
     outline.unfiledCards.forEach((card) => result.set(card.id, card));
@@ -297,6 +330,19 @@ export const LeitnerOutlineView = memo(function LeitnerOutlineView({
     onStudyDueCards(selectedDueCards, isEn ? "Selected due cards" : "کارت‌های موعددار انتخاب‌شده");
     setSelectedCardIds(new Set());
   }, [isEn, onStudyDueCards, selectedDueCards]);
+  const handleToggleExpanded = useCallback((nodeId: string) => {
+    setCollapsedNodeIds((current) => {
+      const next = new Set(current);
+      if (next.has(nodeId)) next.delete(nodeId);
+      else next.add(nodeId);
+      return next;
+    });
+  }, []);
+  const handleExpandAll = useCallback(() => setCollapsedNodeIds(new Set()), []);
+  const handleCollapseAll = useCallback(
+    () => setCollapsedNodeIds(collectOutlineGroupIds(outline.nodes)),
+    [outline.nodes],
+  );
 
   if (outline.nodes.length === 0 && outline.unfiledCards.length === 0) {
     return <div className="p-8 text-center text-xs text-muted-foreground">{isEn ? "No cards match your criteria." : "کارتی با معیارهای انتخابی یافت نشد."}</div>;
@@ -304,6 +350,24 @@ export const LeitnerOutlineView = memo(function LeitnerOutlineView({
 
   return (
     <div className="max-h-[560px] space-y-3 overflow-y-auto pe-1" aria-label={isEn ? "Flashcard outline" : "درخت‌وارهٔ فلش‌کارت‌ها"}>
+      {outline.nodes.length > 0 && (
+        <div role="toolbar" aria-label={isEn ? "Outline controls" : "کنترل‌های فهرست"} className="flex flex-wrap justify-end gap-2 rounded-xl border border-border/70 bg-background/95 p-2">
+          <button
+            type="button"
+            onClick={handleExpandAll}
+            className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          >
+            {isEn ? "Expand all" : "بازکردن همه"}
+          </button>
+          <button
+            type="button"
+            onClick={handleCollapseAll}
+            className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          >
+            {isEn ? "Collapse all" : "بستن همه"}
+          </button>
+        </div>
+      )}
       {selectedDueCards.length > 0 && (
         <div role="toolbar" aria-label={isEn ? "Selected due cards" : "کارت‌های موعددار انتخاب‌شده"} className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/30 bg-background/95 p-2 shadow-sm backdrop-blur">
           <span aria-live="polite" className="text-xs font-semibold text-foreground">
@@ -324,6 +388,7 @@ export const LeitnerOutlineView = memo(function LeitnerOutlineView({
           key={`${node.type}-${node.id}`}
           node={node}
           depth={0}
+          collapsedNodeIds={collapsedNodeIds}
           dueCardIds={dueCardIds}
           eligibleStudyCardIds={eligibleStudyCardIds}
           selectedCardIds={selectedCardIds}
@@ -331,6 +396,7 @@ export const LeitnerOutlineView = memo(function LeitnerOutlineView({
           cardLanguage={cardLanguage}
           onToggleCards={handleToggleCards}
           onToggleCard={handleToggleCard}
+          onToggleExpanded={handleToggleExpanded}
           onEdit={onEdit}
           onDelete={onDelete}
           onStudyDueCards={onStudyDueCards}

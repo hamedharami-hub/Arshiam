@@ -43,7 +43,11 @@ export interface StudyTaskScheduleModalProps {
   targetTitle: string;
   folderBreadcrumb?: string;
   onTaskCreated?: (task: Task) => void;
-  targetOptions?: Array<{ id: string; title: string }>;
+  targetOptions?: Array<{ id: string; title: string; targetType?: StudyTargetType }>;
+}
+
+function studyTargetOptionKey(targetType: StudyTargetType, targetId: string): string {
+  return JSON.stringify([targetType, targetId]);
 }
 
 interface StudyTaskScheduleModalBaseProps extends StudyTaskScheduleModalProps {
@@ -83,15 +87,21 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
   const [estimatedMinutes, setEstimatedMinutes] = useState<number>(30);
   const [saving, setSaving] = useState(false);
   const [selectedTargetId, setSelectedTargetId] = useState(targetId);
+  const [selectedTargetType, setSelectedTargetType] = useState(targetType);
 
-  const selectedTargetTitle = selectedTargetId === targetId
+  const selectedTargetTitle = selectedTargetType === targetType && selectedTargetId === targetId
     ? targetTitle
-    : targetOptions?.find((option) => option.id === selectedTargetId)?.title || targetTitle;
+    : targetOptions?.find((option) =>
+        option.id === selectedTargetId && (option.targetType ?? targetType) === selectedTargetType,
+      )?.title || targetTitle;
+  const folderTargetOptions = targetOptions?.filter((option) => option.targetType === "leitner_folder") ?? [];
+  const lessonTargetOptions = targetOptions?.filter((option) => option.targetType !== "leitner_folder") ?? [];
 
   // Initialize or reset form when opened or target changes
   useEffect(() => {
     if (open) {
       setSelectedTargetId(targetId);
+      setSelectedTargetType(targetType);
       let defaultTitle = "";
       if (targetType === "leitner") {
         defaultTitle = isEn
@@ -153,7 +163,7 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
     try {
       const res = await createStudyTask({
         userId,
-        targetType,
+        targetType: selectedTargetType,
         targetId: selectedTargetId,
         targetTitle: selectedTargetTitle,
         title: title.trim(),
@@ -297,29 +307,59 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
               </label>
               <select
                 id="study-review-target"
-                value={selectedTargetId}
+                value={studyTargetOptionKey(selectedTargetType, selectedTargetId)}
                 onChange={(event) => {
-                  const nextId = event.target.value;
-                  const nextTitle = nextId === targetId
+                  const nextOption = targetOptions?.find((option) =>
+                    studyTargetOptionKey(option.targetType ?? targetType, option.id) === event.target.value,
+                  );
+                  const nextType = nextOption?.targetType ?? targetType;
+                  const nextId = nextOption?.id ?? targetId;
+                  const nextTitle = nextType === targetType && nextId === targetId
                     ? targetTitle
-                    : targetOptions?.find((option) => option.id === nextId)?.title || targetTitle;
+                    : nextOption?.title || targetTitle;
+                  setSelectedTargetType(nextType);
                   setSelectedTargetId(nextId);
-                  setTitle(nextId === targetId
+                  setTitle(nextType === targetType && nextId === targetId
                     ? (isEn ? "Review Leitner Flashcards" : "خواندن و مرور کارت‌های لایتنر")
                     : (isEn ? `Review Leitner: ${nextTitle}` : `مرور لایتنر: ${nextTitle}`));
                 }}
                 className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               >
-                <option value={targetId}>{isEn ? "All Leitner cards" : "همهٔ کارت‌های لایتنر"}</option>
-                {targetOptions?.map((option) => (
-                  <option key={option.id} value={option.id}>{option.title}</option>
-                ))}
+                <option value={studyTargetOptionKey(targetType, targetId)}>
+                  {isEn ? "All Leitner cards" : "همهٔ کارت‌های لایتنر"}
+                </option>
+                {folderTargetOptions.length > 0 ? (
+                  <optgroup label={T("پوشه‌ها و زیرپوشه‌ها", "Folders and subfolders")}>
+                    {folderTargetOptions.map((option) => (
+                      <option key={option.id} value={studyTargetOptionKey(option.targetType!, option.id)}>
+                        {option.title}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
+                {lessonTargetOptions.length > 0 ? (
+                  <optgroup label={T("درس‌ها", "Lessons")}>
+                    {lessonTargetOptions.map((option) => (
+                      <option
+                        key={`${option.targetType ?? targetType}-${option.id}`}
+                        value={studyTargetOptionKey(option.targetType ?? targetType, option.id)}
+                      >
+                        {option.title}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
               </select>
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                {T(
-                  "اگر یک درس را انتخاب کنید، با بازکردن این تسک فقط کارت‌های موعددار همان درس وارد جلسه می‌شوند.",
-                  "Choosing a lesson limits this task to due cards linked to that lesson."
-                )}
+                {selectedTargetType === "leitner_folder"
+                  ? T(
+                      "این تسک کارت‌های موعددارِ این پوشه و همهٔ زیرپوشه‌های آن را مرور می‌کند.",
+                      "This task reviews due cards in this folder and all nested subfolders.",
+                    )
+                  : T(
+                      "اگر یک درس را انتخاب کنید، با بازکردن این تسک فقط کارت‌های موعددار همان درس وارد جلسه می‌شوند.",
+                      "Choosing a lesson limits this task to due cards linked to that lesson.",
+                    )}
               </p>
             </div>
           )}

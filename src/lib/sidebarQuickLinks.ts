@@ -45,6 +45,9 @@ export const SIDEBAR_QUICK_LINK_OPTIONS: SidebarQuickLink[] = [
   { url: "/app/habits", labelFa: "عادت‌ها", labelEn: "Habits", group: "grow" },
   { url: "/app/notes", labelFa: "نوت‌ها", labelEn: "Notes", group: "grow" },
   { url: "/app/interactive-study", labelFa: "استودیوی مطالعه تعاملی", labelEn: "Interactive Study Studio", group: "grow" },
+  { url: "/app/pharmacy-products", labelFa: "فهرست محصولات دارویی", labelEn: "Pharmacy Products", group: "grow" },
+  { url: "/app/pharmacy-scenario-practice", labelFa: "تمرین سناریوهای دارویی", labelEn: "Pharmacy Scenario Practice", group: "grow" },
+  { url: "/app/pharmacy-fred-practice", labelFa: "تمرین نسخه FRED", labelEn: "FRED Practice", group: "grow" },
   { url: "/app/cycle", labelFa: "سیکل پریود", labelEn: "Period Cycle", group: "grow" },
 
   // 4. Mind (ذهن)

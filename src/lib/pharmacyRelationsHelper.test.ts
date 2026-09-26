@@ -9,6 +9,7 @@ import type { KnowledgeDocument } from "./knowledgeTypes";
 import {
   PHARMACY_CLINICAL_ENTITIES,
   PHARMACY_CLINICAL_RELATIONS,
+  PHARMACY_CLINICAL_SOURCE_COMMIT,
 } from "./pharmacyClinicalGraph.generated";
 
 describe("pharmacyRelationsHelper", () => {
@@ -141,9 +142,15 @@ describe("pharmacyRelationsHelper", () => {
     it("ships a complete, internally consistent source graph and maps only existing seed documents", () => {
       const entityIds = new Set(PHARMACY_CLINICAL_ENTITIES.map((entity) => entity.id));
       const documentIds = new Set(PHARMACY_CLINICAL_ENTITIES.flatMap((entity) => entity.documentId ? [entity.documentId] : []));
+      const relationIds = new Set(PHARMACY_CLINICAL_RELATIONS.map((relation) => relation.id));
 
-      expect(PHARMACY_CLINICAL_ENTITIES.length).toBeGreaterThan(0);
-      expect(PHARMACY_CLINICAL_RELATIONS.length).toBeGreaterThan(0);
+      // A Pharmacy source refresh must deliberately regenerate and review this snapshot.
+      expect(PHARMACY_CLINICAL_SOURCE_COMMIT).toBe("5b4f7d2443a3ed97aea752c1d0d18583ce6d0067");
+      expect(PHARMACY_CLINICAL_ENTITIES).toHaveLength(442);
+      expect(PHARMACY_CLINICAL_ENTITIES.filter((entity) => entity.documentId)).toHaveLength(322);
+      expect(PHARMACY_CLINICAL_ENTITIES.filter((entity) => !entity.documentId)).toHaveLength(120);
+      expect(PHARMACY_CLINICAL_RELATIONS).toHaveLength(546);
+      expect(relationIds.size).toBe(PHARMACY_CLINICAL_RELATIONS.length);
       expect(documentIds.size).toBe(PHARMACY_CLINICAL_ENTITIES.filter((entity) => entity.documentId).length);
       expect(PHARMACY_CLINICAL_RELATIONS.every((relation) =>
         entityIds.has(relation.fromId) && entityIds.has(relation.toId),

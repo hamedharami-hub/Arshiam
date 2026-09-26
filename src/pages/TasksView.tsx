@@ -25,6 +25,7 @@ import { extractTasksFromCache } from "@/features/tasks/taskCache";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasksData } from "@/hooks/useTasksData";
 import { syncAndroidWidget } from "@/lib/androidWidget";
+import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
 import { syncNativeTaskReminder } from "@/lib/reminders";
 import { Button } from "@/components/ui/button";
 import { BidiText } from "@/components/BidiText";
@@ -334,12 +335,16 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const taskId = searchParams.get("completeTaskId");
     if (!taskId) return;
     const target = effectiveAllTasks.find((task) => task.id === taskId);
-    if (!target || target.completed) return;
-    void patchTask(taskId, { completed: true, status: "done" });
+    if (!target) return;
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete("completeTaskId");
+    if (isLeitnerStudyTask(target) && !target.completed) {
+      navigate(getStudyTaskNavigation(target).navUrl, { replace: true });
+      return;
+    }
+    if (!target.completed) void patchTask(taskId, { completed: true, status: "done" });
     setSearchParams(nextParams, { replace: true });
-  }, [effectiveAllTasks, searchParams, setSearchParams, patchTask]);
+  }, [effectiveAllTasks, searchParams, setSearchParams, patchTask, navigate]);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
@@ -603,6 +608,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
   const toggleTask = async (t: Task) => {
     const newCompleted = !t.completed;
+    if (newCompleted && isLeitnerStudyTask(t)) {
+      navigate(getStudyTaskNavigation(t).navUrl);
+      return;
+    }
 
     if (!newCompleted) {
       await reopenTask(t);

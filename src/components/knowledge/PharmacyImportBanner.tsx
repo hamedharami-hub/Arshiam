@@ -32,8 +32,8 @@ export const PharmacyImportBanner: React.FC<PharmacyImportBannerProps> = React.m
             <div className="text-[10px] text-muted-foreground truncate">
               {status
                 ? isEn
-                  ? `${status.docsMissing} new documents, ${status.docsUpgradeable} safe updates, ${status.cardsMissing} cards`
-                  : `${status.docsMissing} سند جدید، ${status.docsUpgradeable} به‌روزرسانی امن، ${status.cardsMissing} کارت`
+                  ? `${status.docsMissing} new documents, ${status.docsUpgradeable} lesson updates, ${status.cardsMissing} new cards, ${status.cardsUpgradeable} card updates`
+                  : `${status.docsMissing} سند جدید، ${status.docsUpgradeable} به‌روزرسانی درس، ${status.cardsMissing} کارت جدید، ${status.cardsUpgradeable} به‌روزرسانی کارت`
                 : isEn
                 ? "Add missing content without replacing your work"
                 : "افزودن مطالب جاافتاده بدون بازنویسی اطلاعات فعلی"}

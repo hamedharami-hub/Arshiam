@@ -24,7 +24,7 @@ import {
   Save, ExternalLink, Loader2, Circle, CheckCircle2, MoreHorizontal,
   Copy, Share2, FolderInput, Timer, Network, Edit, BookOpen, FolderTree, Layers,
 } from "lucide-react";
-import { getStudyTaskNavigation } from "@/lib/taskStudyService";
+import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -643,8 +643,14 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   };
 
   const toggleCompletion = () => {
+    if (isLeitnerStudyTask(t) && !t.completed) return;
     const nextCompleted = !t.completed;
     void save({ completed: nextCompleted, status: nextCompleted ? "done" : "todo" });
+  };
+
+  const openLinkedReview = () => {
+    const reviewUrl = getStudyTaskNavigation(t).navUrl;
+    if (reviewUrl) navigate(reviewUrl);
   };
 
   const handleCancelNewNote = () => {
@@ -794,14 +800,21 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         <Button
           size="icon"
           variant="ghost"
-          disabled={!canEdit}
-          onClick={toggleCompletion}
+          disabled={isLeitnerStudyTask(t) && !t.completed ? false : !canEdit}
+          onClick={isLeitnerStudyTask(t) && !t.completed ? openLinkedReview : toggleCompletion}
           className={`h-10 w-10 shrink-0 rounded-xl transition-all border ${
             t.completed ? "bg-emerald-500 text-white border-emerald-500 shadow-sm" : "text-muted-foreground hover:text-primary border-border/70 hover:border-primary/50 hover:bg-primary/5"
           }`}
-          title={t.completed ? T("بازکردن تسک", "Reopen task") : T("تکمیل تسک", "Complete task")}
+          aria-label={isLeitnerStudyTask(t) && !t.completed
+            ? T("شروع مرور لایتنر", "Open Leitner review")
+            : t.completed ? T("بازکردن تسک", "Reopen task") : T("تکمیل تسک", "Complete task")}
+          title={isLeitnerStudyTask(t) && !t.completed
+            ? T("شروع مرور لایتنر", "Open Leitner review")
+            : t.completed ? T("بازکردن تسک", "Reopen task") : T("تکمیل تسک", "Complete task")}
         >
-          {t.completed ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+          {isLeitnerStudyTask(t) && !t.completed
+            ? <BookOpen className="w-5 h-5" />
+            : t.completed ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
         </Button>
         <AutoTextarea
           ref={titleInputRef}
@@ -923,7 +936,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       {t.source_type && (() => {
         const studyInfo = getStudyTaskNavigation(t);
         if (studyInfo.isStudyTask) {
-          const isLeitner = t.source_type === "leitner";
+          const isLeitner = t.source_type === "leitner" || t.source_type === "leitner_folder";
           return (
             <Chip
               icon={isLeitner ? Layers : studyInfo.isMindMap ? Network : t.source_type === "knowledge_folder" ? FolderTree : BookOpen}
@@ -1447,7 +1460,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   );
 
   const studyInfo = getStudyTaskNavigation(t);
-  const isLeitnerTask = t.source_type === "leitner";
+  const isLeitnerTask = t.source_type === "leitner" || t.source_type === "leitner_folder";
   const studyTaskActionSection = studyInfo.isStudyTask && (
     <Card
       className={`p-3.5 mx-1 rounded-2xl space-y-2.5 ${

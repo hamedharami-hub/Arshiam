@@ -39,6 +39,7 @@ public class AgendaListService extends RemoteViewsService {
             RemoteViews row=new RemoteViews(c.getPackageName(),R.layout.widget_task_row);
             boolean light=AgendaData.options(c).getBoolean("widget."+id+".light",false);
             boolean completed=t.optBoolean("completed")||"done".equals(t.optString("status"));
+            boolean studyReview=AgendaData.isLeitnerStudyTask(t) && !completed;
             int depth=Math.max(0,Math.min(3,t.optInt("_widgetDepth",0)));
             boolean isStandaloneChild = (depth == 0 && !t.optString("parent_id").isEmpty());
             row.setInt(R.id.row_root,"setBackgroundResource",(depth>0 || isStandaloneChild)
@@ -47,7 +48,7 @@ public class AgendaListService extends RemoteViewsService {
             row.setInt(R.id.row_done,"setBackgroundResource",completed
                 ? (light?R.drawable.widget_checkbox_checked_light:R.drawable.widget_checkbox_checked)
                 : (light?R.drawable.widget_checkbox_background_light:R.drawable.widget_checkbox_background));
-            row.setTextViewText(R.id.row_done,completed?"✓":"");
+            row.setTextViewText(R.id.row_done,completed?"✓":studyReview?"↻":"");
             row.setTextColor(R.id.row_done,android.graphics.Color.parseColor(completed?"#FFFFFF":"#94A3B8"));
             if(completed) {
                 row.setTextColor(R.id.row_title,android.graphics.Color.parseColor(light?"#94A3B8":"#64748B"));
@@ -95,7 +96,8 @@ public class AgendaListService extends RemoteViewsService {
             row.setTextViewTextSize(R.id.row_title,android.util.TypedValue.COMPLEX_UNIT_SP,"large".equals(size)?18:"small".equals(size)?12:15);
             String taskId=Uri.encode(t.optString("id"));
             boolean targetCompleted = !completed;
-            row.setOnClickFillInIntent(R.id.row_done,new Intent().setData(Uri.parse("arshnaz://widget-action/toggle?taskId="+taskId+"&targetCompleted="+(targetCompleted?"1":"0")+"&completed="+(completed?"1":"0")+"&owner="+Uri.encode(owner))));
+            String action = studyReview ? "open-review" : "toggle";
+            row.setOnClickFillInIntent(R.id.row_done,new Intent().setData(Uri.parse("arshnaz://widget-action/"+action+"?taskId="+taskId+"&targetCompleted="+(targetCompleted?"1":"0")+"&completed="+(completed?"1":"0")+"&owner="+Uri.encode(owner))));
             row.setOnClickFillInIntent(R.id.row_action,new Intent().setData(Uri.parse("arshnaz://widget-action/menu?taskId="+taskId+"&owner="+Uri.encode(owner))));
             if(hasChildren) {
                 boolean targetCollapsed = !collapsed;

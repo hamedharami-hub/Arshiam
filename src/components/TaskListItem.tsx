@@ -19,7 +19,7 @@ import { describeRule, type RecurrenceRule } from "@/lib/recurrence";
 import { addDays, startOfDay } from "date-fns";
 import { formatDate } from "@/lib/jalali";
 import { formatTaskDueDateDisplay } from "@/lib/taskDate";
-import { getStudyTaskNavigation } from "@/lib/taskStudyService";
+import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
 import { isSubDayBucket, kindLabel } from "@/lib/timeBuckets";
 import type { Task } from "@/lib/taskTypes";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -116,6 +116,8 @@ const TaskListItemComponent = ({
   allowDrag = false,
 }: TaskListItemProps) => {
   const pm = PRIORITY_META[t.priority] || PRIORITY_META.none;
+  const studyNavigation = getStudyTaskNavigation(t);
+  const isScheduledLeitnerReview = isLeitnerStudyTask(t);
   const parentTask = parent || (t.parent_id ? taskMap?.get(t.parent_id) : null);
   const effectiveProgress = progress ?? (typeof getProgress === "function" ? getProgress(t.id) : undefined) ?? { done: 0, total: subs?.length || 0 };
   const STEP = 18; // px per nesting level
@@ -144,7 +146,7 @@ const TaskListItemComponent = ({
         {(dragHandle) => (
           <SwipeableRow
             disabled={t.user_id !== userId}
-            rightActions={[
+            rightActions={isScheduledLeitnerReview && !t.completed ? [] : [
               {
                 id: "complete",
                 label: t.completed ? T("بازگشایی", "Reopen") : T("تکمیل", "Complete"),
@@ -244,7 +246,7 @@ const TaskListItemComponent = ({
                   }}
                   onDoubleClick={(e) => {
                     e.stopPropagation();
-                    onToggleTask(t);
+                    if (!isScheduledLeitnerReview || t.completed) onToggleTask(t);
                   }}
                 >
                   {t.status === "wont_do" && (
@@ -258,7 +260,21 @@ const TaskListItemComponent = ({
                     className={`${layout === "compact" ? "text-sm" : "text-[15px]"} font-medium leading-tight break-words ${t.completed ? "line-through text-muted-foreground" : t.status === "wont_do" ? "text-sky-600" : "text-foreground/90"}`}
                   />
                 </div>
-                {t.is_avoidance ? (
+                {isScheduledLeitnerReview && !t.completed ? (
+                  <button
+                    type="button"
+                    data-no-longpress
+                    aria-label={T("شروع مرور لایتنر", "Open Leitner review")}
+                    title={T("شروع مرور لایتنر", "Open Leitner review")}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (studyNavigation.navUrl) navigate(studyNavigation.navUrl);
+                    }}
+                    className="mt-0.5 shrink-0 h-5 w-5 rounded-md border border-primary/40 text-primary flex items-center justify-center hover:bg-primary/10 transition"
+                  >
+                    <BookOpen className="w-3 h-3" />
+                  </button>
+                ) : t.is_avoidance ? (
                   <button
                     onClick={() => onToggleTask(t)}
                     title={t.completed ? T("موفق به اجتناب — لغو", "Avoidance succeeded — undo") : T("علامت بزن: موفق به اجتناب شدم", "Mark: I successfully avoided")}
@@ -288,15 +304,16 @@ const TaskListItemComponent = ({
                   </span>
                 )}
                 {(() => {
-                  const studyInfo = getStudyTaskNavigation(t);
+                  const studyInfo = studyNavigation;
                   if (studyInfo.isStudyTask) {
-                    const isLeitner = t.source_type === "leitner";
+                    const isLeitner = isScheduledLeitnerReview;
                     return (
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(studyInfo.navUrl);
+                          if (isLeitner && t.completed) onToggleTask(t);
+                          else navigate(studyInfo.navUrl);
                         }}
                         className={`inline-flex items-center gap-1 text-[9px] px-2 h-5 rounded-full border font-medium transition cursor-pointer ${
                           isLeitner
@@ -305,7 +322,9 @@ const TaskListItemComponent = ({
                             ? "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/25"
                             : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25"
                         }`}
-                        title={T(studyInfo.actionTextFa, studyInfo.actionTextEn)}
+                        title={isLeitner && t.completed
+                          ? T("بازگشایی مرور لایتنر", "Reopen scheduled review")
+                          : T(studyInfo.actionTextFa, studyInfo.actionTextEn)}
                       >
                         {isLeitner ? (
                           <Layers className="w-2.5 h-2.5 shrink-0" />

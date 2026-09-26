@@ -65,4 +65,23 @@ describe("widget data and session boundary", () => {
     await vi.waitFor(() => expect(mocks.sync).toHaveBeenCalledWith(expect.objectContaining({ userId: "A", nextTaskId: "early-task" })));
     stop();
   });
+  it("preserves study source metadata for Android widget review navigation", async () => {
+    let finish!: (token: unknown) => void;
+    const token = new Promise(resolve => { finish = resolve; });
+    const user = { uid: "A", refreshToken: "test-refresh", getIdTokenResult: () => token };
+    const stop = startWidgetSessionSync();
+    mocks.auth.currentUser = user;
+    mocks.listener(user);
+    finish({ token: "test-token", expirationTime: "2026-09-10T12:00:00Z" });
+    await vi.waitFor(() => expect(mocks.setSession).toHaveBeenCalled());
+    await syncAndroidWidget([task("review-task", "2026-09-10", {
+      source_type: "leitner_folder", source_id: "folder-1",
+    })], "A");
+    await vi.waitFor(() => expect(mocks.sync).toHaveBeenCalledWith(expect.objectContaining({
+      tasks: [expect.objectContaining({
+        id: "review-task", source_type: "leitner_folder", source_id: "folder-1",
+      })],
+    })));
+    stop();
+  });
 });

@@ -214,7 +214,8 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
       const res = await generateBilingualLesson({
         title,
         content: contentHtml || contentEn,
-        targetLang: langTab === "fa" ? "en" : "fa",
+        // This helper returns title_en/content_en; don't put Persian output in the English fields.
+        targetLang: "en",
       });
 
       setTitleEn(res.title_en);

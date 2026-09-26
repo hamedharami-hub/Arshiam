@@ -28,18 +28,26 @@ const NODE_SIZE_CONFIG: Record<KnowledgeMindMapNodeKind, {
   card: { width: 272, minimumHeight: 50, titleCharactersPerLine: 25 },
 };
 
+// Canvas nodes reserve space for a leading icon and a trailing action menu;
+// use a conservative text width so long bilingual lines do not overlap siblings.
+const BODY_CHARACTERS_PER_LINE = 30;
+
 /** Estimate an expanded canvas node size so wrapped titles are not clipped. */
 export function getMindMapNodeDimensions(
   type: KnowledgeMindMapNodeKind,
   title: string,
   subtitle?: string,
+  secondaryTitle?: string,
 ): MindMapNodeDimensions {
   const config = NODE_SIZE_CONFIG[type];
   const titleLines = Math.max(1, Math.ceil(Array.from(title.trim()).length / config.titleCharactersPerLine));
-  const subtitleLines = subtitle
-    ? Math.max(1, Math.ceil(Array.from(subtitle.trim()).length / 38))
+  const secondaryTitleLines = secondaryTitle
+    ? Math.max(1, Math.ceil(Array.from(secondaryTitle.trim()).length / BODY_CHARACTERS_PER_LINE))
     : 0;
-  const contentHeight = 24 + titleLines * 16 + subtitleLines * 12;
+  const subtitleLines = subtitle
+    ? Math.max(1, Math.ceil(Array.from(subtitle.trim()).length / BODY_CHARACTERS_PER_LINE))
+    : 0;
+  const contentHeight = 24 + titleLines * 16 + secondaryTitleLines * 12 + subtitleLines * 12;
 
   return {
     width: config.width,
