@@ -53,6 +53,7 @@ describe("knowledge mind-map Leitner scopes", () => {
 
     expect(resolveKnowledgeMindMapReviewScope({ type: "root" }, true, scopes)).toEqual({ kind: "all" });
     expect(resolveKnowledgeMindMapReviewScope({ type: "root" }, false, scopes)).toBeNull();
+    expect(resolveKnowledgeMindMapReviewScope({ type: "root", dataId: "child" }, true, scopes)).toEqual({ kind: "folder", id: "child" });
     expect(resolveKnowledgeMindMapReviewScope({ type: "subfolder", dataId: "child" }, true, scopes)).toEqual({ kind: "folder", id: "child" });
     expect(resolveKnowledgeMindMapReviewScope({ type: "doc", dataId: "doc-linked" }, true, scopes)).toEqual({ kind: "document", id: "doc-linked" });
     expect(resolveKnowledgeMindMapReviewScope({ type: "doc", dataId: "doc-empty" }, true, scopes)).toBeNull();

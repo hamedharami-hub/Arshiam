@@ -46,8 +46,10 @@ export function resolveKnowledgeMindMapReviewScope(
   hasCards: boolean,
   reviewableScopeIds: KnowledgeMindMapReviewableScopeIds,
 ): KnowledgeMindMapReviewScope | null {
-  if (node.type === "root") return hasCards ? { kind: "all" } : null;
-  if ((node.type === "folder" || node.type === "subfolder") && node.dataId) {
+  // A focused folder is rendered as the visual root of its branch, but keeps
+  // its folder ID. Only the unscoped knowledge-base root means "all cards".
+  if (node.type === "root" && !node.dataId) return hasCards ? { kind: "all" } : null;
+  if ((node.type === "root" || node.type === "folder" || node.type === "subfolder") && node.dataId) {
     return reviewableScopeIds.folderIds.has(node.dataId)
       ? { kind: "folder", id: node.dataId }
       : null;
