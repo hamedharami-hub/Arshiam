@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildMindMapRootCenterByNodeId,
   buildMindMapOutline,
+  getKnowledgeMindMapConnectorPath,
   getMindMapNodeDimensions,
   layoutKnowledgeMindMapRadial,
   layoutKnowledgeMindMapVertical,
@@ -208,5 +210,45 @@ describe("knowledge mind-map layout helpers", () => {
         expect(overlaps, `${left.id} overlaps ${right.id}`).toBe(false);
       }
     }
+  });
+
+  it("builds actual line paths for automatic, smooth, orthogonal, straight, and polar styles", () => {
+    const horizontalLink = { startX: 20, startY: 40, endX: 180, endY: 120 };
+    const automatic = getKnowledgeMindMapConnectorPath(horizontalLink, "horizontal");
+    const smooth = getKnowledgeMindMapConnectorPath(horizontalLink, "horizontal", "smooth_bezier");
+    const step = getKnowledgeMindMapConnectorPath(horizontalLink, "horizontal", "orthogonal_step");
+    const straight = getKnowledgeMindMapConnectorPath(horizontalLink, "horizontal", "straight");
+
+    expect(automatic).toBe(smooth);
+    expect(automatic).toContain(" C ");
+    expect(step).toBe("M 20 40 L 100 40 L 100 120 L 180 120");
+    expect(straight).toBe("M 20 40 L 180 120");
+
+    const vertical = getKnowledgeMindMapConnectorPath(horizontalLink, "vertical", "orthogonal_step");
+    expect(vertical).toBe("M 20 40 L 20 80 L 180 80 L 180 120");
+
+    const root = { x: 0, y: 0 };
+    const radialCurve = getKnowledgeMindMapConnectorPath(
+      { startX: 100, startY: 50, endX: 50, endY: 130 },
+      "radial",
+      "polar_radial",
+      root,
+    );
+    expect(radialCurve).toContain(" Q ");
+    expect(getKnowledgeMindMapConnectorPath(horizontalLink, "radial", "auto")).toBe(
+      "M 20 40 L 180 120",
+    );
+  });
+
+  it("associates nodes with their hierarchy root center for radial connectors", () => {
+    const centers = buildMindMapRootCenterByNodeId([
+      { id: "root", x: 20, y: 10, width: 100, height: 60 },
+      { id: "folder", parentId: "root", x: 180, y: 20, width: 80, height: 50 },
+      { id: "card", parentId: "folder", x: 300, y: 40, width: 70, height: 40 },
+      { id: "orphan", parentId: "missing", x: 500, y: 40, width: 70, height: 40 },
+    ]);
+
+    expect(centers.get("card")).toEqual({ x: 70, y: 40 });
+    expect(centers.get("orphan")).toEqual({ x: 535, y: 60 });
   });
 });

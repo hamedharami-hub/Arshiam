@@ -48,9 +48,12 @@ import { StudyTaskScheduleModal } from "@/components/knowledge/StudyTaskSchedule
 import { buildKnowledgeMindMapSearch, mindMapNodeMatchesSearch } from "@/lib/knowledgeMindMapSearch";
 import {
   buildMindMapOutline,
+  buildMindMapRootCenterByNodeId,
+  getKnowledgeMindMapConnectorPath,
   getMindMapNodeDimensions,
   layoutKnowledgeMindMapRadial,
   layoutKnowledgeMindMapVertical,
+  type KnowledgeMindMapConnectorStyle,
   type MindMapOutlineEntry,
 } from "@/lib/knowledgeMindMapLayout";
 import {
@@ -726,6 +729,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   const [previewDoc, setPreviewDoc] = useState<KnowledgeDocument | null>(null);
   const [viewMode, setViewMode] = useState<"canvas" | "outline">("canvas");
   const [canvasLayout, setCanvasLayout] = useState<"horizontal" | "vertical" | "radial">("horizontal");
+  const [connectorStyle, setConnectorStyle] = useState<KnowledgeMindMapConnectorStyle>("auto");
   const [nodeAppearanceState, setNodeAppearanceState] = useState(() => ({
     ownerId: userId,
     styles: loadKnowledgeMindMapNodeStyles(userId),
@@ -1366,6 +1370,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     [baseLayout, canvasLayout, treeDirection],
   );
   const { nodes, links, bounds } = canvasLayoutResult;
+  const radialRootCenters = useMemo(() => buildMindMapRootCenterByNodeId(nodes), [nodes]);
 
   const displayNodes = useMemo(
     () => nodes.map((node) => ({
@@ -1907,6 +1912,40 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
               </button>
             </div>
           )}
+          {viewMode === "canvas" && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={isEn ? "Connection line style" : "سبک خطوط اتصال"}
+                  title={isEn ? "Connection line style" : "سبک خطوط اتصال"}
+                  className="rounded-xl border border-border bg-card/90 p-2 text-muted-foreground shadow-lg backdrop-blur-xl transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-48">
+                <DropdownMenuLabel>{isEn ? "Connection line style" : "سبک خطوط اتصال"}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {([
+                  ["auto", isEn ? "Automatic (layout default)" : "خودکار (پیش‌فرض چیدمان)"],
+                  ["smooth_bezier", isEn ? "Smooth curves" : "منحنی نرم"],
+                  ["orthogonal_step", isEn ? "Orthogonal steps" : "پله‌ای و راست‌گوشه"],
+                  ["straight", isEn ? "Straight lines" : "خط مستقیم"],
+                  ["polar_radial", isEn ? "Polar radial curves" : "منحنی قطبی شعاعی"],
+                ] as const).map(([style, label]) => (
+                  <DropdownMenuItem
+                    key={style}
+                    onSelect={() => setConnectorStyle(style)}
+                    className="cursor-pointer gap-2"
+                  >
+                    <span className="flex-1">{label}</span>
+                    {connectorStyle === style && <Check className="h-3.5 w-3.5 text-primary" aria-hidden="true" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <div role="group" aria-label={isEn ? "Mind map view" : "حالت نمایش نقشه ذهنی"} className="flex items-center gap-1 rounded-2xl border border-border bg-card/90 p-1.5 shadow-lg backdrop-blur-xl">
             <button
               type="button"
@@ -2079,15 +2118,12 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
             style={{ zIndex: 1 }}
           >
             {links.map((link) => {
-              const { startX, startY, endX, endY } = link;
-              const dx = Math.max(30, Math.abs(endX - startX) * 0.5);
-              const dirSign = endX >= startX ? 1 : -1;
-              const horizontalPath = `M ${startX} ${startY} C ${startX + dx * dirSign} ${startY}, ${endX - dx * dirSign} ${endY}, ${endX} ${endY}`;
-              const pathData = canvasLayout === "radial"
-                ? `M ${startX} ${startY} L ${endX} ${endY}`
-                : canvasLayout === "vertical"
-                  ? `M ${startX} ${startY} C ${startX} ${startY + (endY - startY) * 0.5}, ${endX} ${endY - (endY - startY) * 0.5}, ${endX} ${endY}`
-                  : horizontalPath;
+              const pathData = getKnowledgeMindMapConnectorPath(
+                link,
+                canvasLayout,
+                connectorStyle,
+                radialRootCenters.get(link.sourceId),
+              );
 
               return (
                 <path

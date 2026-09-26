@@ -54,6 +54,101 @@ export interface KnowledgeMindMapCanvasLayout<TNode extends KnowledgeMindMapCanv
   bounds: KnowledgeMindMapCanvasBounds;
 }
 
+export type KnowledgeMindMapCanvasLayoutMode = "horizontal" | "vertical" | "radial";
+export type KnowledgeMindMapConnectorStyle =
+  | "auto"
+  | "smooth_bezier"
+  | "orthogonal_step"
+  | "straight"
+  | "polar_radial";
+
+/**
+ * Map each visible node to the center of its hierarchy root. The visited set
+ * keeps malformed legacy cycles safe and lets radial connectors remain stable.
+ */
+export function buildMindMapRootCenterByNodeId<TNode extends KnowledgeMindMapCanvasNode>(
+  nodes: readonly TNode[],
+): ReadonlyMap<string, { x: number; y: number }> {
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const centers = new Map<string, { x: number; y: number }>();
+
+  for (const node of nodes) {
+    if (centers.has(node.id)) continue;
+    let root = node;
+    let inheritedCenter: { x: number; y: number } | undefined;
+    const visited = new Set<string>();
+
+    while (root.parentId && !visited.has(root.id)) {
+      visited.add(root.id);
+      const parent = nodeById.get(root.parentId);
+      if (!parent) break;
+      root = parent;
+      const cachedCenter = centers.get(root.id);
+      if (cachedCenter) {
+        inheritedCenter = cachedCenter;
+        break;
+      }
+    }
+
+    const center = inheritedCenter ?? { x: root.x + root.width / 2, y: root.y + root.height / 2 };
+    for (const id of visited) centers.set(id, center);
+    centers.set(root.id, center);
+    centers.set(node.id, center);
+  }
+
+  return centers;
+}
+
+/** Return the SVG path for a selected, real connector style. */
+export function getKnowledgeMindMapConnectorPath(
+  link: Pick<KnowledgeMindMapCanvasLink, "startX" | "startY" | "endX" | "endY">,
+  layout: KnowledgeMindMapCanvasLayoutMode,
+  style: KnowledgeMindMapConnectorStyle = "auto",
+  rootCenter?: { x: number; y: number },
+): string {
+  const { startX, startY, endX, endY } = link;
+  const straightPath = `M ${startX} ${startY} L ${endX} ${endY}`;
+
+  if (style === "straight") return straightPath;
+
+  if (style === "orthogonal_step") {
+    if (layout === "vertical") {
+      const middleY = (startY + endY) / 2;
+      return `M ${startX} ${startY} L ${startX} ${middleY} L ${endX} ${middleY} L ${endX} ${endY}`;
+    }
+    const middleX = (startX + endX) / 2;
+    return `M ${startX} ${startY} L ${middleX} ${startY} L ${middleX} ${endY} L ${endX} ${endY}`;
+  }
+
+  const usePolarCurve = style === "polar_radial" || (style === "smooth_bezier" && layout === "radial");
+  if (usePolarCurve && rootCenter) {
+    const startAngle = Math.atan2(startY - rootCenter.y, startX - rootCenter.x);
+    const endAngle = Math.atan2(endY - rootCenter.y, endX - rootCenter.x);
+    const startRadius = Math.hypot(startX - rootCenter.x, startY - rootCenter.y);
+    const endRadius = Math.hypot(endX - rootCenter.x, endY - rootCenter.y);
+    if (startRadius > 1 && endRadius > 1) {
+      let angleDelta = endAngle - startAngle;
+      while (angleDelta > Math.PI) angleDelta -= Math.PI * 2;
+      while (angleDelta < -Math.PI) angleDelta += Math.PI * 2;
+      const controlAngle = startAngle + angleDelta / 2;
+      const controlRadius = Math.max(startRadius, endRadius) + Math.min(36, Math.abs(endRadius - startRadius) * 0.2 + 12);
+      const controlX = rootCenter.x + Math.cos(controlAngle) * controlRadius;
+      const controlY = rootCenter.y + Math.sin(controlAngle) * controlRadius;
+      return `M ${startX} ${startY} Q ${controlX} ${controlY} ${endX} ${endY}`;
+    }
+    return straightPath;
+  }
+
+  if (layout === "vertical") {
+    const controlOffset = (endY - startY) / 2;
+    return `M ${startX} ${startY} C ${startX} ${startY + controlOffset}, ${endX} ${endY - controlOffset}, ${endX} ${endY}`;
+  }
+  if (layout === "radial") return straightPath;
+
+  const controlOffset = Math.max(30, Math.abs(endX - startX) * 0.5) * (endX >= startX ? 1 : -1);
+  return `M ${startX} ${startY} C ${startX + controlOffset} ${startY}, ${endX - controlOffset} ${endY}, ${endX} ${endY}`;
+}
+
 const NODE_SIZE_CONFIG: Record<KnowledgeMindMapNodeKind, {
   width: number;
   minimumHeight: number;
