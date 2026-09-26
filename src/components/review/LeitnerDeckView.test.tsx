@@ -199,7 +199,7 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
     render(<LeitnerDeckView userId="user-test" initialStudyDocumentId="doc-b" />);
 
     const startButton = await screen.findByRole("button", { name: "شروع مرور (1 آماده)" });
-    expect(screen.getByText(/این تسک فقط کارت‌های موعددارِ درس زیر را مرور می‌کند/)).toBeInTheDocument();
+    expect(screen.getByText(/مرور زمان‌بندی‌شده فقط کارت‌های موعددارِ درس زیر را شامل می‌شود/)).toBeInTheDocument();
     fireEvent.click(startButton);
 
     await screen.findByTestId("flip-card");
@@ -224,12 +224,57 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
     render(<LeitnerDeckView userId="user-test" initialStudyFolderId="folder-root" />);
 
     const startButton = await screen.findByRole("button", { name: "شروع مرور (1 آماده)" });
-    expect(screen.getByText(/این تسک کارت‌های موعددارِ این پوشه و زیرپوشه‌هایش را مرور می‌کند/)).toBeInTheDocument();
+    expect(screen.getByText(/مرور زمان‌بندی‌شده فقط کارت‌های موعددارِ این پوشه و زیرپوشه‌هایش را شامل می‌شود/)).toBeInTheDocument();
     fireEvent.click(startButton);
 
     const activeCard = await screen.findByTestId("flip-card");
     expect(within(activeCard).getByText("Nested lesson question")).toBeInTheDocument();
     expect(within(activeCard).queryByText("Outside lesson question")).not.toBeInTheDocument();
+  });
+
+  it("keeps free practice inside a selected study-task folder branch", async () => {
+    const branchCard = {
+      ...mockCards[0],
+      id: "branch-practice-card",
+      document_id: "doc-nested",
+      front: "In-scope practice question",
+    };
+    const upcomingBranchCard = {
+      ...mockCards[1],
+      id: "branch-upcoming-practice-card",
+      document_id: "doc-nested",
+      front: "In-scope upcoming practice question",
+    };
+    const outsideCard = {
+      ...mockCards[0],
+      id: "outside-practice-card",
+      document_id: "doc-outside",
+      front: "Out-of-scope practice question",
+    };
+    vi.mocked(getLeitnerCards).mockResolvedValueOnce([branchCard, upcomingBranchCard, outsideCard]);
+    vi.mocked(getDueLeitnerCards).mockResolvedValueOnce([branchCard]);
+    vi.mocked(getKnowledgeDocuments).mockResolvedValueOnce([
+      { id: "doc-nested", user_id: "user-test", folder_id: "folder-child", title: "Nested lesson", content_html: "", created_at: "", updated_at: "" },
+      { id: "doc-outside", user_id: "user-test", folder_id: "folder-other", title: "Other lesson", content_html: "", created_at: "", updated_at: "" },
+    ]);
+    vi.mocked(getKnowledgeFolders).mockResolvedValueOnce([
+      { id: "folder-root", user_id: "user-test", parent_id: null, name: "Pharmacology", created_at: "", updated_at: "" },
+      { id: "folder-child", user_id: "user-test", parent_id: "folder-root", name: "Cardiology", created_at: "", updated_at: "" },
+      { id: "folder-other", user_id: "user-test", parent_id: null, name: "Mathematics", created_at: "", updated_at: "" },
+    ]);
+
+    render(<LeitnerDeckView userId="user-test" initialStudyFolderId="folder-root" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "مرور تقویتی و آزاد (2)" }));
+    expect(screen.getByText(/تمرین آزاد نیز فقط شامل کارت‌های همین پوشه/)).toBeInTheDocument();
+    const lessonFilter = screen.getByRole("combobox", { name: "فیلتر تمرین بر اساس درس" });
+    expect(within(lessonFilter).getByRole("option", { name: "Nested lesson" })).toBeInTheDocument();
+    expect(within(lessonFilter).queryByRole("option", { name: "Other lesson" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "شروع تمرین" }));
+
+    const activeCard = await screen.findByTestId("flip-card");
+    expect(within(activeCard).getByText("In-scope practice question")).toBeInTheDocument();
+    expect(within(activeCard).queryByText("Out-of-scope practice question")).not.toBeInTheDocument();
   });
 
   it("shows cards in a folder-to-lesson outline and filters due cards by service IDs", async () => {

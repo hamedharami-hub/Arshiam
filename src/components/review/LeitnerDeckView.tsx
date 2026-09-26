@@ -118,8 +118,37 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   // Mode: "due" (Scheduled Spaced Repetition) vs "cram" (Free Practice / Custom Cram)
   const [studyMode, setStudyMode] = useState<"due" | "cram">("due");
   const [cramBoxFilter, setCramBoxFilter] = useState<number | "all">("all");
-  const [cramDocFilter, setCramDocFilter] = useState<string>("all");
+  const studyScopeKey = initialStudyFolderId
+    ? `folder:${initialStudyFolderId}`
+    : initialStudyDocumentId
+      ? `document:${initialStudyDocumentId}`
+      : "all";
+  const defaultCramDocFilter = initialStudyFolderId ? "all" : initialStudyDocumentId || "all";
+  const [cramDocSelection, setCramDocSelection] = useState(() => ({
+    scopeKey: studyScopeKey,
+    documentId: defaultCramDocFilter,
+  }));
+  const cramDocFilter = cramDocSelection.scopeKey === studyScopeKey
+    ? cramDocSelection.documentId
+    : defaultCramDocFilter;
   const [cramLapsedOnly, setCramLapsedOnly] = useState<boolean>(false);
+
+  const scopedInventoryCards = useMemo(() => {
+    if (initialStudyFolderId) {
+      return getLeitnerCardsForFolderBranch(cards, folders, documents, initialStudyFolderId);
+    }
+    return initialStudyDocumentId
+      ? cards.filter((card) => card.document_id === initialStudyDocumentId)
+      : cards;
+  }, [cards, documents, folders, initialStudyDocumentId, initialStudyFolderId]);
+  const cramDocumentOptions = useMemo(() => {
+    const availableDocumentIds = new Set(
+      scopedInventoryCards
+        .map((card) => card.document_id)
+        .filter((documentId): documentId is string => Boolean(documentId)),
+    );
+    return documents.filter((document) => availableDocumentIds.has(document.id));
+  }, [documents, scopedInventoryCards]);
 
   const scheduledReviewCards = useMemo(() => {
     if (initialStudyFolderId) {
@@ -234,19 +263,15 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
     loadKnowledgeStructure();
   }, [loadData, loadKnowledgeStructure]);
 
-  useEffect(() => {
-    setCramDocFilter(initialStudyDocumentId || "all");
-  }, [initialStudyDocumentId]);
-
   // Cram cards calculation based on active filters
   const cramCards = useMemo(() => {
-    return cards.filter((c) => {
+    return scopedInventoryCards.filter((c) => {
       if (cramBoxFilter !== "all" && c.box !== cramBoxFilter) return false;
       if (cramDocFilter !== "all" && c.document_id !== cramDocFilter) return false;
       if (cramLapsedOnly && (c.lapse_count || 0) === 0) return false;
       return true;
     });
-  }, [cards, cramBoxFilter, cramDocFilter, cramLapsedOnly]);
+  }, [cramBoxFilter, cramDocFilter, cramLapsedOnly, scopedInventoryCards]);
 
   const activeCard = activeQueue[currentIndex] || null;
 
@@ -642,14 +667,6 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   );
 
   // Filtered card list for the bottom table
-  const scopedInventoryCards = useMemo(() => {
-    if (initialStudyFolderId) {
-      return getLeitnerCardsForFolderBranch(cards, folders, documents, initialStudyFolderId);
-    }
-    return initialStudyDocumentId
-      ? cards.filter((card) => card.document_id === initialStudyDocumentId)
-      : cards;
-  }, [cards, documents, folders, initialStudyDocumentId, initialStudyFolderId]);
   const dueCardIds = useMemo(
     () => new Set((initialStudyFolderId || initialStudyDocumentId ? scheduledReviewCards : dueCards).map((card) => card.id)),
     [dueCards, initialStudyDocumentId, initialStudyFolderId, scheduledReviewCards],
@@ -820,8 +837,12 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
       {(initialStudyDocumentId || initialStudyFolderId) && (
         <div className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
           {initialStudyFolderId
-            ? (isEn ? "This review task includes due cards in this folder and its subfolders:" : "این تسک کارت‌های موعددارِ این پوشه و زیرپوشه‌هایش را مرور می‌کند:")
-            : (isEn ? "This review task is limited to due cards for:" : "این تسک فقط کارت‌های موعددارِ درس زیر را مرور می‌کند:")}{" "}
+            ? (studyMode === "due"
+              ? (isEn ? "Scheduled review is limited to due cards in this folder and its subfolders:" : "مرور زمان‌بندی‌شده فقط کارت‌های موعددارِ این پوشه و زیرپوشه‌هایش را شامل می‌شود:")
+              : (isEn ? "Free practice also stays within this folder and its subfolders:" : "تمرین آزاد نیز فقط شامل کارت‌های همین پوشه و زیرپوشه‌هایش می‌شود:"))
+            : (studyMode === "due"
+              ? (isEn ? "Scheduled review is limited to due cards for:" : "مرور زمان‌بندی‌شده فقط کارت‌های موعددارِ درس زیر را شامل می‌شود:")
+              : (isEn ? "Free practice also stays within this lesson:" : "تمرین آزاد نیز فقط شامل کارت‌های همین درس می‌شود:"))}{" "}
           <span className="font-semibold text-foreground">
             {initialStudyFolderId
               ? (scheduledReviewFolder
@@ -883,14 +904,17 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               <option value="5">{isEn ? "Box 5" : "جعبه ۵"}</option>
             </select>
 
-            {documents.length > 0 && (
+            {cramDocumentOptions.length > 0 && (
               <select
                 value={cramDocFilter}
-                onChange={(e) => setCramDocFilter(e.target.value)}
+                onChange={(e) => setCramDocSelection({ scopeKey: studyScopeKey, documentId: e.target.value })}
+                aria-label={isEn ? "Filter practice by lesson" : "فیلتر تمرین بر اساس درس"}
                 className="py-1 px-2 rounded-lg bg-card border border-border text-xs text-foreground focus:outline-none max-w-[140px] truncate"
               >
-                <option value="all">{isEn ? "All Docs" : "تمامی اسناد"}</option>
-                {documents.map((d) => (
+                <option value="all">{initialStudyDocumentId || initialStudyFolderId
+                  ? isEn ? "All in scope" : "همهٔ همین محدوده"
+                  : isEn ? "All Docs" : "تمامی اسناد"}</option>
+                {cramDocumentOptions.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.title}
                   </option>
