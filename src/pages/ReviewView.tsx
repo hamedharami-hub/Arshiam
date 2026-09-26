@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Layers, Languages, Network } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
@@ -56,12 +56,12 @@ export const ReviewView: React.FC = () => {
     navigate(`/app/knowledge?docId=${docId}`);
   };
 
-  const handleStartMindMapReview = (scope: KnowledgeMindMapReviewScope) => {
+  const handleStartMindMapReview = useCallback((scope: KnowledgeMindMapReviewScope) => {
     const params = new URLSearchParams({ tab: "leitner" });
     if (scope.kind === "folder") params.set("studyFolderId", scope.id);
     if (scope.kind === "document") params.set("studyDocId", scope.id);
     navigate(`/app/review?${params.toString()}`);
-  };
+  }, [navigate]);
 
   return (
     <div
