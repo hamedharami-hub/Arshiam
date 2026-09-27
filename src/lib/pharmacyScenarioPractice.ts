@@ -28,6 +28,15 @@ export interface PharmacyPracticeOutcome {
   recommendationEn: string;
   explanationFa: string;
   explanationEn: string;
+  referralLetterTemplate?: PharmacyReferralLetterTemplate | null;
+}
+
+export interface PharmacyReferralLetterTemplate {
+  to: string;
+  reason: string;
+  symptomSummary: string;
+  currentMeds: string;
+  suggestedAction: string;
 }
 
 export interface PharmacyPracticeScenario {
@@ -47,6 +56,7 @@ export interface PharmacyPracticeScenario {
   redFlags: Array<{ fa: string; en: string }>;
   dialogueOptions: PharmacyPracticeDialogueOption[];
   outcome: PharmacyPracticeOutcome | null;
+  currentMedications?: string[];
   sourceUrl: string;
   contentReviewStatus: "unreviewed";
 }

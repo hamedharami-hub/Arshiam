@@ -12,7 +12,9 @@ import {
   ListTodo, FileText, Calendar, Target, Heart, Brain, Sparkles,
   Timer, Settings, BarChart3, BookOpen, Folder, Hash, Compass,
   PlusCircle, Database, CheckSquare, Search, ShieldAlert,
+  ClipboardCheck, PackageSearch, Keyboard, FlaskConical,
 } from "lucide-react";
+import { loadPharmacySearchSources, searchPharmacy, type PharmacySearchHit } from "@/lib/pharmacySearch";
 
 import { useBilingual } from "@/hooks/useBilingual";
 
@@ -43,6 +45,10 @@ const getNavItems = (T: (fa: string, en: string) => string) => [
   { label: T("تمرین تنفس", "Breathing Exercise"), to: "/app/breathing", icon: Heart, keywords: "breath breathing تنفس مدیتیشن" },
   { label: T("پشتیبانی بحران و اضطراری (SOS)", "Crisis Support & Emergency (SOS)"), to: "/app/crisis", icon: ShieldAlert, keywords: "crisis sos help emergency بحران اضطراری کمک اورژانس خودکشی" },
   { label: T("معمار زندگی", "Life Architect"), to: "/app/life-architect", icon: Compass, keywords: "life architect معمار زندگی برنامه ریزی هدف اهداف" },
+  { label: T("سناریوهای دارویی", "Pharmacy scenarios"), to: "/app/pharmacy-scenario-practice", icon: ClipboardCheck, keywords: "pharmacy otc triage scenario سناریو تریاژ داروخانه" },
+  { label: T("فهرست محصولات دارویی", "Pharmacy products"), to: "/app/pharmacy-products", icon: PackageSearch, keywords: "pharmacy shelf products قفسه محصول دارو" },
+  { label: T("تمرین نسخه FRED", "FRED practice"), to: "/app/pharmacy-fred-practice", icon: Keyboard, keywords: "fred dispense pbs safety net odt نسخه" },
+  { label: T("ماتریس CYP و تداخل", "CYP matrix & interactions"), to: "/app/pharmacy-cyp", icon: FlaskConical, keywords: "cyp ddi interaction تداخل آنزیم" },
   { label: T("تنظیمات و پشتیبان‌گیری", "Settings & Backup"), to: "/app/settings", icon: Settings, keywords: "settings تنظیمات بکاپ firestore firebaseStore" },
 ];
 
@@ -53,6 +59,7 @@ export default function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<Hit[]>([]);
+  const [pharmacyHits, setPharmacyHits] = useState<PharmacySearchHit[]>([]);
 
   const navItems = useMemo(() => getNavItems(T), [T]);
 
@@ -223,6 +230,18 @@ export default function CommandPalette() {
     return () => clearTimeout(t);
   }, [q, user, open, T, isEn]);
 
+  useEffect(() => {
+    if (!open || q.trim().length < 2) {
+      setPharmacyHits([]);
+      return;
+    }
+    let cancelled = false;
+    loadPharmacySearchSources()
+      .then((sources) => { if (!cancelled) setPharmacyHits(searchPharmacy(sources, q, isEn ? "en" : "fa")); })
+      .catch(() => { if (!cancelled) setPharmacyHits([]); });
+    return () => { cancelled = true; };
+  }, [q, open, isEn]);
+
   const go = useCallback((to: string) => {
     setOpen(false);
     setQ("");
@@ -235,7 +254,7 @@ export default function CommandPalette() {
         <Search className="w-4 h-4 text-muted-foreground me-2 shrink-0" />
         <CommandInput
           dir={isEn ? "ltr" : "rtl"}
-          placeholder={T("جستجو در تسک‌ها، نوت‌ها، فولدرها، تگ‌ها یا رفتن به صفحه... (Ctrl+K)", "Search tasks, notes, folders, tags, or jump to page... (Ctrl+K)")}
+          placeholder={T("جستجو در تسک‌ها، نوت‌ها، فارماسی یا رفتن به صفحه... (Ctrl+K)", "Search tasks, notes, pharmacy, or jump to page... (Ctrl+K)")}
           value={q}
           onValueChange={setQ}
           className="text-sm h-12"
@@ -302,6 +321,35 @@ export default function CommandPalette() {
                     </div>
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium shrink-0">
                       {h.kind === "task" ? T("تسک", "Task") : h.kind === "note" ? T("نوت", "Note") : h.kind === "folder" ? T("فولدر", "Folder") : T("تگ", "Tag")}
+                    </span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+            <CommandSeparator />
+          </>
+        )}
+
+        {pharmacyHits.length > 0 && (
+          <>
+            <CommandGroup heading={T("فارماسی", "Pharmacy")} data-testid="command-palette-pharmacy-group">
+              {pharmacyHits.map((h) => {
+                const Icon = h.kind === "pharmacy-scenario" ? ClipboardCheck : h.kind === "pharmacy-product" ? PackageSearch : BookOpen;
+                return (
+                  <CommandItem
+                    key={`${h.kind}-${h.id}`}
+                    value={`${h.kind} ${h.id} ${h.title} ${h.subtitle} ${q}`}
+                    onSelect={() => go(h.to)}
+                    className="flex cursor-pointer items-center justify-between py-2"
+                    data-testid={`command-palette-${h.kind}-${h.id}`}
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="truncate font-medium">{h.title}</span>
+                      {h.subtitle && <span className="truncate text-xs text-muted-foreground/80">({h.subtitle})</span>}
+                    </div>
+                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      {h.kind === "pharmacy-scenario" ? T("سناریو", "Scenario") : h.kind === "pharmacy-product" ? T("محصول", "Product") : T("سند", "Document")}
                     </span>
                   </CommandItem>
                 );

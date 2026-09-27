@@ -93,6 +93,7 @@ const KnowledgeBaseView = lazy(() => import("./pages/KnowledgeBaseView"));
 const PharmacyProductsView = lazy(() => import("./pages/PharmacyProductsView"));
 const PharmacyScenarioPracticeView = lazy(() => import("./pages/PharmacyScenarioPracticeView"));
 const PharmacyFredPracticeView = lazy(() => import("./pages/PharmacyFredPracticeView"));
+const PharmacyCypView = lazy(() => import("./pages/PharmacyCypView"));
 const InteractiveStudyView = lazy(() => import("./pages/InteractiveStudyView"));
 const ReviewView = lazy(() => import("./pages/ReviewView"));
 
@@ -329,6 +330,7 @@ const App = () => {
                       <Route path="pharmacy-products" element={<PharmacyProductsView />} />
                       <Route path="pharmacy-scenario-practice" element={<PharmacyScenarioPracticeView />} />
                       <Route path="pharmacy-fred-practice" element={<PharmacyFredPracticeView />} />
+                      <Route path="pharmacy-cyp" element={<PharmacyCypView />} />
                       <Route path="interactive-study" element={<InteractiveStudyView />} />
                       <Route path="review" element={<ReviewView />} />
                       <Route path="stats" element={<StatsView />} />

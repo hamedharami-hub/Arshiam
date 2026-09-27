@@ -4,7 +4,7 @@ import {
   Target, Timer, Calendar, ChevronDown, Sparkles, LayoutGrid,
   TrendingUp, Activity, MessageCircleQuestion, Zap, ShieldAlert, BookOpen, Sun,
   ListTodo, BrainCircuit, GripVertical, User, Shield, Pill,
-  BarChart3, Sprout, Wind, Compass, Users, Gamepad2, PackageSearch, ClipboardCheck, Keyboard,
+  BarChart3, Sprout, Wind, Compass, Users, Gamepad2, PackageSearch, ClipboardCheck, Keyboard, FlaskConical,
 } from "lucide-react";
 import {
   SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -64,6 +64,7 @@ export const EN_LABELS: Record<string, string> = {
   "فهرست محصولات دارویی": "Pharmacy Products",
   "تمرین سناریوهای دارویی": "Pharmacy Scenario Practice",
   "تمرین نسخه FRED": "FRED Practice",
+  "ماتریس CYP و تداخل": "CYP Matrix & Interactions",
   "دانش": "Knowledge",
   "فارماسی": "Pharmacy",
   "باز کردن": "Expand",
@@ -80,6 +81,7 @@ export const FA_LABELS: Record<string, string> = {
   "Pharmacy Products": "فهرست محصولات دارویی",
   "Pharmacy Scenario Practice": "تمرین سناریوهای دارویی",
   "FRED Practice": "تمرین نسخه FRED",
+  "CYP Matrix & Interactions": "ماتریس CYP و تداخل",
 };
 
 export function useLabel() {
@@ -131,6 +133,7 @@ export const SECTIONS: Section[] = [
               { url: "/app/pharmacy-products", icon: PackageSearch, label: "فهرست محصولات دارویی" },
               { url: "/app/pharmacy-scenario-practice", icon: ClipboardCheck, label: "تمرین سناریوهای دارویی" },
               { url: "/app/pharmacy-fred-practice", icon: Keyboard, label: "تمرین نسخه FRED" },
+              { url: "/app/pharmacy-cyp", icon: FlaskConical, label: "ماتریس CYP و تداخل" },
             ],
           },
           { url: "/app/review", icon: BrainCircuit, label: "مرور (SR)" },

@@ -62,6 +62,13 @@ export function normalizePharmacySeedData(seed: SeedData): SeedData {
   return { ...editorialSeed, PHARMACY_SEED_DOCUMENTS: editorialSeed.PHARMACY_SEED_DOCUMENTS.map(normalizePharmacySeedDocument) };
 }
 
+/** Reads a bundled seed document with the same editorial corrections used by the safe importer. */
+export async function getPharmacySeedDocument(documentId: string): Promise<KnowledgeDocument | null> {
+  const rawSeed = await import("./pharmacySeedData");
+  const seed = applyPharmacyPbsEditorialOverrides(applyPharmacyClinicalEditorialOverrides(rawSeed));
+  return seed.PHARMACY_SEED_DOCUMENTS.find((item) => item.id === documentId) ?? null;
+}
+
 function assertUser(userId: string): void {
   if (!userId || userId === "anonymous-kb-user") {
     throw new Error("Sign in before importing pharmacy knowledge.");

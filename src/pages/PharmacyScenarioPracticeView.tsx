@@ -1,17 +1,26 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, ClipboardCheck, RotateCcw, Search } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, ClipboardCheck, FileSignature, RotateCcw, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ReferralLetterDialog } from "@/components/pharmacy/ReferralLetterDialog";
+import { StarButton, StarredPhrasesPanel } from "@/components/pharmacy/StarredPhrasesPanel";
+import { UrlParamListener } from "@/components/pharmacy/UrlParamListener";
+import { usePharmacyPractice, type PharmacySyncState } from "@/components/pharmacy/usePharmacyPractice";
+import { usePracticeSaveFeedback, useStarToggle, type StarTarget } from "@/components/pharmacy/useStarToggle";
 import { useBilingual } from "@/hooks/useBilingual";
+import type { PharmacyScenarioProgress } from "@/lib/pharmacyPracticeStore";
+import type { PharmacyPracticeSaveStatus } from "@/lib/pharmacyPracticeSync";
 import { filterPharmacyPracticeScenarios, type PharmacyScenarioModeFilter } from "@/lib/pharmacyScenarioPractice";
 import { PHARMACY_PRACTICE_SCENARIOS } from "@/lib/pharmacyScenarioPracticeData";
 
 const PRACTICE_STEPS = ["case", "questions", "response", "debrief"] as const;
 type PracticeStep = 0 | 1 | 2 | 3;
+type Decision = "supply" | "refer";
 
 const initialScenarioId =
   PHARMACY_PRACTICE_SCENARIOS.find((scenario) => scenario.mode === "MODE_B_SLANG")?.id
@@ -28,6 +37,13 @@ export default function PharmacyScenarioPracticeView() {
   const [unlockedStep, setUnlockedStep] = useState<PracticeStep>(0);
   const [revealedAnswers, setRevealedAnswers] = useState<Set<string>>(() => new Set());
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
+  const [decision, setDecision] = useState<Decision | null>(null);
+  const [screenedFlags, setScreenedFlags] = useState<Set<number>>(() => new Set());
+  const [recorded, setRecorded] = useState<PharmacyPracticeSaveStatus | null>(null);
+  const [letterOpen, setLetterOpen] = useState(false);
+  const { starred, letters, progress, save, syncState } = usePharmacyPractice();
+  const reportSave = usePracticeSaveFeedback();
+  const { isStarred, toggle: toggleStar } = useStarToggle(starred, save);
 
   const filteredScenarios = useMemo(
     () => filterPharmacyPracticeScenarios(PHARMACY_PRACTICE_SCENARIOS, query, mode),
@@ -41,6 +57,10 @@ export default function PharmacyScenarioPracticeView() {
     setUnlockedStep(0);
     setRevealedAnswers(new Set());
     setSelectedOptionId(null);
+    setDecision(null);
+    setScreenedFlags(new Set());
+    setRecorded(null);
+    setLetterOpen(false);
   };
   const updateQuery = (value: string) => {
     setQuery(value);
@@ -54,20 +74,56 @@ export default function PharmacyScenarioPracticeView() {
     setSelectedId(id);
     resetPractice();
   };
+  const openScenarioFromUrl = (id: string) => {
+    if (!PHARMACY_PRACTICE_SCENARIOS.some((item) => item.id === id)) return;
+    setQuery("");
+    setMode("all");
+    selectScenario(id);
+  };
   const revealAnswer = (key: string) => {
     setRevealedAnswers((previous) => new Set(previous).add(key));
   };
   const allQuestionsRevealed = Boolean(scenario && scenario.questions.every((question) => revealedAnswers.has(question.key)));
   const canContinue = step === 0
     || (step === 1 && allQuestionsRevealed)
-    || (step === 2 && (Boolean(selectedOption) || !scenario?.dialogueOptions.length));
+    || (step === 2 && (Boolean(selectedOption) || !scenario?.dialogueOptions.length) && Boolean(decision));
+
+  const recordCompletion = async (current: NonNullable<typeof scenario>, chosen: Decision) => {
+    const entry: PharmacyScenarioProgress = {
+      completedAt: new Date().toISOString(),
+      decision: chosen,
+      matchesSourceLabel: current.outcome ? (chosen === "refer") === current.outcome.requiresReferral : null,
+      redFlagsScreened: screenedFlags.size,
+      redFlagsTotal: current.redFlags.length,
+    };
+    const result = await save("scenario_progress", current.id, entry);
+    setRecorded(result.status);
+    if (result.status === "failed") reportSave(result);
+  };
 
   const continueStep = () => {
     if (!canContinue || step >= PRACTICE_STEPS.length - 1) return;
     const next = (step + 1) as PracticeStep;
     setStep(next);
     setUnlockedStep((current) => Math.max(current, next) as PracticeStep);
+    if (next === 3 && scenario && decision) void recordCompletion(scenario, decision);
   };
+  const toggleFlag = (index: number, checked: boolean | "indeterminate") => setScreenedFlags((previous) => {
+    const next = new Set(previous);
+    if (checked === true) next.add(index);
+    else next.delete(index);
+    return next;
+  });
+
+  const removeStar = async (target: StarTarget) => {
+    const phrase = starred.find((item) => item.scenarioId === target.scenarioId && item.textEn === target.textEn && item.textFa === target.textFa);
+    if (phrase) reportSave(await save("starred_phrase", phrase.id, null));
+  };
+  const scenarioTitle = (id: string) => {
+    const item = PHARMACY_PRACTICE_SCENARIOS.find((entry) => entry.id === id);
+    return item ? (isEn ? item.titleEn : item.titleFa || item.titleEn) : id;
+  };
+  const scenarioDocumentId = (id: string) => PHARMACY_PRACTICE_SCENARIOS.find((entry) => entry.id === id)?.documentId ?? null;
   const getModeLabel = (scenarioMode: string) => {
     if (scenarioMode === "MODE_A_ADMIN") return T("مکالمهٔ اجرایی", "Operational case");
     if (scenarioMode === "MODE_C_CONFLICT") return T("تعارض/پیچیدگی", "Complex case");
@@ -76,11 +132,16 @@ export default function PharmacyScenarioPracticeView() {
 
   return (
     <main className="mx-auto w-full max-w-5xl space-y-5 px-3 py-4 sm:px-5 sm:py-6" dir={isEn ? "ltr" : "rtl"}>
+      <UrlParamListener name="scenario" onValue={openScenarioFromUrl} />
       <header className="flex items-start gap-3">
         <div className="rounded-2xl bg-primary/10 p-3 text-primary" aria-hidden="true"><ClipboardCheck className="h-6 w-6" /></div>
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{T("تمرین تعاملی سناریوهای Pharmacy", "Pharmacy scenario practice")}</h1>
           <p className="text-sm text-muted-foreground">{T("پرونده را مرحله‌به‌مرحله بخوان، پاسخ بیمار را باز کن و بعد تصمیم منبع را ببین.", "Work through a case, reveal the patient's replies, then compare your choice with the source label.")}</p>
+        </div>
+        <div className="ms-auto min-w-[10rem] space-y-1 text-end" data-testid="scenario-progress-summary">
+          <p className="text-xs text-muted-foreground">{T(`${Object.keys(progress).length} از ${PHARMACY_PRACTICE_SCENARIOS.length} پرونده انجام شده`, `${Object.keys(progress).length} of ${PHARMACY_PRACTICE_SCENARIOS.length} cases done`)}</p>
+          <SyncBadge state={syncState} />
         </div>
       </header>
 
@@ -189,11 +250,15 @@ export default function PharmacyScenarioPracticeView() {
                 </div>
                 {scenario.questions.length ? scenario.questions.map((question) => {
                   const revealed = revealedAnswers.has(question.key);
+                  const target = { scenarioId: scenario.id, textEn: question.answerEn, textFa: question.answerFa };
                   return (
                     <Card key={question.key} className="space-y-2 p-3 sm:p-4">
                       <p className="font-medium leading-relaxed">{(isEn ? question.questionEn : question.questionFa) || (isEn ? question.labelEn : question.labelFa) || question.key}</p>
                       {revealed ? (
-                        <p className="rounded-lg bg-muted/60 p-3 text-sm leading-relaxed">{isEn ? question.answerEn : question.answerFa}</p>
+                        <div className="flex items-start gap-2 rounded-lg bg-muted/60 p-3">
+                          <p className="min-w-0 flex-1 text-sm leading-relaxed">{isEn ? question.answerEn : question.answerFa}</p>
+                          <StarButton starred={isStarred(target)} onToggle={() => void toggleStar(target)} testId={`scenario-star-question-${question.key}`} />
+                        </div>
                       ) : (
                         <Button type="button" variant="outline" size="sm" onClick={() => revealAnswer(question.key)}>
                           {T("نمایش پاسخ بیمار", "Reveal patient reply")}
@@ -211,6 +276,24 @@ export default function PharmacyScenarioPracticeView() {
                   <h3 id="scenario-response-heading" className="text-base font-semibold">{T("پاسخ خودت را انتخاب کن", "Choose your response")}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">{T("این انتخاب‌ها عیناً از گزینه‌های منبع آمده‌اند.", "Options are reproduced from the source snapshot.")}</p>
                 </div>
+                <div className="space-y-2 rounded-lg border p-3" role="group" aria-label="Practice decision">
+                  <p className="text-sm font-medium">{T("بر اساس ارزیابی، تصمیم تو چیست؟", "Based on your assessment, what is your decision?")}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant={decision === "supply" ? "default" : "outline"} aria-pressed={decision === "supply"} onClick={() => setDecision("supply")} data-testid="scenario-decision-supply-btn">{T("تأمین", "Supply")}</Button>
+                    <Button type="button" variant={decision === "refer" ? "default" : "outline"} aria-pressed={decision === "refer"} onClick={() => setDecision("refer")} data-testid="scenario-decision-refer-btn">{T("ارجاع", "Refer")}</Button>
+                  </div>
+                </div>
+                {scenario.redFlags.length > 0 && (
+                  <fieldset className="space-y-2 rounded-lg border p-3">
+                    <legend className="px-1 text-sm font-medium">{T("نکات هشدار بررسی‌شده", "Screened red flags")}</legend>
+                    {scenario.redFlags.map((flag, index) => (
+                      <label key={`${scenario.id}-screen-${index}`} className="flex items-start gap-2 text-sm leading-relaxed">
+                        <Checkbox checked={screenedFlags.has(index)} onCheckedChange={(checked) => toggleFlag(index, checked)} aria-label={isEn ? flag.en || flag.fa : flag.fa || flag.en} />
+                        <span>{isEn ? flag.en || flag.fa : flag.fa || flag.en}</span>
+                      </label>
+                    ))}
+                  </fieldset>
+                )}
                 {scenario.dialogueOptions.length ? scenario.dialogueOptions.map((option, index) => (
                   <button
                     key={option.id}
@@ -243,7 +326,10 @@ export default function PharmacyScenarioPracticeView() {
                 {selectedOption && (
                   <Card className="space-y-2 border-primary/30 p-4">
                     <p className="text-xs font-semibold text-muted-foreground">{T("انتخاب تو", "Your choice")}</p>
-                    <p className="whitespace-pre-line text-sm leading-relaxed">{isEn ? selectedOption.textEn : selectedOption.textFa}</p>
+                    <div className="flex items-start gap-2">
+                      <p className="min-w-0 flex-1 whitespace-pre-line text-sm leading-relaxed">{isEn ? selectedOption.textEn : selectedOption.textFa}</p>
+                      <StarButton starred={isStarred({ scenarioId: scenario.id, textEn: selectedOption.patientReplyEn, textFa: selectedOption.patientReplyFa })} onToggle={() => void toggleStar({ scenarioId: scenario.id, textEn: selectedOption.patientReplyEn, textFa: selectedOption.patientReplyFa })} testId={`scenario-star-option-${selectedOption.id}`} />
+                    </div>
                     <p className="text-sm text-muted-foreground">{selectedOption.sourceMarksRecommended ? T("منبع این گزینه را توصیه‌شده علامت زده است؛ این علامت بازبینی مستقل نیست.", "The source flags this option as recommended; that flag is not an independent review.") : T("منبع این گزینه را به‌عنوان پاسخ پیشنهادی علامت نزده است.", "The source does not flag this option as its recommended response.")}</p>
                   </Card>
                 )}
@@ -261,6 +347,12 @@ export default function PharmacyScenarioPracticeView() {
                       {scenario.redFlags.map((flag, index) => <li key={`${scenario.id}-flag-${index}`}>{isEn ? flag.en || flag.fa : flag.fa || flag.en}</li>)}
                     </ul>
                   </Card>
+                )}
+                <ProgressFeedback decision={decision} requiresReferral={scenario.outcome?.requiresReferral ?? null} screened={screenedFlags.size} total={scenario.redFlags.length} recorded={recorded} />
+                {(decision === "refer" || scenario.outcome?.requiresReferral) && (
+                  <Button type="button" variant="outline" className="gap-2" onClick={() => setLetterOpen(true)} data-testid="scenario-open-referral-letter-btn">
+                    <FileSignature className="h-4 w-4" aria-hidden="true" />{T("نوشتن نامهٔ ارجاع تمرینی", "Write a practice referral letter")}
+                  </Button>
                 )}
                 <a href={scenario.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex text-sm font-medium text-primary underline-offset-4 hover:underline">
                   {T("بازکردن فایل سناریو در GitHub", "Open scenario source on GitHub")}
@@ -290,6 +382,7 @@ export default function PharmacyScenarioPracticeView() {
               </div>
             </footer>
           </Card>
+          <ReferralLetterDialog scenario={scenario} open={letterOpen} onOpenChange={setLetterOpen} savedDraft={letters[scenario.id]} onSave={(draft) => save("referral_letter", scenario.id, draft)} />
         </>
       ) : (
         <Card className="px-5 py-12 text-center">
@@ -298,6 +391,43 @@ export default function PharmacyScenarioPracticeView() {
           <p className="mt-1 text-sm text-muted-foreground">{T("جست‌وجو را تغییر بده یا نوع دیگری را انتخاب کن.", "Change the search or choose another case type.")}</p>
         </Card>
       )}
+      <StarredPhrasesPanel
+        phrases={starred}
+        onRemove={removeStar}
+        scenarioTitle={scenarioTitle}
+        documentIdFor={scenarioDocumentId}
+      />
     </main>
+  );
+}
+
+function SyncBadge({ state }: { state: PharmacySyncState }) {
+  const { T } = useBilingual();
+  const labels = {
+    idle: T("همگام‌سازی آماده", "Sync ready"),
+    syncing: T("در حال همگام‌سازی…", "Syncing…"),
+    synced: T("همگام با دستگاه‌های دیگر", "Synced across devices"),
+    offline: T("آفلاین؛ تغییرات در صف می‌مانند", "Offline; changes stay queued"),
+    error: T("همگام‌سازی ناموفق؛ داده روی دستگاه امن است", "Sync failed; data is safe on this device"),
+  }[state];
+  return <p className={`text-xs ${state === "error" ? "text-destructive" : "text-muted-foreground"}`} data-testid="pharmacy-sync-state" data-state={state}>{labels}</p>;
+}
+
+function ProgressFeedback({ decision, requiresReferral, screened, total, recorded }: { decision: Decision | null; requiresReferral: boolean | null; screened: number; total: number; recorded: PharmacyPracticeSaveStatus | null }) {
+  const { T } = useBilingual();
+  const matches = decision && requiresReferral !== null ? (decision === "refer") === requiresReferral : null;
+  return (
+    <Card className="space-y-2 p-4" data-testid="scenario-progress-feedback">
+      {matches !== null && <p className="text-sm" data-testid="scenario-decision-match">{matches ? T("تصمیم تو با برچسب منبع مطابقت دارد.", "Your decision matches the source label.") : T("تصمیم تو با برچسب منبع مطابقت ندارد.", "Your decision differs from the source label.")}</p>}
+      {total > 0 && <p className="text-sm text-muted-foreground" data-testid="scenario-red-flag-score">{T(`${screened} از ${total} نکته بررسی شد.`, `${screened} of ${total} red flags screened.`)}</p>}
+      <p className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid="scenario-progress-status">
+        {recorded === "saved" && <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />{T("پیشرفت ذخیره و همگام شد.", "Progress saved and synced.")}</>}
+        {recorded === "queued" && T("پیشرفت روی دستگاه ذخیره شد؛ پس از اتصال همگام می‌شود.", "Progress saved on this device; it will sync when online.")}
+        {recorded === "remote-newer" && T("نسخهٔ جدیدتری از دستگاه دیگر نگه داشته شد.", "A newer copy from another device was kept.")}
+        {recorded === "failed" && T("پیشرفت ذخیره نشد.", "Progress was not saved.")}
+        {recorded === null && T("در حال ذخیرهٔ پیشرفت…", "Saving progress…")}
+      </p>
+      <p className="text-xs text-muted-foreground">{T("برچسب منبع بازبینی بالینی نیست.", "The source label is not a clinical review.")}</p>
+    </Card>
   );
 }

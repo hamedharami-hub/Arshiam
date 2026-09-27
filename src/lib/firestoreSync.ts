@@ -48,7 +48,8 @@ export type SupportedFirestoreCollection =
   | "mind_goals"
   | "thought_records"
   | "socratic_sessions"
-  | "assessment_results";
+  | "assessment_results"
+  | "pharmacy_practice";
 
 export interface SyncStats {
   tasksCount: number;
@@ -74,7 +75,7 @@ const conflictReviewCollections = new Set<SupportedFirestoreCollection>([
   "tasks", "notes", "habits", "folders", "tags", "contacts", "task_contacts",
   "knowledge_folders", "knowledge_documents", "knowledge_import_manifests",
   "leitner_cards", "leitner_reviews", "task_knowledge_links",
-  "interactive_study_sessions", "socratic_sessions",
+  "interactive_study_sessions", "socratic_sessions", "pharmacy_practice",
 ]);
 
 /** Read a queued stale-write's current cloud version without mutating either copy. */

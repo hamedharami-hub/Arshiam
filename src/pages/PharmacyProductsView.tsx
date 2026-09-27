@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { UrlParamListener } from "@/components/pharmacy/UrlParamListener";
 import { useBilingual } from "@/hooks/useBilingual";
 import { PHARMACY_PRODUCT_CATALOG } from "@/lib/pharmacyProductCatalogData";
 import {
@@ -44,6 +45,7 @@ export default function PharmacyProductsView() {
 
   return (
     <main className="mx-auto w-full max-w-6xl space-y-5 px-3 py-4 sm:px-5 sm:py-6" dir={isEn ? "ltr" : "rtl"}>
+      <UrlParamListener name="product" onValue={(id) => setSelectedProduct(PHARMACY_PRODUCT_CATALOG.find((product) => product.id === id) ?? null)} />
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <div className="rounded-2xl bg-primary/10 p-3 text-primary" aria-hidden="true">

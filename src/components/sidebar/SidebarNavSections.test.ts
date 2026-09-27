@@ -16,6 +16,7 @@ describe("Knowledge navigation hierarchy", () => {
       "/app/pharmacy-products",
       "/app/pharmacy-scenario-practice",
       "/app/pharmacy-fred-practice",
+      "/app/pharmacy-cyp",
     ]);
   });
 

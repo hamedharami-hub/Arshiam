@@ -20,6 +20,7 @@ import {
   Tag,
   Terminal,
   X,
+  ClipboardList,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -92,6 +93,7 @@ import {
   type SyntheticVisualizerScript,
 } from "@/lib/pharmacyFredPractice";
 import { PHARMACY_FRED_PRACTICE_SCENARIOS } from "@/lib/pharmacyFredPracticeData";
+import { FredWorkflowPanel } from "@/components/pharmacy/fred/FredWorkflowPanel";
 
 type PracticeModule =
   | "dispense"
@@ -102,7 +104,7 @@ type PracticeModule =
   | "terminal"
   | "review"
   | "odt"
-  | "pbspos";
+  | "pbspos" | "workflow";
 type DispenseStep = 0 | 1 | 2;
 type SafetyNetStep = 0 | 1 | 2;
 
@@ -588,7 +590,23 @@ export default function PharmacyFredPracticeView() {
           <Layers className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
           <span>{T("پیش‌نمایش دسته‌بندی PBS/POS", "PBS/POS Categorization Practice")}</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveModule("workflow")}
+          data-testid="fred-module-workflow"
+          className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+            activeModule === "workflow"
+              ? "bg-background text-foreground shadow-xs border border-border/60"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <ClipboardList className="h-4 w-4 text-primary" />
+          <span>{T("گردش کار کامل (برچسب، بررسی، Safety Net، ODT)", "Full workflow (label, check, Safety Net, ODT)")}</span>
+        </button>
       </nav>
+
+      {activeModule === "workflow" && <FredWorkflowPanel />}
 
       {/* ========================================================= */}
       {/* MODULE 1: FRED Dispense & Shortcuts (Existing)             */}
