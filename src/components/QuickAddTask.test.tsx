@@ -1,10 +1,21 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { QuickAddTask } from "./QuickAddTask";
+import { enqueueOps } from "@/lib/offlineQueue";
+import { toast } from "sonner";
+
+const { testUser } = vi.hoisted(() => ({ testUser: { id: "test-user-1" } }));
+
+vi.mock("@/lib/offlineQueue", () => ({
+  enqueueOp: vi.fn(() => Promise.resolve(true)),
+  enqueueOps: vi.fn(() => Promise.resolve(true)),
+}));
+
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 vi.mock("@/hooks/useAuth", () => ({
-  useAuth: () => ({ user: { id: "test-user-1" } }),
+  useAuth: () => ({ user: testUser }),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -16,9 +27,9 @@ vi.mock("react-i18next", () => ({
 
 vi.mock("@/lib/firebaseStore", () => ({
   firebaseStore: {
-    from: () => ({
+    from: (table: string) => ({
       select: () => ({
-        order: () => Promise.resolve({ data: [] }),
+        order: () => Promise.resolve({ data: table === "tags" ? [{ id: "tag-1", name: "Work", color: "#123456" }] : [] }),
       }),
       insert: () => Promise.resolve({ error: null }),
     }),
@@ -37,6 +48,54 @@ vi.mock("@/lib/firestoreDataService", () => ({
 describe("QuickAddTask component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+  });
+
+  it("atomically queues an offline task and its tags before clearing the form", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    const onCreated = vi.fn();
+    render(
+      <MemoryRouter>
+        <QuickAddTask placeholder="+ Add task" defaults={{ tag_id: "tag-1" }} onCreated={onCreated} />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByText("+ Add task"));
+    fireEvent.change(screen.getByPlaceholderText("+ Add task"), { target: { value: "Offline task" } });
+    fireEvent.click(screen.getByTitle("Add task (Enter)"));
+
+    await waitFor(() => expect(enqueueOps).toHaveBeenCalledTimes(1));
+    const [operations] = vi.mocked(enqueueOps).mock.calls[0];
+    expect(operations.map(({ table }) => table)).toEqual(["tasks", "task_tags"]);
+    expect(operations.every(({ ownerId }) => ownerId === "test-user-1")).toBe(true);
+    expect(onCreated).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.queryByPlaceholderText("+ Add task")).not.toBeInTheDocument());
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining("will sync"));
+  });
+
+  it("keeps the offline form intact and reports failure when the queue rejects the write", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    vi.mocked(enqueueOps).mockResolvedValueOnce(false);
+    const onCreated = vi.fn();
+    render(
+      <MemoryRouter>
+        <QuickAddTask placeholder="+ Add task" onCreated={onCreated} />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByText("+ Add task"));
+    const input = screen.getByPlaceholderText("+ Add task");
+    fireEvent.change(input, { target: { value: "Keep this task" } });
+    fireEvent.click(screen.getByTitle("Add task (Enter)"));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("Could not save offline")));
+    expect(screen.getByPlaceholderText("+ Add task")).toHaveValue("Keep this task");
+    expect(onCreated).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
   });
 
   it("renders collapsed initially and expands on click", () => {

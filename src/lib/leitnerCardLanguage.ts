@@ -11,6 +11,8 @@ export interface ResolvedLeitnerCardText {
   secondaryText?: string;
   secondaryLanguage?: ResolvedContentLanguage;
   translationMissing: boolean;
+  /** True only for an unsplit legacy source that visibly contains both Persian and Latin text. */
+  sourceIsMixedLanguage?: true;
 }
 
 export interface ResolvedLeitnerCardContent {
@@ -25,6 +27,10 @@ export function detectTextLanguageKind(text: string | null | undefined): "fa-onl
   if (hasPersian && !hasLatin) return "fa-only";
   if (hasLatin && !hasPersian) return "en-only";
   return "mixed";
+}
+
+function hasPersianAndLatinText(text: string): boolean {
+  return /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text) && /[a-zA-Z]/.test(text);
 }
 
 export function resolveLeitnerCardText(
@@ -120,6 +126,7 @@ export function resolveLeitnerCardText(
     return {
       text: originalText,
       language: detectedLanguage,
+      ...(kind === "mixed" && hasPersianAndLatinText(originalText) ? { sourceIsMixedLanguage: true as const } : {}),
       translationMissing,
     };
   }
@@ -129,6 +136,7 @@ export function resolveLeitnerCardText(
     return {
       text: originalText,
       language: detectedLanguage,
+      ...(kind === "mixed" && hasPersianAndLatinText(originalText) ? { sourceIsMixedLanguage: true as const } : {}),
       translationMissing,
     };
   }
@@ -138,6 +146,7 @@ export function resolveLeitnerCardText(
   return {
     text: originalText,
     language: detectedLanguage,
+    ...(kind === "mixed" && hasPersianAndLatinText(originalText) ? { sourceIsMixedLanguage: true as const } : {}),
     translationMissing,
   };
 }

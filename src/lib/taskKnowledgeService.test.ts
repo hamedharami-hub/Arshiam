@@ -6,6 +6,7 @@ import {
   getTaskKnowledgeDocs,
 } from "./taskKnowledgeService";
 import { clearQueue } from "./offlineQueue";
+import * as offlineQueue from "./offlineQueue";
 import { createKnowledgeDocument } from "./knowledgeService";
 
 vi.mock("@/lib/firebaseStore", () => ({
@@ -70,6 +71,21 @@ describe("taskKnowledgeService", () => {
     expect(docs[0].title).toBe("پروتکل تجویز سرترالین");
   });
 
+  it("preserves both knowledge links created concurrently for one task", async () => {
+    const [first, second] = await Promise.all([
+      linkTaskKnowledge(userId, taskId, "doc-concurrent-a"),
+      linkTaskKnowledge(userId, taskId, "doc-concurrent-b"),
+    ]);
+
+    const links = await getTaskKnowledgeLinks(taskId, userId);
+    expect(links.map((link) => link.document_id).sort()).toEqual([
+      "doc-concurrent-a",
+      "doc-concurrent-b",
+    ]);
+    expect(new Set(links.map((link) => link.id)).size).toBe(2);
+    expect([first.id, second.id]).toHaveLength(2);
+  });
+
   it("2. unlinks a document from a task safely", async () => {
     const doc = await createKnowledgeDocument(userId, {
       title: "سند موقت",
@@ -82,5 +98,24 @@ describe("taskKnowledgeService", () => {
 
     const remaining = await getTaskKnowledgeLinks(taskId, userId);
     expect(remaining.length).toBe(0);
+  });
+
+  it("rolls back an optimistic link when neither remote save nor durable queue succeeds", async () => {
+    vi.spyOn(offlineQueue, "enqueueOp").mockResolvedValue(false);
+
+    await expect(linkTaskKnowledge(userId, taskId, "doc-link-failure"))
+      .rejects.toThrow("The task-to-lesson link could not be saved or queued; the local link was removed.");
+
+    expect(await getTaskKnowledgeLinks(taskId, userId)).toEqual([]);
+  });
+
+  it("restores a link in cache when unlink cannot reach the server or durable queue", async () => {
+    const link = await linkTaskKnowledge(userId, taskId, "doc-unlink-failure");
+    vi.spyOn(offlineQueue, "enqueueOp").mockResolvedValue(false);
+
+    await expect(unlinkTaskKnowledge(userId, taskId, link.document_id))
+      .rejects.toThrow("The task-to-lesson link could not be removed or queued; the local link was restored.");
+
+    expect(await getTaskKnowledgeLinks(taskId, userId)).toEqual([link]);
   });
 });

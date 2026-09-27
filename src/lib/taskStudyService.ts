@@ -113,7 +113,7 @@ export async function rescheduleLeitnerStudyTaskAfterSession(
  */
 export async function createStudyTask(
   opts: CreateStudyTaskOptions
-): Promise<{ ok: boolean; task?: Task; error?: string }> {
+): Promise<{ ok: boolean; task?: Task; error?: string; linkWarning?: boolean }> {
   try {
     if (!opts.userId?.trim()) {
       return { ok: false };
@@ -169,16 +169,18 @@ export async function createStudyTask(
     }
 
     // If it's a knowledge document, also try to add a task-knowledge link
+    let linkWarning = false;
     if (opts.targetType === "knowledge_doc" || opts.targetType === "mindmap_doc") {
       try {
         const { linkTaskToDocument } = await import("@/lib/taskKnowledgeService");
-        await linkTaskToDocument(taskId, opts.targetId, opts.userId, "Study Task");
+        await linkTaskToDocument(opts.userId, taskId, opts.targetId, "Study Task");
       } catch {
-        // Non-blocking if link table fails
+        // Keep the task usable, but let the UI report that its secondary link failed.
+        linkWarning = true;
       }
     }
 
-    return { ok: true, task: taskData };
+    return { ok: true, task: taskData, ...(linkWarning ? { linkWarning: true } : {}) };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     return { ok: false, error: message };

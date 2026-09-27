@@ -21,11 +21,13 @@ import { cacheGet, cacheSet, clearQueue, enqueueOp, getPendingOps } from "./offl
 import { deleteEntityFromFirestore, saveEntityToFirestore } from "./firestoreSync";
 import type { KnowledgeDocument } from "./knowledgeTypes";
 
-const { remoteKnowledgeRows, remoteFolderRows, remoteLeitnerRows, remoteReadFailure } = vi.hoisted(() => ({
+const { remoteKnowledgeRows, remoteFolderRows, remoteLeitnerRows, remoteTaskLinkRows, remoteReadFailure, remoteTaskLinkReadFailure } = vi.hoisted(() => ({
   remoteKnowledgeRows: [] as Record<string, unknown>[],
   remoteFolderRows: [] as Record<string, unknown>[],
   remoteLeitnerRows: [] as Record<string, unknown>[],
+  remoteTaskLinkRows: [] as Record<string, unknown>[],
   remoteReadFailure: { value: false },
+  remoteTaskLinkReadFailure: { value: false },
 }));
 
 vi.mock("@/lib/firebaseStore", () => ({
@@ -33,14 +35,16 @@ vi.mock("@/lib/firebaseStore", () => ({
     from: (table: string) => ({
       select: () => ({
         eq: () => {
-          const result = remoteReadFailure.value
+          const result = remoteReadFailure.value || (table === "task_knowledge_links" && remoteTaskLinkReadFailure.value)
             ? { data: null, error: new Error("remote read failed") }
             : {
                 data: table === "knowledge_folders"
                   ? remoteFolderRows
                   : table === "leitner_cards"
                     ? remoteLeitnerRows
-                    : remoteKnowledgeRows,
+                    : table === "task_knowledge_links"
+                      ? remoteTaskLinkRows
+                      : remoteKnowledgeRows,
                 error: null,
               };
           const promise = Promise.resolve(result);
@@ -69,6 +73,8 @@ function mockSuccessfulFirestoreWrites() {
       ? remoteFolderRows
       : collection === "leitner_cards"
         ? remoteLeitnerRows
+        : collection === "task_knowledge_links"
+          ? remoteTaskLinkRows
         : remoteKnowledgeRows;
     const index = rows.findIndex((row) => row.id === id);
     if (index >= 0) rows[index] = { ...rows[index], ...(data || {}) };
@@ -79,6 +85,8 @@ function mockSuccessfulFirestoreWrites() {
       ? remoteFolderRows
       : collection === "leitner_cards"
         ? remoteLeitnerRows
+        : collection === "task_knowledge_links"
+          ? remoteTaskLinkRows
         : remoteKnowledgeRows;
     const index = rows.findIndex((row) => row.id === id);
     if (index >= 0) rows.splice(index, 1);
@@ -94,7 +102,9 @@ describe("knowledgeService", () => {
     remoteKnowledgeRows.length = 0;
     remoteFolderRows.length = 0;
     remoteLeitnerRows.length = 0;
+    remoteTaskLinkRows.length = 0;
     remoteReadFailure.value = false;
+    remoteTaskLinkReadFailure.value = false;
     await clearQueue();
     vi.clearAllMocks();
     vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
@@ -583,6 +593,100 @@ describe("knowledgeService", () => {
       reason: "linked-cards",
       linkedCardCount: 1,
     });
+    expect(deleteEntityFromFirestore).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id);
+  });
+
+  it("keeps a lesson when a remote task link still references it", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    const doc: KnowledgeDocument = {
+      id: "task-linked-lesson",
+      user_id: userId,
+      folder_id: null,
+      title: "Task-linked lesson",
+      content_html: "<p>Keep the source lesson</p>",
+      created_at: "2026-09-20T00:00:00.000Z",
+      updated_at: "2026-09-20T00:00:00.000Z",
+    };
+    remoteKnowledgeRows.push(doc as unknown as Record<string, unknown>);
+    remoteTaskLinkRows.push({ id: "task-link-1", user_id: userId, task_id: "task-1", document_id: doc.id });
+    await cacheSet(getDocsCacheKey(userId), [doc]);
+
+    await expect(deleteKnowledgeDocument(userId, doc.id)).rejects.toMatchObject({
+      reason: "linked-tasks",
+      linkedTaskCount: 1,
+    });
+
+    expect(remoteKnowledgeRows).toContainEqual(doc);
+    expect(deleteEntityFromFirestore).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id);
+  });
+
+  it("also blocks deletion for a task link waiting in the durable outbox", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    const doc: KnowledgeDocument = {
+      id: "queued-task-linked-lesson",
+      user_id: userId,
+      folder_id: null,
+      title: "Queued task-linked lesson",
+      content_html: "<p>Keep the source lesson</p>",
+      created_at: "2026-09-20T00:00:00.000Z",
+      updated_at: "2026-09-20T00:00:00.000Z",
+    };
+    remoteKnowledgeRows.push(doc as unknown as Record<string, unknown>);
+    await cacheSet(getDocsCacheKey(userId), [doc]);
+    await enqueueOp({
+      ownerId: userId,
+      table: "task_knowledge_links",
+      op: "insert",
+      payload: { id: "queued-task-link", user_id: userId, task_id: "task-1", document_id: doc.id },
+    });
+
+    await expect(deleteKnowledgeDocument(userId, doc.id)).rejects.toMatchObject({
+      reason: "linked-tasks",
+      linkedTaskCount: 1,
+    });
+    expect(deleteEntityFromFirestore).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id);
+  });
+
+  it("does not treat a task link already queued for removal as a live reference", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    const doc: KnowledgeDocument = {
+      id: "unlinked-task-lesson",
+      user_id: userId,
+      folder_id: null,
+      title: "Unlinked task lesson",
+      content_html: "<p>Ready to remove</p>",
+      created_at: "2026-09-20T00:00:00.000Z",
+      updated_at: "2026-09-20T00:00:00.000Z",
+    };
+    remoteKnowledgeRows.push(doc as unknown as Record<string, unknown>);
+    remoteTaskLinkRows.push({ id: "removed-task-link", user_id: userId, task_id: "task-1", document_id: doc.id });
+    await cacheSet(getDocsCacheKey(userId), [doc]);
+    await enqueueOp({
+      ownerId: userId,
+      table: "task_knowledge_links",
+      op: "delete",
+      match: { id: "removed-task-link" },
+    });
+
+    await expect(deleteKnowledgeDocument(userId, doc.id)).resolves.toBe(true);
+    expect(deleteEntityFromFirestore).toHaveBeenCalledWith(userId, "knowledge_documents", doc.id);
+  });
+
+  it("fails closed if task links cannot be verified before deleting a lesson", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    const doc: KnowledgeDocument = {
+      id: "unverified-task-links-lesson",
+      user_id: userId,
+      folder_id: null,
+      title: "Unverified task links lesson",
+      content_html: "<p>Keep the source lesson</p>",
+      created_at: "2026-09-20T00:00:00.000Z",
+      updated_at: "2026-09-20T00:00:00.000Z",
+    };
+    await cacheSet(getDocsCacheKey(userId), [doc]);
+    remoteTaskLinkReadFailure.value = true;
+
+    await expect(deleteKnowledgeDocument(userId, doc.id)).rejects.toMatchObject({ reason: "verify-task-links" });
     expect(deleteEntityFromFirestore).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id);
   });
 

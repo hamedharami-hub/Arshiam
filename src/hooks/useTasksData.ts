@@ -51,7 +51,7 @@ export function useTasksData({ user, scope, scopeId }: UseTasksDataOptions) {
   const load = useCallback(async () => {
     if (!user) return;
     let base = await getCachedTasks(user.id);
-    base = await applyPendingTaskOperations(base);
+    base = await applyPendingTaskOperations(base, user.id);
     taskMemoryCache.set(user.id, base);
     setAllTasks(base);
     await fetchAll(!isTaskCacheFreshForUser(user.id));

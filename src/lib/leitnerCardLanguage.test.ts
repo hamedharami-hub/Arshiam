@@ -104,6 +104,7 @@ describe("Leitner card language resolution", () => {
     const resolvedFrontFa = resolveLeitnerCardText(legacyMixedCard, "front", "fa");
     expect(resolvedFrontFa.text).toBe("Amoxicillin (500mg) - کاربرد در عفونت‌های باکتریایی گوش و حلق");
     expect(resolvedFrontFa.translationMissing).toBe(false);
+    expect(resolvedFrontFa.sourceIsMixedLanguage).toBe(true);
 
     const resolvedFrontEn = resolveLeitnerCardText(legacyMixedCard, "front", "en");
     expect(resolvedFrontEn.text).toBe("Amoxicillin (500mg) - کاربرد در عفونت‌های باکتریایی گوش و حلق");
@@ -120,10 +121,16 @@ describe("Leitner card language resolution", () => {
     const resolvedBackEn = resolveLeitnerCardText(legacyMixedCard, "back", "en");
     expect(resolvedBackEn.text).toBe("Take with or without food. همراه با آب فراوان مصرف شود.");
     expect(resolvedBackEn.translationMissing).toBe(false);
+    expect(resolvedBackEn.sourceIsMixedLanguage).toBe(true);
 
     const resolvedBackBilingual = resolveLeitnerCardText(legacyMixedCard, "back", "bilingual");
     expect(resolvedBackBilingual.text).toBe("Take with or without food. همراه با آب فراوان مصرف شود.");
     expect(resolvedBackBilingual.translationMissing).toBe(false);
+  });
+
+  it("does not label numerals or punctuation as a mixed-language source", () => {
+    const card = { ...baseCard, front: "500 mg — 2 tablets" };
+    expect(resolveLeitnerCardText(card, "front", "en").sourceIsMixedLanguage).toBeUndefined();
   });
 
   it("handles pure Persian-only and pure English-only legacy cards accurately across all modes", () => {

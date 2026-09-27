@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   user: null as null | { id: string },
   createStudyTask: vi.fn(),
   toastError: vi.fn(),
+  toastSuccess: vi.fn(),
+  toastWarning: vi.fn(),
 }));
 
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: mocks.user }) }));
@@ -16,7 +18,7 @@ vi.mock("@/hooks/useBilingual", () => ({
 vi.mock("@/lib/taskStudyService", () => ({ createStudyTask: mocks.createStudyTask }));
 vi.mock("@/components/DueDatePicker", () => ({ DueDatePicker: () => <div /> }));
 vi.mock("sonner", () => ({
-  toast: { error: mocks.toastError, success: vi.fn(), info: vi.fn() },
+  toast: { error: mocks.toastError, success: mocks.toastSuccess, warning: mocks.toastWarning, info: vi.fn() },
 }));
 
 describe("StudyTaskScheduleModal authentication boundary", () => {
@@ -24,6 +26,8 @@ describe("StudyTaskScheduleModal authentication boundary", () => {
     mocks.user = null;
     mocks.createStudyTask.mockReset();
     mocks.toastError.mockReset();
+    mocks.toastSuccess.mockReset();
+    mocks.toastWarning.mockReset();
   });
 
   it("does not schedule under a synthetic user when signed out", async () => {
@@ -119,5 +123,74 @@ describe("StudyTaskScheduleModal authentication boundary", () => {
         title: "مرور لایتنر: داروشناسی › قلب",
       }));
     });
+  });
+
+  it("keeps a directly opened Leitner-folder task in the Leitner workflow", async () => {
+    mocks.user = { id: "synthetic-user" };
+    mocks.createStudyTask.mockResolvedValueOnce({
+      ok: true,
+      task: { id: "folder-review", user_id: "synthetic-user" },
+    });
+    const onOpenChange = vi.fn();
+
+    render(
+      <StudyTaskScheduleModal
+        open
+        onOpenChange={onOpenChange}
+        targetType="leitner_folder"
+        targetId="folder-cardiology"
+        targetTitle="داروشناسی › قلب"
+      />,
+    );
+
+    expect(await screen.findByDisplayValue("خواندن و مرور کارت‌های لایتنر")).toBeInTheDocument();
+    expect(screen.getByText("برنامه‌ریزی مرور جعبه لایتنر")).toBeInTheDocument();
+    expect(screen.getByText("جعبه لایتنر")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "ثبت تسک مطالعه" }));
+
+    await waitFor(() => {
+      expect(mocks.createStudyTask).toHaveBeenCalledWith(expect.objectContaining({
+        targetType: "leitner_folder",
+        targetId: "folder-cardiology",
+        targetTitle: "داروشناسی › قلب",
+        title: "خواندن و مرور کارت‌های لایتنر",
+      }));
+      expect(mocks.toastSuccess).toHaveBeenCalledWith(
+        "تسک خواندن لایتنر با موفقیت در تسک‌ها ایجاد شد",
+        expect.objectContaining({ action: expect.any(Object) }),
+      );
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+  });
+
+  it("warns when the task is created but its lesson link fails", async () => {
+    mocks.user = { id: "synthetic-user" };
+    mocks.createStudyTask.mockResolvedValueOnce({
+      ok: true,
+      task: { id: "study-task-1", user_id: "synthetic-user" },
+      linkWarning: true,
+    });
+    const onOpenChange = vi.fn();
+
+    render(
+      <StudyTaskScheduleModal
+        open
+        onOpenChange={onOpenChange}
+        targetType="knowledge_doc"
+        targetId="doc-1"
+        targetTitle="Sample lesson"
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "ثبت تسک مطالعه" }));
+
+    await waitFor(() => {
+      expect(mocks.toastWarning).toHaveBeenCalledWith(
+        expect.stringContaining("تسک ساخته شد"),
+        expect.objectContaining({ action: expect.any(Object) }),
+      );
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+    expect(mocks.toastSuccess).not.toHaveBeenCalled();
   });
 });

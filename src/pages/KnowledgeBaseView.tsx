@@ -377,7 +377,19 @@ export const KnowledgeBaseView: React.FC = () => {
         const message = e.reason === "offline"
           ? isEn
             ? "Reconnect to check linked review cards before deleting this lesson."
-            : "برای بررسی کارت‌های مرورِ پیوندخورده، به اینترنت وصل شو و دوباره تلاش کن."
+            : "برای بررسی کارت‌های مرور و پیوندهای تسک، به اینترنت وصل شو و دوباره تلاش کن."
+          : e.reason === "verify-task-links"
+            ? isEn
+              ? "Task links could not be checked. The lesson was kept; reconnect and retry."
+              : "پیوندهای تسک‌ها بررسی نشدند؛ درس حذف نشد. اتصال را بررسی و دوباره تلاش کن."
+            : e.reason === "pending-task-links"
+              ? isEn
+                ? "Pending task-link changes could not be checked. The lesson was kept; sync and retry."
+                : "پیوندهای تسکِ در صف بررسی نشدند؛ درس حذف نشد. همگام‌سازی کن و دوباره تلاش کن."
+              : e.reason === "linked-tasks"
+                ? isEn
+                  ? `This lesson is linked to ${e.linkedTaskCount} task${e.linkedTaskCount === 1 ? "" : "s"}. Unlink it from the task first.`
+                  : `این درس به ${e.linkedTaskCount} تسک پیوند دارد. ابتدا پیوند آن را از تسک جدا کن.`
           : e.reason === "verify-cards"
             ? isEn
               ? "Linked review cards could not be checked. The lesson was kept; reconnect and retry."

@@ -1,7 +1,8 @@
 import { firebaseStore } from "./firebaseStore";
-import { cacheGet, cacheSet, enqueueOp, getPendingOps } from "./offlineQueue";
+import { cacheGet, cacheSet, canReplayForOwner, enqueueOp, getPendingOps } from "./offlineQueue";
 import { saveEntityToFirestore, deleteEntityFromFirestore } from "./firestoreSync";
 import type { KnowledgeFolder, KnowledgeDocument, KnowledgeFolderNode } from "./knowledgeTypes";
+import type { TaskKnowledgeLink } from "./taskKnowledgeTypes";
 import { reconcileRemoteRowsWithPending } from "./offlineReconcile";
 import { getSafeKnowledgeExternalUrl, hasCompleteKnowledgeReviewEvidence } from "./knowledgeReviewEvidence";
 import { sanitizeKnowledgeHtml } from "./knowledgeHtmlSanitizer";
@@ -84,8 +85,10 @@ type KnowledgeCollection = "knowledge_folders" | "knowledge_documents";
 
 export class KnowledgeDocumentDeletionError extends Error {
   constructor(
-    readonly reason: "offline" | "verify-cards" | "pending-cards" | "linked-cards",
+    readonly reason: "offline" | "verify-cards" | "pending-cards" | "linked-cards" |
+      "verify-task-links" | "pending-task-links" | "linked-tasks",
     readonly linkedCardCount = 0,
+    readonly linkedTaskCount = 0,
   ) {
     super(reason);
     this.name = "KnowledgeDocumentDeletionError";
@@ -337,8 +340,8 @@ export async function deleteKnowledgeFolder(userId: string, folderId: string): P
   const movedFolderIds = new Set([folderId, ...movedFolders.map((item) => item.id)]);
   const movedDocumentIds = new Set(movedDocuments.map((item) => item.id));
   const hasConflictingPendingWrite = [
-    ...current.pendingFolderOps.filter((op) => op.ownerId === userId),
-    ...current.pendingDocumentOps.filter((op) => op.ownerId === userId),
+    ...current.pendingFolderOps.filter((op) => canReplayForOwner(op, userId)),
+    ...current.pendingDocumentOps.filter((op) => canReplayForOwner(op, userId)),
   ].some((op) => {
     const id = typeof op.payload === "object" && op.payload !== null && "id" in op.payload
       ? String((op.payload as { id?: unknown }).id || "")
@@ -625,6 +628,41 @@ export async function deleteKnowledgeDocument(userId: string, docId: string): Pr
   const linkedCardCount = currentCards.filter((card) => card.document_id === docId).length;
   if (linkedCardCount > 0) {
     throw new KnowledgeDocumentDeletionError("linked-cards", linkedCardCount);
+  }
+
+  // Task links are another durable reference to a lesson. Verify them from
+  // the server and replay the owner's outbox before deleting the source.
+  let remoteTaskLinks: TaskKnowledgeLink[];
+  try {
+    const result = await firebaseStore
+      .from("task_knowledge_links")
+      .select("*")
+      .eq("user_id", userId);
+    if (result.error || !Array.isArray(result.data)) {
+      throw new Error("Task knowledge link read failed");
+    }
+    remoteTaskLinks = result.data as TaskKnowledgeLink[];
+  } catch {
+    throw new KnowledgeDocumentDeletionError("verify-task-links");
+  }
+
+  let pendingTaskLinks: Awaited<ReturnType<typeof getPendingOps>>;
+  try {
+    pendingTaskLinks = await getPendingOps("task_knowledge_links");
+  } catch {
+    throw new KnowledgeDocumentDeletionError("pending-task-links");
+  }
+
+  const currentTaskLinks = reconcileRemoteRowsWithPending(
+    remoteTaskLinks,
+    [],
+    pendingTaskLinks,
+    "task_knowledge_links",
+    userId,
+  );
+  const linkedTaskCount = currentTaskLinks.filter((link) => link.document_id === docId).length;
+  if (linkedTaskCount > 0) {
+    throw new KnowledgeDocumentDeletionError("linked-tasks", 0, linkedTaskCount);
   }
 
   requireMutationAccepted(

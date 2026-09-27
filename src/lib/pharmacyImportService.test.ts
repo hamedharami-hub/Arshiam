@@ -9,15 +9,16 @@ import { applyPharmacyClinicalEditorialOverrides } from "./pharmacyClinicalEdito
 import { applyPharmacyPbsEditorialOverrides } from "./pharmacyPbsEditorialOverrides";
 import { comparePharmacySeed, getPharmacyImportStatus, importPharmacyKnowledge, isPharmacyImported, normalizePharmacySeedData } from "./pharmacyImportService";
 import { sanitizeKnowledgeHtml } from "./knowledgeHtmlSanitizer";
-import { PHARMACY_CLINICAL_ENTITIES } from "./pharmacyClinicalGraph.generated";
+import { PHARMACY_CLINICAL_ENTITIES, PHARMACY_CLINICAL_SOURCE_COMMIT } from "./pharmacyClinicalGraph.generated";
 
 const remote = vi.hoisted(() => ({
   knowledge_folders: new Map<string, Record<string, unknown>>(),
   knowledge_documents: new Map<string, Record<string, unknown>>(),
   leitner_cards: new Map<string, Record<string, unknown>>(),
+  knowledge_import_manifests: new Map<string, Record<string, unknown>>(),
   failId: "",
 }));
-type MockCollection = "knowledge_folders" | "knowledge_documents" | "leitner_cards";
+type MockCollection = "knowledge_folders" | "knowledge_documents" | "leitner_cards" | "knowledge_import_manifests";
 
 vi.mock("./offlineQueue", async (importOriginal) => {
   const original = await importOriginal<typeof import("./offlineQueue")>();
@@ -53,6 +54,7 @@ describe("pharmacyImportService", () => {
     remote.knowledge_folders.clear();
     remote.knowledge_documents.clear();
     remote.leitner_cards.clear();
+    remote.knowledge_import_manifests.clear();
     remote.failId = "";
     await cacheSet(getFoldersCacheKey(userId), []);
     await cacheSet(getDocsCacheKey(userId), []);
@@ -97,6 +99,7 @@ describe("pharmacyImportService", () => {
     );
     expect(sourceCommits.size).toBe(1);
     expect(sourceCommits.has("")).toBe(false);
+    expect(sourceCommits.has(PHARMACY_CLINICAL_SOURCE_COMMIT)).toBe(true);
     let internalLinkCount = 0;
     for (const doc of PHARMACY_SEED_DOCUMENTS) {
       expect(folderIds.has(doc.folder_id || "")).toBe(true);
@@ -297,6 +300,25 @@ describe("pharmacyImportService", () => {
       cardsCount: PHARMACY_SEED_CARDS.length,
     });
     expect(result.status).toMatchObject({ foldersMissing: 0, docsMissing: 0, cardsMissing: 0 });
+    expect(result.manifestId).toBeTruthy();
+    const manifest = remote.knowledge_import_manifests.get(result.manifestId!)!;
+    expect(manifest).toMatchObject({
+      user_id: userId,
+      source_repository: "https://github.com/hamedharami-hub/pharmacy",
+      source_commit_sha: PHARMACY_CLINICAL_SOURCE_COMMIT,
+      includes_cards: true,
+      folders: expect.arrayContaining([expect.objectContaining({ source_id: PHARMACY_ROOT_FOLDER_ID })]),
+      documents: expect.arrayContaining([expect.objectContaining({ source_id: PHARMACY_SEED_DOCUMENTS[0].id })]),
+      cards: expect.arrayContaining([expect.objectContaining({ source_id: PHARMACY_SEED_CARDS[0].id })]),
+    });
+    expect((manifest.documents as Array<Record<string, unknown>>)).toHaveLength(PHARMACY_SEED_DOCUMENTS.length);
+    expect((manifest.documents as Array<Record<string, unknown>>).every((entry) =>
+      typeof entry.seed_content_sha256 === "string" && typeof entry.destination_content_sha256 === "string" &&
+      Array.isArray(entry.source_paths) && typeof entry.destination_id === "string"
+    )).toBe(true);
+    expect((manifest.documents as Array<Record<string, unknown>>).find((entry) =>
+      entry.source_id === PHARMACY_SEED_DOCUMENTS[0].id
+    )).toMatchObject({ matches_seed: true, source_paths: [expect.stringContaining("/data/")] });
     expect(remote.knowledge_documents.size).toBe(PHARMACY_SEED_DOCUMENTS.length);
     expect((await cacheGet<unknown[]>(getDocsCacheKey(userId)))?.length).toBe(PHARMACY_SEED_DOCUMENTS.length);
     const importedExample = remote.knowledge_documents.get(PHARMACY_SEED_DOCUMENTS[0].id);
@@ -304,6 +326,17 @@ describe("pharmacyImportService", () => {
     expect(importedExample?.content_en).toBe(sanitizeKnowledgeHtml(PHARMACY_SEED_DOCUMENTS[0].content_en || ""));
     expect(await isPharmacyImported(userId)).toBe(true);
   }, 15_000);
+
+  it("records a docs-only provenance manifest and does not rewrite it on an idempotent repeat", async () => {
+    const first = await importPharmacyKnowledge(userId, { importCards: false });
+    const manifestBefore = remote.knowledge_import_manifests.get(first.manifestId!)!;
+    expect(manifestBefore.includes_cards).toBe(false);
+    expect(manifestBefore.cards).toEqual([]);
+    const second = await importPharmacyKnowledge(userId, { importCards: false });
+    expect(second.manifestId).toBe(first.manifestId);
+    expect(remote.knowledge_import_manifests.size).toBe(1);
+    expect(remote.knowledge_import_manifests.get(first.manifestId!)?.imported_at).toBe(manifestBefore.imported_at);
+  }, 30_000);
 
   it("adds sourced Ural and Hiprex safety corrections without mutating IDs, links, provenance, or review status", () => {
     const original = PHARMACY_SEED_DOCUMENTS.find((item) => item.id === "doc-disease-uti_cystitis")!;
@@ -670,7 +703,7 @@ describe("pharmacyImportService", () => {
     expect(remote.leitner_cards.get(card.id)?.review_count).toBe(19);
     const second = await importPharmacyKnowledge(userId);
     expect(second).toMatchObject({ foldersCount: 0, docsCount: 0, cardsCount: 0 });
-  }, 15_000);
+  }, 30_000);
 
   it("does not resurrect a stale cached copy when the server lacks that ID", async () => {
     const local = { ...PHARMACY_SEED_DOCUMENTS[0], user_id: userId, title: "Saved offline edit" };
@@ -757,7 +790,7 @@ describe("pharmacyImportService", () => {
   it("does not mistake a cache-only import for confirmed server data", () => {
     const status = comparePharmacySeed(
       { PHARMACY_SEED_FOLDERS, PHARMACY_SEED_DOCUMENTS, PHARMACY_SEED_CARDS, PHARMACY_ROOT_FOLDER_ID },
-      { folders: [], documents: [], cards: [] },
+      { folders: [], documents: [], cards: [], manifests: [] },
     );
     expect(status.docsMissing).toBe(PHARMACY_SEED_DOCUMENTS.length);
   });

@@ -27,7 +27,8 @@ import { pushDeleted } from "@/lib/recentlyDeleted";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { useShareAccess } from "@/hooks/useShareAccess";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { cacheGet, cacheSet, enqueueOp, getPendingOps } from "@/lib/offlineQueue";
+import { cacheGet, cacheSet, getPendingOps } from "@/lib/offlineQueue";
+import { projectQueuedNotes } from "@/lib/noteQueueProjection";
 import { isFeatureEnabled } from "@/lib/capabilities";
 
 
@@ -104,29 +105,10 @@ export default function NotesView() {
 
   const NOTES_CACHE_KEY = `notes:all:${user?.id}`;
 
-  const applyNoteQueue = async (base: Note[]): Promise<Note[]> => {
-    const ops = await getPendingOps("notes");
-    const inserts = new Map<string, Note>();
-    const deletes = new Set<string>();
-    const updates = new Map<string, Partial<Note>>();
-    for (const op of ops) {
-      if (op.op === "insert" && op.payload) {
-        const p = op.payload as Note;
-        if (p?.id) inserts.set(p.id, p);
-      } else if (op.op === "delete" && op.match?.id) {
-        deletes.add(op.match.id as string);
-      } else if (op.op === "update" && op.match?.id && op.payload) {
-        const id = op.match.id as string;
-        updates.set(id, { ...(updates.get(id) || {}), ...(op.payload as Partial<Note>) });
-      }
-    }
-    let next = base.filter(n => !deletes.has(n.id));
-    for (const n of inserts.values()) {
-      if (!next.some(x => x.id === n.id)) next = [n, ...next];
-    }
-    next = next.map(n => updates.has(n.id) ? { ...n, ...updates.get(n.id) } : n);
-    return next;
-  };
+  const applyNoteQueue = useCallback(async (base: Note[]): Promise<Note[]> => {
+    if (!user?.id) return base;
+    return projectQueuedNotes(base, await getPendingOps("notes"), user.id);
+  }, [user?.id]);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -160,7 +142,7 @@ export default function NotesView() {
     }
     const merged = await applyNoteQueue(base);
     setNotes(merged);
-  }, [user, NOTES_CACHE_KEY]);
+  }, [user, NOTES_CACHE_KEY, applyNoteQueue]);
 
   useEffect(() => {
     if (!user) return;
@@ -177,7 +159,7 @@ export default function NotesView() {
       fsUnsub();
       firebaseStore.removeChannel(ch);
     };
-  }, [user, load, NOTES_CACHE_KEY]);
+  }, [user, load, NOTES_CACHE_KEY, applyNoteQueue]);
 
   const preselectId = searchParams.get("select");
   useEffect(() => {
@@ -212,56 +194,43 @@ export default function NotesView() {
     setDraft({ html: "", md: "" });
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
-      await enqueueOp({ table: "notes", op: "insert", payload: note });
+      const queued = await upsertNote(user.id, note);
+      if (!queued) {
+        toast.error(T("نوت ذخیره نشد؛ در ویرایشگر باز می‌ماند تا دوباره تلاش کنید", "Note was not saved; it will stay open so you can retry"));
+        return;
+      }
       await cacheSet(NOTES_CACHE_KEY, [note, ...notes]);
       toast.info(T("نوت ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Note saved — will sync when online"));
       return;
     }
 
-    // 1. Primary write to Firestore
+    let saved = false;
     try {
-      await upsertNote(user.id, note);
+      saved = await upsertNote(user.id, note);
     } catch {}
-
-    // 2. Best-effort mirror to firebaseStore
-    try {
-      const { data } = await firebaseStore.from("notes").insert({
-        id: note.id,
-        user_id: user.id,
-        title: note.title,
-        content: "",
-      }).select().single();
-      if (data) {
-        const saved = data as Note;
-        setNotes(prev => [saved, ...prev.filter(n => n.id !== note.id)]);
-        setSelected(saved);
-        await cacheSet(NOTES_CACHE_KEY, [saved, ...notes.filter(n => n.id !== note.id)]);
-        return;
-      }
-    } catch {}
+    if (!saved) {
+      toast.error(T("نوت ذخیره نشد؛ در ویرایشگر باز می‌ماند تا دوباره تلاش کنید", "Note was not saved; it will stay open so you can retry"));
+      return;
+    }
     await cacheSet(NOTES_CACHE_KEY, [note, ...notes.filter(n => n.id !== note.id)]);
+    toast.success(T("نوت ذخیره شد", "Note saved"));
   };
 
-  const save = async (patch: Partial<Note>) => {
-    if (!selected) return;
-    if (!canEdit) { toast(T("دسترسی ویرایش ندارید", "You don't have edit permission")); return; }
+  const save = async (patch: Partial<Note>): Promise<boolean> => {
+    if (!selected) return false;
+    if (!user) { toast.error(T("برای ذخیره وارد حساب شوید", "Sign in to save this note")); return false; }
+    if (!canEdit) { toast(T("دسترسی ویرایش ندارید", "You don't have edit permission")); return false; }
     const updated = { ...selected, ...patch, updated_at: new Date().toISOString() };
     setSelected(updated);
     setNotes(prev => prev.map(n => n.id === selected.id ? updated : n));
     const nextNotes = notes.map(n => n.id === selected.id ? updated : n);
+    const saved = await upsertNote(user.id, updated);
+    if (!saved) {
+      toast.error(T("تغییر ذخیره نشد؛ متن در ویرایشگر باقی است و دوباره تلاش کنید", "Change was not saved; the text remains in the editor. Please retry"));
+      return false;
+    }
     await cacheSet(NOTES_CACHE_KEY, nextNotes);
-
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      await enqueueOp({ table: "notes", op: "update", payload: patch, match: { id: selected.id } });
-      return;
-    }
-
-    if (user) {
-      await upsertNote(user.id, updated);
-    }
-    try {
-      await firebaseStore.from("notes").update(patch).eq("id", selected.id);
-    } catch {}
+    return true;
   };
 
   useEffect(() => {
@@ -273,18 +242,32 @@ export default function NotesView() {
 
   const del = async (id: string) => {
     const note = notes.find(n => n.id === id);
+    if (!user) { toast.error(T("برای حذف وارد حساب شوید", "Sign in to delete this note")); return; }
     if (note && note.user_id !== user?.id) { toast(T("فقط صاحب نوت می‌تواند حذف کند", "Only the note owner can delete")); return; }
     const previous = [...notes];
     setNotes(prev => prev.filter(n => n.id !== id));
     await cacheSet(NOTES_CACHE_KEY, previous.filter(n => n.id !== id));
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
-      await enqueueOp({ table: "notes", op: "delete", match: { id } });
+      const deleted = await fsDeleteNote(user.id, id);
+      if (!deleted) {
+        setNotes(previous);
+        await cacheSet(NOTES_CACHE_KEY, previous);
+        toast.error(T("حذف ذخیره نشد؛ نوت برگردانده شد", "Delete was not saved; the note was restored"));
+        return;
+      }
+      await cacheSet(NOTES_CACHE_KEY, previous.filter(n => n.id !== id));
       if (selected?.id === id) { setSelected(null); setDraft(null); }
       if (note) {
         const restore = async () => {
-          setNotes(prev => [note, ...prev]);
-          await enqueueOp({ table: "notes", op: "insert", payload: note });
+          const restored = await upsertNote(user.id, note);
+          if (!restored) {
+            toast.error(T("بازگردانی ذخیره نشد؛ دوباره تلاش کنید", "Restore was not saved; please try again"));
+            return;
+          }
+          setNotes(prev => [note, ...prev.filter(n => n.id !== note.id)]);
+          const cached = (await cacheGet<Note[]>(NOTES_CACHE_KEY)) || [];
+          await cacheSet(NOTES_CACHE_KEY, [note, ...cached.filter(n => n.id !== note.id)]);
         };
         pushUndo({ label: T(`نوت «${note.title || T("بدون عنوان", "Untitled")}» حذف شد`, `Note "${note.title || T("بدون عنوان", "Untitled")}" deleted`), undo: restore });
         pushDeleted({ kind: "note", label: note.title || T("بدون عنوان", "Untitled"), restore });
@@ -292,17 +275,25 @@ export default function NotesView() {
       return;
     }
 
-    if (user) {
-      await fsDeleteNote(user.id, id);
+    const deleted = await fsDeleteNote(user.id, id);
+    if (!deleted) {
+      setNotes(previous);
+      await cacheSet(NOTES_CACHE_KEY, previous);
+      toast.error(T("حذف ذخیره نشد؛ نوت برگردانده شد", "Delete was not saved; the note was restored"));
+      return;
     }
-    try {
-      await firebaseStore.from("notes").delete().eq("id", id);
-    } catch {}
+    await cacheSet(NOTES_CACHE_KEY, previous.filter(n => n.id !== id));
     if (selected?.id === id) { setSelected(null); setDraft(null); }
     if (note) {
       const restore = async () => {
-        await firebaseStore.from("notes").insert(note as never);
-        load();
+        const restored = await upsertNote(user.id, note);
+        if (!restored) {
+          toast.error(T("بازگردانی ذخیره نشد؛ دوباره تلاش کنید", "Restore was not saved; please try again"));
+          return;
+        }
+        setNotes(prev => [note, ...prev.filter(n => n.id !== note.id)]);
+        const cached = (await cacheGet<Note[]>(NOTES_CACHE_KEY)) || [];
+        await cacheSet(NOTES_CACHE_KEY, [note, ...cached.filter(n => n.id !== note.id)]);
       };
       pushUndo({ label: T(`نوت «${note.title || T("بدون عنوان", "Untitled")}» حذف شد`, `Note "${note.title || T("بدون عنوان", "Untitled")}" deleted`), undo: restore });
       pushDeleted({ kind: "note", label: note.title || T("بدون عنوان", "Untitled"), restore });
@@ -320,8 +311,7 @@ export default function NotesView() {
       const newMd = (r.text || "").trim();
       if (!newMd) throw new Error(T("نتیجه خالی", "Empty result"));
       setDraft({ md: newMd, html: markdownToHtml(newMd) });
-      await save({ content: newMd });
-      toast.success(T("اعمال شد ✨", "Applied ✨"));
+      if (await save({ content: newMd })) toast.success(T("اعمال شد ✨", "Applied ✨"));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : T("خطا", "Error"));
     } finally {
@@ -330,17 +320,22 @@ export default function NotesView() {
   };
 
   const togglePin = async (n: Note) => {
+    if (!user) { toast.error(T("برای تغییر سنجاق وارد حساب شوید", "Sign in to change the pin")); return; }
     const patch = { pinned: !n.pinned, updated_at: new Date().toISOString() };
-    const next = notes.map(x => x.id === n.id ? { ...x, ...patch } : x);
+    const updated = { ...n, ...patch };
+    const next = notes.map(x => x.id === n.id ? updated : x);
     setNotes(next);
-    await cacheSet(NOTES_CACHE_KEY, next);
-
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      await enqueueOp({ table: "notes", op: "update", payload: patch, match: { id: n.id } });
+    if (selected?.id === n.id) setSelected(updated);
+    const saved = await upsertNote(user.id, updated);
+    if (!saved) {
+      setNotes(current => current.map(x => x.id === n.id ? n : x));
+      if (selected?.id === n.id) setSelected(n);
+      const cached = (await cacheGet<Note[]>(NOTES_CACHE_KEY)) || notes;
+      await cacheSet(NOTES_CACHE_KEY, cached.map(x => x.id === n.id ? n : x));
+      toast.error(T("تغییر سنجاق ذخیره نشد؛ به حالت قبلی برگشت", "Pin change was not saved; reverted to previous state"));
       return;
     }
-    await firebaseStore.from("notes").update(patch).eq("id", n.id);
-    load();
+    await cacheSet(NOTES_CACHE_KEY, next);
   };
 
   const searchLower = (search || "").toLowerCase();

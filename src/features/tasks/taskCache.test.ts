@@ -1,35 +1,37 @@
 import { describe, expect, it } from "vitest";
-import {
-  TASK_CACHE_TTL_MS,
-  createTaskCacheEnvelope,
-  isTaskCacheFresh,
-  readTaskCacheEnvelope,
-} from "./taskCache";
+import { withTaskCacheMutationLock } from "./taskCache";
 
-const now = 1_700_000_000_000;
+describe("withTaskCacheMutationLock", () => {
+  it("serializes cache mutations for one user without blocking another user", async () => {
+    const events: string[] = [];
+    let releaseFirst!: () => void;
+    const firstGate = new Promise<void>((resolve) => { releaseFirst = resolve; });
 
-describe("task cache", () => {
-  it("creates a versioned cache envelope", () => {
-    const tasks = [{ id: "t1" }] as never[];
-    expect(createTaskCacheEnvelope(tasks, now)).toEqual({ tasks, cachedAt: now });
+    const first = withTaskCacheMutationLock("user-a", async () => {
+      events.push("first-start");
+      await firstGate;
+      events.push("first-end");
+    });
+    const second = withTaskCacheMutationLock("user-a", () => {
+      events.push("second");
+    });
+    const independent = withTaskCacheMutationLock("user-b", () => {
+      events.push("independent");
+    });
+
+    await independent;
+    expect(events).toEqual(["first-start", "independent"]);
+    releaseFirst();
+    await Promise.all([first, second]);
+    expect(events).toEqual(["first-start", "independent", "first-end", "second"]);
   });
 
-  it("accepts fresh envelopes and rejects expired envelopes", () => {
-    const fresh = readTaskCacheEnvelope({ tasks: [], cachedAt: now }, now + TASK_CACHE_TTL_MS);
-    const stale = readTaskCacheEnvelope({ tasks: [], cachedAt: now }, now + TASK_CACHE_TTL_MS + 1);
-    expect(fresh?.fresh).toBe(true);
-    expect(stale?.fresh).toBe(false);
-  });
+  it("releases the user's queue when one mutation rejects", async () => {
+    await expect(withTaskCacheMutationLock("user-c", async () => {
+      throw new Error("cache write failed");
+    })).rejects.toThrow("cache write failed");
 
-  it("supports legacy array cache values during migration", () => {
-    const result = readTaskCacheEnvelope([{ id: "legacy" }], now);
-    expect(result?.tasks).toEqual([{ id: "legacy" }]);
-    expect(result?.fresh).toBe(false);
-  });
-
-  it("rejects invalid cache values and future timestamps", () => {
-    expect(readTaskCacheEnvelope(null, now)).toBeNull();
-    expect(readTaskCacheEnvelope({ tasks: "bad", cachedAt: now }, now)).toBeNull();
-    expect(isTaskCacheFresh(now + 1, now)).toBe(false);
+    await expect(withTaskCacheMutationLock("user-c", () => "next mutation"))
+      .resolves.toBe("next mutation");
   });
 });

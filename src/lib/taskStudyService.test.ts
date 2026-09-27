@@ -87,6 +87,39 @@ describe("taskStudyService", () => {
     expect(mocks.linkTaskToDocument).not.toHaveBeenCalled();
   });
 
+  it("links a document study task with the account, task, and document IDs in service order", async () => {
+    const res = await createStudyTask({
+      userId: "u123",
+      targetType: "knowledge_doc",
+      targetId: "doc-lesson-7",
+      targetTitle: "درس نمونه",
+    });
+
+    expect(res.ok).toBe(true);
+    const savedTask = mocks.upsertTask.mock.calls[0]?.[1];
+    expect(savedTask?.id).toEqual(expect.any(String));
+    expect(mocks.linkTaskToDocument).toHaveBeenCalledWith(
+      "u123",
+      savedTask?.id,
+      "doc-lesson-7",
+      "Study Task",
+    );
+  });
+
+  it("keeps a saved study task but reports when its lesson relation fails", async () => {
+    mocks.linkTaskToDocument.mockRejectedValueOnce(new Error("link unavailable"));
+
+    const res = await createStudyTask({
+      userId: "u123",
+      targetType: "knowledge_doc",
+      targetId: "doc-lesson-7",
+      targetTitle: "Sample lesson",
+    });
+
+    expect(res).toMatchObject({ ok: true, linkWarning: true });
+    expect(res.task).toMatchObject({ source_type: "knowledge_doc", source_id: "doc-lesson-7" });
+  });
+
   it("creates a knowledge folder study task with smart default title", async () => {
     const res = await createStudyTask({
       userId: "u123",

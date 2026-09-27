@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { KnowledgeMindMapView } from "./KnowledgeMindMapView";
 import { getKnowledgeDocuments, getKnowledgeFolders } from "@/lib/knowledgeService";
+import { getLeitnerCards } from "@/lib/leitnerService";
 import type { KnowledgeDocument, KnowledgeFolder } from "@/lib/knowledgeTypes";
 
 vi.mock("@/hooks/useBilingual", () => ({
@@ -65,6 +66,42 @@ describe("KnowledgeMindMapView outline mode", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+  });
+
+  it.each([390, 758])("defaults to readable Outline at %ipx and keeps Canvas selectable", async (width) => {
+    const previousWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: width });
+
+    try {
+      render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);
+
+      const outlineToggle = screen.getByRole("button", { name: "Outline view" });
+      const canvasToggle = screen.getByRole("button", { name: "Canvas view" });
+      expect(outlineToggle).toHaveAttribute("aria-pressed", "true");
+      expect(canvasToggle).toHaveAttribute("aria-pressed", "false");
+      expect(await screen.findByRole("button", { name: "Knowledge Base" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Expand Study Folder" })).toHaveAttribute("aria-expanded", "false");
+
+      fireEvent.click(canvasToggle);
+      expect(canvasToggle).toHaveAttribute("aria-pressed", "true");
+      expect(outlineToggle).toHaveAttribute("aria-pressed", "false");
+    } finally {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: previousWidth });
+    }
+  });
+
+  it("keeps Canvas as the default view on wider screens", async () => {
+    const previousWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
+
+    try {
+      render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);
+      expect(screen.getByRole("button", { name: "Canvas view" })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: "Outline view" })).toHaveAttribute("aria-pressed", "false");
+      expect(await screen.findByText("Study Folder")).toBeInTheDocument();
+    } finally {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: previousWidth });
+    }
   });
 
   it("shows the full wrapped hierarchy and keeps node actions in a compact menu", async () => {
@@ -160,8 +197,9 @@ describe("KnowledgeMindMapView outline mode", () => {
     expect(screen.getByText(title)).toBeInTheDocument();
   }, 10000);
 
-  it("allows the canvas to zoom out to a true overview for large maps", () => {
+  it("allows the canvas to zoom out to a true overview for large maps", async () => {
     render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);
+    await screen.findByText("A deliberately long lesson title that must remain fully visible in the mind map outline");
     const zoomOut = screen.getByTitle("Zoom Out");
     for (let step = 0; step < 6; step += 1) fireEvent.click(zoomOut);
     expect(screen.getByText("2%")).toBeInTheDocument();
@@ -219,6 +257,29 @@ describe("KnowledgeMindMapView outline mode", () => {
     expect(await screen.findByText("پرسش کارت مرور درس چیست؟")).toBeInTheDocument();
     expect(screen.getByText("What is the lesson review card?")).toBeInTheDocument();
     expect(screen.getByText("Box 1")).toBeInTheDocument();
+  });
+
+  it("marks a mixed legacy flashcard in the outline without changing its source text", async () => {
+    const original = "Amoxicillin indication — کاربرد آموکسی‌سیلین";
+    vi.mocked(getLeitnerCards).mockResolvedValueOnce([{
+      id: "legacy-mixed-card",
+      user_id: "user-1",
+      document_id: "doc-1",
+      front: original,
+      back: "Use when prescribed — طبق دستور مصرف شود",
+      box: 2,
+      next_review_at: "2026-01-01T00:00:00.000Z",
+      review_count: 0,
+      lapse_count: 0,
+      created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-01-01T00:00:00.000Z",
+    }]);
+    render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);
+    fireEvent.click(screen.getByRole("button", { name: "Outline view" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Expand A deliberately long lesson title/ }));
+
+    expect(await screen.findByText(original)).toBeInTheDocument();
+    expect(screen.getByText("Box 2 · Mixed source")).toBeInTheDocument();
   });
 
   it("shows both languages for a flashcard in the canvas map", async () => {

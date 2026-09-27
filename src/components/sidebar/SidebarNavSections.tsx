@@ -1,9 +1,9 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Inbox, Calendar as CalIcon, CalendarDays, Filter, Tag, FileText,
   Target, Timer, Calendar, ChevronDown, Sparkles, LayoutGrid,
   TrendingUp, Activity, MessageCircleQuestion, Zap, ShieldAlert, BookOpen, Sun,
-  ListTodo, BrainCircuit, GripVertical, User, Shield,
+  ListTodo, BrainCircuit, GripVertical, User, Shield, Pill,
   BarChart3, Sprout, Wind, Compass, Users, Gamepad2, PackageSearch, ClipboardCheck, Keyboard,
 } from "lucide-react";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { NavLink } from "@/components/NavLink";
+import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -63,6 +64,10 @@ export const EN_LABELS: Record<string, string> = {
   "فهرست محصولات دارویی": "Pharmacy Products",
   "تمرین سناریوهای دارویی": "Pharmacy Scenario Practice",
   "تمرین نسخه FRED": "FRED Practice",
+  "دانش": "Knowledge",
+  "فارماسی": "Pharmacy",
+  "باز کردن": "Expand",
+  "جمع کردن": "Collapse",
 };
 
 export const FA_LABELS: Record<string, string> = {
@@ -86,7 +91,7 @@ export function useLabel() {
   };
 }
 
-export type NavItem = { url: string; icon: any; label: string };
+export type NavItem = { url?: string; icon: any; label: string; children?: NavItem[] };
 export type Section = { id: string; title: string; icon: any; defaultOpen: boolean; items: NavItem[] };
 
 export const SECTIONS: Section[] = [
@@ -113,12 +118,24 @@ export const SECTIONS: Section[] = [
       { url: "/app/garden", icon: Sprout, label: "باغ رشد" },
       { url: "/app/habits", icon: Target, label: "عادت‌ها" },
       { url: "/app/notes", icon: FileText, label: "نوت‌ها" },
-      { url: "/app/knowledge", icon: BookOpen, label: "کتابخانه دانش" },
-      { url: "/app/pharmacy-products", icon: PackageSearch, label: "فهرست محصولات دارویی" },
-      { url: "/app/pharmacy-scenario-practice", icon: ClipboardCheck, label: "تمرین سناریوهای دارویی" },
-      { url: "/app/pharmacy-fred-practice", icon: Keyboard, label: "تمرین نسخه FRED" },
-      { url: "/app/interactive-study", icon: Gamepad2, label: "استودیوی مطالعه تعاملی" },
-      { url: "/app/review", icon: BrainCircuit, label: "مرور (SR)" },
+      {
+        icon: BookOpen,
+        label: "دانش",
+        children: [
+          {
+            url: "/app/knowledge",
+            icon: Pill,
+            label: "فارماسی",
+            children: [
+              { url: "/app/interactive-study", icon: Gamepad2, label: "استودیوی مطالعه تعاملی" },
+              { url: "/app/pharmacy-products", icon: PackageSearch, label: "فهرست محصولات دارویی" },
+              { url: "/app/pharmacy-scenario-practice", icon: ClipboardCheck, label: "تمرین سناریوهای دارویی" },
+              { url: "/app/pharmacy-fred-practice", icon: Keyboard, label: "تمرین نسخه FRED" },
+            ],
+          },
+          { url: "/app/review", icon: BrainCircuit, label: "مرور (SR)" },
+        ],
+      },
       { url: "/app/cycle", icon: Calendar, label: "سیکل پریود" },
     ],
   },
@@ -143,7 +160,143 @@ export const SECTIONS: Section[] = [
   },
 ];
 
-export const NAV_ITEMS = SECTIONS.flatMap((section) => section.items);
+function flattenNavigableItems(items: NavItem[]): NavItem[] {
+  return items.flatMap((item) => [
+    ...(item.url ? [item] : []),
+    ...flattenNavigableItems(item.children || []),
+  ]);
+}
+
+export const NAV_ITEMS = SECTIONS.flatMap((section) => flattenNavigableItems(section.items));
+
+function getFirstNavUrl(item: NavItem): string | undefined {
+  if (item.url) return item.url;
+  for (const child of item.children || []) {
+    const childUrl = getFirstNavUrl(child);
+    if (childUrl) return childUrl;
+  }
+  return undefined;
+}
+
+function isNavItemActive(item: NavItem, pathname: string): boolean {
+  const matchesPath = item.url && (pathname === item.url || pathname.startsWith(`${item.url}/`));
+  return Boolean(matchesPath || item.children?.some((child) => isNavItemActive(child, pathname)));
+}
+
+interface SidebarNavTreeItemProps {
+  item: NavItem;
+  collapsed: boolean;
+  tr: (label: string) => string;
+  closeOnMobile: () => void;
+}
+
+function SidebarNavTreeItem({ item, collapsed, tr, closeOnMobile }: SidebarNavTreeItemProps) {
+  const location = useLocation();
+  const children = item.children || [];
+  const hasChildren = children.length > 0;
+  const activeBranch = isNavItemActive(item, location.pathname);
+  const [isOpen, setIsOpen] = useState(activeBranch);
+
+  useEffect(() => {
+    if (activeBranch) setIsOpen(true);
+  }, [activeBranch]);
+
+  if (collapsed) {
+    const targetUrl = getFirstNavUrl(item);
+    if (!targetUrl) return null;
+    const Icon = item.icon;
+    return (
+      <SidebarMenuItem key={item.label}>
+        <SidebarMenuButton asChild tooltip={tr(item.label)} className="justify-center h-9 w-9 mx-auto rounded-xl">
+          <NavLink
+            to={targetUrl}
+            onClick={closeOnMobile}
+            className="flex items-center justify-center w-full h-full"
+            activeClassName="bg-accent text-accent-foreground font-bold"
+          >
+            <Icon className="w-4 h-4 shrink-0" />
+            <span className="sr-only">{tr(item.label)}</span>
+          </NavLink>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  }
+
+  if (!hasChildren) {
+    if (!item.url) return null;
+    const Icon = item.icon;
+    return (
+      <SidebarMenuItem key={item.url}>
+        <SidebarMenuButton asChild>
+          <NavLink
+            to={item.url}
+            title={tr(item.label)}
+            onClick={closeOnMobile}
+            className={`flex items-center gap-2 ${activeBranch ? "bg-accent text-accent-foreground font-medium" : ""}`}
+            activeClassName="bg-accent text-accent-foreground font-medium"
+          >
+            <Icon className="w-4 h-4 shrink-0" />
+            <span className="min-w-0 flex-1">{tr(item.label)}</span>
+          </NavLink>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  }
+
+  const Icon = item.icon;
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <SidebarMenuItem key={item.url || item.label}>
+        <div className="relative flex w-full items-center">
+          {item.url ? (
+            <SidebarMenuButton asChild>
+              <NavLink
+                to={item.url}
+                title={tr(item.label)}
+                onClick={closeOnMobile}
+                className={`flex items-center gap-2 pe-8 ${activeBranch ? "bg-accent text-accent-foreground font-medium" : ""}`}
+                activeClassName="bg-accent text-accent-foreground font-medium"
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                <span className="min-w-0 flex-1">{tr(item.label)}</span>
+              </NavLink>
+            </SidebarMenuButton>
+          ) : (
+            <CollapsibleTrigger asChild>
+              <SidebarMenuButton
+                type="button"
+                aria-expanded={isOpen}
+                className={`flex items-center gap-2 pe-8 ${activeBranch ? "bg-accent text-accent-foreground font-medium" : ""}`}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                <span className="min-w-0 flex-1">{tr(item.label)}</span>
+              </SidebarMenuButton>
+            </CollapsibleTrigger>
+          )}
+          {item.url && (
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                aria-label={tr(isOpen ? "جمع کردن" : "باز کردن") + " " + tr(item.label)}
+                title={tr(isOpen ? "جمع کردن" : "باز کردن")}
+                className="absolute end-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+              >
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isOpen ? "" : "-rotate-90"}`} />
+              </button>
+            </CollapsibleTrigger>
+          )}
+        </div>
+        <CollapsibleContent>
+          <SidebarMenu className="mt-1 min-w-0 max-w-full border-s border-sidebar-border ps-3">
+            {children.map((child) => (
+              <SidebarNavTreeItem key={child.url || child.label} item={child} collapsed={false} tr={tr} closeOnMobile={closeOnMobile} />
+            ))}
+          </SidebarMenu>
+        </CollapsibleContent>
+      </SidebarMenuItem>
+    </Collapsible>
+  );
+}
 
 export const DEFAULT_ORDER = ["__folders", "__tags", "do", "grow", "mind", "me"];
 export const ORDER_KEY = "sidebar_order_v1";
@@ -210,23 +363,7 @@ export function SidebarSectionCollapsible({
         <SidebarGroupContent>
           <SidebarMenu>
             {items.map((item) => (
-              <SidebarMenuItem key={item.url}>
-                <SidebarMenuButton
-                  asChild
-                  tooltip={tr(item.label)}
-                  className="justify-center h-9 w-9 mx-auto rounded-xl"
-                >
-                  <NavLink
-                    to={item.url}
-                    onClick={closeOnMobile}
-                    className="flex items-center justify-center w-full h-full"
-                    activeClassName="bg-accent text-accent-foreground font-bold"
-                  >
-                    <item.icon className="w-4 h-4 shrink-0" />
-                    <span className="sr-only">{tr(item.label)}</span>
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              <SidebarNavTreeItem key={item.url || item.label} item={item} collapsed tr={tr} closeOnMobile={closeOnMobile} />
             ))}
           </SidebarMenu>
         </SidebarGroupContent>
@@ -263,19 +400,7 @@ export function SidebarSectionCollapsible({
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      onClick={closeOnMobile}
-                      className="flex items-center gap-2"
-                      activeClassName="bg-accent text-accent-foreground font-medium"
-                    >
-                      <item.icon className="w-4 h-4" />
-                      {!collapsed && <span>{tr(item.label)}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <SidebarNavTreeItem key={item.url || item.label} item={item} collapsed={false} tr={tr} closeOnMobile={closeOnMobile} />
               ))}
             </SidebarMenu>
           </SidebarGroupContent>

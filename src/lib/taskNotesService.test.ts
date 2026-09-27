@@ -4,20 +4,26 @@ import {
   createTaskNote,
   updateTaskNote,
   deleteTaskNote,
+  getTaskNotesCacheKey,
+  getAllNotesCacheKey,
 } from "./taskNotesService";
-import { cacheSet, clearQueue, getPendingOps } from "./offlineQueue";
+import { cacheGet, cacheSet, clearQueue, enqueueOp, getPendingOps } from "./offlineQueue";
 import { saveEntityToFirestore, deleteEntityFromFirestore } from "./firestoreSync";
 import * as offlineQueue from "./offlineQueue";
+
+const mockState = vi.hoisted(() => ({ remoteNotes: [] as Record<string, any>[], remoteError: null as unknown }));
 
 // Mock Firestore sync and store
 vi.mock("@/lib/firebaseStore", () => ({
   firebaseStore: {
     from: () => ({
-      select: () => ({
-        eq: () => ({
-          order: () => Promise.resolve({ data: [], error: null }),
-        }),
-      }),
+      select: () => {
+        const query: any = {};
+        query.eq = () => query;
+        query.then = (resolve: (value: unknown) => unknown, reject: (error: unknown) => unknown) =>
+          Promise.resolve({ data: mockState.remoteNotes, error: mockState.remoteError }).then(resolve, reject);
+        return query;
+      },
       insert: () => Promise.resolve({ data: null, error: null }),
       update: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
       delete: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
@@ -26,8 +32,19 @@ vi.mock("@/lib/firebaseStore", () => ({
 }));
 
 vi.mock("@/lib/firestoreSync", () => ({
-  saveEntityToFirestore: vi.fn().mockResolvedValue(true),
-  deleteEntityFromFirestore: vi.fn().mockResolvedValue(true),
+  saveEntityToFirestore: vi.fn(async (_userId: string, table: string, id: string, data: Record<string, any>) => {
+    if (table === "notes") {
+      mockState.remoteNotes = [
+        ...mockState.remoteNotes.filter((note) => note.id !== id),
+        { ...data, id },
+      ];
+    }
+    return true;
+  }),
+  deleteEntityFromFirestore: vi.fn(async (_userId: string, table: string, id: string) => {
+    if (table === "notes") mockState.remoteNotes = mockState.remoteNotes.filter((note) => note.id !== id);
+    return true;
+  }),
 }));
 
 vi.mock("@/lib/firebase", () => ({
@@ -42,7 +59,10 @@ describe("taskNotesService", () => {
   beforeEach(async () => {
     localStorage.clear();
     await clearQueue();
-    await cacheSet(`task_notes_${userId}`, []);
+    mockState.remoteNotes = [];
+    mockState.remoteError = null;
+    await cacheSet(getTaskNotesCacheKey(userId, taskId), []);
+    await cacheSet(getAllNotesCacheKey(userId), []);
     vi.clearAllMocks();
   });
 
@@ -100,6 +120,16 @@ describe("taskNotesService", () => {
     for (let i = 1; i <= 5; i++) {
       expect(notes.some((n) => n.title === `Rapid Note ${i}`)).toBe(true);
     }
+  });
+
+  it("keeps concurrent notes from different tasks in the shared notes cache", async () => {
+    const [first, second] = await Promise.all([
+      createTaskNote(userId, "task-a", { title: "A", content: "first" }),
+      createTaskNote(userId, "task-b", { title: "B", content: "second" }),
+    ]);
+
+    const allNotes = await cacheGet<any[]>(getAllNotesCacheKey(userId));
+    expect(allNotes?.map((note) => note.id)).toEqual(expect.arrayContaining([first.id, second.id]));
   });
 
   it("3. rejects empty notes and does not write empty records", async () => {
@@ -173,6 +203,92 @@ describe("taskNotesService", () => {
     // Local getTaskNotes still returns the note seamlessly
     const notes = await getTaskNotes(taskId, userId);
     expect(notes.some((n) => n.id === offlineNote.id)).toBe(true);
+  });
+
+  it("overlays a queued edit on an older remote note instead of showing stale content", async () => {
+    const remote = {
+      id: "note-stale-edit",
+      user_id: userId,
+      task_id: taskId,
+      title: "Cloud title",
+      content: "Older cloud content",
+      created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-01-01T00:00:00.000Z",
+    };
+    mockState.remoteNotes = [remote];
+    vi.spyOn(offlineQueue, "getPendingOps").mockResolvedValueOnce([{
+      id: 1,
+      ownerId: userId,
+      table: "notes",
+      op: "update",
+      payload: { ...remote, title: "Local queued title", updated_at: "2026-01-02T00:00:00.000Z" },
+      match: { id: remote.id },
+      createdAt: 1,
+      attempts: 0,
+    }]);
+
+    const notes = await getTaskNotes(taskId, userId);
+    expect(notes).toHaveLength(1);
+    expect(notes[0].title).toBe("Local queued title");
+  });
+
+  it("does not resurrect a note whose delete is waiting in the outbox", async () => {
+    const remote = {
+      id: "note-pending-delete",
+      user_id: userId,
+      task_id: taskId,
+      title: "Deleted locally",
+      content: "Must stay deleted",
+      created_at: "2026-01-01T00:00:00.000Z",
+    };
+    mockState.remoteNotes = [remote];
+    vi.spyOn(offlineQueue, "getPendingOps").mockResolvedValueOnce([{
+      id: 2,
+      ownerId: userId,
+      table: "notes",
+      op: "delete",
+      match: { id: remote.id },
+      createdAt: 1,
+      attempts: 0,
+    }]);
+
+    await expect(getTaskNotes(taskId, userId)).resolves.toEqual([]);
+  });
+
+  it("keeps cached notes when offline even if they have no pending mutation", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
+    const cachedNote = {
+      id: "note-cached-offline",
+      user_id: userId,
+      task_id: taskId,
+      title: "Cached note",
+      content: "Available offline",
+      created_at: "2026-01-01T00:00:00.000Z",
+    };
+    await cacheSet(getTaskNotesCacheKey(userId, taskId), [cachedNote]);
+
+    await expect(getTaskNotes(taskId, userId)).resolves.toContainEqual(cachedNote);
+  });
+
+  it("renders a queued note even if its device cache is missing", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
+    const queuedNote = {
+      id: "note-only-in-outbox",
+      user_id: userId,
+      task_id: taskId,
+      title: "Recovered from outbox",
+      content: "Durably queued",
+      created_at: "2026-01-01T00:00:00.000Z",
+    };
+    await enqueueOp({
+      ownerId: userId,
+      table: "notes",
+      op: "insert",
+      payload: queuedNote,
+    });
+
+    await cacheSet(getTaskNotesCacheKey(userId, taskId), []);
+    await expect(getTaskNotes(taskId, userId)).resolves.toContainEqual(queuedNote);
   });
 
   it("does not report a new note saved when neither Firestore nor the durable queue accepts it", async () => {

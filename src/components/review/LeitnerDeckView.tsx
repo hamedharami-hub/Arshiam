@@ -45,7 +45,7 @@ import {
   getLeitnerCards,
   getDueLeitnerCards,
   createLeitnerCard,
-  reviewLeitnerCardWithRating,
+  reviewLeitnerCardWithRatingResult,
   previewNextInterval,
   updateLeitnerCard,
   deleteLeitnerCard,
@@ -357,29 +357,40 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
     ratingSubmissionRef.current = true;
     setIsSubmittingRating(true);
     try {
-      await reviewLeitnerCardWithRating(userId, activeCard.id, rating);
+      const reviewResult = await reviewLeitnerCardWithRatingResult(userId, activeCard.id, rating);
+      const notifyReview = (kind: "success" | "info" | "error", message: string) => {
+        if (reviewResult.persistenceStatus === "queued") {
+          toast.info(`${message} ${isEn ? "Saved locally; waiting to sync." : "نتیجه محلی ذخیره و برای همگام‌سازی صف شد."}`);
+        } else if (kind === "success") {
+          toast.success(message);
+        } else if (kind === "error") {
+          toast.error(message);
+        } else {
+          toast.info(message);
+        }
+      };
 
       const usesFsrs = getLeitnerSchedulingAlgorithm(activeCard) === "fsrs6";
       if (rating === 1) {
-        toast.error(
+        notifyReview("error",
           isEn
             ? usesFsrs ? "Again — scheduled soon (re-queued at session end)" : "Reset to Box 1 (re-queued in session)"
             : usesFsrs ? "دوباره — زمان مرور دوباره تنظیم شد (در پایان جلسه تکرار می‌شود)" : "به جعبه ۱ بازگشت (در پایان جلسه تکرار می‌شود)"
         );
       } else if (rating === 2) {
-        toast.info(
+        notifyReview("info",
           isEn
             ? usesFsrs ? "Hard — FSRS scheduled a shorter interval" : "Hard - Interval gently increased"
             : usesFsrs ? "سخت — زمان‌بندی FSRS با فاصله کوتاه‌تر" : "سخت - تمدید با فاصله کوتاه‌تر"
         );
       } else if (rating === 3) {
-        toast.success(
+        notifyReview("success",
           isEn
             ? usesFsrs ? "Good — next review scheduled by FSRS" : "Good! Moved to next box"
             : usesFsrs ? "خوب — زمان مرور بعدی با FSRS تنظیم شد" : "آفرین! به جعبه بعدی منتقل شد."
         );
       } else if (rating === 4) {
-        toast.success(
+        notifyReview("success",
           isEn
             ? usesFsrs ? "Easy — next review scheduled by FSRS" : "Easy! Rapid mastery leap"
             : usesFsrs ? "آسان — زمان مرور بعدی با FSRS تنظیم شد" : "عالی! جهش سریع به جعبه‌های بالاتر."
@@ -1130,6 +1141,13 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
                       : `نسخهٔ ${cardLanguage === "fa" ? "فارسی" : "انگلیسی"} موجود نیست؛ متن اصلی ${currentSide.language === "fa" ? "فارسی" : "انگلیسی"} نمایش داده شده است.`}
                 </p>
               )}
+              {currentSide.sourceIsMixedLanguage && (
+                <p role="status" className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-[10px] leading-4 text-sky-800 dark:text-sky-200">
+                  {isEn
+                    ? "Mixed-language original preserved as saved."
+                    : "متن اصلیِ ترکیبی، بدون تغییر حفظ شده است."}
+                </p>
+              )}
 
               {/* Clue button */}
               {!isFlipped && activeCard.clue && (
@@ -1432,6 +1450,14 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
                     {(localized.front.translationMissing || localized.back.translationMissing) && (
                       <span className="inline-block text-[10px] leading-4 text-amber-700 dark:text-amber-300">
                         {isEn ? "Translation missing; original shown" : "ترجمه موجود نیست؛ متن اصلی نمایش داده می‌شود"}
+                      </span>
+                    )}
+                    {(localized.front.sourceIsMixedLanguage || localized.back.sourceIsMixedLanguage) && (
+                      <span
+                        title={isEn ? "Original text contains Persian and English" : "متن اصلی شامل فارسی و انگلیسی است"}
+                        className="inline-block rounded-md bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-medium text-sky-700 dark:text-sky-300"
+                      >
+                        FA + EN
                       </span>
                     )}
                   </div>

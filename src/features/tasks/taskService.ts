@@ -4,6 +4,7 @@ import { firebaseStore } from "@/lib/firebaseStore";
 import {
   cacheGet,
   cacheSet,
+  canReplayForOwner,
   enqueueOps,
   getPendingOps,
 } from "@/lib/offlineQueue";
@@ -16,10 +17,12 @@ import {
   createTaskCacheEnvelope,
   isTaskCacheFresh,
   readTaskCacheEnvelope,
+  withTaskCacheMutationLock,
 } from "./taskCache";
 import { applyTaskOperations } from "./taskOperations";
 import { buildTaskChildrenMap, collectTaskDescendantIds } from "./taskTree";
 import { syncAndroidWidget } from "@/lib/androidWidget";
+import { getTaskKnowledgeCacheKey } from "@/lib/taskKnowledgeService";
 
 const TASKS_CACHE_PREFIX = "tasks:all:";
 const taskCache = new Map<string, Task[]>();
@@ -38,7 +41,9 @@ export function isTaskCacheFreshForUser(userId: string): boolean {
 }
 
 function persistTaskCache(userId: string, tasks: Task[]): Promise<void> {
-  return cacheSet(taskCacheKey(userId), createTaskCacheEnvelope(tasks));
+  return withTaskCacheMutationLock(userId, () =>
+    cacheSet(taskCacheKey(userId), createTaskCacheEnvelope(tasks))
+  );
 }
 
 function sortTasks(tasks: Task[]): Task[] {
@@ -64,9 +69,12 @@ export async function getCachedTasks(userId: string): Promise<Task[]> {
   return tasks;
 }
 
-export async function applyPendingTaskOperations(base: Task[]): Promise<Task[]> {
+export async function applyPendingTaskOperations(base: Task[], userId: string): Promise<Task[]> {
   const operations = await getPendingOps("tasks");
-  return applyTaskOperations(base, operations);
+  return applyTaskOperations(
+    base,
+    operations.filter((operation) => canReplayForOwner(operation, userId)),
+  );
 }
 
 export async function fetchTasks(userId: string): Promise<Task[]> {
@@ -77,7 +85,7 @@ export async function fetchTasks(userId: string): Promise<Task[]> {
       id: item.id,
       ...(item.data() as Task),
     }));
-    const merged = await applyPendingTaskOperations(rawTasks);
+    const merged = await applyPendingTaskOperations(rawTasks, userId);
     const tasks = sortTasks(merged);
     setTaskCache(userId, tasks);
     await persistTaskCache(userId, tasks);
@@ -89,18 +97,41 @@ export async function fetchTasks(userId: string): Promise<Task[]> {
 
   // Only if direct fetch threw an error (e.g. offline or permission), fall back to cached tasks merged with pending ops
   const cachedTasks = await getCachedTasks(userId);
-  const withPending = await applyPendingTaskOperations(cachedTasks);
+  const withPending = await applyPendingTaskOperations(cachedTasks, userId);
   void syncAndroidWidget(withPending, userId).catch(() => {});
   return withPending;
 }
 
 export function subscribeToTasks(userId: string, onUpdate: (tasks: Task[]) => void): () => void {
-  return subscribeFirestoreTasks(userId, (tasks) => {
-    setTaskCache(userId, tasks);
-    void persistTaskCache(userId, tasks);
-    void syncAndroidWidget(tasks, userId).catch(() => {});
-    onUpdate(tasks);
+  let newestSnapshot = 0;
+  let isActive = true;
+  const unsubscribe = subscribeFirestoreTasks(userId, (snapshotTasks) => {
+    if (!isActive) return;
+    const snapshotVersion = ++newestSnapshot;
+    void withTaskCacheMutationLock(userId, async () => {
+      if (!isActive || snapshotVersion !== newestSnapshot) return null;
+      const pending = await getPendingOps("tasks");
+      if (!isActive || snapshotVersion !== newestSnapshot) return null;
+      const tasks = sortTasks(applyTaskOperations(
+        snapshotTasks,
+        pending.filter((operation) => canReplayForOwner(operation, userId)),
+      ));
+      setTaskCache(userId, tasks);
+      await cacheSet(taskCacheKey(userId), createTaskCacheEnvelope(tasks));
+      return tasks;
+    }).then((tasks) => {
+      if (!tasks || !isActive) return;
+      void syncAndroidWidget(tasks, userId).catch(() => {});
+      onUpdate(tasks);
+    }).catch((error) => {
+      console.warn("[TaskService] Could not reconcile a task snapshot:", error);
+    });
   });
+  return () => {
+    isActive = false;
+    newestSnapshot += 1;
+    unsubscribe();
+  };
 }
 
 export async function deleteTaskCascade(
@@ -125,40 +156,106 @@ export async function deleteTaskCascade(
   const deleteOperations = idsToDelete.flatMap((id) => [
     { ownerId: userId, table: "tasks", op: "delete" as const, match: { id } },
     { ownerId: userId, table: "task_tags", op: "delete" as const, match: { task_id: id } },
+    { ownerId: userId, table: "task_knowledge_links", op: "delete" as const, match: { task_id: id } },
   ]);
-  const commitLocalRemoval = async () => {
-    const remaining = (tasks || []).filter((task) => !idsToDelete.includes(task.id));
-    setTaskCache(userId, remaining);
-    await persistTaskCache(userId, remaining);
+  const removeFromLatestLocalCache = async () => {
+    // Caller holds this user's mutation lock, so queue order and cache order
+    // stay aligned while the cascade is accepted and committed locally.
+    let cached: unknown;
+    try {
+      cached = await cacheGet<unknown>(taskCacheKey(userId));
+    } catch {
+      // Preserve the in-memory fallback if local storage is temporarily unavailable.
+    }
+    const persistedTasks = readTaskCacheEnvelope(cached)?.tasks;
+    const latestTasks = persistedTasks ?? taskCache.get(userId) ?? tasks ?? [];
+    const next = latestTasks.filter((task) => !idsToDelete.includes(task.id));
+    setTaskCache(userId, next);
+    await Promise.all([
+      cacheSet(taskCacheKey(userId), createTaskCacheEnvelope(next)),
+      ...idsToDelete.map((id) => cacheSet(getTaskKnowledgeCacheKey(userId, id), [])),
+    ]);
+    return next;
+  };
+  const commitLocalRemoval = () => withTaskCacheMutationLock(userId, removeFromLatestLocalCache);
+  const queueCascadeAndCommit = () => withTaskCacheMutationLock(userId, async () => {
+    if (!await enqueueOps(deleteOperations)) return false;
+    await removeFromLatestLocalCache();
+    return true;
+  });
+  const publishLocalRemoval = (remaining: Task[]) => {
     void syncAndroidWidget(remaining, userId).catch(() => {});
     window.dispatchEvent(new Event("tasks-changed"));
-    return remaining;
   };
 
   // Queue the whole cascade atomically before hiding it from the user's task list.
   const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
   if (isOffline) {
-    if (!await enqueueOps(deleteOperations)) return { success: false, deletedIds: [] };
-    await commitLocalRemoval();
+    if (!await queueCascadeAndCommit()) return { success: false, deletedIds: [] };
+    publishLocalRemoval(taskCache.get(userId) || []);
     return { success: true, deletedIds: idsToDelete };
   }
 
   // Firestore batches are atomic and capped at 500 writes. Larger trees are
   // durably queued as one local transaction and replayed idempotently.
   if (idsToDelete.length > 500) {
-    if (!await enqueueOps(deleteOperations)) return { success: false, deletedIds: [] };
-    await commitLocalRemoval();
+    if (!await queueCascadeAndCommit()) return { success: false, deletedIds: [] };
+    publishLocalRemoval(taskCache.get(userId) || []);
+    return { success: true, deletedIds: idsToDelete };
+  }
+
+  let linkedKnowledge: Array<{ id: string }>;
+  try {
+    const result = await firebaseStore
+      .from("task_knowledge_links")
+      .select("id,task_id,user_id")
+      .eq("user_id", userId)
+      .in("task_id", idsToDelete);
+    if (result.error || !Array.isArray(result.data)) {
+      throw result.error || new Error("Task knowledge links could not be verified.");
+    }
+    linkedKnowledge = result.data as Array<{ id: string }>;
+
+    // Local unsynced inserts must be ordered before a durable task-scoped
+    // delete, otherwise they could be replayed later and resurrect the link.
+    const pendingLinks = await getPendingOps("task_knowledge_links");
+    const hasPendingLinkWrite = (pendingLinks || []).some((operation) => {
+      if (!canReplayForOwner(operation, userId) || operation.op === "delete") return false;
+      const payload = operation.payload && typeof operation.payload === "object"
+        ? operation.payload as Record<string, unknown>
+        : {};
+      const taskId = payload.task_id ?? operation.match?.task_id;
+      return typeof taskId === "string" && idsToDelete.includes(taskId);
+    });
+    if (hasPendingLinkWrite) {
+      if (!await queueCascadeAndCommit()) return { success: false, deletedIds: [] };
+      publishLocalRemoval(taskCache.get(userId) || []);
+      return { success: true, deletedIds: idsToDelete };
+    }
+  } catch (error) {
+    console.warn("[TaskService] Could not verify task knowledge links; queuing the complete cascade:", error);
+    if (!await queueCascadeAndCommit()) return { success: false, deletedIds: [] };
+    publishLocalRemoval(taskCache.get(userId) || []);
+    return { success: true, deletedIds: idsToDelete };
+  }
+
+  if (idsToDelete.length + linkedKnowledge.length > 500) {
+    if (!await queueCascadeAndCommit()) return { success: false, deletedIds: [] };
+    publishLocalRemoval(taskCache.get(userId) || []);
     return { success: true, deletedIds: idsToDelete };
   }
 
   try {
     const batch = writeBatch(db);
     for (const id of idsToDelete) batch.delete(doc(db, "users", userId, "tasks", id));
+    for (const link of linkedKnowledge) {
+      batch.delete(doc(db, "users", userId, "task_knowledge_links", link.id));
+    }
     await batch.commit();
   } catch (error) {
     console.warn("[TaskService] Atomic Firestore cascade delete failed, enqueuing for sync:", error);
-    if (!await enqueueOps(deleteOperations)) return { success: false, deletedIds: [] };
-    await commitLocalRemoval();
+    if (!await queueCascadeAndCommit()) return { success: false, deletedIds: [] };
+    publishLocalRemoval(taskCache.get(userId) || []);
     return { success: true, deletedIds: idsToDelete };
   }
 
@@ -173,7 +270,8 @@ export async function deleteTaskCascade(
       console.warn("[TaskService] Tasks were deleted, but task-tag cleanup could not be queued.", error);
     }
   }
-  await commitLocalRemoval();
+  const remaining = await commitLocalRemoval();
+  publishLocalRemoval(remaining);
   return { success: true, deletedIds: idsToDelete };
 }
 

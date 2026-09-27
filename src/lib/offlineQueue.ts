@@ -13,10 +13,14 @@ export type QueuedOp = {
   upsertOptions?: { onConflict?: string };
   /** Firebase user that owned the operation when it was created. */
   ownerId?: string;
+  /** Explicit owner fields conflicted when this queued record was created. */
+  ownershipConflict?: boolean;
   createdAt: number;
   attempts: number;
   nextRetryAt?: number;
   lastError?: string;
+  /** A newer cloud revision exists; retain this for explicit retry only. */
+  conflictReason?: "remote-newer";
 };
 
 import { getDB, STORE, CACHE_STORE, cacheGet, cacheSet } from "./offlineDb";
@@ -63,15 +67,12 @@ export async function enqueueOps(ops: EnqueueOpInput[]): Promise<boolean> {
   if (ops.length === 0) return true;
 
   const items = await Promise.all(ops.map(async (op) => {
-    const payload = op.payload && typeof op.payload === "object"
-      ? op.payload as Record<string, unknown>
-      : undefined;
-    const ownerId = op.ownerId ||
-      (typeof payload?.user_id === "string" ? payload.user_id : undefined) ||
-      (typeof payload?.userId === "string" ? payload.userId : undefined) ||
-      (typeof op.match?.user_id === "string" ? op.match.user_id : undefined) ||
-      await getAuthenticatedUserId();
-    return { ...op, ownerId, createdAt: Date.now(), attempts: 0 };
+    const explicitOwnerId = getQueuedOpOwnerId(op);
+    const ownershipConflict = hasConflictingQueuedOpOwners(op);
+    const ownerId = ownershipConflict
+      ? undefined
+      : explicitOwnerId || await getAuthenticatedUserId();
+    return { ...op, ownerId, ownershipConflict: ownershipConflict || undefined, createdAt: Date.now(), attempts: 0 };
   }));
 
   let queued = false;
@@ -118,9 +119,31 @@ async function getAuthenticatedUserId(): Promise<string | undefined> {
   }
 }
 
+type QueueOwnershipFields = Pick<QueuedOp, "ownerId" | "payload" | "match" | "ownershipConflict">;
+
+function explicitQueueOwnerClaims(item: QueueOwnershipFields): string[] {
+  const payload = item.payload && typeof item.payload === "object" && !Array.isArray(item.payload)
+    ? item.payload as Record<string, unknown>
+    : undefined;
+  return [item.ownerId, payload?.user_id, payload?.userId, item.match?.user_id]
+    .filter((value): value is string => typeof value === "string" && value.length > 0);
+}
+
+/** Return an owner only when every explicit owner field agrees. */
+export function getQueuedOpOwnerId(item: QueueOwnershipFields): string | undefined {
+  if (item.ownershipConflict) return undefined;
+  const claims = explicitQueueOwnerClaims(item);
+  if (claims.length === 0 || claims.some((claim) => claim !== claims[0])) return undefined;
+  return claims[0];
+}
+
+export function hasConflictingQueuedOpOwners(item: QueueOwnershipFields): boolean {
+  return Boolean(item.ownershipConflict || new Set(explicitQueueOwnerClaims(item)).size > 1);
+}
+
 /** A queued mutation must never cross the account boundary that created it. */
-export function canReplayForOwner(item: Pick<QueuedOp, "ownerId">, activeOwnerId: string | undefined): boolean {
-  return Boolean(activeOwnerId && item.ownerId && item.ownerId === activeOwnerId);
+export function canReplayForOwner(item: QueueOwnershipFields, activeOwnerId: string | undefined): boolean {
+  return Boolean(activeOwnerId && getQueuedOpOwnerId(item) === activeOwnerId);
 }
 
 export async function getQueue(): Promise<QueuedOp[]> {
@@ -229,29 +252,43 @@ async function replayWithLegacyStore(item: QueuedOp): Promise<boolean> {
   }
 }
 
-async function replayItem(item: QueuedOp, userId: string): Promise<boolean> {
+type ReplayOutcome = "saved" | "stale" | "failed";
+
+async function replayItem(item: QueuedOp, userId: string): Promise<ReplayOutcome> {
   let firestoreAttempted = false;
-  let firestoreSucceeded = false;
+  let firestoreOutcome: ReplayOutcome = "failed";
   try {
+    const taskIdForLinkCleanup = item.match?.task_id;
+    if (item.table === "task_knowledge_links" && item.op === "delete" && !item.match?.id &&
+      typeof taskIdForLinkCleanup === "string" && taskIdForLinkCleanup) {
+      firestoreAttempted = true;
+      const response = await firebaseStore
+        .from("task_knowledge_links")
+        .delete()
+        .eq("user_id", userId)
+        .eq("task_id", taskIdForLinkCleanup);
+      firestoreOutcome = legacyMutationConfirmed(item, response) ? "saved" : "failed";
+    }
+
     const firestoreTables = [
       "tasks", "notes", "habits", "folders", "tags", "contacts", "task_contacts",
-      "knowledge_folders", "knowledge_documents", "leitner_cards", "leitner_reviews", "task_knowledge_links",
-      "interactive_study_sessions",
+      "knowledge_folders", "knowledge_documents", "knowledge_import_manifests", "leitner_cards", "leitner_reviews", "task_knowledge_links",
+      "interactive_study_sessions", "socratic_sessions",
     ];
-    if (userId && firestoreTables.includes(item.table)) {
+    if (!firestoreAttempted && userId && firestoreTables.includes(item.table)) {
       firestoreAttempted = true;
-      const { saveEntityToFirestore, deleteEntityFromFirestore } = await import("./firestoreSync");
+      const { saveEntityToFirestoreWithOutcome, deleteEntityFromFirestore } = await import("./firestoreSync");
       if (item.op === "delete") {
         const docId = item.match?.id as string;
-        firestoreSucceeded = Boolean(
-          docId && await deleteEntityFromFirestore(userId, item.table as any, docId)
-        );
+        firestoreOutcome = docId && await deleteEntityFromFirestore(userId, item.table as any, docId)
+          ? "saved"
+          : "failed";
       } else {
         const payload = (item.payload || {}) as Record<string, any>;
         const docId = (payload.id || item.match?.id) as string;
-        firestoreSucceeded = Boolean(
-          docId && await saveEntityToFirestore(userId, item.table as any, docId, payload)
-        );
+        firestoreOutcome = docId
+          ? await saveEntityToFirestoreWithOutcome(userId, item.table as any, docId, payload)
+          : "failed";
       }
     }
   } catch (error) {
@@ -261,12 +298,12 @@ async function replayItem(item: QueuedOp, userId: string): Promise<boolean> {
   // For supported entities, the direct Firestore path is authoritative. Never
   // bypass a failed write (including a stale-write conflict) via the legacy
   // adapter: it targets the same Firestore documents without conflict checks.
-  if (firestoreAttempted) return firestoreSucceeded;
-  return replayWithLegacyStore(item);
+  if (firestoreAttempted) return firestoreOutcome;
+  return await replayWithLegacyStore(item) ? "saved" : "failed";
 }
 
 let syncing = false;
-export async function flushQueue(): Promise<{ ok: number; failed: number }> {
+export async function flushQueue(options: { retryConflicts?: boolean } = {}): Promise<{ ok: number; failed: number }> {
   if (syncing || typeof navigator === "undefined" || !navigator.onLine) {
     return { ok: 0, failed: 0 };
   }
@@ -274,6 +311,7 @@ export async function flushQueue(): Promise<{ ok: number; failed: number }> {
   let ok = 0;
   let failed = 0;
   let notifiedFailure = false;
+  let notifiedConflict = false;
   try {
     const db = await getDB();
     const activeOwnerId = await getAuthenticatedUserId();
@@ -292,12 +330,32 @@ export async function flushQueue(): Promise<{ ok: number; failed: number }> {
 
     for (const { item, source } of entries) {
       if (item.nextRetryAt && item.nextRetryAt > now) continue;
-      // Keep old/unattributable records intact for recovery, but never replay
-      // them under whichever account happens to sign in later.
+      if (item.conflictReason && !options.retryConflicts) continue;
+      // Legacy records with explicit, consistent owner data remain replayable;
+      // records without one attributable owner stay intact for manual recovery.
       if (!canReplayForOwner(item, activeOwnerId)) continue;
       try {
-        const succeeded = await replayItem(item, activeOwnerId);
-        if (!succeeded) throw new Error("Cloud write was not confirmed");
+        const outcome = await replayItem(item, activeOwnerId);
+        if (outcome === "stale") {
+          failed++;
+          const conflict: QueuedOp = {
+            ...item,
+            conflictReason: "remote-newer",
+            lastError: "A newer cloud revision exists; this change was not replayed.",
+            nextRetryAt: undefined,
+          };
+          if (source === "indexeddb" && db) await db.put(STORE, conflict);
+          else if (source === "localStorage") updateLocalStorageOutbox(conflict, false);
+          else if (item.id !== undefined) memoryOutbox.set(item.id, conflict);
+          if (!notifiedConflict) {
+            toast.error("نسخهٔ جدیدتری در فضای ابری وجود دارد", {
+              description: "این تغییر از صف حذف نشده، اما تلاش خودکار برایش متوقف شد. پس از بررسی، دکمهٔ همگام‌سازی را بزنید.",
+            });
+            notifiedConflict = true;
+          }
+          continue;
+        }
+        if (outcome !== "saved") throw new Error("Cloud write was not confirmed");
         if (source === "indexeddb" && db) {
           await db.delete(STORE, item.id!);
         } else if (source === "localStorage") {
@@ -315,6 +373,7 @@ export async function flushQueue(): Promise<{ ok: number; failed: number }> {
         const message = error instanceof Error ? error.message : "خطای نامشخص در همگام‌سازی";
         const updated: QueuedOp = {
           ...item,
+          conflictReason: undefined,
           attempts,
           lastError: message,
           nextRetryAt: Date.now() + Math.min(2 ** attempts * 1000, MAX_RETRY_DELAY_MS),

@@ -9,7 +9,11 @@ import {
   onSnapshot,
 } from "./firebase";
 import { cacheGet, cacheSet, enqueueOp } from "./offlineQueue";
-import { extractTasksFromCache, createTaskCacheEnvelope } from "@/features/tasks/taskCache";
+import {
+  extractTasksFromCache,
+  createTaskCacheEnvelope,
+  withTaskCacheMutationLock,
+} from "@/features/tasks/taskCache";
 import type { Task } from "./taskTypes";
 
 export interface FolderItem {
@@ -131,10 +135,12 @@ export function subscribeTasks(
     return () => {};
   }
 
+  let hasReceivedSnapshot = false;
+
   // 1. Immediately provide cached tasks if available
   cacheGet<unknown>(CACHE_KEYS.tasks(userId)).then((cached) => {
     const tasks = extractTasksFromCache(cached);
-    if (tasks.length) {
+    if (!hasReceivedSnapshot && tasks.length) {
       onUpdate(tasks);
     }
   });
@@ -145,6 +151,7 @@ export function subscribeTasks(
     const unsub = onSnapshot(
       tasksCol,
       (snap) => {
+        hasReceivedSnapshot = true;
         const items: Task[] = [];
         snap.forEach((d) => {
           items.push({ id: d.id, ...(d.data() as any) });
@@ -159,11 +166,13 @@ export function subscribeTasks(
           return new Date((b as any).created_at || 0).getTime() - new Date((a as any).created_at || 0).getTime();
         });
 
-        cacheSet(CACHE_KEYS.tasks(userId), createTaskCacheEnvelope(items));
+        // The task service reconciles this snapshot with owner-scoped pending
+        // operations before committing it to the shared cache.
         onUpdate(items);
       },
       async (err) => {
         console.warn("[FirestoreData] subscribeTasks notice:", err?.message);
+        if (hasReceivedSnapshot) return;
         const cached = await cacheGet<unknown>(CACHE_KEYS.tasks(userId));
         const tasks = extractTasksFromCache(cached);
         if (tasks.length) onUpdate(tasks);
@@ -177,6 +186,68 @@ export function subscribeTasks(
 }
 
 export type TaskPersistenceStatus = "saved" | "queued" | "failed";
+
+function sameTaskValue(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true;
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
+}
+
+/** Roll back only the optimistic fields that still match this failed write. */
+async function rollbackOptimisticTaskWrite(
+  userId: string,
+  taskId: string,
+  optimisticTask: Partial<Task> & { id: string } | null,
+  previousTask: Task | undefined,
+  previousIndex: number,
+): Promise<void> {
+  const cacheKey = CACHE_KEYS.tasks(userId);
+  try {
+    await withTaskCacheMutationLock(userId, async () => {
+      const latest = extractTasksFromCache(await cacheGet<unknown>(cacheKey));
+      const currentIndex = latest.findIndex((candidate) => candidate.id === taskId);
+      const current = currentIndex >= 0 ? latest[currentIndex] : undefined;
+
+      // A concurrent removal/update wins; don't resurrect or overwrite it.
+      if (optimisticTask && current) {
+        if (!previousTask) {
+          if (sameTaskValue(current, optimisticTask)) {
+            latest.splice(currentIndex, 1);
+            await cacheSet(cacheKey, createTaskCacheEnvelope(latest));
+          }
+          return;
+        }
+
+        if (sameTaskValue(current, optimisticTask)) {
+          latest[currentIndex] = previousTask;
+        } else {
+          const restored = { ...current } as Task & Record<string, unknown>;
+          for (const key of Object.keys(optimisticTask) as Array<keyof Task>) {
+            if (key === "id" || !sameTaskValue(current[key], optimisticTask[key])) continue;
+            if (Object.prototype.hasOwnProperty.call(previousTask, key)) {
+              restored[key] = previousTask[key] as never;
+            } else {
+              delete restored[key];
+            }
+          }
+          latest[currentIndex] = restored;
+        }
+        await cacheSet(cacheKey, createTaskCacheEnvelope(latest));
+        return;
+      }
+
+      if (!optimisticTask && previousTask && !current) {
+        latest.splice(Math.max(0, Math.min(previousIndex, latest.length)), 0, previousTask);
+        await cacheSet(cacheKey, createTaskCacheEnvelope(latest));
+      }
+    });
+  } catch (rollbackError) {
+    console.warn("[FirestoreData] could not restore task cache after failed write:", rollbackError);
+  }
+}
 
 /**
  * Saves a task to Firestore and reports whether the cloud write completed now
@@ -194,18 +265,24 @@ export async function persistTask(
   };
 
   // 1. Update local cache optimistically first so task is never lost
+  let previousTask: Task | undefined;
+  let previousIndex = -1;
   try {
-    const cachedRaw = await cacheGet<unknown>(CACHE_KEYS.tasks(userId));
-    const cached = extractTasksFromCache(cachedRaw);
-    const index = cached.findIndex((t) => t.id === task.id);
-    let next: Task[];
-    if (index >= 0) {
-      next = [...cached];
-      next[index] = { ...next[index], ...dataToSave } as Task;
-    } else {
-      next = [dataToSave as Task, ...cached];
-    }
-    await cacheSet(CACHE_KEYS.tasks(userId), createTaskCacheEnvelope(next));
+    await withTaskCacheMutationLock(userId, async () => {
+      const cachedRaw = await cacheGet<unknown>(CACHE_KEYS.tasks(userId));
+      const cached = extractTasksFromCache(cachedRaw);
+      const index = cached.findIndex((t) => t.id === task.id);
+      previousIndex = index;
+      previousTask = index >= 0 ? cached[index] : undefined;
+      let next: Task[];
+      if (index >= 0) {
+        next = [...cached];
+        next[index] = { ...next[index], ...dataToSave } as Task;
+      } else {
+        next = [dataToSave as Task, ...cached];
+      }
+      await cacheSet(CACHE_KEYS.tasks(userId), createTaskCacheEnvelope(next));
+    });
   } catch (cacheErr) {
     console.warn("[FirestoreData] upsertTask cache warning:", cacheErr);
   }
@@ -217,12 +294,32 @@ export async function persistTask(
     return "saved";
   } catch (err) {
     console.warn("[FirestoreData] task write deferred to offline outbox:", err);
-    const queued = await enqueueOp({
-      table: "tasks",
-      op: "upsert",
-      payload: dataToSave,
-      match: { id: task.id },
-    });
+    let queued = false;
+    try {
+      await withTaskCacheMutationLock(userId, async () => {
+        queued = await enqueueOp({
+          ownerId: userId,
+          table: "tasks",
+          op: "upsert",
+          payload: dataToSave,
+          match: { id: task.id },
+        });
+        if (!queued) return;
+
+        // Keep the accepted outbox mutation and its optimistic cache update in
+        // the same critical section as cascaded deletes for deterministic order.
+        const latest = extractTasksFromCache(await cacheGet<unknown>(CACHE_KEYS.tasks(userId)));
+        const index = latest.findIndex((candidate) => candidate.id === task.id);
+        if (index >= 0) latest[index] = { ...latest[index], ...dataToSave } as Task;
+        else latest.unshift(dataToSave as Task);
+        await cacheSet(CACHE_KEYS.tasks(userId), createTaskCacheEnvelope(latest));
+      });
+    } catch (queueError) {
+      console.warn("[FirestoreData] task could not be queued after write failure:", queueError);
+    }
+    if (!queued) {
+      await rollbackOptimisticTaskWrite(userId, task.id, dataToSave, previousTask, previousIndex);
+    }
     return queued ? "queued" : "failed";
   }
 }
@@ -237,10 +334,16 @@ export async function deleteTask(userId: string, taskId: string): Promise<boolea
   if (!userId || !taskId) return false;
   // Keep the device view coherent first. If cloud deletion is unavailable, the
   // owner-bound outbox below retains the deletion for a later replay.
+  let previousTask: Task | undefined;
+  let previousIndex = -1;
   try {
-    const cachedRaw = await cacheGet<unknown>(CACHE_KEYS.tasks(userId));
-    const cached = extractTasksFromCache(cachedRaw);
-    await cacheSet(CACHE_KEYS.tasks(userId), createTaskCacheEnvelope(cached.filter((task) => task.id !== taskId)));
+    await withTaskCacheMutationLock(userId, async () => {
+      const cachedRaw = await cacheGet<unknown>(CACHE_KEYS.tasks(userId));
+      const cached = extractTasksFromCache(cachedRaw);
+      previousIndex = cached.findIndex((task) => task.id === taskId);
+      previousTask = previousIndex >= 0 ? cached[previousIndex] : undefined;
+      await cacheSet(CACHE_KEYS.tasks(userId), createTaskCacheEnvelope(cached.filter((task) => task.id !== taskId)));
+    });
   } catch (cacheErr) {
     console.warn("[FirestoreData] deleteTask cache warning:", cacheErr);
   }
@@ -250,7 +353,24 @@ export async function deleteTask(userId: string, taskId: string): Promise<boolea
     return true;
   } catch (err) {
     console.warn("[FirestoreData] task delete deferred to offline outbox:", err);
-    return enqueueOp({ table: "tasks", op: "delete", match: { id: taskId } });
+    let queued = false;
+    try {
+      await withTaskCacheMutationLock(userId, async () => {
+        queued = await enqueueOp({ ownerId: userId, table: "tasks", op: "delete", match: { id: taskId } });
+        if (!queued) return;
+        const latest = extractTasksFromCache(await cacheGet<unknown>(CACHE_KEYS.tasks(userId)));
+        await cacheSet(
+          CACHE_KEYS.tasks(userId),
+          createTaskCacheEnvelope(latest.filter((task) => task.id !== taskId)),
+        );
+      });
+    } catch (queueError) {
+      console.warn("[FirestoreData] task deletion could not be queued after write failure:", queueError);
+    }
+    if (!queued) {
+      await rollbackOptimisticTaskWrite(userId, taskId, null, previousTask, previousIndex);
+    }
+    return queued;
   }
 }
 
@@ -425,6 +545,52 @@ export function subscribeNotes(
   }
 }
 
+function sameNoteValue(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true;
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
+}
+
+/** Restore only fields that still contain this failed optimistic write. */
+async function rollbackOptimisticNoteWrite(
+  userId: string,
+  noteId: string,
+  optimisticNote: Record<string, unknown>,
+  previousNote: NoteItem | undefined,
+): Promise<void> {
+  const cacheKey = CACHE_KEYS.notes(userId);
+  try {
+    const cached = await cacheGet<NoteItem[]>(cacheKey);
+    if (!Array.isArray(cached)) return;
+    const index = cached.findIndex((candidate) => candidate.id === noteId);
+    if (index < 0) return;
+    const current = cached[index] as NoteItem & Record<string, unknown>;
+    const restored = { ...current };
+
+    for (const [key, optimisticValue] of Object.entries(optimisticNote)) {
+      if (key === "id" || !sameNoteValue(current[key], optimisticValue)) continue;
+      if (previousNote && Object.prototype.hasOwnProperty.call(previousNote, key)) {
+        restored[key] = (previousNote as unknown as Record<string, unknown>)[key];
+      } else {
+        delete restored[key];
+      }
+    }
+
+    if (!previousNote && Object.keys(optimisticNote).every((key) =>
+      key === "id" || sameNoteValue(current[key], optimisticNote[key]))) {
+      cached.splice(index, 1);
+    } else {
+      cached[index] = restored;
+    }
+    await cacheSet(cacheKey, cached);
+  } catch (rollbackError) {
+    console.warn("[FirestoreData] could not restore note cache after failed write:", rollbackError);
+  }
+}
+
 export async function upsertNote(userId: string, note: Partial<NoteItem> & { id: string }): Promise<boolean> {
   if (!userId || !note.id) return false;
   const dataToSave = {
@@ -434,17 +600,24 @@ export async function upsertNote(userId: string, note: Partial<NoteItem> & { id:
   };
 
   // 1. Update local cache optimistically
+  let previousNote: NoteItem | undefined;
+  let cacheSnapshotRead = false;
+  let cacheUpdated = false;
   try {
-    const cached = (await cacheGet<NoteItem[]>(CACHE_KEYS.notes(userId))) || [];
-    const index = cached.findIndex((n) => n.id === note.id);
+    const snapshot = await cacheGet<NoteItem[]>(CACHE_KEYS.notes(userId));
+    cacheSnapshotRead = true;
+    const cachedBefore = Array.isArray(snapshot) ? snapshot : [];
+    const index = cachedBefore.findIndex((n) => n.id === note.id);
+    previousNote = index >= 0 ? cachedBefore[index] : undefined;
     let next: NoteItem[];
     if (index >= 0) {
-      next = [...cached];
+      next = [...cachedBefore];
       next[index] = { ...next[index], ...dataToSave } as NoteItem;
     } else {
-      next = [dataToSave as NoteItem, ...cached];
+      next = [dataToSave as NoteItem, ...cachedBefore];
     }
     await cacheSet(CACHE_KEYS.notes(userId), next);
+    cacheUpdated = true;
   } catch (cacheErr) {
     console.warn("[FirestoreData] upsertNote cache warning:", cacheErr);
   }
@@ -459,13 +632,16 @@ export async function upsertNote(userId: string, note: Partial<NoteItem> & { id:
     try {
       const { enqueueOp } = await import("@/lib/offlineQueue");
       const ok = await enqueueOp({
+        ownerId: userId,
         table: "notes",
         op: "upsert",
         payload: dataToSave,
         match: { id: note.id },
       });
+      if (!ok && cacheUpdated && cacheSnapshotRead) await rollbackOptimisticNoteWrite(userId, note.id, dataToSave, previousNote);
       return ok;
     } catch {
+      if (cacheUpdated && cacheSnapshotRead) await rollbackOptimisticNoteWrite(userId, note.id, dataToSave, previousNote);
       return false;
     }
   }
@@ -486,6 +662,7 @@ export async function deleteNote(userId: string, noteId: string): Promise<boolea
     try {
       const { enqueueOp } = await import("@/lib/offlineQueue");
       const ok = await enqueueOp({
+        ownerId: userId,
         table: "notes",
         op: "delete",
         match: { id: noteId },
@@ -1098,6 +1275,7 @@ export async function saveSocraticSession(
     console.warn("[FirestoreData] saveSocraticSession error, queuing:", err);
     try {
       const ok = await enqueueOp({
+        ownerId: userId,
         table: "socratic_sessions",
         op: "upsert",
         payload,

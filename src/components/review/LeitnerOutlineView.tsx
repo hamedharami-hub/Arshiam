@@ -69,6 +69,14 @@ const OutlineCardRow = memo(function OutlineCardRow({ card, due, eligible, selec
             <span className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${due ? "bg-amber-500/10 text-amber-700 dark:text-amber-300" : "bg-muted text-muted-foreground"}`}>
               {due ? (isEn ? "Due" : "موعد مرور") : (isEn ? "Upcoming" : "موعد بعدی")}
             </span>
+            {(localized.front.sourceIsMixedLanguage || localized.back.sourceIsMixedLanguage) && (
+              <span
+                title={isEn ? "Original text contains Persian and English" : "متن اصلی شامل فارسی و انگلیسی است"}
+                className="rounded-md bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-medium text-sky-700 dark:text-sky-300"
+              >
+                FA + EN
+              </span>
+            )}
             {(card.lapse_count ?? 0) > 0 && (
               <span className="rounded-md bg-rose-500/10 px-2 py-0.5 text-[10px] text-rose-600 dark:text-rose-300">
                 {isEn ? `Lapsed ${card.lapse_count}×` : `${card.lapse_count} بار لغزش`}

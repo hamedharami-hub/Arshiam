@@ -79,6 +79,10 @@ import {
 import { toast } from "sonner";
 
 const MIN_MIND_MAP_ZOOM = 0.02;
+const READABLE_OUTLINE_MAX_VIEWPORT = 768;
+
+const isCompactMindMapViewport = () =>
+  typeof window !== "undefined" && window.innerWidth <= READABLE_OUTLINE_MAX_VIEWPORT;
 
 interface KnowledgeMindMapViewProps {
   userId: string;
@@ -770,7 +774,9 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<KnowledgeDocument | null>(null);
-  const [viewMode, setViewMode] = useState<"canvas" | "outline">("canvas");
+  const [viewMode, setViewMode] = useState<"canvas" | "outline">(() =>
+    isCompactMindMapViewport() ? "outline" : "canvas",
+  );
   const [canvasLayout, setCanvasLayout] = useState<KnowledgeMindMapCanvasLayoutMode>("horizontal");
   const [connectorStyle, setConnectorStyle] = useState<KnowledgeMindMapConnectorStyle>("auto");
   const [compactLabels, setCompactLabels] = useState(false);
@@ -889,13 +895,16 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       setCards(c);
       setHasLoadedData(true);
 
-      // Default expand the safe visual roots, including recovered orphan/cycle roots.
+      // Keep the all-knowledge graph readable on compact screens: begin with
+      // top-level branches only; desktop keeps its existing first-level expansion.
       setExpandedNodeIds((prev) => {
         const next = { ...prev, "root-kb": true };
-        const rootFolders = buildFolderTree(f, d);
-        rootFolders.forEach((rf) => {
-          next[`folder-${rf.id}`] = true;
-        });
+        if (!isCompactMindMapViewport()) {
+          const rootFolders = buildFolderTree(f, d);
+          rootFolders.forEach((rf) => {
+            next[`folder-${rf.id}`] = true;
+          });
+        }
         return next;
       });
     } catch (e) {
@@ -1227,7 +1236,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
             "#ec4899",
             card.id,
             undefined,
-            isEn ? `Box ${card.box}` : `جعبه ${card.box}`,
+            `${isEn ? `Box ${card.box}` : `جعبه ${card.box}`}${cardText.sourceIsMixedLanguage ? (isEn ? " · Mixed source" : " · متن ترکیبی") : ""}`,
             [],
             cardText.secondaryText,
           );

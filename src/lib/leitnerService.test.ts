@@ -5,6 +5,7 @@ import {
   createLeitnerCard,
   reviewLeitnerCard,
   reviewLeitnerCardWithRating,
+  reviewLeitnerCardWithRatingResult,
   computeDueCards,
   getCramCards,
   updateLeitnerCard,
@@ -15,6 +16,7 @@ import {
 } from "./leitnerService";
 import { clearQueue } from "./offlineQueue";
 import * as offlineQueue from "./offlineQueue";
+import { saveEntityToFirestore } from "./firestoreSync";
 import type { LeitnerCard } from "./leitnerTypes";
 
 const { fromMock } = vi.hoisted(() => ({
@@ -138,12 +140,30 @@ describe("leitnerService", () => {
     expect([1, 2, 3, 4].map((rating) => previewNextInterval(card, rating as 1 | 2 | 3 | 4).textEn))
       .toEqual(expect.arrayContaining([expect.stringMatching(/\d+ (min|hr|day|days|mo)/)]));
 
-    const reviewed = await reviewLeitnerCardWithRating(userId, card.id, 3);
+    const reviewResult = await reviewLeitnerCardWithRatingResult(userId, card.id, 3);
+    const reviewed = reviewResult.card;
+    expect(reviewResult.persistenceStatus).toBe("queued");
     expect(reviewed.scheduling_algorithm).toBe("fsrs6");
     expect(reviewed.fsrs_state?.reps).toBe(1);
     expect(reviewed.review_count).toBe(1);
     expect(reviewed.next_review_at).toBe(reviewed.fsrs_state?.due);
     expect(Date.parse(reviewed.next_review_at)).toBeGreaterThan(Date.now());
+  });
+
+  it("reports a directly persisted review separately from a queued review", async () => {
+    onlineSpy.mockReturnValue(true);
+    vi.mocked(saveEntityToFirestore).mockResolvedValue(true);
+    expect(window.navigator.onLine).toBe(true);
+    const card = await createLeitnerCard(userId, {
+      front: "Online review question",
+      back: "Answer",
+    });
+
+    const reviewResult = await reviewLeitnerCardWithRatingResult(userId, card.id, 3);
+
+    expect(saveEntityToFirestore).toHaveBeenCalledWith(userId, "leitner_cards", card.id, expect.objectContaining({ review_count: 1 }));
+    expect(reviewResult.persistenceStatus).toBe("saved");
+    expect(reviewResult.card.review_count).toBe(card.review_count + 1);
   });
 
   it("keeps pre-existing cards on SM-2 when the scheduler field is absent", () => {
@@ -197,6 +217,35 @@ describe("leitnerService", () => {
       "sync queue storage is unavailable",
     );
     expect(await getLeitnerCards(userId)).toContainEqual(card);
+  });
+
+  it("serializes concurrent card edits so a failed rollback cannot erase the later save", async () => {
+    onlineSpy.mockReturnValue(true);
+    vi.mocked(saveEntityToFirestore).mockReset().mockResolvedValue(true);
+    const card = await createLeitnerCard(userId, { front: "Original front", back: "Original back" });
+    let rejectFirstWrite!: (reason?: unknown) => void;
+    const firstWrite = new Promise<boolean>((_resolve, reject) => { rejectFirstWrite = reject; });
+    vi.mocked(saveEntityToFirestore).mockReset()
+      .mockImplementationOnce(() => firstWrite)
+      .mockResolvedValueOnce(true);
+    vi.spyOn(offlineQueue, "enqueueOp").mockResolvedValueOnce(false);
+
+    const failedEdit = updateLeitnerCard(userId, card.id, { front: "Unsaved front" });
+    await vi.waitFor(() => expect(saveEntityToFirestore).toHaveBeenCalledTimes(1));
+    const successfulEdit = updateLeitnerCard(userId, card.id, { back: "Later saved back" });
+
+    rejectFirstWrite(new Error("network unavailable"));
+    await expect(failedEdit).rejects.toThrow("sync queue storage is unavailable");
+    await expect(successfulEdit).resolves.toMatchObject({
+      front: "Original front",
+      back: "Later saved back",
+    });
+    onlineSpy.mockReturnValue(false);
+    await expect(getLeitnerCards(userId)).resolves.toContainEqual(expect.objectContaining({
+      id: card.id,
+      front: "Original front",
+      back: "Later saved back",
+    }));
   });
 
   it("keeps a card when deletion cannot be synced or durably queued", async () => {

@@ -38,6 +38,7 @@ import { TaskAIPanel } from "@/components/TaskAIPanel";
 import { TaskNoteEditorDialog } from "@/components/task-detail/TaskNoteEditorDialog";
 import { getTaskNotes, createTaskNote, deleteTaskNote } from "@/lib/taskNotesService";
 import { TaskStepLists } from "@/components/TaskStepLists";
+import { persistTaskTagChange } from "@/lib/taskTagService";
 import { TaskSubtasksInline } from "@/components/TaskSubtasksInline";
 import { TaskAttachments } from "@/components/TaskAttachments";
 import { TaskDescriptionEditor } from "@/components/TaskDescriptionEditor";
@@ -126,6 +127,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [folders, setFolders] = useState<{ id: string; name: string; parent_id: string | null; color: string | null }[]>([]);
   const [tags, setTags] = useState<{ id: string; name: string; color: string | null }[]>([]);
   const [taskTagIds, setTaskTagIds] = useState<string[]>([]);
+  const pendingTagChangesRef = useRef(new Set<string>());
 
   // The subtask editor is always visible: a task's hierarchy must never be hidden
   // behind a secondary rail control, including while the app is offline.
@@ -375,33 +377,25 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
   const toggleTag = async (tagId: string) => {
     if (!user || !canEdit) return;
-    if (taskTagIds.includes(tagId)) {
-      const next = taskTagIds.filter(x => x !== tagId);
-      setTaskTagIds(next);
-      if (typeof navigator !== "undefined" && !navigator.onLine) {
-        await enqueueOp({ table: "task_tags", op: "delete", match: { task_id: t.id, tag_id: tagId } });
-        return;
+    if (pendingTagChangesRef.current.has(tagId)) return;
+    pendingTagChangesRef.current.add(tagId);
+    const action = taskTagIds.includes(tagId) ? "remove" : "add";
+    setTaskTagIds((current) => action === "remove"
+      ? current.filter((id) => id !== tagId)
+      : current.includes(tagId) ? current : [...current, tagId]);
+
+    try {
+      const result = await persistTaskTagChange(user.id, t.id, tagId, action);
+      if (result === "failed") {
+        setTaskTagIds((current) => action === "remove"
+          ? current.includes(tagId) ? current : [...current, tagId]
+          : current.filter((id) => id !== tagId));
+        toast.error(T("تغییر تگ ذخیره نشد؛ نمایش به حالت قبلی برگشت", "Tag change was not saved; reverted to its previous state"));
+      } else if (result === "queued") {
+        toast.info(T("تغییر تگ روی این دستگاه ذخیره شد و بعداً همگام می‌شود", "Tag change saved on this device and will sync later"));
       }
-      try {
-        const { error } = await firebaseStore.from("task_tags").delete().eq("task_id", t.id).eq("tag_id", tagId);
-        if (error) throw error;
-      } catch (err) {
-        console.warn("[TaskDetail] Failed to delete tag link online, queueing:", err);
-        await enqueueOp({ table: "task_tags", op: "delete", match: { task_id: t.id, tag_id: tagId } });
-      }
-    } else {
-      setTaskTagIds([...taskTagIds, tagId]);
-      if (typeof navigator !== "undefined" && !navigator.onLine) {
-        await enqueueOp({ table: "task_tags", op: "insert", payload: { task_id: t.id, tag_id: tagId, user_id: user.id } });
-        return;
-      }
-      try {
-        const { error } = await firebaseStore.from("task_tags").insert({ task_id: t.id, tag_id: tagId, user_id: user.id });
-        if (error) throw error;
-      } catch (err) {
-        console.warn("[TaskDetail] Failed to insert tag link online, queueing:", err);
-        await enqueueOp({ table: "task_tags", op: "insert", payload: { task_id: t.id, tag_id: tagId, user_id: user.id } });
-      }
+    } finally {
+      pendingTagChangesRef.current.delete(tagId);
     }
   };
 

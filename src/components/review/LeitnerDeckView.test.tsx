@@ -3,9 +3,17 @@ import React from "react";
 import { render, screen, fireEvent, waitFor, cleanup, act, within } from "@testing-library/react";
 import { LeitnerDeckView } from "./LeitnerDeckView";
 import type { LeitnerCard } from "@/lib/leitnerTypes";
-import { createLeitnerCard, getDueLeitnerCards, getLeitnerBoxStats, getLeitnerCards, reviewLeitnerCardWithRating } from "@/lib/leitnerService";
+import { createLeitnerCard, getDueLeitnerCards, getLeitnerBoxStats, getLeitnerCards, reviewLeitnerCardWithRatingResult } from "@/lib/leitnerService";
 import { getKnowledgeDocuments, getKnowledgeFolders } from "@/lib/knowledgeService";
 import { getNextLeitnerReviewAt, rescheduleLeitnerStudyTaskAfterSession } from "@/lib/taskStudyService";
+
+const toastMock = vi.hoisted(() => ({
+  success: vi.fn(),
+  info: vi.fn(),
+  error: vi.fn(),
+}));
+
+vi.mock("sonner", () => ({ toast: toastMock }));
 
 vi.mock("@/hooks/useBilingual", () => ({
   useBilingual: () => ({ isEn: false }),
@@ -78,9 +86,9 @@ vi.mock("@/lib/leitnerService", () => ({
     id: "card-1",
     box: 2,
   }),
-  reviewLeitnerCardWithRating: vi.fn().mockResolvedValue({
-    id: "card-1",
-    box: 2,
+  reviewLeitnerCardWithRatingResult: vi.fn().mockResolvedValue({
+    card: { id: "card-1", box: 2 },
+    persistenceStatus: "saved",
   }),
   previewNextInterval: vi.fn().mockImplementation((card, rating) => {
     return { days: 3, textFa: "۳ روز", textEn: "3 days" };
@@ -466,6 +474,10 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
     vi.mocked(getLeitnerCards).mockResolvedValue([taskCard, otherDueCard]);
     vi.mocked(getDueLeitnerCards).mockResolvedValue([taskCard, otherDueCard]);
     vi.mocked(getKnowledgeDocuments).mockResolvedValue(documents);
+    vi.mocked(reviewLeitnerCardWithRatingResult).mockResolvedValueOnce({
+      card: taskCard,
+      persistenceStatus: "queued",
+    });
     vi.mocked(getKnowledgeFolders).mockResolvedValue([{
       id: "branch-folder",
       user_id: "user-test",
@@ -493,8 +505,10 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
     fireEvent.click(screen.getByRole("button", { name: /بلدم/ }));
 
     await waitFor(() => {
+      expect(reviewLeitnerCardWithRatingResult).toHaveBeenCalledWith("user-test", "branch-task-card", 3);
       expect(getNextLeitnerReviewAt).not.toHaveBeenCalled();
       expect(rescheduleLeitnerStudyTaskAfterSession).not.toHaveBeenCalled();
+      expect(toastMock.info).toHaveBeenCalledWith(expect.stringContaining("نتیجه محلی ذخیره و برای همگام‌سازی صف شد."));
     });
     expect(getKnowledgeDocuments).toHaveBeenCalledTimes(1);
     expect(getKnowledgeFolders).toHaveBeenCalledTimes(1);
@@ -631,17 +645,17 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
     const againButton = screen.getByRole("button", { name: /فراموش کردم/ });
     expect(againButton).toBeDisabled();
     fireEvent.click(againButton);
-    expect(reviewLeitnerCardWithRating).not.toHaveBeenCalled();
+    expect(reviewLeitnerCardWithRatingResult).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByTestId("flip-card"));
     await waitFor(() => expect(againButton).toBeEnabled());
     fireEvent.click(againButton);
-    await waitFor(() => expect(reviewLeitnerCardWithRating).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(reviewLeitnerCardWithRatingResult).toHaveBeenCalledTimes(1));
   });
 
   it("prevents a second rating while the first save is still pending", async () => {
-    let resolveReview!: (card: LeitnerCard) => void;
-    vi.mocked(reviewLeitnerCardWithRating).mockReturnValueOnce(
+    let resolveReview!: (result: { card: LeitnerCard; persistenceStatus: "saved" | "queued" }) => void;
+    vi.mocked(reviewLeitnerCardWithRatingResult).mockReturnValueOnce(
       new Promise((resolve) => {
         resolveReview = resolve;
       }),
@@ -655,13 +669,13 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
     fireEvent.click(ratingButton);
     fireEvent.click(ratingButton);
 
-    expect(reviewLeitnerCardWithRating).toHaveBeenCalledTimes(1);
+    expect(reviewLeitnerCardWithRatingResult).toHaveBeenCalledTimes(1);
     expect((ratingButton as HTMLButtonElement).disabled).toBe(true);
 
     await act(async () => {
-      resolveReview({ ...mockCards[0] });
+      resolveReview({ card: { ...mockCards[0] }, persistenceStatus: "saved" });
     });
     expect(screen.getByRole("button", { name: /فراموش کردم/ })).toBeDisabled();
-    expect(reviewLeitnerCardWithRating).toHaveBeenCalledTimes(1);
+    expect(reviewLeitnerCardWithRatingResult).toHaveBeenCalledTimes(1);
   });
 });

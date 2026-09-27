@@ -11,7 +11,11 @@ import {
 } from "./firebase";
 import { firebaseStore } from "./firebaseStore";
 import { cacheGet, cacheSet } from "./offlineDb";
-import { extractTasksFromCache, createTaskCacheEnvelope } from "@/features/tasks/taskCache";
+import {
+  extractTasksFromCache,
+  createTaskCacheEnvelope,
+  withTaskCacheMutationLock,
+} from "@/features/tasks/taskCache";
 import type { Task } from "./taskTypes";
 import { prepareFirestoreBackupRecord } from "./backupRecord";
 
@@ -27,10 +31,13 @@ export type SupportedFirestoreCollection =
   | "habits"
   | "checkins"
   | "settings"
+  | "folders"
+  | "tags"
   | "contacts"
   | "task_contacts"
   | "knowledge_folders"
   | "knowledge_documents"
+  | "knowledge_import_manifests"
   | "leitner_cards"
   | "leitner_reviews"
   | "task_knowledge_links"
@@ -61,12 +68,39 @@ export interface SyncStats {
  * - 2-arg: (collectionName, entity)
  * Includes conflict protection against overwriting newer remote documents.
  */
-export async function saveEntityToFirestore(
+export type FirestoreSaveOutcome = "saved" | "stale" | "failed";
+
+const conflictReviewCollections = new Set<SupportedFirestoreCollection>([
+  "tasks", "notes", "habits", "folders", "tags", "contacts", "task_contacts",
+  "knowledge_folders", "knowledge_documents", "knowledge_import_manifests",
+  "leitner_cards", "leitner_reviews", "task_knowledge_links",
+  "interactive_study_sessions", "socratic_sessions",
+]);
+
+/** Read a queued stale-write's current cloud version without mutating either copy. */
+export async function getFirestoreConflictSnapshot(
+  userId: string,
+  collectionName: string,
+  docId: string,
+): Promise<{ exists: boolean; data?: Record<string, unknown> }> {
+  if (!userId || auth.currentUser?.uid !== userId) {
+    throw new Error("Sign in to the same account that owns this queued change.");
+  }
+  if (!docId || !conflictReviewCollections.has(collectionName as SupportedFirestoreCollection)) {
+    throw new Error("This queued change does not support cloud-version review.");
+  }
+
+  const snapshot = await getDoc(doc(db, "users", userId, collectionName, docId));
+  if (!snapshot.exists()) return { exists: false };
+  return { exists: true, data: { ...snapshot.data(), id: snapshot.id } };
+}
+
+export async function saveEntityToFirestoreWithOutcome(
   userIdOrCollection: string,
   collectionOrData: SupportedFirestoreCollection | string | Record<string, any>,
   docIdOrNothing?: string,
   dataOrNothing?: Record<string, any>
-): Promise<boolean> {
+): Promise<FirestoreSaveOutcome> {
   let userId = "";
   let collectionName = "";
   let docId = "";
@@ -84,7 +118,7 @@ export async function saveEntityToFirestore(
     userId = String(data.user_id || data.userId || auth.currentUser?.uid || "");
   }
 
-  if (!userId || !docId || !collectionName) return false;
+  if (!userId || !docId || !collectionName) return "failed";
 
   try {
     const docRef = doc(db, "users", userId, collectionName, docId);
@@ -105,7 +139,7 @@ export async function saveEntityToFirestore(
           const localTime = new Date(localUpdatedAt).getTime();
           if (remoteTime > localTime) {
             console.info(`[FirestoreSync] Remote document is newer than local data for ${collectionName}/${docId}. Rejecting stale write.`);
-            return false;
+            return "stale";
           }
         }
       }
@@ -113,7 +147,7 @@ export async function saveEntityToFirestore(
       // A durable outbox may retry this mutation later, but writing without a
       // readable current revision could overwrite a newer remote document.
       console.warn(`[FirestoreSync] Could not verify ${collectionName}/${docId}; refusing the write.`, error);
-      return false;
+      return "failed";
     }
 
     await setDoc(
@@ -127,11 +161,26 @@ export async function saveEntityToFirestore(
       },
       { merge: true }
     );
-    return true;
+    return "saved";
   } catch (error) {
     console.warn(`[FirestoreSync] Failed to save ${collectionName}/${docId}:`, error);
-    return false;
+    return "failed";
   }
+}
+
+/** Boolean compatibility wrapper for existing non-queue callers. */
+export async function saveEntityToFirestore(
+  userIdOrCollection: string,
+  collectionOrData: SupportedFirestoreCollection | string | Record<string, any>,
+  docIdOrNothing?: string,
+  dataOrNothing?: Record<string, any>,
+): Promise<boolean> {
+  return (await saveEntityToFirestoreWithOutcome(
+    userIdOrCollection,
+    collectionOrData,
+    docIdOrNothing,
+    dataOrNothing,
+  )) === "saved";
 }
 
 /**
@@ -216,8 +265,23 @@ export async function backupAllToFirestore(
           throw response.error || new Error("Task source could not be verified");
         }
         if (response.data.length) {
-          tasksToSync = response.data as Task[];
-          await cacheSet(`tasks:all:${user.id}`, createTaskCacheEnvelope(tasksToSync));
+          await withTaskCacheMutationLock(user.id, async () => {
+            let latestLocalTasks: Task[] = [];
+            try {
+              latestLocalTasks = extractTasksFromCache(
+                await cacheGet<unknown>(`tasks:all:${user.id}`),
+              );
+            } catch {
+              // Continue using the verified remote result if local cache is unavailable.
+            }
+            const tasksById = new Map<string, Task>();
+            for (const task of response.data as Task[]) tasksById.set(task.id, task);
+            // A cache mutation that completed while the backup query was in
+            // flight is newer than the response and must not be overwritten.
+            for (const task of latestLocalTasks) tasksById.set(task.id, task);
+            tasksToSync = Array.from(tasksById.values());
+            await cacheSet(`tasks:all:${user.id}`, createTaskCacheEnvelope(tasksToSync));
+          });
         }
       } catch (error) {
         console.warn("[FirestoreSync] Could not verify task source for backup:", error);

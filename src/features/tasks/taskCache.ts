@@ -2,6 +2,28 @@ import type { Task } from "@/lib/taskTypes";
 
 export const TASK_CACHE_TTL_MS = 5 * 60 * 1000;
 
+const taskCacheMutationTails = new Map<string, Promise<void>>();
+
+/** Serialize read/modify/write operations for one user's persisted task cache. */
+export async function withTaskCacheMutationLock<T>(
+  userId: string,
+  mutation: () => T | Promise<T>,
+): Promise<T> {
+  const previous = taskCacheMutationTails.get(userId) || Promise.resolve();
+  let release!: () => void;
+  const current = new Promise<void>((resolve) => { release = resolve; });
+  const tail = previous.catch(() => {}).then(() => current);
+  taskCacheMutationTails.set(userId, tail);
+
+  await previous.catch(() => {});
+  try {
+    return await mutation();
+  } finally {
+    release();
+    if (taskCacheMutationTails.get(userId) === tail) taskCacheMutationTails.delete(userId);
+  }
+}
+
 export type TaskCacheEnvelope = {
   tasks: Task[];
   cachedAt: number;

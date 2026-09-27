@@ -15,7 +15,7 @@ import type { Task } from "@/lib/taskTypes";
 import { listTaskTemplates, buildTaskFromTemplate } from "@/lib/taskTemplates";
 import { uploadMediaFull } from "@/lib/uploadMedia";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
-import { enqueueOp } from "@/lib/offlineQueue";
+import { enqueueOp, enqueueOps } from "@/lib/offlineQueue";
 
 type Defaults = {
   folder_id?: string | null;
@@ -184,13 +184,17 @@ export function QuickAddTask({
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       // Offline: queue task and tags. Attachments cannot be uploaded offline and are skipped.
       try {
-        await enqueueOp({ table: "tasks", op: "insert", payload: baseTask });
-        if (finalTagIds.length) {
-          await enqueueOp({
+        const queued = await enqueueOps([
+          { table: "tasks", op: "insert", payload: baseTask, ownerId: user.id },
+          ...(finalTagIds.length ? [{
             table: "task_tags",
             op: "insert",
             payload: finalTagIds.map(tag_id => ({ task_id: tempId, tag_id, user_id: user.id })),
-          });
+            ownerId: user.id,
+          } satisfies Parameters<typeof enqueueOps>[0][number]] : []),
+        ]);
+        if (!queued) {
+          throw new Error(T("ذخیرهٔ آفلاین ممکن نشد؛ فرم پاک نشده است. دوباره تلاش کنید.", "Could not save offline; your form is still here. Please try again."));
         }
         if (selectedFiles.length) {
           toast.info(T("پیوست‌ها در حالت آفلاین ذخیره نمی‌شوند", "Attachments are not saved while offline"));
@@ -221,6 +225,8 @@ export function QuickAddTask({
       if (!saved) throw new Error(T("ذخیره تسک ناموفق بود", "Task could not be saved"));
 
       // Tags are a separate relation and can still use the compatibility adapter.
+      let tagsPendingSync = false;
+      let tagsCouldNotBeSaved = false;
       if (finalTagIds.length) {
         try {
           const { error } = await firebaseStore
@@ -229,12 +235,19 @@ export function QuickAddTask({
           if (error) throw error;
         } catch (tagErr) {
           console.warn("[QuickAddTask] Failed to link tags online, queueing offline:", tagErr);
-          await enqueueOp({
-            table: "task_tags",
-            op: "insert",
-            payload: finalTagIds.map(tag_id => ({ task_id: tempId, tag_id, user_id: user.id })),
-          });
-          toast.info(T("تسک ذخیره شد؛ همگام‌سازی تگ‌ها با اتصال اینترنت کامل می‌شود", "Task saved — tags will sync when online"));
+          let queued = false;
+          try {
+            queued = await enqueueOp({
+              table: "task_tags",
+              op: "insert",
+              payload: finalTagIds.map(tag_id => ({ task_id: tempId, tag_id, user_id: user.id })),
+              ownerId: user.id,
+            });
+          } catch (queueErr) {
+            console.warn("[QuickAddTask] Failed to queue tag links:", queueErr);
+          }
+          tagsPendingSync = queued;
+          tagsCouldNotBeSaved = !queued;
         }
       }
 
@@ -247,7 +260,13 @@ export function QuickAddTask({
     setFocused(false);
     window.dispatchEvent(new Event("tasks-changed"));
     onCreated?.(tempId);
-    toast.success(T("تسک با موفقیت ذخیره شد", "Task created successfully"));
+    if (tagsPendingSync) {
+      toast.info(T("تسک ذخیره شد؛ تگ‌ها پس از اتصال همگام می‌شوند", "Task saved — tags will sync when online"));
+    } else if (tagsCouldNotBeSaved) {
+      toast.error(T("تسک ذخیره شد، اما تگ‌ها ذخیره نشدند؛ تسک را باز کنید و تگ‌ها را دوباره اضافه کنید.", "Task saved, but its tags were not. Reopen the task and add them again."));
+    } else {
+      toast.success(T("تسک با موفقیت ذخیره شد", "Task created successfully"));
+    }
   } catch (e) {
     toast.error(e instanceof Error ? e.message : T("خطا", "Error"));
   } finally {

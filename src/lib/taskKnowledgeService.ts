@@ -25,7 +25,49 @@ export function getTaskKnowledgeCacheKey(userId: string, taskId: string): string
   return `task_knowledge_${userId}_${taskId}`;
 }
 
-export async function getTaskKnowledgeLinks(
+const taskKnowledgeMutationTails = new Map<string, Promise<unknown>>();
+
+async function withTaskKnowledgeLock<T>(cacheKey: string, operation: () => Promise<T>): Promise<T> {
+  const previous = taskKnowledgeMutationTails.get(cacheKey);
+  const current = (previous ? previous.catch(() => undefined) : Promise.resolve()).then(operation);
+  taskKnowledgeMutationTails.set(cacheKey, current);
+  try {
+    return await current;
+  } finally {
+    if (taskKnowledgeMutationTails.get(cacheKey) === current) taskKnowledgeMutationTails.delete(cacheKey);
+  }
+}
+
+async function setCachedTaskKnowledgeLinkState(
+  cacheKey: string,
+  link: TaskKnowledgeLink,
+  shouldExist: boolean,
+): Promise<boolean> {
+  try {
+    const current = (await cacheGet<TaskKnowledgeLink[]>(cacheKey)) || [];
+    const next = shouldExist
+      ? current.some((item) => item.id === link.id) ? current : [...current, link]
+      : current.filter((item) => item.id !== link.id);
+    await cacheSet(cacheKey, next);
+    return true;
+  } catch (error) {
+    console.warn("[TaskKnowledge] Could not reconcile optimistic link cache:", error);
+    return false;
+  }
+}
+
+async function enqueueTaskKnowledgeMutation(
+  operation: Parameters<typeof enqueueOp>[0],
+): Promise<boolean> {
+  try {
+    return await enqueueOp(operation);
+  } catch (error) {
+    console.warn("[TaskKnowledge] Could not queue link mutation:", error);
+    return false;
+  }
+}
+
+async function getTaskKnowledgeLinksUnlocked(
   taskId: string,
   userId: string
 ): Promise<TaskKnowledgeLink[]> {
@@ -62,6 +104,15 @@ export async function getTaskKnowledgeLinks(
   return cached;
 }
 
+export function getTaskKnowledgeLinks(
+  taskId: string,
+  userId: string,
+): Promise<TaskKnowledgeLink[]> {
+  if (!taskId || !userId) return Promise.resolve([]);
+  const cacheKey = getTaskKnowledgeCacheKey(userId, taskId);
+  return withTaskKnowledgeLock(cacheKey, () => getTaskKnowledgeLinksUnlocked(taskId, userId));
+}
+
 export async function getTaskKnowledgeDocs(
   taskId: string,
   userId: string
@@ -77,7 +128,7 @@ export async function getTaskKnowledgeDocs(
     .filter((d): d is KnowledgeDocument => Boolean(d));
 }
 
-export async function linkTaskKnowledge(
+async function linkTaskKnowledgeUnlocked(
   userId: string,
   taskId: string,
   documentId: string,
@@ -108,25 +159,46 @@ export async function linkTaskKnowledge(
 
   await cacheSet(cacheKey, [...existing, link]);
 
+  let saved = false;
   if (isOnline()) {
     try {
-      const ok = await saveEntityToFirestore(userId, "task_knowledge_links", link.id, link);
-      if (!ok) {
-        await enqueueOp({ ownerId: userId, table: "task_knowledge_links", op: "insert", payload: link });
-      }
-    } catch (e) {
-      await enqueueOp({ ownerId: userId, table: "task_knowledge_links", op: "insert", payload: link });
+      saved = await saveEntityToFirestore(userId, "task_knowledge_links", link.id, link);
+    } catch (error) {
+      console.warn("[TaskKnowledge] Direct link save failed; trying durable queue:", error);
     }
-  } else {
-    await enqueueOp({ ownerId: userId, table: "task_knowledge_links", op: "insert", payload: link });
+  }
+
+  const queued = saved || await enqueueTaskKnowledgeMutation({
+    ownerId: userId,
+    table: "task_knowledge_links",
+    op: "insert",
+    payload: link,
+  });
+  if (!queued) {
+    const rolledBack = await setCachedTaskKnowledgeLinkState(cacheKey, link, false);
+    throw new Error(rolledBack
+      ? "The task-to-lesson link could not be saved or queued; the local link was removed."
+      : "The task-to-lesson link could not be saved or queued, and its cache could not be cleared. Refresh and retry.");
   }
 
   return link;
 }
 
+export function linkTaskKnowledge(
+  userId: string,
+  taskId: string,
+  documentId: string,
+  noteOrContext?: string,
+): Promise<TaskKnowledgeLink> {
+  const cacheKey = getTaskKnowledgeCacheKey(userId, taskId);
+  return withTaskKnowledgeLock(cacheKey, () =>
+    linkTaskKnowledgeUnlocked(userId, taskId, documentId, noteOrContext),
+  );
+}
+
 export const linkTaskToDocument = linkTaskKnowledge;
 
-export async function unlinkTaskKnowledge(
+async function unlinkTaskKnowledgeUnlocked(
   userId: string,
   taskId: string,
   documentId: string
@@ -140,19 +212,39 @@ export async function unlinkTaskKnowledge(
   await cacheSet(cacheKey, filtered);
 
   if (target) {
+    let deleted = false;
     if (isOnline()) {
       try {
-        const ok = await deleteEntityFromFirestore(userId, "task_knowledge_links", target.id);
-        if (!ok) {
-          await enqueueOp({ ownerId: userId, table: "task_knowledge_links", op: "delete", match: { id: target.id } });
-        }
-      } catch (e) {
-        await enqueueOp({ ownerId: userId, table: "task_knowledge_links", op: "delete", match: { id: target.id } });
+        deleted = await deleteEntityFromFirestore(userId, "task_knowledge_links", target.id);
+      } catch (error) {
+        console.warn("[TaskKnowledge] Direct link deletion failed; trying durable queue:", error);
       }
-    } else {
-      await enqueueOp({ ownerId: userId, table: "task_knowledge_links", op: "delete", match: { id: target.id } });
+    }
+
+    const queued = deleted || await enqueueTaskKnowledgeMutation({
+      ownerId: userId,
+      table: "task_knowledge_links",
+      op: "delete",
+      match: { id: target.id },
+    });
+    if (!queued) {
+      const restored = await setCachedTaskKnowledgeLinkState(cacheKey, target, true);
+      throw new Error(restored
+        ? "The task-to-lesson link could not be removed or queued; the local link was restored."
+        : "The task-to-lesson link could not be removed or queued, and its cache could not be restored. Refresh to reload it.");
     }
   }
 
   return true;
+}
+
+export function unlinkTaskKnowledge(
+  userId: string,
+  taskId: string,
+  documentId: string,
+): Promise<boolean> {
+  const cacheKey = getTaskKnowledgeCacheKey(userId, taskId);
+  return withTaskKnowledgeLock(cacheKey, () =>
+    unlinkTaskKnowledgeUnlocked(userId, taskId, documentId),
+  );
 }

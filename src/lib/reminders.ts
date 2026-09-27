@@ -445,6 +445,7 @@ export async function saveSettings(userId: string, patch: Partial<UserSettings>)
 
   if (typeof navigator !== "undefined" && !navigator.onLine) {
     await enqueueOp({
+      ownerId: userId,
       table: "user_settings",
       op: "upsert",
       payload: { user_id: userId, ...patch },

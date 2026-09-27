@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import KnowledgeBaseView from "./KnowledgeBaseView";
 import { getPharmacyImportStatus, importPharmacyKnowledge } from "@/lib/pharmacyImportService";
-import { deleteKnowledgeDocument } from "@/lib/knowledgeService";
+import { deleteKnowledgeDocument, KnowledgeDocumentDeletionError } from "@/lib/knowledgeService";
 import { toast } from "sonner";
 import type { KnowledgeDocument } from "@/lib/knowledgeTypes";
 
@@ -165,6 +165,29 @@ describe("KnowledgeBaseView (/app/knowledge) Page Verification", { timeout: 1500
       expect(screen.getAllByText("Fluoxetine Guide").length).toBeGreaterThan(0);
       expect(toast.error).toHaveBeenCalled();
       expect(toast.success).not.toHaveBeenCalledWith("Document deleted");
+    });
+  });
+
+  it("explains that a lesson linked to tasks must be unlinked before deletion", async () => {
+    mockIsEn = true;
+    vi.mocked(deleteKnowledgeDocument).mockRejectedValueOnce(
+      new KnowledgeDocumentDeletionError("linked-tasks", 0, 2),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/app/knowledge"]}>
+        <Routes>
+          <Route path="/app/knowledge" element={<KnowledgeBaseView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByTitle("Delete Document"));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("This lesson is linked to 2 tasks. Unlink it from the task first.");
+      expect(screen.getAllByText("Fluoxetine Guide").length).toBeGreaterThan(0);
     });
   });
 

@@ -35,11 +35,39 @@ vi.mock("@/features/tasks/taskCache", () => ({
   createTaskCacheEnvelope: vi.fn((tasks) => tasks),
 }));
 
-import { backupAllToFirestore, saveEntityToFirestore } from "./firestoreSync";
+import {
+  backupAllToFirestore,
+  getFirestoreConflictSnapshot,
+  saveEntityToFirestore,
+  saveEntityToFirestoreWithOutcome,
+} from "./firestoreSync";
 import { firebaseStore } from "./firebaseStore";
 
 describe("Firestore stale-write protection", () => {
   afterEach(() => vi.clearAllMocks());
+
+  it("reads the current cloud copy for a same-account conflict without writing", async () => {
+    getDocMock.mockResolvedValueOnce({
+      id: "doc-stale",
+      exists: () => true,
+      data: () => ({ title: "Cloud version", updated_at: "2026-09-26T10:00:00.000Z" }),
+    });
+
+    await expect(getFirestoreConflictSnapshot("user-sync-test", "knowledge_documents", "doc-stale"))
+      .resolves.toEqual({
+        exists: true,
+        data: { id: "doc-stale", title: "Cloud version", updated_at: "2026-09-26T10:00:00.000Z" },
+      });
+    expect(setDocMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed for another account or unsupported conflict collections", async () => {
+    await expect(getFirestoreConflictSnapshot("account-b", "tasks", "task-1"))
+      .rejects.toThrow("same account");
+    await expect(getFirestoreConflictSnapshot("user-sync-test", "arbitrary", "doc-1"))
+      .rejects.toThrow("does not support");
+    expect(getDocMock).not.toHaveBeenCalled();
+  });
 
   it("rejects stale writes as unconfirmed so callers keep the mutation pending", async () => {
     getDocMock.mockResolvedValue({
@@ -55,6 +83,29 @@ describe("Firestore stale-write protection", () => {
     );
 
     expect(saved).toBe(false);
+    expect(setDocMock).not.toHaveBeenCalled();
+  });
+
+  it("distinguishes a known stale revision from a transient verification failure", async () => {
+    getDocMock.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({ updated_at: "2026-09-24T12:00:00.000Z" }),
+    });
+    await expect(saveEntityToFirestoreWithOutcome(
+      "user-sync-test",
+      "knowledge_documents",
+      "doc-stale",
+      { id: "doc-stale", updated_at: "2026-09-23T12:00:00.000Z" },
+    )).resolves.toBe("stale");
+
+    getDocMock.mockRejectedValueOnce(new Error("network failure"));
+    await expect(saveEntityToFirestoreWithOutcome(
+      "user-sync-test",
+      "knowledge_documents",
+      "doc-unverified",
+      { id: "doc-unverified", updated_at: "2026-09-25T12:00:00.000Z" },
+    )).resolves.toBe("failed");
+
     expect(setDocMock).not.toHaveBeenCalled();
   });
 

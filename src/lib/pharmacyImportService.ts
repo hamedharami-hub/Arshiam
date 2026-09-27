@@ -1,8 +1,10 @@
 import { firebaseStore } from "./firebaseStore";
-import { cacheSet, getPendingOps } from "./offlineQueue";
+import { cacheSet, canReplayForOwner, getPendingOps } from "./offlineQueue";
 import { saveEntityToFirestore } from "./firestoreSync";
 import type { KnowledgeDocument, KnowledgeFolder } from "./knowledgeTypes";
 import type { LeitnerCard } from "./leitnerTypes";
+import type { PharmacyImportManifest } from "./pharmacyImportManifest";
+import { buildPharmacyImportManifest } from "./pharmacyImportManifest";
 import { getDocsCacheKey, getFoldersCacheKey, isOnline, normalizeKnowledgeDocument } from "./knowledgeService";
 import { calculateNextReviewDate, getLeitnerCardsCacheKey } from "./leitnerService";
 import { PHARMACY_ROOT_FOLDER_ID } from "./pharmacyConstants";
@@ -16,7 +18,7 @@ import {
 
 type SeedData = typeof import("./pharmacySeedData");
 type LegacySeedData = typeof import("./pharmacyLegacySeedData");
-type CollectionName = "knowledge_folders" | "knowledge_documents" | "leitner_cards";
+type CollectionName = "knowledge_folders" | "knowledge_documents" | "leitner_cards" | "knowledge_import_manifests";
 
 export interface PharmacyImportStatus {
   foldersTotal: number;
@@ -36,6 +38,7 @@ export interface PharmacyImportResult {
   cardsCount: number;
   docsUpdated: number;
   cardsUpdated: number;
+  manifestId?: string;
   status: PharmacyImportStatus;
 }
 
@@ -43,6 +46,7 @@ type Snapshot = {
   folders: KnowledgeFolder[];
   documents: KnowledgeDocument[];
   cards: LeitnerCard[];
+  manifests: PharmacyImportManifest[];
 };
 
 export function normalizePharmacySeedDocument(document: KnowledgeDocument): KnowledgeDocument {
@@ -76,12 +80,13 @@ async function readCollection<T>(userId: string, collection: CollectionName): Pr
 }
 
 async function readRemote(userId: string): Promise<Snapshot> {
-  const [folders, documents, cards] = await Promise.all([
+  const [folders, documents, cards, manifests] = await Promise.all([
     readCollection<KnowledgeFolder>(userId, "knowledge_folders"),
     readCollection<KnowledgeDocument>(userId, "knowledge_documents"),
     readCollection<LeitnerCard>(userId, "leitner_cards"),
+    readCollection<PharmacyImportManifest>(userId, "knowledge_import_manifests"),
   ]);
-  return { folders, documents, cards };
+  return { folders, documents, cards, manifests };
 }
 
 export function comparePharmacySeed(seed: SeedData, remote: Snapshot): PharmacyImportStatus {
@@ -242,8 +247,9 @@ export async function importPharmacyKnowledge(
 ): Promise<PharmacyImportResult> {
   assertUser(userId);
   const pending = await getPendingOps();
-  if (pending.some((op) => op.ownerId === userId &&
-    (op.table === "knowledge_folders" || op.table === "knowledge_documents" || op.table === "leitner_cards"))) {
+  if (pending.some((op) => canReplayForOwner(op, userId) &&
+    (op.table === "knowledge_folders" || op.table === "knowledge_documents" || op.table === "leitner_cards" ||
+      op.table === "knowledge_import_manifests"))) {
     throw new Error("Sync pending knowledge changes before importing pharmacy content.");
   }
   const [rawSeed, legacy] = await Promise.all([import("./pharmacySeedData"), import("./pharmacyLegacySeedData")]);
@@ -352,12 +358,40 @@ export async function importPharmacyKnowledge(
     throw new Error(`${remaining} pharmacy items were not verified on the server. Retry to resume safely.`);
   }
 
+  const includeCards = options?.importCards !== false;
+  const manifestSeed = {
+    ...seed,
+    PHARMACY_SEED_DOCUMENTS: seed.PHARMACY_SEED_DOCUMENTS.map(normalizePharmacySeedDocument),
+  };
+  const manifest = await buildPharmacyImportManifest(userId, manifestSeed, verified, now, includeCards);
+  const existingManifest = verified.manifests.find((item) => item.id === manifest.id);
+  if (existingManifest && existingManifest.source_snapshot_sha256 !== manifest.source_snapshot_sha256) {
+    throw new Error("A Pharmacy import manifest ID collision was detected; no manifest was overwritten.");
+  }
+  if (!existingManifest) {
+    const saved = await saveEntityToFirestore(
+      userId,
+      "knowledge_import_manifests",
+      manifest.id,
+      JSON.parse(JSON.stringify(manifest)) as PharmacyImportManifest,
+    );
+    if (!saved) {
+      throw new Error("Pharmacy content is present, but its provenance manifest could not be saved. Retry to verify provenance.");
+    }
+  }
+  const manifestsAfterWrite = await readCollection<PharmacyImportManifest>(userId, "knowledge_import_manifests");
+  const verifiedManifest = manifestsAfterWrite.find((item) => item.id === manifest.id);
+  if (!verifiedManifest || verifiedManifest.source_snapshot_sha256 !== manifest.source_snapshot_sha256) {
+    throw new Error("Pharmacy content is present, but its provenance manifest was not verified on the server.");
+  }
+
   return {
     foldersCount: folders.length,
     docsCount: documents.length,
     cardsCount: cards.length,
     docsUpdated: upgradedDocuments.length,
     cardsUpdated: upgradedCards.length,
+    manifestId: manifest.id,
     status,
   };
 }

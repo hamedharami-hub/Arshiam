@@ -47,9 +47,9 @@ export function StreakCard() {
   });
 
   return (
-    <div className="rounded-2xl border border-border bg-card/60 p-4">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+    <div className="min-w-0 rounded-2xl border border-border bg-card/60 p-4">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <div className={`grid place-items-center h-11 w-11 rounded-full ${stats.streak > 0 ? "bg-orange-500/15 text-orange-500" : "bg-muted text-muted-foreground"}`}>
             <Flame className="w-6 h-6" />
           </div>
@@ -70,7 +70,7 @@ export function StreakCard() {
           </div>
         </div>
 
-        <div className="flex items-end gap-1 h-10">
+        <div className="ms-auto flex shrink-0 items-end gap-1 h-10">
           {stats.last7.map((c, i) => {
             const h = Math.round((c / maxDay) * 100);
             const isToday = i === stats.last7.length - 1;

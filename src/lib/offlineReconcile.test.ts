@@ -66,4 +66,16 @@ describe("reconcileRemoteRowsWithPending", () => {
 
     expect(result).toEqual([]);
   });
+
+  it("projects a legacy pending row only when its payload explicitly identifies this owner", () => {
+    const result = reconcileRemoteRowsWithPending<Row>(
+      [],
+      [],
+      [op({ ownerId: undefined, payload: { id: "legacy", title: "Local", user_id: "user-1" } })],
+      "knowledge_documents",
+      "user-1",
+    );
+
+    expect(result).toEqual([{ id: "legacy", title: "Local", user_id: "user-1" }]);
+  });
 });

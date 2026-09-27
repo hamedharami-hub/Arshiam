@@ -35,11 +35,45 @@ export function getLeitnerCardsCacheKey(userId: string): string {
   return `leitner_cards:${userId}`;
 }
 
+export type LeitnerPersistenceStatus = "saved" | "queued";
+
+export interface LeitnerReviewResult {
+  card: LeitnerCard;
+  persistenceStatus: LeitnerPersistenceStatus;
+}
+
+export interface LeitnerCardCreationInput {
+  front: string;
+  back: string;
+  front_fa?: string;
+  back_fa?: string;
+  front_en?: string;
+  back_en?: string;
+  clue?: string;
+  document_id?: string | null;
+  folder_id?: string | null;
+  box?: number;
+  scheduling_algorithm?: LeitnerSchedulingAlgorithm;
+}
+
+const leitnerMutationTails = new Map<string, Promise<unknown>>();
+
+async function withLeitnerMutationLock<T>(userId: string, mutation: () => Promise<T>): Promise<T> {
+  const previous = leitnerMutationTails.get(userId);
+  const current = (previous ? previous.catch(() => undefined) : Promise.resolve()).then(mutation);
+  leitnerMutationTails.set(userId, current);
+  try {
+    return await current;
+  } finally {
+    if (leitnerMutationTails.get(userId) === current) leitnerMutationTails.delete(userId);
+  }
+}
+
 async function persistExistingCardMutation(
   userId: string,
   operation: "update" | "delete",
   card: LeitnerCard,
-): Promise<void> {
+): Promise<LeitnerPersistenceStatus> {
   let savedRemotely = false;
   if (isOnline()) {
     try {
@@ -50,7 +84,7 @@ async function persistExistingCardMutation(
       savedRemotely = false;
     }
   }
-  if (savedRemotely) return;
+  if (savedRemotely) return "saved";
 
   const queued = await enqueueOp({
     ownerId: userId,
@@ -62,6 +96,7 @@ async function persistExistingCardMutation(
   if (!queued) {
     throw new Error("Could not safely save this flashcard change: sync queue storage is unavailable. Your previous card state was restored.");
   }
+  return "queued";
 }
 
 // Spaced repetition intervals in days for Boxes 1 through 5 (fallback/baseline)
@@ -470,21 +505,9 @@ export async function getCramCards(
   });
 }
 
-export async function createLeitnerCard(
+async function createLeitnerCardUnlocked(
   userId: string,
-  data: {
-    front: string;
-    back: string;
-    front_fa?: string;
-    back_fa?: string;
-    front_en?: string;
-    back_en?: string;
-    clue?: string;
-    document_id?: string | null;
-    folder_id?: string | null;
-    box?: number;
-    scheduling_algorithm?: LeitnerSchedulingAlgorithm;
-  }
+  data: LeitnerCardCreationInput,
 ): Promise<LeitnerCard> {
   if (!userId) throw new Error("User ID is required");
   const front = data.front.trim();
@@ -562,14 +585,21 @@ export async function createLeitnerCard(
   return card;
 }
 
+export function createLeitnerCard(
+  userId: string,
+  data: LeitnerCardCreationInput,
+): Promise<LeitnerCard> {
+  return withLeitnerMutationLock(userId, () => createLeitnerCardUnlocked(userId, data));
+}
+
 /**
  * Applies the card's persisted scheduler without changing schedules on legacy cards.
  */
-export async function reviewLeitnerCardWithRating(
+async function reviewLeitnerCardWithRatingResultUnlocked(
   userId: string,
   cardId: string,
   rating: LeitnerRating
-): Promise<LeitnerCard> {
+): Promise<LeitnerReviewResult> {
   if (!userId || !cardId) throw new Error("User ID and Card ID are required");
 
   const cacheKey = getLeitnerCardsCacheKey(userId);
@@ -622,14 +652,34 @@ export async function reviewLeitnerCardWithRating(
   next[idx] = updated;
   await cacheSet(cacheKey, next);
 
+  let persistenceStatus: LeitnerPersistenceStatus;
   try {
-    await persistExistingCardMutation(userId, "update", updated);
+    persistenceStatus = await persistExistingCardMutation(userId, "update", updated);
   } catch (error) {
     await cacheSet(cacheKey, existing);
     throw error;
   }
 
-  return updated;
+  return { card: updated, persistenceStatus };
+}
+
+export function reviewLeitnerCardWithRatingResult(
+  userId: string,
+  cardId: string,
+  rating: LeitnerRating,
+): Promise<LeitnerReviewResult> {
+  return withLeitnerMutationLock(userId, () =>
+    reviewLeitnerCardWithRatingResultUnlocked(userId, cardId, rating),
+  );
+}
+
+export async function reviewLeitnerCardWithRating(
+  userId: string,
+  cardId: string,
+  rating: LeitnerRating,
+): Promise<LeitnerCard> {
+  const result = await reviewLeitnerCardWithRatingResult(userId, cardId, rating);
+  return result.card;
 }
 
 /**
@@ -643,7 +693,7 @@ export async function reviewLeitnerCard(
   return reviewLeitnerCardWithRating(userId, cardId, isSuccess ? 3 : 1);
 }
 
-export async function updateLeitnerCard(
+async function updateLeitnerCardUnlocked(
   userId: string,
   cardId: string,
   patch: Partial<LeitnerCard>
@@ -681,7 +731,15 @@ export async function updateLeitnerCard(
   return updated;
 }
 
-export async function deleteLeitnerCard(userId: string, cardId: string): Promise<boolean> {
+export function updateLeitnerCard(
+  userId: string,
+  cardId: string,
+  patch: Partial<LeitnerCard>,
+): Promise<LeitnerCard> {
+  return withLeitnerMutationLock(userId, () => updateLeitnerCardUnlocked(userId, cardId, patch));
+}
+
+async function deleteLeitnerCardUnlocked(userId: string, cardId: string): Promise<boolean> {
   if (!userId || !cardId) return false;
 
   const cacheKey = getLeitnerCardsCacheKey(userId);
@@ -698,6 +756,10 @@ export async function deleteLeitnerCard(userId: string, cardId: string): Promise
   }
 
   return true;
+}
+
+export function deleteLeitnerCard(userId: string, cardId: string): Promise<boolean> {
+  return withLeitnerMutationLock(userId, () => deleteLeitnerCardUnlocked(userId, cardId));
 }
 
 export async function getLeitnerBoxStats(

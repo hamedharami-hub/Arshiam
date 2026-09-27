@@ -50,6 +50,10 @@ function studyTargetOptionKey(targetType: StudyTargetType, targetId: string): st
   return JSON.stringify([targetType, targetId]);
 }
 
+function isLeitnerTargetType(targetType: StudyTargetType): boolean {
+  return targetType === "leitner" || targetType === "leitner_folder";
+}
+
 interface StudyTaskScheduleModalBaseProps extends StudyTaskScheduleModalProps {
   navigate: (to: string) => void;
 }
@@ -68,9 +72,6 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
   const { user } = useAuth();
   const { isEn, T } = useBilingual();
 
-  const isMindMap = targetType.startsWith("mindmap_");
-  const isLeitner = targetType === "leitner";
-
   // Form States
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -88,14 +89,20 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
   const [saving, setSaving] = useState(false);
   const [selectedTargetId, setSelectedTargetId] = useState(targetId);
   const [selectedTargetType, setSelectedTargetType] = useState(targetType);
+  const isMindMap = selectedTargetType.startsWith("mindmap_");
+  const isLeitner = isLeitnerTargetType(selectedTargetType);
 
   const selectedTargetTitle = selectedTargetType === targetType && selectedTargetId === targetId
     ? targetTitle
     : targetOptions?.find((option) =>
         option.id === selectedTargetId && (option.targetType ?? targetType) === selectedTargetType,
       )?.title || targetTitle;
-  const folderTargetOptions = targetOptions?.filter((option) => option.targetType === "leitner_folder") ?? [];
-  const lessonTargetOptions = targetOptions?.filter((option) => option.targetType !== "leitner_folder") ?? [];
+  const folderTargetOptions = targetOptions?.filter((option) =>
+    (option.targetType ?? targetType) === "leitner_folder",
+  ) ?? [];
+  const lessonTargetOptions = targetOptions?.filter((option) =>
+    (option.targetType ?? targetType) !== "leitner_folder",
+  ) ?? [];
 
   // Initialize or reset form when opened or target changes
   useEffect(() => {
@@ -103,7 +110,7 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
       setSelectedTargetId(targetId);
       setSelectedTargetType(targetType);
       let defaultTitle = "";
-      if (targetType === "leitner") {
+      if (isLeitnerTargetType(targetType)) {
         defaultTitle = isEn
           ? "Review Leitner Flashcards"
           : "خواندن و مرور کارت‌های لایتنر";
@@ -176,19 +183,29 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
       });
 
       if (res.ok && res.task) {
-        toast.success(
-          isLeitner
+        const successMessage = isLeitner
             ? T("تسک خواندن لایتنر با موفقیت در تسک‌ها ایجاد شد", "Leitner review task created successfully")
             : isMindMap
             ? T("تسک مرور نقشه ذهنی با موفقیت ایجاد شد", "Mind map review task created")
-            : T("تسک مطالعه شاخه با موفقیت ایجاد شد", "Study task created successfully"),
-          {
-            action: {
-              label: T("مشاهده در تسک‌ها", "View in Tasks"),
-              onClick: () => navigate("/app/tasks"),
-            },
-          }
-        );
+            : T("تسک مطالعه شاخه با موفقیت ایجاد شد", "Study task created successfully");
+        const toastOptions = {
+          action: {
+            label: T("مشاهده در تسک‌ها", "View in Tasks"),
+            onClick: () => navigate("/app/tasks"),
+          },
+        };
+
+        if (res.linkWarning) {
+          toast.warning(
+            T(
+              "تسک ساخته شد، اما پیوندش به درس ذخیره نشد. تسک هنوز قابل استفاده است؛ لینک درس را بررسی کنید.",
+              "The task was created, but its lesson link could not be saved. The task is still usable; please verify its lesson link.",
+            ),
+            toastOptions,
+          );
+        } else {
+          toast.success(successMessage, toastOptions);
+        }
 
         if (onTaskCreated) {
           onTaskCreated(res.task);
@@ -326,7 +343,9 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
                 className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value={studyTargetOptionKey(targetType, targetId)}>
-                  {isEn ? "All Leitner cards" : "همهٔ کارت‌های لایتنر"}
+                  {targetType === "leitner_folder"
+                    ? targetTitle
+                    : isEn ? "All Leitner cards" : "همهٔ کارت‌های لایتنر"}
                 </option>
                 {folderTargetOptions.length > 0 ? (
                   <optgroup label={T("پوشه‌ها و زیرپوشه‌ها", "Folders and subfolders")}>

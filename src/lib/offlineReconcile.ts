@@ -1,4 +1,4 @@
-import type { QueuedOp } from "./offlineQueue";
+import { canReplayForOwner, type QueuedOp } from "./offlineQueue";
 
 type IdentifiedRow = { id: string };
 
@@ -26,7 +26,7 @@ export function reconcileRemoteRowsWithPending<T extends IdentifiedRow>(
   const cachedRows = new Map(cached.map((row) => [row.id, row]));
 
   const relevantOps = pendingOps
-    .filter((op) => op.table === table && op.ownerId === ownerId)
+    .filter((op) => op.table === table && canReplayForOwner(op, ownerId))
     .sort((left, right) => left.createdAt - right.createdAt);
 
   for (const op of relevantOps) {
