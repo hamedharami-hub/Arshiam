@@ -280,6 +280,8 @@ const TITLE_STOP_WORDS = new Set([
   "alerts",
   "flag",
   "flags",
+  // Jurisdiction labels are useful context, but do not establish a topic link.
+  "nsw",
   "برای",
   "های",
   "را",

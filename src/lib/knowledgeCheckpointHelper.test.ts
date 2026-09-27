@@ -298,4 +298,22 @@ describe("knowledgeCheckpointHelper", () => {
       getRelatedDocumentSuggestions(current, [current, unrelatedRedFlagDoc])
     ).toEqual([]);
   });
+
+  it("does not suggest a document based only on the NSW jurisdiction label", () => {
+    const current = {
+      ...sampleOtcDoc,
+      title: "SafeScript NSW Red Alert and Early Refill",
+      tags: [],
+    };
+    const unrelatedNswDocument = {
+      ...unrelatedDoc,
+      folder_id: "folder-other",
+      title: "NSW dispensing dilemmas",
+      tags: [],
+    };
+
+    expect(
+      getRelatedDocumentSuggestions(current, [current, unrelatedNswDocument])
+    ).toEqual([]);
+  });
 });
