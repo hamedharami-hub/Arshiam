@@ -8,12 +8,14 @@ import {
   getKnowledgeDocument,
   createKnowledgeDocument,
   updateKnowledgeDocument,
+  updateKnowledgeDocumentWithPersistence,
   deleteKnowledgeDocument,
   buildFolderTree,
   getFolderAncestorIds,
   searchKnowledgeDocuments,
   getFoldersCacheKey,
   getDocsCacheKey,
+  normalizeKnowledgeMediaAttachments,
 } from "./knowledgeService";
 import { cacheGet, cacheSet, clearQueue, enqueueOp, getPendingOps } from "./offlineQueue";
 import { deleteEntityFromFirestore, saveEntityToFirestore } from "./firestoreSync";
@@ -437,6 +439,100 @@ describe("knowledgeService", () => {
 
     const single = await getKnowledgeDocument(userId, doc.id);
     expect(single).toBeNull();
+  });
+
+  it("persists only safe Google Drive image/video metadata on a lesson", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    mockSuccessfulFirestoreWrites();
+    const doc = await createKnowledgeDocument(userId, {
+      title: "Media lesson",
+      content_html: "<p>Original lesson content</p>",
+      source_url: "https://example.org/lesson",
+      tags: ["study"],
+    });
+    remoteKnowledgeRows.push({ ...doc });
+    const attachment = {
+      provider: "google_drive" as const,
+      file_id: "drive-file_12345",
+      name: "lecture video.mp4",
+      mime_type: "video/mp4",
+      size_bytes: 2048,
+      added_at: "2026-09-27T00:00:00.000Z",
+    };
+    const invalid = { ...attachment, file_id: "https://evil.example/file", mime_type: "text/html" };
+
+    expect(normalizeKnowledgeMediaAttachments([attachment, invalid])).toEqual([attachment]);
+    const updated = await updateKnowledgeDocument(userId, doc.id, { attachments: [attachment, invalid] as unknown as KnowledgeDocument["attachments"] });
+    expect(updated.attachments).toEqual([attachment]);
+    expect(updated.content_html).toBe(doc.content_html);
+    expect(updated.source_url).toBe(doc.source_url);
+    expect(updated.tags).toEqual(doc.tags);
+    expect(saveEntityToFirestore).toHaveBeenCalledWith(
+      userId,
+      "knowledge_documents",
+      doc.id,
+      expect.objectContaining({ attachments: [attachment], source_url: doc.source_url, tags: doc.tags }),
+    );
+
+    const loaded = await getKnowledgeDocument(userId, doc.id);
+    expect(loaded?.attachments).toEqual([attachment]);
+  });
+
+  it("reports queued media updates while preserving the full lesson in the durable outbox", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    mockSuccessfulFirestoreWrites();
+    const doc = await createKnowledgeDocument(userId, {
+      title: "Queued media lesson",
+      content_html: "<p>Keep the complete lesson</p>",
+      source_url: "https://example.org/queued-lesson",
+      tags: ["study", "media"],
+    });
+    vi.mocked(saveEntityToFirestore).mockResolvedValue(false);
+
+    const attachment = {
+      provider: "google_drive" as const,
+      file_id: "drive-file_queued123",
+      name: "diagram.png",
+      mime_type: "image/png",
+      size_bytes: 2048,
+      added_at: "2026-09-27T00:00:00.000Z",
+    };
+    const result = await updateKnowledgeDocumentWithPersistence(userId, doc.id, {
+      attachments: [attachment],
+    });
+
+    expect(result.persistence).toBe("queued");
+    expect(result.document.attachments).toEqual([attachment]);
+    expect(result.document.source_url).toBe(doc.source_url);
+    expect(result.document.content_html).toBe(doc.content_html);
+    expect(result.document.tags).toEqual(doc.tags);
+    expect(await cacheGet<KnowledgeDocument[]>(getDocsCacheKey(userId))).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: doc.id,
+          source_url: doc.source_url,
+          content_html: doc.content_html,
+          tags: doc.tags,
+          attachments: [attachment],
+        }),
+      ]),
+    );
+    expect(await getPendingOps("knowledge_documents")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ownerId: userId,
+          table: "knowledge_documents",
+          op: "update",
+          payload: expect.objectContaining({
+            id: doc.id,
+            source_url: doc.source_url,
+            content_html: doc.content_html,
+            tags: doc.tags,
+            attachments: [attachment],
+          }),
+        }),
+      ]),
+    );
   });
 
   it("keeps a lesson when remote Leitner cards still reference it", async () => {

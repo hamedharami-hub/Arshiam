@@ -39,12 +39,28 @@ function stripHtmlToPlainText(html: string): string {
     .trim();
 }
 
+export function normalizeKnowledgeMediaAttachments(value: unknown): KnowledgeDocument["attachments"] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((attachment) =>
+    attachment && typeof attachment === "object" &&
+    attachment.provider === "google_drive" &&
+    typeof attachment.file_id === "string" && /^[A-Za-z0-9_-]{5,200}$/.test(attachment.file_id) &&
+    typeof attachment.name === "string" && attachment.name.trim().length > 0 && attachment.name.length <= 255 &&
+    typeof attachment.mime_type === "string" && /^(image|video)\/[a-z0-9.+-]+$/i.test(attachment.mime_type) &&
+    Number.isSafeInteger(attachment.size_bytes) && attachment.size_bytes > 0 &&
+    typeof attachment.added_at === "string",
+  );
+}
+
 export function normalizeKnowledgeDocument(document: KnowledgeDocument): KnowledgeDocument {
   const contentHtml = sanitizeKnowledgeHtml(typeof document.content_html === "string" ? document.content_html : "");
   const contentEn = typeof document.content_en === "string"
     ? sanitizeKnowledgeHtml(document.content_en)
     : document.content_en;
   const contentPlain = typeof document.content_plain === "string" ? document.content_plain : "";
+  const attachments = document.attachments === undefined
+    ? undefined
+    : normalizeKnowledgeMediaAttachments(document.attachments);
 
   return {
     ...document,
@@ -52,6 +68,7 @@ export function normalizeKnowledgeDocument(document: KnowledgeDocument): Knowled
     content_en: contentEn,
     plain_text: stripHtmlToPlainText(contentHtml) || stripHtmlToPlainText(contentPlain),
     source_url: getSafeKnowledgeExternalUrl(document.source_url) || undefined,
+    ...(document.attachments !== undefined ? { attachments } : {}),
   };
 }
 
@@ -75,26 +92,38 @@ export class KnowledgeDocumentDeletionError extends Error {
   }
 }
 
-async function saveKnowledgeRowOrQueue(
+async function saveKnowledgeRowOrQueueWithPersistence(
   userId: string,
   collection: KnowledgeCollection,
   op: "insert" | "update",
   item: { id: string },
-): Promise<boolean> {
+): Promise<{ accepted: boolean; persistence: "synced" | "queued" }> {
   if (isOnline()) {
     try {
-      if (await saveEntityToFirestore(userId, collection, item.id, item)) return true;
+      if (await saveEntityToFirestore(userId, collection, item.id, item)) {
+        return { accepted: true, persistence: "synced" };
+      }
     } catch {
       // A failed server write can still be safely accepted by the outbox.
     }
   }
-  return enqueueOp({
+  const accepted = await enqueueOp({
     ownerId: userId,
     table: collection,
     op,
     payload: item,
     match: op === "update" ? { id: item.id } : undefined,
   });
+  return { accepted, persistence: "queued" };
+}
+
+async function saveKnowledgeRowOrQueue(
+  userId: string,
+  collection: KnowledgeCollection,
+  op: "insert" | "update",
+  item: { id: string },
+): Promise<boolean> {
+  return (await saveKnowledgeRowOrQueueWithPersistence(userId, collection, op, item)).accepted;
 }
 
 async function deleteKnowledgeRowOrQueue(userId: string, collection: KnowledgeCollection, id: string): Promise<boolean> {
@@ -485,11 +514,11 @@ export async function createKnowledgeDocument(
   return doc;
 }
 
-export async function updateKnowledgeDocument(
+export async function updateKnowledgeDocumentWithPersistence(
   userId: string,
   docId: string,
   patch: Partial<KnowledgeDocument>
-): Promise<KnowledgeDocument> {
+): Promise<{ document: KnowledgeDocument; persistence: "synced" | "queued" }> {
   if (!userId || !docId) throw new Error("User ID and Document ID are required");
 
   const cacheKey = getDocsCacheKey(userId);
@@ -503,6 +532,7 @@ export async function updateKnowledgeDocument(
     ...(patch.content_html !== undefined ? { content_html: sanitizeKnowledgeHtml(patch.content_html) } : {}),
     ...(patch.content_en !== undefined ? { content_en: sanitizeKnowledgeHtml(patch.content_en) } : {}),
     ...(patch.source_url !== undefined ? { source_url: normalizeSourceUrl(patch.source_url) } : {}),
+    ...(patch.attachments !== undefined ? { attachments: normalizeKnowledgeMediaAttachments(patch.attachments) } : {}),
   };
   const contentChanged =
     (normalizedPatch.title !== undefined && normalizedPatch.title !== current.title) ||
@@ -526,16 +556,28 @@ export async function updateKnowledgeDocument(
     updated_at: new Date().toISOString(),
   };
 
-  requireMutationAccepted(
-    await saveKnowledgeRowOrQueue(userId, "knowledge_documents", "update", updated),
-    "Document update",
+  const saveResult = await saveKnowledgeRowOrQueueWithPersistence(
+    userId,
+    "knowledge_documents",
+    "update",
+    updated,
   );
+  requireMutationAccepted(saveResult.accepted, "Document update");
 
   const next = [...existing];
   next[idx] = updated;
   await cacheSet(cacheKey, next);
 
-  return updated;
+  return { document: updated, persistence: saveResult.persistence };
+}
+
+export async function updateKnowledgeDocument(
+  userId: string,
+  docId: string,
+  patch: Partial<KnowledgeDocument>
+): Promise<KnowledgeDocument> {
+  const result = await updateKnowledgeDocumentWithPersistence(userId, docId, patch);
+  return result.document;
 }
 
 export async function deleteKnowledgeDocument(userId: string, docId: string): Promise<boolean> {

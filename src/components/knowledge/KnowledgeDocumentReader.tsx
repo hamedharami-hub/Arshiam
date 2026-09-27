@@ -50,6 +50,7 @@ import { createLeitnerCard } from "@/lib/leitnerService";
 import { getKnowledgeReviewState, getSafeKnowledgeExternalUrl, isPharmacyKnowledgeDocument } from "@/lib/knowledgeReviewEvidence";
 import { hasSubstantialPersianInEnglish } from "@/lib/bilingualHelper";
 import { TextSelectionFloatingBar } from "./TextSelectionFloatingBar";
+import { KnowledgeDriveAttachments } from "./KnowledgeDriveAttachments";
 const AiQuestionGeneratorModal = React.lazy(() =>
   import("./AiQuestionGeneratorModal").then((m) => ({
     default: m.AiQuestionGeneratorModal,
@@ -832,6 +833,13 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                 )}
               </div>
             </div>
+
+            <KnowledgeDriveAttachments
+              document={document}
+              userId={userId}
+              isEn={isEn}
+              onDocumentUpdated={onDocumentUpdated}
+            />
 
             {(reviewState === "unreviewed" || reviewState === "missing-evidence") && (
               <div role="note" className="mb-5 rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-foreground">
