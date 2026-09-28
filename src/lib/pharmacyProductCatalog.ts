@@ -10,6 +10,7 @@ export interface PharmacyProductCatalogEntry {
   documentId: string;
   brandName: string;
   genericName: string;
+  sourceListedBrandNames?: string[];
   activeIngredients: string;
   packSize: string;
   schedule: PharmacyProductSchedule;
@@ -104,6 +105,7 @@ export function filterPharmacyProducts(
     if (filters.subcategoryId && filters.subcategoryId !== "all" && product.subcategoryId !== filters.subcategoryId) return false;
     if (!query) return true;
 
-    return SEARCH_FIELDS.some((field) => normalizePharmacyCatalogText(product[field]).includes(query));
+    return SEARCH_FIELDS.some((field) => normalizePharmacyCatalogText(product[field]).includes(query)) ||
+      (product.sourceListedBrandNames || []).some((name) => normalizePharmacyCatalogText(name).includes(query));
   });
 }

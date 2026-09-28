@@ -2994,6 +2994,7 @@ const pharmacyProductCatalog = SHELF_PRODUCTS.map((product) => {
     documentId: `doc-product-${product.id}`,
     brandName: product.brandName,
     genericName: product.genericName,
+    sourceListedBrandNames: Array.isArray(product.equivalentBrands) ? product.equivalentBrands : [],
     activeIngredients: product.activeIngredients || '',
     packSize: product.packSize || '',
     schedule: product.schedule,

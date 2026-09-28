@@ -49,6 +49,7 @@ describe("Pharmacy product catalog index", () => {
   it("searches across brand and generic labels and builds locale-specific category choices", () => {
     expect(filterPharmacyProducts(PHARMACY_PRODUCT_CATALOG, { query: "panadol" }).length).toBeGreaterThan(0);
     expect(filterPharmacyProducts(PHARMACY_PRODUCT_CATALOG, { query: "paracetamol" }).length).toBeGreaterThan(0);
+    expect(filterPharmacyProducts(PHARMACY_PRODUCT_CATALOG, { query: "Panamax" }).some((product) => product.id === "prod-panadol-500")).toBe(true);
     expect(filterPharmacyProducts(PHARMACY_PRODUCT_CATALOG, { query: "no matching product" })).toEqual([]);
 
     const faCategories = getPharmacyProductCategories(PHARMACY_PRODUCT_CATALOG, "fa");

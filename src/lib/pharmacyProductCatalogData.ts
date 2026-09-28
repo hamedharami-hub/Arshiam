@@ -7,6 +7,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-panadol-500",
     "brandName": "Panadol 500mg",
     "genericName": "Paracetamol",
+    "sourceListedBrandNames": [
+      "Panamax",
+      "Dymadon",
+      "Chemist Own Paracetamol"
+    ],
     "activeIngredients": "Paracetamol 500mg per tablet",
     "packSize": "20 Tablets",
     "schedule": "Unscheduled",
@@ -24,6 +29,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-panadol-osteo",
     "brandName": "Panadol Osteo 665mg",
     "genericName": "Paracetamol (Modified Release)",
+    "sourceListedBrandNames": [
+      "OsteoMol 665",
+      "Chemist Own Osteo Relief"
+    ],
     "activeIngredients": "Paracetamol 665mg modified release tablet",
     "packSize": "96 Modified Release Tablets",
     "schedule": "S2",
@@ -41,6 +50,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-nurofen-200",
     "brandName": "Nurofen 200mg",
     "genericName": "Ibuprofen",
+    "sourceListedBrandNames": [
+      "Advil",
+      "Rafan",
+      "Chemist Own Ibuprofen"
+    ],
     "activeIngredients": "Ibuprofen 200mg per capsule",
     "packSize": "24 Liquid Capsules",
     "schedule": "S2",
@@ -58,6 +72,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-voltaren-rapid-25",
     "brandName": "Voltaren Rapid 25",
     "genericName": "Diclofenac Potassium",
+    "sourceListedBrandNames": [
+      "Diclofenac Sandoz",
+      "Chemist Own Diclofenac"
+    ],
     "activeIngredients": "Diclofenac potassium 25mg tablet",
     "packSize": "30 Tablets",
     "schedule": "S2",
@@ -75,6 +93,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-nuromol-tablets",
     "brandName": "Nuromol Tablets",
     "genericName": "Paracetamol + Ibuprofen",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Paracetamol 500mg + Ibuprofen 200mg",
     "packSize": "24 Tablets",
     "schedule": "S3",
@@ -92,6 +111,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-aspirin-300",
     "brandName": "Aspro Clear 300mg",
     "genericName": "Aspirin (Soluble / Effervescent)",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Aspirin 300mg effervescent tablet",
     "packSize": "24 Soluble Tablets",
     "schedule": "Unscheduled",
@@ -109,6 +129,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-diflucan-150",
     "brandName": "Diflucan One 150mg",
     "genericName": "Fluconazole",
+    "sourceListedBrandNames": [
+      "Canesten Clotrimazole/Fluconazole",
+      "Chemist Own Fluconazole"
+    ],
     "activeIngredients": "Fluconazole 150mg capsule",
     "packSize": "1 Oral Capsule",
     "schedule": "S3",
@@ -126,6 +150,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-canesten-cream",
     "brandName": "Canesten Topical Cream 1%",
     "genericName": "Clotrimazole",
+    "sourceListedBrandNames": [
+      "Clonea",
+      "Chemist Own Clotrimazole"
+    ],
     "activeIngredients": "Clotrimazole 10mg/g (1%)",
     "packSize": "20g Tube",
     "schedule": "S2",
@@ -143,6 +171,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-lamisil-cream",
     "brandName": "Lamisil Cream 1%",
     "genericName": "Terbinafine Hydrochloride",
+    "sourceListedBrandNames": [
+      "SolvEasy Tinea",
+      "Chemist Own Terbinafine"
+    ],
     "activeIngredients": "Terbinafine HCl 10mg/g (1%)",
     "packSize": "15g Tube",
     "schedule": "S2",
@@ -160,6 +192,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-loceryl-nail-lacquer",
     "brandName": "Loceryl Nail Lacquer 5%",
     "genericName": "Amorolfine",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Amorolfine 5% w/v nail lacquer",
     "packSize": "5 mL Bottle with Applicator & Files",
     "schedule": "S2",
@@ -177,6 +210,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-combantrin-choc-squares",
     "brandName": "Combantrin Chocolate Squares",
     "genericName": "Pyrantel Embonate",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Pyrantel embonate equivalent to 100mg pyrantel per square",
     "packSize": "24 Chocolate Squares",
     "schedule": "Unscheduled",
@@ -194,6 +228,9 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-vermox-tablets",
     "brandName": "Vermox 100mg Tablets",
     "genericName": "Mebendazole",
+    "sourceListedBrandNames": [
+      "Combantrin-1 (Mebendazole)"
+    ],
     "activeIngredients": "Mebendazole 100mg chewable tablet",
     "packSize": "6 Chewable Tablets",
     "schedule": "S2",
@@ -211,6 +248,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-lyclear-scabies-cream",
     "brandName": "Lyclear Scabies Cream 5%",
     "genericName": "Permethrin",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Permethrin 5% w/w cream",
     "packSize": "30g Tube",
     "schedule": "S2",
@@ -228,6 +266,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-chlorsig-eye-drops",
     "brandName": "Chlorsig 0.5% Eye Drops",
     "genericName": "Chloramphenicol",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Chloramphenicol 5mg/mL (0.5%)",
     "packSize": "10 mL Dropper Bottle",
     "schedule": "S3",
@@ -245,6 +284,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-systane-ultra-drops",
     "brandName": "Systane Ultra Lubricant Eye Drops",
     "genericName": "Polyethylene Glycol + Propylene Glycol",
+    "sourceListedBrandNames": [],
     "activeIngredients": "PEG-400 0.4% + Propylene glycol 0.3% + HP-Guar",
     "packSize": "10 mL Dropper Bottle",
     "schedule": "Unscheduled",
@@ -262,6 +302,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-zaditen-eye-drops",
     "brandName": "Zaditen Eye Drops 0.025%",
     "genericName": "Ketotifen Fumarate",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Ketotifen fumarate 0.25mg/mL",
     "packSize": "5 mL Bottle",
     "schedule": "S2",
@@ -279,6 +320,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-waxsol-ear-drops",
     "brandName": "Waxsol Ear Drops",
     "genericName": "Docusate Sodium (Otic)",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Docusate sodium 0.5% w/v",
     "packSize": "10 mL Dropper Bottle",
     "schedule": "Unscheduled",
@@ -296,6 +338,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-aqua-ear-drops",
     "brandName": "Aqua Ear Solution",
     "genericName": "Acetic Acid + Isopropyl Alcohol",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Acetic acid 1.73% + Isopropyl alcohol 63.4%",
     "packSize": "35 mL Bottle",
     "schedule": "Unscheduled",
@@ -313,6 +356,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-sudafed-sinus-decongestant",
     "brandName": "Sudafed Sinus Decongestant",
     "genericName": "Pseudoephedrine Hydrochloride",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Pseudoephedrine HCl 60mg per tablet",
     "packSize": "12 Tablets",
     "schedule": "S3",
@@ -330,6 +374,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-telfast-180",
     "brandName": "Telfast 180mg",
     "genericName": "Fexofenadine Hydrochloride",
+    "sourceListedBrandNames": [
+      "Xergic",
+      "Fexo 180",
+      "Chemist Own Fexofenadine"
+    ],
     "activeIngredients": "Fexofenadine HCl 180mg tablet",
     "packSize": "30 Tablets",
     "schedule": "S2",
@@ -347,6 +396,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-zyrtec-10",
     "brandName": "Zyrtec 10mg",
     "genericName": "Cetirizine Hydrochloride",
+    "sourceListedBrandNames": [
+      "Alerid",
+      "Chemist Own Cetirizine"
+    ],
     "activeIngredients": "Cetirizine HCl 10mg tablet",
     "packSize": "30 Tablets",
     "schedule": "S2",
@@ -364,6 +417,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-rhinocort-hayfever",
     "brandName": "Rhinocort Hayfever 64mcg",
     "genericName": "Budesonide (Nasal)",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Budesonide 64mcg per dose",
     "packSize": "120 Doses Nasal Spray",
     "schedule": "S2",
@@ -381,6 +435,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-dimetapp-nasal-spray",
     "brandName": "Dimetapp 12 Hour Nasal Spray",
     "genericName": "Oxymetazoline Hydrochloride",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Oxymetazoline HCl 0.05% w/v",
     "packSize": "20 mL Spray",
     "schedule": "S2",
@@ -398,6 +453,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-robitussin-dry-cough",
     "brandName": "Robitussin Dry Cough Forte",
     "genericName": "Dextromethorphan Hydrobromide",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Dextromethorphan HBr 15mg/5mL",
     "packSize": "200 mL Liquid",
     "schedule": "S2",
@@ -415,6 +471,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-bisolvon-chesty-forte",
     "brandName": "Bisolvon Chesty Forte Liquid",
     "genericName": "Bromhexine Hydrochloride",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Bromhexine HCl 8mg/5mL",
     "packSize": "200 mL Liquid",
     "schedule": "S2",
@@ -432,6 +489,9 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-ventolin-inhaler",
     "brandName": "Ventolin CFC-Free Inhaler 100mcg",
     "genericName": "Salbutamol",
+    "sourceListedBrandNames": [
+      "Asmol 100"
+    ],
     "activeIngredients": "Salbutamol sulfate 100mcg per actuation",
     "packSize": "200 Doses MDI Inhaler",
     "schedule": "S3",
@@ -449,6 +509,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-nicorette-gum-4mg",
     "brandName": "Nicorette Gum 4mg",
     "genericName": "Nicotine Polacrilex",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Nicotine 4mg per piece",
     "packSize": "30 Pieces Chewing Gum",
     "schedule": "Unscheduled",
@@ -466,6 +527,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-nexium-24hr",
     "brandName": "Nexium 24HR 20mg",
     "genericName": "Esomeprazole Magnesium",
+    "sourceListedBrandNames": [
+      "Somac Heartburn Relief (Pantoprazole)",
+      "Chemist Own Esomeprazole"
+    ],
     "activeIngredients": "Esomeprazole 20mg tablet",
     "packSize": "14 Tablets",
     "schedule": "S3",
@@ -483,6 +548,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-gaviscon-dual-action",
     "brandName": "Gaviscon Dual Action Liquid",
     "genericName": "Sodium Alginate + Sodium Bicarbonate + Calcium Carbonate",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Sodium alginate 500mg + Sodium bicarbonate 213mg + Calcium carbonate 325mg per 10mL",
     "packSize": "300 mL Liquid Suspension",
     "schedule": "Unscheduled",
@@ -500,6 +566,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-gastro-stop-2mg",
     "brandName": "Gastro-Stop 2mg",
     "genericName": "Loperamide Hydrochloride",
+    "sourceListedBrandNames": [
+      "Imodium",
+      "Chemist Own Loperamide"
+    ],
     "activeIngredients": "Loperamide HCl 2mg capsule",
     "packSize": "20 Capsules",
     "schedule": "S2",
@@ -517,6 +587,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-hydralyte-effervescent",
     "brandName": "Hydralyte Electrolyte Effervescent Tablets",
     "genericName": "Oral Rehydration Salts (ORS)",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Sodium chloride, Potassium chloride, Citric acid, Glucose",
     "packSize": "20 Effervescent Tablets",
     "schedule": "Unscheduled",
@@ -534,6 +605,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-movicol-sachets",
     "brandName": "Movicol Sachets (Flavour Free)",
     "genericName": "Macrogol 3350 + Electrolytes",
+    "sourceListedBrandNames": [
+      "Osmolax",
+      "Coloxyl & Senna"
+    ],
     "activeIngredients": "Macrogol 3350 13.125g + Electrolytes per sachet",
     "packSize": "30 Sachets",
     "schedule": "Unscheduled",
@@ -551,6 +626,9 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-dulcolax-5mg",
     "brandName": "Dulcolax 5mg Tablets",
     "genericName": "Bisacodyl",
+    "sourceListedBrandNames": [
+      "Chemist Own Bisacodyl"
+    ],
     "activeIngredients": "Bisacodyl 5mg enteric-coated tablet",
     "packSize": "40 Tablets",
     "schedule": "Unscheduled",
@@ -568,6 +646,9 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-buscopan-forte",
     "brandName": "Buscopan Forte 20mg",
     "genericName": "Hyoscine Butylbromide",
+    "sourceListedBrandNames": [
+      "Chemist Own Hyoscine"
+    ],
     "activeIngredients": "Hyoscine butylbromide 20mg tablet",
     "packSize": "10 Tablets",
     "schedule": "S2",
@@ -585,6 +666,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-travacalm-original",
     "brandName": "Travacalm Original",
     "genericName": "Dimenhydrinate + Hyoscine Hydrobromide + Caffeine",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Dimenhydrinate 50mg + Hyoscine HBr 0.2mg + Caffeine 20mg",
     "packSize": "10 Tablets",
     "schedule": "S2",
@@ -602,6 +684,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-dermaid-1-cream",
     "brandName": "Dermaid 1% Cream",
     "genericName": "Hydrocortisone",
+    "sourceListedBrandNames": [
+      "Sigmacort 1%",
+      "Chemist Own Hydrocortisone"
+    ],
     "activeIngredients": "Hydrocortisone 10mg/g (1%) dissolved cream",
     "packSize": "30g Tube",
     "schedule": "S2",
@@ -619,6 +705,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-ego-qv-cream",
     "brandName": "QV Cream 500g Pump",
     "genericName": "Emollient & Barrier Cream (Glycerol + Liquid Paraffin)",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Glycerol 10% + Light liquid paraffin 10% + Soft white paraffin 5%",
     "packSize": "500g Pump Bottle",
     "schedule": "Unscheduled",
@@ -636,6 +723,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-benzac-ac-5-gel",
     "brandName": "Benzac AC 5% Gel",
     "genericName": "Benzoyl Peroxide",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Benzoyl peroxide 50mg/g (5%) in acrylates copolymer",
     "packSize": "50g Tube",
     "schedule": "Unscheduled",
@@ -653,6 +741,9 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-zovirax-cold-sore-cream",
     "brandName": "Zovirax Cold Sore Cream 5%",
     "genericName": "Aciclovir",
+    "sourceListedBrandNames": [
+      "Chemist Own Antiviral Cold Sore Cream"
+    ],
     "activeIngredients": "Aciclovir 50mg/g (5%) with MAC-P enhancer",
     "packSize": "2g Pump",
     "schedule": "S2",
@@ -670,6 +761,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-sudocrem-healing-cream",
     "brandName": "Sudocrem Healing Cream",
     "genericName": "Zinc Oxide + Benzyl Benzoate",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Zinc oxide 15.25% + Benzyl benzoate 1.01% + Anhydrous hypoallergenic lanolin",
     "packSize": "125g Tub",
     "schedule": "Unscheduled",
@@ -687,6 +779,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-postinor-1",
     "brandName": "Postinor-1 1.5mg",
     "genericName": "Levonorgestrel",
+    "sourceListedBrandNames": [
+      "NorLevo-1",
+      "Escapelle",
+      "Chemist Own Levonorgestrel"
+    ],
     "activeIngredients": "Levonorgestrel 1.5mg tablet",
     "packSize": "1 Oral Tablet",
     "schedule": "S3",
@@ -704,6 +801,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-ellaone-30mg",
     "brandName": "EllaOne 30mg",
     "genericName": "Ulipristal Acetate",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Ulipristal acetate 30mg tablet",
     "packSize": "1 Oral Tablet",
     "schedule": "S3",
@@ -721,6 +819,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-ural-sachets",
     "brandName": "Ural Effervescent Granules",
     "genericName": "Urinary Alkaliniser (Sodium Bicarbonate + Tartaric Acid + Citric Acid)",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Sodium bicarbonate 1.76g + Tartaric acid 890mg + Citric acid 720mg + Sodium citrate 630mg per sachet",
     "packSize": "28 Sachets",
     "schedule": "Unscheduled",
@@ -738,6 +837,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-canesten-vaginal-pessary",
     "brandName": "Canesten 1-Day Pessary 500mg",
     "genericName": "Clotrimazole (Vaginal)",
+    "sourceListedBrandNames": [
+      "Clonea 1 Day",
+      "Chemist Own Thrush 1-Day"
+    ],
     "activeIngredients": "Clotrimazole 500mg vaginal pessary + 10g cream",
     "packSize": "1 Pessary with Applicator + 10g Soothing Cream",
     "schedule": "S3",
@@ -755,6 +858,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-bonjela-teething-gel",
     "brandName": "Bonjela Teething Gel",
     "genericName": "Choline Salicylate + Cetalkonium Chloride",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Choline salicylate 8.7% + Cetalkonium chloride 0.01%",
     "packSize": "15g Tube",
     "schedule": "S2",
@@ -772,6 +876,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-pritor-80mg",
     "brandName": "Pritor 80mg",
     "genericName": "Telmisartan",
+    "sourceListedBrandNames": [
+      "Micardis",
+      "Telmisartan Sandoz",
+      "Telmisartan GH"
+    ],
     "activeIngredients": "Telmisartan 80mg tablet",
     "packSize": "28 Tablets",
     "schedule": "S4",
@@ -789,6 +898,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-coversyl-5mg",
     "brandName": "Coversyl 5mg",
     "genericName": "Perindopril Arginine",
+    "sourceListedBrandNames": [
+      "Perindopril GH",
+      "Coversyl Plus (with Indapamide)"
+    ],
     "activeIngredients": "Perindopril arginine 5mg tablet",
     "packSize": "30 Tablets",
     "schedule": "S4",
@@ -806,6 +919,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-atacand-16mg",
     "brandName": "Atacand 16mg",
     "genericName": "Candesartan Cilexetil",
+    "sourceListedBrandNames": [
+      "Candesartan Sandoz",
+      "Atacand Plus (with HCTZ)"
+    ],
     "activeIngredients": "Candesartan cilexetil 16mg tablet",
     "packSize": "30 Tablets",
     "schedule": "S4",
@@ -823,6 +940,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-norvasc-5mg",
     "brandName": "Norvasc 5mg",
     "genericName": "Amlodipine Besylate",
+    "sourceListedBrandNames": [
+      "Amlodipine Sandoz",
+      "Amlodipine GH",
+      "Perindo/Amlo combos"
+    ],
     "activeIngredients": "Amlodipine besylate 5mg tablet",
     "packSize": "30 Tablets",
     "schedule": "S4",
@@ -840,6 +962,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-dithiazide-25mg",
     "brandName": "Dithiazide 25mg",
     "genericName": "Hydrochlorothiazide",
+    "sourceListedBrandNames": [
+      "Chlotride",
+      "HCTZ combos (Karvezide, Co-Diovan)"
+    ],
     "activeIngredients": "Hydrochlorothiazide 25mg tablet",
     "packSize": "100 Tablets",
     "schedule": "S4",
@@ -857,6 +983,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-trandate-100mg",
     "brandName": "Trandate 100mg",
     "genericName": "Labetalol Hydrochloride",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Labetalol HCl 100mg tablet",
     "packSize": "100 Tablets",
     "schedule": "S4",
@@ -874,6 +1001,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-coumadin-3mg",
     "brandName": "Coumadin 3mg",
     "genericName": "Warfarin Sodium",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Warfarin Sodium 3mg tablet",
     "packSize": "50 Tablets",
     "schedule": "S4",
@@ -891,6 +1019,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-xarelto-20mg",
     "brandName": "Xarelto 20mg",
     "genericName": "Rivaroxaban",
+    "sourceListedBrandNames": [
+      "Rivaroxaban Sandoz",
+      "Rivaroxaban GH"
+    ],
     "activeIngredients": "Rivaroxaban 20mg tablet",
     "packSize": "28 Tablets",
     "schedule": "S4",
@@ -908,6 +1040,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-eliquis-5mg",
     "brandName": "Eliquis 5mg",
     "genericName": "Apixaban",
+    "sourceListedBrandNames": [
+      "Apixaban Sandoz",
+      "Apixaban GH"
+    ],
     "activeIngredients": "Apixaban 5mg tablet",
     "packSize": "60 Tablets",
     "schedule": "S4",
@@ -925,6 +1061,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-plavix-75mg",
     "brandName": "Plavix 75mg",
     "genericName": "Clopidogrel Hydrogen Sulfate",
+    "sourceListedBrandNames": [
+      "Iscover",
+      "Clopidogrel Sandoz",
+      "Coplavix (with Aspirin)"
+    ],
     "activeIngredients": "Clopidogrel 75mg tablet",
     "packSize": "28 Tablets",
     "schedule": "S4",
@@ -942,6 +1083,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-cartia-100mg",
     "brandName": "Cartia 100mg Duentric",
     "genericName": "Aspirin (Low Dose Antiplatelet)",
+    "sourceListedBrandNames": [
+      "Astrix 100mg",
+      "Cardiprin 100mg"
+    ],
     "activeIngredients": "Aspirin 100mg enteric coated tablet",
     "packSize": "84 Tablets",
     "schedule": "Unscheduled",
@@ -959,6 +1104,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-lanoxin-pg-62-5mcg",
     "brandName": "Lanoxin-PG 62.5mcg",
     "genericName": "Digoxin",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Digoxin 62.5 micrograms tablet",
     "packSize": "200 Tablets",
     "schedule": "S4",
@@ -976,6 +1122,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-concor-5mg",
     "brandName": "Concor 5mg",
     "genericName": "Bisoprolol Fumarate",
+    "sourceListedBrandNames": [
+      "Biprole",
+      "Bisoprolol Sandoz"
+    ],
     "activeIngredients": "Bisoprolol fumarate 5mg tablet",
     "packSize": "28 Tablets",
     "schedule": "S4",
@@ -993,6 +1143,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-aldactone-25mg",
     "brandName": "Aldactone 25mg",
     "genericName": "Spironolactone",
+    "sourceListedBrandNames": [
+      "Spiractin",
+      "Spironolactone Sandoz"
+    ],
     "activeIngredients": "Spironolactone 25mg tablet",
     "packSize": "100 Tablets",
     "schedule": "S4",
@@ -1010,6 +1164,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-cordarone-x-200mg",
     "brandName": "Cordarone X 200mg",
     "genericName": "Amiodarone Hydrochloride",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Amiodarone HCl 200mg tablet",
     "packSize": "30 Tablets",
     "schedule": "S4",
@@ -1027,6 +1182,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-nitrolingual-spray",
     "brandName": "Nitrolingual Pumpspray 400mcg",
     "genericName": "Glyceryl Trinitrate (GTN)",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Glyceryl trinitrate 400 micrograms per metered spray",
     "packSize": "200 Doses Sublingual Spray",
     "schedule": "S3",
@@ -1044,6 +1200,9 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-forxiga-10mg",
     "brandName": "Forxiga 10mg",
     "genericName": "Dapagliflozin",
+    "sourceListedBrandNames": [
+      "Jardiance (Empagliflozin)"
+    ],
     "activeIngredients": "Dapagliflozin 10mg tablet",
     "packSize": "28 Tablets",
     "schedule": "S4",
@@ -1061,6 +1220,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-lipitor-20mg",
     "brandName": "Lipitor 20mg",
     "genericName": "Atorvastatin Calcium",
+    "sourceListedBrandNames": [
+      "Lorstat",
+      "Atorvachol",
+      "Trovas"
+    ],
     "activeIngredients": "Atorvastatin 20mg tablet",
     "packSize": "30 Tablets",
     "schedule": "S4",
@@ -1078,6 +1242,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-crestor-10mg",
     "brandName": "Crestor 10mg",
     "genericName": "Rosuvastatin Calcium",
+    "sourceListedBrandNames": [
+      "Rosuva",
+      "Chemist Own Rosuvastatin",
+      "Rosuvastatin Sandoz"
+    ],
     "activeIngredients": "Rosuvastatin calcium 10mg tablet",
     "packSize": "30 Tablets",
     "schedule": "S4",
@@ -1095,6 +1264,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-ezetrol-10mg",
     "brandName": "Ezetrol 10mg",
     "genericName": "Ezetimibe",
+    "sourceListedBrandNames": [
+      "Ezemibe",
+      "Rosuzet / Atozet (combination with statin)"
+    ],
     "activeIngredients": "Ezetimibe 10mg tablet",
     "packSize": "30 Tablets",
     "schedule": "S4",
@@ -1112,6 +1285,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-lipirex-145mg",
     "brandName": "Lipirex 145mg",
     "genericName": "Fenofibrate (Nanoparticle)",
+    "sourceListedBrandNames": [
+      "Fenofibrate Sandoz",
+      "Lipanthyl"
+    ],
     "activeIngredients": "Fenofibrate 145mg nanoparticle tablet",
     "packSize": "30 Tablets",
     "schedule": "S4",
@@ -1129,6 +1306,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-zocor-20mg",
     "brandName": "Zocor 20mg",
     "genericName": "Simvastatin",
+    "sourceListedBrandNames": [
+      "Roximycin",
+      "Simvastatin Sandoz"
+    ],
     "activeIngredients": "Simvastatin 20mg tablet",
     "packSize": "30 Tablets",
     "schedule": "S4",
@@ -1146,6 +1327,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-lexapro-10mg",
     "brandName": "Lexapro 10mg",
     "genericName": "Escitalopram",
+    "sourceListedBrandNames": [
+      "Esipram",
+      "Loxalate",
+      "Cipralex"
+    ],
     "activeIngredients": "Escitalopram Oxalate 10mg tablet",
     "packSize": "28 Tablets",
     "schedule": "S4",
@@ -1163,6 +1349,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-efexor-xr-75mg",
     "brandName": "Efexor-XR 75mg",
     "genericName": "Venlafaxine Hydrochloride",
+    "sourceListedBrandNames": [
+      "Eleva",
+      "Venlafaxine Sandoz",
+      "Venlafaxine GH"
+    ],
     "activeIngredients": "Venlafaxine HCl 75mg extended-release capsule",
     "packSize": "28 Extended-Release Capsules",
     "schedule": "S4",
@@ -1180,6 +1371,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-endep-25mg",
     "brandName": "Endep 25mg",
     "genericName": "Amitriptyline Hydrochloride",
+    "sourceListedBrandNames": [
+      "Entrip",
+      "Amitriptyline Sandoz"
+    ],
     "activeIngredients": "Amitriptyline HCl 25mg tablet",
     "packSize": "50 Tablets",
     "schedule": "S4",
@@ -1197,6 +1392,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-avanza-30mg",
     "brandName": "Avanza 30mg (SolTab / Film-Coated)",
     "genericName": "Mirtazapine",
+    "sourceListedBrandNames": [
+      "Avanza SolTab",
+      "Mirtazapine Sandoz",
+      "Mirtazon"
+    ],
     "activeIngredients": "Mirtazapine 30mg tablet",
     "packSize": "30 Tablets",
     "schedule": "S4",
@@ -1214,6 +1414,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-prozac-20mg",
     "brandName": "Prozac 20mg",
     "genericName": "Fluoxetine Hydrochloride",
+    "sourceListedBrandNames": [
+      "Lovan",
+      "Zactin",
+      "Fluohexal"
+    ],
     "activeIngredients": "Fluoxetine HCl 20mg capsule",
     "packSize": "28 Capsules",
     "schedule": "S4",
@@ -1231,6 +1436,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-lithicarb-250mg",
     "brandName": "Lithicarb 250mg",
     "genericName": "Lithium Carbonate",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Lithium Carbonate 250mg tablet",
     "packSize": "100 Tablets",
     "schedule": "S4",
@@ -1248,6 +1454,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-epilim-500mg",
     "brandName": "Epilim 500mg EC",
     "genericName": "Sodium Valproate",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Sodium Valproate 500mg enteric coated tablet",
     "packSize": "100 Tablets",
     "schedule": "S4",
@@ -1265,6 +1472,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-lyrica-75mg",
     "brandName": "Lyrica 75mg",
     "genericName": "Pregabalin",
+    "sourceListedBrandNames": [
+      "Pregabalin Sandoz",
+      "Pregabalin GH"
+    ],
     "activeIngredients": "Pregabalin 75mg capsule",
     "packSize": "56 Capsules",
     "schedule": "S4",
@@ -1282,6 +1493,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-tegretol-200mg",
     "brandName": "Tegretol 200mg",
     "genericName": "Carbamazepine",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Carbamazepine 200mg tablet",
     "packSize": "200 Tablets",
     "schedule": "S4",
@@ -1299,6 +1511,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-lamictal-50mg",
     "brandName": "Lamictal 50mg",
     "genericName": "Lamotrigine",
+    "sourceListedBrandNames": [
+      "Lamotrigine Sandoz",
+      "Lamotrigine GH"
+    ],
     "activeIngredients": "Lamotrigine 50mg dispersible/chewable tablet",
     "packSize": "56 Dispersible Tablets",
     "schedule": "S4",
@@ -1316,6 +1532,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-keppra-500mg",
     "brandName": "Keppra 500mg",
     "genericName": "Levetiracetam",
+    "sourceListedBrandNames": [
+      "Levetiracetam Sandoz",
+      "Levetiracetam GH"
+    ],
     "activeIngredients": "Levetiracetam 500mg film-coated tablet",
     "packSize": "60 Tablets",
     "schedule": "S4",
@@ -1333,6 +1553,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-valium-5mg",
     "brandName": "Valium 5mg",
     "genericName": "Diazepam",
+    "sourceListedBrandNames": [
+      "Antenex",
+      "Diazepam Sandoz",
+      "Ducene"
+    ],
     "activeIngredients": "Diazepam 5mg tablet",
     "packSize": "50 Tablets",
     "schedule": "S4",
@@ -1350,6 +1575,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-stilnox-10mg",
     "brandName": "Stilnox 10mg",
     "genericName": "Zolpidem Tartrate",
+    "sourceListedBrandNames": [
+      "Dormizol",
+      "Zolpibell"
+    ],
     "activeIngredients": "Zolpidem Tartrate 10mg tablet",
     "packSize": "14 Tablets",
     "schedule": "S4",
@@ -1367,6 +1596,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-temaze-10mg",
     "brandName": "Temaze 10mg",
     "genericName": "Temazepam",
+    "sourceListedBrandNames": [
+      "Normison",
+      "Temazepam Sandoz"
+    ],
     "activeIngredients": "Temazepam 10mg tablet",
     "packSize": "25 Tablets",
     "schedule": "S4",
@@ -1384,6 +1617,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-circadin-2mg",
     "brandName": "Circadin 2mg PR",
     "genericName": "Melatonin (Prolonged Release)",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Melatonin 2mg prolonged-release tablet",
     "packSize": "30 Prolonged-Release Tablets",
     "schedule": "S4",
@@ -1401,6 +1635,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-nyxoid-nasal-spray",
     "brandName": "Nyxoid Nasal Spray 1.8mg",
     "genericName": "Naloxone Hydrochloride",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Naloxone HCl 1.8mg single-dose nasal spray",
     "packSize": "2 Single-Dose Dispensers",
     "schedule": "S3",
@@ -1418,6 +1653,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-durogesic-25mcg",
     "brandName": "Durogesic 25mcg/hr Patch",
     "genericName": "Fentanyl (Transdermal)",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Fentanyl 4.2mg transdermal patch (releases 25 micrograms/hour over 72 hours)",
     "packSize": "5 Transdermal Patches",
     "schedule": "S8",
@@ -1435,6 +1671,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-targin-10-5mg",
     "brandName": "Targin 10mg/5mg PR",
     "genericName": "Oxycodone Hydrochloride + Naloxone Hydrochloride",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Oxycodone HCl 10mg + Naloxone HCl 5mg prolonged-release tablet",
     "packSize": "28 Prolonged-Release Tablets",
     "schedule": "S8",
@@ -1452,6 +1689,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-endone-5mg",
     "brandName": "Endone 5mg",
     "genericName": "Oxycodone Hydrochloride (Immediate Release)",
+    "sourceListedBrandNames": [
+      "OxyNorm 5mg",
+      "Proladone"
+    ],
     "activeIngredients": "Oxycodone HCl 5mg tablet",
     "packSize": "20 Tablets",
     "schedule": "S8",
@@ -1469,6 +1710,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-tramal-50mg",
     "brandName": "Tramal 50mg",
     "genericName": "Tramadol Hydrochloride",
+    "sourceListedBrandNames": [
+      "Zydol",
+      "Tramedo",
+      "Tramadol Sandoz"
+    ],
     "activeIngredients": "Tramadol HCl 50mg capsule",
     "packSize": "20 Capsules",
     "schedule": "S4",
@@ -1486,6 +1732,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-diabex-500mg",
     "brandName": "Diabex 500mg",
     "genericName": "Metformin Hydrochloride",
+    "sourceListedBrandNames": [
+      "Diaformin",
+      "Metex XR",
+      "Formet"
+    ],
     "activeIngredients": "Metformin HCl 500mg tablet",
     "packSize": "100 Tablets",
     "schedule": "S4",
@@ -1503,6 +1754,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-jardiance-10mg",
     "brandName": "Jardiance 10mg",
     "genericName": "Empagliflozin",
+    "sourceListedBrandNames": [
+      "Forxiga (Dapagliflozin)",
+      "Glyxambi (with Linagliptin)"
+    ],
     "activeIngredients": "Empagliflozin 10mg film-coated tablet",
     "packSize": "30 Tablets",
     "schedule": "S4",
@@ -1520,6 +1775,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-ozempic-0-5mg",
     "brandName": "Ozempic 0.5mg Pen",
     "genericName": "Semaglutide",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Semaglutide 1.34 mg/mL pre-filled pen (delivers 0.25mg or 0.5mg weekly doses)",
     "packSize": "1 Pre-filled Pen + 6 NovoFine Plus Needles",
     "schedule": "S4",
@@ -1537,6 +1793,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-diamicron-60mg-mr",
     "brandName": "Diamicron 60mg MR",
     "genericName": "Gliclazide",
+    "sourceListedBrandNames": [
+      "Glyade MR",
+      "Gliclazide Sandoz MR"
+    ],
     "activeIngredients": "Gliclazide 60mg modified-release tablet",
     "packSize": "60 Modified-Release Tablets",
     "schedule": "S4",
@@ -1554,6 +1814,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-lantus-solostar",
     "brandName": "Lantus SoloStar 100 U/mL",
     "genericName": "Insulin Glargine (Long-Acting Analog)",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Insulin glargine 100 units/mL solution in a 3mL pre-filled SoloStar pen",
     "packSize": "5 x 3mL Pre-filled Pens",
     "schedule": "S4",
@@ -1571,6 +1832,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-novorapid-flexpen",
     "brandName": "NovoRapid FlexPen 100 U/mL",
     "genericName": "Insulin Aspart (Rapid-Acting Analog)",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Insulin aspart 100 units/mL solution in a 3mL FlexPen",
     "packSize": "5 x 3mL Pre-filled FlexPens",
     "schedule": "S4",
@@ -1588,6 +1850,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-fosamax-70mg-once-weekly",
     "brandName": "Fosamax 70mg Once Weekly",
     "genericName": "Alendronate Sodium",
+    "sourceListedBrandNames": [
+      "Alendro",
+      "Osteomax",
+      "Fosamax Plus (with Vitamin D3)"
+    ],
     "activeIngredients": "Alendronate Sodium 70mg tablet",
     "packSize": "4 Tablets",
     "schedule": "S4",
@@ -1605,6 +1872,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-prolia-60mg-syringe",
     "brandName": "Prolia 60mg Pre-filled Syringe",
     "genericName": "Denosumab",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Denosumab 60mg in 1.0 mL solution for injection",
     "packSize": "1 Pre-filled Syringe with needle guard",
     "schedule": "S4",
@@ -1622,6 +1890,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-actonel-35mg",
     "brandName": "Actonel 35mg Once-a-Week",
     "genericName": "Risedronate Sodium",
+    "sourceListedBrandNames": [
+      "Risedronate Sandoz",
+      "Actonel EC (Enteric Coated - taken with breakfast)"
+    ],
     "activeIngredients": "Risedronate Sodium 35mg film-coated tablet",
     "packSize": "4 Tablets",
     "schedule": "S4",
@@ -1639,6 +1911,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-caltrate-vitd-plus",
     "brandName": "Caltrate + Minerals & Vitamin D 1000IU",
     "genericName": "Calcium Carbonate + Colecalciferol",
+    "sourceListedBrandNames": [
+      "Ostelin Calcium & Vitamin D3",
+      "Citracal"
+    ],
     "activeIngredients": "Calcium Carbonate 1500mg (equiv. elemental calcium 600mg) + Colecalciferol 25 mcg (1000 IU)",
     "packSize": "100 Tablets",
     "schedule": "Unscheduled",
@@ -1656,6 +1932,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-eutroxsig-100mcg",
     "brandName": "Eutroxsig 100mcg",
     "genericName": "Levothyroxine Sodium",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Levothyroxine Sodium 100 micrograms tablet",
     "packSize": "200 Tablets",
     "schedule": "S4",
@@ -1673,6 +1950,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-oroxine-100mcg",
     "brandName": "Oroxine 100mcg",
     "genericName": "Levothyroxine Sodium",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Levothyroxine Sodium 100 micrograms tablet",
     "packSize": "200 Tablets",
     "schedule": "S4",
@@ -1690,6 +1968,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-neo-mercazole-5mg",
     "brandName": "Neo-Mercazole 5mg",
     "genericName": "Carbimazole",
+    "sourceListedBrandNames": [
+      "Carbimazole Sandoz",
+      "PTU (Propylthiouracil in 1st trimester pregnancy)"
+    ],
     "activeIngredients": "Carbimazole 5mg tablet",
     "packSize": "100 Tablets",
     "schedule": "S4",
@@ -1707,6 +1989,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-flopen-500mg",
     "brandName": "Flopen 500mg",
     "genericName": "Flucloxacillin Sodium",
+    "sourceListedBrandNames": [
+      "Staphylex",
+      "Flucloxacillin Sandoz"
+    ],
     "activeIngredients": "Flucloxacillin Sodium 500mg capsule",
     "packSize": "24 Capsules",
     "schedule": "S4",
@@ -1724,6 +2010,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-augmentin-duo-forte",
     "brandName": "Augmentin Duo Forte 875/125mg",
     "genericName": "Amoxicillin + Clavulanic Acid",
+    "sourceListedBrandNames": [
+      "Amoxil Duo Forte",
+      "Curam Duo 875/125",
+      "Amoxicillin/Clavulanate Sandoz"
+    ],
     "activeIngredients": "Amoxicillin 875mg + Clavulanic Acid (as potassium clavulanate) 125mg tablet",
     "packSize": "10 Tablets",
     "schedule": "S4",
@@ -1741,6 +2032,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-keflex-500mg",
     "brandName": "Keflex 500mg",
     "genericName": "Cephalexin",
+    "sourceListedBrandNames": [
+      "Ibilex 500mg",
+      "Cephalexin Sandoz",
+      "Cephalexin GH"
+    ],
     "activeIngredients": "Cephalexin 500mg capsule",
     "packSize": "20 Capsules",
     "schedule": "S4",
@@ -1758,6 +2054,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-doryx-100mg",
     "brandName": "Doryx 100mg",
     "genericName": "Doxycycline Hyclate",
+    "sourceListedBrandNames": [
+      "Doxy-100",
+      "Doxycycline Sandoz"
+    ],
     "activeIngredients": "Doxycycline (as hyclate modified-release pellets) 100mg tablet",
     "packSize": "21 Tablets",
     "schedule": "S4",
@@ -1775,6 +2075,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-klacid-250mg",
     "brandName": "Klacid 250mg",
     "genericName": "Clarithromycin",
+    "sourceListedBrandNames": [
+      "Clarac",
+      "Clarithromycin Sandoz"
+    ],
     "activeIngredients": "Clarithromycin 250mg tablet",
     "packSize": "14 Tablets",
     "schedule": "S4",
@@ -1792,6 +2096,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-flagyl-400mg",
     "brandName": "Flagyl 400mg",
     "genericName": "Metronidazole",
+    "sourceListedBrandNames": [
+      "Metrogyl 400mg",
+      "Metronidazole Sandoz"
+    ],
     "activeIngredients": "Metronidazole 400mg tablet",
     "packSize": "21 Tablets",
     "schedule": "S4",
@@ -1809,6 +2117,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-valtrex-500mg",
     "brandName": "Valtrex 500mg",
     "genericName": "Valaciclovir",
+    "sourceListedBrandNames": [
+      "Valpam",
+      "Valaciclovir Sandoz",
+      "Zelitrex"
+    ],
     "activeIngredients": "Valaciclovir Hydrochloride 500mg tablet",
     "packSize": "30 Tablets",
     "schedule": "S4",
@@ -1826,6 +2139,9 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-tamiflu-75mg",
     "brandName": "Tamiflu 75mg",
     "genericName": "Oseltamivir Phosphate",
+    "sourceListedBrandNames": [
+      "Oseltamivir Sandoz"
+    ],
     "activeIngredients": "Oseltamivir Phosphate 75mg capsule",
     "packSize": "10 Capsules",
     "schedule": "S4",
@@ -1843,6 +2159,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-shingrix-vaccine",
     "brandName": "Shingrix Adjuvanted Vaccine",
     "genericName": "Recombinant Varicella Zoster Virus Glycoprotein E Vaccine",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Recombinant VZV glycoprotein E (50 mcg) with AS01B adjuvant system (2-vial kit)",
     "packSize": "1 Dose Kit (Antigen vial + Adjuvant vial)",
     "schedule": "S4",
@@ -1860,6 +2177,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-fluvax-quadrivalent",
     "brandName": "FluQuadri / Fluarix Tetra (Inactivated Quadrivalent Influenza Vaccine)",
     "genericName": "Influenza Virus Vaccine (Surface Antigen / Split Virion, Inactivated)",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Quadrivalent inactivated influenza surface antigens (60 mcg total HA, 15 mcg per each of 4 strains)",
     "packSize": "1 Pre-filled Syringe 0.5 mL",
     "schedule": "S4",
@@ -1877,6 +2195,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-rectogesic-gtn",
     "brandName": "Rectogesic 0.2% Rectal Ointment",
     "genericName": "Glyceryl Trinitrate (GTN) 0.2%",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Glyceryl trinitrate 2mg/g (0.2% w/w) in paraffin base",
     "packSize": "30g Tube with measuring guide",
     "schedule": "S3",
@@ -1894,6 +2213,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-proctosedyl-oint",
     "brandName": "Proctosedyl Ointment / Suppositories",
     "genericName": "Hydrocortisone 5mg/g + Cinchocaine HCl 5mg/g",
+    "sourceListedBrandNames": [
+      "Proctosedyl Suppositories",
+      "Anusol Plus"
+    ],
     "activeIngredients": "Hydrocortisone 0.5% + Cinchocaine hydrochloride 0.5%",
     "packSize": "30g Tube / 12 Suppositories",
     "schedule": "S2",
@@ -1911,6 +2234,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-benzac-ac-wash",
     "brandName": "Benzac AC 5% Wash / Gel",
     "genericName": "Benzoyl Peroxide 5%",
+    "sourceListedBrandNames": [
+      "Benzac Daily Wash",
+      "Oxy 5",
+      "Curash Anti-Acne"
+    ],
     "activeIngredients": "Benzoyl peroxide 50mg/g (5% w/w) in water-based gel/wash",
     "packSize": "200mL Wash / 50g Gel",
     "schedule": "Unscheduled",
@@ -1928,6 +2256,9 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-azclear-lotion",
     "brandName": "Azclear Action Medicated Lotion 20%",
     "genericName": "Azelaic Acid 20%",
+    "sourceListedBrandNames": [
+      "Finacea 15% Gel"
+    ],
     "activeIngredients": "Azelaic acid 200mg/g (20% w/w)",
     "packSize": "25g Tube",
     "schedule": "S2",
@@ -1945,6 +2276,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-daivobet-gel",
     "brandName": "Daivobet 50/500 Gel / Ointment",
     "genericName": "Calcipotriol 50mcg/g + Betamethasone Dipropionate 500mcg/g",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Calcipotriol 50 micrograms/g (as monohydrate) + Betamethasone 0.5mg/g (as dipropionate)",
     "packSize": "30g Tube",
     "schedule": "S4",
@@ -1962,6 +2294,7 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-dymista-spray",
     "brandName": "Dymista 125/50 Nasal Spray",
     "genericName": "Azelastine HCl 137mcg + Fluticasone Propionate 50mcg per actuation",
+    "sourceListedBrandNames": [],
     "activeIngredients": "Azelastine hydrochloride 125 micrograms + Fluticasone propionate 50 micrograms per spray",
     "packSize": "120 Metered Sprays Bottle",
     "schedule": "S4",
@@ -1979,6 +2312,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-ventolin-asmol-100",
     "brandName": "Ventolin / Asmol 100mcg CFC-Free Inhaler",
     "genericName": "Salbutamol Sulfate 100mcg/actuation",
+    "sourceListedBrandNames": [
+      "Asmol 100 Inhaler",
+      "Zempreon 100"
+    ],
     "activeIngredients": "Salbutamol sulfate 100 micrograms per metered actuation",
     "packSize": "200 Metered Inhalations (MDI)",
     "schedule": "S3",
@@ -1996,6 +2333,9 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-colgout-tablets",
     "brandName": "Colgout 500mcg Tablets",
     "genericName": "Colchicine 500mcg",
+    "sourceListedBrandNames": [
+      "Lengout 500"
+    ],
     "activeIngredients": "Colchicine 500 micrograms per tablet",
     "packSize": "30 Tablets",
     "schedule": "S4",
@@ -2013,6 +2353,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-allosig-tablets",
     "brandName": "Allosig / Zyloprim (Allopurinol 100mg / 300mg)",
     "genericName": "Allopurinol",
+    "sourceListedBrandNames": [
+      "Progout 100/300",
+      "Zyloprim"
+    ],
     "activeIngredients": "Allopurinol 100mg or 300mg tablets",
     "packSize": "60 Tablets",
     "schedule": "S4",
@@ -2030,6 +2374,11 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-nexium-24hr-28tab",
     "brandName": "Nexium 24HR 20mg Tablets",
     "genericName": "Esomeprazole 20mg (as magnesium trihydrate)",
+    "sourceListedBrandNames": [
+      "Somac Control 20",
+      "Pariet 20",
+      "Chemist Own Esomeprazole"
+    ],
     "activeIngredients": "Esomeprazole 20mg enteric-coated tablets",
     "packSize": "14 Tablets (S2) / 28 Tablets (S3)",
     "schedule": "S3",
@@ -2047,6 +2396,10 @@ export const PHARMACY_PRODUCT_CATALOG: PharmacyProductCatalogEntry[] = [
     "documentId": "doc-product-prod-canesten-once",
     "brandName": "Canesten Once 500mg Pessary + 1% Cream",
     "genericName": "Clotrimazole 500mg Pessary",
+    "sourceListedBrandNames": [
+      "Chemist Own Clotrimazole 500",
+      "Clocreme 500"
+    ],
     "activeIngredients": "Clotrimazole 500mg vaginal pessary + Clotrimazole 10mg/g external cream",
     "packSize": "1 Pessary with applicator + 10g Cream",
     "schedule": "S3",
