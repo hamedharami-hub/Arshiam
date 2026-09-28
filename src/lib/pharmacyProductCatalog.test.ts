@@ -66,4 +66,12 @@ describe("Pharmacy product catalog index", () => {
     const matching = filterPharmacyProducts(PHARMACY_PRODUCT_CATALOG, { subcategoryId: first.subcategoryId ?? undefined });
     expect(matching.every((product) => product.subcategoryId === first.subcategoryId)).toBe(true);
   });
+
+  it("places source-misfiled nasal and inhaled products in the respiratory browsing branch", () => {
+    for (const id of ["prod-dymista-spray", "prod-ventolin-asmol-100"]) {
+      const product = PHARMACY_PRODUCT_CATALOG.find((entry) => entry.id === id);
+      expect(product?.subcategoryId).toBe("sub-1-4");
+      expect(product?.subcategoryEn).toBe("Respiratory, Cough, Cold & Allergy");
+    }
+  });
 });

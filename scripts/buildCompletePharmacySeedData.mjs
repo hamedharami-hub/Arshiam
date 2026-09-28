@@ -2986,9 +2986,17 @@ export const PHARMACY_SEED_CARDS: LeitnerCard[] = ${JSON.stringify(finalCards, n
 fs.writeFileSync(path.join(targetDir, 'pharmacySeedData.ts'), code, 'utf8');
 console.log('Successfully written to src/lib/pharmacySeedData.ts!');
 
+// Correct source shelf placement errors in the browsing index without altering
+// the imported monograph or claiming that its clinical content was reviewed.
+const catalogSubcategoryOverrides = new Map([
+  ['prod-dymista-spray', 'sub-1-4'],
+  ['prod-ventolin-asmol-100', 'sub-1-4'],
+]);
 const pharmacyProductCatalog = SHELF_PRODUCTS.map((product) => {
+  const catalogSubcategoryId = catalogSubcategoryOverrides.get(product.id) || product.subcategoryId;
   const category = CLINICAL_DOMAINS.find((item) => item.id === product.categoryId);
-  const subcategory = category?.subcategories.find((item) => item.id === product.subcategoryId);
+  const subcategory = category?.subcategories.find((item) => item.id === catalogSubcategoryId);
+  if (catalogSubcategoryId && !subcategory) throw new Error(`Unknown catalog subcategory ${catalogSubcategoryId} for ${product.id}`);
   return {
     id: product.id,
     documentId: `doc-product-${product.id}`,
@@ -3001,7 +3009,7 @@ const pharmacyProductCatalog = SHELF_PRODUCTS.map((product) => {
     categoryId: product.categoryId || null,
     categoryFa: category?.titleFa || '',
     categoryEn: category?.titleEn || '',
-    subcategoryId: product.subcategoryId || null,
+    subcategoryId: catalogSubcategoryId || null,
     subcategoryFa: subcategory?.titleFa || '',
     subcategoryEn: subcategory?.titleEn || '',
     sourceUrl: `https://github.com/hamedharami-hub/pharmacy/blob/${sourceCommit}/data/shelf/shelfProducts.ts`,
