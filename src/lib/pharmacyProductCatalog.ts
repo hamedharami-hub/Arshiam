@@ -32,6 +32,7 @@ export interface PharmacyProductCatalogFilters {
   query?: string;
   schedule?: PharmacyProductScheduleFilter;
   categoryId?: string;
+  subcategoryId?: string;
 }
 
 const SEARCH_FIELDS = [
@@ -76,6 +77,22 @@ export function getPharmacyProductCategories(
     .sort((a, b) => a.label.localeCompare(b.label, language === "fa" ? "fa" : "en"));
 }
 
+export function getPharmacyProductSubcategories(
+  products: readonly PharmacyProductCatalogEntry[],
+  language: "fa" | "en",
+  categoryId = "all",
+): PharmacyProductCategory[] {
+  const subcategories = new Map<string, string>();
+  for (const product of products) {
+    if (!product.subcategoryId || (categoryId !== "all" && product.categoryId !== categoryId)) continue;
+    const label = language === "en" ? product.subcategoryEn : product.subcategoryFa;
+    if (label.trim() && !subcategories.has(product.subcategoryId)) subcategories.set(product.subcategoryId, label);
+  }
+  return [...subcategories.entries()]
+    .map(([id, label]) => ({ id, label }))
+    .sort((a, b) => a.label.localeCompare(b.label, language === "fa" ? "fa" : "en"));
+}
+
 export function filterPharmacyProducts(
   products: readonly PharmacyProductCatalogEntry[],
   filters: PharmacyProductCatalogFilters = {},
@@ -84,6 +101,7 @@ export function filterPharmacyProducts(
   return products.filter((product) => {
     if (filters.schedule && filters.schedule !== "all" && product.schedule !== filters.schedule) return false;
     if (filters.categoryId && filters.categoryId !== "all" && product.categoryId !== filters.categoryId) return false;
+    if (filters.subcategoryId && filters.subcategoryId !== "all" && product.subcategoryId !== filters.subcategoryId) return false;
     if (!query) return true;
 
     return SEARCH_FIELDS.some((field) => normalizePharmacyCatalogText(product[field]).includes(query));

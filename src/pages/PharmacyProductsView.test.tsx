@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import PharmacyProductsView from "./PharmacyProductsView";
+import { MemoryRouter } from "react-router-dom";
 
 const { languageState } = vi.hoisted(() => ({ languageState: { lang: "en" as "en" | "fa" } }));
 
@@ -13,25 +14,27 @@ vi.mock("@/hooks/useBilingual", () => ({
 
 describe("PharmacyProductsView", () => {
   beforeEach(() => { languageState.lang = "en"; });
+  const renderView = () => render(<MemoryRouter><PharmacyProductsView /></MemoryRouter>);
 
-  it("renders bilingual catalogue controls and clearly marks the data as unreviewed", () => {
-    render(<PharmacyProductsView />);
+  it("renders bilingual catalogue controls without the introductory warning", () => {
+    renderView();
     expect(screen.getByRole("heading", { name: "Pharmacy product catalogue" })).toBeInTheDocument();
-    expect(screen.getByRole("note")).toHaveTextContent("has not been independently reviewed");
+    expect(screen.queryByText(/This snapshot was imported/)).not.toBeInTheDocument();
     expect(screen.getByRole("searchbox", { name: "Search products" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Filter by subcategory" })).toBeInTheDocument();
     expect(screen.getByText("121 of 121 products")).toBeInTheDocument();
   });
 
   it("uses right-to-left layout and Persian labels when Persian is selected", () => {
     languageState.lang = "fa";
-    render(<PharmacyProductsView />);
+    renderView();
     expect(screen.getByRole("main")).toHaveAttribute("dir", "rtl");
     expect(screen.getByRole("heading", { name: "فهرست محصولات دارویی" })).toBeInTheDocument();
     expect(screen.getByRole("searchbox", { name: "جست‌وجوی محصولات" })).toBeInTheDocument();
   });
 
-  it("filters results and opens a read-only detail panel with the source link", () => {
-    render(<PharmacyProductsView />);
+  it("filters results and opens a detail panel linked to its full article", () => {
+    renderView();
     fireEvent.change(screen.getByRole("searchbox", { name: "Search products" }), { target: { value: "Panadol" } });
 
     const productButton = screen.getByRole("button", { name: "View Panadol 500mg" });
@@ -40,14 +43,12 @@ describe("PharmacyProductsView", () => {
     fireEvent.click(productButton);
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "View source file on GitHub" })).toHaveAttribute(
-      "href",
-      expect.stringContaining("/blob/5b4f7d2443a3ed97aea752c1d0d18583ce6d0067/data/shelf/shelfProducts.ts"),
-    );
+    expect(screen.getByRole("link", { name: "Read full article in the app" })).toHaveAttribute("href", "/app/knowledge?docId=doc-product-prod-panadol-500");
+    expect(screen.queryByText(/This panel shows index metadata only/)).not.toBeInTheDocument();
   });
 
   it("shows an empty state for a missing search and can reset search", () => {
-    render(<PharmacyProductsView />);
+    renderView();
     const search = screen.getByRole("searchbox", { name: "Search products" });
     fireEvent.change(search, { target: { value: "no product with this name" } });
     expect(screen.getByRole("heading", { name: "No products found" })).toBeInTheDocument();

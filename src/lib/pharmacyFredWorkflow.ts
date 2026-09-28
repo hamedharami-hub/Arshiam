@@ -130,9 +130,15 @@ export interface OdtLogEntry {
 
 export type OdtEntryIssue = "invalid-date" | "dose-mismatch" | "duplicate-date" | "id-not-checked" | "not-signed" | "takeaway-without-label";
 
+function isRealCalendarDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
 export function validateOdtEntry(entry: Omit<OdtLogEntry, "id">, log: readonly OdtLogEntry[], patient: OdtPracticePatient = ODT_PRACTICE_PATIENT): OdtEntryIssue[] {
   const issues: OdtEntryIssue[] = [];
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(entry.date) || Number.isNaN(Date.parse(entry.date))) issues.push("invalid-date");
+  if (!isRealCalendarDate(entry.date)) issues.push("invalid-date");
   if (entry.doseMg !== patient.prescribedDoseMg) issues.push("dose-mismatch");
   if (log.some((item) => item.date === entry.date)) issues.push("duplicate-date");
   if (!entry.idChecked) issues.push("id-not-checked");

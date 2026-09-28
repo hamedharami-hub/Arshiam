@@ -71,13 +71,12 @@ export async function callAI(
       if (uid) {
         const [{ data: mh }, { data: am }] = await Promise.all([
           firebaseStore.from("mh_profile").select("summary, primary_goals, communication_style").eq("user_id", uid).maybeSingle(),
-          firebaseStore.from("about_me" as any).select("answers, free_text, ai_analysis").eq("user_id", uid).maybeSingle(),
+          firebaseStore.from("about_me" as any).select("ai_analysis").eq("user_id", uid).maybeSingle(),
         ]);
         const parts: string[] = [];
         if (mh?.summary) parts.push(`پروفایل سلامت ذهن: ${mh.summary}`);
         if (mh?.primary_goals) parts.push(`اهداف اصلی: ${mh.primary_goals}`);
         if (am?.ai_analysis?.summary) parts.push(`خلاصه درباره من: ${am.ai_analysis.summary}`);
-        else if (am?.free_text) parts.push(`یادداشت درباره من: ${am.free_text.slice(0, 300)}`);
         if (parts.length > 0) {
           personalizationContext = `\n[Personalization Profile Context / اطلاعات شخصی‌سازی شده با رضایت کاربر]:\n${parts.join("\n")}\n`;
         }

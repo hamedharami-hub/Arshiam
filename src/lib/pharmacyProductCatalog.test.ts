@@ -4,6 +4,7 @@ import { PHARMACY_SEED_DOCUMENTS } from "@/lib/pharmacySeedData";
 import {
   filterPharmacyProducts,
   getPharmacyProductCategories,
+  getPharmacyProductSubcategories,
   normalizePharmacyCatalogText,
 } from "@/lib/pharmacyProductCatalog";
 
@@ -55,5 +56,13 @@ describe("Pharmacy product catalog index", () => {
     expect(faCategories.length).toBeGreaterThan(0);
     expect(new Set(faCategories.map((category) => category.id)).size).toBe(faCategories.length);
     expect(enCategories.find((category) => category.id === "cat-1")?.label).toBe("Primary Care, OTC & First Aid");
+    const subcategories = getPharmacyProductSubcategories(PHARMACY_PRODUCT_CATALOG, "en", "cat-1");
+    expect(subcategories.length).toBeGreaterThan(1);
+    expect(subcategories.every((subcategory) =>
+      PHARMACY_PRODUCT_CATALOG.some((product) => product.categoryId === "cat-1" && product.subcategoryId === subcategory.id),
+    )).toBe(true);
+    const first = PHARMACY_PRODUCT_CATALOG[0];
+    const matching = filterPharmacyProducts(PHARMACY_PRODUCT_CATALOG, { subcategoryId: first.subcategoryId ?? undefined });
+    expect(matching.every((product) => product.subcategoryId === first.subcategoryId)).toBe(true);
   });
 });

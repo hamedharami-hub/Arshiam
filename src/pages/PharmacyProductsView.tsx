@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, BookOpen, PackageSearch, Search, SlidersHorizontal } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { BookOpen, PackageSearch, Search, SlidersHorizontal } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { PHARMACY_PRODUCT_CATALOG } from "@/lib/pharmacyProductCatalogData";
 import {
   filterPharmacyProducts,
   getPharmacyProductCategories,
+  getPharmacyProductSubcategories,
   type PharmacyProductCatalogEntry,
   type PharmacyProductScheduleFilter,
 } from "@/lib/pharmacyProductCatalog";
@@ -20,6 +21,7 @@ export default function PharmacyProductsView() {
   const [query, setQuery] = useState("");
   const [schedule, setSchedule] = useState<PharmacyProductScheduleFilter>("all");
   const [categoryId, setCategoryId] = useState("all");
+  const [subcategoryId, setSubcategoryId] = useState("all");
   const [selectedProduct, setSelectedProduct] = useState<PharmacyProductCatalogEntry | null>(null);
   const isEn = lang === "en";
 
@@ -27,15 +29,20 @@ export default function PharmacyProductsView() {
     () => getPharmacyProductCategories(PHARMACY_PRODUCT_CATALOG, lang),
     [lang],
   );
+  const subcategories = useMemo(
+    () => getPharmacyProductSubcategories(PHARMACY_PRODUCT_CATALOG, lang, categoryId),
+    [categoryId, lang],
+  );
   const products = useMemo(
-    () => filterPharmacyProducts(PHARMACY_PRODUCT_CATALOG, { query, schedule, categoryId }),
-    [categoryId, query, schedule],
+    () => filterPharmacyProducts(PHARMACY_PRODUCT_CATALOG, { query, schedule, categoryId, subcategoryId }),
+    [categoryId, query, schedule, subcategoryId],
   );
 
   const resetFilters = () => {
     setQuery("");
     setSchedule("all");
     setCategoryId("all");
+    setSubcategoryId("all");
   };
 
   const categoryName = (product: PharmacyProductCatalogEntry) =>
@@ -58,24 +65,10 @@ export default function PharmacyProductsView() {
             </p>
           </div>
         </div>
-        <Badge variant="outline" className="gap-1.5 rounded-full px-3 py-1">
-          <BookOpen className="h-3.5 w-3.5" />
-          {T("فقط نمایه", "Index only")}
-        </Badge>
       </header>
 
-      <Card className="flex items-start gap-3 border-amber-500/40 bg-amber-500/5 p-4 text-sm" role="note">
-        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
-        <p className="leading-relaxed">
-          {T(
-            "اطلاعات این نسخه از منبع Pharmacy منتقل شده و هنوز بازبینی مستقل نشده است. این فهرست ابزار جست‌وجو است، نه مرجع بالینی یا راهنمای مصرف؛ برای تصمیم‌گیری به منبع معتبر و به‌روز مراجعه کن.",
-            "This snapshot was imported from the Pharmacy source and has not been independently reviewed. It is a search index, not a clinical or directions-for-use reference; consult an authoritative, current source for decisions.",
-          )}
-        </p>
-      </Card>
-
       <section aria-label={T("جست‌وجو و فیلتر", "Search and filters")} className="space-y-3">
-        <div className="grid gap-3 md:grid-cols-2 md:items-center xl:grid-cols-[minmax(16rem,1fr)_12rem_minmax(12rem,16rem)_auto]">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(12rem,1fr)_7rem_minmax(10rem,13rem)_minmax(10rem,13rem)_auto]">
           <div className="relative min-w-0">
             <Search className={`pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground ${isEn ? "left-3" : "right-3"}`} aria-hidden="true" />
             <Input
@@ -102,7 +95,7 @@ export default function PharmacyProductsView() {
             </SelectContent>
           </Select>
 
-          <Select value={categoryId} onValueChange={setCategoryId}>
+          <Select value={categoryId} onValueChange={(value) => { setCategoryId(value); setSubcategoryId("all"); }}>
             <SelectTrigger aria-label={T("فیلتر دسته‌بندی", "Filter by category")}>
               <SelectValue placeholder={T("همهٔ دسته‌ها", "All categories")} />
             </SelectTrigger>
@@ -110,6 +103,18 @@ export default function PharmacyProductsView() {
               <SelectItem value="all">{T("همهٔ دسته‌ها", "All categories")}</SelectItem>
               {categories.map((category) => (
                 <SelectItem key={category.id} value={category.id}>{category.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={subcategoryId} onValueChange={setSubcategoryId}>
+            <SelectTrigger aria-label={T("فیلتر زیردسته", "Filter by subcategory")}>
+              <SelectValue placeholder={T("همهٔ زیردسته‌ها", "All subcategories")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{T("همهٔ زیردسته‌ها", "All subcategories")}</SelectItem>
+              {subcategories.map((subcategory) => (
+                <SelectItem key={subcategory.id} value={subcategory.id}>{subcategory.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -146,8 +151,8 @@ export default function PharmacyProductsView() {
                   <span className="shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold">{product.schedule}</span>
                 </span>
                 <span className="flex w-full flex-wrap gap-1.5">
-                  {categoryName(product) && <span className="max-w-full truncate rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold text-secondary-foreground">{categoryName(product)}</span>}
-                  {subcategoryName(product) && <span className="max-w-full truncate rounded-full border px-2.5 py-0.5 text-xs font-semibold">{subcategoryName(product)}</span>}
+                  {categoryName(product) && <span className="max-w-full rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold text-secondary-foreground">{categoryName(product)}</span>}
+                  {subcategoryName(product) && <span className="max-w-full rounded-full border px-2.5 py-0.5 text-xs font-semibold">{subcategoryName(product)}</span>}
                   <span className="rounded-full border px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300">{T("بازبینی‌نشده", "Unreviewed")}</span>
                 </span>
               </button>
@@ -178,17 +183,13 @@ export default function PharmacyProductsView() {
                 <Metadata label={T("زیردسته", "Subcategory")} value={subcategoryName(selectedProduct)} />
                 <Metadata label={T("وضعیت محتوا", "Content status")} value={T("بازبینی‌نشده", "Unreviewed")} />
               </dl>
-              <p className="rounded-lg bg-muted p-3 text-sm leading-relaxed text-muted-foreground">
-                {T("این پنجره فقط فرادادهٔ نمایه را نشان می‌دهد و محتوای مونوگراف را جایگزین نمی‌کند.", "This panel shows index metadata only; it does not replace the product monograph.")}
-              </p>
-              <a
-                href={selectedProduct.sourceUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+              <Link
+                to={`/app/knowledge?docId=${encodeURIComponent(selectedProduct.documentId)}`}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >
-                {T("مشاهدهٔ فایل منبع در GitHub", "View source file on GitHub")}
-              </a>
+                <BookOpen className="h-4 w-4" aria-hidden="true" />
+                {T("خواندن مطلب کامل در برنامه", "Read full article in the app")}
+              </Link>
             </>
           )}
         </DialogContent>

@@ -1844,7 +1844,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
                 title={isEn ? "Select Mind Map Branch" : "انتخاب شاخه یا فولدر نقشه ذهنی"}
               >
                 <FolderTree className="w-3.5 h-3.5 text-primary shrink-0" />
-                <span className="truncate max-w-[130px] sm:max-w-[180px]">{currentScopeTitle}</span>
+                <span className="max-w-[180px] whitespace-normal break-words text-start leading-4 sm:max-w-[280px]" style={{ overflowWrap: "anywhere" }}>{currentScopeTitle}</span>
                 <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />
               </button>
             </DropdownMenuTrigger>
@@ -1875,7 +1875,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
                       className={`cursor-pointer gap-2 font-medium ${isRfSelected ? "bg-primary/10 text-primary font-bold" : ""}`}
                     >
                       <Folder className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span className="flex-1 truncate">{rf.name}</span>
+                      <span className="min-w-0 flex-1 whitespace-normal break-words leading-5" style={{ overflowWrap: "anywhere" }}>{rf.name}</span>
                       <span className="text-[10px] text-muted-foreground font-mono">
                         {subF.length > 0 ? `${subF.length} زیرشاخه • ` : ""}{rfDocs.length} سند
                       </span>
@@ -1893,7 +1893,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
                         >
                           <span className="text-muted-foreground font-mono">↳</span>
                           <Folder className="w-3 h-3 text-cyan-500 shrink-0" />
-                          <span className="flex-1 truncate">{sf.name}</span>
+                          <span className="min-w-0 flex-1 whitespace-normal break-words leading-5" style={{ overflowWrap: "anywhere" }}>{sf.name}</span>
                           <span className="text-[10px] text-muted-foreground font-mono">{sfDocs.length} سند</span>
                           {isSfSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
                         </DropdownMenuItem>
@@ -1918,7 +1918,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
                           className={`cursor-pointer gap-2 ${isDocSelected ? "bg-primary/10 text-primary font-bold" : ""}`}
                         >
                           <FileText className="w-3 h-3 text-indigo-500 shrink-0" />
-                          <span className="flex-1 truncate">{doc.title}</span>
+                          <span className="min-w-0 flex-1 whitespace-normal break-words leading-5" style={{ overflowWrap: "anywhere" }}>{doc.title}</span>
                           {isDocSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
                         </DropdownMenuItem>
                       );

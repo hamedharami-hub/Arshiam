@@ -86,7 +86,7 @@ const FolderRowItem: React.FC<FolderRowItemProps> = ({
       }`}
       style={{ paddingInlineStart: `${Math.max(8, depth * 14 + 8)}px` }}
     >
-      <div className="flex items-center gap-1.5 min-w-0">
+      <div className="flex min-w-0 flex-1 items-start gap-1.5">
         <button
           type="button"
           onClick={(e) => onToggle(e)}
@@ -111,7 +111,7 @@ const FolderRowItem: React.FC<FolderRowItemProps> = ({
           />
         )}
 
-        <span className="truncate">{node.name}</span>
+        <span className="min-w-0 flex-1 whitespace-normal break-words leading-5" style={{ overflowWrap: "anywhere" }}>{node.name}</span>
       </div>
 
       <div className="flex items-center gap-1 shrink-0">
@@ -216,9 +216,9 @@ const DocumentRowItem: React.FC<DocumentRowItemProps> = ({
         paddingInlineStart: `${Math.max(16, depth * 14 + 12)}px`,
       }}
     >
-      <div className="flex items-center gap-1.5 min-w-0">
+      <div className="flex min-w-0 flex-1 items-start gap-1.5">
         <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
-        <span className="truncate">{doc.title}</span>
+        <span className="min-w-0 flex-1 whitespace-normal break-words leading-5" style={{ overflowWrap: "anywhere" }}>{doc.title}</span>
       </div>
 
       <div className="flex items-center gap-0.5 shrink-0">

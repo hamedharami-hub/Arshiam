@@ -1,6 +1,6 @@
 // Per-operation AI settings
 // Each AI operation can have its own provider+model.
-// Stored in localStorage. Sent to edge function on every call.
+// Stored in localStorage; provider calls are made directly by the browser.
 
 export type Provider = "offline" | "openai" | "anthropic" | "gemini" | "groq" | "openrouter" | "custom";
 
@@ -57,6 +57,8 @@ export const OPERATIONS: OperationMeta[] = [
   { key: "summarize_note",        labelFa: "خلاصه‌سازی نوت",                  labelEn: "Summarize note",                descFa: "خلاصه کوتاه و واضح از یک نوت بلند.",                         descEn: "Short, clear summary of a long note.",                         usedInFa: "در حال حاضر استفاده نشده", usedInEn: "Not used in current UI", group: "نوت", groupEn: "Notes" },
   { key: "improve_note",          labelFa: "بهبود متن نوت",                   labelEn: "Improve writing",               descFa: "بازنویسی روان‌تر و حرفه‌ای‌تر.",                              descEn: "Smoother, more polished rewrite.",                             usedInFa: "در حال حاضر استفاده نشده", usedInEn: "Not used in current UI", group: "نوت", groupEn: "Notes" },
   { key: "inline_edit",           labelFa: "ویرایش inline متن",               labelEn: "Inline edit",                   descFa: "ویرایش بخش انتخاب‌شده با دستور دلخواه.",                     descEn: "Edit a highlighted span with a custom instruction.",           usedInFa: "نوت‌ها / ویرایشگر → متن انتخابی", usedInEn: "Notes / editor → selected text", group: "نوت", groupEn: "Notes" },
+  { key: "note_actions",          labelFa: "ابزارهای هوشمند متن",              labelEn: "AI text actions",               descFa: "قالب‌بندی، ترجمه و اقدامات آموزشی روی متن انتخاب‌شده.",          descEn: "Formatting, translation and study actions on selected text.", usedInFa: "نوت‌ها / متن انتخابی", usedInEn: "Notes / selected text", group: "نوت", groupEn: "Notes" },
+  { key: "interactive_learning",  labelFa: "یادگیری تعاملی",                  labelEn: "Interactive learning",          descFa: "ساخت تمرین‌های تعاملی از محتوای درس.",                         descEn: "Builds interactive practice from a lesson.",                  usedInFa: "Knowledge → مطالعه تعاملی", usedInEn: "Knowledge → Interactive Study", group: "مطالعه", groupEn: "Study" },
   // Folder
   { key: "folder_chat",           labelFa: "چت روی یک فولدر (پروژه)",        labelEn: "Chat on a folder (project)",    descFa: "گفتگو روی همه تسک‌ها/نوت‌های یک فولدر.",                     descEn: "Chat across a whole folder of tasks/notes.",                   usedInFa: "فولدر → چت AI", usedInEn: "Folder → AI chat", group: "فولدر", groupEn: "Folder" },
   // Mental health & Personalization

@@ -75,6 +75,8 @@ describe("ODT dosing log", () => {
     const log: OdtLogEntry[] = [{ ...entry, id: "1" }];
     expect(validateOdtEntry({ ...entry, doseMg: 70, type: "takeaway", signed: false, idChecked: false }, log)).toEqual(["dose-mismatch", "duplicate-date", "id-not-checked", "not-signed", "takeaway-without-label"]);
     expect(validateOdtEntry({ ...entry, date: "10/08/2026" }, [])).toContain("invalid-date");
+    expect(validateOdtEntry({ ...entry, date: "2026-02-30" }, [])).toContain("invalid-date");
+    expect(validateOdtEntry({ ...entry, date: "2024-02-29" }, [])).toEqual([]);
   });
 
   it("summarises totals and missed-day gaps", () => {
