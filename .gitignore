@@ -38,3 +38,8 @@ artifacts/
 # Local Lovable workspace integration (never part of ARSHNAZ)
 .lovable/
 .vercel
+*.env
+credentials.json
+*.pem
+*.key
+.credentials
