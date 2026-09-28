@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { BookOpen, Menu, Plus, Sparkles, FolderPlus, ArrowLeft, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
-import { useIsMobile } from "@/hooks/use-mobile";
 import type { KnowledgeFolder, KnowledgeDocument, KnowledgeFolderNode } from "@/lib/knowledgeTypes";
 import {
   getKnowledgeFolders,
@@ -46,7 +45,6 @@ const EMPTY_KNOWLEDGE_LOCATION_STATE: Record<string, unknown> = {};
 export const KnowledgeBaseView: React.FC = () => {
   const { user } = useAuth();
   const { isEn } = useBilingual();
-  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -82,9 +80,9 @@ export const KnowledgeBaseView: React.FC = () => {
   // Folder deep links from Pharmacy should reveal the folder tree immediately.
   useEffect(() => {
     if (!urlFolderId) return;
-    if (isMobile) setMobileTreeOpen(true);
+    if (window.matchMedia("(max-width: 767px)").matches) setMobileTreeOpen(true);
     else setSidebarCollapsed(false);
-  }, [urlFolderId, isMobile]);
+  }, [urlFolderId]);
 
   // Study task scheduling modal state
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
