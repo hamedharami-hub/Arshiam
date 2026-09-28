@@ -220,103 +220,136 @@ export function RichEditor({
 
       {/* Toolbar */}
       <div ref={toolbarRef} className="flex flex-nowrap md:flex-wrap items-center gap-0.5 border-b p-1.5 sticky top-0 bg-background/95 backdrop-blur z-10 overflow-x-auto md:overflow-visible overscroll-contain">
-        <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => editor.chain().focus().undo().run()} title="Undo">
+        <Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" onClick={() => editor.chain().focus().undo().run()} title="Undo">
           <Undo2 className="w-4 h-4" />
         </Button>
-        <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => editor.chain().focus().redo().run()} title="Redo">
+        <Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" onClick={() => editor.chain().focus().redo().run()} title="Redo">
           <Redo2 className="w-4 h-4" />
         </Button>
-        <Separator orientation="vertical" className="h-6 mx-1" />
-        <Toggle size="sm" pressed={editor.isActive("heading", { level: 1 })}
+        <Separator orientation="vertical" className="h-6 mx-1 shrink-0" />
+
+        {/* Headings — desktop only, inside "More" on mobile */}
+        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive("heading", { level: 1 })}
           onPressedChange={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
           <Heading1 className="w-4 h-4" />
         </Toggle>
-        <Toggle size="sm" pressed={editor.isActive("heading", { level: 2 })}
+        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive("heading", { level: 2 })}
           onPressedChange={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
           <Heading2 className="w-4 h-4" />
         </Toggle>
-        <Toggle size="sm" pressed={editor.isActive("heading", { level: 3 })}
+        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive("heading", { level: 3 })}
           onPressedChange={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
           <Heading3 className="w-4 h-4" />
         </Toggle>
 
-        <Separator orientation="vertical" className="h-6 mx-1" />
+        <Separator orientation="vertical" className="hidden md:block h-6 mx-1" />
 
-        <Toggle size="sm" pressed={editor.isActive("bold")} onPressedChange={() => editor.chain().focus().toggleBold().run()}>
+        {/* Primary inline formatting — always visible */}
+        <Toggle size="sm" className="shrink-0" pressed={editor.isActive("bold")} onPressedChange={() => editor.chain().focus().toggleBold().run()}>
           <Bold className="w-4 h-4" />
         </Toggle>
-        <Toggle size="sm" pressed={editor.isActive("italic")} onPressedChange={() => editor.chain().focus().toggleItalic().run()}>
+        <Toggle size="sm" className="shrink-0" pressed={editor.isActive("italic")} onPressedChange={() => editor.chain().focus().toggleItalic().run()}>
           <Italic className="w-4 h-4" />
         </Toggle>
-        <Toggle size="sm" pressed={editor.isActive("underline")} onPressedChange={() => editor.chain().focus().toggleUnderline().run()}>
+        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive("underline")} onPressedChange={() => editor.chain().focus().toggleUnderline().run()}>
           <UnderlineIcon className="w-4 h-4" />
         </Toggle>
-        <Toggle size="sm" pressed={editor.isActive("strike")} onPressedChange={() => editor.chain().focus().toggleStrike().run()}>
+        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive("strike")} onPressedChange={() => editor.chain().focus().toggleStrike().run()}>
           <Strikethrough className="w-4 h-4" />
         </Toggle>
-        <Toggle size="sm" pressed={editor.isActive("highlight")} onPressedChange={() => editor.chain().focus().toggleHighlight().run()}>
+        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive("highlight")} onPressedChange={() => editor.chain().focus().toggleHighlight().run()}>
           <Highlighter className="w-4 h-4" />
         </Toggle>
 
-        <Separator orientation="vertical" className="h-6 mx-1" />
+        <Separator orientation="vertical" className="h-6 mx-1 shrink-0" />
 
-        <Toggle size="sm" pressed={editor.isActive("bulletList")} onPressedChange={() => editor.chain().focus().toggleBulletList().run()}>
+        {/* Lists — bullet + task always visible */}
+        <Toggle size="sm" className="shrink-0" pressed={editor.isActive("bulletList")} onPressedChange={() => editor.chain().focus().toggleBulletList().run()}>
           <List className="w-4 h-4" />
         </Toggle>
-        <Toggle size="sm" pressed={editor.isActive("orderedList")} onPressedChange={() => editor.chain().focus().toggleOrderedList().run()}>
-          <ListOrdered className="w-4 h-4" />
-        </Toggle>
-        <Toggle size="sm" pressed={editor.isActive("taskList")} onPressedChange={() => editor.chain().focus().toggleTaskList().run()}>
+        <Toggle size="sm" className="shrink-0" pressed={editor.isActive("taskList")} onPressedChange={() => editor.chain().focus().toggleTaskList().run()}>
           <ListChecks className="w-4 h-4" />
         </Toggle>
-        <Toggle size="sm" pressed={editor.isActive("blockquote")} onPressedChange={() => editor.chain().focus().toggleBlockquote().run()}>
+        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive("orderedList")} onPressedChange={() => editor.chain().focus().toggleOrderedList().run()}>
+          <ListOrdered className="w-4 h-4" />
+        </Toggle>
+        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive("blockquote")} onPressedChange={() => editor.chain().focus().toggleBlockquote().run()}>
           <Quote className="w-4 h-4" />
         </Toggle>
-        <Toggle size="sm" pressed={editor.isActive("codeBlock")} onPressedChange={() => editor.chain().focus().toggleCodeBlock().run()}>
+        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive("codeBlock")} onPressedChange={() => editor.chain().focus().toggleCodeBlock().run()}>
           <Code className="w-4 h-4" />
         </Toggle>
 
-        <Separator orientation="vertical" className="h-6 mx-1" />
+        <Separator orientation="vertical" className="hidden md:block h-6 mx-1" />
 
-        <Toggle size="sm" pressed={editor.isActive({ textAlign: "left" })} onPressedChange={() => editor.chain().focus().setTextAlign("left").run()}>
+        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive({ textAlign: "left" })} onPressedChange={() => editor.chain().focus().setTextAlign("left").run()}>
           <AlignLeft className="w-4 h-4" />
         </Toggle>
-        <Toggle size="sm" pressed={editor.isActive({ textAlign: "center" })} onPressedChange={() => editor.chain().focus().setTextAlign("center").run()}>
+        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive({ textAlign: "center" })} onPressedChange={() => editor.chain().focus().setTextAlign("center").run()}>
           <AlignCenter className="w-4 h-4" />
         </Toggle>
-        <Toggle size="sm" pressed={editor.isActive({ textAlign: "right" })} onPressedChange={() => editor.chain().focus().setTextAlign("right").run()}>
+        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive({ textAlign: "right" })} onPressedChange={() => editor.chain().focus().setTextAlign("right").run()}>
           <AlignRight className="w-4 h-4" />
         </Toggle>
 
-        <Separator orientation="vertical" className="h-6 mx-1" />
+        <Separator orientation="vertical" className="h-6 mx-1 shrink-0" />
 
-        <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => onPickFile("image")} title="تصویر">
+        {/* Attach: image always visible; audio/video/file/link/hr on desktop or inside "More" */}
+        <Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" onClick={() => onPickFile("image")} title="تصویر">
           <ImgIcon className="w-4 h-4" />
         </Button>
-        <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => onPickFile("audio")} title="صدا">
+        <Button size="sm" variant="ghost" className="hidden md:inline-flex h-8 px-2" onClick={() => onPickFile("audio")} title="صدا">
           <Music className="w-4 h-4" />
         </Button>
-        <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => onPickFile("video")} title="ویدیو">
+        <Button size="sm" variant="ghost" className="hidden md:inline-flex h-8 px-2" onClick={() => onPickFile("video")} title="ویدیو">
           <Video className="w-4 h-4" />
         </Button>
-        <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => onPickFile("file")} title="فایل">
+        <Button size="sm" variant="ghost" className="hidden md:inline-flex h-8 px-2" onClick={() => onPickFile("file")} title="فایل">
           <Paperclip className="w-4 h-4" />
         </Button>
-        <Button size="sm" variant="ghost" className="h-8 px-2" onClick={addLink} title="لینک">
+        <Button size="sm" variant="ghost" className="hidden md:inline-flex h-8 px-2" onClick={addLink} title="لینک">
           <LinkIcon className="w-4 h-4" />
         </Button>
-        <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => editor.chain().focus().setHorizontalRule().run()} title="خط افقی">
+        <Button size="sm" variant="ghost" className="hidden md:inline-flex h-8 px-2" onClick={() => editor.chain().focus().setHorizontalRule().run()} title="خط افقی">
           <Minus className="w-4 h-4" />
         </Button>
-        <Separator orientation="vertical" className="h-6 mx-1" />
+        <Separator orientation="vertical" className="h-6 mx-1 shrink-0" />
         <VoiceInputButton
           continuous
           onTranscript={(text) => editor?.chain().focus().insertContent(text + " ").run()}
           disabled={!editor || readOnly}
           size="sm"
-          className="h-8 px-2"
+          className="h-8 px-2 shrink-0"
           title={"ضبط صوتی"}
         />
+
+        {/* Mobile-only "More" menu holding the less-used tools */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="ghost" className="md:hidden h-8 px-2 shrink-0" title="ابزارهای بیشتر" data-testid="editor-more-tools">
+              <Wrench className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="max-h-[60vh] overflow-y-auto w-52">
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}><Heading1 className="w-4 h-4 me-2" /> عنوان ۱</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 className="w-4 h-4 me-2" /> عنوان ۲</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}><Heading3 className="w-4 h-4 me-2" /> عنوان ۳</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleUnderline().run()}><UnderlineIcon className="w-4 h-4 me-2" /> زیرخط</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleStrike().run()}><Strikethrough className="w-4 h-4 me-2" /> خط‌خورده</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleHighlight().run()}><Highlighter className="w-4 h-4 me-2" /> هایلایت</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleOrderedList().run()}><ListOrdered className="w-4 h-4 me-2" /> لیست شماره‌دار</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleBlockquote().run()}><Quote className="w-4 h-4 me-2" /> نقل‌قول</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleCodeBlock().run()}><Code className="w-4 h-4 me-2" /> بلوک کد</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().setTextAlign("right").run()}><AlignRight className="w-4 h-4 me-2" /> راست‌چین</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().setTextAlign("center").run()}><AlignCenter className="w-4 h-4 me-2" /> وسط‌چین</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().setTextAlign("left").run()}><AlignLeft className="w-4 h-4 me-2" /> چپ‌چین</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onPickFile("audio")}><Music className="w-4 h-4 me-2" /> صدا</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onPickFile("video")}><Video className="w-4 h-4 me-2" /> ویدیو</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onPickFile("file")}><Paperclip className="w-4 h-4 me-2" /> فایل</DropdownMenuItem>
+            <DropdownMenuItem onClick={addLink}><LinkIcon className="w-4 h-4 me-2" /> لینک</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().setHorizontalRule().run()}><Minus className="w-4 h-4 me-2" /> خط افقی</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Bubble menu for AI */}
