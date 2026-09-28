@@ -61,6 +61,13 @@ export type Task = {
     | null;
   bucket_calendar?: "jalali" | "gregorian" | null;
   bucket_anchor?: string | null;
+  // Time horizon v2 (see src/lib/timeHorizon.ts)
+  horizon?: "day" | "week" | "month" | "quarter" | "year" | null;
+  period_start?: string | null;
+  period_end?: string | null;
+  due_at?: string | null;
+  is_exact?: boolean | null;
+  postpone_count?: number | null;
   completed_at?: string | null;
   created_at?: string;
   updated_at?: string;

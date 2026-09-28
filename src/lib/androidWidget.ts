@@ -1,4 +1,5 @@
-import { Capacitor, registerPlugin } from "@capacitor/core";
+import { Capacitor } from "@capacitor/core";
+import { arshnazNativePlugin } from "@/lib/arshnazNativePlugin";
 import { onIdTokenChanged } from "firebase/auth";
 import type { Task } from "@/lib/taskTypes";
 import { auth } from "@/lib/firebase";
@@ -11,7 +12,7 @@ type WidgetPlugin = {
   syncWidgetData(options: { activeCount: number; nextTaskId: string; nextTaskTitle: string; userId: string; pendingChanges: boolean; tasks: object[] }): Promise<void>;
   refreshWidgets(): Promise<{ agendaWidgets: number; dashboardWidgets: number }>;
 };
-const widget = registerPlugin<WidgetPlugin>("ArshnazWidget");
+const widget = arshnazNativePlugin as unknown as WidgetPlugin;
 let queue: Promise<void> = Promise.resolve();
 let readyUid = "";
 let latestTasks: { ownerId: string; tasks: Task[] } | undefined;

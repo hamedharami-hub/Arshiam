@@ -166,8 +166,8 @@ describe("leitnerService", () => {
     expect(reviewResult.card.review_count).toBe(card.review_count + 1);
   });
 
-  it("keeps pre-existing cards on SM-2 when the scheduler field is absent", () => {
-    expect(getLeitnerSchedulingAlgorithm({})).toBe("sm2");
+  it("uses FSRS for every card, including legacy ones without the scheduler field", () => {
+    expect(getLeitnerSchedulingAlgorithm({})).toBe("fsrs6");
   });
 
   it("does not overwrite a card when its stored FSRS state is corrupt", async () => {
@@ -180,12 +180,14 @@ describe("leitnerService", () => {
     expect(await getLeitnerCards(userId)).toContainEqual(corrupt);
   });
 
-  it("does not reset an FSRS card when its stored state is missing", async () => {
-    const card = await createLeitnerCard(userId, { front: "Missing FSRS", back: "Keep schedule" });
-    const incomplete = await updateLeitnerCard(userId, card.id, { fsrs_state: null });
+  it("migrates a card with missing FSRS state from its box instead of resetting it", async () => {
+    const card = await createLeitnerCard(userId, { front: "Missing FSRS", back: "Keep schedule", box: 4 });
+    await updateLeitnerCard(userId, card.id, { fsrs_state: null, review_count: 5 });
 
-    await expect(reviewLeitnerCardWithRating(userId, card.id, 4)).rejects.toThrow(/state is missing/);
-    expect(await getLeitnerCards(userId)).toContainEqual(incomplete);
+    const reviewed = await reviewLeitnerCardWithRating(userId, card.id, 3);
+    expect(reviewed.fsrs_state).toBeTruthy();
+    expect(reviewed.review_count).toBe(6);
+    expect(reviewed.box).toBeGreaterThanOrEqual(3);
   });
 
   it("does not report a card saved when offline queue storage rejects it", async () => {
@@ -258,30 +260,26 @@ describe("leitnerService", () => {
     expect(await getLeitnerCards(userId)).toContainEqual(card);
   });
 
-  it("2. advances card to Box 2 on successful review", async () => {
+  it("2. moves a card to a higher visual box after an Easy FSRS review", async () => {
     const card = await createLeitnerCard(userId, {
       front: "اندیکاسیون سرترالین",
       back: "MDD, OCD, Panic Disorder",
       scheduling_algorithm: "sm2",
     });
+    expect(card.scheduling_algorithm).toBe("fsrs6");
 
-    const reviewed = await reviewLeitnerCard(userId, card.id, true);
-    expect(reviewed.box).toBe(2);
+    const reviewed = await reviewLeitnerCardWithRating(userId, card.id, 4);
+    expect(reviewed.box).toBeGreaterThan(1);
     expect(reviewed.review_count).toBe(1);
     expect(reviewed.lapse_count).toBe(0);
-
-    // Reviewing again successfully advances to Box 3
-    const reviewedAgain = await reviewLeitnerCard(userId, card.id, true);
-    expect(reviewedAgain.box).toBe(3);
-    expect(reviewedAgain.review_count).toBe(2);
+    expect(reviewed.fsrs_state).toBeTruthy();
   });
 
   it("3. resets card to Box 1 on lapsed review", async () => {
     const card = await createLeitnerCard(userId, {
       front: "دوز شروع اس‌سیتالوپرام",
       back: "10 میلی‌گرم در روز",
-      box: 4, // Starts in Box 4
-      scheduling_algorithm: "sm2",
+      box: 4,
     });
 
     const lapsed = await reviewLeitnerCard(userId, card.id, false);
@@ -312,31 +310,14 @@ describe("leitnerService", () => {
     expect(all.length).toBe(0);
   });
 
-  it("6. applies SM-2 4-tier ratings (Again, Hard, Good, Easy) dynamically", async () => {
-    const card = await createLeitnerCard(userId, {
-      front: "وارفارین و INR",
-      back: "هدف معمول ۲ تا ۳",
-      scheduling_algorithm: "sm2",
-    });
-
-    // Rating 2: Hard
-    const hardCard = await reviewLeitnerCardWithRating(userId, card.id, 2);
-    expect(hardCard.consecutive_correct).toBe(1);
-    expect(hardCard.ease_factor).toBeLessThan(2.5); // Ease reduced
-
-    // Rating 4: Easy
+  it("6. applies FSRS 4-tier ratings (Again, Hard, Good, Easy) with ordered intervals", async () => {
+    const card = await createLeitnerCard(userId, { front: "وارفارین و INR", back: "هدف معمول ۲ تا ۳" });
+    const hard = previewNextInterval(card, 2).days;
+    const easy = previewNextInterval(card, 4).days;
+    expect(easy).toBeGreaterThan(hard);
     const easyCard = await reviewLeitnerCardWithRating(userId, card.id, 4);
-    expect(easyCard.consecutive_correct).toBe(2);
-    expect(easyCard.ease_factor).toBeGreaterThan(hardCard.ease_factor!); // Ease boosted
-    expect(easyCard.box).toBeGreaterThanOrEqual(2);
-
-    // Rating 1: Again (Reset)
-    const resetCard = await reviewLeitnerCardWithRating(userId, card.id, 1);
-    expect(resetCard.box).toBe(1);
-    expect(resetCard.lapse_count).toBe(1);
-    expect(resetCard.consecutive_correct).toBe(0);
+    expect(easyCard.consecutive_correct).toBe(1);
   });
-
   it("7. fixes calendar boundary bug so cards due later today are returned as due today", async () => {
     const todayEvening = new Date();
     todayEvening.setHours(20, 0, 0, 0); // 8:00 PM today

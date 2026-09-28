@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "start": "cd /app && exec node_modules/.bin/vite --host 0.0.0.0 --port 3000"
+    "start": "bash /app/frontend/start-vite.sh",
+    "expo": "bash /app/frontend/start-vite.sh"
   }
 }

@@ -18,7 +18,6 @@ import {
   MoreHorizontal,
   Trash2,
   Plus,
-  MessageSquare,
   MapPin,
   Users,
   BookOpen,
@@ -122,7 +121,6 @@ export interface TaskDetailBottomRailProps {
   deleteTask: () => void;
   save: (patch: Partial<Task>) => void;
   T: (fa: string, en: string) => string;
-  onAddComment?: () => void;
   onAddNote?: () => void;
   onAddLocation?: () => void;
   onPickContact?: () => void;
@@ -159,7 +157,6 @@ export function TaskDetailBottomRail({
   deleteTask,
   save,
   T,
-  onAddComment,
   onAddNote,
   onAddLocation,
   onPickContact,
@@ -233,7 +230,7 @@ export function TaskDetailBottomRail({
             </PopoverContent>
           </Popover>
 
-          {/* Add Menu (Comment, Note, Location, Contact, New Contact, Device Contacts) */}
+          {/* Add Menu (Note, Location, Contact, New Contact, Device Contacts) */}
           <Popover open={addPopoverOpen} onOpenChange={setAddPopoverOpen}>
             <PopoverTrigger asChild>
               <span>
@@ -247,18 +244,6 @@ export function TaskDetailBottomRail({
             </PopoverTrigger>
             <PopoverContent className="w-56 p-1.5" align="start" side="top">
               <div className="space-y-0.5 text-xs">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAddPopoverOpen(false);
-                    onAddComment?.();
-                  }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-accent text-start transition"
-                >
-                  <MessageSquare className="w-3.5 h-3.5 text-primary shrink-0" />
-                  <span>{T("افزودن کامنت / توضیح", "Add Comment")}</span>
-                </button>
-
                 <button
                   type="button"
                   onClick={() => {

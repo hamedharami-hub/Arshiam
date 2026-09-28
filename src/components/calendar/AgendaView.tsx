@@ -1,7 +1,7 @@
 import { isSameDay, format, compareAsc } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { formatDate, toPersianDigits, type CalendarSystem } from "@/lib/jalali";
-import { isHoliday, type Holiday } from "@/lib/holidays";
+import { isHoliday, dominantKind, HOLIDAY_TONE, type Holiday } from "@/lib/holidays";
 
 type Task = { id: string; title: string; due_date: string | null; priority: string };
 
@@ -41,7 +41,7 @@ export default function AgendaView({
         const hol = isHoliday(d, holidays);
         return (
           <div key={k} className="border border-border/60 rounded-xl overflow-hidden bg-card/40">
-            <div className={`px-4 py-2.5 text-sm font-medium flex justify-between ${hol.length ? "bg-amber-500/5 text-amber-600 dark:text-amber-400" : "bg-muted/30"}`}>
+            <div className={`px-4 py-2.5 text-sm font-medium flex justify-between ${hol.length ? `${HOLIDAY_TONE[dominantKind(hol)!].bg} ${HOLIDAY_TONE[dominantKind(hol)!].text}` : "bg-muted/30"}`}>
               <span>
                 {system === "jalali" ? formatDate(d, "EEEE d MMMM", "jalali") : format(d, "EEEE, MMM d")}
               </span>

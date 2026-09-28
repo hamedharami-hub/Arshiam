@@ -15,21 +15,26 @@ describe("Knowledge navigation hierarchy", () => {
     ]);
   });
 
-  it("keeps Knowledge base, interactive study and review grouped under Grow", () => {
+  it("puts Review in its own section right below Pharmacy", () => {
+    const ids = SECTIONS.map((section) => section.id);
+    expect(ids.indexOf("review")).toBe(ids.indexOf("pharmacy") + 1);
+    expect(SECTIONS.find((s) => s.id === "review")?.items[0].url).toBe("/app/review/pharmacy");
+  });
+
+  it("keeps Knowledge base and interactive study grouped under Grow", () => {
     const grow = SECTIONS.find((section) => section.id === "grow");
     const knowledge = grow?.items.find((item) => item.label === "دانش");
     expect(knowledge).toBeDefined();
     expect(knowledge?.children?.map((item) => item.url)).toEqual([
       "/app/knowledge",
       "/app/interactive-study",
-      "/app/review",
     ]);
   });
 
   it("preserves unique routes for collapsed sidebar and quick navigation", () => {
     const urls = NAV_ITEMS.map((item) => item.url).filter((url): url is string => Boolean(url));
     expect(urls).toContain("/app/knowledge");
-    expect(urls).toContain("/app/review");
+    expect(urls).toContain("/app/review/pharmacy");
     expect(urls).toContain("/app/interactive-study");
     expect(urls).toContain("/app/pharmacy-products");
     expect(new Set(urls).size).toBe(urls.length);

@@ -40,6 +40,7 @@ import { AndroidReminderHealth } from "@/components/AndroidReminderHealth";
 import { ReminderCenter } from "@/components/ReminderCenter";
 import { isAndroid, nativeExperience, type NativeAppInfo } from "@/lib/nativeExperience";
 import { SectionCard, SettingRow } from "./settings/SectionCard";
+import { TimeHorizonSettings } from "./settings/TimeHorizonSettings";
 import { TimeBucketsSettings } from "./settings/TimeBucketsSettings";
 import { CrisisSupportSettings } from "./settings/CrisisSupportSettings";
 import { SidebarQuickLinksSettings } from "./settings/SidebarQuickLinksSettings";
@@ -748,6 +749,7 @@ export default function SettingsView() {
               onChange={(next: TaskDefaults) => updateReminder({ task_defaults: { ...(reminders.task_defaults || {}), ...next } })}
             />
           )}
+          <TimeHorizonSettings />
           <TimeBucketsSettings />
         </TabsContent>
 

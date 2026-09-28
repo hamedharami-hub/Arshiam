@@ -1,13 +1,68 @@
 import { createEmptyCard, fsrs, Rating, State, type Card, type Grade } from "ts-fsrs";
 import type { LeitnerRating, SerializedFsrsCard } from "./leitnerTypes";
 
-const scheduler = fsrs({
-  request_retention: 0.9,
-  enable_fuzz: false,
-  enable_short_term: true,
-  learning_steps: ["1m", "10m"],
-  relearning_steps: ["10m"],
-});
+import { getDesiredRetention } from "./reviewSettings";
+
+const schedulers = new Map<number, ReturnType<typeof fsrs>>();
+
+/** Scheduler honouring the user's Desired Retention (درصد یادآوری هدف). */
+function getScheduler(retention = getDesiredRetention()) {
+  const key = Math.round(retention * 100) / 100;
+  let s = schedulers.get(key);
+  if (!s) {
+    s = fsrs({
+      request_retention: key,
+      enable_fuzz: false,
+      enable_short_term: true,
+      learning_steps: ["1m", "10m"],
+      relearning_steps: ["10m"],
+    });
+    schedulers.set(key, s);
+  }
+  return s;
+}
+
+/** Leitner box → baseline interval (days), used to seed FSRS for migrated cards. */
+const BOX_BASE_DAYS: Record<number, number> = { 1: 1, 2: 3, 3: 7, 4: 14, 5: 30 };
+
+export type LegacyCardLike = {
+  box?: number;
+  interval_days?: number;
+  difficulty?: number; // legacy 0..1
+  review_count?: number;
+  lapse_count?: number;
+  next_review_at?: string;
+  last_reviewed_at?: string | null;
+  created_at?: string;
+};
+
+/**
+ * One-way migration of a Leitner/SM-2 card to an initial FSRS state derived from
+ * its box number. Review history (counts, dates) is preserved; nothing is reset.
+ */
+export function migrateLegacyToFsrs(card: LegacyCardLike, now = new Date()): Card {
+  const box = Math.min(5, Math.max(1, Math.round(card.box || 1)));
+  const interval = Math.max(BOX_BASE_DAYS[box], Math.round(card.interval_days || 0));
+  const reps = card.review_count || 0;
+  if (reps === 0 && box === 1) return createEmptyCard(card.created_at ? new Date(card.created_at) : now);
+  const due = card.next_review_at ? new Date(card.next_review_at) : now;
+  const lastReview = card.last_reviewed_at
+    ? new Date(card.last_reviewed_at)
+    : new Date(due.getTime() - interval * 86_400_000);
+  const legacyDifficulty = typeof card.difficulty === "number" && card.difficulty >= 0 && card.difficulty <= 1 ? card.difficulty : 0.5;
+  return {
+    due,
+    stability: interval,
+    difficulty: Math.min(10, Math.max(1, 1 + legacyDifficulty * 9)),
+    elapsed_days: 0,
+    scheduled_days: interval,
+    learning_steps: 0,
+    reps: Math.max(1, reps),
+    lapses: card.lapse_count || 0,
+    state: State.Review,
+    last_review: lastReview,
+  };
+}
 
 const ratingMap: Record<LeitnerRating, Grade> = {
   1: Rating.Again,
@@ -78,11 +133,16 @@ export function deserializeFsrsCard(value: unknown): Card {
 }
 
 export function scheduleFsrsReview(card: Card, rating: LeitnerRating, at = new Date()): Card {
-  return scheduler.next(card, at, ratingMap[rating]).card;
+  return getScheduler().next(card, at, ratingMap[rating]).card;
+}
+
+/** Probability of recall right now for a card (0..1). */
+export function currentRetrievability(card: Card, at = new Date()): number {
+  return getScheduler().get_retrievability(card, at, false) as number;
 }
 
 export function previewFsrsReviews(card: Card, at = new Date()): Record<LeitnerRating, Card> {
-  const previews = scheduler.repeat(card, at);
+  const previews = getScheduler().repeat(card, at);
   return {
     1: previews[Rating.Again].card,
     2: previews[Rating.Hard].card,

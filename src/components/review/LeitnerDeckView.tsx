@@ -34,6 +34,8 @@ import {
   Sun,
 } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
+import { ReviewSwipeCard } from "./ReviewSwipeCard";
+import { logReviewDay } from "@/lib/reviewStats";
 import type {
   LeitnerCard,
   LeitnerBoxStats,
@@ -354,6 +356,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   // Apply the card's persisted scheduler using the same four recall ratings.
   const handleReviewAnswer = useCallback(async (rating: LeitnerRating) => {
     if (!activeCard || !isFlipped || ratingSubmissionRef.current) return;
+    logReviewDay(userId);
     ratingSubmissionRef.current = true;
     setIsSubmittingRating(true);
     try {
@@ -1080,10 +1083,13 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
             )}
 
             {/* Flip Card Body */}
-            <div
-              data-testid="flip-card"
-              onClick={() => setIsFlipped(!isFlipped)}
-              className="w-full min-h-[220px] p-6 rounded-2xl bg-muted/40 border border-border flex flex-col items-center justify-center cursor-pointer select-none transition-all duration-300 hover:border-primary/50 hover:shadow-md relative"
+            <ReviewSwipeCard
+              flipped={isFlipped}
+              onFlip={() => setIsFlipped((f) => !f)}
+              onRate={(r) => handleReviewAnswer(r)}
+              onEdit={() => openEditModal(activeCard)}
+              isEn={isEn}
+              className="w-full min-h-[220px] p-6 rounded-2xl bg-muted/40 border border-border flex flex-col items-center justify-center cursor-pointer select-none transition-colors duration-300 hover:border-primary/50 hover:shadow-md relative"
             >
               {/* Header Label and TTS Button */}
               <div className="w-full flex items-center justify-between mb-3">
@@ -1193,7 +1199,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
                   </button>
                 </div>
               )}
-            </div>
+            </ReviewSwipeCard>
 
             <div className="flex justify-center">
               <span className="px-2 py-0.5 rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
@@ -1701,25 +1707,9 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               </div>
             )}
 
-            <div>
-              <label htmlFor="new-card-scheduler" className="block text-[11px] text-muted-foreground mb-1">
-                {isEn ? "Review scheduling" : "روش زمان‌بندی مرور"}
-              </label>
-              <select
-                id="new-card-scheduler"
-                value={newCardAlgorithm}
-                onChange={(event) => setNewCardAlgorithm(event.target.value as LeitnerSchedulingAlgorithm)}
-                className="w-full py-1.5 px-3 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-              >
-                <option value="fsrs6">{isEn ? "FSRS 6 (recommended)" : "FSRS 6 (پیشنهادی)"}</option>
-                <option value="sm2">{isEn ? "SM-2 (legacy)" : "SM-2 (قدیمی)"}</option>
-              </select>
-              <p className="mt-1 text-[10px] text-muted-foreground">
-                {isEn
-                  ? "Applies only to this new card; existing cards and review dates remain unchanged."
-                  : "فقط روی همین کارت تازه اعمال می‌شود؛ کارت‌ها و تاریخ‌های مرور قبلی تغییر نمی‌کنند."}
-              </p>
-            </div>
+            <p className="text-[10px] text-muted-foreground" data-testid="new-card-fsrs-note">
+              {isEn ? "Scheduling: FSRS (mandatory) — tune Desired Retention in Review insights." : "زمان‌بندی: FSRS (اجباری) — درصد یادآوری هدف را در بخش آمار مرور تنظیم کن."}
+            </p>
 
             <div className="flex items-center justify-end gap-2 pt-2">
               <button

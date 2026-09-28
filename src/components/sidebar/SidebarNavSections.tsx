@@ -127,6 +127,12 @@ export const SECTIONS: Section[] = [
     ],
   },
   {
+    id: "review", title: "مرور", icon: BrainCircuit, defaultOpen: true,
+    items: [
+      { url: "/app/review/pharmacy", icon: BrainCircuit, label: "مرور فارماسی" },
+    ],
+  },
+  {
     id: "grow", title: "رشد", icon: TrendingUp, defaultOpen: false,
     items: [
       { url: "/app/life-architect", icon: Compass, label: "معمار زندگی" },
@@ -139,7 +145,6 @@ export const SECTIONS: Section[] = [
         children: [
           { url: "/app/knowledge", icon: BookOpen, label: "کتابخانه دانش" },
           { url: "/app/interactive-study", icon: Gamepad2, label: "استودیوی مطالعه تعاملی" },
-          { url: "/app/review", icon: BrainCircuit, label: "مرور (SR)" },
         ],
       },
       { url: "/app/cycle", icon: Calendar, label: "سیکل پریود" },
@@ -311,7 +316,7 @@ function SidebarNavTreeItem({ item, collapsed, tr, closeOnMobile }: SidebarNavTr
   );
 }
 
-export const DEFAULT_ORDER = ["__folders", "__tags", "do", "pharmacy", "grow", "mind", "me"];
+export const DEFAULT_ORDER = ["__folders", "__tags", "do", "pharmacy", "review", "grow", "mind", "me"];
 export const ORDER_KEY = "sidebar_order_v1";
 
 export function loadOrder(): string[] {

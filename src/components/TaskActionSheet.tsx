@@ -20,12 +20,12 @@ import { isFeatureEnabled } from "@/lib/capabilities";
 import {
   Check, Trash2, FolderInput, Network, Pencil, Copy, Share2,
   Sparkles, CopyPlus, Pin, PinOff, Timer, ListTree, Paperclip,
-  Tag as TagIcon, MoreHorizontal, MessageSquare, MapPin, X,
+  Tag as TagIcon, MoreHorizontal, MapPin, X,
   ArrowRight, Loader2, Save, StickyNote, LayoutList, History, BookOpen,
 } from "lucide-react";
 import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
 
-type View = "main" | "more" | "activities" | "subtask" | "comment" | "location";
+type View = "main" | "more" | "activities" | "subtask" | "location";
 
 interface Props {
   task: Task | null;
@@ -60,7 +60,6 @@ export default function TaskActionSheet({
   const [shareOpen, setShareOpen] = useState(false);
   const [view, setView] = useState<View>("main");
   const [subtaskTitle, setSubtaskTitle] = useState("");
-  const [comment, setComment] = useState("");
   const [location, setLocation] = useState(task?.location || "");
   const [busy, setBusy] = useState(false);
 
@@ -240,14 +239,6 @@ export default function TaskActionSheet({
     }
   };
 
-  const saveComment = async () => {
-    if (!canEdit || !comment.trim()) return;
-    const updated = task.description ? `${task.description}\n\n${comment.trim()}` : comment.trim();
-    await applyPatch({ description: updated }, "updated", { comment_added: true });
-    toast.success(T("توضیحات ثبت شد", "Comment saved"));
-    close();
-  };
-
   const saveLocation = async () => {
     if (!canEdit) return;
     await applyPatch({ location: location.trim() || null }, "location_set", { location: location.trim() || null });
@@ -300,7 +291,6 @@ export default function TaskActionSheet({
             <Row icon={LayoutList} label={T("ذخیره در تمپلیت‌ها", "Save as Template")} onClick={saveTemplate} disabled={!canEdit} />
             <Row icon={Copy} label={T("کپی لینک تسک", "Copy Task Link")} onClick={copyLink} />
             <Row icon={MapPin} label={T("موقعیت مکانی", "Location")} onClick={() => setView("location")} value={task.location || undefined} disabled={!canEdit} />
-            <Row icon={MessageSquare} label={T("افزودن توضیح / کامنت", "Add Comment")} onClick={() => setView("comment")} disabled={!canEdit} />
             <Row icon={History} label={T("فعالیت‌ها و تاریخچه", "Activity History")} onClick={() => setView("activities")} />
           </>
         ) : (
@@ -376,29 +366,12 @@ export default function TaskActionSheet({
         return (
           <div className="animate-fade-in space-y-0.5">
             {header(T("بیشتر", "More"), backToMain)}
-            <Row icon={MessageSquare} label={T("افزودن توضیح", "Add Comment")} onClick={() => setView("comment")} disabled={!canEdit} />
             <Row icon={MapPin} label={T("موقعیت", "Location")} onClick={() => setView("location")} value={task.location || undefined} disabled={!canEdit} />
             <Row icon={Copy} label={T("کپی لینک", "Copy Link")} onClick={copyLink} />
             <Row icon={CopyPlus} label={T("تکثیر", "Duplicate")} onClick={() => duplicate(false)} disabled={!canEdit || busy} />
             <Row icon={Save} label={T("ذخیره و جدید", "Save & New")} onClick={() => duplicate(true)} disabled={!canEdit || busy} />
             <Row icon={LayoutList} label={T("ذخیره به‌عنوان تمپلیت", "Save as Template")} onClick={saveTemplate} disabled={!canEdit} />
             <Row icon={Pencil} label={T("ویرایش کامل", "Full Edit")} onClick={() => { onEdit(); close(); }} />
-          </div>
-        );
-      case "comment":
-        return (
-          <div className="animate-fade-in space-y-3">
-            {header(T("توضیح / کامنت", "Comment"), hideDuplicates ? backToMain : () => setView("more"))}
-            <Textarea
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder={T("توضیحی بنویس...", "Write a comment...")}
-              dir="auto"
-              rows={4}
-            />
-            <Button onClick={saveComment} disabled={!comment.trim()} className="w-full">
-              {T("ذخیره توضیح", "Save Comment")}
-            </Button>
           </div>
         );
       case "location":

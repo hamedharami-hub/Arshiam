@@ -48,7 +48,6 @@ describe("TaskDetailBottomRail Add Menu", () => {
     deleteTask: vi.fn(),
     save: vi.fn(),
     T: (fa: string, en: string) => `${fa} / ${en}`,
-    onAddComment: vi.fn(),
     onAddNote: vi.fn(),
     onAddLocation: vi.fn(),
     onPickContact: vi.fn(),
@@ -76,7 +75,7 @@ describe("TaskDetailBottomRail Add Menu", () => {
     fireEvent.click(addBtn);
 
     // Options exist
-    expect(screen.getByText(/افزودن کامنت \/ توضیح/i)).toBeInTheDocument();
+    expect(screen.queryByText(/افزودن کامنت/i)).not.toBeInTheDocument();
     expect(screen.getByText(/افزودن نوت/i)).toBeInTheDocument();
     expect(screen.getByText(/اتصال سند آموزشی/i)).toBeInTheDocument();
     expect(screen.getByText(/افزودن موقعیت مکانی/i)).toBeInTheDocument();
@@ -89,10 +88,7 @@ describe("TaskDetailBottomRail Add Menu", () => {
     const addBtn = screen.getByTestId("task-bottom-rail-add-btn");
     fireEvent.click(addBtn);
 
-    fireEvent.click(screen.getByText(/افزودن کامنت \/ توضیح/i));
-    expect(defaultProps.onAddComment).toHaveBeenCalled();
-
-    fireEvent.click(addBtn);
+    expect(screen.queryByText(/افزودن کامنت/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByText(/افزودن نوت/i));
     expect(defaultProps.onAddNote).toHaveBeenCalled();
 

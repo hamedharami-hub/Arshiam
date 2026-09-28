@@ -1,8 +1,9 @@
 import { useRef, useState } from "react";
 import { eachDayOfInterval, startOfWeek, endOfWeek, isSameDay, format } from "date-fns";
+import { getWeekStart, weekStartsOn as weekStartsOnFor } from "@/lib/timeHorizon";
 import { useNavigate } from "react-router-dom";
 import { formatDate, toPersianDigits, type CalendarSystem } from "@/lib/jalali";
-import { isHoliday, type Holiday } from "@/lib/holidays";
+import { isHoliday, dominantKind, HOLIDAY_TONE, type Holiday } from "@/lib/holidays";
 import { useTapGestures } from "@/lib/useTapGestures";
 import { usePinchZoom } from "@/lib/usePinchZoom";
 import { ZoomIn } from "lucide-react";
@@ -50,7 +51,7 @@ export default function WeekView({
   onSlotClick?: (d: Date, hour: number) => void;
 }) {
   const navigate = useNavigate();
-  const weekStartsOn: 0 | 6 = system === "jalali" ? 6 : 0;
+  const weekStartsOn: 1 | 6 = weekStartsOnFor(getWeekStart());
   const days = eachDayOfInterval({ start: startOfWeek(date, { weekStartsOn }), end: endOfWeek(date, { weekStartsOn }) });
   const { scale, handlers: pinchHandlers } = usePinchZoom({ initial: 1, min: 0.6, max: 2.4 });
   const [hint, setHint] = useState(false);
@@ -87,12 +88,13 @@ export default function WeekView({
         <div className="grid grid-cols-[48px_repeat(7,1fr)] gap-px bg-border sticky top-0 z-10">
           <div className="bg-card" />
           {days.map((d) => {
-            const off = isHoliday(d, holidays).length > 0 || (system === "jalali" && d.getDay() === 5);
+            const kind = dominantKind(isHoliday(d, holidays));
+            const off = kind !== null || (system === "jalali" && d.getDay() === 5);
             return (
               <button
                 key={d.toISOString()}
                 onClick={() => onDayClick(d)}
-                className={`bg-card p-2 text-center text-xs hover:bg-accent/40 transition ${off ? "text-amber-600 dark:text-amber-400" : ""} ${isSameDay(d, new Date()) ? "bg-primary/5 ring-1 ring-primary/20" : ""}`}
+                className={`bg-card p-2 text-center text-xs hover:bg-accent/40 transition ${kind ? `${HOLIDAY_TONE[kind].text} ${HOLIDAY_TONE[kind].bg}` : off ? "text-muted-foreground" : ""} ${isSameDay(d, new Date()) ? "bg-primary/5 ring-1 ring-primary/20" : ""}`}
               >
                 <div className="font-semibold">
                   {system === "jalali" ? toPersianDigits(formatDate(d, "d", "jalali")) : format(d, "d")}

@@ -12,6 +12,9 @@ import EdgePanBack from "@/components/EdgePanBack";
 import SwipeNavigator from "@/components/gestures/SwipeNavigator";
 import ClinicalDisclaimer from "@/components/ClinicalDisclaimer";
 import RemindersRunner from "@/components/RemindersRunner";
+import { useAuth } from "@/hooks/useAuth";
+import { migrateLegacyComments } from "@/lib/commentMigration";
+import { startAttachmentQueueRunner } from "@/lib/attachmentUpload";
 import BackButtonHandler from "@/components/BackButtonHandler";
 import CommandPalette from "@/components/CommandPalette";
 import QuickCaptureDialog from "@/components/QuickCaptureDialog";
@@ -40,6 +43,12 @@ export default function AppLayout() {
   const { setTheme } = useTheme();
   const loc = useLocation();
   useTwoFingerSwipe();
+  const { user: layoutUser } = useAuth();
+  useEffect(() => {
+    if (!layoutUser?.id) return;
+    startAttachmentQueueRunner();
+    void migrateLegacyComments(layoutUser.id).catch(() => {});
+  }, [layoutUser?.id]);
   useThreeFingerGestures({
     onQuickCapture: () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "n", metaKey: true })),
     onOpenTrash: () => window.dispatchEvent(new Event("lov:open-trash")),

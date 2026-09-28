@@ -106,26 +106,12 @@ describe("TaskActionSheet Responsive Behavior", () => {
     expect(sheetElement.className).toContain("rounded-t-2xl");
   });
 
-  it("navigates into Add Comment view internally without routing away", async () => {
+  it("no longer offers an Add Comment entry (comments were merged into the task text)", async () => {
     localStorage.setItem("arshnaz_nav_mode", "windows");
-
     render(<TaskActionSheet {...defaultProps} />);
-
-    // Click More
-    const moreBtn = screen.getByText(/بیشتر|More/i);
-    fireEvent.click(moreBtn);
-
-    // Click Add Comment
-    const addCommentBtn = screen.getByText(/افزودن توضیح|Add Comment/i);
-    fireEvent.click(addCommentBtn);
-
-    // Verify Comment textarea is rendered inside the same dialog
-    const textarea = screen.getByPlaceholderText(/توضیحی بنویس|Write a comment/i);
-    expect(textarea).toBeInTheDocument();
-
-    // Verify dialog is still present and bounded
+    fireEvent.click(screen.getByText(/بیشتر|More/i));
+    expect(screen.queryByText(/افزودن توضیح|Add Comment/i)).not.toBeInTheDocument();
     const dialogElement = screen.getByRole("dialog");
-    expect(dialogElement).toBeInTheDocument();
     expect(dialogElement.className).toContain("max-h-[75vh]");
   });
 });

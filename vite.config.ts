@@ -67,6 +67,8 @@ export default defineConfig(({ mode }) => {
     port: 3000,
     strictPort: false,
     allowedHosts: true,
+    // Local dev: forward the ARSHNAZ FastAPI service (the preview ingress already routes /api/* to it).
+    proxy: { "/api/arsh": { target: "http://localhost:8001", changeOrigin: true } },
     hmr: {
       overlay: false,
       clientPort: 443,

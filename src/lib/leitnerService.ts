@@ -10,6 +10,7 @@ import type {
 import { reconcileRemoteRowsWithPending } from "./offlineReconcile";
 import {
   createEmptyFsrsCard,
+  migrateLegacyToFsrs,
   deserializeFsrsCard,
   previewFsrsReviews,
   scheduleFsrsReview,
@@ -221,14 +222,14 @@ export function calculateSM2Schedule(
 export function getLeitnerSchedulingAlgorithm(
   card: Pick<LeitnerCard, "scheduling_algorithm">,
 ): LeitnerSchedulingAlgorithm {
-  // Existing records predate the explicit algorithm field and must retain SM-2.
-  return card.scheduling_algorithm ?? "sm2";
+  // FSRS is mandatory. Legacy SM-2/Leitner cards are migrated on first use
+  // (see migrateLegacyToFsrs) without losing their review history.
+  void card;
+  return "fsrs6";
 }
 
 function getFsrsCardState(card: LeitnerCard) {
-  if (!card.fsrs_state) {
-    throw new Error("FSRS card state is missing; the review was not applied.");
-  }
+  if (!card.fsrs_state) return migrateLegacyToFsrs(card);
   return deserializeFsrsCard(card.fsrs_state);
 }
 
@@ -517,7 +518,7 @@ async function createLeitnerCardUnlocked(
   const now = new Date();
   const initialBox = data.box && data.box >= 1 && data.box <= 5 ? data.box : 1;
   const nextReview = now.toISOString(); // New cards are due immediately
-  const schedulingAlgorithm = data.scheduling_algorithm ?? "fsrs6";
+  const schedulingAlgorithm: LeitnerSchedulingAlgorithm = "fsrs6";
 
   const card: LeitnerCard = {
     id: makeId(),

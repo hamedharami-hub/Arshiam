@@ -3,6 +3,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
+import { listAttachments } from "@/lib/attachmentUpload";
 import { useAuth } from "@/hooks/useAuth";
 import { useShareAccess } from "@/hooks/useShareAccess";
 import { Button } from "@/components/ui/button";
@@ -167,8 +168,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const titleInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Add menu & Contacts modal states
-  const [addCommentOpen, setAddCommentOpen] = useState(false);
-  const [commentText, setCommentText] = useState("");
   const [addLocationOpen, setAddLocationOpen] = useState(false);
   const [locationText, setLocationText] = useState(task.location || "");
   const [contactPickerOpen, setContactPickerOpen] = useState(false);
@@ -236,7 +235,10 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         firebaseStore.from("task_tags").select("tag_id").eq("task_id", task.id),
         firebaseStore.from("tasks").select("id,title,completed,position").eq("parent_id", task.id),
         firebaseStore.from("task_step_lists").select("id", { count: "exact", head: true }).eq("task_id", task.id),
-        firebaseStore.from("task_attachments").select("id", { count: "exact", head: true }).eq("task_id", task.id),
+        Promise.all([
+          firebaseStore.from("task_attachments").select("id", { count: "exact", head: true }).eq("task_id", task.id).then((r) => r.count || 0, () => 0),
+          listAttachments(task.id).then((r) => r.length, () => 0),
+        ]).then(([legacyCount, remoteCount]) => ({ count: legacyCount + remoteCount })),
         firebaseStore.from("task_outcomes").select("id", { count: "exact", head: true }).eq("task_id", task.id),
         getTaskKnowledgeDocs(task.id, user ? user.id : ""),
       ]);
@@ -1447,10 +1449,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       deleteTask={deleteTask}
       save={save}
       T={T}
-      onAddComment={() => {
-        setCommentText("");
-        setAddCommentOpen(true);
-      }}
       onAddNote={() => {
         setShowNotes(true);
         setIsAddingNote(true);
@@ -2007,53 +2005,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         savePendingChanges={savePendingChanges}
         T={T}
       />
-
-      {/* Add Comment Dialog */}
-      <Dialog open={addCommentOpen} onOpenChange={setAddCommentOpen}>
-        <DialogContent dir={isEn ? "ltr" : "rtl"} className="max-w-md rounded-2xl p-4 sm:p-5">
-          <DialogHeader>
-            <DialogTitle className="text-start text-base font-bold flex items-center gap-2">
-              <FileText className="w-4 h-4 text-primary" />
-              {T("افزودن توضیح / کامنت به تسک", "Add Comment to Task")}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <AutoTextarea
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder={T("توضیح یا کامنت خود را اینجا بنویسید…", "Write your comment or note here…")}
-              rows={3}
-              minHeight={60}
-              maxHeight={180}
-              autoFocus
-              dir="auto"
-              className="text-xs"
-            />
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
-              <Button variant="outline" size="sm" onClick={() => setAddCommentOpen(false)}>
-                {T("انصراف", "Cancel")}
-              </Button>
-              <Button
-                size="sm"
-                onClick={async () => {
-                  if (!commentText.trim() || !canEdit) return;
-                  const trimmed = commentText.trim();
-                  const updatedDesc = t.description ? `${t.description}\n\n${trimmed}` : trimmed;
-                  await save({ description: updatedDesc });
-                  if (user) {
-                    void logTaskActivity(user.id, t.id, "updated", { comment_added: true, comment: trimmed });
-                  }
-                  toast.success(T("توضیحات / کامنت افزوده شد", "Comment added"));
-                  setAddCommentOpen(false);
-                }}
-                disabled={!commentText.trim()}
-              >
-                {T("ثبت کامنت", "Save Comment")}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Add / Edit Location Dialog */}
       <Dialog open={addLocationOpen} onOpenChange={setAddLocationOpen}>

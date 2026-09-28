@@ -591,28 +591,11 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
     });
   });
 
-  it("lets a new card explicitly choose and save its scheduler", async () => {
+  it("new cards always use FSRS (no SM-2 option)", async () => {
     render(<LeitnerDeckView userId="user-test" />);
-
     fireEvent.click(await screen.findByRole("button", { name: "کارت جدید" }));
-    const schedulerSelect = await screen.findByLabelText("روش زمان‌بندی مرور");
-    expect((schedulerSelect as HTMLSelectElement).value).toBe("fsrs6");
-    fireEvent.change(schedulerSelect, { target: { value: "sm2" } });
-    fireEvent.change(screen.getByPlaceholderText("مثلاً مکانیسم اثر فلوکستین..."), {
-      target: { value: "Question" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("مثلاً مهارکننده انتخابی بازجذب سروتونین (SSRI)..."), {
-      target: { value: "Answer" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "ایجاد کارت" }));
-
-    await waitFor(() => {
-      expect(createLeitnerCard).toHaveBeenCalledWith("user-test", expect.objectContaining({
-        front: "Question",
-        back: "Answer",
-        scheduling_algorithm: "sm2",
-      }));
-    });
+    expect(screen.queryByLabelText("روش زمان‌بندی مرور")).not.toBeInTheDocument();
+    expect(await screen.findByTestId("new-card-fsrs-note")).toBeInTheDocument();
   });
 
   it("flips card to reveal answer and ratings", async () => {

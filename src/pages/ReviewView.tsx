@@ -5,7 +5,10 @@ import { useBilingual } from "@/hooks/useBilingual";
 import { LeitnerDeckView } from "@/components/review/LeitnerDeckView";
 import { KnowledgeMindMapView } from "@/components/review/KnowledgeMindMapView";
 import type { KnowledgeMindMapReviewScope } from "@/lib/knowledgeMindMapReview";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { ReviewInsights } from "@/components/review/ReviewInsights";
+
+export const REVIEW_FOLDERS = [{ id: "pharmacy", fa: "فارماسی", en: "Pharmacy" }] as const;
 import {
   loadStudyContentLanguage,
   saveStudyContentLanguage,
@@ -19,6 +22,7 @@ export const ReviewView: React.FC = () => {
     () => loadStudyContentLanguage(isEn ? "en" : "fa"),
   );
   const navigate = useNavigate();
+  const { folder: reviewFolder = "pharmacy" } = useParams<{ folder: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlFolderId = searchParams.get("folderId");
   const urlDocId = searchParams.get("docId");
@@ -60,7 +64,7 @@ export const ReviewView: React.FC = () => {
     const params = new URLSearchParams({ tab: "leitner" });
     if (scope.kind === "folder") params.set("studyFolderId", scope.id);
     if (scope.kind === "document") params.set("studyDocId", scope.id);
-    navigate(`/app/review?${params.toString()}`);
+    navigate(`/app/review/${reviewFolder}?${params.toString()}`);
   }, [navigate]);
 
   return (
@@ -139,6 +143,22 @@ export const ReviewView: React.FC = () => {
       </div>
 
       {/* Main Tab Content with Zero-Latency State Preservation */}
+      <div className="px-3 md:px-6 pt-2 space-y-2 shrink-0">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar" data-testid="review-folder-chips">
+          {REVIEW_FOLDERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => navigate(`/app/review/${f.id}`)}
+              data-testid={`review-folder-${f.id}`}
+              className={`shrink-0 h-8 px-3 rounded-full border text-xs font-semibold ${reviewFolder === f.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`}
+            >
+              {isEn ? f.en : f.fa}
+            </button>
+          ))}
+        </div>
+        <ReviewInsights userId={userId} isEn={isEn} />
+      </div>
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-background relative">
         {(visitedTabs.leitner || activeTab === "leitner") && (
           <div className={`flex-1 flex flex-col h-full min-h-0 ${activeTab === "leitner" ? "" : "hidden"}`}>

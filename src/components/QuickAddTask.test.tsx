@@ -19,6 +19,7 @@ vi.mock("@/hooks/useAuth", () => ({
 }));
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => {} },
   useTranslation: () => ({
     t: (fa: string, en?: string) => en || fa,
     i18n: { language: "en" },

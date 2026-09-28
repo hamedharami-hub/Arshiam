@@ -31,6 +31,7 @@ describe("ReviewView scoped Leitner task navigation", () => {
       <MemoryRouter initialEntries={["/app/review?tab=leitner&studyDocId=doc-7&studyTaskId=task-4"]}>
         <Routes>
           <Route path="/app/review" element={<ReviewView />} />
+          <Route path="/app/review/:folder" element={<ReviewView />} />
         </Routes>
       </MemoryRouter>
     );
@@ -47,6 +48,7 @@ describe("ReviewView scoped Leitner task navigation", () => {
         <LocationProbe />
         <Routes>
           <Route path="/app/review" element={<ReviewView />} />
+          <Route path="/app/review/:folder" element={<ReviewView />} />
         </Routes>
       </MemoryRouter>
     );
@@ -65,6 +67,7 @@ describe("ReviewView scoped Leitner task navigation", () => {
       <MemoryRouter initialEntries={["/app/review"]}>
         <Routes>
           <Route path="/app/review" element={<ReviewView />} />
+          <Route path="/app/review/:folder" element={<ReviewView />} />
         </Routes>
       </MemoryRouter>
     );
@@ -85,6 +88,7 @@ describe("ReviewView scoped Leitner task navigation", () => {
       <MemoryRouter initialEntries={["/app/review"]}>
         <Routes>
           <Route path="/app/review" element={<ReviewView />} />
+          <Route path="/app/review/:folder" element={<ReviewView />} />
         </Routes>
       </MemoryRouter>
     );
@@ -108,6 +112,7 @@ describe("ReviewView scoped Leitner task navigation", () => {
         <LocationProbe />
         <Routes>
           <Route path="/app/review" element={<ReviewView />} />
+          <Route path="/app/review/:folder" element={<ReviewView />} />
         </Routes>
       </MemoryRouter>
     );

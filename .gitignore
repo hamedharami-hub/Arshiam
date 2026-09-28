@@ -43,3 +43,10 @@ credentials.json
 *.pem
 *.key
 .credentials
+
+# Emergent preview installs with yarn; the project lockfile is package-lock.json
+/yarn.lock
+__pycache__/
+*.pyc
+.pytest_cache/
+.emergent/cron/
