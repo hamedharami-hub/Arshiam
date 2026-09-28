@@ -38,8 +38,7 @@ const ITEMS = [
 ] as const;
 
 /**
- * Horizontal, scrollable pharmacy quick-access row for the Today dashboard so
- * pharmacy students can jump straight into practice.
+ * Quick access to pharmacy tools from the Pharmacy home page.
  */
 export default function PharmacyShortcuts() {
   const navigate = useNavigate();

@@ -39,7 +39,6 @@ import {
 } from "@/components/TaskDnDHelpers";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Card } from "@/components/ui/card";
-import PharmacyShortcuts from "@/components/PharmacyShortcuts";
 
 export default function TodayDashboardView() {
   const { user } = useAuth();
@@ -529,8 +528,6 @@ export default function TodayDashboardView() {
           )}
         </div>
       </HeaderActionsPortal>
-
-      <PharmacyShortcuts />
 
       <div
         ref={splitContainerRef}

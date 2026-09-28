@@ -125,6 +125,7 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
     // 1. Top priorities subtle section has accessible star icon, but no visible counter or big heading
     expect(screen.getByLabelText("Top Priorities")).toBeInTheDocument();
     expect(screen.getByText("Urgent Meeting")).toBeInTheDocument();
+    expect(screen.queryByTestId("pharmacy-shortcuts")).not.toBeInTheDocument();
     expect(screen.queryByText(/(\d)\/3/)).not.toBeInTheDocument();
     expect(screen.queryByText(/(\d)\/۳/)).not.toBeInTheDocument();
 

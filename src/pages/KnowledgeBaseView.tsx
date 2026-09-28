@@ -79,6 +79,13 @@ export const KnowledgeBaseView: React.FC = () => {
     }
   });
 
+  // Folder deep links from Pharmacy should reveal the folder tree immediately.
+  useEffect(() => {
+    if (!urlFolderId) return;
+    if (isMobile) setMobileTreeOpen(true);
+    else setSidebarCollapsed(false);
+  }, [urlFolderId, isMobile]);
+
   // Study task scheduling modal state
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [scheduleTarget, setScheduleTarget] = useState<{

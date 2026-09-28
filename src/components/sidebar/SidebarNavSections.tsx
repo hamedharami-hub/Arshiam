@@ -116,6 +116,8 @@ export const SECTIONS: Section[] = [
   {
     id: "pharmacy", title: "فارماسی", icon: Pill, defaultOpen: true,
     items: [
+      { url: "/app/pharmacy", icon: Pill, label: "خانه فارماسی" },
+      { url: "/app/knowledge?folderId=folder-pharmacy-root", icon: BookOpen, label: "دانشنامه و دسته‌بندی‌ها" },
       { url: "/app/pharmacy-products", icon: PackageSearch, label: "فهرست محصولات دارویی" },
       { url: "/app/pharmacy-scenario-practice", icon: ClipboardCheck, label: "تمرین سناریوهای دارویی" },
       { url: "/app/pharmacy-fred-practice", icon: Keyboard, label: "تمرین نسخه FRED" },

@@ -91,6 +91,7 @@ const WidgetsView = lazy(() => import("./pages/WidgetsView"));
 const ContactsView = lazy(() => import("./pages/ContactsView"));
 const KnowledgeBaseView = lazy(() => import("./pages/KnowledgeBaseView"));
 const PharmacyProductsView = lazy(() => import("./pages/PharmacyProductsView"));
+const PharmacyHubView = lazy(() => import("./pages/PharmacyHubView"));
 const PharmacyScenarioPracticeView = lazy(() => import("./pages/PharmacyScenarioPracticeView"));
 const PharmacyFredPracticeView = lazy(() => import("./pages/PharmacyFredPracticeView"));
 const PharmacyCypView = lazy(() => import("./pages/PharmacyCypView"));
@@ -327,6 +328,7 @@ const App = () => {
                       <Route path="calendar" element={<CalendarView />} />
                       <Route path="contacts" element={<ContactsView />} />
                       <Route path="knowledge" element={<KnowledgeBaseView />} />
+                      <Route path="pharmacy" element={<PharmacyHubView />} />
                       <Route path="pharmacy-products" element={<PharmacyProductsView />} />
                       <Route path="pharmacy-scenario-practice" element={<PharmacyScenarioPracticeView />} />
                       <Route path="pharmacy-fred-practice" element={<PharmacyFredPracticeView />} />
