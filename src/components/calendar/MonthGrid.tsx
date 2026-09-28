@@ -1,6 +1,7 @@
 import { format, eachDayOfInterval, isSameDay, isSameMonth, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from "date-fns";
 import { formatDate, toPersianDigits, WEEKDAY_SHORT_FA, type CalendarSystem } from "@/lib/jalali";
-import { isHoliday, type Holiday } from "@/lib/holidays";
+import { isHoliday, dominantKind, HOLIDAY_TONE, type Holiday } from "@/lib/holidays";
+import { getTimeSettings, periodFor, fromLocalISO, toLocalISO, weekStartsOn as weekStartsOnFor } from "@/lib/timeHorizon";
 import { computePhase, type CycleProfile, type CycleLog, PHASE_META } from "@/lib/cycle";
 type WeekStartsOn = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -24,15 +25,22 @@ export default function MonthGrid({
   cycleProfile?: CycleProfile | null;
   cycleLogs?: CycleLog[];
 }) {
-  const weekStartsOn: WeekStartsOn = system === "jalali" ? 6 : 0;
+  // Calendar-aware month (Jalali month in Jalali mode) + the user's week start (Sat/Mon).
+  const settings = { ...getTimeSettings(), calendar: system };
+  const weekStartsOn: WeekStartsOn = weekStartsOnFor(settings.weekStart);
+  const mp = periodFor("month", month, settings);
   const days = eachDayOfInterval({
-    start: startOfWeek(startOfMonth(month), { weekStartsOn }),
-    end: endOfWeek(endOfMonth(month), { weekStartsOn }),
+    start: startOfWeek(fromLocalISO(mp.start), { weekStartsOn }),
+    end: endOfWeek(fromLocalISO(mp.end), { weekStartsOn }),
   });
+  const inMonth = (d: Date) => { const k = toLocalISO(d); return k >= mp.start && k <= mp.end; };
+  const weekdayLabels = system === "jalali"
+    ? (weekStartsOn === 6 ? WEEKDAY_SHORT_FA : [...WEEKDAY_SHORT_FA.slice(2), ...WEEKDAY_SHORT_FA.slice(0, 2)])
+    : (weekStartsOn === 1 ? ["M", "T", "W", "T", "F", "S", "S"] : ["S", "M", "T", "W", "T", "F", "S"]);
   return (
     <div>
       <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-muted-foreground mb-2">
-        {(system === "jalali" ? WEEKDAY_SHORT_FA : ["S", "M", "T", "W", "T", "F", "S"]).map((d, i) => (
+        {weekdayLabels.map((d, i) => (
           <div key={i} className="p-1">{d}</div>
         ))}
       </div>
@@ -43,6 +51,8 @@ export default function MonthGrid({
           const isFriday = d.getDay() === 5;
           const isOff = dayHolidays.length > 0 || (system === "jalali" && isFriday);
           const isHolidayDay = dayHolidays.length > 0;
+          const kind = dominantKind(dayHolidays);
+          const tone = kind ? HOLIDAY_TONE[kind] : null;
           const dayLabel = system === "jalali"
             ? toPersianDigits(formatDate(d, "d", "jalali"))
             : format(d, "d");
@@ -57,12 +67,12 @@ export default function MonthGrid({
               onClick={() => onDayClick(d)}
               style={phaseStyle}
               className={`aspect-square border rounded-lg p-1.5 text-xs flex flex-col text-end transition hover:bg-accent/40 hover:border-primary/30
-                ${isSameMonth(d, month) ? "" : "opacity-30"}
+                ${inMonth(d) ? "" : "opacity-30"}
                 ${isSameDay(d, new Date()) ? "ring-1 ring-primary bg-primary/5" : ""}
-                ${isHolidayDay && !phaseColor ? "bg-amber-500/5 border-amber-500/25" : ""}
+                ${tone && !phaseColor ? `${tone.bg} ${tone.border}` : ""}
                 ${isFriday && !isHolidayDay && !phaseColor ? "text-muted-foreground" : ""}`}
             >
-              <div className={`font-medium flex items-center justify-between ${isHolidayDay ? "text-amber-600 dark:text-amber-400" : ""}`}>
+              <div className={`font-medium flex items-center justify-between ${tone ? tone.text : ""}`} data-testid={kind ? `month-day-holiday-${kind}` : undefined}>
                 <span>{dayLabel}</span>
                 {isHolidayDay && (
                   <span className="text-[8px]">{dayHolidays[0].country_code === "IR" ? "🇮🇷" : "🇦🇺"}</span>
@@ -70,8 +80,8 @@ export default function MonthGrid({
               </div>
               <div className="flex-1 overflow-hidden space-y-0.5 mt-0.5">
                 {dayHolidays.slice(0, 1).map((h) => (
-                  <div key={h.id} className="text-[9px] text-amber-600 dark:text-amber-400 truncate" title={h.local_name || h.name}>
-                    {h.local_name || h.name}
+                  <div key={h.id} className={`text-[9px] truncate ${HOLIDAY_TONE[h.kind].text}`} title={h.local_name || h.name}>
+                    {h.local_name || h.name}{h.approximate ? (system === "jalali" ? " (تقریبی)" : " (approx.)") : ""}
                   </div>
                 ))}
                 {dayTasks.length > 0 && (

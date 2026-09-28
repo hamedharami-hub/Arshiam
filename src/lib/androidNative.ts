@@ -1,4 +1,5 @@
-import { Capacitor, registerPlugin } from "@capacitor/core";
+import { Capacitor } from "@capacitor/core";
+import { arshnazNativePlugin } from "@/lib/arshnazNativePlugin";
 import type { Task } from "@/lib/taskTypes";
 
 type NativePlugin = {
@@ -6,7 +7,7 @@ type NativePlugin = {
   getSystemTheme(): Promise<{ dark: boolean }>;
 };
 
-const Native = registerPlugin<NativePlugin>("ArshnazWidget");
+const Native = arshnazNativePlugin as unknown as NativePlugin;
 
 export async function addTaskToAndroidCalendar(task: Pick<Task, "title" | "start_at" | "due_date" | "estimated_minutes">) {
   if (!Capacitor.isNativePlatform()) return false;

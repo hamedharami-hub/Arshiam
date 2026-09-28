@@ -16,6 +16,7 @@ import { HorizonTaskRow } from "@/components/horizon/HorizonTaskRow";
 import { HorizonFilterBar } from "@/components/horizon/HorizonFilterBar";
 import { HorizonSmartAdd } from "@/components/horizon/HorizonSmartAdd";
 import { TimeSettingsFields } from "@/components/horizon/TimeSettingsFields";
+import { WeatherWeekStrip } from "@/components/weather/WeatherWeekStrip";
 import { toPersianDigits } from "@/lib/jalali";
 import { haptic } from "@/lib/haptics";
 import type { Task } from "@/lib/taskTypes";
@@ -170,6 +171,7 @@ export default function BucketsView() {
             </Button>
           )}
         </div>
+        {effectiveHorizon === "week" && <WeatherWeekStrip start={period.start} />}
         <HorizonFilterBar filter={filter} onChange={setFilter} folders={folders} tags={tags} lang={lang} />
       </div>
 

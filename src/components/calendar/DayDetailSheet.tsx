@@ -6,7 +6,7 @@ import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { Button } from "@/components/ui/button";
 import { Plus, Activity, ListChecks, ListTodo } from "lucide-react";
 import { formatDate, toPersianDigits, type CalendarSystem } from "@/lib/jalali";
-import { isHoliday, type Holiday } from "@/lib/holidays";
+import { isHoliday, HOLIDAY_TONE, type Holiday } from "@/lib/holidays";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -106,7 +106,9 @@ export default function DayDetailSheet({
           : format(date, "EEEE, MMMM d, yyyy")}
       </span>
       {dayHolidays.length > 0 && (
-        <span className="text-xs text-rose-500">{dayHolidays[0].country_code === "IR" ? "🇮🇷" : "🇦🇺"} {dayHolidays[0].local_name || dayHolidays[0].name}</span>
+        <span className={`text-xs ${HOLIDAY_TONE[dayHolidays[0].kind].text}`} data-testid="day-sheet-holiday">
+          {dayHolidays.map((h) => `${h.local_name || h.name}${h.approximate ? " (تقریبی)" : ""}`).join(" · ")}
+        </span>
       )}
     </div>
   );

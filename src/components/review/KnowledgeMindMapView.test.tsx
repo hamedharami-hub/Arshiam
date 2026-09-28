@@ -104,6 +104,28 @@ describe("KnowledgeMindMapView outline mode", () => {
     }
   });
 
+  it("reveals branches step by step and dims non-focused nodes in focus mode", async () => {
+    const previousWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
+    try {
+      render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);
+      expect(await screen.findByText("Study Folder")).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId("mindmap-reveal-toggle"));
+      const next = await screen.findByTestId("mindmap-reveal-next");
+      expect(next.textContent).toMatch(/0\/[1-9]/);
+      expect(screen.queryByText("Study Folder")).not.toBeInTheDocument();
+      fireEvent.click(next);
+      expect(await screen.findByText("Study Folder")).toBeInTheDocument();
+      expect(screen.getByTestId("mindmap-reveal-next").textContent).toMatch(/1\//);
+      fireEvent.click(screen.getByTestId("mindmap-reveal-toggle"));
+      fireEvent.click(screen.getByTestId("mindmap-focus-toggle"));
+      fireEvent.click(screen.getByText("Study Folder"));
+      expect(screen.getAllByTestId("mindmap-node-wrap-focus").length).toBeGreaterThan(0);
+    } finally {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: previousWidth });
+    }
+  }, 15000);
+
   it("shows the full wrapped hierarchy and keeps node actions in a compact menu", async () => {
     const title = "A deliberately long lesson title that must remain fully visible in the mind map outline";
     render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);

@@ -8,7 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { getCalendarSystem, setCalendarSystem, formatDate, type CalendarSystem } from "@/lib/jalali";
-import { getHolidaysForRange, type Holiday } from "@/lib/holidays";
+import { getHolidaysForRange, HOLIDAYS_EVENT, type Holiday } from "@/lib/holidays";
+import { HolidayList } from "@/components/calendar/HolidayList";
+import { getTimeSettings, periodFor, fromLocalISO } from "@/lib/timeHorizon";
+import { addMonths as jAddMonths } from "date-fns-jalali";
 import { parseTaskDueDate } from "@/lib/taskDate";
 import { useBilingual } from "@/hooks/useBilingual";
 import MonthGrid from "@/components/calendar/MonthGrid";
@@ -65,8 +68,9 @@ export default function CalendarView() {
   useEffect(() => {
     if (!user) return;
     let start: Date, end: Date;
-    if (view === "month") { start = startOfWeek(startOfMonth(date)); end = endOfWeek(endOfMonth(date)); }
-    else if (view === "week") { start = startOfWeek(date); end = endOfWeek(date); }
+    const ts = { ...getTimeSettings(), calendar: system };
+    if (view === "month") { const mp = periodFor("month", date, ts); start = subDays(fromLocalISO(mp.start), 7); end = addDays(fromLocalISO(mp.end), 7); end.setHours(23, 59, 59, 999); }
+    else if (view === "week") { const wp = periodFor("week", date, ts); start = fromLocalISO(wp.start); end = fromLocalISO(wp.end); end.setHours(23, 59, 59, 999); }
     else if (view === "day") { start = new Date(date); start.setHours(0,0,0,0); end = new Date(date); end.setHours(23,59,59,999); }
     else { start = startOfMonth(date); end = endOfMonth(date); }
 
@@ -99,13 +103,24 @@ export default function CalendarView() {
         }
         setTasks(matching);
       });
-    getHolidaysForRange(start, end, ["IR", "AU"]).then(setHolidays);
-  }, [user, date, view, refreshKey]);
+    getHolidaysForRange(subDays(start, 40), addDays(end, 40), ["IR", "AU"]).then(setHolidays).catch(() => setHolidays([]));
+  }, [user, date, view, refreshKey, system]);
+
+  useEffect(() => {
+    const on = () => setRefreshKey((k) => k + 1);
+    window.addEventListener(HOLIDAYS_EVENT, on);
+    return () => window.removeEventListener(HOLIDAYS_EVENT, on);
+  }, []);
+
+  const listPeriod = periodFor(view === "month" || view === "agenda" ? "month" : view === "week" ? "week" : "day", date, { ...getTimeSettings(), calendar: system });
+  const rangeHolidays = holidays.filter((h) => h.date >= listPeriod.start && h.date <= listPeriod.end);
+  const listTitle = view === "day" ? T("مناسبت‌های این روز", "Occasions today") : view === "week" ? T("مناسبت‌های این هفته", "Occasions this week") : T("مناسبت‌های این ماه", "Occasions this month");
 
   const headerLabel = (() => {
     if (view === "day") return system === "jalali" ? formatDate(date, "d MMMM yyyy", "jalali") : format(date, "MMMM d, yyyy");
     if (view === "week") {
-      const s = startOfWeek(date), e = endOfWeek(date);
+      const wp = periodFor("week", date, { ...getTimeSettings(), calendar: system });
+      const s = fromLocalISO(wp.start), e = fromLocalISO(wp.end);
       return system === "jalali"
         ? `${formatDate(s, "d MMM", "jalali")} – ${formatDate(e, "d MMM", "jalali")}`
         : `${format(s, "MMM d")} – ${format(e, "MMM d")}`;
@@ -116,10 +131,10 @@ export default function CalendarView() {
   const altLabel = system === "jalali" ? format(date, "MMMM yyyy") : formatDate(date, "MMMM yyyy", "jalali");
 
   const navigate = (dir: -1 | 1) => {
-    if (view === "month") setDate(dir < 0 ? subMonths(date, 1) : addMonths(date, 1));
+    if (view === "month") setDate(system === "jalali" ? jAddMonths(date, dir) : dir < 0 ? subMonths(date, 1) : addMonths(date, 1));
     else if (view === "week") setDate(dir < 0 ? subWeeks(date, 1) : addWeeks(date, 1));
     else if (view === "day") setDate(dir < 0 ? subDays(date, 1) : addDays(date, 1));
-    else setDate(dir < 0 ? subMonths(date, 1) : addMonths(date, 1));
+    else setDate(system === "jalali" ? jAddMonths(date, dir) : dir < 0 ? subMonths(date, 1) : addMonths(date, 1));
   };
 
   const PrevIcon = isEn ? ChevronLeft : ChevronRight;
@@ -205,11 +220,7 @@ export default function CalendarView() {
         </TabsContent>
       </Tabs>
 
-      <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-amber-500/15 border border-amber-500/30" /> {T("تعطیل", "Holiday")}</span>
-        <span>🇮🇷 {T("ایران", "Iran")}</span>
-        <span>🇦🇺 {T("استرالیا", "Australia")}</span>
-      </div>
+      <HolidayList holidays={rangeHolidays} system={system} isEn={isEn} title={listTitle} />
 
       <DayDetailSheet
         date={detailDate}

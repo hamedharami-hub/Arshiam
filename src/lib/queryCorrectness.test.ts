@@ -160,6 +160,8 @@ describe("Query correctness and local date handling", () => {
           name: "Australian Spring Holiday",
           local_name: "Spring Holiday",
           type: "Public",
+          kind: "off",
+          official: true,
         },
         {
           id: "au_holiday_20",
@@ -168,6 +170,8 @@ describe("Query correctness and local date handling", () => {
           name: "Sunday Event",
           local_name: null,
           type: "Observance",
+          kind: "occasion",
+          official: false,
         },
       ];
 

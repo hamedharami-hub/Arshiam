@@ -18,6 +18,8 @@ from starlette.middleware.cors import CORSMiddleware  # noqa: E402
 
 from db import client  # noqa: E402
 from attachments import router as attachments_router  # noqa: E402
+from holidays_au import router as holidays_router  # noqa: E402
+from weather import router as weather_router  # noqa: E402
 from storage import init_storage  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -34,6 +36,8 @@ async def health():
 
 
 api_router.include_router(attachments_router)
+api_router.include_router(holidays_router)
+api_router.include_router(weather_router)
 app.include_router(api_router)
 
 app.add_middleware(
