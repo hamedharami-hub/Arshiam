@@ -88,7 +88,7 @@ export default function PharmacyProductsView() {
               type="search"
               value={query}
               onChange={(event) => updateFilter("q", event.target.value)}
-              placeholder={T("نام تجاری، ژنریک یا مادهٔ مؤثره…", "Brand, generic, or ingredient…")}
+              placeholder=""
               aria-label={T("جست‌وجوی محصولات", "Search products")}
               className={isEn ? "ps-9" : "pe-9"}
             />
@@ -96,10 +96,10 @@ export default function PharmacyProductsView() {
 
           <Select value={schedule} onValueChange={(value) => updateFilter("schedule", value)}>
             <SelectTrigger aria-label={T("فیلتر ردهٔ محصول", "Filter by schedule")}>
-              <SelectValue placeholder={T("همهٔ رده‌ها", "All schedules")} />
+              <SelectValue placeholder={T("همه", "All")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{T("همهٔ رده‌ها", "All schedules")}</SelectItem>
+              <SelectItem value="all">{T("همه", "All")}</SelectItem>
               <SelectItem value="Unscheduled">Unscheduled</SelectItem>
               <SelectItem value="S2">S2</SelectItem>
               <SelectItem value="S3">S3</SelectItem>

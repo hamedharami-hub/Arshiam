@@ -72,7 +72,7 @@ describe("KnowledgeDriveAttachments", () => {
     );
 
     expect(mocks.requestGoogleDriveAccessToken).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "افزودن رسانه" }));
+    fireEvent.click(screen.getByRole("button", { name: "افزودن یا دیدن رسانه‌های درس" }));
     await waitFor(() => expect(mocks.loadGoogleIdentityServices).toHaveBeenCalledTimes(1));
     fireEvent.click(await screen.findByRole("button", { name: "اتصال Google Drive" }));
     await screen.findByText("متصل در این نشست مرورگر");
@@ -111,7 +111,7 @@ describe("KnowledgeDriveAttachments", () => {
     });
     render(<KnowledgeDriveAttachments document={baseDocument} userId="user-123" isEn />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Add media" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add or view lesson media" }));
     await waitFor(() => expect(mocks.loadGoogleIdentityServices).toHaveBeenCalledTimes(1));
     fireEvent.click(await screen.findByRole("button", { name: "Connect Google Drive" }));
     await screen.findByText("Connected for this tab session");
@@ -136,7 +136,7 @@ describe("KnowledgeDriveAttachments", () => {
     }));
 
     render(<KnowledgeDriveAttachments document={baseDocument} userId="user-123" isEn />);
-    fireEvent.click(screen.getByRole("button", { name: "Add media" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add or view lesson media" }));
     await waitFor(() => expect(mocks.loadGoogleIdentityServices).toHaveBeenCalledTimes(1));
     fireEvent.click(await screen.findByRole("button", { name: "Connect Google Drive" }));
     await screen.findByText("Connected for this tab session");
@@ -160,7 +160,7 @@ describe("KnowledgeDriveAttachments", () => {
       });
     render(<KnowledgeDriveAttachments document={baseDocument} userId="user-123" isEn />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Add media" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add or view lesson media" }));
     await waitFor(() => expect(mocks.loadGoogleIdentityServices).toHaveBeenCalledTimes(1));
     fireEvent.click(await screen.findByRole("button", { name: "Connect Google Drive" }));
     await screen.findByText("Connected for this tab session");
@@ -189,7 +189,7 @@ describe("KnowledgeDriveAttachments", () => {
         onDocumentUpdated={onDocumentUpdated}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "نمایش / افزودن" }));
+    fireEvent.click(screen.getByRole("button", { name: "افزودن یا دیدن رسانه‌های درس" }));
     fireEvent.click(screen.getByRole("button", { name: "جداکردن از درس" }));
 
     await waitFor(() => expect(mocks.updateKnowledgeDocumentWithPersistence).toHaveBeenCalledWith(
@@ -209,7 +209,7 @@ describe("KnowledgeDriveAttachments", () => {
         isEn={false}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "افزودن رسانه" }));
+    fireEvent.click(screen.getByRole("button", { name: "افزودن یا دیدن رسانه‌های درس" }));
     await waitFor(() => expect(mocks.loadGoogleIdentityServices).toHaveBeenCalledTimes(1));
     fireEvent.click(await screen.findByRole("button", { name: "اتصال Google Drive" }));
     await screen.findByText("متصل در این نشست مرورگر");

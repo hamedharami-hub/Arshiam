@@ -155,8 +155,8 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
       content_review_evidence: undefined,
     };
     render(<KnowledgeDocumentReader document={legacyImportedDoc} folder={dummyFolder} onEdit={() => {}} onDelete={() => {}} />);
-    expect(screen.getByRole("note")).toHaveTextContent(/محتوای آموزشیِ واردشده/);
-    expect(screen.getByRole("note")).toHaveTextContent(/منبع اولیهٔ روز را بررسی کنید/);
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
+    expect(screen.queryByText(/محتوای آموزشیِ واردشده/)).not.toBeInTheDocument();
   });
 
   it("uses accurate wording for user-authored unreviewed documents", () => {
@@ -235,7 +235,7 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /زبان مطالعه: انگلیسی/ }));
 
-    expect(screen.getByText("Reader")).toBeInTheDocument();
+    expect(screen.queryByText("Reader")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /original html|سند اصلی/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /copy content|کپی محتوا/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /open in browser|باز کردن در تب مرورگر/i })).not.toBeInTheDocument();
