@@ -136,7 +136,6 @@ export const KnowledgeBaseView: React.FC = () => {
 
       setFolders(fList);
       setDocuments(dList);
-      setSelectedDocId((prev) => prev || (dList.length > 0 ? dList[0].id : null));
       // Existing saved lessons are already available from the normal data load.
       // Do not download the multi-megabyte source seed just to render install status.
       setHasPharmacy(fList.some((folder) => folder.id === PHARMACY_ROOT_FOLDER_ID));

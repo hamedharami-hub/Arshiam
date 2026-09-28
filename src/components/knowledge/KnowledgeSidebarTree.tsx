@@ -354,6 +354,12 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
   }, [selectedFolderId, allFolders]);
 
   React.useEffect(() => {
+    if (selectedFolderId === PHARMACY_ROOT_FOLDER_ID && !selectedDocId) {
+      setExpandedFolders({ [PHARMACY_ROOT_FOLDER_ID]: true });
+    }
+  }, [selectedFolderId, selectedDocId]);
+
+  React.useEffect(() => {
     const selectedDocumentFolder = documents.find((doc) => doc.id === selectedDocId)?.folder_id;
     const folderId = selectedFolderId || selectedDocumentFolder;
     if (!folderId) return;
