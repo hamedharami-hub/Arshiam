@@ -20,13 +20,19 @@ Redesign & stabilize the web version of ARSHNAZ, a Persian-first (RTL) task/note
 - Per-user private Firebase data.
 
 ## What's Been Implemented
-### Phase 1 (2026-06 / this session)
+### Phase 1 (2026-06 / session 1)
 - Cloned & installed the existing repo in `/app`; wired supervisor `frontend` → Vite (added `allowedHosts`, HMR clientPort 443 for the preview proxy).
-- Set **Persian (fa) as the default language** (removed `navigator` from i18n detection order so it no longer flips to English).
+- Set **Persian (fa) as the default language** (removed `navigator` from i18n detection order).
 - Made the **Arshnaz theme the default identity** (`arshnaz-light`) in `App.tsx` + `AppLayout.tsx`.
-- Added a **header light/dark toggle** (`src/components/ThemeToggle.tsx`, `data-testid="header-theme-toggle"`) that flips the theme family's day/night variant and persists to localStorage (`arshnaz-theme`).
-- **Promoted Pharmacy to a top-level, default-open sidebar section** (`SidebarNavSections.tsx`) so Products/Scenario/FRED/CYP are reachable in one expand (was triple-nested). Simplified the Knowledge group (Knowledge Base + Interactive Study + Review). Updated unit tests.
-- Verified via testing agent: login → Today, Tasks/Inbox, Notes, Habits, all 4 Pharmacy pages, theme toggle persistence, and mobile bottom-tab bar all PASS with real Firebase data and no app JS errors.
+- Added a **header light/dark toggle** (`src/components/ThemeToggle.tsx`, `data-testid="header-theme-toggle"`).
+- **Promoted Pharmacy to a top-level, default-open sidebar section** (`SidebarNavSections.tsx` SECTIONS + DEFAULT_ORDER). Simplified the Knowledge group. Updated unit tests.
+
+### Phase 1 (session 2 — next action items)
+- **Pharmacy quick-access on Today**: `src/components/PharmacyShortcuts.tsx` renders a scrollable row of 4 pharmacy shortcut cards on the Today dashboard (testids `pharmacy-shortcuts`, `pharm-shortcut-{products,scenario,fred,cyp}`). Verified nav works.
+- **Mobile Notes editor "More" menu**: `src/components/RichEditor.tsx` toolbar now keeps primary tools inline (bold/italic/bullet/task/image/voice) and collapses the rest into a mobile-only dropdown (`data-testid="editor-more-tools"`); desktop keeps the full inline toolbar.
+- **Fixed CRITICAL RichEditor crash** (`DOMSerializer.fromSchema … null 'cached'`): deduped `@tiptap/pm` + `prosemirror-*` in `vite.config.ts` (`resolve.dedupe` + `optimizeDeps.include`) so only one ProseMirror instance loads, and made the mount `useEffect` guarded (no `getHTML()` at mount). Notes now open, autosave, and persist across reloads.
+- **Knowledge/Study + Mind stabilization**: verified `/app/knowledge`, `/app/interactive-study`, `/app/review`, `/app/mind`, `/app/checkin`, `/app/thoughts`, `/app/abc`, `/app/socratic`, `/app/breathing`, `/app/crisis` all load and render with 0 page errors; they inherit the Arshnaz identity via theme CSS variables. Full visual redesign of these remains Phase 2.
+- Verified via testing agent iterations 1–3 (100% on retest).
 
 ## Test Credentials
 See `/app/memory/test_credentials.md` — `test.arshnaz@example.com` / `Test123456` (live Firebase). Tick the clinical disclaimer before login.
