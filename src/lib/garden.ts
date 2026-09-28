@@ -350,8 +350,15 @@ export function awardDailyCheckinDrops(todayStr: string, amount = 20, reason = "
 
 export function waterActivePlant(amount = 15): { success: boolean; stageUp: boolean; bloomed: boolean } {
   const current = getGardenState();
+  if (!Number.isSafeInteger(amount) || amount <= 0) {
+    return { success: false, stageUp: false, bloomed: false };
+  }
   if (!current.activePlant) {
     toast.error("هنوز گیاهی در گلدان کاشته نشده است!");
+    return { success: false, stageUp: false, bloomed: false };
+  }
+
+  if (current.activePlant.stage === 5) {
     return { success: false, stageUp: false, bloomed: false };
   }
 

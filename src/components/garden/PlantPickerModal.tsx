@@ -6,8 +6,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Sprout, Sparkles, Check } from "lucide-react";
 import { PLANT_SPECIES, type PlantType } from "@/lib/garden";
 import { useBilingual } from "@/hooks/useBilingual";
@@ -47,13 +45,14 @@ export default function PlantPickerModal({
           {speciesList.map((plant) => {
             const isSelected = currentType === plant.id;
             return (
-              <Card
+              <button
+                type="button"
                 key={plant.id}
                 onClick={() => {
                   onSelect(plant.id);
                   onOpenChange(false);
                 }}
-                className={`p-4 cursor-pointer transition-all hover:scale-[1.02] relative border ${
+                className={`p-4 text-start rounded-xl cursor-pointer transition-all hover:scale-[1.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary relative border ${
                   isSelected
                     ? "border-primary bg-primary/10 ring-1 ring-primary"
                     : "border-border/70 bg-card/60 hover:bg-accent/40"
@@ -87,7 +86,7 @@ export default function PlantPickerModal({
                     </div>
                   </div>
                 </div>
-              </Card>
+              </button>
             );
           })}
         </div>

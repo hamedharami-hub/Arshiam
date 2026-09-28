@@ -9,6 +9,7 @@ interface PlantCanvasProps {
   size?: "sm" | "md" | "lg";
   timeOfDay?: TimeOfDay;
   focusBlossoms?: number;
+  sceneOnly?: boolean;
 }
 
 export default function PlantCanvas({
@@ -18,6 +19,7 @@ export default function PlantCanvas({
   size = "lg",
   timeOfDay,
   focusBlossoms = 0,
+  sceneOnly = false,
 }: PlantCanvasProps) {
   const meta = PLANT_SPECIES[plant.type] || PLANT_SPECIES.rose;
   const stage = plant.stage;
@@ -70,6 +72,16 @@ export default function PlantCanvas({
   };
 
   const currentAtmo = atmosphereStyles[effectiveTime];
+
+  // The greenhouse scene already contains a real pot and atmosphere.
+  // Render just the living plant so it can grow out of that pot.
+  if (sceneOnly) {
+    return (
+      <div className={`garden-scene-plant garden-plant-stage-${stage}`} aria-hidden="true">
+        {stage === 1 ? <span className="garden-scene-seed">🌱</span> : <img src={`/garden-${plant.type}.png`} alt="" draggable={false} />}
+      </div>
+    );
+  }
 
   return (
     <div

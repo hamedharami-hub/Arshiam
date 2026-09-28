@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { awardDailyCheckinDrops, awardWaterDrops, getGardenState, saveGardenState } from "./garden";
+import { awardDailyCheckinDrops, awardWaterDrops, getGardenState, saveGardenState, waterActivePlant } from "./garden";
 
 vi.mock("sonner", () => ({
   toast: {
@@ -38,5 +38,16 @@ describe("garden water drops rewards", () => {
     expect(drops).toBe(initial + 10);
     const state = getGardenState();
     expect(state.waterDrops).toBe(initial + 10);
+  });
+
+  it("does not spend drops on invalid watering or a fully bloomed plant", () => {
+    const before = getGardenState();
+    expect(waterActivePlant(-15).success).toBe(false);
+    expect(waterActivePlant(0).success).toBe(false);
+    expect(getGardenState().waterDrops).toBe(before.waterDrops);
+
+    saveGardenState({ ...before, activePlant: { ...before.activePlant!, stage: 5, currentPoints: 100 } });
+    expect(waterActivePlant(15).success).toBe(false);
+    expect(getGardenState().waterDrops).toBe(before.waterDrops);
   });
 });

@@ -1,68 +1,41 @@
-import React, { useState, useEffect } from "react";
-import { toPersianDigits } from "@/lib/jalali";
-import { Card } from "@/components/ui/card";
+import { useEffect, useState } from "react";
+import { Award, Check, Droplets, History, Leaf, Plus, RefreshCw, Sparkles, Sun, Volume2, VolumeX } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import {
-  Sprout,
-  Droplets,
-  Sun,
-  Trophy,
-  Sparkles,
-  Plus,
-  RefreshCw,
-  Award,
-  Heart,
-  Volume2,
-  VolumeX,
-  History,
-  CheckCircle2,
-  Moon,
-  Sunset,
-  Sunrise,
-} from "lucide-react";
-import {
-  getGardenState,
-  saveGardenState,
-  waterActivePlant,
-  plantNewSeed,
-  setTimeOfDayMode,
-  getCurrentTimeOfDay,
-  PLANT_SPECIES,
-  type GardenState,
-  type PlantType,
-  type TimeOfDay,
-} from "@/lib/garden";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import PlantCanvas from "@/components/garden/PlantCanvas";
 import PlantPickerModal from "@/components/garden/PlantPickerModal";
 import { useBilingual } from "@/hooks/useBilingual";
-import { toast } from "sonner";
+import { toPersianDigits } from "@/lib/jalali";
+import { getCurrentTimeOfDay, getGardenState, PLANT_SPECIES, plantNewSeed, saveGardenState, setTimeOfDayMode, waterActivePlant, type GardenState, type PlantType, type TimeOfDay } from "@/lib/garden";
+import "./GardenView.css";
 
-// Gentle synthesized zen chime for watering
+const TIMES: { mode: "auto" | TimeOfDay; fa: string; en: string }[] = [
+  { mode: "auto", fa: "خودکار", en: "Auto" },
+  { mode: "morning", fa: "صبح", en: "Morning" },
+  { mode: "day", fa: "روز", en: "Day" },
+  { mode: "sunset", fa: "غروب", en: "Sunset" },
+  { mode: "night", fa: "شب", en: "Night" },
+];
+const STAGES = [["بذر", "Seed"], ["جوانه", "Sprout"], ["رشد", "Growing"], ["غنچه", "Bud"], ["شکوفه", "Bloom"]] as const;
+
 function playWaterSound() {
   try {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const now = ctx.currentTime;
-    
-    // Soft high chime
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(587.33, now); // D5
-    osc.frequency.exponentialRampToValueAtTime(880, now + 0.3); // A5
-    
-    gain.gain.setValueAtTime(0.15, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
-    
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.8);
-  } catch {
-    /* AudioContext not allowed or unsupported */
-  }
+    const context = new AudioContext();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(590, context.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(880, context.currentTime + 0.25);
+    gain.gain.setValueAtTime(0.12, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.6);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.6);
+    oscillator.onended = () => void context.close();
+  } catch { /* Sound is optional. */ }
 }
 
 export default function GardenView() {
@@ -70,403 +43,79 @@ export default function GardenView() {
   const [garden, setGarden] = useState<GardenState>(getGardenState);
   const [watering, setWatering] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("garden");
+  const [pendingSeed, setPendingSeed] = useState<PlantType | null>(null);
+  const [tab, setTab] = useState("greenhouse");
+  const [waterAmount, setWaterAmount] = useState(15);
 
   useEffect(() => {
-    const handler = (e: any) => {
-      if (e.detail) setGarden(e.detail);
-      else setGarden(getGardenState());
-    };
-    window.addEventListener("arshnaz-garden-updated", handler);
-    return () => window.removeEventListener("arshnaz-garden-updated", handler);
+    const onUpdate = (event: Event) => setGarden((event as CustomEvent<GardenState>).detail || getGardenState());
+    window.addEventListener("arshnaz-garden-updated", onUpdate);
+    return () => window.removeEventListener("arshnaz-garden-updated", onUpdate);
   }, []);
 
   const plant = garden.activePlant;
-  const meta = plant ? PLANT_SPECIES[plant.type] : PLANT_SPECIES.rose;
-  const progressPct = plant
-    ? Math.min(100, Math.round((plant.currentPoints / meta.pointsToBloom) * 100))
-    : 0;
+  const meta = PLANT_SPECIES[plant?.type || "rose"];
+  const progress = plant ? Math.min(100, Math.round(plant.currentPoints / meta.pointsToBloom * 100)) : 0;
+  const time = garden.timeOfDayMode === "auto" || !garden.timeOfDayMode ? getCurrentTimeOfDay() : garden.timeOfDayMode;
+  const remaining = plant ? Math.max(0, meta.pointsToBloom - plant.currentPoints) : 0;
+  const digit = (value: number) => isEn ? value.toString() : toPersianDigits(value);
+  const canWater = !!plant && plant.stage < 5 && garden.waterDrops >= waterAmount && !watering;
 
-  const effectiveTimeOfDay: TimeOfDay =
-    garden.timeOfDayMode === "auto" || !garden.timeOfDayMode
-      ? getCurrentTimeOfDay()
-      : garden.timeOfDayMode;
-
-  const handleWater = (amount = 15) => {
-    if (!plant) return;
-    setWatering(true);
+  const handleWater = () => {
+    if (!canWater) return;
+    const result = waterActivePlant(waterAmount);
+    if (!result.success) return;
     if (garden.soundEnabled) playWaterSound();
-
-    const res = waterActivePlant(amount);
-    if (res.success) {
-      const updatedGarden = getGardenState();
-      if (res.bloomed) {
-        const plantName = isEn ? meta.name_en : plant.name;
-        toast.success(
-          isEn ? `🎉 Congratulations! "${plantName}" reached full bloom!` : `🎉 تبریک! «${plant.name}» به شکوفایی کامل رسید!`,
-          {
-            description: isEn ? "Added to your botanical herbarium." : "گیاه به کلکسیون افتخارات باغ شما اضافه شد.",
-          }
-        );
-      } else if (res.stageUp) {
-        const nextStage = updatedGarden.activePlant?.stage ?? plant.stage + 1;
-        toast.success(
-          isEn ? `🌱 Your plant advanced to stage ${nextStage} of growth!` : `🌱 گیاه وارد مرحله ${nextStage} رشد شد!`
-        );
-      }
-    }
-    setTimeout(() => setWatering(false), 1000);
+    setWatering(true);
+    window.setTimeout(() => setWatering(false), 950);
+    if (result.bloomed) toast.success(T("گل شما شکوفا شد و به کلکسیون اضافه شد!", "Your plant bloomed and joined the collection!"));
+    else if (result.stageUp) toast.success(T("گیاه وارد مرحله تازه‌ای شد!", "Your plant reached a new growth stage!"));
   };
 
-  const handleNewSeedSelect = (type: PlantType) => {
-    plantNewSeed(type);
+  const handleSeedSelect = (type: PlantType) => {
+    if (plant && plant.stage < 5) setPendingSeed(type);
+    else plantNewSeed(type);
   };
-
-  const toggleSound = () => {
-    const next = { ...garden, soundEnabled: !garden.soundEnabled };
-    saveGardenState(next);
-    setGarden(next);
-  };
-
-  const handleSetTimeMode = (mode: "auto" | TimeOfDay) => {
-    setTimeOfDayMode(mode);
-    setGarden(getGardenState());
-  };
+  const toggleSound = () => saveGardenState({ ...garden, soundEnabled: !garden.soundEnabled });
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-8 space-y-6 pb-24 animate-fade-in" dir={isEn ? "ltr" : "rtl"}>
-      {/* Top Zen Stats Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-5 rounded-3xl bg-gradient-to-r from-card/80 via-card/50 to-primary/10 border border-border/70 backdrop-blur-md shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shadow-inner">
-            <Sprout className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-xl md:text-2xl font-black text-foreground flex items-center gap-2">
-              {T("گلخانه و باغ رشد من", "My Growth Garden & Greenhouse")}
-              <Badge variant="outline" className="text-xs bg-primary/10 border-primary/30 text-primary font-bold">
-                {isEn ? `Level ${garden.gardenLevel}` : `سطح ${toPersianDigits(garden.gardenLevel)}`}
-              </Badge>
-            </h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {T("هر کار مفید، قطره‌ای برای شکوفایی گل‌های باغ توست.", "Every meaningful action provides water to bloom your inner garden.")}
-            </p>
-          </div>
+    <main className="garden-page" dir={isEn ? "ltr" : "rtl"}>
+      <header className="garden-header">
+        <div><h1>{T("گلخانه من", "My Greenhouse")}</h1><p>{T("هر قدم کوچک، جایی برای رشد دارد.", "Every small step has room to grow.")}</p></div>
+        <div className="garden-header-tools">
+          <div className="garden-resource"><Droplets aria-hidden="true" /><span><strong>{digit(garden.waterDrops)}</strong>{T("قطره آب", "Water drops")}</span></div>
+          <div className="garden-resource"><Sun aria-hidden="true" /><span><strong>{digit(garden.sunEnergy)}</strong>{T("انرژی خورشید", "Sun energy")}</span></div>
+          <div className="garden-resource"><Sparkles aria-hidden="true" /><span><strong>{digit(garden.focusBlossoms || 0)}</strong>{T("شکوفه تمرکز", "Focus blooms")}</span></div>
+          <Button variant="outline" size="icon" className="garden-sound" onClick={toggleSound} aria-label={garden.soundEnabled ? T("خاموش کردن صدا", "Mute sound") : T("روشن کردن صدا", "Enable sound")}>{garden.soundEnabled ? <Volume2 /> : <VolumeX />}</Button>
         </div>
+      </header>
 
-        {/* Resources & Sound Toggle */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 text-xs font-bold font-mono">
-            <Droplets className="w-4 h-4 fill-sky-400 text-sky-500" />
-            <span>{isEn ? `${garden.waterDrops} Water Drops` : `${toPersianDigits(garden.waterDrops)} قطره آب`}</span>
-          </div>
+      <Tabs value={tab} onValueChange={setTab} className="garden-tabs">
+        <TabsList className="garden-tab-list"><TabsTrigger value="greenhouse"><Leaf className="size-4" />{T("گلخانه", "Greenhouse")}</TabsTrigger><TabsTrigger value="collection"><Award className="size-4" />{T("کلکسیون گل‌ها", "Bloom collection")} ({digit(garden.herbarium.length)})</TabsTrigger></TabsList>
 
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-bold font-mono">
-            <Sun className="w-4 h-4 text-amber-500" />
-            <span>{isEn ? `${garden.sunEnergy} Sunlight` : `${toPersianDigits(garden.sunEnergy)} نور خورشید`}</span>
-          </div>
-
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20 text-xs font-bold font-mono">
-            <span>🌸</span>
-            <span>{isEn ? `${garden.focusBlossoms || 0} Focus Blossoms` : `${toPersianDigits(garden.focusBlossoms || 0)} شکوفه پومودورو`}</span>
-          </div>
-
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 text-xs font-bold font-mono">
-            <Trophy className="w-4 h-4" />
-            <span>{isEn ? `${garden.totalHarvests} Blooms` : `${toPersianDigits(garden.totalHarvests)} شکوفایی`}</span>
-          </div>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSound}
-            className="w-8 h-8 rounded-full text-muted-foreground"
-            title={garden.soundEnabled ? T("صدا فعال است", "Sound enabled") : T("صدا خاموش است", "Sound muted")}
-          >
-            {garden.soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-500" /> : <VolumeX className="w-4 h-4" />}
-          </Button>
-        </div>
-      </div>
-
-      {/* Atmosphere Quick Filter / Time-of-Day Bar */}
-      <div className="flex items-center justify-between p-3 rounded-2xl bg-card/40 border border-border/60 backdrop-blur-sm text-xs">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Sparkles className="w-4 h-4 text-amber-400" />
-          <span className="font-semibold">{T("اتمسفر باغچه:", "Garden Atmosphere:")}</span>
-        </div>
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <Button
-            variant={garden.timeOfDayMode === "auto" || !garden.timeOfDayMode ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => handleSetTimeMode("auto")}
-            className="h-7 text-[11px] rounded-lg px-2.5"
-          >
-            {T("⏰ ساعت واقعی", "⏰ Real-Time")}
-          </Button>
-          <Button
-            variant={garden.timeOfDayMode === "morning" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => handleSetTimeMode("morning")}
-            className="h-7 text-[11px] rounded-lg px-2.5"
-          >
-            {T("🌅 صبح", "🌅 Morning")}
-          </Button>
-          <Button
-            variant={garden.timeOfDayMode === "day" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => handleSetTimeMode("day")}
-            className="h-7 text-[11px] rounded-lg px-2.5"
-          >
-            {T("☀️ روز", "☀️ Daytime")}
-          </Button>
-          <Button
-            variant={garden.timeOfDayMode === "sunset" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => handleSetTimeMode("sunset")}
-            className="h-7 text-[11px] rounded-lg px-2.5"
-          >
-            {T("🌇 غروب", "🌇 Sunset")}
-          </Button>
-          <Button
-            variant={garden.timeOfDayMode === "night" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => handleSetTimeMode("night")}
-            className="h-7 text-[11px] rounded-lg px-2.5"
-          >
-            {T("🌙 شب", "🌙 Night")}
-          </Button>
-        </div>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-2 max-w-sm mx-auto h-11 bg-muted/60 p-1 rounded-2xl">
-          <TabsTrigger value="garden" className="rounded-xl font-bold text-xs gap-1.5">
-            <Sprout className="w-4 h-4" /> {T("گلخانه اصلی", "Main Sanctuary")}
-          </TabsTrigger>
-          <TabsTrigger value="herbarium" className="rounded-xl font-bold text-xs gap-1.5">
-            <Award className="w-4 h-4" /> {isEn ? `Herbarium (${garden.herbarium.length})` : `کلکسیون شکوفه‌ها (${toPersianDigits(garden.herbarium.length)})`}
-          </TabsTrigger>
-        </TabsList>
-
-        {/* TAB 1: MAIN GREENHOUSE */}
-        <TabsContent value="garden" className="space-y-6 mt-0">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* Main Stage Glass Sanctuary */}
-            <Card className="lg:col-span-8 p-6 md:p-8 rounded-3xl bg-gradient-to-b from-card/90 via-card/60 to-background/80 border border-border/80 shadow-lg relative overflow-hidden flex flex-col items-center">
-              {/* Botanical Glow Ring */}
-              <div
-                className="absolute top-1/2 start-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full blur-[100px] opacity-25 pointer-events-none"
-                style={{ background: meta.color }}
-              />
-
-              {plant ? (
-                <>
-                  <div className="w-full flex justify-between items-center mb-2 z-10">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPickerOpen(true)}
-                      className="text-xs rounded-full gap-1.5 bg-card/60 backdrop-blur"
-                    >
-                      <RefreshCw className="w-3 h-3" /> {T("تعویض بذر / گلدان", "Switch Seed / Pot")}
-                    </Button>
-
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
-                      <span>{isEn ? `Stage ${plant.stage} / 5` : `مرحله ${toPersianDigits(plant.stage)} / ۵`}</span>
-                    </div>
-                  </div>
-
-                  {/* Central Animated Plant Canvas */}
-                  <div className="py-4 z-10">
-                    <PlantCanvas
-                      plant={plant}
-                      isWatering={watering}
-                      onTap={() => handleWater(15)}
-                      size="lg"
-                      timeOfDay={effectiveTimeOfDay}
-                      focusBlossoms={garden.focusBlossoms || 0}
-                    />
-                  </div>
-
-                  {/* Growth Progress Bar */}
-                  <div className="w-full max-w-md space-y-2 mt-4 z-10">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-bold text-foreground">{T("میزان رشد تا شکوفایی", "Progress to Bloom")}</span>
-                      <span className="font-mono text-muted-foreground font-bold">
-                        {isEn ? `${plant.currentPoints} / ${meta.pointsToBloom} (${progressPct}%)` : `${toPersianDigits(plant.currentPoints)} / ${toPersianDigits(meta.pointsToBloom)} (${toPersianDigits(progressPct)}٪)`}
-                      </span>
-                    </div>
-                    <Progress value={progressPct} className="h-3 rounded-full bg-muted/80" />
-                    
-                    {/* Stages labels */}
-                    <div className="flex justify-between text-[10px] text-muted-foreground pt-1">
-                      <span>{T("بذر 🌱", "Seed 🌱")}</span>
-                      <span>{T("جوانه 🌿", "Sprout 🌿")}</span>
-                      <span>{T("ساقه 🪴", "Sapling 🪴")}</span>
-                      <span>{T("غنچه 🌸", "Bud 🌸")}</span>
-                      <span>{T("شکوفایی 🌺", "Bloom 🌺")}</span>
-                    </div>
-                  </div>
-
-                  {/* Action Controls */}
-                  <div className="flex items-center gap-3 mt-6 z-10 flex-wrap justify-center">
-                    <Button
-                      size="lg"
-                      onClick={() => handleWater(15)}
-                      disabled={garden.waterDrops < 15 || plant.stage === 5}
-                      className="px-6 py-6 text-sm font-bold rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-lg shadow-sky-500/25 transition-transform active:scale-95"
-                    >
-                      <Droplets className="w-5 h-5 me-2 fill-current" />
-                      {T("آبیاری گیاه (-۱۵ قطره)", "Water Plant (-15 Drops)")}
-                    </Button>
-
-                    {plant.stage === 5 ? (
-                      <Button
-                        size="lg"
-                        onClick={() => setPickerOpen(true)}
-                        className="px-6 py-6 text-sm font-bold rounded-2xl bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white shadow-lg shadow-pink-500/25 animate-pulse"
-                      >
-                        <Sparkles className="w-5 h-5 me-2" />
-                        {T("کاشت گل جدید در گلدان", "Plant New Seed")}
-                      </Button>
-                    ) : (
-                      <Button
-                        size="lg"
-                        variant="outline"
-                        onClick={() => handleWater(30)}
-                        disabled={garden.waterDrops < 30}
-                        className="px-4 py-6 text-xs font-semibold rounded-2xl border-border/80 bg-card/40"
-                      >
-                        {T("آبیاری عمیق (-۳۰ قطره 💧💧)", "Deep Watering (-30 Drops 💧💧)")}
-                      </Button>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="py-16 text-center space-y-4">
-                  <div className="w-16 h-16 rounded-3xl bg-muted/50 flex items-center justify-center mx-auto text-3xl">
-                    🌱
-                  </div>
-                  <h3 className="text-lg font-bold">{T("گلدان شما خالی است!", "Your Sanctuary is Empty!")}</h3>
-                  <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                    {T("یک بذر جدید انتخاب کنید تا با هر قدم مثبت شاهد رشد و شکوفایی آن باشید.", "Choose a seed to cultivate and nurture through your positive daily progress.")}
-                  </p>
-                  <Button onClick={() => setPickerOpen(true)} className="rounded-2xl gap-2">
-                    <Plus className="w-4 h-4" /> {T("انتخاب و کاشت بذر", "Select and Plant Seed")}
-                  </Button>
-                </div>
-              )}
-            </Card>
-
-            {/* Sidebar Guide & Lore */}
-            <div className="lg:col-span-4 space-y-4">
-              {/* Active Species Card */}
-              {plant && (
-                <Card className="p-5 rounded-3xl bg-card/60 border border-border/70 shadow-sm space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">{meta.badge}</span>
-                    <div>
-                      <h3 className="font-bold text-sm text-foreground">{isEn ? meta.name_en : meta.name}</h3>
-                      <span className="text-[10px] text-muted-foreground font-mono">{meta.latinName}</span>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{isEn ? meta.description_en : meta.description}</p>
-                  <div className="p-3 rounded-2xl bg-primary/5 border border-primary/15 text-xs text-primary font-medium flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 shrink-0" />
-                    <span>{isEn ? `Attuned to: ${meta.affinity_en}` : `همبستگی: ${meta.affinity}`}</span>
-                  </div>
-                </Card>
-              )}
-
-              {/* How to Earn Water Drops */}
-              <Card className="p-5 rounded-3xl bg-card/60 border border-border/70 shadow-sm space-y-3">
-                <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
-                  <Droplets className="w-4 h-4 text-sky-500" /> {T("روش‌های دریافت قطره آب", "How to Earn Water Drops")}
-                </h3>
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between items-center p-2 rounded-xl bg-muted/40">
-                    <span>{T("تکمیل هر تسک", "Complete any task")}</span>
-                    <span className="font-mono text-sky-500 font-bold">+10 💧</span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 rounded-xl bg-muted/40">
-                    <span>{T("انجام عادت روزانه", "Complete a daily habit")}</span>
-                    <span className="font-mono text-sky-500 font-bold">+15 💧</span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 rounded-xl bg-muted/40">
-                    <span>{T("ثبت Check-in یا افکار CBT", "Daily check-in or CBT entry")}</span>
-                    <span className="font-mono text-sky-500 font-bold">+20 💧</span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 rounded-xl bg-muted/40">
-                    <span>{T("جلسه تمرکز Pomodoro", "Pomodoro focus session")}</span>
-                    <span className="font-mono text-sky-500 font-bold">+25 💧</span>
-                  </div>
-                </div>
-              </Card>
+        <TabsContent value="greenhouse" className="garden-main-grid">
+          <section className="garden-primary">
+            <div className={`garden-scene garden-scene-${time}`}>
+              <div className="garden-time-picker" aria-label={T("زمان گلخانه", "Greenhouse time")}>{TIMES.map(({ mode, fa, en }) => <button type="button" key={mode} className={garden.timeOfDayMode === mode ? "active" : ""} onClick={() => setTimeOfDayMode(mode)} aria-pressed={garden.timeOfDayMode === mode}>{isEn ? en : fa}</button>)}</div>
+              {plant ? <PlantCanvas plant={plant} size="lg" sceneOnly isWatering={watering} timeOfDay={time} /> : <div className="garden-empty-scene"><span>🌱</span><strong>{T("گلدان آماده کاشت است", "The pot is ready for planting")}</strong></div>}
+              {watering && <span className="garden-water-animation" aria-hidden="true">💧 💧 💧</span>}
+              <Button className="garden-scene-switch" onClick={() => setPickerOpen(true)}><RefreshCw className="size-4" />{plant ? T("تعویض بذر", "Change seed") : T("کاشت بذر", "Plant a seed")}</Button>
             </div>
-          </div>
+            <div className="garden-growth-panel"><div className="garden-growth-heading"><h2>{T("مسیر رشد", "Growth journey")}</h2><span>{plant ? `${digit(plant.currentPoints)} / ${digit(meta.pointsToBloom)}` : "—"} {T("امتیاز", "points")}</span></div><Progress value={progress} className="h-2.5" aria-label={T("پیشرفت رشد گیاه", "Plant growth progress")} /><ol className="garden-stages">{STAGES.map(([fa, en], index) => <li key={fa} className={plant && index + 1 <= plant.stage ? "reached" : ""}><span>{plant && index + 1 < plant.stage ? <Check className="size-3.5" /> : index + 1}</span>{isEn ? en : fa}</li>)}</ol></div>
+            <div className="garden-water-panel"><div><h2>{T("آبیاری گل", "Water your plant")}</h2><p>{plant?.stage === 5 ? T("این گل شکوفا شده است؛ برای ادامه بذر تازه بکارید.", "This plant has bloomed. Plant a new seed to continue.") : T(`تا شکوفایی ${digit(remaining)} امتیاز باقی مانده است.`, `${remaining} points remain until bloom.`)}</p></div><div className="garden-water-actions"><div className="garden-water-options" aria-label={T("مقدار آبیاری", "Watering amount")}>{[5, 15, 30].map(amount => <button type="button" key={amount} aria-pressed={waterAmount === amount} className={waterAmount === amount ? "selected" : ""} onClick={() => setWaterAmount(amount)}>{digit(amount)} <Droplets className="size-3.5" /></button>)}</div>{plant?.stage === 5 ? <Button onClick={() => setPickerOpen(true)}><Plus className="size-4" />{T("کاشت گل تازه", "Plant another flower")}</Button> : <Button className="garden-water-button" disabled={!canWater} onClick={handleWater}><Droplets className="size-4" />{T("آبیاری", "Water plant")}</Button>}</div></div>
+            {plant && garden.waterDrops < waterAmount && plant.stage < 5 && <p className="garden-water-hint">{T("قطره کافی ندارید؛ کارهای روزانه را کامل کنید یا مقدار آبیاری را کمتر کنید.", "Not enough drops. Complete daily activities or choose a smaller amount.")}</p>}
+          </section>
+          <aside className="garden-sidebar">
+            <section className="garden-info-panel"><div className="garden-plant-title"><span className="garden-plant-icon" style={{ background: meta.glowColor }}>{plant ? meta.badge : "🌱"}</span><div><h2>{plant ? (isEn ? meta.name_en : plant.name) : T("گل خود را انتخاب کنید", "Choose your flower")}</h2><p dir="ltr">{plant ? meta.latinName : ""}</p></div></div><p>{plant ? (isEn ? meta.description_en : meta.description) : T("از میان شش گیاه، بذر دلخواه خود را بکارید.", "Choose a seed from six plants to begin.")}</p>{plant && <div className="garden-affinity"><Sparkles className="size-4" />{isEn ? meta.affinity_en : meta.affinity}</div>}</section>
+            <section className="garden-info-panel"><h2><History className="size-4" />{T("تاریخچه مراقبت", "Care history")}</h2>{plant?.contributions.length ? <ol className="garden-history">{plant.contributions.slice(0, 5).map((item, index) => <li key={`${item.date}-${index}`}><span className="garden-history-dot" /><div><strong>{item.reason}</strong><small>{new Date(item.date).toLocaleDateString(isEn ? "en-AU" : "fa-IR")} · {digit(item.points)} {T("امتیاز", "pts")}</small></div></li>)}</ol> : <p>{T("با کاشت بذر، داستان مراقبت شروع می‌شود.", "Your care story begins when you plant a seed.")}</p>}</section>
+            <section className="garden-info-panel"><h2><Droplets className="size-4" />{T("قطره آب از کجا می‌آید؟", "How to earn water")}</h2><ul className="garden-rewards"><li><span>{T("تکمیل تسک", "Complete a task")}</span><b>+10 💧</b></li><li><span>{T("انجام عادت", "Complete a habit")}</span><b>+15 💧</b></li><li><span>{T("چک‌این روزانه", "Daily check-in")}</span><b>+20 💧</b></li><li><span>{T("جلسه تمرکز", "Focus session")}</span><b>{T("بسته به زمان", "Based on duration")}</b></li></ul></section>
+          </aside>
         </TabsContent>
 
-        {/* TAB 2: HERBARIUM / BLOOM ALBUM */}
-        <TabsContent value="herbarium" className="space-y-4 mt-0">
-          {garden.herbarium.length === 0 ? (
-            <Card className="p-12 text-center rounded-3xl bg-card/50 border border-dashed border-border/80">
-              <Award className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
-              <h3 className="font-bold text-base text-foreground">{T("هنوز گلی به شکوفایی نرسیده است", "No blooms in your herbarium yet")}</h3>
-              <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                {T(
-                  "با آبیاری مداوم و انجام کارهای روزانه، اولین گل خود را شکوفا کنید تا در این کلکسیون برای همیشه ثبت شود.",
-                  "Nurture your plant with daily positive actions to unlock and preserve your first full bloom here forever."
-                )}
-              </p>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {garden.herbarium.map((item, idx) => {
-                const spec = PLANT_SPECIES[item.type] || PLANT_SPECIES.rose;
-                return (
-                  <Card
-                    key={item.id || idx}
-                    className="p-5 rounded-3xl bg-card/70 border border-border/80 shadow-sm relative overflow-hidden space-y-3"
-                  >
-                    <div
-                      className="absolute top-0 end-0 w-24 h-24 rounded-full blur-2xl opacity-20 pointer-events-none"
-                      style={{ background: spec.color }}
-                    />
-                    <div className="flex items-start justify-between">
-                      <div className="text-3xl">{spec.badge}</div>
-                      <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-mono">
-                        {T("شکوفا شده ✨", "Bloomed ✨")}
-                      </Badge>
-                    </div>
-
-                    <div>
-                      <h4 className="font-bold text-base text-foreground">{isEn ? spec.name_en : item.name}</h4>
-                      <span className="text-[10px] text-muted-foreground font-mono block">
-                        {spec.latinName}
-                      </span>
-                    </div>
-
-                    <div className="pt-2 border-t text-[11px] text-muted-foreground flex justify-between">
-                      <span>{T("انرژی مصرف‌شده:", "Total Energy Nurtured:")}</span>
-                      <span className="font-bold text-foreground font-mono">
-                        {isEn ? `${item.totalPoints} pts` : `${toPersianDigits(item.totalPoints)} امتیاز`}
-                      </span>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </TabsContent>
+        <TabsContent value="collection" className="garden-collection"><div className="garden-collection-heading"><div><h2>{T("گل‌های شکوفاشده", "Your blooms")}</h2><p>{T("ردپای قدم‌های خوب شما در باغ", "A record of the good steps you have taken")}</p></div><span>{digit(garden.totalHarvests)} {T("شکوفایی", "blooms")}</span></div>{garden.herbarium.length ? <div className="garden-collection-grid">{garden.herbarium.map(item => { const species = PLANT_SPECIES[item.type] || PLANT_SPECIES.rose; return <article className="garden-bloom" key={item.id}><span className="garden-bloom-icon" style={{ background: species.glowColor }}>{species.badge}</span><div><h3>{isEn ? species.name_en : item.name}</h3><p>{species.latinName}</p><small>{T("شکوفایی:", "Bloomed:")} {new Date(item.bloomedAt).toLocaleDateString(isEn ? "en-AU" : "fa-IR")}</small></div><Award className="size-5" /></article>; })}</div> : <div className="garden-collection-empty"><Award className="size-10" /><h3>{T("هنوز گلی شکوفا نشده است", "No blooms yet")}</h3><p>{T("با مراقبت از گیاه فعلی، اولین گل این مجموعه را بسازید.", "Care for your current plant to grow your first bloom.")}</p><Button onClick={() => setTab("greenhouse")}>{T("رفتن به گلخانه", "Go to greenhouse")}</Button></div>}</TabsContent>
       </Tabs>
-
-      {/* Plant Picker Dialog */}
-      <PlantPickerModal
-        open={pickerOpen}
-        onOpenChange={setPickerOpen}
-        onSelect={handleNewSeedSelect}
-        currentType={plant?.type}
-      />
-    </div>
+      <PlantPickerModal open={pickerOpen} onOpenChange={setPickerOpen} onSelect={handleSeedSelect} currentType={plant?.type} />
+      <AlertDialog open={pendingSeed !== null} onOpenChange={open => { if (!open) setPendingSeed(null); }}><AlertDialogContent dir={isEn ? "ltr" : "rtl"}><AlertDialogHeader><AlertDialogTitle>{T("تعویض بذر فعلی؟", "Replace the current seed?")}</AlertDialogTitle><AlertDialogDescription>{T("رشد گل فعلی ذخیره نمی‌شود. گل‌های شکوفاشده در کلکسیون می‌مانند.", "The current plant's progress will be lost. Completed blooms stay in your collection.")}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{T("انصراف", "Cancel")}</AlertDialogCancel><AlertDialogAction onClick={() => { if (pendingSeed) plantNewSeed(pendingSeed); setPendingSeed(null); }}>{T("تعویض بذر", "Replace seed")}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+    </main>
   );
 }
