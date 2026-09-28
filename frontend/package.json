@@ -1,0 +1,8 @@
+{
+  "name": "arshnaz-frontend-bridge",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "start": "cd /app && exec node_modules/.bin/vite --host 0.0.0.0 --port 3000"
+  }
+}

@@ -265,7 +265,7 @@ const App = () => {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider
           attribute="class"
-          defaultTheme={getBaseTheme(getStoredTheme() || "system")}
+          defaultTheme={getBaseTheme(getStoredTheme() || "arshnaz-light")}
           storageKey="__arshnaz_base_theme"
           enableSystem
         >

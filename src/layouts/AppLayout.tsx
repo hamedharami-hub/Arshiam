@@ -20,6 +20,7 @@ import { BottomTabBar } from "@/components/BottomTabBar";
 import { SelectionActionToolbar } from "@/components/SelectionActionToolbar";
 import Onboarding from "@/components/Onboarding";
 import HeaderBackButton from "@/components/HeaderBackButton";
+import ThemeToggle from "@/components/ThemeToggle";
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { useTwoFingerSwipe } from "@/lib/useTwoFingerSwipe";
@@ -73,7 +74,7 @@ export default function AppLayout() {
   }, []);
 
   useEffect(() => {
-    const stored = getStoredTheme() || "system";
+    const stored = getStoredTheme() || "arshnaz-light";
     applyTheme(stored);
     setTheme(getBaseTheme(stored));
   }, [setTheme]);
@@ -141,6 +142,7 @@ export default function AppLayout() {
                 >
                   <Search className="w-4 h-4 text-muted-foreground" />
                 </Button>
+                <ThemeToggle />
                 <Button variant="ghost" size="icon" onClick={() => setAiOpen(true)} className="h-8 w-8 shrink-0" title="AI">
                   <Sparkles className="w-4 h-4 text-primary" />
                 </Button>
