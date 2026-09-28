@@ -196,6 +196,13 @@ interface SidebarNavTreeItemProps {
   closeOnMobile: () => void;
 }
 
+export const NAV_ITEM_CLASS = "h-9 rounded-xl px-2.5 text-[13px] font-medium text-sidebar-foreground/85 transition-colors hover:bg-sidebar-accent/70 [&>svg]:text-muted-foreground";
+export const NAV_ITEM_ACTIVE_CLASS = "bg-primary/10 text-primary font-semibold [&>svg]:text-primary";
+export const SECTION_HEADER_CLASS = "group/section flex h-11 items-center justify-between gap-1 rounded-xl px-1 text-sidebar-foreground";
+export const SECTION_TRIGGER_CLASS = "flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-1.5 py-1 text-sm font-semibold transition-colors hover:bg-sidebar-accent/60";
+export const SECTION_ICON_WRAP_CLASS = "grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary";
+export const SECTION_CHEVRON_CLASS = "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200";
+
 function SidebarNavTreeItem({ item, collapsed, tr, closeOnMobile }: SidebarNavTreeItemProps) {
   const location = useLocation();
   const children = item.children || [];
@@ -233,16 +240,16 @@ function SidebarNavTreeItem({ item, collapsed, tr, closeOnMobile }: SidebarNavTr
     const Icon = item.icon;
     return (
       <SidebarMenuItem key={item.url}>
-        <SidebarMenuButton asChild>
+        <SidebarMenuButton asChild className={NAV_ITEM_CLASS}>
           <NavLink
             to={item.url}
             title={tr(item.label)}
             onClick={closeOnMobile}
-            className={`flex items-center gap-2 ${activeBranch ? "bg-accent text-accent-foreground font-medium" : ""}`}
-            activeClassName="bg-accent text-accent-foreground font-medium"
+            className={`flex items-center gap-2.5 ${activeBranch ? NAV_ITEM_ACTIVE_CLASS : ""}`}
+            activeClassName={NAV_ITEM_ACTIVE_CLASS}
           >
             <Icon className="w-4 h-4 shrink-0" />
-            <span className="min-w-0 flex-1">{tr(item.label)}</span>
+            <span className="min-w-0 flex-1 truncate">{tr(item.label)}</span>
           </NavLink>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -255,16 +262,16 @@ function SidebarNavTreeItem({ item, collapsed, tr, closeOnMobile }: SidebarNavTr
       <SidebarMenuItem key={item.url || item.label}>
         <div className="relative flex w-full items-center">
           {item.url ? (
-            <SidebarMenuButton asChild>
+            <SidebarMenuButton asChild className={NAV_ITEM_CLASS}>
               <NavLink
                 to={item.url}
                 title={tr(item.label)}
                 onClick={closeOnMobile}
-                className={`flex items-center gap-2 pe-8 ${activeBranch ? "bg-accent text-accent-foreground font-medium" : ""}`}
-                activeClassName="bg-accent text-accent-foreground font-medium"
+                className={`flex items-center gap-2.5 pe-8 ${activeBranch ? NAV_ITEM_ACTIVE_CLASS : ""}`}
+                activeClassName={NAV_ITEM_ACTIVE_CLASS}
               >
                 <Icon className="w-4 h-4 shrink-0" />
-                <span className="min-w-0 flex-1">{tr(item.label)}</span>
+                <span className="min-w-0 flex-1 truncate">{tr(item.label)}</span>
               </NavLink>
             </SidebarMenuButton>
           ) : (
@@ -272,10 +279,10 @@ function SidebarNavTreeItem({ item, collapsed, tr, closeOnMobile }: SidebarNavTr
               <SidebarMenuButton
                 type="button"
                 aria-expanded={isOpen}
-                className={`flex items-center gap-2 pe-8 ${activeBranch ? "bg-accent text-accent-foreground font-medium" : ""}`}
+                className={`${NAV_ITEM_CLASS} flex items-center gap-2.5 pe-8 ${activeBranch ? NAV_ITEM_ACTIVE_CLASS : ""}`}
               >
                 <Icon className="w-4 h-4 shrink-0" />
-                <span className="min-w-0 flex-1">{tr(item.label)}</span>
+                <span className="min-w-0 flex-1 truncate">{tr(item.label)}</span>
               </SidebarMenuButton>
             </CollapsibleTrigger>
           )}
@@ -379,33 +386,29 @@ export function SidebarSectionCollapsible({
   }
 
   return (
-    <SidebarGroup>
+    <SidebarGroup className="py-1">
       <Collapsible open={isOpen || collapsed} onOpenChange={onToggle}>
         {!collapsed && (
-          <SidebarGroupLabel className="flex items-center justify-between pe-1 group">
+          <SidebarGroupLabel className={SECTION_HEADER_CLASS} data-testid={`sidebar-section-${section.id}`}>
             {dragHandle && (
               <button
                 {...dragHandle}
-                className="cursor-grab active:cursor-grabbing p-0.5 opacity-30 hover:opacity-80 transition"
+                className="cursor-grab active:cursor-grabbing p-0.5 opacity-0 group-hover/section:opacity-60 hover:!opacity-100 transition"
                 title={tr("جابجا کن")}
               >
-                <GripVertical className="w-3 h-3" />
+                <GripVertical className="w-3.5 h-3.5" />
               </button>
             )}
-            <CollapsibleTrigger className="flex items-center gap-2 flex-1 hover:bg-sidebar-accent/50 rounded transition">
-              <SectionIcon className="w-3.5 h-3.5 text-muted-foreground" />
-              <span>{tr(section.title)}</span>
-              <ChevronDown
-                className={`w-3.5 h-3.5 me-auto text-muted-foreground transition-transform ${
-                  isOpen ? "" : "-rotate-90"
-                }`}
-              />
+            <CollapsibleTrigger className={SECTION_TRIGGER_CLASS}>
+              <span className={SECTION_ICON_WRAP_CLASS}><SectionIcon className="h-4 w-4" /></span>
+              <span className="min-w-0 flex-1 truncate text-start">{tr(section.title)}</span>
+              <ChevronDown className={`${SECTION_CHEVRON_CLASS} ${isOpen ? "" : "-rotate-90"}`} />
             </CollapsibleTrigger>
           </SidebarGroupLabel>
         )}
         <CollapsibleContent forceMount={collapsed ? true : undefined}>
-          <SidebarGroupContent>
-            <SidebarMenu>
+          <SidebarGroupContent className="pt-1">
+            <SidebarMenu className="gap-0.5">
               {items.map((item) => (
                 <SidebarNavTreeItem key={item.url || item.label} item={item} collapsed={false} tr={tr} closeOnMobile={closeOnMobile} />
               ))}

@@ -1,38 +1,38 @@
-import { useEffect, useMemo, useState } from "react";
-import { BookHeart, Plus, Save, ImagePlus, ExternalLink } from "lucide-react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BookHeart, CalendarDays, Check, Cloud, Images, Loader2, Palette, Paperclip, Plus, Save, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
-import { subscribeNotes, upsertNote, type NoteItem } from "@/lib/firestoreDataService";
-import { NoteEditorTabs } from "@/components/NoteEditorTabs";
+import { deleteNote, subscribeNotes, upsertNote } from "@/lib/firestoreDataService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { DiaryBackgroundPicker } from "@/components/diary/DiaryBackgroundPicker";
+import { DiaryAttachments } from "@/components/diary/DiaryAttachments";
+import { DiaryGooglePhotos } from "@/components/diary/DiaryGooglePhotos";
+import { DiaryAiTools } from "@/components/diary/DiaryAiTools";
+import { DiaryEntryList, MOOD_ICON } from "@/components/diary/DiaryEntryList";
+import { DIARY_MOODS, formatDiaryDate, newDiaryEntry, resolveBackground, wordCount, type DiaryEntry } from "@/lib/diary";
+import { markdownToHtml } from "@/lib/markdown";
 
-type DiaryEntry = NoteItem & {
-  kind?: "diary";
-  diary_date?: string;
-  diary_background?: string;
-  diary_opacity?: number;
-  diary_photo_url?: string;
-  diary_google_photos_url?: string;
-  diary_html?: string;
-};
+const RichEditor = lazy(() => import("@/components/RichEditor").then((module) => ({ default: module.RichEditor })));
 
-const BACKGROUNDS = [
-  { id: "paper", className: "bg-amber-50 dark:bg-amber-950/20" },
-  { id: "lavender", className: "bg-violet-100 dark:bg-violet-950/30" },
-  { id: "sea", className: "bg-cyan-50 dark:bg-cyan-950/25" },
-  { id: "rose", className: "bg-rose-50 dark:bg-rose-950/25" },
-];
-
-function newEntry(userId: string): DiaryEntry {
-  const now = new Date();
+function normalizeEntry(raw: DiaryEntry): DiaryEntry {
+  const legacy = raw.diary_google_photos_url?.trim();
+  const links = raw.diary_google_photos ?? [];
   return {
-    id: crypto.randomUUID(), user_id: userId, title: "", content: "", pinned: false,
-    created_at: now.toISOString(), updated_at: now.toISOString(), task_id: null,
-    kind: "diary", diary_date: now.toLocaleDateString("en-CA"),
-    diary_background: "paper", diary_opacity: 25, diary_photo_url: "", diary_google_photos_url: "", diary_html: "",
+    ...raw,
+    diary_date: raw.diary_date || raw.updated_at.slice(0, 10),
+    diary_background: raw.diary_background || "paper",
+    diary_opacity: typeof raw.diary_opacity === "number" ? raw.diary_opacity : 35,
+    diary_attachments: raw.diary_attachments ?? [],
+    diary_google_photos: legacy && !links.includes(legacy) ? [...links, legacy] : links,
   };
+}
+
+function stripUndefined<T extends object>(value: T): T {
+  return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined)) as T;
 }
 
 export default function DailyDiaryView() {
@@ -40,72 +40,194 @@ export default function DailyDiaryView() {
   const { T, isEn } = useBilingual();
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [draft, setDraft] = useState<DiaryEntry | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editorVersion, setEditorVersion] = useState(0);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const draftRef = useRef<DiaryEntry | null>(null);
+  draftRef.current = draft;
 
   useEffect(() => {
     if (!user?.id) return;
-    return subscribeNotes(user.id, (notes) => setEntries((notes as DiaryEntry[]).filter((note) => note.kind === "diary")));
+    return subscribeNotes(user.id, (notes) => {
+      setEntries((notes as DiaryEntry[]).filter((note) => note.kind === "diary").map(normalizeEntry));
+    });
   }, [user?.id]);
 
-  const ordered = useMemo(() => [...entries].sort((a, b) => (b.diary_date || b.updated_at).localeCompare(a.diary_date || a.updated_at)), [entries]);
-  const background = BACKGROUNDS.find((item) => item.id === draft?.diary_background) || BACKGROUNDS[0];
+  const ordered = useMemo(() => [...entries].sort((a, b) => (b.diary_date || "").localeCompare(a.diary_date || "") || b.updated_at.localeCompare(a.updated_at)), [entries]);
+  const background = draft ? resolveBackground(draft) : null;
+  const words = draft ? wordCount(draft.content) : 0;
 
-  const save = async () => {
-    if (!user?.id || !draft || busy) return;
-    if (!draft.title.trim() && !draft.content.trim()) {
-      toast.error(T("عنوان یا متن خاطره را بنویس", "Write a title or diary entry first"));
-      return;
+  const patch = useCallback((changes: Partial<DiaryEntry>) => {
+    setDraft((current) => (current ? { ...current, ...changes } : current));
+    setDirty(true);
+  }, []);
+
+  const persist = useCallback(async (entry: DiaryEntry, silent = false) => {
+    if (!user?.id) return false;
+    if (!entry.title.trim() && !entry.content.trim() && !entry.diary_attachments?.length) {
+      if (!silent) toast.error(T("عنوان یا متن خاطره را بنویس", "Write a title or some text first"));
+      return false;
     }
-    setBusy(true);
-    const next = { ...draft, title: draft.title.trim() || T("خاطرهٔ روزانه", "Daily diary"), updated_at: new Date().toISOString() };
+    setSaving(true);
+    const next: DiaryEntry = stripUndefined({ ...entry, title: entry.title.trim() || T("خاطرهٔ روزانه", "Daily entry"), updated_at: new Date().toISOString() });
     const ok = await upsertNote(user.id, next);
-    setBusy(false);
-    if (!ok) { toast.error(T("خاطره ذخیره نشد؛ دوباره تلاش کن", "Diary entry was not saved; please retry")); return; }
+    setSaving(false);
+    if (!ok) { toast.error(T("خاطره ذخیره نشد؛ دوباره تلاش کن", "Entry was not saved; please retry")); return false; }
     setEntries((previous) => [next, ...previous.filter((item) => item.id !== next.id)]);
-    setDraft(next);
-    toast.success(T("خاطره ذخیره شد", "Diary entry saved"));
+    if (draftRef.current?.id === next.id) { setDraft((current) => (current ? { ...current, title: next.title, updated_at: next.updated_at } : current)); setDirty(false); }
+    if (!silent) toast.success(T("خاطره ذخیره شد", "Entry saved"));
+    return true;
+  }, [user?.id, T]);
+
+  useEffect(() => {
+    if (!dirty || !draft) return;
+    const timer = setTimeout(() => { void persist(draft, true); }, 3500);
+    return () => clearTimeout(timer);
+  }, [dirty, draft, persist]);
+
+  const openEntry = (entry: DiaryEntry) => {
+    if (dirty && draft) void persist(draft, true);
+    setDraft(entry);
+    setDirty(false);
+    setEditorVersion((value) => value + 1);
   };
 
-  return <main className="mx-auto max-w-6xl space-y-5 px-3 py-5 sm:px-5" dir={isEn ? "ltr" : "rtl"}>
-    <header className="rounded-3xl border bg-gradient-to-br from-violet-100/70 via-rose-50 to-amber-50 p-5 text-slate-900 dark:from-violet-950/50 dark:via-slate-900 dark:to-amber-950/20 dark:text-foreground">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3"><BookHeart className="h-7 w-7 text-violet-600" /><div>
-          <h1 className="text-2xl font-bold">{T("دفتر خاطرات روزانه", "Daily Diary")}</h1>
-          <p className="text-sm opacity-75">{T("نوشته‌ها، تصویرها و لحظه‌های هر روز در یک دفتر شخصی", "Writing, images and moments in one personal journal")}</p>
-        </div></div>
-        <Button onClick={() => user?.id && setDraft(newEntry(user.id))} className="gap-2"><Plus className="h-4 w-4" />{T("خاطرهٔ جدید", "New entry")}</Button>
-      </div>
-    </header>
+  const createEntry = () => {
+    if (!user?.id) return;
+    if (dirty && draft) void persist(draft, true);
+    setDraft(newDiaryEntry(user.id));
+    setDirty(false);
+    setEditorVersion((value) => value + 1);
+  };
 
-    <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-      <aside className="rounded-2xl border bg-card p-3 lg:sticky lg:top-4 lg:max-h-[75vh] lg:overflow-y-auto">
-        <h2 className="mb-2 text-sm font-semibold">{T("ورق‌های دفتر", "Journal pages")}</h2>
-        {ordered.length === 0 && <p className="text-xs text-muted-foreground">{T("هنوز خاطره‌ای ثبت نشده", "No entries yet")}</p>}
-        <div className="space-y-1">{ordered.map((entry) => <button key={entry.id} type="button" onClick={() => setDraft(entry)} className={`w-full rounded-xl px-3 py-2 text-start text-sm hover:bg-muted ${draft?.id === entry.id ? "bg-primary/10 text-primary" : ""}`}>
-          <span className="block text-xs opacity-65">{entry.diary_date || entry.updated_at.slice(0, 10)}</span><span className="line-clamp-2 font-medium">{entry.title || T("بدون عنوان", "Untitled")}</span>
-        </button>)}</div>
-      </aside>
+  const removeEntry = async () => {
+    if (!user?.id || !draft) return;
+    const ok = await deleteNote(user.id, draft.id);
+    setConfirmDelete(false);
+    if (!ok) { toast.error(T("حذف انجام نشد", "Could not delete")); return; }
+    setEntries((previous) => previous.filter((item) => item.id !== draft.id));
+    setDraft(null);
+    setDirty(false);
+    toast.success(T("خاطره حذف شد", "Entry deleted"));
+  };
 
-      {draft ? <section className={`relative min-w-0 overflow-hidden rounded-3xl border shadow-sm ${background.className}`}>
-        {draft.diary_photo_url && <div className="absolute inset-0 pointer-events-none bg-cover bg-center" style={{ backgroundImage: `url(${JSON.stringify(draft.diary_photo_url).slice(1, -1)})`, opacity: (draft.diary_opacity ?? 25) / 100 }} />}
-        <div className="relative space-y-4 bg-background/30 p-4 sm:p-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <Input type="date" aria-label={T("تاریخ خاطره", "Entry date")} value={draft.diary_date || ""} onChange={(event) => setDraft({ ...draft, diary_date: event.target.value })} className="w-40 bg-background/80" />
-            <div className="ms-auto flex gap-1">{BACKGROUNDS.map((item) => <button key={item.id} type="button" onClick={() => setDraft({ ...draft, diary_background: item.id })} aria-label={item.id} title={item.id} className={`h-7 w-7 rounded-full border-2 ${item.className} ${draft.diary_background === item.id ? "border-primary" : "border-border"}`} />)}</div>
+  const applyAiContent = (markdown: string) => {
+    patch({ content: markdown, diary_html: markdownToHtml(markdown) });
+    setEditorVersion((value) => value + 1);
+  };
+
+  return (
+    <main className="mx-auto w-full max-w-7xl space-y-5 px-3 py-5 sm:px-5" dir={isEn ? "ltr" : "rtl"} data-testid="daily-diary-view">
+      <header className="relative overflow-hidden rounded-3xl border shadow-sm">
+        <img src="/diary-bg/paper.jpg" alt="" className="absolute inset-0 h-full w-full object-cover opacity-70 dark:opacity-25" />
+        <div className="relative flex flex-wrap items-center justify-between gap-4 bg-gradient-to-l from-background/70 via-background/40 to-transparent p-5 sm:p-6">
+          <div className="flex items-center gap-4">
+            <span className="rounded-2xl bg-primary/15 p-3 text-primary shadow-inner"><BookHeart className="h-7 w-7" /></span>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{T("دفتر خاطرات روزانه", "Daily Diary")}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">{T("هر روزت را با متن، صدا، تصویر و لحظه‌های Google Photos ثبت کن", "Capture each day with text, voice, images and Google Photos moments")}</p>
+              <p className="mt-2 text-xs text-muted-foreground" data-testid="diary-stats">{T(`${ordered.length} صفحه در دفتر`, `${ordered.length} pages in your journal`)}</p>
+            </div>
           </div>
-          <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder={T("عنوان این روز...", "A title for today...")} className="border-0 bg-transparent px-0 text-xl font-semibold shadow-none" dir="auto" />
-          <details className="rounded-xl border bg-background/70 p-3 text-xs"><summary className="cursor-pointer font-medium"><ImagePlus className="me-1 inline h-4 w-4" />{T("پس‌زمینه و تصویر", "Background and photo")}</summary>
-            <div className="mt-3 space-y-2"><Input type="url" value={draft.diary_photo_url || ""} onChange={(event) => setDraft({ ...draft, diary_photo_url: event.target.value })} placeholder={T("نشانی مستقیم تصویر", "Direct image URL")} />
-              <label className="block">{T("شدت نمایش تصویر", "Image visibility")}: {draft.diary_opacity ?? 25}%<input className="mt-1 w-full" type="range" min="0" max="80" value={draft.diary_opacity ?? 25} onChange={(event) => setDraft({ ...draft, diary_opacity: Number(event.target.value) })} /></label>
-            </div></details>
-          <div className="rounded-2xl border bg-background/80 p-3 sm:p-4"><NoteEditorTabs noteId={draft.id} markdown={draft.content} onChange={(markdown, html) => setDraft((current) => current ? { ...current, content: markdown, diary_html: html } : current)} /></div>
-          <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-muted-foreground">{T("برای عکس، صدا، ویدیو و ویرایش AI از ابزارهای ویرایشگر استفاده کن.", "Use the editor toolbar for images, audio, video and AI edits.")}</p><Button onClick={() => void save()} disabled={busy} className="gap-2"><Save className="h-4 w-4" />{T("ذخیرهٔ خاطره", "Save entry")}</Button></div>
-          <div className="space-y-2 rounded-xl border bg-background/70 p-3 text-xs"><label className="font-medium">Google Photos</label><Input type="url" value={draft.diary_google_photos_url || ""} onChange={(event) => setDraft({ ...draft, diary_google_photos_url: event.target.value })} placeholder="https://photos.app.goo.gl/..." />
-            {/^https:\/\/(photos\.app\.goo\.gl|photos\.google\.com)\//i.test(draft.diary_google_photos_url || "") && <a href={draft.diary_google_photos_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline"><ExternalLink className="h-3 w-3" />{T("نمایش آلبوم در Google Photos", "Open in Google Photos")}</a>}
-            <p className="text-muted-foreground">{T("لینک اشتراک را ذخیره کن؛ نمایش مستقیم رسانه به مجوز و نوع لینک Google Photos بستگی دارد.", "Save a share link. Inline display depends on Google Photos access and link type.")}</p>
-          </div>
+          <Button onClick={createEntry} className="gap-2 shadow-md" data-testid="diary-new-entry-btn"><Plus className="h-4 w-4" />{T("صفحهٔ تازه", "New page")}</Button>
         </div>
-      </section> : <div className="flex min-h-72 items-center justify-center rounded-3xl border border-dashed bg-card/40 p-6 text-center text-sm text-muted-foreground">{T("یک خاطره را باز کن یا صفحهٔ تازه بساز", "Open an entry or start a new page")}</div>}
-    </div>
-  </main>;
+      </header>
+
+      <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="rounded-2xl border bg-card/80 p-3 lg:sticky lg:top-4 lg:max-h-[82vh]">
+          <DiaryEntryList entries={ordered} selectedId={draft?.id} onSelect={openEntry} />
+        </aside>
+
+        {draft && background ? (
+          <section data-testid="diary-page" className={`relative min-w-0 overflow-hidden rounded-3xl border shadow-lg ${background.tint}`}>
+            {background.src && (
+              <div
+                data-testid="diary-page-background"
+                className="pointer-events-none absolute inset-0 bg-cover bg-center transition-opacity duration-500"
+                style={{ backgroundImage: `url("${background.src.replace(/"/g, '%22')}")`, opacity: draft.diary_opacity / 100, filter: draft.diary_blur ? `blur(${draft.diary_blur}px)` : undefined, transform: draft.diary_blur ? "scale(1.05)" : undefined }}
+              />
+            )}
+            <div className="relative space-y-4 p-4 sm:p-6">
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl border bg-background/75 p-2 backdrop-blur-sm">
+                <label className="inline-flex items-center gap-1.5 text-xs">
+                  <CalendarDays className="h-4 w-4 text-primary" aria-hidden="true" />
+                  <Input data-testid="diary-date-input" type="date" aria-label={T("تاریخ خاطره", "Entry date")} value={draft.diary_date} onChange={(event) => patch({ diary_date: event.target.value })} className="h-8 w-36 bg-background/80 text-xs" />
+                </label>
+                <span className="hidden text-xs text-muted-foreground sm:inline" data-testid="diary-date-label">{formatDiaryDate(draft.diary_date, isEn)}</span>
+                <div className="flex items-center gap-0.5 rounded-full border bg-background/80 p-0.5" role="radiogroup" aria-label={T("حال امروز", "Today's mood")}>
+                  {DIARY_MOODS.map((mood) => {
+                    const Icon = MOOD_ICON[mood.id];
+                    const active = draft.diary_mood === mood.id;
+                    return <button key={mood.id} type="button" role="radio" aria-checked={active} title={isEn ? mood.en : mood.fa} data-testid={`diary-mood-${mood.id}`} onClick={() => patch({ diary_mood: active ? null : mood.id })} className={`rounded-full p-1.5 transition-transform hover:scale-110 ${active ? `bg-primary/15 ${mood.color}` : "text-muted-foreground"}`}><Icon className="h-4 w-4" /></button>;
+                  })}
+                </div>
+                <div className="ms-auto flex flex-wrap items-center gap-1.5">
+                  <DiaryAiTools content={draft.content} title={draft.title} onApplyContent={applyAiContent} onApplyTitle={(title) => patch({ title })} />
+                  <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground" data-testid="diary-save-status">
+                    {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : dirty ? <Cloud className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5 text-emerald-500" />}
+                    {saving ? T("در حال ذخیره…", "Saving…") : dirty ? T("تغییرات ذخیره‌نشده", "Unsaved changes") : T("ذخیره شده", "Saved")}
+                  </span>
+                  <Button size="sm" onClick={() => void persist(draft)} disabled={saving} className="gap-1.5" data-testid="diary-save-btn"><Save className="h-4 w-4" />{T("ذخیره", "Save")}</Button>
+                  {entries.some((item) => item.id === draft.id) && (
+                    <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(true)} className="text-muted-foreground hover:text-destructive" aria-label={T("حذف خاطره", "Delete entry")} data-testid="diary-delete-btn"><Trash2 className="h-4 w-4" /></Button>
+                  )}
+                </div>
+              </div>
+
+              <Input data-testid="diary-title-input" value={draft.title} onChange={(event) => patch({ title: event.target.value })} placeholder={T("عنوان این روز…", "A title for today…")} className="h-auto border-0 bg-transparent px-1 text-2xl font-bold shadow-none placeholder:text-foreground/40 focus-visible:ring-0 sm:text-3xl" dir="auto" />
+
+              <div className="rounded-2xl border bg-background/85 p-2 shadow-sm backdrop-blur-sm sm:p-3" data-testid="diary-editor">
+                <Suspense fallback={<div className="flex h-48 items-center justify-center text-sm text-muted-foreground"><Loader2 className="me-2 h-4 w-4 animate-spin" />{T("در حال بارگذاری ویرایشگر…", "Loading editor…")}</div>}>
+                  <RichEditor
+                    key={`${draft.id}-${editorVersion}`}
+                    initialMarkdown={draft.content}
+                    placeholder={T("امروز چه گذشت؟ چه چیزی را نمی‌خواهی فراموش کنی؟", "What happened today? What don't you want to forget?")}
+                    onChange={(html, markdown) => patch({ content: markdown, diary_html: html })}
+                  />
+                </Suspense>
+                <p className="mt-1 px-1 text-[11px] text-muted-foreground" data-testid="diary-word-count">
+                  {T(`${words} کلمه · متن را انتخاب کن تا دکمهٔ AI برای ویرایش همان بخش ظاهر شود`, `${words} words · select text to reveal the AI button for that passage`)}
+                </p>
+              </div>
+
+              <Tabs defaultValue="look" className="rounded-2xl border bg-background/85 p-3 backdrop-blur-sm">
+                <TabsList className="flex w-full flex-wrap justify-start bg-muted/60">
+                  <TabsTrigger value="look" data-testid="diary-tab-look" className="gap-1.5"><Palette className="h-4 w-4" />{T("ظاهر صفحه", "Page look")}</TabsTrigger>
+                  <TabsTrigger value="media" data-testid="diary-tab-media" className="gap-1.5"><Paperclip className="h-4 w-4" />{T("صدا و ویدیو", "Audio & video")} {draft.diary_attachments?.length ? `(${draft.diary_attachments.length})` : ""}</TabsTrigger>
+                  <TabsTrigger value="gphotos" data-testid="diary-tab-gphotos" className="gap-1.5"><Images className="h-4 w-4" />Google Photos {draft.diary_google_photos?.length ? `(${draft.diary_google_photos.length})` : ""}</TabsTrigger>
+                </TabsList>
+                <TabsContent value="look" className="mt-3"><DiaryBackgroundPicker entry={draft} onChange={patch} /></TabsContent>
+                <TabsContent value="media" className="mt-3"><DiaryAttachments attachments={draft.diary_attachments ?? []} onChange={(next) => patch({ diary_attachments: next })} /></TabsContent>
+                <TabsContent value="gphotos" className="mt-3"><DiaryGooglePhotos links={draft.diary_google_photos ?? []} onChange={(next) => patch({ diary_google_photos: next })} /></TabsContent>
+              </Tabs>
+            </div>
+          </section>
+        ) : (
+          <div className="relative flex min-h-[420px] items-center justify-center overflow-hidden rounded-3xl border border-dashed text-center" data-testid="diary-empty-state">
+            <img src="/diary-bg/watercolor.jpg" alt="" className="absolute inset-0 h-full w-full object-cover opacity-50 dark:opacity-20" />
+            <div className="relative max-w-sm space-y-3 p-6">
+              <BookHeart className="mx-auto h-10 w-10 text-primary" />
+              <p className="text-base font-semibold">{T("دفترت منتظر امروز است", "Your journal is waiting for today")}</p>
+              <p className="text-sm text-muted-foreground">{T("یک صفحه را از فهرست باز کن یا صفحهٔ تازه‌ای بساز؛ پس‌زمینه، حال‌وهوا، صدا و عکس‌هایت را به آن اضافه کن.", "Open a page from the list or start a new one; add a background, your mood, voice notes and photos.")}</p>
+              <Button onClick={createEntry} className="gap-2" data-testid="diary-empty-new-btn"><Plus className="h-4 w-4" />{T("نوشتن خاطرهٔ امروز", "Write today's entry")}</Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent dir={isEn ? "ltr" : "rtl"} data-testid="diary-delete-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{T("این صفحه از دفتر حذف شود؟", "Delete this page from the journal?")}</AlertDialogTitle>
+            <AlertDialogDescription>{T("متن، پیوست‌ها و لینک‌های این خاطره حذف می‌شوند و قابل بازگشت نیستند.", "The text, attachments and links of this entry will be removed permanently.")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="diary-delete-cancel">{T("انصراف", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction data-testid="diary-delete-confirm" className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(event) => { event.preventDefault(); void removeEntry(); }}>{T("حذف", "Delete")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </main>
+  );
 }

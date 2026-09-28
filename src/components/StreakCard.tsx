@@ -10,7 +10,7 @@ import { toPersianDigits } from "@/lib/persianDigits";
  * small 7-day activity bar. Reloads when the `tasks-changed` event fires so it
  * stays in sync with completions elsewhere in the app.
  */
-export function StreakCard() {
+export function StreakCard({ compact = false }: { compact?: boolean } = {}) {
   const { user } = useAuth();
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
@@ -45,6 +45,34 @@ export function StreakCard() {
     const dayNum = (todayIdx - (6 - i) + 7) % 7;
     return weekdays[dayNum];
   });
+
+  if (compact) {
+    return (
+      <div className="flex min-w-0 items-center gap-2 rounded-xl border border-border/60 bg-card/60 px-2.5 py-1.5 transition-colors hover:bg-card" data-testid="streak-card-compact">
+        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${stats.streak > 0 ? "bg-orange-500/15 text-orange-500" : "bg-muted text-muted-foreground"}`}>
+          <Flame className="h-4 w-4" />
+        </span>
+        <span className="min-w-0 leading-tight">
+          <span className="block truncate text-xs font-bold">
+            {toPersianDigits(stats.streak)} <span className="font-medium text-muted-foreground">{T("روز پیاپی", "day streak")}</span>
+          </span>
+          <span className="block truncate text-[10px] text-muted-foreground">
+            {T(`${toPersianDigits(stats.weekCompleted)} کار این هفته`, `${stats.weekCompleted} done this week`)}
+          </span>
+        </span>
+        <span className="ms-auto flex h-5 shrink-0 items-end gap-[3px]">
+          {stats.last7.map((c, i) => {
+            const isToday = i === stats.last7.length - 1;
+            return (
+              <span key={i} className="flex h-full w-1.5 items-end overflow-hidden rounded-full bg-muted/60">
+                <span className={`w-full rounded-full ${c > 0 ? (isToday ? "bg-primary" : "bg-primary/50") : "bg-transparent"}`} style={{ height: `${c > 0 ? Math.max(25, Math.round((c / maxDay) * 100)) : 0}%` }} />
+              </span>
+            );
+          })}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="min-w-0 rounded-2xl border border-border bg-card/60 p-4">

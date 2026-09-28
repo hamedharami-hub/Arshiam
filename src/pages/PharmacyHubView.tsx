@@ -76,21 +76,75 @@ export default function PharmacyHubView() {
     return index;
   }, [documents]);
 
-  function renderFolderContents(folderId: string, depth = 0): ReactNode {
+  function countLessons(folderId: string, depth = 0): number {
+    if (depth > 12) return 0;
+    const own = folderDocuments.get(folderId)?.length ?? 0;
+    return own + (childFolders.get(folderId) ?? []).reduce((sum, child) => sum + countLessons(child.id, depth + 1), 0);
+  }
+
+  function renderLessons(lessons: KnowledgeDocument[]) {
+    if (!lessons.length) return null;
+    return <ul className="space-y-0.5">
+      {lessons.map((lesson) => <li key={lesson.id}>
+        <Link to={`/app/knowledge?docId=${encodeURIComponent(lesson.id)}`} data-testid={`pharmacy-lesson-${lesson.id}`} className="flex items-start gap-2 rounded-lg px-2 py-1.5 text-sm leading-relaxed text-foreground/90 transition-colors hover:bg-primary/5 hover:text-primary">
+          <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-primary/70" aria-hidden="true" /><span>{lesson.title}</span>
+        </Link>
+      </li>)}
+    </ul>;
+  }
+
+  function renderNestedFolders(folderId: string, depth: number): ReactNode {
     if (depth > 12) return null;
     const children = childFolders.get(folderId) ?? [];
-    const lessons = folderDocuments.get(folderId) ?? [];
-    if (!children.length && !lessons.length) return null;
-    return <div className="mt-2 space-y-2 border-s border-border/70 ps-3">
-      {children.map((child) => <details key={child.id} className="rounded-lg bg-muted/30 px-3 py-2">
-        <summary className="cursor-pointer text-sm font-medium leading-relaxed">{child.name}</summary>
-        <div className="mt-2"><Link to={knowledgeFolderUrl(child.id)} className="text-xs text-primary hover:underline">{T("باز کردن دسته", "Open category")}</Link></div>
-        {renderFolderContents(child.id, depth + 1)}
+    if (!children.length) return null;
+    return <div className="mt-2 space-y-2 border-s-2 border-primary/15 ps-3">
+      {children.map((child) => <details key={child.id} open className="rounded-lg bg-muted/30 px-3 py-2">
+        <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium leading-relaxed">
+          <FolderOpen className="h-4 w-4 shrink-0 text-primary/70" aria-hidden="true" />
+          <Link to={knowledgeFolderUrl(child.id)} onClick={(event) => event.stopPropagation()} className="hover:text-primary hover:underline">{child.name}</Link>
+          <span className="ms-auto text-[11px] text-muted-foreground">{countLessons(child.id)}</span>
+        </summary>
+        <div className="mt-1.5">{renderLessons(folderDocuments.get(child.id) ?? [])}</div>
+        {renderNestedFolders(child.id, depth + 1)}
       </details>)}
-      {lessons.map((lesson) => <Link key={lesson.id} to={`/app/knowledge?docId=${encodeURIComponent(lesson.id)}`} className="flex items-start gap-2 rounded-lg px-2 py-1.5 text-sm leading-relaxed hover:bg-primary/5 hover:text-primary">
-        <BookOpen className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><span>{lesson.title}</span>
-      </Link>)}
     </div>;
+  }
+
+  function renderCategory(category: KnowledgeFolder & { subfolders: KnowledgeFolder[] }) {
+    const directLessons = folderDocuments.get(category.id) ?? [];
+    const total = countLessons(category.id);
+    return <Card key={category.id} data-testid={`pharmacy-category-${category.id}`} className="overflow-hidden">
+      <div className="flex flex-wrap items-center gap-3 border-b bg-primary/5 px-4 py-3">
+        <Link to={knowledgeFolderUrl(category.id)} className="flex items-center gap-2 text-base font-bold leading-relaxed hover:text-primary hover:underline sm:text-lg">
+          <FolderOpen className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+          <span>{category.name}</span>
+        </Link>
+        <span className="rounded-full bg-background/80 px-2.5 py-0.5 text-xs text-muted-foreground">
+          {T(`${category.subfolders.length} زیرشاخه · ${total} درس`, `${category.subfolders.length} subcategories · ${total} lessons`)}
+        </span>
+      </div>
+      <div className="grid gap-3 p-3 sm:p-4 md:grid-cols-2 xl:grid-cols-3">
+        {category.subfolders.map((child) => <section key={child.id} data-testid={`pharmacy-subcategory-${child.id}`} className="rounded-xl border border-border/70 bg-card p-3">
+          <div className="flex items-start gap-2">
+            <FolderOpen className="mt-0.5 h-4 w-4 shrink-0 text-primary/80" aria-hidden="true" />
+            <Link to={knowledgeFolderUrl(child.id)} className="text-sm font-semibold leading-relaxed hover:text-primary hover:underline">{child.name}</Link>
+            <span className="ms-auto text-[11px] text-muted-foreground">{countLessons(child.id)}</span>
+          </div>
+          <div className="mt-2">{renderLessons(folderDocuments.get(child.id) ?? [])}</div>
+          {renderNestedFolders(child.id, 1)}
+          {!folderDocuments.get(child.id)?.length && !childFolders.get(child.id)?.length && (
+            <p className="mt-2 text-xs text-muted-foreground">{T("هنوز درسی ثبت نشده", "No lessons yet")}</p>
+          )}
+        </section>)}
+        {directLessons.length > 0 && <section className="rounded-xl border border-dashed border-border/70 bg-muted/20 p-3">
+          <p className="text-sm font-semibold">{T("درس‌های این شاخه", "Lessons in this category")}</p>
+          <div className="mt-2">{renderLessons(directLessons)}</div>
+        </section>}
+        {category.subfolders.length === 0 && directLessons.length === 0 && (
+          <p className="text-sm text-muted-foreground">{T("این شاخه هنوز خالی است", "This category is still empty")}</p>
+        )}
+      </div>
+    </Card>;
   }
 
   return (
@@ -128,32 +182,8 @@ export default function PharmacyHubView() {
           </Card>
         ) : (
           <div className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-2">
-              {categories.map((category) => (
-                <Card key={category.id} className="space-y-3 p-4">
-                <Link to={knowledgeFolderUrl(category.id)} className="flex items-start gap-2 font-semibold leading-relaxed hover:text-primary hover:underline">
-                  <FolderOpen className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-                  <span>{category.name}</span>
-                </Link>
-                {category.subfolders.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {category.subfolders.map((child) => (
-                      <Link
-                        key={child.id}
-                        to={knowledgeFolderUrl(child.id)}
-                        className="rounded-lg border bg-muted/30 px-2.5 py-1.5 text-xs leading-relaxed hover:border-primary/40 hover:bg-primary/5"
-                      >
-                        {child.name}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-                <details className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
-                  <summary className="cursor-pointer text-sm font-medium">{T("زیرمجموعه‌ها و درس‌ها", "Subcategories and lessons")}</summary>
-                  {renderFolderContents(category.id)}
-                </details>
-                </Card>
-              ))}
+            <div className="space-y-4">
+              {categories.map(renderCategory)}
             </div>
             {additional.length > 0 && (
               <details className="rounded-xl border bg-muted/20 p-4">

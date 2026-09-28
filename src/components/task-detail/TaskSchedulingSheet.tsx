@@ -1,7 +1,5 @@
 import React from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
-import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -10,6 +8,7 @@ import { DueDatePicker } from "@/components/DueDatePicker";
 import { RecurrenceEditor } from "@/components/RecurrenceEditor";
 import { BucketPickerBody } from "@/components/BucketPickerInline";
 import type { Task } from "@/lib/taskTypes";
+import { MetaTile } from "./MetaTile";
 
 export interface TaskSchedulingSheetProps {
   t: Task;
@@ -36,31 +35,23 @@ export function TaskSchedulingSheet({
   postpone,
   T,
 }: TaskSchedulingSheetProps) {
-  const { prefersDialog } = useDeviceFormFactor();
-
   const triggerButton = (
-    <Button
-      type="button"
-      variant="outline"
+    <MetaTile
+      icon={Clock}
+      label={T("زمان", "Schedule")}
+      value={scheduleLabel}
+      active={isScheduled}
+      activeClassName="bg-primary/12 text-primary"
       disabled={!canEdit}
       title={scheduleLabel ?? T("زمان‌بندی", "Schedule")}
       aria-label={scheduleLabel ?? T("زمان‌بندی", "Schedule")}
-      className={`w-full min-w-0 h-9 rounded-xl relative flex items-center justify-center px-1 transition-all duration-150 ${
-        isScheduled
-          ? "bg-primary/15 text-primary border-primary/35 shadow-2xs font-semibold"
-          : "bg-muted/30 text-foreground/80 hover:bg-muted/60 border-border/60"
-      }`}
-    >
-      <Clock className={`w-4 h-4 shrink-0 ${isScheduled ? "text-primary" : "text-muted-foreground"}`} />
-      {isScheduled && (
-        <span className="absolute top-1.5 end-1.5 w-1.5 h-1.5 rounded-full bg-primary" />
-      )}
-    </Button>
+      data-testid="task-meta-schedule"
+    />
   );
 
   const tabsContent = (
     <Tabs defaultValue="date">
-          <TabsList className="grid grid-cols-4 w-full mb-2">
+          <TabsList className="grid grid-cols-4 w-full mb-2 h-9 rounded-xl bg-muted/60 p-1">
             <TabsTrigger value="date" className="text-[11px] px-1 relative">
               {T("تاریخ", "Date")}
               {(t.due_date || t.reminder_at) && (
@@ -218,48 +209,20 @@ export function TaskSchedulingSheet({
         </Tabs>
   );
 
-  if (prefersDialog) {
-    return (
-      <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
-        <DialogTrigger asChild>
-          {triggerButton}
-        </DialogTrigger>
-        <DialogContent
-          className="w-full max-w-lg max-h-[75vh] flex flex-col p-5 overflow-hidden rounded-2xl"
-          aria-describedby="schedule-dialog-desc"
-        >
-          <DialogHeader className="mb-3 px-0">
-            <DialogTitle className="text-base">{T("زمان‌بندی تسک", "Task schedule")}</DialogTitle>
-            <DialogDescription id="schedule-dialog-desc" className="sr-only">
-              {T("زمان‌بندی تسک", "Task scheduling")}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="overflow-y-auto min-h-0 flex-1 pe-1">
-            {tabsContent}
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
   return (
-    <Sheet open={scheduleOpen} onOpenChange={setScheduleOpen}>
-      <SheetTrigger asChild>
+    <Popover open={scheduleOpen} onOpenChange={setScheduleOpen}>
+      <PopoverTrigger asChild>
         {triggerButton}
-      </SheetTrigger>
-      <SheetContent
-        side="bottom"
-        className="w-full max-w-2xl mx-auto rounded-t-2xl p-4 max-h-[85vh] overflow-y-auto"
-        aria-describedby="schedule-sheet-desc"
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-[min(92vw,22rem)] max-h-[65vh] overflow-y-auto rounded-2xl p-3"
+        align="center"
+        side="top"
+        collisionPadding={12}
+        data-testid="task-schedule-popover"
       >
-        <SheetHeader className="mb-3">
-          <SheetTitle className="text-base">{T("زمان‌بندی تسک", "Task schedule")}</SheetTitle>
-        </SheetHeader>
         {tabsContent}
-        <p id="schedule-sheet-desc" className="sr-only">
-          {T("زمان‌بندی تسک", "Task scheduling")}
-        </p>
-      </SheetContent>
-    </Sheet>
+      </PopoverContent>
+    </Popover>
   );
 }

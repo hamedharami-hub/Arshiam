@@ -353,9 +353,17 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
     setExpandedFolders((prev) => ({ ...prev, ...toExpand }));
   }, [selectedFolderId, allFolders]);
 
+  const allFoldersRef = React.useRef(allFolders);
+  allFoldersRef.current = allFolders;
   React.useEffect(() => {
     if (selectedFolderId === PHARMACY_ROOT_FOLDER_ID && !selectedDocId) {
-      setExpandedFolders({ [PHARMACY_ROOT_FOLDER_ID]: true });
+      const { main } = splitPharmacyRootFolders(
+        allFoldersRef.current.filter((folder) => folder.parent_id === PHARMACY_ROOT_FOLDER_ID),
+      );
+      setExpandedFolders({
+        [PHARMACY_ROOT_FOLDER_ID]: true,
+        ...Object.fromEntries(main.map((folder) => [folder.id, true])),
+      });
     }
   }, [selectedFolderId, selectedDocId]);
 

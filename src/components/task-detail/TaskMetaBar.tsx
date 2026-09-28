@@ -14,6 +14,7 @@ import {
 import { PRIORITY_META, PRIORITY_ORDER, type Priority } from "@/lib/priority";
 import type { Task } from "@/lib/taskTypes";
 import { TaskSchedulingSheet } from "./TaskSchedulingSheet";
+import { MetaTile } from "./MetaTile";
 
 export interface TaskMetaBarProps {
   t: Task;
@@ -92,49 +93,40 @@ export function TaskMetaBar({
   setNewTagColor,
   TAG_COLORS,
 }: TaskMetaBarProps) {
+  const currentFolder = t.folder_id ? folders.find((f) => f.id === t.folder_id) : undefined;
+  const folderColor = currentFolder?.color || "rgb(59 130 246)";
+  const selectedTags = tags.filter((tg) => taskTagIds.includes(tg.id));
+  const popoverClass = "w-[min(92vw,20rem)] rounded-2xl p-2";
+  const optionClass = (active: boolean) =>
+    `w-full text-start px-2.5 py-2 rounded-xl text-sm flex items-center gap-2 transition-colors ${active ? "bg-primary/10 text-primary font-semibold" : "hover:bg-accent"} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent`;
+
   return (
-    <div className="mx-auto max-w-3xl w-full px-1 pt-0.5 pb-1.5">
-      <div className="grid grid-cols-4 gap-1.5">
+    <div className="mx-auto max-w-3xl w-full px-1 pt-0.5 pb-1.5" data-testid="task-meta-bar">
+      <div className="grid grid-cols-4 gap-2 rounded-[22px] border border-border/50 bg-card/60 p-1.5 shadow-2xs backdrop-blur-sm dark:bg-card/30">
         {/* 1. Folder / Inbox */}
-        <div>
-          <Popover open={folderOpen} onOpenChange={setFolderOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!canEdit}
-                title={t.folder_id ? folderName(t.folder_id) : T("صندوق ورودی", "Inbox")}
-                aria-label={t.folder_id ? folderName(t.folder_id) : T("صندوق ورودی", "Inbox")}
-                className={`w-full min-w-0 h-9 rounded-xl relative flex items-center justify-center px-1 transition-all duration-150 ${
-                  t.folder_id
-                    ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30 shadow-2xs font-semibold"
-                    : "bg-muted/30 text-foreground/80 hover:bg-muted/60 border-border/60"
-                }`}
-              >
-                <FolderIcon
-                  className="w-4 h-4 shrink-0"
-                  style={{
-                    color: t.folder_id
-                      ? folders.find((f) => f.id === t.folder_id)?.color || undefined
-                      : undefined,
-                  }}
-                />
-                {t.folder_id && (
-                  <span
-                    className="absolute top-1.5 end-1.5 w-1.5 h-1.5 rounded-full"
-                    style={{
-                      background:
-                        folders.find((f) => f.id === t.folder_id)?.color || "rgb(59 130 246)",
-                    }}
-                  />
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              className="w-72 p-2 max-h-[55vh] overflow-y-auto"
-              align="start"
-              side="top"
-            >
+        <Popover open={folderOpen} onOpenChange={setFolderOpen}>
+          <PopoverTrigger asChild>
+            <MetaTile
+              icon={FolderIcon}
+              label={T("پوشه", "Folder")}
+              value={t.folder_id ? folderName(t.folder_id) : null}
+              active={Boolean(t.folder_id)}
+              activeClassName="bg-blue-500/10 text-blue-600 dark:text-blue-400"
+              iconStyle={t.folder_id ? { color: folderColor } : undefined}
+              dotStyle={{ background: folderColor }}
+              disabled={!canEdit}
+              title={t.folder_id ? folderName(t.folder_id) : T("صندوق ورودی", "Inbox")}
+              aria-label={t.folder_id ? folderName(t.folder_id) : T("صندوق ورودی", "Inbox")}
+              data-testid="task-meta-folder"
+            />
+          </PopoverTrigger>
+          <PopoverContent
+            className={`${popoverClass} max-h-[55vh] overflow-y-auto`}
+            align="start"
+            side="top"
+            collisionPadding={12}
+          >
+            <p className="px-2 pb-1.5 text-[11px] font-semibold text-muted-foreground">{T("پوشهٔ تسک", "Task folder")}</p>
               {isOwner && !showFolderCreate && (
                 <button
                   onClick={() => setShowFolderCreate(true)}
@@ -194,9 +186,7 @@ export function TaskMetaBar({
               <button
                 disabled={!isOwner}
                 onClick={() => save({ folder_id: null })}
-                className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${
-                  t.folder_id === null ? "bg-accent" : ""
-                }`}
+                className={optionClass(t.folder_id === null)}
               >
                 {T("بدون فولدر (Inbox)", "No folder (Inbox)")}
               </button>
@@ -208,9 +198,7 @@ export function TaskMetaBar({
                     <div key={f.id}>
                       <button
                         onClick={() => save({ folder_id: f.id })}
-                        className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent flex items-center gap-2 ${
-                          t.folder_id === f.id ? "bg-accent" : ""
-                        }`}
+                        className={optionClass(t.folder_id === f.id)}
                       >
                         <FolderIcon className="w-3.5 h-3.5" style={{ color: f.color || undefined }} />
                         {f.name}
@@ -219,9 +207,7 @@ export function TaskMetaBar({
                         <button
                           key={c.id}
                           onClick={() => save({ folder_id: c.id })}
-                          className={`w-full text-start p-2 ps-6 rounded-lg text-xs hover:bg-accent flex items-center gap-2 ${
-                            t.folder_id === c.id ? "bg-accent" : ""
-                          }`}
+                          className={`${optionClass(t.folder_id === c.id)} ps-7 text-xs`}
                         >
                           <FolderIcon className="w-3 h-3" style={{ color: c.color || undefined }} />
                           {c.name}
@@ -232,132 +218,101 @@ export function TaskMetaBar({
                 })}
             </PopoverContent>
           </Popover>
-        </div>
 
         {/* 2. Schedule */}
-        <div>
-          <TaskSchedulingSheet
-            t={t}
-            scheduleOpen={scheduleOpen}
-            setScheduleOpen={setScheduleOpen}
-            canEdit={canEdit}
-            isScheduled={isScheduled}
-            scheduleLabel={scheduleLabel}
-            hasTimeBlock={hasTimeBlock}
-            save={save}
-            postpone={postpone}
-            T={T}
-          />
-        </div>
+        <TaskSchedulingSheet
+          t={t}
+          scheduleOpen={scheduleOpen}
+          setScheduleOpen={setScheduleOpen}
+          canEdit={canEdit}
+          isScheduled={isScheduled}
+          scheduleLabel={scheduleLabel}
+          hasTimeBlock={hasTimeBlock}
+          save={save}
+          postpone={postpone}
+          T={T}
+        />
 
         {/* 3. Priority */}
-        <div>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
+        <Popover>
+          <PopoverTrigger asChild>
+            <MetaTile
+              icon={Flag}
+              label={T("اولویت", "Priority")}
+              value={t.priority !== "none" ? T(priorityMeta.label, priorityMeta.labelEn) : null}
+              active={t.priority !== "none"}
+              activeClassName={`${priorityMeta.bgClass} ${priorityMeta.textClass}`}
+              disabled={!canEdit}
+              title={t.priority !== "none" ? T(priorityMeta.label, priorityMeta.labelEn) : T("اولویت", "Priority")}
+              aria-label={t.priority !== "none" ? T(priorityMeta.label, priorityMeta.labelEn) : T("اولویت", "Priority")}
+              data-testid="task-meta-priority"
+            />
+          </PopoverTrigger>
+          <PopoverContent className={popoverClass} align="center" side="top" collisionPadding={12}>
+            <p className="px-2 pb-1.5 text-[11px] font-semibold text-muted-foreground">{T("اولویت تسک", "Task priority")}</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {PRIORITY_ORDER.map((p) => {
+                const m = PRIORITY_META[p];
+                const active = t.priority === p;
+                return (
+                  <button
+                    key={p}
+                    disabled={!canEdit}
+                    onClick={() => save({ priority: p })}
+                    className={`flex h-10 items-center justify-center gap-1.5 rounded-xl px-2 text-[12px] font-medium transition disabled:opacity-50 disabled:cursor-default ${
+                      active ? `${m.bgClass} ${m.textClass} ring-1 ring-current/30` : "bg-muted/40 text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <Flag className={`h-3.5 w-3.5 ${m.textClass}`} /> {T(m.label, m.labelEn)}
+                  </button>
+                );
+              })}
+            </div>
+            {t.priority !== "none" && (
+              <button
                 disabled={!canEdit}
-                title={
-                  t.priority !== "none"
-                    ? T(priorityMeta.label, priorityMeta.labelEn)
-                    : T("اولویت", "Priority")
-                }
-                aria-label={
-                  t.priority !== "none"
-                    ? T(priorityMeta.label, priorityMeta.labelEn)
-                    : T("اولویت", "Priority")
-                }
-                className={`w-full min-w-0 h-9 rounded-xl relative flex items-center justify-center px-1 transition-all duration-150 ${
-                  t.priority !== "none"
-                    ? `${priorityMeta.bgClass} ${priorityMeta.textClass} border-border/80 shadow-2xs font-semibold`
-                    : "bg-muted/30 text-foreground/80 hover:bg-muted/60 border-border/60"
-                }`}
+                onClick={() => save({ priority: "none" as Priority })}
+                className="w-full mt-2 h-8 rounded-xl text-xs text-muted-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-default"
               >
-                <Flag
-                  className={`w-4 h-4 shrink-0 ${
-                    t.priority !== "none" ? priorityMeta.textClass : "text-muted-foreground"
-                  }`}
-                />
-                {t.priority !== "none" && (
-                  <span className="absolute top-1.5 end-1.5 w-1.5 h-1.5 rounded-full bg-current opacity-80" />
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-60 p-2" align="center" side="top">
-              <div className="grid grid-cols-2 gap-1.5">
-                {PRIORITY_ORDER.map((p) => {
-                  const m = PRIORITY_META[p];
-                  const active = t.priority === p;
-                  return (
-                    <button
-                      key={p}
-                      disabled={!canEdit}
-                      onClick={() => save({ priority: p })}
-                      className={`px-2 h-9 rounded-xl text-[12px] font-medium transition disabled:opacity-50 disabled:cursor-default ${
-                        active ? `${m.bgClass} ${m.textClass}` : "bg-muted/40 text-muted-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {m.emoji} {T(m.label, m.labelEn)}
-                    </button>
-                  );
-                })}
-              </div>
-              {t.priority !== "none" && (
-                <button
-                  disabled={!canEdit}
-                  onClick={() => save({ priority: "none" as Priority })}
-                  className="w-full mt-2 h-8 rounded-lg text-xs text-muted-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-default"
-                >
-                  {T("حذف اولویت", "Clear priority")}
-                </button>
-              )}
-              <div className="mt-2 pt-2 border-t border-border/40 flex items-center justify-between">
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Ban className="w-3.5 h-3.5 text-amber-600" /> {T("اجتنابی", "Avoidance")}
-                </span>
-                <Switch
-                  checked={!!t.is_avoidance}
-                  onCheckedChange={(v) => save({ is_avoidance: !!v } as any)}
-                />
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
+                {T("حذف اولویت", "Clear priority")}
+              </button>
+            )}
+            <div className="mt-2 pt-2 border-t border-border/40 flex items-center justify-between px-1">
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Ban className="w-3.5 h-3.5 text-amber-600" /> {T("اجتنابی", "Avoidance")}
+              </span>
+              <Switch
+                checked={!!t.is_avoidance}
+                onCheckedChange={(v) => save({ is_avoidance: !!v } as any)}
+              />
+            </div>
+          </PopoverContent>
+        </Popover>
 
         {/* 4. Tags */}
-        <div>
-          <Popover open={topTagOpen} onOpenChange={setTopTagOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!canEdit}
-                title={taskTagIds.length ? `${taskTagIds.length} ${T("تگ", "tags")}` : T("تگ", "Tags")}
-                aria-label={taskTagIds.length ? `${taskTagIds.length} ${T("تگ", "tags")}` : T("تگ", "Tags")}
-                className={`w-full min-w-0 h-9 rounded-xl relative flex items-center justify-center px-1 transition-all duration-150 ${
-                  taskTagIds.length
-                    ? "bg-primary/10 text-primary border-primary/30 font-semibold shadow-2xs"
-                    : "bg-muted/30 text-foreground/80 hover:bg-muted/60 border-border/60"
-                }`}
-              >
-                <TagIcon
-                  className={`w-4 h-4 shrink-0 ${
-                    taskTagIds.length ? "text-primary" : "text-muted-foreground"
-                  }`}
-                />
-                {taskTagIds.length > 0 && (
-                  <span className="text-[10px] font-bold tabular-nums ms-1">
-                    {taskTagIds.length}
-                  </span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              className="w-72 p-2 max-h-[55vh] overflow-y-auto"
-              align="end"
-              side="top"
-            >
+        <Popover open={topTagOpen} onOpenChange={setTopTagOpen}>
+          <PopoverTrigger asChild>
+            <MetaTile
+              icon={TagIcon}
+              label={T("تگ", "Tags")}
+              value={selectedTags.length === 1 ? selectedTags[0].name : selectedTags.length > 1 ? T(`${selectedTags.length} تگ`, `${selectedTags.length} tags`) : null}
+              active={taskTagIds.length > 0}
+              activeClassName="bg-primary/12 text-primary"
+              iconStyle={selectedTags.length === 1 && selectedTags[0].color ? { color: selectedTags[0].color } : undefined}
+              dotStyle={selectedTags.length === 1 && selectedTags[0].color ? { background: selectedTags[0].color } : undefined}
+              disabled={!canEdit}
+              title={taskTagIds.length ? `${taskTagIds.length} ${T("تگ", "tags")}` : T("تگ", "Tags")}
+              aria-label={taskTagIds.length ? `${taskTagIds.length} ${T("تگ", "tags")}` : T("تگ", "Tags")}
+              data-testid="task-meta-tags"
+            />
+          </PopoverTrigger>
+          <PopoverContent
+            className={`${popoverClass} max-h-[55vh] overflow-y-auto`}
+            align="end"
+            side="top"
+            collisionPadding={12}
+          >
+            <p className="px-2 pb-1.5 text-[11px] font-semibold text-muted-foreground">{T("تگ‌های تسک", "Task tags")}</p>
               {!showTagCreate ? (
                 <button
                   onClick={() => setShowTagCreate(true)}
@@ -419,9 +374,7 @@ export function TaskMetaBar({
                   <button
                     key={tg.id}
                     onClick={() => toggleTag(tg.id)}
-                    className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent flex items-center justify-between gap-2 ${
-                      active ? "bg-accent" : ""
-                    }`}
+                    className={`${optionClass(active)} justify-between`}
                   >
                     <span className="flex items-center gap-2">
                       <span
@@ -436,7 +389,6 @@ export function TaskMetaBar({
               })}
             </PopoverContent>
           </Popover>
-        </div>
       </div>
     </div>
   );

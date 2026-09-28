@@ -304,17 +304,17 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
     <Sidebar side={sidebarPosition} collapsible="icon" className={className} style={style} dir={isEn ? "ltr" : "rtl"}>
       <SidebarRail />
       {!collapsed && (
-        <SidebarHeader className="border-b p-2">
-          <div className="flex items-center gap-2 px-1 py-1">
-            <img src="/favicon.png" alt="ARSHNAZ" className="w-8 h-8 rounded-lg shrink-0" loading="lazy" width={32} height={32} />
-            <div className="flex flex-col leading-tight min-w-0 flex-1">
-              <span className="font-bold text-base bg-gradient-to-l from-pink-500 via-purple-500 to-blue-500 bg-clip-text text-transparent truncate">ARSHNAZ</span>
-              <span className="text-[9px] text-muted-foreground truncate">{t("app.tagline")}</span>
+        <SidebarHeader className="border-b border-sidebar-border/60 px-2 py-1.5">
+          <div className="flex items-center gap-2 px-1">
+            <img src="/favicon.png" alt="ARSHNAZ" className="h-6 w-6 shrink-0 rounded-md" loading="lazy" width={24} height={24} />
+            <div className="flex min-w-0 flex-1 items-baseline gap-1.5 leading-none">
+              <span className="shrink-0 bg-gradient-to-l from-pink-500 via-purple-500 to-blue-500 bg-clip-text text-xs font-extrabold tracking-wide text-transparent">ARSHNAZ</span>
+              <span className="min-w-0 flex-1 truncate text-[9px] text-muted-foreground/80">{t("app.tagline")}</span>
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 rounded-lg hover:bg-sidebar-accent cursor-pointer shrink-0"
+              className="h-7 w-7 shrink-0 cursor-pointer rounded-lg hover:bg-sidebar-accent"
               onClick={() => toggleSidebar()}
               title={isEn ? "Collapse sidebar" : "بستن نوار کناری"}
             >
@@ -517,14 +517,14 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
             </SidebarGroupContent>
           </SidebarGroup>
         ) : (
-          <div className="px-3 py-2">
+          <div className="px-2.5 pt-2 pb-0.5">
             <NavLink
               to="/app/stats"
               onClick={closeOnMobile}
               className="block"
               activeClassName=""
             >
-              <StreakCard />
+              <StreakCard compact />
             </NavLink>
           </div>
         )}

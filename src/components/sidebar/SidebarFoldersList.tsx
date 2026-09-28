@@ -2,6 +2,7 @@ import React from "react";
 import {
   FolderTree, Plus, ChevronRight, ChevronDown, Folder as FolderIcon, GripVertical,
 } from "lucide-react";
+import { SECTION_CHEVRON_CLASS, SECTION_HEADER_CLASS, SECTION_ICON_WRAP_CLASS, SECTION_TRIGGER_CLASS } from "./SidebarNavSections";
 import {
   SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem,
@@ -269,34 +270,30 @@ export function SidebarFoldersList({
   }
 
   return (
-    <SidebarGroup>
+    <SidebarGroup className="py-1">
       <Collapsible open={isOpen || collapsed} onOpenChange={onToggleOpen}>
         {!collapsed && (
-          <SidebarGroupLabel className="flex justify-between items-center pe-1">
+          <SidebarGroupLabel className={SECTION_HEADER_CLASS} data-testid="sidebar-section-folders">
             {dragHandle && (
               <button
                 {...dragHandle}
-                className="cursor-grab active:cursor-grabbing p-0.5 opacity-30 hover:opacity-80 transition"
+                className="cursor-grab active:cursor-grabbing p-0.5 opacity-0 group-hover/section:opacity-60 hover:!opacity-100 transition"
               >
-                <GripVertical className="w-3 h-3" />
+                <GripVertical className="w-3.5 h-3.5" />
               </button>
             )}
-            <CollapsibleTrigger className="flex items-center gap-2 flex-1 hover:bg-sidebar-accent/50 rounded transition">
-              <FolderTree className="w-3.5 h-3.5 text-muted-foreground" />
-              <span>{tr("فولدرها")}</span>
-              <ChevronDown
-                className={`w-3.5 h-3.5 me-auto text-muted-foreground transition-transform ${
-                  isOpen ? "" : "-rotate-90"
-                }`}
-              />
+            <CollapsibleTrigger className={SECTION_TRIGGER_CLASS}>
+              <span className={SECTION_ICON_WRAP_CLASS}><FolderTree className="h-4 w-4" /></span>
+              <span className="min-w-0 flex-1 truncate text-start">{tr("فولدرها")}</span>
+              <ChevronDown className={`${SECTION_CHEVRON_CLASS} ${isOpen ? "" : "-rotate-90"}`} />
             </CollapsibleTrigger>
             <Dialog open={openFolderDlg} onOpenChange={setOpenFolderDlg}>
               <DialogTrigger asChild>
                 <button
-                  className="hover:bg-muted rounded p-0.5"
+                  className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-primary"
                   title={isEn ? "New Folder" : "فولدر جدید"}
                 >
-                  <Plus className="w-3 h-3" />
+                  <Plus className="w-3.5 h-3.5" />
                 </button>
               </DialogTrigger>
               <DialogContent>
