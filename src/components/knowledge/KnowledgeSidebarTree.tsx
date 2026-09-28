@@ -21,6 +21,8 @@ import { useBilingual } from "@/hooks/useBilingual";
 import { useLongPress } from "@/lib/useLongPress";
 import type { KnowledgeFolder, KnowledgeDocument, KnowledgeFolderNode } from "@/lib/knowledgeTypes";
 import { getFolderAncestorIds } from "@/lib/knowledgeService";
+import { PHARMACY_ROOT_FOLDER_ID } from "@/lib/pharmacyConstants";
+import { splitPharmacyRootFolders } from "@/lib/pharmacyCategorySections";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -320,6 +322,7 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
   const { isEn } = useBilingual();
   const navigate = useNavigate();
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+  const [showOtherPharmacyFolders, setShowOtherPharmacyFolders] = useState(false);
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [targetParentId, setTargetParentId] = useState<string | null>(null);
@@ -349,6 +352,19 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
     );
     setExpandedFolders((prev) => ({ ...prev, ...toExpand }));
   }, [selectedFolderId, allFolders]);
+
+  React.useEffect(() => {
+    const selectedDocumentFolder = documents.find((doc) => doc.id === selectedDocId)?.folder_id;
+    const folderId = selectedFolderId || selectedDocumentFolder;
+    if (!folderId) return;
+    const { additional } = splitPharmacyRootFolders(
+      allFolders.filter((folder) => folder.parent_id === PHARMACY_ROOT_FOLDER_ID),
+    );
+    const additionalIds = new Set(additional.map((folder) => folder.id));
+    if (getFolderAncestorIds(folderId, allFolders).some((id) => additionalIds.has(id))) {
+      setShowOtherPharmacyFolders(true);
+    }
+  }, [selectedDocId, selectedFolderId, documents, allFolders]);
 
   const handleOpenCreateFolder = (parentId: string | null = null, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -394,6 +410,9 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
     const isExpanded = !!expandedFolders[node.id];
     const isSelected = selectedFolderId === node.id;
     const folderDocs = docsByFolder.get(node.id) || [];
+    const { main: visibleChildren, additional: otherChildren } = node.id === PHARMACY_ROOT_FOLDER_ID
+      ? splitPharmacyRootFolders(node.children)
+      : { main: node.children, additional: [] as KnowledgeFolderNode[] };
 
     return (
       <div key={node.id} className="space-y-0.5 select-none">
@@ -419,7 +438,21 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
         {isExpanded && (
           <div className="space-y-0.5 animate-in fade-in-50 duration-150">
             {/* Subfolders */}
-            {node.children.map((subNode) => renderFolderNode(subNode, depth + 1))}
+            {visibleChildren.map((subNode) => renderFolderNode(subNode, depth + 1))}
+            {otherChildren.length > 0 && (
+              <div className="space-y-0.5">
+                <button
+                  type="button"
+                  aria-expanded={showOtherPharmacyFolders}
+                  onClick={() => setShowOtherPharmacyFolders((open) => !open)}
+                  className="flex w-full items-center gap-1.5 rounded-lg px-3 py-2 text-start text-[11px] font-medium text-muted-foreground hover:bg-muted/70"
+                >
+                  {showOtherPharmacyFolders ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                  {isEn ? "Earlier and other collections" : "مجموعه‌های قدیمی و پوشه‌های دیگر"} ({otherChildren.length})
+                </button>
+                {showOtherPharmacyFolders && otherChildren.map((subNode) => renderFolderNode(subNode, depth + 1))}
+              </div>
+            )}
 
             {/* Documents inside this folder */}
             {folderDocs.map((doc) => (

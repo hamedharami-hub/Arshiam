@@ -195,7 +195,7 @@ export const KnowledgeBaseView: React.FC = () => {
       const folderDocument = urlFolderId
         ? documents.find((d) => d.folder_id === urlFolderId)
         : undefined;
-      setSelectedDocId(folderDocument?.id ?? documents[0]?.id ?? null);
+      setSelectedDocId(folderDocument?.id ?? (urlFolderId ? null : documents[0]?.id ?? null));
     }
   }, [urlDocId, urlFolderId, documents]);
 

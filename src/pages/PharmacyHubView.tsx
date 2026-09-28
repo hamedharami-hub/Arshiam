@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
 import { PHARMACY_ROOT_FOLDER_ID } from "@/lib/pharmacyConstants";
+import { splitPharmacyRootFolders } from "@/lib/pharmacyCategorySections";
 import { getKnowledgeFolders } from "@/lib/knowledgeService";
 import type { KnowledgeFolder } from "@/lib/knowledgeTypes";
 
@@ -39,13 +40,18 @@ export default function PharmacyHubView() {
     return () => { active = false; };
   }, [userId]);
 
-  const categories = useMemo(() => folders
-    .filter((folder) => folder.parent_id === PHARMACY_ROOT_FOLDER_ID)
-    .sort(sortFolders)
-    .map((folder) => ({
-      ...folder,
-      subfolders: folders.filter((child) => child.parent_id === folder.id).sort(sortFolders),
-    })), [folders]);
+  const { categories, additional } = useMemo(() => {
+    const rootFolders = splitPharmacyRootFolders(
+      folders.filter((folder) => folder.parent_id === PHARMACY_ROOT_FOLDER_ID),
+    );
+    return {
+      categories: rootFolders.main.map((folder) => ({
+        ...folder,
+        subfolders: folders.filter((child) => child.parent_id === folder.id).sort(sortFolders),
+      })),
+      additional: rootFolders.additional,
+    };
+  }, [folders]);
 
   return (
     <main className="mx-auto w-full max-w-6xl space-y-6 px-3 py-5 sm:px-5 sm:py-7" dir={isEn ? "ltr" : "rtl"}>
@@ -81,9 +87,10 @@ export default function PharmacyHubView() {
             {T("برای این حساب هنوز شاخه‌های Pharmacy در دانشنامه پیدا نشد. از صفحهٔ دانشنامه می‌توانی مطالب جاافتاده را اضافه کنی.", "No Pharmacy folders were found for this account. You can add missing content from the knowledge base.")}
           </Card>
         ) : (
-          <div className="grid gap-3 md:grid-cols-2">
-            {categories.map((category) => (
-              <Card key={category.id} className="space-y-3 p-4">
+          <div className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-2">
+              {categories.map((category) => (
+                <Card key={category.id} className="space-y-3 p-4">
                 <Link to={knowledgeFolderUrl(category.id)} className="flex items-start gap-2 font-semibold leading-relaxed hover:text-primary hover:underline">
                   <FolderOpen className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
                   <span>{category.name}</span>
@@ -101,8 +108,23 @@ export default function PharmacyHubView() {
                     ))}
                   </div>
                 )}
-              </Card>
-            ))}
+                </Card>
+              ))}
+            </div>
+            {additional.length > 0 && (
+              <details className="rounded-xl border bg-muted/20 p-4">
+                <summary className="cursor-pointer text-sm font-medium">
+                  {T("مجموعه‌های قدیمی و پوشه‌های دیگر", "Earlier and other collections")} ({additional.length})
+                </summary>
+                <div className="mt-3 flex flex-col gap-2">
+                  {additional.map((folder) => (
+                    <Link key={folder.id} to={knowledgeFolderUrl(folder.id)} className="text-sm leading-relaxed text-primary hover:underline">
+                      {folder.name}
+                    </Link>
+                  ))}
+                </div>
+              </details>
+            )}
           </div>
         )}
       </section>

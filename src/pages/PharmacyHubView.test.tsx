@@ -42,4 +42,20 @@ describe("PharmacyHubView", () => {
     fireEvent.click(screen.getByTestId("pharm-shortcut-cyp"));
     expect(screen.getByText("CYP destination")).toBeInTheDocument();
   });
+
+  it("separates earlier folders from the current category grid", async () => {
+    getFoldersMock.mockResolvedValueOnce([
+      folder("folder-pharmacy-root", null, "Pharmacy Knowledge", 1),
+      folder("folder-pharmacy-diseases", "folder-pharmacy-root", "Older disease atlas", 2),
+      folder("folder-pharmacy-cat-clinical-atlas", "folder-pharmacy-root", "Current disease atlas", 3),
+    ]);
+    render(<MemoryRouter><PharmacyHubView /></MemoryRouter>);
+
+    await waitFor(() => expect(screen.getByRole("link", { name: /Current disease atlas/ })).toBeInTheDocument());
+    expect(screen.getByText("Earlier and other collections (1)")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Earlier and other collections (1)"));
+    expect(screen.getByRole("link", { name: "Older disease atlas" })).toHaveAttribute(
+      "href", "/app/knowledge?folderId=folder-pharmacy-diseases",
+    );
+  });
 });
