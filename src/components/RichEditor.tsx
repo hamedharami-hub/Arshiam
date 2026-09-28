@@ -3,12 +3,10 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
-import Link from "@tiptap/extension-link";
 import Youtube from "@tiptap/extension-youtube";
 import Placeholder from "@tiptap/extension-placeholder";
 import Highlight from "@tiptap/extension-highlight";
 import TextAlign from "@tiptap/extension-text-align";
-import Underline from "@tiptap/extension-underline";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import Typography from "@tiptap/extension-typography";
@@ -70,12 +68,10 @@ export function RichEditor({
   const editor = useEditor({
     editable: !readOnly,
     extensions: [
-      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
-      Underline,
+      StarterKit.configure({ heading: { levels: [1, 2, 3] }, link: { openOnClick: false, autolink: true } }),
       Highlight.configure({ multicolor: false }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Image.configure({ inline: false, allowBase64: false }),
-      Link.configure({ openOnClick: false, autolink: true }),
       Youtube.configure({ controls: true, nocookie: true }),
       TaskList,
       TaskItem.configure({ nested: true }),
@@ -112,14 +108,17 @@ export function RichEditor({
   });
 
   useEffect(() => {
-    if (!editor) return;
-    const cur = editor.getHTML();
+    if (!editor || editor.isDestroyed) return;
     const next = initialHtml || (initialMarkdown ? markdownToHtml(initialMarkdown) : "");
-    if (next && next !== cur && editor.isEmpty) {
-      editor.commands.setContent(next, { emitUpdate: false });
+    if (next && editor.isEmpty) {
+      try {
+        editor.commands.setContent(next, { emitUpdate: false });
+      } catch {
+        /* editor view not ready yet — content already supplied via `content` option */
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editor]);
+  }, [editor, initialHtml, initialMarkdown]);
 
   // Detect when toolbar scrolls out of view → show floating "show toolbar" FAB
   useEffect(() => {

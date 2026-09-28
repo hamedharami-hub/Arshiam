@@ -300,7 +300,7 @@ function SidebarNavTreeItem({ item, collapsed, tr, closeOnMobile }: SidebarNavTr
   );
 }
 
-export const DEFAULT_ORDER = ["__folders", "__tags", "do", "grow", "mind", "me"];
+export const DEFAULT_ORDER = ["__folders", "__tags", "do", "pharmacy", "grow", "mind", "me"];
 export const ORDER_KEY = "sidebar_order_v1";
 
 export function loadOrder(): string[] {

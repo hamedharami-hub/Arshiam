@@ -170,7 +170,10 @@ export default defineConfig(({ mode }) => {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
+    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core", "@tiptap/core", "@tiptap/pm", "prosemirror-model", "prosemirror-state", "prosemirror-view", "prosemirror-transform", "prosemirror-keymap", "prosemirror-commands"],
+  },
+  optimizeDeps: {
+    include: ["prosemirror-model", "prosemirror-state", "prosemirror-view", "prosemirror-transform"],
   },
   esbuild: {
     drop: mode === "production" ? ["debugger"] : [],
