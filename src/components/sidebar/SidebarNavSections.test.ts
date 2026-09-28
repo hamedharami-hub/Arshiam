@@ -8,7 +8,6 @@ describe("Knowledge navigation hierarchy", () => {
     expect(pharmacy?.defaultOpen).toBe(true);
     expect(pharmacy?.items.map((item) => item.url)).toEqual([
       "/app/pharmacy",
-      "/app/knowledge?folderId=folder-pharmacy-root",
       "/app/pharmacy-products",
       "/app/pharmacy-scenario-practice",
       "/app/pharmacy-fred-practice",

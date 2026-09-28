@@ -16,6 +16,7 @@ import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { isAndroid } from "@/lib/nativeExperience";
 
 // Bilingual label maps. SECTIONS uses the Persian label as the canonical key.
 export const EN_LABELS: Record<string, string> = {
@@ -30,6 +31,7 @@ export const EN_LABELS: Record<string, string> = {
   "اهداف": "Goals",
   "عادت‌ها": "Habits",
   "نوت‌ها": "Notes",
+  "خاطرات روزانه": "Daily Diary",
   "مرور (SR)": "Review (SR)",
   "خودشناسی": "Self-Knowledge",
   "داشبورد ذهن": "Mind Dashboard",
@@ -117,7 +119,6 @@ export const SECTIONS: Section[] = [
     id: "pharmacy", title: "فارماسی", icon: Pill, defaultOpen: true,
     items: [
       { url: "/app/pharmacy", icon: Pill, label: "خانه فارماسی" },
-      { url: "/app/knowledge?folderId=folder-pharmacy-root", icon: BookOpen, label: "دانشنامه و دسته‌بندی‌ها" },
       { url: "/app/pharmacy-products", icon: PackageSearch, label: "فهرست محصولات دارویی" },
       { url: "/app/pharmacy-scenario-practice", icon: ClipboardCheck, label: "تمرین سناریوهای دارویی" },
       { url: "/app/pharmacy-fred-practice", icon: Keyboard, label: "تمرین نسخه FRED" },
@@ -131,6 +132,7 @@ export const SECTIONS: Section[] = [
       { url: "/app/garden", icon: Sprout, label: "باغ رشد" },
       { url: "/app/habits", icon: Target, label: "عادت‌ها" },
       { url: "/app/notes", icon: FileText, label: "نوت‌ها" },
+      { url: "/app/diary", icon: BookOpen, label: "خاطرات روزانه" },
       {
         icon: BookOpen,
         label: "دانش",
@@ -356,10 +358,11 @@ export function SidebarSectionCollapsible({
   closeOnMobile,
 }: SidebarSectionCollapsibleProps) {
   const SectionIcon = section.icon;
-  const items =
+  const sectionItems =
     section.id === "me" && isAdmin
       ? [...section.items, { url: "/app/admin", icon: Shield, label: "پنل مدیریت" }]
       : section.items;
+  const items = sectionItems.filter((item) => item.url !== "/app/widgets" || isAndroid());
 
   if (collapsed) {
     return (

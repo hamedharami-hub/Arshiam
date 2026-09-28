@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { BookOpen, FolderOpen, Pill } from "lucide-react";
 import PharmacyShortcuts from "@/components/PharmacyShortcuts";
@@ -7,8 +7,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
 import { PHARMACY_ROOT_FOLDER_ID } from "@/lib/pharmacyConstants";
 import { splitPharmacyRootFolders } from "@/lib/pharmacyCategorySections";
-import { getKnowledgeFolders } from "@/lib/knowledgeService";
-import type { KnowledgeFolder } from "@/lib/knowledgeTypes";
+import { getKnowledgeDocuments, getKnowledgeFolders } from "@/lib/knowledgeService";
+import type { KnowledgeDocument, KnowledgeFolder } from "@/lib/knowledgeTypes";
 
 function knowledgeFolderUrl(folderId: string) {
   return `/app/knowledge?folderId=${encodeURIComponent(folderId)}`;
@@ -22,6 +22,7 @@ export default function PharmacyHubView() {
   const { user } = useAuth();
   const { T, isEn } = useBilingual();
   const [folders, setFolders] = useState<KnowledgeFolder[]>([]);
+  const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const userId = user?.id || "anonymous-kb-user";
@@ -30,8 +31,8 @@ export default function PharmacyHubView() {
     let active = true;
     setIsLoading(true);
     setLoadFailed(false);
-    void getKnowledgeFolders(userId).then((result) => {
-      if (active) setFolders(result);
+    void Promise.all([getKnowledgeFolders(userId), getKnowledgeDocuments(userId)]).then(([savedFolders, savedDocuments]) => {
+      if (active) { setFolders(savedFolders); setDocuments(savedDocuments); }
     }).catch(() => {
       if (active) setLoadFailed(true);
     }).finally(() => {
@@ -52,6 +53,45 @@ export default function PharmacyHubView() {
       additional: rootFolders.additional,
     };
   }, [folders]);
+
+  const childFolders = useMemo(() => {
+    const index = new Map<string, KnowledgeFolder[]>();
+    for (const folder of folders) {
+      const siblings = index.get(folder.parent_id ?? "") ?? [];
+      siblings.push(folder);
+      index.set(folder.parent_id ?? "", siblings);
+    }
+    for (const siblings of index.values()) siblings.sort(sortFolders);
+    return index;
+  }, [folders]);
+
+  const folderDocuments = useMemo(() => {
+    const index = new Map<string, KnowledgeDocument[]>();
+    for (const document of documents) {
+      const siblings = index.get(document.folder_id ?? "") ?? [];
+      siblings.push(document);
+      index.set(document.folder_id ?? "", siblings);
+    }
+    for (const siblings of index.values()) siblings.sort((a, b) => a.title.localeCompare(b.title));
+    return index;
+  }, [documents]);
+
+  function renderFolderContents(folderId: string, depth = 0): ReactNode {
+    if (depth > 12) return null;
+    const children = childFolders.get(folderId) ?? [];
+    const lessons = folderDocuments.get(folderId) ?? [];
+    if (!children.length && !lessons.length) return null;
+    return <div className="mt-2 space-y-2 border-s border-border/70 ps-3">
+      {children.map((child) => <details key={child.id} className="rounded-lg bg-muted/30 px-3 py-2">
+        <summary className="cursor-pointer text-sm font-medium leading-relaxed">{child.name}</summary>
+        <div className="mt-2"><Link to={knowledgeFolderUrl(child.id)} className="text-xs text-primary hover:underline">{T("باز کردن دسته", "Open category")}</Link></div>
+        {renderFolderContents(child.id, depth + 1)}
+      </details>)}
+      {lessons.map((lesson) => <Link key={lesson.id} to={`/app/knowledge?docId=${encodeURIComponent(lesson.id)}`} className="flex items-start gap-2 rounded-lg px-2 py-1.5 text-sm leading-relaxed hover:bg-primary/5 hover:text-primary">
+        <BookOpen className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><span>{lesson.title}</span>
+      </Link>)}
+    </div>;
+  }
 
   return (
     <main className="mx-auto w-full max-w-6xl space-y-6 px-3 py-5 sm:px-5 sm:py-7" dir={isEn ? "ltr" : "rtl"}>
@@ -108,6 +148,10 @@ export default function PharmacyHubView() {
                     ))}
                   </div>
                 )}
+                <details className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
+                  <summary className="cursor-pointer text-sm font-medium">{T("زیرمجموعه‌ها و درس‌ها", "Subcategories and lessons")}</summary>
+                  {renderFolderContents(category.id)}
+                </details>
                 </Card>
               ))}
             </div>

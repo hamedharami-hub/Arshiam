@@ -542,8 +542,8 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
         )}
       </SidebarContent>
 
-      <SidebarFooter className="border-t">
-        <SidebarMenu>
+      <SidebarFooter className="border-t gap-0.5 p-2">
+        <SidebarMenu className="gap-0.5">
           <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip={tr("تنظیمات")}>
               <NavLink
@@ -559,7 +559,7 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
           </SidebarMenuItem>
         </SidebarMenu>
         {!collapsed && (
-          <Button variant="ghost" size="sm" onClick={resetOrder} className="justify-start text-xs opacity-70">
+          <Button variant="ghost" size="sm" onClick={resetOrder} className="h-8 justify-start text-xs opacity-70">
             <RotateCcw className="w-3.5 h-3.5" />
             <span className="ms-2">{isEn ? "Reset order" : "بازنشانی ترتیب"}</span>
           </Button>
@@ -568,7 +568,7 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
           variant="ghost"
           size={collapsed ? "icon" : "sm"}
           onClick={() => { signOut(); toast.success(isEn ? "Signed out successfully" : "خروج موفق"); }}
-          className={collapsed ? "h-8 w-8 mx-auto" : "justify-start"}
+          className={collapsed ? "h-8 w-8 mx-auto" : "h-8 justify-start text-xs"}
           title={isEn ? "Log out" : "خروج"}
         >
           <LogOut className="w-4 h-4 shrink-0" />

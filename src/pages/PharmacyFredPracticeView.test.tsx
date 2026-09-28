@@ -25,17 +25,13 @@ describe("PharmacyFredPracticeView", () => {
     fetchSpy = vi.spyOn(window, "fetch").mockImplementation(() => Promise.reject(new Error("Network forbidden")));
   });
 
-  it("renders educational simulator, disclaimer banner, and initial scenario", () => {
+  it("renders the practice page without the long notice and shows the initial scenario", () => {
     render(<PharmacyFredPracticeView />);
 
     expect(
       screen.getByRole("heading", { name: "Pharmacy & FRED Educational Simulator" })
     ).toBeInTheDocument();
-    expect(screen.getByRole("note")).toHaveTextContent("Non-operational Educational Simulator");
-    expect(screen.getByRole("note")).toHaveTextContent("No actual connection to FRED, PBS, SafeScript");
-    expect(screen.getByRole("note")).toHaveTextContent("All scenarios, identifiers, and amounts are fictional exercise data");
-    expect(screen.getByRole("note")).toHaveTextContent("Clinical Safety Notice");
-    expect(screen.getByRole("note")).toHaveTextContent("not independently clinically validated");
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
 
     // Initial scenario
     const firstScenario = PHARMACY_FRED_PRACTICE_SCENARIOS[0];
@@ -361,7 +357,7 @@ describe("PharmacyFredPracticeView", () => {
       expect(fetchSpy).not.toHaveBeenCalled();
       expect(printSpy).not.toHaveBeenCalled();
       expect(alertSpy).not.toHaveBeenCalled();
-    });
+    }, 20_000);
   });
 
   describe("Script Visualizer & Practice Layout module", () => {

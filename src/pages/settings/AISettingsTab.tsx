@@ -378,6 +378,15 @@ export function AISettingsTab({
     toast.success(isEn ? "Recommended models applied to all sections." : "مدل پیشنهادی روی همه بخش‌ها اعمال شد.");
   };
 
+  const applyDefaultToAll = () => {
+    const strategies: Partial<Record<AIOperation, OpStrategy>> = {};
+    for (const op of OPERATIONS) strategies[op.key] = "global";
+    const next = { ...settings, perOp: {}, opStrategies: strategies, useRecommended: false };
+    setSettings(next);
+    saveAISettings(next);
+    toast.success(isEn ? "Default model applied to every AI feature." : "مدل پیش‌فرض برای همهٔ بخش‌های هوش مصنوعی فعال شد.");
+  };
+
   const clearAllOverrides = () => {
     const strategies: Partial<Record<AIOperation, OpStrategy>> = {};
     for (const op of OPERATIONS) strategies[op.key] = "recommended";
@@ -539,6 +548,9 @@ export function AISettingsTab({
         title={t("settings.aiGlobalDefault")}
         description={t("settings.aiGlobalDefaultDesc")}
       >
+        <p className="mb-3 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs leading-relaxed text-muted-foreground">
+          {isEn ? "Choose one provider and model here, save it, then apply it to all AI features. You can change any feature individually below." : "اینجا یک سرویس و مدل را انتخاب و ذخیره کن، سپس آن را برای همهٔ قابلیت‌های هوش مصنوعی فعال کن. هر بخش را بعداً می‌توانی جداگانه تغییر بدهی."}
+        </p>
         <ProviderEditor
           isEn={isEn}
           value={settings.default}
@@ -547,7 +559,10 @@ export function AISettingsTab({
           onUpdateHidden={updateProviderHidden}
         />
         <div className="pt-1">
-          <Button onClick={save} size="sm" className="gap-2"><Save className="w-3.5 h-3.5" /> {t("common.save")}</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={save} size="sm" variant="outline" className="gap-2"><Save className="w-3.5 h-3.5" /> {t("common.save")}</Button>
+            <Button onClick={applyDefaultToAll} size="sm" className="gap-2"><Sparkles className="w-3.5 h-3.5" /> {isEn ? "Set as default everywhere" : "پیش‌فرض همهٔ بخش‌ها"}</Button>
+          </div>
         </div>
       </SectionCard>
 

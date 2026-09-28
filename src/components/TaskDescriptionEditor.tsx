@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Maximize2, Check, Eraser } from "lucide-react";
+import { MarkdownMediaLink } from "@/components/MarkdownMediaLink";
+import { Maximize2, Minimize2, Check, Eraser, Pencil, FileText } from "lucide-react";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -21,12 +22,14 @@ export function TaskDescriptionEditor({
   value,
   onChange,
   onSave,
+  onConvertToNote,
   readOnly = false,
 }: {
   taskId: string;
   value: string;
   onChange: (v: string) => void;
   onSave: (v: string) => void | Promise<void>;
+  onConvertToNote?: () => void | Promise<void>;
   readOnly?: boolean;
 }) {
   const { i18n } = useTranslation();
@@ -36,6 +39,7 @@ export function TaskDescriptionEditor({
 
   const [editing, setEditing] = useState(false);
   const [full, setFull] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [draft, setDraft] = useState(value);
   const latestValue = useRef(value);
 
@@ -44,10 +48,10 @@ export function TaskDescriptionEditor({
   const hasContent = (value || "").trim().length > 0;
 
   return (
-    <div className="relative group rounded-2xl border border-border/50 bg-card/45 hover:border-border/80 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all duration-200 p-3.5 sm:p-4 min-h-[170px] flex flex-col">
+    <div className="relative group rounded-2xl border border-border/50 bg-card/45 hover:border-border/80 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all duration-200 p-3 sm:p-4 flex flex-col w-full min-w-0">
       {/* Action buttons toolbar (voice, fullscreen markdown) */}
       {!readOnly && (
-        <div className="flex items-center gap-1 absolute top-2.5 end-2.5 z-10">
+        <div className="flex items-center justify-end gap-1 mb-2">
           <VoiceInputButton
             continuous
             onTranscript={(text) => {
@@ -59,14 +63,16 @@ export function TaskDescriptionEditor({
             className="h-7 w-7 text-muted-foreground/70 hover:text-foreground hover:bg-accent/60 rounded-lg transition"
             title={T("ضبط صوتی", "Voice input")}
           />
+          {hasContent && onConvertToNote && <button type="button" onClick={() => void onConvertToNote()} className="h-7 inline-flex items-center gap-1 rounded-lg px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/60" title={T("تبدیل به نوت پیوست", "Move to attached notes")}><FileText className="h-3.5 w-3.5" />{T("تبدیل به نوت", "To note")}</button>}
+          <button type="button" onClick={() => { setDraft(value || ""); setFull(true); }} className="h-7 inline-flex items-center gap-1 rounded-lg px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/60" title={T("ویرایش پیشرفته", "Advanced editor")}><Pencil className="h-3.5 w-3.5" />{T("ویرایش", "Edit")}</button>
           <button
             type="button"
-            onClick={() => { setDraft(value || ""); setFull(true); }}
+            onClick={() => setExpanded((current) => !current)}
             aria-label={T("تمام صفحه", "Fullscreen")}
-            title={T("ویرایشگر پیشرفته / تمام صفحه", "Advanced markdown / fullscreen")}
+            title={expanded ? T("نمای جمع‌وجور", "Compact view") : T("گسترش متن", "Expand text")}
             className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground/70 hover:text-foreground hover:bg-accent/60 transition"
           >
-            <Maximize2 className="w-3.5 h-3.5" />
+            {expanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
         </div>
       )}
@@ -85,10 +91,10 @@ export function TaskDescriptionEditor({
             setEditing(false);
             void onSave(latest);
           }}
-          minHeight={140}
+          minHeight={expanded ? 260 : 80}
           maxHeight={520}
           dir="auto"
-          className="border-none bg-transparent focus-visible:ring-0 px-0 pt-0 text-[14px] leading-relaxed text-foreground/90 placeholder:text-muted-foreground/60 w-full pe-16 flex-1"
+          className="border-none bg-transparent focus-visible:ring-0 px-0 pt-0 text-[14px] leading-relaxed text-foreground/90 placeholder:text-muted-foreground/60 w-full flex-1"
         />
       ) : (
         <button
@@ -96,10 +102,10 @@ export function TaskDescriptionEditor({
           onClick={() => !readOnly && setEditing(true)}
           disabled={readOnly}
           dir="auto"
-          className={`w-full text-start px-0 pt-0 text-[14px] leading-relaxed text-foreground/90 rounded transition pe-16 min-h-[140px] flex-1 ${readOnly ? "" : "hover:opacity-90"}`}
+          className={`w-full min-w-0 text-start px-0 pt-0 text-[14px] leading-relaxed text-foreground/90 rounded transition flex-1 ${expanded ? "text-base sm:text-lg" : ""} ${readOnly ? "" : "hover:opacity-90"}`}
         >
           <div className="prose-note prose-sm max-w-none">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MarkdownMediaLink }}>{value}</ReactMarkdown>
           </div>
         </button>
       )}

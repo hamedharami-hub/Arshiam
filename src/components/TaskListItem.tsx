@@ -436,7 +436,7 @@ const TaskListItemComponent = ({
                         title={T("تغییر تاریخ", "Change date")}
                       >
                         <Calendar className="w-2.5 h-2.5 opacity-70" />
-                        {formatTaskDueDateDisplay(t.due_date, isEn)}
+                        <bdi dir="ltr" className="whitespace-nowrap">{formatTaskDueDateDisplay(t.due_date, isEn)}</bdi>
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-72 p-3" align="start" onClick={(e) => e.stopPropagation()}>

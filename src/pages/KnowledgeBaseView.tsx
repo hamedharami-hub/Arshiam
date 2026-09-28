@@ -79,10 +79,15 @@ export const KnowledgeBaseView: React.FC = () => {
 
   // Folder deep links from Pharmacy should reveal the folder tree immediately.
   useEffect(() => {
+    if (urlDocId) {
+      setSidebarCollapsed(true);
+      setMobileTreeOpen(false);
+      return;
+    }
     if (!urlFolderId) return;
     if (window.matchMedia("(max-width: 767px)").matches) setMobileTreeOpen(true);
     else setSidebarCollapsed(false);
-  }, [urlFolderId]);
+  }, [urlFolderId, urlDocId]);
 
   // Study task scheduling modal state
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
@@ -511,7 +516,7 @@ export const KnowledgeBaseView: React.FC = () => {
         {/* Desktop Sidebar Folder Tree */}
         <div
           className={`hidden md:block shrink-0 h-full transition-all duration-300 ease-in-out ${
-            sidebarCollapsed
+            sidebarCollapsed || Boolean(urlDocId)
               ? "w-0 opacity-0 overflow-hidden -me-3 pointer-events-none"
               : "w-72 lg:w-80 opacity-100"
           }`}
@@ -588,6 +593,9 @@ export const KnowledgeBaseView: React.FC = () => {
 
         {/* Reader Document Main Panel */}
         <div className="flex-1 flex flex-col h-full min-w-0">
+          {urlDocId && <button type="button" onClick={() => setMobileTreeOpen(true)} className="hidden md:inline-flex w-fit items-center gap-2 rounded-xl border bg-card px-3 py-1.5 mb-2 text-xs font-medium text-primary hover:bg-muted">
+            <Menu className="h-4 w-4" />{isEn ? "Lessons and categories" : "درس‌ها و دسته‌بندی‌ها"}
+          </button>}
           <KnowledgeDocumentReader
             document={currentDoc}
             folder={currentFolder}
@@ -598,7 +606,7 @@ export const KnowledgeBaseView: React.FC = () => {
             onDelete={handleDeleteDoc}
             userId={userId}
             isSidebarCollapsed={sidebarCollapsed}
-            onToggleSidebar={toggleSidebar}
+            onToggleSidebar={urlDocId ? undefined : toggleSidebar}
             onOpenReview={() => navigate("/app/review")}
             onDocumentUpdated={(updated) => {
               setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));

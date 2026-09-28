@@ -533,7 +533,7 @@ export default function TodayDashboardView() {
         ref={splitContainerRef}
         data-task-split={isSplitActive ? "true" : "false"}
         dir="ltr"
-        className={`w-full items-start gap-2 sm:gap-3 xl:gap-4 ${
+        className={`w-full items-start gap-1 sm:gap-1.5 xl:gap-2 ${
           isSplitActive
             ? "flex-1 min-h-0 flex flex-row overflow-hidden"
             : "flex flex-col"
@@ -565,7 +565,7 @@ export default function TodayDashboardView() {
                 hasBackHistory={selectedTaskHistory.length > 0}
               />
             ) : (
-              <div className="h-full rounded-2xl border border-dashed border-border/70 bg-card/40 flex flex-col items-center justify-center p-6 text-center text-muted-foreground shadow-sm">
+              <div className="h-full rounded-2xl border border-dashed border-primary/20 bg-primary/[0.035] flex flex-col items-center justify-center p-6 text-center text-muted-foreground shadow-sm">
                 <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3">
                   <CheckSquare className="w-6 h-6" />
                 </div>
@@ -588,7 +588,7 @@ export default function TodayDashboardView() {
             onPointerMove={handleSplitPointerMove}
             onPointerUp={handleSplitPointerUp}
             onPointerCancel={handleSplitPointerUp}
-            className="w-3 -mx-1 shrink-0 h-full flex items-center justify-center cursor-col-resize group/splitter select-none touch-none z-10 hover:w-3.5 transition-all"
+            className="w-3 -mx-1 shrink-0 h-full flex items-center justify-center cursor-col-resize group/splitter select-none touch-none z-10"
             title={T("بکشید برای تنظیم عرض دو ستون", "Drag to resize columns")}
           >
             <div className="w-1 h-12 rounded-full bg-border/80 group-hover/splitter:bg-primary group-hover/splitter:h-16 group-active/splitter:bg-primary group-active/splitter:h-20 transition-all shadow-xs" />
@@ -598,7 +598,7 @@ export default function TodayDashboardView() {
         {/* پنل سمت راست فهرست تیترهای تسک با اسکرول مستقل */}
         <section
           dir={isEn ? "ltr" : "rtl"}
-          className={`w-full min-w-0 rounded-2xl border border-border/60 bg-card/35 p-2 sm:p-3 lg:p-4 shadow-sm ${
+          className={`w-full min-w-0 rounded-2xl border border-primary/15 bg-primary/[0.025] p-2 sm:p-3 lg:p-4 shadow-sm ${
             isSplitActive
               ? "flex-1 h-full min-h-0 overflow-y-auto overscroll-contain pb-6"
               : "pb-16"

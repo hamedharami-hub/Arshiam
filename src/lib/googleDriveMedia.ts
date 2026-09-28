@@ -166,7 +166,7 @@ export function requestGoogleDriveAccessToken(): Promise<string> {
         callback: (response) => {
           if (response.error) {
             finish(new GoogleDriveMediaError(
-              response.error === "access_denied" ? "authorization_cancelled" : "authorization_failed",
+              "authorization_failed",
               response.error_description,
             ));
             return;
@@ -533,7 +533,7 @@ export function getGoogleDriveMediaErrorMessage(error: unknown, isEn: boolean): 
   const messages: Record<GoogleDriveErrorCode, [string, string]> = {
     client_id_missing: ["شناسهٔ OAuth وب تنظیم نشده است؛ اتصال Drive فعلاً در دسترس نیست.", "Google Drive OAuth web client is not configured."],
     identity_library_unavailable: ["کتابخانهٔ امن ورود گوگل بارگذاری نشد؛ اتصال اینترنت و مسدودکننده‌ها را بررسی کنید.", "Google Identity Services could not load. Check your connection or browser blocking settings."],
-    authorization_cancelled: ["اتصال لغو شد؛ هیچ فایلی بارگذاری نشد.", "Drive authorization was cancelled; no file was uploaded."],
+    authorization_cancelled: ["پنجرهٔ مجوز Google بسته شد یا اتصال مسدود بود. اگر خطای origin_mismatch دیدی، دامنهٔ سایت باید در Google Cloud ثبت شود؛ هیچ فایلی بارگذاری نشد.", "Google authorization window closed or was blocked. If Google showed origin_mismatch, register this site's origin in Google Cloud. No file was uploaded."],
     authorization_failed: ["اتصال Drive کامل نشد. دوباره تلاش کنید.", "Drive authorization did not complete. Please try again."],
     authorization_expired: ["اجازهٔ موقت Drive منقضی شده است؛ دوباره اتصال را تأیید کنید.", "The temporary Drive access expired. Reconnect and try again."],
     drive_api_disabled: ["Drive API در پروژهٔ Google Cloud فعال نیست یا هنوز منتشر نشده است.", "The Google Drive API is not enabled for this Google Cloud project."],

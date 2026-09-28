@@ -147,11 +147,11 @@ export function RichEditor({
         editor.chain().focus().setImage({ src: url, alt: file.name }).run();
       } else if (kind === "video") {
         editor.chain().focus().insertContent(
-          `<video controls src="${url}" style="max-width:100%;border-radius:8px;margin:8px 0"></video><p></p>`
+          `<p><a href="${url}" target="_blank" rel="noopener">video</a></p><p></p>`
         ).run();
       } else if (kind === "audio") {
         editor.chain().focus().insertContent(
-          `<audio controls src="${url}" style="width:100%;margin:8px 0"></audio><p></p>`
+          `<p><a href="${url}" target="_blank" rel="noopener">audio</a></p><p></p>`
         ).run();
       } else {
         editor.chain().focus().insertContent(

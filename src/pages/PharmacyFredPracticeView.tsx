@@ -421,11 +421,11 @@ export default function PharmacyFredPracticeView() {
 
   return (
     <main
-      className="mx-auto w-full max-w-5xl space-y-6 px-3 py-4 sm:px-5 sm:py-6"
+      className="mx-auto w-full max-w-6xl space-y-5 px-3 py-4 sm:px-5 sm:py-6"
       dir={isEn ? "ltr" : "rtl"}
     >
       {/* Header */}
-      <header className="flex items-start justify-between gap-4 flex-wrap">
+      <header className="flex items-start justify-between gap-4 flex-wrap rounded-2xl border bg-gradient-to-br from-primary/10 via-card to-card p-5 shadow-sm">
         <div className="flex items-start gap-3">
           <div className="rounded-2xl bg-primary/10 p-3 text-primary shrink-0" aria-hidden="true">
             <Keyboard className="h-6 w-6" />
@@ -443,34 +443,6 @@ export default function PharmacyFredPracticeView() {
           </div>
         </div>
       </header>
-
-      {/* Prominent Educational Notice */}
-      <Card
-        role="note"
-        className="flex items-start gap-3 border-amber-500/40 bg-amber-500/5 p-4 text-sm"
-      >
-        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
-        <div className="space-y-1.5 text-xs sm:text-sm leading-relaxed text-amber-950 dark:text-amber-200">
-          <p className="font-semibold">
-            {T(
-              "محیط شبیه‌سازی آموزشی مستقل (Non-operational Educational Simulator)",
-              "Non-operational Educational Simulator"
-            )}
-          </p>
-          <p>
-            {T(
-              "این قابلیت صرفاً برای آموزش و تمرین است و هیچ اتصال واقعی به FRED، سازمان PBS، سامانه‌های SafeScript یا ارسال ادعا ندارد. تمام سناریوها، شناسه‌ها و مبالغ ساختگی‌اند و بازنمایی بیمار یا استحقاق واقعی نیستند. هیچ چاپ فیزیکی، تراکنش مالی یا تصمیم‌گیری بالینی انجام نمی‌شود.",
-              "Designed exclusively for educational practice. No actual connection to FRED, PBS, SafeScript, or claim submission. All scenarios, identifiers, and amounts are fictional exercise data and do not represent an actual patient or entitlement. No physical printing, financial transactions, or clinical decisions occur."
-            )}
-          </p>
-          <p className="text-[11px] font-medium text-amber-900/90 dark:text-amber-200/90 border-t border-amber-500/20 pt-1.5">
-            ⚠️ {T(
-              "اطلاعیه ایمنی بالینی: نام داروها، دوزها/قدرت‌ها، دستورات مصرف و کدهای PBS در نمونه‌های این کارگاه به‌صورت مستقل از نظر بالینی اعتبارسنجی نشده‌اند (وضعیت پرونده‌ها: بازبینی‌نشده بالینی / unreviewed) و هرگز نباید برای تجویز، تحویل دارو، ارسال ادعا یا راهنمایی بیمار واقعی مورد استفاده قرار گیرند.",
-              "Clinical Safety Notice: Medication names, strengths, directions, and PBS codes in these simulation cases are not independently clinically validated (case status: unreviewed) and must not be used to prescribe, supply, claim, or guide an actual patient."
-            )}
-          </p>
-        </div>
-      </Card>
 
       {/* Primary Training Module Selector */}
       <nav className="flex items-center gap-1.5 p-1 rounded-2xl bg-muted/60 border border-border/80 overflow-x-auto" aria-label={T("ماژول‌های آموزشی", "Educational modules")}>

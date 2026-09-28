@@ -4,13 +4,13 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import type { KnowledgeFolder } from "@/lib/knowledgeTypes";
 import PharmacyHubView from "./PharmacyHubView";
 
-const { getFoldersMock } = vi.hoisted(() => ({ getFoldersMock: vi.fn() }));
+const { getFoldersMock, getDocumentsMock } = vi.hoisted(() => ({ getFoldersMock: vi.fn(), getDocumentsMock: vi.fn(() => Promise.resolve([])) }));
 
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: "user-123" } }) }));
 vi.mock("@/hooks/useBilingual", () => ({
   useBilingual: () => ({ T: (_fa: string, en: string) => en, isEn: true }),
 }));
-vi.mock("@/lib/knowledgeService", () => ({ getKnowledgeFolders: getFoldersMock }));
+vi.mock("@/lib/knowledgeService", () => ({ getKnowledgeFolders: getFoldersMock, getKnowledgeDocuments: getDocumentsMock }));
 
 function folder(id: string, parent_id: string | null, name: string, position: number): KnowledgeFolder {
   return { id, parent_id, name, position, user_id: "user-123", created_at: "", updated_at: "" };

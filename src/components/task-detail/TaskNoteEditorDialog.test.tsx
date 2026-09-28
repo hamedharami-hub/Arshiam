@@ -23,6 +23,12 @@ vi.mock("@/lib/taskNotesService", () => ({
   deleteTaskNote: vi.fn().mockResolvedValue(true),
 }));
 
+vi.mock("@/components/NoteEditorTabs", () => ({
+  NoteEditorTabs: ({ markdown, onChange }: { markdown: string; onChange: (markdown: string, html: string) => void }) => (
+    <textarea aria-label="Note content editor" value={markdown} onChange={(event) => onChange(event.target.value, "")} />
+  ),
+}));
+
 describe("TaskNoteEditorDialog", () => {
   const dummyNote: TaskNote = {
     id: "note-dialog-1",

@@ -33,7 +33,7 @@ import { isFeatureEnabled } from "@/lib/capabilities";
 
 
 
-type Note = { id: string; user_id?: string; title: string; content: string; pinned: boolean; updated_at: string; task_id?: string | null; folder_id?: string | null };
+type Note = { id: string; user_id?: string; title: string; content: string; pinned: boolean; updated_at: string; task_id?: string | null; folder_id?: string | null; kind?: string };
 
 export default function NotesView() {
   const { user } = useAuth();
@@ -339,10 +339,10 @@ export default function NotesView() {
   };
 
   const searchLower = (search || "").toLowerCase();
-  const filtered = notes.filter((n) =>
+  const filtered = notes.filter((n) => n.kind !== "diary" && (
     (n.title || "").toLowerCase().includes(searchLower) ||
     (n.content || "").toLowerCase().includes(searchLower)
-  );
+  ));
 
   // Plain-preview helper (strip MD chars) for sidebar
   const stripMd = (s: string) => (s || "").replace(/[#*`>_![\]()~-]+/g, "").replace(/\n+/g, " ").slice(0, 80);

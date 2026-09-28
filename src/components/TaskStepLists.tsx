@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useBilingual } from "@/hooks/useBilingual";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
-import { Plus, Trash2, ListChecks, GripVertical } from "lucide-react";
+import { Plus, Trash2, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { BidiText } from "@/components/BidiText";
 import {
@@ -21,13 +19,6 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 export type StepStyle = "numbered" | "checkbox" | "bullet" | "arrow";
-
-const STYLE_OPTIONS: { value: StepStyle; label: string; preview: string }[] = [
-  { value: "numbered", label: "شماره‌دار", preview: "1. 2. 3." },
-  { value: "checkbox", label: "چک‌باکس", preview: "☐ ☑" },
-  { value: "bullet",   label: "نقطه",     preview: "• • •" },
-  { value: "arrow",    label: "فلش",      preview: "→ → →" },
-];
 
 type StepList = {
   id: string; title: string; style: StepStyle; position: number;
@@ -46,10 +37,11 @@ export function TaskStepLists({
   readOnly?: boolean;
 }) {
   const { user } = useAuth();
+  const { T } = useBilingual();
   const [lists, setLists] = useState<StepList[]>([]);
   const [steps, setSteps] = useState<Step[]>([]);
   const [newListTitle, setNewListTitle] = useState("");
-  const [newListStyle, setNewListStyle] = useState<StepStyle>("checkbox");
+  const [addingList, setAddingList] = useState(false);
   const [newStep, setNewStep] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
@@ -77,14 +69,14 @@ export function TaskStepLists({
 
   const addList = async () => {
     if (!user || readOnly) return;
-    const title = newListTitle.trim() || "مراحل";
+    const title = newListTitle.trim() || T("چک‌لیست", "Checklist");
     const { data, error } = await firebaseStore
       .from("task_step_lists" as any)
       .insert({
         user_id: user.id,
         task_id: taskId,
         title,
-        style: newListStyle,
+        style: "checkbox",
         position: lists.length,
       })
       .select()
@@ -94,6 +86,7 @@ export function TaskStepLists({
     setLists(next);
     onCountChange?.(next.length);
     setNewListTitle("");
+    setAddingList(false);
   };
 
   const updateList = async (id: string, patch: Partial<StepList>) => {
@@ -163,18 +156,10 @@ export function TaskStepLists({
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <label className="text-sm font-medium flex items-center gap-1">
-          <ListChecks className="w-4 h-4" /> مراحل (Steps)
-        </label>
-      </div>
-
-      {/* New list creator */}
-      <Card className="p-2 space-y-2 bg-muted/30">
-        <div className="flex gap-2 items-start">
+    <div className="space-y-2">
+      {!readOnly && (addingList ? <div className="flex items-center gap-2 rounded-xl border bg-muted/20 p-2">
           <AutoTextarea
-            placeholder="عنوان لیست مراحل..."
+            placeholder={T("نام چک‌لیست", "Checklist name")}
             value={newListTitle}
             onChange={(e) => setNewListTitle(e.target.value)}
             onKeyDown={(e) => {
@@ -189,23 +174,13 @@ export function TaskStepLists({
             minHeight={32}
             maxHeight={120}
           />
-          <Select value={newListStyle} onValueChange={(v) => setNewListStyle(v as StepStyle)}>
-            <SelectTrigger className="h-8 text-xs w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {STYLE_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value} className="text-xs">
-                  {o.label} <span className="text-muted-foreground ms-1">{o.preview}</span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
           <Button size="sm" onClick={addList} className="h-8 gap-1">
-            <Plus className="w-3 h-3" /> لیست
+            <Plus className="w-3 h-3" /> {T("افزودن", "Add")}
           </Button>
-        </div>
-      </Card>
+          <Button size="sm" variant="ghost" onClick={() => setAddingList(false)} className="h-8">{T("لغو", "Cancel")}</Button>
+        </div> : <Button size="sm" variant="outline" onClick={() => setAddingList(true)} className="h-8 gap-1 text-xs">
+          <Plus className="h-3.5 w-3.5" />{T("چک‌لیست جدید", "New checklist")}
+        </Button>)}
 
       {lists.map((list) => {
         const listSteps = steps
@@ -229,21 +204,6 @@ export function TaskStepLists({
                 minHeight={28}
                 maxHeight={120}
               />
-              <Select
-                value={list.style}
-                onValueChange={(v) => updateList(list.id, { style: v as StepStyle })}
-              >
-                <SelectTrigger className="h-7 text-xs w-28">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STYLE_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value} className="text-xs">
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <Button
                 size="icon"
                 variant="ghost"
@@ -272,7 +232,7 @@ export function TaskStepLists({
                     <SortableStepItem
                       key={s.id}
                       id={s.id}
-                      style={list.style}
+                      style="checkbox"
                       index={idx}
                       completed={s.completed}
                       text={s.text}

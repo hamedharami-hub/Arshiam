@@ -789,7 +789,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
   // ── Hero (task state + title) ──────────────────────────────────────
   const hero = (
-    <div className="px-1 pb-2 space-y-2">
+    <div className="px-1 pb-1">
       <div className="flex items-center gap-2 bg-card/50 dark:bg-card/30 rounded-2xl p-1.5 border border-border/50 hover:border-border/80 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all duration-200">
         <Button
           size="icon"
@@ -816,13 +816,13 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           onChange={(e) => setT({ ...t, title: e.target.value })}
           onBlur={() => save({ title: t.title })}
           readOnly={!canEdit}
-          minHeight={42}
+          minHeight={36}
           maxHeight={220}
           rows={1}
           dir="auto"
           placeholder={T("عنوان تسک را اینجا بنویس…", "Write the task title here…")}
           data-task-title
-          className="text-lg md:text-xl font-bold leading-relaxed bg-transparent border-0 focus-visible:ring-0 focus-visible:bg-transparent px-2 py-1 text-foreground placeholder:text-muted-foreground/45 break-words whitespace-pre-wrap tracking-tight flex-1"
+          className="text-base md:text-lg font-bold leading-snug bg-transparent border-0 focus-visible:ring-0 focus-visible:bg-transparent px-2 py-0.5 text-foreground placeholder:text-muted-foreground/45 break-words whitespace-pre-wrap tracking-tight flex-1"
         />
         <Button
           size="icon"
@@ -846,6 +846,19 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         <TaskDescriptionEditor
           taskId={t.id}
           value={t.description || ""}
+          onConvertToNote={async () => {
+            if (!user?.id || !canEdit || !t.description?.trim()) return;
+            try {
+              const created = await createTaskNote(user.id, t.id, { title: t.title, content: t.description });
+              setTaskNotes((previous) => [created, ...previous]);
+              await save({ description: "" });
+              setT((previous) => ({ ...previous, description: "" }));
+              setShowNotes(true);
+              toast.success(T("متن به نوت‌های پیوست منتقل شد", "Description moved to attached notes"));
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : T("تبدیل به نوت انجام نشد", "Could not move to note"));
+            }
+          }}
           onChange={(v) => {
             const next = { ...latestTaskRef.current, description: v };
             latestTaskRef.current = next;
@@ -861,7 +874,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
   // ── Quick-info chips row (only what's set) ──────────────────────────
   const quickChips = (
-    <div className="flex flex-wrap gap-1 px-1 pb-2">
+    <div className="flex flex-wrap gap-1 px-1 pb-1">
       {t.bucket_kind && t.bucket_anchor && (() => {
         const isSub = isSubDayBucket(t.bucket_kind);
         return (
@@ -1597,7 +1610,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   );
 
   const body = (
-    <div className="mt-1 task-detail-sections flex flex-col min-h-[40vh] space-y-4 pb-20">
+    <div className="task-detail-sections flex flex-col min-h-[40vh] space-y-2 pb-20">
       {hero}
       {topControls}
       {quickChips}
@@ -1791,7 +1804,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         <PomodoroSheet task={t} open={focusOpen} onOpenChange={setFocusOpen} />
       )}
       {mode === "embedded" || mode === "modal" ? (
-        <div className="w-full h-full flex flex-col bg-card/95 backdrop-blur-md border border-border/70 rounded-2xl shadow-sm overflow-hidden animate-in fade-in duration-200">
+        <div className="w-full h-full flex flex-col bg-card/95 backdrop-blur-md border border-primary/20 rounded-2xl shadow-sm overflow-hidden animate-in fade-in duration-200">
           <div className="px-3 sm:px-4 py-2.5 border-b border-border/60 flex items-center justify-between gap-2 bg-muted/30 shrink-0">
             <div className="flex items-center gap-2 min-w-0 flex-1">
               {(onBack || hasBackHistory) && (
@@ -1830,7 +1843,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
               </Button>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto min-h-0 p-3 sm:p-4 space-y-3">
+          <div className="flex-1 overflow-y-auto min-h-0 p-2 sm:p-3 space-y-2">
             {body}
           </div>
           <div className="shrink-0 p-2 border-t border-border/40 bg-card/95">

@@ -6,6 +6,7 @@ import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { MarkdownMediaLink } from "@/components/MarkdownMediaLink";
 
 const RichEditor = lazy(() =>
   import("@/components/RichEditor").then((m) => ({ default: m.RichEditor }))
@@ -75,7 +76,7 @@ export function NoteEditorTabs({
         <div>
           <p className="text-xs text-muted-foreground mb-2">پیش‌نمایش زنده:</p>
           <div className="prose-note max-w-none">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MarkdownMediaLink }}>
               {markdown || ""}
             </ReactMarkdown>
           </div>
@@ -85,7 +86,7 @@ export function NoteEditorTabs({
       <TabsContent value="preview" className="mt-3">
         <div className="min-h-[50vh]">
           <div className="prose-note max-w-none">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MarkdownMediaLink }}>
               {markdown || ""}
             </ReactMarkdown>
           </div>

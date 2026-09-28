@@ -13,14 +13,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { NoteEditorTabs } from "@/components/NoteEditorTabs";
 import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { Save, Trash2, ArrowRight, Loader2, FileText, X, BookOpen } from "lucide-react";
+import { Save, Trash2, Loader2, FileText } from "lucide-react";
 import type { TaskNote } from "@/lib/taskTypes";
 import { updateTaskNote, deleteTaskNote } from "@/lib/taskNotesService";
-import { TaskKnowledgeLinkModal } from "./TaskKnowledgeLinkModal";
 
 interface Props {
   open: boolean;
@@ -52,13 +51,15 @@ export function TaskNoteEditorDialog({
   const [content, setContent] = useState(() => note?.content || "");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [linkModalOpen, setLinkModalOpen] = useState(false);
-
-  const handleInsertDocLink = (doc: any) => {
-    const linkText = `\n[📄 ${doc.title}](kb:${doc.id})\n`;
-    setContent((prev) => (prev ? prev + linkText : linkText.trim()));
-    toast.success(T("لینک سند به نوت اضافه شد", "Knowledge link inserted into note"));
-  };
+  const highlights = content.split("\n").flatMap((line) => {
+    const found: string[] = [];
+    if (/^#{1,6}\s+/.test(line)) found.push(line.replace(/^#{1,6}\s+/, "").trim());
+    for (const match of line.matchAll(/\*\*(.+?)\*\*|==(.+?)==|(^|\s)⭐\s*(.+)/g)) {
+      const value = (match[1] || match[2] || match[4] || "").trim();
+      if (value) found.push(value);
+    }
+    return found;
+  });
 
   useEffect(() => {
     if (note) {
@@ -126,28 +127,18 @@ export function TaskNoteEditorDialog({
         />
       </div>
 
-      <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
         <div className="flex items-center justify-between mb-1">
           <label className="text-xs font-semibold text-muted-foreground block">
             {T("متن یادداشت", "Note Content")}
           </label>
-          <button
-            type="button"
-            onClick={() => setLinkModalOpen(true)}
-            className="flex items-center gap-1 text-[11px] text-purple-400 hover:text-purple-300 font-medium cursor-pointer"
-          >
-            <BookOpen className="w-3 h-3" />
-            <span>{T("درج لینک سند آموزشی", "Insert Knowledge Link")}</span>
-          </button>
         </div>
-        <Textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          disabled={!canEdit || saving}
-          placeholder={T("متن نوت را اینجا بنویسید...", "Write note content here...")}
-          className="flex-1 min-h-[160px] sm:min-h-[220px] text-xs sm:text-sm resize-none"
-          dir="auto"
-        />
+        <p className="mb-2 text-[11px] text-muted-foreground">{T("متن را انتخاب کن تا ابزار AI ظاهر شود؛ از نوار ویرایش برای عکس و فایل استفاده کن.", "Select text for AI actions; use the editor toolbar for images and files.")}</p>
+        <NoteEditorTabs noteId={`task-note-${note.id}`} markdown={content} onChange={(md) => setContent(md)} readOnly={!canEdit || saving} />
+        {highlights.length > 0 && <details className="mt-3 rounded-xl border bg-muted/20 p-2.5 text-xs">
+          <summary className="cursor-pointer font-medium">{T("نکات برجسته و تیترها", "Highlights and headings")} ({highlights.length})</summary>
+          <ul className="mt-2 space-y-1 ps-3 border-s"><>{highlights.map((item, index) => <li key={`${item}-${index}`} className="break-words">{item}</li>)}</></ul>
+        </details>}
       </div>
 
       <div className="pt-2 border-t border-border/50 flex items-center justify-between gap-2 shrink-0">
@@ -200,7 +191,7 @@ export function TaskNoteEditorDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
           <DialogContent
             dir={isEn ? "ltr" : "rtl"}
-            className="w-full max-w-md sm:max-w-lg max-h-[75vh] flex flex-col p-4 sm:p-5 overflow-hidden rounded-2xl"
+            className="w-full max-w-3xl max-h-[90vh] flex flex-col p-4 sm:p-5 overflow-hidden rounded-2xl"
           >
             <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b border-border/50">
               <div className="flex items-center gap-2">
@@ -262,13 +253,6 @@ export function TaskNoteEditorDialog({
         </AlertDialogContent>
       </AlertDialog>
 
-      <TaskKnowledgeLinkModal
-        open={linkModalOpen}
-        onOpenChange={setLinkModalOpen}
-        userId={userId}
-        alreadyLinkedDocIds={[]}
-        onSelectDoc={handleInsertDocLink}
-      />
     </>
   );
 }
