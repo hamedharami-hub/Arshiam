@@ -1,0 +1,30 @@
+{
+  "summary": "Targeted retest of RichEditor crash fix (vite dedupe of prosemirror + guarded useEffect in RichEditor.tsx) on ARSHNAZ (Persian RTL Vite+React+Firebase). All 4 requested items PASS. Editor now mounts without ErrorBoundary, autosaves to Firestore, content survives reload, mobile More-tools dropdown works and applies blockquote, desktop More-tools is hidden and inline toolbar (bold via Ctrl+B → <strong>) is functional.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_flows": {
+    "editor_no_crash": "PASS - /app/notes → 'نوت جدید' opens editor with .ProseMirror rendered and ErrorBoundary text 'یک خطای غیرمنتظره رخ داد' NOT present. Verified across two independent sessions.",
+    "note_persistence": "PASS - Typed unique marker 'PERSIST_RETEST_1790570106' into a new note, waited 6s for autosave, reloaded the page, reopened the note from the sidebar list and confirmed inner_text still contained the marker. A prior marker 'PERSIST_RETEST_ARSHNAZ_98765' from iteration_2 was also still visible in the list, confirming Firestore persistence across sessions for user test.arshnaz@example.com.",
+    "mobile_more_tools_dropdown": "PASS - At 390x844 the [data-testid='editor-more-tools'] wrench button is present (bounding box 395x711, 32x32) and clickable; opening it reveals full menu (H1/H2/H3, زیرخط, خط‌خورده, هایلایت, لیست شماره‌دار, نقل‌قول, بلوک کد, راست‌چین/وسط‌چین/چپ‌چین, صدا/ویدیو/فایل/لینک). Tapping 'نقل‌قول' produced .ProseMirror blockquote (count=1).",
+    "desktop_more_tools_hidden": "PASS - At 1920x1080 [data-testid='editor-more-tools'] exists in DOM (class md:hidden) but is_visible()=False.",
+    "desktop_bold_toggle": "PASS - Ctrl+A → Ctrl+B on typed text produced .ProseMirror strong element (count=1) confirming the inline formatting toolbar is functional."
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor: two RichEditor instances are mounted on the /app/notes page simultaneously (verified — .ProseMirror count=2 and [data-testid='editor-more-tools'] count=2 while only one editor is visible on mobile bottom-sheet). Two live TipTap editors doubles memory, mounts two ProseMirror views and two autosave listeners per note open; consider lazy-mounting the mobile bottom-sheet editor only when isOpen, or reusing a single editor instance across the desktop/mobile layouts.",
+    "Persistent capacitor warning still logged in console: 'Capacitor plugin \"ArshnazWidget\" already registered. Cannot register plugins twice.' — cosmetic but worth guarding the plugin registration behind an if-not-registered check (unchanged from iteration_2)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (Firebase, not tested)", "frontend": "100% - 4/4 retest items PASS"},
+  "test_credentials": "test.arshnaz@example.com / Test123456 (works)",
+  "seed_data_creation": "Two persisted notes remain in Firestore for this user with markers 'PERSIST_RETEST_ARSHNAZ_98765' and 'PERSIST_RETEST_1790570106'. Safe to delete via the UI '...' menu on each note row.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "RichEditor crash is fully fixed by combined vite.config.ts dedupe + optimizeDeps.include of prosemirror-* AND the guarded/try-catch mount useEffect in RichEditor.tsx (~L110). Notes persist to Firestore per user; do not use rapid page.reload() loops behind the preview Cloudflare (429). When testing mobile editor UI, note that the notes page mounts TWO RichEditor instances (desktop split-pane + mobile bottom-sheet), so [data-testid='editor-more-tools'] returns count=2 and only nth(1) is visible at 390x844 — filter by is_visible() or bounding_box(). Persian numerals are used to render digits in note previews (۰-۹), so text-based locators for Latin numbers will miss them; match on the letter prefix (e.g., 'PERSIST_RETEST').",
+  "rca_of_the_issue": "Iteration_2 root cause was 'null (cached)' inside prosemirror-model DOMSerializer.fromSchema, caused by two ProseMirror module instances (Vite dev bundling loaded prosemirror-model twice — once via @tiptap/pm and once via direct import chains) so the schema-side cache on one instance was null when the other instance's serializer looked it up, PLUS RichEditor's post-mount useEffect calling editor.getHTML() before the view was fully created. Fix applied and verified: (a) vite.config.ts adds prosemirror-* to resolve.dedupe and optimizeDeps.include so only ONE ProseMirror model/state/view/transform is loaded; (b) the mount useEffect in RichEditor.tsx no longer calls getHTML(), only setContent when editor exists and !isDestroyed, wrapped in try/catch. Retest confirms the editor now mounts, saves, and persists across reloads with no ErrorBoundary."
+}

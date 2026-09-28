@@ -1,0 +1,9 @@
+{
+  "name": "arshnaz-frontend-bridge",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "start": "bash /app/frontend/start-vite.sh",
+    "expo": "bash /app/frontend/start-vite.sh"
+  }
+}

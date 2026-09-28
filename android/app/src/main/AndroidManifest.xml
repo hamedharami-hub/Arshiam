@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:hardwareAccelerated="true"
+        android:largeHeap="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:name=".MainActivity"
+            android:label="@string/title_activity_main"
+            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:launchMode="singleTask"
+            android:hardwareAccelerated="true"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="arshnaz" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+
+        </activity>
+
+        <activity android:name=".WidgetConfigureActivity" android:exported="true" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_CONFIGURE"/></intent-filter>
+        </activity>
+        <activity android:name=".WidgetTaskActionActivity" android:exported="false" android:theme="@style/AppTheme.WidgetAction"/>
+        <activity android:name=".WidgetRouterActivity" android:exported="false" android:excludeFromRecents="true" android:noHistory="true" android:theme="@android:style/Theme.NoDisplay"/>
+        <receiver android:name=".AgendaWidgetProvider" android:exported="false" android:label="ARSHNAZ · Today"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_today_info"/></receiver>
+        <receiver android:name=".TomorrowWidgetProvider" android:exported="false" android:label="ARSHNAZ · Tomorrow"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_tomorrow_info"/></receiver>
+        <receiver android:name=".WeekWidgetProvider" android:exported="false" android:label="ARSHNAZ · Upcoming"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_week_info"/></receiver>
+        <receiver android:name=".FocusWidgetProvider" android:exported="false" android:label="ARSHNAZ · Focus"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_focus_info"/></receiver>
+        <receiver android:name=".CompactWidgetProvider" android:exported="false" android:label="ARSHNAZ · Compact"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_compact_info"/></receiver>
+        <receiver android:name=".PomodoroWidgetProvider" android:exported="false" android:label="ARSHNAZ · Focus Timer"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_pomodoro_info"/></receiver>
+        <receiver android:name=".MindWidgetProvider" android:exported="false" android:label="ARSHNAZ · Mind Reset"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_mind_info"/></receiver>
+        <receiver android:name=".ProblemSolveWidgetProvider" android:exported="false" android:label="ARSHNAZ · Problem Solver"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_problem_info"/></receiver>
+        <service android:name=".AgendaListService" android:exported="false" android:permission="android.permission.BIND_REMOTEVIEWS"/>
+        <receiver android:name=".AndroidActionsReceiver" android:exported="false"/>
+        <receiver android:name=".ReminderReceiver" android:exported="false"/>
+        <receiver android:name=".AndroidRescheduleReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.TIME_SET"/>
+                <action android:name="android.intent.action.TIMEZONE_CHANGED"/>
+                <action android:name="android.intent.action.DATE_CHANGED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED"/>
+            </intent-filter>
+        </receiver>
+        <service android:name=".QuickTaskTileService" android:label="ARSHNAZ · New Task" android:icon="@drawable/ic_stat_tasks" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE"/></intent-filter>
+        </service>
+        <service android:name=".FocusTimerTileService" android:label="ARSHNAZ · Focus Timer" android:icon="@drawable/ic_stat_tasks" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE"/></intent-filter>
+        </service>
+        <!-- Android 16 AppFunctions Service (API 36+) for Gemini / System Orchestration -->
+        <service
+            android:name=".ArshnazAppFunctionService"
+            android:permission="android.permission.BIND_APP_FUNCTION_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.app.appfunctions.AppFunctionService" />
+            </intent-filter>
+            <property
+                android:name="android.app.appfunctions.app_metadata"
+                android:resource="@xml/app_functions_metadata" />
+        </service>
+        <!-- Widget Provider -->
+        <receiver
+            android:name=".ArshnazWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_arshnaz_info" />
+        </receiver>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"></meta-data>
+        </provider>
+    </application>
+
+    <!-- Permissions -->
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+</manifest>

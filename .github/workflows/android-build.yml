@@ -1,0 +1,72 @@
+name: Build Android APK
+
+# Android artifacts are intentionally opt-in. Web releases on main must not
+# spend runner time or publish an APK unless a maintainer starts this workflow.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: android-debug-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Test web contracts
+        run: npm test
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses || true
+
+      - name: Sync Android
+        run: npx cap sync android
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x android/gradlew
+
+      - name: Build Debug APK
+        run: |
+          cd android
+          ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: arshnaz-debug-apk-${{ github.sha }}
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload build metadata
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: arshnaz-build-metadata-${{ github.sha }}
+          path: |
+            android/app/build/outputs/apk/debug/output-metadata.json
+            android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30

@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/((?!api/|openapi\\.json|version\\.json).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

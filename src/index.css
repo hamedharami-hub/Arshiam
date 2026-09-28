@@ -1,0 +1,1919 @@
+/* Inlined Vazirmatn @font-face declarations to remove a render-blocking CSS request.
+   Font files still load from jsDelivr (preconnected in index.html) with font-display: swap. */
+@font-face { font-family: Vazirmatn; src: url('/fonts/Vazirmatn-Thin.woff2') format('woff2'); font-weight: 100; font-style: normal; font-display: swap; }
+@font-face { font-family: Vazirmatn; src: url('/fonts/Vazirmatn-ExtraLight.woff2') format('woff2'); font-weight: 200; font-style: normal; font-display: swap; }
+@font-face { font-family: Vazirmatn; src: url('/fonts/Vazirmatn-Light.woff2') format('woff2'); font-weight: 300; font-style: normal; font-display: swap; }
+@font-face { font-family: Vazirmatn; src: url('/fonts/Vazirmatn-Regular.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: Vazirmatn; src: url('/fonts/Vazirmatn-Medium.woff2') format('woff2'); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: Vazirmatn; src: url('/fonts/Vazirmatn-SemiBold.woff2') format('woff2'); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: Vazirmatn; src: url('/fonts/Vazirmatn-Bold.woff2') format('woff2'); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: Vazirmatn; src: url('/fonts/Vazirmatn-ExtraBold.woff2') format('woff2'); font-weight: 800; font-style: normal; font-display: swap; }
+@font-face { font-family: Vazirmatn; src: url('/fonts/Vazirmatn-Black.woff2') format('woff2'); font-weight: 900; font-style: normal; font-display: swap; }
+
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ===== Neural Expressive (Gemini-inspired) — Light =====
+       Fluid blue→purple→pink spectrum, soft glass surfaces,
+       generous radii, expressive gradient accents. */
+    --background: 230 60% 99%;
+    --foreground: 240 30% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 30% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 30% 12%;
+
+    --primary: 248 90% 62%;          /* indigo-violet core */
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 280 92% 72%;     /* magenta glow */
+
+    --secondary: 250 60% 97%;
+    --secondary-foreground: 248 40% 22%;
+
+    --muted: 240 40% 96%;
+    --muted-foreground: 240 12% 45%;
+
+    --accent: 280 90% 96%;
+    --accent-foreground: 270 70% 38%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 160 75% 42%;
+    --warning: 35 95% 55%;
+
+    --priority-high: 340 85% 58%;
+    --priority-medium: 35 95% 55%;
+    --priority-low: 210 95% 62%;
+    --priority-none: 240 10% 60%;
+
+    --border: 245 35% 92%;
+    --input: 245 35% 92%;
+    --ring: 270 90% 65%;
+
+    --radius: 1rem;
+
+    --sidebar-background: 245 70% 98%;
+    --sidebar-foreground: 248 30% 22%;
+    --sidebar-primary: 270 90% 62%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 280 90% 96%;
+    --sidebar-accent-foreground: 270 70% 38%;
+    --sidebar-border: 245 35% 92%;
+    --sidebar-ring: 270 90% 65%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(210 100% 62%) 0%, hsl(258 92% 64%) 45%, hsl(310 90% 66%) 78%, hsl(340 92% 68%) 100%);
+    --gradient-mesh: radial-gradient(at 12% 18%, hsl(210 100% 70% / 0.35) 0px, transparent 50%),
+                     radial-gradient(at 82% 8%, hsl(280 95% 72% / 0.32) 0px, transparent 55%),
+                     radial-gradient(at 75% 88%, hsl(340 92% 72% / 0.28) 0px, transparent 50%),
+                     radial-gradient(at 18% 92%, hsl(190 95% 70% / 0.28) 0px, transparent 55%);
+    --shadow-soft: 0 2px 10px -2px hsl(260 50% 40% / 0.08), 0 1px 3px hsl(260 30% 30% / 0.04);
+    --shadow-elegant: 0 20px 50px -20px hsl(270 90% 60% / 0.35), 0 8px 24px -12px hsl(210 90% 60% / 0.25);
+  }
+
+
+
+  .dark {
+    /* Neural Expressive — Dark: deep midnight with vivid aurora accents */
+    --background: 250 35% 7%;
+    --foreground: 250 25% 96%;
+    --card: 250 30% 10%;
+    --card-foreground: 250 25% 96%;
+    --popover: 250 30% 10%;
+    --popover-foreground: 250 25% 96%;
+    --primary: 270 92% 70%;
+    --primary-foreground: 250 35% 8%;
+    --primary-glow: 310 95% 75%;
+    --secondary: 250 25% 15%;
+    --secondary-foreground: 250 25% 96%;
+    --muted: 250 25% 15%;
+    --muted-foreground: 250 15% 68%;
+    --accent: 280 45% 22%;
+    --accent-foreground: 290 95% 88%;
+    --destructive: 0 75% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 250 25% 18%;
+    --input: 250 25% 18%;
+    --ring: 280 95% 70%;
+    --sidebar-background: 250 35% 9%;
+    --sidebar-foreground: 250 20% 88%;
+    --sidebar-primary: 270 92% 70%;
+    --sidebar-primary-foreground: 250 35% 8%;
+    --sidebar-accent: 250 30% 16%;
+    --sidebar-accent-foreground: 290 95% 88%;
+    --sidebar-border: 250 25% 18%;
+    --sidebar-ring: 280 95% 70%;
+    --gradient-primary: linear-gradient(135deg, hsl(210 100% 65%) 0%, hsl(258 95% 68%) 45%, hsl(310 92% 70%) 78%, hsl(340 95% 72%) 100%);
+    --gradient-mesh: radial-gradient(at 15% 20%, hsl(220 100% 55% / 0.35) 0px, transparent 55%),
+                     radial-gradient(at 85% 10%, hsl(285 95% 60% / 0.32) 0px, transparent 55%),
+                     radial-gradient(at 78% 85%, hsl(330 95% 60% / 0.28) 0px, transparent 50%),
+                     radial-gradient(at 18% 90%, hsl(190 95% 55% / 0.25) 0px, transparent 55%);
+    --shadow-elegant: 0 20px 60px -20px hsl(280 95% 55% / 0.55), 0 8px 24px -12px hsl(210 95% 55% / 0.35);
+  }
+
+
+  /* ========== ARSHNAZ THEME — Light (روز) ========== */
+  /* Romantic pink-purple-blue palette dedicated to Arshnaz ❤️ */
+  .theme-arshnaz {
+    --background: 340 60% 99%;
+    --foreground: 280 30% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 280 30% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 280 30% 15%;
+
+    --primary: 330 81% 60%;       /* pink-500 */
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 320 85% 72%;
+
+    --secondary: 320 60% 96%;
+    --secondary-foreground: 280 30% 20%;
+
+    --muted: 320 40% 96%;
+    --muted-foreground: 280 15% 45%;
+
+    --accent: 280 90% 95%;
+    --accent-foreground: 280 70% 35%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+
+    --priority-high: 340 82% 55%;
+    --priority-medium: 38 92% 50%;
+    --priority-low: 260 80% 65%;
+    --priority-none: 280 10% 60%;
+
+    --border: 320 40% 90%;
+    --input: 320 40% 90%;
+    --ring: 330 81% 60%;
+
+    --sidebar-background: 340 70% 98%;
+    --sidebar-foreground: 280 30% 20%;
+    --sidebar-primary: 330 81% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 320 70% 94%;
+    --sidebar-accent-foreground: 280 70% 35%;
+    --sidebar-border: 320 40% 90%;
+    --sidebar-ring: 330 81% 60%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(330 81% 60%), hsl(270 81% 65%), hsl(217 91% 60%));
+    --shadow-soft: 0 1px 3px 0 hsl(330 50% 50% / 0.08), 0 1px 2px -1px hsl(330 50% 50% / 0.06);
+    --shadow-elegant: 0 10px 40px -10px hsl(330 81% 60% / 0.35);
+  }
+
+  /* ========== ARSHNAZ THEME — Dark (شب) ========== */
+  .theme-arshnaz.dark,
+  .dark.theme-arshnaz {
+    --background: 280 30% 7%;
+    --foreground: 340 30% 96%;
+
+    --card: 280 28% 11%;
+    --card-foreground: 340 30% 96%;
+
+    --popover: 280 28% 11%;
+    --popover-foreground: 340 30% 96%;
+
+    --primary: 330 85% 65%;
+    --primary-foreground: 280 30% 10%;
+    --primary-glow: 320 90% 75%;
+
+    --secondary: 280 25% 16%;
+    --secondary-foreground: 340 30% 96%;
+
+    --muted: 280 25% 16%;
+    --muted-foreground: 320 20% 70%;
+
+    --accent: 280 50% 25%;
+    --accent-foreground: 320 90% 85%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 280 25% 20%;
+    --input: 280 25% 20%;
+    --ring: 330 85% 65%;
+
+    --sidebar-background: 280 32% 9%;
+    --sidebar-foreground: 340 25% 88%;
+    --sidebar-primary: 330 85% 65%;
+    --sidebar-primary-foreground: 280 30% 10%;
+    --sidebar-accent: 280 30% 18%;
+    --sidebar-accent-foreground: 320 90% 85%;
+    --sidebar-border: 280 25% 20%;
+    --sidebar-ring: 330 85% 65%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(330 85% 65%), hsl(270 85% 70%), hsl(217 91% 65%));
+    --shadow-elegant: 0 10px 40px -10px hsl(330 85% 50% / 0.5);
+  }
+
+  /* ========== TICKTICK LIGHT — clean, minimal, white & red ========== */
+  .theme-ticktick {
+    --background: 0 0% 100%;
+    --foreground: 220 15% 18%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 18%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 18%;
+
+    --primary: 354 70% 54%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 354 70% 60%;
+
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 15% 22%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 10% 48%;
+
+    --accent: 354 70% 96%;
+    --accent-foreground: 354 70% 40%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+
+    --priority-high: 354 75% 55%;
+    --priority-medium: 35 95% 55%;
+    --priority-low: 210 95% 62%;
+    --priority-none: 220 10% 60%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 354 70% 54%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 15% 22%;
+    --sidebar-primary: 354 70% 54%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 220 15% 22%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 354 70% 54%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(354 70% 54%), hsl(354 70% 60%));
+    --gradient-mesh: none;
+    --shadow-soft: 0 1px 2px 0 hsl(220 20% 40% / 0.05), 0 1px 2px -1px hsl(220 20% 40% / 0.04);
+    --shadow-elegant: 0 10px 30px -10px hsl(220 20% 40% / 0.12);
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  html { direction: rtl; }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    font-family: "Vazirmatn", "IRANSansX", "Tahoma", system-ui, -apple-system, sans-serif;
+  }
+  /* Mixed Persian/English digits and inline LTR fragments */
+  .ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+  .rtl { direction: rtl; unicode-bidi: isolate; }
+  /* Numbers and code stay LTR inside RTL flow */
+  code, pre, kbd, samp, .font-mono, [class*="tabular-nums"] {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+  /* Make form inputs respect RTL by default but allow LTR for emails/urls */
+  input[type="email"], input[type="url"], input[type="tel"], input[type="number"] {
+    direction: ltr;
+    text-align: right;
+  }
+}
+
+/* ===== Neural Expressive ambient layer =====
+   A soft, animated gradient mesh living behind every page —
+   the signature Gemini "aurora" feel without hurting readability. */
+body {
+  background-image: var(--gradient-mesh), linear-gradient(to bottom, hsl(var(--background)), hsl(var(--background)));
+  background-attachment: fixed;
+  background-size: 180% 180%, 100% 100%;
+  animation: aurora-drift 28s ease-in-out infinite alternate;
+}
+@keyframes aurora-drift {
+  0%   { background-position: 0% 0%, 0 0; }
+  100% { background-position: 100% 100%, 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body { animation: none; }
+}
+
+/* Glass cards — translucent surfaces over the aurora mesh */
+.card, [data-radix-popper-content-wrapper] > * {
+  backdrop-filter: saturate(140%) blur(8px);
+  -webkit-backdrop-filter: saturate(140%) blur(8px);
+}
+
+/* Expressive gradient text utility (for hero titles, AI labels, etc.) */
+.text-gradient-neural {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Soft glow ring used on primary CTAs */
+.ring-neural {
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.25), var(--shadow-elegant);
+}
+
+/* =========================================================
+   Beautiful Transition Animations
+   ========================================================= */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(32px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.88) translateY(8px); }
+  60% { transform: scale(1.03) translateY(-2px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+/* Animation utility classes */
+.animate-fade-in       { animation: fadeIn       0.28s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.animate-fade-in-up    { animation: fadeInUp     0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.animate-fade-in-down  { animation: fadeInDown   0.28s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.animate-fade-in-scale { animation: fadeInScale  0.26s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.animate-slide-in-right { animation: slideInRight 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.animate-slide-in-left  { animation: slideInLeft  0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.animate-slide-in-up    { animation: slideInUp    0.36s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.animate-pop-in        { animation: popIn        0.34s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.animate-float         { animation: float        3s ease-in-out infinite; }
+
+/* Staggered children animations — add to parent, children get delay */
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 250ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 350ms; }
+
+/* Page-level enter animation — apply to the root div of each page */
+.page-enter {
+  animation: fadeInUp 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+/* Card hover lift — a subtle elevation lift on hover */
+.card-hover {
+  transition: transform 0.22s cubic-bezier(0.22, 0.61, 0.36, 1),
+              box-shadow 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px -8px hsl(var(--primary) / 0.18), 0 4px 12px -4px hsl(0 0% 0% / 0.06);
+}
+
+/* Shimmer skeleton loading effect */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 25%,
+    hsl(var(--muted-foreground) / 0.08) 50%,
+    hsl(var(--muted)) 75%
+  );
+  background-size: 200% auto;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* Dialog / Sheet / Popover enhanced animations */
+[data-radix-popper-content-wrapper] > [data-state="open"] {
+  animation: fadeInScale 0.2s cubic-bezier(0.22, 0.61, 0.36, 1) both !important;
+}
+
+[data-state="open"][data-side="bottom"] {
+  animation: slideInUp 0.28s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+[data-state="open"][data-side="right"] {
+  animation: slideInRight 0.28s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+[data-state="open"][data-side="left"] {
+  animation: slideInLeft 0.28s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+[data-state="open"][data-side="top"] {
+  animation: fadeInDown 0.24s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+
+/* Markdown preview — bidi-safe so Persian + English mix correctly per paragraph */
+.prose-note { max-width: none !important; width: 100%; unicode-bidi: plaintext; }
+.prose-note h1, .prose-note h2, .prose-note h3, .prose-note h4,
+.prose-note p, .prose-note li, .prose-note blockquote, .prose-note td, .prose-note th {
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+.prose-note h1 { @apply text-2xl font-bold mt-4 mb-2; }
+.prose-note h2 { @apply text-xl font-semibold mt-3 mb-2; }
+.prose-note h3 { @apply text-lg font-semibold mt-2 mb-1; }
+.prose-note p { @apply my-2 leading-relaxed; }
+.prose-note ul { @apply list-disc ps-6 my-2; }
+.prose-note ol { @apply list-decimal ps-6 my-2; }
+.prose-note code { @apply bg-muted px-1.5 py-0.5 rounded text-sm; }
+.prose-note pre { @apply bg-muted p-3 rounded-md overflow-x-auto my-2; }
+.prose-note pre code { @apply bg-transparent p-0; }
+.prose-note blockquote { @apply border-s-4 border-primary ps-4 italic my-2 text-muted-foreground; }
+.prose-note a { @apply text-primary underline; }
+.prose-note input[type="checkbox"] { @apply me-2; }
+
+/* Generic mixed-direction text helper */
+.bidi-auto { unicode-bidi: plaintext; text-align: start; }
+
+/* Smooth, snappy global transitions for buttons / cards / interactive surfaces */
+@media (prefers-reduced-motion: no-preference) {
+  button, a, [role="button"], .card, [data-radix-popper-content-wrapper] > * {
+    transition-property: transform, background-color, border-color, color, box-shadow, opacity;
+    transition-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
+    transition-duration: 160ms;
+  }
+  button:active, [role="button"]:active { transform: scale(0.97); }
+}
+
+/* Subtle dividers between top-level sections of TaskDetail body */
+.task-detail-sections > * + * {
+  position: relative;
+}
+.task-detail-sections > * + *::before {
+  content: "";
+  display: block;
+  height: 1px;
+  margin: -10px 8px 14px;
+  background: linear-gradient(to left, transparent, hsl(var(--border) / 0.55), transparent);
+}
+
+/* =========================================================
+   Mobile & foldable polish
+   ========================================================= */
+
+/* Safe-area helpers for notch / home-indicator / Android nav bar */
+.safe-pt { padding-top: env(safe-area-inset-top); }
+.safe-pb { padding-bottom: env(safe-area-inset-bottom); }
+.safe-px { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+
+/* Edge-to-edge status bar: paint the notch area with the app background so the
+   system status bar blends into the app header instead of showing a black band. */
+html, body {
+  background-color: hsl(var(--background));
+}
+@supports (padding-top: env(safe-area-inset-top)) {
+  body { padding-top: 0; }
+  /* Any element opting in gets the notch/clock clearance */
+  .status-bar-safe { padding-top: env(safe-area-inset-top); }
+}
+
+/* Skip rendering offscreen sections — frees the main thread on long pages. */
+.cv-auto { content-visibility: auto; contain-intrinsic-size: 1px 120px; }
+
+/* Hide bottom floating bar on desktop, Windows, and foldable dual-screen devices */
+@media (horizontal-viewport-segments: 2), (screen-spanning: single-fold-vertical), (min-width: 768px) {
+  [data-bottom-bar="true"] {
+    display: none !important;
+  }
+}
+
+/* Foldable phones (Galaxy Fold, Pixel Fold, Surface Duo opened) —
+   Hinge awareness, dual-screen segments, and fluid ergonomics. */
+@media (horizontal-viewport-segments: 2) {
+  [data-task-split="true"] {
+    column-gap: max(1rem, env(viewport-segment-right 0 0, 0px));
+  }
+}
+
+/* Honor reduced-motion everywhere */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Prevent iOS double-tap-zoom on interactive surfaces (keeps gestures snappy). */
+button, [role="button"], a { touch-action: manipulation; }
+
+/* ==========================================================================
+   Modern Minimalist Scrollbar (Windows / Chromium / WebKit / Firefox)
+   Eliminates bulky Windows arrow buttons (▲/▼), reduces thickness to 5px,
+   and provides a transparent track so content is not pushed or obstructed.
+   ========================================================================== */
+
+/* Firefox & Standards-compliant browsers */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.22) transparent;
+}
+
+/* Chrome, Edge, Safari, Opera, Electron, Capacitor / WebViews */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+/* Completely remove the bulky up/down/left/right arrow buttons */
+::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Completely transparent track */
+::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+/* Thin rounded pill thumb */
+::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.22);
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.45);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background-color: hsl(var(--primary) / 0.65);
+}
+
+/* Corner where horizontal and vertical scrollbars meet */
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Hide scrollbar completely when specifically desired */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Notification-shade sidebar styling — only on mobile drawer */
+[data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="group"] {
+  padding: 0.5rem 0.25rem;
+}
+[data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="group-label"] {
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+  padding-inline: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+[data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="menu"] {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  padding-inline: 0.25rem;
+}
+[data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="menu-item"] {
+  width: 100%;
+}
+[data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="menu-button"] {
+  flex-direction: column;
+  height: auto !important;
+  min-height: 4.5rem;
+  padding: 0.75rem 0.5rem !important;
+  border-radius: 1rem;
+  background: hsl(var(--sidebar-accent) / 0.35);
+  border: 1px solid hsl(var(--sidebar-border) / 0.5);
+  text-align: center;
+  gap: 0.35rem !important;
+  font-size: 0.7rem;
+  line-height: 1.1;
+  white-space: normal;
+  transition: transform 0.15s ease, background 0.2s ease;
+}
+[data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="menu-button"]:active {
+  transform: scale(0.96);
+  background: hsl(var(--sidebar-accent) / 0.65);
+}
+[data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="menu-button"] svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+[data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="menu-button"] > span {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ========== RICH EDITOR TASK LIST & CHECKBOXES ========== */
+ul[data-type="taskList"] {
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 0.5rem 0 !important;
+}
+
+ul[data-type="taskList"] li[data-type="taskItem"] {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 0.65rem !important;
+  margin-bottom: 0.4rem !important;
+  list-style: none !important;
+  line-height: 1.5 !important;
+}
+
+ul[data-type="taskList"] li[data-type="taskItem"] > label {
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+ul[data-type="taskList"] li[data-type="taskItem"] > label input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.15rem;
+  height: 1.15rem;
+  border: 1.5px solid hsl(var(--primary) / 0.5);
+  border-radius: 0.375rem;
+  background-color: hsl(var(--card));
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  margin: 0;
+}
+
+ul[data-type="taskList"] li[data-type="taskItem"] > label input[type="checkbox"]:hover {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2);
+}
+
+ul[data-type="taskList"] li[data-type="taskItem"] > label input[type="checkbox"]:checked {
+  background-color: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+}
+
+ul[data-type="taskList"] li[data-type="taskItem"] > label input[type="checkbox"]:checked::before {
+  content: "";
+  width: 0.65rem;
+  height: 0.65rem;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  transform: scale(1);
+  background-color: hsl(var(--primary-foreground));
+}
+
+ul[data-type="taskList"] li[data-type="taskItem"][data-checked="true"] > div {
+  text-decoration: line-through;
+  opacity: 0.55;
+  transition: opacity 0.2s ease, text-decoration 0.2s ease;
+}
+
+ul[data-type="taskList"] li[data-type="taskItem"] > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ==========================================================================
+   KNOWLEDGE BASE HTML READER STYLES & BILINGUAL DIRECTION
+   ========================================================================== */
+.dir-rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+.dir-ltr {
+  direction: ltr;
+  text-align: left;
+}
+
+.knowledge-reader-prose {
+  font-size: var(--knowledge-reader-font-size, 15px);
+}
+
+.knowledge-html-content {
+  font-family: inherit;
+  font-size: var(--knowledge-reader-font-size, 15px);
+  line-height: 1.9;
+  letter-spacing: normal;
+  color: hsl(var(--foreground));
+}
+
+/* Imported clinical pages were authored with 10-12px utility classes. Keep
+   their hierarchy, but make the body readable on phones and wide screens. */
+.knowledge-html-content > .knowledge-card {
+  max-width: 52rem;
+  margin-inline: auto;
+}
+
+.knowledge-html-content [class~="text-xs"] {
+  font-size: calc(var(--knowledge-reader-font-size, 15px) * 0.8);
+}
+
+.knowledge-html-content .knowledge-card [class~="text-xs"] {
+  font-size: calc(var(--knowledge-reader-font-size, 15px) * 0.933333);
+}
+
+.knowledge-html-content [class~="text-sm"] {
+  font-size: calc(var(--knowledge-reader-font-size, 15px) * 0.933333);
+}
+
+.knowledge-html-content [class~="text-base"] {
+  font-size: calc(var(--knowledge-reader-font-size, 15px) * 1.066667);
+}
+
+.knowledge-html-content [class~="text-lg"] {
+  font-size: calc(var(--knowledge-reader-font-size, 15px) * 1.2);
+}
+
+.knowledge-html-content [class~="text-xl"] {
+  font-size: calc(var(--knowledge-reader-font-size, 15px) * 1.333333);
+}
+
+.knowledge-html-content [class~="text-2xl"] {
+  font-size: calc(var(--knowledge-reader-font-size, 15px) * 1.6);
+}
+
+.knowledge-html-content .knowledge-card [class~="text-xs"] {
+  line-height: 1.7;
+}
+
+.knowledge-html-content .knowledge-card [class*="text-[11px]"],
+.knowledge-html-content .knowledge-card [class*="text-[10px]"],
+.knowledge-html-content .knowledge-card [class*="text-[9px]"] {
+  font-size: calc(var(--knowledge-reader-font-size, 15px) * 0.866667);
+  line-height: 1.5;
+}
+
+.knowledge-html-content [class*="text-[11px]"],
+.knowledge-html-content [class*="text-[10px]"],
+.knowledge-html-content [class*="text-[9px]"] {
+  font-size: calc(var(--knowledge-reader-font-size, 15px) * 0.866667);
+}
+
+.knowledge-html-content p,
+.knowledge-html-content li,
+.knowledge-html-content div:not([class*="callout"]):not([class*="table"]):not([class*="checklist"]) {
+  unicode-bidi: plaintext;
+}
+
+.knowledge-html-content.dir-rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+.knowledge-html-content.dir-ltr {
+  direction: ltr;
+  text-align: left;
+}
+
+.knowledge-html-content {
+  overflow-wrap: anywhere;
+}
+
+/* Bilingual Dual Column Grid */
+.knowledge-reader-shell {
+  min-width: 0;
+  container: knowledge-reader / inline-size;
+}
+
+.bilingual-dual-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+}
+
+@container knowledge-reader (min-width: 760px) {
+  .bilingual-dual-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 2rem;
+  }
+
+  .bilingual-col-fa {
+    border-inline-end: 1px solid hsl(var(--border) / 0.7);
+    padding-inline-end: 1.25rem;
+  }
+
+  .bilingual-col-en {
+    padding-inline-start: 0.25rem;
+  }
+}
+
+.bilingual-col-fa {
+  min-width: 0;
+  direction: rtl;
+  text-align: right;
+}
+
+.bilingual-col-en {
+  min-width: 0;
+  direction: ltr;
+  text-align: left;
+}
+
+.knowledge-html-content h1,
+.knowledge-html-content h2,
+.knowledge-html-content h3,
+.knowledge-html-content h4 {
+  font-weight: 700;
+  color: hsl(var(--foreground));
+  margin-top: 1.5em;
+  margin-bottom: 0.6em;
+  line-height: 1.35;
+  text-wrap: pretty;
+}
+
+.knowledge-html-content h1 {
+  font-size: 1.65em;
+  border-bottom: 1.5px solid hsl(var(--primary) / 0.35);
+  padding-bottom: 0.35em;
+  color: hsl(var(--primary));
+}
+
+.knowledge-html-content h2 {
+  font-size: 1.35em;
+  border-bottom: 1px solid hsl(var(--border));
+  padding-bottom: 0.25em;
+}
+
+.knowledge-html-content h3 {
+  font-size: 1.15em;
+  color: hsl(var(--primary));
+}
+
+.knowledge-html-content p {
+  margin-bottom: 1em;
+  color: hsl(var(--foreground) / 0.9);
+}
+
+.knowledge-html-content ul,
+.knowledge-html-content ol {
+  margin-bottom: 1.2em;
+  padding-inline-start: 1.6em;
+}
+
+.knowledge-html-content ul {
+  list-style-type: disc;
+}
+
+.knowledge-html-content ol {
+  list-style-type: decimal;
+}
+
+.knowledge-html-content li {
+  margin-bottom: 0.35em;
+}
+
+/* Callout Boxes (Clinical Pearls, Warnings, Dosing) */
+.knowledge-html-content .callout-pearl,
+.knowledge-html-content .callout-warning,
+.knowledge-html-content .callout-dosage,
+.knowledge-html-content .callout-note {
+  margin: 1.25em 0;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius);
+  border-width: 1px;
+  border-style: solid;
+  position: relative;
+}
+
+.knowledge-html-content .callout-pearl {
+  background: hsl(160 84% 39% / 0.08);
+  border-color: hsl(160 84% 39% / 0.35);
+  border-inline-start-width: 4px;
+  border-inline-start-color: hsl(160 84% 39%);
+}
+.knowledge-html-content .callout-pearl strong {
+  color: hsl(160 84% 39%);
+}
+
+.knowledge-html-content .callout-warning {
+  background: hsl(0 84% 60% / 0.08);
+  border-color: hsl(0 84% 60% / 0.35);
+  border-inline-start-width: 4px;
+  border-inline-start-color: hsl(0 84% 60%);
+}
+.knowledge-html-content .callout-warning strong {
+  color: hsl(0 84% 60%);
+}
+
+.knowledge-html-content .callout-dosage {
+  background: hsl(270 90% 65% / 0.08);
+  border-color: hsl(270 90% 65% / 0.35);
+  border-inline-start-width: 4px;
+  border-inline-start-color: hsl(270 90% 65%);
+}
+.knowledge-html-content .callout-dosage strong {
+  color: hsl(270 90% 65%);
+}
+
+.knowledge-html-content .callout-note {
+  background: hsl(var(--muted) / 0.6);
+  border-color: hsl(var(--border));
+  border-inline-start-width: 4px;
+  border-inline-start-color: hsl(var(--primary));
+}
+
+/* Interactive Accordions (<details>) */
+.knowledge-html-content details.knowledge-accordion,
+.knowledge-html-content details {
+  margin: 1.1em 0;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+  overflow: hidden;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px hsl(var(--foreground) / 0.04);
+}
+
+.knowledge-html-content details[open] {
+  border-color: hsl(var(--primary) / 0.4);
+  box-shadow: 0 4px 14px hsl(var(--primary) / 0.08);
+}
+
+.knowledge-html-content summary {
+  padding: 0.85rem 1.1rem;
+  font-weight: 600;
+  font-size: 0.95em;
+  cursor: pointer;
+  user-select: none;
+  background: hsl(var(--muted) / 0.5);
+  color: hsl(var(--foreground));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  list-style: none;
+  transition: background 0.15s ease;
+}
+
+.knowledge-html-content summary::-webkit-details-marker {
+  display: none;
+}
+
+.knowledge-html-content summary:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--primary));
+}
+
+.knowledge-html-content summary::after {
+  content: "▾";
+  font-size: 1.1em;
+  transition: transform 0.2s ease;
+  color: hsl(var(--muted-foreground));
+}
+
+.knowledge-html-content details[open] summary::after {
+  transform: rotate(180deg);
+  color: hsl(var(--primary));
+}
+
+.knowledge-html-content details > *:not(summary) {
+  padding: 1rem 1.1rem;
+}
+
+/* Interactive Checklists */
+.knowledge-html-content .knowledge-checklist {
+  margin: 1.1em 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.knowledge-html-content .knowledge-checklist label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.8rem;
+  border-radius: 0.5rem;
+  background: hsl(var(--muted) / 0.4);
+  border: 1px solid hsl(var(--border) / 0.7);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 0.92em;
+}
+
+.knowledge-html-content .knowledge-checklist label:hover {
+  background: hsl(var(--muted));
+  border-color: hsl(var(--primary) / 0.4);
+}
+
+.knowledge-html-content .knowledge-checklist input[type="checkbox"] {
+  accent-color: hsl(var(--primary));
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+/* Badges & Formulas */
+.knowledge-html-content .knowledge-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.78em;
+  font-weight: 600;
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+  border: 1px solid hsl(var(--primary) / 0.25);
+  margin-inline-end: 0.35rem;
+}
+
+/* Modern Tables */
+.knowledge-html-content table,
+.knowledge-html-content .knowledge-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 1.5em 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  box-shadow: 0 1px 4px hsl(var(--foreground) / 0.03);
+}
+
+.knowledge-html-content th,
+.knowledge-html-content td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid hsl(var(--border) / 0.7);
+  border-inline-end: 1px solid hsl(var(--border) / 0.5);
+  text-align: start;
+}
+
+.knowledge-html-content th {
+  background: hsl(var(--muted) / 0.85);
+  color: hsl(var(--foreground));
+  font-weight: 700;
+  font-size: 0.85em;
+  letter-spacing: 0.02em;
+}
+
+.knowledge-html-content tr:nth-child(even) td {
+  background: hsl(var(--muted) / 0.2);
+}
+
+.knowledge-html-content tr:hover td {
+  background: hsl(var(--accent) / 0.3);
+}
+
+.knowledge-html-content tr:last-child td {
+  border-bottom: none;
+}
+
+.knowledge-html-content td:last-child,
+.knowledge-html-content th:last-child {
+  border-inline-end: none;
+}
+
+.knowledge-html-content blockquote {
+  margin: 1.25em 0;
+  padding: 0.85rem 1.25rem;
+  border-inline-start: 4px solid hsl(var(--primary));
+  background: hsl(var(--primary) / 0.07);
+  border-radius: 0.5rem;
+  color: hsl(var(--foreground) / 0.9);
+  font-style: italic;
+}
+
+.knowledge-html-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  margin: 1.5em auto;
+  display: block;
+  box-shadow: 0 10px 30px -10px hsl(var(--foreground) / 0.15);
+  border: 1px solid hsl(var(--border));
+}
+
+.knowledge-html-content a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: opacity 0.15s;
+}
+
+.knowledge-html-content a:hover {
+  opacity: 0.8;
+}
+
+.knowledge-html-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.88em;
+  background: hsl(var(--muted));
+  padding: 0.15em 0.45em;
+  border-radius: 0.35rem;
+  color: hsl(var(--primary));
+  border: 1px solid hsl(var(--border));
+}
+
+.knowledge-html-content pre {
+  margin: 1.25em 0;
+  padding: 1rem;
+  background: hsl(var(--muted) / 0.9);
+  border-radius: var(--radius);
+  overflow-x: auto;
+  border: 1px solid hsl(var(--border));
+}
+
+.knowledge-html-content pre code {
+  background: transparent;
+  padding: 0;
+  border: none;
+  color: hsl(var(--foreground));
+}
+
+/* ==========================================================================
+   ARSHNAZ INTERACTIVE LEARNING ENGINE (آموزش تعاملی)
+   ========================================================================== */
+
+.interactive-learning-block {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  border-radius: 1.25rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--primary) / 0.25);
+  box-shadow: 0 8px 30px -10px hsl(var(--primary) / 0.12);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Interactive study output may mix Persian and English in the same widget.
+   Let each text block establish its own bidi base without flipping the layout
+   direction of the surrounding controls or cards. */
+.interactive-learning-block :is(
+  .interactive-block-title,
+  .flip-badge,
+  .flip-badge-answer,
+  .flip-text,
+  .quiz-badge,
+  .quiz-question,
+  .option-text,
+  .quiz-explanation,
+  .pair-instruction,
+  .interactive-pair-btn,
+  .pair-feedback,
+  .case-badge,
+  .case-title,
+  .step-num,
+  .step-text,
+  .step-key-point,
+  .step-completed-badge,
+  .cloze-title,
+  .interactive-cloze-title,
+  .cloze-paragraph,
+  .interactive-cloze-blank,
+  .node-question,
+  .decision-choice-btn,
+  .node-alert,
+  .memory-instruction,
+  .tile-back
+) {
+  unicode-bidi: plaintext;
+  overflow-wrap: anywhere;
+}
+
+.interactive-learning-block :is(
+  .interactive-block-title,
+  .flip-badge,
+  .flip-badge-answer,
+  .flip-text,
+  .quiz-question,
+  .quiz-explanation,
+  .pair-instruction,
+  .case-title,
+  .step-num,
+  .step-text,
+  .step-key-point,
+  .cloze-title,
+  .interactive-cloze-title,
+  .cloze-paragraph,
+  .node-question,
+  .node-alert,
+  .memory-instruction
+) {
+  text-align: start;
+}
+
+.interactive-block-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid hsl(var(--border) / 0.7);
+  padding-bottom: 0.85rem;
+}
+
+.interactive-block-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+  font-size: 0.75rem;
+  font-weight: 700;
+  width: fit-content;
+}
+
+.interactive-block-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: hsl(var(--foreground));
+}
+
+.interactive-block-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* 1. 3D FLIP CARDS (فلش‌کارت سه‌بعدی و کلیک‌وارونه) */
+.interactive-flip-card {
+  perspective: 1000px;
+  cursor: pointer;
+  min-height: 190px;
+  margin: 0.75rem 0;
+  user-select: none;
+  outline: none;
+}
+
+.interactive-flip-card:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  border-radius: 1.2rem;
+}
+
+.interactive-flip-card .flip-card-inner {
+  position: relative;
+  width: 100%;
+  min-height: 190px;
+  height: 100%;
+  transition: transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-style: preserve-3d;
+}
+
+.interactive-flip-card.is-flipped .flip-card-inner {
+  transform: rotateY(180deg);
+}
+
+.interactive-flip-card .flip-card-front,
+.interactive-flip-card .flip-card-back {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 1.15rem;
+  padding: 1.35rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  box-shadow: 0 4px 14px hsl(var(--foreground) / 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.interactive-flip-card:hover .flip-card-front {
+  border-color: hsl(var(--primary) / 0.4);
+  box-shadow: 0 8px 24px -6px hsl(var(--primary) / 0.15);
+}
+
+.interactive-flip-card .flip-card-back {
+  background: hsl(var(--primary) / 0.07);
+  border-color: hsl(var(--primary) / 0.35);
+  transform: rotateY(180deg);
+}
+
+.interactive-flip-card .flip-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: hsl(var(--primary));
+  text-transform: uppercase;
+}
+
+.interactive-flip-card .flip-badge-answer {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: hsl(142 71% 45%);
+}
+
+.interactive-flip-card .flip-text {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.6;
+  margin: 0.5rem 0;
+  color: hsl(var(--foreground));
+}
+
+.interactive-flip-card .flip-prompt {
+  font-size: 0.72rem;
+  color: hsl(var(--muted-foreground));
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* 2. INTERACTIVE MCQ QUIZ (کوییز تشخیصی با تشریح آنی) */
+.interactive-quiz-card {
+  padding: 1.25rem;
+  border-radius: 1.15rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 2px 10px hsl(var(--foreground) / 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.interactive-quiz-card .quiz-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.interactive-quiz-card .quiz-question {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+  line-height: 1.5;
+}
+
+.interactive-quiz-card .quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.interactive-quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.85rem;
+  background: hsl(var(--muted) / 0.4);
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  font-size: 0.88rem;
+  text-align: start;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.interactive-quiz-option:hover:not(:disabled) {
+  background: hsl(var(--muted));
+  border-color: hsl(var(--primary) / 0.4);
+  transform: translateX(-2px);
+}
+
+.interactive-quiz-option .option-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
+  font-size: 0.75rem;
+  font-weight: 800;
+  shrink: 0;
+}
+
+.interactive-quiz-option.option-correct {
+  background: hsl(142 71% 45% / 0.15) !important;
+  border-color: hsl(142 71% 45%) !important;
+  color: hsl(142 71% 35%) !important;
+  font-weight: 700;
+}
+.interactive-quiz-option.option-correct .option-marker {
+  background: hsl(142 71% 45%);
+  color: white;
+  border-color: hsl(142 71% 45%);
+}
+
+.interactive-quiz-option.option-incorrect {
+  background: hsl(0 84% 60% / 0.15) !important;
+  border-color: hsl(0 84% 60%) !important;
+  color: hsl(0 84% 50%) !important;
+}
+.interactive-quiz-option.option-incorrect .option-marker {
+  background: hsl(0 84% 60%);
+  color: white;
+  border-color: hsl(0 84% 60%);
+}
+
+.interactive-quiz-card .quiz-explanation {
+  padding: 0.85rem 1rem;
+  border-radius: 0.75rem;
+  background: hsl(var(--muted) / 0.6);
+  border: 1px solid hsl(var(--border));
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: hsl(var(--foreground));
+  display: none;
+}
+
+.interactive-quiz-card .quiz-explanation.is-visible {
+  display: block;
+  animation: fadeIn 0.3s ease;
+}
+
+/* 3. CLICK-TO-PAIR MATCHER (بازی تطبیق جفت‌ها) */
+.interactive-pair-container {
+  padding: 1.25rem;
+  border-radius: 1.15rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.interactive-pair-container .pair-instruction {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+.interactive-pair-container .pair-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .interactive-pair-container .pair-columns {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+}
+
+.interactive-pair-container .pair-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.interactive-pair-btn {
+  padding: 0.75rem 1rem;
+  border-radius: 0.85rem;
+  background: hsl(var(--muted) / 0.4);
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  text-align: center;
+}
+
+.interactive-pair-btn:hover:not(.is-matched) {
+  border-color: hsl(var(--primary) / 0.5);
+  background: hsl(var(--muted));
+}
+
+.interactive-pair-btn.is-selected {
+  background: hsl(var(--primary) / 0.15) !important;
+  border-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary)) !important;
+  font-weight: 700;
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2);
+  transform: scale(1.02);
+}
+
+.interactive-pair-btn.is-matched {
+  background: hsl(142 71% 45% / 0.15) !important;
+  border-color: hsl(142 71% 45%) !important;
+  color: hsl(142 71% 35%) !important;
+  cursor: default;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.interactive-pair-btn.is-mismatch {
+  animation: shake 0.4s ease;
+  background: hsl(0 84% 60% / 0.15) !important;
+  border-color: hsl(0 84% 60%) !important;
+}
+
+.pair-feedback {
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: hsl(142 71% 45% / 0.15);
+  border: 1px solid hsl(142 71% 45% / 0.4);
+  color: hsl(142 71% 35%);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* 4. STEP-BY-STEP CLINICAL CASE (سناریوی مرحله‌به‌مرحله بالینی) */
+.interactive-case-container {
+  padding: 1.25rem;
+  border-radius: 1.15rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.interactive-case-container .case-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.interactive-case-container .case-title {
+  margin: 0.35rem 0 0;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.interactive-case-container .case-step {
+  display: none;
+  padding: 1.1rem;
+  border-radius: 0.9rem;
+  background: hsl(var(--muted) / 0.3);
+  border: 1px solid hsl(var(--border));
+}
+
+.interactive-case-container .case-step.active {
+  display: block;
+  animation: fadeIn 0.35s ease;
+}
+
+.interactive-case-container .step-num {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: hsl(var(--primary));
+  margin-bottom: 0.4rem;
+}
+
+.interactive-case-container .step-text {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: hsl(var(--foreground));
+  margin: 0.5rem 0 1rem;
+}
+
+.interactive-case-container .step-key-point {
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: hsl(38 92% 50% / 0.12);
+  border: 1px solid hsl(38 92% 50% / 0.35);
+  color: hsl(var(--foreground));
+  font-size: 0.82rem;
+  margin: 0.75rem 0;
+}
+
+.interactive-case-next-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.1rem;
+  border-radius: 0.75rem;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.15s ease;
+}
+
+.interactive-case-next-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.interactive-case-container .step-completed-badge {
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: hsl(142 71% 45% / 0.15);
+  border: 1px solid hsl(142 71% 45%);
+  color: hsl(142 71% 35%);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* 5. INTERACTIVE CLOZE DELETION (جای خالی تعاملی) */
+.interactive-cloze-card {
+  padding: 1.25rem;
+  border-radius: 1.15rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+}
+
+.interactive-cloze-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 0.75rem;
+}
+
+.interactive-cloze-blank {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  margin: 0 0.25rem;
+  border-radius: 0.5rem;
+  background: hsl(var(--muted));
+  border: 1px dashed hsl(var(--primary));
+  color: hsl(var(--primary));
+  font-weight: 700;
+  font-size: 0.88em;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.25s ease;
+}
+
+.interactive-cloze-blank:hover {
+  background: hsl(var(--primary) / 0.12);
+}
+
+.interactive-cloze-blank.is-revealed {
+  background: hsl(142 71% 45% / 0.15);
+  border: 1px solid hsl(142 71% 45%);
+  color: hsl(142 71% 35%);
+  animation: pulse 0.3s ease;
+}
+
+/* 6. CLINICAL DECISION TREE (درخت تصمیم‌گیری بالینی) */
+.interactive-decision-tree {
+  padding: 1.25rem;
+  border-radius: 1.15rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+}
+
+.decision-node {
+  display: none;
+}
+
+.decision-node.active {
+  display: block;
+  animation: fadeIn 0.3s ease;
+}
+
+.node-question {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+  margin-bottom: 1rem;
+}
+
+.node-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.decision-choice-btn {
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: hsl(var(--muted) / 0.5);
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: start;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.decision-choice-btn:hover {
+  background: hsl(var(--primary) / 0.12);
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary));
+}
+
+.decision-choice-btn.btn-restart {
+  margin-top: 1rem;
+  background: hsl(var(--secondary));
+  text-align: center;
+}
+
+.node-alert {
+  padding: 1rem;
+  border-radius: 0.85rem;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.node-alert.alert-warning {
+  background: hsl(38 92% 50% / 0.12);
+  border: 1px solid hsl(38 92% 50% / 0.4);
+  color: hsl(var(--foreground));
+}
+
+.node-alert.alert-success {
+  background: hsl(142 71% 45% / 0.15);
+  border: 1px solid hsl(142 71% 45% / 0.4);
+  color: hsl(142 71% 35%);
+}
+
+/* 7. MEMORY MATCH MINI-GAME (مینی‌گیم تطبیق حافظه) */
+.interactive-memory-game {
+  padding: 1.25rem;
+  border-radius: 1.15rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+}
+
+.memory-instruction {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 0.85rem;
+}
+
+.memory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.75rem;
+}
+
+.memory-tile {
+  perspective: 600px;
+  height: 90px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.memory-tile .tile-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.4s ease;
+  transform-style: preserve-3d;
+}
+
+.memory-tile.is-flipped .tile-inner {
+  transform: rotateY(180deg);
+}
+
+.memory-tile .tile-front,
+.memory-tile .tile-back {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border: 1px solid hsl(var(--border));
+}
+
+.memory-tile .tile-front {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  font-size: 1.2rem;
+}
+
+.memory-tile .tile-back {
+  background: hsl(var(--primary) / 0.12);
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary));
+  transform: rotateY(180deg);
+}
+
+.memory-tile.is-matched .tile-back {
+  background: hsl(142 71% 45% / 0.2);
+  border-color: hsl(142 71% 45%);
+  color: hsl(142 71% 35%);
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+.leitner-focus-dialog {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.leitner-focus-dialog > button:last-of-type {
+  display: none;
+}
+
+.leitner-focus-dialog[data-study-theme="oled"] {
+  --background: 0 0% 0%;
+  --foreground: 210 20% 96%;
+  --card: 0 0% 6%;
+  --card-foreground: 210 20% 96%;
+  --popover: 0 0% 7%;
+  --popover-foreground: 210 20% 96%;
+  --secondary: 0 0% 13%;
+  --secondary-foreground: 210 20% 96%;
+  --muted: 0 0% 13%;
+  --muted-foreground: 210 10% 68%;
+  --accent: 0 0% 17%;
+  --accent-foreground: 210 20% 96%;
+  --border: 0 0% 20%;
+  --input: 0 0% 20%;
+}
+
+.leitner-focus-dialog[data-study-theme="paper"] {
+  --background: 42 42% 96%;
+  --foreground: 26 22% 16%;
+  --card: 42 50% 99%;
+  --card-foreground: 26 22% 16%;
+  --popover: 42 50% 99%;
+  --popover-foreground: 26 22% 16%;
+  --secondary: 38 25% 91%;
+  --secondary-foreground: 26 22% 16%;
+  --muted: 38 28% 92%;
+  --muted-foreground: 28 12% 42%;
+  --accent: 38 35% 88%;
+  --accent-foreground: 26 22% 16%;
+  --border: 35 20% 82%;
+  --input: 35 20% 82%;
+}
+
+
+

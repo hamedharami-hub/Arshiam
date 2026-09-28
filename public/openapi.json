@@ -1,0 +1,739 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Arshiam Tasks & AI Agent API",
+    "version": "1.0.0",
+    "description": "REST API specification for Arshiam task management application. Enables Google Gemini Spark, Agent Actions, and AI assistants to securely manage tasks, schedules, and user profile data with strict user isolation."
+  },
+  "servers": [
+    {
+      "url": "https://arshiam.vercel.app",
+      "description": "Production Server"
+    },
+    {
+      "url": "http://localhost:3000",
+      "description": "Local Development Server"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    },
+    {
+      "oauth2": [
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/userinfo.profile",
+        "openid"
+      ]
+    }
+  ],
+  "paths": {
+    "/api/user/me": {
+      "get": {
+        "summary": "Get authenticated user profile",
+        "description": "Returns details of the currently authenticated user identified by the Bearer token or OAuth credentials.",
+        "operationId": "getCurrentUser",
+        "tags": ["User"],
+        "responses": {
+          "200": {
+            "description": "User profile retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Missing or invalid authentication token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tasks": {
+      "get": {
+        "summary": "List tasks for authenticated user",
+        "description": "Retrieves tasks belonging strictly to the authenticated user with optional filtering by status, priority, or search term.",
+        "operationId": "listTasks",
+        "tags": ["Tasks"],
+        "parameters": [
+          {
+            "name": "completed",
+            "in": "query",
+            "required": false,
+            "description": "Filter by completion status (true or false)",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "priority",
+            "in": "query",
+            "required": false,
+            "description": "Filter by priority level",
+            "schema": {
+              "type": "string",
+              "enum": ["p1", "p2", "p3", "p4", "high", "medium", "low", "none"]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Filter by task status",
+            "schema": {
+              "type": "string",
+              "enum": ["todo", "in_progress", "done", "wont_do"]
+            }
+          },
+          {
+            "name": "folder_id",
+            "in": "query",
+            "required": false,
+            "description": "Filter tasks belonging to a specific folder",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "description": "Text query to search within task title and description",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum number of tasks to return (default 50, max 100)",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tasks retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Missing or invalid authentication token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new task",
+        "description": "Creates a new task assigned to the authenticated user. The user_id is automatically associated with current_user.",
+        "operationId": "createTask",
+        "tags": ["Tasks"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTaskInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Task created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskItemResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - Missing required field 'title'",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Missing or invalid authentication token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tasks/today": {
+      "get": {
+        "summary": "Get today's tasks",
+        "description": "Fetches all tasks due today for the authenticated user, as well as overdue incomplete tasks. Essential for AI daily schedule summaries.",
+        "operationId": "getTodayTasks",
+        "tags": ["Tasks"],
+        "responses": {
+          "200": {
+            "description": "Today's tasks retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayTaskListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Missing or invalid authentication token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tasks/{id}": {
+      "get": {
+        "summary": "Get task by ID",
+        "description": "Retrieves a single task by its unique ID. Only returns if the task belongs to the authenticated user.",
+        "operationId": "getTaskById",
+        "tags": ["Tasks"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the task",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task details retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskItemResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Missing or invalid authentication token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Task not found or not owned by user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update task",
+        "description": "Updates specific fields of an existing task owned by the authenticated user (e.g. mark completed, change priority or due date).",
+        "operationId": "updateTask",
+        "tags": ["Tasks"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the task to update",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTaskInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Task updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskItemResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Invalid field data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Missing or invalid authentication token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Task not found or not owned by user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete task",
+        "description": "Permanently deletes a task belonging to the authenticated user.",
+        "operationId": "deleteTask",
+        "tags": ["Tasks"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the task to delete",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteTaskResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Missing or invalid authentication token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Task not found or not owned by user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Firebase Auth ID token (JWT). Pass as 'Authorization: Bearer <id_token>'."
+      },
+      "oauth2": {
+        "type": "oauth2",
+        "description": "Google OAuth 2.0 authorization code flow for Google Gemini Spark, Agent Actions, and external AI agents.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://accounts.google.com/o/oauth2/v2/auth",
+            "tokenUrl": "https://oauth2.googleapis.com/token",
+            "scopes": {
+              "https://www.googleapis.com/auth/userinfo.email": "Access your Google email address",
+              "https://www.googleapis.com/auth/userinfo.profile": "Access your basic Google profile",
+              "openid": "OpenID Connect user identification"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "UserProfile": {
+        "type": "object",
+        "required": ["userId"],
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "The unique Firebase / Google account identifier"
+          },
+          "email": {
+            "type": ["string", "null"],
+            "description": "User email address"
+          },
+          "displayName": {
+            "type": ["string", "null"],
+            "description": "User display name"
+          },
+          "photoURL": {
+            "type": ["string", "null"],
+            "description": "User avatar image URL"
+          }
+        }
+      },
+      "Task": {
+        "type": "object",
+        "required": ["id", "user_id", "title", "completed", "priority", "status"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique task identifier"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "ID of the user who owns this task"
+          },
+          "title": {
+            "type": "string",
+            "description": "Task title"
+          },
+          "description": {
+            "type": ["string", "null"],
+            "description": "Task description or notes"
+          },
+          "completed": {
+            "type": "boolean",
+            "description": "True if task is completed"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["p1", "p2", "p3", "p4", "high", "medium", "low", "none"],
+            "description": "Task priority level"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["todo", "in_progress", "done", "wont_do"],
+            "description": "Current status of the task"
+          },
+          "due_date": {
+            "type": ["string", "null"],
+            "description": "Due date in YYYY-MM-DD or ISO 8601 format"
+          },
+          "folder_id": {
+            "type": ["string", "null"],
+            "description": "Folder identifier if assigned to a folder"
+          },
+          "pinned": {
+            "type": "boolean",
+            "description": "Whether task is pinned at top"
+          },
+          "start_at": {
+            "type": ["string", "null"],
+            "description": "Scheduled start time (ISO 8601)"
+          },
+          "end_at": {
+            "type": ["string", "null"],
+            "description": "Scheduled end time (ISO 8601)"
+          },
+          "estimated_minutes": {
+            "type": ["integer", "null"],
+            "description": "Estimated duration in minutes"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "Creation timestamp in ISO 8601 format"
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "Last update timestamp in ISO 8601 format"
+          }
+        }
+      },
+      "CreateTaskInput": {
+        "type": "object",
+        "required": ["title"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Title of the new task"
+          },
+          "description": {
+            "type": ["string", "null"],
+            "description": "Optional detailed notes or description"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["p1", "p2", "p3", "p4", "high", "medium", "low", "none"],
+            "default": "p4",
+            "description": "Task priority"
+          },
+          "due_date": {
+            "type": ["string", "null"],
+            "description": "Due date in YYYY-MM-DD or ISO 8601 format"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["todo", "in_progress", "done", "wont_do"],
+            "default": "todo"
+          },
+          "folder_id": {
+            "type": ["string", "null"],
+            "description": "Optional folder ID"
+          },
+          "pinned": {
+            "type": "boolean",
+            "default": false
+          },
+          "start_at": {
+            "type": ["string", "null"],
+            "description": "Scheduled start time (ISO 8601)"
+          },
+          "end_at": {
+            "type": ["string", "null"],
+            "description": "Scheduled end time (ISO 8601)"
+          },
+          "estimated_minutes": {
+            "type": ["integer", "null"],
+            "description": "Estimated duration in minutes"
+          }
+        }
+      },
+      "UpdateTaskInput": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Updated title"
+          },
+          "description": {
+            "type": ["string", "null"],
+            "description": "Updated description"
+          },
+          "completed": {
+            "type": "boolean",
+            "description": "Set true to complete, false to uncomplete"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["p1", "p2", "p3", "p4", "high", "medium", "low", "none"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["todo", "in_progress", "done", "wont_do"]
+          },
+          "due_date": {
+            "type": ["string", "null"],
+            "description": "Updated due date in YYYY-MM-DD or ISO 8601 format"
+          },
+          "folder_id": {
+            "type": ["string", "null"],
+            "description": "Updated folder ID"
+          },
+          "pinned": {
+            "type": "boolean"
+          },
+          "start_at": {
+            "type": ["string", "null"]
+          },
+          "end_at": {
+            "type": ["string", "null"]
+          },
+          "estimated_minutes": {
+            "type": ["integer", "null"]
+          }
+        }
+      },
+      "UserProfileResponse": {
+        "type": "object",
+        "required": ["success", "data"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/UserProfile"
+          }
+        }
+      },
+      "TaskItemResponse": {
+        "type": "object",
+        "required": ["success", "data"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/Task"
+          }
+        }
+      },
+      "TaskListResponse": {
+        "type": "object",
+        "required": ["success", "data"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "required": ["tasks", "total"],
+            "properties": {
+              "tasks": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              },
+              "total": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "TodayTaskListResponse": {
+        "type": "object",
+        "required": ["success", "data"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "required": ["today", "overdue", "summary"],
+            "properties": {
+              "today": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              },
+              "overdue": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              },
+              "summary": {
+                "type": "object",
+                "properties": {
+                  "totalToday": { "type": "integer" },
+                  "totalOverdue": { "type": "integer" },
+                  "completedCount": { "type": "integer" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "DeleteTaskResponse": {
+        "type": "object",
+        "required": ["success", "message"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Task deleted successfully"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["success", "error"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "UNAUTHORIZED"
+              },
+              "message": {
+                "type": "string",
+                "example": "Missing or invalid authorization token"
+              },
+              "details": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

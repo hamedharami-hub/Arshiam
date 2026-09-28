@@ -1,0 +1,369 @@
+import { useEffect, useState } from "react";
+import { firebaseStore } from "@/lib/firebaseStore";
+import { useAuth } from "@/hooks/useAuth";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { toast } from "sonner";
+import { Sparkles, Save, RefreshCw, ChevronLeft, ChevronRight, Loader2, FolderPlus, Tag as TagIcon, ListTodo } from "lucide-react";
+import { ABOUT_SECTIONS, loadAboutMe, saveAboutMe, type AboutMeRow, type AboutAnswer } from "@/lib/aboutMe";
+import { useBilingual } from "@/hooks/useBilingual";
+import { getFeatureCapability, isFeatureEnabled } from "@/lib/capabilities";
+import { callAI } from "@/lib/ai";
+
+export default function AboutMeView() {
+  const { user } = useAuth();
+  const { T, isEn } = useBilingual();
+  const [row, setRow] = useState<AboutMeRow | null>(null);
+  const [answers, setAnswers] = useState<Record<string, AboutAnswer>>({});
+  const [freeText, setFreeText] = useState("");
+  const [step, setStep] = useState(0);
+  const [mode, setMode] = useState<"wizard" | "review">("wizard");
+  const [busy, setBusy] = useState(false);
+  const [applying, setApplying] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    loadAboutMe(user.id).then((r) => {
+      if (r) {
+        setRow(r);
+        setAnswers(r.answers || {});
+        setFreeText(r.free_text || "");
+        if (r.ai_analysis) setMode("review");
+      }
+    });
+  }, [user]);
+
+  const setAns = (k: string, v: AboutAnswer) => setAnswers((s) => ({ ...s, [k]: v }));
+
+  const persist = async (notify = false) => {
+    if (!user) return;
+    await saveAboutMe(user.id, { answers, free_text: freeText });
+    if (notify) toast.success(T("پاسخ‌ها ذخیره شدند ✓", "Answers saved successfully ✓"));
+  };
+
+  const next = async () => {
+    await persist();
+    if (step < ABOUT_SECTIONS.length) setStep(step + 1);
+    else await analyze();
+  };
+
+  const analyze = async () => {
+    if (!user) return;
+    setBusy(true);
+    try {
+      // 1. Always persist manual answers first so they are never lost
+      await persist();
+      const fresh = await loadAboutMe(user.id);
+      if (fresh) setRow(fresh);
+      toast.success(T("پاسخ‌ها ذخیره شدند ✓", "Answers saved successfully ✓"));
+
+      // 2. Call configured client-side AI provider (BYOK)
+      const formattedInput = {
+        answers,
+        free_text: freeText,
+      };
+
+      const aiRes = await callAI(
+        "about_me_analysis",
+        formattedInput,
+        undefined,
+        undefined,
+        isEn ? "en" : "fa"
+      );
+
+      if (aiRes?.data?.ai_analysis) {
+        const patch = {
+          ai_analysis: aiRes.data.ai_analysis,
+          ai_suggestions: aiRes.data.ai_suggestions || null,
+          analyzed_at: new Date().toISOString(),
+        };
+        await saveAboutMe(user.id, patch);
+        setRow((prev) => (prev ? { ...prev, ...patch } : null));
+        setMode("review");
+        toast.success(T("تحلیل هوشمند با موفقیت تکمیل شد ✓", "AI analysis completed successfully ✓"));
+      } else {
+        toast.info(T("پاسخ‌ها ذخیره شدند، اما تحلیل هوش مصنوعی فرمت معتبری بازنگرداند.", "Answers saved, but AI did not produce structured output."));
+      }
+    } catch (e: any) {
+      // Manual answers remain preserved by persist()
+      toast.error(
+        e.message || T("خطا در اجرای تحلیل هوش مصنوعی. پاسخ‌های شما ذخیره شده‌اند.", "Error running AI analysis. Your answers are saved.")
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const createFolder = async (name: string) => {
+    if (!user) return;
+    setApplying("folder:" + name);
+    const { error } = await firebaseStore.from("folders").insert({ user_id: user.id, name });
+    setApplying(null);
+    if (error) toast.error(error.message);
+    else toast.success(T("فولدر «" + name + "» ساخته شد", `Folder "${name}" created`));
+  };
+
+  const createTag = async (name: string) => {
+    if (!user) return;
+    setApplying("tag:" + name);
+    const { error } = await firebaseStore.from("tags").insert({ user_id: user.id, name });
+    setApplying(null);
+    if (error) toast.error(error.message);
+    else toast.success(T("تگ «" + name + "» ساخته شد", `Tag "${name}" created`));
+  };
+
+  const createTask = async (t: { title: string; folder?: string; priority?: any }) => {
+    if (!user) return;
+    setApplying("task:" + t.title);
+    let folder_id: string | null = null;
+    if (t.folder) {
+      const { data: f } = await firebaseStore.from("folders").select("id").eq("name", t.folder).maybeSingle();
+      if (f) folder_id = (f as any).id;
+      else {
+        const { data: created } = await firebaseStore.from("folders").insert({ user_id: user.id, name: t.folder }).select().maybeSingle();
+        if (created) folder_id = (created as any).id;
+      }
+    }
+    const { error } = await firebaseStore.from("tasks").insert({
+      user_id: user.id, title: t.title, folder_id, priority: (t.priority as any) || "none",
+    });
+    setApplying(null);
+    if (error) toast.error(error.message);
+    else toast.success(T("تسک ساخته شد", "Task created"));
+  };
+
+  // ----- Render -----
+  if (mode === "review" && row?.ai_analysis) {
+    const a = row.ai_analysis;
+    const s = row.ai_suggestions;
+    return (
+      <div dir={isEn ? "ltr" : "rtl"} className="p-4 md:p-6 max-w-3xl mx-auto space-y-5 page-enter">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Sparkles className="w-6 h-6 text-primary" /> {T("درباره من", "About Me")}
+          </h1>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setMode("wizard"); setStep(0); }}>
+              ✏️ {T("ویرایش پاسخ‌ها", "Edit Answers")}
+            </Button>
+            <Button size="sm" onClick={analyze} disabled={busy} className="gap-1">
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              {T("تحلیل مجدد", "Re-analyze")}
+            </Button>
+          </div>
+        </div>
+
+        <div className="p-3.5 rounded-xl border border-primary/20 bg-primary/5 text-xs text-muted-foreground leading-relaxed flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-primary shrink-0" />
+          <span>
+            {isEn
+              ? "Non-clinical personal summary generated with your configured BYOK AI provider. ARSHNAZ does not provide medical or psychological diagnosis."
+              : "خلاصه و دسته‌بندی غیربالینی با کلید اختصاصی هوش مصنوعی شما. ارشناز هیچ‌گونه تشخیص پزشکی یا روان‌شناختی ارائه نمی‌دهد."}
+          </span>
+        </div>
+
+        <Card className="p-5 space-y-3">
+          <h2 className="font-semibold">📋 {T("خلاصه", "Summary")}</h2>
+          <p className="text-sm leading-7 text-foreground">{a.summary}</p>
+        </Card>
+
+        {a.themes && a.themes.length > 0 && (
+          <Card className="p-5 space-y-3">
+            <h2 className="font-semibold">🎯 {T("تم‌های اصلی زندگی", "Core Life Themes")}</h2>
+            <div className="flex flex-wrap gap-2">
+              {a.themes.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}
+            </div>
+          </Card>
+        )}
+
+        <div className="grid md:grid-cols-2 gap-4">
+          {a.strengths && a.strengths.length > 0 && (
+            <Card className="p-5 space-y-2">
+              <h2 className="font-semibold text-success">💪 {T("نقاط قوت", "Strengths")}</h2>
+              <ul className="text-sm space-y-1.5 list-disc pe-5">
+                {a.strengths.map((x, i) => <li key={i}>{x}</li>)}
+              </ul>
+            </Card>
+          )}
+          {a.risks && a.risks.length > 0 && (
+            <Card className="p-5 space-y-2">
+              <h2 className="font-semibold text-warning">⚠️ {T("موانع و ریسک‌ها", "Obstacles & Risks")}</h2>
+              <ul className="text-sm space-y-1.5 list-disc pe-5">
+                {a.risks.map((x, i) => <li key={i}>{x}</li>)}
+              </ul>
+            </Card>
+          )}
+        </div>
+
+        {s?.folders && s.folders.length > 0 && (
+          <Card className="p-5 space-y-3">
+            <h2 className="font-semibold flex items-center gap-2"><FolderPlus className="w-4 h-4" /> {T("فولدرهای پیشنهادی", "Suggested Folders")}</h2>
+            <div className="flex flex-wrap gap-2">
+              {s.folders.map((f) => (
+                <Button key={f} size="sm" variant="outline" disabled={applying === "folder:" + f}
+                  onClick={() => createFolder(f)}>
+                  + {f}
+                </Button>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {s?.tags && s.tags.length > 0 && (
+          <Card className="p-5 space-y-3">
+            <h2 className="font-semibold flex items-center gap-2"><TagIcon className="w-4 h-4" /> {T("تگ‌های پیشنهادی", "Suggested Tags")}</h2>
+            <div className="flex flex-wrap gap-2">
+              {s.tags.map((t) => (
+                <Button key={t} size="sm" variant="outline" disabled={applying === "tag:" + t}
+                  onClick={() => createTag(t)}>
+                  # {t}
+                </Button>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {s?.tasks && s.tasks.length > 0 && (
+          <Card className="p-5 space-y-3">
+            <h2 className="font-semibold flex items-center gap-2"><ListTodo className="w-4 h-4" /> {T("تسک‌های شروع‌کننده", "Starter Tasks")}</h2>
+            <div className="space-y-2">
+              {s.tasks.map((t, i) => (
+                <div key={i} className="flex items-center gap-2 border rounded-md p-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{t.title}</p>
+                    <div className="flex gap-1 mt-1">
+                      {t.folder && <Badge variant="outline" className="text-[10px]">📁 {t.folder}</Badge>}
+                      {t.priority && t.priority !== "none" && <Badge variant="outline" className="text-[10px]">⚡ {t.priority}</Badge>}
+                    </div>
+                  </div>
+                  <Button size="sm" variant="ghost" disabled={applying === "task:" + t.title}
+                    onClick={() => createTask(t)}>
+                    {T("افزودن", "Add")}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        <p className="text-xs text-muted-foreground text-center pt-2">
+          {T("هر زمان خواستی، با «ویرایش پاسخ‌ها» جواب‌ها رو عوض کن و دوباره تحلیل بگیر.", "You can edit your answers anytime and re-analyze to get updated insights.")}
+        </p>
+      </div>
+    );
+  }
+
+  // ----- Wizard -----
+  const totalSteps = ABOUT_SECTIONS.length + 1; // +1 for free text final
+  const isFreeStep = step === ABOUT_SECTIONS.length;
+  const section = ABOUT_SECTIONS[step];
+  const progress = Math.round(((step + 1) / (totalSteps + 1)) * 100);
+
+  return (
+    <div dir={isEn ? "ltr" : "rtl"} className="p-4 md:p-6 max-w-2xl mx-auto space-y-5 page-enter">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <Sparkles className="w-6 h-6 text-primary" /> {T("درباره من", "About Me")}
+        </h1>
+        <span className="text-xs text-muted-foreground">
+          {isEn ? `Step ${step + 1} of ${totalSteps}` : `گام ${step + 1} از ${totalSteps}`}
+        </span>
+      </div>
+
+      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+        <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+      </div>
+
+      <Card className="p-5 space-y-5">
+        {!isFreeStep ? (
+          <>
+            <h2 className="font-semibold text-lg flex items-center gap-2">
+              <span>{section.emoji}</span> {section.title}
+            </h2>
+            <div className="space-y-5">
+              {section.questions.map((q) => (
+                <div key={q.key} className="space-y-2">
+                  <Label className="text-sm">{q.label}</Label>
+                  {q.type === "text" && (
+                    <Input value={(answers[q.key] as string) || ""} placeholder={q.placeholder}
+                      onChange={(e) => setAns(q.key, e.target.value)} />
+                  )}
+                  {q.type === "longtext" && (
+                    <Textarea rows={3} value={(answers[q.key] as string) || ""}
+                      onChange={(e) => setAns(q.key, e.target.value)} />
+                  )}
+                  {q.type === "single" && (
+                    <RadioGroup value={(answers[q.key] as string) || ""} onValueChange={(v) => setAns(q.key, v)}>
+                      <div className="flex flex-wrap gap-2">
+                        {q.options.map((o) => (
+                          <label key={o} className={`flex items-center gap-2 border rounded-md px-3 py-1.5 cursor-pointer text-sm transition ${answers[q.key] === o ? "bg-accent border-primary" : "hover:bg-muted"}`}>
+                            <RadioGroupItem value={o} className="sr-only" />
+                            <span>{o}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </RadioGroup>
+                  )}
+                  {q.type === "multi" && (
+                    <div className="flex flex-wrap gap-2">
+                      {q.options.map((o) => {
+                        const arr = (answers[q.key] as string[]) || [];
+                        const on = arr.includes(o);
+                        return (
+                          <label key={o} className={`flex items-center gap-2 border rounded-md px-3 py-1.5 cursor-pointer text-sm transition ${on ? "bg-accent border-primary" : "hover:bg-muted"}`}>
+                            <Checkbox checked={on} onCheckedChange={(v) => {
+                              const next = v ? [...arr, o] : arr.filter((x) => x !== o);
+                              setAns(q.key, next);
+                            }} />
+                            <span>{o}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <h2 className="font-semibold text-lg flex items-center gap-2">
+              <span>📝</span> {T("هر چیز دیگری دوست داری بگی", "Anything else you'd like to share")}
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              {T("این متن آزاد به AI کمک می‌کنه تو رو بهتر بشناسه. هر چیزی — قصه، حس، رویا، گلایه — رو می‌تونی بنویسی.", "This free text helps the AI understand you better. Anything — stories, feelings, dreams, grievances — is welcome.")}
+            </p>
+            <Textarea rows={10} value={freeText} onChange={(e) => setFreeText(e.target.value)}
+              placeholder={T("هر چه به ذهنت می‌رسد...", "Anything that comes to mind...")} />
+          </>
+        )}
+      </Card>
+
+      <div className="flex items-center justify-between gap-2">
+        <Button variant="outline" disabled={step === 0 || busy}
+          onClick={() => setStep((s) => Math.max(0, s - 1))} className="gap-1">
+          {isEn ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />} {T("قبلی", "Previous")}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => persist(true)} className="gap-1 text-xs">
+          <Save className="w-3 h-3" /> {T("ذخیره", "Save")}
+        </Button>
+        {step < ABOUT_SECTIONS.length ? (
+          <Button onClick={next} disabled={busy} className="gap-1">
+            {T("بعدی", "Next")} {isEn ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          </Button>
+        ) : (
+          <Button onClick={analyze} disabled={busy} className="gap-1">
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {T("ذخیره و ثبت پاسخ‌ها", "Save & Finish")}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
