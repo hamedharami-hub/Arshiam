@@ -268,26 +268,8 @@ export const KnowledgeDriveAttachments: React.FC<KnowledgeDriveAttachmentsProps>
   };
 
   return (
-    <section className="mb-5 rounded-2xl border border-border bg-card/80 shadow-sm" aria-label={isEn ? "Google Drive lesson media" : "رسانهٔ درس در Google Drive"}>
-      <div className="flex items-center justify-between gap-3 px-3 py-3 sm:px-4">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <HardDrive className="h-4 w-4" aria-hidden="true" />
-          </span>
-          <div className="min-w-0">
-            <h2 className="truncate text-sm font-bold text-foreground">
-              {isEn ? "Lesson media" : "رسانه‌های درس"}
-              <span className="ms-2 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                {attachments.length.toLocaleString(isEn ? "en-AU" : "fa-IR")}
-              </span>
-            </h2>
-            <p className="text-[11px] leading-5 text-muted-foreground">
-              {hasDriveFiles
-                ? isEn ? "Images and videos linked to this lesson" : "تصاویر و ویدیوهای پیوندخورده به این درس"
-                : isEn ? "Optional media in Google Drive; sharing follows your Drive settings" : "رسانهٔ اختیاری در Google Drive؛ اشتراک‌گذاری تابع تنظیمات Drive شماست"}
-            </p>
-          </div>
-        </div>
+    <section className="mb-3" aria-label={isEn ? "Google Drive lesson media" : "رسانهٔ درس در Google Drive"}>
+      <div className="flex items-center gap-2">
         <button
           type="button"
           aria-expanded={isOpen}
@@ -295,23 +277,20 @@ export const KnowledgeDriveAttachments: React.FC<KnowledgeDriveAttachmentsProps>
             setError("");
             setIsOpen((open) => !open);
           }}
-          className="shrink-0 rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-background text-primary transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          aria-label={isOpen ? (isEn ? "Close media" : "بستن رسانه‌ها") : (isEn ? "Add or view lesson media" : "افزودن یا دیدن رسانه‌های درس")}
+          title={isOpen ? (isEn ? "Close media" : "بستن رسانه‌ها") : (isEn ? "Add or view lesson media" : "افزودن یا دیدن رسانه‌های درس")}
         >
-          {isOpen ? isEn ? "Close" : "بستن" : hasDriveFiles ? isEn ? "View / add" : "نمایش / افزودن" : isEn ? "Add media" : "افزودن رسانه"}
+          {isOpen ? <X className="h-4 w-4" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}
         </button>
+        <span className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary" aria-label={isEn ? `${attachments.length} lesson media files` : `${attachments.length} رسانهٔ درس`} title={isEn ? "Lesson media" : "رسانه‌های درس"}>
+          <Image className="h-4 w-4" aria-hidden="true" />
+          {hasDriveFiles && <span className="absolute -right-1 -top-1 rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">{attachments.length}</span>}
+        </span>
       </div>
 
       {isOpen && (
-        <div className="space-y-3 border-t border-border/70 p-3 sm:p-4">
-          <div className="flex items-start gap-2 rounded-xl border border-primary/15 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground">
-            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-            <p>
-              {isEn
-                ? "Drive asks for permission only after you connect. Access is limited to files ARSHNAZ creates with drive.file; the temporary token stays in memory and is not saved."
-                : "دسترسی فقط پس از اتصال شما درخواست می‌شود و به فایل‌هایی که ARSHNAZ با مجوز محدود drive.file می‌سازد محدود است؛ توکن موقت فقط در حافظه می‌ماند و ذخیره نمی‌شود."}
-            </p>
-          </div>
-
+        <div className="mt-2 space-y-3 rounded-2xl border border-border bg-card p-3 shadow-sm sm:p-4">
           {userId && userId !== "guest" ? (
             <div className="flex flex-wrap items-center gap-2">
               {!isConnected ? (

@@ -32,6 +32,7 @@ describe("AndroidBackButton", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    window.history.replaceState({ idx: 0 }, "");
     (CapApp.addListener as any).mockImplementation((event: string, callback: () => void) => {
       if (event === "backButton") {
         backListener = callback;
@@ -48,6 +49,16 @@ describe("AndroidBackButton", () => {
     backListener?.();
 
     expect(mockNavigate).toHaveBeenCalledWith("/app/today", { replace: true });
+  });
+
+  it("returns to the actual previous page from a task when in-app history exists", () => {
+    mockLocation = { pathname: "/app/tasks/task-123", search: "" };
+    window.history.replaceState({ idx: 2 }, "");
+    render(<AndroidBackButton />);
+
+    backListener?.();
+    expect(mockNavigate).toHaveBeenCalledWith(-1);
+    expect(mockNavigate).not.toHaveBeenCalledWith("/app/today", { replace: true });
   });
 
   it("navigates to parent task when from query parameter is present", () => {

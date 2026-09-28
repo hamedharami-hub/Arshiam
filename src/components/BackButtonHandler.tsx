@@ -17,9 +17,10 @@ export default function BackButtonHandler() {
   const sentinelActive = useRef<boolean>(false);
 
   useEffect(() => {
-    // Only push a sentinel when entering a root route; remove on non-root.
-    if (isRoot(loc.pathname) && !sentinelActive.current) {
-      window.history.pushState({ __sentinel: true }, "");
+    // Only guard an entry-point root with no in-app history. Internal root
+    // routes must keep normal browser history so Back returns to the last page.
+    if (isRoot(loc.pathname) && !sentinelActive.current && !(window.history.state?.idx > 0)) {
+      window.history.pushState({ ...window.history.state, __sentinel: true }, "");
       sentinelActive.current = true;
     }
 
@@ -35,7 +36,7 @@ export default function BackButtonHandler() {
         }
         lastBackAt.current = now;
         // re-add sentinel and prompt
-        window.history.pushState({ __sentinel: true }, "");
+        window.history.pushState({ ...window.history.state, __sentinel: true }, "");
         toast("برای خروج، یک‌بار دیگر دکمه برگشت را بزن", { duration: 1800 });
       } else {
         // we navigated away from a root → drop sentinel flag

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import PharmacyProductsView from "./PharmacyProductsView";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 
 const { languageState } = vi.hoisted(() => ({ languageState: { lang: "en" as "en" | "fa" } }));
 
@@ -54,5 +54,26 @@ describe("PharmacyProductsView", () => {
     expect(screen.getByRole("heading", { name: "No products found" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Reset" }));
     expect(screen.getByText("121 of 121 products")).toBeInTheDocument();
+  });
+
+  it("restores the filtered catalogue after reading a linked article and going back", () => {
+    const Article = () => {
+      const navigate = useNavigate();
+      return <button onClick={() => navigate(-1)}>Back to catalogue</button>;
+    };
+    render(
+      <MemoryRouter initialEntries={["/app/pharmacy-products"]}>
+        <Routes>
+          <Route path="/app/pharmacy-products" element={<PharmacyProductsView />} />
+          <Route path="/app/knowledge" element={<Article />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search products" }), { target: { value: "Panadol" } });
+    fireEvent.click(screen.getByRole("button", { name: "View Panadol 500mg" }));
+    fireEvent.click(screen.getByRole("link", { name: "Read full article in the app" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back to catalogue" }));
+    expect(screen.getByRole("searchbox", { name: "Search products" })).toHaveValue("Panadol");
+    expect(screen.getByRole("button", { name: "View Panadol 500mg" })).toBeInTheDocument();
   });
 });

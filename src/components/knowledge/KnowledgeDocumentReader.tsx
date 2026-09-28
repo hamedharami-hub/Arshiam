@@ -687,11 +687,6 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
             </button>
           )}
 
-          <div className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-border bg-background/70 px-2 text-xs font-medium text-muted-foreground" aria-label={isEn ? "Reader mode" : "حالت مطالعه Reader"}>
-            <BookOpen className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-            <span>Reader</span>
-          </div>
-
           {/* Font Resizer */}
           <div className="flex items-center rounded-xl border border-border bg-muted/50 p-0.5">
               <button
@@ -841,17 +836,13 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
               onDocumentUpdated={onDocumentUpdated}
             />
 
-            {(reviewState === "unreviewed" || reviewState === "missing-evidence") && (
+            {(reviewState === "missing-evidence" || (reviewState === "unreviewed" && !isPharmacySourceFile)) && (
               <div role="note" className="mb-5 rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-foreground">
                 {reviewState === "missing-evidence"
                   ? isEn
                     ? "This document is marked reviewed, but its review record is missing valid reviewer, jurisdiction, date, scope, or source details. Treat it as unreviewed."
                     : "برای این سند برچسب بازبینی‌شده ثبت شده، اما نقش بازبین، حوزهٔ قضایی، تاریخ، دامنه یا جزئیات معتبر منبع کامل نیست؛ فعلاً آن را بازبینی‌نشده در نظر بگیرید."
-                  : isPharmacySourceFile
-                    ? isEn
-                      ? "Imported educational content. It has not been independently checked against current Australian clinical references or state and territory rules. Verify the current primary source before using it in practice."
-                      : "محتوای آموزشیِ واردشده است و با منابع اولیهٔ بالینیِ جاری یا قوانین ایالت‌ها و قلمروهای استرالیا به‌طور مستقل تطبیق داده نشده؛ پیش از استفادهٔ حرفه‌ای، منبع اولیهٔ روز را بررسی کنید."
-                    : isEn
+                  : isEn
                       ? "This document is marked unreviewed. Check its primary sources before relying on it for professional decisions."
                       : "این سند بازبینی‌نشده است؛ پیش از اتکا به آن برای تصمیم حرفه‌ای، منابع اولیه‌اش را بررسی کنید."}
               </div>

@@ -49,7 +49,8 @@ export default function AndroidBackButton() {
           toast("برای خروج یک‌بار دیگر برگشت را بزن", { duration: 1800 });
           return;
         }
-        navigate("/app/today", { replace: true });
+        if (window.history.state?.idx > 0) navigate(-1);
+        else navigate("/app/today", { replace: true });
         return;
       }
       if (pathname === "/auth" || pathname === "/") {

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { BookOpen, PackageSearch, Search, SlidersHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -18,10 +19,11 @@ import {
 
 export default function PharmacyProductsView() {
   const { T, lang } = useBilingual();
-  const [query, setQuery] = useState("");
-  const [schedule, setSchedule] = useState<PharmacyProductScheduleFilter>("all");
-  const [categoryId, setCategoryId] = useState("all");
-  const [subcategoryId, setSubcategoryId] = useState("all");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const query = searchParams.get("q") ?? "";
+  const schedule = (searchParams.get("schedule") ?? "all") as PharmacyProductScheduleFilter;
+  const categoryId = searchParams.get("category") ?? "all";
+  const subcategoryId = searchParams.get("subcategory") ?? "all";
   const [selectedProduct, setSelectedProduct] = useState<PharmacyProductCatalogEntry | null>(null);
   const isEn = lang === "en";
 
@@ -38,11 +40,22 @@ export default function PharmacyProductsView() {
     [categoryId, query, schedule, subcategoryId],
   );
 
+  const updateFilter = (key: string, value: string, clearSubcategory = false) => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      if (value && value !== "all") next.set(key, value);
+      else next.delete(key);
+      if (clearSubcategory) next.delete("subcategory");
+      return next;
+    }, { replace: true });
+  };
+
   const resetFilters = () => {
-    setQuery("");
-    setSchedule("all");
-    setCategoryId("all");
-    setSubcategoryId("all");
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      for (const key of ["q", "schedule", "category", "subcategory"]) next.delete(key);
+      return next;
+    }, { replace: true });
   };
 
   const categoryName = (product: PharmacyProductCatalogEntry) =>
@@ -74,14 +87,14 @@ export default function PharmacyProductsView() {
             <Input
               type="search"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => updateFilter("q", event.target.value)}
               placeholder={T("نام تجاری، ژنریک یا مادهٔ مؤثره…", "Brand, generic, or ingredient…")}
               aria-label={T("جست‌وجوی محصولات", "Search products")}
               className={isEn ? "ps-9" : "pe-9"}
             />
           </div>
 
-          <Select value={schedule} onValueChange={(value) => setSchedule(value as PharmacyProductScheduleFilter)}>
+          <Select value={schedule} onValueChange={(value) => updateFilter("schedule", value)}>
             <SelectTrigger aria-label={T("فیلتر ردهٔ محصول", "Filter by schedule")}>
               <SelectValue placeholder={T("همهٔ رده‌ها", "All schedules")} />
             </SelectTrigger>
@@ -95,7 +108,7 @@ export default function PharmacyProductsView() {
             </SelectContent>
           </Select>
 
-          <Select value={categoryId} onValueChange={(value) => { setCategoryId(value); setSubcategoryId("all"); }}>
+          <Select value={categoryId} onValueChange={(value) => updateFilter("category", value, true)}>
             <SelectTrigger aria-label={T("فیلتر دسته‌بندی", "Filter by category")}>
               <SelectValue placeholder={T("همهٔ دسته‌ها", "All categories")} />
             </SelectTrigger>
@@ -107,7 +120,7 @@ export default function PharmacyProductsView() {
             </SelectContent>
           </Select>
 
-          <Select value={subcategoryId} onValueChange={setSubcategoryId}>
+          <Select value={subcategoryId} onValueChange={(value) => updateFilter("subcategory", value)}>
             <SelectTrigger aria-label={T("فیلتر زیردسته", "Filter by subcategory")}>
               <SelectValue placeholder={T("همهٔ زیردسته‌ها", "All subcategories")} />
             </SelectTrigger>
