@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Mic, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VoiceInput } from "@/lib/voiceInput";
 import { haptic } from "@/lib/haptics";
 import { toast } from "sonner";
+import { useBilingual } from "@/hooks/useBilingual";
 
 type VoiceLang = "fa-IR" | "en-US";
 const LS_KEY = "voice_input_lang";
@@ -42,9 +42,10 @@ export function VoiceInputButton({
   hideLangToggle = false,
   showStatusBadge = false,
 }: VoiceInputButtonProps) {
-  const { i18n, t } = useTranslation();
+  const { i18n, T } = useBilingual();
   const [listening, setListening] = useState(false);
   const voiceRef = useRef<VoiceInput | null>(null);
+  const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const callbacksRef = useRef({ onTranscript, onInterim });
 
   // Default to Persian; the app is primarily Persian and browsers default to en-US otherwise.
@@ -66,13 +67,14 @@ export function VoiceInputButton({
       onError: (error) => {
         console.warn("Voice input error:", error);
         const messages: Record<string, string> = {
-          "Microphone permission denied": t("اجازهٔ میکروفون داده نشده است", "Microphone permission was denied"),
-          "No speech detected": t("صدایی تشخیص داده نشد؛ دوباره تلاش کنید", "No speech was detected; please try again"),
-          "Speech service needs internet or an installed offline language pack": t("برای تشخیص آفلاین، بستهٔ زبان فارسی یا انگلیسی را در تنظیمات گفتار گوشی نصب کنید", "Install the English/Persian offline speech pack or connect to the internet"),
-          "Speech recognition service unavailable": t("سرویس تشخیص گفتار روی این گوشی در دسترس نیست", "Speech recognition is unavailable on this device"),
-          "Speech recognition is busy; please try again": t("میکروفون مشغول است؛ چند لحظهٔ دیگر تلاش کنید", "Speech recognition is busy; please try again"),
+          "Microphone permission denied": T("اجازهٔ میکروفون داده نشده است", "Microphone permission was denied"),
+          "No speech detected": T("صدایی تشخیص داده نشد؛ دوباره تلاش کنید", "No speech was detected; please try again"),
+          "Speech service needs internet or an installed offline language pack": T("برای تشخیص آفلاین، بستهٔ زبان فارسی یا انگلیسی را در تنظیمات گفتار گوشی نصب کنید", "Install the English/Persian offline speech pack or connect to the internet"),
+          "Speech recognition service unavailable": T("سرویس تشخیص گفتار روی این گوشی در دسترس نیست", "Speech recognition is unavailable on this device"),
+          "Speech recognition is busy; please try again": T("میکروفون مشغول است؛ چند لحظهٔ دیگر تلاش کنید", "Speech recognition is busy; please try again"),
+          "Voice input not supported": T("تشخیص گفتار در این مرورگر در دسترس نیست", "Speech recognition is not available in this browser"),
         };
-        toast.error(messages[error] || t("دریافت صوت ناموفق بود؛ دوباره تلاش کنید", "Voice input failed; please try again"));
+        toast.error(messages[error] || T("دریافت صوت ناموفق بود؛ دوباره تلاش کنید", "Voice input failed; please try again"));
       },
       onListeningChange: (isListening) => {
         setListening(isListening);
@@ -82,9 +84,10 @@ export function VoiceInputButton({
     });
     voiceRef.current = voice;
     return () => {
+      if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       voice.stop();
     };
-  }, [continuous, t]);
+  }, [continuous, T]);
 
   const handleClick = () => {
     haptic("light");
@@ -99,7 +102,8 @@ export function VoiceInputButton({
     // restart with the new language if currently recording
     if (listening) {
       voiceRef.current?.stop();
-      setTimeout(() => voiceRef.current?.start(next), 250);
+      if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+      restartTimerRef.current = setTimeout(() => { restartTimerRef.current = null; voiceRef.current?.start(next); }, 250);
     }
   };
 
@@ -112,7 +116,8 @@ export function VoiceInputButton({
         disabled={disabled}
         onClick={handleClick}
         onMouseDown={(e) => e.preventDefault()}
-        title={title || (listening ? t("توقف ضبط (حرف من)", "Stop recording") : t("ضبط صوتی (حرف من)", "Voice input"))}
+        title={title || (listening ? T("توقف گفتار", "Stop dictation") : T("نوشتن با صدا", "Voice dictation"))}
+        aria-label={title || (listening ? T("توقف گفتار", "Stop dictation") : T("نوشتن با صدا", "Voice dictation"))}
         className={`relative transition-all duration-200 ${
           listening
             ? "bg-red-500 hover:bg-red-600 text-white shadow-md shadow-red-500/30 ring-2 ring-red-400 ring-offset-1 animate-pulse"
@@ -125,7 +130,7 @@ export function VoiceInputButton({
       {listening && (
         <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-500 animate-pulse px-1">
           <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-          <span>{t("گوش دادن...", "Listening...")}</span>
+          <span>{T("در حال گوش دادن…", "Listening…")}</span>
         </span>
       )}
 

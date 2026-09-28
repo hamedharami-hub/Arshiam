@@ -107,6 +107,7 @@ export const SECTIONS: Section[] = [
       { url: "/app/tomorrow", icon: Sun, label: "فردا" },
       { url: "/app/next7", icon: CalendarDays, label: "۷ روز آینده" },
       { url: "/app/calendar", icon: Calendar, label: "تقویم" },
+      { url: "/app/diary", icon: BookOpen, label: "خاطرات روزانه" },
       { url: "/app/contacts", icon: Users, label: "افراد" },
       { url: "/app/widgets", icon: LayoutGrid, label: "ویجت‌ها" },
       { url: "/app/buckets", icon: CalendarDays, label: "بازه‌های کلی" },
@@ -132,7 +133,6 @@ export const SECTIONS: Section[] = [
       { url: "/app/garden", icon: Sprout, label: "باغ رشد" },
       { url: "/app/habits", icon: Target, label: "عادت‌ها" },
       { url: "/app/notes", icon: FileText, label: "نوت‌ها" },
-      { url: "/app/diary", icon: BookOpen, label: "خاطرات روزانه" },
       {
         icon: BookOpen,
         label: "دانش",

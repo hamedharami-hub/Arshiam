@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
@@ -42,21 +42,24 @@ const AI_ACTIONS = [
 export type RichEditorHandle = {
   getHtml: () => string;
   getMarkdown: () => string;
+  insertText: (text: string) => void;
 };
 
-export function RichEditor({
-  initialHtml = "",
-  initialMarkdown = "",
-  onChange,
-  placeholder = "شروع به نوشتن کنید...",
-  readOnly = false,
-}: {
+export const RichEditor = forwardRef<RichEditorHandle, {
   initialHtml?: string;
   initialMarkdown?: string;
   onChange?: (html: string, markdown: string) => void;
   placeholder?: string;
   readOnly?: boolean;
-}) {
+  showVoiceButton?: boolean;
+}>(function RichEditor({
+  initialHtml = "",
+  initialMarkdown = "",
+  onChange,
+  placeholder = "شروع به نوشتن کنید...",
+  readOnly = false,
+  showVoiceButton = true,
+}, ref) {
   const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingKind, setPendingKind] = useState<"image" | "audio" | "video" | "file">("file");
@@ -106,6 +109,15 @@ export function RichEditor({
       },
     },
   });
+
+  useImperativeHandle(ref, () => ({
+    getHtml: () => editor?.getHTML() ?? "",
+    getMarkdown: () => editor ? htmlToMarkdown(editor.getHTML()) : "",
+    insertText: (text: string) => {
+      if (!editor || readOnly || !text.trim()) return;
+      editor.chain().focus().insertContent(text.trim() + " ").run();
+    },
+  }), [editor, readOnly]);
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
@@ -218,7 +230,7 @@ export function RichEditor({
       <div ref={sentinelRef} aria-hidden className="h-px" />
 
       {/* Toolbar */}
-      <div ref={toolbarRef} className="flex flex-nowrap md:flex-wrap items-center gap-0.5 border-b p-1.5 sticky top-0 bg-background/95 backdrop-blur z-10 overflow-x-auto md:overflow-visible overscroll-contain">
+      <div ref={toolbarRef} data-testid="rich-editor-toolbar" className="flex flex-nowrap md:flex-wrap items-center gap-0.5 border-b p-1.5 sticky top-0 bg-background/95 backdrop-blur z-10 overflow-x-auto md:overflow-visible overscroll-contain">
         <Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" onClick={() => editor.chain().focus().undo().run()} title="Undo">
           <Undo2 className="w-4 h-4" />
         </Button>
@@ -313,14 +325,14 @@ export function RichEditor({
           <Minus className="w-4 h-4" />
         </Button>
         <Separator orientation="vertical" className="h-6 mx-1 shrink-0" />
-        <VoiceInputButton
+        {showVoiceButton && <VoiceInputButton
           continuous
           onTranscript={(text) => editor?.chain().focus().insertContent(text + " ").run()}
           disabled={!editor || readOnly}
           size="sm"
           className="h-8 px-2 shrink-0"
           title={"ضبط صوتی"}
-        />
+        />}
 
         {/* Mobile-only "More" menu holding the less-used tools */}
         <DropdownMenu>
@@ -388,4 +400,4 @@ export function RichEditor({
       )}
     </div>
   );
-}
+});

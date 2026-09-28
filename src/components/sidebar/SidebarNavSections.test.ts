@@ -34,4 +34,12 @@ describe("Knowledge navigation hierarchy", () => {
     expect(urls).toContain("/app/pharmacy-products");
     expect(new Set(urls).size).toBe(urls.length);
   });
+
+  it("places the daily diary in Do while preserving its route", () => {
+    const doSection = SECTIONS.find((section) => section.id === "do");
+    const grow = SECTIONS.find((section) => section.id === "grow");
+    expect(doSection?.items.some((item) => item.url === "/app/diary")).toBe(true);
+    expect(grow?.items.some((item) => item.url === "/app/diary")).toBe(false);
+    expect(NAV_ITEMS.filter((item) => item.url === "/app/diary")).toHaveLength(1);
+  });
 });

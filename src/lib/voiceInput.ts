@@ -32,7 +32,6 @@ export class VoiceInput {
   private init() {
     if (this.nativeAndroid) return;
     if (typeof window === "undefined" || (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window))) {
-      this.options.onError?.("Voice input not supported in this browser");
       return;
     }
 

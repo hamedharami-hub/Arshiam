@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BookHeart, CalendarDays, Check, Cloud, Images, Loader2, Palette, Paperclip, Plus, Save, Trash2 } from "lucide-react";
+import { BookHeart, CalendarDays, Check, Cloud, Images, Loader2, Palette, Paperclip, Plus, Save, Trash2, Mic } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
@@ -13,8 +13,11 @@ import { DiaryAttachments } from "@/components/diary/DiaryAttachments";
 import { DiaryGooglePhotos } from "@/components/diary/DiaryGooglePhotos";
 import { DiaryAiTools } from "@/components/diary/DiaryAiTools";
 import { DiaryEntryList, MOOD_ICON } from "@/components/diary/DiaryEntryList";
+import { VoiceInputButton } from "@/components/VoiceInputButton";
+import type { RichEditorHandle } from "@/components/RichEditor";
 import { DIARY_MOODS, formatDiaryDate, newDiaryEntry, resolveBackground, wordCount, type DiaryEntry } from "@/lib/diary";
 import { markdownToHtml } from "@/lib/markdown";
+import "./DailyDiaryView.css";
 
 const RichEditor = lazy(() => import("@/components/RichEditor").then((module) => ({ default: module.RichEditor })));
 
@@ -44,7 +47,14 @@ export default function DailyDiaryView() {
   const [saving, setSaving] = useState(false);
   const [editorVersion, setEditorVersion] = useState(0);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [interimTranscript, setInterimTranscript] = useState("");
   const draftRef = useRef<DiaryEntry | null>(null);
+  const pageRef = useRef<HTMLElement | null>(null);
+  const editorRef = useRef<RichEditorHandle>(null);
+  const revisionRef = useRef(0);
+  const saveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  const pendingSavesRef = useRef(0);
   draftRef.current = draft;
 
   useEffect(() => {
@@ -59,25 +69,49 @@ export default function DailyDiaryView() {
   const words = draft ? wordCount(draft.content) : 0;
 
   const patch = useCallback((changes: Partial<DiaryEntry>) => {
+    revisionRef.current += 1;
     setDraft((current) => (current ? { ...current, ...changes } : current));
     setDirty(true);
+    setSaveFailed(false);
   }, []);
 
   const persist = useCallback(async (entry: DiaryEntry, silent = false) => {
     if (!user?.id) return false;
-    if (!entry.title.trim() && !entry.content.trim() && !entry.diary_attachments?.length) {
+    if (!entry.title.trim() && !entry.content.trim() && !entry.diary_attachments?.length && !entry.diary_google_photos?.length && !entry.diary_mood) {
       if (!silent) toast.error(T("عنوان یا متن خاطره را بنویس", "Write a title or some text first"));
       return false;
     }
+    const revision = revisionRef.current;
+    pendingSavesRef.current += 1;
     setSaving(true);
     const next: DiaryEntry = stripUndefined({ ...entry, title: entry.title.trim() || T("خاطرهٔ روزانه", "Daily entry"), updated_at: new Date().toISOString() });
-    const ok = await upsertNote(user.id, next);
-    setSaving(false);
-    if (!ok) { toast.error(T("خاطره ذخیره نشد؛ دوباره تلاش کن", "Entry was not saved; please retry")); return false; }
-    setEntries((previous) => [next, ...previous.filter((item) => item.id !== next.id)]);
-    if (draftRef.current?.id === next.id) { setDraft((current) => (current ? { ...current, title: next.title, updated_at: next.updated_at } : current)); setDirty(false); }
-    if (!silent) toast.success(T("خاطره ذخیره شد", "Entry saved"));
-    return true;
+    const operation = saveQueueRef.current.catch(() => undefined).then(async () => {
+      try {
+        const ok = await upsertNote(user.id, next);
+        if (!ok) {
+          if (draftRef.current?.id === next.id) setSaveFailed(true);
+          if (!silent) toast.error(T("خاطره ذخیره نشد؛ دوباره تلاش کن", "Entry was not saved; please retry"));
+          return false;
+        }
+        setEntries((previous) => [next, ...previous.filter((item) => item.id !== next.id)]);
+        if (draftRef.current?.id === next.id && revisionRef.current === revision) {
+          setDraft((current) => (current ? { ...current, title: next.title, updated_at: next.updated_at } : current));
+          setDirty(false);
+          setSaveFailed(false);
+        }
+        if (!silent) toast.success(T("خاطره ذخیره شد", "Entry saved"));
+        return true;
+      } catch {
+        if (draftRef.current?.id === next.id) setSaveFailed(true);
+        if (!silent) toast.error(T("خاطره ذخیره نشد؛ دوباره تلاش کن", "Entry was not saved; please retry"));
+        return false;
+      } finally {
+        pendingSavesRef.current -= 1;
+        if (pendingSavesRef.current === 0) setSaving(false);
+      }
+    });
+    saveQueueRef.current = operation;
+    return operation;
   }, [user?.id, T]);
 
   useEffect(() => {
@@ -86,18 +120,29 @@ export default function DailyDiaryView() {
     return () => clearTimeout(timer);
   }, [dirty, draft, persist]);
 
+  useEffect(() => {
+    if (!draft?.id || typeof window.matchMedia !== "function" || !window.matchMedia("(max-width: 640px)").matches) return;
+    pageRef.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  }, [draft?.id]);
+
   const openEntry = (entry: DiaryEntry) => {
     if (dirty && draft) void persist(draft, true);
+    revisionRef.current += 1;
     setDraft(entry);
     setDirty(false);
+    setSaveFailed(false);
+    setInterimTranscript("");
     setEditorVersion((value) => value + 1);
   };
 
   const createEntry = () => {
     if (!user?.id) return;
     if (dirty && draft) void persist(draft, true);
+    revisionRef.current += 1;
     setDraft(newDiaryEntry(user.id));
     setDirty(false);
+    setSaveFailed(false);
+    setInterimTranscript("");
     setEditorVersion((value) => value + 1);
   };
 
@@ -117,30 +162,31 @@ export default function DailyDiaryView() {
     setEditorVersion((value) => value + 1);
   };
 
+  const isNewDraft = Boolean(draft && !entries.some((entry) => entry.id === draft.id));
+
   return (
-    <main className="mx-auto w-full max-w-7xl space-y-5 px-3 py-5 sm:px-5" dir={isEn ? "ltr" : "rtl"} data-testid="daily-diary-view">
-      <header className="relative overflow-hidden rounded-3xl border shadow-sm">
-        <img src="/diary-bg/paper.jpg" alt="" className="absolute inset-0 h-full w-full object-cover opacity-70 dark:opacity-25" />
-        <div className="relative flex flex-wrap items-center justify-between gap-4 bg-gradient-to-l from-background/70 via-background/40 to-transparent p-5 sm:p-6">
+    <main className="diary-workspace mx-auto w-full max-w-7xl space-y-5 px-3 py-5 sm:px-5" dir={isEn ? "ltr" : "rtl"} data-testid="daily-diary-view">
+      <header className="diary-header">
+        <div className="relative flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6">
           <div className="flex items-center gap-4">
-            <span className="rounded-2xl bg-primary/15 p-3 text-primary shadow-inner"><BookHeart className="h-7 w-7" /></span>
+            <span className="diary-header-mark"><BookHeart className="h-6 w-6" /></span>
             <div>
               <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{T("دفتر خاطرات روزانه", "Daily Diary")}</h1>
-              <p className="mt-1 text-sm text-muted-foreground">{T("هر روزت را با متن، صدا، تصویر و لحظه‌های Google Photos ثبت کن", "Capture each day with text, voice, images and Google Photos moments")}</p>
-              <p className="mt-2 text-xs text-muted-foreground" data-testid="diary-stats">{T(`${ordered.length} صفحه در دفتر`, `${ordered.length} pages in your journal`)}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{T("جایی آرام برای نوشتن و نگه‌داشتن لحظه‌های روز", "A quiet place to write and remember your day")}</p>
+              <p className="mt-2 text-xs text-muted-foreground" data-testid="diary-stats">{T(`${ordered.length} خاطره`, `${ordered.length} entries`)}</p>
             </div>
           </div>
-          <Button onClick={createEntry} className="gap-2 shadow-md" data-testid="diary-new-entry-btn"><Plus className="h-4 w-4" />{T("صفحهٔ تازه", "New page")}</Button>
+          <Button onClick={createEntry} disabled={!user?.id} className="diary-primary-action gap-2" data-testid="diary-new-entry-btn"><Plus className="h-4 w-4" />{T("خاطرهٔ تازه", "New entry")}</Button>
         </div>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="rounded-2xl border bg-card/80 p-3 lg:sticky lg:top-4 lg:max-h-[82vh]">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="diary-entry-rail lg:sticky lg:top-4 lg:max-h-[82vh]">
           <DiaryEntryList entries={ordered} selectedId={draft?.id} onSelect={openEntry} />
         </aside>
 
         {draft && background ? (
-          <section data-testid="diary-page" className={`relative min-w-0 overflow-hidden rounded-3xl border shadow-lg ${background.tint}`}>
+          <section ref={pageRef} data-testid="diary-page" className={`diary-page relative min-w-0 overflow-hidden ${background.tint}`}>
             {background.src && (
               <div
                 data-testid="diary-page-background"
@@ -149,7 +195,7 @@ export default function DailyDiaryView() {
               />
             )}
             <div className="relative space-y-4 p-4 sm:p-6">
-              <div className="flex flex-wrap items-center gap-2 rounded-2xl border bg-background/75 p-2 backdrop-blur-sm">
+              <div className="diary-page-toolbar flex flex-wrap items-center gap-2 p-2 backdrop-blur-sm">
                 <label className="inline-flex items-center gap-1.5 text-xs">
                   <CalendarDays className="h-4 w-4 text-primary" aria-hidden="true" />
                   <Input data-testid="diary-date-input" type="date" aria-label={T("تاریخ خاطره", "Entry date")} value={draft.diary_date} onChange={(event) => patch({ diary_date: event.target.value })} className="h-8 w-36 bg-background/80 text-xs" />
@@ -164,9 +210,9 @@ export default function DailyDiaryView() {
                 </div>
                 <div className="ms-auto flex flex-wrap items-center gap-1.5">
                   <DiaryAiTools content={draft.content} title={draft.title} onApplyContent={applyAiContent} onApplyTitle={(title) => patch({ title })} />
-                  <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground" data-testid="diary-save-status">
-                    {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : dirty ? <Cloud className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5 text-emerald-500" />}
-                    {saving ? T("در حال ذخیره…", "Saving…") : dirty ? T("تغییرات ذخیره‌نشده", "Unsaved changes") : T("ذخیره شده", "Saved")}
+                  <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground" data-testid="diary-save-status" role="status">
+                    {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : saveFailed || dirty || isNewDraft ? <Cloud className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5 text-emerald-500" />}
+                    {saving ? T("در حال ذخیره…", "Saving…") : saveFailed ? T("ذخیره ناموفق؛ دوباره تلاش کن", "Save failed; please retry") : dirty ? T("تغییرات ذخیره‌نشده", "Unsaved changes") : isNewDraft ? T("پیش‌نویس تازه", "New draft") : T("ذخیره شده", "Saved")}
                   </span>
                   <Button size="sm" onClick={() => void persist(draft)} disabled={saving} className="gap-1.5" data-testid="diary-save-btn"><Save className="h-4 w-4" />{T("ذخیره", "Save")}</Button>
                   {entries.some((item) => item.id === draft.id) && (
@@ -177,21 +223,45 @@ export default function DailyDiaryView() {
 
               <Input data-testid="diary-title-input" value={draft.title} onChange={(event) => patch({ title: event.target.value })} placeholder={T("عنوان این روز…", "A title for today…")} className="h-auto border-0 bg-transparent px-1 text-2xl font-bold shadow-none placeholder:text-foreground/40 focus-visible:ring-0 sm:text-3xl" dir="auto" />
 
-              <div className="rounded-2xl border bg-background/85 p-2 shadow-sm backdrop-blur-sm sm:p-3" data-testid="diary-editor">
+              <div className="diary-writing-surface p-2 backdrop-blur-sm sm:p-3" data-testid="diary-editor">
                 <Suspense fallback={<div className="flex h-48 items-center justify-center text-sm text-muted-foreground"><Loader2 className="me-2 h-4 w-4 animate-spin" />{T("در حال بارگذاری ویرایشگر…", "Loading editor…")}</div>}>
                   <RichEditor
                     key={`${draft.id}-${editorVersion}`}
+                    ref={editorRef}
                     initialMarkdown={draft.content}
                     placeholder={T("امروز چه گذشت؟ چه چیزی را نمی‌خواهی فراموش کنی؟", "What happened today? What don't you want to forget?")}
                     onChange={(html, markdown) => patch({ content: markdown, diary_html: html })}
+                    showVoiceButton={false}
                   />
                 </Suspense>
                 <p className="mt-1 px-1 text-[11px] text-muted-foreground" data-testid="diary-word-count">
-                  {T(`${words} کلمه · متن را انتخاب کن تا دکمهٔ AI برای ویرایش همان بخش ظاهر شود`, `${words} words · select text to reveal the AI button for that passage`)}
+                  {T(`${words} کلمه`, `${words} words`)}
                 </p>
               </div>
 
-              <Tabs defaultValue="look" className="rounded-2xl border bg-background/85 p-3 backdrop-blur-sm">
+              <div className="diary-dictation" data-testid="diary-dictation">
+                <span className="diary-dictation-icon" aria-hidden="true"><Mic className="h-5 w-5" /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">{T("نوشتن با صدا", "Write with your voice")}</p>
+                  <p className="text-xs text-muted-foreground">{T("متن گفتار مستقیم به خاطره اضافه می‌شود؛ فایل صوتی جداگانه در پیوست‌ها ضبط می‌شود.", "Speech becomes text in this entry; record an audio file separately in attachments.")}</p>
+                  {interimTranscript && <p className="mt-1 text-xs text-primary" role="status" data-testid="diary-interim-transcript">{interimTranscript}</p>}
+                </div>
+                <VoiceInputButton
+                  key={draft.id}
+                  continuous
+                  onTranscript={(text) => {
+                    if (draftRef.current?.id !== draft.id) return;
+                    setInterimTranscript("");
+                    if (editorRef.current) editorRef.current.insertText(text);
+                    else if (draftRef.current) patch({ content: `${draftRef.current.content} ${text}`.trim() });
+                  }}
+                  onInterim={(text) => { if (draftRef.current?.id === draft.id) setInterimTranscript(text); }}
+                  className="diary-dictation-button"
+                  title={T("شروع یا توقف نوشتن با صدا", "Start or stop voice dictation")}
+                />
+              </div>
+
+              <Tabs defaultValue="look" className="diary-extras p-3 backdrop-blur-sm">
                 <TabsList className="flex w-full flex-wrap justify-start bg-muted/60">
                   <TabsTrigger value="look" data-testid="diary-tab-look" className="gap-1.5"><Palette className="h-4 w-4" />{T("ظاهر صفحه", "Page look")}</TabsTrigger>
                   <TabsTrigger value="media" data-testid="diary-tab-media" className="gap-1.5"><Paperclip className="h-4 w-4" />{T("صدا و ویدیو", "Audio & video")} {draft.diary_attachments?.length ? `(${draft.diary_attachments.length})` : ""}</TabsTrigger>
