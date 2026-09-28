@@ -114,6 +114,15 @@ export const SECTIONS: Section[] = [
     ],
   },
   {
+    id: "pharmacy", title: "فارماسی", icon: Pill, defaultOpen: true,
+    items: [
+      { url: "/app/pharmacy-products", icon: PackageSearch, label: "فهرست محصولات دارویی" },
+      { url: "/app/pharmacy-scenario-practice", icon: ClipboardCheck, label: "تمرین سناریوهای دارویی" },
+      { url: "/app/pharmacy-fred-practice", icon: Keyboard, label: "تمرین نسخه FRED" },
+      { url: "/app/pharmacy-cyp", icon: FlaskConical, label: "ماتریس CYP و تداخل" },
+    ],
+  },
+  {
     id: "grow", title: "رشد", icon: TrendingUp, defaultOpen: false,
     items: [
       { url: "/app/life-architect", icon: Compass, label: "معمار زندگی" },
@@ -124,18 +133,8 @@ export const SECTIONS: Section[] = [
         icon: BookOpen,
         label: "دانش",
         children: [
-          {
-            url: "/app/knowledge",
-            icon: Pill,
-            label: "فارماسی",
-            children: [
-              { url: "/app/interactive-study", icon: Gamepad2, label: "استودیوی مطالعه تعاملی" },
-              { url: "/app/pharmacy-products", icon: PackageSearch, label: "فهرست محصولات دارویی" },
-              { url: "/app/pharmacy-scenario-practice", icon: ClipboardCheck, label: "تمرین سناریوهای دارویی" },
-              { url: "/app/pharmacy-fred-practice", icon: Keyboard, label: "تمرین نسخه FRED" },
-              { url: "/app/pharmacy-cyp", icon: FlaskConical, label: "ماتریس CYP و تداخل" },
-            ],
-          },
+          { url: "/app/knowledge", icon: BookOpen, label: "کتابخانه دانش" },
+          { url: "/app/interactive-study", icon: Gamepad2, label: "استودیوی مطالعه تعاملی" },
           { url: "/app/review", icon: BrainCircuit, label: "مرور (SR)" },
         ],
       },
