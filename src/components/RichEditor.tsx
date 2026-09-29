@@ -230,7 +230,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
       <div ref={sentinelRef} aria-hidden className="h-px" />
 
       {/* Toolbar */}
-      <div ref={toolbarRef} data-testid="rich-editor-toolbar" className="flex flex-nowrap md:flex-wrap items-center gap-0.5 border-b p-1.5 sticky top-0 bg-background/95 backdrop-blur z-10 overflow-x-auto md:overflow-visible overscroll-contain">
+      <div ref={toolbarRef} data-testid="rich-editor-toolbar" className="flex flex-nowrap md:flex-wrap items-center gap-0.5 border-b py-1 px-1.5 sticky top-0 bg-background/95 backdrop-blur z-10 overflow-x-auto md:overflow-visible overscroll-contain">
         <Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" onClick={() => editor.chain().focus().undo().run()} title="Undo">
           <Undo2 className="w-4 h-4" />
         </Button>

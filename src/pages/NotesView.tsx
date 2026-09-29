@@ -15,9 +15,14 @@ import {
   Maximize2,
   FileText,
   MoreHorizontal,
+  MoreVertical,
   Tag as TagIcon,
   Check,
   Folder as FolderIcon,
+  ChevronDown,
+  BookOpen,
+  FileCode,
+  Eye,
 } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
 import ShareDialog from "@/components/ShareDialog";
@@ -155,6 +160,7 @@ export default function NotesView() {
   const [moveOpen, setMoveOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [quickTagName, setQuickTagName] = useState("");
+  const [editorMode, setEditorMode] = useState<"visual" | "markdown" | "preview">("visual");
 
   const { canEdit, isOwner } = useShareAccess("note", selected?.id, selected?.user_id);
 
@@ -575,9 +581,9 @@ export default function NotesView() {
   const currentFolder = selected?.folder_id ? folderMap.get(selected.folder_id) : null;
 
   const editor = selected ? (
-    <div className="px-3 sm:px-4 py-2 w-full min-h-0 flex flex-col">
-      {/* Header bar */}
-      <div className="flex items-start gap-2 mb-2 flex-wrap">
+    <div className="px-2 sm:px-4 py-1 w-full min-h-0 flex flex-col">
+      {/* 1. Sleek, minimal Title & primary Actions row */}
+      <div className="flex items-center gap-2 mb-1">
         <AutoTextarea
           value={selected.title}
           onChange={(e) => save({ title: e.target.value })}
@@ -588,191 +594,292 @@ export default function NotesView() {
             }
           }}
           disabled={!canEdit}
-          className="text-xl font-bold border-none focus-visible:ring-0 px-0 flex-1 min-w-[120px] py-1"
+          placeholder={T("عنوان نوت...", "Note title...")}
+          className="text-lg md:text-xl font-bold border-none focus-visible:ring-0 px-0 flex-1 min-w-[100px] py-0.5 leading-snug bg-transparent resize-none shadow-none text-foreground placeholder:text-muted-foreground/40"
           dir="auto"
           rows={1}
-          minHeight={36}
-          maxHeight={200}
+          minHeight={32}
+          maxHeight={120}
         />
-        <VoiceInputButton
-          onTranscript={(text) => save({ title: selected.title ? selected.title.trimEnd() + " " + text : text })}
-          disabled={!canEdit}
-          size="icon"
-          className="h-9 w-9 shrink-0"
-        />
-        <AILangToggle value={aiLang} onChange={setAiLang} />
 
-        {/* Folder picker in editor */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!canEdit}
-              className="h-8 gap-1.5 text-xs font-normal border-dashed rounded-lg"
-              title={T("تغییر پوشه", "Change folder")}
-            >
-              <FolderInput className="w-3.5 h-3.5 text-primary" />
-              {currentFolder ? (
-                <span className="flex items-center gap-1">
-                  <span
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: currentFolder.color || "#6366f1" }}
-                  />
-                  <span className="max-w-[90px] truncate">{currentFolder.name}</span>
-                </span>
-              ) : (
-                <span className="text-muted-foreground">{T("بدون پوشه", "No folder")}</span>
-              )}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuLabel className="text-xs">{T("انتقال به پوشه", "Move to folder")}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => save({ folder_id: null })}>
-              <span>{T("📥 بدون پوشه (اینباکس)", "📥 No folder (Inbox)")}</span>
-              {!selected.folder_id && <Check className="w-3.5 h-3.5 ms-auto text-primary" />}
-            </DropdownMenuItem>
-            {folders.map((f) => (
-              <DropdownMenuItem key={f.id} onClick={() => save({ folder_id: f.id })}>
-                <span
-                  className="w-2 h-2 rounded-full mr-2 shrink-0"
-                  style={{ backgroundColor: f.color || "#6366f1" }}
-                />
-                <span className="truncate flex-1">{f.name}</span>
-                {selected.folder_id === f.id && <Check className="w-3.5 h-3.5 ms-auto text-primary" />}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* Minimal inline actions cluster */}
+        <div className="flex items-center gap-0.5 shrink-0">
+          <VoiceInputButton
+            onTranscript={(text) => save({ title: selected.title ? selected.title.trimEnd() + " " + text : text })}
+            disabled={!canEdit}
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground rounded-lg"
+            title={T("تایپ صوتی عنوان", "Voice input for title")}
+          />
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="default" className="gap-1" disabled={aiBusy || !canEdit}>
-              {aiBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-              AI
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="max-h-[70vh] overflow-y-auto w-64">
-            {aiGroups.map((g, gi) => (
-              <div key={g.label}>
-                {gi > 0 && <DropdownMenuSeparator />}
-                <DropdownMenuLabel className="text-xs text-muted-foreground">{g.label}</DropdownMenuLabel>
-                {g.items.map((it) => (
-                  <DropdownMenuItem key={it.key} onClick={() => runNoteAI(it.key)} disabled={!canEdit}>
-                    {it.label}
-                  </DropdownMenuItem>
-                ))}
-              </div>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <Button size="icon" variant="ghost" onClick={() => save({ pinned: !selected.pinned })} disabled={!canEdit}>
-          <Pin className={`w-4 h-4 ${selected.pinned ? "text-primary fill-primary" : ""}`} />
-        </Button>
-
-        {isFeatureEnabled("sharing") && (
-          <Button size="icon" variant="ghost" onClick={() => setShareOpen(true)} title={T("اشتراک‌گذاری", "Share")} disabled={!isOwner}>
-            <Share2 className="w-4 h-4" />
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => save({ pinned: !selected.pinned })}
+            disabled={!canEdit}
+            className={`h-7 w-7 rounded-lg ${
+              selected.pinned
+                ? "text-primary fill-primary hover:text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            title={selected.pinned ? T("حذف سنجاق", "Unpin") : T("سنجاق کردن نوت", "Pin note")}
+          >
+            <Pin className={`w-3.5 h-3.5 ${selected.pinned ? "fill-primary" : ""}`} />
           </Button>
-        )}
-        <Button size="icon" variant="ghost" onClick={() => setConfirmDel(selected)} disabled={!isOwner}>
-          <Trash2 className="w-4 h-4" />
-        </Button>
-      </div>
 
-      {/* Note Tags bar in editor */}
-      <div className="flex items-center gap-1.5 mb-2.5 flex-wrap min-h-6">
-        {(selected.tag_ids || []).map((tid) => {
-          const tObj = tagMap.get(tid);
-          return (
-            <Badge
-              key={tid}
-              variant="secondary"
-              className="text-[11px] gap-1 px-2 py-0.5 font-normal rounded-md"
-              style={{
-                backgroundColor: tObj?.color ? `${tObj.color}22` : undefined,
-                color: tObj?.color || undefined,
-                borderColor: tObj?.color ? `${tObj.color}44` : undefined,
-              }}
-            >
-              <span>#{tObj?.name || tid}</span>
-              {canEdit && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = (selected.tag_ids || []).filter((x) => x !== tid);
-                    save({ tag_ids: next });
-                  }}
-                  className="hover:opacity-75 p-0.5 rounded"
-                  title={T("حذف تگ", "Remove tag")}
-                >
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              )}
-            </Badge>
-          );
-        })}
-
-        {canEdit && (
+          {/* AI Tools menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
-                variant="ghost"
                 size="sm"
-                className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground gap-1 rounded-md border border-dashed border-border/70"
+                variant="ghost"
+                className="h-7 px-2 text-xs rounded-lg gap-1 text-primary bg-primary/10 hover:bg-primary hover:text-primary-foreground transition-colors font-medium"
+                disabled={aiBusy || !canEdit}
               >
-                <Plus className="w-3 h-3" />
-                <span>{T("افزودن تگ", "Add tag")}</span>
+                {aiBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                <span>AI</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-52 max-h-64 overflow-y-auto">
-              <DropdownMenuLabel className="text-xs">{T("انتخاب تگ‌های نوت", "Select tags")}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {tags.map((t) => {
-                const hasTag = (selected.tag_ids || []).includes(t.id);
-                return (
-                  <DropdownMenuItem
-                    key={t.id}
-                    onClick={() => {
-                      const cur = selected.tag_ids || [];
-                      const next = hasTag ? cur.filter((x) => x !== t.id) : [...cur, t.id];
-                      save({ tag_ids: next });
-                    }}
-                  >
-                    <span
-                      className="w-2 h-2 rounded-full mr-2 shrink-0"
-                      style={{ backgroundColor: t.color || "#6366f1" }}
-                    />
-                    <span className="truncate flex-1">{t.name}</span>
-                    {hasTag && <Check className="w-3.5 h-3.5 ms-auto text-primary" />}
-                  </DropdownMenuItem>
-                );
-              })}
-              <DropdownMenuSeparator />
-              <div className="p-1.5">
-                <div className="flex items-center gap-1">
-                  <Input
-                    placeholder={T("تگ جدید...", "New tag...")}
-                    value={quickTagName}
-                    onChange={(e) => setQuickTagName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        void handleCreateAndAttachTag();
-                      }
-                    }}
-                    className="h-7 text-xs"
-                  />
-                  <Button size="sm" variant="ghost" onClick={handleCreateAndAttachTag} className="h-7 px-2 text-xs">
-                    <Plus className="w-3 h-3" />
-                  </Button>
+            <DropdownMenuContent align="end" className="max-h-[70vh] overflow-y-auto w-60">
+              <div className="p-1 border-b">
+                <div className="flex items-center justify-between px-2 py-1 text-[11px] text-muted-foreground">
+                  <span>{T("زبان خروجی AI", "AI Output Language")}</span>
+                  <AILangToggle value={aiLang} onChange={setAiLang} />
                 </div>
               </div>
+              {aiGroups.map((g, gi) => (
+                <div key={g.label}>
+                  {gi > 0 && <DropdownMenuSeparator />}
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">{g.label}</DropdownMenuLabel>
+                  {g.items.map((it) => (
+                    <DropdownMenuItem key={it.key} onClick={() => runNoteAI(it.key)} disabled={!canEdit}>
+                      {it.label}
+                    </DropdownMenuItem>
+                  ))}
+                </div>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
-        )}
+
+          {/* More options menu (3-dots) */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground rounded-lg"
+                title={T("گزینه‌های بیشتر", "More options")}
+              >
+                <MoreVertical className="w-3.5 h-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 text-xs">
+              {isFeatureEnabled("sharing") && (
+                <DropdownMenuItem onClick={() => setShareOpen(true)} disabled={!isOwner} className="gap-2">
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>{T("اشتراک‌گذاری", "Share")}</span>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setConfirmDel(selected)}
+                disabled={!isOwner}
+                className="gap-2 text-destructive focus:bg-destructive/10"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{T("حذف نوت", "Delete note")}</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* 2. Unified slim metadata strip: Folder + Tags + Type switcher */}
+      <div className="flex items-center justify-between gap-2 pb-1.5 mb-1.5 border-b border-border/40 flex-wrap">
+        {/* Left: Folder & Tags inline */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+          {/* Folder pill */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                disabled={!canEdit}
+                className="inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-full bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition border border-border/40 shrink-0 font-medium"
+                title={T("تغییر پوشه", "Change folder")}
+              >
+                <FolderInput className="w-3 h-3 text-primary shrink-0" />
+                {currentFolder ? (
+                  <span className="flex items-center gap-1 max-w-[90px] truncate text-foreground">
+                    <span
+                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{ backgroundColor: currentFolder.color || "#6366f1" }}
+                    />
+                    <span className="truncate">{currentFolder.name}</span>
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground/80">{T("بدون پوشه", "No folder")}</span>
+                )}
+                <ChevronDown className="w-2.5 h-2.5 opacity-50 shrink-0" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-52 text-xs">
+              <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+                {T("انتقال به پوشه", "Move to folder")}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => save({ folder_id: null })}>
+                <span>{T("📥 بدون پوشه (اینباکس)", "📥 No folder (Inbox)")}</span>
+                {!selected.folder_id && <Check className="w-3.5 h-3.5 ms-auto text-primary" />}
+              </DropdownMenuItem>
+              {folders.map((f) => (
+                <DropdownMenuItem key={f.id} onClick={() => save({ folder_id: f.id })}>
+                  <span
+                    className="w-2 h-2 rounded-full mr-2 shrink-0"
+                    style={{ backgroundColor: f.color || "#6366f1" }}
+                  />
+                  <span className="truncate flex-1">{f.name}</span>
+                  {selected.folder_id === f.id && <Check className="w-3.5 h-3.5 ms-auto text-primary" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Tags pills */}
+          {(selected.tag_ids || []).map((tid) => {
+            const tObj = tagMap.get(tid);
+            return (
+              <span
+                key={tid}
+                className="inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-full shrink-0 border"
+                style={{
+                  backgroundColor: tObj?.color ? `${tObj.color}15` : "var(--muted)",
+                  color: tObj?.color || "inherit",
+                  borderColor: tObj?.color ? `${tObj.color}35` : "transparent",
+                }}
+              >
+                <span>#{tObj?.name || tid}</span>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = (selected.tag_ids || []).filter((x) => x !== tid);
+                      save({ tag_ids: next });
+                    }}
+                    className="hover:opacity-75 p-0.5 -me-0.5 rounded-full"
+                    title={T("حذف تگ", "Remove tag")}
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                )}
+              </span>
+            );
+          })}
+
+          {/* Add tag button */}
+          {canEdit && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-0.5 h-6 px-1.5 text-[11px] rounded-full text-muted-foreground hover:text-foreground bg-muted/40 hover:bg-muted border border-dashed border-border/60 shrink-0 transition"
+                  title={T("افزودن تگ", "Add tag")}
+                >
+                  <TagIcon className="w-2.5 h-2.5" />
+                  <Plus className="w-2.5 h-2.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-52 max-h-64 overflow-y-auto text-xs">
+                <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+                  {T("انتخاب تگ‌های نوت", "Select tags")}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {tags.map((t) => {
+                  const hasTag = (selected.tag_ids || []).includes(t.id);
+                  return (
+                    <DropdownMenuItem
+                      key={t.id}
+                      onClick={() => {
+                        const cur = selected.tag_ids || [];
+                        const next = hasTag ? cur.filter((x) => x !== t.id) : [...cur, t.id];
+                        save({ tag_ids: next });
+                      }}
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full mr-2 shrink-0"
+                        style={{ backgroundColor: t.color || "#6366f1" }}
+                      />
+                      <span className="truncate flex-1">{t.name}</span>
+                      {hasTag && <Check className="w-3.5 h-3.5 ms-auto text-primary" />}
+                    </DropdownMenuItem>
+                  );
+                })}
+                <DropdownMenuSeparator />
+                <div className="p-1.5">
+                  <div className="flex items-center gap-1">
+                    <Input
+                      placeholder={T("تگ جدید...", "New tag...")}
+                      value={quickTagName}
+                      onChange={(e) => setQuickTagName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void handleCreateAndAttachTag();
+                        }
+                      }}
+                      className="h-7 text-xs"
+                    />
+                    <Button size="sm" variant="ghost" onClick={handleCreateAndAttachTag} className="h-7 px-2 text-xs">
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+
+        {/* Right: Note Type Switcher ("انتخاب نوع نوت") */}
+        <div className="flex items-center p-0.5 rounded-lg bg-muted/50 border border-border/40 shrink-0">
+          <button
+            type="button"
+            onClick={() => setEditorMode("visual")}
+            className={`flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-md transition font-medium ${
+              editorMode === "visual"
+                ? "bg-background text-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            title={T("ویرایشگر بصری", "Visual editor")}
+          >
+            <BookOpen className="w-3 h-3" />
+            <span>{T("ویژوال", "Visual")}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditorMode("markdown")}
+            className={`flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-md transition font-medium ${
+              editorMode === "markdown"
+                ? "bg-background text-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            title={T("کد خام مارک‌داون", "Raw Markdown")}
+          >
+            <FileCode className="w-3 h-3" />
+            <span>MD</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditorMode("preview")}
+            className={`flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-md transition font-medium ${
+              editorMode === "preview"
+                ? "bg-background text-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            title={T("پیش‌نمایش نوت", "Preview note")}
+          >
+            <Eye className="w-3 h-3" />
+            <span>{T("نمایش", "Preview")}</span>
+          </button>
+        </div>
       </div>
 
       <NoteEditorTabs
@@ -780,6 +887,9 @@ export default function NotesView() {
         markdown={draft?.md ?? selected.content ?? ""}
         onChange={(md, html) => setDraft({ html, md })}
         readOnly={!canEdit}
+        mode={editorMode}
+        onModeChange={setEditorMode}
+        hideTabsList={true}
       />
     </div>
   ) : null;

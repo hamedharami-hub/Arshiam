@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { markdownToHtml } from "@/lib/markdown";
@@ -21,26 +21,42 @@ export function NoteEditorTabs({
   markdown,
   onChange,
   readOnly = false,
+  mode,
+  onModeChange,
+  hideTabsList = false,
 }: {
   noteId: string;
   markdown: string;
   onChange: (md: string, html: string) => void;
   readOnly?: boolean;
+  mode?: "visual" | "markdown" | "preview";
+  onModeChange?: (mode: "visual" | "markdown" | "preview") => void;
+  hideTabsList?: boolean;
 }) {
-  return (
-    <Tabs defaultValue="visual" className="w-full">
-      <TabsList>
-        <TabsTrigger value="visual">📖 نمایش/ویرایش</TabsTrigger>
-        <TabsTrigger value="markdown">📝 Markdown خام</TabsTrigger>
-        <TabsTrigger value="preview">👁 پیش‌نمایش</TabsTrigger>
-      </TabsList>
+  const [internalTab, setInternalTab] = useState<"visual" | "markdown" | "preview">("visual");
+  const currentTab = mode ?? internalTab;
+  const handleTabChange = (val: string) => {
+    const next = val as "visual" | "markdown" | "preview";
+    if (onModeChange) onModeChange(next);
+    else setInternalTab(next);
+  };
 
-      <TabsContent value="visual" className="mt-3">
+  return (
+    <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
+      {!hideTabsList && (
+        <TabsList className="h-7 p-0.5 bg-muted/60 border border-border/40">
+          <TabsTrigger value="visual" className="h-6 px-2 text-xs">📖 ویژوال</TabsTrigger>
+          <TabsTrigger value="markdown" className="h-6 px-2 text-xs">📝 مارک‌داون</TabsTrigger>
+          <TabsTrigger value="preview" className="h-6 px-2 text-xs">👁 پیش‌نمایش</TabsTrigger>
+        </TabsList>
+      )}
+
+      <TabsContent value="visual" className="mt-1">
         <Suspense
           fallback={
-            <div className="h-48 flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground rounded-lg border border-dashed border-border/60 bg-muted/20">
-              <Loader2 className="w-5 h-5 animate-spin text-primary" />
-              <span>در حال بارگذاری ویرایشگر...</span>
+            <div className="h-32 flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground rounded-lg border border-dashed border-border/60 bg-muted/20">
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              <span className="text-xs">در حال بارگذاری ویرایشگر...</span>
             </div>
           }
         >
@@ -53,7 +69,7 @@ export function NoteEditorTabs({
         </Suspense>
       </TabsContent>
 
-      <TabsContent value="markdown" className="mt-3 space-y-3">
+      <TabsContent value="markdown" className="mt-1 space-y-2">
         <div className="flex items-center justify-end">
           <VoiceInputButton
             continuous
@@ -63,7 +79,7 @@ export function NoteEditorTabs({
             }}
             disabled={readOnly}
             size="sm"
-            className="h-8 px-2"
+            className="h-7 px-2 text-xs"
           />
         </div>
         <Textarea
@@ -74,7 +90,7 @@ export function NoteEditorTabs({
           dir="ltr"
         />
         <div>
-          <p className="text-xs text-muted-foreground mb-2">پیش‌نمایش زنده:</p>
+          <p className="text-xs text-muted-foreground mb-1">پیش‌نمایش زنده:</p>
           <div className="prose-note max-w-none">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MarkdownMediaLink }}>
               {markdown || ""}
@@ -83,7 +99,7 @@ export function NoteEditorTabs({
         </div>
       </TabsContent>
 
-      <TabsContent value="preview" className="mt-3">
+      <TabsContent value="preview" className="mt-1">
         <div className="min-h-[50vh]">
           <div className="prose-note max-w-none">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MarkdownMediaLink }}>
