@@ -54,8 +54,14 @@ export function ReviewSwipeCard({ flipped, onFlip, onRate, onEdit, isEn, classNa
 
   const ratingFor = (dir: SwipeDir | null) => (dir ? g.swipe[dir] : null);
 
+  const clearPress = () => {
+    if (pressTimer.current) window.clearTimeout(pressTimer.current);
+    pressTimer.current = null;
+  };
+
   const onDrag = (_: unknown, info: PanInfo) => {
     dragging.current = true;
+    clearPress(); // a slow drag must never turn into a long-press edit
     const r = ratingFor(detectSwipe(info.offset.x, info.offset.y));
     if (r !== hint) {
       setHint(r);
@@ -81,11 +87,6 @@ export function ReviewSwipeCard({ flipped, onFlip, onRate, onEdit, isEn, classNa
     onRate(r);
     x.set(0);
     y.set(0);
-  };
-
-  const clearPress = () => {
-    if (pressTimer.current) window.clearTimeout(pressTimer.current);
-    pressTimer.current = null;
   };
 
   const handlePointerDown = () => {
