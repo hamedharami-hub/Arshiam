@@ -70,6 +70,7 @@ export const EN_LABELS: Record<string, string> = {
   "ماتریس CYP و تداخل": "CYP Matrix & Interactions",
   "دانش": "Knowledge",
   "فارماسی": "Pharmacy",
+  "مرور": "Review",
   "باز کردن": "Expand",
   "جمع کردن": "Collapse",
 };
@@ -118,22 +119,6 @@ export const SECTIONS: Section[] = [
     ],
   },
   {
-    id: "pharmacy", title: "فارماسی", icon: Pill, defaultOpen: true,
-    items: [
-      { url: "/app/pharmacy", icon: Pill, label: "خانه فارماسی" },
-      { url: "/app/pharmacy-products", icon: PackageSearch, label: "فهرست محصولات دارویی" },
-      { url: "/app/pharmacy-scenario-practice", icon: ClipboardCheck, label: "تمرین سناریوهای دارویی" },
-      { url: "/app/pharmacy-fred-practice", icon: Keyboard, label: "تمرین نسخه FRED" },
-      { url: "/app/pharmacy-cyp", icon: FlaskConical, label: "ماتریس CYP و تداخل" },
-    ],
-  },
-  {
-    id: "review", title: "مرور", icon: BrainCircuit, defaultOpen: true,
-    items: [
-      { url: "/app/review/pharmacy", icon: BrainCircuit, label: "مرور فارماسی" },
-    ],
-  },
-  {
     id: "grow", title: "رشد", icon: TrendingUp, defaultOpen: false,
     items: [
       { url: "/app/life-architect", icon: Compass, label: "معمار زندگی" },
@@ -144,6 +129,18 @@ export const SECTIONS: Section[] = [
         icon: BookOpen,
         label: "دانش",
         children: [
+          {
+            url: "/app/pharmacy",
+            icon: Pill,
+            label: "فارماسی",
+            children: [
+              { url: "/app/pharmacy-products", icon: PackageSearch, label: "فهرست محصولات دارویی" },
+              { url: "/app/pharmacy-scenario-practice", icon: ClipboardCheck, label: "تمرین سناریوهای دارویی" },
+              { url: "/app/pharmacy-fred-practice", icon: Keyboard, label: "تمرین نسخه FRED" },
+              { url: "/app/pharmacy-cyp", icon: FlaskConical, label: "ماتریس CYP و تداخل" },
+            ],
+          },
+          { url: "/app/review/pharmacy", icon: BrainCircuit, label: "مرور" },
           { url: "/app/knowledge", icon: BookOpen, label: "کتابخانه دانش" },
           { url: "/app/interactive-study", icon: Gamepad2, label: "استودیوی مطالعه تعاملی" },
         ],
@@ -325,7 +322,7 @@ function SidebarNavTreeItem({ item, collapsed, tr, closeOnMobile }: SidebarNavTr
   );
 }
 
-export const DEFAULT_ORDER = ["__folders", "__tags", "do", "pharmacy", "review", "grow", "mind", "me"];
+export const DEFAULT_ORDER = ["__folders", "__tags", "do", "grow", "mind", "me"];
 export const ORDER_KEY = "sidebar_order_v1";
 
 export function loadOrder(): string[] {

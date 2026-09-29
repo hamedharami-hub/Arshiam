@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2, ListTree, GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { useBilingual } from "@/hooks/useBilingual";
+import { useShowCompletedTasks } from "@/lib/completedTaskVisibility";
 import { BidiText } from "@/components/BidiText";
 import { persistTask } from "@/lib/firestoreDataService";
 import { deleteTaskCascade } from "@/features/tasks/taskService";
@@ -37,6 +38,7 @@ export function TaskSubtasksInline({
 }) {
   const { user } = useAuth();
   const { T, isEn } = useBilingual();
+  const showCompletedTasks = useShowCompletedTasks();
   const [subs, setSubs] = useState<Sub[]>(initialSubs || []);
   const [newTitle, setNewTitle] = useState("");
 
@@ -232,6 +234,7 @@ export function TaskSubtasksInline({
   };
 
   const done = subs.filter((s) => s.completed).length;
+  const visibleSubs = showCompletedTasks ? subs : subs.filter((subtask) => !subtask.completed);
 
   useEffect(() => { onProgressChange?.(done, subs.length); }, [done, subs.length, onProgressChange]);
 
@@ -246,9 +249,9 @@ export function TaskSubtasksInline({
           reorder(String(active.id), String(over.id));
         }}
       >
-        <SortableContext items={subs.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext items={visibleSubs.map((s) => s.id)} strategy={verticalListSortingStrategy}>
           <ul className="space-y-1">
-            {subs.map((s) => (
+            {visibleSubs.map((s) => (
               <SortableSubtaskRow
                 key={s.id}
                 sub={s}
@@ -262,8 +265,8 @@ export function TaskSubtasksInline({
                 T={T}
               />
             ))}
-            {subs.length === 0 && (
-              <li className="text-xs text-muted-foreground/60 px-1 py-1">— {T("زیرتسکی نیست", "No subtasks")} —</li>
+            {visibleSubs.length === 0 && (
+              <li className="text-xs text-muted-foreground/60 px-1 py-1">— {subs.length > 0 ? T("زیرتسک‌های انجام‌شده مخفی‌اند", "Completed subtasks are hidden") : T("زیرتسکی نیست", "No subtasks")} —</li>
             )}
           </ul>
         </SortableContext>

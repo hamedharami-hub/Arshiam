@@ -67,7 +67,7 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
     localStorage.clear();
   });
 
-  it("renders top priorities, active today tasks, collapsible completed tasks, and overdue below today", () => {
+  it("renders completed tasks by default and lets the completed control hide and restore them", () => {
     mockTasks = [
       {
         id: "task-urgent",
@@ -138,12 +138,14 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
     expect(screen.queryByPlaceholderText(/Add a task for today|افزودن تسک برای امروز/i)).not.toBeInTheDocument();
 
     // 4. Completed tasks toggle
-    const completedToggle = screen.getByRole("button", { name: /show completed tasks/i });
+    const completedToggle = screen.getByRole("button", { name: /hide completed tasks/i });
     expect(completedToggle).toBeInTheDocument();
-    expect(screen.queryByText("Done Morning Walk")).not.toBeInTheDocument();
+    expect(screen.getByText("Done Morning Walk")).toBeInTheDocument();
 
-    // Expand completed
+    // Hide and restore completed tasks using the shared preference.
     fireEvent.click(completedToggle);
+    expect(screen.queryByText("Done Morning Walk")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /show completed tasks/i }));
     expect(screen.getByText("Done Morning Walk")).toBeInTheDocument();
 
     // 5. Overdue section is present

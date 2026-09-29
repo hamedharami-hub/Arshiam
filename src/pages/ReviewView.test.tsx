@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
-import ReviewView from "./ReviewView";
+import ReviewView, { REVIEW_FOLDERS } from "./ReviewView";
 
 vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({ user: { id: "synthetic-user" } }),
@@ -26,6 +26,19 @@ vi.mock("@/components/review/KnowledgeMindMapView", () => ({
 }));
 
 describe("ReviewView scoped Leitner task navigation", () => {
+  it("offers Pharmacy as the initial review folder", () => {
+    render(
+      <MemoryRouter initialEntries={["/app/review/pharmacy"]}>
+        <Routes>
+          <Route path="/app/review/:folder" element={<ReviewView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(REVIEW_FOLDERS[0].id).toBe("pharmacy");
+    expect(screen.getByTestId("review-folder-pharmacy")).toHaveTextContent("فارماسی");
+  });
+
   it("keeps a scoped study task in Leitner and passes both target and task IDs through", () => {
     render(
       <MemoryRouter initialEntries={["/app/review?tab=leitner&studyDocId=doc-7&studyTaskId=task-4"]}>

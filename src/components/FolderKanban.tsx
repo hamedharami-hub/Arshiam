@@ -34,6 +34,7 @@ import { format } from "date-fns";
 import { PRIORITY_META, type Priority } from "@/lib/priority";
 import { haptic } from "@/lib/haptics";
 import { awardWaterDrops } from "@/lib/garden";
+import { filterTasksForVisibility, useShowCompletedTasks } from "@/lib/completedTaskVisibility";
 import {
   type GoalKanban,
   type TimeHorizon,
@@ -111,6 +112,7 @@ export function FolderKanban({
   goalMode?: "hierarchy" | "time" | "priority";
 }) {
   const { user } = useAuth();
+  const showCompletedTasks = useShowCompletedTasks();
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
@@ -420,6 +422,7 @@ export function FolderKanban({
           <div className="space-y-3">
             {incompleteTasks.map((t) => {
               const taskSubs = subtasks.filter((s) => s.parent_id === t.id);
+              const visibleTaskSubs = filterTasksForVisibility(taskSubs, showCompletedTasks);
               const pm = PRIORITY_META[t.priority] || PRIORITY_META.none;
               return (
                 <Card
@@ -459,9 +462,9 @@ export function FolderKanban({
                   </div>
 
                   {/* Subtasks inside card */}
-                  {taskSubs.length > 0 && (
+                  {visibleTaskSubs.length > 0 && (
                     <div className="pe-2 ps-6 space-y-2 border-t border-border/40 pt-2.5">
-                      {taskSubs.map((st) => (
+                      {visibleTaskSubs.map((st) => (
                         <div key={st.id} className="flex items-center gap-2.5 text-xs text-foreground/90">
                           <Checkbox
                             checked={st.completed}
@@ -494,7 +497,7 @@ export function FolderKanban({
           </div>
 
           {/* Completed Collapsible Section */}
-          {completedTasks.length > 0 && (
+          {showCompletedTasks && completedTasks.length > 0 && (
             <div className="pt-3 space-y-2">
               <button
                 type="button"

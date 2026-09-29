@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { NAV_ITEMS, SECTIONS } from "./SidebarNavSections";
 
 describe("Knowledge navigation hierarchy", () => {
-  it("exposes Pharmacy as a top-level section with all pharmacy tools reachable", () => {
-    const pharmacy = SECTIONS.find((section) => section.id === "pharmacy");
-    expect(pharmacy).toBeDefined();
-    expect(pharmacy?.defaultOpen).toBe(true);
-    expect(pharmacy?.items.map((item) => item.url)).toEqual([
-      "/app/pharmacy",
+  it("places Pharmacy first under Knowledge and keeps its existing tools nested under the Pharmacy hub", () => {
+    const grow = SECTIONS.find((section) => section.id === "grow");
+    const knowledge = grow?.items.find((item) => item.label === "دانش");
+    const pharmacy = knowledge?.children?.[0];
+    expect(pharmacy).toMatchObject({ url: "/app/pharmacy", label: "فارماسی" });
+    expect(pharmacy?.children?.map((item) => item.url)).toEqual([
       "/app/pharmacy-products",
       "/app/pharmacy-scenario-practice",
       "/app/pharmacy-fred-practice",
@@ -15,17 +15,22 @@ describe("Knowledge navigation hierarchy", () => {
     ]);
   });
 
-  it("puts Review in its own section right below Pharmacy", () => {
-    const ids = SECTIONS.map((section) => section.id);
-    expect(ids.indexOf("review")).toBe(ids.indexOf("pharmacy") + 1);
-    expect(SECTIONS.find((s) => s.id === "review")?.items[0].url).toBe("/app/review/pharmacy");
+  it("places a distinct Review destination immediately after Pharmacy under Knowledge", () => {
+    const grow = SECTIONS.find((section) => section.id === "grow");
+    const knowledge = grow?.items.find((item) => item.label === "دانش");
+    expect(knowledge?.children?.slice(0, 2)).toMatchObject([
+      { url: "/app/pharmacy", label: "فارماسی" },
+      { url: "/app/review/pharmacy", label: "مرور" },
+    ]);
   });
 
-  it("keeps Knowledge base and interactive study grouped under Grow", () => {
+  it("keeps Pharmacy, Review, Knowledge base, and interactive study grouped under Grow", () => {
     const grow = SECTIONS.find((section) => section.id === "grow");
     const knowledge = grow?.items.find((item) => item.label === "دانش");
     expect(knowledge).toBeDefined();
     expect(knowledge?.children?.map((item) => item.url)).toEqual([
+      "/app/pharmacy",
+      "/app/review/pharmacy",
       "/app/knowledge",
       "/app/interactive-study",
     ]);
@@ -36,7 +41,11 @@ describe("Knowledge navigation hierarchy", () => {
     expect(urls).toContain("/app/knowledge");
     expect(urls).toContain("/app/review/pharmacy");
     expect(urls).toContain("/app/interactive-study");
+    expect(urls).toContain("/app/pharmacy");
     expect(urls).toContain("/app/pharmacy-products");
+    expect(urls).toContain("/app/pharmacy-scenario-practice");
+    expect(urls).toContain("/app/pharmacy-fred-practice");
+    expect(urls).toContain("/app/pharmacy-cyp");
     expect(new Set(urls).size).toBe(urls.length);
   });
 

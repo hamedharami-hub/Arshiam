@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, subDays } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -13,6 +13,7 @@ import { HolidayList } from "@/components/calendar/HolidayList";
 import { getTimeSettings, periodFor, fromLocalISO } from "@/lib/timeHorizon";
 import { addMonths as jAddMonths } from "date-fns-jalali";
 import { parseTaskDueDate } from "@/lib/taskDate";
+import { filterTasksForVisibility, useShowCompletedTasks } from "@/lib/completedTaskVisibility";
 import { useBilingual } from "@/hooks/useBilingual";
 import MonthGrid from "@/components/calendar/MonthGrid";
 import WeekView from "@/components/calendar/WeekView";
@@ -27,6 +28,7 @@ export default function CalendarView() {
   const { user } = useAuth();
   const nav = useNavigate();
   const { T, isEn } = useBilingual();
+  const showCompletedTasks = useShowCompletedTasks();
   const [date, setDate] = useState(new Date());
   const [view, setView] = useState<ViewMode>("month");
   const [tasks, setTasks] = useState<any[]>([]);
@@ -38,6 +40,7 @@ export default function CalendarView() {
   const [cycleLogs, setCycleLogs] = useState<CycleLog[]>([]);
   const [cycleOverlayEnabled, setCycleOverlayEnabled] = useState(true);
   const [detailDate, setDetailDate] = useState<Date | null>(null);
+  const visibleTasks = useMemo(() => filterTasksForVisibility(tasks, showCompletedTasks), [tasks, showCompletedTasks]);
 
   // Load user cycle settings & active profile
   useEffect(() => {
@@ -190,7 +193,7 @@ export default function CalendarView() {
 
         <TabsContent value="month">
           <Card className="p-3 bg-card/60 border-border/60 shadow-sm">
-            <MonthGrid month={date} tasks={tasks} holidays={holidays} system={system}
+            <MonthGrid month={date} tasks={visibleTasks} holidays={holidays} system={system}
               cycleProfile={cycleProfile} cycleLogs={cycleLogs}
               onDayClick={(d) => setDetailDate(d)} />
           </Card>
@@ -198,7 +201,7 @@ export default function CalendarView() {
 
         <TabsContent value="week">
           <Card className="p-3 bg-card/60 border-border/60 shadow-sm">
-            <WeekView date={date} tasks={tasks} holidays={holidays} system={system}
+            <WeekView date={date} tasks={visibleTasks} holidays={holidays} system={system}
               onDayClick={(d) => { setDate(d); setView("day"); }}
               onSlotClick={(d) => setDetailDate(d)} />
           </Card>
@@ -206,7 +209,7 @@ export default function CalendarView() {
 
         <TabsContent value="day">
           <Card className="p-4 bg-card/60 border-border/60 shadow-sm">
-            <DayView date={date} tasks={tasks} system={system}
+            <DayView date={date} tasks={visibleTasks} system={system}
               onSlotClick={() => setDetailDate(date)}
               onTaskClick={(id) => nav(`/app/tasks/${id}`)} />
           </Card>
@@ -214,7 +217,7 @@ export default function CalendarView() {
 
         <TabsContent value="agenda">
           <Card className="p-4 bg-card/60 border-border/60 shadow-sm">
-            <AgendaView start={startOfMonth(date)} end={endOfMonth(date)} tasks={tasks}
+            <AgendaView start={startOfMonth(date)} end={endOfMonth(date)} tasks={visibleTasks}
               holidays={holidays} system={system} />
           </Card>
         </TabsContent>
@@ -226,7 +229,7 @@ export default function CalendarView() {
         date={detailDate}
         open={!!detailDate}
         onOpenChange={(v) => !v && setDetailDate(null)}
-        tasks={tasks}
+        tasks={visibleTasks}
         holidays={holidays}
         system={system}
         onTaskCreated={() => setRefreshKey((k) => k + 1)}

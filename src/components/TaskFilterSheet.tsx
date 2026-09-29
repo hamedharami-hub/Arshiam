@@ -28,7 +28,7 @@ export const DEFAULT_FILTERS: TaskFilters = {
   folder_ids: [],
   tag_ids: [],
   priorities: [],
-  show_completed: false,
+  show_completed: true,
   sort_primary: { key: "due", dir: "asc" },
   sort_secondary: { key: "priority", dir: "asc" },
   sort: "priority",
@@ -156,7 +156,7 @@ export function TaskFilterSheet({
     filters.folder_ids.length +
     filters.tag_ids.length +
     filters.priorities.length +
-    (filters.show_completed ? 1 : 0) +
+    (!filters.show_completed ? 1 : 0) +
     (sortChanged ? 1 : 0);
 
   return (

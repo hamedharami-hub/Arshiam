@@ -19,6 +19,7 @@ import { TimeSettingsFields } from "@/components/horizon/TimeSettingsFields";
 import { WeatherWeekStrip } from "@/components/weather/WeatherWeekStrip";
 import { toPersianDigits } from "@/lib/jalali";
 import { haptic } from "@/lib/haptics";
+import { filterTasksForVisibility, useShowCompletedTasks } from "@/lib/completedTaskVisibility";
 import type { Task } from "@/lib/taskTypes";
 import {
   childPeriods, currentPeriod, enabledHorizons, fieldsForPeriod, fromLocalISO, getTaskTime, getTimeSettings,
@@ -48,6 +49,7 @@ export default function BucketsView() {
   const reduce = useReducedMotion();
   const [params] = useSearchParams();
   const [settings, refreshSettings] = useTimeSettings();
+  const showCompletedTasks = useShowCompletedTasks();
   const levels = enabledHorizons(settings);
 
   const [horizon, setHorizon] = useState<Horizon>(() => {
@@ -94,12 +96,14 @@ export default function BucketsView() {
 
   const inPeriod = filtered.filter((x) => taskInPeriod(x.tf!, period));
   const children = childPeriods(period, settings);
-  const wholePeriod = sortTasks(inPeriod.filter((x) => x.tf!.horizon === effectiveHorizon).map((x) => x.t), filter.sort);
-  const childGroups = children.map((cp) => ({
+  const wholePeriodAll = sortTasks(inPeriod.filter((x) => x.tf!.horizon === effectiveHorizon).map((x) => x.t), filter.sort);
+  const wholePeriod = filterTasksForVisibility(wholePeriodAll, showCompletedTasks);
+  const childGroupsAll = children.map((cp) => ({
     cp,
     tasks: sortTasks(filtered.filter((x) => x.tf!.horizon !== effectiveHorizon && taskInPeriod(x.tf!, cp)).map((x) => x.t), filter.sort),
   }));
-  const progressTasks = [...wholePeriod, ...childGroups.flatMap((g) => g.tasks.filter((t) => taskInPeriod(getTaskTime(t, settings)!, period)))];
+  const childGroups = childGroupsAll.map((group) => ({ ...group, visibleTasks: filterTasksForVisibility(group.tasks, showCompletedTasks) }));
+  const progressTasks = [...wholePeriodAll, ...childGroupsAll.flatMap((g) => g.tasks.filter((t) => taskInPeriod(getTaskTime(t, settings)!, period)))];
   const uniqueProgress = [...new Map(progressTasks.map((t) => [t.id, t])).values()];
   const doneCount = uniqueProgress.filter((t) => t.completed).length;
   const pct = uniqueProgress.length ? Math.round((doneCount / uniqueProgress.length) * 100) : 0;
@@ -210,20 +214,22 @@ export default function BucketsView() {
                 id={`whole-${period.start}`}
                 period={period}
                 title={`${fa ? "کلِ دوره" : "Whole period"} · ${periodLabel(period, settings, lang)}`}
-                tasks={wholePeriod}
+                tasks={wholePeriodAll}
+                visibleTasks={wholePeriod}
                 emptyText={children.length ? (fa ? "تسک کلیِ این دوره اینجا می‌آید" : "Tasks for the whole period go here") : (fa ? "برای این روز تسکی نیست" : "Nothing for this day")}
                 render={(t) => <HorizonTaskRow key={t.id} task={t} settings={settings} lang={lang} overdue={overdueIds.has(t.id)} onToggle={() => toggleDone(t)} onPostpone={() => postpone([t])} />}
                 fa={fa}
                 testId="horizon-whole-period"
               />
-              {childGroups.map(({ cp, tasks: list }) => (
+              {childGroups.map(({ cp, tasks: allGroupTasks, visibleTasks: list }) => (
                 <PeriodSection
                   key={cp.start}
                   id={`child-${cp.horizon}-${cp.start}`}
                   period={cp}
                   child={cp}
                   title={periodLabel(cp, settings, lang)}
-                  tasks={list}
+                  tasks={allGroupTasks}
+                  visibleTasks={list}
                   emptyText={fa ? "خالی — تسک را اینجا رها کن" : "Empty — drop a task here"}
                   render={(t) => <HorizonTaskRow key={t.id} task={t} settings={settings} lang={lang} overdue={overdueIds.has(t.id)} showPeriod={getTaskTime(t, settings)?.horizon !== cp.horizon} onToggle={() => toggleDone(t)} onPostpone={() => postpone([t])} />}
                   fa={fa}
@@ -238,8 +244,9 @@ export default function BucketsView() {
   );
 }
 
-function PeriodSection({ id, period, child, title, tasks, emptyText, render, fa, testId }: {
+function PeriodSection({ id, period, child, title, tasks, visibleTasks, emptyText, render, fa, testId }: {
   id: string; period: Period; child?: ChildPeriod; title: string; tasks: Task[]; emptyText: string;
+  visibleTasks: Task[];
   render: (t: Task) => React.ReactNode; fa: boolean; testId: string;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id, data: { period: { horizon: period.horizon, start: period.start, end: period.end } } });
@@ -262,7 +269,7 @@ function PeriodSection({ id, period, child, title, tasks, emptyText, render, fa,
           </div>
         )}
       </div>
-      {tasks.length ? <div className="space-y-1.5">{tasks.map(render)}</div> : <p className="text-[11px] text-muted-foreground py-1">{emptyText}</p>}
+      {visibleTasks.length ? <div className="space-y-1.5">{visibleTasks.map(render)}</div> : <p className="text-[11px] text-muted-foreground py-1">{emptyText}</p>}
     </section>
   );
 }

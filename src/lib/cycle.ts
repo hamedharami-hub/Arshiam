@@ -1,4 +1,4 @@
-import { differenceInCalendarDays, addDays, format } from "date-fns";
+import { differenceInCalendarDays, addDays, format, startOfDay } from "date-fns";
 
 export type CycleProfile = {
   id: string;
@@ -29,12 +29,23 @@ export type CycleLog = {
 
 export type Phase = "period" | "follicular" | "ovulation" | "luteal" | "unknown";
 
+export const DEFAULT_CYCLE_PROFILE = {
+  color: "#ec4899",
+  avg_cycle_length: 28,
+  avg_period_length: 5,
+  luteal_length: 14,
+  notify_period: false,
+  notify_ovulation: false,
+} satisfies Pick<CycleProfile, "color" | "avg_cycle_length" | "avg_period_length" | "luteal_length" | "notify_period" | "notify_ovulation">;
+
+export type FertileWindowEstimate = { start: Date; end: Date };
+
 export const PHASE_META: Record<Phase, { label: string; label_en: string; color: string; description: string; description_en: string }> = {
   period:     { label: "قاعدگی",     label_en: "Menstruation", color: "#EF4444", description: "روزهای پریود", description_en: "Menstrual flow days" },
   follicular: { label: "فولیکولار",  label_en: "Follicular",   color: "#F59E0B", description: "انرژی روبه‌بالا، تمرکز خوب", description_en: "Rising energy, optimal focus" },
-  ovulation:  { label: "تخمک‌گذاری", label_en: "Ovulation",    color: "#10B981", description: "پنجره باروری، اوج انرژی", description_en: "Fertility window, peak vitality" },
+  ovulation:  { label: "نزدیک تخمک‌گذاری", label_en: "Near ovulation", color: "#10B981", description: "برآورد تقویمی نزدیک زمان تخمک‌گذاری", description_en: "Calendar estimate near ovulation" },
   luteal:     { label: "لوتئال",     label_en: "Luteal",       color: "#8B5CF6", description: "PMS احتمالی، آرام‌تر", description_en: "Potential PMS, time for gentle rest" },
-  unknown:    { label: "—",          label_en: "—",            color: "#94A3B8", description: "", description_en: "" },
+  unknown:    { label: "دادهٔ کافی نیست", label_en: "Not enough data", color: "#94A3B8", description: "برای برآورد، شروع پریود را ثبت کنید.", description_en: "Log a period start to see estimates." },
 };
 
 export const SYMPTOM_MAP: Record<string, string> = {
@@ -100,8 +111,36 @@ export function predictNextPeriod(logs: CycleLog[], profile: CycleProfile, from:
   if (!last) return null;
   const start = new Date(last.log_date + "T00:00:00");
   let next = addDays(start, profile.avg_cycle_length || 28);
-  while (next < from) next = addDays(next, profile.avg_cycle_length || 28);
+  // Compare calendar dates, not timestamps: a period predicted for today at
+  // midnight must not roll forward merely because `from` is later in the day.
+  const today = startOfDay(from);
+  while (next < today) next = addDays(next, profile.avg_cycle_length || 28);
   return next;
+}
+
+/** Estimate a six-day fertile window ending on the estimated ovulation day. */
+export function predictFertileWindow(
+  logs: CycleLog[],
+  profile: CycleProfile,
+  from: Date = new Date(),
+): FertileWindowEstimate | null {
+  const last = lastPeriodStartOnOrBefore(logs, from);
+  if (!last) return null;
+
+  const cycleLength = Math.max(1, profile.avg_cycle_length || 28);
+  const lutealLength = Math.max(1, profile.luteal_length || 14);
+  const ovulationDay = Math.max(1, cycleLength - lutealLength);
+  let ovulationDate = addDays(new Date(last.log_date + "T00:00:00"), ovulationDay - 1);
+  let start = addDays(ovulationDate, -5);
+  let end = ovulationDate;
+
+  while (differenceInCalendarDays(end, from) < 0) {
+    ovulationDate = addDays(ovulationDate, cycleLength);
+    start = addDays(start, cycleLength);
+    end = addDays(end, cycleLength);
+  }
+
+  return { start, end };
 }
 
 export const SYMPTOM_OPTIONS = [

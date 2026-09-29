@@ -92,6 +92,41 @@ describe("TaskListItem subtasks progress rendering", () => {
     expect(html).toContain("0/1");
   });
 
+  it("hides completed subtasks while keeping their completion in the progress total", () => {
+    const activeSubtask = { ...subTask, id: "sub-2", title: "Active Subtask", completed: false, status: "todo" as const };
+    const html = renderToString(
+      <TaskListItem
+        t={parentTask}
+        subs={[subTask, activeSubtask]}
+        open={true}
+        onToggleExpand={vi.fn()}
+        onSelectTask={vi.fn()}
+        onToggleTask={vi.fn()}
+        onActionTask={vi.fn()}
+        onDeleteTask={vi.fn()}
+        onPatchTask={vi.fn()}
+        onMoveTask={vi.fn()}
+        isSelected={false}
+        splitView={false}
+        layout="compact"
+        isEn={true}
+        T={(_fa, en) => en}
+        navigate={vi.fn()}
+        outcomeByTaskId={{}}
+        outcomeById={{}}
+        childrenMap={{ "parent-1": [subTask, activeSubtask] }}
+        expanded={{}}
+        getProgress={() => ({ done: 1, total: 2 })}
+        taskMap={new Map([["parent-1", parentTask], ["sub-1", subTask], ["sub-2", activeSubtask]])}
+        showCompletedTasks={false}
+      />,
+    );
+
+    expect(html).toContain("Active Subtask");
+    expect(html).not.toContain("Subtask 1");
+    expect(html).toContain("1/2");
+  });
+
   it("routes active Leitner reviews instead of allowing ordinary completion", () => {
     const html = renderToString(
       <TaskListItem

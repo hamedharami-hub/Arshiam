@@ -85,6 +85,7 @@ export interface TaskListItemProps {
   getProgress: (id: string) => { done: number; total: number };
   taskMap: Map<string, Task>;
   allowDrag?: boolean;
+  showCompletedTasks?: boolean;
 }
 
 const TaskListItemComponent = ({
@@ -115,12 +116,14 @@ const TaskListItemComponent = ({
   getProgress,
   taskMap,
   allowDrag = false,
+  showCompletedTasks = true,
 }: TaskListItemProps) => {
   const pm = PRIORITY_META[t.priority] || PRIORITY_META.none;
   const studyNavigation = getStudyTaskNavigation(t);
   const isScheduledLeitnerReview = isLeitnerStudyTask(t);
   const parentTask = parent || (t.parent_id ? taskMap?.get(t.parent_id) : null);
   const effectiveProgress = progress ?? (typeof getProgress === "function" ? getProgress(t.id) : undefined) ?? { done: 0, total: subs?.length || 0 };
+  const visibleSubs = showCompletedTasks ? subs : subs.filter((subtask) => !subtask.completed);
   const STEP = 18; // px per nesting level
   const lp = useLongPress({ onLongPress: () => onActionTask(t) });
 
@@ -225,7 +228,7 @@ const TaskListItemComponent = ({
               )}
               {/* Row 1: chevron + pin + TITLE (wide) + checkbox (right) */}
               <div dir="rtl" className="flex items-start gap-1.5">
-                {subs.length > 0 ? (
+                {visibleSubs.length > 0 ? (
                   <button onClick={() => onToggleExpand(t.id)} className="text-muted-foreground hover:text-foreground shrink-0 pt-0.5">
                     {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                   </button>
@@ -496,7 +499,7 @@ const TaskListItemComponent = ({
                     </PopoverContent>
                   </Popover>
                 )}
-                {subs.length > 0 && (
+                {effectiveProgress.total > 0 && (visibleSubs.length > 0 ? (
                   <button
                     type="button"
                     onClick={(e) => {
@@ -512,7 +515,12 @@ const TaskListItemComponent = ({
                       {open ? `(${T("بستن", "hide")})` : `(${T("نمایش", "show")})`}
                     </span>
                   </button>
-                )}
+                ) : (
+                  <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1 px-1.5 py-0.5">
+                    <CornerDownRight className="w-3 h-3 text-primary" />
+                    <span>{`${effectiveProgress.done}/${effectiveProgress.total}`}</span>
+                  </span>
+                ))}
                 {(() => {
                   const ometa = outcomeMeta(t, outcomeByTaskId, outcomeById);
                   if (!ometa) return null;
@@ -531,9 +539,9 @@ const TaskListItemComponent = ({
           </SwipeableRow>
         )}
       </SortableTaskRow>
-      {open && subs.length > 0 && (
+      {open && visibleSubs.length > 0 && (
         <div className="mt-1 space-y-2">
-          {groupedChildren(subs, outcomeByTaskId, outcomeById).map(([oid, group]) => (
+          {groupedChildren(visibleSubs, outcomeByTaskId, outcomeById).map(([oid, group]) => (
             <div key={oid ?? "root"} className="space-y-1">
               {group.meta && (
                 <div className="flex items-center gap-1.5 ps-5 py-0.5 text-[10px] font-medium text-muted-foreground">
@@ -577,6 +585,7 @@ const TaskListItemComponent = ({
                     getProgress={getProgress}
                     taskMap={taskMap}
                     allowDrag={allowDrag}
+                    showCompletedTasks={showCompletedTasks}
                   />
                 ))}
               </SortableContext>

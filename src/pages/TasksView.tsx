@@ -89,6 +89,7 @@ import { Repeat } from "lucide-react";
 import type { RecurrenceRule } from "@/lib/recurrence";
 import { awardWaterDrops } from "@/lib/garden";
 import { DEFAULT_FOLDER_PREFS, getFolderPrefs, saveFolderPrefs, type FolderPrefs } from "@/lib/folderPrefs";
+import { getShowCompletedTasks, setShowCompletedTasks, useShowCompletedTasks } from "@/lib/completedTaskVisibility";
 import { TasksHeader, FOLDER_BG_COLORS, FOLDER_BG_IMAGES } from "./tasks/TasksHeader";
 import { TaskDueDateGroups, buildGroupedTasks, type TaskGroup } from "./tasks/TaskDueDateGroups";
 
@@ -97,6 +98,7 @@ import { currentAnchor, isSubDayBucket, doesTaskMatchBucketScope } from "@/lib/t
 
 export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomorrow" | "next7" | "smart" | "folder" | "tag" }) {
   const { user } = useAuth();
+  const showCompletedTasks = useShowCompletedTasks();
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = useCallback((fa: string, en: string) => (isEn ? en : fa), [isEn]);
@@ -394,6 +396,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
             ...saved,
             sort_primary: saved.sort_primary || DEFAULT_FILTERS.sort_primary,
             sort_secondary: saved.sort_secondary || DEFAULT_FILTERS.sort_secondary,
+            show_completed: getShowCompletedTasks(),
           };
         }
       }
@@ -401,6 +404,11 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     return DEFAULT_FILTERS;
   };
   const [filters, setFilters] = useState<TaskFilters>(loadSavedFilters());
+  useEffect(() => {
+    setFilters((current) => current.show_completed === showCompletedTasks
+      ? current
+      : { ...current, show_completed: showCompletedTasks });
+  }, [showCompletedTasks]);
   // Reload saved filters when scope/folder/tag changes
   useEffect(() => {
     setFilters(loadSavedFilters());
@@ -485,7 +493,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     }
 
     // Apply advanced filters
-    if (!filters.show_completed) list = list.filter(t => !t.completed || isGraceActive(t.id));
+    if (!showCompletedTasks) list = list.filter(t => !t.completed);
     if (filters.folder_ids.length) list = list.filter(t => t.folder_id && filters.folder_ids.includes(t.folder_id));
     if (filters.priorities.length) list = list.filter(t => filters.priorities.includes(t.priority as string));
     if (filters.tag_ids.length) {
@@ -521,7 +529,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       return cmpForLevel(primary)(a, b) || cmpForLevel(secondary)(a, b);
     });
     return list;
-  }, [effectiveAllTasks, scope, params.id, filters, taskTagsMap, graceMap, taskMap, currentDayKey]);
+  }, [effectiveAllTasks, scope, params.id, filters, taskTagsMap, graceMap, taskMap, currentDayKey, showCompletedTasks]);
 
   const isFolder = scope === "folder" && !!params.id;
   const folderTopLevel = useMemo(() => {
@@ -940,6 +948,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       getProgress={getProgress}
       taskMap={taskMap}
       allowDrag={scope !== "today" && scope !== "next7"}
+      showCompletedTasks={showCompletedTasks}
     />
   );
 
@@ -973,7 +982,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           }
           chipsTrailing={
             <div className="flex items-center gap-1.5">
-              <TaskFilterSheet filters={filters} onChange={setFilters} />
+              <TaskFilterSheet filters={filters} onChange={(next) => {
+                if (next.show_completed !== filters.show_completed) setShowCompletedTasks(next.show_completed);
+                setFilters(next);
+              }} />
               <Button
                 variant={splitView ? "secondary" : "outline"}
                 size="sm"

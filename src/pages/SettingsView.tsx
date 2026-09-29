@@ -42,6 +42,7 @@ import { isAndroid, nativeExperience, type NativeAppInfo } from "@/lib/nativeExp
 import { SectionCard, SettingRow } from "./settings/SectionCard";
 import { TimeHorizonSettings } from "./settings/TimeHorizonSettings";
 import { TimeBucketsSettings } from "./settings/TimeBucketsSettings";
+import { CompletedTasksSettings } from "./settings/CompletedTasksSettings";
 import { CrisisSupportSettings } from "./settings/CrisisSupportSettings";
 import { SidebarQuickLinksSettings } from "./settings/SidebarQuickLinksSettings";
 import { AISettingsTab } from "./settings/AISettingsTab";
@@ -746,6 +747,7 @@ export default function SettingsView() {
 
         <TabsContent value="tasks" className="space-y-5 mt-5">
           <AssistantAccessSettings />
+          <CompletedTasksSettings />
           {reminders && (
             <TaskDefaultSettings
               value={reminders.task_defaults || {}}

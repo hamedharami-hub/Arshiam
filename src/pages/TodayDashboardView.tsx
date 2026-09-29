@@ -18,6 +18,7 @@ import { persistTask } from "@/lib/firestoreDataService";
 import { deleteTaskCascade } from "@/features/tasks/taskService";
 import { taskDueTimestamp, getLocalDateString } from "@/lib/taskDate";
 import { buildTaskChildrenMap, collectTaskDescendantIds, getTaskProgress, isStandaloneTaskForScope } from "@/features/tasks/taskTree";
+import { setShowCompletedTasks, useShowCompletedTasks } from "@/lib/completedTaskVisibility";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { HeaderActionsPortal } from "@/components/HeaderActionsPortal";
 import { useResizableSplit } from "@/hooks/useResizableSplit";
@@ -48,7 +49,7 @@ export default function TodayDashboardView() {
   const { T, isEn } = useBilingual();
   const { isPhone } = useDeviceFormFactor();
 
-  const [showCompleted, setShowCompleted] = useState(false);
+  const showCompleted = useShowCompletedTasks();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [selectedTaskHistory, setSelectedTaskHistory] = useState<Task[]>([]);
   const [actionTask, setActionTask] = useState<Task | null>(null);
@@ -449,12 +450,12 @@ export default function TodayDashboardView() {
       ...priorityTasks.map((t) => t.id),
       ...activeRemaining.map((t) => t.id),
       ...activeTodayStudyTasks.map((t) => t.id),
-      ...completedTodayTasks.map((t) => t.id),
-      ...completedTodayStudyTasks.map((t) => t.id),
+      ...(showCompleted ? completedTodayTasks.map((t) => t.id) : []),
+      ...(showCompleted ? completedTodayStudyTasks.map((t) => t.id) : []),
       ...overdueTasks.map((t) => t.id),
       ...overdueStudyTasks.map((t) => t.id),
     ];
-  }, [priorityTasks, activeRemaining, activeTodayStudyTasks, completedTodayTasks, completedTodayStudyTasks, overdueTasks, overdueStudyTasks]);
+  }, [priorityTasks, activeRemaining, activeTodayStudyTasks, completedTodayTasks, completedTodayStudyTasks, overdueTasks, overdueStudyTasks, showCompleted]);
 
   const todayJalali = formatDate(new Date(), "EEEE، d MMMM yyyy", "jalali");
   const todayGregorian = formatDate(new Date(), "EEEE, MMMM d, yyyy", "gregorian");
@@ -489,6 +490,7 @@ export default function TodayDashboardView() {
       getProgress={getProgress}
       taskMap={taskMap}
       allowDrag={false}
+      showCompletedTasks={showCompleted}
     />
   );
 
@@ -650,7 +652,7 @@ export default function TodayDashboardView() {
                   </div>
                 )}
 
-                {(activeTodayStudyTasks.length > 0 || completedTodayStudyTasks.length > 0) && (
+                {(activeTodayStudyTasks.length > 0 || (showCompleted && completedTodayStudyTasks.length > 0)) && (
                   <section data-testid="study-due-today" aria-label={T("مرورهای امروز", "Study due today")} className="rounded-xl border border-primary/20 bg-primary/[0.025] p-1.5 sm:p-2 space-y-1">
                     <div className="flex items-center justify-between px-1 py-0.5 text-xs sm:text-sm font-semibold text-primary">
                       <span>{T("مرورهای امروز", "Study due today")}</span>
@@ -658,7 +660,7 @@ export default function TodayDashboardView() {
                     </div>
                     <div className="space-y-1">
                       {activeTodayStudyTasks.map((task) => renderTaskItem(task))}
-                      {completedTodayStudyTasks.map((task) => renderTaskItem(task))}
+                      {showCompleted && completedTodayStudyTasks.map((task) => renderTaskItem(task))}
                     </div>
                   </section>
                 )}
@@ -668,7 +670,7 @@ export default function TodayDashboardView() {
                   <div className="pt-2">
                     <button
                       type="button"
-                      onClick={() => setShowCompleted((v) => !v)}
+                      onClick={() => setShowCompletedTasks(!showCompleted)}
                       className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground py-1 px-1 font-medium cursor-pointer transition-colors"
                       aria-label={showCompleted ? T("مخفی کردن تسک‌های تکمیل‌شده", "Hide completed tasks") : T("نمایش تسک‌های تکمیل‌شده", "Show completed tasks")}
                     >

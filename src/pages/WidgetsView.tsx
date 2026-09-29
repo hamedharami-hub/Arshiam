@@ -51,6 +51,7 @@ import { haptic } from "@/lib/haptics";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/jalali";
 import { useBilingual } from "@/hooks/useBilingual";
+import { useShowCompletedTasks } from "@/lib/completedTaskVisibility";
 
 export type WidgetTheme = "midnight" | "signature" | "emerald" | "crystal" | "amoled";
 
@@ -72,6 +73,7 @@ const DEFAULT_SETTINGS: WidgetSettings = {
 
 export default function WidgetsView() {
   const { user } = useAuth();
+  const showCompletedTasks = useShowCompletedTasks();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { T, isEn } = useBilingual();
@@ -172,7 +174,7 @@ export default function WidgetsView() {
     const tomorrowStr = tomorrow.toISOString().split("T")[0];
 
     return tasks.filter((t) => {
-      if (!settings.showCompleted && (t.completed || t.status === "done")) return false;
+      if ((!showCompletedTasks || !settings.showCompleted) && (t.completed || t.status === "done")) return false;
       if (settings.highPriorityOnly && t.priority !== "high" && t.priority !== "urgent") return false;
 
       if (agendaScope === "today") return t.due_date?.startsWith(todayStr);
@@ -180,7 +182,7 @@ export default function WidgetsView() {
       if (agendaScope === "high") return t.priority === "high" || t.priority === "urgent";
       return true; // next7 or all
     });
-  }, [tasks, agendaScope, settings.showCompleted, settings.highPriorityOnly]);
+  }, [tasks, agendaScope, settings.showCompleted, settings.highPriorityOnly, showCompletedTasks]);
 
   // Toggle task completion from widget preview
   const handleToggleTask = async (task: Task) => {
