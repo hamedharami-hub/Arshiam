@@ -1,5 +1,7 @@
 import { openDB, type IDBPDatabase } from "idb";
-import { arshAuthHeader, arshFetch, arshUrl, ArshApiError } from "@/lib/arshApi";
+import { deleteObject, getDownloadURL, getMetadata, getStorage, listAll, ref, uploadBytesResumable } from "firebase/storage";
+import { auth } from "@/lib/firebase";
+import { ARSH_API_BASE, arshFetch, ArshApiError } from "@/lib/arshApi";
 
 export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 
@@ -63,16 +65,68 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+const FIREBASE_ID_PREFIX = "firebase:";
+
+function attachmentFolder(uid: string, taskId: string): string {
+  return `users/${uid}/task-attachments/${encodeURIComponent(taskId)}`;
+}
+
+function requireOwnerId(): string {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new ArshApiError(401, "Sign in before managing attachments");
+  return uid;
+}
+
+function kindForMime(mime: string): AttachmentKind {
+  if (mime.startsWith("image/")) return "image";
+  if (mime.startsWith("audio/")) return "audio";
+  if (mime.startsWith("video/")) return "video";
+  if (mime === "application/pdf") return "pdf";
+  return "file";
+}
+
+async function fromStorageRef(fileRef: ReturnType<typeof ref>, taskId: string): Promise<RemoteAttachment> {
+  const [metadata, url] = await Promise.all([getMetadata(fileRef), getDownloadURL(fileRef)]);
+  const mime = metadata.contentType || "application/octet-stream";
+  return {
+    id: `${FIREBASE_ID_PREFIX}${fileRef.fullPath}`,
+    task_id: taskId,
+    file_name: metadata.customMetadata?.fileName || decodeURIComponent(fileRef.name),
+    mime_type: mime,
+    kind: kindForMime(mime),
+    size_bytes: metadata.size,
+    status: "ready",
+    source: metadata.customMetadata?.source || "device",
+    created_at: metadata.timeCreated,
+    view_url: url,
+    download_url: url,
+  };
+}
+
 export async function listAttachments(taskId: string): Promise<RemoteAttachment[]> {
-  const res = await arshFetch<{ items: RemoteAttachment[] }>(`/api/arsh/attachments?task_id=${encodeURIComponent(taskId)}`);
-  return res.items;
+  const uid = requireOwnerId();
+  const folder = ref(getStorage(), attachmentFolder(uid, taskId));
+  const files = await listAll(folder);
+  const firebaseItems = await Promise.all(files.items.map((fileRef) => fromStorageRef(fileRef, taskId)));
+  // Older native builds may have attachments in the separate FastAPI service.
+  if (!ARSH_API_BASE) return firebaseItems.sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const legacy = await arshFetch<{ items: RemoteAttachment[] }>(`/api/arsh/attachments?task_id=${encodeURIComponent(taskId)}`)
+    .then((response) => response.items).catch(() => []);
+  return [...firebaseItems, ...legacy].sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
 export async function deleteAttachment(id: string): Promise<void> {
+  if (id.startsWith(FIREBASE_ID_PREFIX)) {
+    const path = id.slice(FIREBASE_ID_PREFIX.length);
+    const uid = requireOwnerId();
+    if (!path.startsWith(`users/${uid}/task-attachments/`)) throw new ArshApiError(403, "Attachment belongs to another account");
+    await deleteObject(ref(getStorage(), path));
+    return;
+  }
   await arshFetch(`/api/arsh/attachments/${id}`, { method: "DELETE" });
 }
 
-/** Sign an upload, then PUT the raw bytes to the signed URL with XHR so we get progress events. */
+/** Upload bytes directly to the signed-in user's private Firebase Storage path. */
 export async function uploadAttachment(
   taskId: string,
   file: Blob & { name: string },
@@ -81,29 +135,20 @@ export async function uploadAttachment(
 ): Promise<RemoteAttachment> {
   const v = validateAttachmentFile(file);
   if (!v.ok) throw new ArshApiError(v.reason === "too_large" ? 413 : 415, v.reason);
-  const signed = await arshFetch<{ upload_url: string }>("/api/arsh/attachments/sign-upload", {
-    method: "POST",
-    body: JSON.stringify({ task_id: taskId, file_name: file.name, mime_type: v.mime, size_bytes: file.size, source }),
-  });
+  const uid = requireOwnerId();
+  // Keep objects directly under the task folder so listAll() can find them.
+  const fileRef = ref(getStorage(), `${attachmentFolder(uid, taskId)}/${crypto.randomUUID()}_${encodeURIComponent(file.name)}`);
   return new Promise<RemoteAttachment>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("PUT", arshUrl(signed.upload_url));
-    xhr.setRequestHeader("Content-Type", v.mime);
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) onProgress?.(e.loaded / e.total);
-    };
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        onProgress?.(1);
-        resolve(JSON.parse(xhr.responseText));
-      } else {
-        let detail = xhr.statusText;
-        try { detail = JSON.parse(xhr.responseText).detail || detail; } catch {}
-        reject(new ArshApiError(xhr.status, detail));
-      }
-    };
-    xhr.onerror = () => reject(new ArshApiError(0, "network"));
-    xhr.send(file);
+    const upload = uploadBytesResumable(fileRef, file, {
+      contentType: v.mime,
+      customMetadata: { fileName: file.name, source },
+    });
+    upload.on("state_changed", (snapshot) => {
+      if (snapshot.totalBytes > 0) onProgress?.(snapshot.bytesTransferred / snapshot.totalBytes);
+    }, reject, () => {
+      onProgress?.(1);
+      void fromStorageRef(fileRef, taskId).then(resolve, reject);
+    });
   });
 }
 
@@ -115,6 +160,7 @@ export function isNetworkError(e: unknown): boolean {
 
 export type QueuedAttachment = {
   id: string;
+  ownerId?: string;
   taskId: string;
   name: string;
   type: string;
@@ -151,6 +197,7 @@ export function onQueueChange(handler: (taskId: string) => void): () => void {
 export async function enqueueAttachment(taskId: string, file: File): Promise<QueuedAttachment> {
   const item: QueuedAttachment = {
     id: `q_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    ownerId: requireOwnerId(),
     taskId,
     name: file.name,
     type: resolveMime(file),
@@ -177,12 +224,15 @@ let flushing = false;
 /** Upload everything waiting in the offline queue. Safe to call repeatedly. */
 export async function flushAttachmentQueue(): Promise<number> {
   if (flushing || !navigator.onLine) return 0;
-  try { await arshAuthHeader(); } catch { return 0; }
+  const uid = auth.currentUser?.uid;
+  if (!uid) return 0;
   flushing = true;
   let done = 0;
   try {
     const all: QueuedAttachment[] = await (await queueDb()).getAll("queue");
     for (const item of all) {
+      // Never upload an old unattributed blob or another account's blob.
+      if (item.ownerId !== uid) continue;
       try {
         const file = Object.assign(item.blob, { name: item.name }) as Blob & { name: string };
         Object.defineProperty(file, "type", { value: item.type, configurable: true });
@@ -192,7 +242,8 @@ export async function flushAttachmentQueue(): Promise<number> {
         done++;
       } catch (e) {
         if (isNetworkError(e)) break; // still offline-ish, try later
-        await removeQueued(item.id, item.taskId); // permanently invalid (type/size/auth) — drop
+        // Preserve the file on any other error (rules, quota, auth, etc.) so
+        // the user can retry after the cloud configuration is repaired.
       }
     }
   } finally {

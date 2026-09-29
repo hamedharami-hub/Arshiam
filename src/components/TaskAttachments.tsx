@@ -280,8 +280,13 @@ export function TaskAttachments({ taskId, onCountChange }: { taskId: string; onC
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-medium truncate" dir="auto">{q.name}</div>
                   <div className="text-[11px] text-muted-foreground">{T("در صف آفلاین · ", "Queued offline · ")}{formatBytes(q.size)}</div>
+                  {q.ownerId !== user?.id && (
+                    <div className="text-[11px] text-amber-700 dark:text-amber-400">
+                      {T("مالک این فایلِ قدیمی مشخص نیست یا حساب دیگری است؛ فایل را دوباره انتخاب کن", "This older file has no clear owner or belongs to another account; select it again")}
+                    </div>
+                  )}
                 </div>
-                <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => flushAttachmentQueue()} data-testid="attachment-queue-retry-btn">
+                <Button size="sm" variant="outline" className="h-8 gap-1" disabled={q.ownerId !== user?.id} onClick={() => flushAttachmentQueue()} data-testid="attachment-queue-retry-btn">
                   <RotateCcw className="w-3 h-3" /> {T("ارسال", "Send")}
                 </Button>
                 <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => removeQueued(q.id, taskId)} aria-label="remove queued">
