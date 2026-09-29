@@ -107,6 +107,7 @@ public class AgendaWidgetProvider extends AppWidgetProvider {
         }
         v.setOnClickPendingIntent(R.id.agenda_title,activity(c,AgendaData.route(scope),70000+id));
         v.setOnClickPendingIntent(R.id.agenda_add,activity(c,"new-task",71000+id));
+        v.setOnClickPendingIntent(R.id.agenda_add_note,activity(c,"new-note",71500+id));
         Intent config = new Intent(c,WidgetConfigureActivity.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id)
             .setData(Uri.parse("arshnaz://configure/"+id));
         v.setOnClickPendingIntent(R.id.agenda_settings,PendingIntent.getActivity(c,73000+id,config,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));

@@ -51,13 +51,13 @@ const GOALS_STORAGE_KEY = "arshnaz_kanban_goals_v3";
 export const INITIAL_GOALS: GoalKanban[] = [
   {
     id: "a0000000-0000-4000-8000-000000000001",
-    title: "آموزش و خودآگاهی",
+    title: "هدف اصلی کانبان",
     description: "توسعه فردی، یادگیری مهارت‌های جدید و رشد ذهن",
     parentId: null,
     timeHorizon: "yearly",
     priority: "high",
     color: "#3b82f6",
-    icon: "📚",
+    icon: "🎯",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
@@ -89,7 +89,7 @@ export const INITIAL_GOALS: GoalKanban[] = [
     id: "a0000000-0000-4000-8000-000000000004",
     title: "کسب‌وکار و پروژه‌ها",
     description: "توسعه محصول، ارتقای اپلیکیشن و اهداف مالی",
-    parentId: null,
+    parentId: "a0000000-0000-4000-8000-000000000001",
     timeHorizon: "yearly",
     priority: "urgent",
     color: "#10b981",
@@ -101,7 +101,7 @@ export const INITIAL_GOALS: GoalKanban[] = [
     id: "a0000000-0000-4000-8000-000000000005",
     title: "سلامت و آرامش ذهن",
     description: "ورزش، تمرین تنفس، خواب منظم و چک‌این روزانه",
-    parentId: null,
+    parentId: "a0000000-0000-4000-8000-000000000001",
     timeHorizon: "quarterly",
     priority: "high",
     color: "#ec4899",
@@ -111,8 +111,27 @@ export const INITIAL_GOALS: GoalKanban[] = [
   },
 ];
 
+export function enforceSingleRoot(goals: GoalKanban[]): GoalKanban[] {
+  if (!goals.length) return [];
+  // The first goal with parentId === null (or the very first goal) is the only root
+  const rootIndex = goals.findIndex((g) => g.parentId === null);
+  const rootId = rootIndex >= 0 ? goals[rootIndex].id : goals[0].id;
+
+  return goals.map((g) => {
+    if (g.id === rootId) {
+      return { ...g, parentId: null };
+    }
+    // Any other goal that has no parent must be attached to the single root goal
+    if (g.parentId === null) {
+      return { ...g, parentId: rootId };
+    }
+    return g;
+  });
+}
+
 function sanitizeGoalsUUIDs(goals: GoalKanban[]): GoalKanban[] {
   const idMap = new Map<string, string>();
+  const allIds = new Set<string>();
 
   // Map invalid UUIDs to valid UUIDs
   goals.forEach((g) => {
@@ -121,13 +140,22 @@ function sanitizeGoalsUUIDs(goals: GoalKanban[]): GoalKanban[] {
     }
   });
 
-  if (idMap.size === 0) return goals;
-
-  return goals.map((g) => ({
+  const remapped = goals.map((g) => ({
     ...g,
     id: idMap.get(g.id) || g.id,
     parentId: g.parentId ? idMap.get(g.parentId) || g.parentId : null,
   }));
+
+  remapped.forEach((g) => allIds.add(g.id));
+
+  // If parentId does not exist in the goals list or references self, reset to null
+  const validatedParents = remapped.map((g) => ({
+    ...g,
+    parentId: g.parentId && g.parentId !== g.id && allIds.has(g.parentId) ? g.parentId : null,
+  }));
+
+  // Enforce that there is strictly one root goal
+  return enforceSingleRoot(validatedParents);
 }
 
 export function getKanbanGoals(folderId?: string | null, userId?: string): GoalKanban[] {
@@ -143,7 +171,13 @@ export function getKanbanGoals(folderId?: string | null, userId?: string): GoalK
         raw = legacyRaw;
       }
     }
-    if (!raw) {
+    if (!raw && userId) {
+      const fallbackRaw = localStorage.getItem(baseKey);
+      if (fallbackRaw) {
+        raw = fallbackRaw;
+      }
+    }
+    const createDefaults = (): GoalKanban[] => {
       const rootId = generateUUID();
       const defaults: GoalKanban[] = folderId
         ? [
@@ -163,11 +197,16 @@ export function getKanbanGoals(folderId?: string | null, userId?: string): GoalK
         : INITIAL_GOALS.filter((g) => g.parentId === null);
       localStorage.setItem(key, JSON.stringify(defaults));
       return defaults;
+    };
+
+    if (!raw) {
+      return createDefaults();
     }
     const parsed = JSON.parse(raw);
-    // Single-tier model: every goal is a top-level goal (no nesting).
-    if (Array.isArray(parsed)) return sanitizeGoalsUUIDs(parsed).map((g) => ({ ...g, parentId: null }));
-    return folderId ? [] : INITIAL_GOALS.filter((g) => g.parentId === null);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return sanitizeGoalsUUIDs(parsed);
+    }
+    return createDefaults();
   } catch {
     return folderId ? [] : INITIAL_GOALS.filter((g) => g.parentId === null);
   }
@@ -202,3 +241,24 @@ export function getGoalPath(goals: GoalKanban[], goalId: string): GoalKanban[] {
   }
   return path;
 }
+
+export function getAllKanbanGoals(folders?: Array<{ id: string }>, userId?: string): GoalKanban[] {
+  const all: GoalKanban[] = [];
+  const seen = new Set<string>();
+  const addGoals = (list: GoalKanban[]) => {
+    for (const g of list) {
+      if (!seen.has(g.id)) {
+        seen.add(g.id);
+        all.push(g);
+      }
+    }
+  };
+  addGoals(getKanbanGoals(null, userId));
+  if (folders && Array.isArray(folders)) {
+    for (const f of folders) {
+      if (f?.id) addGoals(getKanbanGoals(f.id, userId));
+    }
+  }
+  return all;
+}
+

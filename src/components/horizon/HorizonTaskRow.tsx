@@ -7,14 +7,16 @@ import type { Task } from "@/lib/taskTypes";
 import { formatDate, toPersianDigits } from "@/lib/jalali";
 import { getTaskTime, periodLabel, type TimeSettings } from "@/lib/timeHorizon";
 
-export function HorizonTaskRow({ task, settings, lang, overdue, showPeriod, onToggle, onPostpone }: {
+export function HorizonTaskRow({ task, settings, lang, overdue, showPeriod, goal, onToggle, onPostpone, onClick }: {
   task: Task;
   settings: TimeSettings;
   lang: "fa" | "en";
   overdue?: boolean;
   showPeriod?: boolean;
+  goal?: { title: string; icon?: string } | null;
   onToggle: () => void;
   onPostpone: () => void;
+  onClick?: () => void;
 }) {
   const navigate = useNavigate();
   const { attributes, listeners, setNodeRef, isDragging, transform } = useDraggable({ id: task.id, data: { task } });
@@ -34,9 +36,25 @@ export function HorizonTaskRow({ task, settings, lang, overdue, showPeriod, onTo
         <GripVertical className="w-3.5 h-3.5" />
       </button>
       <Checkbox checked={!!task.completed} onCheckedChange={onToggle} aria-label={fa ? "انجام شد" : "Done"} data-testid={`horizon-task-check-${task.id}`} />
-      <button type="button" onClick={() => navigate(`/app/tasks/${task.id}`)} className="flex-1 min-w-0 text-start">
+      <button
+        type="button"
+        onClick={() => {
+          if (onClick) {
+            onClick();
+          } else {
+            navigate(`/app/tasks/${task.id}?returnTo=${encodeURIComponent("/app/buckets")}`);
+          }
+        }}
+        className="flex-1 min-w-0 text-start"
+      >
         <div className={`text-sm leading-5 truncate ${task.completed ? "line-through" : ""}`} dir="auto">{task.title}</div>
         <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
+          {goal && (
+            <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 bg-primary/10 text-primary font-medium text-[9px] border border-primary/20">
+              <span>{goal.icon || "🎯"}</span>
+              <span className="truncate max-w-[120px]">{goal.title}</span>
+            </span>
+          )}
           {task.priority && task.priority !== "none" && <span className={`font-semibold ${pm.textClass}`}>{fa ? pm.label : pm.labelEn}</span>}
           {tf?.is_exact && tf.due_at && (
             <span className="inline-flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />{formatDate(tf.due_at, showPeriod ? "d MMM HH:mm" : "HH:mm", settings.calendar)}</span>

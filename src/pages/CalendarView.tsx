@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, subDays } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import { HolidayList } from "@/components/calendar/HolidayList";
 import { getTimeSettings, periodFor, fromLocalISO } from "@/lib/timeHorizon";
 import { addMonths as jAddMonths } from "date-fns-jalali";
 import { parseTaskDueDate } from "@/lib/taskDate";
-import { filterTasksForVisibility, useShowCompletedTasks } from "@/lib/completedTaskVisibility";
+import { filterTasksForVisibility, useShowCompletedTasks, setShowCompletedTasks } from "@/lib/completedTaskVisibility";
 import { useBilingual } from "@/hooks/useBilingual";
 import MonthGrid from "@/components/calendar/MonthGrid";
 import WeekView from "@/components/calendar/WeekView";
@@ -172,6 +172,17 @@ export default function CalendarView() {
               <NextIcon className="w-4 h-4" />
             </Button>
           </div>
+          <Button
+            size="sm"
+            variant={showCompletedTasks ? "secondary" : "outline"}
+            className="h-8 text-xs gap-1.5 rounded-lg border border-border/60"
+            onClick={() => setShowCompletedTasks(!showCompletedTasks)}
+            title={showCompletedTasks ? T("مخفی‌سازی تسک‌های انجام‌شده", "Hide completed tasks") : T("نمایش تسک‌های انجام‌شده", "Show completed tasks")}
+            data-testid="calendar-toggle-completed"
+          >
+            <CheckCircle2 className={`w-3.5 h-3.5 ${showCompletedTasks ? "text-emerald-500" : "text-muted-foreground"}`} />
+            <span className="hidden sm:inline">{showCompletedTasks ? T("تکمیل‌شده‌ها", "Completed") : T("فقط بازها", "Open only")}</span>
+          </Button>
         </div>
       </div>
 

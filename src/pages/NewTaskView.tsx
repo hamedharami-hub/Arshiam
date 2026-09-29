@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { TaskDetail, type TaskDetailHandle } from "@/components/TaskDetail";
-import type { Task, ConfirmState } from "@/lib/taskTypes";
+import type { Task, ConfirmState, TaskStatus } from "@/lib/taskTypes";
 import { deleteTask } from "@/lib/firestoreDataService";
 import { enqueueOp } from "@/lib/offlineQueue";
 import {
@@ -44,6 +44,7 @@ export default function NewTaskView() {
     const parentId = params.get("parent_id");
     const tagId = params.get("tag_id");
     const folderId = params.get("folder_id");
+    const kanbanColumnId = params.get("kanban_goal_id") || params.get("goal_id") || params.get("kanban_column_id");
     const dueDate = params.get("due_date");
     const initialTitle = params.get("title") || "";
     const initialDescription = params.get("description") || "";
@@ -51,17 +52,20 @@ export default function NewTaskView() {
       try { return crypto.randomUUID(); }
       catch { return `task-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`; }
     })();
+    const statusParam = (params.get("status") as TaskStatus) || "todo";
+    const isCompleted = statusParam === "done";
     setDraft({
       id,
       user_id: user.id,
       title: initialTitle,
       description: initialDescription || null,
       folder_id: parentId ? null : folderId,
+      kanban_column_id: kanbanColumnId || null,
       parent_id: parentId,
       due_date: dueDate,
       priority: "none",
-      completed: false,
-      status: "todo",
+      completed: isCompleted,
+      status: statusParam,
       reminder_at: null,
       recurrence: "none",
       recurrence_rule: null,

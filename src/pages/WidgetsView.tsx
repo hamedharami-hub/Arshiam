@@ -48,6 +48,8 @@ import type { Task } from "@/lib/taskTypes";
 import { refreshAndroidWidgets, getWidgetDiagnostics } from "@/lib/androidWidget";
 import { isAndroid } from "@/lib/nativeExperience";
 import { haptic } from "@/lib/haptics";
+import { CompletionFeedbackSettingsCard } from "@/components/CompletionFeedbackSettingsCard";
+import { playCompletionFeedback } from "@/lib/completionFeedback";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/jalali";
 import { useBilingual } from "@/hooks/useBilingual";
@@ -184,10 +186,13 @@ export default function WidgetsView() {
     });
   }, [tasks, agendaScope, settings.showCompleted, settings.highPriorityOnly, showCompletedTasks]);
 
-  // Toggle task completion from widget preview
   const handleToggleTask = async (task: Task) => {
-    haptic("light");
     const nextCompleted = !task.completed;
+    if (nextCompleted) {
+      playCompletionFeedback();
+    } else {
+      haptic("light");
+    }
     const updated = {
       ...task,
       completed: nextCompleted,
@@ -450,6 +455,8 @@ export default function WidgetsView() {
               </div>
             </CardContent>
           </Card>
+
+          <CompletionFeedbackSettingsCard compact />
         </div>
 
         {/* Right Side: Simulated Phone Widget Preview (7 cols) */}

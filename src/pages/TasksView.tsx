@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
 import { formatDate } from "@/lib/jalali";
 import { EmptyState } from "@/components/EmptyState";
-import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, Ban, Pin, Clock, FolderInput, Check, X, GitBranch, MoreVertical, Zap, Columns2, CheckSquare } from "lucide-react";
+import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, Ban, Pin, Clock, FolderInput, Check, X, GitBranch, MoreVertical, Zap, Columns2, CheckSquare, CheckCircle2 } from "lucide-react";
 import { MoveToDialog } from "@/components/MoveToDialog";
 import { FolderDeleteDialog } from "@/components/FolderDeleteDialog";
 import { useNavigate } from "react-router-dom";
@@ -60,6 +60,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { describeRule, nextOccurrence } from "@/lib/recurrence";
+import { isRecurringTask, advanceRecurringTask } from "@/lib/recurringTaskService";
 import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, TouchSensor,
   closestCenter, useSensor, useSensors,
@@ -68,6 +69,10 @@ import {
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 
 import { TaskFilterSheet, DEFAULT_FILTERS, type TaskFilters, type SortLevel } from "@/components/TaskFilterSheet";
+import { SmartListProfileBar } from "@/components/SmartListProfileBar";
+import { filterAndSortTasks } from "@/lib/smartListService";
+import { getAllKanbanGoals, type GoalKanban } from "@/lib/kanbanGoals";
+import { playCompletionFeedback } from "@/lib/completionFeedback";
 import { QuickAddTask } from "@/components/QuickAddTask";
 import { VirtualTaskList } from "@/components/VirtualTaskList";
 import { TaskDetail } from "@/components/TaskDetail";
@@ -87,7 +92,7 @@ import { MakeChildDialog } from "@/components/MakeChildDialog";
 import { PRIORITY_SELECTABLE, type Priority } from "@/lib/priority";
 import { Repeat } from "lucide-react";
 import type { RecurrenceRule } from "@/lib/recurrence";
-import { awardWaterDrops } from "@/lib/garden";
+import { awardTaskWatering } from "@/lib/garden";
 import { DEFAULT_FOLDER_PREFS, getFolderPrefs, saveFolderPrefs, type FolderPrefs } from "@/lib/folderPrefs";
 import { getShowCompletedTasks, setShowCompletedTasks, useShowCompletedTasks } from "@/lib/completedTaskVisibility";
 import { TasksHeader, FOLDER_BG_COLORS, FOLDER_BG_IMAGES } from "./tasks/TasksHeader";
@@ -263,6 +268,20 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const [outcomeTask, setOutcomeTask] = useState<Task | null>(null);
   const [outcomes, setOutcomes] = useState<TaskOutcome[]>([]);
   const [outcomeOpen, setOutcomeOpen] = useState(false);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [goals, setGoals] = useState<GoalKanban[]>([]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    firebaseStore
+      .from("folders")
+      .select("id,name,color")
+      .order("position")
+      .then(({ data }) => {
+        const loadedFolders = (data || []) as any[];
+        setGoals(getAllKanbanGoals(loadedFolders, user.id));
+      });
+  }, [user?.id]);
 
   useEffect(() => {
     if (!params.id) {
@@ -374,7 +393,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       navigate(getStudyTaskNavigation(target).navUrl, { replace: true });
       return;
     }
-    if (!target.completed) void patchTask(taskId, { completed: true, status: "done" });
+    if (!target.completed) {
+      playCompletionFeedback();
+      void patchTask(taskId, { completed: true, status: "done" });
+    }
     setSearchParams(nextParams, { replace: true });
   }, [effectiveAllTasks, searchParams, setSearchParams, patchTask, navigate]);
   const sensors = useSensors(
@@ -485,51 +507,28 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       };
       list = list.filter(t => isStandaloneTaskForScope(t, isDueNext7, taskMap));
     } else if (scope === "smart") {
-      list = list.filter(t => !t.parent_id && t.priority === "high" && (!t.completed || isGraceActive(t.id)));
+      list = list.filter(t => !t.parent_id && (!t.completed || isGraceActive(t.id)));
     } else if (scope === "folder") {
       list = list.filter(t => !t.parent_id && t.folder_id === params.id);
     } else {
       list = list.filter(t => !t.parent_id);
     }
 
-    // Apply advanced filters
-    if (!showCompletedTasks) list = list.filter(t => !t.completed);
-    if (filters.folder_ids.length) list = list.filter(t => t.folder_id && filters.folder_ids.includes(t.folder_id));
-    if (filters.priorities.length) list = list.filter(t => filters.priorities.includes(t.priority as string));
-    if (filters.tag_ids.length) {
-      list = list.filter(t => {
-        const tgs = taskTagsMap[t.id] || [];
-        return filters.tag_ids.some(id => tgs.includes(id));
-      });
+    // Apply advanced filters and multi-level sorting via filterAndSortTasks
+    const effectiveFilters: TaskFilters = {
+      ...filters,
+      show_completed: showCompletedTasks,
+    };
+    list = filterAndSortTasks(list, effectiveFilters, taskTagsMap, goals);
+
+    // Keep active ghost tasks visible during grace period
+    const ghostList = effectiveAllTasks.filter(t => isGraceActive(t.id) && !list.some(x => x.id === t.id));
+    if (ghostList.length > 0) {
+      list = [...list, ...ghostList];
     }
 
-    // Apply two-level sort
-    const cmpForLevel = (lvl: SortLevel) => (a: Task, b: Task): number => {
-      let res = 0;
-      switch (lvl.key) {
-        case "due": {
-          const av = a.due_date ? new Date(a.due_date).getTime() : Infinity;
-          const bv = b.due_date ? new Date(b.due_date).getTime() : Infinity;
-          res = av - bv;
-          break;
-        }
-        case "priority":
-          res = (PRIORITY_META[a.priority]?.rank ?? 3) - (PRIORITY_META[b.priority]?.rank ?? 3);
-          break;
-        case "created":
-          res = new Date((a as any).created_at).getTime() - new Date((b as any).created_at).getTime();
-          break;
-      }
-      return lvl.dir === "desc" ? -res : res;
-    };
-    const primary = filters.sort_primary || DEFAULT_FILTERS.sort_primary;
-    const secondary = filters.sort_secondary || DEFAULT_FILTERS.sort_secondary;
-    list = [...list].sort((a, b) => {
-      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-      return cmpForLevel(primary)(a, b) || cmpForLevel(secondary)(a, b);
-    });
     return list;
-  }, [effectiveAllTasks, scope, params.id, filters, taskTagsMap, graceMap, taskMap, currentDayKey, showCompletedTasks]);
+  }, [effectiveAllTasks, scope, params.id, filters, taskTagsMap, graceMap, taskMap, currentDayKey, showCompletedTasks, goals]);
 
   const isFolder = scope === "folder" && !!params.id;
   const folderTopLevel = useMemo(() => {
@@ -553,7 +552,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const completeTaskCore = async (t: Task, outcome: TaskOutcome | null, isOwner: boolean) => {
     const patch = { completed: true, status: "done" as const, completed_at: new Date().toISOString() };
     if (isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } as Task : x));
-    if (!t.completed) awardWaterDrops(10, "تکمیل تسک");
+    if (!t.completed) {
+      playCompletionFeedback();
+      awardTaskWatering(t.title, Boolean(t.parent_id));
+    }
 
     // Keep the completed task visible (with strikethrough) for a few seconds
     const until = Date.now() + GRACE_MS;
@@ -656,54 +658,19 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       return;
     }
 
-    if (t.recurrence_rule && user) {
-      const now = new Date();
-      let next = nextOccurrence(t.recurrence_rule, t.due_date ? new Date(t.due_date) : now);
-      let guard = 0;
-      while (next && next < now && guard < 500) {
-        const advanced = nextOccurrence(t.recurrence_rule, next);
-        if (!advanced || advanced <= next) break;
-        next = advanced;
-        guard++;
-      }
-      if (next) {
-        let nextReminderIso: string | null = null;
-        if (t.reminder_at && t.due_date) {
-          const delta = next.getTime() - new Date(t.due_date).getTime();
-          nextReminderIso = new Date(new Date(t.reminder_at).getTime() + delta).toISOString();
-        } else if (t.reminder_at) {
-          nextReminderIso = next.toISOString();
+    if (isRecurringTask(t) && user?.id) {
+      awardTaskWatering(t.title, Boolean(t.parent_id));
+      const res = await advanceRecurringTask(user.id, t, { allKnownTasks: allTasks });
+      if (res.success && res.patch) {
+        if (t.user_id === user.id) {
+          setAllTasks((prev) => prev.map((x) => (x.id === t.id ? ({ ...x, ...res.patch } as Task) : x)));
         }
-        const patch: any = {
-          due_date: next.toISOString(),
-          reminder_at: nextReminderIso,
-          completed: false,
-          completed_at: null,
-        };
-        if (t.user_id === user?.id) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } : x));
-
-        if (user?.id) {
-          const status = await persistTask(user.id, { id: t.id, ...patch });
-          if (status === "failed") {
-            if (t.user_id === user?.id) setAllTasks(prev => prev.map(x => x.id === t.id ? t : x));
-            toast.error(T("بروزرسانی تکرار تسک با خطا مواجه شد", "Could not update recurring task"));
-            return;
-          }
-          window.dispatchEvent(new Event("tasks-changed"));
-          toast.success(T(`نمونه بعدی به ${format(next, "yyyy-MM-dd HH:mm")} منتقل شد 🔁`, `Next instance moved to ${format(next, "yyyy-MM-dd HH:mm")} 🔁`));
-          return;
-        }
-
-        if (typeof navigator !== "undefined" && !navigator.onLine) {
-          await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: t.id } });
-          toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
-          return;
-        }
-
-        const { error } = await firebaseStore.from("tasks").update(patch).eq("id", t.id);
-        if (error) { toast.error(error.message); return; }
-        if (t.user_id !== user?.id) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } : x));
-        toast.success(T(`نمونه بعدی به ${format(next, "yyyy-MM-dd HH:mm")} منتقل شد 🔁`, `Next instance moved to ${format(next, "yyyy-MM-dd HH:mm")} 🔁`));
+        toast.success(
+          T(
+            `نمونه بعدی به ${res.formattedNextDate} منتقل شد 🔁`,
+            `Next instance moved to ${res.formattedNextDate} 🔁`
+          )
+        );
         return;
       }
     }
@@ -982,10 +949,26 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           }
           chipsTrailing={
             <div className="flex items-center gap-1.5">
-              <TaskFilterSheet filters={filters} onChange={(next) => {
-                if (next.show_completed !== filters.show_completed) setShowCompletedTasks(next.show_completed);
-                setFilters(next);
-              }} />
+              <Button
+                variant={filters.show_completed ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => setShowCompletedTasks(!filters.show_completed)}
+                className="inline-flex items-center gap-1 text-xs h-8 px-2 rounded-lg border border-border/60 font-medium transition-colors"
+                title={filters.show_completed ? T("مخفی‌سازی تسک‌های انجام‌شده", "Hide completed tasks") : T("نمایش تسک‌های انجام‌شده", "Show completed tasks")}
+                data-testid="tasks-toggle-completed"
+              >
+                <CheckCircle2 className={`w-3.5 h-3.5 ${filters.show_completed ? "text-emerald-500" : "text-muted-foreground"}`} />
+                <span className="hidden md:inline">{filters.show_completed ? T("انجام‌شده‌ها", "Completed") : T("فقط بازها", "Open only")}</span>
+              </Button>
+              <TaskFilterSheet
+                filters={filters}
+                open={filterSheetOpen}
+                onOpenChange={setFilterSheetOpen}
+                onChange={(next) => {
+                  if (next.show_completed !== filters.show_completed) setShowCompletedTasks(next.show_completed);
+                  setFilters(next);
+                }}
+              />
               <Button
                 variant={splitView ? "secondary" : "outline"}
                 size="sm"
@@ -1001,6 +984,28 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           onCreated={() => load()}
         />
       </div>
+
+      {/* External Smart List Profile Bar: always on smart scope, or if filters are active */}
+      {(scope === "smart" ||
+        (filters.folder_ids?.length || 0) +
+          (filters.tag_ids?.length || 0) +
+          (filters.goal_ids?.length || 0) +
+          (filters.priorities?.length || 0) +
+          (filters.time_horizons?.length || 0) +
+          (filters.due_windows?.length || 0) >
+          0) && (
+        <div className="mb-2.5">
+          <SmartListProfileBar
+            filters={filters}
+            onChangeFilters={(next) => {
+              if (next.show_completed !== filters.show_completed) setShowCompletedTasks(next.show_completed);
+              setFilters(next);
+            }}
+            onOpenFilterSheet={() => setFilterSheetOpen(true)}
+            isEn={isEn}
+          />
+        </div>
+      )}
 
       {folderTopLevel.length > 0 && (
         <div className="text-xs font-medium text-muted-foreground mb-2 px-1">

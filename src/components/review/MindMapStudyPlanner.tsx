@@ -1,11 +1,15 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BookOpen, CheckCircle2, CircleDashed, PlayCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { KnowledgeDocument, KnowledgeFolder } from "@/lib/knowledgeTypes";
 import {
-  loadMindMapStudyProgress, mindMapProgressCounts, saveMindMapStudyStatus,
-  type MindMapStudyProgress, type MindMapStudyStatus,
+  loadMindMapStudyProgress,
+  mindMapProgressCounts,
+  saveMindMapStudyStatus,
+  subscribeMindMapStudyProgress,
+  type MindMapStudyProgress,
+  type MindMapStudyStatus,
 } from "@/lib/mindMapProgress";
 
 const STATUS_META: Record<MindMapStudyStatus, { fa: string; en: string }> = {
@@ -28,6 +32,15 @@ export function MindMapStudyPlanner({
 }) {
   const [remainingOnly, setRemainingOnly] = useState(false);
   const [progress, setProgress] = useState(() => loadMindMapStudyProgress(userId));
+
+  useEffect(() => {
+    if (!open || !userId) return;
+    return subscribeMindMapStudyProgress(userId, (next) => {
+      setProgress(next);
+      onProgressChange(next);
+    });
+  }, [open, userId, onProgressChange]);
+
   const folderNames = useMemo(() => new Map(folders.map((folder) => [folder.id, folder.name])), [folders]);
   const branchProgress = useMemo(() => {
     const folderById = new Map(folders.map((folder) => [folder.id, folder]));

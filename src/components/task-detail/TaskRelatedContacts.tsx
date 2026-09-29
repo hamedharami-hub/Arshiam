@@ -8,6 +8,7 @@ import type { TaskContactWithDetails, Contact } from "@/lib/contactTypes";
 import { getTaskContacts, unlinkTaskContact } from "@/lib/contactService";
 import { ContactPickerModal } from "@/components/contacts/ContactPickerModal";
 import { ContactDetailDialog } from "@/components/contacts/ContactDetailDialog";
+import { ContactAvatar } from "@/components/contacts/ContactAvatar";
 
 interface Props {
   taskId: string;
@@ -136,12 +137,7 @@ export function TaskRelatedContacts({
               onClick={() => handleContactClick(c)}
               className="group flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-card border border-border/60 hover:border-primary/40 hover:bg-accent/40 cursor-pointer transition shadow-xs"
             >
-              <Avatar className="h-6 w-6 border border-border/50 shrink-0">
-                <AvatarImage src={c?.photo_url} className="object-cover" />
-                <AvatarFallback className="text-[10px] font-bold">
-                  {name.slice(0, 2) || <User className="w-3 h-3" />}
-                </AvatarFallback>
-              </Avatar>
+              <ContactAvatar contact={c} name={name} size="xs" />
 
               <div className="min-w-0 flex flex-col">
                 <span className="text-xs font-medium text-foreground truncate max-w-[130px]">

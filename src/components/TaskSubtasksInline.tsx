@@ -6,10 +6,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, ListTree, GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Trash2, ListTree, GripVertical, ChevronLeft, ChevronRight, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useBilingual } from "@/hooks/useBilingual";
-import { useShowCompletedTasks } from "@/lib/completedTaskVisibility";
+import { useShowCompletedTasks, setShowCompletedTasks } from "@/lib/completedTaskVisibility";
+import { toPersianDigits } from "@/lib/jalali";
 import { BidiText } from "@/components/BidiText";
 import { persistTask } from "@/lib/firestoreDataService";
 import { deleteTaskCascade } from "@/features/tasks/taskService";
@@ -23,16 +24,20 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
+import { awardTaskWatering } from "@/lib/garden";
+import { playCompletionFeedback } from "@/lib/completionFeedback";
+
 type Sub = {
   id: string; title: string; completed: boolean; position: number;
 };
 
 export function TaskSubtasksInline({
-  taskId, onOpenSubtask, onProgressChange, readOnly = false, initialSubs,
+  taskId, onOpenSubtask, onProgressChange, onSubtasksChange, readOnly = false, initialSubs,
 }: {
   taskId: string;
   onOpenSubtask?: (id: string) => void;
   onProgressChange?: (completed: number, total: number) => void;
+  onSubtasksChange?: (subs: Sub[]) => void;
   readOnly?: boolean;
   initialSubs?: Sub[];
 }) {
@@ -45,6 +50,8 @@ export function TaskSubtasksInline({
   const editingRef = useRef<Set<string>>(new Set());
   const pendingTitles = useRef<Record<string, string>>({});
   const writeTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // Guard against stale background Firestore snapshots or un-synced parent initialSubs reverting checks
+  const recentTogglesRef = useRef<Map<string, { completed: boolean; time: number }>>(new Map());
 
   const flushPendingTitle = useCallback(async (id: string) => {
     if (writeTimers.current[id]) {
@@ -77,24 +84,40 @@ export function TaskSubtasksInline({
       setSubs((prev) => {
         if (prev.length === 0) return initialSubs;
         const prevMap = new Map(prev.map((p) => [p.id, p]));
-        return initialSubs.map((row) =>
-          editingRef.current.has(row.id) && prevMap.has(row.id)
-            ? { ...row, title: prevMap.get(row.id)!.title }
-            : row,
-        );
+        const merged = initialSubs.map((row) => {
+          let title = row.title;
+          let completed = row.completed;
+          if (editingRef.current.has(row.id) && prevMap.has(row.id)) {
+            title = prevMap.get(row.id)!.title;
+          }
+          const recentToggle = recentTogglesRef.current.get(row.id);
+          if (recentToggle && Date.now() - recentToggle.time < 15000) {
+            completed = recentToggle.completed;
+          }
+          return { ...row, title, completed };
+        });
+        return merged;
       });
     }
   }, [initialSubs]);
 
   const replaceRows = useCallback((rows: Sub[]) => {
-    // Preserve titles for rows the user is actively editing (avoid clobbering input/focus on mobile)
+    // Preserve titles for rows actively edited, and preserve recently toggled completed state
     setSubs((prev) => {
       const prevMap = new Map(prev.map((p) => [p.id, p]));
-      return rows.map((row) =>
-        editingRef.current.has(row.id) && prevMap.has(row.id)
-          ? { ...row, title: prevMap.get(row.id)!.title }
-          : row,
-      );
+      const merged = rows.map((row) => {
+        let title = row.title;
+        let completed = row.completed;
+        if (editingRef.current.has(row.id) && prevMap.has(row.id)) {
+          title = prevMap.get(row.id)!.title;
+        }
+        const recentToggle = recentTogglesRef.current.get(row.id);
+        if (recentToggle && Date.now() - recentToggle.time < 15000) {
+          completed = recentToggle.completed;
+        }
+        return { ...row, title, completed };
+      });
+      return merged;
     });
   }, []);
 
@@ -147,12 +170,16 @@ export function TaskSubtasksInline({
       updated_at: new Date().toISOString(),
     };
 
-    setSubs((prev) => [...prev, { id: newId, title, completed: false, position }]);
+    const nextSubs = [...subs, { id: newId, title, completed: false, position }];
+    setSubs(nextSubs);
+    onSubtasksChange?.(nextSubs);
     setNewTitle("");
 
     const status = await persistTask(user.id, newSubTask);
     if (status === "failed") {
-      setSubs((prev) => prev.filter((x) => x.id !== newId));
+      const reverted = subs.filter((x) => x.id !== newId);
+      setSubs(reverted);
+      onSubtasksChange?.(reverted);
       toast.error(T("خطا در ایجاد زیرتسک", "Failed to create subtask"));
       return;
     }
@@ -163,15 +190,29 @@ export function TaskSubtasksInline({
     if (readOnly || !user) return;
     const next = !s.completed;
     const prevSubs = subs;
-    setSubs((prev) => prev.map((x) => (x.id === s.id ? { ...x, completed: next } : x)));
+    const nextSubs = subs.map((x) => (x.id === s.id ? { ...x, completed: next } : x));
+    setSubs(nextSubs);
+    onSubtasksChange?.(nextSubs);
+
+    recentTogglesRef.current.set(s.id, { completed: next, time: Date.now() });
+
+    // Award watering and drops to garden when checking subtask
+    if (next) {
+      playCompletionFeedback();
+      awardTaskWatering(s.title, true);
+    }
 
     const status = await persistTask(user.id, {
       id: s.id,
       completed: next,
+      status: next ? "done" : "todo",
+      parent_id: taskId,
       completed_at: next ? new Date().toISOString() : null,
     });
     if (status === "failed") {
+      recentTogglesRef.current.delete(s.id);
       setSubs(prevSubs);
+      onSubtasksChange?.(prevSubs);
       toast.error(T("خطا در به‌روزرسانی زیرتسک", "Failed to update subtask"));
       return;
     }
@@ -200,11 +241,14 @@ export function TaskSubtasksInline({
   const remove = async (id: string) => {
     if (readOnly || !user) return;
     const prevSubs = subs;
-    setSubs((prev) => prev.filter((x) => x.id !== id));
+    const nextSubs = subs.filter((x) => x.id !== id);
+    setSubs(nextSubs);
+    onSubtasksChange?.(nextSubs);
 
     const res = await deleteTaskCascade(user.id, id);
     if (!res.success) {
       setSubs(prevSubs);
+      onSubtasksChange?.(prevSubs);
       toast.error(T("خطا در حذف زیرتسک", "Failed to delete subtask"));
       return;
     }
@@ -235,11 +279,33 @@ export function TaskSubtasksInline({
 
   const done = subs.filter((s) => s.completed).length;
   const visibleSubs = showCompletedTasks ? subs : subs.filter((subtask) => !subtask.completed);
+  const num = (n: number) => (isEn ? String(n) : toPersianDigits(n));
 
   useEffect(() => { onProgressChange?.(done, subs.length); }, [done, subs.length, onProgressChange]);
 
   return (
     <div className="space-y-2">
+      {subs.length > 0 && done > 0 && (
+        <div className="flex items-center justify-between text-xs px-0.5 pb-0.5">
+          <span className="text-[11px] text-muted-foreground tabular-nums">
+            {T(`${num(done)} از ${num(subs.length)} زیرتسک انجام شده`, `${num(done)} of ${num(subs.length)} subtasks completed`)}
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowCompletedTasks(!showCompletedTasks)}
+            className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/70 px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
+            title={showCompletedTasks ? T("مخفی‌سازی زیرتسک‌های انجام‌شده", "Hide completed subtasks") : T("نمایش زیرتسک‌های انجام‌شده", "Show completed subtasks")}
+            data-testid="toggle-completed-subtasks"
+          >
+            {showCompletedTasks ? <EyeOff className="w-3 h-3 text-primary" /> : <Eye className="w-3 h-3" />}
+            <span>
+              {showCompletedTasks
+                ? T("مخفی‌سازی انجام‌شده‌ها", "Hide completed")
+                : T(`نمایش انجام‌شده‌ها (${num(done)})`, `Show completed (${num(done)})`)}
+            </span>
+          </button>
+        </div>
+      )}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -266,7 +332,21 @@ export function TaskSubtasksInline({
               />
             ))}
             {visibleSubs.length === 0 && (
-              <li className="text-xs text-muted-foreground/60 px-1 py-1">— {subs.length > 0 ? T("زیرتسک‌های انجام‌شده مخفی‌اند", "Completed subtasks are hidden") : T("زیرتسکی نیست", "No subtasks")} —</li>
+              <li className="text-xs text-muted-foreground/70 px-1 py-1">
+                {subs.length > 0 && done > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowCompletedTasks(true)}
+                    className="inline-flex items-center gap-1.5 text-primary hover:underline cursor-pointer font-medium"
+                    data-testid="show-hidden-completed-subtasks"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>{T(`${num(done)} زیرتسک انجام‌شده مخفی است — برای مشاهده کلیک کنید`, `${num(done)} completed subtask(s) hidden — click to show`)}</span>
+                  </button>
+                ) : (
+                  <span>— {T("زیرتسکی نیست", "No subtasks")} —</span>
+                )}
+              </li>
             )}
           </ul>
         </SortableContext>

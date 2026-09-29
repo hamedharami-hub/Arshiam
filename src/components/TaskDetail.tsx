@@ -22,10 +22,11 @@ import {
   Folder as FolderIcon, Tag as TagIcon, Check, Calendar as CalendarIcon,
   Flag, Repeat, ListTree, Paperclip, X, Image as ImageIcon, Music, Link as LinkIcon,
   CheckSquare, ListChecks, CalendarDays, Mic, MicOff, Pin, PinOff, Maximize2, Minimize2,
-  GitBranch, Zap, Brain,
+  GitBranch, Zap, Brain, Target,
   Save, ExternalLink, Loader2, Circle, CheckCircle2, MoreHorizontal,
   Copy, Share2, FolderInput, Timer, Network, Edit, BookOpen, FolderTree, Layers,
 } from "lucide-react";
+import { getAllKanbanGoals, type GoalKanban, TIME_HORIZONS } from "@/lib/kanbanGoals";
 import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -42,6 +43,10 @@ import { getTaskNotes, createTaskNote, deleteTaskNote } from "@/lib/taskNotesSer
 import { TaskStepLists } from "@/components/TaskStepLists";
 import { persistTaskTagChange } from "@/lib/taskTagService";
 import { TaskSubtasksInline } from "@/components/TaskSubtasksInline";
+import { duplicateTaskCascade } from "@/lib/taskDuplicateService";
+import { isRecurringTask, advanceRecurringTask } from "@/lib/recurringTaskService";
+import { awardTaskWatering } from "@/lib/garden";
+import { playCompletionFeedback } from "@/lib/completionFeedback";
 import { TaskAttachments } from "@/components/TaskAttachments";
 import { TaskDescriptionEditor } from "@/components/TaskDescriptionEditor";
 import TaskActionSheet from "@/components/TaskActionSheet";
@@ -145,6 +150,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [tagOpen, setTagOpen] = useState(false);
   const [topTagOpen, setTopTagOpen] = useState(false);
   const [folderOpen, setFolderOpen] = useState(false);
+  const [goalOpen, setGoalOpen] = useState(false);
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [focusOpen, setFocusOpen] = useState(false);
   const [showTimeBlock, setShowTimeBlock] = useState(hasTimeBlock);
@@ -259,29 +265,35 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       if (loadedNotes.length > 0) setShowNotes(true);
       setTaskTagIds((tagsRes.data || []).map((r: any) => r.tag_id));
 
-      const subs = (subRes.data || []) as Array<{ id: string; title: string; completed: boolean; position: number }>;
+      let subs = (subRes.data || []) as Array<{ id: string; title: string; completed: boolean; position: number }>;
+      if (user) {
+        try {
+          const cachedRaw = await cacheGet<unknown>(`tasks:all:${user.id}`);
+          const cachedTasks = extractTasksFromCache(cachedRaw);
+          if (cachedTasks.length > 0) {
+            const cachedMap = new Map(cachedTasks.filter((ct) => ct && ct.parent_id === task.id).map((ct) => [ct.id, ct]));
+            if (subs.length > 0) {
+              subs = subs.map((s) => {
+                const c = cachedMap.get(s.id);
+                return c ? { ...s, completed: Boolean(c.completed), title: c.title || s.title } : s;
+              });
+            } else {
+              subs = Array.from(cachedMap.values()).map((ct, i) => ({
+                id: ct.id,
+                title: ct.title || "",
+                completed: Boolean(ct.completed),
+                position: (ct as any).position ?? i,
+              }));
+            }
+          }
+        } catch {}
+      }
+
       if (subs.length > 0) {
         setLoadedSubtasks(subs);
         setShowSubtasks(true);
         const done = subs.filter((s) => s.completed).length;
         setSubtaskProgress({ completed: done, total: subs.length });
-      } else if (user) {
-        // Fallback to offline cached tasks
-        const cachedRaw = await cacheGet<unknown>(`tasks:all:${user.id}`);
-        const cachedTasks = extractTasksFromCache(cachedRaw);
-        if (cachedTasks.length > 0 && !cancelled) {
-          const cachedSubs = cachedTasks.filter((ct) => ct && ct.parent_id === task.id).map((ct, i) => ({
-            id: ct.id,
-            title: ct.title || "",
-            completed: !!ct.completed,
-            position: (ct as any).position ?? i,
-          }));
-          if (cachedSubs.length > 0) {
-            setLoadedSubtasks(cachedSubs);
-            setShowSubtasks(true);
-            setSubtaskProgress({ completed: cachedSubs.filter((s) => s.completed).length, total: cachedSubs.length });
-          }
-        }
       }
 
       if (cancelled) return;
@@ -376,6 +388,20 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     const parent = currentFolder.parent_id ? folders.find((x) => x.id === currentFolder.parent_id) : null;
     return parent ? `${parent.name} / ${currentFolder.name}` : currentFolder.name;
   }, [t.folder_id, currentFolder, folders, T]);
+
+  const availableGoals = useMemo(() => {
+    return getAllKanbanGoals(folders, user?.id);
+  }, [folders, user?.id]);
+
+  const currentGoal = useMemo(() => {
+    if (!t.kanban_column_id) return null;
+    return availableGoals.find((g) => g.id === t.kanban_column_id) || null;
+  }, [t.kanban_column_id, availableGoals]);
+
+  const taskGoalLabel = useMemo(() => {
+    if (!currentGoal) return T("بدون هدف", "No Goal");
+    return `${currentGoal.icon ? currentGoal.icon + " " : ""}${currentGoal.title}`;
+  }, [currentGoal, T]);
 
   const generateId = () => {
     try { return crypto.randomUUID(); } catch { return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`; }
@@ -642,10 +668,35 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     toast(T(`تسک به ${days} روز دیگر موکول شد`, `Task postponed by ${days} day(s)`));
   };
 
-  const toggleCompletion = () => {
+  const toggleCompletion = async () => {
     if (isLeitnerStudyTask(t) && !t.completed) return;
     const nextCompleted = !t.completed;
-    void save({ completed: nextCompleted, status: nextCompleted ? "done" : "todo" });
+    if (nextCompleted) {
+      playCompletionFeedback();
+    }
+    if (nextCompleted && isRecurringTask(t) && user?.id) {
+      awardTaskWatering(t.title || T("تسک", "Task"), Boolean(t.parent_id));
+      const res = await advanceRecurringTask(user.id, t);
+      if (res.success && res.patch) {
+        setT((prev) => ({ ...prev, ...res.patch }));
+        toast.success(
+          T(
+            `نمونه بعدی به ${res.formattedNextDate} منتقل شد 🔁`,
+            `Next instance moved to ${res.formattedNextDate} 🔁`
+          )
+        );
+        onChanged();
+        return;
+      }
+    }
+    if (nextCompleted) {
+      awardTaskWatering(t.title || T("تسک", "Task"), Boolean(t.parent_id));
+    }
+    void save({
+      completed: nextCompleted,
+      status: nextCompleted ? "done" : "todo",
+      completed_at: nextCompleted ? new Date().toISOString() : null,
+    });
   };
 
   const openLinkedReview = () => {
@@ -1091,6 +1142,9 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       folderOpen={folderOpen}
       setFolderOpen={setFolderOpen}
       folderName={folderName}
+      goalOpen={goalOpen}
+      setGoalOpen={setGoalOpen}
+      currentGoal={currentGoal}
       scheduleOpen={scheduleOpen}
       setScheduleOpen={setScheduleOpen}
       isScheduled={isScheduled}
@@ -1153,6 +1207,9 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             taskId={t.id}
             initialSubs={loadedSubtasks}
             onProgressChange={handleSubtaskProgress}
+            onSubtasksChange={(updatedSubs) => {
+              setLoadedSubtasks(updatedSubs);
+            }}
             readOnly={!canEdit}
             onOpenSubtask={(id) => {
               void savePendingChanges().then(() => {
@@ -1647,21 +1704,16 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
   const duplicateTask = async () => {
     if (!user || !canEdit) return;
-    const { id: _id, user_id: _uid, ...rest } = t;
-    const insert: Partial<Task> = {
-      ...rest,
-      user_id: user.id,
-      title: `${t.title} (${T("کپی", "copy")})`,
-      completed: false,
-      status: "todo",
-    };
+    const toastId = toast.loading(T("در حال کپی کامل تسک…", "Duplicating task with all items…"));
     try {
-      const { error } = await firebaseStore.from("tasks").insert(insert as never).select().single();
-      if (error) throw error;
-      toast.success(T("تسک کپی شد", "Task duplicated"));
+      const result = await duplicateTaskCascade(user.id, t, {
+        newTitle: `${t.title} (${T("کپی", "copy")})`,
+      });
+      if (!result.success) throw result.error || new Error("Failed to duplicate task");
+      toast.success(T("تسک با تمام زیرتسک‌ها، یادداشت‌ها و فایل‌ها کپی شد", "Task duplicated with all subtasks, notes, and files"), { id: toastId });
       onChanged();
     } catch {
-      toast.error(T("خطا در کپی تسک", "Failed to duplicate task"));
+      toast.error(T("خطا در کپی تسک", "Failed to duplicate task"), { id: toastId });
     }
   };
 
@@ -1833,6 +1885,16 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                 <FolderIcon className="w-3.5 h-3.5 shrink-0" style={{ color: currentFolder?.color || undefined }} />
                 <span className="truncate max-w-[240px]">{taskFolderLabel}</span>
               </button>
+              <button
+                type="button"
+                disabled={!canEdit}
+                onClick={() => setGoalOpen(true)}
+                className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:hover:text-muted-foreground max-w-full truncate px-2 py-0.5 rounded-lg hover:bg-muted/50 border border-transparent hover:border-border/60"
+                title={T("تغییر هدف کانبان", "Change Kanban Goal")}
+              >
+                <Target className="w-3.5 h-3.5 shrink-0 text-primary" />
+                <span className="truncate max-w-[140px] sm:max-w-[180px]">{taskGoalLabel}</span>
+              </button>
             </div>
             <div className="flex items-center gap-1 shrink-0">
               {editorActions}
@@ -1882,8 +1944,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
               </div>
             </div>
 
-            {/* Center: Folder name or Inbox */}
-            <div className="flex-1 min-w-0 flex items-center justify-center px-2">
+            {/* Center: Folder name or Inbox + Kanban Goal */}
+            <div className="flex-1 min-w-0 flex items-center justify-center px-2 gap-2">
               <button
                 type="button"
                 disabled={!canEdit}
@@ -1892,7 +1954,17 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                 title={T("تغییر فولدر", "Change folder")}
               >
                 <FolderIcon className="w-3.5 h-3.5 shrink-0" style={{ color: currentFolder?.color || undefined }} />
-                <span className="truncate max-w-[220px]">{taskFolderLabel}</span>
+                <span className="truncate max-w-[200px]">{taskFolderLabel}</span>
+              </button>
+              <button
+                type="button"
+                disabled={!canEdit}
+                onClick={() => setGoalOpen(true)}
+                className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:hover:text-muted-foreground px-2.5 py-1 rounded-lg hover:bg-muted/50 border border-transparent hover:border-border/60"
+                title={T("تغییر هدف کانبان", "Change Kanban Goal")}
+              >
+                <Target className="w-3.5 h-3.5 shrink-0 text-primary" />
+                <span className="truncate max-w-[140px] sm:max-w-[180px]">{taskGoalLabel}</span>
               </button>
             </div>
 
@@ -1934,7 +2006,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         <Drawer open={true} onOpenChange={(v) => !v && requestClose()} snapPoints={[0.5, 1]} activeSnapPoint={snap} setActiveSnapPoint={setSnap} shouldScaleBackground={false} dismissible>
           <DrawerContent className={`h-screen max-h-screen flex flex-col !mt-0 ${snap === 1 ? "!m-0 !rounded-none" : "min-h-[55vh]"}`} aria-describedby="task-drawer-desc">
             <DrawerHeader className="px-4 pt-3 pb-1 text-center">
-              <DrawerTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center justify-center gap-1.5 truncate" dir="auto">
+              <DrawerTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center justify-center gap-2 truncate" dir="auto">
                 <button
                   type="button"
                   disabled={!canEdit}
@@ -1943,7 +2015,17 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                   title={T("تغییر فولدر", "Change folder")}
                 >
                   <FolderIcon className="w-3.5 h-3.5 shrink-0" style={{ color: currentFolder?.color || undefined }} />
-                  <span className="truncate max-w-[240px]">{taskFolderLabel}</span>
+                  <span className="truncate max-w-[200px]">{taskFolderLabel}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={!canEdit}
+                  onClick={() => setGoalOpen(true)}
+                  className="inline-flex items-center justify-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:hover:text-muted-foreground max-w-full px-2 py-0.5 rounded-lg hover:bg-muted/50 border border-transparent hover:border-border/60"
+                  title={T("تغییر هدف کانبان", "Change Kanban Goal")}
+                >
+                  <Target className="w-3.5 h-3.5 shrink-0 text-primary" />
+                  <span className="truncate max-w-[140px]">{taskGoalLabel}</span>
                 </button>
               </DrawerTitle>
             </DrawerHeader>
@@ -1961,7 +2043,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         <Dialog open={true} onOpenChange={(v) => !v && requestClose()}>
           <DialogContent className="w-[95vw] sm:max-w-2xl md:max-w-3xl max-h-[90vh] h-[85vh] p-3 sm:p-4 flex flex-col rounded-2xl">
             <DialogHeader className="mb-1 flex-row items-center justify-between gap-3 pe-8">
-              <DialogTitle className="text-xs sm:text-sm font-medium text-muted-foreground truncate text-start" dir="auto">
+              <DialogTitle className="text-xs sm:text-sm font-medium text-muted-foreground truncate text-start flex items-center gap-2" dir="auto">
                 <button
                   type="button"
                   disabled={!canEdit}
@@ -1970,7 +2052,17 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                   title={T("تغییر فولدر", "Change folder")}
                 >
                   <FolderIcon className="w-3.5 h-3.5 shrink-0" style={{ color: currentFolder?.color || undefined }} />
-                  <span className="truncate max-w-[220px]">{taskFolderLabel}</span>
+                  <span className="truncate max-w-[200px]">{taskFolderLabel}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={!canEdit}
+                  onClick={() => setGoalOpen(true)}
+                  className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:hover:text-muted-foreground px-2 py-0.5 rounded-lg hover:bg-muted/50 border border-transparent hover:border-border/60"
+                  title={T("تغییر هدف کانبان", "Change Kanban Goal")}
+                >
+                  <Target className="w-3.5 h-3.5 shrink-0 text-primary" />
+                  <span className="truncate max-w-[140px] sm:max-w-[180px]">{taskGoalLabel}</span>
                 </button>
               </DialogTitle>
               {editorActions}
@@ -2011,6 +2103,72 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         savePendingChanges={savePendingChanges}
         T={T}
       />
+
+      {/* Goal Selector Dialog */}
+      <Dialog open={goalOpen} onOpenChange={setGoalOpen}>
+        <DialogContent dir={isEn ? "ltr" : "rtl"} className="max-w-md rounded-2xl p-4 sm:p-5">
+          <DialogHeader>
+            <DialogTitle className="text-start text-base font-bold flex items-center gap-2">
+              <Target className="w-4 h-4 text-primary" />
+              {T("انتخاب هدف کانبان", "Select Kanban Goal")}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <button
+              type="button"
+              onClick={async () => {
+                await save({ kanban_column_id: null });
+                setGoalOpen(false);
+              }}
+              className={`w-full text-start px-3 py-2.5 rounded-xl text-xs flex items-center justify-between transition-colors ${
+                !t.kanban_column_id ? "bg-primary/10 text-primary font-bold border border-primary/30" : "hover:bg-muted text-muted-foreground border border-transparent"
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <Ban className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>{T("بدون هدف (حذف از کانبان)", "No goal (Remove from Kanban)")}</span>
+              </span>
+              {!t.kanban_column_id && <Check className="w-3.5 h-3.5 text-primary" />}
+            </button>
+
+            <div className="max-h-72 overflow-y-auto space-y-1.5 pe-1 pt-1">
+              {availableGoals.map((g) => {
+                const isSelected = t.kanban_column_id === g.id;
+                const horizonMeta = TIME_HORIZONS.find((th) => th.id === g.timeHorizon);
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={async () => {
+                      await save({ kanban_column_id: g.id });
+                      setGoalOpen(false);
+                    }}
+                    className={`w-full text-start px-3 py-2.5 rounded-xl text-xs flex items-center justify-between transition-colors ${
+                      isSelected ? "bg-primary/10 text-primary font-bold border border-primary/30" : "hover:bg-muted border border-border/50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-base shrink-0">{g.icon || "🎯"}</span>
+                      <div className="truncate">
+                        <div className="font-semibold text-foreground truncate">{g.title}</div>
+                        {g.description && <div className="text-[10px] text-muted-foreground truncate">{g.description}</div>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {horizonMeta && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted font-normal text-muted-foreground">
+                          {isEn ? horizonMeta.labelEn : horizonMeta.labelFa}
+                        </span>
+                      )}
+                      {isSelected && <Check className="w-4 h-4 text-primary" />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Add / Edit Location Dialog */}
       <Dialog open={addLocationOpen} onOpenChange={setAddLocationOpen}>

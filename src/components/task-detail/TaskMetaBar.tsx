@@ -10,6 +10,7 @@ import {
   Ban,
   Plus,
   Check,
+  Target,
 } from "lucide-react";
 import { PRIORITY_META, PRIORITY_ORDER, type Priority } from "@/lib/priority";
 import type { Task } from "@/lib/taskTypes";
@@ -24,6 +25,9 @@ export interface TaskMetaBarProps {
   folderOpen: boolean;
   setFolderOpen: (open: boolean) => void;
   folderName: (id: string | null | undefined) => string;
+  goalOpen?: boolean;
+  setGoalOpen?: (open: boolean) => void;
+  currentGoal?: { id: string; title: string; icon?: string; color?: string } | null;
   scheduleOpen: boolean;
   setScheduleOpen: (open: boolean) => void;
   isScheduled: boolean;
@@ -63,6 +67,9 @@ export function TaskMetaBar({
   folderOpen,
   setFolderOpen,
   folderName,
+  goalOpen,
+  setGoalOpen,
+  currentGoal,
   scheduleOpen,
   setScheduleOpen,
   isScheduled,
@@ -102,7 +109,7 @@ export function TaskMetaBar({
 
   return (
     <div className="mx-auto max-w-3xl w-full px-1 pt-0.5 pb-1.5" data-testid="task-meta-bar">
-      <div className="grid grid-cols-4 gap-2 rounded-[22px] border border-border/50 bg-card/60 p-1.5 shadow-2xs backdrop-blur-sm dark:bg-card/30">
+      <div className="grid grid-cols-5 gap-1.5 sm:gap-2 rounded-[22px] border border-border/50 bg-card/60 p-1.5 shadow-2xs backdrop-blur-sm dark:bg-card/30">
         {/* 1. Folder / Inbox */}
         <Popover open={folderOpen} onOpenChange={setFolderOpen}>
           <PopoverTrigger asChild>
@@ -219,7 +226,23 @@ export function TaskMetaBar({
             </PopoverContent>
           </Popover>
 
-        {/* 2. Schedule */}
+        {/* 2. Goal */}
+        <MetaTile
+          icon={Target}
+          label={T("هدف", "Goal")}
+          value={currentGoal ? currentGoal.title : null}
+          active={Boolean(t.kanban_column_id)}
+          activeClassName="bg-primary/10 text-primary"
+          iconStyle={currentGoal ? { color: currentGoal.color || "hsl(var(--primary))" } : undefined}
+          dotStyle={currentGoal?.color ? { background: currentGoal.color } : undefined}
+          disabled={!canEdit}
+          onClick={() => setGoalOpen?.(true)}
+          title={currentGoal ? `${currentGoal.icon ? currentGoal.icon + " " : ""}${currentGoal.title}` : T("هدف کانبان", "Kanban Goal")}
+          aria-label={currentGoal ? currentGoal.title : T("هدف کانبان", "Kanban Goal")}
+          data-testid="task-meta-goal"
+        />
+
+        {/* 3. Schedule */}
         <TaskSchedulingSheet
           t={t}
           scheduleOpen={scheduleOpen}

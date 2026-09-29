@@ -93,18 +93,27 @@ export default function TaskDetailView() {
 
   const visibleTask = task?.id === id ? task : null;
   const effectiveParentId = fromTaskId || (visibleTask?.parent_id ?? null);
-
   const handleClose = useCallback(() => {
     if (isFromWidget) {
       void CapApp.exitApp();
       return;
     }
+    const returnTo = searchParams.get("returnTo");
     if (effectiveParentId) {
-      navigate(`/app/tasks/${encodeURIComponent(effectiveParentId)}`);
+      const returnSuffix = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : "";
+      navigate(`/app/tasks/${encodeURIComponent(effectiveParentId)}${returnSuffix}`);
+      return;
+    }
+    if (returnTo) {
+      navigate(returnTo, { replace: true });
+      return;
+    }
+    if (window.history.state?.idx > 0) {
+      navigate(-1);
       return;
     }
     navigate("/app/today", { replace: true });
-  }, [isFromWidget, effectiveParentId, navigate]);
+  }, [isFromWidget, effectiveParentId, searchParams, navigate]);
 
   const handleBack = useCallback(() => {
     if (isFromWidget) {
@@ -241,7 +250,9 @@ export default function TaskDetailView() {
             onBack={handleBack}
             hasBackHistory={true}
             onOpenParentTask={(targetId) => {
-              navigate(`/app/tasks/${encodeURIComponent(targetId)}?from=${encodeURIComponent(visibleTask.id)}${isFromWidget ? "&fromWidget=1" : ""}`);
+              const returnTo = searchParams.get("returnTo");
+              const returnSuffix = returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : "";
+              navigate(`/app/tasks/${encodeURIComponent(targetId)}?from=${encodeURIComponent(visibleTask.id)}${isFromWidget ? "&fromWidget=1" : ""}${returnSuffix}`);
             }}
             onChanged={load}
             setConfirm={setConfirm}
@@ -264,7 +275,9 @@ export default function TaskDetailView() {
         onBack={handleBack}
         hasBackHistory={true}
         onOpenParentTask={(targetId) => {
-          navigate(`/app/tasks/${encodeURIComponent(targetId)}?from=${encodeURIComponent(visibleTask.id)}${isFromWidget ? "&fromWidget=1" : ""}`);
+          const returnTo = searchParams.get("returnTo");
+          const returnSuffix = returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : "";
+          navigate(`/app/tasks/${encodeURIComponent(targetId)}?from=${encodeURIComponent(visibleTask.id)}${isFromWidget ? "&fromWidget=1" : ""}${returnSuffix}`);
         }}
         onChanged={load}
         setConfirm={setConfirm}

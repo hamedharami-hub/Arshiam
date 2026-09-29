@@ -14,6 +14,7 @@ import { getContacts, linkTaskContact, getTaskContacts } from "@/lib/contactServ
 import { isDeviceContactImportSupported } from "@/lib/deviceContacts";
 import { ContactEditorDialog } from "./ContactEditorDialog";
 import { DeviceContactImportModal } from "./DeviceContactImportModal";
+import { ContactAvatar } from "./ContactAvatar";
 
 interface Props {
   open: boolean;
@@ -222,12 +223,7 @@ export function ContactPickerModal({
                       if (!isAlreadyLinked) toggleSelect(c.id);
                     }}
                   />
-                  <Avatar className="h-8 w-8 border border-border/50 shrink-0">
-                    <AvatarImage src={c.photo_url} className="object-cover" />
-                    <AvatarFallback className="text-[11px] font-bold">
-                      {c.display_name.slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <ContactAvatar contact={c} size="sm" />
                   <div className="min-w-0 flex-1">
                     <span className="text-xs font-semibold text-foreground truncate block">
                       {c.display_name}

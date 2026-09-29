@@ -40,6 +40,7 @@ import type { Contact, TaskContact } from "@/lib/contactTypes";
 import type { Task } from "@/lib/taskTypes";
 import { getContactTasks, deleteContact, unlinkTaskContact } from "@/lib/contactService";
 import { ContactEditorDialog } from "./ContactEditorDialog";
+import { ContactAvatar } from "./ContactAvatar";
 
 interface Props {
   open: boolean;
@@ -116,12 +117,7 @@ export function ContactDetailDialog({
     <div className="space-y-4 py-2">
       {/* Profile Header */}
       <div className="flex items-start gap-3">
-        <Avatar className="h-16 w-16 border-2 border-primary/20 shadow-sm shrink-0">
-          <AvatarImage src={contact.photo_url} className="object-cover" />
-          <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
-            {contact.display_name.slice(0, 2) || <User className="w-6 h-6" />}
-          </AvatarFallback>
-        </Avatar>
+        <ContactAvatar contact={contact} size="xl" className="border-2 border-primary/20 shadow-sm shrink-0" />
 
         <div className="flex-1 min-w-0">
           <h3 className="text-base font-bold truncate text-foreground">{contact.display_name}</h3>

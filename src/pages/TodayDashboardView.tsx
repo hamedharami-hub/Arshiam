@@ -15,6 +15,9 @@ import { PRIORITY_META } from "@/lib/priority";
 import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
 import type { Task, TaskStatus, ConfirmState } from "@/lib/taskTypes";
 import { persistTask } from "@/lib/firestoreDataService";
+import { awardTaskWatering } from "@/lib/garden";
+import { isRecurringTask, advanceRecurringTask } from "@/lib/recurringTaskService";
+import { playCompletionFeedback } from "@/lib/completionFeedback";
 import { deleteTaskCascade } from "@/features/tasks/taskService";
 import { taskDueTimestamp, getLocalDateString } from "@/lib/taskDate";
 import { buildTaskChildrenMap, collectTaskDescendantIds, getTaskProgress, isStandaloneTaskForScope } from "@/features/tasks/taskTree";
@@ -349,6 +352,25 @@ export default function TodayDashboardView() {
       navigate(getStudyTaskNavigation(task).navUrl);
       return;
     }
+    if (nextCompleted && isRecurringTask(task) && user?.id) {
+      playCompletionFeedback();
+      awardTaskWatering(task.title, Boolean(task.parent_id));
+      const res = await advanceRecurringTask(user.id, task, { allKnownTasks: allTasks });
+      if (res.success && res.patch) {
+        setAllTasks((prev) => prev.map((t) => (t.id === task.id ? ({ ...t, ...res.patch } as Task) : t)));
+        toast.success(
+          T(
+            `نمونه بعدی به ${res.formattedNextDate} منتقل شد 🔁`,
+            `Next instance moved to ${res.formattedNextDate} 🔁`
+          )
+        );
+        return;
+      }
+    }
+    if (nextCompleted) {
+      playCompletionFeedback();
+      awardTaskWatering(task.title, Boolean(task.parent_id));
+    }
     const nextStatus: TaskStatus = nextCompleted ? "done" : "todo";
     const nextCompletedAt = nextCompleted ? new Date().toISOString() : null;
     const patch = { completed: nextCompleted, status: nextStatus, completed_at: nextCompletedAt };
@@ -382,7 +404,10 @@ export default function TodayDashboardView() {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete("completeTaskId");
     setSearchParams(nextParams, { replace: true });
-    if (!task.completed) void handleToggleTask(task);
+    if (!task.completed) {
+      playCompletionFeedback();
+      void handleToggleTask(task);
+    }
   }, [allTasks, handleToggleTask, navigate, searchParams, setSearchParams]);
 
   const handlePatchTask = useCallback(async (id: string, patch: Partial<Task>) => {

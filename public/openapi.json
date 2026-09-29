@@ -394,11 +394,240 @@
             }
           }
         }
+      },
+      "/api/v1/agent/me": {
+        "get": {
+          "summary": "Get authenticated agent status and scopes",
+          "tags": ["AI Agent"],
+          "security": [{ "personalAgentToken": [] }],
+          "responses": {
+            "200": { "description": "Agent token verified and details returned" },
+            "401": { "description": "Invalid, expired, or revoked token" }
+          }
+        }
+      },
+      "/api/v1/agent/audit-log": {
+        "get": {
+          "summary": "Get recent audit activity for this agent",
+          "tags": ["AI Agent"],
+          "security": [{ "personalAgentToken": [] }],
+          "responses": {
+            "200": { "description": "Audit log list returned" }
+          }
+        }
+      },
+      "/api/v1/agent/tasks": {
+        "get": {
+          "summary": "List and filter user tasks",
+          "tags": ["AI Agent Tasks"],
+          "security": [{ "personalAgentToken": [] }],
+          "parameters": [
+            { "name": "status", "in": "query", "schema": { "type": "string" } },
+            { "name": "priority", "in": "query", "schema": { "type": "string" } },
+            { "name": "completed", "in": "query", "schema": { "type": "boolean" } },
+            { "name": "folder_id", "in": "query", "schema": { "type": "string" } },
+            { "name": "search", "in": "query", "schema": { "type": "string" } },
+            { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+            { "name": "page_size", "in": "query", "schema": { "type": "integer", "default": 50 } }
+          ],
+          "responses": {
+            "200": { "description": "Tasks list with pagination" }
+          }
+        },
+        "post": {
+          "summary": "Create a new task",
+          "tags": ["AI Agent Tasks"],
+          "security": [{ "personalAgentToken": [] }],
+          "responses": {
+            "201": { "description": "Task created successfully" }
+          }
+        }
+      },
+      "/api/v1/agent/tasks/{taskId}": {
+        "get": {
+          "summary": "Get full details of a task",
+          "tags": ["AI Agent Tasks"],
+          "security": [{ "personalAgentToken": [] }],
+          "responses": {
+            "200": { "description": "Task details" },
+            "404": { "description": "Task not found" }
+          }
+        },
+        "patch": {
+          "summary": "Update task fields",
+          "tags": ["AI Agent Tasks"],
+          "security": [{ "personalAgentToken": [] }],
+          "responses": {
+            "200": { "description": "Task updated" }
+          }
+        }
+      },
+      "/api/v1/agent/tasks/{taskId}/complete": {
+        "post": {
+          "summary": "Mark task as completed",
+          "tags": ["AI Agent Tasks"],
+          "security": [{ "personalAgentToken": [] }],
+          "responses": {
+            "200": { "description": "Task marked done" }
+          }
+        }
+      },
+      "/api/v1/agent/tasks/{taskId}/reopen": {
+        "post": {
+          "summary": "Reopen a completed task",
+          "tags": ["AI Agent Tasks"],
+          "security": [{ "personalAgentToken": [] }],
+          "responses": {
+            "200": { "description": "Task marked todo" }
+          }
+        }
+      },
+      "/api/v1/agent/folders": {
+        "get": {
+          "summary": "List all folders with task counts",
+          "tags": ["AI Agent Folders"],
+          "security": [{ "personalAgentToken": [] }],
+          "responses": {
+            "200": { "description": "Folders list" }
+          }
+        },
+        "post": {
+          "summary": "Create a new folder",
+          "tags": ["AI Agent Folders"],
+          "security": [{ "personalAgentToken": [] }],
+          "responses": {
+            "201": { "description": "Folder created" }
+          }
+        }
+      },
+      "/api/v1/agent/folders/{folderId}": {
+        "get": {
+          "summary": "Get folder details and its tasks",
+          "tags": ["AI Agent Folders"],
+          "security": [{ "personalAgentToken": [] }],
+          "responses": {
+            "200": { "description": "Folder details with tasks" }
+          }
+        },
+        "patch": {
+          "summary": "Update folder name, color, parent or position",
+          "tags": ["AI Agent Folders"],
+          "security": [{ "personalAgentToken": [] }],
+          "responses": {
+            "200": { "description": "Folder updated" }
+          }
+        }
+      },
+      "/api/v1/agent/memories": {
+        "get": {
+          "summary": "List memories and notes",
+          "tags": ["AI Agent Memories"],
+          "security": [{ "personalAgentToken": [] }],
+          "parameters": [
+            { "name": "kind", "in": "query", "schema": { "type": "string", "enum": ["all", "diary", "note"] } },
+            { "name": "date", "in": "query", "schema": { "type": "string" } },
+            { "name": "search", "in": "query", "schema": { "type": "string" } }
+          ],
+          "responses": {
+            "200": { "description": "Memories list" }
+          }
+        },
+        "post": {
+          "summary": "Create a note or diary entry",
+          "tags": ["AI Agent Memories"],
+          "security": [{ "personalAgentToken": [] }],
+          "responses": {
+            "201": { "description": "Memory created" }
+          }
+        }
+      },
+      "/api/v1/agent/memories/{memoryId}": {
+        "get": {
+          "summary": "Get a specific note or memory",
+          "tags": ["AI Agent Memories"],
+          "security": [{ "personalAgentToken": [] }],
+          "responses": {
+            "200": { "description": "Memory retrieved" }
+          }
+        },
+        "patch": {
+          "summary": "Update a note or diary entry",
+          "tags": ["AI Agent Memories"],
+          "security": [{ "personalAgentToken": [] }],
+          "responses": {
+            "200": { "description": "Memory updated" }
+          }
+        }
+      },
+      "/api/v1/agent/schedule/day": {
+        "get": {
+          "summary": "Get daily schedule and events",
+          "tags": ["AI Agent Schedule"],
+          "security": [{ "personalAgentToken": [] }],
+          "parameters": [{ "name": "date", "in": "query", "schema": { "type": "string" } }],
+          "responses": { "200": { "description": "Day schedule returned" } }
+        }
+      },
+      "/api/v1/agent/schedule/week": {
+        "get": {
+          "summary": "Get weekly schedule and events",
+          "tags": ["AI Agent Schedule"],
+          "security": [{ "personalAgentToken": [] }],
+          "parameters": [{ "name": "date", "in": "query", "schema": { "type": "string" } }],
+          "responses": { "200": { "description": "Week schedule returned" } }
+        }
+      },
+      "/api/v1/agent/schedule/month": {
+        "get": {
+          "summary": "Get monthly schedule and events",
+          "tags": ["AI Agent Schedule"],
+          "security": [{ "personalAgentToken": [] }],
+          "parameters": [{ "name": "month", "in": "query", "schema": { "type": "string" } }],
+          "responses": { "200": { "description": "Month schedule returned" } }
+        }
+      },
+      "/api/v1/agent/calendar/events": {
+        "get": {
+          "summary": "Get events within a custom ISO 8601 date range",
+          "tags": ["AI Agent Calendar"],
+          "security": [{ "personalAgentToken": [] }],
+          "parameters": [
+            { "name": "start", "in": "query", "required": true, "schema": { "type": "string" } },
+            { "name": "end", "in": "query", "required": true, "schema": { "type": "string" } }
+          ],
+          "responses": { "200": { "description": "Events in window" } }
+        },
+        "post": {
+          "summary": "Create a scheduled event with time-conflict detection",
+          "tags": ["AI Agent Calendar"],
+          "security": [{ "personalAgentToken": [] }],
+          "responses": {
+            "201": { "description": "Event scheduled" },
+            "409": { "description": "Time conflict detected with existing event" }
+          }
+        }
+      },
+      "/api/v1/agent/calendar/events/{eventId}": {
+        "patch": {
+          "summary": "Update event time or details with conflict check",
+          "tags": ["AI Agent Calendar"],
+          "security": [{ "personalAgentToken": [] }],
+          "responses": {
+            "200": { "description": "Event updated" },
+            "409": { "description": "Time conflict detected" }
+          }
+        }
       }
     }
   },
   "components": {
     "securitySchemes": {
+      "personalAgentToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "arshnaz_pat_*",
+        "description": "Personal Agent Access Token generated from ARSHNAZ Settings > AI Agent Connections. Pass as 'Authorization: Bearer arshnaz_pat_...'."
+      },
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",

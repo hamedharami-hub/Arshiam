@@ -30,6 +30,8 @@ export interface ContactSocialLink {
 
 export type ContactSource = "manual" | "device_import";
 
+export type ContactAvatarShape = "circle" | "rounded" | "square" | "hexagon" | "diamond";
+
 export interface Contact {
   id: string;
   user_id: string;
@@ -40,6 +42,9 @@ export interface Contact {
   job_title?: string;
   photo_url?: string;
   photo_path?: string;
+  avatar_icon?: string;
+  avatar_color?: string;
+  avatar_shape?: ContactAvatarShape;
   phones: ContactPhone[];
   emails: ContactEmail[];
   addresses: ContactAddress[];

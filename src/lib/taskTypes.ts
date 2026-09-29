@@ -33,6 +33,7 @@ export type Task = {
   completed: boolean;
   status: TaskStatus;
   folder_id?: string | null;
+  kanban_column_id?: string | null;
   reminder_at?: string | null;
   reminder_plan?: ReminderPlan | null;
   recurrence?: "none" | "daily" | "weekly" | "monthly";

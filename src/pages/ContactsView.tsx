@@ -23,6 +23,7 @@ import { isDeviceContactImportSupported } from "@/lib/deviceContacts";
 import { ContactEditorDialog } from "@/components/contacts/ContactEditorDialog";
 import { ContactDetailDialog } from "@/components/contacts/ContactDetailDialog";
 import { DeviceContactImportModal } from "@/components/contacts/DeviceContactImportModal";
+import { ContactAvatar } from "@/components/contacts/ContactAvatar";
 
 export default function ContactsView() {
   const { user } = useAuth();
@@ -184,12 +185,7 @@ export default function ContactsView() {
                 className="p-3.5 rounded-2xl bg-card border border-border/60 hover:border-primary/40 hover:shadow-md transition cursor-pointer flex flex-col justify-between gap-3 group"
               >
                 <div className="flex items-start gap-3">
-                  <Avatar className="h-12 w-12 border border-border/50 shrink-0">
-                    <AvatarImage src={c.photo_url} className="object-cover" />
-                    <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
-                      {c.display_name.slice(0, 2) || <User className="w-5 h-5" />}
-                    </AvatarFallback>
-                  </Avatar>
+                  <ContactAvatar contact={c} size="lg" />
 
                   <div className="min-w-0 flex-1">
                     <h3 className="text-sm font-bold text-foreground truncate group-hover:text-primary transition">

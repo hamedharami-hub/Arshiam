@@ -6,6 +6,7 @@ import { Slider } from "@/components/ui/slider";
 import { useTranslation } from "react-i18next";
 import { SectionCard, SettingRow } from "./SectionCard";
 import { getSidebarPosition, setSidebarPosition, type SidebarPosition } from "@/lib/sidebarPosition";
+import { CompletionFeedbackSettingsCard } from "@/components/CompletionFeedbackSettingsCard";
 import type { UserSettings } from "@/lib/reminders";
 
 export interface AppearanceSettingsSectionProps {
@@ -52,8 +53,8 @@ export function AppearanceSettingsSection({
   ];
 
   const sidebarPositionOptions = [
-    { value: "right", label: isEn ? "Right side (Persian standard)" : "سمت راست (استاندارد فارسی)" },
-    { value: "left", label: isEn ? "Left side (TickTick style)" : "سمت چپ (مشابه تیک‌تیک)" },
+    { value: "right", label: isEn ? "Right side" : "سمت راست" },
+    { value: "left", label: isEn ? "Left side" : "سمت چپ" },
   ];
 
   return (
@@ -143,7 +144,7 @@ export function AppearanceSettingsSection({
 
             <SettingRow
               label={isEn ? "Sidebar & Navigation Position" : "جهت منو و نوار کناری (سایدبار / تسک‌بار)"}
-              help={isEn ? "Choose whether navigation opens from the right (Persian standard) or left (TickTick style)" : "تعیین باز شدن تسک‌بار و منوی برنامه از سمت راست یا چپ در تمام دستگاه‌ها"}
+              help={isEn ? "Choose whether navigation opens from the right or left" : "تعیین باز شدن تسک‌بار و منوی برنامه از سمت راست یا چپ در تمام دستگاه‌ها"}
             >
               <Select
                 value={reminders.sidebar_position || getSidebarPosition()}
@@ -165,6 +166,10 @@ export function AppearanceSettingsSection({
             </SettingRow>
           </>
         )}
+
+        <div className="pt-2">
+          <CompletionFeedbackSettingsCard compact />
+        </div>
       </div>
     </SectionCard>
   );

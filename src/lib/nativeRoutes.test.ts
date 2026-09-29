@@ -28,6 +28,8 @@ describe("Android deep links", () => {
     expect(nativeRoute("arshnaz://widgets")).toBe("/app/widgets");
     expect(nativeRoute("arshnaz://crisis")).toBe("/app/crisis");
     expect(nativeRoute("arshnaz://sos")).toBe("/app/crisis");
+    expect(nativeRoute("arshnaz://new-note")).toBe("/app/new/note");
+    expect(nativeRoute("arshnaz://add_note")).toBe("/app/new/note");
   });
 
   it("sequences Task A then Task B reliably without stale destination", () => {

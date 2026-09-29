@@ -7,6 +7,7 @@ export function nativeRoute(raw: string, currentUid?: string | null): string | n
     const owner = url.searchParams.get("owner");
     if (owner && currentUid && owner !== currentUid) return "/app/today";
     if (route === "new-task" || route === "add_task") return "/app/new/task";
+    if (route === "new-note" || route === "add_note" || route === "add-note") return "/app/new/note";
     if (route === "task") {
       const id = url.searchParams.get("taskId");
       if (!id) return "/app/today";
@@ -30,6 +31,6 @@ export function nativeRoute(raw: string, currentUid?: string | null): string | n
     }
     if (route === "sos" || route === "crisis") return "/app/crisis";
     if (route === "google-connected") return "/app/settings?tab=tasks&google=" + encodeURIComponent(url.searchParams.get("result") || "connected");
-    return ["today","tomorrow","next7","inbox","notes","checkin","garden","pomodoro","settings","mind","crisis","thoughts","abc","socratic","breathing","worry","life-architect","widgets","habits","calendar","kanban","self","stats"].includes(route) ? "/app/" + route : null;
+    return ["today","tomorrow","next7","inbox","notes","checkin","garden","pomodoro","settings","mind","crisis","thoughts","abc","socratic","breathing","worry","life-architect","widgets","calendar","kanban","self","stats"].includes(route) ? "/app/" + route : null;
   } catch { return null; }
 }

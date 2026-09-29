@@ -1,9 +1,8 @@
-import { firebaseStore } from "@/lib/firebaseStore";
-import { getOpConfig, isAIPersonalizationOptedIn, type AIOperation } from "@/lib/aiSettings";
+import { getOpConfig, type AIOperation } from "@/lib/aiSettings";
 import { offlineAssistant } from "@/lib/offlineAssistant";
-import { getStoredUser } from "@/lib/authService";
 import { DISTORTION_LABELS, type Distortion } from "@/lib/distortions";
 import { GEMINI_SYSTEM_PROMPTS } from "@/lib/geminiDirect";
+import { buildPersonalizationContext } from "@/lib/aiPersonalization";
 
 export type AIMode = AIOperation;
 
@@ -59,30 +58,10 @@ export async function callAI(
   const language = lang === "auto" ? undefined : lang;
 
   // Personalization: strictly opt-in to protect sensitive user profile and mental health notes
-  let personalizationContext = "";
-  if (isAIPersonalizationOptedIn()) {
-    try {
-      const local = getStoredUser();
-      let uid = local?.id;
-      if (!uid) {
-        const { data: { user } } = await firebaseStore.auth.getUser();
-        uid = (user as any)?.uid || (user as any)?.id;
-      }
-      if (uid) {
-        const [{ data: mh }, { data: am }] = await Promise.all([
-          firebaseStore.from("mh_profile").select("summary, primary_goals, communication_style").eq("user_id", uid).maybeSingle(),
-          firebaseStore.from("about_me" as any).select("ai_analysis").eq("user_id", uid).maybeSingle(),
-        ]);
-        const parts: string[] = [];
-        if (mh?.summary) parts.push(`پروفایل سلامت ذهن: ${mh.summary}`);
-        if (mh?.primary_goals) parts.push(`اهداف اصلی: ${mh.primary_goals}`);
-        if (am?.ai_analysis?.summary) parts.push(`خلاصه درباره من: ${am.ai_analysis.summary}`);
-        if (parts.length > 0) {
-          personalizationContext = `\n[Personalization Profile Context / اطلاعات شخصی‌سازی شده با رضایت کاربر]:\n${parts.join("\n")}\n`;
-        }
-      }
-    } catch { /* ignore */ }
-  }
+  const personalization = await buildPersonalizationContext({
+    lang: language === "en" ? "en" : "fa",
+  });
+  const personalizationContext = personalization.contextText;
 
   let systemPrompt = opts?.systemPromptOverride || GEMINI_SYSTEM_PROMPTS[mode] || GEMINI_SYSTEM_PROMPTS.chat;
   if (personalizationContext) {

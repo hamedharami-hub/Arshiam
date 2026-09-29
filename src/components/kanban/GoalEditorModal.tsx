@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trash2, Target, Calendar, Flag, Sparkles, FolderTree } from "lucide-react";
+import { Trash2, Target, Calendar, Flag, Sparkles, FolderTree, Check } from "lucide-react";
 import {
   type GoalKanban,
   type TimeHorizon,
@@ -26,6 +26,17 @@ import {
   TIME_HORIZONS,
   GOAL_PRIORITIES,
 } from "@/lib/kanbanGoals";
+
+const COLOR_OPTIONS = [
+  { hex: "#3b82f6", label: "آبی" },
+  { hex: "#10b981", label: "سبز زمردی" },
+  { hex: "#f59e0b", label: "کهربایی" },
+  { hex: "#ef4444", label: "قرمز" },
+  { hex: "#8b5cf6", label: "بنفش" },
+  { hex: "#ec4899", label: "صورتی" },
+  { hex: "#06b6d4", label: "فیروزه‌ای" },
+  { hex: "#64748b", label: "طوسی" },
+];
 
 interface GoalEditorModalProps {
   open: boolean;
@@ -66,21 +77,24 @@ export default function GoalEditorModal({
     } else {
       setTitle("");
       setDescription("");
-      setParentId(defaultParentId);
+      const rootGoal = allGoals.find((g) => g.parentId === null) || allGoals[0];
+      setParentId(defaultParentId || rootGoal?.id || null);
       setTimeHorizon("monthly");
       setPriority("medium");
       setColor("#3b82f6");
       setIcon("🎯");
     }
-  }, [goal, defaultParentId, open]);
+  }, [goal, defaultParentId, allGoals, open]);
 
   const handleSave = () => {
     if (!title.trim()) return;
+    const rootGoal = allGoals.find((g) => g.parentId === null) || allGoals[0];
+    const finalParentId = isRootGoal ? null : (parentId || defaultParentId || rootGoal?.id || null);
     onSave({
       ...(goal ? { id: goal.id } : {}),
       title: title.trim(),
       description: description.trim() || undefined,
-      parentId: parentId === "none" ? null : parentId,
+      parentId: finalParentId,
       timeHorizon,
       priority,
       color,
@@ -89,9 +103,25 @@ export default function GoalEditorModal({
     onOpenChange(false);
   };
 
-  const eligibleParents = allGoals.filter((g) => g.id !== goal?.id);
+  const eligibleParents = React.useMemo(() => {
+    if (!goal) return allGoals;
+    const descendants = new Set<string>([goal.id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      allGoals.forEach((g) => {
+        if (g.parentId && descendants.has(g.parentId) && !descendants.has(g.id)) {
+          descendants.add(g.id);
+          changed = true;
+        }
+      });
+    }
+    return allGoals.filter((g) => !descendants.has(g.id));
+  }, [allGoals, goal]);
 
   const EMOJI_OPTIONS = ["🎯", "📚", "🗣️", "🤖", "💼", "🫀", "🚀", "🌟", "💡", "🎨", "🏃‍♂️", "🌿", "🧘‍♀️", "🔥"];
+
+  const isRootGoal = Boolean(goal && goal.parentId === null);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -99,10 +129,18 @@ export default function GoalEditorModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg font-bold">
             <Target className="w-5 h-5 text-primary" />
-            {goal ? "ویرایش کانبان / هدف" : "ایجاد هدف و کانبان جدید"}
+            {goal
+              ? isRootGoal
+                ? "ویرایش هدف اصلی"
+                : "ویرایش هدف"
+              : "افزودن زیرمجموعه جدید"}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            هر کانبان یک هدف با افق زمانی، اولویت و ساختار والد-فرزندی است.
+            {goal
+              ? isRootGoal
+                ? "عنوان، آیکون، رنگ، افق زمانی و اهمیت هدف اصلی را تنظیم کنید."
+                : "تنظیمات عنوان، رنگ، افق زمانی، اهمیت و والد این زیرمجموعه را ویرایش کنید."
+              : "یک زیرمجموعه جدید متصل به هدف اصلی بسازید."}
           </DialogDescription>
         </DialogHeader>
 
@@ -155,27 +193,34 @@ export default function GoalEditorModal({
           </div>
 
           {/* Parent Goal Selection */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-bold flex items-center gap-1.5">
-              <FolderTree className="w-3.5 h-3.5 text-muted-foreground" />
-              هدف والد (زیرمجموعه کدام کانبان باشد؟)
-            </Label>
-            <Select value={parentId || "none"} onValueChange={(v) => setParentId(v === "none" ? null : v)}>
-              <SelectTrigger className="text-xs">
-                <SelectValue placeholder="یک هدف اصلی (بدون والد)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none" className="text-xs font-bold text-primary">
-                  ⭐ هدف اصلی (سطح ۱ - ریشه)
-                </SelectItem>
-                {eligibleParents.map((p) => (
-                  <SelectItem key={p.id} value={p.id} className="text-xs">
-                    {p.icon || "🎯"} {p.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {isRootGoal ? (
+            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-medium">
+              <Target className="w-4 h-4 shrink-0" />
+              <span>این هدف اصلی و ریشه کانبان است و سایر اهداف به عنوان زیرمجموعه به آن متصل می‌شوند.</span>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold flex items-center gap-1.5">
+                <FolderTree className="w-3.5 h-3.5 text-muted-foreground" />
+                هدف والد (زیرمجموعه کدام هدف باشد؟)
+              </Label>
+              <Select
+                value={parentId || eligibleParents[0]?.id || ""}
+                onValueChange={(v) => setParentId(v)}
+              >
+                <SelectTrigger className="text-xs">
+                  <SelectValue placeholder="یک هدف والد انتخاب کنید" />
+                </SelectTrigger>
+                <SelectContent>
+                  {eligibleParents.map((p) => (
+                    <SelectItem key={p.id} value={p.id} className="text-xs">
+                      {p.icon || "🎯"} {p.title} {p.parentId === null ? "(هدف اصلی)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Time Horizon & Priority Grid */}
           <div className="grid grid-cols-2 gap-3">
@@ -217,10 +262,36 @@ export default function GoalEditorModal({
               </Select>
             </div>
           </div>
+
+          {/* Color Selection */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-muted-foreground" />
+              رنگ تم و شناسه هدف
+            </Label>
+            <div className="flex items-center gap-2.5 flex-wrap py-1">
+              {COLOR_OPTIONS.map((c) => (
+                <button
+                  key={c.hex}
+                  type="button"
+                  onClick={() => setColor(c.hex)}
+                  title={c.label}
+                  className={`w-7 h-7 rounded-full transition-all flex items-center justify-center border-2 ${
+                    color === c.hex
+                      ? "scale-110 border-foreground shadow-sm ring-2 ring-primary/40"
+                      : "border-transparent opacity-80 hover:opacity-100"
+                  }`}
+                  style={{ backgroundColor: c.hex }}
+                >
+                  {color === c.hex && <Check className="w-3.5 h-3.5 text-white drop-shadow" />}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <DialogFooter className="flex items-center justify-between gap-2 pt-2 border-t">
-          {goal && onDelete ? (
+          {goal && onDelete && !isRootGoal ? (
             <Button
               type="button"
               variant="ghost"
@@ -231,7 +302,8 @@ export default function GoalEditorModal({
               }}
               className="text-xs text-destructive hover:bg-destructive/10 gap-1"
             >
-              <Trash2 className="w-3.5 h-3.5" /> حذف کانبان
+              <Trash2 className="w-3.5 h-3.5" />
+              حذف این زیرمجموعه
             </Button>
           ) : (
             <div />
@@ -242,7 +314,7 @@ export default function GoalEditorModal({
               انصراف
             </Button>
             <Button type="button" size="sm" onClick={handleSave} disabled={!title.trim()} className="text-xs font-bold">
-              {goal ? "ذخیره تغییرات" : "ایجاد کانبان"}
+              {goal ? "ذخیره تغییرات هدف" : "ایجاد هدف"}
             </Button>
           </div>
         </DialogFooter>

@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Edit2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +20,7 @@ interface MultiTierTabsProps {
   onSelectTimeFilter: (horizon: TimeHorizon | "all") => void;
   onSelectPriorityFilter: (priority: GoalPriority | "all") => void;
   onDoubleTapGoal: (goal: GoalKanban) => void;
+  onEditGoal?: (goal: GoalKanban) => void;
   onAddNewGoal: () => void;
   taskCountsByGoal: Record<string, number>;
 }
@@ -35,15 +36,24 @@ export default function MultiTierTabs({
   onSelectTimeFilter,
   onSelectPriorityFilter,
   onDoubleTapGoal,
+  onEditGoal,
   onAddNewGoal,
   taskCountsByGoal,
 }: MultiTierTabsProps) {
   const lastTapRef = useRef<{ id: string; time: number }>({ id: "", time: 0 });
 
+  const triggerEdit = (goal: GoalKanban) => {
+    if (onEditGoal) {
+      onEditGoal(goal);
+    } else {
+      onDoubleTapGoal(goal);
+    }
+  };
+
   const handleTabTouch = (goal: GoalKanban, singleAction: () => void) => {
     const now = Date.now();
     if (lastTapRef.current.id === goal.id && now - lastTapRef.current.time < 350) {
-      onDoubleTapGoal(goal);
+      triggerEdit(goal);
       lastTapRef.current = { id: "", time: 0 };
     } else {
       lastTapRef.current = { id: goal.id, time: now };
@@ -137,19 +147,42 @@ export default function MultiTierTabs({
               key={g.id}
               type="button"
               onClick={() => handleTabTouch(g, () => onSelectGoal(g.id))}
-              onDoubleClick={() => onDoubleTapGoal(g)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold transition-all shrink-0 border ${
+              onDoubleClick={() => triggerEdit(g)}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all shrink-0 border ${
                 isSelected
                   ? "bg-card border-primary text-primary shadow-sm ring-1 ring-primary"
                   : "bg-muted/60 border-transparent text-muted-foreground hover:text-foreground hover:bg-muted"
               }`}
             >
+              {g.parentId && (
+                <span className="text-[10px] text-muted-foreground/80 font-mono" title="زیرمجموعه">↳</span>
+              )}
+              {g.color && (
+                <span
+                  className="w-2 h-2 rounded-full shrink-0 shadow-xs"
+                  style={{ backgroundColor: g.color }}
+                />
+              )}
               <span className="text-base">{g.icon || "🎯"}</span>
               <span>{g.title}</span>
               {count > 0 && (
                 <Badge variant="secondary" className="px-1.5 py-0 text-[10px] h-4 rounded-full">
                   {count}
                 </Badge>
+              )}
+              {isSelected && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    triggerEdit(g);
+                  }}
+                  className="p-1 -me-1 rounded-lg hover:bg-primary/10 text-primary/70 hover:text-primary transition"
+                  title="ویرایش نام و تنظیمات این هدف"
+                >
+                  <Edit2 className="w-3 h-3" />
+                </span>
               )}
             </button>
           );
@@ -159,8 +192,9 @@ export default function MultiTierTabs({
           variant="ghost"
           onClick={() => onAddNewGoal()}
           className="h-8 px-2.5 rounded-2xl text-xs text-muted-foreground hover:text-foreground shrink-0 gap-1 bg-muted/30"
+          title="افزودن زیرمجموعه جدید به این کانبان"
         >
-          <Plus className="w-3.5 h-3.5" /> هدف جدید
+          <Plus className="w-3.5 h-3.5" /> زیرمجموعه جدید
         </Button>
       </div>
     </div>

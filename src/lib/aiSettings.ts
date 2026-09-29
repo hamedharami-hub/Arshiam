@@ -19,6 +19,8 @@ export type AIOperation =
   | "improve_note"
   | "note_actions"
   | "interactive_learning"
+  | "article_rewrite"
+  | "assessment_analysis"
   | "suggest"
   | "chat"
   | "inline_edit"
@@ -43,6 +45,8 @@ export type OperationMeta = {
 };
 
 export const OPERATIONS: OperationMeta[] = [
+  { key: "article_rewrite", labelFa: "بازنویسی مقاله", labelEn: "Article rewrite", descFa: "بازنویسی متن مقاله برای مطالعه.", descEn: "Rewrites article text for reading.", usedInFa: "بازنویسی مقاله", usedInEn: "Article rewrite", group: "مطالعه", groupEn: "Study" },
+  { key: "assessment_analysis", labelFa: "تحلیل نتیجهٔ ارزیابی", labelEn: "Assessment analysis", descFa: "توضیح نتیجهٔ ارزیابی ثبت‌شده.", descEn: "Explains a saved assessment result.", usedInFa: "نتیجهٔ ارزیابی", usedInEn: "Assessment result", group: "ذهن", groupEn: "Mind" },
   // General
   { key: "chat",                  labelFa: "چت عمومی AI",                     labelEn: "General AI chat",               descFa: "دستیار عمومی برای هر سوالی.",                                descEn: "General-purpose assistant.",                                   usedInFa: "دستیار AI (Sidebar)", usedInEn: "AI assistant (Sidebar)", group: "عمومی", groupEn: "General" },
   { key: "suggest",               labelFa: "پیشنهادهای موضوعی",               labelEn: "Topic suggestions",             descFa: "پیشنهاد چند تسک یا ایده پیرامون یک موضوع.",                  descEn: "Suggests several tasks/ideas around a topic.",                 usedInFa: "دستیار AI → تب پیشنهاد", usedInEn: "AI assistant → Suggest tab", group: "عمومی", groupEn: "General" },
@@ -71,6 +75,8 @@ export const OPERATIONS: OperationMeta[] = [
 // These are *smart defaults* — picked for quality/cost/latency per task type.
 // Users can override per-operation in Settings → AI.
 export const OP_RECOMMENDED: Record<AIOperation, { provider: Provider; model: string; whyFa: string; whyEn: string }> = {
+  article_rewrite:       { provider: "gemini", model: "gemini-2.5-flash", whyFa: "بازنویسی متن", whyEn: "Article rewriting" },
+  assessment_analysis:   { provider: "gemini", model: "gemini-2.5-flash", whyFa: "تحلیل متن ارزیابی", whyEn: "Assessment explanation" },
   parse_task:            { provider: "gemini", model: "gemini-2.5-flash",       whyFa: "سریع و دقیق برای استخراج ساختار",            whyEn: "Fast & accurate at structured extraction" },
   breakdown:             { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "استدلال مرحله‌ای بهتر",                       whyEn: "Better step-by-step reasoning" },
   task_subtasks:         { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "تقسیم منطقی کار",                              whyEn: "Logical work breakdown" },

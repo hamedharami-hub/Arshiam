@@ -1,6 +1,7 @@
 import { firebaseStore } from "@/lib/firebaseStore";
 import { callAI } from "@/lib/ai";
 import { generateUUID, type GoalKanban, type TimeHorizon, type GoalPriority } from "@/lib/kanbanGoals";
+import { saveMindValues, upsertMindGoal } from "@/lib/firestoreDataService";
 
 export type RoleArchetype =
   | "freelancer"
@@ -28,10 +29,245 @@ export type LifeDomainKey =
 
 export type Chronotype = "morning" | "afternoon" | "night" | "flexible";
 
+export type EnergyCapacity = "recovery" | "steady" | "sprint";
+
+export type CoreValueKey =
+  | "peace"
+  | "freedom"
+  | "growth"
+  | "impact"
+  | "discipline"
+  | "love"
+  | "security"
+  | "courage";
+
+export interface CoreValueMeta {
+  key: CoreValueKey;
+  labelFa: string;
+  labelEn: string;
+  icon: string;
+  quoteFa: string;
+  quoteEn: string;
+  descFa: string;
+  descEn: string;
+}
+
+export const CORE_VALUES_LIST: CoreValueMeta[] = [
+  {
+    key: "peace",
+    labelFa: "آرامش و تعادل درونی",
+    labelEn: "Peace & Inner Balance",
+    icon: "🕊️",
+    quoteFa: "«آرامش، نداشتن طوفان نیست؛ آرام بودن در دل طوفان است.»",
+    quoteEn: "“Peace is not the absence of storm, but calm within the storm.”",
+    descFa: "رهایی از نشخوار فکری، آرامش روان، کاهش استرس و پذیرش خردمندانه",
+    descEn: "Freedom from rumination, mental tranquility, and mindful acceptance",
+  },
+  {
+    key: "freedom",
+    labelFa: "آزادی و استقلال شخصی",
+    labelEn: "Freedom & Autonomy",
+    icon: "🦅",
+    quoteFa: "«بزرگ‌ترین دارایی، توانایی مدیریت زمان و زیستن طبق ارزش‌های خود است.»",
+    quoteEn: "“The highest form of wealth is the ability to wake up and own your day.”",
+    descFa: "اختیار در زمان، تصمیم‌گیری مستقل، رهایی مالی و خودفرمانی",
+    descEn: "Sovereignty over time, independent choices, and self-direction",
+  },
+  {
+    key: "growth",
+    labelFa: "رشد مداوم و دانایی",
+    labelEn: "Growth & Wisdom",
+    icon: "🌱",
+    quoteFa: "«بهتر شدن ۱ درصدی روزانه، سالانه ۳۷ برابر ارتقا ایجاد می‌کند.»",
+    quoteEn: "“Getting 1% better every day compounds into 37x growth in a year.”",
+    descFa: "کنجکاوی ذهنی، مطالعه مستمر، کسب مهارت‌های کاربردی و توسعه ظرفیت فردی",
+    descEn: "Intellectual curiosity, continuous reading, and expanding mental bandwidth",
+  },
+  {
+    key: "impact",
+    labelFa: "اثرگذاری و ارزش‌آفرینی",
+    labelEn: "Impact & Creation",
+    icon: "⚡",
+    quoteFa: "«معنای زندگی در حل مسائل معنادار و گره‌گشایی برای دیگران است.»",
+    quoteEn: "“The purpose of life is to create meaningful value and solve real problems.”",
+    descFa: "خلق آثار ماندگار، حل مسائل عمیق کاری و اجتماعی، الهام‌بخشی به دیگران",
+    descEn: "Building enduring work, solving deep problems, and elevating others",
+  },
+  {
+    key: "discipline",
+    labelFa: "انضباط و تسلط شخصی",
+    labelEn: "Discipline & Self-Mastery",
+    icon: "💎",
+    quoteFa: "«انضباط یعنی انتخاب میان آنچه اکنون می‌خواهی و آنچه بیشتر از همه می‌خواهی.»",
+    quoteEn: "“Discipline is choosing between what you want now and what you want most.”",
+    descFa: "وفاداری به تعهدات، اراده پایدار، مهار لذت‌های آنی و غلبه بر تنبلی",
+    descEn: "Honoring commitments, grit, delaying gratification, and overcoming impulse",
+  },
+  {
+    key: "love",
+    labelFa: "عشق، خانواده و صمیمیت",
+    labelEn: "Love, Family & Warmth",
+    icon: "❤️",
+    quoteFa: "«در پایان روز، آنچه ماندگار است کیفیت پیوندهای اصیل قلبی است.»",
+    quoteEn: "“At the end of the day, what truly endures is the quality of authentic bonds.”",
+    descFa: "حضور باکیفیت برای عزیزان، محبت بی‌قیدوشرط و ساخت آشیانه‌ای گرم و امن",
+    descEn: "Quality presence with loved ones, unconditional warmth, and deep connection",
+  },
+  {
+    key: "security",
+    labelFa: "امنیت، نظم و ثبات پایدار",
+    labelEn: "Security & Stability",
+    icon: "🛡️",
+    quoteFa: "«پایه‌های محکم، اجازه می‌دهد شاخه‌ها بدون ترس به آسمان رشد کنند.»",
+    quoteEn: "“Strong roots allow branches to reach toward the sky without fear.”",
+    descFa: "انضباط مالی، مدیریت ریسک‌ها، شفافیت محیطی و آرامش خاطر از فردا",
+    descEn: "Financial safety, smart risk mitigation, structural order, and foresight",
+  },
+  {
+    key: "courage",
+    labelFa: "شجاعت و عبور از ترس‌ها",
+    labelEn: "Courage & Boldness",
+    icon: "🎯",
+    quoteFa: "«شجاعت غیبتِ ترس نیست، بلکه اقدام کردن با وجود حضور ترس است.»",
+    quoteEn: "“Courage is not the absence of fear, but taking action despite it.”",
+    descFa: "خروج از محدوده امن، آزمایش فرصت‌های نوین، پذیرش چالش‌ها و آغازهای بزرگ",
+    descEn: "Leaving comfort zones, testing novel horizons, and embarking on bold starts",
+  },
+];
+
+export interface EnergyCapacityMeta {
+  key: EnergyCapacity;
+  labelFa: string;
+  labelEn: string;
+  icon: string;
+  badgeFa: string;
+  badgeEn: string;
+  descFa: string;
+  descEn: string;
+  strategyFa: string;
+  strategyEn: string;
+}
+
+export const ENERGY_CAPACITY_OPTIONS: EnergyCapacityMeta[] = [
+  {
+    key: "recovery",
+    labelFa: "حالت بازیابی و تجدید قوا (کم‌فشار و مهربان)",
+    labelEn: "Recovery & Replenishment (Gentle & Low Friction)",
+    icon: "🌿",
+    badgeFa: "کاهش بار شناختی",
+    badgeEn: "Low Cognitive Load",
+    descFa: "در دوره فرسودگی، خستگی مفرط یا استرس بالا هستید. تمرکز روی ریکاوری بدون احساس گناه.",
+    descEn: "Recovering from burnout, illness, or high life stress. Focus on guilt-free rest and minimal friction.",
+    strategyFa: "فقط ۱ عادت آرام‌بخش + تسک‌های ریزِ زیر ۵ دقیقه برای شکستن سد شروع بدون فشار عصبی.",
+    strategyEn: "Only 1 gentle habit + micro-tasks under 5 minutes to restore dopamine without mental overload.",
+  },
+  {
+    key: "steady",
+    labelFa: "حالت پایداری و ریتم متوازن (پیشنهادی)",
+    labelEn: "Steady & Balanced Rhythm (Recommended)",
+    icon: "⚖️",
+    badgeFa: "پیوستگی پایدار",
+    badgeEn: "Sustainable Consistency",
+    descFa: "انرژی و زمان طبیعی دارید و هدف، ساختن یک روتین پیوسته، پایدار و قابل‌حفظ در بلندمدت است.",
+    descEn: "Normal energy and schedule; goal is establishing a solid, sustainable routine that lasts.",
+    strategyFa: "ترکیب ۲ تا ۳ عادت مکمل (اولویت صبح، مانع‌زدایی و ورزش) همراه با اهداف فصلی واقع‌گرایانه.",
+    strategyEn: "Combination of 2-3 keystone habits (Morning MIT, anti-friction, and body vitality) with clear quarterly targets.",
+  },
+  {
+    key: "sprint",
+    labelFa: "حالت اسپرینت و جهش رشد (انرژی و انگیزه حداکثری)",
+    labelEn: "High-Growth Sprint (Full Drive)",
+    icon: "🚀",
+    badgeFa: "سرعت و پیشرفت حداکثری",
+    badgeEn: "Maximum Velocity",
+    descFa: "انرژی و انگیزه بالایی دارید و آماده‌اید در یک بازه زمانی معین، جهش بزرگی در کار یا اهدافتان ایجاد کنید.",
+    descEn: "Peak motivation and energy; ready to push limits and accomplish high-velocity milestones.",
+    strategyFa: "سیستم پومودوروهای عمیق روزانه، اهداف جاه‌طلبانه و پایش دقیق پیوستگی در باغ رشد.",
+    strategyEn: "Deep daily focus blocks, ambitious milestones, strict discipline, and active habit compounding.",
+  },
+];
+
+export interface DomainMetaInfo {
+  nameFa: string;
+  nameEn: string;
+  icon: string;
+  color: string;
+  descFa: string;
+  descEn: string;
+  reflectionFa: string;
+  reflectionEn: string;
+}
+
+export const LIFE_DOMAINS_INFO: Record<LifeDomainKey, DomainMetaInfo> = {
+  career: {
+    nameFa: "کار، شغل و پروژه‌ها",
+    nameEn: "Career & Projects",
+    icon: "💼",
+    color: "#3b82f6",
+    descFa: "پیشرفت حرفه‌ای، اعتبار کاری، تحویل به موقع تعهدات و درآمدزایی",
+    descEn: "Professional growth, execution excellence, client delivery, and revenue",
+    reflectionFa: "چقدر از پیشرفت کاری، ثمردهی تلاش‌ها و احساس موثر بودن خود خرسندید؟",
+    reflectionEn: "How satisfied are you with your career momentum and professional impact?",
+  },
+  health: {
+    nameFa: "تندرستی، ورزش و خواب عمیق",
+    nameEn: "Health, Fitness & Sleep",
+    icon: "🏃‍♂️",
+    color: "#10b981",
+    descFa: "سوخت بدنی، خواب باکیفیت، تحرک منظم و سطح نشاط و شادابی در طول روز",
+    descEn: "Physical vitality, restorative sleep, regular movement, and daily vigor",
+    reflectionFa: "سطح انرژی بدنی، کیفیت خواب شبانه و مراقبت جسمانی شما چطور است؟",
+    reflectionEn: "How do you rate your physical energy, sleep quality, and fitness habits?",
+  },
+  mind: {
+    nameFa: "آرامش ذهن، خودشناسی و روان",
+    nameEn: "Peace of Mind & Resilience",
+    icon: "🧠",
+    color: "#8b5cf6",
+    descFa: "مدیریت استرس، تمرین حضور در لحظه، چک‌این روزانه و رهایی از اضطراب",
+    descEn: "Stress resilience, mindful presence, emotional grounding, and inner peace",
+    reflectionFa: "در برابر تنش‌های زندگی، چقدر احساس آرامش و تاب‌آوری درونی دارید؟",
+    reflectionEn: "How peaceful, present, and resilient do you feel amid life's pressures?",
+  },
+  growth: {
+    nameFa: "یادگیری، مهارت‌ها و مطالعه",
+    nameEn: "Learning & Skill Mastery",
+    icon: "📚",
+    color: "#f59e0b",
+    descFa: "کتاب‌خوانی، یادگیری مهارت‌های تازه، زبان‌های جدید و رشد هوشی",
+    descEn: "Reading, acquiring high-value skills, languages, and expanding knowledge",
+    reflectionFa: "چقدر در مسیر ارتقای ذهن، یادگیری منظم و پرورش دانایی حرکت می‌کنید؟",
+    reflectionEn: "How consistently are you learning, reading, and upgrading your skills?",
+  },
+  finance: {
+    nameFa: "انضباط مالی، بودجه و پس‌انداز",
+    nameEn: "Financial Discipline & Wealth",
+    icon: "💰",
+    color: "#06b6d4",
+    descFa: "کنترل دخل و خرج، بودجه‌بندی هوشمند، پس‌انداز و استقلال مالی",
+    descEn: "Cash flow control, smart budgeting, strategic saving, and financial independence",
+    reflectionFa: "احساس کنترل، امنیت و برنامه‌ریزی آینده در مورد امور مالی چقدر است؟",
+    reflectionEn: "How in control, disciplined, and secure do you feel regarding your finances?",
+  },
+  relationships: {
+    nameFa: "خانواده، عشق و صمیمیت",
+    nameEn: "Relationships & Heart Bonds",
+    icon: "👨‍👩‍👧",
+    color: "#ec4899",
+    descFa: "وقت باکیفیت برای عزیزان، صمیمیت عاطفی و پیوندهای اصیل اجتماعی",
+    descEn: "Quality time with loved ones, emotional warmth, and authentic connections",
+    reflectionFa: "کیفیت حضور عاطفی و عمق ارتباط شما با نزدیک‌ترین افراد زندگی‌تان چیست؟",
+    reflectionEn: "How deep, warm, and meaningful are your connections with loved ones?",
+  },
+};
+
 export interface UserAnswers {
   role: RoleArchetype;
-  obstacle: LifeObstacle;
+  wheelRatings?: Record<LifeDomainKey, number>;
   domains: LifeDomainKey[];
+  coreValues?: CoreValueKey[];
+  obstacle: LifeObstacle;
+  energyCapacity?: EnergyCapacity;
   chronotype: Chronotype;
   customGoals?: string;
   isAuditMode?: boolean;
@@ -55,6 +291,7 @@ export interface PlannedGoal {
   color?: string;
   icon?: string;
   parentId?: string | null;
+  anchorValue?: CoreValueKey;
 }
 
 export interface PlannedHabit {
@@ -65,6 +302,7 @@ export interface PlannedHabit {
   reminder_time?: string;
   icon?: string;
   color?: string;
+  category?: string;
 }
 
 export interface PlannedTask {
@@ -80,6 +318,8 @@ export interface LifeBlueprint {
   title: string;
   summary: string;
   scientificInsight: string;
+  coreValues?: CoreValueKey[];
+  energyCapacity?: EnergyCapacity;
   folders: PlannedFolder[];
   goals: PlannedGoal[];
   habits: PlannedHabit[];
@@ -129,32 +369,32 @@ export const WIZARD_QUESTIONS: WizardQuestion[] = [
     id: "role",
     titleFa: "نقش و سبک زندگی اصلی شما در این روزها چیست؟",
     titleEn: "What is your primary role and lifestyle these days?",
-    subtitleFa: "این بخش اسکلت‌بندی اولیه پوشه‌ها و افق زمانی شما را تعیین می‌کند.",
+    subtitleFa: "این بخش اسکلت‌بندی پوشه‌ها، ریتم کاری و افق برنامه‌ریزی شما را تعیین می‌کند.",
     subtitleEn: "This establishes the core structure of your folders and planning horizons.",
     scientificInsightFa:
-      "تحقیقات دانشگاه استنفورد نشان می‌دهد تطابق ساختار وظایف با نقش حرفه‌ای، خستگی تصمیم‌گیری (Decision Fatigue) را تا ۴۰٪ کاهش می‌دهد.",
+      "تحقیقات آزمایشگاه طراحی زندگی استنفورد نشان می‌دهد تطابق ساختار وظایف با نقش واقعی، خستگی تصمیم‌گیری (Decision Fatigue) را تا ۴۰٪ کاهش داده و تمرکز عمیق را پایدار می‌سازد.",
     scientificInsightEn:
-      "Stanford research shows that matching task structure to your professional role reduces decision fatigue by up to 40%.",
+      "Stanford Life Design Lab research shows that aligning tasks with your actual life role cuts decision fatigue by up to 40% and sustains deep focus.",
     options: [
       {
         value: "freelancer",
         labelFa: "کارآفرین / فریلنسر / سولوپرنور",
         labelEn: "Entrepreneur / Freelancer / Solopreneur",
         icon: "🚀",
-        badge: "پروژه‌محور",
+        badge: "پروژه‌محور و مستقل",
         badgeEn: "Project-Based",
-        descFa: "مدیریت مشتریان، درآمدهای چندگانه و نیاز به انضباط فردی مستقل",
-        descEn: "Client management, multiple income streams, and self-directed discipline",
+        descFa: "مدیریت مشتریان، درآمدهای چندگانه، پایپ‌لاین پروژه‌ها و نیاز به خودانضباطی بالا",
+        descEn: "Client management, diverse revenue, delivery pipelines, and self-directed grit",
       },
       {
         value: "corporate",
-        labelFa: "کارمند / مدیر / متخصص تیمی",
+        labelFa: "کارمند / مدیر / متخصص سازمانی",
         labelEn: "Employee / Manager / Team Specialist",
         icon: "🏢",
-        badge: "جلسات و خروجی",
-        badgeEn: "Meetings & Outcomes",
-        descFa: "وظایف مشارکتی، گزارش‌دهی هفتگی، اهداف فصلی و تعادل کار و زندگی",
-        descEn: "Collaborative projects, weekly reporting, quarterly goals, and work-life balance",
+        badge: "جلسات و خروجی فصلی",
+        badgeEn: "Team & Outcomes",
+        descFa: "همکاری تیمی، ددلاین‌های سازمان، اهداف فصلی (OKRs) و ضرورت مرزبندی کار و زندگی",
+        descEn: "Team collaboration, corporate deadlines, OKRs, and healthy work-life boundaries",
       },
       {
         value: "student",
@@ -163,206 +403,185 @@ export const WIZARD_QUESTIONS: WizardQuestion[] = [
         icon: "🎓",
         badge: "مطالعه و ددلاین",
         badgeEn: "Study & Deadlines",
-        descFa: "امتحانات، یادگیری متمرکز، خلاصه برداری و زمان‌بندی مرور دروس",
-        descEn: "Exams, focused learning, structured notes, and active spaced repetition",
+        descFa: "امتحانات، فازهای پژوهش، خلاصه‌نویسی فعال و زمان‌بندی مرور مطالب",
+        descEn: "Exams, research milestones, structured notes, and active recall schedules",
       },
       {
         value: "creator",
         labelFa: "تولیدکننده محتوا / طراح / نویسنده",
         labelEn: "Content Creator / Designer / Writer",
         icon: "🎨",
-        badge: "فرآیند خلاقانه",
+        badge: "پایپ‌لاین خلاقیت",
         badgeEn: "Creative Pipeline",
-        descFa: "ایده‌پردازی، پایپ‌لاین تولید، ویرایش، انتشار و انضباط خلاق",
-        descEn: "Ideation, production pipeline, editing, publishing, and creative consistency",
+        descFa: "ایده‌پردازی، پیش‌تولید، تدوین، انتشار منظم و غلبه بر بلوک‌های خلاقانه ذهنی",
+        descEn: "Ideation, production flow, regular publishing, and defeating creative blocks",
       },
       {
         value: "homemaker",
-        labelFa: "مدیر خانه و خانواده",
+        labelFa: "مدیریت خانه و خانواده",
         labelEn: "Home & Family Manager",
         icon: "🏠",
-        badge: "نظم محیط و روابط",
-        badgeEn: "Environment & Care",
-        descFa: "امور خانه، خریدها، بودجه خانواده، سلامت اعضا و برنامه‌های روزمره",
-        descEn: "Household coordination, family budget, health, and daily routines",
+        badge: "نظم آرامش‌بخش خانه",
+        badgeEn: "Family & Space",
+        descFa: "هماهنگی امور خانه، سلامت و برنامه اعضای خانواده، بودجه منزل و روتین‌های روزمره",
+        descEn: "Household balance, family health, routines, budgeting, and a peaceful environment",
       },
       {
         value: "transition",
-        labelFa: "در دوران تغییر مسیر یا بازآفرینی زندگی",
-        labelEn: "Life Transition or Reinvention",
+        labelFa: "دوران تغییر مسیر یا بازآفرینی زندگی",
+        labelEn: "Life Transition / Reinvention",
         icon: "🔄",
         badge: "هدف‌گذاری نو",
         badgeEn: "New Direction",
-        descFa: "کشف فرصت‌های تازه، ساخت عادت‌های جدید و بازسازی اولویت‌ها",
-        descEn: "Exploring new opportunities, building fresh habits, and realigning priorities",
+        descFa: "کشف فرصت‌های تازه، ساخت عادات نو، بازسازی اولویت‌ها و عبور از بلاتکلیفی",
+        descEn: "Exploring fresh paths, resetting priorities, and building foundational habits",
       },
       {
         value: "balanced",
-        labelFa: "تمرکز بر توسعه فردی و سبک زندگی متعادل",
-        labelEn: "Personal Development & Balanced Lifestyle",
+        labelFa: "توسعه فردی و سبک زندگی ۳۶۰ درجه",
+        labelEn: "Personal Growth & 360° Living",
         icon: "🌱",
-        badge: "رشد ۳۶۰ درجه",
-        badgeEn: "360° Growth",
-        descFa: "ایجاد توازن جامع بین سلامتی، ذهن، مطالعه، روابط و کارهای روزانه",
-        descEn: "Cultivating harmony across physical health, mindfulness, learning, and relationships",
+        badge: "رشد متعادل",
+        badgeEn: "Holistic Growth",
+        descFa: "ایجاد توازن پایدار میان سلامتی، ورزش، ذهن‌آگاهی، مطالعه و امور مالی",
+        descEn: "Harmonizing physical health, mindfulness, reading, career, and relationships",
       },
     ],
   },
   {
-    id: "obstacle",
-    titleFa: "بزرگ‌ترین مانع ذهنی یا عملی شما در اجرای برنامه‌ها چیست؟",
-    titleEn: "What is your biggest mental or practical obstacle when taking action?",
-    subtitleFa: "برای شکستن این مانع، ابزارهای روانشناختی مناسب در سیستم شما فعال می‌شوند.",
-    subtitleEn: "Targeted behavioral psychology tools will be activated to neutralize this friction.",
+    id: "domains",
+    titleFa: "حداکثر ۳ حوزه اصلی را برای تمرکز این فصل انتخاب کنید",
+    titleEn: "Select up to 3 core domains to prioritize this season",
+    subtitleFa: "قانون طلایی تمرکز: تلاش برای پیشرفت در همه‌جا، یعنی درجا زدن در همه‌جا.",
+    subtitleEn: "The Golden Rule of Focus: Trying to conquer everything simultaneously leads to conquering nothing.",
     scientificInsightFa:
-      "بر اساس اصول روانشناسی شناختی-رفتاری (CBT)، موانع به دلیل نبود اراده نیستند، بلکه نتیجه اصطکاک بالا در نقطه شروع عمل هستند.",
+      "قانون وارن بافت (5/25 Rule) و اصل پارتو اثبات می‌کنند تمرکز همزمان بر بیش از ۳ جبهه عمده، احتمال تحقق اهداف را تا ۶۰٪ تضعیف می‌کند.",
     scientificInsightEn:
-      "According to Cognitive Behavioral Therapy (CBT), obstacles stem from high initiation friction rather than a lack of willpower.",
+      "Warren Buffett's rule and behavioral science prove that focusing on more than 3 major fronts drops execution velocity by up to 60%.",
+    isMultiSelect: true,
+    options: Object.entries(LIFE_DOMAINS_INFO).map(([key, info]) => ({
+      value: key,
+      labelFa: info.nameFa,
+      labelEn: info.nameEn,
+      icon: info.icon,
+      descFa: info.descFa,
+      descEn: info.descEn,
+    })),
+  },
+  {
+    id: "obstacle",
+    titleFa: "بزرگ‌ترین مانع یا نقطه اصطکاک شما در اجرای برنامه‌ها چیست؟",
+    titleEn: "What is your biggest obstacle or point of friction when taking action?",
+    subtitleFa: "سیستم به‌صورت خودکار پادزهر رفتاری مناسب برای مهار این اصطکاک را در روتین شما تعبیه می‌کند.",
+    subtitleEn: "Targeted behavioral antidotes will be embedded into your routine to dissolve this friction.",
+    scientificInsightFa:
+      "روانشناسی شناختی-رفتاری (CBT) نشان می‌دهد شکست در عمل نتیجه کمبود اراده نیست؛ بلکه نتیجه اصطکاک بالا در لحظه شروع است. پادزهر رفتاری، اصطکاک شروع را به صفر نزدیک می‌کند.",
+    scientificInsightEn:
+      "Cognitive Behavioral Therapy (CBT) shows friction at initiation causes task failure, not lack of willpower. Behavioral antidotes lower the start barrier to near zero.",
     options: [
       {
         value: "procrastination",
-        labelFa: "شروع کردن کارها (اهمال‌کاری و تنبلی)",
+        labelFa: "سختی در شروع کردن (اهمال‌کاری و تنبلی)",
         labelEn: "Getting Started (Procrastination & Hesitation)",
         icon: "⏳",
-        badge: "راهکار: کپسول ۲ دقیقه‌ای",
-        badgeEn: "Tool: 2-Minute Capsule",
-        descFa: "سختی در شروع، عقب انداختن کارهای مهم و انتظار برای انگیزه",
-        descEn: "Struggling to initiate, delaying important tasks, and waiting for mood/motivation",
+        badge: "پادزهر: قانون ۲ دقیقه جیمز کلیر",
+        badgeEn: "Antidote: 2-Minute Rule",
+        descFa: "عقب انداختن کارهای مهم، سخت بودن برداشتن قدم اول و انتظار برای حس و انگیزه",
+        descEn: "Delaying tasks, struggling with the first step, and waiting for mood or inspiration",
       },
       {
         value: "overwhelm",
         labelFa: "حجم زیاد کارها و احساس سردرگمی (Overwhelm)",
         labelEn: "Heavy Task Volume & Brain Fog (Overwhelm)",
         icon: "🤯",
-        badge: "راهکار: متد GTD",
-        badgeEn: "Tool: GTD Clarification",
-        descFa: "ندانستن اینکه اول باید چه کاری انجام شود و استرس لیست‌های طولانی",
-        descEn: "Uncertain where to begin and feeling stressed by sprawling to-do lists",
+        badge: "پادزهر: ۳ اولویت طلایی (MIT)",
+        badgeEn: "Antidote: Daily Most Important Tasks",
+        descFa: "ندانستن اینکه اول باید چه کاری کرد و استرس شدید از لیست‌های بی‌پایان وظایف",
+        descEn: "Not knowing what to tackle first and chronic stress from sprawling to-do lists",
       },
       {
         value: "distraction",
-        labelFa: "پرت شدن مداوم حواس و پرش ذهن",
+        labelFa: "پرت شدن مداوم حواس، پیام‌ها و گوشی",
         labelEn: "Constant Distractions & Attention Fragmentation",
         icon: "🎯",
-        badge: "راهکار: پومودورو بصری",
-        badgeEn: "Tool: Visual Pomodoro",
-        descFa: "گوشی، شبکه‌های اجتماعی و دشواری در حفظ تمرکز عمیق پایدار",
-        descEn: "Phone notifications, social media pulls, and difficulty sustaining deep focus",
+        badge: "پادزهر: پومودورو بصری و کار عمیق",
+        badgeEn: "Antidote: Visual Pomodoro & Deep Work",
+        descFa: "نوتیفیکیشن‌ها، شبکه‌های اجتماعی و دشواری در نگه‌داشتن تمرکز روی یک کار به مدت ۲۰ دقیقه",
+        descEn: "Phone notifications, social media urges, and difficulty sustaining attention for 20 minutes",
       },
       {
         value: "consistency",
-        labelFa: "حفظ پیوستگی بعد از چند روز اول",
-        labelEn: "Maintaining Consistency After the First Few Days",
+        labelFa: "شروع‌های طوفانی اما رها کردن بعد از چند روز",
+        labelEn: "Enthusiastic Starts that Fizzle Out (Consistency)",
         icon: "🏃‍♂️",
-        badge: "راهکار: گیمیفیکیشن و باغ رشد",
-        badgeEn: "Tool: Growth Sanctuary",
-        descFa: "شروع‌های طوفانی اما رها کردن برنامه‌ها بعد از چند روز یا چند هفته",
-        descEn: "Enthusiastic beginnings that fizzle out after a few days or weeks",
+        badge: "پادزهر: پیوستگی در باغ رشد (Streak)",
+        badgeEn: "Antidote: Growth Garden Compounding",
+        descFa: "انگیزه بالا در روز اول، اما تحلیل رفتن توان و قطع شدن پیوستگی بعد از چند روز",
+        descEn: "High initial burst that fades away within days without an anchored habit loop",
       },
       {
         value: "work_life_balance",
-        labelFa: "غرق شدن در کار و فراموشی سلامت و خود",
-        labelEn: "Overwork & Neglecting Personal Health and Life",
+        labelFa: "غرق شدن در کار و فراموشی سلامتی و خود",
+        labelEn: "Overwork & Neglecting Health and Personal Life",
         icon: "⚖️",
-        badge: "راهکار: مرزبندی حوزه‌ها",
-        badgeEn: "Tool: Domain Boundaries",
-        descFa: "نداشتن وقت برای ورزش، خانواده، آرامش روان یا سرگرمی‌های فردی",
-        descEn: "Running out of time for fitness, family, restorative stillness, or leisure",
+        badge: "پادزهر: آیین قطع اتصال شبانه (Shutdown)",
+        badgeEn: "Antidote: Evening Shutdown Ritual",
+        descFa: "نداشتن وقت برای ورزش، خانواده و استراحت، و کار کردن تا لحظه خوابیدن",
+        descEn: "No time left for fitness, presence, or recovery; working until right before sleep",
       },
     ],
   },
   {
-    id: "domains",
-    titleFa: "سه حوزه اصلی که در این فصل می‌خواهید بیشترین تمرکز را روی آن‌ها بگذارید کدامند؟",
-    titleEn: "Which three core domains do you want to prioritize this season?",
-    subtitleFa: "قانون طلایی تمرکز: حداکثر ۳ حوزه کلیدی را انتخاب کنید.",
-    subtitleEn: "The Golden Rule of Focus: Select at most 3 key domains.",
+    id: "energyCapacity",
+    titleFa: "سطح ظرفیت انرژی و زمان شما در این برهه چگونه است؟",
+    titleEn: "What is your current energy capacity and bandwidth right now?",
+    subtitleFa: "معمار هوشمند، حجم وظایف و تعداد عادات را متناسب با ظرفیت واقعی شما کالیبره می‌کند تا دچار فرسودگی نشوید.",
+    subtitleEn: "The system calibrates task load and habit volume to your actual bandwidth to prevent burnout.",
     scientificInsightFa:
-      "قانون تمرکز وارن بافت و اصل پارتو نشان می‌دهند تمرکز همزمان روی بیش از ۳ جبهه، احتمال تحقق همه آن‌ها را تا ۶۰٪ تضعیف می‌کند.",
+      "پژوهش جیم لوهر در زمینه مدیریت انرژی نشان می‌دهد تحمیل حجم بالای تکالیف به ذهن خسته، احتمال رهاسازی کل سیستم را تا ۸۵٪ افزایش می‌دهد. سیستم هوشمند سرعت را با روان شما تطبیق می‌دهد.",
     scientificInsightEn:
-      "Warren Buffett's rule and Pareto principle prove that pursuing more than 3 major fronts simultaneously drops execution success by up to 60%.",
-    isMultiSelect: true,
-    options: [
-      {
-        value: "career",
-        labelFa: "شغل، کسب‌وکار و پروژه‌ها",
-        labelEn: "Career, Business & Projects",
-        icon: "💼",
-        descFa: "پیشرفت کاری، درآمدزایی، تحویل به موقع پروژه‌ها و اعتبار شغلی",
-        descEn: "Professional milestones, revenue, timely delivery, and professional standing",
-      },
-      {
-        value: "health",
-        labelFa: "سلامتی، ورزش و انرژی بدنی",
-        labelEn: "Health, Fitness & Physical Vitality",
-        icon: "🏃‍♂️",
-        descFa: "تناسب اندام، خواب باکیفیت، تغذیه سالم و افزایش سطح نشاط روزانه",
-        descEn: "Exercise habits, deep restorative sleep, nutritious fueling, and all-day energy",
-      },
-      {
-        value: "mind",
-        labelFa: "آرامش ذهن، کاهش استرس و سلامت روان",
-        labelEn: "Peace of Mind, Stress Resilience & Mental Health",
-        icon: "🧠",
-        descFa: "چک‌این روزانه، ثبت افکار CBT، تنفس آرام‌بخش و خودآگاهی",
-        descEn: "Daily check-ins, CBT thought work, grounding breathwork, and self-awareness",
-      },
-      {
-        value: "growth",
-        labelFa: "یادگیری مهارت نو، مطالعه و رشد فردی",
-        labelEn: "Skill Mastery, Reading & Personal Growth",
-        icon: "📚",
-        descFa: "کتاب‌خوانی، زبان، دوره‌های آموزشی و ارتقای توانمندی‌های فکری",
-        descEn: "Books, languages, high-value skills, and expanding your cognitive toolkit",
-      },
-      {
-        value: "finance",
-        labelFa: "نظم مالی، بودجه‌بندی و پس‌انداز",
-        labelEn: "Financial Discipline, Budgeting & Wealth",
-        icon: "💰",
-        descFa: "پیگیری هزینه‌ها، کنترل خریدهای هیجانی و سرمایه‌گذاری",
-        descEn: "Expense tracking, curtailing impulse spending, and smart savings",
-      },
-      {
-        value: "relationships",
-        labelFa: "روابط عاطفی، خانواده و دوستان",
-        labelEn: "Relationships, Family & Social Bonds",
-        icon: "👨‍👩‍👧",
-        descFa: "وقت باکیفیت با عزیزان، ابراز محبت و تقویت پیوندهای اجتماعی",
-        descEn: "Quality time with loved ones, nurturing friendships, and presence",
-      },
-    ],
+      "Jim Loehr's research on energy management shows that overloading an exhausted system increases total abandon rate by 85%. Pacing to real bandwidth is critical.",
+    options: ENERGY_CAPACITY_OPTIONS.map((e) => ({
+      value: e.key,
+      labelFa: e.labelFa,
+      labelEn: e.labelEn,
+      icon: e.icon,
+      badge: e.badgeFa,
+      badgeEn: e.badgeEn,
+      descFa: e.descFa,
+      descEn: e.descEn,
+    })),
   },
   {
     id: "chronotype",
     titleFa: "ساعت طلایی انرژی و اوج تمرکز شبانه‌روزی شما چه زمانی است؟",
-    titleEn: "When is your peak cognitive window and energy peak?",
-    subtitleFa: "کارهای عمیق و عادت‌های کلیدی شما دقیقا در این بازه چیده می‌شوند.",
-    subtitleEn: "Deep work blocks and Keystone habits will be scheduled specifically in this window.",
+    titleEn: "When is your peak cognitive window and energy rhythm?",
+    subtitleFa: "کارهای عمیق و عادت‌های کلیدی شما دقیقا بر اساس ساعت زیستی بدنتان چیده می‌شوند.",
+    subtitleEn: "Deep work blocks and keystone habits will be timed precisely to your biological clock.",
     scientificInsightFa:
-      "کرونوبیولوژی اثبات می‌کند همگام‌سازی کارهای سنگین تحلیلی با اوج دمای بدن و ترشح دوپامین، کارایی مغز را تا دو برابر می‌کند.",
+      "کرونوبیولوژی و پژوهش‌های عصب‌شناختی دکتر هیوبرمن اثبات می‌کنند همگام‌سازی کارهای سنگین تحلیلی با اوج دمای بدن و ترشح طبیعی دوپامین، کارایی پردازش مغز را تا ۲ برابر ارتقا می‌دهد.",
     scientificInsightEn:
-      "Chronobiology proves that synchronizing demanding analytical tasks with peak body temperature and dopamine doubles brain efficiency.",
+      "Chronobiology shows that synchronizing demanding analytical tasks with peak body temperature and dopamine doubles cognitive output.",
     options: [
       {
         value: "morning",
         labelFa: "سحرخیز و صبحگاهی (۶ تا ۱۱ صبح)",
         labelEn: "Early Bird & Morning Focused (6 to 11 AM)",
         icon: "🌅",
-        badge: "انرژی صبحگاهی",
-        badgeEn: "Morning Energy",
-        descFa: "بیشترین طراوت فکری قبل از شروع همهمه‌ی روز و شلوغی‌ها",
-        descEn: "Peak mental clarity before the day's noise and external demands kick in",
+        badge: "طراوت صبحگاهی",
+        badgeEn: "Morning Clarity",
+        descFa: "بیشترین شفافیت فکری قبل از شلوغی‌های روزمره و تماس‌های بیرونی",
+        descEn: "Peak mental clarity before incoming noise and external demands arrive",
       },
       {
         value: "afternoon",
         labelFa: "اوج تمرکز بعدازظهر (۲ تا ۶ عصر)",
         labelEn: "Afternoon Deep Work (2 to 6 PM)",
         icon: "🌆",
-        badge: "انرژی میانه روز",
-        badgeEn: "Midday Energy",
-        descFa: "صبح‌ها صرف هماهنگی و کارهای سبک، بعدازظهر برای کارهای عمیق",
-        descEn: "Mornings for lightweight coordination, afternoons for intense deep work",
+        badge: "انرژی نیمه دوم روز",
+        badgeEn: "Midday Power",
+        descFa: "صبح‌ها صرف ارتباطات و کارهای سبک، و بعدازظهرها برای کارهای سنگین و متمرکز",
+        descEn: "Mornings for lightweight coordination, afternoons for uninterrupted deep work",
       },
       {
         value: "night",
@@ -370,9 +589,9 @@ export const WIZARD_QUESTIONS: WizardQuestion[] = [
         labelEn: "Night Owl & Evening Calm (9 PM onward)",
         icon: "🌙",
         badge: "سکوت شبانه",
-        badgeEn: "Night Stillness",
-        descFa: "بیشترین قدرت خلاقیت و تمرکز زمانی که همه جا ساکت است",
-        descEn: "Peak creativity and immersion when the world is quiet and still",
+        badgeEn: "Night Immersion",
+        descFa: "بیشترین قدرت خلاقیت و غوطه‌وری زمانی که همه جا ساکت و آرام است",
+        descEn: "Peak creativity and immersion when the surrounding environment is tranquil",
       },
       {
         value: "flexible",
@@ -380,149 +599,244 @@ export const WIZARD_QUESTIONS: WizardQuestion[] = [
         labelEn: "Flexible & Fluid Routine",
         icon: "⚡",
         badge: "انعطاف‌پذیر",
-        badgeEn: "Adaptive Rhythm",
-        descFa: "نیازمند سیستم منعطف بر اساس بلوک‌های ۲۵ دقیقه‌ای در طول روز",
-        descEn: "Requires an agile system structured around 25-minute Pomodoro bursts",
+        badgeEn: "Adaptive",
+        descFa: "نیازمند ساختاری چابک بر اساس بلوک‌های ۲۵ دقیقه‌ای پومودورو در طول روز",
+        descEn: "Needs an agile setup based on 25-minute Pomodoro sprints across the day",
       },
     ],
   },
 ];
 
 export function generateDeterministicBlueprint(answers: UserAnswers): LifeBlueprint {
-  const { role, obstacle, domains, chronotype, customGoals } = answers;
+  const {
+    role,
+    obstacle,
+    domains,
+    chronotype,
+    customGoals,
+    energyCapacity = "steady",
+    coreValues = ["peace", "growth"],
+    wheelRatings = { career: 6, health: 6, mind: 6, growth: 6, finance: 6, relationships: 6 },
+  } = answers;
 
   const folders: PlannedFolder[] = [];
   const goals: PlannedGoal[] = [];
   const habits: PlannedHabit[] = [];
   const tasks: PlannedTask[] = [];
 
-  const domainMeta: Record<LifeDomainKey, { name: string; color: string; icon: string; desc: string }> = {
-    career: { name: "💼 کار و پروژه‌ها", color: "#3b82f6", icon: "💼", desc: "اهداف شغلی، وظایف درآمدزا و تحویل پروژه‌ها" },
-    health: { name: "🏃 تندرستی و انرژی", color: "#10b981", icon: "🏃", desc: "ورزش، تغذیه، خواب و سلامتی پایدار" },
-    mind: { name: "🧠 ذهن و آرامش", color: "#8b5cf6", icon: "🧠", desc: "خودشناسی، بازنگری افکار و مدیریت استرس" },
-    growth: { name: "📚 یادگیری و مهارت", color: "#f59e0b", icon: "📚", desc: "کتاب‌ها، دوره‌ها و مهارت‌های جدید" },
-    finance: { name: "💰 انضباط مالی", color: "#06b6d4", icon: "💰", desc: "بودجه‌بندی، پیگیری دخل و خرج و سرمایه‌گذاری" },
-    relationships: { name: "👨‍👩‍👧 خانه و روابط", color: "#ec4899", icon: "👨‍👩‍👧", desc: "ارتباط با عزیزان، خانواده و امور منزل" },
-  };
+  const activeDomains = domains.length >= 1 ? domains : (["career", "health", "growth"] as LifeDomainKey[]);
 
-  const activeDomains = domains.length >= 2 ? domains : (["career", "health", "growth"] as LifeDomainKey[]);
+  // Find matching core value anchor
+  const primaryValue = coreValues[0] || "growth";
+  const primaryValueMeta = CORE_VALUES_LIST.find((v) => v.key === primaryValue);
 
   activeDomains.forEach((dom) => {
-    const meta = domainMeta[dom];
+    const meta = LIFE_DOMAINS_INFO[dom];
     if (!meta) return;
+
     const folderId = generateUUID();
     folders.push({
       id: folderId,
-      name: meta.name,
+      name: `${meta.icon} ${meta.nameFa}`,
       color: meta.color,
       icon: meta.icon,
-      description: meta.desc,
+      description: meta.descFa,
     });
 
     const rootGoalId = generateUUID();
-    let goalTitle = `تمرکز فصلی: ${meta.name.replace(/^[^\s]+\s/, "")}`;
-    if (dom === "career" && role === "freelancer") goalTitle = "توسعه مشتریان و تحویل بی‌نقص پروژه‌ها";
-    else if (dom === "career" && role === "corporate") goalTitle = "دستیابی به اهداف فصلی تیم (OKRs)";
-    else if (dom === "career" && role === "student") goalTitle = "معدل عالی و تسلط بر دروس کلیدی";
-    else if (dom === "health") goalTitle = "پایداری روتین ورزشی و خواب ۷.۵ ساعته";
-    else if (dom === "mind") goalTitle = "کاهش استرس روزانه و آرامش پایدار";
-    else if (dom === "growth") goalTitle = "مطالعه ۳ کتاب و یادگیری ۱ مهارت اثرگذار";
+    const score = wheelRatings[dom] ?? 6;
+
+    let goalTitle = `تمرکز فصلی: ${meta.nameFa}`;
+    let goalDescription = `هدف‌گذاری متوازن با تکیه بر ارزش «${primaryValueMeta?.labelFa || "رشد"}»`;
+
+    if (score <= 4) {
+      // Urgent revitalization goal
+      if (dom === "health") {
+        goalTitle = "احیای سوخت زیستی و بازگرداندن خواب عمیق";
+        goalDescription = "اولویت فوری: بالا بردن انرژی روزانه از طریق خواب منظم و تحرک سبک";
+      } else if (dom === "career") {
+        goalTitle = "سازمان‌دهی و بازسازی ثبات کاری";
+        goalDescription = "پاکسازی تعهدات معوق و ایجاد روال تحویل شفاف پروژه‌ها";
+      } else if (dom === "mind") {
+        goalTitle = "کاهش استرس حاد و بازیابی آرامش ذهن";
+        goalDescription = "کاهش بار روانی از طریق چک‌این روزانه و رهایی از نشخوار فکری";
+      } else if (dom === "finance") {
+        goalTitle = "ایجاد شفافیت و کنترل کامل هزینه‌های ماهانه";
+        goalDescription = "ثبت شفاف مخارج و مهار خریدهای ناخواسته";
+      } else if (dom === "relationships") {
+        goalTitle = "احیای کیفیت وقت‌گذرانی با عزیزان";
+        goalDescription = "تخصیص زمان بدون گوشی برای خانواده و دوستان صمیمی";
+      } else if (dom === "growth") {
+        goalTitle = "بازگشت به یادگیری منظم با روزی ۱۰ دقیقه";
+        goalDescription = "آغاز مطالعه یک کتاب اثرگذار بدون کمال‌گرایی";
+      }
+    } else {
+      if (dom === "career") {
+        if (role === "freelancer") goalTitle = "توسعه مشتریان باکیفیت و تحویل بی‌نقص پروژه‌ها";
+        else if (role === "corporate") goalTitle = "دستیابی برجسته به اهداف فصلی تیم (OKRs)";
+        else if (role === "student") goalTitle = "تسلط بر سرفصل‌های کلیدی و معدل عالی";
+        else if (role === "creator") goalTitle = "تولید و انتشار منظم محتوا با کیفیت استاندارد";
+        else goalTitle = "پیشرفت هدفمند در وظایف درآمدزا و شغلی";
+      } else if (dom === "health") {
+        goalTitle = "پایداری روتین ورزشی، تغذیه سالم و خواب ۷.۵ ساعته";
+      } else if (dom === "mind") {
+        goalTitle = "تقویت تاب‌آوری درونی، آرامش خاطر و ذهن‌آگاهی";
+      } else if (dom === "growth") {
+        goalTitle = "مطالعه ۳ کتاب کلیدی و یادگیری ۱ مهارت اثرگذار";
+      } else if (dom === "finance") {
+        goalTitle = "انضباط بودجه‌بندی و پس‌انداز هدفمند فصلی";
+      } else if (dom === "relationships") {
+        goalTitle = "تقویت پیوندهای خانوادگی و وقت باکیفیت هفتگی";
+      }
+    }
 
     goals.push({
       id: rootGoalId,
       folderId,
       title: goalTitle,
-      timeHorizon: "quarterly",
-      priority: "high",
+      description: goalDescription,
+      timeHorizon: energyCapacity === "sprint" ? "quarterly" : "quarterly",
+      priority: score <= 4 ? "urgent" : "high",
       color: meta.color,
       icon: meta.icon,
       parentId: null,
+      anchorValue: primaryValue,
     });
 
     tasks.push({
-      title: `طراحی گام‌های اجرایی ماه اول برای «${goalTitle}»`,
-      description: "این هدف را به ۳ گام ملموس بشکن و زمان‌بندی کن.",
+      title: `تعیین ۳ گام عملیاتی برای «${goalTitle}»`,
+      description: "این هدف را به گام‌های هفتگی ملموس بشکن و در پوشه قرار بده.",
       folderId,
       kanbanColumnId: rootGoalId,
-      priority: "medium",
+      priority: score <= 4 ? "urgent" : "medium",
       dueDaysOffset: 1,
     });
   });
 
-  const morningTime = "07:30";
-  const eveningTime = "21:30";
+  // Calculate reminder times based on chronotype
+  const mitReminder =
+    chronotype === "morning" ? "07:30" : chronotype === "afternoon" ? "12:30" : chronotype === "night" ? "11:00" : "09:00";
+  const eveningReminder =
+    chronotype === "night" ? "23:00" : "21:30";
 
+  // Keystone Habit 1: Always add the MIT habit unless in deep recovery
   habits.push({
-    name: "بررسی برنامه و اولویت‌بندی ۳ تسک مهم روز (MIT)",
-    description: "هر روز صبح قبل از چک کردن پیام‌ها، مهم‌ترین ۳ کار روز را مشخص کن.",
+    name: "بررسی برنامه و اولویت‌بندی ۳ کار مهم روز (MIT)",
+    description: "هر روز قبل از درگیر شدن با پیام‌ها و ایمیل‌ها، مهم‌ترین ۳ وظیفه اثرگذار روز را مشخص کن.",
     frequency: "daily",
-    reminder_time: chronotype === "night" ? "11:00" : morningTime,
+    reminder_time: mitReminder,
     icon: "🎯",
     color: "#3b82f6",
+    category: "focus",
   });
 
+  // Keystone Habit 2: Anti-Obstacle protocol
   if (obstacle === "procrastination") {
     habits.push({
       name: "شروع با قانون ۲ دقیقه (ضد اهمال‌کاری)",
-      description: "سخت‌ترین کار را فقط برای ۲ دقیقه شروع کن، بعد تصمیم بگیر ادامه دهی یا نه.",
+      description: "برای شروع سخت‌ترین کار، فقط به اندازه ۲ دقیقه دست‌به‌کار شو؛ بعد تصمیم بگیر ادامه دهی یا نه.",
       frequency: "daily",
-      reminder_time: "09:30",
+      reminder_time: chronotype === "morning" ? "09:00" : "15:00",
       icon: "⚡",
       color: "#f59e0b",
+      category: "mindset",
     });
-  } else if (obstacle === "overwhelm" || obstacle === "work_life_balance") {
+  } else if (obstacle === "overwhelm") {
     habits.push({
-      name: "چک‌این روزانه و پاکسازی ذهن در پایان روز",
-      description: "در برنامه یک Check-in ثبت کن و کارهای باز فردا را بنویس تا با خیال آسوده بخوابی.",
+      name: "شفاف‌سازی ذهنی و پاکسازی اینباکس در پایان روز",
+      description: "کارهای نیمه‌کاره فردا را در اینباکس یادداشت کن تا شب‌ها با ذهنی آرام بخوابی.",
       frequency: "daily",
-      reminder_time: eveningTime,
+      reminder_time: eveningReminder,
       icon: "🌙",
       color: "#8b5cf6",
+      category: "reflection",
     });
   } else if (obstacle === "distraction") {
     habits.push({
-      name: "یک بلوک پومودورو ۲۵ دقیقه‌ای عمیق و بدون گوشی",
-      description: "گوشی در حالت سایلنت، تایمر پومودورو روشن و تمرکز خالص روی ۱ وظیفه.",
+      name: "یک بلوک پومودورو ۲۵ دقیقه‌ای بدون گوشی و نوتیفیکیشن",
+      description: "گوشی در حالت بیصدا، بستن تب‌های اضافه و تمرکز مطلق روی ۱ وظیفه معین.",
       frequency: "daily",
-      reminder_time: chronotype === "morning" ? "08:30" : "15:00",
+      reminder_time: chronotype === "morning" ? "09:30" : "16:00",
       icon: "⏱️",
       color: "#ef4444",
+      category: "focus",
     });
-  } else {
+  } else if (obstacle === "consistency") {
     habits.push({
-      name: "آبیاری باغچه و ثبت پیوستگی در پایان روز",
-      description: "با تکمیل کارهای روزانه قطرات آب دریافت کن و باغچه‌ات را سرسبز نگه دار.",
+      name: "آبیاری باغ رشد و ثبت تیک پیوستگی در پایان روز",
+      description: "با انجام حداقل ۱ کار کوچک، زنجیره پیوستگی (Streak) خود را حفظ کن و قطره آب بگیر.",
       frequency: "daily",
-      reminder_time: eveningTime,
+      reminder_time: eveningReminder,
       icon: "🌱",
       color: "#10b981",
+      category: "gamification",
     });
-  }
-
-  if (domains.includes("health")) {
+  } else {
+    // work_life_balance
     habits.push({
-      name: "۲۰ دقیقه تحرک / پیاده‌روی / کشش بدنی",
-      description: "فعالیت سبک برای رساندن اکسیژن به مغز و بازیابی سطح دوپامین.",
+      name: "آیین پایان کار (Shutdown Ritual) و قطع ارتباط شبانه",
+      description: "در یک ساعت مشخص کار را ببند و مابقی زمان را به استراحت و خانواده اختصاص بده.",
       frequency: "daily",
-      reminder_time: "18:00",
-      icon: "🏃",
-      color: "#10b981",
+      reminder_time: eveningReminder,
+      icon: "⚖️",
+      color: "#ec4899",
+      category: "balance",
     });
   }
 
+  // Keystone Habit 3: Based on Energy Capacity & Health/Mind
+  if (energyCapacity !== "recovery") {
+    if (activeDomains.includes("health")) {
+      habits.push({
+        name: "۲۰ دقیقه تحرک / پیاده‌روی / تمرین بدنی",
+        description: "فعالیت جسمی برای پمپاژ خون به مغز و بازتنظیم دوپامین و نشاط زیستی.",
+        frequency: "daily",
+        reminder_time: chronotype === "morning" ? "07:00" : "18:00",
+        icon: "🏃‍♂️",
+        color: "#10b981",
+        category: "vitality",
+      });
+    } else if (activeDomains.includes("growth")) {
+      habits.push({
+        name: "۱۵ دقیقه مطالعه کتاب یا یادگیری مهارتی",
+        description: "حفظ ریتم یادگیری حتی با خواندن چند صفحه قبل از شروع روز یا پیش از خواب.",
+        frequency: "daily",
+        reminder_time: "21:00",
+        icon: "📖",
+        color: "#f59e0b",
+        category: "learning",
+      });
+    }
+  }
+
+  // Starter Task 1: Inbox zero / brain dump
   tasks.unshift({
-    title: "آشنایی با سیستم جدید و مرتب کردن اینباکس ذهنی",
-    description: "تمام کارهای معلق فعلی را در اینباکس بنویس تا خیالت راحت شود.",
+    title: "آشنایی با سیستم جدید و تخلیه ذهن در اینباکس (Brain Dump)",
+    description: "تمام کارهای معلق در سرت را در اینباکس بنویس تا خیالت راحت شود و ظرفیت مغزت آزاد گردد.",
     priority: "urgent",
     dueDaysOffset: 0,
   });
 
+  // Starter Task 2: Custom goal from user
   if (customGoals && customGoals.trim()) {
     tasks.push({
       title: `اقدام اولیه برای هدف اختصاصی: ${customGoals.trim().slice(0, 50)}`,
       description: customGoals.trim(),
       priority: "high",
       dueDaysOffset: 2,
+    });
+  }
+
+  // Low score rescue task
+  const lowestDomainEntry = Object.entries(wheelRatings).sort((a, b) => a[1] - b[1])[0];
+  if (lowestDomainEntry && lowestDomainEntry[1] <= 4) {
+    const lowKey = lowestDomainEntry[0] as LifeDomainKey;
+    const lowMeta = LIFE_DOMAINS_INFO[lowKey];
+    tasks.push({
+      title: `حرکت اضطراری برای احیای حوزه «${lowMeta?.nameFa || lowKey}»`,
+      description: "یک تصمیم ساده اما قطعی برای جلوگیری از فرسایش این حوزه در این هفته اتخاذ کن.",
+      priority: "high",
+      dueDaysOffset: 1,
     });
   }
 
@@ -536,16 +850,24 @@ export function generateDeterministicBlueprint(answers: UserAnswers): LifeBluepr
     balanced: "سیستم‌عامل جامع رشد متوازن و سلامت ۳۶۰ درجه",
   };
 
+  const capacityNotes: Record<EnergyCapacity, string> = {
+    recovery: "ضرب‌آهنگ بازیابی (Low Friction): تمرکز بر بازگشت تدریجی انرژی بدون فشار اضافه.",
+    steady: "ضرب‌آهنگ پایداری و تعادل: ساخت عادات ریشه‌دار و پیشروی مداوم.",
+    sprint: "ضرب‌آهنگ اسپرینت جهش: تمرکز حداکثری و دستیابی پرسرعت به دستاوردهای فصلی.",
+  };
+
   return {
     title: roleTitles[role] || "نقشه اختصاصی معماری زندگی",
-    summary: `این ساختار بر اساس سبک زیستی ${roleTitles[role]}، غلبه بر چالش «${obstacle}» و ساعت انرژی «${chronotype}» طراحی شده است.`,
+    summary: `این ساختار بر پایه هویت «${roleTitles[role]}»، مهار اصطکاک «${obstacle}»، ریتم زیستی «${chronotype}» و ${capacityNotes[energyCapacity]} مهندسی شده است.`,
     scientificInsight:
-      "با پیاده‌سازی این سیستم، بخش پردازشگر جلوی مغز (Prefrontal Cortex) دیگر درگیر ذخیره‌سازی وظایف معلق نمی‌شود و تمام ظرفیت آن به تمرکز و اقدام عمیق اختصاص می‌یابد.",
+      "با پیاده‌سازی این سیستم، قشر پیش‌پیشانی مغز (Prefrontal Cortex) از بار طاقت‌فرسای به‌خاطرسپاری کارهای معلق آزاد شده و ۱۰۰٪ ظرفیت شناختی شما به اقدام روان و تمرکز عمیق اختصاص می‌یابد.",
+    coreValues,
+    energyCapacity,
     folders,
     goals,
     habits,
     tasks,
-    recommendedWorkflow: role === "freelancer" || role === "creator" ? "kanban" : "list",
+    recommendedWorkflow: role === "freelancer" || role === "creator" ? "kanban" : role === "student" ? "time-blocking" : "list",
   };
 }
 
@@ -555,23 +877,26 @@ export async function enhanceBlueprintWithAI(
 ): Promise<LifeBlueprint> {
   try {
     const prompt = `
-نقش شما: مربی فوق‌العاده باهوش بهره‌وری، عصب‌شناس و روانشناس رفتاری است.
-کاربر به پرسشنامه معماری زندگی پاسخ داده است:
+نقش شما: معمار ارشد سیستم‌های زندگی، روانشناس رفتاری و مربی زبده بهره‌وری فردی است.
+کاربر یک فرایند عمیق معماری زندگی را تکمیل کرده است:
 - نقش زندگی: ${answers.role}
-- مانع اصلی: ${answers.obstacle}
-- حوزه‌های تمرکز: ${answers.domains.join(", ")}
-- ریتم انرژی: ${answers.chronotype}
-- دغدغه یا هدف اختصاصی: ${answers.customGoals || "ذکر نشده"}
+- مانع و اصطکاک اصلی: ${answers.obstacle}
+- حوزه‌های اولویت فصلی: ${answers.domains.join(", ")}
+- ارزیابی چرخ زندگی: ${JSON.stringify(answers.wheelRatings || {})}
+- ارزش‌های هدایت‌گر بنیادین: ${(answers.coreValues || []).join(", ")}
+- ظرفیت انرژی و سرعت اجرا: ${answers.energyCapacity || "steady"}
+- ریتم ساعت اوج: ${answers.chronotype}
+- هدف / چشم‌انداز اختصاصی: ${answers.customGoals || "ذکر نشده"}
 
-ما یک نقشه اولیه قطعی داریم:
+ما یک نقشه ساختاری اولیه داریم:
 ${JSON.stringify(baseBlueprint, null, 2)}
 
-لطفاً این نقشه را تحلیل و شخصی‌سازی کن:
-1. عناوین پوشه‌ها، اهداف و عادات را متناسب با زبان و لحن گرم، انگیزه‌بخش و عمیق فارسی صیقل بزن.
-2. اگر کاربر هدف خاصی در "customGoals" نوشته، حتماً یک پوشه یا هدف بسیار ملموس و تسک هفته اول برای آن خلق کن.
-3. یک بینش علمی-روانشناسی کوتاه، تکان‌دهنده و انگیزاننده برای شخص او بنویس.
+لطفاً این نقشه را با خردمندی و قلم گرم، متین و انگیزه‌بخش فارسی صیقل بده:
+1. عناوین پوشه‌ها، اهداف فصلی و عادات روزانه را کاملاً زنده، دقیق و سازگار با ارزش‌های فرد بنویس.
+2. اگر کاربر در بخش هدف اختصاصی توضیحی نوشته، حتماً یک هدف فصلی ملموس و حداقل ۲ اقدام شفاف برایش بگنجان.
+3. یک بینش علمی و روحیه‌بخش عمیق (حداکثر ۲ جمله) اختصاصاً برای وضعیت او بنویس.
 
-خروجی باید صرفاً یک آبجکت JSON معتبر مطابق ساختار LifeBlueprint باشد (بدون مارک‌داون اضافی).
+خروجی باید صرفاً یک آبجکت JSON معتبر و بدون مارک‌داون اضافی مطابق ساختار LifeBlueprint باشد.
     `;
 
     const res = await callAI("chat" as any, prompt, undefined, undefined, "fa");
@@ -592,6 +917,8 @@ ${JSON.stringify(baseBlueprint, null, 2)}
         goals: parsed.goals && parsed.goals.length > 0 ? parsed.goals : baseBlueprint.goals,
         habits: parsed.habits.length > 0 ? parsed.habits : baseBlueprint.habits,
         tasks: parsed.tasks && parsed.tasks.length > 0 ? parsed.tasks : baseBlueprint.tasks,
+        coreValues: baseBlueprint.coreValues,
+        energyCapacity: baseBlueprint.energyCapacity,
       };
     }
   } catch (err) {
@@ -625,7 +952,12 @@ export async function auditExistingSystem(userId: string): Promise<SystemAuditRe
   };
 
   const domainCounts: Record<LifeDomainKey, number> = {
-    career: 0, health: 0, mind: 0, growth: 0, finance: 0, relationships: 0,
+    career: 0,
+    health: 0,
+    mind: 0,
+    growth: 0,
+    finance: 0,
+    relationships: 0,
   };
 
   tasks.forEach((t) => {
@@ -661,11 +993,11 @@ export async function auditExistingSystem(userId: string): Promise<SystemAuditRe
 
   const unfiledCount = tasks.filter((t) => !t.folder_id).length;
   if (unfiledCount > 8) {
-    gaps.push(`${unfiledCount} تسک بدون پوشه در اینباکس داری که باعث خستگی ذهن می‌شود.`);
-    tips.push("انتقال تسک‌های اینباکس به پوشه‌های معین، احساس کنترل و آرامش بالایی ایجاد می‌کند.");
+    gaps.push(`${unfiledCount} تسک بدون پوشه در اینباکس داری که بار شناختی و خستگی ذهن ایجاد می‌کند.`);
+    tips.push("انتقال وظایف معلق اینباکس به پوشه‌های معین، حس تسلط و آرامش فوق‌العاده‌ای به همراه می‌آورد.");
     healthScore -= 10;
   } else {
-    strengths.push("اینباکس خلوت و سازمان‌یافته با پوشه‌بندی مناسب.");
+    strengths.push("اینباکس سازمان‌یافته با پوشه‌بندی مناسب و شفاف.");
   }
 
   const existingFolderNames = folders.map((f) => f.name.toLowerCase());
@@ -673,16 +1005,16 @@ export async function auditExistingSystem(userId: string): Promise<SystemAuditRe
     gaps.push("هیچ تسک یا پوشه‌ای برای تندرستی، ورزش و خواب ثبت نشده است.");
     addFolders.push({
       id: generateUUID(),
-      name: "🏃 تندرستی و انرژی",
+      name: "🏃‍♂️ تندرستی و انرژی",
       color: "#10b981",
-      icon: "🏃",
-      description: "حفظ سوخت جسمی برای موفقیت در اهداف کاری",
+      icon: "🏃‍♂️",
+      description: "حفظ سوخت جسمی و نشاط برای تحقق اهداف کاری و فردی",
     });
     addHabits.push({
       name: "۲۰ دقیقه پیاده‌روی یا ورزش سبک روزانه",
       frequency: "daily",
       reminder_time: "18:30",
-      icon: "🏃",
+      icon: "🏃‍♂️",
       color: "#10b981",
     });
   }
@@ -694,7 +1026,7 @@ export async function auditExistingSystem(userId: string): Promise<SystemAuditRe
       name: "📚 یادگیری و مطالعه",
       color: "#f59e0b",
       icon: "📚",
-      description: "کتاب‌خوانی و ارتقای مهارت‌های فردی",
+      description: "کتاب‌خوانی و ارتقای مهارت‌های کاربردی فردی",
     });
     addHabits.push({
       name: "۱۵ دقیقه مطالعه کتاب قبل از خواب",
@@ -750,7 +1082,7 @@ export async function deployLifeBlueprint(
 
   const folderIdMap = new Map<string, string>();
 
-  // 1. Insert Folders
+  // 1. Insert Folders into Firestore
   for (const f of blueprint.folders) {
     if (selectedFolderIds && !selectedFolderIds.has(f.id)) continue;
     const { data } = await firebaseStore
@@ -769,12 +1101,14 @@ export async function deployLifeBlueprint(
     }
   }
 
-  // 2. Insert Kanban Goals
+  // 2. Insert Kanban Goals & ACT Mind Goals
   for (const g of blueprint.goals) {
     const realFolderId = folderIdMap.get(g.folderId);
     if (!realFolderId) continue;
+
+    const goalId = generateUUID();
     const newGoal: GoalKanban = {
-      id: generateUUID(),
+      id: goalId,
       title: g.title,
       description: g.description,
       parentId: null,
@@ -785,15 +1119,45 @@ export async function deployLifeBlueprint(
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+
+    // Store in kanban storage
     const storageKey = `arshnaz_kanban_goals_v3_${realFolderId}`;
     try {
       const raw = localStorage.getItem(storageKey);
       const existing: GoalKanban[] = raw ? JSON.parse(raw) : [];
       localStorage.setItem(storageKey, JSON.stringify([...existing, newGoal]));
     } catch {}
+
+    // Also sync to Mind Goals (ACT)
+    try {
+      await upsertMindGoal(userId, {
+        id: goalId,
+        user_id: userId,
+        domain: g.folderId,
+        text: g.title,
+        horizon: "month",
+        created_at: new Date().toISOString(),
+      });
+    } catch {}
   }
 
-  // 3. Insert Habits
+  // 3. Sync Mind Values (ACT)
+  if (blueprint.coreValues && blueprint.coreValues.length > 0) {
+    try {
+      const valuesMap: Record<string, any> = {};
+      blueprint.coreValues.forEach((valKey) => {
+        const meta = CORE_VALUES_LIST.find((v) => v.key === valKey);
+        valuesMap[valKey] = {
+          importance: 9,
+          consistency: 7,
+          value: meta?.descFa || meta?.labelFa || valKey,
+        };
+      });
+      await saveMindValues(userId, valuesMap);
+    } catch {}
+  }
+
+  // 4. Insert Habits into Firestore
   for (const h of blueprint.habits) {
     if (selectedHabitNames && !selectedHabitNames.has(h.name)) continue;
     const { error } = await firebaseStore.from("habits").insert({
@@ -807,7 +1171,7 @@ export async function deployLifeBlueprint(
     if (!error) habitsCount++;
   }
 
-  // 4. Insert Tasks
+  // 5. Insert Tasks into Firestore
   for (const t of blueprint.tasks) {
     if (selectedTaskTitles && !selectedTaskTitles.has(t.title)) continue;
     const realFolderId = t.folderId ? folderIdMap.get(t.folderId) || null : null;
@@ -825,9 +1189,12 @@ export async function deployLifeBlueprint(
     if (!error) tasksCount++;
   }
 
+  // 6. Dispatch events
   window.dispatchEvent(new Event("tasks-changed"));
   window.dispatchEvent(new Event("habits-changed"));
   window.dispatchEvent(new Event("folders-changed"));
+  window.dispatchEvent(new Event("goals-changed"));
+  window.dispatchEvent(new Event("mind-values-changed"));
 
   return { foldersCount, habitsCount, tasksCount };
 }

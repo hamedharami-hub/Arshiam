@@ -125,7 +125,7 @@ export default {
     themeLight: "روشن",
     themeDark: "تیره",
     themeSystem: "سیستم",
-    themeTickTick: "TickTick (روشن)",
+    themeTickTick: "مینیمال (روشن)",
     themeArshnaz: "ARSHNAZ (روشن)",
     themeArshnazDark: "ARSHNAZ (تیره)",
     aiSettings: "تنظیمات هوش مصنوعی",

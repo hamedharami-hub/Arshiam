@@ -42,7 +42,7 @@ export const SIDEBAR_QUICK_LINK_OPTIONS: SidebarQuickLink[] = [
   // 3. Grow (رشد)
   { url: "/app/life-architect", labelFa: "معمار زندگی", labelEn: "Life Architect", group: "grow" },
   { url: "/app/garden", labelFa: "باغ رشد", labelEn: "Garden", group: "grow" },
-  { url: "/app/habits", labelFa: "عادت‌ها", labelEn: "Habits", group: "grow" },
+
   { url: "/app/notes", labelFa: "نوت‌ها", labelEn: "Notes", group: "grow" },
   { url: "/app/interactive-study", labelFa: "استودیوی مطالعه تعاملی", labelEn: "Interactive Study Studio", group: "grow" },
   { url: "/app/pharmacy-products", labelFa: "فهرست محصولات دارویی", labelEn: "Pharmacy Products", group: "grow" },
@@ -67,7 +67,7 @@ export const DEFAULT_QUICK_LINKS: string[] = [
   "/app/today",
   "/app/mind",
   "/app/notes",
-  "/app/habits",
+
   "/app/calendar",
   "/app/inbox",
   "/app/next7",

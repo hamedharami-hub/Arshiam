@@ -9,9 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Sparkles, Save, RefreshCw, ChevronLeft, ChevronRight, Loader2, FolderPlus, Tag as TagIcon, ListTodo } from "lucide-react";
-import { ABOUT_SECTIONS, loadAboutMe, saveAboutMe, type AboutMeRow, type AboutAnswer } from "@/lib/aboutMe";
+import { Sparkles, Save, RefreshCw, ChevronLeft, ChevronRight, Loader2, FolderPlus, Tag as TagIcon, ListTodo, Bot, Eye, ChevronDown, ChevronUp, Zap } from "lucide-react";
+import { ABOUT_SECTIONS, loadAboutMe, saveAboutMe, formatAboutMeForAI, type AboutMeRow, type AboutAnswer } from "@/lib/aboutMe";
+import { isAIPersonalizationOptedIn, setAIPersonalizationOptedIn } from "@/lib/aiSettings";
 import { useBilingual } from "@/hooks/useBilingual";
 import { getFeatureCapability, isFeatureEnabled } from "@/lib/capabilities";
 import { callAI } from "@/lib/ai";
@@ -26,6 +28,10 @@ export default function AboutMeView() {
   const [mode, setMode] = useState<"wizard" | "review">("wizard");
   const [busy, setBusy] = useState(false);
   const [applying, setApplying] = useState<string | null>(null);
+  const [personalizationActive, setPersonalizationActive] = useState<boolean>(() => isAIPersonalizationOptedIn());
+  const [aiPreviewOpen, setAiPreviewOpen] = useState(false);
+  const [testFeedback, setTestFeedback] = useState<string | null>(null);
+  const [testingAI, setTestingAI] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -34,7 +40,9 @@ export default function AboutMeView() {
         setRow(r);
         setAnswers(r.answers || {});
         setFreeText(r.free_text || "");
-        if (r.ai_analysis) setMode("review");
+        if (r.ai_analysis || (r.answers && Object.keys(r.answers).length > 2)) {
+          setMode("review");
+        }
       }
     });
   }, [user]);
@@ -138,10 +146,32 @@ export default function AboutMeView() {
     else toast.success(T("تسک ساخته شد", "Task created"));
   };
 
+  const testAIPersonalization = async () => {
+    if (!user) return;
+    setTestingAI(true);
+    setTestFeedback(null);
+    try {
+      const prompt = isEn
+        ? "Based on my About Me profile (especially my main goal, peak energy time, and current blockers), what is one high-impact, low-friction piece of advice or milestone you recommend for me today?"
+        : "بر اساس پروفایل «درباره من» من (به‌ویژه هدف اصلی، زمان اوج انرژی و موانعی که دارم)، یک پیشنهاد یا گام کلیدی کم‌اصطکاک و اثربخش برای امروز به من بگو.";
+      const res = await callAI("chat", prompt, undefined, undefined, isEn ? "en" : "fa");
+      if (res?.text) {
+        setTestFeedback(res.text);
+        toast.success(T("پاسخ هوشمند با موفقیت تولید شد ✨", "Personalized response generated ✨"));
+      }
+    } catch (e: any) {
+      toast.error(e.message || T("خطا در ارتباط با هوش مصنوعی", "Error communicating with AI"));
+    } finally {
+      setTestingAI(false);
+    }
+  };
+
+  const formattedProfilePoints = formatAboutMeForAI(row, isEn ? "en" : "fa");
+
   // ----- Render -----
-  if (mode === "review" && row?.ai_analysis) {
-    const a = row.ai_analysis;
-    const s = row.ai_suggestions;
+  if (mode === "review" && (row?.ai_analysis || (row?.answers && Object.keys(row.answers).length > 0))) {
+    const a = row?.ai_analysis;
+    const s = row?.ai_suggestions;
     return (
       <div dir={isEn ? "ltr" : "rtl"} className="p-4 md:p-6 max-w-3xl mx-auto space-y-5 page-enter">
         <div className="flex items-center justify-between">
@@ -168,10 +198,127 @@ export default function AboutMeView() {
           </span>
         </div>
 
-        <Card className="p-5 space-y-3">
-          <h2 className="font-semibold">📋 {T("خلاصه", "Summary")}</h2>
-          <p className="text-sm leading-7 text-foreground">{a.summary}</p>
+        {/* AI Alignment & Decision Support Hub */}
+        <Card className="p-5 border-primary/30 bg-gradient-to-br from-primary/5 via-card to-card space-y-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/40">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Bot className="w-5 h-5 text-primary" />
+                <h2 className="font-semibold text-base">
+                  {T("اتصال به تصمیم‌گیری و همراهی هوش مصنوعی", "AI Alignment & Decision-Making Integration")}
+                </h2>
+                <Badge variant={personalizationActive ? "default" : "outline"} className="text-[11px] gap-1">
+                  {personalizationActive ? (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      {T("متصل و فعال", "Connected & Active")}
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-muted-foreground" />
+                      {T("غیرفعال (حریم خصوصی)", "Inactive (Private)")}
+                    </>
+                  )}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {T(
+                  "وقتی این گزینه فعال باشد، پاسخ‌های شما (شغل، هدف ۶-۱۲ ماهه، زمان اوج انرژی، موانع و ارزش‌ها) در چت، مربی‌گری تسک‌ها، برنامه‌ریزی روزانه و بخش ذهن لحاظ می‌شوند تا مشاوره‌ها کاملاً مختص شما باشد.",
+                  "When active, your answers (career, 6-12M goal, energy peak, blockers, and values) inform the AI across Chat, Task Coaching, Daily Planning, and Mind tools for tailored advice."
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+              <span className="text-xs font-medium text-muted-foreground">
+                {personalizationActive ? T("شخصی‌سازی فعال", "Personalized") : T("بدون شخصی‌سازی", "Standard")}
+              </span>
+              <Switch
+                checked={personalizationActive}
+                onCheckedChange={(checked) => {
+                  setPersonalizationActive(checked);
+                  setAIPersonalizationOptedIn(checked);
+                  toast.success(
+                    checked
+                      ? T("شخصی‌سازی هوش مصنوعی با پروفایل شما فعال شد ✨", "AI personalization enabled with your profile ✨")
+                      : T("شخصی‌سازی هوش مصنوعی غیرفعال شد", "AI personalization disabled")
+                  );
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Collapsible AI Knowledge Transparency */}
+          <div className="space-y-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setAiPreviewOpen(!aiPreviewOpen)}
+              className="w-full justify-between text-xs text-muted-foreground hover:text-foreground h-8 px-2"
+            >
+              <span className="flex items-center gap-1.5">
+                <Eye className="w-3.5 h-3.5 text-primary" />
+                {T("مشاهده نحوه درک هوش مصنوعی از شما (پیش‌نمایش داده‌های متصل)", "View How the AI Perceives Your Profile (Connected Context)")}
+              </span>
+              {aiPreviewOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </Button>
+
+            {aiPreviewOpen && (
+              <div className="p-3 rounded-lg border border-border/50 bg-muted/20 text-xs space-y-2 leading-relaxed animate-in fade-in-50 duration-200">
+                {formattedProfilePoints.length === 0 ? (
+                  <p className="text-muted-foreground italic">
+                    {T("هنوز پاسخی ثبت نشده است. با ویرایش پاسخ‌ها، اطلاعات خود را وارد کنید.", "No answers recorded yet. Fill out the questionnaire to populate your profile.")}
+                  </p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {formattedProfilePoints.map((pt, idx) => (
+                      <li key={idx} className="flex items-start gap-1.5 text-foreground/90">
+                        <span>•</span>
+                        <span>{pt}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Quick AI Test Action */}
+          <div className="pt-2 border-t border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span>
+                {T("می‌توانی فوراً ببینی هوش مصنوعی بر اساس اهداف و ریتم انرژی تو چه پیشنهادی می‌دهد:", "See how the AI formulates advice based on your goals and energy rhythm:")}
+              </span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={testingAI || !personalizationActive || formattedProfilePoints.length === 0}
+              onClick={testAIPersonalization}
+              className="gap-1.5 text-xs h-8 shrink-0"
+            >
+              {testingAI ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-primary" />}
+              {T("دریافت مشورت هوشمند برای اهدافم", "Get Tailored AI Coaching")}
+            </Button>
+          </div>
+
+          {testFeedback && (
+            <div className="p-3.5 rounded-lg border border-primary/30 bg-primary/5 space-y-2 animate-in fade-in-50">
+              <div className="flex items-center gap-1.5 font-medium text-xs text-primary">
+                <Bot className="w-4 h-4" />
+                {T("پاسخ کالیبره‌شده هوش مصنوعی بر اساس پروفایل شما:", "AI Calibrated Response Based on Your Profile:")}
+              </div>
+              <p className="text-xs leading-relaxed text-foreground whitespace-pre-line">{testFeedback}</p>
+            </div>
+          )}
         </Card>
+
+        {a ? (
+          <>
+            <Card className="p-5 space-y-3">
+              <h2 className="font-semibold">📋 {T("خلاصه", "Summary")}</h2>
+              <p className="text-sm leading-7 text-foreground">{a.summary}</p>
+            </Card>
 
         {a.themes && a.themes.length > 0 && (
           <Card className="p-5 space-y-3">
@@ -251,6 +398,21 @@ export default function AboutMeView() {
             </div>
           </Card>
         )}
+          </>
+        ) : (
+          <Card className="p-5 text-center space-y-3 border-dashed border-primary/30">
+            <p className="text-sm text-muted-foreground">
+              {T(
+                "پاسخ‌های شما ذخیره شده‌اند و هوش مصنوعی هم‌اکنون به آن‌ها متصل است! برای دریافت ساختار تم‌ها، نقاط قوت و پیشنهادهای تسک/فولدر، تحلیل هوشمند را اجرا کنید:",
+                "Your answers are saved and the AI is connected! To generate structured themes, strengths, and starter tasks, run AI analysis:"
+              )}
+            </p>
+            <Button onClick={analyze} disabled={busy} className="gap-1.5">
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              {T("شروع تحلیل هوشمند با هوش مصنوعی", "Generate AI Themes & Suggestions")}
+            </Button>
+          </Card>
+        )}
 
         <p className="text-xs text-muted-foreground text-center pt-2">
           {T("هر زمان خواستی، با «ویرایش پاسخ‌ها» جواب‌ها رو عوض کن و دوباره تحلیل بگیر.", "You can edit your answers anytime and re-analyze to get updated insights.")}
@@ -271,9 +433,16 @@ export default function AboutMeView() {
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Sparkles className="w-6 h-6 text-primary" /> {T("درباره من", "About Me")}
         </h1>
-        <span className="text-xs text-muted-foreground">
-          {isEn ? `Step ${step + 1} of ${totalSteps}` : `گام ${step + 1} از ${totalSteps}`}
-        </span>
+        <div className="flex items-center gap-2">
+          {(row?.ai_analysis || (row?.answers && Object.keys(row.answers).length > 0)) && (
+            <Button variant="ghost" size="sm" onClick={() => setMode("review")} className="text-xs">
+              👁️ {T("مشاهده مشخصات", "View Profile")}
+            </Button>
+          )}
+          <span className="text-xs text-muted-foreground">
+            {isEn ? `Step ${step + 1} of ${totalSteps}` : `گام ${step + 1} از ${totalSteps}`}
+          </span>
+        </div>
       </div>
 
       <div className="h-1.5 bg-muted rounded-full overflow-hidden">

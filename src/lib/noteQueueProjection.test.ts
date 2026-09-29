@@ -47,4 +47,21 @@ describe("projectQueuedNotes", () => {
 
     expect(projectQueuedNotes([cloudNote], [op], "user-1")).toEqual([cloudNote]);
   });
+
+  it("accurately projects folder_id and tag_ids mutations offline", () => {
+    const baseNote = { ...note, folder_id: null, tag_ids: [] };
+    const ops = [
+      queued({
+        id: 1,
+        op: "update",
+        createdAt: 1,
+        payload: { folder_id: "folder-123", tag_ids: ["tag-a", "tag-b"] },
+        match: { id: note.id },
+      }),
+    ];
+
+    expect(projectQueuedNotes([baseNote], ops, "user-1")).toEqual([
+      { ...note, folder_id: "folder-123", tag_ids: ["tag-a", "tag-b"] },
+    ]);
+  });
 });

@@ -55,7 +55,6 @@ const TasksView = lazy(() => import("./pages/TasksView"));
 const TodayDashboardView = lazy(() => import("./pages/TodayDashboardView"));
 const NotesView = lazy(() => import("./pages/NotesView"));
 const DailyDiaryView = lazy(() => import("./pages/DailyDiaryView"));
-const HabitsView = lazy(() => import("./pages/HabitsView"));
 const GardenView = lazy(() => import("./pages/GardenView"));
 const PomodoroView = lazy(() => import("./pages/PomodoroView"));
 const CalendarView = lazy(() => import("./pages/CalendarView"));
@@ -290,7 +289,7 @@ const App = () => {
                     <Route path="/pomodoro" element={<Navigate to="/app/pomodoro" replace />} />
                     <Route path="/checkin" element={<Navigate to="/app/checkin" replace />} />
                     <Route path="/notes" element={<Navigate to="/app/notes" replace />} />
-                    <Route path="/habits" element={<Navigate to="/app/habits" replace />} />
+                    <Route path="/habits" element={<Navigate to="/app/today" replace />} />
                     <Route path="/calendar" element={<Navigate to="/app/calendar" replace />} />
                     <Route path="/contacts" element={<Navigate to="/app/contacts" replace />} />
                     <Route path="/knowledge" element={<Navigate to="/app/knowledge" replace />} />
@@ -300,6 +299,8 @@ const App = () => {
                     <Route path="/life-architect" element={<Navigate to="/app/life-architect" replace />} />
                     <Route path="/new-task" element={<Navigate to="/app/new/task" replace />} />
                     <Route path="/new/task" element={<Navigate to="/app/new/task" replace />} />
+                    <Route path="/new-note" element={<Navigate to="/app/new/note" replace />} />
+                    <Route path="/new/note" element={<Navigate to="/app/new/note" replace />} />
                     <Route path="/crisis" element={<Navigate to="/app/crisis" replace />} />
                     <Route path="/sos" element={<Navigate to="/app/crisis" replace />} />
 
@@ -324,7 +325,7 @@ const App = () => {
                       <Route path="tag/:id" element={<TasksView scope="tag" />} />
                       <Route path="notes" element={<NotesView />} />
                       <Route path="diary" element={<DailyDiaryView />} />
-                      <Route path="habits" element={<HabitsView />} />
+                      <Route path="habits" element={<Navigate to="/app/today" replace />} />
                       <Route path="garden" element={<GardenView />} />
                       <Route path="pomodoro" element={<PomodoroView />} />
                       <Route path="calendar" element={<CalendarView />} />

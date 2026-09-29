@@ -42,6 +42,8 @@ export interface NoteItem {
   created_at?: string;
   task_id?: string | null;
   folder_id?: string | null;
+  tag_ids?: string[];
+  kind?: string;
 }
 
 export interface HabitItem {

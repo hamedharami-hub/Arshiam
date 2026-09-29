@@ -81,7 +81,11 @@ import {
 import { toast } from "sonner";
 import { filterCardsForDocuments, filterKnowledgeForFolderBranch } from "@/lib/reviewScope";
 import { MindMapStudyPlanner } from "@/components/review/MindMapStudyPlanner";
-import { loadMindMapStudyProgress, mindMapProgressCounts } from "@/lib/mindMapProgress";
+import {
+  loadMindMapStudyProgress,
+  mindMapProgressCounts,
+  subscribeMindMapStudyProgress,
+} from "@/lib/mindMapProgress";
 
 const MIN_MIND_MAP_ZOOM = 0.02;
 const READABLE_OUTLINE_MAX_VIEWPORT = 768;
@@ -815,8 +819,12 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     if (nodeAppearanceState.ownerId !== userId) {
       setNodeAppearanceState({ ownerId: userId, styles: loadKnowledgeMindMapNodeStyles(userId) });
     }
-    setStudyProgress(loadMindMapStudyProgress(userId));
   }, [nodeAppearanceState.ownerId, userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    return subscribeMindMapStudyProgress(userId, setStudyProgress);
+  }, [userId]);
 
   const handleAppearanceChange = useCallback((nodeId: string, patch: Partial<KnowledgeMindMapNodeStyle>) => {
     const currentStyles = nodeAppearanceState.ownerId === userId

@@ -9,6 +9,7 @@ import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { Plus, Trash2, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { BidiText } from "@/components/BidiText";
+import { playCompletionFeedback } from "@/lib/completionFeedback";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -125,6 +126,9 @@ export function TaskStepLists({
   };
 
   const updateStep = async (id: string, patch: Partial<Step>) => {
+    if (patch.completed === true) {
+      playCompletionFeedback();
+    }
     setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
     await firebaseStore.from("task_steps" as any).update(patch).eq("id", id);
   };

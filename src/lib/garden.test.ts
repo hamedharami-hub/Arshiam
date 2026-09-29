@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { awardDailyCheckinDrops, awardWaterDrops, getGardenState, saveGardenState, waterActivePlant } from "./garden";
+import { awardDailyCheckinDrops, awardTaskWatering, awardWaterDrops, getGardenState, saveGardenState, waterActivePlant } from "./garden";
 
 vi.mock("sonner", () => ({
   toast: {
@@ -49,5 +49,29 @@ describe("garden water drops rewards", () => {
     saveGardenState({ ...before, activePlant: { ...before.activePlant!, stage: 5, currentPoints: 100 } });
     expect(waterActivePlant(15).success).toBe(false);
     expect(getGardenState().waterDrops).toBe(before.waterDrops);
+  });
+
+  it("awards water drops and directly waters active plant when completing a task or subtask", () => {
+    const before = getGardenState();
+    const initialDrops = before.waterDrops;
+    const initialPoints = before.activePlant?.currentPoints || 0;
+
+    // Normal task
+    const taskRes = awardTaskWatering("طراحی رابط کاربری", false);
+    expect(taskRes.dropsAwarded).toBe(10);
+    expect(taskRes.pointsAdded).toBe(10);
+
+    const afterTask = getGardenState();
+    expect(afterTask.waterDrops).toBe(initialDrops + 10);
+    expect(afterTask.activePlant?.currentPoints).toBe(initialPoints + 10);
+
+    // Subtask
+    const subRes = awardTaskWatering("آیکون‌های هدر", true);
+    expect(subRes.dropsAwarded).toBe(5);
+    expect(subRes.pointsAdded).toBe(5);
+
+    const afterSub = getGardenState();
+    expect(afterSub.waterDrops).toBe(initialDrops + 15);
+    expect(afterSub.activePlant?.currentPoints).toBe(initialPoints + 15);
   });
 });

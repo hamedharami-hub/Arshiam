@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
 import { getCurrentTaskLocation, taskLocationErrorMessage } from "@/lib/taskLocation";
+import { duplicateTaskCascade } from "@/lib/taskDuplicateService";
 
 type View = "main" | "more" | "activities" | "subtask" | "location";
 
@@ -202,28 +203,22 @@ export default function TaskActionSheet({
 
   const duplicate = async (andOpen = false) => {
     if (!user || !canEdit) return;
-    const { id: _id, user_id: _uid, ...rest } = task;
-    const insert: Partial<Task> = {
-      ...rest,
-      user_id: user.id,
-      title: `${task.title} (copy)`,
-      completed: false,
-      status: "todo",
-    };
     setBusy(true);
+    const toastId = toast.loading(T("در حال کپی کامل تسک…", "Duplicating task with all items…"));
     try {
-      const { data, error } = await firebaseStore.from("tasks").insert(insert as never).select().single();
-      if (error) throw error;
-      const newId = (data as { id: string } | null)?.id;
-      await logTaskActivity(task.id, user.id, "duplicated", { new_task_id: newId });
+      const result = await duplicateTaskCascade(user.id, task, {
+        newTitle: `${task.title} (${T("کپی", "copy")})`,
+      });
+      if (!result.success) throw result.error || new Error(T("خطا", "Error"));
+      const newId = result.newTaskId;
       onRefresh?.();
-      toast.success(T("کپی شد", "Duplicated"));
+      toast.success(T("تسک با تمام زیرتسک‌ها، یادداشت‌ها و فایل‌ها کپی شد", "Task duplicated with all subtasks, notes, and files"), { id: toastId });
       if (andOpen && newId) {
         navigate(`/app/tasks/${newId}`);
       }
       close();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : T("خطا", "Error"));
+      toast.error(e instanceof Error ? e.message : T("خطا", "Error"), { id: toastId });
     } finally {
       setBusy(false);
     }

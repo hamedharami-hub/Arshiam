@@ -8,8 +8,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, Save } from "lucide-react";
 import { HEXACO_ITEMS, scoreHexaco, analyzeHexaco } from "@/lib/assessments/hexaco";
-import { VIA_ITEMS, scoreVia, analyzeVia } from "@/lib/assessments/via";
-import { ECR_ITEMS, scoreEcr, attachmentQuadrant } from "@/lib/assessments/ecr";
+import { VIA_ITEMS, scoreVia, analyzeVia, VIA_LABELS, type ViaStrength } from "@/lib/assessments/via";
+import { ECR_ITEMS, scoreEcr, attachmentQuadrant, QUADRANT_LABELS, type AttachmentQuadrant } from "@/lib/assessments/ecr";
 import { useBilingual } from "@/hooks/useBilingual";
 import { toPersianDigits } from "@/lib/persianDigits";
 import {
@@ -26,7 +26,7 @@ const META: Record<Type, {
   scale: number;
   labels: string[];
   labels_en: string[];
-  items: { id: number; text: string }[];
+  items: { id: number; text: string; text_en?: string }[];
 }> = {
   hexaco: {
     title: "HEXACO-60 — ساختار شخصیت",
@@ -152,16 +152,21 @@ export default function AssessmentRunner() {
 
       await persist(final, total - 1, true);
 
-      // Update mh_profile
+      // Update mh_profile with rich fields and human summary
       const profileUpdate: any = { user_id: user.id };
       if (type === "hexaco") {
         profileUpdate.ai_tone = analysis.ai_tone;
-        profileUpdate.hexaco_pattern = analysis.patterns?.[0] ?? null;
+        profileUpdate.hexaco_pattern = (analysis.archetype?.titleFa || analysis.patterns?.[0]) ?? null;
         profileUpdate.attention_points = analysis.attention_points ?? [];
+        profileUpdate.summary = `شخصیت: ${analysis.archetype?.titleFa || "HEXACO"} (لحن: ${analysis.ai_tone})`;
+        profileUpdate.communication_style = analysis.ai_tone;
       } else if (type === "via") {
         profileUpdate.signature_strengths = analysis.signature ?? [];
+        const top3 = (analysis.signature || []).slice(0, 3).map((s: string) => VIA_LABELS[s as ViaStrength] || s).join("، ");
+        profileUpdate.summary = `نقاط قوت امضا: ${top3} (فضیلت غالب: ${analysis.dominant_virtue || "خرد"})`;
       } else if (type === "ecr") {
         profileUpdate.attachment_quadrant = analysis.quadrant ?? null;
+        profileUpdate.summary = `سبک دلبستگی روابط: ${QUADRANT_LABELS[analysis.quadrant as AttachmentQuadrant] || analysis.quadrant}`;
       }
       await firebaseStore.from("mh_profile").upsert(profileUpdate, { onConflict: "user_id" }).catch(() => {});
 
@@ -200,7 +205,7 @@ export default function AssessmentRunner() {
 
       <Card>
         <CardContent className="p-6 space-y-6">
-          <p className="text-lg leading-relaxed">{item.text}</p>
+          <p className="text-lg leading-relaxed">{isEn && item.text_en ? item.text_en : item.text}</p>
           <div className={`grid gap-2 ${meta.scale === 5 ? "grid-cols-5" : "grid-cols-7"}`}>
             {Array.from({ length: meta.scale }, (_, i) => i + 1).map((n) => (
               <button

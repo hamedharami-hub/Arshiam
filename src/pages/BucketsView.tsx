@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { DndContext, PointerSensor, TouchSensor, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
@@ -17,15 +17,23 @@ import { HorizonFilterBar } from "@/components/horizon/HorizonFilterBar";
 import { HorizonSmartAdd } from "@/components/horizon/HorizonSmartAdd";
 import { TimeSettingsFields } from "@/components/horizon/TimeSettingsFields";
 import { WeatherWeekStrip } from "@/components/weather/WeatherWeekStrip";
+import { TaskDetail } from "@/components/TaskDetail";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toPersianDigits } from "@/lib/jalali";
 import { haptic } from "@/lib/haptics";
 import { filterTasksForVisibility, useShowCompletedTasks } from "@/lib/completedTaskVisibility";
-import type { Task } from "@/lib/taskTypes";
+import { playCompletionFeedback } from "@/lib/completionFeedback";
+import type { Task, ConfirmState } from "@/lib/taskTypes";
 import {
   childPeriods, currentPeriod, enabledHorizons, fieldsForPeriod, fromLocalISO, getTaskTime, getTimeSettings,
   isOverdue, nextPeriod, periodFor, periodLabel, postponeFields, prevPeriod, taskInPeriod, type ChildPeriod, type Horizon, type Period, type TimeSettings,
 } from "@/lib/timeHorizon";
 import { applyFilter, inheritFromFilter, loadFilter, saveFilter, sortTasks, type HorizonFilter } from "@/lib/horizonFilters";
+import { getAllKanbanGoals, type GoalKanban, TIME_HORIZONS } from "@/lib/kanbanGoals";
+import type { FolderItem } from "@/lib/firestoreDataService";
 
 const LEVEL_KEY = "arsh_horizon_level_v1";
 const LEGACY_KIND: Record<string, Horizon> = { morning: "day", noon: "day", afternoon: "day", night: "day", day: "day", week: "week", month: "month", quarter: "quarter", year: "year" };
@@ -72,6 +80,50 @@ export default function BucketsView() {
   const setFilter = (f: HorizonFilter) => { setFilterState(f); saveFilter(effectiveHorizon, f); };
 
   const { tasks, loading, folders, tags, taskTags, setTime, toggleDone, createTask } = useHorizonData(user?.id, settings);
+  const goals = useMemo(() => getAllKanbanGoals(folders, user?.id), [folders, user?.id]);
+  const goalMap = useMemo(() => new Map(goals.map((g) => [g.id, g])), [goals]);
+
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTaskHistory, setSelectedTaskHistory] = useState<Task[]>([]);
+  const [confirm, setConfirm] = useState<ConfirmState>(null);
+
+  useEffect(() => {
+    if (!selectedTask) return;
+    const current = tasks.find((item) => item.id === selectedTask.id);
+    if (!current) {
+      setSelectedTask(null);
+      setSelectedTaskHistory([]);
+    } else if (current !== selectedTask) {
+      setSelectedTask(current);
+    }
+  }, [tasks, selectedTask]);
+
+  const handleBackInDrawer = useCallback(() => {
+    setSelectedTaskHistory((prev) => {
+      if (prev.length === 0) {
+        setSelectedTask(null);
+        return [];
+      }
+      const next = [...prev];
+      const popped = next.pop()!;
+      const fresh = tasks.find((item) => item.id === popped.id) || popped;
+      setSelectedTask(fresh);
+      return next;
+    });
+  }, [tasks]);
+
+  const handleOpenParentInDrawer = useCallback((targetTaskId: string) => {
+    const target = tasks.find((item) => item.id === targetTaskId);
+    if (target && selectedTask) {
+      setSelectedTaskHistory((prev) => [...prev, selectedTask]);
+      setSelectedTask(target);
+    }
+  }, [selectedTask, tasks]);
+
+  const handleSelectTask = useCallback((t: Task) => {
+    setSelectedTaskHistory([]);
+    setSelectedTask(t);
+  }, []);
 
   const changeLevel = (h: Horizon) => {
     const from = levels.indexOf(effectiveHorizon);
@@ -87,22 +139,29 @@ export default function BucketsView() {
   const now = new Date();
   const withTime = useMemo(() => tasks.map((t) => ({ t, tf: getTaskTime(t, settings) })).filter((x) => x.tf), [tasks, settings]);
   const filtered = useMemo(() => {
-    const ok = new Set(applyFilter(withTime.map((x) => x.t), filter, taskTags).map((t) => t.id));
+    const ok = new Set(applyFilter(withTime.map((x) => x.t), filter, taskTags, goals).map((t) => t.id));
     return withTime.filter((x) => ok.has(x.t.id));
-  }, [withTime, filter, taskTags]);
+  }, [withTime, filter, taskTags, goals]);
 
-  const overdue = useMemo(() => sortTasks(filtered.filter((x) => isOverdue(x.t, settings, now)).map((x) => x.t), filter.sort), [filtered, settings, filter.sort]); // eslint-disable-line react-hooks/exhaustive-deps
+  const isVisibleForCompleted = useCallback((t: Task) => {
+    if (filter.completion === "completed") return t.completed;
+    if (filter.completion === "active") return !t.completed;
+    return showCompletedTasks ? true : !t.completed;
+  }, [filter.completion, showCompletedTasks]);
+
+  const overdueAll = useMemo(() => sortTasks(filtered.filter((x) => isOverdue(x.t, settings, now)).map((x) => x.t), filter.sort), [filtered, settings, filter.sort]); // eslint-disable-line react-hooks/exhaustive-deps
+  const overdue = overdueAll.filter(isVisibleForCompleted);
   const overdueIds = useMemo(() => new Set(overdue.map((t) => t.id)), [overdue]);
 
   const inPeriod = filtered.filter((x) => taskInPeriod(x.tf!, period));
   const children = childPeriods(period, settings);
   const wholePeriodAll = sortTasks(inPeriod.filter((x) => x.tf!.horizon === effectiveHorizon).map((x) => x.t), filter.sort);
-  const wholePeriod = filterTasksForVisibility(wholePeriodAll, showCompletedTasks);
+  const wholePeriod = wholePeriodAll.filter(isVisibleForCompleted);
   const childGroupsAll = children.map((cp) => ({
     cp,
     tasks: sortTasks(filtered.filter((x) => x.tf!.horizon !== effectiveHorizon && taskInPeriod(x.tf!, cp)).map((x) => x.t), filter.sort),
   }));
-  const childGroups = childGroupsAll.map((group) => ({ ...group, visibleTasks: filterTasksForVisibility(group.tasks, showCompletedTasks) }));
+  const childGroups = childGroupsAll.map((group) => ({ ...group, visibleTasks: group.tasks.filter(isVisibleForCompleted) }));
   const progressTasks = [...wholePeriodAll, ...childGroupsAll.flatMap((g) => g.tasks.filter((t) => taskInPeriod(getTaskTime(t, settings)!, period)))];
   const uniqueProgress = [...new Map(progressTasks.map((t) => [t.id, t])).values()];
   const doneCount = uniqueProgress.filter((t) => t.completed).length;
@@ -117,6 +176,13 @@ export default function BucketsView() {
     haptic("medium");
     toast.success(fa ? `${toPersianDigits(n)} تسک به دورهٔ بعد رفت` : `${n} task(s) moved to the next period`);
   };
+
+  const handleToggleTask = useCallback((t: Task) => {
+    if (!t.completed) {
+      playCompletionFeedback();
+    }
+    return toggleDone(t);
+  }, [toggleDone]);
 
   const onCreate = async (inputs: NewTaskInput[]) => {
     let ok = 0;
@@ -176,7 +242,7 @@ export default function BucketsView() {
           )}
         </div>
         {effectiveHorizon === "week" && <WeatherWeekStrip start={period.start} />}
-        <HorizonFilterBar filter={filter} onChange={setFilter} folders={folders} tags={tags} lang={lang} />
+        <HorizonFilterBar filter={filter} onChange={setFilter} folders={folders} tags={tags} goals={goals} lang={lang} tasks={withTime.map((x) => x.t)} />
       </div>
 
       <HorizonSmartAdd period={period} inherited={inheritFromFilter(filter)} settings={settings} folders={folders} tags={tags} lang={lang} onCreate={onCreate} />
@@ -196,7 +262,18 @@ export default function BucketsView() {
                 </Button>
               </div>
               {overdue.map((t) => (
-                <HorizonTaskRow key={t.id} task={t} settings={settings} lang={lang} overdue showPeriod onToggle={() => toggleDone(t)} onPostpone={() => postpone([t])} />
+                <HorizonTaskRow
+                  key={t.id}
+                  task={t}
+                  settings={settings}
+                  lang={lang}
+                  overdue
+                  showPeriod
+                  goal={t.kanban_column_id ? goalMap.get(t.kanban_column_id) : null}
+                  onToggle={() => handleToggleTask(t)}
+                  onPostpone={() => postpone([t])}
+                  onClick={() => handleSelectTask(t)}
+                />
               ))}
             </section>
           )}
@@ -217,7 +294,23 @@ export default function BucketsView() {
                 tasks={wholePeriodAll}
                 visibleTasks={wholePeriod}
                 emptyText={children.length ? (fa ? "تسک کلیِ این دوره اینجا می‌آید" : "Tasks for the whole period go here") : (fa ? "برای این روز تسکی نیست" : "Nothing for this day")}
-                render={(t) => <HorizonTaskRow key={t.id} task={t} settings={settings} lang={lang} overdue={overdueIds.has(t.id)} onToggle={() => toggleDone(t)} onPostpone={() => postpone([t])} />}
+                render={(t) => (
+                  <HorizonTaskRow
+                    key={t.id}
+                    task={t}
+                    settings={settings}
+                    lang={lang}
+                    overdue={overdueIds.has(t.id)}
+                    goal={t.kanban_column_id ? goalMap.get(t.kanban_column_id) : null}
+                    onToggle={() => handleToggleTask(t)}
+                    onPostpone={() => postpone([t])}
+                    onClick={() => handleSelectTask(t)}
+                  />
+                )}
+                folders={folders}
+                goals={goals}
+                isGoalSort={filter.sort === "goal"}
+                lang={lang}
                 fa={fa}
                 testId="horizon-whole-period"
               />
@@ -231,7 +324,24 @@ export default function BucketsView() {
                   tasks={allGroupTasks}
                   visibleTasks={list}
                   emptyText={fa ? "خالی — تسک را اینجا رها کن" : "Empty — drop a task here"}
-                  render={(t) => <HorizonTaskRow key={t.id} task={t} settings={settings} lang={lang} overdue={overdueIds.has(t.id)} showPeriod={getTaskTime(t, settings)?.horizon !== cp.horizon} onToggle={() => toggleDone(t)} onPostpone={() => postpone([t])} />}
+                  render={(t) => (
+                    <HorizonTaskRow
+                      key={t.id}
+                      task={t}
+                      settings={settings}
+                      lang={lang}
+                      overdue={overdueIds.has(t.id)}
+                      showPeriod={getTaskTime(t, settings)?.horizon !== cp.horizon}
+                      goal={t.kanban_column_id ? goalMap.get(t.kanban_column_id) : null}
+                      onToggle={() => handleToggleTask(t)}
+                      onPostpone={() => postpone([t])}
+                      onClick={() => handleSelectTask(t)}
+                    />
+                  )}
+                  folders={folders}
+                  goals={goals}
+                  isGoalSort={filter.sort === "goal"}
+                  lang={lang}
                   fa={fa}
                   testId={`horizon-child-${cp.start}`}
                 />
@@ -240,14 +350,192 @@ export default function BucketsView() {
           </AnimatePresence>
         </DndContext>
       )}
+
+      {selectedTask && (
+        <TaskDetail
+          key={selectedTask.id}
+          task={selectedTask}
+          mode="drawer"
+          onClose={() => {
+            setSelectedTaskHistory([]);
+            setSelectedTask(null);
+          }}
+          onChanged={() => {}}
+          setConfirm={setConfirm}
+          allowDelete
+          onOpenParentTask={handleOpenParentInDrawer}
+          onBack={selectedTaskHistory.length > 0 ? handleBackInDrawer : undefined}
+          hasBackHistory={selectedTaskHistory.length > 0}
+        />
+      )}
+
+      <AlertDialog open={!!confirm} onOpenChange={(v) => !v && setConfirm(null)}>
+        <AlertDialogContent dir={fa ? "rtl" : "ltr"}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirm?.childCount && confirm.childCount > 0
+                ? (fa ? `حذف این تسک و ${confirm.childCount} زیرتسک؟` : `Delete this task and ${confirm.childCount} subtasks?`)
+                : (fa ? "حذف تسک؟" : "Delete task?")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirm?.childCount && confirm.childCount > 0
+                ? (fa
+                    ? `آیا مطمئنی می‌خوای «${confirm?.title || "این تسک"}» و ${confirm.childCount} زیرتسک آن را حذف کنی؟`
+                    : `Are you sure you want to delete "${confirm?.title || "this task"}" and its ${confirm.childCount} subtasks?`)
+                : (fa
+                    ? `آیا مطمئنی می‌خوای «${confirm?.title || ""}» را حذف کنی؟`
+                    : `Are you sure you want to delete "${confirm?.title || ""}"?`)}
+              <span className="block mt-2 text-xs">{fa ? "این عمل قابل بازگشت نیست." : "This action cannot be undone."}</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{fa ? "انصراف" : "Cancel"}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (confirm) await confirm.onConfirm();
+                setConfirm(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {fa ? "حذف" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
-function PeriodSection({ id, period, child, title, tasks, visibleTasks, emptyText, render, fa, testId }: {
-  id: string; period: Period; child?: ChildPeriod; title: string; tasks: Task[]; emptyText: string;
+function GoalBranchedTasks({
+  tasks,
+  folders,
+  goals,
+  render,
+  fa,
+}: {
+  tasks: Task[];
+  folders: FolderItem[];
+  goals: GoalKanban[];
+  render: (t: Task) => React.ReactNode;
+  fa: boolean;
+  lang: "fa" | "en";
+}) {
+  const folderMap = useMemo(() => new Map(folders.map((f) => [f.id, f])), [folders]);
+  const goalMap = useMemo(() => new Map(goals.map((g) => [g.id, g])), [goals]);
+
+  // Group tasks by folder
+  const groupedByFolder = useMemo(() => {
+    const fMap = new Map<string, { folder: FolderItem | null; tasks: Task[] }>();
+    for (const t of tasks) {
+      const fid = t.folder_id || "none";
+      if (!fMap.has(fid)) {
+        fMap.set(fid, {
+          folder: t.folder_id ? folderMap.get(t.folder_id) || null : null,
+          tasks: [],
+        });
+      }
+      fMap.get(fid)!.tasks.push(t);
+    }
+    return Array.from(fMap.values());
+  }, [tasks, folderMap]);
+
+  return (
+    <div className="space-y-4 pt-1">
+      {groupedByFolder.map(({ folder, tasks: fTasks }, fIdx) => {
+        // Under this folder, group by goal and sort goals by time horizon
+        const goalGroups = new Map<string, { goal: GoalKanban | null; tasks: Task[] }>();
+        for (const t of fTasks) {
+          const gid = t.kanban_column_id || "none";
+          if (!goalGroups.has(gid)) {
+            goalGroups.set(gid, {
+              goal: t.kanban_column_id ? goalMap.get(t.kanban_column_id) || null : null,
+              tasks: [],
+            });
+          }
+          goalGroups.get(gid)!.tasks.push(t);
+        }
+
+        const sortedGoalGroups = Array.from(goalGroups.values()).sort((a, b) => {
+          const daysA = a.goal ? TIME_HORIZONS.find((th) => th.id === a.goal?.timeHorizon)?.days ?? 0 : -1;
+          const daysB = b.goal ? TIME_HORIZONS.find((th) => th.id === b.goal?.timeHorizon)?.days ?? 0 : -1;
+          return daysB - daysA;
+        });
+
+        return (
+          <div key={folder?.id || `folder-${fIdx}`} className="space-y-2">
+            {/* Folder Header */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/60 text-xs font-bold text-foreground">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: folder?.color || "#6b7280" }} />
+              <span>{folder?.name || (fa ? "بدون پوشه" : "No Folder")}</span>
+              <span className="text-[10px] text-muted-foreground font-normal">({fTasks.length})</span>
+            </div>
+
+            {/* Folder Branches */}
+            <div className="ms-2 sm:ms-3 ps-3 border-s-2 border-primary/25 space-y-3">
+              {sortedGoalGroups.map(({ goal, tasks: gTasks }, gIdx) => {
+                const horizonMeta = goal ? TIME_HORIZONS.find((th) => th.id === goal.timeHorizon) : null;
+                return (
+                  <div key={goal?.id || `goal-${gIdx}`} className="space-y-1.5">
+                    {/* Goal Header */}
+                    <div className="flex items-center gap-2 text-xs font-semibold py-1.5 px-2.5 rounded-lg bg-card border border-border/70 shadow-2xs">
+                      <span className="text-primary font-mono text-xs font-bold">↳</span>
+                      <span className="text-sm shrink-0">{goal?.icon || "🎯"}</span>
+                      <span className="truncate">{goal?.title || (fa ? "سایر تسک‌ها (بدون هدف)" : "Other Tasks (No Goal)")}</span>
+                      {horizonMeta && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium shrink-0">
+                          {horizonMeta.icon} {fa ? horizonMeta.labelFa : horizonMeta.labelEn}
+                        </span>
+                      )}
+                      <span className="text-[10px] tabular-nums text-muted-foreground ms-auto">
+                        {toPersianDigits(gTasks.filter((t) => t.completed).length)}/{toPersianDigits(gTasks.length)}
+                      </span>
+                    </div>
+
+                    {/* Tasks under this goal */}
+                    <div className="ms-3 sm:ms-4 ps-2.5 border-s-2 border-primary/15 space-y-1">
+                      {gTasks.map(render)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PeriodSection({
+  id,
+  period,
+  child,
+  title,
+  tasks,
+  visibleTasks,
+  emptyText,
+  render,
+  folders,
+  goals,
+  isGoalSort,
+  lang,
+  fa,
+  testId,
+}: {
+  id: string;
+  period: Period;
+  child?: ChildPeriod;
+  title: string;
+  tasks: Task[];
+  emptyText: string;
   visibleTasks: Task[];
-  render: (t: Task) => React.ReactNode; fa: boolean; testId: string;
+  render: (t: Task) => React.ReactNode;
+  folders?: FolderItem[];
+  goals?: GoalKanban[];
+  isGoalSort?: boolean;
+  lang?: "fa" | "en";
+  fa: boolean;
+  testId: string;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id, data: { period: { horizon: period.horizon, start: period.start, end: period.end } } });
   const done = tasks.filter((t) => t.completed).length;
@@ -269,7 +557,22 @@ function PeriodSection({ id, period, child, title, tasks, visibleTasks, emptyTex
           </div>
         )}
       </div>
-      {visibleTasks.length ? <div className="space-y-1.5">{visibleTasks.map(render)}</div> : <p className="text-[11px] text-muted-foreground py-1">{emptyText}</p>}
+      {visibleTasks.length ? (
+        isGoalSort && folders && goals ? (
+          <GoalBranchedTasks
+            tasks={visibleTasks}
+            folders={folders}
+            goals={goals}
+            render={render}
+            fa={fa}
+            lang={lang || "fa"}
+          />
+        ) : (
+          <div className="space-y-1.5">{visibleTasks.map(render)}</div>
+        )
+      ) : (
+        <p className="text-[11px] text-muted-foreground py-1">{emptyText}</p>
+      )}
     </section>
   );
 }

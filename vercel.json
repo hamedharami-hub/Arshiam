@@ -21,6 +21,10 @@
       "destination": "/api/arsh/modules?path=:module/:action"
     },
     {
+      "source": "/api/v1/agent/:path*",
+      "destination": "/api/v1/agent?path=:path*"
+    },
+    {
       "source": "/((?!api/|openapi\\.json|version\\.json).*)",
       "destination": "/index.html"
     }

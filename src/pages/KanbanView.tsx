@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { firebaseStore } from "@/lib/firebaseStore";
+import { upsertTask } from "@/lib/firestoreDataService";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  Target,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -40,8 +42,11 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { PRIORITY_META, type Priority } from "@/lib/priority";
 import { haptic } from "@/lib/haptics";
-import { awardWaterDrops } from "@/lib/garden";
+import { playCompletionFeedback } from "@/lib/completionFeedback";
+import { awardTaskWatering } from "@/lib/garden";
+import { isRecurringTask, advanceRecurringTask } from "@/lib/recurringTaskService";
 import { filterTasksForVisibility, useShowCompletedTasks } from "@/lib/completedTaskVisibility";
+import { getCachedTasks, applyPendingTaskOperations } from "@/features/tasks/taskService";
 import {
   type GoalKanban,
   type TimeHorizon,
@@ -74,14 +79,19 @@ import { CSS } from "@dnd-kit/utilities";
 type Status = "todo" | "in_progress" | "done";
 type Task = {
   id: string;
+  user_id?: string;
   title: string;
   priority: Priority;
-  due_date: string | null;
+  due_date?: string | null;
   status: Status;
   completed: boolean;
+  completed_at?: string | null;
   parent_id: string | null;
   folder_id?: string | null;
   kanban_column_id?: string | null;
+  position?: number;
+  created_at?: string;
+  updated_at?: string;
 };
 
 const COLUMNS: { id: Status; labelFa: string; labelEn: string; icon: any; accent: string }[] = [
@@ -136,21 +146,42 @@ export default function KanbanView() {
     const list = getKanbanGoals(null, user?.id);
     setGoals(list);
     setSelectedTier1Id((prev) => (!prev && list.length > 0 ? list[0].id : prev));
+
+    const handleGoalsUpdated = () => {
+      const updated = getKanbanGoals(null, user?.id);
+      setGoals(updated);
+    };
+    window.addEventListener("arshnaz-goals-updated", handleGoalsUpdated);
+    return () => window.removeEventListener("arshnaz-goals-updated", handleGoalsUpdated);
   }, [user?.id]);
 
-  // Load tasks from firebaseStore
+  // Load tasks from cache / firestore
   const loadTasks = useCallback(async () => {
     if (!user) return;
-    const [parentsRes, subsRes] = await Promise.all([
-      firebaseStore.from("tasks").select("*").eq("user_id", user.id).is("parent_id", null).order("position"),
-      firebaseStore.from("tasks").select("*").eq("user_id", user.id).not("parent_id", "is", null).order("position"),
-    ]);
-    setAllTasks(((parentsRes.data || []) as unknown) as Task[]);
-    setSubtasks(((subsRes.data || []) as unknown) as Task[]);
+    try {
+      let cached = await getCachedTasks(user.id);
+      cached = await applyPendingTaskOperations(cached, user.id);
+      const parents = cached.filter((t) => !t.parent_id);
+      const subs = cached.filter((t) => Boolean(t.parent_id));
+      setAllTasks((parents as unknown) as Task[]);
+      setSubtasks((subs as unknown) as Task[]);
+    } catch {
+      const [parentsRes, subsRes] = await Promise.all([
+        firebaseStore.from("tasks").select("*").eq("user_id", user.id).is("parent_id", null).order("position"),
+        firebaseStore.from("tasks").select("*").eq("user_id", user.id).not("parent_id", "is", null).order("position"),
+      ]);
+      setAllTasks(((parentsRes.data || []) as unknown) as Task[]);
+      setSubtasks(((subsRes.data || []) as unknown) as Task[]);
+    }
   }, [user]);
 
   useEffect(() => {
     loadTasks();
+    const handleTasksChanged = () => {
+      void loadTasks();
+    };
+    window.addEventListener("tasks-changed", handleTasksChanged);
+    return () => window.removeEventListener("tasks-changed", handleTasksChanged);
   }, [loadTasks]);
 
   useEffect(() => {
@@ -174,89 +205,147 @@ export default function KanbanView() {
   // Task Counts per Goal (for badge indicators)
   const taskCountsByGoal = useMemo(() => {
     const map: Record<string, number> = {};
+    const rootGoalId = goals.find((g) => g.parentId === null)?.id || goals[0]?.id;
     allTasks.forEach((t) => {
-      const gid = t.kanban_column_id || t.folder_id;
+      const gid = t.kanban_column_id || rootGoalId;
       if (gid) map[gid] = (map[gid] || 0) + 1;
     });
     return map;
-  }, [allTasks]);
+  }, [allTasks, goals]);
 
   // Filtered tasks for current goal
   const currentGoalTasks = useMemo(() => {
     if (!activeGoalId) return allTasks;
-    // Match tasks assigned to this goal/column or folder
-    const direct = allTasks.filter(
-      (t) => t.kanban_column_id === activeGoalId || t.folder_id === activeGoalId
-    );
-    // If no direct matches and on root goal with "Not Sectioned" selected, show general tasks
-    if (direct.length === 0 && selectedTier2Id === null) {
-      return allTasks.filter((t) => !t.kanban_column_id && !t.folder_id);
-    }
-    return direct;
-  }, [allTasks, activeGoalId, selectedTier2Id]);
+    const isRootGoal =
+      activeGoal?.parentId === null &&
+      (activeGoalId === goals[0]?.id || goals.filter((g) => g.parentId === null).length <= 1);
+    return allTasks.filter((t) => {
+      if (t.kanban_column_id === activeGoalId) return true;
+      if (!t.kanban_column_id && isRootGoal) return true;
+      return false;
+    });
+  }, [allTasks, activeGoalId, activeGoal, goals]);
 
   const incompleteTasks = useMemo(() => currentGoalTasks.filter((t) => !t.completed), [currentGoalTasks]);
   const completedTasks = useMemo(() => currentGoalTasks.filter((t) => t.completed), [currentGoalTasks]);
 
   // Task mutation helpers
   const toggleTask = async (task: Task) => {
-    haptic("light");
+    if (!user) return;
     const newCompleted = !task.completed;
+    if (newCompleted) {
+      playCompletionFeedback();
+    } else {
+      haptic("light");
+    }
+    if (newCompleted && isRecurringTask(task)) {
+      awardTaskWatering(task.title, Boolean(task.parent_id));
+      const res = await advanceRecurringTask(user.id, task, { allKnownTasks: allTasks });
+      if (res.success && res.patch) {
+        setAllTasks((prev) =>
+          prev.map((t) => (t.id === task.id ? ({ ...t, ...res.patch } as Task) : t))
+        );
+        toast.success(
+          T(
+            `نمونه بعدی به ${res.formattedNextDate} منتقل شد 🔁`,
+            `Next instance moved to ${res.formattedNextDate} 🔁`
+          )
+        );
+        return;
+      }
+    }
     const newStatus: Status = newCompleted ? "done" : "todo";
+    const updatedTask: Task = {
+      ...task,
+      completed: newCompleted,
+      status: newStatus,
+      completed_at: newCompleted ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    };
     setAllTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? { ...t, completed: newCompleted, status: newStatus } : t))
+      prev.map((t) => (t.id === task.id ? updatedTask : t))
     );
-    if (newCompleted) awardWaterDrops(10, "تکمیل تسک");
-    const { error } = await firebaseStore
-      .from("tasks")
-      .update({
-        completed: newCompleted,
-        status: newStatus,
-        completed_at: newCompleted ? new Date().toISOString() : null,
-      } as any)
-      .eq("id", task.id);
-    if (error) toast.error(error.message);
+    if (newCompleted) awardTaskWatering(task.title, Boolean(task.parent_id));
+    const ok = await upsertTask(user.id, updatedTask);
+    if (!ok) {
+      setAllTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)));
+      toast.error(T("خطا در تغییر وضعیت تسک", "Failed to update task"));
+    }
   };
 
   const addQuickTask = async (title: string, status: Status = "todo") => {
     if (!title.trim() || !user) return;
     const completed = status === "done";
-    const validColumnId = isValidUUID(activeGoalId) ? activeGoalId : null;
-    const { data, error } = await firebaseStore
-      .from("tasks")
-      .insert({
-        user_id: user.id,
-        title: title.trim(),
-        status,
-        completed,
-        completed_at: completed ? new Date().toISOString() : null,
-        kanban_column_id: validColumnId,
-      } as any)
-      .select()
-      .single();
-    if (error) return toast.error(error.message);
-    if (data) setAllTasks((prev) => [...prev, data as any]);
+    const targetGoalId = activeGoalId || null;
+    const newTask: Task = {
+      id: generateUUID(),
+      user_id: user.id,
+      title: title.trim(),
+      status,
+      completed,
+      completed_at: completed ? new Date().toISOString() : null,
+      due_date: null,
+      kanban_column_id: targetGoalId,
+      priority: "none",
+      position: allTasks.length,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      parent_id: null,
+    };
+
+    setAllTasks((prev) => [...prev, newTask]);
     setQuickTitle("");
-    toast.success("تسک جدید با موفقیت افزوده شد");
+    haptic("success");
+
+    const ok = await upsertTask(user.id, newTask);
+    if (ok) {
+      toast.success(T("تسک جدید با موفقیت افزوده شد", "Task added successfully"));
+      window.dispatchEvent(new Event("tasks-changed"));
+    } else {
+      toast.error(T("خطا در ذخیره تسک", "Failed to save task"));
+    }
   };
 
   const moveTaskColumn = async (taskId: string, newStatus: Status) => {
+    if (!user) return;
     const t = allTasks.find((x) => x.id === taskId);
     if (!t || t.status === newStatus) return;
+    if (newStatus === "done" && isRecurringTask(t)) {
+      awardTaskWatering(t.title, Boolean(t.parent_id));
+      const res = await advanceRecurringTask(user.id, t, { allKnownTasks: allTasks });
+      if (res.success && res.patch) {
+        setAllTasks((prev) =>
+          prev.map((x) => (x.id === taskId ? ({ ...x, ...res.patch } as Task) : x))
+        );
+        toast.success(
+          T(
+            `نمونه بعدی به ${res.formattedNextDate} منتقل شد 🔁`,
+            `Next instance moved to ${res.formattedNextDate} 🔁`
+          )
+        );
+        return;
+      }
+    }
     const completed = newStatus === "done";
+    const updatedTask: Task = {
+      ...t,
+      status: newStatus,
+      completed,
+      completed_at: completed ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    };
     setAllTasks((prev) =>
-      prev.map((x) => (x.id === taskId ? { ...x, status: newStatus, completed } : x))
+      prev.map((x) => (x.id === taskId ? updatedTask : x))
     );
-    if (newStatus === "done" && t.status !== "done") awardWaterDrops(10, "تکمیل تسک");
-    const { error } = await firebaseStore
-      .from("tasks")
-      .update({
-        status: newStatus,
-        completed,
-        completed_at: completed ? new Date().toISOString() : null,
-      } as any)
-      .eq("id", taskId);
-    if (error) toast.error(error.message);
+    if (newStatus === "done" && t.status !== "done") {
+      playCompletionFeedback();
+      awardTaskWatering(t.title, Boolean(t.parent_id));
+    }
+    const ok = await upsertTask(user.id, updatedTask);
+    if (!ok) {
+      setAllTasks((prev) => prev.map((x) => (x.id === taskId ? t : x)));
+      toast.error(T("خطا در جابه‌جایی ستون", "Failed to move task column"));
+    }
   };
 
   const onDragEnd = (e: DragEndEvent) => {
@@ -285,11 +374,12 @@ export default function KanbanView() {
       toast.success("کانبان با موفقیت بروزرسانی شد");
     } else {
       // Add new
+      const rootGoal = goals.find((g) => g.parentId === null) || goals[0];
       const newG: GoalKanban = {
         id: generateUUID(),
-        title: goalData.title || "هدف جدید",
+        title: goalData.title || "زیرمجموعه جدید",
         description: goalData.description,
-        parentId: goalData.parentId || null,
+        parentId: goalData.parentId || rootGoal?.id || null,
         timeHorizon: goalData.timeHorizon || "monthly",
         priority: goalData.priority || "medium",
         color: goalData.color || "#3b82f6",
@@ -298,18 +388,19 @@ export default function KanbanView() {
         updatedAt: new Date().toISOString(),
       };
       nextGoals = [...goals, newG];
-      if (!newG.parentId) {
-        setSelectedTier1Id(newG.id);
-      } else {
-        setSelectedTier2Id(newG.id);
-      }
-      toast.success("کانبان جدید ایجاد شد");
+      setSelectedTier1Id(newG.id);
+      toast.success(T("زیرمجموعه جدید ایجاد شد", "New sub-goal created"));
     }
     setGoals(nextGoals);
     saveKanbanGoals(nextGoals, null, user?.id);
   };
 
   const handleDeleteGoal = (goalId: string) => {
+    const target = goals.find((g) => g.id === goalId);
+    if (!target || target.parentId === null) {
+      toast.error(T("هدف اصلی کانبان قابل حذف نیست", "Primary goal cannot be deleted"));
+      return;
+    }
     const deletedIds = new Set([goalId]);
     let changed = true;
     while (changed) {
@@ -324,12 +415,10 @@ export default function KanbanView() {
     const next = goals.filter((g) => !deletedIds.has(g.id));
     setGoals(next);
     saveKanbanGoals(next, null, user?.id);
-    if (selectedTier1Id && deletedIds.has(selectedTier1Id)) {
-      setSelectedTier1Id(next.find((g) => g.parentId === null)?.id || null);
-    }
-    if (selectedTier2Id && deletedIds.has(selectedTier2Id)) setSelectedTier2Id(null);
-    if (selectedTier3Id && deletedIds.has(selectedTier3Id)) setSelectedTier3Id(null);
-    toast.success("هدف با موفقیت حذف شد");
+    setSelectedTier1Id(next.find((g) => g.parentId === null)?.id || next[0].id);
+    setSelectedTier2Id(null);
+    setSelectedTier3Id(null);
+    toast.success(T("زیرمجموعه با موفقیت حذف شد", "Sub-goal deleted successfully"));
   };
 
   const openEditForGoal = (g: GoalKanban) => {
@@ -340,7 +429,8 @@ export default function KanbanView() {
 
   const openAddNewGoal = (parentId: string | null = null) => {
     setEditingGoal(null);
-    setNewGoalParentId(parentId);
+    const rootGoal = goals.find((g) => g.parentId === null) || goals[0];
+    setNewGoalParentId(parentId || rootGoal?.id || null);
     setEditorOpen(true);
   };
 
@@ -353,12 +443,15 @@ export default function KanbanView() {
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onDoubleClick={() => activeGoal && openEditForGoal(activeGoal)}
-            className="flex items-center gap-2 text-xl md:text-2xl font-black text-foreground hover:text-primary transition-colors text-start"
-            title={T("دوبار کلیک یا تاچ برای ویرایش این هدف", "Double click or tap to edit this goal")}
+            onClick={() => activeGoal && openEditForGoal(activeGoal)}
+            className="flex items-center gap-2 text-xl md:text-2xl font-black text-foreground hover:text-primary transition-colors text-start group cursor-pointer"
+            title={T("ویرایش نام و تنظیمات این هدف", "Edit name and settings of this goal")}
           >
             <span>{activeGoal?.icon || "🎯"}</span>
-            <span>{activeGoal?.title || T("آموزش و خودآگاهی", "Education & Self-awareness")}</span>
+            <span>{activeGoal?.title || T("هدف اصلی", "Main Goal")}</span>
+            <span className="p-1 rounded-lg bg-muted/60 group-hover:bg-primary/10 group-hover:text-primary transition">
+              <Edit2 className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
+            </span>
           </button>
 
           {activeGoal && (
@@ -367,6 +460,17 @@ export default function KanbanView() {
                 {isEn
                   ? TIME_HORIZONS.find((th) => th.id === activeGoal.timeHorizon)?.labelEn || "Monthly"
                   : TIME_HORIZONS.find((th) => th.id === activeGoal.timeHorizon)?.labelFa || "ماهانه"}
+              </span>
+            </Badge>
+          )}
+
+          {activeGoal?.priority && activeGoal.priority !== "none" && (
+            <Badge variant="secondary" className="text-[11px] gap-1">
+              <span>{GOAL_PRIORITIES.find((p) => p.id === activeGoal.priority)?.badge}</span>
+              <span>
+                {isEn
+                  ? GOAL_PRIORITIES.find((p) => p.id === activeGoal.priority)?.labelEn
+                  : GOAL_PRIORITIES.find((p) => p.id === activeGoal.priority)?.labelFa}
               </span>
             </Badge>
           )}
@@ -430,8 +534,8 @@ export default function KanbanView() {
               <DropdownMenuItem onClick={() => activeGoal && openEditForGoal(activeGoal)} className="gap-2">
                 <Edit2 className="w-3.5 h-3.5 text-muted-foreground" /> {T("ویرایش هدف فعلی", "Edit current goal")}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openAddNewGoal(null)} className="gap-2">
-                <Plus className="w-3.5 h-3.5 text-emerald-500" /> {T("ایجاد هدف اصلی جدید", "Create new primary goal")}
+              <DropdownMenuItem onClick={() => openAddNewGoal(activeGoalId || goals[0]?.id)} className="gap-2">
+                <Plus className="w-3.5 h-3.5 text-emerald-500" /> {T("افزودن زیرمجموعه جدید", "Add new sub-goal")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -452,13 +556,17 @@ export default function KanbanView() {
                   <DropdownMenuItem onClick={() => openAddNewGoal(activeGoal.id)} className="gap-2">
                     <Plus className="w-3.5 h-3.5 text-primary" /> {T("افزودن زیرمجموعه به این هدف", "Add sub-goal")}
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => handleDeleteGoal(activeGoal.id)}
-                    className="gap-2 text-destructive focus:bg-destructive/10"
-                  >
-                    {T("حذف این کانبان", "Delete this Kanban")}
-                  </DropdownMenuItem>
+                  {activeGoal.parentId !== null && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => handleDeleteGoal(activeGoal.id)}
+                        className="gap-2 text-destructive focus:bg-destructive/10"
+                      >
+                        {T("حذف این زیرمجموعه", "Delete this sub-goal")}
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </>
               )}
             </DropdownMenuContent>
@@ -482,7 +590,8 @@ export default function KanbanView() {
           onSelectTimeFilter={(h) => setTimeFilter(h)}
           onSelectPriorityFilter={(p) => setPriorityFilter(p)}
           onDoubleTapGoal={openEditForGoal}
-          onAddNewGoal={() => openAddNewGoal(null)}
+          onEditGoal={openEditForGoal}
+          onAddNewGoal={() => openAddNewGoal(activeGoalId || goals[0]?.id)}
           taskCountsByGoal={taskCountsByGoal}
         />
       </div>
@@ -508,9 +617,23 @@ export default function KanbanView() {
               onClick={() => addQuickTask(quickTitle)}
               disabled={!quickTitle.trim()}
               className="h-11 px-4 rounded-2xl bg-primary text-primary-foreground font-bold shadow-xs shrink-0"
-              title={T("افزودن تسک", "Add task")}
+              title={T("افزودن تسک سریع", "Add quick task")}
             >
               <Plus className="w-4 h-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const params = new URLSearchParams();
+                if (activeGoalId) params.set("kanban_goal_id", activeGoalId);
+                navigate(`/app/new/task?${params.toString()}`);
+              }}
+              className="h-11 px-3 sm:px-4 rounded-2xl border-border/70 gap-1.5 text-xs font-semibold shrink-0 bg-card hover:bg-muted"
+              title={T("صفحه کامل ایجاد تسک", "Full task creation form")}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{T("فرم کامل", "Full Form")}</span>
             </Button>
           </div>
 
@@ -662,7 +785,14 @@ export default function KanbanView() {
                     addQuickTask(quickColumnTitle[col.id], col.id);
                     setQuickColumnTitle((s) => ({ ...s, [col.id]: "" }));
                   }}
+                  onOpenFullForm={() => {
+                    const params = new URLSearchParams();
+                    if (activeGoalId) params.set("kanban_goal_id", activeGoalId);
+                    params.set("status", col.id);
+                    navigate(`/app/new/task?${params.toString()}`);
+                  }}
                   onMove={moveTaskColumn}
+                  onToggle={toggleTask}
                 />
               );
             })}
@@ -673,15 +803,16 @@ export default function KanbanView() {
         </DndContext>
       )}
 
-      {/* Floating Action Button (+) matching screenshot bottom right */}
+      {/* Floating Action Button (+) opens full form with goal preselected */}
       <button
         type="button"
         onClick={() => {
-          if (quickTitle.trim()) addQuickTask(quickTitle);
-          else quickInputRef.current?.focus();
+          const params = new URLSearchParams();
+          if (activeGoalId) params.set("kanban_goal_id", activeGoalId);
+          navigate(`/app/new/task?${params.toString()}`);
         }}
         className="fixed bottom-6 start-6 md:bottom-8 md:start-8 w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white flex items-center justify-center shadow-xl shadow-blue-500/30 transition-transform z-30"
-        title={T("افزودن تسک سریع", "Quick add task")}
+        title={T("ایجاد تسک جدید (فرم کامل)", "New task (full form)")}
       >
         <Plus className="w-7 h-7 stroke-[2.5]" />
       </button>
@@ -706,14 +837,18 @@ function KanbanColumn({
   newValue,
   setNewValue,
   onAdd,
+  onOpenFullForm,
   onMove,
+  onToggle,
 }: {
   column: (typeof COLUMNS)[number];
   tasks: Task[];
   newValue: string;
   setNewValue: (v: string) => void;
   onAdd: () => void;
+  onOpenFullForm?: () => void;
   onMove: (taskId: string, newStatus: Status) => void;
+  onToggle?: (task: Task) => void;
 }) {
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
@@ -749,9 +884,14 @@ function KanbanColumn({
           placeholder={T("+ کارت جدید", "+ New card")}
           className="h-8 text-xs bg-background rounded-xl"
         />
-        <Button size="icon" variant="ghost" onClick={onAdd} className="h-8 w-8 rounded-xl">
+        <Button size="icon" variant="ghost" onClick={onAdd} className="h-8 w-8 rounded-xl" title={T("افزودن سریع", "Quick add")}>
           <Plus className="w-4 h-4" />
         </Button>
+        {onOpenFullForm && (
+          <Button size="icon" variant="ghost" onClick={onOpenFullForm} className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground" title={T("فرم کامل", "Full form")}>
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+          </Button>
+        )}
       </div>
 
       <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
@@ -763,6 +903,7 @@ function KanbanColumn({
               prevCol={prevCol}
               nextCol={nextCol}
               onMove={onMove}
+              onToggle={onToggle}
             />
           ))}
           {tasks.length === 0 && (
@@ -781,15 +922,14 @@ function SortableTaskCard({
   prevCol,
   nextCol,
   onMove,
+  onToggle,
 }: {
   task: Task;
   prevCol?: Status;
   nextCol?: Status;
   onMove: (taskId: string, newStatus: Status) => void;
+  onToggle?: (task: Task) => void;
 }) {
-  const { i18n } = useTranslation();
-  const isEn = (i18n.language || "fa").startsWith("en");
-  const T = (fa: string, en: string) => (isEn ? en : fa);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
   });
@@ -805,6 +945,10 @@ function SortableTaskCard({
       <TaskCard
         task={task}
         dragHandleProps={{ ...attributes, ...listeners }}
+        prevCol={prevCol}
+        nextCol={nextCol}
+        onMove={onMove}
+        onToggle={onToggle ? () => onToggle(task) : undefined}
         onOpen={() => navigate(`/app/tasks/${task.id}`)}
       />
     </div>
@@ -815,11 +959,19 @@ function TaskCard({
   task,
   dragging,
   dragHandleProps,
+  prevCol,
+  nextCol,
+  onMove,
+  onToggle,
   onOpen,
 }: {
   task: Task;
   dragging?: boolean;
   dragHandleProps?: any;
+  prevCol?: Status;
+  nextCol?: Status;
+  onMove?: (taskId: string, newStatus: Status) => void;
+  onToggle?: () => void;
   onOpen?: () => void;
 }) {
   const { i18n } = useTranslation();
@@ -829,15 +981,32 @@ function TaskCard({
 
   return (
     <Card className={`p-3 border-s-4 ${pm.borderClass} ${dragging ? "shadow-lg" : "hover:shadow-xs"}`}>
-      <div className="flex items-start gap-1.5">
+      <div className="flex items-start gap-2">
         <button
           {...(dragHandleProps || {})}
-          className="cursor-grab active:cursor-grabbing px-0.5 text-muted-foreground/60 hover:text-foreground touch-none shrink-0"
+          className="cursor-grab active:cursor-grabbing px-0.5 text-muted-foreground/60 hover:text-foreground touch-none shrink-0 mt-0.5"
           aria-label="drag"
           onClick={(e) => e.stopPropagation()}
         >
           ⋮⋮
         </button>
+        {onToggle && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle();
+            }}
+            className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center transition shrink-0 ${
+              task.completed
+                ? "bg-rose-500 border-rose-500 text-white"
+                : "border-muted-foreground/40 hover:border-primary"
+            }`}
+            title={T("تغییر وضعیت انجام", "Toggle completion")}
+          >
+            {task.completed && <Check className="w-3 h-3 stroke-[3]" />}
+          </button>
+        )}
         <button type="button" onClick={onOpen} className="flex-1 min-w-0 text-start">
           <p
             className={`text-sm font-medium hover:underline ${
@@ -846,7 +1015,7 @@ function TaskCard({
           >
             {task.title}
           </p>
-          <div className="flex flex-wrap items-center gap-1 mt-2">
+          <div className="flex flex-wrap items-center gap-1.5 mt-2">
             {task.priority !== "none" && (
               <Badge variant="outline" className={`text-[10px] gap-1 ${pm.bgClass} ${pm.textClass}`}>
                 <Flag className="w-2.5 h-2.5" /> {T(pm.label, pm.labelEn)}
@@ -858,8 +1027,38 @@ function TaskCard({
                 {format(new Date(task.due_date), "MMM d")}
               </Badge>
             )}
+            {task.kanban_column_id && (
+              <Badge variant="outline" className="text-[10px] gap-1 border-primary/25 bg-primary/10 text-primary">
+                <Target className="w-2.5 h-2.5" />
+                <span>{T("هدف", "Goal")}</span>
+              </Badge>
+            )}
           </div>
         </button>
+        {(prevCol || nextCol) && onMove && (
+          <div className="flex items-center gap-0.5 shrink-0 self-start" onClick={(e) => e.stopPropagation()}>
+            {prevCol && (
+              <button
+                type="button"
+                onClick={() => onMove(task.id, prevCol)}
+                className="p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted text-[10px] transition"
+                title={T(COLUMNS.find((c) => c.id === prevCol)?.labelFa || "ستون قبل", "Previous column")}
+              >
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            )}
+            {nextCol && (
+              <button
+                type="button"
+                onClick={() => onMove(task.id, nextCol)}
+                className="p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted text-[10px] transition"
+                title={T(COLUMNS.find((c) => c.id === nextCol)?.labelFa || "ستون بعد", "Next column")}
+              >
+                <ArrowLeft className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </Card>
   );

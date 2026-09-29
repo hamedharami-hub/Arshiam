@@ -123,7 +123,6 @@ export const SECTIONS: Section[] = [
     items: [
       { url: "/app/life-architect", icon: Compass, label: "معمار زندگی" },
       { url: "/app/garden", icon: Sprout, label: "باغ رشد" },
-      { url: "/app/habits", icon: Target, label: "عادت‌ها" },
       { url: "/app/notes", icon: FileText, label: "نوت‌ها" },
       {
         icon: BookOpen,

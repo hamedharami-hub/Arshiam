@@ -24,6 +24,7 @@ import {
   Loader2,
   Save,
   X,
+  Sparkles,
 } from "lucide-react";
 import type {
   Contact,
@@ -33,6 +34,7 @@ import type {
   ContactWebsite,
   ContactSocialLink,
   ContactDuplicateSuggestion,
+  ContactAvatarShape,
 } from "@/lib/contactTypes";
 import {
   createContact,
@@ -40,6 +42,8 @@ import {
   uploadContactPhoto,
   findDuplicateSuggestions,
 } from "@/lib/contactService";
+import { ContactAvatar } from "./ContactAvatar";
+import { ContactSymbolPicker } from "./ContactSymbolPicker";
 
 interface Props {
   open: boolean;
@@ -74,6 +78,10 @@ export function ContactEditorDialog({
   const [company, setCompany] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined);
+  const [avatarIcon, setAvatarIcon] = useState<string | undefined>(undefined);
+  const [avatarColor, setAvatarColor] = useState<string | undefined>(undefined);
+  const [avatarShape, setAvatarShape] = useState<ContactAvatarShape>("circle");
+  const [showSymbolPicker, setShowSymbolPicker] = useState(false);
   const [phones, setPhones] = useState<ContactPhone[]>([]);
   const [emails, setEmails] = useState<ContactEmail[]>([]);
   const [addresses, setAddresses] = useState<ContactAddress[]>([]);
@@ -87,6 +95,7 @@ export function ContactEditorDialog({
   useEffect(() => {
     if (!open) {
       setDuplicateSuggestions([]);
+      setShowSymbolPicker(false);
       return;
     }
 
@@ -97,6 +106,9 @@ export function ContactEditorDialog({
       setCompany(contact.company || "");
       setJobTitle(contact.job_title || "");
       setPhotoUrl(contact.photo_url || undefined);
+      setAvatarIcon(contact.avatar_icon || undefined);
+      setAvatarColor(contact.avatar_color || undefined);
+      setAvatarShape(contact.avatar_shape || "circle");
       setPhones(contact.phones ? [...contact.phones] : []);
       setEmails(contact.emails ? [...contact.emails] : []);
       setAddresses(contact.addresses ? [...contact.addresses] : []);
@@ -110,6 +122,9 @@ export function ContactEditorDialog({
       setCompany(initialValues?.company || "");
       setJobTitle(initialValues?.job_title || "");
       setPhotoUrl(initialValues?.photo_url || undefined);
+      setAvatarIcon(initialValues?.avatar_icon || undefined);
+      setAvatarColor(initialValues?.avatar_color || undefined);
+      setAvatarShape(initialValues?.avatar_shape || "circle");
       setPhones(initialValues?.phones ? [...initialValues.phones] : [{ label: "موبایل", value: "" }]);
       setEmails(initialValues?.emails ? [...initialValues.emails] : []);
       setAddresses(initialValues?.addresses ? [...initialValues.addresses] : []);
@@ -188,6 +203,9 @@ export function ContactEditorDialog({
         company: company.trim() || undefined,
         job_title: jobTitle.trim() || undefined,
         photo_url: photoUrl,
+        avatar_icon: avatarIcon?.trim() || undefined,
+        avatar_color: avatarColor?.trim() || undefined,
+        avatar_shape: avatarShape || "circle",
         phones: validPhones,
         emails: validEmails,
         addresses: validAddresses,
@@ -219,15 +237,18 @@ export function ContactEditorDialog({
 
   const formBody = (
     <div className="space-y-4 py-2">
-      {/* Photo & Main Identity */}
+      {/* Photo, Symbol & Main Identity */}
       <div className="flex items-center gap-4">
-        <div className="relative group">
-          <Avatar className="h-16 w-16 border-2 border-primary/20 shadow-sm">
-            <AvatarImage src={photoUrl} className="object-cover" />
-            <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
-              {displayName.slice(0, 2) || <User className="w-6 h-6" />}
-            </AvatarFallback>
-          </Avatar>
+        <div className="relative group shrink-0">
+          <ContactAvatar
+            name={displayName}
+            photoUrl={photoUrl}
+            avatarIcon={avatarIcon}
+            avatarColor={avatarColor}
+            avatarShape={avatarShape}
+            size="xl"
+            className="border-2 border-primary/20 shadow-sm"
+          />
           <input
             type="file"
             ref={fileInputRef}
@@ -235,15 +256,17 @@ export function ContactEditorDialog({
             accept="image/*"
             className="hidden"
           />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={photoUploading}
-            aria-label={T("تغییر عکس", "Change photo")}
-            className="absolute -bottom-1 -end-1 p-1.5 rounded-full bg-primary text-primary-foreground shadow-md hover:opacity-90 active:scale-90 transition"
-          >
-            {photoUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-          </button>
+          <div className="absolute -bottom-1 -end-1 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={photoUploading}
+              aria-label={T("تغییر عکس", "Change photo")}
+              className="p-1.5 rounded-full bg-primary text-primary-foreground shadow-md hover:opacity-90 active:scale-90 transition"
+            >
+              {photoUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 space-y-2">
@@ -259,8 +282,37 @@ export function ContactEditorDialog({
               autoFocus
             />
           </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSymbolPicker((v) => !v)}
+            className="h-7 text-xs px-2.5 gap-1.5 rounded-xl border-dashed border-primary/40 text-primary hover:bg-primary/10"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            <span>
+              {showSymbolPicker
+                ? T("بستن انتخاب شکل و نماد", "Close Symbol & Shape")
+                : T("انتخاب شکل یا نماد", "Choose Shape or Symbol")}
+            </span>
+          </Button>
         </div>
       </div>
+
+      {/* Expandable Shape & Symbol Picker */}
+      {showSymbolPicker && (
+        <ContactSymbolPicker
+          avatarIcon={avatarIcon}
+          avatarColor={avatarColor}
+          avatarShape={avatarShape}
+          photoUrl={photoUrl}
+          displayName={displayName}
+          onChangeIcon={setAvatarIcon}
+          onChangeColor={setAvatarColor}
+          onChangeShape={setAvatarShape}
+        />
+      )}
 
       {/* Duplicate warning banner */}
       {duplicateSuggestions.length > 0 && (

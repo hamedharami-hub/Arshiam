@@ -20,6 +20,7 @@ import { cacheGet } from "@/lib/offlineQueue";
 import { extractTasksFromCache } from "@/features/tasks/taskCache";
 
 import { formatDate, toPersianDigits } from "@/lib/jalali";
+import { Link } from "react-router-dom";
 import {
   Smile,
   Zap,
@@ -31,6 +32,10 @@ import {
   X,
   Sparkles,
   CheckCircle2,
+  ArrowRight,
+  ArrowLeft,
+  Wind,
+  BookOpen,
 } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
 
@@ -226,6 +231,14 @@ export default function CheckinView() {
   const [saving, setSaving] = useState(false);
   const [existingCheckin, setExistingCheckin] = useState<DailyCheckinItem | null>(null);
   const [todayLoad, setTodayLoad] = useState<number | null>(null);
+  const [postCheckinInsight, setPostCheckinInsight] = useState<{
+    title: string;
+    desc: string;
+    actionLabel?: string;
+    actionLink?: string;
+    tone: "calm" | "alert" | "boost";
+    icon: any;
+  } | null>(null);
   const isEvening = new Date().getHours() >= 17;
 
   useEffect(() => {
@@ -314,6 +327,72 @@ export default function CheckinView() {
         awardDailyCheckinDrops(today, 20, T("ثبت چک‌این روزانه", "Daily check-in logged"));
         toast.success(T("چک‌این با موفقیت ثبت شد ✨", "Check-in successfully saved ✨"));
         setSavedTick(Date.now());
+
+        // Instant tailored feedback based on scores
+        const m = form.mood ?? 5;
+        const e = form.energy ?? 5;
+        const s = form.stress ?? 5;
+        if (s >= 7) {
+          setPostCheckinInsight({
+            title: T("سطح استرس بالاست — بازگردانی تعادل سیستم عصبی", "Elevated Stress — Autonomic Reset Recommended"),
+            desc: T(
+              "نمره استرس بالای ۷ نشان‌دهنده برانگیختگی فیزیکی و ذهنی است. ۲ دقیقه تمرین تنفس ریتمیک ۳بعدی می‌تواند پاسخ جنگ-یا-گریز را مهار کند.",
+              "Stress level is 7+. 2 minutes of paced rhythmic breathing can calm sympathetic arousal."
+            ),
+            actionLabel: T("شروع تنفس ریتمیک ۳بعدی", "Start 3D Breathing"),
+            actionLink: "/app/breathing",
+            tone: "alert",
+            icon: Wind,
+          });
+        } else if (m <= 4) {
+          setPostCheckinInsight({
+            title: T("خلق پایین یا احساس سنگینی — مهربانی با خود", "Low Mood — Self-Compassion & Reframe"),
+            desc: T(
+              "وقتی خلق زیر ۵ است، افکار خودکار منفی تمایل به بزرگ‌نمایی دارند. واکاوی ملایم افکار یا یک گفت‌وگوی کوتاه به پاکسازی ذهن کمک می‌کند.",
+              "When mood dips below 5, negative automatic thoughts dominate. A CBT check or gentle dialogue clears mental fog."
+            ),
+            actionLabel: T("ثبت و بازسازی فکر (CBT)", "Log & Reframe Thought"),
+            actionLink: "/app/thoughts",
+            tone: "calm",
+            icon: BookOpen,
+          });
+        } else if (e <= 3) {
+          setPostCheckinInsight({
+            title: T("انرژی رو به اتمام — ورود به ریتم بازیابی (Recovery)", "Depleted Energy — Switch to Recovery Mode"),
+            desc: T(
+              "سطح انرژی زیر ۴ نشان‌دهنده لزوم استراحت است. از بار تعهدات سنگین امروز بکاهید و اولویت را به احیای توان بدنی بدهید.",
+              "Energy is low. Trim demanding tasks today and allocate quiet recovery time."
+            ),
+            actionLabel: T("مشاهده برنامه امروز (Today)", "View Today's Tasks"),
+            actionLink: "/app/today",
+            tone: "calm",
+            icon: Moon,
+          });
+        } else if (m >= 8 && e >= 8) {
+          setPostCheckinInsight({
+            title: T("انرژی و نشاط عالی — پنجره طلایی تمرکز عمیق (Deep Work)", "Peak Vitality — Golden Deep Work Window"),
+            desc: T(
+              "سطح انرژی و روحیه هر دو بالای ۸ است. اکنون بهترین زمان برای حل سخت‌ترین چالش یا پیشبرد اهداف ۶ ماهه در برنامه است.",
+              "Both mood and energy are 8+. Capitalize on this peak window for high-impact milestones."
+            ),
+            actionLabel: T("پیشبرد اهداف اصلی در Today", "Tackle Key Goals in Today"),
+            actionLink: "/app/today",
+            tone: "boost",
+            icon: Zap,
+          });
+        } else {
+          setPostCheckinInsight({
+            title: T("وضعیت متعادل و باثبات", "Balanced & Steady State"),
+            desc: T(
+              "ریتم ذهنی شما در تعادل مناسبی است. با گام‌های یکنواخت پیش بروید و در طول روز آب و استراحت‌های کوتاه را فراموش نکنید.",
+              "Your state is steady and grounded. Proceed at a comfortable pace with regular short breaks."
+            ),
+            actionLabel: T("مشاهده ابزارهای ذهن", "Explore Mind Tools"),
+            actionLink: "/app/mind",
+            tone: "calm",
+            icon: Smile,
+          });
+        }
       } else {
         toast.error(T("خطا در ذخیره چک‌این", "Error saving check-in"));
       }
@@ -543,6 +622,37 @@ export default function CheckinView() {
               </span>
             )}
           </Button>
+
+          {postCheckinInsight && (
+            <div
+              className={`p-4 rounded-2xl border transition-all animate-in fade-in-50 duration-300 space-y-2.5 ${
+                postCheckinInsight.tone === "alert"
+                  ? "bg-rose-500/10 border-rose-500/30 text-rose-950 dark:text-rose-100"
+                  : postCheckinInsight.tone === "boost"
+                  ? "bg-amber-500/10 border-amber-500/30 text-amber-950 dark:text-amber-100"
+                  : "bg-primary/10 border-primary/30 text-foreground"
+              }`}
+            >
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <postCheckinInsight.icon className="w-4 h-4 shrink-0 text-primary" />
+                <span>{postCheckinInsight.title}</span>
+              </div>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {postCheckinInsight.desc}
+              </p>
+              {postCheckinInsight.actionLink && (
+                <div className="pt-1">
+                  <Link
+                    to={postCheckinInsight.actionLink}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                  >
+                    <span>{postCheckinInsight.actionLabel}</span>
+                    {isEn ? <ArrowRight className="w-3.5 h-3.5" /> : <ArrowLeft className="w-3.5 h-3.5" />}
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

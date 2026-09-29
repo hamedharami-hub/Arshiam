@@ -455,3 +455,124 @@ export function plantNewSeed(type: PlantType): ActivePlant {
   toast.success(`بذر «${meta.name}» با موفقیت در خاک کاشته شد 🌱`);
   return newPlant;
 }
+
+export interface TaskWateringResult {
+  dropsAwarded: number;
+  pointsAdded: number;
+  stageUp: boolean;
+  bloomed: boolean;
+  plantName: string | null;
+}
+
+/**
+ * Awards water drops AND directly waters the active plant in the pot whenever a task or subtask is completed!
+ */
+export function awardTaskWatering(
+  title: string,
+  isSubtask = false
+): TaskWateringResult {
+  const current = getGardenState();
+  const dropsAmount = isSubtask ? 5 : 10;
+  const growthPoints = isSubtask ? 5 : 10;
+
+  const newDrops = current.waterDrops + dropsAmount;
+  const newSun = current.sunEnergy + Math.ceil(dropsAmount / 2);
+
+  let updatedPlant = current.activePlant;
+  let isStageUp = false;
+  let isBloomed = false;
+  let newHerbarium = [...current.herbarium];
+  let newHarvests = current.totalHarvests;
+  let newLevel = current.gardenLevel;
+
+  const reason = isSubtask
+    ? `تکمیل زیرتسک: «${title || "زیرتسک"}»`
+    : `تکمیل تسک: «${title || "تسک"}»`;
+
+  if (updatedPlant && updatedPlant.stage < 5) {
+    const meta = PLANT_SPECIES[updatedPlant.type] || PLANT_SPECIES.rose;
+    const prevStage = updatedPlant.stage;
+    const newPoints = Math.min(meta.pointsToBloom, updatedPlant.currentPoints + growthPoints);
+
+    // Calculate stage (1 to 5)
+    let newStage: PlantStage = 1;
+    const ratio = newPoints / meta.pointsToBloom;
+    if (ratio >= 1) newStage = 5;
+    else if (ratio >= 0.75) newStage = 4;
+    else if (ratio >= 0.45) newStage = 3;
+    else if (ratio >= 0.15) newStage = 2;
+    else newStage = 1;
+
+    isBloomed = newStage === 5 && prevStage < 5;
+    isStageUp = newStage > prevStage;
+
+    updatedPlant = {
+      ...updatedPlant,
+      currentPoints: newPoints,
+      stage: newStage,
+      waterLogCount: updatedPlant.waterLogCount + 1,
+      bloomedAt: isBloomed ? new Date().toISOString() : updatedPlant.bloomedAt,
+      contributions: [
+        { reason, points: growthPoints, date: new Date().toISOString() },
+        ...updatedPlant.contributions.slice(0, 19),
+      ],
+    };
+
+    if (isBloomed) {
+      newHarvests += 1;
+      newLevel = Math.floor(newHarvests / 2) + 1;
+      newHerbarium.unshift({
+        id: updatedPlant.id,
+        type: updatedPlant.type,
+        name: updatedPlant.name,
+        plantedAt: updatedPlant.plantedAt,
+        bloomedAt: new Date().toISOString(),
+        totalPoints: updatedPlant.currentPoints,
+        contributionsCount: updatedPlant.contributions.length,
+      });
+    }
+  }
+
+  const nextState: GardenState = {
+    ...current,
+    waterDrops: newDrops,
+    sunEnergy: newSun,
+    totalHarvests: newHarvests,
+    gardenLevel: newLevel,
+    activePlant: updatedPlant,
+    herbarium: newHerbarium,
+  };
+
+  saveGardenState(nextState);
+
+  // Informative & joyful notification
+  if (isBloomed) {
+    toast.success(`🌺 تبریک! گیاه «${updatedPlant?.name}» کاملاً شکوفا شد! (+${dropsAmount} قطره آب)`, {
+      description: `با ${reason}، گلدان شما به ثمر نشست و به کلکسیون افتخارات افزوده شد.`,
+      duration: 5000,
+    });
+  } else if (isStageUp) {
+    toast.success(`🌱 گیاه «${updatedPlant?.name}» رشد کرد و به مرحله ${updatedPlant?.stage} رسید! (+${dropsAmount} قطره)`, {
+      description: reason,
+      duration: 4000,
+    });
+  } else if (updatedPlant) {
+    toast.success(`💧 +${dropsAmount} قطره آب و رشد گلدان «${updatedPlant.name}» 🌱`, {
+      description: reason,
+      duration: 3000,
+    });
+  } else {
+    toast.success(`💧 +${dropsAmount} قطره آب برای گلخانه 🌱`, {
+      description: reason,
+      duration: 3000,
+    });
+  }
+
+  return {
+    dropsAwarded: dropsAmount,
+    pointsAdded: growthPoints,
+    stageUp: isStageUp,
+    bloomed: isBloomed,
+    plantName: updatedPlant?.name || null,
+  };
+}

@@ -1,7 +1,10 @@
+import { buildPersonalizationContext } from "./aiPersonalization";
+
 export type StreamChatOptions = {
   mode: string;
   input: unknown;
   language?: "fa" | "en";
+  systemPromptOverride?: string;
   onDelta: (chunk: string) => void;
   onDone?: () => void;
   signal?: AbortSignal;
@@ -13,7 +16,17 @@ export async function streamAI(opts: StreamChatOptions): Promise<void> {
     const geminiKey = getGeminiApiKey();
     if (geminiKey) {
       const promptText = typeof opts.input === "string" ? opts.input : JSON.stringify(opts.input);
-      const systemPrompt = GEMINI_SYSTEM_PROMPTS[opts.mode] || GEMINI_SYSTEM_PROMPTS.chat;
+      let systemPrompt = opts.systemPromptOverride || GEMINI_SYSTEM_PROMPTS[opts.mode] || GEMINI_SYSTEM_PROMPTS.chat;
+
+      try {
+        const personalization = await buildPersonalizationContext({
+          lang: opts.language === "en" ? "en" : "fa",
+        });
+        if (personalization.contextText) {
+          systemPrompt += `\n${personalization.contextText}`;
+        }
+      } catch {}
+
       await streamDirectGemini({
         prompt: promptText,
         systemPrompt,

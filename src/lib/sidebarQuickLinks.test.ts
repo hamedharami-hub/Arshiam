@@ -39,19 +39,19 @@ describe("sidebar quick links", () => {
   });
 
   it("moves quick links up and down while keeping Today pinned at index 0", () => {
-    setSidebarQuickLinks(["/app/today", "/app/mind", "/app/notes", "/app/habits"]);
+    setSidebarQuickLinks(["/app/today", "/app/mind", "/app/notes", "/app/calendar"]);
 
     // Move notes up (should swap with mind)
     moveSidebarQuickLink("/app/notes", "up");
-    expect(getSidebarQuickLinks()).toEqual(["/app/today", "/app/notes", "/app/mind", "/app/habits"]);
+    expect(getSidebarQuickLinks()).toEqual(["/app/today", "/app/notes", "/app/mind", "/app/calendar"]);
 
     // Move notes up again (already at top after today, should not swap with today)
     moveSidebarQuickLink("/app/notes", "up");
-    expect(getSidebarQuickLinks()).toEqual(["/app/today", "/app/notes", "/app/mind", "/app/habits"]);
+    expect(getSidebarQuickLinks()).toEqual(["/app/today", "/app/notes", "/app/mind", "/app/calendar"]);
 
     // Move notes down
     moveSidebarQuickLink("/app/notes", "down");
-    expect(getSidebarQuickLinks()).toEqual(["/app/today", "/app/mind", "/app/notes", "/app/habits"]);
+    expect(getSidebarQuickLinks()).toEqual(["/app/today", "/app/mind", "/app/notes", "/app/calendar"]);
 
     // Today cannot be moved down
     moveSidebarQuickLink("/app/today", "down");

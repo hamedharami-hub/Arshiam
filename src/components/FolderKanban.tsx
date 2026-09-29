@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { firebaseStore } from "@/lib/firebaseStore";
+import { upsertTask } from "@/lib/firestoreDataService";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +22,10 @@ import {
   Edit2,
   FolderTree,
   Check,
+  SlidersHorizontal,
+  Target,
+  ArrowLeft,
+  ArrowRight,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -33,8 +39,11 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { PRIORITY_META, type Priority } from "@/lib/priority";
 import { haptic } from "@/lib/haptics";
-import { awardWaterDrops } from "@/lib/garden";
+import { playCompletionFeedback } from "@/lib/completionFeedback";
+import { awardTaskWatering } from "@/lib/garden";
+import { isRecurringTask, advanceRecurringTask } from "@/lib/recurringTaskService";
 import { filterTasksForVisibility, useShowCompletedTasks } from "@/lib/completedTaskVisibility";
+import { getCachedTasks, applyPendingTaskOperations } from "@/features/tasks/taskService";
 import {
   type GoalKanban,
   type TimeHorizon,
@@ -45,6 +54,7 @@ import {
   generateUUID,
   isValidUUID,
   TIME_HORIZONS,
+  GOAL_PRIORITIES,
 } from "@/lib/kanbanGoals";
 import type { FolderPrefs } from "@/lib/folderPrefs";
 import MultiTierTabs from "@/components/kanban/MultiTierTabs";
@@ -66,14 +76,19 @@ import { CSS } from "@dnd-kit/utilities";
 type Status = "todo" | "in_progress" | "done";
 type Task = {
   id: string;
+  user_id?: string;
   title: string;
   priority: Priority;
-  due_date: string | null;
+  due_date?: string | null;
   status: Status;
   completed: boolean;
+  completed_at?: string | null;
   parent_id: string | null;
   folder_id?: string | null;
   kanban_column_id?: string | null;
+  position?: number;
+  created_at?: string;
+  updated_at?: string;
 };
 
 const COLUMNS: { id: Status; labelFa: string; labelEn: string; icon: any; accent: string }[] = [
@@ -112,6 +127,7 @@ export function FolderKanban({
   goalMode?: "hierarchy" | "time" | "priority";
 }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const showCompletedTasks = useShowCompletedTasks();
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
@@ -155,21 +171,45 @@ export function FolderKanban({
     if (!selectedTier1Id && list.length > 0) {
       setSelectedTier1Id(list[0].id);
     }
-  }, [folderId, user]);
+
+    const handleUpdated = (e: any) => {
+      if (e?.detail?.folderId === folderId) {
+        const updated = getKanbanGoals(folderId, user?.id);
+        setGoals(updated);
+      }
+    };
+    window.addEventListener("arshnaz-goals-updated", handleUpdated);
+    return () => window.removeEventListener("arshnaz-goals-updated", handleUpdated);
+  }, [folderId, user?.id]);
 
   // Load tasks belonging to this folder
   const loadTasks = async () => {
     if (!user || !folderId) return;
-    const [parentsRes, subsRes] = await Promise.all([
-      firebaseStore.from("tasks").select("*").eq("folder_id", folderId).is("parent_id", null).order("position"),
-      firebaseStore.from("tasks").select("*").eq("folder_id", folderId).not("parent_id", "is", null).order("position"),
-    ]);
-    setAllTasks(((parentsRes.data || []) as unknown) as Task[]);
-    setSubtasks(((subsRes.data || []) as unknown) as Task[]);
+    try {
+      let cached = await getCachedTasks(user.id);
+      cached = await applyPendingTaskOperations(cached, user.id);
+      const folderTasks = cached.filter((t) => t.folder_id === folderId);
+      const parents = folderTasks.filter((t) => !t.parent_id);
+      const subs = folderTasks.filter((t) => Boolean(t.parent_id));
+      setAllTasks((parents as unknown) as Task[]);
+      setSubtasks((subs as unknown) as Task[]);
+    } catch {
+      const [parentsRes, subsRes] = await Promise.all([
+        firebaseStore.from("tasks").select("*").eq("folder_id", folderId).is("parent_id", null).order("position"),
+        firebaseStore.from("tasks").select("*").eq("folder_id", folderId).not("parent_id", "is", null).order("position"),
+      ]);
+      setAllTasks(((parentsRes.data || []) as unknown) as Task[]);
+      setSubtasks(((subsRes.data || []) as unknown) as Task[]);
+    }
   };
 
   useEffect(() => {
     loadTasks();
+    const handleTasksChanged = () => {
+      void loadTasks();
+    };
+    window.addEventListener("tasks-changed", handleTasksChanged);
+    return () => window.removeEventListener("tasks-changed", handleTasksChanged);
   }, [user, folderId]);
 
   useEffect(() => {
@@ -193,23 +233,26 @@ export function FolderKanban({
   // Task Counts per Goal (for badge indicators)
   const taskCountsByGoal = useMemo(() => {
     const map: Record<string, number> = {};
+    const rootGoalId = goals.find((g) => g.parentId === null)?.id || goals[0]?.id;
     allTasks.forEach((t) => {
-      const gid = t.kanban_column_id;
+      const gid = t.kanban_column_id || rootGoalId;
       if (gid) map[gid] = (map[gid] || 0) + 1;
     });
     return map;
-  }, [allTasks]);
+  }, [allTasks, goals]);
 
   // Filtered tasks for current active goal in this folder
   const currentGoalTasks = useMemo(() => {
     if (!activeGoalId) return allTasks;
-    const direct = allTasks.filter((t) => t.kanban_column_id === activeGoalId);
-    // If no direct matches and on root goal with "Not Sectioned" selected, show unassigned tasks in this folder
-    if (direct.length === 0 && selectedTier2Id === null) {
-      return allTasks.filter((t) => !t.kanban_column_id);
-    }
-    return direct;
-  }, [allTasks, activeGoalId, selectedTier2Id]);
+    const isRootGoal =
+      activeGoal?.parentId === null &&
+      (activeGoalId === goals[0]?.id || goals.filter((g) => g.parentId === null).length <= 1);
+    return allTasks.filter((t) => {
+      if (t.kanban_column_id === activeGoalId) return true;
+      if (!t.kanban_column_id && isRootGoal) return true;
+      return false;
+    });
+  }, [allTasks, activeGoalId, activeGoal, goals]);
 
   const incompleteTasks = useMemo(
     () => sortFolderTasks(currentGoalTasks.filter((t) => !t.completed), sortOrder),
@@ -222,69 +265,121 @@ export function FolderKanban({
 
   // Task mutations
   const toggleTask = async (task: Task) => {
-    haptic("light");
+    if (!user) return;
     const newCompleted = !task.completed;
+    if (newCompleted) {
+      playCompletionFeedback();
+    } else {
+      haptic("light");
+    }
+    if (newCompleted && isRecurringTask(task)) {
+      awardTaskWatering(task.title, Boolean(task.parent_id));
+      const res = await advanceRecurringTask(user.id, task, { allKnownTasks: allTasks });
+      if (res.success && res.patch) {
+        setAllTasks((prev) =>
+          prev.map((t) => (t.id === task.id ? ({ ...t, ...res.patch } as Task) : t))
+        );
+        toast.success(
+          T(
+            `نمونه بعدی به ${res.formattedNextDate} منتقل شد 🔁`,
+            `Next instance moved to ${res.formattedNextDate} 🔁`
+          )
+        );
+        return;
+      }
+    }
     const newStatus: Status = newCompleted ? "done" : "todo";
+    const updatedTask: Task = {
+      ...task,
+      completed: newCompleted,
+      status: newStatus,
+      completed_at: newCompleted ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    };
     setAllTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? { ...t, completed: newCompleted, status: newStatus } : t))
+      prev.map((t) => (t.id === task.id ? updatedTask : t))
     );
-    if (newCompleted) awardWaterDrops(10, "تکمیل تسک");
-    const { error } = await firebaseStore
-      .from("tasks")
-      .update({
-        completed: newCompleted,
-        status: newStatus,
-        completed_at: newCompleted ? new Date().toISOString() : null,
-      } as any)
-      .eq("id", task.id);
-    if (error) {
+    if (newCompleted) awardTaskWatering(task.title, Boolean(task.parent_id));
+    const ok = await upsertTask(user.id, updatedTask);
+    if (!ok) {
       setAllTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)));
-      toast.error(error.message);
+      toast.error(T("خطا در تغییر وضعیت تسک", "Failed to update task"));
     }
   };
 
   const addQuickTask = async (title: string, status: Status = "todo") => {
     if (!title.trim() || !user) return;
     const completed = status === "done";
-    const validColumnId = isValidUUID(activeGoalId) ? activeGoalId : null;
-    const { data, error } = await firebaseStore
-      .from("tasks")
-      .insert({
-        user_id: user.id,
-        folder_id: folderId,
-        title: title.trim(),
-        status,
-        completed,
-        completed_at: completed ? new Date().toISOString() : null,
-        kanban_column_id: validColumnId,
-      } as any)
-      .select()
-      .single();
-    if (error) return toast.error(error.message);
-    if (data) setAllTasks((prev) => [...prev, data as any]);
+    const targetGoalId = activeGoalId || null;
+    const newTask: Task = {
+      id: generateUUID(),
+      user_id: user.id,
+      folder_id: folderId,
+      title: title.trim(),
+      status,
+      completed,
+      completed_at: completed ? new Date().toISOString() : null,
+      due_date: null,
+      kanban_column_id: targetGoalId,
+      priority: "none",
+      position: allTasks.length,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      parent_id: null,
+    };
+
+    setAllTasks((prev) => [...prev, newTask]);
     setQuickTitle("");
-    toast.success("تسک جدید افزوده شد");
+    haptic("success");
+
+    const ok = await upsertTask(user.id, newTask);
+    if (ok) {
+      toast.success(T("تسک جدید با موفقیت افزوده شد", "Task added successfully"));
+      window.dispatchEvent(new Event("tasks-changed"));
+    } else {
+      toast.error(T("خطا در ذخیره تسک", "Failed to save task"));
+    }
   };
 
   const moveTaskColumn = async (taskId: string, newStatus: Status) => {
+    if (!user) return;
     const t = allTasks.find((x) => x.id === taskId);
     if (!t || t.status === newStatus) return;
+    if (newStatus === "done" && isRecurringTask(t)) {
+      awardTaskWatering(t.title, Boolean(t.parent_id));
+      const res = await advanceRecurringTask(user.id, t, { allKnownTasks: allTasks });
+      if (res.success && res.patch) {
+        setAllTasks((prev) =>
+          prev.map((x) => (x.id === taskId ? ({ ...x, ...res.patch } as Task) : x))
+        );
+        toast.success(
+          T(
+            `نمونه بعدی به ${res.formattedNextDate} منتقل شد 🔁`,
+            `Next instance moved to ${res.formattedNextDate} 🔁`
+          )
+        );
+        return;
+      }
+    }
     const completed = newStatus === "done";
+    const updatedTask: Task = {
+      ...t,
+      status: newStatus,
+      completed,
+      completed_at: completed ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    };
     setAllTasks((prev) =>
-      prev.map((x) => (x.id === taskId ? { ...x, status: newStatus, completed } : x))
+      prev.map((x) => (x.id === taskId ? updatedTask : x))
     );
-    if (newStatus === "done" && t.status !== "done") awardWaterDrops(10, "تکمیل تسک");
-    const { error } = await firebaseStore
-      .from("tasks")
-      .update({
-        status: newStatus,
-        completed,
-        completed_at: completed ? new Date().toISOString() : null,
-      } as any)
-      .eq("id", taskId);
-    if (error) {
+    if (newStatus === "done" && t.status !== "done") {
+      playCompletionFeedback();
+      awardTaskWatering(t.title, Boolean(t.parent_id));
+    }
+    const ok = await upsertTask(user.id, updatedTask);
+    if (!ok) {
       setAllTasks((prev) => prev.map((x) => (x.id === taskId ? t : x)));
-      toast.error(error.message);
+      toast.error(T("خطا در جابه‌جایی ستون", "Failed to move task column"));
     }
   };
 
@@ -312,11 +407,12 @@ export function FolderKanban({
       );
       toast.success("هدف با موفقیت بروزرسانی شد");
     } else {
+      const rootGoal = goals.find((g) => g.parentId === null) || goals[0];
       const newG: GoalKanban = {
         id: generateUUID(),
-        title: goalData.title || "هدف جدید",
+        title: goalData.title || "زیرمجموعه جدید",
         description: goalData.description,
-        parentId: goalData.parentId || null,
+        parentId: goalData.parentId || rootGoal?.id || null,
         timeHorizon: goalData.timeHorizon || "monthly",
         priority: goalData.priority || "medium",
         color: goalData.color || "#3b82f6",
@@ -325,18 +421,19 @@ export function FolderKanban({
         updatedAt: new Date().toISOString(),
       };
       nextGoals = [...goals, newG];
-      if (!newG.parentId) {
-        setSelectedTier1Id(newG.id);
-      } else {
-        setSelectedTier2Id(newG.id);
-      }
-      toast.success("هدف جدید در این فولدر ایجاد شد");
+      setSelectedTier1Id(newG.id);
+      toast.success(T("زیرمجموعه جدید ایجاد شد", "New sub-goal created"));
     }
     setGoals(nextGoals);
     saveKanbanGoals(nextGoals, folderId, user?.id);
   };
 
   const handleDeleteGoal = (goalId: string) => {
+    const target = goals.find((g) => g.id === goalId);
+    if (!target || target.parentId === null) {
+      toast.error(T("هدف اصلی این پوشه قابل حذف نیست", "Main goal cannot be deleted"));
+      return;
+    }
     const deletedIds = new Set([goalId]);
     let changed = true;
     while (changed) {
@@ -351,12 +448,10 @@ export function FolderKanban({
     const next = goals.filter((g) => !deletedIds.has(g.id));
     setGoals(next);
     saveKanbanGoals(next, folderId, user?.id);
-    if (selectedTier1Id && deletedIds.has(selectedTier1Id)) {
-      setSelectedTier1Id(next.find((g) => g.parentId === null)?.id || null);
-    }
-    if (selectedTier2Id && deletedIds.has(selectedTier2Id)) setSelectedTier2Id(null);
-    if (selectedTier3Id && deletedIds.has(selectedTier3Id)) setSelectedTier3Id(null);
-    toast.success("هدف با موفقیت حذف شد");
+    setSelectedTier1Id(next.find((g) => g.parentId === null)?.id || next[0].id);
+    setSelectedTier2Id(null);
+    setSelectedTier3Id(null);
+    toast.success(T("زیرمجموعه با موفقیت حذف شد", "Sub-goal deleted successfully"));
   };
 
   const openEditForGoal = (g: GoalKanban) => {
@@ -367,7 +462,8 @@ export function FolderKanban({
 
   const openAddNewGoal = (parentId: string | null = null) => {
     setEditingGoal(null);
-    setNewGoalParentId(parentId);
+    const rootGoal = goals.find((g) => g.parentId === null) || goals[0];
+    setNewGoalParentId(parentId || rootGoal?.id || null);
     setEditorOpen(true);
   };
 
@@ -375,7 +471,95 @@ export function FolderKanban({
 
   return (
     <div dir="rtl" className="space-y-3 pb-20 animate-fade-in relative">
-      {/* SINGLE-TIER GOAL TABS (no page-level goal title — the tab itself is the title) */}
+      {/* 1. TOP HEADER (Active Goal info & quick controls) */}
+      <div className="flex items-center justify-between gap-2 flex-wrap bg-card/60 p-3 rounded-2xl border border-border/70 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => activeGoal && openEditForGoal(activeGoal)}
+            className="flex items-center gap-2 text-base md:text-lg font-black text-foreground hover:text-primary transition-colors text-start group cursor-pointer"
+            title={T("کلیک برای ویرایش نام و تنظیمات هدف", "Click to edit goal name and settings")}
+          >
+            <span>{activeGoal?.icon || "🎯"}</span>
+            <span className="truncate max-w-[220px] sm:max-w-xs">{activeGoal?.title || T("هدف اصلی این بخش", "Main goal")}</span>
+            <span className="p-1 rounded-lg bg-muted/60 group-hover:bg-primary/10 group-hover:text-primary transition">
+              <Edit2 className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary" />
+            </span>
+          </button>
+
+          {activeGoal && (
+            <Badge variant="outline" className="text-[11px] font-mono gap-1 border-primary/30 text-primary">
+              <span>
+                {isEn
+                  ? TIME_HORIZONS.find((th) => th.id === activeGoal.timeHorizon)?.labelEn || "Monthly"
+                  : TIME_HORIZONS.find((th) => th.id === activeGoal.timeHorizon)?.labelFa || "ماهانه"}
+              </span>
+            </Badge>
+          )}
+
+          {activeGoal?.priority && activeGoal.priority !== "none" && (
+            <Badge variant="secondary" className="text-[11px] gap-1">
+              <span>{GOAL_PRIORITIES.find((p) => p.id === activeGoal.priority)?.badge}</span>
+              <span>
+                {isEn
+                  ? GOAL_PRIORITIES.find((p) => p.id === activeGoal.priority)?.labelEn
+                  : GOAL_PRIORITIES.find((p) => p.id === activeGoal.priority)?.labelFa}
+              </span>
+            </Badge>
+          )}
+        </div>
+
+        {/* Action controls */}
+        <div className="flex items-center gap-1.5">
+          {activeGoal && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => openEditForGoal(activeGoal)}
+              className="h-8 text-xs rounded-xl gap-1.5 bg-card/60 hover:border-primary/40"
+            >
+              <Edit2 className="w-3.5 h-3.5 text-primary" />
+              <span className="hidden sm:inline">
+                {activeGoal.parentId === null ? T("ویرایش هدف اصلی", "Edit Main Goal") : T("ویرایش هدف", "Edit Goal")}
+              </span>
+            </Button>
+          )}
+
+          {/* 3-dots Menu for folder kanban */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="text-xs w-44">
+              {activeGoal && (
+                <>
+                  <DropdownMenuItem onClick={() => openEditForGoal(activeGoal)} className="gap-2">
+                    <Edit2 className="w-3.5 h-3.5" /> {T("ویرایش تنظیمات این هدف", "Edit goal settings")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => openAddNewGoal(activeGoal.id)} className="gap-2">
+                    <Plus className="w-3.5 h-3.5 text-primary" /> {T("افزودن زیرمجموعه به این هدف", "Add sub-goal")}
+                  </DropdownMenuItem>
+                  {activeGoal.parentId !== null && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => handleDeleteGoal(activeGoal.id)}
+                        className="gap-2 text-destructive focus:bg-destructive/10"
+                      >
+                        {T("حذف این زیرمجموعه", "Delete this sub-goal")}
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* 2. SINGLE-TIER GOAL TABS */}
       <div className="overflow-x-auto no-scrollbar">
         <MultiTierTabs
           goals={goals}
@@ -391,7 +575,8 @@ export function FolderKanban({
           onSelectTimeFilter={(h) => setTimeFilter(h)}
           onSelectPriorityFilter={(p) => setPriorityFilter(p)}
           onDoubleTapGoal={openEditForGoal}
-          onAddNewGoal={() => openAddNewGoal(null)}
+          onEditGoal={openEditForGoal}
+          onAddNewGoal={() => openAddNewGoal(activeGoalId || goals[0]?.id)}
           taskCountsByGoal={taskCountsByGoal}
         />
       </div>
@@ -413,8 +598,24 @@ export function FolderKanban({
               onClick={() => addQuickTask(quickTitle)}
               disabled={!quickTitle.trim()}
               className="h-11 px-4 rounded-2xl bg-primary text-primary-foreground font-bold shadow-xs shrink-0"
+              title={T("افزودن سریع", "Quick add")}
             >
               <Plus className="w-4 h-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const params = new URLSearchParams();
+                if (activeGoalId) params.set("kanban_goal_id", activeGoalId);
+                if (folderId) params.set("folder_id", folderId);
+                navigate(`/app/new/task?${params.toString()}`);
+              }}
+              className="h-11 px-3 sm:px-4 rounded-2xl border-border/70 gap-1.5 text-xs font-semibold shrink-0 bg-card hover:bg-muted"
+              title={T("صفحه کامل ایجاد تسک", "Full task creation form")}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{T("فرم کامل", "Full Form")}</span>
             </Button>
           </div>
 
@@ -562,7 +763,15 @@ export function FolderKanban({
                     addQuickTask(quickColumnTitle[col.id], col.id);
                     setQuickColumnTitle((s) => ({ ...s, [col.id]: "" }));
                   }}
+                  onOpenFullForm={() => {
+                    const params = new URLSearchParams();
+                    if (activeGoalId) params.set("kanban_goal_id", activeGoalId);
+                    if (folderId) params.set("folder_id", folderId);
+                    params.set("status", col.id);
+                    navigate(`/app/new/task?${params.toString()}`);
+                  }}
                   onMove={moveTaskColumn}
+                  onToggle={toggleTask}
                   onOpenTask={onOpenTask}
                 />
               );
@@ -574,15 +783,17 @@ export function FolderKanban({
         </DndContext>
       )}
 
-      {/* Floating Action Button (+) matching screenshot bottom right */}
+      {/* Floating Action Button (+) opens full form with goal & folder preselected */}
       <button
         type="button"
         onClick={() => {
-          if (quickTitle.trim()) addQuickTask(quickTitle);
-          else quickInputRef.current?.focus();
+          const params = new URLSearchParams();
+          if (activeGoalId) params.set("kanban_goal_id", activeGoalId);
+          if (folderId) params.set("folder_id", folderId);
+          navigate(`/app/new/task?${params.toString()}`);
         }}
         className="fixed bottom-6 start-6 md:bottom-8 md:start-8 w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white flex items-center justify-center shadow-xl shadow-blue-500/30 transition-transform z-30"
-        title="افزودن تسک سریع"
+        title="ایجاد تسک جدید (فرم کامل)"
       >
         <Plus className="w-7 h-7 stroke-[2.5]" />
       </button>
@@ -607,7 +818,9 @@ function KanbanColumn({
   newValue,
   setNewValue,
   onAdd,
+  onOpenFullForm,
   onMove,
+  onToggle,
   onOpenTask,
 }: {
   column: (typeof COLUMNS)[number];
@@ -615,7 +828,9 @@ function KanbanColumn({
   newValue: string;
   setNewValue: (v: string) => void;
   onAdd: () => void;
+  onOpenFullForm?: () => void;
   onMove: (taskId: string, newStatus: Status) => void;
+  onToggle?: (task: Task) => void;
   onOpenTask?: (taskId: string) => void;
 }) {
   const { i18n } = useTranslation();
@@ -652,9 +867,14 @@ function KanbanColumn({
           placeholder={T("+ کارت جدید", "+ New card")}
           className="h-8 text-xs bg-background rounded-xl"
         />
-        <Button size="icon" variant="ghost" onClick={onAdd} className="h-8 w-8 rounded-xl">
+        <Button size="icon" variant="ghost" onClick={onAdd} className="h-8 w-8 rounded-xl" title={T("افزودن سریع", "Quick add")}>
           <Plus className="w-4 h-4" />
         </Button>
+        {onOpenFullForm && (
+          <Button size="icon" variant="ghost" onClick={onOpenFullForm} className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground" title={T("فرم کامل", "Full form")}>
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+          </Button>
+        )}
       </div>
 
       <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
@@ -666,6 +886,7 @@ function KanbanColumn({
               prevCol={prevCol}
               nextCol={nextCol}
               onMove={onMove}
+              onToggle={onToggle}
               onOpenTask={onOpenTask}
             />
           ))}
@@ -685,12 +906,14 @@ function SortableTaskCard({
   prevCol,
   nextCol,
   onMove,
+  onToggle,
   onOpenTask,
 }: {
   task: Task;
   prevCol?: Status;
   nextCol?: Status;
   onMove: (taskId: string, newStatus: Status) => void;
+  onToggle?: (task: Task) => void;
   onOpenTask?: (taskId: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -707,6 +930,10 @@ function SortableTaskCard({
       <TaskCard
         task={task}
         dragHandleProps={{ ...attributes, ...listeners }}
+        prevCol={prevCol}
+        nextCol={nextCol}
+        onMove={onMove}
+        onToggle={onToggle ? () => onToggle(task) : undefined}
         onOpen={() => onOpenTask?.(task.id)}
       />
     </div>
@@ -717,11 +944,19 @@ function TaskCard({
   task,
   dragging,
   dragHandleProps,
+  prevCol,
+  nextCol,
+  onMove,
+  onToggle,
   onOpen,
 }: {
   task: Task;
   dragging?: boolean;
   dragHandleProps?: any;
+  prevCol?: Status;
+  nextCol?: Status;
+  onMove?: (taskId: string, newStatus: Status) => void;
+  onToggle?: () => void;
   onOpen?: () => void;
 }) {
   const { i18n } = useTranslation();
@@ -731,15 +966,32 @@ function TaskCard({
 
   return (
     <Card className={`p-3 border-s-4 ${pm.borderClass} ${dragging ? "shadow-lg" : "hover:shadow-xs"}`}>
-      <div className="flex items-start gap-1.5">
+      <div className="flex items-start gap-2">
         <button
           {...(dragHandleProps || {})}
-          className="cursor-grab active:cursor-grabbing px-0.5 text-muted-foreground/60 hover:text-foreground touch-none shrink-0"
+          className="cursor-grab active:cursor-grabbing px-0.5 text-muted-foreground/60 hover:text-foreground touch-none shrink-0 mt-0.5"
           aria-label="drag"
           onClick={(e) => e.stopPropagation()}
         >
           ⋮⋮
         </button>
+        {onToggle && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle();
+            }}
+            className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center transition shrink-0 ${
+              task.completed
+                ? "bg-rose-500 border-rose-500 text-white"
+                : "border-muted-foreground/40 hover:border-primary"
+            }`}
+            title={T("تغییر وضعیت انجام", "Toggle completion")}
+          >
+            {task.completed && <Check className="w-3 h-3 stroke-[3]" />}
+          </button>
+        )}
         <button type="button" onClick={onOpen} className="flex-1 min-w-0 text-start">
           <p
             className={`text-sm font-medium hover:underline ${
@@ -748,7 +1000,7 @@ function TaskCard({
           >
             {task.title}
           </p>
-          <div className="flex flex-wrap items-center gap-1 mt-2">
+          <div className="flex flex-wrap items-center gap-1.5 mt-2">
             {task.priority !== "none" && (
               <Badge variant="outline" className={`text-[10px] gap-1 ${pm.bgClass} ${pm.textClass}`}>
                 <Flag className="w-2.5 h-2.5" /> {T(pm.label, pm.labelEn)}
@@ -760,8 +1012,38 @@ function TaskCard({
                 {format(new Date(task.due_date), "MMM d")}
               </Badge>
             )}
+            {task.kanban_column_id && (
+              <Badge variant="outline" className="text-[10px] gap-1 border-primary/25 bg-primary/10 text-primary">
+                <Target className="w-2.5 h-2.5" />
+                <span>{T("هدف", "Goal")}</span>
+              </Badge>
+            )}
           </div>
         </button>
+        {(prevCol || nextCol) && onMove && (
+          <div className="flex items-center gap-0.5 shrink-0 self-start" onClick={(e) => e.stopPropagation()}>
+            {prevCol && (
+              <button
+                type="button"
+                onClick={() => onMove(task.id, prevCol)}
+                className="p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted text-[10px] transition"
+                title={T(COLUMNS.find((c) => c.id === prevCol)?.labelFa || "ستون قبل", "Previous column")}
+              >
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            )}
+            {nextCol && (
+              <button
+                type="button"
+                onClick={() => onMove(task.id, nextCol)}
+                className="p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted text-[10px] transition"
+                title={T(COLUMNS.find((c) => c.id === nextCol)?.labelFa || "ستون بعد", "Next column")}
+              >
+                <ArrowLeft className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </Card>
   );

@@ -125,7 +125,7 @@ export default {
     themeLight: "Light",
     themeDark: "Dark",
     themeSystem: "System",
-    themeTickTick: "TickTick (Light)",
+    themeTickTick: "Minimal (Light)",
     themeArshnaz: "ARSHNAZ (Light)",
     themeArshnazDark: "ARSHNAZ (Dark)",
     aiSettings: "AI Settings",
