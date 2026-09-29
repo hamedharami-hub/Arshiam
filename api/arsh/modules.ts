@@ -59,8 +59,7 @@ export default async function handler(req: any, res: any) {
   const uid = claims.uid;
   const email = claims.email?.trim().toLowerCase() || "";
   const extraAdmins = (process.env.ARSH_ADMIN_EMAILS || "").split(",").map((s) => s.trim().toLowerCase());
-  const isAdmin = claims.admin === true || claims.role === "admin" ||
-    (claims.email_verified === true && (ownerEmails.has(email) || extraAdmins.includes(email)));
+  const isAdmin = claims.email_verified === true && (ownerEmails.has(email) || extraAdmins.includes(email));
   const db = adminDb();
   const userRef = db.doc(`users/${uid}/module_access/state`);
   const parts = segments(req);

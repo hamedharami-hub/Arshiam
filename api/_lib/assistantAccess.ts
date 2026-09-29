@@ -1,9 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
 import { getApps, initializeApp, cert, applicationDefault } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import firebaseConfig from "../../firebase-applet-config.json" with { type: "json" };
-import { extractBearerToken } from "./auth.js";
+import { extractBearerToken, verifyFirebaseIdToken } from "./auth.js";
 import { sendError } from "./response.js";
 
 export const ASSISTANT_SCOPES = ["tasks:read", "tasks:create", "tasks:update", "tasks:delete"] as const;
@@ -29,7 +28,9 @@ export function adminDb() {
 
 /** Verify a Firebase session before granting any server-side module permissions. */
 export async function verifyFirebaseSession(token: string) {
-  return getAuth(adminApp()).verifyIdToken(token, true);
+  const user = await verifyFirebaseIdToken(token);
+  if (!user) throw new Error("Invalid Firebase ID token");
+  return user;
 }
 
 function tokenHash(token: string) {
@@ -43,7 +44,7 @@ export async function authenticateOwner(req: any, res: any): Promise<string | nu
     return null;
   }
   try {
-    const decoded = await getAuth(adminApp()).verifyIdToken(token, true);
+    const decoded = await verifyFirebaseSession(token);
     return decoded.uid;
   } catch {
     sendError(res, 401, "UNAUTHORIZED", "Invalid or expired account session.");

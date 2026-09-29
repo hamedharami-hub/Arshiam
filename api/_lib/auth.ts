@@ -11,6 +11,26 @@ export interface AuthUser {
 const FIREBASE_API_KEY =
   process.env.FIREBASE_API_KEY || (firebaseConfig as any).apiKey;
 
+/** Only Firebase ID tokens from this project's API key qualify for server-side privileges. */
+export async function verifyFirebaseIdToken(token: string): Promise<{
+  uid: string; email: string | null; email_verified: boolean;
+} | null> {
+  if (!token) return null;
+  const lookupRes = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ idToken: token }),
+  });
+  if (!lookupRes.ok) return null;
+  const data: any = await lookupRes.json();
+  const user = data.users?.[0];
+  return user?.localId ? {
+    uid: user.localId,
+    email: user.email || null,
+    email_verified: user.emailVerified === true,
+  } : null;
+}
+
 /**
  * Extracts Bearer token from the incoming request's Authorization header
  */
