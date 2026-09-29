@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { isPathAllowed } from "@/lib/appModules";
 import { format, isSameDay } from "date-fns";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -206,6 +207,7 @@ export default function DayDetailSheet({
           </div>
 
           {/* Check-in */}
+          {isPathAllowed("/app/checkin") && (
           <div className="border border-border/60 rounded-xl p-4 space-y-2 bg-card/40">
             <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground"><Activity className="w-4 h-4 text-primary" /> Check-in</h3>
             {checkin ? (
@@ -222,6 +224,7 @@ export default function DayDetailSheet({
               </Button>
             )}
           </div>
+          )}
         </div>
       </div>
     </>

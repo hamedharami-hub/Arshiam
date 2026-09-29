@@ -29,6 +29,7 @@ export function nativeRoute(raw: string, currentUid?: string | null): string | n
       return "/app/review?" + params.toString();
     }
     if (route === "sos" || route === "crisis") return "/app/crisis";
+    if (route === "google-connected") return "/app/settings?tab=tasks&google=" + encodeURIComponent(url.searchParams.get("result") || "connected");
     return ["today","tomorrow","next7","inbox","notes","checkin","garden","pomodoro","settings","mind","crisis","thoughts","abc","socratic","breathing","worry","life-architect","widgets","habits","calendar","kanban","self","stats"].includes(route) ? "/app/" + route : null;
   } catch { return null; }
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { isPathAllowed } from "@/lib/appModules";
 import { useNavigate, Link } from "react-router-dom";
 import {
   ShieldAlert,
@@ -85,15 +86,17 @@ export default function CrisisView() {
     >
       {/* Top Bar: Return to Mind & Quick Exit to Safety */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate("/app/mind")}
-          className="text-xs text-muted-foreground hover:text-foreground"
-        >
-          <BackIcon className={`w-3.5 h-3.5 ${isEn ? "me-1" : "ms-1"}`} />
-          {T("داشبورد ذهن", "Mind Dashboard")}
-        </Button>
+        {isPathAllowed("/app/mind") && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/app/mind")}
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
+            <BackIcon className={`w-3.5 h-3.5 ${isEn ? "me-1" : "ms-1"}`} />
+            {T("داشبورد ذهن", "Mind Dashboard")}
+          </Button>
+        )}
 
         {/* High-visibility Quick Exit Button */}
         <Button
@@ -401,12 +404,14 @@ export default function CrisisView() {
                 )}
               </p>
             </div>
-            <Button asChild variant="secondary" size="sm" className="mt-2 text-xs w-full">
-              <Link to="/app/breathing">
-                <Wind className="w-3.5 h-3.5 me-1" />
-                {T("ورود به تمرین تنفس ۳بعدی", "Open 3D Breathing")}
-              </Link>
-            </Button>
+            {isPathAllowed("/app/breathing") && (
+              <Button asChild variant="secondary" size="sm" className="mt-2 text-xs w-full">
+                <Link to="/app/breathing">
+                  <Wind className="w-3.5 h-3.5 me-1" />
+                  {T("ورود به تمرین تنفس ۳بعدی", "Open 3D Breathing")}
+                </Link>
+              </Button>
+            )}
           </div>
 
           {/* Step 3: Safety Action */}

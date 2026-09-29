@@ -19,7 +19,7 @@ def _verify(token: str) -> dict:
     return id_token.verify_firebase_token(token, _request(), audience=FIREBASE_PROJECT_ID)
 
 
-async def current_user_id(authorization: str = Header(default="")) -> str:
+async def current_claims(authorization: str = Header(default="")) -> dict:
     if not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="Missing bearer token")
     token = authorization.split(" ", 1)[1].strip()
@@ -27,7 +27,11 @@ async def current_user_id(authorization: str = Header(default="")) -> str:
         claims = await run_in_threadpool(_verify, token)
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
-    uid = claims.get("user_id") or claims.get("sub")
-    if not uid:
+    if not (claims.get("user_id") or claims.get("sub")):
         raise HTTPException(status_code=401, detail="Invalid token")
-    return uid
+    return claims
+
+
+async def current_user_id(authorization: str = Header(default="")) -> str:
+    claims = await current_claims(authorization)
+    return claims.get("user_id") or claims.get("sub")

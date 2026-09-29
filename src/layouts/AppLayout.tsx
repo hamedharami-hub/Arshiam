@@ -1,4 +1,5 @@
-import { Outlet } from "react-router-dom";
+import { ModuleGatedOutlet } from "@/components/modules/ModuleGatedOutlet";
+import { syncModulesForUser } from "@/lib/appModules";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AIPanel } from "@/components/AIPanel";
@@ -44,6 +45,7 @@ export default function AppLayout() {
   const loc = useLocation();
   useTwoFingerSwipe();
   const { user: layoutUser } = useAuth();
+  useEffect(() => { void syncModulesForUser(layoutUser?.id ?? null); }, [layoutUser?.id]);
   useEffect(() => {
     if (!layoutUser?.id) return;
     startAttachmentQueueRunner();
@@ -171,7 +173,7 @@ export default function AppLayout() {
               key={loc.pathname}
               className="animate-fade-in motion-reduce:animate-none w-full min-h-full"
             >
-              <Outlet />
+              <ModuleGatedOutlet />
             </div>
           </main>
         </div>

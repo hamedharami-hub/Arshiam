@@ -113,11 +113,15 @@ describe("KnowledgeMindMapView outline mode", () => {
       fireEvent.click(screen.getByTestId("mindmap-reveal-toggle"));
       const next = await screen.findByTestId("mindmap-reveal-next");
       expect(next.textContent).toMatch(/0\/[1-9]/);
+      const totalBefore = screen.getByTestId("mindmap-reveal-progress").textContent?.split("/")[1];
       expect(screen.queryByText("Study Folder")).not.toBeInTheDocument();
       fireEvent.click(next);
       expect(await screen.findByText("Study Folder")).toBeInTheDocument();
       expect(screen.getByTestId("mindmap-reveal-next").textContent).toMatch(/1\//);
+      expect(screen.getByTestId("mindmap-reveal-progress").textContent?.split("/")[1]).toBe(totalBefore);
+      expect(screen.getByTestId("mindmap-reveal-toggle").textContent).toMatch(/Show all/);
       fireEvent.click(screen.getByTestId("mindmap-reveal-toggle"));
+      expect(screen.getByTestId("mindmap-reveal-toggle").textContent).toMatch(/Reveal/);
       fireEvent.click(screen.getByTestId("mindmap-focus-toggle"));
       fireEvent.click(screen.getByText("Study Folder"));
       expect(screen.getAllByTestId("mindmap-node-wrap-focus").length).toBeGreaterThan(0);

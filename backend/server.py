@@ -2,7 +2,7 @@
 
 Tasks stay in Firestore. This service handles:
 - attachment uploads to Emergent Object Storage (signed upload/view URLs)
-- (next phases) weather cache, holiday sync, Google tokens
+- weather cache, holiday sync, Google Drive/Photos link (encrypted tokens), hidden feature modules
 """
 import logging
 import os
@@ -20,6 +20,8 @@ from db import client  # noqa: E402
 from attachments import router as attachments_router  # noqa: E402
 from holidays_au import router as holidays_router  # noqa: E402
 from weather import router as weather_router  # noqa: E402
+from google_integration import router as google_router  # noqa: E402
+from modules import router as modules_router, seed_master_code  # noqa: E402
 from storage import init_storage  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -38,6 +40,8 @@ async def health():
 api_router.include_router(attachments_router)
 api_router.include_router(holidays_router)
 api_router.include_router(weather_router)
+api_router.include_router(google_router)
+api_router.include_router(modules_router)
 app.include_router(api_router)
 
 app.add_middleware(
@@ -51,6 +55,7 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def on_startup():
+    await seed_master_code()
     try:
         init_storage()
         logger.info("Object storage initialised")

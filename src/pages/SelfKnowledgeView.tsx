@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { isPathAllowed } from "@/lib/appModules";
 import { Link } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -217,9 +218,11 @@ export default function SelfKnowledgeView() {
           <CardDescription>{T("ثبت خلق، انرژی، خواب و تمرکز برای الگویابی بلندمدت", "Log mood, energy, sleep, and focus for long-term pattern insights")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button asChild>
-            <Link to="/app/checkin">{T("رفتن به Check-in روزانه", "Go to Daily Check-in")}</Link>
-          </Button>
+          {isPathAllowed("/app/checkin") && (
+            <Button asChild>
+              <Link to="/app/checkin">{T("رفتن به Check-in روزانه", "Go to Daily Check-in")}</Link>
+            </Button>
+          )}
         </CardContent>
       </Card>
     </div>

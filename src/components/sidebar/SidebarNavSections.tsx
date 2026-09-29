@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { isPathAllowed, useModules, type ModulesState } from "@/lib/appModules";
 import {
   Inbox, Calendar as CalIcon, CalendarDays, Filter, Tag, FileText,
   Target, Timer, Calendar, ChevronDown, Sparkles, LayoutGrid,
@@ -170,6 +171,14 @@ export const SECTIONS: Section[] = [
     ],
   },
 ];
+
+function filterNavByModules(items: NavItem[], modules: ModulesState): NavItem[] {
+  return items.flatMap((item) => {
+    if (item.url) return isPathAllowed(item.url, modules) ? [item] : [];
+    const children = filterNavByModules(item.children || [], modules);
+    return children.length ? [{ ...item, children }] : [];
+  });
+}
 
 function flattenNavigableItems(items: NavItem[]): NavItem[] {
   return items.flatMap((item) => [
@@ -374,7 +383,9 @@ export function SidebarSectionCollapsible({
     section.id === "me" && isAdmin
       ? [...section.items, { url: "/app/admin", icon: Shield, label: "پنل مدیریت" }]
       : section.items;
-  const items = sectionItems.filter((item) => item.url !== "/app/widgets" || isAndroid());
+  const modules = useModules();
+  const items = filterNavByModules(sectionItems.filter((item) => item.url !== "/app/widgets" || isAndroid()), modules);
+  if (items.length === 0) return null;
 
   if (collapsed) {
     return (

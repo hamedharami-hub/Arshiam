@@ -5,7 +5,16 @@ import type { RemoteAttachment } from "@/lib/attachmentUpload";
 export type GoogleStatus = { configured: boolean; picker_ready: boolean; connected: boolean; email?: string | null; connected_at?: string | null };
 type ImportResult = { items: RemoteAttachment[]; errors: Array<{ detail: string }> };
 
-export const getGoogleStatus = () => arshFetch<GoogleStatus>("/api/arsh/google/status");
+let statusCache: { at: number; p: Promise<GoogleStatus> } | null = null;
+
+export function getGoogleStatus(fresh = false): Promise<GoogleStatus> {
+  if (fresh || !statusCache || Date.now() - statusCache.at > 60_000) {
+    const p = arshFetch<GoogleStatus>("/api/arsh/google/status");
+    statusCache = { at: Date.now(), p };
+    p.catch(() => { statusCache = null; });
+  }
+  return statusCache.p;
+}
 
 export function openExternal(url: string) {
   // Capacitor opens external URLs in the system browser (Google blocks OAuth inside WebViews).
@@ -31,17 +40,16 @@ export const uploadAttachmentToDrive = (attachmentId: string) =>
 // ---------- Drive: Google Picker ----------
 
 type PickerDoc = { id: string };
-declare global {
-  interface Window { gapi?: any; google?: any }
-}
+// window.google is typed elsewhere for Identity Services; the Picker lives on the same global.
+const gWin = () => window as unknown as { gapi: any; google?: { picker?: any } };
 
 let pickerLoader: Promise<void> | null = null;
 function loadPicker(): Promise<void> {
-  if (window.google?.picker) return Promise.resolve();
+  if (gWin().google?.picker) return Promise.resolve();
   pickerLoader ??= new Promise<void>((resolve, reject) => {
     const s = document.createElement("script");
     s.src = "https://apis.google.com/js/api.js";
-    s.onload = () => window.gapi.load("picker", { callback: () => resolve(), onerror: () => reject(new Error("picker")) });
+    s.onload = () => gWin().gapi.load("picker", { callback: () => resolve(), onerror: () => reject(new Error("picker")) });
     s.onerror = () => { pickerLoader = null; reject(new ArshApiError(0, "Google Picker could not load")); };
     document.head.appendChild(s);
   });
@@ -51,7 +59,7 @@ function loadPicker(): Promise<void> {
 export async function pickFromDrive(): Promise<string[]> {
   const cfg = await arshFetch<{ access_token: string; api_key: string; app_id: string }>("/api/arsh/google/picker-config");
   await loadPicker();
-  const gp = window.google.picker;
+  const gp = gWin().google!.picker;
   return new Promise<string[]>((resolve) => {
     const picker = new gp.PickerBuilder()
       .addView(new gp.DocsView().setIncludeFolders(false))

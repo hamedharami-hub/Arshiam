@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { isPathAllowed, useModules } from "@/lib/appModules";
 import {
   CalendarDays, FolderTree, Tag, Folder as FolderIcon,
   LogOut, Settings, PanelLeft, PanelRight, RotateCcw, Plus,
@@ -47,6 +48,7 @@ import { TagT, SidebarTagsList } from "./sidebar/SidebarTagsList";
 
 
 export function AppSidebar({ className, style }: { className?: string; style?: React.CSSProperties } = {}) {
+  const modules = useModules();
   const { state, isMobile, setOpenMobile, toggleSidebar } = useSidebar();
   const { sidebarPosition } = useSidebarPosition();
   const collapsed = state === "collapsed" && !isMobile;
@@ -500,7 +502,7 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
                     }
 
                     const item = NAV_ITEMS.find((candidate) => candidate.url === url);
-                    if (!item) return null;
+                    if (!item || !isPathAllowed(item.url!, modules)) return null;
                     const Icon = item.icon;
                     return (
                       <SidebarMenuItem key={item.url}>

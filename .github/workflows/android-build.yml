@@ -28,6 +28,9 @@ jobs:
 
       - name: Build web app
         run: npm run build
+        env:
+          # Origin of the deployed ARSHNAZ FastAPI service (attachments, weather, holidays, Google, modules)
+          VITE_ARSH_API_URL: ${{ vars.VITE_ARSH_API_URL }}
 
       - name: Test web contracts
         run: npm test

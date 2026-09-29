@@ -788,6 +788,9 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   const [revealMode, setRevealMode] = useState(false);
   const [revealCounts, setRevealCounts] = useState<Record<string, number>>({});
   const revealMetaRef = useRef<{ order: string[]; totals: Record<string, number> }>({ order: [], totals: {} });
+  const fullRevealMetaRef = useRef<{ order: string[]; totals: Record<string, number> }>({ order: [], totals: {} });
+  const focusTapRef = useRef({ x: 0, y: 0, t: 0, handledAt: 0 });
+  const toggleFocusNode = useCallback((id: string) => setFocusNodeId((cur) => (cur === id ? null : id)), []);
   const [nodeAppearanceState, setNodeAppearanceState] = useState(() => ({
     ownerId: userId,
     styles: loadKnowledgeMindMapNodeStyles(userId),
@@ -1137,6 +1140,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
 
   // Compute Tree Layout (Pharmacy layout algorithm: Center parent to children and prevent subtree overlap)
   const baseLayout = useMemo(() => {
+    const build = (applyReveal: boolean) => {
     const items: MindMapNode[] = [];
     const linkList: MindMapLink[] = [];
 
@@ -1166,7 +1170,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       const hasChildren = childrenData.length > 0;
       revealMetaRef.current.order.push(id);
       revealMetaRef.current.totals[id] = childrenData.length;
-      const visibleChildren = isExpanded ? (revealMode ? childrenData.slice(0, revealCounts[id] ?? 0) : childrenData) : [];
+      const visibleChildren = isExpanded ? (applyReveal ? childrenData.slice(0, revealCounts[id] ?? 0) : childrenData) : [];
 
       let nodeY: number;
 
@@ -1457,6 +1461,13 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
         height: maxY - minY + 160,
       },
     };
+    };
+    // Full tree first so the counter total is stable; the visible build runs last and owns revealMetaRef.
+    if (revealMode) {
+      build(false);
+      fullRevealMetaRef.current = revealMetaRef.current;
+    }
+    return build(revealMode);
   }, [documents, cards, expandedNodeIds, isEn, treeDirection, selectedScopeId, cardLanguage, compactLabels, rootFoldersList, folderTreeNodeById, otherDocuments, folderIds, revealMode, revealCounts]);
 
   const canvasLayoutResult = useMemo(
@@ -1480,7 +1491,8 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   );
   const appearanceNode = displayNodes.find((node) => node.id === appearanceNodeId) ?? null;
   const focusedIds = useMemo(() => (focusMode ? focusSet(focusNodeId, links) : null), [focusMode, focusNodeId, links]);
-  const revealStats = revealMode ? revealProgress(revealMetaRef.current.order, revealMetaRef.current.totals, revealCounts) : null;
+  const revealStats = revealMode ? revealProgress(fullRevealMetaRef.current.order, fullRevealMetaRef.current.totals, revealCounts) : null;
+  const revealDone = !!revealStats && revealStats.total > 0 && revealStats.shown >= revealStats.total;
   const revealNext = useCallback(() => {
     const { order, totals } = revealMetaRef.current;
     const target = nextRevealTarget(order, totals, revealCounts, (id) => !!expandedNodeIds[id]);
@@ -2094,6 +2106,13 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
               >
                 <Target className="h-3.5 w-3.5" />{isEn ? "Focus" : "تمرکز"}
               </button>
+              {focusMode && (
+                <span className="px-1.5 text-[11px] text-muted-foreground" data-testid="mindmap-focus-hint">
+                  {focusNodeId
+                    ? isEn ? "Tap it again to clear" : "برای برداشتن تمرکز دوباره بزن"
+                    : isEn ? "Tap a branch" : "روی یک شاخه بزن"}
+                </span>
+              )}
               <button
                 type="button"
                 aria-pressed={revealMode}
@@ -2102,15 +2121,21 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
                   setRevealMode((v) => !v);
                 }}
                 className={`h-8 px-2 rounded-lg text-xs inline-flex items-center gap-1 ${revealMode ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
-                title={isEn ? "Reveal branches step by step" : "آشکارسازی تدریجی شاخه‌ها"}
+                title={revealMode
+                  ? isEn ? "Exit step-by-step reveal and show the whole map" : "خروج از آشکارسازی تدریجی و نمایش کل نقشه"
+                  : isEn ? "Reveal branches step by step" : "آشکارسازی تدریجی شاخه‌ها"}
                 data-testid="mindmap-reveal-toggle"
               >
-                <Eye className="h-3.5 w-3.5" />{isEn ? "Reveal" : "تدریجی"}
+                <Eye className="h-3.5 w-3.5" />
+                {revealMode ? (isEn ? "Show all" : "نمایش همه") : (isEn ? "Reveal" : "تدریجی")}
               </button>
               {revealMode && (
                 <>
-                  <button type="button" onClick={revealNext} className="h-8 px-2 rounded-lg text-xs font-semibold bg-emerald-500 text-white inline-flex items-center gap-1" data-testid="mindmap-reveal-next">
-                    {isEn ? "Next" : "بعدی"}{revealStats ? ` ${revealStats.shown}/${revealStats.total}` : ""}
+                  <button type="button" onClick={revealNext} disabled={revealDone} className="h-8 px-2 rounded-lg text-xs font-semibold bg-emerald-500 text-white inline-flex items-center gap-1 disabled:opacity-60" data-testid="mindmap-reveal-next">
+                    {revealDone ? (isEn ? "Done" : "تمام شد") : (isEn ? "Next" : "بعدی")}
+                    {revealStats && (
+                      <span className="tabular-nums" dir="ltr" data-testid="mindmap-reveal-progress">{revealStats.shown}/{revealStats.total}</span>
+                    )}
                   </button>
                   <button type="button" onClick={() => setRevealCounts({})} className="h-8 px-2 rounded-lg text-xs text-muted-foreground hover:bg-muted" data-testid="mindmap-reveal-reset">
                     {isEn ? "Reset" : "از نو"}
@@ -2346,10 +2371,21 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
               <div
                 key={node.id}
                 style={{ opacity: dimmed ? 0.12 : 1, transition: "opacity 220ms ease" }}
+                onPointerDown={focusMode ? (e) => { focusTapRef.current = { x: e.clientX, y: e.clientY, t: Date.now(), handledAt: focusTapRef.current.handledAt }; } : undefined}
+                onPointerUp={focusMode ? (e) => {
+                  // Touch/pen taps are resolved here because canvas panning can swallow the synthetic click.
+                  if (e.pointerType === "mouse" || (e.target as HTMLElement).closest("button")) return;
+                  const start = focusTapRef.current;
+                  if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > 10 || Date.now() - start.t > 600) return;
+                  focusTapRef.current.handledAt = Date.now();
+                  toggleFocusNode(node.id);
+                } : undefined}
                 onClickCapture={focusMode ? (e) => {
                   // In focus mode a tap on the node body only focuses it; its buttons keep working.
-                  if (!(e.target as HTMLElement).closest("button")) e.stopPropagation();
-                  setFocusNodeId((cur) => (cur === node.id ? null : node.id));
+                  if ((e.target as HTMLElement).closest("button")) return;
+                  e.stopPropagation();
+                  if (Date.now() - focusTapRef.current.handledAt < 700) return;
+                  toggleFocusNode(node.id);
                 } : undefined}
                 data-testid={focusMode ? `mindmap-node-wrap-${dimmed ? "dim" : "focus"}` : undefined}
               >

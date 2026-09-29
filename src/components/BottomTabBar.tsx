@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import { isPathAllowed, useModules } from "@/lib/appModules";
 import { ListTodo, FileText, Brain, Flame, CalendarDays } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -43,6 +44,7 @@ export function BottomTabBar() {
       if (e.altKey && !e.ctrlKey && !e.metaKey) {
         switch (e.key) {
           case "1":
+            if (!isPathAllowed("/app/mind")) break;
             e.preventDefault();
             navigate("/app/mind");
             break;
@@ -150,8 +152,10 @@ export function BottomTabBar() {
   ], []);
 
   // For compact phone layout:
-  const mobilePrimaryTabs = useMemo(() => [tabs[0], tabs[1]], [tabs]);
-  const mobileSecondaryTabs = useMemo(() => [tabs[3]], [tabs]);
+  const modules = useModules();
+  const visibleTabs = useMemo(() => tabs.filter((tab) => isPathAllowed(tab.to, modules)), [tabs, modules]);
+  const mobilePrimaryTabs = useMemo(() => visibleTabs.filter((tab) => tab.key !== "today").slice(0, 2), [visibleTabs]);
+  const mobileSecondaryTabs = useMemo(() => visibleTabs.filter((tab) => tab.key === "today"), [visibleTabs]);
 
   const isTaskPage =
     loc.pathname.startsWith("/app/new/task") ||

@@ -17,8 +17,9 @@ import { absoluteArshUrl } from "@/lib/arshApi";
 import {
   ATTACHMENT_ACCEPT, deleteAttachment, enqueueAttachment, flushAttachmentQueue, formatBytes, isNetworkError,
   listAttachments, listQueued, onQueueChange, removeQueued, startAttachmentQueueRunner, uploadAttachment,
-  validateAttachmentFile, type AttachmentKind, type QueuedAttachment,
+  validateAttachmentFile, type AttachmentKind, type QueuedAttachment, type RemoteAttachment,
 } from "@/lib/attachmentUpload";
+import { GoogleImportButtons, SaveToDriveButton } from "@/components/GoogleImportButtons";
 import { useBilingual } from "@/hooks/useBilingual";
 import { PdfPreview } from "@/components/PdfPreview";
 
@@ -38,6 +39,13 @@ type Item = {
 type Upload = { localId: string; file: File; progress: number; status: "uploading" | "failed"; error?: string };
 
 type ImageAction = "attach" | "extract" | "summarize" | "research" | "tasks" | "scheduled_tasks";
+
+function toItem(a: RemoteAttachment): Item {
+  return {
+    id: a.id, file_name: a.file_name, mime_type: a.mime_type, kind: a.kind, size_bytes: a.size_bytes,
+    url: absoluteArshUrl(a.view_url), download_url: absoluteArshUrl(a.download_url), created_at: a.created_at,
+  };
+}
 
 function legacyKind(k: string, mime: string | null): AttachmentKind {
   if (mime === "application/pdf") return "pdf";
@@ -64,10 +72,7 @@ export function TaskAttachments({ taskId, onCountChange }: { taskId: string; onC
         .then((r) => (r.data || []) as any[]).catch(() => [] as any[]),
     ]);
     const merged: Item[] = [
-      ...remote.map((a) => ({
-        id: a.id, file_name: a.file_name, mime_type: a.mime_type, kind: a.kind, size_bytes: a.size_bytes,
-        url: absoluteArshUrl(a.view_url), download_url: absoluteArshUrl(a.download_url), created_at: a.created_at,
-      })),
+      ...remote.map(toItem),
       ...legacy.map((a) => ({
         id: a.id, file_name: a.file_name, mime_type: a.mime_type || "", kind: legacyKind(a.kind, a.mime_type),
         size_bytes: a.size_bytes, url: a.url, download_url: a.url, created_at: a.created_at,
@@ -110,10 +115,7 @@ export function TaskAttachments({ taskId, onCountChange }: { taskId: string; onC
         setUploads((prev) => prev.map((u) => (u.localId === localId ? { ...u, progress: p } : u))),
       );
       setUploads((prev) => prev.filter((u) => u.localId !== localId));
-      const item: Item = {
-        id: att.id, file_name: att.file_name, mime_type: att.mime_type, kind: att.kind, size_bytes: att.size_bytes,
-        url: absoluteArshUrl(att.view_url), download_url: absoluteArshUrl(att.download_url), created_at: att.created_at,
-      };
+      const item = toItem(att);
       setItems((prev) => [item, ...prev]);
       if (item.kind === "image") setPendingImage(item);
     } catch (e: any) {
@@ -230,6 +232,7 @@ export function TaskAttachments({ taskId, onCountChange }: { taskId: string; onC
         <input ref={fileRef} type="file" accept={pickAccept} multiple className="hidden" data-testid="attachments-file-input"
           onChange={(e) => onFiles(e.target.files)} />
       </div>
+      <GoogleImportButtons taskId={taskId} onImported={(atts) => setItems((prev) => [...atts.map(toItem), ...prev])} />
       <p className="text-[11px] text-muted-foreground mb-2">
         {T("حداکثر ۲۵ مگابایت · عکس، PDF، صوت، ویدیو، متن و Word", "Max 25 MB · images, PDF, audio, video, text, Word")}
       </p>
@@ -313,6 +316,7 @@ export function TaskAttachments({ taskId, onCountChange }: { taskId: string; onC
                   {a.kind === "audio" && <audio controls src={a.url} className="mt-2 w-full" preload="metadata" />}
                   {a.kind === "video" && <video controls src={a.url} className="mt-2 w-full max-h-64 rounded-md border" preload="metadata" />}
                 </div>
+                {!a.legacy && <SaveToDriveButton attachmentId={a.id} />}
                 <Button size="icon" variant="ghost" onClick={() => removeItem(a)} data-testid="attachment-delete-btn" aria-label={T("حذف پیوست", "Delete attachment")}>
                   <Trash2 className="w-3 h-3" />
                 </Button>

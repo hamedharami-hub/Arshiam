@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { isPathAllowed, useModules } from "@/lib/appModules";
 import {
   CalendarDays,
   FolderTree,
@@ -219,6 +220,7 @@ function SortableShortcutItem({
 }
 
 export function SidebarQuickLinksSettings({ isEn }: { isEn: boolean }) {
+  const modules = useModules();
   const [selected, setSelected] = useState<string[]>(getSidebarQuickLinks);
   const [sidebarWidth, setWidth] = useSidebarWidth();
   const [activeGroup, setActiveGroup] = useState<"all" | SidebarQuickLinkGroup>("all");
@@ -284,11 +286,12 @@ export function SidebarQuickLinksSettings({ isEn }: { isEn: boolean }) {
   };
 
   // Selectable options (excluding /app/today since it is pinned)
-  const selectableOptions = SIDEBAR_QUICK_LINK_OPTIONS.filter((o) => o.url !== "/app/today");
+  const selectableOptions = SIDEBAR_QUICK_LINK_OPTIONS.filter((o) => o.url !== "/app/today" && isPathAllowed(o.url, modules));
 
   // Active items in custom order (excluding /app/today)
   const activeItems = selected
     .filter((url) => url !== "/app/today")
+    .filter((url) => isPathAllowed(url, modules))
     .map((url) => SIDEBAR_QUICK_LINK_OPTIONS.find((o) => o.url === url))
     .filter((item): item is (typeof SIDEBAR_QUICK_LINK_OPTIONS)[number] => Boolean(item));
 

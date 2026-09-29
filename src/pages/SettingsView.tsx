@@ -47,6 +47,9 @@ import { SidebarQuickLinksSettings } from "./settings/SidebarQuickLinksSettings"
 import { AISettingsTab } from "./settings/AISettingsTab";
 import { AppearanceSettingsSection } from "./settings/AppearanceSettingsSection";
 import { AssistantAccessSettings } from "./settings/AssistantAccessSettings";
+import { GoogleLinkSettings } from "./settings/GoogleLinkSettings";
+import { AdvancedModulesPanel } from "@/components/modules/AdvancedModulesPanel";
+import { VersionTapTarget } from "@/components/modules/VersionTapTarget";
 
 const AUTO_UPDATE_KEY = "arshnaz_auto_update";
 
@@ -314,7 +317,7 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="flex items-center gap-1">
             <Package className="w-3 h-3" />
-            {isEn ? "Version" : "نسخه"}: <span className="ltr inline-block font-mono">{fullVersion}</span>
+            <VersionTapTarget>{isEn ? "Version" : "نسخه"}: <span className="ltr inline-block font-mono">{fullVersion}</span></VersionTapTarget>
           </span>
           {buildNumber && (
             <span className="flex items-center gap-1">
@@ -400,7 +403,7 @@ export default function SettingsView() {
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [reminders, setReminders] = useState<UserSettings | null>(null);
-  const [activeTab, setActiveTab] = useState("general");
+  const [activeTab, setActiveTab] = useState(() => new URLSearchParams(window.location.search).get("tab") || "general");
 
   useEffect(() => {
     setSettings(loadAISettings());
@@ -751,6 +754,7 @@ export default function SettingsView() {
           )}
           <TimeHorizonSettings />
           <TimeBucketsSettings />
+          <GoogleLinkSettings />
         </TabsContent>
 
         <TabsContent value="notifications" className="space-y-5 mt-5">
@@ -890,6 +894,7 @@ export default function SettingsView() {
           </Card>
 
           <AppUpdateCard isEn={isEn} />
+          <AdvancedModulesPanel />
 
           <SectionCard
             icon={Info}

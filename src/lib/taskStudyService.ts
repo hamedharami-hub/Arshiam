@@ -1,4 +1,5 @@
 import { persistTask, upsertTask } from "@/lib/firestoreDataService";
+import { isPathAllowed } from "@/lib/appModules";
 import { getCachedTasks } from "@/features/tasks/taskService";
 import { db, doc, getDoc } from "@/lib/firebase";
 import type { Task, ReminderPlan } from "@/lib/taskTypes";
@@ -190,7 +191,7 @@ export async function createStudyTask(
 /**
  * Returns navigation URL and metadata for a study-linked task.
  */
-export function getStudyTaskNavigation(task: Partial<Task>): {
+type StudyNavigation = {
   isStudyTask: boolean;
   isMindMap: boolean;
   isKnowledge: boolean;
@@ -199,7 +200,15 @@ export function getStudyTaskNavigation(task: Partial<Task>): {
   badgeLabelEn: string;
   actionTextFa: string;
   actionTextEn: string;
-} {
+};
+
+/** Study links of a hidden module behave like plain tasks, as if the feature didn't exist. */
+export function getStudyTaskNavigation(task: Partial<Task>): StudyNavigation {
+  const nav = resolveStudyTaskNavigation(task);
+  return nav.isStudyTask && !isPathAllowed(nav.navUrl) ? { ...nav, isStudyTask: false } : nav;
+}
+
+function resolveStudyTaskNavigation(task: Partial<Task>): StudyNavigation {
   const type = task.source_type as StudyTargetType | undefined;
   const id = task.source_id || "";
 

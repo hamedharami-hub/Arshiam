@@ -256,17 +256,19 @@ export function TaskDetailBottomRail({
                   <span>{T("افزودن نوت", "Add Note")}</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAddPopoverOpen(false);
-                    onLinkKnowledge?.();
-                  }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-accent text-start transition"
-                >
-                  <BookOpen className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                  <span>{T("اتصال سند آموزشی", "Link Knowledge Doc")}</span>
-                </button>
+                {onLinkKnowledge && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddPopoverOpen(false);
+                      onLinkKnowledge?.();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-accent text-start transition"
+                  >
+                    <BookOpen className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                    <span>{T("اتصال سند آموزشی", "Link Knowledge Doc")}</span>
+                  </button>
+                )}
 
                 <button
                   type="button"

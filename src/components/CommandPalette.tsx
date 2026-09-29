@@ -1,3 +1,4 @@
+import { isPathAllowed, useModules } from "@/lib/appModules";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -61,7 +62,8 @@ export default function CommandPalette() {
   const [hits, setHits] = useState<Hit[]>([]);
   const [pharmacyHits, setPharmacyHits] = useState<PharmacySearchHit[]>([]);
 
-  const navItems = useMemo(() => getNavItems(T), [T]);
+  const modules = useModules();
+  const navItems = useMemo(() => getNavItems(T).filter((n) => isPathAllowed(n.to, modules)), [T, modules]);
 
   useEffect(() => {
     const keyHandler = (e: KeyboardEvent) => {

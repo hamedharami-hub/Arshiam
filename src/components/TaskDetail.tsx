@@ -1,4 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { hasModule, isPathAllowed, useModules } from "@/lib/appModules";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -174,6 +175,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [newContactOpen, setNewContactOpen] = useState(false);
   const [deviceImportOpen, setDeviceImportOpen] = useState(false);
   const [contactsRefreshKey, setContactsRefreshKey] = useState(0);
+  const modules = useModules();
   const [linkedKnowledgeDocs, setLinkedKnowledgeDocs] = useState<KnowledgeDocument[]>([]);
   const [isKnowledgeLinkModalOpen, setIsKnowledgeLinkModalOpen] = useState(false);
 
@@ -944,6 +946,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       )}
       {t.source_type && (() => {
         const studyInfo = getStudyTaskNavigation(t);
+        if (studyInfo.isStudyTask && !isPathAllowed(studyInfo.navUrl, modules)) return null;
+        if (!studyInfo.isStudyTask && !hasModule("mind", modules)) return null;
         if (studyInfo.isStudyTask) {
           const isLeitner = t.source_type === "leitner" || t.source_type === "leitner_folder";
           return (
@@ -1410,7 +1414,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         />
       )}
 
-      {user?.id && (
+      {user?.id && hasModule("study", modules) && (
         <TaskRelatedKnowledge
           documents={linkedKnowledgeDocs}
           onOpenLinkModal={() => setIsKnowledgeLinkModalOpen(true)}
@@ -1460,13 +1464,13 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       onPickContact={() => setContactPickerOpen(true)}
       onNewContact={() => setNewContactOpen(true)}
       onImportDeviceContact={() => setDeviceImportOpen(true)}
-      onLinkKnowledge={() => setIsKnowledgeLinkModalOpen(true)}
+      onLinkKnowledge={hasModule("study", modules) ? () => setIsKnowledgeLinkModalOpen(true) : undefined}
     />
   );
 
   const studyInfo = getStudyTaskNavigation(t);
   const isLeitnerTask = t.source_type === "leitner" || t.source_type === "leitner_folder";
-  const studyTaskActionSection = studyInfo.isStudyTask && (
+  const studyTaskActionSection = studyInfo.isStudyTask && isPathAllowed(studyInfo.navUrl, modules) && (
     <Card
       className={`p-3.5 mx-1 rounded-2xl space-y-2.5 ${
         isLeitnerTask
@@ -1539,7 +1543,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     </Card>
   );
 
-  const mindOutcomeReviewSection = t.source_type && (
+  const mindOutcomeReviewSection = t.source_type && hasModule("mind", modules) && (
     <Card className="p-3.5 mx-1 rounded-2xl border-purple-500/30 bg-purple-500/5 space-y-2.5">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2 text-xs font-semibold text-purple-600 dark:text-purple-400">

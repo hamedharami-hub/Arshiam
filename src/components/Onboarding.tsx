@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { isPathAllowed } from "@/lib/appModules";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { ListTodo, Heart, Timer, ArrowLeft, Sparkles, Compass } from "lucide-rea
 
 const KEY = "onboarded_v1";
 
-const STEPS = [
+const ALL_STEPS = [
   {
     icon: ListTodo,
     color: "text-blue-500",
@@ -50,7 +51,8 @@ export default function Onboarding() {
     if (to) navigate(to);
   };
 
-  const step = STEPS[i];
+  const STEPS = ALL_STEPS.filter((st) => isPathAllowed(st.to));
+  const step = STEPS[Math.min(i, STEPS.length - 1)];
   const Icon = step.icon;
   const isLast = i === STEPS.length - 1;
 

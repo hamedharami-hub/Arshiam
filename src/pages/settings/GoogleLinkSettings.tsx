@@ -11,8 +11,16 @@ export function GoogleLinkSettings() {
   const [status, setStatus] = useState<GoogleStatus | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const refresh = () => getGoogleStatus().then(setStatus).catch(() => setStatus(null));
-  useEffect(() => { void refresh(); }, []);
+  const refresh = () => getGoogleStatus(true).then(setStatus).catch(() => setStatus(null));
+  useEffect(() => {
+    void refresh();
+    const result = new URLSearchParams(window.location.search).get("google");
+    if (result === "connected") toast.success(T("حساب گوگل وصل شد", "Google account connected"));
+    else if (result) toast.error(result === "missing_scopes"
+      ? T("همهٔ دسترسی‌ها تأیید نشد؛ دوباره وصل شو و هر دو تیک را بزن", "Not all permissions were granted; connect again and allow both")
+      : T("اتصال گوگل انجام نشد", "Google connection was not completed"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);

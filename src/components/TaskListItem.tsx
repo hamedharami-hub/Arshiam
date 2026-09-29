@@ -1,4 +1,5 @@
 import React, { memo } from "react";
+import { isPathAllowed } from "@/lib/appModules";
 import {
   CornerDownRight, ChevronDown, ChevronRight, Pin, X, Ban,
   GripVertical, Flag, Calendar, Repeat, GitBranch, Check, Trash2, Clock, FolderInput, Brain,
@@ -241,7 +242,7 @@ const TaskListItemComponent = ({
                 <div
                   className="flex-1 min-w-0 cursor-pointer select-none"
                   onClick={() => {
-                    if (t.title.startsWith("چک‌این روزانه") || t.title.startsWith("Daily Check-in")) { navigate("/app/checkin"); return; }
+                    if (isPathAllowed("/app/checkin") && (t.title.startsWith("چک‌این روزانه") || t.title.startsWith("Daily Check-in"))) { navigate("/app/checkin"); return; }
                     onSelectTask(t);
                   }}
                   onDoubleClick={(e) => {

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { HardDrive, Images, Loader2 } from "lucide-react";
+import { CloudUpload, HardDrive, Images, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useBilingual } from "@/hooks/useBilingual";
 import type { RemoteAttachment } from "@/lib/attachmentUpload";
-import { getGoogleStatus, importDriveFiles, pickFromDrive, pickFromPhotos, type GoogleStatus } from "@/lib/googleLink";
+import { getGoogleStatus, importDriveFiles, openExternal, pickFromDrive, pickFromPhotos, uploadAttachmentToDrive, type GoogleStatus } from "@/lib/googleLink";
 
 /** "From Drive" / "From Photos" buttons; hidden until Google is configured on the server. */
 export function GoogleImportButtons({ taskId, onImported }: { taskId: string; onImported: (items: RemoteAttachment[]) => void }) {
@@ -49,5 +49,33 @@ export function GoogleImportButtons({ taskId, onImported }: { taskId: string; on
         {busy === "photos" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Images className="w-3 h-3" />} {T("از گوگل فوتوز", "From Photos")}
       </Button>
     </div>
+  );
+}
+
+/** Copies an app attachment into the user's "Arshnaz" folder in Google Drive. */
+export function SaveToDriveButton({ attachmentId }: { attachmentId: string }) {
+  const { T } = useBilingual();
+  const [connected, setConnected] = useState(false);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { getGoogleStatus().then((s) => setConnected(s.configured && s.connected)).catch(() => setConnected(false)); }, []);
+  if (!connected) return null;
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const r = await uploadAttachmentToDrive(attachmentId);
+      toast.success(T("در پوشهٔ Arshnaz درایو ذخیره شد", "Saved to the Arshnaz folder in Drive"), r.web_view_link
+        ? { action: { label: T("باز کردن", "Open"), onClick: () => openExternal(r.web_view_link!) } } : undefined);
+    } catch (e: any) {
+      toast.error(e?.message || T("خطا", "Error"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Button size="icon" variant="ghost" onClick={save} disabled={busy} data-testid="attachment-save-to-drive-btn" aria-label={T("ذخیره در درایو", "Save to Drive")}>
+      {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <CloudUpload className="w-3 h-3" />}
+    </Button>
   );
 }

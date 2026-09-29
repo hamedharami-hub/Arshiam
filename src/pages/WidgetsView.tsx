@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { isPathAllowed } from "@/lib/appModules";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   LayoutGrid,
@@ -777,24 +778,28 @@ export default function WidgetsView() {
                           <Mic className="h-4 w-4 text-primary animate-pulse" />
                           <span>{T("ویس / حرف من", "Voice / Speech")}</span>
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate("/app/checkin")}
-                          className="h-12 flex-col gap-0.5 rounded-xl border-border/50 text-[11px]"
-                        >
-                          <Activity className="h-4 w-4 text-pink-400" />
-                          <span>{T("چک‌این ذهن", "Mind Check-in")}</span>
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate("/app/breathing")}
-                          className="h-12 flex-col gap-0.5 rounded-xl border-border/50 text-[11px]"
-                        >
-                          <Wind className="h-4 w-4 text-sky-400" />
-                          <span>{T("تنفس ۳بعدی", "3D Breathing")}</span>
-                        </Button>
+                        {isPathAllowed("/app/checkin") && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate("/app/checkin")}
+                            className="h-12 flex-col gap-0.5 rounded-xl border-border/50 text-[11px]"
+                          >
+                            <Activity className="h-4 w-4 text-pink-400" />
+                            <span>{T("چک‌این ذهن", "Mind Check-in")}</span>
+                          </Button>
+                        )}
+                        {isPathAllowed("/app/breathing") && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate("/app/breathing")}
+                            className="h-12 flex-col gap-0.5 rounded-xl border-border/50 text-[11px]"
+                          >
+                            <Wind className="h-4 w-4 text-sky-400" />
+                            <span>{T("تنفس ۳بعدی", "3D Breathing")}</span>
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
@@ -822,22 +827,26 @@ export default function WidgetsView() {
                         {T("بررسی خلق، ثبت افکار شناختی و تنفس ضد استرس", "Mood check, CBT thoughts & stress-relief breathing")}
                       </p>
                       <div className="grid grid-cols-2 gap-2 pt-1">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => navigate("/app/checkin")}
-                          className="h-9 text-xs rounded-xl"
-                        >
-                          {T("چک‌این روزانه", "Daily Check-in")}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => navigate("/app/breathing")}
-                          className="h-9 text-xs rounded-xl"
-                        >
-                          {T("تنفس آرامش", "Calm Breathing")}
-                        </Button>
+                        {isPathAllowed("/app/checkin") && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => navigate("/app/checkin")}
+                            className="h-9 text-xs rounded-xl"
+                          >
+                            {T("چک‌این روزانه", "Daily Check-in")}
+                          </Button>
+                        )}
+                        {isPathAllowed("/app/breathing") && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => navigate("/app/breathing")}
+                            className="h-9 text-xs rounded-xl"
+                          >
+                            {T("تنفس آرامش", "Calm Breathing")}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -856,21 +865,25 @@ export default function WidgetsView() {
                         {T("تفکیک مسئله، پاسخ به سوالات سقراطی و کشف قدم بعدی", "Deconstruct problem, answer Socratic questions & find next step")}
                       </p>
                       <div className="flex gap-2 pt-1">
-                        <Button
-                          size="sm"
-                          onClick={() => navigate("/app/socratic")}
-                          className="h-9 flex-1 text-xs rounded-xl"
-                        >
-                          {T("چت سقراطی", "Socratic Chat")}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => navigate("/app/abc")}
-                          className="h-9 flex-1 text-xs rounded-xl"
-                        >
-                          {T("مدل ABC", "ABC Model")}
-                        </Button>
+                        {isPathAllowed("/app/socratic") && (
+                          <Button
+                            size="sm"
+                            onClick={() => navigate("/app/socratic")}
+                            className="h-9 flex-1 text-xs rounded-xl"
+                          >
+                            {T("چت سقراطی", "Socratic Chat")}
+                          </Button>
+                        )}
+                        {isPathAllowed("/app/abc") && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => navigate("/app/abc")}
+                            className="h-9 flex-1 text-xs rounded-xl"
+                          >
+                            {T("مدل ABC", "ABC Model")}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )}
