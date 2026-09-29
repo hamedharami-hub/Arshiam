@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3, ChevronDown, Flame, Target, Hand } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -11,6 +11,8 @@ import {
   setGestureSettings, MAX_RETENTION, MIN_RETENTION, type GestureSettings, type SwipeDir,
 } from "@/lib/reviewSettings";
 import { forecastReviews, getReviewDays, reviewedTodayCount, reviewStreak } from "@/lib/reviewStats";
+import { getKnowledgeDocuments, getKnowledgeFolders } from "@/lib/knowledgeService";
+import { filterCardsForDocuments, filterKnowledgeForFolderBranch } from "@/lib/reviewScope";
 
 const RATINGS: { v: LeitnerRating; fa: string; en: string }[] = [
   { v: 1, fa: "دوباره", en: "Again" }, { v: 2, fa: "سخت", en: "Hard" }, { v: 3, fa: "خوب", en: "Good" }, { v: 4, fa: "آسان", en: "Easy" },
@@ -20,23 +22,48 @@ const DIRS: { d: SwipeDir; fa: string; en: string }[] = [
   { d: "up", fa: "کشیدن به بالا", en: "Swipe up" }, { d: "down", fa: "کشیدن به پایین", en: "Swipe down" },
 ];
 
-export function ReviewInsights({ userId, isEn }: { userId: string; isEn: boolean }) {
+export function ReviewInsights({ userId, isEn, scopeRootFolderId }: { userId: string; isEn: boolean; scopeRootFolderId?: string }) {
   const [open, setOpen] = useState(false);
   const [cards, setCards] = useState<LeitnerCard[]>([]);
   const [retention, setRetention] = useState(getDesiredRetention);
   const [goal, setGoal] = useState(getDailyGoal);
   const [gestures, setGestures] = useState<GestureSettings>(getGestureSettings);
+  const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const loadIdRef = useRef(0);
   const n = (v: number | string) => (isEn ? String(v) : toPersianDigits(v));
 
   useEffect(() => {
     let alive = true;
-    const load = () => getLeitnerCards(userId).then((c) => alive && setCards(c)).catch(() => {});
+    const requestId = ++loadIdRef.current;
+    setCards([]);
+    setLoading(true);
+    setLoadFailed(false);
+    const load = async () => {
+      try {
+        const [allCards, folders, documents] = await Promise.all([
+          getLeitnerCards(userId),
+          getKnowledgeFolders(userId),
+          getKnowledgeDocuments(userId),
+        ]);
+        if (!alive || requestId !== loadIdRef.current) return;
+        const scopedKnowledge = filterKnowledgeForFolderBranch(folders, documents, scopeRootFolderId);
+        setCards(scopeRootFolderId ? filterCardsForDocuments(allCards, scopedKnowledge.documents) : allCards);
+        setLoadFailed(false);
+      } catch {
+        if (!alive || requestId !== loadIdRef.current) return;
+        setCards([]);
+        setLoadFailed(true);
+      } finally {
+        if (alive && requestId === loadIdRef.current) setLoading(false);
+      }
+    };
     void load();
     const on = () => { setRetention(getDesiredRetention()); setGoal(getDailyGoal()); setGestures(getGestureSettings()); void load(); };
     window.addEventListener(REVIEW_SETTINGS_EVENT, on);
     window.addEventListener("focus", load);
     return () => { alive = false; window.removeEventListener(REVIEW_SETTINGS_EVENT, on); window.removeEventListener("focus", load); };
-  }, [userId]);
+  }, [scopeRootFolderId, userId]);
 
   const forecast = useMemo(() => forecastReviews(cards, 14), [cards]);
   const today = reviewedTodayCount(cards);
@@ -50,9 +77,17 @@ export function ReviewInsights({ userId, isEn }: { userId: string; isEn: boolean
     <section className="rounded-2xl border border-border bg-card/60" data-testid="review-insights">
       <button type="button" onClick={() => setOpen((o) => !o)} className="w-full flex items-center gap-3 p-3 text-start" data-testid="review-insights-toggle" aria-expanded={open}>
         <div className="flex items-center gap-3 flex-1 min-w-0 flex-wrap text-xs">
-          <span className="inline-flex items-center gap-1 font-semibold" data-testid="review-streak"><Flame className="w-4 h-4 text-orange-500" />{n(streak)} {isEn ? "day streak" : "روز پیاپی"}</span>
-          <span className="inline-flex items-center gap-1" data-testid="review-goal-progress"><Target className="w-4 h-4 text-primary" />{n(today)}/{n(goal)} {isEn ? "today" : "امروز"}</span>
-          <span className="inline-flex items-center gap-1 text-muted-foreground" data-testid="review-due-today"><BarChart3 className="w-4 h-4" />{n(forecast[0]?.count || 0)} {isEn ? "due" : "آمادهٔ مرور"}</span>
+          {!scopeRootFolderId && <span className="inline-flex items-center gap-1 font-semibold" data-testid="review-streak"><Flame className="w-4 h-4 text-orange-500" />{n(streak)} {isEn ? "day streak · all folders" : "روز پیاپی · همهٔ پوشه‌ها"}</span>}
+          {loading ? (
+            <span className="text-muted-foreground" data-testid="review-insights-loading">{isEn ? "Loading this scope…" : "در حال بارگذاری این محدوده…"}</span>
+          ) : loadFailed ? (
+            <span className="text-destructive" data-testid="review-insights-error">{isEn ? "Scope statistics unavailable" : "آمار این محدوده در دسترس نیست"}</span>
+          ) : (
+            <>
+              <span className="inline-flex items-center gap-1" data-testid="review-goal-progress"><Target className="w-4 h-4 text-primary" />{n(today)}/{n(goal)} {isEn ? "today" : "امروز"}</span>
+              <span className="inline-flex items-center gap-1 text-muted-foreground" data-testid="review-due-today"><BarChart3 className="w-4 h-4" />{n(forecast[0]?.count || 0)} {isEn ? "due" : "آمادهٔ مرور"}</span>
+            </>
+          )}
         </div>
         <ChevronDown className={`w-4 h-4 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>

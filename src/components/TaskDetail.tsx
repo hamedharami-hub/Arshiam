@@ -78,6 +78,7 @@ import { deleteTaskCascade } from "@/features/tasks/taskService";
 import { buildTaskChildrenMap, collectTaskDescendantIds } from "@/features/tasks/taskTree";
 import type { Task, TaskNote, ConfirmState } from "@/lib/taskTypes";
 import { clearTaskDraft, taskPatch, writeTaskDraft } from "@/lib/taskDraft";
+import { getCurrentTaskLocation, taskLocationErrorMessage } from "@/lib/taskLocation";
 import { extractTasksFromCache } from "@/features/tasks/taskCache";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import {
@@ -171,6 +172,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   // Add menu & Contacts modal states
   const [addLocationOpen, setAddLocationOpen] = useState(false);
   const [locationText, setLocationText] = useState(task.location || "");
+  const [locatingTask, setLocatingTask] = useState(false);
   const [contactPickerOpen, setContactPickerOpen] = useState(false);
   const [newContactOpen, setNewContactOpen] = useState(false);
   const [deviceImportOpen, setDeviceImportOpen] = useState(false);
@@ -2036,6 +2038,29 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                 }
               }}
             />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full gap-2"
+              disabled={locatingTask}
+              onClick={async () => {
+                setLocatingTask(true);
+                try {
+                  const current = await getCurrentTaskLocation();
+                  setLocationText(current.text);
+                  toast.success(T("موقعیت دستگاه پیدا شد؛ اکنون آن را ذخیره کن.", "Device location found. Save it when ready."));
+                } catch (error) {
+                  toast.error(taskLocationErrorMessage(error, isEn));
+                } finally {
+                  setLocatingTask(false);
+                }
+              }}
+              data-testid="task-detail-current-location"
+            >
+              {locatingTask ? <Loader2 className="h-4 w-4 animate-spin" /> : <Network className="h-4 w-4" />}
+              {T("استفاده از موقعیت فعلی دستگاه", "Use current device location")}
+            </Button>
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
               <Button variant="outline" size="sm" onClick={() => setAddLocationOpen(false)}>
                 {T("انصراف", "Cancel")}

@@ -29,12 +29,23 @@ describe("cycle profile persistence", () => {
     const profileEq = vi.fn().mockImplementation(async () => { events.push("profile"); return { error: null }; });
     fromMock.mockImplementation(((table: string) => ({
       delete: () => ({ eq: table === "cycle_logs" ? logEq : profileEq }),
+      select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }),
     })) as never);
 
     await expect(deleteCycleProfileAndLogs("profile-1")).resolves.toEqual({ error: null });
-    expect(events).toEqual(["logs", "profile"]);
+    expect(events).toEqual(["logs", "profile", "logs"]);
     expect(fromMock).toHaveBeenNthCalledWith(1, "cycle_logs");
     expect(fromMock).toHaveBeenNthCalledWith(2, "cycle_profiles");
+  });
+
+  it("reports incomplete deletion when a concurrent log remains", async () => {
+    fromMock.mockImplementation(((table: string) => ({
+      delete: () => ({ eq: vi.fn().mockResolvedValue({ error: null }) }),
+      select: () => ({ eq: vi.fn().mockResolvedValue({ data: table === "cycle_logs" ? [{ id: "late-log" }] : [], error: null }) }),
+    })) as never);
+
+    const result = await deleteCycleProfileAndLogs("profile-1");
+    expect(result.error?.message).toContain("incomplete");
   });
 
   it("keeps the profile when deleting its logs fails", async () => {

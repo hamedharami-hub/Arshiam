@@ -7,6 +7,7 @@ import { KnowledgeMindMapView } from "@/components/review/KnowledgeMindMapView";
 import type { KnowledgeMindMapReviewScope } from "@/lib/knowledgeMindMapReview";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ReviewInsights } from "@/components/review/ReviewInsights";
+import { PHARMACY_ROOT_FOLDER_ID } from "@/lib/pharmacyConstants";
 
 export const REVIEW_FOLDERS = [{ id: "pharmacy", fa: "فارماسی", en: "Pharmacy" }] as const;
 import {
@@ -22,7 +23,7 @@ export const ReviewView: React.FC = () => {
     () => loadStudyContentLanguage(isEn ? "en" : "fa"),
   );
   const navigate = useNavigate();
-  const { folder: reviewFolder = "pharmacy" } = useParams<{ folder: string }>();
+  const { folder: reviewFolder = "all" } = useParams<{ folder: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlFolderId = searchParams.get("folderId");
   const urlDocId = searchParams.get("docId");
@@ -30,6 +31,8 @@ export const ReviewView: React.FC = () => {
   const studyFolderId = searchParams.get("studyFolderId");
   const studyTaskId = searchParams.get("studyTaskId");
   const urlTab = searchParams.get("tab");
+  const scopeRootFolderId = reviewFolder === "pharmacy" ? PHARMACY_ROOT_FOLDER_ID : undefined;
+  const preservedSearch = searchParams.toString() ? `?${searchParams.toString()}` : "";
 
   const activeTab: "leitner" | "mindmap" = urlTab === "mindmap"
     ? "mindmap"
@@ -65,7 +68,7 @@ export const ReviewView: React.FC = () => {
     if (scope.kind === "folder") params.set("studyFolderId", scope.id);
     if (scope.kind === "document") params.set("studyDocId", scope.id);
     navigate(`/app/review/${reviewFolder}?${params.toString()}`);
-  }, [navigate]);
+  }, [navigate, reviewFolder]);
 
   return (
     <div
@@ -145,11 +148,21 @@ export const ReviewView: React.FC = () => {
       {/* Main Tab Content with Zero-Latency State Preservation */}
       <div className="px-3 md:px-6 pt-2 space-y-2 shrink-0">
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar" data-testid="review-folder-chips">
+          <button
+            type="button"
+            aria-pressed={reviewFolder === "all"}
+            onClick={() => navigate(`/app/review${preservedSearch}`)}
+            data-testid="review-folder-all"
+            className={`shrink-0 h-8 px-3 rounded-full border text-xs font-semibold ${reviewFolder === "all" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`}
+          >
+            {isEn ? "All folders" : "همهٔ پوشه‌ها"}
+          </button>
           {REVIEW_FOLDERS.map((f) => (
             <button
               key={f.id}
               type="button"
-              onClick={() => navigate(`/app/review/${f.id}`)}
+              aria-pressed={reviewFolder === f.id}
+              onClick={() => navigate(`/app/review/${f.id}${preservedSearch}`)}
               data-testid={`review-folder-${f.id}`}
               className={`shrink-0 h-8 px-3 rounded-full border text-xs font-semibold ${reviewFolder === f.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`}
             >
@@ -157,7 +170,7 @@ export const ReviewView: React.FC = () => {
             </button>
           ))}
         </div>
-        <ReviewInsights userId={userId} isEn={isEn} />
+        <ReviewInsights userId={userId} isEn={isEn} scopeRootFolderId={scopeRootFolderId} />
       </div>
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-background relative">
         {(visitedTabs.leitner || activeTab === "leitner") && (
@@ -169,6 +182,7 @@ export const ReviewView: React.FC = () => {
               initialStudyFolderId={studyFolderId || undefined}
               initialStudyTaskId={studyTaskId || undefined}
               cardLanguage={cardLanguage}
+              scopeRootFolderId={scopeRootFolderId}
             />
           </div>
         )}
@@ -181,6 +195,7 @@ export const ReviewView: React.FC = () => {
               initialDocId={urlDocId || undefined}
               cardLanguage={cardLanguage}
               onStartReview={handleStartMindMapReview}
+              scopeRootFolderId={scopeRootFolderId}
             />
           </div>
         )}

@@ -114,4 +114,12 @@ describe("TaskActionSheet Responsive Behavior", () => {
     const dialogElement = screen.getByRole("dialog");
     expect(dialogElement.className).toContain("max-h-[75vh]");
   });
+
+  it("does not offer Save as Template while keeping the rest of the task actions", () => {
+    localStorage.setItem("arshnaz_nav_mode", "windows");
+    render(<TaskActionSheet {...defaultProps} />);
+    fireEvent.click(screen.getByText(/بیشتر|More/i));
+    expect(screen.queryByText(/Save as Template|تمپلیت/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/تکثیر|Duplicate/i)).toBeInTheDocument();
+  });
 });

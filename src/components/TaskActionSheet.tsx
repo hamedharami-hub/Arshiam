@@ -15,15 +15,15 @@ import { useAuth } from "@/hooks/useAuth";
 import { useShareAccess } from "@/hooks/useShareAccess";
 import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { logTaskActivity } from "@/lib/taskActivity";
-import { saveTaskTemplate } from "@/lib/taskTemplates";
 import { isFeatureEnabled } from "@/lib/capabilities";
 import {
   Check, Trash2, FolderInput, Network, Pencil, Copy, Share2,
   Sparkles, CopyPlus, Pin, PinOff, Timer, ListTree, Paperclip,
   Tag as TagIcon, MoreHorizontal, MapPin, X,
-  ArrowRight, Loader2, Save, StickyNote, LayoutList, History, BookOpen,
+  ArrowRight, Loader2, Save, StickyNote, History, BookOpen,
 } from "lucide-react";
 import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
+import { getCurrentTaskLocation, taskLocationErrorMessage } from "@/lib/taskLocation";
 
 type View = "main" | "more" | "activities" | "subtask" | "location";
 
@@ -62,6 +62,7 @@ export default function TaskActionSheet({
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const [location, setLocation] = useState(task?.location || "");
   const [busy, setBusy] = useState(false);
+  const [locating, setLocating] = useState(false);
 
   const fallbackIsOwner = !!user && !!task && user.id === task.user_id;
   const isOwner = propIsOwner ?? fallbackIsOwner;
@@ -228,17 +229,6 @@ export default function TaskActionSheet({
     }
   };
 
-  const saveTemplate = async () => {
-    if (!user || !canEdit) return;
-    try {
-      await saveTaskTemplate(user.id, task);
-      toast.success(T("ذخیره شد در تمپلیت‌ها", "Saved to templates"));
-      close();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : T("خطا", "Error"));
-    }
-  };
-
   const saveLocation = async () => {
     if (!canEdit) return;
     await applyPatch({ location: location.trim() || null }, "location_set", { location: location.trim() || null });
@@ -288,7 +278,6 @@ export default function TaskActionSheet({
             <Row icon={StickyNote} label={T("تبدیل به یادداشت", "Convert to Note")} onClick={convertToNote} disabled={!canEdit || busy} />
             <Row icon={CopyPlus} label={T("تکثیر تسک", "Duplicate Task")} onClick={() => duplicate(false)} disabled={!canEdit || busy} />
             <Row icon={Save} label={T("تکثیر و باز کردن", "Duplicate & Open")} onClick={() => duplicate(true)} disabled={!canEdit || busy} />
-            <Row icon={LayoutList} label={T("ذخیره در تمپلیت‌ها", "Save as Template")} onClick={saveTemplate} disabled={!canEdit} />
             <Row icon={Copy} label={T("کپی لینک تسک", "Copy Task Link")} onClick={copyLink} />
             <Row icon={MapPin} label={T("موقعیت مکانی", "Location")} onClick={() => setView("location")} value={task.location || undefined} disabled={!canEdit} />
             <Row icon={History} label={T("فعالیت‌ها و تاریخچه", "Activity History")} onClick={() => setView("activities")} />
@@ -370,7 +359,6 @@ export default function TaskActionSheet({
             <Row icon={Copy} label={T("کپی لینک", "Copy Link")} onClick={copyLink} />
             <Row icon={CopyPlus} label={T("تکثیر", "Duplicate")} onClick={() => duplicate(false)} disabled={!canEdit || busy} />
             <Row icon={Save} label={T("ذخیره و جدید", "Save & New")} onClick={() => duplicate(true)} disabled={!canEdit || busy} />
-            <Row icon={LayoutList} label={T("ذخیره به‌عنوان تمپلیت", "Save as Template")} onClick={saveTemplate} disabled={!canEdit} />
             <Row icon={Pencil} label={T("ویرایش کامل", "Full Edit")} onClick={() => { onEdit(); close(); }} />
           </div>
         );
@@ -394,6 +382,28 @@ export default function TaskActionSheet({
                 }
               }}
             />
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full gap-2"
+              disabled={locating}
+              onClick={async () => {
+                setLocating(true);
+                try {
+                  const current = await getCurrentTaskLocation();
+                  setLocation(current.text);
+                  toast.success(T("موقعیت دستگاه پیدا شد؛ برای ثبت، ذخیره را بزن.", "Device location found. Tap Save to keep it."));
+                } catch (error) {
+                  toast.error(taskLocationErrorMessage(error, isEn));
+                } finally {
+                  setLocating(false);
+                }
+              }}
+              data-testid="task-location-current"
+            >
+              {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+              {T("استفاده از موقعیت فعلی دستگاه", "Use current device location")}
+            </Button>
             <Button onClick={saveLocation} className="w-full">
               {T("ذخیره موقعیت", "Save Location")}
             </Button>

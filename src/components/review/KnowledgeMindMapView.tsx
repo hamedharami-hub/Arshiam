@@ -79,6 +79,9 @@ import {
   type KnowledgeMindMapShape,
 } from "@/lib/knowledgeMindMapAppearance";
 import { toast } from "sonner";
+import { filterCardsForDocuments, filterKnowledgeForFolderBranch } from "@/lib/reviewScope";
+import { MindMapStudyPlanner } from "@/components/review/MindMapStudyPlanner";
+import { loadMindMapStudyProgress, mindMapProgressCounts } from "@/lib/mindMapProgress";
 
 const MIN_MIND_MAP_ZOOM = 0.02;
 const READABLE_OUTLINE_MAX_VIEWPORT = 768;
@@ -93,6 +96,7 @@ interface KnowledgeMindMapViewProps {
   onStartReview?: (scope: KnowledgeMindMapReviewScope) => void;
   initialFolderId?: string;
   initialDocId?: string;
+  scopeRootFolderId?: string;
 }
 
 interface MindMapNode {
@@ -743,6 +747,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   onStartReview,
   initialFolderId,
   initialDocId,
+  scopeRootFolderId,
 }) => {
   const { isEn } = useBilingual();
   const [folders, setFolders] = useState<KnowledgeFolder[]>([]);
@@ -777,6 +782,8 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<KnowledgeDocument | null>(null);
+  const [plannerOpen, setPlannerOpen] = useState(false);
+  const [studyProgress, setStudyProgress] = useState(() => loadMindMapStudyProgress(userId));
   const [viewMode, setViewMode] = useState<"canvas" | "outline">(() =>
     isCompactMindMapViewport() ? "outline" : "canvas",
   );
@@ -799,11 +806,16 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     ? nodeAppearanceState.styles
     : EMPTY_NODE_STYLES;
   const [appearanceNodeId, setAppearanceNodeId] = useState<string | null>(null);
+  const studyCounts = useMemo(
+    () => mindMapProgressCounts(documents.map((document) => document.id), studyProgress),
+    [documents, studyProgress],
+  );
 
   useEffect(() => {
     if (nodeAppearanceState.ownerId !== userId) {
       setNodeAppearanceState({ ownerId: userId, styles: loadKnowledgeMindMapNodeStyles(userId) });
     }
+    setStudyProgress(loadMindMapStudyProgress(userId));
   }, [nodeAppearanceState.ownerId, userId]);
 
   const handleAppearanceChange = useCallback((nodeId: string, patch: Partial<KnowledgeMindMapNodeStyle>) => {
@@ -824,6 +836,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   }, [isEn, nodeAppearanceState, userId]);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const fullscreenRootRef = useRef<HTMLDivElement>(null);
   const dragStartPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const hasInitializedViewRef = useRef(false);
   const lastCenteredSearchRef = useRef("");
@@ -901,9 +914,10 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       ]);
       if (loadRequestRef.current !== requestId) return;
 
-      setFolders(f);
-      setDocuments(d);
-      setCards(c);
+      const scoped = filterKnowledgeForFolderBranch(f, d, scopeRootFolderId);
+      setFolders(scoped.folders);
+      setDocuments(scoped.documents);
+      setCards(scopeRootFolderId ? filterCardsForDocuments(c, scoped.documents) : c);
       setHasLoadedData(true);
 
       // Keep the all-knowledge graph readable on compact screens: begin with
@@ -911,7 +925,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       setExpandedNodeIds((prev) => {
         const next = { ...prev, "root-kb": true };
         if (!isCompactMindMapViewport()) {
-          const rootFolders = buildFolderTree(f, d);
+          const rootFolders = buildFolderTree(scoped.folders, scoped.documents);
           rootFolders.forEach((rf) => {
             next[`folder-${rf.id}`] = true;
           });
@@ -926,7 +940,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       setCards([]);
       setHasLoadedData(true);
     }
-  }, [userId]);
+  }, [scopeRootFolderId, userId]);
 
   useEffect(() => {
     loadData();
@@ -1512,7 +1526,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
 
   // Fit View To Container
   const fitViewToContainer = useCallback(() => {
-    if (!containerRef.current) return;
+    if (!fullscreenRootRef.current) return;
     const cw = containerRef.current.clientWidth || 900;
     const ch = containerRef.current.clientHeight || 650;
 
@@ -1629,11 +1643,9 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     if (!containerRef.current) return;
     try {
       if (!document.fullscreenElement && !isFullscreen) {
-        containerRef.current.requestFullscreen?.().catch(() => {});
-        setIsFullscreen(true);
+        void fullscreenRootRef.current.requestFullscreen?.().catch(() => setIsFullscreen(false));
       } else {
-        document.exitFullscreen?.().catch(() => {});
-        setIsFullscreen(false);
+        void document.exitFullscreen?.().catch(() => setIsFullscreen(Boolean(document.fullscreenElement)));
       }
     } catch {
       // Ignore unsupported browser environments
@@ -1818,7 +1830,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   }, []);
 
   return (
-    <div className="flex-1 flex flex-col h-full w-full bg-background overflow-hidden relative select-none font-sans">
+    <div ref={fullscreenRootRef} className="flex-1 flex flex-col h-full w-full bg-background text-foreground overflow-hidden relative select-none font-sans fullscreen:min-h-screen fullscreen:min-w-full">
       {/* Top Floating Glass Toolbar */}
       <div className="absolute top-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
         {/* Left: Zoom & View Controls */}
@@ -2060,6 +2072,16 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
               </button>
             </div>
           )}
+          <button
+            type="button"
+            onClick={() => setPlannerOpen(true)}
+            className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-border bg-card/90 px-2.5 text-xs font-semibold text-primary shadow-lg backdrop-blur-xl hover:bg-muted"
+            title={isEn ? "Plan study progress" : "برنامه‌ریزی پیشرفت مطالعه"}
+            data-testid="mindmap-study-planner-open"
+          >
+            <BookOpen className="h-4 w-4" />
+            <span>{studyCounts.done}/{documents.length}</span>
+          </button>
           {viewMode === "canvas" && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -2449,6 +2471,17 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
         isEn={isEn}
         onOpenChange={(open) => !open && setAppearanceNodeId(null)}
         onAppearanceChange={handleAppearanceChange}
+      />
+
+      <MindMapStudyPlanner
+        open={plannerOpen}
+        onOpenChange={setPlannerOpen}
+        userId={userId}
+        folders={folders}
+        documents={documents}
+        isEn={isEn}
+        onOpenDocument={(document) => { setPlannerOpen(false); setPreviewDoc(document); }}
+        onProgressChange={setStudyProgress}
       />
 
       {/* Embedded Document Reader Modal */}

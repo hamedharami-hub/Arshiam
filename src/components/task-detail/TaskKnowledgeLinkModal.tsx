@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { BookOpen, Search, Plus, Check, Folder } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { BookOpen, Search, Plus, Check, Folder, FolderTree } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
 import type { KnowledgeDocument, KnowledgeFolder } from "@/lib/knowledgeTypes";
 import { getKnowledgeDocuments, getKnowledgeFolders } from "@/lib/knowledgeService";
@@ -52,6 +52,21 @@ export const TaskKnowledgeLinkModal: React.FC<TaskKnowledgeLinkModalProps> = ({
       (d.tags && d.tags.some((t) => t.toLowerCase().includes(q)))
     );
   });
+  const groupedDocuments = useMemo(() => {
+    const byFolder = new Map<string, KnowledgeDocument[]>();
+    for (const document of filtered) {
+      const key = document.folder_id || "__unfiled__";
+      byFolder.set(key, [...(byFolder.get(key) || []), document]);
+    }
+    const folderOrder = [...folders].sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || a.name.localeCompare(b.name));
+    const groups = folderOrder
+      .filter((folder) => byFolder.has(folder.id))
+      .map((folder) => ({ id: folder.id, name: folder.name, documents: byFolder.get(folder.id)! }));
+    if (byFolder.has("__unfiled__")) {
+      groups.push({ id: "__unfiled__", name: isEn ? "Unfiled" : "بدون پوشه", documents: byFolder.get("__unfiled__")! });
+    }
+    return groups;
+  }, [filtered, folders, isEn]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -59,7 +74,7 @@ export const TaskKnowledgeLinkModal: React.FC<TaskKnowledgeLinkModalProps> = ({
         <DialogHeader className="p-4 border-b border-slate-800 bg-slate-900/80">
           <DialogTitle className="text-sm font-bold flex items-center gap-2">
             <BookOpen className="w-4 h-4 text-emerald-400" />
-            <span>{isEn ? "Link Knowledge Document" : "اتصال سند آموزشی به تسک"}</span>
+            <span>{isEn ? "Add from Knowledge Map" : "افزودن از نقشهٔ دانش"}</span>
           </DialogTitle>
         </DialogHeader>
 
@@ -79,12 +94,19 @@ export const TaskKnowledgeLinkModal: React.FC<TaskKnowledgeLinkModalProps> = ({
 
         {/* Document List */}
         <div className="flex-1 overflow-y-auto p-3 space-y-1.5 min-h-[200px]">
-          {filtered.length === 0 ? (
+          {groupedDocuments.length === 0 ? (
             <div className="p-6 text-center text-xs text-slate-500">
               {isEn ? "No documents found." : "سندی یافت نشد."}
             </div>
           ) : (
-            filtered.map((doc) => {
+            groupedDocuments.map((group) => (
+              <section key={group.id} className="space-y-1.5" data-testid={`knowledge-map-group-${group.id}`}>
+                <h3 className="sticky top-0 z-10 flex items-center gap-1.5 rounded-lg bg-slate-950/95 px-2 py-1.5 text-[11px] font-semibold text-emerald-300 backdrop-blur">
+                  <FolderTree className="h-3.5 w-3.5" />
+                  {group.name}
+                  <span className="ms-auto text-slate-500">{group.documents.length}</span>
+                </h3>
+                {group.documents.map((doc) => {
               const isLinked = alreadyLinkedDocIds.includes(doc.id);
               const folderName = doc.folder_id ? folderMap.get(doc.folder_id) : null;
 
@@ -128,7 +150,9 @@ export const TaskKnowledgeLinkModal: React.FC<TaskKnowledgeLinkModalProps> = ({
                   </div>
                 </div>
               );
-            })
+                })}
+              </section>
+            ))
           )}
         </div>
       </DialogContent>

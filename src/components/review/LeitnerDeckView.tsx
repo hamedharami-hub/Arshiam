@@ -81,6 +81,7 @@ interface LeitnerDeckViewProps {
   initialStudyDocumentId?: string;
   initialStudyFolderId?: string;
   initialStudyTaskId?: string;
+  scopeRootFolderId?: string;
 }
 
 interface StudyStartOptions {
@@ -96,6 +97,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   initialStudyDocumentId,
   initialStudyFolderId,
   initialStudyTaskId,
+  scopeRootFolderId,
 }) => {
   const { isEn } = useBilingual();
   const [cards, setCards] = useState<LeitnerCard[]>([]);
@@ -120,12 +122,13 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   // Mode: "due" (Scheduled Spaced Repetition) vs "cram" (Free Practice / Custom Cram)
   const [studyMode, setStudyMode] = useState<"due" | "cram">("due");
   const [cramBoxFilter, setCramBoxFilter] = useState<number | "all">("all");
-  const studyScopeKey = initialStudyFolderId
-    ? `folder:${initialStudyFolderId}`
+  const effectiveFolderScopeId = initialStudyFolderId || scopeRootFolderId;
+  const studyScopeKey = effectiveFolderScopeId
+    ? `folder:${effectiveFolderScopeId}`
     : initialStudyDocumentId
       ? `document:${initialStudyDocumentId}`
       : "all";
-  const defaultCramDocFilter = initialStudyFolderId ? "all" : initialStudyDocumentId || "all";
+  const defaultCramDocFilter = effectiveFolderScopeId ? "all" : initialStudyDocumentId || "all";
   const [cramDocSelection, setCramDocSelection] = useState(() => ({
     scopeKey: studyScopeKey,
     documentId: defaultCramDocFilter,
@@ -136,13 +139,13 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   const [cramLapsedOnly, setCramLapsedOnly] = useState<boolean>(false);
 
   const scopedInventoryCards = useMemo(() => {
-    if (initialStudyFolderId) {
-      return getLeitnerCardsForFolderBranch(cards, folders, documents, initialStudyFolderId);
+    if (effectiveFolderScopeId) {
+      return getLeitnerCardsForFolderBranch(cards, folders, documents, effectiveFolderScopeId);
     }
     return initialStudyDocumentId
       ? cards.filter((card) => card.document_id === initialStudyDocumentId)
       : cards;
-  }, [cards, documents, folders, initialStudyDocumentId, initialStudyFolderId]);
+  }, [cards, documents, effectiveFolderScopeId, folders, initialStudyDocumentId]);
   const cramDocumentOptions = useMemo(() => {
     const availableDocumentIds = new Set(
       scopedInventoryCards
@@ -153,19 +156,19 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   }, [documents, scopedInventoryCards]);
 
   const scheduledReviewCards = useMemo(() => {
-    if (initialStudyFolderId) {
-      return getLeitnerCardsForFolderBranch(dueCards, folders, documents, initialStudyFolderId);
+    if (effectiveFolderScopeId) {
+      return getLeitnerCardsForFolderBranch(dueCards, folders, documents, effectiveFolderScopeId);
     }
     return initialStudyDocumentId
       ? dueCards.filter((card) => card.document_id === initialStudyDocumentId)
       : dueCards;
-  }, [documents, dueCards, folders, initialStudyDocumentId, initialStudyFolderId]);
+  }, [documents, dueCards, effectiveFolderScopeId, folders, initialStudyDocumentId]);
   const eligibleStudyCardIds = useMemo(
     () => new Set(scheduledReviewCards.map((card) => card.id)),
     [scheduledReviewCards],
   );
   const scheduledReviewDocument = documents.find((document) => document.id === initialStudyDocumentId);
-  const scheduledReviewFolder = folders.find((folder) => folder.id === initialStudyFolderId);
+  const scheduledReviewFolder = folders.find((folder) => folder.id === effectiveFolderScopeId);
 
   // Study Session State
   const [isStudying, setIsStudying] = useState(false);
@@ -264,6 +267,22 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
     loadData();
     loadKnowledgeStructure();
   }, [loadData, loadKnowledgeStructure]);
+
+  useEffect(() => {
+    if (!effectiveFolderScopeId) return;
+    let alive = true;
+    setStats({
+      box1: 0, box2: 0, box3: 0, box4: 0, box5: 0, dueToday: 0, totalCards: 0,
+      masteredCount: 0, retentionRate: 100, lapsedCardsCount: 0,
+      upcomingForecast: { today: 0, tomorrow: 0, next3Days: 0, next7Days: 0 }, streakDays: 0,
+    });
+    void getLeitnerBoxStats(userId, scopedInventoryCards, new Date()).then((next) => {
+      if (alive) setStats(next);
+    }).catch(() => {
+      // Keep the cleared scoped statistics instead of showing numbers from another scope.
+    });
+    return () => { alive = false; };
+  }, [effectiveFolderScopeId, scopedInventoryCards, userId]);
 
   // Cram cards calculation based on active filters
   const cramCards = useMemo(() => {
@@ -419,13 +438,13 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
         if (initialStudyTaskId && shouldRescheduleLinkedTask) {
           try {
             const latestCards = await getLeitnerCards(userId);
-            const targetId = initialStudyFolderId || initialStudyDocumentId || "all";
-            const scopedCards = initialStudyFolderId
-              ? getLeitnerCardsForFolderBranch(latestCards, folders, documents, initialStudyFolderId)
+            const targetId = effectiveFolderScopeId || initialStudyDocumentId || "all";
+            const scopedCards = effectiveFolderScopeId
+              ? getLeitnerCardsForFolderBranch(latestCards, folders, documents, effectiveFolderScopeId)
               : latestCards;
             const nextReviewAt = getNextLeitnerReviewAt(
               scopedCards,
-              initialStudyFolderId ? "all" : targetId,
+              effectiveFolderScopeId ? "all" : targetId,
             );
 
             if (!nextReviewAt) {
@@ -438,7 +457,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               const result = await rescheduleLeitnerStudyTaskAfterSession({
                 userId,
                 taskId: initialStudyTaskId,
-                targetType: initialStudyFolderId ? "leitner_folder" : "leitner",
+                targetType: effectiveFolderScopeId ? "leitner_folder" : "leitner",
                 targetId,
                 nextReviewAt,
               });
@@ -492,7 +511,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
     currentIndex,
     documents,
     initialStudyDocumentId,
-    initialStudyFolderId,
+    effectiveFolderScopeId,
     initialStudyTaskId,
     isEn,
     isFlipped,
@@ -682,8 +701,8 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
 
   // Filtered card list for the bottom table
   const dueCardIds = useMemo(
-    () => new Set((initialStudyFolderId || initialStudyDocumentId ? scheduledReviewCards : dueCards).map((card) => card.id)),
-    [dueCards, initialStudyDocumentId, initialStudyFolderId, scheduledReviewCards],
+    () => new Set((effectiveFolderScopeId || initialStudyDocumentId ? scheduledReviewCards : dueCards).map((card) => card.id)),
+    [dueCards, effectiveFolderScopeId, initialStudyDocumentId, scheduledReviewCards],
   );
   const displayedCards = useMemo(
     () => filterLeitnerCards(scopedInventoryCards, {
@@ -848,9 +867,9 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
         </div>
       </div>
 
-      {(initialStudyDocumentId || initialStudyFolderId) && (
+      {(initialStudyDocumentId || effectiveFolderScopeId) && (
         <div className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
-          {initialStudyFolderId
+          {effectiveFolderScopeId
             ? (studyMode === "due"
               ? (isEn ? "Scheduled review is limited to due cards in this folder and its subfolders:" : "مرور زمان‌بندی‌شده فقط کارت‌های موعددارِ این پوشه و زیرپوشه‌هایش را شامل می‌شود:")
               : (isEn ? "Free practice also stays within this folder and its subfolders:" : "تمرین آزاد نیز فقط شامل کارت‌های همین پوشه و زیرپوشه‌هایش می‌شود:"))
@@ -858,10 +877,10 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
               ? (isEn ? "Scheduled review is limited to due cards for:" : "مرور زمان‌بندی‌شده فقط کارت‌های موعددارِ درس زیر را شامل می‌شود:")
               : (isEn ? "Free practice also stays within this lesson:" : "تمرین آزاد نیز فقط شامل کارت‌های همین درس می‌شود:"))}{" "}
           <span className="font-semibold text-foreground">
-            {initialStudyFolderId
+            {effectiveFolderScopeId
               ? (scheduledReviewFolder
                 ? getKnowledgeFolderBreadcrumb(folders, scheduledReviewFolder.id, isEn ? " › " : " ← ")
-                : initialStudyFolderId)
+                : effectiveFolderScopeId)
               : scheduledReviewDocument
                 ? (isEn ? scheduledReviewDocument.title_en || scheduledReviewDocument.title : scheduledReviewDocument.title)
                 : initialStudyDocumentId}
@@ -925,7 +944,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
                 aria-label={isEn ? "Filter practice by lesson" : "فیلتر تمرین بر اساس درس"}
                 className="py-1 px-2 rounded-lg bg-card border border-border text-xs text-foreground focus:outline-none max-w-[140px] truncate"
               >
-                <option value="all">{initialStudyDocumentId || initialStudyFolderId
+                <option value="all">{initialStudyDocumentId || effectiveFolderScopeId
                   ? isEn ? "All in scope" : "همهٔ همین محدوده"
                   : isEn ? "All Docs" : "تمامی اسناد"}</option>
                 {cramDocumentOptions.map((d) => (

@@ -12,8 +12,8 @@ vi.mock("@/hooks/useBilingual", () => ({
 }));
 
 vi.mock("@/components/review/LeitnerDeckView", () => ({
-  LeitnerDeckView: ({ initialStudyDocumentId, initialStudyFolderId, initialStudyTaskId, cardLanguage }: { initialStudyDocumentId?: string; initialStudyFolderId?: string; initialStudyTaskId?: string; cardLanguage?: string }) => (
-    <div data-testid="leitner-deck" data-study-document-id={initialStudyDocumentId || ""} data-study-folder-id={initialStudyFolderId || ""} data-study-task-id={initialStudyTaskId || ""} data-card-language={cardLanguage || ""} />
+  LeitnerDeckView: ({ initialStudyDocumentId, initialStudyFolderId, initialStudyTaskId, cardLanguage, scopeRootFolderId }: { initialStudyDocumentId?: string; initialStudyFolderId?: string; initialStudyTaskId?: string; cardLanguage?: string; scopeRootFolderId?: string }) => (
+    <div data-testid="leitner-deck" data-study-document-id={initialStudyDocumentId || ""} data-study-folder-id={initialStudyFolderId || ""} data-study-task-id={initialStudyTaskId || ""} data-card-language={cardLanguage || ""} data-scope-root={scopeRootFolderId || ""} />
   ),
 }));
 
@@ -37,6 +37,18 @@ describe("ReviewView scoped Leitner task navigation", () => {
 
     expect(REVIEW_FOLDERS[0].id).toBe("pharmacy");
     expect(screen.getByTestId("review-folder-pharmacy")).toHaveTextContent("فارماسی");
+    expect(screen.getByTestId("leitner-deck")).toHaveAttribute("data-scope-root", "folder-pharmacy-root");
+  });
+
+  it("keeps the legacy review route general and compatible with deep links", () => {
+    render(
+      <MemoryRouter initialEntries={["/app/review?tab=leitner&studyDocId=general-doc"]}>
+        <Routes><Route path="/app/review" element={<ReviewView />} /></Routes>
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("review-folder-all")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("leitner-deck")).toHaveAttribute("data-scope-root", "");
+    expect(screen.getByTestId("leitner-deck")).toHaveAttribute("data-study-document-id", "general-doc");
   });
 
   it("keeps a scoped study task in Leitner and passes both target and task IDs through", () => {

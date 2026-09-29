@@ -361,31 +361,6 @@ export function QuickAddTask({
     }
   };
 
-  const saveAsTemplate = async () => {
-    if (!user || !title.trim()) return;
-    try {
-      const payload = {
-        id: generateId(),
-        user_id: user.id,
-        title: finalTitle,
-        priority: finalPriority,
-        folder_id: finalFolderId,
-        due_offset_hours: finalDue ? Math.round((new Date(finalDue).getTime() - Date.now()) / 3600000) : null,
-      };
-      if (typeof navigator !== "undefined" && !navigator.onLine) {
-        await enqueueOp({ table: "task_templates", op: "insert", payload });
-        toast.success(T("ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved — will sync when online"));
-        setMoreOpen(false);
-        return;
-      }
-      await firebaseStore.from("task_templates").insert(payload as never);
-      toast.success(T("ذخیره شد در تمپلیت‌ها", "Saved to templates"));
-      setMoreOpen(false);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : T("خطا", "Error"));
-    }
-  };
-
   const openFullScreen = () => {
     const qp = new URLSearchParams();
     if (title.trim()) qp.set("title", finalTitle);

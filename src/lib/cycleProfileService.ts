@@ -7,17 +7,30 @@ export function persistActiveCycleProfile(userId: string, profileId: string | nu
     .upsert({ user_id: userId, active_cycle_profile_id: profileId }, { onConflict: "user_id" });
 }
 
-/** Remove a profile's logs first, and keep the profile if that cleanup fails. */
+/**
+ * Delete a profile defensively. The second log cleanup catches a write from a
+ * stale device that races the first cleanup, and verification prevents the UI
+ * from announcing success while either the profile or any log remains.
+ */
 export async function deleteCycleProfileAndLogs(profileId: string) {
-  const { error: logsError } = await firebaseStore
-    .from("cycle_logs")
-    .delete()
-    .eq("profile_id", profileId);
-  if (logsError) return { error: logsError };
+  const deleteLogs = () => firebaseStore.from("cycle_logs").delete().eq("profile_id", profileId);
+  const firstLogs = await deleteLogs();
+  if (firstLogs.error) return { error: firstLogs.error };
 
-  const { error: profileError } = await firebaseStore
-    .from("cycle_profiles")
-    .delete()
-    .eq("id", profileId);
-  return { error: profileError };
+  const profileDelete = await firebaseStore.from("cycle_profiles").delete().eq("id", profileId);
+  if (profileDelete.error) return { error: profileDelete.error };
+
+  const secondLogs = await deleteLogs();
+  if (secondLogs.error) return { error: secondLogs.error };
+
+  const [remainingLogs, remainingProfiles] = await Promise.all([
+    firebaseStore.from("cycle_logs").select("id").eq("profile_id", profileId),
+    firebaseStore.from("cycle_profiles").select("id").eq("id", profileId),
+  ]);
+  const verificationError = remainingLogs.error || remainingProfiles.error;
+  if (verificationError) return { error: verificationError };
+  if ((remainingLogs.data?.length || 0) > 0 || (remainingProfiles.data?.length || 0) > 0) {
+    return { error: new Error("Cycle profile deletion is incomplete; data still remains.") };
+  }
+  return { error: null };
 }

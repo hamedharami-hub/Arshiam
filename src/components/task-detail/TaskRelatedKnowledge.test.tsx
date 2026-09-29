@@ -56,7 +56,7 @@ describe("TaskRelatedKnowledge", () => {
     render(
       <TaskRelatedKnowledge documents={mockDocs} onOpenLinkModal={vi.fn()} onUnlink={vi.fn()} />
     );
-    expect(screen.getByText("اسناد آموزشی و بالینی مرتبط")).toBeDefined();
+    expect(screen.getByText("نقشهٔ دانش")).toBeDefined();
     expect(screen.getByText("2")).toBeDefined();
     expect(screen.getByText("راهنمای داروی فلوکستین")).toBeDefined();
     expect(screen.getByText("پروتکل مدیریت استرس")).toBeDefined();
@@ -67,7 +67,7 @@ describe("TaskRelatedKnowledge", () => {
     render(
       <TaskRelatedKnowledge documents={mockDocs} onOpenLinkModal={onOpenLinkModal} onUnlink={vi.fn()} />
     );
-    fireEvent.click(screen.getByText("اتصال سند"));
+    fireEvent.click(screen.getByText("افزودن مورد"));
     expect(onOpenLinkModal).toHaveBeenCalledOnce();
   });
 

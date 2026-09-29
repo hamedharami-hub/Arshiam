@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { differenceInCalendarDays, format } from "date-fns";
-import { predictFertileWindow, predictNextPeriod, type CycleLog, type CycleProfile } from "./cycle";
+import { computePhase, normalizeCycleSettings, predictFertileWindow, predictNextPeriod, type CycleLog, type CycleProfile } from "./cycle";
 
 const profile: CycleProfile = {
   id: "profile-1",
@@ -63,5 +63,12 @@ describe("cycle estimates", () => {
   it("returns no calendar estimate until a period start has been recorded", () => {
     expect(predictNextPeriod([], profile, new Date("2025-03-10T12:00:00"))).toBeNull();
     expect(predictFertileWindow([], profile, new Date("2025-03-10T12:00:00"))).toBeNull();
+  });
+
+  it("accepts 20/5/16 settings but keeps every phase boundary inside the 20-day cycle", () => {
+    const shortProfile = { ...profile, avg_cycle_length: 20, avg_period_length: 5, luteal_length: 16 };
+    expect(normalizeCycleSettings(shortProfile)).toMatchObject({ cycleLength: 20, periodLength: 5, ovulationDay: 6 });
+    expect(computePhase(new Date("2025-03-24T12:00:00"), [periodStart("2025-03-05")], shortProfile).dayOfCycle).toBe(20);
+    expect(computePhase(new Date("2025-03-25T12:00:00"), [periodStart("2025-03-05")], shortProfile).dayOfCycle).toBe(1);
   });
 });

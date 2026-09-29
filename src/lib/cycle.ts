@@ -40,6 +40,15 @@ export const DEFAULT_CYCLE_PROFILE = {
 
 export type FertileWindowEstimate = { start: Date; end: Date };
 
+export function normalizeCycleSettings(profile: Pick<CycleProfile, "avg_cycle_length" | "avg_period_length" | "luteal_length">) {
+  const cycleLength = Math.max(1, Math.round(profile.avg_cycle_length || 28));
+  const periodLength = Math.min(cycleLength, Math.max(1, Math.round(profile.avg_period_length || 5)));
+  const requestedLutealLength = Math.max(1, Math.round(profile.luteal_length || 14));
+  const ovulationDay = Math.min(cycleLength, Math.max(periodLength + 1, cycleLength - requestedLutealLength));
+  const lutealStartDay = Math.min(cycleLength, ovulationDay + 2);
+  return { cycleLength, periodLength, requestedLutealLength, ovulationDay, lutealStartDay };
+}
+
 export const PHASE_META: Record<Phase, { label: string; label_en: string; color: string; description: string; description_en: string }> = {
   period:     { label: "قاعدگی",     label_en: "Menstruation", color: "#EF4444", description: "روزهای پریود", description_en: "Menstrual flow days" },
   follicular: { label: "فولیکولار",  label_en: "Follicular",   color: "#F59E0B", description: "انرژی روبه‌بالا، تمرکز خوب", description_en: "Rising energy, optimal focus" },
@@ -88,12 +97,9 @@ export function computePhase(date: Date, logs: CycleLog[], profile: CycleProfile
   const day = differenceInCalendarDays(date, start) + 1; // 1-indexed
   if (day < 1) return { phase: "unknown", dayOfCycle: null, predicted: false };
 
-  const cycleLen = profile.avg_cycle_length || 28;
-  const periodLen = profile.avg_period_length || 5;
-  const luteal = profile.luteal_length || 14;
+  const { cycleLength: cycleLen, periodLength: periodLen, ovulationDay } = normalizeCycleSettings(profile);
   // wrap forward predicted cycles
   const cycleDay = ((day - 1) % cycleLen) + 1;
-  const ovulationDay = cycleLen - luteal; // e.g. 28-14=14
   const predicted = day > cycleLen; // future cycle = prediction
 
   let phase: Phase;
@@ -127,9 +133,7 @@ export function predictFertileWindow(
   const last = lastPeriodStartOnOrBefore(logs, from);
   if (!last) return null;
 
-  const cycleLength = Math.max(1, profile.avg_cycle_length || 28);
-  const lutealLength = Math.max(1, profile.luteal_length || 14);
-  const ovulationDay = Math.max(1, cycleLength - lutealLength);
+  const { cycleLength, ovulationDay } = normalizeCycleSettings(profile);
   let ovulationDate = addDays(new Date(last.log_date + "T00:00:00"), ovulationDay - 1);
   let start = addDays(ovulationDate, -5);
   let end = ovulationDate;

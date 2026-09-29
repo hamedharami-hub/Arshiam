@@ -22,6 +22,10 @@ import {
 import { GoogleImportButtons, SaveToDriveButton } from "@/components/GoogleImportButtons";
 import { useBilingual } from "@/hooks/useBilingual";
 import { PdfPreview } from "@/components/PdfPreview";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 /** Unified row: new Object-Storage attachments + legacy Firebase Storage ones (read/delete only). */
 type Item = {
@@ -64,6 +68,8 @@ export function TaskAttachments({ taskId, onCountChange }: { taskId: string; onC
   const [loadError, setLoadError] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [pickAccept, setPickAccept] = useState<string>(ATTACHMENT_ACCEPT);
+  const [deleteTarget, setDeleteTarget] = useState<{ kind: "remote"; item: Item } | { kind: "queued"; item: QueuedAttachment } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     const [remote, legacy] = await Promise.all([
@@ -168,6 +174,18 @@ export function TaskAttachments({ taskId, onCountChange }: { taskId: string; onC
     } catch (e: any) {
       setItems(prev);
       toast.error(e?.message || T("حذف نشد", "Could not delete"));
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    try {
+      if (deleteTarget.kind === "remote") await removeItem(deleteTarget.item);
+      else await removeQueued(deleteTarget.item.id, taskId);
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -289,7 +307,7 @@ export function TaskAttachments({ taskId, onCountChange }: { taskId: string; onC
                 <Button size="sm" variant="outline" className="h-8 gap-1" disabled={q.ownerId !== user?.id} onClick={() => flushAttachmentQueue()} data-testid="attachment-queue-retry-btn">
                   <RotateCcw className="w-3 h-3" /> {T("ارسال", "Send")}
                 </Button>
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => removeQueued(q.id, taskId)} aria-label="remove queued">
+                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setDeleteTarget({ kind: "queued", item: q })} aria-label="remove queued">
                   <Trash2 className="w-3 h-3" />
                 </Button>
               </div>
@@ -322,7 +340,7 @@ export function TaskAttachments({ taskId, onCountChange }: { taskId: string; onC
                   {a.kind === "video" && <video controls src={a.url} className="mt-2 w-full max-h-64 rounded-md border" preload="metadata" />}
                 </div>
                 {!a.legacy && <SaveToDriveButton attachmentId={a.id} />}
-                <Button size="icon" variant="ghost" onClick={() => removeItem(a)} data-testid="attachment-delete-btn" aria-label={T("حذف پیوست", "Delete attachment")}>
+                <Button size="icon" variant="ghost" onClick={() => setDeleteTarget({ kind: "remote", item: a })} data-testid="attachment-delete-btn" aria-label={T("حذف پیوست", "Delete attachment")}>
                   <Trash2 className="w-3 h-3" />
                 </Button>
               </div>
@@ -366,6 +384,24 @@ export function TaskAttachments({ taskId, onCountChange }: { taskId: string; onC
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}>
+        <AlertDialogContent data-testid="attachment-delete-confirmation">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{T("این پیوست حذف شود؟", "Delete this attachment?")}</AlertDialogTitle>
+            <AlertDialogDescription dir="auto">
+              {deleteTarget?.kind === "queued" ? deleteTarget.item.name : deleteTarget?.item.file_name}
+              {T(" پس از حذف از فضای ابری قابل بازیابی نیست.", " It cannot be recovered from cloud storage after deletion.")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting} data-testid="attachment-delete-cancel">{T("لغو", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction disabled={deleting} onClick={(event) => { event.preventDefault(); void confirmDelete(); }} data-testid="attachment-delete-confirm">
+              {deleting ? T("در حال حذف…", "Deleting…") : T("حذف", "Delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

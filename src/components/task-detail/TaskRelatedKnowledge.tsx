@@ -27,7 +27,7 @@ export const TaskRelatedKnowledge: React.FC<TaskRelatedKnowledgeProps> = ({
       <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
         <div className="flex items-center gap-1.5">
           <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
-          <span>{isEn ? "Linked Knowledge & Guides" : "اسناد آموزشی و بالینی مرتبط"}</span>
+          <span>{isEn ? "Knowledge Map" : "نقشهٔ دانش"}</span>
           <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400 font-mono">
             {documents.length}
           </span>
@@ -39,7 +39,7 @@ export const TaskRelatedKnowledge: React.FC<TaskRelatedKnowledgeProps> = ({
           className="flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300 font-medium cursor-pointer"
         >
           <Plus className="w-3 h-3" />
-          <span>{isEn ? "Link Guide" : "اتصال سند"}</span>
+          <span>{isEn ? "Add item" : "افزودن مورد"}</span>
         </button>
       </div>
 
