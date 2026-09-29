@@ -1,0 +1,43 @@
+{
+  "summary": "Frontend-only gesture QA of ReviewSwipeCard via the dev harness at /gesture-harness.html. All 10 mobile-touch scenarios and all 6 desktop-mouse scenarios PASS. The slow-drag regression fix (onDrag clears the long-press timer) is confirmed working: a >1s slow drag right produces ONLY rate:3 and NO 'edit' in h-log. Touch input driven via CDP Input.dispatchTouchEvent + Emulation.setTouchEmulationEnabled at 390x844.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_flows_mobile_touch_390x844": {
+    "tap_to_flip": "PASS — after touch tap, h-flipped=true, h-log='flip'.",
+    "swipe_right_rate3_Good_خوب": "PASS — hint '\u062e\u0648\u0628' visible during drag; h-index 0->1, h-log tail 'flip,rate:3', card returns unflipped.",
+    "swipe_left_rate1_Again_دوباره": "PASS — h-index 1->2, h-log tail 'flip,rate:1'.",
+    "swipe_up_rate4_Easy_آسان": "PASS — h-index 2->3, h-log tail 'flip,rate:4'.",
+    "swipe_down_rate2_Hard_سخت": "PASS — h-index 3->4, h-log tail 'flip,rate:2'.",
+    "long_press_800ms_edit_no_flip": "PASS — h-log appends 'edit', h-flipped unchanged (false), h-index unchanged.",
+    "slow_drag_right_>1s_regression": "PASS — 25 touch-move steps over ~1.25s to +120px produced ONLY 'rate:3' new events after the pre-flip; NO 'edit' fired. Confirms the onDrag clearPress fix.",
+    "short_drag_<60px_spring_back": "PASS — 40px drag produced no new h-log events, index unchanged, card stayed flipped and sprung back.",
+    "gestures_off_swipe_ignored": "PASS — after clicking h-off, a right swipe produced zero new events (h-log unchanged, h-index unchanged, card still flipped).",
+    "gestures_on_reenables": "PASS — after h-on, right swipe again produced 'rate:3' and index incremented.",
+    "final_h_log": "flip,rate:3,flip,rate:1,flip,rate:4,flip,rate:2,edit,flip,rate:3,flip,rate:3 (h-index=6)"
+  },
+  "verified_flows_desktop_mouse_1920x800": {
+    "right_left_up_down_ratings": "PASS — sequence flip,rate:3,flip,rate:1,flip,rate:4,flip,rate:2 as expected.",
+    "long_press_edit": "PASS — appends 'edit' after ~850ms hold, no flip.",
+    "slow_mouse_drag_right_>1s": "PASS — only 'rate:3' logged, no 'edit'. Regression fix holds on desktop as well.",
+    "final_h_log": "flip,rate:3,flip,rate:1,flip,rate:4,flip,rate:2,edit,flip,rate:3 (h-index=5)"
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ReviewSwipeCard.handleClick: single tap already invokes onFlip immediately. The doubleTapFlip flag only suppresses the SECOND tap of a rapid double-tap. If product intent is 'ONLY a real double-tap flips (single tap does nothing)', current implementation does not match. From this harness the requested behaviour ('double-tap/tap flips the card') is satisfied because single tap flips too — flag for product confirmation only, not a bug for this iteration.",
+    "canSwipe = g.enabled && flipped means swipe only works after the card is revealed. This is by design and confirmed by the tests, but worth documenting in the UI hint text.",
+    "hint element is unmounted on touchEnd (setHint(null)) so it is only visible mid-drag; captured 'خوب' successfully during the right swipe. No issue."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100% (10/10 mobile touch scenarios + 6/6 desktop mouse scenarios)"},
+  "test_credentials": "none — harness needs no auth.",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Harness route: https://time-bucket.preview.emergentagent.com/gesture-harness.html. It mounts the real ReviewSwipeCard from src/components/review/ReviewSwipeCard.tsx. Use CDP Emulation.setTouchEmulationEnabled + Input.dispatchTouchEvent for mobile touch. detectSwipe threshold is 90px, so 120px displacement is a reliable swipe. Long-press timer is 550ms in code (task said ~800ms; hold >=600ms to be safe). Card must be flipped before drag (canSwipe = g.enabled && flipped). h-off/h-on write to real gesture settings via setGestureSettings + REVIEW_SETTINGS_EVENT, which the card listens to.",
+  "rca_of_issue": "No bug found in this iteration. The prior fix (clearPress() call inside onDrag in ReviewSwipeCard.tsx line 64) is verified: a slow drag that would previously have hit the 550ms long-press threshold no longer fires onEdit, because as soon as motion begins the pending press timer is cleared. Regression test scenario: pointer-down at t=0, small moves starting immediately, total duration ~1.25s, ends past 90px threshold => detectSwipe returns 'right' => onRate(3) fires, onEdit never fires. Verified on both touch (mobile) and mouse (desktop)."
+}
