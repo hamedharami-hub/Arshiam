@@ -29,9 +29,9 @@ export const APP_MODULES: Record<ModuleId, ModuleDef> = {
 };
 export const MODULE_IDS = Object.keys(APP_MODULES) as ModuleId[];
 
-export type ModulesState = { ready: boolean; unlocked: ModuleId[]; installed: ModuleId[]; isAdmin: boolean };
+export type ModulesState = { ready: boolean; unlocked: ModuleId[]; installed: ModuleId[]; isAdmin: boolean; isOwner: boolean };
 
-const EMPTY: ModulesState = { ready: false, unlocked: [], installed: [], isAdmin: false };
+const EMPTY: ModulesState = { ready: false, unlocked: [], installed: [], isAdmin: false, isOwner: false };
 let state: ModulesState = EMPTY;
 let cacheKey: string | null = null;
 const listeners = new Set<() => void>();
@@ -70,11 +70,11 @@ export function hasModule(id: ModuleId, s: ModulesState = state): boolean {
   return s.installed.includes(id);
 }
 
-type ServerState = { unlocked: ModuleId[]; installed: ModuleId[]; is_admin?: boolean };
+type ServerState = { unlocked: ModuleId[]; installed: ModuleId[]; is_admin?: boolean; is_owner?: boolean };
 
 function fromServer(r: ServerState): Partial<ModulesState> {
   const known = (xs: string[]) => xs.filter((x): x is ModuleId => (MODULE_IDS as string[]).includes(x));
-  return { unlocked: known(r.unlocked), installed: known(r.installed), ...(r.is_admin !== undefined ? { isAdmin: r.is_admin } : {}) };
+  return { unlocked: known(r.unlocked), installed: known(r.installed), isAdmin: r.is_admin === true, isOwner: r.is_owner === true };
 }
 
 /** Called on sign-in / sign-out. Uses the per-account cache first so hidden sections never flash. */

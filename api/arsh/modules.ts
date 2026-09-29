@@ -17,10 +17,10 @@ function fail(res: any, status: number, detail: string) {
   return res.status(status).json({ detail });
 }
 
-function state(data: ModuleDocument | undefined, isAdmin: boolean) {
+export function moduleState(data: ModuleDocument | undefined, isAdmin: boolean, isOwner: boolean) {
   const modules = data?.modules || {};
-  const unlocked = MODULE_IDS.filter((id) => Boolean(modules[id]));
-  return { catalog: MODULE_IDS, unlocked, installed: unlocked.filter((id) => modules[id]?.installed), is_admin: isAdmin };
+  const unlocked = isOwner ? [...MODULE_IDS] : MODULE_IDS.filter((id) => Boolean(modules[id]));
+  return { catalog: MODULE_IDS, unlocked, installed: isOwner ? [...MODULE_IDS] : unlocked.filter((id) => modules[id]?.installed), is_admin: isAdmin, is_owner: isOwner };
 }
 
 function publicCode(id: string, code: CodeDocument) {
@@ -59,7 +59,8 @@ export default async function handler(req: any, res: any) {
   const uid = claims.uid;
   const email = claims.email?.trim().toLowerCase() || "";
   const extraAdmins = (process.env.ARSH_ADMIN_EMAILS || "").split(",").map((s) => s.trim().toLowerCase());
-  const isAdmin = claims.email_verified === true && (ownerEmails.has(email) || extraAdmins.includes(email));
+  const isOwner = claims.email_verified === true && ownerEmails.has(email);
+  const isAdmin = isOwner || (claims.email_verified === true && extraAdmins.includes(email));
   const db = adminDb();
   const userRef = db.doc(`users/${uid}/module_access/state`);
   const parts = segments(req);
@@ -67,7 +68,7 @@ export default async function handler(req: any, res: any) {
   try {
     if (req.method === "GET" && parts.join("/") === "me") {
       const user = await userRef.get();
-      return res.status(200).json(state(user.data() as ModuleDocument | undefined, isAdmin));
+      return res.status(200).json(moduleState(user.data() as ModuleDocument | undefined, isAdmin, isOwner));
     }
 
     if (req.method === "POST" && parts.join("/") === "redeem") {
@@ -107,7 +108,7 @@ export default async function handler(req: any, res: any) {
       });
       if (outcome.status === 429) return fail(res, 429, "Too many wrong codes. Try again in 15 minutes.");
       if (outcome.status === 400) return fail(res, 400, "Invalid code.");
-      return res.status(200).json({ ...state({ modules: outcome.next }, isAdmin), newly_unlocked: outcome.newly });
+      return res.status(200).json({ ...moduleState({ modules: outcome.next }, isAdmin, isOwner), newly_unlocked: outcome.newly });
     }
 
     if (req.method === "POST" && parts.length === 2 && ["install", "uninstall"].includes(parts[1])) {
@@ -123,7 +124,7 @@ export default async function handler(req: any, res: any) {
         return next;
       });
       if (!result) return fail(res, 403, "Module is not unlocked for this account.");
-      return res.status(200).json(state({ modules: result }, isAdmin));
+      return res.status(200).json(moduleState({ modules: result }, isAdmin, isOwner));
     }
 
     if (parts[0] === "admin") {

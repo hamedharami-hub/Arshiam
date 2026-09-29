@@ -64,16 +64,18 @@ export function AdvancedModulesPanel() {
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" data-testid="modules-panel">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Puzzle className="w-4 h-4 text-primary" />{T("بخش‌های پیشرفته", "Advanced sections")}</DialogTitle>
-          <DialogDescription>{T("بخش‌های سنگین فقط برای این حساب و بعد از واردکردن کد نصب می‌شوند.", "Heavy sections are installed for this account only, after entering a code.")}</DialogDescription>
+          <DialogDescription>{modules.isOwner
+            ? T("بخش‌های پیشرفته برای حساب مالک فعال‌اند.", "Advanced sections are enabled for the owner account.")
+            : T("بخش‌های سنگین فقط برای این حساب و بعد از واردکردن کد نصب می‌شوند.", "Heavy sections are installed for this account only, after entering a code.")}</DialogDescription>
         </DialogHeader>
 
-        <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (code.trim().length >= 4) void redeem(); }}>
+        {modules.isOwner ? <p className="text-sm text-muted-foreground">{T("بخش‌های پیشرفته برای حساب مالک بدون کد فعال‌اند. برای دیگران از مدیریت کدها، کد تازه بسازید.", "Advanced sections are available to the owner without a code. Create codes for others below.")}</p> : <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (code.trim().length >= 4) void redeem(); }}>
           <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder={T("کد فعال‌سازی", "Access code")} dir="ltr"
             autoComplete="off" className="font-mono" data-testid="modules-code-input" />
           <Button type="submit" disabled={busy === "redeem" || code.trim().length < 4} className="gap-1" data-testid="modules-code-submit">
             {busy === "redeem" ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}{T("فعال‌سازی", "Unlock")}
           </Button>
-        </form>
+        </form>}
 
         {unlocked.length > 0 && (
           <div className="space-y-2" data-testid="modules-list">
@@ -85,7 +87,7 @@ export function AdvancedModulesPanel() {
                     <div className="text-sm font-semibold">{isEn ? m.titleEn : m.titleFa}</div>
                     <div className="text-[11px] text-muted-foreground leading-5">{isEn ? m.descEn : m.descFa}</div>
                   </div>
-                  {busy === id ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                  {modules.isOwner ? null : busy === id ? <Loader2 className="w-4 h-4 animate-spin" /> : (
                     <Switch checked={modules.installed.includes(id)} onCheckedChange={(v) => toggle(id, v)} data-testid={`module-toggle-${id}`}
                       aria-label={isEn ? `Install ${m.titleEn}` : `نصب ${m.titleFa}`} />
                   )}
