@@ -24,6 +24,7 @@ import {
   isStandaloneTaskForScope,
 } from "@/features/tasks/taskTree";
 import { extractTasksFromCache } from "@/features/tasks/taskCache";
+import { applyVisualTaskPatches } from "@/features/tasks/visualTaskPatches";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasksData } from "@/hooks/useTasksData";
 import { syncAndroidWidget } from "@/lib/androidWidget";
@@ -123,14 +124,18 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   // so users see the strikethrough before the item disappears.
   const [graceTasks, setGraceTasks] = useState<Record<string, Task & { _graceUntil: number }>>({});
   const [graceMap, setGraceMap] = useState<Record<string, number>>({});
+  // A slower cache refresh or Firestore snapshot must not repaint a just-edited
+  // badge with its previous value while the user remains on this list.
+  const [visualPatches, setVisualPatches] = useState<Record<string, Partial<Task>>>({});
   const GRACE_MS = 5000;
   const effectiveAllTasks = useMemo(() => {
     const now = Date.now();
     const activeGhosts = Object.values(graceTasks).filter(
       (g) => (graceMap[g.id] || 0) > now && !allTasks.some((t) => t.id === g.id),
     );
-    return activeGhosts.length ? [...allTasks, ...activeGhosts] : allTasks;
-  }, [allTasks, graceTasks, graceMap]);
+    const base = activeGhosts.length ? [...allTasks, ...activeGhosts] : allTasks;
+    return applyVisualTaskPatches(base, visualPatches);
+  }, [allTasks, graceTasks, graceMap, visualPatches]);
   useEffect(() => {
     void syncAndroidWidget(allTasks, user?.id).catch(() => {});
     void Promise.all(allTasks
@@ -302,11 +307,33 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const patchTask = useCallback(async (id: string, patch: Partial<Task>) => {
     const target = effectiveAllTasks.find(t => t.id === id);
     const owner = target ? target.user_id === user?.id : true;
+    const visualPatch: Partial<Task> = {};
+    if (Object.prototype.hasOwnProperty.call(patch, "priority")) visualPatch.priority = patch.priority;
+    if (Object.prototype.hasOwnProperty.call(patch, "due_date")) visualPatch.due_date = patch.due_date;
+    if (owner && Object.keys(visualPatch).length) {
+      setVisualPatches(prev => ({ ...prev, [id]: { ...prev[id], ...visualPatch } }));
+    }
+    const clearFailedVisualPatch = () => {
+      if (!Object.keys(visualPatch).length) return;
+      setVisualPatches(prev => {
+        const current = prev[id];
+        if (!current) return prev;
+        const nextPatch = { ...current };
+        for (const key of Object.keys(visualPatch) as Array<keyof Task>) {
+          if (Object.is(nextPatch[key], visualPatch[key])) delete nextPatch[key];
+        }
+        const next = { ...prev };
+        if (Object.keys(nextPatch).length) next[id] = nextPatch;
+        else delete next[id];
+        return next;
+      });
+    };
     if (owner) setAllTasks(prev => prev.map(x => x.id === id ? { ...x, ...patch } as Task : x));
 
     if (user?.id) {
       const status = await persistTask(user.id, { id, ...patch });
       if (status === "failed") {
+        clearFailedVisualPatch();
         if (owner && target) setAllTasks(prev => prev.map(x => x.id === id ? target : x));
         toast.error(T("ذخیره تغییرات ناموفق بود", "Could not save task changes"));
         return;
@@ -326,6 +353,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
     const { error } = await firebaseStore.from("tasks").update(patch as any).eq("id", id);
     if (error) {
+      clearFailedVisualPatch();
       toast.error(error.message);
       if (owner && target) setAllTasks(prev => prev.map(x => x.id === id ? target : x));
       return;
