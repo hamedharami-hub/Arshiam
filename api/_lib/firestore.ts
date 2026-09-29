@@ -1,5 +1,5 @@
-import firebaseConfig from "../../firebase-applet-config.json";
-import type { AuthUser } from "./auth";
+import firebaseConfig from "../../firebase-applet-config.json" with { type: "json" };
+import type { AuthUser } from "./auth.js";
 
 const PROJECT_ID =
   process.env.FIREBASE_PROJECT_ID || (firebaseConfig as any).projectId;

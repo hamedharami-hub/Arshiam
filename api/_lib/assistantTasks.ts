@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { adminDb, type AssistantGrant } from "./assistantAccess";
+import { adminDb, type AssistantGrant } from "./assistantAccess.js";
 
 const allowedFields = ["title", "description", "priority", "status", "completed", "due_date", "folder_id", "pinned", "start_at", "end_at", "estimated_minutes"] as const;
 const writeFields = new Set<string>(allowedFields);

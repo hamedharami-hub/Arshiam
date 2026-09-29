@@ -12,6 +12,7 @@ import {
 } from "./firebase";
 import { setGardenUser } from "./garden";
 import { signInGoogleCredential, googleSignInError } from "./googleSignIn";
+import { sendPasswordResetEmail } from "firebase/auth";
 
 export interface AppUser {
   id: string;
@@ -167,7 +168,7 @@ export async function loginWithEmail(
     }
 
     if (err?.code === "auth/user-not-found" || err?.code === "auth/invalid-credential") {
-      return { success: false, error: "کاربری با این مشخصات یافت نشد. لطفاً ثبت‌نام کنید." };
+      return { success: false, error: "ایمیل یا رمز معتبر نیست. اگر با Google ثبت‌نام کرده‌اید، از ورود با Google استفاده کنید؛ برای حساب ایمیلی، بازیابی رمز را بزنید." };
     }
 
     if (!navigator.onLine || err?.code === "auth/network-request-failed") {
@@ -176,6 +177,11 @@ export async function loginWithEmail(
 
     return { success: false, error: err?.message || "خطا در ورود" };
   }
+}
+
+/** Firebase sends the reset email only to an existing email/password account. */
+export async function requestPasswordReset(email: string): Promise<void> {
+  await sendPasswordResetEmail(auth, email.trim().toLowerCase());
 }
 
 /**

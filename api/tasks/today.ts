@@ -1,6 +1,6 @@
-import { authenticateRequest } from "../_lib/auth";
-import { getTodayTasks } from "../_lib/firestore";
-import { handleCors, sendError, sendJson } from "../_lib/response";
+import { authenticateRequest } from "../_lib/auth.js";
+import { getTodayTasks } from "../_lib/firestore.js";
+import { handleCors, sendError, sendJson } from "../_lib/response.js";
 
 export default async function handler(req: any, res: any) {
   if (handleCors(req, res)) return;

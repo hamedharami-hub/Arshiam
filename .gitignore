@@ -51,3 +51,4 @@ __pycache__/
 .pytest_cache/
 .emergent/cron/
 /frontend/build
+.env*

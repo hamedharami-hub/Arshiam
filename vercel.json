@@ -1,6 +1,26 @@
 {
   "rewrites": [
     {
+      "source": "/api/arsh/modules/me",
+      "destination": "/api/arsh/modules?path=me"
+    },
+    {
+      "source": "/api/arsh/modules/redeem",
+      "destination": "/api/arsh/modules?path=redeem"
+    },
+    {
+      "source": "/api/arsh/modules/admin/codes",
+      "destination": "/api/arsh/modules?path=admin/codes"
+    },
+    {
+      "source": "/api/arsh/modules/admin/codes/:id/revoke",
+      "destination": "/api/arsh/modules?path=admin/codes/:id/revoke"
+    },
+    {
+      "source": "/api/arsh/modules/:module/:action",
+      "destination": "/api/arsh/modules?path=:module/:action"
+    },
+    {
       "source": "/((?!api/|openapi\\.json|version\\.json).*)",
       "destination": "/index.html"
     }

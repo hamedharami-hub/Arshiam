@@ -1,6 +1,6 @@
-import { authenticateAssistant } from "../../_lib/assistantAccess";
-import { createAssistantTask, listAssistantTasks } from "../../_lib/assistantTasks";
-import { handleCors, parseBody, sendError, sendJson } from "../../_lib/response";
+import { authenticateAssistant } from "../../_lib/assistantAccess.js";
+import { createAssistantTask, listAssistantTasks } from "../../_lib/assistantTasks.js";
+import { handleCors, parseBody, sendError, sendJson } from "../../_lib/response.js";
 
 export default async function handler(req: any, res: any) {
   if (handleCors(req, res)) return;

@@ -1,10 +1,10 @@
-import { authenticateRequest } from "../_lib/auth";
+import { authenticateRequest } from "../_lib/auth.js";
 import {
   deleteUserTask,
   getUserTaskById,
   updateUserTask,
-} from "../_lib/firestore";
-import { handleCors, parseBody, sendError, sendJson } from "../_lib/response";
+} from "../_lib/firestore.js";
+import { handleCors, parseBody, sendError, sendJson } from "../_lib/response.js";
 
 function extractTaskId(req: any): string | null {
   if (req.query?.id && typeof req.query.id === "string") {

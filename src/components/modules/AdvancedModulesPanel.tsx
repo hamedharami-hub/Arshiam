@@ -32,7 +32,14 @@ export function AdvancedModulesPanel() {
         ? T(`${added.length} بخش نصب شد`, `${added.length} section(s) installed`)
         : T("این کد چیز تازه‌ای باز نکرد", "Nothing new was unlocked"));
     } catch (e: any) {
-      toast.error(e?.status === 429 ? T("تلاش‌های اشتباه زیاد بود؛ ۱۵ دقیقه بعد دوباره امتحان کن", "Too many wrong codes, try again in 15 minutes") : T("کد درست نیست", "Invalid code"));
+      const message = e?.status === 429
+        ? T("تلاش‌های اشتباه زیاد بود؛ ۱۵ دقیقه بعد دوباره امتحان کن", "Too many wrong codes, try again in 15 minutes")
+        : e?.status === 400
+          ? T("کد درست نیست یا اعتبار آن تمام شده است", "Invalid or expired code")
+          : e?.status === 401
+            ? T("دوباره وارد حساب شوید و تلاش کنید", "Sign in again and retry")
+            : T("سرویس فعال‌سازی در دسترس نیست؛ این خطا به معنی نادرست بودن کد نیست", "Unlock service is unavailable; this does not mean your code is wrong");
+      toast.error(message);
     } finally {
       setBusy(null);
     }

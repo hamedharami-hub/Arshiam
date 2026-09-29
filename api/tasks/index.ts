@@ -1,6 +1,6 @@
-import { authenticateRequest } from "../_lib/auth";
-import { createUserTask, listUserTasks } from "../_lib/firestore";
-import { handleCors, parseBody, sendError, sendJson } from "../_lib/response";
+import { authenticateRequest } from "../_lib/auth.js";
+import { createUserTask, listUserTasks } from "../_lib/firestore.js";
+import { handleCors, parseBody, sendError, sendJson } from "../_lib/response.js";
 
 function parseQueryParams(req: any): Record<string, any> {
   if (req.query && typeof req.query === "object") {

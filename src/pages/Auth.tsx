@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { safeInternalPath } from "@/lib/safeNavigation";
+import { requestPasswordReset } from "@/lib/authService";
 
 const DISCLAIMER_KEY = "clinical_disclaimer_accepted_v1";
 const GUEST_LOGIN_ENABLED = import.meta.env.DEV && import.meta.env.VITE_ENABLE_GUEST_LOGIN === "true";
@@ -129,6 +130,24 @@ export default function Auth() {
       }
     } catch (err: any) {
       toast.error(err?.message || T("ورود با گوگل انجام نشد.", "Google sign in failed."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!email.trim()) {
+      toast.error(T("ابتدا ایمیل حساب را وارد کنید.", "Enter your account email first."));
+      return;
+    }
+    setLoading(true);
+    try {
+      await requestPasswordReset(email);
+      toast.success(T("اگر این ایمیل حسابِ رمزدار داشته باشد، پیام بازیابی ارسال می‌شود. پوشهٔ اسپم را هم بررسی کنید.", "If this email has a password account, a reset email will arrive. Check spam too."));
+    } catch (err: any) {
+      toast.error(err?.code === "auth/invalid-email"
+        ? T("فرمت ایمیل درست نیست.", "Enter a valid email address.")
+        : T("ارسال ایمیل بازیابی انجام نشد؛ تنظیمات Email/Password در Firebase را بررسی کنید.", "Could not send a reset email. Check Firebase Email/Password settings."));
     } finally {
       setLoading(false);
     }
@@ -272,6 +291,9 @@ export default function Auth() {
                 disabled={loading}
               >
                 {loading ? T("در حال ورود...", "Signing in...") : T("ورود به حساب", "Sign In")}
+              </Button>
+              <Button type="button" variant="link" className="w-full text-xs" disabled={loading} onClick={handlePasswordReset}>
+                {T("رمز عبور را فراموش کرده‌ام", "Forgot password?")}
               </Button>
             </form>
           </TabsContent>

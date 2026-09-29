@@ -1,5 +1,5 @@
-import { ASSISTANT_SCOPES, authenticateOwner, createGrant, listGrants, type AssistantScope } from "../_lib/assistantAccess";
-import { handleCors, parseBody, sendError, sendJson } from "../_lib/response";
+import { ASSISTANT_SCOPES, authenticateOwner, createGrant, listGrants, type AssistantScope } from "../_lib/assistantAccess.js";
+import { handleCors, parseBody, sendError, sendJson } from "../_lib/response.js";
 
 export default async function handler(req: any, res: any) {
   if (handleCors(req, res)) return;

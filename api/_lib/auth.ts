@@ -1,5 +1,5 @@
-import firebaseConfig from "../../firebase-applet-config.json";
-import { sendError } from "./response";
+import firebaseConfig from "../../firebase-applet-config.json" with { type: "json" };
+import { sendError } from "./response.js";
 
 export interface AuthUser {
   userId: string;

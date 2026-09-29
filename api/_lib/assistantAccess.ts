@@ -2,9 +2,9 @@ import { createHash, randomBytes } from "node:crypto";
 import { getApps, initializeApp, cert, applicationDefault } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
-import firebaseConfig from "../../firebase-applet-config.json";
-import { extractBearerToken } from "./auth";
-import { sendError } from "./response";
+import firebaseConfig from "../../firebase-applet-config.json" with { type: "json" };
+import { extractBearerToken } from "./auth.js";
+import { sendError } from "./response.js";
 
 export const ASSISTANT_SCOPES = ["tasks:read", "tasks:create", "tasks:update", "tasks:delete"] as const;
 export type AssistantScope = typeof ASSISTANT_SCOPES[number];
@@ -25,6 +25,11 @@ function adminApp() {
 
 export function adminDb() {
   return getFirestore(adminApp(), databaseId);
+}
+
+/** Verify a Firebase session before granting any server-side module permissions. */
+export async function verifyFirebaseSession(token: string) {
+  return getAuth(adminApp()).verifyIdToken(token, true);
 }
 
 function tokenHash(token: string) {
