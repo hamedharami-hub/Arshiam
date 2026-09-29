@@ -60,13 +60,16 @@ function sortTasks(tasks: Task[]): Task[] {
 }
 
 export async function getCachedTasks(userId: string): Promise<Task[]> {
-  const memory = taskCache.get(userId);
-  if (memory) return memory;
+  // Task edits are written to the durable cache by firestoreDataService.
+  // The in-memory list can still contain the pre-edit row; reading it first
+  // makes task badges appear unchanged until a full page refresh.
   const persisted = await cacheGet<unknown>(taskCacheKey(userId));
   const envelope = readTaskCacheEnvelope(persisted);
-  const tasks = envelope?.tasks || [];
-  setTaskCache(userId, tasks, envelope?.cachedAt);
-  return tasks;
+  if (envelope) {
+    setTaskCache(userId, envelope.tasks, envelope.cachedAt);
+    return envelope.tasks;
+  }
+  return taskCache.get(userId) || [];
 }
 
 export async function applyPendingTaskOperations(base: Task[], userId: string): Promise<Task[]> {

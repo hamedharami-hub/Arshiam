@@ -64,6 +64,7 @@ vi.mock("@/lib/androidWidget", () => ({ syncAndroidWidget: mocks.syncAndroidWidg
 import {
   applyPendingTaskOperations,
   deleteTaskCascade,
+  getCachedTasks,
   subscribeToTasks,
   taskMemoryCache,
 } from "./taskService";
@@ -131,6 +132,14 @@ describe("taskService cascade deletion persistence", () => {
     ]);
     expect(taskMemoryCache.get("task-owner")).toEqual(originalTasks);
     expect(mocks.cacheSet).not.toHaveBeenCalled();
+  });
+
+  it("reloads a recently edited task from durable cache instead of stale memory", async () => {
+    const edited = { ...task("root"), priority: "high" as const, due_date: "2026-09-30T10:00:00.000Z" };
+    mocks.cache.set("tasks:all:task-owner", { tasks: [edited], cachedAt: Date.now() });
+
+    expect(await getCachedTasks("task-owner")).toEqual([edited]);
+    expect(taskMemoryCache.get("task-owner")).toEqual([edited]);
   });
 
   it("queues the full cascade before removing it from the offline task cache", async () => {
