@@ -1492,7 +1492,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   const appearanceNode = displayNodes.find((node) => node.id === appearanceNodeId) ?? null;
   const focusedIds = useMemo(() => (focusMode ? focusSet(focusNodeId, links) : null), [focusMode, focusNodeId, links]);
   const revealStats = revealMode ? revealProgress(fullRevealMetaRef.current.order, fullRevealMetaRef.current.totals, revealCounts) : null;
-  const revealDone = !!revealStats && revealStats.total > 0 && revealStats.shown >= revealStats.total;
+  const revealDone = !!revealStats && revealStats.shown >= revealStats.total;
   const revealNext = useCallback(() => {
     const { order, totals } = revealMetaRef.current;
     const target = nextRevealTarget(order, totals, revealCounts, (id) => !!expandedNodeIds[id]);
