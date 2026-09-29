@@ -3,7 +3,8 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "start": "bash /app/frontend/start-vite.sh",
-    "expo": "bash /app/frontend/start-vite.sh"
+    "start": "cd .. && node node_modules/vite/bin/vite.js --host 0.0.0.0 --port 3000",
+    "expo": "cd .. && node node_modules/vite/bin/vite.js --host 0.0.0.0 --port 3000",
+    "build": "cd .. && npm ci --no-audit --no-fund && node node_modules/vite/bin/vite.js build --outDir frontend/build --emptyOutDir"
   }
 }

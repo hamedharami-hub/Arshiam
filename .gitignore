@@ -50,3 +50,4 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .emergent/cron/
+/frontend/build
