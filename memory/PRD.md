@@ -33,11 +33,24 @@ Latest request (2026-09-28): explain why `emergent` conflicts with `main`, repor
 - Restored files emergent had dropped: `package-lock.json` (regenerated with the 3 new deps), `bun.lock`, `android/gradle/wrapper/gradle-wrapper.jar`.
 - Verified: `npm ci` ✓, typecheck ✓, lint 0 errors ✓, vitest 1008/1008 ✓ (assistantAccess suite needs Node 22 like CI), build ✓, backend pytest 18/18 ✓.
 
+### 2026-09-29
+- Mind map: stable reveal counter (total from full tree), toggle label «تدریجی ↔ نمایش همه», «تمام شد» when done; focus-mode tap via pointer events (touch-safe) + hint.
+- Phase 5 code (Google Drive & Photos): OAuth code flow (system browser on Android → `arshnaz://google-connected`), Fernet-encrypted tokens in Mongo,
+  Drive Picker import → Object Storage, upload attachment to Drive folder «Arshnaz», Photos Picker API session → Object Storage.
+  INACTIVE until GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_API_KEY / GOOGLE_PROJECT_NUMBER are set in backend/.env.
+- Android guide `ANDROID_ARSH_SERVICE_FA.md`; android-build workflow passes `vars.VITE_ARSH_API_URL`.
+- Hidden modules: pharmacy / study / mind unlocked per account by one access code (7 taps on version in Settings › About).
+  Backend `backend/modules.py` (hashed codes, max uses, expiry, revoke + withdraw, rate-limit, admin by ARSH_ADMIN_EMAILS/claim).
+  Frontend `src/lib/appModules.ts` gates routes (NotFound→today), sidebar, bottom bar, command palette, quick links, task links, study tasks,
+  onboarding, widgets. Crisis/SOS always visible.
+- Not verified E2E: review swipe/double-tap/long-press session and reveal counter on real data (Firestore free-tier read quota exhausted during QA).
+
 ## Test Credentials
 See `/app/memory/test_credentials.md`.
 
 ## Backlog
 - P1: Mind map progressive-reveal label/counter, focus-mode node tap, duplicate Capacitor plugin registration warning.
 - P1: Full review session with gestures E2E; Android device QA of attachments + `VITE_ARSH_API_URL` guide.
-- P1 Phase 5: Google OAuth (system browser on Android), encrypted tokens, Drive Picker + "Arshnaz" folder, Photos Picker API copy.
+- P0: Provide Google Cloud keys to activate Drive/Photos; re-run gesture QA after Firestore quota reset (or enable Blaze billing).
+- P1: Per-module codes / per-user admin view of grants (backend already supports module lists per code).
 - P2: Object Storage hard delete when API becomes available.
