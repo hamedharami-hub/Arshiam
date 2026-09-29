@@ -61,9 +61,14 @@ export default async function handler(req: any, res: any) {
   const extraAdmins = (process.env.ARSH_ADMIN_EMAILS || "").split(",").map((s) => s.trim().toLowerCase());
   const isOwner = claims.email_verified === true && ownerEmails.has(email);
   const isAdmin = isOwner || (claims.email_verified === true && extraAdmins.includes(email));
+  const parts = segments(req);
+  // Owners' module access comes from the verified Firebase identity, not a Firestore grant.
+  // Keep this path available even when the module-grant database has exhausted its read quota.
+  if (isOwner && req.method === "GET" && parts.join("/") === "me") {
+    return res.status(200).json(moduleState(undefined, true, true));
+  }
   const db = adminDb();
   const userRef = db.doc(`users/${uid}/module_access/state`);
-  const parts = segments(req);
 
   try {
     if (req.method === "GET" && parts.join("/") === "me") {
