@@ -95,4 +95,11 @@ describe("OfflineIndicator conflict review", () => {
 
     expect(await screen.findByRole("status")).toHaveTextContent("بدون مالک مشخص");
   });
+
+  it("explains a quota failure without discarding queued changes", async () => {
+    mocks.getQueue.mockResolvedValueOnce([{ ...conflict, conflictReason: undefined, lastError: "RESOURCE_EXHAUSTED: Free daily read units per project" }]);
+    render(<OfflineIndicator />);
+    expect(await screen.findByRole("status")).toHaveTextContent("سهمیهٔ Firestore پر شده");
+    expect(mocks.flushQueue).not.toHaveBeenCalled();
+  });
 });

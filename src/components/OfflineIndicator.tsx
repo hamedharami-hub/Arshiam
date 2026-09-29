@@ -54,11 +54,13 @@ export default function OfflineIndicator() {
   const pending = queue.length;
   const conflicts = queue.filter((item) => item.conflictReason && canReplayForOwner(item, user?.id));
   const unattributed = queue.filter((item) => !getQueuedOpOwnerId(item)).length;
+  const failedItems = queue.filter((item) => item.lastError && canReplayForOwner(item, user?.id));
+  const quotaExceeded = failedItems.some((item) => /resource.exhausted|quota.exceeded|free daily read units/i.test(item.lastError || ""));
 
   const sync = async () => {
     setSyncing(true);
     try {
-      const { ok } = await flushQueue({ retryConflicts: true });
+      const { ok } = await flushQueue({ retryConflicts: true, forceRetry: true });
       if (ok > 0) {
         const now = Date.now();
         setLastSync(now);
@@ -95,6 +97,16 @@ export default function OfflineIndicator() {
               <CloudOff className="h-3.5 w-3.5 text-primary" />
             )}
             <span>{`${pending} ${T("تغییر در صف", "pending changes")}`}</span>
+            {quotaExceeded && (
+              <span role="status" className="text-amber-700 dark:text-amber-400">
+                {T("سهمیهٔ Firestore پر شده؛ تغییرات روی این دستگاه محفوظ‌اند", "Firestore quota reached; changes remain safe on this device")}
+              </span>
+            )}
+            {!quotaExceeded && failedItems.length > 0 && (
+              <span role="status" className="text-amber-700 dark:text-amber-400">
+                {T("همگام‌سازی ناموفق بود؛ تغییرات محفوظ‌اند", "Sync failed; changes remain saved locally")}
+              </span>
+            )}
             {unattributed > 0 && (
               <span role="status" className="text-amber-700 dark:text-amber-400">
                 {T(

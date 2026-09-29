@@ -100,7 +100,8 @@ export async function saveEntityToFirestoreWithOutcome(
   userIdOrCollection: string,
   collectionOrData: SupportedFirestoreCollection | string | Record<string, any>,
   docIdOrNothing?: string,
-  dataOrNothing?: Record<string, any>
+  dataOrNothing?: Record<string, any>,
+  throwOnError = false,
 ): Promise<FirestoreSaveOutcome> {
   let userId = "";
   let collectionName = "";
@@ -148,6 +149,7 @@ export async function saveEntityToFirestoreWithOutcome(
       // A durable outbox may retry this mutation later, but writing without a
       // readable current revision could overwrite a newer remote document.
       console.warn(`[FirestoreSync] Could not verify ${collectionName}/${docId}; refusing the write.`, error);
+      if (throwOnError) throw error;
       return "failed";
     }
 
@@ -165,6 +167,7 @@ export async function saveEntityToFirestoreWithOutcome(
     return "saved";
   } catch (error) {
     console.warn(`[FirestoreSync] Failed to save ${collectionName}/${docId}:`, error);
+    if (throwOnError) throw error;
     return "failed";
   }
 }

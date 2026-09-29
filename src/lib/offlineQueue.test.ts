@@ -160,7 +160,7 @@ describe("offline outbox persistence", () => {
 
     expect(await flushQueue()).toEqual({ ok: 1, failed: 0 });
     expect(saveEntityToFirestoreWithOutcome).toHaveBeenCalledWith(
-      "account-a", "interactive_study_sessions", "session-1", session,
+      "account-a", "interactive_study_sessions", "session-1", session, true,
     );
     expect(firebaseStore.from).not.toHaveBeenCalled();
   });
@@ -180,7 +180,7 @@ describe("offline outbox persistence", () => {
 
     expect(await flushQueue()).toEqual({ ok: 1, failed: 0 });
     expect(saveEntityToFirestoreWithOutcome).toHaveBeenCalledWith(
-      "account-a", "socratic_sessions", "current", session,
+      "account-a", "socratic_sessions", "current", session, true,
     );
     expect(firebaseStore.from).not.toHaveBeenCalled();
   });
@@ -206,7 +206,7 @@ describe("offline outbox persistence", () => {
 
     expect(await flushQueue()).toEqual({ ok: 1, failed: 0 });
     expect(saveEntityToFirestoreWithOutcome).toHaveBeenCalledWith(
-      "account-a", "knowledge_import_manifests", manifest.id, manifest,
+      "account-a", "knowledge_import_manifests", manifest.id, manifest, true,
     );
     expect(await getQueue()).toHaveLength(0);
   });
@@ -260,6 +260,25 @@ describe("offline outbox persistence", () => {
     expect(await flushQueue({ retryConflicts: true })).toEqual({ ok: 0, failed: 1 });
     expect(saveEntityToFirestoreWithOutcome).toHaveBeenCalledTimes(2);
     expect(firebaseStore.from).not.toHaveBeenCalled();
+  });
+
+  it("preserves the Firestore quota error and allows an explicit retry before the backoff expires", async () => {
+    const { saveEntityToFirestoreWithOutcome } = await import("./firestoreSync");
+    vi.mocked(saveEntityToFirestoreWithOutcome).mockReset().mockRejectedValueOnce(new Error("RESOURCE_EXHAUSTED: Free daily read units per project"))
+      .mockResolvedValueOnce("saved");
+    await enqueueOp({
+      ownerId: "account-a", table: "tasks", op: "update",
+      payload: { id: "quota-task", user_id: "account-a" }, match: { id: "quota-task" },
+    });
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+
+    expect(await flushQueue()).toEqual({ ok: 0, failed: 1 });
+    expect(await getQueue()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ lastError: expect.stringContaining("RESOURCE_EXHAUSTED"), attempts: 1 }),
+    ]));
+    expect(await flushQueue()).toEqual({ ok: 0, failed: 0 });
+    expect(await flushQueue({ forceRetry: true })).toEqual({ ok: 1, failed: 0 });
+    expect(await getQueue()).toHaveLength(0);
   });
 
   it("does not clear a legacy update when the server confirms zero rows changed", async () => {

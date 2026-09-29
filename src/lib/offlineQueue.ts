@@ -287,12 +287,13 @@ async function replayItem(item: QueuedOp, userId: string): Promise<ReplayOutcome
         const payload = (item.payload || {}) as Record<string, any>;
         const docId = (payload.id || item.match?.id) as string;
         firestoreOutcome = docId
-          ? await saveEntityToFirestoreWithOutcome(userId, item.table as any, docId, payload)
+          ? await saveEntityToFirestoreWithOutcome(userId, item.table as any, docId, payload, true)
           : "failed";
       }
     }
   } catch (error) {
     console.warn("[offlineQueue] Firestore replay warning:", error);
+    throw error;
   }
 
   // For supported entities, the direct Firestore path is authoritative. Never
@@ -303,7 +304,7 @@ async function replayItem(item: QueuedOp, userId: string): Promise<ReplayOutcome
 }
 
 let syncing = false;
-export async function flushQueue(options: { retryConflicts?: boolean } = {}): Promise<{ ok: number; failed: number }> {
+export async function flushQueue(options: { retryConflicts?: boolean; forceRetry?: boolean } = {}): Promise<{ ok: number; failed: number }> {
   if (syncing || typeof navigator === "undefined" || !navigator.onLine) {
     return { ok: 0, failed: 0 };
   }
@@ -329,7 +330,7 @@ export async function flushQueue(options: { retryConflicts?: boolean } = {}): Pr
     const now = Date.now();
 
     for (const { item, source } of entries) {
-      if (item.nextRetryAt && item.nextRetryAt > now) continue;
+      if (!options.forceRetry && item.nextRetryAt && item.nextRetryAt > now) continue;
       if (item.conflictReason && !options.retryConflicts) continue;
       // Legacy records with explicit, consistent owner data remain replayable;
       // records without one attributable owner stay intact for manual recovery.
