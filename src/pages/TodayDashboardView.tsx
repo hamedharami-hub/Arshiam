@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { WeatherChip } from "@/components/weather/WeatherChip";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { endOfDay, startOfDay } from "date-fns";
 import {
@@ -537,7 +536,6 @@ export default function TodayDashboardView() {
 
       <HeaderActionsPortal>
         <div className="flex items-center gap-2 shrink-0">
-          <WeatherChip day="today" />
           {totalCount > 0 && (
             <span className="text-[11px] sm:text-xs text-muted-foreground font-medium">
               {toPersianDigits(completedCount)} / {toPersianDigits(totalCount)} <span className="hidden sm:inline">{T("تکمیل‌شده", "completed")}</span>

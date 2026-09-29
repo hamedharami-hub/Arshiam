@@ -84,13 +84,13 @@ describe("kanbanGoals management and settings", () => {
     expect(goals[0].parentId).toBeNull();
   });
 
-  it("enforces strictly ONE root goal even if multiple root goals are passed", () => {
+  it("preserves all goals as equal flat primary goals with parentId null", () => {
     const rootId = "11111111-1111-4111-8111-111111111111";
     const secondRootId = "22222222-2222-4222-8222-222222222222";
     const multiRootGoals: GoalKanban[] = [
       {
         id: rootId,
-        title: "ریشه اول",
+        title: "هدف اول",
         parentId: null,
         timeHorizon: "yearly",
         priority: "high",
@@ -101,7 +101,7 @@ describe("kanbanGoals management and settings", () => {
       },
       {
         id: secondRootId,
-        title: "ریشه دوم قبلی",
+        title: "هدف دوم",
         parentId: null,
         timeHorizon: "monthly",
         priority: "medium",
@@ -112,14 +112,12 @@ describe("kanbanGoals management and settings", () => {
       },
     ];
 
-    saveKanbanGoals(multiRootGoals, null, "user_single_root");
-    const reloaded = getKanbanGoals(null, "user_single_root");
+    saveKanbanGoals(multiRootGoals, null, "user_flat_goals");
+    const reloaded = getKanbanGoals(null, "user_flat_goals");
 
-    const roots = reloaded.filter((g) => g.parentId === null);
-    expect(roots.length).toBe(1);
-    expect(roots[0].id).toBe(rootId);
-
-    const child = reloaded.find((g) => g.id === secondRootId);
-    expect(child?.parentId).toBe(rootId);
+    expect(reloaded.length).toBe(2);
+    expect(reloaded.every((g) => g.parentId === null)).toBe(true);
+    expect(reloaded.find((g) => g.id === rootId)?.title).toBe("هدف اول");
+    expect(reloaded.find((g) => g.id === secondRootId)?.title).toBe("هدف دوم");
   });
 });

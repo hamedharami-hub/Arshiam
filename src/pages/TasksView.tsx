@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { WeatherChip } from "@/components/weather/WeatherChip";
-import { HeaderActionsPortal } from "@/components/HeaderActionsPortal";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
@@ -1102,11 +1100,6 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         <div className="absolute inset-0 bg-background/70 backdrop-blur-[2px] pointer-events-none" />
       )}
       <div className="relative z-10">
-        {scope === "tomorrow" && (
-          <HeaderActionsPortal>
-            <WeatherChip day="tomorrow" />
-          </HeaderActionsPortal>
-        )}
         <TasksHeader
           title={title}
           isFolder={isFolder}

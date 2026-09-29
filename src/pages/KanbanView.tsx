@@ -111,9 +111,7 @@ export default function KanbanView() {
 
   // --- GOAL STATE ---
   const [goals, setGoals] = useState<GoalKanban[]>(() => getKanbanGoals(null, user?.id));
-  const [selectedTier1Id, setSelectedTier1Id] = useState<string | null>(() => goals[0]?.id || null);
-  const [selectedTier2Id, setSelectedTier2Id] = useState<string | null>(null);
-  const [selectedTier3Id, setSelectedTier3Id] = useState<string | null>(null);
+  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(() => goals[0]?.id || null);
 
   // Mode and Layout
   const [viewMode, setViewMode] = useState<"hierarchy" | "time" | "priority">("hierarchy");
@@ -124,7 +122,6 @@ export default function KanbanView() {
   // Goal Modal
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<GoalKanban | null>(null);
-  const [newGoalParentId, setNewGoalParentId] = useState<string | null>(null);
 
   // --- TASK STATE ---
   const [allTasks, setAllTasks] = useState<Task[]>([]);
@@ -145,7 +142,7 @@ export default function KanbanView() {
   useEffect(() => {
     const list = getKanbanGoals(null, user?.id);
     setGoals(list);
-    setSelectedTier1Id((prev) => (!prev && list.length > 0 ? list[0].id : prev));
+    setSelectedGoalId((prev) => (!prev && list.length > 0 ? list[0].id : prev));
 
     const handleGoalsUpdated = () => {
       const updated = getKanbanGoals(null, user?.id);
@@ -195,19 +192,19 @@ export default function KanbanView() {
     };
   }, [user, loadTasks]);
 
-  // Identify Active Goal (Tier 3 > Tier 2 > Tier 1)
-  const activeGoalId = selectedTier3Id || selectedTier2Id || selectedTier1Id;
+  // Identify Active Goal
   const activeGoal = useMemo(() => {
-    if (!activeGoalId) return goals[0] || null;
-    return getGoalById(goals, activeGoalId) || goals[0] || null;
-  }, [goals, activeGoalId]);
+    if (!selectedGoalId) return goals[0] || null;
+    return getGoalById(goals, selectedGoalId) || goals[0] || null;
+  }, [goals, selectedGoalId]);
+  const activeGoalId = activeGoal?.id || goals[0]?.id || null;
 
   // Task Counts per Goal (for badge indicators)
   const taskCountsByGoal = useMemo(() => {
     const map: Record<string, number> = {};
-    const rootGoalId = goals.find((g) => g.parentId === null)?.id || goals[0]?.id;
+    const defaultGoalId = goals[0]?.id;
     allTasks.forEach((t) => {
-      const gid = t.kanban_column_id || rootGoalId;
+      const gid = t.kanban_column_id || defaultGoalId;
       if (gid) map[gid] = (map[gid] || 0) + 1;
     });
     return map;
@@ -216,15 +213,13 @@ export default function KanbanView() {
   // Filtered tasks for current goal
   const currentGoalTasks = useMemo(() => {
     if (!activeGoalId) return allTasks;
-    const isRootGoal =
-      activeGoal?.parentId === null &&
-      (activeGoalId === goals[0]?.id || goals.filter((g) => g.parentId === null).length <= 1);
+    const isFirstGoal = activeGoalId === goals[0]?.id;
     return allTasks.filter((t) => {
       if (t.kanban_column_id === activeGoalId) return true;
-      if (!t.kanban_column_id && isRootGoal) return true;
+      if (!t.kanban_column_id && isFirstGoal) return true;
       return false;
     });
-  }, [allTasks, activeGoalId, activeGoal, goals]);
+  }, [allTasks, activeGoalId, goals]);
 
   const incompleteTasks = useMemo(() => currentGoalTasks.filter((t) => !t.completed), [currentGoalTasks]);
   const completedTasks = useMemo(() => currentGoalTasks.filter((t) => t.completed), [currentGoalTasks]);
@@ -368,18 +363,17 @@ export default function KanbanView() {
       // Edit existing
       nextGoals = goals.map((g) =>
         g.id === goalData.id
-          ? ({ ...g, ...goalData, updatedAt: new Date().toISOString() } as GoalKanban)
+          ? ({ ...g, ...goalData, parentId: null, updatedAt: new Date().toISOString() } as GoalKanban)
           : g
       );
-      toast.success("کانبان با موفقیت بروزرسانی شد");
+      toast.success(T("هدف با موفقیت بروزرسانی شد", "Goal updated successfully"));
     } else {
       // Add new
-      const rootGoal = goals.find((g) => g.parentId === null) || goals[0];
       const newG: GoalKanban = {
         id: generateUUID(),
-        title: goalData.title || "زیرمجموعه جدید",
+        title: goalData.title || "هدف جدید",
         description: goalData.description,
-        parentId: goalData.parentId || rootGoal?.id || null,
+        parentId: null,
         timeHorizon: goalData.timeHorizon || "monthly",
         priority: goalData.priority || "medium",
         color: goalData.color || "#3b82f6",
@@ -388,49 +382,32 @@ export default function KanbanView() {
         updatedAt: new Date().toISOString(),
       };
       nextGoals = [...goals, newG];
-      setSelectedTier1Id(newG.id);
-      toast.success(T("زیرمجموعه جدید ایجاد شد", "New sub-goal created"));
+      setSelectedGoalId(newG.id);
+      toast.success(T("هدف جدید ایجاد شد", "New goal created"));
     }
     setGoals(nextGoals);
     saveKanbanGoals(nextGoals, null, user?.id);
   };
 
   const handleDeleteGoal = (goalId: string) => {
-    const target = goals.find((g) => g.id === goalId);
-    if (!target || target.parentId === null) {
-      toast.error(T("هدف اصلی کانبان قابل حذف نیست", "Primary goal cannot be deleted"));
+    if (goals.length <= 1) {
+      toast.error(T("حداقل یک هدف باید در کانبان باقی بماند", "At least one goal must remain in Kanban"));
       return;
     }
-    const deletedIds = new Set([goalId]);
-    let changed = true;
-    while (changed) {
-      changed = false;
-      goals.forEach((g) => {
-        if (g.parentId && deletedIds.has(g.parentId) && !deletedIds.has(g.id)) {
-          deletedIds.add(g.id);
-          changed = true;
-        }
-      });
-    }
-    const next = goals.filter((g) => !deletedIds.has(g.id));
+    const next = goals.filter((g) => g.id !== goalId);
     setGoals(next);
     saveKanbanGoals(next, null, user?.id);
-    setSelectedTier1Id(next.find((g) => g.parentId === null)?.id || next[0].id);
-    setSelectedTier2Id(null);
-    setSelectedTier3Id(null);
-    toast.success(T("زیرمجموعه با موفقیت حذف شد", "Sub-goal deleted successfully"));
+    setSelectedGoalId(next[0].id);
+    toast.success(T("هدف با موفقیت حذف شد", "Goal deleted successfully"));
   };
 
   const openEditForGoal = (g: GoalKanban) => {
     setEditingGoal(g);
-    setNewGoalParentId(null);
     setEditorOpen(true);
   };
 
-  const openAddNewGoal = (parentId: string | null = null) => {
+  const openAddNewGoal = () => {
     setEditingGoal(null);
-    const rootGoal = goals.find((g) => g.parentId === null) || goals[0];
-    setNewGoalParentId(parentId || rootGoal?.id || null);
     setEditorOpen(true);
   };
 
@@ -522,7 +499,7 @@ export default function KanbanView() {
                 {T("حالت نمایش کانبان", "Kanban View Mode")}
               </DropdownMenuLabel>
               <DropdownMenuItem onClick={() => setViewMode("hierarchy")} className="gap-2 font-medium">
-                <FolderTree className="w-3.5 h-3.5 text-primary" /> {T("ساختار درختی و چندسطحی", "Multi-tier hierarchy")}
+                <FolderTree className="w-3.5 h-3.5 text-primary" /> {T("همه اهداف", "All goals")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setViewMode("time")} className="gap-2 font-medium">
                 <Calendar className="w-3.5 h-3.5 text-amber-500" /> {T("مرتب‌سازی بر اساس زمان (افق)", "Sort by time horizon")}
@@ -534,8 +511,8 @@ export default function KanbanView() {
               <DropdownMenuItem onClick={() => activeGoal && openEditForGoal(activeGoal)} className="gap-2">
                 <Edit2 className="w-3.5 h-3.5 text-muted-foreground" /> {T("ویرایش هدف فعلی", "Edit current goal")}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openAddNewGoal(activeGoalId || goals[0]?.id)} className="gap-2">
-                <Plus className="w-3.5 h-3.5 text-emerald-500" /> {T("افزودن زیرمجموعه جدید", "Add new sub-goal")}
+              <DropdownMenuItem onClick={() => openAddNewGoal()} className="gap-2">
+                <Plus className="w-3.5 h-3.5 text-emerald-500" /> {T("افزودن هدف جدید", "Add new goal")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -551,19 +528,19 @@ export default function KanbanView() {
               {activeGoal && (
                 <>
                   <DropdownMenuItem onClick={() => openEditForGoal(activeGoal)} className="gap-2">
-                    <Edit2 className="w-3.5 h-3.5" /> {T("ویرایش تنظیمات این کانبان", "Edit Kanban settings")}
+                    <Edit2 className="w-3.5 h-3.5" /> {T("ویرایش نام و تنظیمات هدف", "Edit goal settings")}
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => openAddNewGoal(activeGoal.id)} className="gap-2">
-                    <Plus className="w-3.5 h-3.5 text-primary" /> {T("افزودن زیرمجموعه به این هدف", "Add sub-goal")}
+                  <DropdownMenuItem onClick={() => openAddNewGoal()} className="gap-2">
+                    <Plus className="w-3.5 h-3.5 text-primary" /> {T("افزودن هدف جدید", "Add new goal")}
                   </DropdownMenuItem>
-                  {activeGoal.parentId !== null && (
+                  {goals.length > 1 && (
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         onClick={() => handleDeleteGoal(activeGoal.id)}
                         className="gap-2 text-destructive focus:bg-destructive/10"
                       >
-                        {T("حذف این زیرمجموعه", "Delete this sub-goal")}
+                        {T("حذف این هدف", "Delete this goal")}
                       </DropdownMenuItem>
                     </>
                   )}
@@ -578,20 +555,16 @@ export default function KanbanView() {
       <div className="overflow-x-auto no-scrollbar">
         <MultiTierTabs
           goals={goals}
-          selectedGoalId={selectedTier1Id}
+          selectedGoalId={selectedGoalId}
           viewMode={viewMode}
           selectedTimeFilter={timeFilter}
           selectedPriorityFilter={priorityFilter}
-          onSelectGoal={(id) => {
-            setSelectedTier1Id(id);
-            setSelectedTier2Id(null);
-            setSelectedTier3Id(null);
-          }}
+          onSelectGoal={(id) => setSelectedGoalId(id)}
           onSelectTimeFilter={(h) => setTimeFilter(h)}
           onSelectPriorityFilter={(p) => setPriorityFilter(p)}
           onDoubleTapGoal={openEditForGoal}
           onEditGoal={openEditForGoal}
-          onAddNewGoal={() => openAddNewGoal(activeGoalId || goals[0]?.id)}
+          onAddNewGoal={() => openAddNewGoal()}
           taskCountsByGoal={taskCountsByGoal}
         />
       </div>
@@ -823,7 +796,6 @@ export default function KanbanView() {
         onOpenChange={setEditorOpen}
         goal={editingGoal}
         allGoals={goals}
-        defaultParentId={newGoalParentId}
         onSave={handleSaveGoal}
         onDelete={handleDeleteGoal}
       />

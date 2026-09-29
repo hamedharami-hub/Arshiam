@@ -154,9 +154,6 @@ export default function MultiTierTabs({
                   : "bg-muted/60 border-transparent text-muted-foreground hover:text-foreground hover:bg-muted"
               }`}
             >
-              {g.parentId && (
-                <span className="text-[10px] text-muted-foreground/80 font-mono" title="زیرمجموعه">↳</span>
-              )}
               {g.color && (
                 <span
                   className="w-2 h-2 rounded-full shrink-0 shadow-xs"
@@ -192,9 +189,9 @@ export default function MultiTierTabs({
           variant="ghost"
           onClick={() => onAddNewGoal()}
           className="h-8 px-2.5 rounded-2xl text-xs text-muted-foreground hover:text-foreground shrink-0 gap-1 bg-muted/30"
-          title="افزودن زیرمجموعه جدید به این کانبان"
+          title="افزودن هدف جدید"
         >
-          <Plus className="w-3.5 h-3.5" /> زیرمجموعه جدید
+          <Plus className="w-3.5 h-3.5" /> هدف جدید
         </Button>
       </div>
     </div>

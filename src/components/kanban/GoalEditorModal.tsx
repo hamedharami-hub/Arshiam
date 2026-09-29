@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trash2, Target, Calendar, Flag, Sparkles, FolderTree, Check } from "lucide-react";
+import { Trash2, Target, Calendar, Flag, Sparkles, Check } from "lucide-react";
 import {
   type GoalKanban,
   type TimeHorizon,
@@ -43,7 +43,6 @@ interface GoalEditorModalProps {
   onOpenChange: (open: boolean) => void;
   goal?: GoalKanban | null;
   allGoals: GoalKanban[];
-  defaultParentId?: string | null;
   onSave: (goalData: Partial<GoalKanban>) => void;
   onDelete?: (goalId: string) => void;
 }
@@ -53,13 +52,11 @@ export default function GoalEditorModal({
   onOpenChange,
   goal,
   allGoals,
-  defaultParentId = null,
   onSave,
   onDelete,
 }: GoalEditorModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [parentId, setParentId] = useState<string | null>(null);
   const [timeHorizon, setTimeHorizon] = useState<TimeHorizon>("monthly");
   const [priority, setPriority] = useState<GoalPriority>("medium");
   const [color, setColor] = useState("#3b82f6");
@@ -69,7 +66,6 @@ export default function GoalEditorModal({
     if (goal) {
       setTitle(goal.title || "");
       setDescription(goal.description || "");
-      setParentId(goal.parentId || null);
       setTimeHorizon(goal.timeHorizon || "monthly");
       setPriority(goal.priority || "medium");
       setColor(goal.color || "#3b82f6");
@@ -77,24 +73,20 @@ export default function GoalEditorModal({
     } else {
       setTitle("");
       setDescription("");
-      const rootGoal = allGoals.find((g) => g.parentId === null) || allGoals[0];
-      setParentId(defaultParentId || rootGoal?.id || null);
       setTimeHorizon("monthly");
       setPriority("medium");
       setColor("#3b82f6");
       setIcon("🎯");
     }
-  }, [goal, defaultParentId, allGoals, open]);
+  }, [goal, open]);
 
   const handleSave = () => {
     if (!title.trim()) return;
-    const rootGoal = allGoals.find((g) => g.parentId === null) || allGoals[0];
-    const finalParentId = isRootGoal ? null : (parentId || defaultParentId || rootGoal?.id || null);
     onSave({
       ...(goal ? { id: goal.id } : {}),
       title: title.trim(),
       description: description.trim() || undefined,
-      parentId: finalParentId,
+      parentId: null,
       timeHorizon,
       priority,
       color,
@@ -103,25 +95,9 @@ export default function GoalEditorModal({
     onOpenChange(false);
   };
 
-  const eligibleParents = React.useMemo(() => {
-    if (!goal) return allGoals;
-    const descendants = new Set<string>([goal.id]);
-    let changed = true;
-    while (changed) {
-      changed = false;
-      allGoals.forEach((g) => {
-        if (g.parentId && descendants.has(g.parentId) && !descendants.has(g.id)) {
-          descendants.add(g.id);
-          changed = true;
-        }
-      });
-    }
-    return allGoals.filter((g) => !descendants.has(g.id));
-  }, [allGoals, goal]);
-
   const EMOJI_OPTIONS = ["🎯", "📚", "🗣️", "🤖", "💼", "🫀", "🚀", "🌟", "💡", "🎨", "🏃‍♂️", "🌿", "🧘‍♀️", "🔥"];
 
-  const isRootGoal = Boolean(goal && goal.parentId === null);
+  const canDelete = Boolean(goal && onDelete && allGoals.length > 1);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -129,18 +105,12 @@ export default function GoalEditorModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg font-bold">
             <Target className="w-5 h-5 text-primary" />
-            {goal
-              ? isRootGoal
-                ? "ویرایش هدف اصلی"
-                : "ویرایش هدف"
-              : "افزودن زیرمجموعه جدید"}
+            {goal ? "ویرایش هدف" : "افزودن هدف جدید"}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
             {goal
-              ? isRootGoal
-                ? "عنوان، آیکون، رنگ، افق زمانی و اهمیت هدف اصلی را تنظیم کنید."
-                : "تنظیمات عنوان، رنگ، افق زمانی، اهمیت و والد این زیرمجموعه را ویرایش کنید."
-              : "یک زیرمجموعه جدید متصل به هدف اصلی بسازید."}
+              ? "عنوان، آیکون، رنگ، افق زمانی و اولویت هدف را تنظیم کنید."
+              : "یک هدف جدید برای دسته‌بندی و مدیریت تسک‌ها ایجاد کنید."}
           </DialogDescription>
         </DialogHeader>
 
@@ -186,41 +156,11 @@ export default function GoalEditorModal({
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="شرح اهداف، برنامه اجرایی یا یادداشت‌های مهم این کانبان..."
+              placeholder="شرح اهداف، برنامه اجرایی یا یادداشت‌های مهم این هدف..."
               rows={2}
               className="text-xs resize-none"
             />
           </div>
-
-          {/* Parent Goal Selection */}
-          {isRootGoal ? (
-            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-medium">
-              <Target className="w-4 h-4 shrink-0" />
-              <span>این هدف اصلی و ریشه کانبان است و سایر اهداف به عنوان زیرمجموعه به آن متصل می‌شوند.</span>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold flex items-center gap-1.5">
-                <FolderTree className="w-3.5 h-3.5 text-muted-foreground" />
-                هدف والد (زیرمجموعه کدام هدف باشد؟)
-              </Label>
-              <Select
-                value={parentId || eligibleParents[0]?.id || ""}
-                onValueChange={(v) => setParentId(v)}
-              >
-                <SelectTrigger className="text-xs">
-                  <SelectValue placeholder="یک هدف والد انتخاب کنید" />
-                </SelectTrigger>
-                <SelectContent>
-                  {eligibleParents.map((p) => (
-                    <SelectItem key={p.id} value={p.id} className="text-xs">
-                      {p.icon || "🎯"} {p.title} {p.parentId === null ? "(هدف اصلی)" : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
 
           {/* Time Horizon & Priority Grid */}
           <div className="grid grid-cols-2 gap-3">
@@ -291,19 +231,19 @@ export default function GoalEditorModal({
         </div>
 
         <DialogFooter className="flex items-center justify-between gap-2 pt-2 border-t">
-          {goal && onDelete && !isRootGoal ? (
+          {canDelete && goal ? (
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={() => {
-                onDelete(goal.id);
+                onDelete!(goal.id);
                 onOpenChange(false);
               }}
               className="text-xs text-destructive hover:bg-destructive/10 gap-1"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              حذف این زیرمجموعه
+              حذف این هدف
             </Button>
           ) : (
             <div />

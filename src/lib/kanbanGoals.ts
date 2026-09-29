@@ -65,7 +65,7 @@ export const INITIAL_GOALS: GoalKanban[] = [
     id: "a0000000-0000-4000-8000-000000000002",
     title: "زبان و مکالمه",
     description: "تمرین روزمره زبان، تقویت اسپیکینگ و دایره واژگان",
-    parentId: "a0000000-0000-4000-8000-000000000001",
+    parentId: null,
     timeHorizon: "monthly",
     priority: "urgent",
     color: "#06b6d4",
@@ -77,7 +77,7 @@ export const INITIAL_GOALS: GoalKanban[] = [
     id: "a0000000-0000-4000-8000-000000000003",
     title: "خواندن و آموزش با هوش مصنوعی",
     description: "مطالعه کتاب‌های تخصصی و تمرین مکالمه هوش مصنوعی",
-    parentId: "a0000000-0000-4000-8000-000000000001",
+    parentId: null,
     timeHorizon: "weekly",
     priority: "medium",
     color: "#8b5cf6",
@@ -89,7 +89,7 @@ export const INITIAL_GOALS: GoalKanban[] = [
     id: "a0000000-0000-4000-8000-000000000004",
     title: "کسب‌وکار و پروژه‌ها",
     description: "توسعه محصول، ارتقای اپلیکیشن و اهداف مالی",
-    parentId: "a0000000-0000-4000-8000-000000000001",
+    parentId: null,
     timeHorizon: "yearly",
     priority: "urgent",
     color: "#10b981",
@@ -101,7 +101,7 @@ export const INITIAL_GOALS: GoalKanban[] = [
     id: "a0000000-0000-4000-8000-000000000005",
     title: "سلامت و آرامش ذهن",
     description: "ورزش، تمرین تنفس، خواب منظم و چک‌این روزانه",
-    parentId: "a0000000-0000-4000-8000-000000000001",
+    parentId: null,
     timeHorizon: "quarterly",
     priority: "high",
     color: "#ec4899",
@@ -111,27 +111,16 @@ export const INITIAL_GOALS: GoalKanban[] = [
   },
 ];
 
-export function enforceSingleRoot(goals: GoalKanban[]): GoalKanban[] {
-  if (!goals.length) return [];
-  // The first goal with parentId === null (or the very first goal) is the only root
-  const rootIndex = goals.findIndex((g) => g.parentId === null);
-  const rootId = rootIndex >= 0 ? goals[rootIndex].id : goals[0].id;
+export function flattenGoals(goals: GoalKanban[]): GoalKanban[] {
+  return goals.map((g) => ({ ...g, parentId: null }));
+}
 
-  return goals.map((g) => {
-    if (g.id === rootId) {
-      return { ...g, parentId: null };
-    }
-    // Any other goal that has no parent must be attached to the single root goal
-    if (g.parentId === null) {
-      return { ...g, parentId: rootId };
-    }
-    return g;
-  });
+export function enforceSingleRoot(goals: GoalKanban[]): GoalKanban[] {
+  return flattenGoals(goals);
 }
 
 function sanitizeGoalsUUIDs(goals: GoalKanban[]): GoalKanban[] {
   const idMap = new Map<string, string>();
-  const allIds = new Set<string>();
 
   // Map invalid UUIDs to valid UUIDs
   goals.forEach((g) => {
@@ -140,22 +129,11 @@ function sanitizeGoalsUUIDs(goals: GoalKanban[]): GoalKanban[] {
     }
   });
 
-  const remapped = goals.map((g) => ({
+  return goals.map((g) => ({
     ...g,
     id: idMap.get(g.id) || g.id,
-    parentId: g.parentId ? idMap.get(g.parentId) || g.parentId : null,
+    parentId: null,
   }));
-
-  remapped.forEach((g) => allIds.add(g.id));
-
-  // If parentId does not exist in the goals list or references self, reset to null
-  const validatedParents = remapped.map((g) => ({
-    ...g,
-    parentId: g.parentId && g.parentId !== g.id && allIds.has(g.parentId) ? g.parentId : null,
-  }));
-
-  // Enforce that there is strictly one root goal
-  return enforceSingleRoot(validatedParents);
 }
 
 export function getKanbanGoals(folderId?: string | null, userId?: string): GoalKanban[] {
@@ -194,7 +172,7 @@ export function getKanbanGoals(folderId?: string | null, userId?: string): GoalK
               updatedAt: new Date().toISOString(),
             },
           ]
-        : INITIAL_GOALS.filter((g) => g.parentId === null);
+        : INITIAL_GOALS.map((g) => ({ ...g, parentId: null }));
       localStorage.setItem(key, JSON.stringify(defaults));
       return defaults;
     };
@@ -208,7 +186,7 @@ export function getKanbanGoals(folderId?: string | null, userId?: string): GoalK
     }
     return createDefaults();
   } catch {
-    return folderId ? [] : INITIAL_GOALS.filter((g) => g.parentId === null);
+    return folderId ? [] : INITIAL_GOALS.map((g) => ({ ...g, parentId: null }));
   }
 }
 
