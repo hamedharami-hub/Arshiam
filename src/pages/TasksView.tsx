@@ -234,7 +234,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     };
   }, []);
 
-  const isSplitActive = splitView && isWideOrFoldable;
+  const [splitAvailableWidth, setSplitAvailableWidth] = useState(0);
+  const isSplitActive = splitView && isWideOrFoldable && splitAvailableWidth >= 640;
 
   const toggleSplitView = () => {
     setSplitView((prev) => {
@@ -257,6 +258,18 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     minRatio: 28,
     maxRatio: 72,
   });
+
+  // Fit both panels into the content area, including an expanded desktop sidebar.
+  useEffect(() => {
+    const container = splitContainerRef.current;
+    if (!container) return;
+    const measure = () => setSplitAvailableWidth(container.getBoundingClientRect().width);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [splitContainerRef]);
+
   useEffect(() => {
     if (!selectedTask) return;
     const current = allTasks.find((item) => item.id === selectedTask.id);
@@ -1122,10 +1135,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         >
           {/* Explicit LTR placement keeps the inspector on the physical left:
               sidebar/folders live on the right, the list remains central/right. */}
-          {isSplitActive && (
+          {isSplitActive && selectedTask && (
             <aside
               dir={isEn ? "ltr" : "rtl"}
-              style={{ width: `${splitRatio}%` }}
+              style={{ width: `clamp(280px, ${splitRatio}%, calc(100% - 320px))` }}
               className={`shrink-0 min-w-[280px] max-w-[75%] sticky top-[3.75rem] sm:top-[4.25rem] h-[calc(100dvh-7.5rem)] sm:h-[calc(100dvh-8rem)] xl:h-[calc(100dvh-7.2rem)] overflow-hidden ${
                 isSplitResizing ? "transition-none" : "transition-[width] duration-150 ease-out"
               }`}
@@ -1161,7 +1174,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           )}
 
           {/* Draggable splitter handle */}
-          {isSplitActive && (
+          {isSplitActive && selectedTask && (
             <div
               role="separator"
               aria-orientation="vertical"

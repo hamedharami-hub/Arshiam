@@ -201,7 +201,7 @@ export function onQueueChange(handler: (taskId: string) => void): () => void {
   return () => window.removeEventListener(QUEUE_EVENT, fn);
 }
 
-export async function enqueueAttachment(taskId: string, file: File, id = crypto.randomUUID(), expectedOwnerId?: string): Promise<QueuedAttachment> {
+export async function enqueueAttachment(taskId: string, file: File, id: string = crypto.randomUUID(), expectedOwnerId?: string): Promise<QueuedAttachment> {
   const uid = requireOwnerId();
   if (expectedOwnerId && expectedOwnerId !== uid) throw new ArshApiError(403, "Account changed; file was not queued in another account");
   const item: QueuedAttachment = {

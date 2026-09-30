@@ -1,4 +1,5 @@
 import React from "react";
+import { HeaderActionsPortal } from "@/components/HeaderActionsPortal";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,7 +46,6 @@ export interface TasksHeaderProps {
 export function TasksHeader({
   title,
   isFolder,
-  folderName,
   folderPrefs,
   updateFolderPrefs,
   setDelFolderOpen,
@@ -55,10 +55,7 @@ export function TasksHeader({
     <>
       <HeaderTitlePortal title={title} />
       {isFolder && (
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <h1 className="text-lg md:text-xl font-black text-foreground truncate">
-            {folderName || title}
-          </h1>
+        <HeaderActionsPortal>
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button
@@ -158,7 +155,7 @@ export function TasksHeader({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
+        </HeaderActionsPortal>
       )}
     </>
   );

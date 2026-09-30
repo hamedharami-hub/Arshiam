@@ -460,86 +460,40 @@ export function FolderKanban({
   const activeTaskObj = activeId ? allTasks.find((t) => t.id === activeId) : null;
 
   return (
-    <div dir="rtl" className="space-y-3 pb-20 animate-fade-in relative">
-      {/* 1. TOP HEADER (Active Goal info & quick controls) */}
-      <div className="flex items-center justify-between gap-2 flex-wrap bg-card/60 p-3 rounded-2xl border border-border/70 shadow-xs">
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => activeGoal && openEditForGoal(activeGoal)}
-            className="flex items-center gap-2 text-base md:text-lg font-black text-foreground hover:text-primary transition-colors text-start group cursor-pointer"
-            title={T("کلیک برای ویرایش نام و تنظیمات هدف", "Click to edit goal name and settings")}
-          >
-            <span>{activeGoal?.icon || "🎯"}</span>
-            <span className="truncate max-w-[220px] sm:max-w-xs">{activeGoal?.title || T("هدف اصلی این بخش", "Main goal")}</span>
-            <span className="p-1 rounded-lg bg-muted/60 group-hover:bg-primary/10 group-hover:text-primary transition">
-              <Edit2 className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary" />
-            </span>
-          </button>
-
+    <div dir={isEn ? "ltr" : "rtl"} className="space-y-2 pb-4 relative">
+      {/* Goal identity lives in the tab row; metadata and actions share one compact rail. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           {activeGoal && (
-            <Badge variant="outline" className="text-[11px] gap-1 rounded-md border-border font-normal text-muted-foreground">
-              <span>
-                {isEn
-                  ? TIME_HORIZONS.find((th) => th.id === activeGoal.timeHorizon)?.labelEn || "Monthly"
-                  : TIME_HORIZONS.find((th) => th.id === activeGoal.timeHorizon)?.labelFa || "ماهانه"}
-              </span>
+            <Badge variant="outline" className="text-[11px] font-normal text-muted-foreground">
+              {isEn
+                ? TIME_HORIZONS.find((th) => th.id === activeGoal.timeHorizon)?.labelEn || "Monthly"
+                : TIME_HORIZONS.find((th) => th.id === activeGoal.timeHorizon)?.labelFa || "ماهانه"}
             </Badge>
           )}
-
-          {activeGoal?.priority && activeGoal.priority !== "none" && (
-            <PriorityFlag priority={activeGoal.priority} />
-          )}
+          {activeGoal?.priority && activeGoal.priority !== "none" && <PriorityFlag priority={activeGoal.priority} />}
         </div>
-
-        {/* Action controls */}
-        <div className="flex items-center gap-1.5">
-          {activeGoal && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => openEditForGoal(activeGoal)}
-              className="h-8 text-xs rounded-xl gap-1.5 bg-card/60 hover:border-primary/40"
-            >
-              <Edit2 className="w-3.5 h-3.5 text-primary" />
-              <span className="hidden sm:inline">
-                {activeGoal.parentId === null ? T("ویرایش هدف اصلی", "Edit Main Goal") : T("ویرایش هدف", "Edit Goal")}
-              </span>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9" aria-label={T("تنظیمات هدف", "Goal settings")}>
+              <MoreVertical className="w-4 h-4" />
             </Button>
-          )}
-
-          {/* 3-dots Menu for folder kanban */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                <MoreVertical className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="text-xs w-44">
-              {activeGoal && (
-                <>
-                  <DropdownMenuItem onClick={() => openEditForGoal(activeGoal)} className="gap-2">
-                    <Edit2 className="w-3.5 h-3.5" /> {T("ویرایش تنظیمات این هدف", "Edit goal settings")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => openAddNewGoal()} className="gap-2">
-                    <Plus className="w-3.5 h-3.5 text-primary" /> {T("افزودن هدف جدید", "Add new goal")}
-                  </DropdownMenuItem>
-                  {goals.length > 1 && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => handleDeleteGoal(activeGoal.id)}
-                        className="gap-2 text-destructive focus:bg-destructive/10"
-                      >
-                        {T("حذف این هدف", "Delete this goal")}
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="text-xs w-44">
+            {activeGoal && <DropdownMenuItem onClick={() => openEditForGoal(activeGoal)} className="gap-2">
+              <Edit2 className="w-3.5 h-3.5" />{T("ویرایش هدف", "Edit goal")}
+            </DropdownMenuItem>}
+            <DropdownMenuItem onClick={openAddNewGoal} className="gap-2">
+              <Plus className="w-3.5 h-3.5" />{T("افزودن هدف جدید", "Add new goal")}
+            </DropdownMenuItem>
+            {activeGoal && goals.length > 1 && <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleDeleteGoal(activeGoal.id)} className="text-destructive focus:bg-destructive/10">
+                {T("حذف این هدف", "Delete this goal")}
+              </DropdownMenuItem>
+            </>}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* 2. SINGLE-TIER GOAL TABS */}
@@ -564,15 +518,15 @@ export function FolderKanban({
       {layout === "stream" ? (
         <div className="space-y-4">
           {/* Quick Input Bar */}
-          <div className="flex gap-2">
+          <div className="flex min-w-0 gap-2">
             <Input
               ref={quickInputRef}
               value={quickTitle}
               onChange={(e) => setQuickTitle(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addQuickTask(quickTitle)}
-              placeholder={`افزودن تسک جدید به «${activeGoal?.title || "این بخش"}»`}
+              placeholder={T("افزودن تسک جدید…", "Add a task…")}
               dir="auto"
-              className="bg-card/70 border-border/70 text-sm h-11 rounded-2xl shadow-xs"
+              className="bg-card/70 border-border/70 min-w-0 text-sm h-10 rounded-md"
             />
             <Button
               onClick={() => addQuickTask(quickTitle)}
