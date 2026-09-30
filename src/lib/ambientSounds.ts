@@ -34,6 +34,11 @@ export const AMBIENT_SOUNDS: AmbientSound[] = [
   { id: "med_drone",    name: "درون آرام",     nameEn: "Calm drone",       emoji: "🪷", category: "meditation" },
 
   // Sleep
+  { id: "sleep_music",       name: "موسیقی خواب ۶۰ ضرب", nameEn: "Sleep music 60 BPM", emoji: "🎹", category: "sleep" },
+  { id: "sleep_ocean_music", name: "موسیقی و دریا",      nameEn: "Music + ocean",      emoji: "🌊", category: "sleep" },
+  { id: "sleep_rain_music",  name: "موسیقی و باران",     nameEn: "Music + rain",       emoji: "🌧️", category: "sleep" },
+  { id: "sleep_pink",        name: "نویز صورتی",         nameEn: "Pink noise",         emoji: "🌸", category: "sleep" },
+  { id: "sleep_delta_pink",  name: "دلتا + نویز صورتی",  nameEn: "Delta + pink noise", emoji: "🎧", category: "sleep", beta: true, hint: "آزمایشی — با هندزفری", hintEn: "Experimental — headphones" },
   { id: "sleep_white",   name: "نویز سفید",      nameEn: "White noise",  emoji: "🌫️", category: "sleep" },
   { id: "sleep_brown",   name: "نویز قهوه‌ای",  nameEn: "Brown noise",  emoji: "🛏️", category: "sleep" },
   { id: "sleep_lullaby", name: "لالایی",         nameEn: "Lullaby",      emoji: "🌙", category: "sleep" },

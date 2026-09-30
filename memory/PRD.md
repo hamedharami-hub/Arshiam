@@ -88,3 +88,9 @@ See `/app/memory/test_credentials.md`.
   (kanban date popover + task schedule sheet). Verified via screenshot at 390px, no overflow. Testing agent NOT run (user asked to save credits).
 ## Backlog
 - P2: Verify Garden cloud sync across two devices; optional custom music URL for Pomodoro.
+
+### 2026-09-30 — Sleep sounds
+- `pomodoroSynth.ts`: new generative sleep music (60→52 BPM, pads + felt-piano plucks + convolution reverb, 45s look-ahead so it survives
+  screen-off throttling), pink noise, music+ocean, music+rain, delta+pink (experimental), `scheduleSleepFade` on the audio clock.
+- `SleepSoundsCard.tsx` on Pomodoro page: sound chips, fade-out timer 15/30/45/60/no-limit (fade = min(10 min, 1/3)), volume,
+  breathing link only when Mind module unlocked. Verified by screenshot (play/switch/stop, no overflow). Real audio quality needs device check.

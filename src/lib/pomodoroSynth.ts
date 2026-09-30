@@ -185,8 +185,99 @@ function sleepBrown(c: AudioContext, m: GainNode): Voice {
 const sleepLullaby = (c: AudioContext, m: GainNode) =>
   pad(c, m, [130.81, 196, 261.63, 329.63], "sine", 3);
 
+// --- Sleep music: generative 60→52 BPM ambient with soft pads, felt-piano plucks and a synthetic reverb.
+function makeReverb(c: AudioContext, seconds = 5, decay = 2.6): ConvolverNode {
+  const len = Math.floor(c.sampleRate * seconds);
+  const buf = c.createBuffer(2, len, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+  }
+  const conv = c.createConvolver(); conv.buffer = buf;
+  return conv;
+}
+
+function sleepPink(c: AudioContext, m: GainNode): Voice {
+  const src = c.createBufferSource(); src.buffer = noiseBuffer(c, 12, "pink"); src.loop = true;
+  const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 7000;
+  const g = c.createGain(); g.gain.value = 0.5;
+  src.connect(lp); lp.connect(g); g.connect(m); src.start();
+  return { stop: () => { try { src.stop(); } catch {} } };
+}
+
+const CHORDS = [
+  [146.83, 220.0, 277.18, 329.63],   // Dmaj9 (no 3rd voiced low)
+  [123.47, 185.0, 246.94, 293.66],   // Bm7
+  [98.0, 146.83, 246.94, 293.66],    // Gmaj7
+  [110.0, 164.81, 220.0, 277.18],    // A(add9)
+];
+const MELODY = [293.66, 329.63, 369.99, 440.0, 493.88, 587.33]; // D major pentatonic
+
+function sleepMusic(c: AudioContext, m: GainNode): Voice {
+  const bus = c.createGain(); bus.gain.value = 0.9;
+  const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2400;
+  const verb = makeReverb(c);
+  const dry = c.createGain(); dry.gain.value = 0.55;
+  const wet = c.createGain(); wet.gain.value = 0.6;
+  bus.connect(lp); lp.connect(dry); dry.connect(m); lp.connect(verb); verb.connect(wet); wet.connect(m);
+
+  const padNote = (f: number, t: number, dur: number) => {
+    const g = c.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.035, t + 2.5);
+    g.gain.setValueAtTime(0.035, t + dur - 3);
+    g.gain.linearRampToValueAtTime(0, t + dur);
+    g.connect(bus);
+    (["sine", "triangle"] as OscillatorType[]).forEach((type, i) => {
+      const o = c.createOscillator(); o.type = type; o.frequency.value = f; o.detune.value = i ? 4 : -4;
+      o.connect(g); o.start(t); o.stop(t + dur + 0.1);
+    });
+  };
+  const pluck = (f: number, t: number) => {
+    const g = c.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.05, t + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 4);
+    g.connect(bus);
+    [1, 2].forEach((mul) => {
+      const o = c.createOscillator(); o.type = "sine"; o.frequency.value = f * mul;
+      const og = c.createGain(); og.gain.value = mul === 1 ? 1 : 0.18;
+      o.connect(og); og.connect(g); o.start(t); o.stop(t + 4.1);
+    });
+  };
+
+  let beat = 0, bpm = 60, next = c.currentTime + 0.2;
+  // Large look-ahead so playback keeps going when the phone screen is off and timers are throttled.
+  const schedule = () => {
+    while (next < c.currentTime + 45) {
+      const spb = 60 / bpm;
+      if (beat % 8 === 0) CHORDS[(beat / 8) % CHORDS.length].forEach((f) => padNote(f, next, spb * 8 + 3));
+      if (beat % 2 === 0 && Math.random() < 0.55) pluck(MELODY[Math.floor(Math.random() * MELODY.length)], next + Math.random() * 0.08);
+      beat++; next += spb; bpm = Math.max(52, bpm - 0.015);
+    }
+  };
+  schedule();
+  const id = window.setInterval(schedule, 2000);
+  return { stop: () => { clearInterval(id); try { bus.disconnect(); } catch {} } };
+}
+
+const combine = (...fs: Factory[]): Factory => (c, m) => {
+  const vs = fs.map((f) => f(c, m));
+  return { stop: () => vs.forEach((v) => v.stop()) };
+};
+const quiet = (f: Factory, level: number): Factory => (c, m) => {
+  const g = c.createGain(); g.gain.value = level; g.connect(m);
+  const v = f(c, g);
+  return { stop: () => { v.stop(); try { g.disconnect(); } catch {} } };
+};
+
 type Factory = (c: AudioContext, m: GainNode) => Voice;
 const FACTORIES: Record<string, Factory> = {
+  sleep_pink: sleepPink,
+  sleep_music: sleepMusic,
+  sleep_ocean_music: combine(sleepMusic, quiet(waves, 0.45)),
+  sleep_rain_music: combine(sleepMusic, quiet(rain, 0.35)),
+  sleep_delta_pink: combine(quiet(sleepPink, 0.6), (c, m) => binaural(c, m, 120, 2)),
   rain, waves, wind, fire, forest, cafe,
   study_pad: studyPad,
   dream_pad: dreamPad,
@@ -287,3 +378,20 @@ export function setSynthVolume(volumePct: number) {
 }
 
 export function isSynthActive() { return !!activeId; }
+
+// Sleep timer: ramps to silence on the audio clock (works with the screen off), then stops.
+let fadeTimer: number | null = null;
+export function scheduleSleepFade(totalSec: number, fadeSec: number, volumePct: number) {
+  if (fadeTimer) { clearTimeout(fadeTimer); fadeTimer = null; }
+  if (!masterGain || !ctx) return;
+  const now = ctx.currentTime, v = Math.max(0, Math.min(1, volumePct / 100));
+  const fadeStart = now + Math.max(0, totalSec - fadeSec);
+  masterGain.gain.cancelScheduledValues(now);
+  masterGain.gain.setValueAtTime(v, now);
+  masterGain.gain.setValueAtTime(v, fadeStart);
+  masterGain.gain.linearRampToValueAtTime(0.0001, now + totalSec);
+  fadeTimer = window.setTimeout(() => { fadeTimer = null; stopSynth(); }, totalSec * 1000 + 300);
+}
+export function cancelSleepFade() {
+  if (fadeTimer) { clearTimeout(fadeTimer); fadeTimer = null; }
+}
