@@ -1,0 +1,47 @@
+{
+  "summary": "Phase 1 functional audit of ARSHNAZ (Persian RTL Vite+React+Firebase app). Verified login, Today dashboard, Inbox, Notes, Habits, all 4 Pharmacy pages, theme toggle persistence, and mobile bottom-tab bar. All target pages load successfully with real Firebase-backed content and no console errors. One issue: programmatic task-create submission in QuickCaptureDialog did not persist the task (submit button appeared to remain disabled after fill).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "QuickCaptureDialog (Inbox → افزودن تسک جدید)", "issue": "After filling the textarea 'چه کاری باید انجام شود؟' and clicking the 'ثبت' submit button, the task did not appear in the Inbox list. Submit button visually remained in disabled state in the screenshot after fill, suggesting the AutoTextarea component may not update the enable-submit state on programmatic value changes (input event vs native onChange). Manual typing by a real user likely works, but this is worth confirming.", "selector": "textarea[placeholder='چه کاری باید انجام شود؟'] + button:has-text('ثبت')", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Sidebar navigation", "issues": ["Pharmacy pages are triple-nested (رشد → دانش → فارماسی), all collapsed by default. Users have to open three collapsible headers before the four Pharmacy links appear. Consider default-opening the Pharmacy branch or adding shortcut chips on the Today dashboard."]}
+    ]
+  },
+  "verified_flows": {
+    "login": "PASS - email+password+disclaimer → /app/today (Persian RTL)",
+    "today_dashboard": "PASS - renders streak card, weekly bar, 'امروز تسکی نداری' empty state, sidebar",
+    "inbox_page": "PASS - loads, add-task button opens QuickCaptureDialog modal",
+    "notes_page": "PASS - /app/notes loads, empty state 'هنوز نوتی ننوشتی' + 'نوت جدید' button visible",
+    "habits_page": "PASS - /app/habits loads with garden UI (باغچه رشد / گل سرخ عشق), watering button, weekly/monthly toggle",
+    "pharmacy_products": "PASS - /app/pharmacy-products lists 121 products (Panadol, Paracetamol, ...) with category filters and search",
+    "pharmacy_scenario": "PASS - /app/pharmacy-scenario-practice shows '0 از 32 پرونده انجام شده' with case list",
+    "pharmacy_fred": "PASS - /app/pharmacy-fred-practice loads with educational-simulator UI",
+    "pharmacy_cyp": "PASS - /app/pharmacy-cyp loads CYP interaction matrix table with 76 drugs and INH/IND/SUB/NTI badges",
+    "theme_toggle": "PASS - [data-testid=header-theme-toggle] switches html class between 'light' and 'dark', localStorage 'arshnaz-theme' persists to arshnaz-light/arshnaz-dark and survives full page reload",
+    "mobile_responsive_390x844": "PASS - bottom tab bar (nav.fixed.bottom-0) present with 5 tabs: ذهن / یادداشت‌ها / افزودن سریع / امروز / منو. Header theme toggle also present on mobile.",
+    "console_errors": "PASS - no application JS errors during normal navigation. All observed 429 errors were Cloudflare preview-URL rate-limiting when many rapid full page reloads were performed by the test agent, not application defects."
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Investigate QuickCaptureDialog task submit: verify that AutoTextarea onChange updates the submit-enabled state; ensure Enter (Cmd/Ctrl+Enter) and click on 'ثبت' correctly persist to Firestore. Manual QA a full task-create + complete + delete flow.",
+    "Consider expanding the pharmacy branch by default in the sidebar, or exposing a Pharmacy quick-access group directly under 'رشد' so the 4 pharmacy pages don't require three nested expansions.",
+    "Optional: add data-testid attributes to the QuickCapture textarea + submit button, task rows, note editor title/body, and each sidebar section header to make future automated testing more reliable."
+  ],
+  "critical_code_review_comments": [
+    "AppSidebar.tsx is 618 lines — consider splitting the Folders/Tags/Quick-links sub-components into their own files (already partly done in ./sidebar/). Approaching the >700-line threshold from the code-review guidelines.",
+    "Multiple 'Failed to fetch dynamically imported module' errors were surfaced by ErrorBoundary when Cloudflare 429'd chunk requests. Current ErrorBoundary shows a blank/loader state — consider adding an automatic retry-with-backoff for dynamic import() failures, since a single throttled chunk kills the whole route.",
+    "Bottom nav uses 'fixed z-40 ... bottom-0' but 'main' compensates with pb-[calc(5.2rem+env(safe-area-inset-bottom))] — verified working; just ensure the safe-area padding is not duplicated on tablets.",
+    "arshnaz-theme localStorage values ('arshnaz-light' / 'arshnaz-dark') are stored as strings; class name toggling on <html> also mixes with 'theme-arshnaz' — code works but the ordering of classes flips between reloads (see before/after: 'light theme-arshnaz' vs 'theme-arshnaz dark'). Harmless but worth normalizing in applyTheme() for consistency."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (Firebase, not tested)", "frontend": "~95% - all 10 target pages load with real content; theme+responsive verified; only task-create submit interaction is unverified"},
+  "test_credentials": "test.arshnaz@example.com / Test123456 (from /app/memory/test_credentials.md) — working",
+  "seed_data_creation": "None. One TEST_TASK_QA_Auto attempt in Firestore inbox may have been created but did not appear in UI list; safe to ignore.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "App is Vite dev on port 3000 (not FastAPI, no /api). Preview URL sits behind Cloudflare that aggressively 429s on many rapid full-page reloads — pace navigation, prefer SPA link clicks over page.goto for consecutive routes, and wait 30-60s between full-page test batches if a 429 storm appears. Login flow: goto /auth → #email-in, #pass-in, check #disclaimer-checkbox, click button[type=submit] → auto-redirect to /app/today. Dismiss onboarding modal with locator button:has-text('رد کن'). Sidebar sections in Persian: امروز/صندوق ورودی open by default; expand 'رشد' then 'دانش' then 'فارماسی' to reveal the 4 pharmacy links. Theme toggle testid: header-theme-toggle; localStorage key: arshnaz-theme (values 'arshnaz-light' / 'arshnaz-dark'). Task-create QuickCaptureDialog uses a <textarea> (AutoTextarea component from /app/src/components/ui/auto-textarea.tsx), not <input> — using placeholder-matched selectors requires targeting textarea. Task submit through .fill()+click did not persist during testing — needs re-check with .type() (which fires real keydown events) or by verifying AutoTextarea onChange handler.",
+  "rca_of_the_issue": "Task not persisting on programmatic submit: likely root cause is that Playwright .fill() sets the DOM value + fires a single 'input' event, but AutoTextarea may drive its internal enable-submit state from React onChange coupled with an auto-resize side-effect or a debounced update. The 'ثبت' button was rendered in a visually-disabled state in the post-fill screenshot, suggesting the parent state never saw the value. Mitigation: (1) test with page.type() which fires per-character keydown/input events, or (2) confirm AutoTextarea forwards onChange without swallowing/debouncing before it reaches parent state that gates the submit button."
+}

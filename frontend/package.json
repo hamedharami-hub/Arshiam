@@ -1,0 +1,10 @@
+{
+  "name": "arshnaz-frontend-bridge",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "start": "cd .. && HOME=${HOME:-/root} node node_modules/vite/bin/vite.js --host 0.0.0.0 --port 3000",
+    "expo": "cd .. && HOME=${HOME:-/root} node node_modules/vite/bin/vite.js --host 0.0.0.0 --port 3000",
+    "build": "cd .. && npm ci --no-audit --no-fund && node node_modules/vite/bin/vite.js build --outDir frontend/build --emptyOutDir"
+  }
+}

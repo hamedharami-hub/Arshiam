@@ -1,0 +1,49 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Health diagnostics are scoped to the authenticated user's private tree.
+    match /_health/{docId} {
+      allow read, write: if false;
+    }
+
+    // User profile and private subcollections
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+
+      // Disallow client writes to user_roles subcollection.
+      // Roles must never be self-assigned or altered by client-side writes.
+      match /user_roles/{docId=**} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
+      // Assistant grants and audit records are managed only by trusted server code.
+      match /assistant_grants/{docId=**} {
+        allow read, write: if false;
+      }
+      match /assistant_audit/{docId=**} {
+        allow read, write: if false;
+      }
+      match /assistant_trash/{docId=**} {
+        allow read, write: if false;
+      }
+
+      match /{subcollection}/{docId=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // No wildcard top-level collection access. New collections must declare
+    // their ownership rules explicitly instead of inheriting a broad policy.
+  }
+}

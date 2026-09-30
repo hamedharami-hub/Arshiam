@@ -1,0 +1,56 @@
+{
+  "summary": "Iteration 7 verifies the NEW hidden-modules feature (Android-style 7-tap version reveal), the mind map reveal/focus enhancements, sidebar/palette/route gating, and the not-configured Google integration. BACKEND 22/22 pytest PASS (attachments 9 + phase3 9 + modules 4). FRONTEND live at http://localhost:3000, real Firebase login test.arshnaz@example.com. VERIFIED: (a) Login + settings navigation, About tab clickable via 'button:has-text(درباره)'. (b) 7 taps on settings-version-tap open modules-panel dialog. (c) All 3 module rows (module-row-pharmacy/study/mind) render with switches in checked state; module-codes-admin panel visible because test user is in ARSH_ADMIN_EMAILS. (d) Wrong code (WRONG-1234) rejected; master code entered as normalized 'arshnaz 2026' (space/case tolerated) succeeded with toast 'nothing new unlocked'. (e) Turning all three toggles OFF changed each Switch to data-state=unchecked and immediately hid sections without reload: sidebar aside no longer contains فارماسی, مرور, or knowledge/دانش; ذهن label technically remains ONLY as a section header for SOS/crisis which is expected safety behaviour. Command palette (Ctrl+K) after uninstall contains NO pharmacy (فارماسی) and NO mind (ذهن) entries — only Do/Grow/Me items + SOS. (f) Direct navigation while uninstalled: /app/pharmacy, /app/mind, /app/knowledge, /app/checkin, /app/review/pharmacy ALL redirected to /app/today; /app/crisis correctly stayed at /app/crisis. (g) Re-opening panel (7 taps) and toggling all three back ON restored data-state=checked; sections reappear (verified via subsequent bottom-bar test where ذهن tab is present at 390x844). (h) MIND MAP at /app/review/pharmacy → 'نقشه مفهومی' tab: mindmap-reveal-toggle label toggles 'تدریجی' ↔ 'نمایش همه'; mindmap-reveal-progress renders 'shown/total'; mindmap-focus-toggle shows mindmap-focus-hint='روی یک شاخه بزن' when active; clicking a node applied data-testid=mindmap-node-wrap-focus (2 nodes present because the test account's Firebase knowledge base has 0 documents — same empty-data situation flagged in iteration_6). (i) Backend pytest test_google_status_not_configured verifies GET /api/arsh/google/status → configured=false and POST /api/arsh/google/connect → 503, matching the frontend contract. (j) MODULES RESTORED at end: pharmacy/study/mind all data-state=checked before browser close.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "notes": [
+      {"screen": "/app/review/pharmacy → نقشه مفهومی", "note": "With an empty knowledge base (0 docs) the mind-map renders only root + empty-state node so mindmap-reveal-progress reads '0/0'. In this degenerate case mindmap-reveal-next remains enabled (not disabled) and its label stays 'بعدی' rather than 'تمام شد'. Not a regression — same seed-data limitation as iteration_6. Consider guarding revealDone as (total===0 || shown>=total) in KnowledgeMindMapView so the empty-map case shows the 'تمام شد' disabled state."},
+      {"screen": "Firebase Firestore quota warnings", "note": "Console logs a Firestore quota warning (subscribeFolders / subscribeTags: 'Quota exceeded for quota metric Free daily reads'). This is environmental for the shared preview project — does not affect the feature under test but future flaky tests may correlate with quota resets."}
+    ]
+  },
+  "verified_flows": {
+    "backend_full_22_22": "PASS - pytest tests/ -v completes 22/22 in ~5s. JUnit: /app/test_reports/pytest/iteration_7.xml.",
+    "modules_7_tap_opens_panel": "PASS - settings-version-tap × 7 dispatches OPEN_MODULES_PANEL_EVENT → modules-panel dialog opens.",
+    "modules_3_rows_and_admin": "PASS - module-row-pharmacy/study/mind + module-codes-admin all rendered for admin test user.",
+    "modules_wrong_code_rejected": "PASS - 'WRONG-1234' triggers error toast; input cleared.",
+    "modules_master_code_normalized": "PASS - 'arshnaz 2026' (lowercase + spaces instead of dashes) accepted; toast reports nothing new unlocked (already installed).",
+    "modules_toggle_off_hides_everywhere": "PASS - after uninstall the sidebar loses فارماسی/مرور/knowledge, command palette shows no pharmacy/mind entries; /app/pharmacy, /app/mind, /app/knowledge, /app/checkin, /app/review/pharmacy all redirect to /app/today; /app/crisis stays reachable.",
+    "modules_toggle_on_restores": "PASS - toggling back to checked immediately re-enables direct routes and re-shows sidebar/bottom-bar entries; mobile bottom-bar at 390x844 shows ذهن tab.",
+    "mindmap_reveal_toggle": "PASS - label toggles 'تدریجی' ↔ 'نمایش همه'; mindmap-reveal-progress span present.",
+    "mindmap_focus_mode": "PASS - focus-toggle activates hint 'روی یک شاخه بزن'; tapping a node adds data-testid=mindmap-node-wrap-focus (dim class also wired for non-focused nodes; only 2 total nodes in empty seed).",
+    "google_backend_contract": "PASS (pytest) - /api/arsh/google/status configured=false, /api/arsh/google/connect returns 503 as expected pre-credentials."
+  },
+  "not_fully_executed": {
+    "mindmap_progressive_counter_totals": "Could not verify shown/total numeric progression because test account has zero knowledge documents (revealStats.total=0). Progressive counter code path is intact but exercisable only with a seeded knowledge base.",
+    "review_swipe_doubletap_longpress_gestures": "Could not execute end-to-end because the Leitner deck for this account has zero flashcards (flip-card count=0 on /app/review/pharmacy). ReviewSwipeCard source (double-click flip, drag directions, long-press edit, swipe-rating-hint) is present in the tree per features_or_bugs_to_test; unit coverage is delivered by vitest (1014 pass per session notes).",
+    "modules_admin_create_revoke_e2e": "Not exercised in Playwright — backend/tests/test_modules.py test_admin_codes covers create → list-hides-plain-code → revoke → redeem-after-revoke-rejects. Admin panel testid module-codes-admin visually confirmed rendered inside the dialog."
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_modules.py",
+    "/app/backend/tests/test_attachments.py",
+    "/app/backend/tests/test_phase3.py",
+    "/app/test_reports/pytest/iteration_7.xml"
+  ],
+  "action_items": [
+    "OPTIONAL/MINOR: In KnowledgeMindMapView.tsx set revealDone = total===0 || shown>=total (and show 'تمام شد' + disable mindmap-reveal-next) for the empty-knowledge-base case so the 0/0 degenerate state matches the spec.",
+    "OPTIONAL/DATA: Seed at least one pharmacy knowledge doc + one Leitner flashcard for test.arshnaz@example.com to unlock live QA of the progressive-reveal counter progression and the swipe/double-tap/long-press gestures on flip-card.",
+    "OPTIONAL: Firestore free-tier quota warnings for the preview project are recurring; either enable billing on gen-lang-client-0845891098 or accept the console noise."
+  ],
+  "critical_code_review_comments": [
+    "VersionTapTarget correctly resets tap count after 1.5s idle window and dispatches a plain window event — decoupled from the panel component and easy to unit-test.",
+    "AdvancedModulesPanel gates the admin section behind modules.isAdmin — server also enforces ARSH_ADMIN_EMAILS on /modules/admin/codes*, so the client toggle cannot bypass authorisation.",
+    "Route gating for uninstalled modules produces a hard redirect to /app/today (verified for /app/pharmacy, /app/mind, /app/knowledge, /app/checkin, /app/review/pharmacy) while /app/crisis is intentionally exempt — safety carve-out is correct.",
+    "Command palette entries are filtered by installed modules — no leakage after uninstall.",
+    "Mind map focus/dim classes are wrapped with data-testid=mindmap-node-wrap-focus | mindmap-node-wrap-dim only when focusMode is on — DOM stays clean when the feature is off."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (22/22 pytest)", "frontend": "100% of module-lock/unlock, mind-map reveal/focus, sidebar/palette/route gating verified live; gesture + progressive-counter progression not exercisable due to empty seed data for the test account."},
+  "test_credentials": "test.arshnaz@example.com / Test123456; master unlock code ARSHNAZ-2026 (case/dashes/spaces normalized).",
+  "seed_data_creation": "Backend pytest creates and revokes a temporary admin code labelled 'pytest' (leaves 3 revoked pytest codes visible in the admin list — safe, they cannot be redeemed).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "For live QA of mindmap counter progression AND review gestures, seed the test account with at least one pharmacy knowledge document AND one Leitner flashcard — otherwise revealStats.total=0 and flip-card doesn't mount. The About tab in /app/settings is a button not a role=tab; use `button:has-text(درباره)`. An onboarding dialog appears on /app/settings and /app/review/pharmacy after fresh login — always dismiss with `page.get_by_role('button', name='رد کن').first.click()` before interacting. Backend admin-codes list accumulates revoked 'pytest' labels each run (idempotent-safe). Modules were RESTORED to installed=[pharmacy,study,mind] at end of this iteration.",
+  "rca_of_issue": "No new bug. One minor spec-vs-implementation gap: the mindmap-reveal-next button stays enabled and keeps label 'بعدی' when total revealed nodes = 0 (empty knowledge base), rather than showing 'تمام شد' / disabled. Fix is a one-line guard: revealDone = shown >= total || total === 0."
+}

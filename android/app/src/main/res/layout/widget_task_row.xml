@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/row_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="56dp"
+    android:padding="6dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:layoutDirection="rtl"
+    android:background="@drawable/widget_row_background">
+
+    <!-- 1. Checkbox for completion (on right side in RTL, 30dp x 30dp) -->
+    <TextView
+        android:id="@+id/row_done"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:gravity="center"
+        android:text=""
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:contentDescription="Toggle task completion"
+        android:background="@drawable/widget_checkbox_background" />
+
+    <!-- 2. Independent small expand control for subtasks -->
+    <TextView
+        android:id="@+id/row_expand"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_marginStart="4dp"
+        android:layout_marginEnd="4dp"
+        android:gravity="center"
+        android:text="▾"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textColor="#9AA3D6"
+        android:contentDescription="Expand or collapse subtasks"
+        android:background="@drawable/widget_expand_background" />
+
+    <!-- 3. Task title and meta (tapping opens the task directly in MainActivity) -->
+    <LinearLayout
+        android:id="@+id/row_content"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="4dp"
+        android:layout_marginEnd="6dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/row_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAlignment="viewStart"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/row_meta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAlignment="viewStart"
+            android:layout_marginTop="2dp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textColor="#A39E96"
+            android:textSize="10sp" />
+    </LinearLayout>
+
+    <!-- 4. Priority indicator -->
+    <TextView
+        android:id="@+id/row_priority"
+        android:layout_width="20dp"
+        android:layout_height="30dp"
+        android:gravity="center"
+        android:text="○"
+        android:textSize="14sp" />
+
+    <!-- 5. Small action control opening WidgetTaskActionActivity menu -->
+    <TextView
+        android:id="@+id/row_action"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:gravity="center"
+        android:text="⚙"
+        android:textSize="14sp"
+        android:textColor="#9AA3D6"
+        android:contentDescription="عملیات"
+        android:background="@drawable/widget_dots_background" />
+</LinearLayout>

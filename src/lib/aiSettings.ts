@@ -1,0 +1,368 @@
+// Per-operation AI settings
+// Each AI operation can have its own provider+model.
+// Stored in localStorage; provider calls are made directly by the browser.
+
+export type Provider = "offline" | "openai" | "anthropic" | "gemini" | "groq" | "openrouter" | "custom";
+
+export type ProviderConfig = {
+  provider: Provider;
+  apiKey: string;     // unused for "offline"
+  model: string;
+  baseUrl?: string;   // only for "custom"
+};
+
+export type AIOperation =
+  | "parse_task"
+  | "breakdown"
+  | "generate_note"
+  | "summarize_note"
+  | "improve_note"
+  | "note_actions"
+  | "interactive_learning"
+  | "article_rewrite"
+  | "assessment_analysis"
+  | "suggest"
+  | "chat"
+  | "inline_edit"
+  | "task_subtasks"
+  | "task_metadata_suggest"
+  | "task_chat"
+  | "folder_chat"
+  | "socratic"
+  | "distortion_detect"
+  | "about_me_analysis";
+
+export type OperationMeta = {
+  key: AIOperation;
+  labelFa: string;
+  labelEn: string;
+  descFa: string;
+  descEn: string;
+  usedInFa: string;
+  usedInEn: string;
+  group: string;       // FA group label (used as fallback)
+  groupEn: string;
+};
+
+export const OPERATIONS: OperationMeta[] = [
+  { key: "article_rewrite", labelFa: "بازنویسی مقاله", labelEn: "Article rewrite", descFa: "بازنویسی متن مقاله برای مطالعه.", descEn: "Rewrites article text for reading.", usedInFa: "بازنویسی مقاله", usedInEn: "Article rewrite", group: "مطالعه", groupEn: "Study" },
+  { key: "assessment_analysis", labelFa: "تحلیل نتیجهٔ ارزیابی", labelEn: "Assessment analysis", descFa: "توضیح نتیجهٔ ارزیابی ثبت‌شده.", descEn: "Explains a saved assessment result.", usedInFa: "نتیجهٔ ارزیابی", usedInEn: "Assessment result", group: "ذهن", groupEn: "Mind" },
+  // General
+  { key: "chat",                  labelFa: "چت عمومی AI",                     labelEn: "General AI chat",               descFa: "دستیار عمومی برای هر سوالی.",                                descEn: "General-purpose assistant.",                                   usedInFa: "دستیار AI (Sidebar)", usedInEn: "AI assistant (Sidebar)", group: "عمومی", groupEn: "General" },
+  { key: "suggest",               labelFa: "پیشنهادهای موضوعی",               labelEn: "Topic suggestions",             descFa: "پیشنهاد چند تسک یا ایده پیرامون یک موضوع.",                  descEn: "Suggests several tasks/ideas around a topic.",                 usedInFa: "دستیار AI → تب پیشنهاد", usedInEn: "AI assistant → Suggest tab", group: "عمومی", groupEn: "General" },
+  // Tasks
+  { key: "parse_task",            labelFa: "تجزیه زبان طبیعی به تسک",       labelEn: "Natural-language → Task",      descFa: "تبدیل یک جمله به تسک ساختاریافته (عنوان، اولویت، تاریخ).", descEn: "Turn a sentence into a structured task (title, priority, date).", usedInFa: "دستیار AI → تب تسک", usedInEn: "AI assistant → Task tab", group: "تسک", groupEn: "Tasks" },
+  { key: "task_metadata_suggest", labelFa: "پیشنهاد priority/due/recurrence", labelEn: "Suggest priority / due / repeat", descFa: "بر اساس عنوان، اولویت و تاریخ مناسب را پیشنهاد می‌دهد.",   descEn: "Suggests priority and due date from the title.",               usedInFa: "جزئیات تسک → AI → پیشنهاد", usedInEn: "Task detail → AI → Suggest", group: "تسک", groupEn: "Tasks" },
+  { key: "task_subtasks",         labelFa: "Subtaskهای هوشمند تسک",          labelEn: "Smart subtasks",                descFa: "پیشنهاد ۳-۷ زیرتسک با ترتیب منطقی.",                       descEn: "Suggests 3–7 ordered subtasks.",                               usedInFa: "جزئیات تسک → AI → مراحل", usedInEn: "Task detail → AI → Steps", group: "تسک", groupEn: "Tasks" },
+  { key: "task_chat",             labelFa: "چت روی یک تسک",                  labelEn: "Chat on a task",                descFa: "گفتگو درباره یک تسک خاص.",                                  descEn: "Conversation focused on one task.",                            usedInFa: "جزئیات تسک → AI → چت", usedInEn: "Task detail → AI → Chat", group: "تسک", groupEn: "Tasks" },
+  { key: "generate_note",         labelFa: "تولید نوت",                       labelEn: "Generate note",                 descFa: "نوشتن یک نوت کامل از روی موضوع.",                           descEn: "Writes a full note from a topic.",                             usedInFa: "دستیار AI / جزئیات تسک → AI → نوت", usedInEn: "AI assistant / Task detail → AI → Note", group: "نوت", groupEn: "Notes" },
+  { key: "breakdown",             labelFa: "خرد کردن تسک به subtask",        labelEn: "Break task into subtasks",      descFa: "تسک را به مراحل کوچک‌تر اجرایی تقسیم می‌کند.",            descEn: "Splits a task into smaller actionable steps.",                  usedInFa: "در حال حاضر استفاده نشده", usedInEn: "Not used in current UI", group: "تسک", groupEn: "Tasks" },
+  // Notes
+  { key: "summarize_note",        labelFa: "خلاصه‌سازی نوت",                  labelEn: "Summarize note",                descFa: "خلاصه کوتاه و واضح از یک نوت بلند.",                         descEn: "Short, clear summary of a long note.",                         usedInFa: "در حال حاضر استفاده نشده", usedInEn: "Not used in current UI", group: "نوت", groupEn: "Notes" },
+  { key: "improve_note",          labelFa: "بهبود متن نوت",                   labelEn: "Improve writing",               descFa: "بازنویسی روان‌تر و حرفه‌ای‌تر.",                              descEn: "Smoother, more polished rewrite.",                             usedInFa: "در حال حاضر استفاده نشده", usedInEn: "Not used in current UI", group: "نوت", groupEn: "Notes" },
+  { key: "inline_edit",           labelFa: "ویرایش inline متن",               labelEn: "Inline edit",                   descFa: "ویرایش بخش انتخاب‌شده با دستور دلخواه.",                     descEn: "Edit a highlighted span with a custom instruction.",           usedInFa: "نوت‌ها / ویرایشگر → متن انتخابی", usedInEn: "Notes / editor → selected text", group: "نوت", groupEn: "Notes" },
+  { key: "note_actions",          labelFa: "ابزارهای هوشمند متن",              labelEn: "AI text actions",               descFa: "قالب‌بندی، ترجمه و اقدامات آموزشی روی متن انتخاب‌شده.",          descEn: "Formatting, translation and study actions on selected text.", usedInFa: "نوت‌ها / متن انتخابی", usedInEn: "Notes / selected text", group: "نوت", groupEn: "Notes" },
+  { key: "interactive_learning",  labelFa: "یادگیری تعاملی",                  labelEn: "Interactive learning",          descFa: "ساخت تمرین‌های تعاملی از محتوای درس.",                         descEn: "Builds interactive practice from a lesson.",                  usedInFa: "Knowledge → مطالعه تعاملی", usedInEn: "Knowledge → Interactive Study", group: "مطالعه", groupEn: "Study" },
+  // Folder
+  { key: "folder_chat",           labelFa: "چت روی یک فولدر (پروژه)",        labelEn: "Chat on a folder (project)",    descFa: "گفتگو روی همه تسک‌ها/نوت‌های یک فولدر.",                     descEn: "Chat across a whole folder of tasks/notes.",                   usedInFa: "فولدر → چت AI", usedInEn: "Folder → AI chat", group: "فولدر", groupEn: "Folder" },
+  // Mental health & Personalization
+  { key: "socratic",              labelFa: "چت سقراطی (فقط سوال)",            labelEn: "Socratic chat (questions only)", descFa: "فقط سوال می‌پرسد تا خودت به پاسخ برسی.",                    descEn: "Only asks questions, helping you self-discover.",              usedInFa: "ذهن → چت سقراطی (نیاز به اتصال)", usedInEn: "Mind → Socratic (needs wiring)", group: "سلامت ذهن", groupEn: "Mental health" },
+  { key: "distortion_detect",     labelFa: "تشخیص خطای شناختی (CBT)",         labelEn: "Cognitive distortion detection (CBT)", descFa: "خطاهای شناختی را در متن پیدا می‌کند.",                descEn: "Finds cognitive distortions in your text.",                    usedInFa: "ذهن → Thought Records", usedInEn: "Mind → Thought Records", group: "سلامت ذهن", groupEn: "Mental health" },
+  { key: "about_me_analysis",     labelFa: "تحلیل هوشمند درباره من",          labelEn: "About Me analysis",             descFa: "تحلیل ارزش‌ها، اهداف و الگوهای شخصی بدون ادعای بالینی.",      descEn: "Analyzes personal goals and patterns without clinical claims.", usedInFa: "درباره من → تحلیل و استخراج", usedInEn: "About Me → Analyze & extract", group: "شخصی‌سازی", groupEn: "Personalization" },
+];
+
+// Recommended provider+model for each operation.
+// These are *smart defaults* — picked for quality/cost/latency per task type.
+// Users can override per-operation in Settings → AI.
+export const OP_RECOMMENDED: Record<AIOperation, { provider: Provider; model: string; whyFa: string; whyEn: string }> = {
+  article_rewrite:       { provider: "gemini", model: "gemini-2.5-flash", whyFa: "بازنویسی متن", whyEn: "Article rewriting" },
+  assessment_analysis:   { provider: "gemini", model: "gemini-2.5-flash", whyFa: "تحلیل متن ارزیابی", whyEn: "Assessment explanation" },
+  parse_task:            { provider: "gemini", model: "gemini-2.5-flash",       whyFa: "سریع و دقیق برای استخراج ساختار",            whyEn: "Fast & accurate at structured extraction" },
+  breakdown:             { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "استدلال مرحله‌ای بهتر",                       whyEn: "Better step-by-step reasoning" },
+  task_subtasks:         { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "تقسیم منطقی کار",                              whyEn: "Logical work breakdown" },
+  task_metadata_suggest: { provider: "gemini", model: "gemini-2.5-flash-lite",         whyFa: "کار سبک، بسیار سریع",                          whyEn: "Lightweight & very fast" },
+  task_chat:             { provider: "gemini", model: "gemini-2.5-flash",       whyFa: "متعادل — سریع و خوب",                          whyEn: "Balanced — fast and capable" },
+  folder_chat:           { provider: "gemini", model: "gemini-2.5-pro",                whyFa: "context طولانی برای پروژه",                    whyEn: "Long context for whole projects" },
+  generate_note:         { provider: "gemini", model: "gemini-2.5-pro",                          whyFa: "کیفیت نوشتاری بالا",                           whyEn: "High writing quality" },
+  summarize_note:        { provider: "gemini", model: "gemini-2.5-flash",              whyFa: "خلاصه‌سازی سریع و وفادار",                     whyEn: "Fast, faithful summaries" },
+  improve_note:          { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "بازنویسی طبیعی",                               whyEn: "Natural rewriting" },
+  inline_edit:           { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "ویرایش دقیق محدوده انتخاب‌شده",                whyEn: "Precise edits on selected text" },
+  suggest:               { provider: "gemini", model: "gemini-2.5-flash",       whyFa: "پیشنهاد متنوع و سریع",                         whyEn: "Diverse suggestions, fast" },
+  chat:                  { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "همه‌کاره و متعادل",                            whyEn: "Versatile & balanced" },
+  socratic:              { provider: "gemini", model: "gemini-2.5-pro",                          whyFa: "سوال‌پرسی عمیق و درست",                        whyEn: "Deep, well-aimed questions" },
+  distortion_detect:     { provider: "gemini", model: "gemini-2.5-pro",                        whyFa: "reasoning قوی برای تحلیل CBT",                 whyEn: "Strong reasoning for CBT analysis" },
+  about_me_analysis:     { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "استخراج ساختاریافته اهداف بدون برچسب بالینی",   whyEn: "Structured goal extraction without clinical labeling" },
+  note_actions:          { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "قالب‌بندی و ترجمه آموزشی سریع",                 whyEn: "Fast educational formatting & translation" },
+  interactive_learning:  { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "تولید ویجت‌های تعاملی یادگیری",                whyEn: "Interactive learning widget generation" },
+};
+
+export const PROVIDER_INFO: Record<Provider, { label: string; defaultModel: string; baseUrl: string; help: string; models: string[] }> = {
+  offline: {
+    label: "دستیار خصوصی آفلاین",
+    defaultModel: "deterministic-v1",
+    baseUrl: "",
+    help: "بدون نیاز به کلید و ۱۰۰٪ خصوصی روی دستگاه. منطق داخلی، فوری و بدون دانلود مدل برای تسک، تاریخ، اولویت، زیرتسک، خلاصه و پیشنهاد.",
+    models: ["deterministic-v1"],
+  },
+  openai: {
+    label: "OpenAI",
+    defaultModel: "gpt-5-mini",
+    baseUrl: "https://api.openai.com/v1",
+    help: "از platform.openai.com کلید بگیرید.",
+    models: ["gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "o3-mini"],
+  },
+  anthropic: {
+    label: "Anthropic Claude",
+    defaultModel: "claude-3-5-sonnet-latest",
+    baseUrl: "https://api.anthropic.com/v1",
+    help: "از console.anthropic.com کلید بگیرید.",
+    models: ["claude-sonnet-4-5", "claude-opus-4-1", "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest"],
+  },
+  gemini: {
+    label: "Google Gemini (مستقیم)",
+    defaultModel: "gemini-2.5-flash",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    help: "از aistudio.google.com کلید بگیرید (پشتیبانی مستقیم از مدل‌های رسمی Gemini 2.5 Flash ،Pro و Flash-Lite).",
+    models: [
+      "gemini-2.5-flash",
+      "gemini-2.5-pro",
+      "gemini-2.5-flash-lite",
+      "gemini-2.0-flash",
+    ],
+  },
+  groq: {
+    label: "Groq (سریع‌ترین)",
+    defaultModel: "llama-3.3-70b-versatile",
+    baseUrl: "https://api.groq.com/openai/v1",
+    help: "از console.groq.com کلید بگیرید (رایگان). با دکمه refresh آخرین مدل‌ها از API گرفته می‌شود.",
+    models: [
+      "meta-llama/llama-4-maverick-17b-128e-instruct",
+      "meta-llama/llama-4-scout-17b-16e-instruct",
+      "llama-3.3-70b-versatile",
+      "llama-3.1-8b-instant",
+      "openai/gpt-oss-120b",
+      "openai/gpt-oss-20b",
+      "moonshotai/kimi-k2-instruct",
+      "qwen/qwen3-32b",
+      "deepseek-r1-distill-llama-70b",
+      "whisper-large-v3-turbo",
+    ],
+  },
+  openrouter: {
+    label: "OpenRouter",
+    defaultModel: "openai/gpt-4o-mini",
+    baseUrl: "https://openrouter.ai/api/v1",
+    help: "از openrouter.ai کلید بگیرید — دسترسی به صدها مدل.",
+    models: ["openai/gpt-5", "openai/gpt-4o-mini", "anthropic/claude-3.5-sonnet", "google/gemini-pro-1.5", "meta-llama/llama-3.3-70b-instruct", "deepseek/deepseek-r1"],
+  },
+  custom: { label: "OpenAI-compatible سفارشی", defaultModel: "", baseUrl: "", help: "هر سرویس سازگار با OpenAI API.", models: [] },
+};
+
+const SETTINGS_KEY = "ai_settings_v2";
+const LEGACY_KEY = "ai_settings_v1";
+
+export type OpStrategy = "recommended" | "global" | "custom";
+
+export type AIPerOpSettings = {
+  default: ProviderConfig;
+  perOp: Partial<Record<AIOperation, ProviderConfig>>;
+  // Legacy: before opStrategies existed this controlled the fallback.
+  useRecommended?: boolean;
+  // Per-operation strategy: recommended (app default), global (user default), or custom (override).
+  opStrategies?: Partial<Record<AIOperation, OpStrategy>>;
+  // Model IDs hidden per provider in the model selection dropdowns.
+  providerHiddenModels?: Partial<Record<Provider, string[]>>;
+  // Explicit opt-in for personalizing AI prompts with user profile/about-me data.
+  personalizationOptIn?: boolean;
+};
+
+export function defaultConfig(): ProviderConfig {
+  return { provider: "gemini", apiKey: "", model: "gemini-2.5-flash", baseUrl: PROVIDER_INFO.gemini.baseUrl };
+}
+
+export function recommendedConfig(op: AIOperation): ProviderConfig {
+  const r = OP_RECOMMENDED[op];
+  return { provider: r.provider, apiKey: "", model: r.model, baseUrl: "" };
+}
+
+// Short description per model — used in Settings UI for guidance.
+export const MODEL_DESCRIPTIONS: Record<string, string> = {
+  "google/gemini-3.1-pro-preview": "قوی‌ترین Gemini — استدلال عمیق",
+  "google/gemini-3-flash-preview": "نسل ۳ — متعادل، سریع و دقیق (پیش‌فرض)",
+  "google/gemini-2.5-pro": "قدرتمند برای کارهای پیچیده multimodal",
+  "google/gemini-2.5-flash": "سریع و متعادل",
+  "google/gemini-2.5-flash-lite": "ارزان‌ترین و سریع‌ترین Gemini 2.5",
+  "openai/gpt-5": "قوی‌ترین GPT — دقت بالا",
+  "openai/gpt-5-mini": "متعادل GPT-5",
+  "openai/gpt-5-nano": "سریع و ارزان GPT-5",
+  "openai/gpt-5.2": "جدیدترین GPT با reasoning پیشرفته",
+  "llama-3.3-70b-versatile": "قوی‌ترین Llama روی Groq — کیفیت بالا، سرعت سریع",
+  "llama-3.1-70b-versatile": "متعادل و همه‌کاره",
+  "llama-3.1-8b-instant": "سریع‌ترین — مناسب وظایف ساده و چت سبک",
+  "llama-3.2-90b-vision-preview": "پشتیبانی از تصویر + متن",
+  "llama-3.2-11b-vision-preview": "تصویر سبک",
+  "deepseek-r1-distill-llama-70b": "استدلال زنجیره‌ای عمیق (reasoning)",
+  "deepseek-r1-distill-qwen-32b": "استدلال + برنامه‌نویسی",
+  "qwen-2.5-32b": "چندزبانه قوی",
+  "qwen-2.5-coder-32b": "تخصصی برنامه‌نویسی",
+  "mixtral-8x7b-32768": "context طولانی (32k)",
+  "gemma2-9b-it": "سبک و سریع از Google",
+  "gemini-3.1-pro-preview": "Gemini 3.1 Pro — قوی‌ترین",
+  "gemini-3.1-flash-preview": "Gemini 3.1 Flash — متعادل",
+  "gemini-3.1-flash-lite-preview": "Gemini 3.1 Flash-Lite — سریع‌ترین",
+  "gemini-3-pro-preview": "Gemini 3 Pro",
+  "gemini-3-flash-preview": "Gemini 3 Flash",
+  "gemini-3-flash-lite-preview": "Gemini 3 Flash-Lite",
+  "gemini-2.5-pro": "Gemini 2.5 Pro",
+  "gemini-2.5-flash": "Gemini 2.5 Flash",
+  "gemini-2.5-flash-lite": "Gemini 2.5 Flash-Lite",
+};
+
+export function loadAISettings(): AIPerOpSettings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) {
+      const parsed: AIPerOpSettings = JSON.parse(raw);
+      const isKnownProvider = (value: unknown): value is Provider =>
+        typeof value === "string" && Object.prototype.hasOwnProperty.call(PROVIDER_INFO, value);
+      const migrateProvider = (cfg?: ProviderConfig): ProviderConfig | undefined => {
+        if (!cfg) return undefined;
+        if (!isKnownProvider(cfg.provider)) {
+          return { ...cfg, provider: "gemini", model: "gemini-2.5-flash", baseUrl: PROVIDER_INFO.gemini.baseUrl };
+        }
+        return cfg;
+      };
+      parsed.default = migrateProvider(parsed.default) || defaultConfig();
+      parsed.perOp = Object.fromEntries(
+        Object.entries(parsed.perOp || {}).map(([key, cfg]) => [key, migrateProvider(cfg)])
+      ) as AIPerOpSettings["perOp"];
+      if (typeof parsed.useRecommended !== "boolean") parsed.useRecommended = true;
+      if (!parsed.opStrategies) {
+        // Migrate from the old boolean override model to explicit strategies.
+        const strategies: Partial<Record<AIOperation, OpStrategy>> = {};
+        for (const op of OPERATIONS) {
+          if (parsed.perOp?.[op.key]) strategies[op.key] = "custom";
+          else strategies[op.key] = parsed.useRecommended === false ? "global" : "recommended";
+        }
+        parsed.opStrategies = strategies;
+      }
+      if (!parsed.providerHiddenModels) parsed.providerHiddenModels = {};
+      return parsed;
+    }
+    const legacy = localStorage.getItem(LEGACY_KEY);
+    if (legacy) {
+      const old = JSON.parse(legacy);
+      const migratedProvider: Provider = Object.prototype.hasOwnProperty.call(PROVIDER_INFO, old.provider)
+        ? old.provider
+        : "gemini";
+      const cfg: ProviderConfig = {
+        provider: migratedProvider,
+        apiKey: old.apiKey || "",
+        model: old.model || PROVIDER_INFO[migratedProvider]?.defaultModel || "gemini-2.5-flash",
+        baseUrl: old.baseUrl || PROVIDER_INFO[migratedProvider].baseUrl,
+      };
+      const strategies: Partial<Record<AIOperation, OpStrategy>> = {};
+      for (const op of OPERATIONS) strategies[op.key] = "recommended";
+      return { default: cfg, perOp: {}, useRecommended: true, opStrategies: strategies, providerHiddenModels: {} };
+    }
+  } catch {}
+  const strategies: Partial<Record<AIOperation, OpStrategy>> = {};
+  for (const op of OPERATIONS) strategies[op.key] = "recommended";
+  return { default: defaultConfig(), perOp: {}, useRecommended: true, opStrategies: strategies, providerHiddenModels: {} };
+}
+
+export function saveAISettings(s: AIPerOpSettings) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+}
+
+export function isAIPersonalizationOptedIn(): boolean {
+  try {
+    const s = loadAISettings();
+    return s.personalizationOptIn === true;
+  } catch {
+    return false;
+  }
+}
+
+export function setAIPersonalizationOptedIn(optIn: boolean): void {
+  try {
+    const s = loadAISettings();
+    s.personalizationOptIn = optIn;
+    saveAISettings(s);
+  } catch {}
+}
+
+export function resolveOpStrategy(s: AIPerOpSettings, op: AIOperation): OpStrategy {
+  const explicit = s.opStrategies?.[op];
+  if (explicit) return explicit;
+  if (s.perOp?.[op]) return "custom";
+  return s.useRecommended === false ? "global" : "recommended";
+}
+
+function resolveRecommendedWithKey(s: AIPerOpSettings, op: AIOperation): ProviderConfig {
+  const rec = recommendedConfig(op);
+  if (rec.provider === "offline") return rec;
+  if (s.default.provider === rec.provider && s.default.apiKey) {
+    return { ...rec, apiKey: s.default.apiKey, baseUrl: s.default.baseUrl };
+  }
+  return s.default;
+}
+
+export function resolveOpConfig(s: AIPerOpSettings, op: AIOperation): ProviderConfig {
+  const strategy = resolveOpStrategy(s, op);
+  if (strategy === "custom") {
+    const override = s.perOp[op];
+    if (override) return override;
+    // Fallback if a custom strategy exists without a saved config.
+    return resolveRecommendedWithKey(s, op);
+  }
+  if (strategy === "recommended") return resolveRecommendedWithKey(s, op);
+  return s.default;
+}
+
+/**
+ * Resolve which provider+model is used for a given operation.
+ * Priority:
+ *   1) explicit per-operation custom strategy
+ *   2) recommended (if strategy is recommended) — or the user's personal key
+ *      when the recommended provider is the configured global provider
+ *   3) global default
+ */
+export function getOpConfig(op: AIOperation): ProviderConfig {
+  return resolveOpConfig(loadAISettings(), op);
+}
+
+export function getOpStrategy(op: AIOperation): OpStrategy {
+  return resolveOpStrategy(loadAISettings(), op);
+}
+
+export function operationLabel(key: AIOperation, lang: "fa" | "en"): string {
+  const op = OPERATIONS.find((o) => o.key === key);
+  if (!op) return key;
+  return lang === "en" ? op.labelEn : op.labelFa;
+}
+
+/**
+ * Privacy utility: One-click deletion of all locally stored AI API keys
+ * from this device/browser (both perOp and global defaults, as well as legacy direct keys).
+ */
+export function clearAllStoredAIKeys(): void {
+  try {
+    localStorage.removeItem("gemini_api_key");
+  } catch {}
+
+  try {
+    const s = loadAISettings();
+    s.default.apiKey = "";
+    if (s.perOp) {
+      for (const k of Object.keys(s.perOp)) {
+        const opKey = k as AIOperation;
+        if (s.perOp[opKey]) {
+          s.perOp[opKey]!.apiKey = "";
+        }
+      }
+    }
+    saveAISettings(s);
+  } catch {}
+}
+

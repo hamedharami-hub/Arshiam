@@ -1,0 +1,385 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import {
+  getLeitnerCards,
+  getDueLeitnerCards,
+  createLeitnerCard,
+  reviewLeitnerCard,
+  reviewLeitnerCardWithRating,
+  reviewLeitnerCardWithRatingResult,
+  computeDueCards,
+  getCramCards,
+  updateLeitnerCard,
+  deleteLeitnerCard,
+  getLeitnerBoxStats,
+  getLeitnerSchedulingAlgorithm,
+  previewNextInterval,
+} from "./leitnerService";
+import { clearQueue } from "./offlineQueue";
+import * as offlineQueue from "./offlineQueue";
+import { saveEntityToFirestore } from "./firestoreSync";
+import type { LeitnerCard } from "./leitnerTypes";
+
+const { fromMock } = vi.hoisted(() => ({
+  fromMock: vi.fn(() => ({
+    select: vi.fn(() => ({
+      eq: vi.fn(() => ({
+        order: vi.fn().mockResolvedValue({ data: [], error: null }),
+      })),
+    })),
+    insert: vi.fn().mockResolvedValue({ data: null, error: null }),
+    update: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ data: null, error: null }) })),
+    delete: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ data: null, error: null }) })),
+  })),
+}));
+
+vi.mock("@/lib/firebaseStore", () => ({
+  firebaseStore: {
+    from: fromMock,
+  },
+}));
+
+vi.mock("@/lib/firestoreSync", () => ({
+  saveEntityToFirestore: vi.fn().mockResolvedValue(true),
+  deleteEntityFromFirestore: vi.fn().mockResolvedValue(true),
+}));
+
+describe("leitnerService", () => {
+  const userId = "user-leitner-test";
+  let onlineSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(async () => {
+    localStorage.clear();
+    await clearQueue();
+    vi.clearAllMocks();
+    onlineSpy = vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
+  });
+
+  afterEach(async () => {
+    localStorage.clear();
+    await clearQueue();
+    vi.restoreAllMocks();
+  });
+
+  it("1. creates flashcard with front and back, starting in Box 1", async () => {
+    const card = await createLeitnerCard(userId, {
+      front: "نیمه‌عمر فلوکستین چقدر است؟",
+      back: "۲ تا ۴ روز (و متابولیت فعال نورفلوکستین تا ۱۶ روز)",
+      clue: "طولانی‌ترین در بین SSRIها",
+    });
+
+    expect(card.id).toBeDefined();
+    expect(card.box).toBe(1);
+    expect(card.front).toContain("فلوکستین");
+    expect(card.clue).toBe("طولانی‌ترین در بین SSRIها");
+
+    const all = await getLeitnerCards(userId);
+    expect(all.length).toBe(1);
+  });
+
+  it("derives due cards and statistics from a supplied snapshot without rereading Firestore", async () => {
+    onlineSpy.mockReturnValue(true);
+    const referenceTime = new Date();
+    const card: LeitnerCard = {
+      id: "preloaded-due",
+      user_id: userId,
+      front: "Question",
+      back: "Answer",
+      box: 2,
+      next_review_at: new Date(referenceTime.getTime() - 60_000).toISOString(),
+      review_count: 2,
+      lapse_count: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    expect(await getDueLeitnerCards(userId, [card], referenceTime)).toEqual([card]);
+    expect(await getLeitnerBoxStats(userId, [card], referenceTime)).toMatchObject({
+      totalCards: 1,
+      dueToday: 1,
+      box2: 1,
+    });
+    expect(fromMock).not.toHaveBeenCalled();
+  });
+
+  it("persists, edits, and reads bilingual sides without changing the scheduling state", async () => {
+    const card = await createLeitnerCard(userId, {
+      front: "What is the mechanism?",
+      back: "Selective serotonin reuptake inhibition.",
+      front_fa: "مکانیسم چیست؟",
+      back_fa: "مهار انتخابی بازجذب سروتونین.",
+      front_en: "What is the mechanism?",
+      back_en: "Selective serotonin reuptake inhibition.",
+    });
+
+    const edited = await updateLeitnerCard(userId, card.id, {
+      back_fa: "مهار انتخابی بازجذب سروتونین (SSRI).",
+    });
+    const persisted = (await getLeitnerCards(userId)).find((item) => item.id === card.id);
+
+    expect(persisted).toMatchObject({
+      front: "What is the mechanism?",
+      back: "Selective serotonin reuptake inhibition.",
+      front_fa: "مکانیسم چیست؟",
+      back_fa: "مهار انتخابی بازجذب سروتونین (SSRI).",
+      front_en: "What is the mechanism?",
+      back_en: "Selective serotonin reuptake inhibition.",
+      scheduling_algorithm: "fsrs6",
+      review_count: 0,
+    });
+    expect(edited.fsrs_state).toEqual(card.fsrs_state);
+    expect(edited.next_review_at).toBe(card.next_review_at);
+  });
+
+  it("creates new cards with a valid FSRS-6 state and schedules each rating", async () => {
+    const card = await createLeitnerCard(userId, { front: "New FSRS card", back: "Answer" });
+
+    expect(card.scheduling_algorithm).toBe("fsrs6");
+    expect(card.fsrs_state).toMatchObject({ state: 0, reps: 0, lapses: 0 });
+    expect(Number.isFinite(Date.parse(card.fsrs_state!.due))).toBe(true);
+    expect(getLeitnerSchedulingAlgorithm(card)).toBe("fsrs6");
+    expect([1, 2, 3, 4].map((rating) => previewNextInterval(card, rating as 1 | 2 | 3 | 4).textEn))
+      .toEqual(expect.arrayContaining([expect.stringMatching(/\d+ (min|hr|day|days|mo)/)]));
+
+    const reviewResult = await reviewLeitnerCardWithRatingResult(userId, card.id, 3);
+    const reviewed = reviewResult.card;
+    expect(reviewResult.persistenceStatus).toBe("queued");
+    expect(reviewed.scheduling_algorithm).toBe("fsrs6");
+    expect(reviewed.fsrs_state?.reps).toBe(1);
+    expect(reviewed.review_count).toBe(1);
+    expect(reviewed.next_review_at).toBe(reviewed.fsrs_state?.due);
+    expect(Date.parse(reviewed.next_review_at)).toBeGreaterThan(Date.now());
+  });
+
+  it("reports a directly persisted review separately from a queued review", async () => {
+    onlineSpy.mockReturnValue(true);
+    vi.mocked(saveEntityToFirestore).mockResolvedValue(true);
+    expect(window.navigator.onLine).toBe(true);
+    const card = await createLeitnerCard(userId, {
+      front: "Online review question",
+      back: "Answer",
+    });
+
+    const reviewResult = await reviewLeitnerCardWithRatingResult(userId, card.id, 3);
+
+    expect(saveEntityToFirestore).toHaveBeenCalledWith(userId, "leitner_cards", card.id, expect.objectContaining({ review_count: 1 }));
+    expect(reviewResult.persistenceStatus).toBe("saved");
+    expect(reviewResult.card.review_count).toBe(card.review_count + 1);
+  });
+
+  it("uses FSRS for every card, including legacy ones without the scheduler field", () => {
+    expect(getLeitnerSchedulingAlgorithm({})).toBe("fsrs6");
+  });
+
+  it("does not overwrite a card when its stored FSRS state is corrupt", async () => {
+    const card = await createLeitnerCard(userId, { front: "Corrupt FSRS", back: "Keep schedule" });
+    const corrupt = await updateLeitnerCard(userId, card.id, {
+      fsrs_state: { ...card.fsrs_state!, due: "not-a-date" },
+    });
+
+    await expect(reviewLeitnerCardWithRating(userId, card.id, 4)).rejects.toThrow(/FSRS card state/);
+    expect(await getLeitnerCards(userId)).toContainEqual(corrupt);
+  });
+
+  it("migrates a card with missing FSRS state from its box instead of resetting it", async () => {
+    const card = await createLeitnerCard(userId, { front: "Missing FSRS", back: "Keep schedule", box: 4 });
+    await updateLeitnerCard(userId, card.id, { fsrs_state: null, review_count: 5 });
+
+    const reviewed = await reviewLeitnerCardWithRating(userId, card.id, 3);
+    expect(reviewed.fsrs_state).toBeTruthy();
+    expect(reviewed.review_count).toBe(6);
+    expect(reviewed.box).toBeGreaterThanOrEqual(3);
+  });
+
+  it("does not report a card saved when offline queue storage rejects it", async () => {
+    vi.spyOn(offlineQueue, "enqueueOp").mockResolvedValueOnce(false);
+
+    await expect(createLeitnerCard(userId, {
+      front: "Unqueued question",
+      back: "Unqueued answer",
+    })).rejects.toThrow("sync queue storage is unavailable");
+
+    expect(await getLeitnerCards(userId)).toEqual([]);
+  });
+
+  it("restores the previous review schedule when the offline queue rejects a rating", async () => {
+    const card = await createLeitnerCard(userId, { front: "Review rollback", back: "Original schedule" });
+    vi.spyOn(offlineQueue, "enqueueOp").mockResolvedValueOnce(false);
+
+    await expect(reviewLeitnerCardWithRating(userId, card.id, 4)).rejects.toThrow(
+      "sync queue storage is unavailable",
+    );
+    expect(await getLeitnerCards(userId)).toContainEqual(card);
+  });
+
+  it("restores the existing card when an edit cannot be synced or queued", async () => {
+    const card = await createLeitnerCard(userId, { front: "Original front", back: "Original back" });
+    vi.spyOn(offlineQueue, "enqueueOp").mockResolvedValueOnce(false);
+
+    await expect(updateLeitnerCard(userId, card.id, { front: "Unsaved edit" })).rejects.toThrow(
+      "sync queue storage is unavailable",
+    );
+    expect(await getLeitnerCards(userId)).toContainEqual(card);
+  });
+
+  it("serializes concurrent card edits so a failed rollback cannot erase the later save", async () => {
+    onlineSpy.mockReturnValue(true);
+    vi.mocked(saveEntityToFirestore).mockReset().mockResolvedValue(true);
+    const card = await createLeitnerCard(userId, { front: "Original front", back: "Original back" });
+    let rejectFirstWrite!: (reason?: unknown) => void;
+    const firstWrite = new Promise<boolean>((_resolve, reject) => { rejectFirstWrite = reject; });
+    vi.mocked(saveEntityToFirestore).mockReset()
+      .mockImplementationOnce(() => firstWrite)
+      .mockResolvedValueOnce(true);
+    vi.spyOn(offlineQueue, "enqueueOp").mockResolvedValueOnce(false);
+
+    const failedEdit = updateLeitnerCard(userId, card.id, { front: "Unsaved front" });
+    await vi.waitFor(() => expect(saveEntityToFirestore).toHaveBeenCalledTimes(1));
+    const successfulEdit = updateLeitnerCard(userId, card.id, { back: "Later saved back" });
+
+    rejectFirstWrite(new Error("network unavailable"));
+    await expect(failedEdit).rejects.toThrow("sync queue storage is unavailable");
+    await expect(successfulEdit).resolves.toMatchObject({
+      front: "Original front",
+      back: "Later saved back",
+    });
+    onlineSpy.mockReturnValue(false);
+    await expect(getLeitnerCards(userId)).resolves.toContainEqual(expect.objectContaining({
+      id: card.id,
+      front: "Original front",
+      back: "Later saved back",
+    }));
+  });
+
+  it("keeps a card when deletion cannot be synced or durably queued", async () => {
+    const card = await createLeitnerCard(userId, { front: "Keep card", back: "Keep answer" });
+    vi.spyOn(offlineQueue, "enqueueOp").mockResolvedValueOnce(false);
+
+    await expect(deleteLeitnerCard(userId, card.id)).rejects.toThrow(
+      "sync queue storage is unavailable",
+    );
+    expect(await getLeitnerCards(userId)).toContainEqual(card);
+  });
+
+  it("2. moves a card to a higher visual box after an Easy FSRS review", async () => {
+    const card = await createLeitnerCard(userId, {
+      front: "اندیکاسیون سرترالین",
+      back: "MDD, OCD, Panic Disorder",
+      scheduling_algorithm: "sm2",
+    });
+    expect(card.scheduling_algorithm).toBe("fsrs6");
+
+    const reviewed = await reviewLeitnerCardWithRating(userId, card.id, 4);
+    expect(reviewed.box).toBeGreaterThan(1);
+    expect(reviewed.review_count).toBe(1);
+    expect(reviewed.lapse_count).toBe(0);
+    expect(reviewed.fsrs_state).toBeTruthy();
+  });
+
+  it("3. resets card to Box 1 on lapsed review", async () => {
+    const card = await createLeitnerCard(userId, {
+      front: "دوز شروع اس‌سیتالوپرام",
+      back: "10 میلی‌گرم در روز",
+      box: 4,
+    });
+
+    const lapsed = await reviewLeitnerCard(userId, card.id, false);
+    expect(lapsed.box).toBe(1);
+    expect(lapsed.lapse_count).toBe(1);
+    expect(lapsed.review_count).toBe(1);
+  });
+
+  it("4. calculates correct Leitner box statistics", async () => {
+    await createLeitnerCard(userId, { front: "Q1", back: "A1", box: 1 });
+    await createLeitnerCard(userId, { front: "Q2", back: "A2", box: 2 });
+    await createLeitnerCard(userId, { front: "Q3", back: "A3", box: 5 });
+
+    const stats = await getLeitnerBoxStats(userId);
+    expect(stats.totalCards).toBe(3);
+    expect(stats.box1).toBe(1);
+    expect(stats.box2).toBe(1);
+    expect(stats.box5).toBe(1);
+    expect(stats.masteredCount).toBe(1);
+  });
+
+  it("5. deletes card cleanly", async () => {
+    const card = await createLeitnerCard(userId, { front: "To Delete", back: "Deleted" });
+    const success = await deleteLeitnerCard(userId, card.id);
+    expect(success).toBe(true);
+
+    const all = await getLeitnerCards(userId);
+    expect(all.length).toBe(0);
+  });
+
+  it("6. applies FSRS 4-tier ratings (Again, Hard, Good, Easy) with ordered intervals", async () => {
+    const card = await createLeitnerCard(userId, { front: "وارفارین و INR", back: "هدف معمول ۲ تا ۳" });
+    const hard = previewNextInterval(card, 2).days;
+    const easy = previewNextInterval(card, 4).days;
+    expect(easy).toBeGreaterThan(hard);
+    const easyCard = await reviewLeitnerCardWithRating(userId, card.id, 4);
+    expect(easyCard.consecutive_correct).toBe(1);
+  });
+  it("7. fixes calendar boundary bug so cards due later today are returned as due today", async () => {
+    const todayEvening = new Date();
+    todayEvening.setHours(20, 0, 0, 0); // 8:00 PM today
+
+    const card = await createLeitnerCard(userId, {
+      front: "Morning test card",
+      back: "Scheduled for evening",
+    });
+    // Set next_review_at to this evening
+    await updateLeitnerCard(userId, card.id, {
+      next_review_at: todayEvening.toISOString(),
+    });
+
+    // At 9:00 AM today:
+    const morningTime = new Date();
+    morningTime.setHours(9, 0, 0, 0);
+
+    const cards = await getLeitnerCards(userId);
+    const due = computeDueCards(cards, morningTime);
+    expect(due.some((c) => c.id === card.id)).toBe(true);
+  });
+
+  it("8. calculates retention rate, forecast, and streak in computeBoxStats", async () => {
+    const card1 = await createLeitnerCard(userId, { front: "Q1", back: "A1" });
+    await reviewLeitnerCard(userId, card1.id, true); // 1 review, 0 lapse
+
+    const card2 = await createLeitnerCard(userId, { front: "Q2", back: "A2" });
+    await reviewLeitnerCard(userId, card2.id, false); // 1 review, 1 lapse
+
+    const stats = await getLeitnerBoxStats(userId);
+    expect(stats.totalCards).toBe(2);
+    expect(stats.retentionRate).toBe(50); // 1 success out of 2 reviews = 50%
+    expect(stats.lapsedCardsCount).toBe(1);
+    expect(stats.upcomingForecast).toBeDefined();
+    expect(stats.upcomingForecast.today).toBeGreaterThanOrEqual(0);
+  });
+
+  it("9. filters cards correctly for Cram / Practice mode", async () => {
+    await createLeitnerCard(userId, { front: "Card A", back: "Ans A", box: 1 });
+    await createLeitnerCard(userId, { front: "Card B", back: "Ans B", box: 3 });
+
+    const box3Only = await getCramCards(userId, { box: 3 });
+    expect(box3Only.length).toBe(1);
+    expect(box3Only[0].front).toBe("Card B");
+
+    const searchRes = await getCramCards(userId, { search: "Card A" });
+    expect(searchRes.length).toBe(1);
+    expect(searchRes[0].front).toBe("Card A");
+  });
+
+  it("rejects blank question or answer edits without changing the stored card", async () => {
+    const card = await createLeitnerCard(userId, { front: "Original question", back: "Original answer" });
+
+    await expect(updateLeitnerCard(userId, card.id, { front: "   " })).rejects.toThrow(
+      "Front and back of card cannot be empty",
+    );
+    await expect(updateLeitnerCard(userId, card.id, { back: "\n\t" })).rejects.toThrow(
+      "Front and back of card cannot be empty",
+    );
+
+    const [stored] = await getLeitnerCards(userId);
+    expect(stored.front).toBe("Original question");
+    expect(stored.back).toBe("Original answer");
+  });
+});

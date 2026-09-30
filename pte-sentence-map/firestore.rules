@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidUserStudyState(data, userId) {
+      return data.userId is string &&
+             data.userId == userId &&
+             data.userId == request.auth.uid &&
+             data.starred is list &&
+             data.starred.size() <= 1000 &&
+             data.flagged is list &&
+             data.flagged.size() <= 1000 &&
+             data.updatedAt is string &&
+             data.updatedAt.size() <= 64;
+    }
+
+    match /users/{userId}/user_data/study_state {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserStudyState(incoming(), userId) &&
+                       incoming().keys().hasAll(['userId', 'starred', 'flagged', 'updatedAt']) &&
+                       (incoming().keys().size() == 4 || (incoming().keys().size() == 5 && 'review' in incoming()));
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserStudyState(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['starred', 'flagged', 'review', 'updatedAt']);
+      allow delete: if isOwner(userId) && isValidId(userId);
+    }
+
+    match /test/{testId} {
+      allow get: if isValidId(testId);
+    }
+  }
+}

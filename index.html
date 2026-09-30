@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("arshnaz-theme") || "paper-light";
+          var a = localStorage.getItem("arshnaz-accent");
+          var legacy = { "arshnaz-light": "rose", "arshnaz-dark": "rose", "ticktick-light": "brick" };
+          var r = document.documentElement;
+          var dark = t === "paper-dark" || t === "oled" || t === "dark" || t === "arshnaz-dark" ||
+            (t === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) r.classList.add("dark");
+          if (t === "oled") r.classList.add("theme-oled");
+          r.setAttribute("data-accent", a || legacy[t] || "indigo");
+        } catch (e) {}
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ARSHNAZ" />
+    <meta name="theme-color" content="#F8F6F2" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>ARSHNAZ — Tasks, Notes & Focus</title>
+    <meta name="description" content="Task, notes, habits, and wellness tracker with Persian and English support.">
+    <meta name="author" content="ARSHNAZ" />
+
+    
+    
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://arshnaz.life/pwa-512x512.png">
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@arshnaz" />
+    <meta name="twitter:image" content="https://arshnaz.life/pwa-512x512.png">
+    <meta property="og:title" content="ARSHNAZ - Task & Notes">
+  <meta name="twitter:title" content="ARSHNAZ - Task & Notes">
+  <meta property="og:description" content="Task, notes, habits, and wellness tracker with Persian and English support.">
+  <meta name="twitter:description" content="Task, notes, habits, and wellness tracker with Persian and English support.">
+  <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/pwa-512x512.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F8F6F2">
+
+  <!-- Preload most-used local Vazirmatn weights for instant offline typography -->
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/Vazirmatn-Regular.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/Vazirmatn-Bold.woff2">
+
+  <!-- Inline critical styles for the initial shell so FCP fires before the JS bundle parses -->
+  <style>
+    html, body { margin: 0; padding: 0; background-color: #0F172A; color: #e2e8f0; font-family: Vazirmatn, system-ui, -apple-system, sans-serif; }
+    #root { min-height: 100vh; }
+    .app-boot { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .app-boot__spinner { width: 32px; height: 32px; border-radius: 50%; border: 3px solid rgba(226,232,240,0.2); border-top-color: #ec4899; animation: app-boot-spin 0.8s linear infinite; }
+    @keyframes app-boot-spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+
+  <body>
+    <div id="root">
+      <div class="app-boot" aria-hidden="true"><div class="app-boot__spinner"></div></div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

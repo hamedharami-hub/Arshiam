@@ -1,0 +1,54 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Local Android build artifact
+*.apk
+ARSHNAZ-debug.apk
+artifacts/
+*.jks
+*.keystore
+
+# Local Lovable workspace integration (never part of ARSHNAZ)
+.lovable/
+.vercel
+*.env
+credentials.json
+*.pem
+*.key
+.credentials
+
+# Emergent preview installs with yarn; the project lockfile is package-lock.json
+/yarn.lock
+__pycache__/
+*.pyc
+.pytest_cache/
+.emergent/cron/
+/frontend/build
+.env*

@@ -1,0 +1,57 @@
+{
+  "summary": "Phase 0/1/2/4 review test. BACKEND: 9/9 pytest cases PASS on /api/arsh (health, 401 without bearer, invalid-token 401, 413 >25MB, 415 disallowed mime, full sign-upload → PUT content → list → view_url fetch → invalid-sig 403 → owner/task isolation → soft DELETE + view_url 404). FRONTEND (mobile 390x844, real Firebase login test.arshnaz@example.com): Buckets page renders with all horizon-* testIDs (tabs day/week/month/quarter/year, prev/next, progress-text, smart-add-input, filter-btn, settings-btn); horizon-go-current appears only after moving off current period (expected); settings popover exposes seasons-toggle + week-start-sat/mon; month view populates horizon-child-* rows; smart-add preview correctly parses 'تست هفته بعد !بالا #تگتست /فولدرتست' into next-week range (۱۱–۱۷ مهر), priority فوری, folder فولدرتست, tag تگتست. Phase-1 'افزودن کامنت' string is fully removed from src/ (only kept as an absence assertion in TaskDetailBottomRail.test.tsx). All attachment testIDs (task-attachments, attachments-add-btn, attachments-file-input, attachment-item-*, attachment-preview-dialog/image/pdf, attachment-delete-btn, attachment-queued-row, attachment-upload-progress) are defined in TaskAttachments.tsx. Review-page redirect + all testIDs are wired in code (ReviewRedirect.tsx, ReviewView.tsx, ReviewInsights.tsx, ReviewSwipeCard.tsx, LeitnerDeckView.tsx) — in-browser verification of /app/review/pharmacy repeatedly hit Cloudflare 429/human-verification even after ≥90s pacing between test runs, so review UI could not be exercised end-to-end in this session; code review confirms structure is correct.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "verified_flows": {
+    "backend_attachments_full_flow": "PASS - 9/9 pytest cases in /app/backend/tests/test_attachments.py (BASE_URL from EXPO_PUBLIC_BACKEND_URL). PNG uploaded 1x1 pixel, view URL returned bytes with correct content-type, invalid sig -> 403, soft delete -> list excludes + view_url -> 404, owner+task isolation verified.",
+    "phase1_rail_no_add_comment": "PASS (code-level) - grep -r 'افزودن کامنت' src/ returns matches ONLY in TaskDetailBottomRail.test.tsx as absence assertions. No AddComment component / add-comment handler exists.",
+    "phase1_attachments_testids_present": "PASS (code-level) - /app/src/components/TaskAttachments.tsx defines every required testID: task-attachments (L225), attachments-count, attachments-add-btn (L231), attachments-file-input (L235), attachment-upload-row/progress/error/retry-btn (L250-266), attachment-queued-row + queue-retry-btn (L279-286), attachment-item-<id> (L297), attachment-open-btn, attachment-image-thumb, attachment-pdf-preview-btn, attachment-delete-btn (L321), attachment-preview-dialog (L331), attachment-preview-image (L337), attachment-preview-pdf (L340).",
+    "phase2_buckets_page": "PASS - /app/buckets renders full timeline UI. Confirmed testIDs present at runtime: horizon-tab-day/week/month/quarter/year, horizon-prev-period, horizon-next-period, horizon-period-progress-text, horizon-smart-add-input, horizon-filter-btn, horizon-settings-btn. horizon-go-current appears after horizon-next-period click and disappears after clicking it (returns to current period). horizon-overdue-section is conditional and not present for a user without overdue tasks — expected.",
+    "phase2_settings_popover": "PASS - horizon-settings-btn opens popover exposing seasons-toggle, week-start-sat, week-start-mon (all three present in DOM at runtime).",
+    "phase2_smart_add_preview": "PASS - Typing 'تست هفته بعد !بالا #تگتست /فولدرتست' populates [data-testid=horizon-smart-add-preview] with title (تست), next-week range (۱۱ مهر – ۱۷ مهر), priority chip (فوری), folder chip (فولدرتست), tag chip (تگتست) and hint 'کم‌رنگ = به ارث رسیده از بازه/فیلتر فعلی'.",
+    "phase2_month_children": "PASS - horizon-tab-month renders horizon-child-<date> rows (children observed in DOM in first run before CF).",
+    "phase4_testids_in_source": "PASS (code-level) - review-folder-<id> chip rendered dynamically inside review-folder-chips (ReviewView.tsx L153); review-insights-toggle, review-insights, review-streak, review-goal-progress, review-due-today, review-forecast-chart, desired-retention-value/slider, daily-goal-input, gesture-settings, gestures-enabled-toggle, gesture-<dir>-select (right/left/up/down), gesture-doubletap-toggle, gesture-longpress-toggle all present in ReviewInsights.tsx. flip-card + swipe-rating-hint present in ReviewSwipeCard.tsx. new-card-fsrs-note present in LeitnerDeckView.tsx L1710.",
+    "phase4_redirect_route": "PASS (code-level) - /app/src/pages/ReviewRedirect.tsx uses <Navigate to={`/app/review/pharmacy${search}`} replace /> and route is wired for old /app/review path in App.tsx (verified via SidebarNavSections.test.ts expectations).",
+    "phase4_sidebar_review_section": "PASS (code-level) - SidebarNavSections.tsx L132 exposes a dedicated 'مرور' section with item 'مرور فارماسی' → /app/review/pharmacy."
+  },
+  "not_fully_verified_in_browser_due_to_cloudflare_429": [
+    "Live /app/review/pharmacy render + review-insights-toggle expand + forecast chart image + slider drag + flip-card swipe rating + new-card FSRS note dialog (CF interstitial blocked repeated navigations even after 60–120s pacing; code review confirms testIDs and logic exist).",
+    "Live attachment upload via set_input_files on task detail (inbox task-item testIDs use a different prefix on production data than 'task-item-'; couldn't open a task detail in the paced session before CF re-blocked).",
+    "Live drag-and-drop of horizon-task-drag-<id> + horizon-postpone-all cycle.",
+    "Live sidebar desktop-width render of 'مرور فارماسی'."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_attachments.py",
+    "/app/test_reports/pytest/iteration_4.xml"
+  ],
+  "action_items": [
+    "Main agent can self-verify the review-page UI at /app/review/pharmacy once Cloudflare human-verification clears — all required testIDs are already wired in ReviewView/ReviewInsights/ReviewSwipeCard/LeitnerDeckView so a manual browser check should confirm them.",
+    "Consider adding a stable 'task-item-<id>' testID prefix on the /app/inbox list rows (current inbox render uses different classes/roles and 0 elements matched [data-testid^='task-item-'] in the paced browser session — this is what made in-browser task-detail exploration slow).",
+    "The persistent console warning 'Capacitor plugin \"ArshnazWidget\" already registered' still appears (carried over from prior iterations); guard the registration behind an if-not-registered check.",
+    "429/interstitial from Cloudflare on the preview domain makes UI regression cycles brittle — consider whitelisting testing user-agent or using a longer human-verification bypass token for CI/QA."
+  ],
+  "critical_code_review_comments": [
+    "attachments.py is clean: MongoDB ObjectId never leaked (uses BaseDocument.to_mongo/from_mongo + str(inserted_id)); size/mime validation is applied both at sign-upload and again on PUT content (defence-in-depth); soft-delete is enforced by status filter in list, view_url and (matched_count==0) on second delete.",
+    "signing module properly used with distinct 'upload' / 'view' purposes and TTLs (UPLOAD_TTL=15m, VIEW_TTL=1h); PUT content path is not behind Firebase auth (correct: it uses signed URL); DELETE is behind Firebase auth with owner_id match.",
+    "auth.py uses google-auth id_token.verify_firebase_token with audience=FIREBASE_PROJECT_ID; run_in_threadpool wraps the sync call — correct."
+  ],
+  "updated_files": [
+    "/app/backend/tests/__init__.py (new empty package marker)",
+    "/app/backend/tests/test_attachments.py (new — 9 pytest cases: health, auth, validation, upload/list/view flow, soft delete)"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 pytest)",
+    "frontend": "~80% — Phase 1 rail + Phase 2 buckets + smart-add live verified; Phase 4 review verified at code level only (Cloudflare 429 blocked live nav)"
+  },
+  "test_credentials": "test.arshnaz@example.com / Test123456 — LOGIN WORKS. Firebase REST sign-in also works with apiKey AIzaSyBWVJ7J4xjgnxZ5mrCozVWUKWTTemGBggk from /app/firebase-applet-config.json.",
+  "seed_data_creation": "Test attachment (TEST_pixel.png, ~70 bytes, task_id=TEST_backend_pytest_task) created and then soft-deleted by pytest — no residual visible items.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Preview is behind Cloudflare 'Verify you are human' + 429 rate-limiting; MUST pace navigations by ≥45–60s between page.goto()s, avoid wait_until='networkidle' (Vite HMR keeps a WS open — always times out), use wait_until='domcontentloaded' + wait_for_selector on a specific testID. Firebase user session persists via IndexedDB across the same browser context, so login once per test run. All new testIDs required by Phase 2/4 exist in the codebase — do NOT patch them, only exercise them. Backend regression suite is at /app/backend/tests/test_attachments.py (pytest .ini already discovers it) — run `cd /app/backend && pytest tests/ -v` for fast (~2s) full backend check.",
+  "rca_of_issue": "Not a bug — this was a first-iteration verification of Phase 0/1/2/4 features. All backend endpoints behave as specified; frontend testIDs are in place; the only limitation is external (Cloudflare rate-limit on the shared preview domain) which prevented deep live exercise of the review flow within a single testing budget."
+}
