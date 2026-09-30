@@ -1,3 +1,5 @@
+import { hasTaskListSort, useTaskListSort } from "@/lib/taskListSort";
+import { filterAndSortTasks, DEFAULT_FILTERS } from "@/lib/smartListService";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -69,6 +71,12 @@ export default function BucketsView() {
     return fromUrl || saved || "week";
   });
   const effectiveHorizon: Horizon = levels.includes(horizon) ? horizon : "month";
+  const sortScope = `bucket:${effectiveHorizon}`;
+  const listSort = useTaskListSort(sortScope);
+  const hasListSort = hasTaskListSort(sortScope);
+  const sortForView = (items: Task[]) => hasListSort
+    ? filterAndSortTasks(items, { ...DEFAULT_FILTERS, ...listSort, show_completed: true }).sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || Number(Boolean(a.completed)) - Number(Boolean(b.completed)))
+    : sortTasks(items, filter.sort);
   const [anchor, setAnchor] = useState<string | null>(null); // period_start of the viewed period (null = current)
   const [zoomDir, setZoomDir] = useState<1 | -1>(1);
   const period: Period = useMemo(
@@ -151,17 +159,17 @@ export default function BucketsView() {
     return showCompletedTasks ? true : !t.completed;
   }, [filter.completion, showCompletedTasks]);
 
-  const overdueAll = useMemo(() => sortTasks(filtered.filter((x) => isOverdue(x.t, settings, now)).map((x) => x.t), filter.sort), [filtered, settings, filter.sort]); // eslint-disable-line react-hooks/exhaustive-deps
+  const overdueAll = useMemo(() => sortForView(filtered.filter((x) => isOverdue(x.t, settings, now)).map((x) => x.t)), [filtered, settings, filter.sort, listSort, hasListSort]); // eslint-disable-line react-hooks/exhaustive-deps
   const overdue = overdueAll.filter(isVisibleForCompleted);
   const overdueIds = useMemo(() => new Set(overdue.map((t) => t.id)), [overdue]);
 
   const inPeriod = filtered.filter((x) => taskInPeriod(x.tf!, period));
   const children = childPeriods(period, settings);
-  const wholePeriodAll = sortTasks(inPeriod.filter((x) => x.tf!.horizon === effectiveHorizon).map((x) => x.t), filter.sort);
+  const wholePeriodAll = sortForView(inPeriod.filter((x) => x.tf!.horizon === effectiveHorizon).map((x) => x.t));
   const wholePeriod = wholePeriodAll.filter(isVisibleForCompleted);
   const childGroupsAll = children.map((cp) => ({
     cp,
-    tasks: sortTasks(filtered.filter((x) => x.tf!.horizon !== effectiveHorizon && taskInPeriod(x.tf!, cp)).map((x) => x.t), filter.sort),
+    tasks: sortForView(filtered.filter((x) => x.tf!.horizon !== effectiveHorizon && taskInPeriod(x.tf!, cp)).map((x) => x.t)),
   }));
   const childGroups = childGroupsAll.map((group) => ({ ...group, visibleTasks: group.tasks.filter(isVisibleForCompleted) }));
   const progressTasks = [...wholePeriodAll, ...childGroupsAll.flatMap((g) => g.tasks.filter((t) => taskInPeriod(getTaskTime(t, settings)!, period)))];
@@ -311,7 +319,7 @@ export default function BucketsView() {
                 )}
                 folders={folders}
                 goals={goals}
-                isGoalSort={filter.sort === "goal"}
+                isGoalSort={!hasListSort && filter.sort === "goal"}
                 lang={lang}
                 fa={fa}
                 testId="horizon-whole-period"
@@ -342,7 +350,7 @@ export default function BucketsView() {
                   )}
                   folders={folders}
                   goals={goals}
-                  isGoalSort={filter.sort === "goal"}
+                  isGoalSort={!hasListSort && filter.sort === "goal"}
                   lang={lang}
                   fa={fa}
                   testId={`horizon-child-${cp.start}`}

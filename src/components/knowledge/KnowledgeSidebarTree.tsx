@@ -91,8 +91,10 @@ const FolderRowItem: React.FC<FolderRowItemProps> = ({
       <div className="flex min-w-0 flex-1 items-start gap-1.5">
         <button
           type="button"
+          aria-expanded={isExpanded}
+          aria-label={isEn ? `Toggle ${node.name}` : `باز و بسته کردن ${node.name}`}
           onClick={(e) => onToggle(e)}
-          className="p-0.5 rounded hover:bg-muted text-muted-foreground transition"
+          className="min-h-8 min-w-8 inline-flex items-center justify-center rounded hover:bg-muted text-muted-foreground transition"
         >
           {isExpanded ? (
             <ChevronDown className="w-3.5 h-3.5" />
@@ -126,7 +128,7 @@ const FolderRowItem: React.FC<FolderRowItemProps> = ({
             <button
               type="button"
               aria-label={isEn ? `Actions for ${node.name}` : `عملیات فولدر ${node.name}`}
-              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition cursor-pointer"
+              className="min-h-8 min-w-8 inline-flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition cursor-pointer"
             >
               <MoreVertical className="w-3 h-3" />
             </button>
@@ -220,7 +222,7 @@ const DocumentRowItem: React.FC<DocumentRowItemProps> = ({
     >
       <div className="flex min-w-0 flex-1 items-start gap-1.5">
         <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
-        <span className="min-w-0 flex-1 whitespace-normal break-words leading-5" style={{ overflowWrap: "anywhere" }}>{doc.title}</span>
+        <span className="min-w-0 flex-1 whitespace-normal break-words leading-5" style={{ overflowWrap: "anywhere" }} dir="auto">{isEn ? doc.title_en || doc.title : doc.title}</span>
       </div>
 
       <div className="flex items-center gap-0.5 shrink-0">
@@ -231,7 +233,7 @@ const DocumentRowItem: React.FC<DocumentRowItemProps> = ({
               e.stopPropagation();
               onScheduleStudy(doc);
             }}
-            className="opacity-0 group-hover:opacity-100 hover:opacity-100 p-0.5 rounded text-muted-foreground hover:text-emerald-500 transition cursor-pointer"
+            className="opacity-100 min-h-8 min-w-8 inline-flex items-center justify-center p-0.5 rounded text-muted-foreground hover:text-emerald-500 transition cursor-pointer"
             title={isEn ? "Schedule study task" : "برنامه‌ریزی مطالعه این درس"}
           >
             <CalendarPlus className="w-3 h-3" />
@@ -243,7 +245,7 @@ const DocumentRowItem: React.FC<DocumentRowItemProps> = ({
             e.stopPropagation();
             onDelete();
           }}
-          className="opacity-0 group-hover:opacity-100 hover:opacity-100 p-0.5 rounded text-muted-foreground hover:text-destructive transition cursor-pointer"
+          className="opacity-100 min-h-8 min-w-8 inline-flex items-center justify-center p-0.5 rounded text-muted-foreground hover:text-destructive transition cursor-pointer"
           title={isEn ? "Delete document" : "حذف سند"}
         >
           <Trash2 className="w-3 h-3" />
@@ -488,7 +490,7 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-card border border-border rounded-3xl overflow-hidden shadow-sm">
+    <div className="flex flex-col h-full bg-card border border-border rounded-lg overflow-hidden shadow-sm">
       {/* Top Header & Search */}
       <div className="p-3.5 border-b border-border bg-muted/20 space-y-2.5">
         <div className="flex items-center justify-between">

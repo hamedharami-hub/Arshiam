@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useState } from "react";
 import { isPathAllowed } from "@/lib/appModules";
 import { useNavigate, Link } from "react-router-dom";
@@ -143,9 +144,7 @@ export default function CrisisView() {
               <ShieldAlert className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-foreground">
-                {T("پشتیبانی بحران و خطوط کمکی فوری (SOS)", "Crisis Support & Emergency Services (SOS)")}
-              </h1>
+              <HeaderTitlePortal title={T("پشتیبانی بحران و خطوط کمکی فوری (SOS)", "Crisis Support & Emergency Services (SOS)")} />
               <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
                 {T(
                   "خطوط رایگان، محرمانه و ۲۴ ساعته برای گفتگو و دریافت کمک در شرایط سخت.",

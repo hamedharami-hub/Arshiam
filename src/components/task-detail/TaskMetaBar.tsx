@@ -179,32 +179,22 @@ export function TaskMetaBar({
               >
                 {T("بدون فولدر (Inbox)", "No folder (Inbox)")}
               </button>
-              {folders
-                .filter((f) => !f.parent_id)
-                .map((f) => {
-                  const children = folders.filter((c) => c.parent_id === f.id);
-                  return (
-                    <div key={f.id}>
-                      <button
-                        onClick={() => save({ folder_id: f.id })}
-                        className={optionClass(t.folder_id === f.id)}
-                      >
-                        <FolderIcon className="w-3.5 h-3.5" style={{ color: f.color || undefined }} />
-                        {f.name}
-                      </button>
-                      {children.map((c) => (
-                        <button
-                          key={c.id}
-                          onClick={() => save({ folder_id: c.id })}
-                          className={`${optionClass(t.folder_id === c.id)} ps-7 text-xs`}
-                        >
-                          <FolderIcon className="w-3 h-3" style={{ color: c.color || undefined }} />
-                          {c.name}
-                        </button>
-                      ))}
-                    </div>
-                  );
-                })}
+              {folders.map((folder) => (
+                <button
+                  key={folder.id}
+                  disabled={!isOwner}
+                  onClick={async () => {
+                    await save({ folder_id: folder.id });
+                    setFolderOpen(false);
+                  }}
+                  className={optionClass(t.folder_id === folder.id)}
+                  aria-pressed={t.folder_id === folder.id}
+                >
+                  <FolderIcon className="h-4 w-4 shrink-0" style={{ color: folder.color || undefined }} />
+                  <span className="min-w-0 flex-1 text-start" dir="auto">{folderName(folder.id)}</span>
+                  {t.folder_id === folder.id && <Check className="h-4 w-4 shrink-0" />}
+                </button>
+              ))}
           </DialogContent>
         </Dialog>
 

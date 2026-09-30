@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
@@ -619,9 +620,7 @@ export default function MindView() {
               <Brain className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-lg sm:text-2xl font-bold text-foreground truncate">
-                {T("ذهن و بهزیستی روان", "Mind & Mental Well-being")}
-              </h1>
+              <HeaderTitlePortal title={T("ذهن و بهزیستی روان", "Mind & Mental Well-being")} />
               <p className="text-xs sm:text-sm text-muted-foreground truncate">
                 {T(
                   "ابزارهای مبتنی بر علم شناختی-رفتاری (CBT و ACT) برای آرامش و وضوح ذهن.",

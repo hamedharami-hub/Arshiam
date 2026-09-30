@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useState } from "react";
 import { toPersianDigits } from "@/lib/jalali";
 import { Link, useNavigate } from "react-router-dom";
@@ -212,9 +213,7 @@ export default function ValuesGoalsView() {
           <Compass className="w-4 h-4" />
           {T("قطب‌نمای ارزش‌ها و اهداف (ACT)", "Values & Goals Compass (ACT)")}
         </div>
-        <h1 className="text-2xl md:text-3xl font-bold mb-2">
-          {T("شفاف‌سازی ارزش‌ها در ۱۰ حوزه زندگی", "Clarifying Core Values in 10 Life Domains")}
-        </h1>
+        <HeaderTitlePortal title={T("شفاف‌سازی ارزش‌ها در ۱۰ حوزه زندگی", "Clarifying Core Values in 10 Life Domains")} />
         <p className="text-sm opacity-90 leading-7">
           {T(
             "ارزش، جهت حرکت و کیفیت رفتار است (مثل قطب‌نما)؛ در حالی که هدف یا تسک، اقدامی مشخص و ملموس است (مثل مقصد). در این صفحه جهت را روشن کن و گام‌های همسو بردار.",

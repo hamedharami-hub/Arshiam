@@ -3,7 +3,7 @@ import { syncModulesForUser } from "@/lib/appModules";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AIPanel } from "@/components/AIPanel";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Search } from "lucide-react";
 import OfflineIndicator from "@/components/OfflineIndicator";
@@ -151,6 +151,7 @@ export default function AppLayout() {
           )}
           <main
             id="main-scroll"
+            style={{ "--app-bottom-space": showMobileBottomBar ? "calc(5.2rem + env(safe-area-inset-bottom))" : "0.5rem" } as CSSProperties}
             className={cn(
               "flex-1 overflow-auto",
               showMobileBottomBar

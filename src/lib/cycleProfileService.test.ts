@@ -1,101 +1,70 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("@/lib/firebaseStore", () => ({ firebaseStore: { from: vi.fn() } }));
-
-import { firebaseStore } from "@/lib/firebaseStore";
+const mocks = vi.hoisted(() => ({
+  auth: { currentUser: { uid: "user-1" } as { uid: string } | null },
+  from: vi.fn(), getDocs: vi.fn(), getDoc: vi.fn(), deleteDoc: vi.fn(),
+  get: vi.fn(), set: vi.fn(), commit: vi.fn(), remove: vi.fn(), events: [] as string[],
+}));
+vi.mock("@/lib/firebaseStore", () => ({ firebaseStore: { from: mocks.from } }));
+vi.mock("@/lib/firebase", () => ({
+  auth: mocks.auth, db: {},
+  doc: (_db: unknown, ...parts: string[]) => ({ path: parts.join("/") }),
+  collection: (_db: unknown, ...parts: string[]) => ({ path: parts.join("/") }),
+  query: (ref: unknown) => ref, where: vi.fn(), limit: vi.fn(),
+  getDocs: mocks.getDocs, getDoc: mocks.getDoc, deleteDoc: mocks.deleteDoc,
+}));
+vi.mock("firebase/firestore", () => ({
+  runTransaction: async (_db: unknown, callback: (tx: unknown) => Promise<unknown>) => {
+    const result = await callback({ get: mocks.get, set: mocks.set });
+    mocks.events.push("fence");
+    return result;
+  },
+  writeBatch: () => ({ delete: mocks.remove, commit: mocks.commit }),
+}));
 import { deleteCycleProfileAndLogs, persistActiveCycleProfile } from "./cycleProfileService";
 
-const fromMock = vi.mocked(firebaseStore.from);
-
 describe("cycle profile persistence", () => {
-  beforeEach(() => fromMock.mockReset());
-
-  it("upserts the selected profile by user id so selection survives a reload", async () => {
-    const upsert = vi.fn().mockResolvedValue({ data: [], error: null });
-    fromMock.mockReturnValue({ upsert } as never);
-
+  beforeEach(() => {
+    vi.resetAllMocks(); mocks.events.length = 0; mocks.auth.currentUser = { uid: "user-1" };
+    mocks.get.mockResolvedValue({ exists: () => false });
+    mocks.getDocs.mockResolvedValue({ empty: true, docs: [] });
+    mocks.getDoc.mockResolvedValue({ exists: () => false });
+    mocks.deleteDoc.mockImplementation(async () => { mocks.events.push("profile"); });
+    mocks.commit.mockImplementation(async () => { mocks.events.push("logs"); });
+  });
+  it("persists the selected profile under the user settings", async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null }); mocks.from.mockReturnValue({ upsert });
     await persistActiveCycleProfile("user-1", "profile-2");
-
-    expect(fromMock).toHaveBeenCalledWith("user_settings");
-    expect(upsert).toHaveBeenCalledWith(
-      { user_id: "user-1", active_cycle_profile_id: "profile-2" },
-      { onConflict: "user_id" },
-    );
+    expect(mocks.from).toHaveBeenCalledWith("user_settings");
+    expect(upsert).toHaveBeenCalledWith({ user_id: "user-1", active_cycle_profile_id: "profile-2" }, { onConflict: "user_id" });
   });
-
-  it("deletes associated logs before deleting the profile", async () => {
-    const events: string[] = [];
-    const logEq = vi.fn().mockImplementation(async () => { events.push("logs"); return { error: null }; });
-    const profileEq = vi.fn().mockImplementation(async () => { events.push("profile"); return { error: null }; });
-    fromMock.mockImplementation(((table: string) => ({
-      delete: () => ({ eq: table === "cycle_logs" ? logEq : profileEq }),
-      select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }),
-    })) as never);
-
+  it("commits the deletion fence before cleaning logs and removing the profile", async () => {
+    const log = { ref: { path: "users/user-1/cycle_logs/log-1" } };
+    mocks.getDocs.mockResolvedValueOnce({ empty: false, docs: [log] });
     await expect(deleteCycleProfileAndLogs("profile-1")).resolves.toEqual({ error: null });
-    expect(events).toEqual(["logs", "profile", "logs"]);
-    expect(fromMock).toHaveBeenNthCalledWith(1, "cycle_logs");
-    expect(fromMock).toHaveBeenNthCalledWith(2, "cycle_profiles");
+    expect(mocks.events).toEqual(["fence", "logs", "profile"]);
+    expect(mocks.set).toHaveBeenCalledWith({ path: "users/user-1/cycle_profile_tombstones/profile-1" }, expect.objectContaining({ deleted: true }));
+    expect(mocks.remove).toHaveBeenCalledWith(log.ref);
+    expect(mocks.deleteDoc).toHaveBeenCalledWith({ path: "users/user-1/cycle_profiles/profile-1" });
   });
-
-  it("reports incomplete deletion when a concurrent log remains", async () => {
-    fromMock.mockImplementation(((table: string) => ({
-      delete: () => ({ eq: vi.fn().mockResolvedValue({ error: null }) }),
-      select: () => ({ eq: vi.fn().mockResolvedValue({ data: table === "cycle_logs" ? [{ id: "late-log" }] : [], error: null }) }),
-    })) as never);
-
-    const result = await deleteCycleProfileAndLogs("profile-1");
-    expect(result.error?.message).toContain("incomplete");
+  it("rejects unauthenticated deletion before accessing data", async () => {
+    mocks.auth.currentUser = null;
+    expect((await deleteCycleProfileAndLogs("profile-1")).error?.message).toContain("Sign in");
+    expect(mocks.get).not.toHaveBeenCalled(); expect(mocks.getDocs).not.toHaveBeenCalled();
   });
-
-  it("keeps the profile when deleting its logs fails", async () => {
-    const logError = new Error("could not delete logs");
-    const logEq = vi.fn().mockResolvedValue({ error: logError });
-    fromMock.mockReturnValue({ delete: () => ({ eq: logEq }) } as never);
-
-    await expect(deleteCycleProfileAndLogs("profile-1")).resolves.toEqual({ error: logError });
-    expect(fromMock).toHaveBeenCalledTimes(1);
-    expect(logEq).toHaveBeenCalledWith("profile_id", "profile-1");
+  it("keeps the profile when log cleanup fails", async () => {
+    const error = new Error("cleanup failed");
+    mocks.getDocs.mockResolvedValueOnce({ empty: false, docs: [{ ref: {} }] });
+    mocks.commit.mockRejectedValueOnce(error);
+    await expect(deleteCycleProfileAndLogs("profile-1")).resolves.toEqual({ error });
+    expect(mocks.deleteDoc).not.toHaveBeenCalled();
   });
-
-
-  it("BASELINE BUG: no fence against concurrent log creation between second delete and verification", async () => {
-    // BUG: cycleProfileService.ts lines 15-36
-    // The function does: delete logs -> delete profile -> delete logs again -> verify
-    // But there's no fence preventing a new log from being created AFTER the second delete
-    // and BEFORE the verification query runs
-    // Expected: Should use a transaction or lock to prevent concurrent writes
-    // Actual: A stale device could create a log between line 23 and line 26
-    // Impact: Verification could pass even though a log exists, or fail incorrectly
-
-    const events: string[] = [];
-    let allowLateLog = false;
-
-    fromMock.mockImplementation(((table: string) => ({
-      delete: () => ({
-        eq: vi.fn().mockImplementation(async () => {
-          events.push(`delete-${table}`);
-          // Simulate a concurrent log creation after second delete
-          if (table === "cycle_logs" && events.filter(e => e === "delete-cycle_logs").length === 2) {
-            allowLateLog = true;
-          }
-          return { error: null };
-        }),
-      }),
-      select: () => ({
-        eq: vi.fn().mockResolvedValue({
-          data: allowLateLog && table === "cycle_logs" ? [{ id: "concurrent-log" }] : [],
-          error: null,
-        }),
-      }),
-    })) as never);
-
-    const result = await deleteCycleProfileAndLogs("profile-1");
-    
-    // The function correctly detects the concurrent log in verification
-    // But the bug is that there's no prevention mechanism - it relies on detection only
-    expect(result.error?.message).toContain("incomplete");
-    expect(events).toEqual(["delete-cycle_logs", "delete-cycle_profiles", "delete-cycle_logs"]);
+  it("reports incomplete cleanup when verification finds remaining data", async () => {
+    mocks.getDocs.mockResolvedValueOnce({ empty: true, docs: [] }).mockResolvedValueOnce({ empty: false, docs: [{}] });
+    expect((await deleteCycleProfileAndLogs("profile-1")).error?.message).toContain("incomplete");
   });
-
+  it("does not publish the fence if the signed-in account changes", async () => {
+    mocks.get.mockImplementation(async () => { mocks.auth.currentUser = { uid: "another-user" }; return { exists: () => false }; });
+    expect((await deleteCycleProfileAndLogs("profile-1")).error?.message).toContain("Account changed");
+    expect(mocks.set).not.toHaveBeenCalled(); expect(mocks.deleteDoc).not.toHaveBeenCalled();
+  });
 });

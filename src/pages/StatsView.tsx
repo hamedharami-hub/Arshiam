@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -146,9 +147,7 @@ export default function StatsView() {
     <div dir={isEn ? "ltr" : "rtl"} className="max-w-3xl mx-auto p-4 md:p-8 space-y-6 pb-24 page-enter">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-primary" /> {T("آمار و خلاصه", "Stats & Summary")}
-          </h1>
+          <HeaderTitlePortal title={T("آمار و خلاصه", "Stats & Summary")} />
           <p className="text-xs md:text-sm text-muted-foreground mt-1">
             {system === "jalali" ? formatDate(new Date(), "d MMMM yyyy", "jalali") : format(new Date(), "MMMM d, yyyy")}
           </p>

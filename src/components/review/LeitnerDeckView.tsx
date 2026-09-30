@@ -1098,6 +1098,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
 
             {/* Flip Card Body */}
             <ReviewSwipeCard
+              key={activeCard.id}
               flipped={isFlipped}
               onFlip={() => setIsFlipped((f) => !f)}
               onRate={(r) => handleReviewAnswer(r)}

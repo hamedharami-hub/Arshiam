@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
@@ -37,9 +38,7 @@ export default function SharedWithMeView() {
             <Users className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">
-              {T("به اشتراک گذاشته‌شده با من", "Shared with me")}
-            </h1>
+            <HeaderTitlePortal title={T("به اشتراک گذاشته‌شده با من", "Shared with me")} />
             <p className="text-xs text-muted-foreground">{isEn ? cap.name_en : cap.name}</p>
           </div>
         </header>

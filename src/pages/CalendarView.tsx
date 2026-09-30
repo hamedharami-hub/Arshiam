@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, subDays } from "date-fns";
@@ -147,7 +148,7 @@ export default function CalendarView() {
     <div dir={isEn ? "ltr" : "rtl"} className="max-w-6xl mx-auto p-4 md:p-8 space-y-6 pb-20 page-enter">
       <div className="flex items-start md:items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">{headerLabel}</h1>
+          <HeaderTitlePortal title={headerLabel} />
           <p className="text-xs md:text-sm text-muted-foreground mt-1">{altLabel}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">

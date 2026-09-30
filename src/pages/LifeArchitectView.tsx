@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -290,9 +291,7 @@ export default function LifeArchitectView() {
               <Sparkles className="w-3.5 h-3.5" />
               {T("معمار هوشمند سیستم زندگی ۲.۰", "Smart Life Architect 2.0")}
             </Badge>
-            <h1 className="text-2xl sm:text-3xl font-black text-foreground">
-              {T("سیستم‌عامل اختصاصی زندگی‌ات را معماری کن", "Architect Your Personal Life Operating System")}
-            </h1>
+            <HeaderTitlePortal title={T("معمار زندگی", "Life Architect")} />
             <p className="text-sm text-muted-foreground leading-relaxed">
               {T(
                 "پیوندِ علم طراحی زندگی استنفورد، روانشناسی رفتاری ACT و عصب‌شناسی عادت‌ها؛ پوشه‌ها، اهداف چندسطحی، عادات کلیدی و تسک‌های آغازین خود را در چند گام متصل و هماهنگ بسازید.",

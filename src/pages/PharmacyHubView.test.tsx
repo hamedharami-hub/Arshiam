@@ -34,17 +34,17 @@ describe("PharmacyHubView", () => {
       </MemoryRouter>,
     );
 
-    const diseases = await screen.findByRole("button", { name: /Diseases/ });
-    const medicines = screen.getByRole("button", { name: /Medicines/ });
+    const diseases = await screen.findByRole("button", { name: /^Diseases/ });
+    const medicines = screen.getByRole("button", { name: "Choose Medicines" });
     expect(diseases).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByTestId("pharmacy-subcategory-respiratory")).not.toBeInTheDocument();
     fireEvent.click(diseases);
     expect(diseases).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByTestId("pharmacy-subcategory-respiratory")).toBeInTheDocument();
     fireEvent.click(medicines);
-    expect(diseases).toHaveAttribute("aria-expanded", "false");
-    expect(medicines).toHaveAttribute("aria-expanded", "true");
-    fireEvent.click(diseases);
+    expect(screen.queryByTestId("pharmacy-category-diseases")).not.toBeInTheDocument();
+    expect(medicines).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Choose Diseases" }));
     fireEvent.click(screen.getByTestId("pharmacy-subcategory-respiratory").querySelector("summary")!);
     expect(screen.getByTestId("pharmacy-subcategory-respiratory").querySelector("a")).toHaveAttribute("href", "/app/knowledge?folderId=respiratory");
     expect(screen.getByRole("link", { name: /Open Diseases folder/ })).toHaveAttribute("href", "/app/knowledge?folderId=diseases");
@@ -62,7 +62,7 @@ describe("PharmacyHubView", () => {
     ]);
     render(<MemoryRouter><PharmacyHubView /></MemoryRouter>);
 
-    await waitFor(() => expect(screen.getByRole("button", { name: /Current disease atlas/ })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Current disease atlas/ })).toBeInTheDocument());
     expect(screen.getByText("Earlier and other collections (1)")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Earlier and other collections (1)"));
     expect(screen.getByRole("link", { name: "Older disease atlas" })).toHaveAttribute(
@@ -78,11 +78,24 @@ describe("PharmacyHubView", () => {
       folder("medicines", "folder-pharmacy-root", "Medicines", 4),
     ]);
     render(<MemoryRouter><PharmacyHubView /></MemoryRouter>);
-    await screen.findByRole("button", { name: /Diseases/ });
+    await screen.findByRole("button", { name: /^Diseases/ });
     fireEvent.change(screen.getByRole("textbox", { name: "Search categories" }), { target: { value: "respiratory" } });
-    expect(screen.getByRole("button", { name: /Diseases/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Medicines/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Diseases/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Medicines/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
-    expect(screen.getByRole("button", { name: /Medicines/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Medicines/ })).toBeInTheDocument();
   });
+  it("opens matching lessons directly without expanding their folder", async () => {
+    getFoldersMock.mockResolvedValueOnce([
+      folder("diseases", "folder-pharmacy-root", "Diseases", 1),
+      folder("respiratory", "diseases", "Respiratory", 2),
+    ]);
+    getDocumentsMock.mockResolvedValueOnce([{ id: "asthma", folder_id: "respiratory", title: "Asthma" }] as never[]);
+    render(<MemoryRouter><PharmacyHubView /></MemoryRouter>);
+    await screen.findByRole("button", { name: /^Diseases/ });
+    fireEvent.change(screen.getByRole("textbox", { name: "Search categories" }), { target: { value: " asthma " } });
+    expect(screen.getByRole("link", { name: "Asthma" })).toHaveAttribute("href", "/app/knowledge?docId=asthma");
+    expect(screen.getByText("1 matching lessons")).toBeInTheDocument();
+  });
+
 });

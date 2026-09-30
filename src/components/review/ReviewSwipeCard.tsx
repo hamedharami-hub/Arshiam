@@ -50,6 +50,11 @@ export function ReviewSwipeCard({ flipped, onFlip, onRate, onEdit, isEn, classNa
   const longPressed = useRef(false);
   const dragging = useRef(false);
 
+  useEffect(() => () => {
+    if (pressTimer.current) window.clearTimeout(pressTimer.current);
+    if (tapTimer.current) window.clearTimeout(tapTimer.current);
+  }, []);
+
   const canSwipe = g.enabled && flipped;
 
   const ratingFor = (dir: SwipeDir | null) => (dir ? g.swipe[dir] : null);
@@ -131,7 +136,7 @@ export function ReviewSwipeCard({ flipped, onFlip, onRate, onEdit, isEn, classNa
         onPointerLeave={clearPress}
         onPointerCancel={clearPress}
         onClick={handleClick}
-        onKeyDown={(e) => { if (e.key === "Enter") onFlip(); }}
+        onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onFlip(); } }}
         className={className}
       >
         <motion.div

@@ -213,7 +213,7 @@ const CHORDS = [
 ];
 const MELODY = [293.66, 329.63, 369.99, 440.0, 493.88, 587.33]; // D major pentatonic
 
-function sleepMusic(c: AudioContext, m: GainNode): Voice {
+function buildSleepMusicLoop(c: AudioContext, m: GainNode): Voice {
   const bus = c.createGain(); bus.gain.value = 0.9;
   const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2400;
   const verb = makeReverb(c);
@@ -246,19 +246,49 @@ function sleepMusic(c: AudioContext, m: GainNode): Voice {
     });
   };
 
-  let beat = 0, bpm = 60, next = c.currentTime + 0.2;
-  // Large look-ahead so playback keeps going when the phone screen is off and timers are throttled.
-  const schedule = () => {
-    while (next < c.currentTime + 45) {
-      const spb = 60 / bpm;
-      if (beat % 8 === 0) CHORDS[(beat / 8) % CHORDS.length].forEach((f) => padNote(f, next, spb * 8 + 3));
-      if (beat % 2 === 0 && Math.random() < 0.55) pluck(MELODY[Math.floor(Math.random() * MELODY.length)], next + Math.random() * 0.08);
-      beat++; next += spb; bpm = Math.max(52, bpm - 0.015);
-    }
-  };
-  schedule();
-  const id = window.setInterval(schedule, 2000);
-  return { stop: () => { clearInterval(id); try { bus.disconnect(); } catch {} } };
+  // Three identical cycles let us retain the middle cycle including reverb tails.
+  const melody = Array.from({ length: 16 }, (_, i) => ({ frequency: MELODY[i % MELODY.length], play: i % 3 !== 1 }));
+  for (let cycle = 0; cycle < 3; cycle++) {
+    const offset = cycle * 32;
+    CHORDS.forEach((chord, index) => chord.forEach(frequency => padNote(frequency, offset + index * 8, 11)));
+    melody.forEach((note, index) => { if (note.play) pluck(note.frequency, offset + index * 2); });
+  }
+  return { stop: () => { try { bus.disconnect(); } catch {} } };
+
+}
+
+let sleepLoop: Promise<AudioBuffer> | null = null;
+function renderSleepLoop(): Promise<AudioBuffer> {
+  if (sleepLoop) return sleepLoop;
+  const rate = 22050, frames = rate * 32;
+  const offline = new OfflineAudioContext(1, frames * 3, rate);
+  const output = offline.createGain(); output.gain.value = 1; output.connect(offline.destination);
+  buildSleepMusicLoop(offline as unknown as AudioContext, output);
+  sleepLoop = offline.startRendering().then(rendered => {
+    const buffer = new AudioBuffer({ numberOfChannels: 1, length: frames, sampleRate: rate });
+    buffer.copyToChannel(rendered.getChannelData(0).slice(frames, frames * 2), 0);
+    return buffer;
+  }).catch(error => { sleepLoop = null; throw error; });
+  return sleepLoop;
+}
+function sleepMusic(c: AudioContext, m: GainNode): Voice {
+  // A looping audio buffer runs on the audio thread, without throttled background JS timers.
+  const fallbackGain = c.createGain(); fallbackGain.connect(m);
+  const fallback = dreamPad(c, fallbackGain);
+  const musicGain = c.createGain(); musicGain.gain.value = 0; musicGain.connect(m);
+  let stopped = false;
+  let source: AudioBufferSourceNode | null = null;
+  if (typeof OfflineAudioContext !== "undefined") void renderSleepLoop().then(buffer => {
+    if (stopped) return;
+    source = c.createBufferSource(); source.buffer = buffer; source.loop = true;
+    source.connect(musicGain); source.start();
+    musicGain.gain.setTargetAtTime(1, c.currentTime, 0.5);
+    fallbackGain.gain.setTargetAtTime(0, c.currentTime, 0.5);
+  }).catch(() => { /* The continuous fallback stays audible if rendering is unavailable. */ });
+  return { stop: () => {
+    stopped = true; fallback.stop();
+    try { source?.stop(); fallbackGain.disconnect(); musicGain.disconnect(); } catch {}
+  } };
 }
 
 const combine = (...fs: Factory[]): Factory => (c, m) => {
@@ -307,7 +337,13 @@ let bgAudio: HTMLAudioElement | null = null;
 function ensureBackgroundKeepalive() {
   if (bgAudio) return;
   // 0.5s of silent WAV data, base64-encoded (44.1kHz mono).
-  const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=";
+  const bytes = new ArrayBuffer(44 + 22050); const header = new DataView(bytes);
+  const text = (offset: number, value: string) => [...value].forEach((letter, index) => header.setUint8(offset + index, letter.charCodeAt(0)));
+  text(0, "RIFF"); header.setUint32(4, bytes.byteLength - 8, true); text(8, "WAVEfmt ");
+  header.setUint32(16, 16, true); header.setUint16(20, 1, true); header.setUint16(22, 1, true);
+  header.setUint32(24, 22050, true); header.setUint32(28, 44100, true); header.setUint16(32, 2, true); header.setUint16(34, 16, true);
+  text(36, "data"); header.setUint32(40, 22050, true);
+  const SILENT_WAV = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
   const a = document.createElement("audio");
   a.src = SILENT_WAV;
   a.loop = true;
@@ -355,6 +391,7 @@ export function startSynth(id: string, volumePct: number) {
 }
 
 export function stopSynth() {
+  cancelSleepFade();
   if (masterGain && ctx) {
     const t = ctx.currentTime;
     try { masterGain.gain.cancelScheduledValues(t); masterGain.gain.setTargetAtTime(0, t, 0.05); } catch {}
@@ -374,6 +411,7 @@ export function stopSynth() {
 export function setSynthVolume(volumePct: number) {
   if (!masterGain || !ctx) return;
   const v = Math.max(0, Math.min(1, volumePct / 100));
+  masterGain.gain.cancelScheduledValues(ctx.currentTime);
   masterGain.gain.setTargetAtTime(v, ctx.currentTime, 0.05);
 }
 
@@ -393,5 +431,6 @@ export function scheduleSleepFade(totalSec: number, fadeSec: number, volumePct: 
   fadeTimer = window.setTimeout(() => { fadeTimer = null; stopSynth(); }, totalSec * 1000 + 300);
 }
 export function cancelSleepFade() {
+  if (masterGain && ctx) { try { masterGain.gain.cancelScheduledValues(ctx.currentTime); } catch {} }
   if (fadeTimer) { clearTimeout(fadeTimer); fadeTimer = null; }
 }

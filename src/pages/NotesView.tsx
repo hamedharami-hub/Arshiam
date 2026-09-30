@@ -1,4 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { createDebouncedWrites } from "@/lib/debouncedWrites";
+import { useResizableSplit } from "@/hooks/useResizableSplit";
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
+import { HeaderActionsPortal } from "@/components/HeaderActionsPortal";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -22,7 +26,7 @@ import {
   ChevronDown,
   BookOpen,
   FileCode,
-  Eye,
+  Eye, PanelLeftClose, PanelLeftOpen, Minimize2,
 } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
 import ShareDialog from "@/components/ShareDialog";
@@ -146,6 +150,11 @@ export default function NotesView() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [notes, setNotes] = useState<Note[]>([]);
+  const notesRef = useRef(notes);
+  notesRef.current = notes;
+  const accountRef = useRef(user?.id);
+  accountRef.current = user?.id;
+  const [writes] = useState(() => createDebouncedWrites());
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [tags, setTags] = useState<TagItem[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null); // null = all, '__none__' = uncategorized, or folderId
@@ -161,6 +170,23 @@ export default function NotesView() {
   const [shareOpen, setShareOpen] = useState(false);
   const [quickTagName, setQuickTagName] = useState("");
   const [editorMode, setEditorMode] = useState<"visual" | "markdown" | "preview">("visual");
+
+  const [listHidden, setListHidden] = useState(() => { try { return localStorage.getItem("notes-list-hidden") === "true"; } catch { return false; } });
+  const [fullScreen, setFullScreen] = useState(false);
+  const { splitRatio, containerRef, handlePointerDown, handlePointerMove, handlePointerUp } = useResizableSplit({
+    storageKey: "notes-list-ratio", direction: isEn ? "ltr" : "rtl", defaultRatio: 30, minRatio: 18, maxRatio: 55,
+  });
+  const toggleList = () => setListHidden((current) => {
+    const next = !current;
+    try { localStorage.setItem("notes-list-hidden", String(next)); } catch { /* Keep the session preference. */ }
+    return next;
+  });
+  useEffect(() => {
+    if (!fullScreen) return;
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setFullScreen(false); };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [fullScreen]);
 
   const { canEdit, isOwner } = useShareAccess("note", selected?.id, selected?.user_id);
 
@@ -325,40 +351,43 @@ export default function NotesView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  const save = async (patch: Partial<Note>): Promise<boolean> => {
-    if (!selected) return false;
-    if (!user) {
-      toast.error(T("برای ذخیره وارد حساب شوید", "Sign in to save this note"));
+  const persistNote = async (target: Note, patch: Partial<Note>, accountId: string, editable: boolean): Promise<boolean> => {
+    if (accountRef.current !== accountId || !editable) return false;
+    const latest = notesRef.current.find(note => note.id === target.id) ?? target;
+    const updated = { ...latest, ...patch, updated_at: new Date().toISOString() };
+    const nextNotes = notesRef.current.map(note => note.id === target.id ? updated : note);
+    notesRef.current = nextNotes;
+    setNotes(nextNotes);
+    setSelected(current => current?.id === target.id ? { ...current, ...patch, updated_at: updated.updated_at } : current);
+    try {
+      const saved = await upsertNote(accountId, updated);
+      if (!saved) throw new Error("Save failed");
+      if (accountRef.current !== accountId) return true;
+      await cacheSet(NOTES_CACHE_KEY, notesRef.current);
+      window.dispatchEvent(new Event("notes-changed"));
+      return true;
+    } catch {
+      if (accountRef.current === accountId) toast.error(T("تغییر ذخیره نشد؛ متن در نوت باقی است و دوباره تلاش کنید", "Change was not saved; the text remains in the note. Please retry"));
       return false;
     }
-    if (!canEdit) {
-      toast(T("دسترسی ویرایش ندارید", "You don't have edit permission"));
-      return false;
-    }
-    const updated = { ...selected, ...patch, updated_at: new Date().toISOString() };
-    setSelected(updated);
-    setNotes((prev) => prev.map((n) => (n.id === selected.id ? updated : n)));
-    const nextNotes = notes.map((n) => (n.id === selected.id ? updated : n));
-    const saved = await upsertNote(user.id, updated);
-    if (!saved) {
-      toast.error(T("تغییر ذخیره نشد؛ متن در ویرایشگر باقی است و دوباره تلاش کنید", "Change was not saved; the text remains in the editor. Please retry"));
-      return false;
-    }
-    await cacheSet(NOTES_CACHE_KEY, nextNotes);
-    window.dispatchEvent(new Event("notes-changed"));
-    return true;
   };
 
+  const save = async (patch: Partial<Note>): Promise<boolean> => {
+    if (!selected || !user || !canEdit) return false;
+    await writes.flush(selected.id);
+    return persistNote(selected, patch, user.id, canEdit);
+  };
+
+  // Flush the previous document before its editor disappears; writes retain their own record/account.
   useEffect(() => {
-    if (!draft || !selected) return;
-    const t = setTimeout(() => {
-      save({ content: draft.md });
-    }, 600);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line
-  }, [draft?.md]);
+    const id = selected?.id;
+    return () => { if (id) void writes.flush(id).catch(() => undefined); };
+  }, [selected?.id, writes]);
+  useEffect(() => () => { void writes.flushAll(); }, [writes]);
 
   const del = async (id: string) => {
+    writes.cancel(id);
+    await writes.settle(id).catch(() => undefined);
     const note = notes.find((n) => n.id === id);
     if (!user) {
       toast.error(T("برای حذف وارد حساب شوید", "Sign in to delete this note"));
@@ -885,7 +914,18 @@ export default function NotesView() {
       <NoteEditorTabs
         noteId={selected.id}
         markdown={draft?.md ?? selected.content ?? ""}
-        onChange={(md, html) => setDraft({ html, md })}
+        onChange={(md, html) => {
+          setDraft({ html, md });
+          if (user && canEdit) {
+            const nextNotes = notesRef.current.map(note => note.id === selected.id ? { ...note, content: md } : note);
+            notesRef.current = nextNotes;
+            setNotes(nextNotes);
+            setSelected(current => current?.id === selected.id ? { ...current, content: md } : current);
+            const target = selected;
+            const accountId = user.id;
+            writes.schedule(target.id, () => persistNote(target, { content: md }, accountId, true));
+          }
+        }}
         readOnly={!canEdit}
         mode={editorMode}
         onModeChange={setEditorMode}
@@ -895,15 +935,23 @@ export default function NotesView() {
   ) : null;
 
   return (
-    <div className="flex flex-col md:flex-row h-full">
+    <div ref={containerRef} dir={isEn ? "ltr" : "rtl"} className={fullScreen ? "fixed inset-0 z-40 flex flex-col bg-background" : "study-workspace flex flex-col min-h-0"}>
+      <HeaderTitlePortal title={T("نوت‌ها", "Notes")} />
+      <HeaderActionsPortal>
+        <Button variant="ghost" size="icon" className="hidden md:inline-flex h-9 w-9" onClick={toggleList} aria-label={listHidden ? T("نمایش فهرست نوت‌ها", "Show note list") : T("مخفی کردن فهرست نوت‌ها", "Hide note list")}>
+          {listHidden ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+        </Button>
+        <Button variant="ghost" size="icon" className="h-9 w-9" disabled={!selected} onClick={() => setFullScreen((current) => !current)} aria-label={fullScreen ? T("خروج از تمام‌صفحه", "Exit full screen") : T("نوت تمام‌صفحه", "Full screen note")}>
+          {fullScreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+        </Button>
+      </HeaderActionsPortal>
+      {fullScreen && <div className="flex justify-end border-b p-2"><Button variant="ghost" size="sm" onClick={() => setFullScreen(false)}><Minimize2 className="h-4 w-4 me-2" />{T("خروج از تمام‌صفحه", "Exit full screen")}</Button></div>}
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row overflow-hidden" data-testid="notes-split-layout">
       {/* Sidebar / Notes list panel */}
-      <div className="md:w-84 border-s md:border-s border-e-0 md:border-e flex flex-col bg-card/30">
-        <div dir="rtl" className="p-3 border-b space-y-2.5">
+      <div style={{ "--note-list-width": `clamp(220px, ${splitRatio}%, 55%)` } as React.CSSProperties} className={`${listHidden || fullScreen ? "md:hidden" : "md:w-[var(--note-list-width)]"} ${fullScreen ? "hidden" : ""} w-full min-h-0 md:shrink-0 border-e flex flex-col bg-card`} data-testid="notes-list-panel">
+        <div className="p-3 border-b space-y-2.5">
           <div className="flex justify-between items-center">
-            <h2 className="font-semibold text-base flex items-center gap-1.5">
-              <FileText className="w-4 h-4 text-primary" />
-              <span>{T("نوت‌ها", "Notes")}</span>
-            </h2>
+            <span className="text-xs text-muted-foreground">{T("فهرست نوت‌ها", "Note list")}</span>
             <Button size="sm" onClick={create} className="gap-1">
               <Plus className="w-4 h-4" />
               <span className="text-xs">{T("نوت جدید", "New")}</span>
@@ -1184,12 +1232,14 @@ export default function NotesView() {
       </div>
 
       {/* Editor Panel */}
-      <div className="hidden md:flex flex-1 min-w-0 overflow-y-auto">
+      {!listHidden && !fullScreen && <div role="separator" aria-orientation="vertical" aria-label={T("تغییر عرض فهرست و نوت", "Resize note columns")} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp} className="hidden md:flex w-2 shrink-0 cursor-col-resize touch-none items-center justify-center hover:bg-muted"><span className="h-10 w-px bg-border" /></div>}
+      <div className={`${fullScreen ? "flex" : "hidden md:flex"} flex-1 min-h-0 min-w-0 overflow-y-auto`} data-testid="note-editor-panel">
         {selected ? editor : emptyState}
+      </div>
       </div>
 
       {/* Mobile Drawer Editor */}
-      {selected && isMobile && (
+      {selected && isMobile && !fullScreen && (
         <Drawer
           open={true}
           onOpenChange={(v) => !v && setSelected(null)}
@@ -1207,7 +1257,7 @@ export default function NotesView() {
                 size="icon"
                 variant="ghost"
                 className="h-8 w-8"
-                onClick={() => setSnap(1)}
+                onClick={() => setFullScreen(true)}
                 title={T("فول اسکرین", "Full screen")}
               >
                 <Maximize2 className="w-4 h-4" />

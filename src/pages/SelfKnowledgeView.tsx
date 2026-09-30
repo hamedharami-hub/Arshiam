@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useState } from "react";
 import { isPathAllowed } from "@/lib/appModules";
 import { Link } from "react-router-dom";
@@ -135,9 +136,7 @@ export default function SelfKnowledgeView() {
             </Badge>
           )}
         </div>
-        <h1 className="text-2xl sm:text-3xl font-black text-foreground mb-2">
-          {T("خودشناسی و ارزیابی‌های روان‌سنجی", "Self-Discovery & Psychometrics")}
-        </h1>
+        <HeaderTitlePortal title={T("خودشناسی و ارزیابی‌های روان‌سنجی", "Self-Discovery & Psychometrics")} />
         <p className="text-sm text-muted-foreground leading-relaxed">
           {T(
             "ارزیابی‌های علمی HEXACO، نقاط قوت VIA و دلبستگی ECR-R؛ پاسخ‌های شما خودکار ذخیره می‌شوند و نتایج آن‌ها سیستم هوشمند، اهداف و ریتم روزمره شما را در کل برنامه کالیبره می‌کنند.",

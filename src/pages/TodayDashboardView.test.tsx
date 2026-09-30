@@ -123,7 +123,8 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
     );
 
     // 1. Top priorities subtle section has accessible star icon, but no visible counter or big heading
-    expect(screen.getByLabelText("Top Priorities")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Top Priorities")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("top-priorities")).not.toBeInTheDocument();
     expect(screen.getByText("Urgent Meeting")).toBeInTheDocument();
     expect(screen.queryByTestId("pharmacy-shortcuts")).not.toBeInTheDocument();
     expect(screen.queryByText(/(\d)\/3/)).not.toBeInTheDocument();
@@ -170,7 +171,7 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
     expect(mockSetAllTasks).not.toHaveBeenCalled();
   });
 
-  it("renders split view on wide screens with placeholder and opens task in embedded left panel when clicked", () => {
+  it("uses the full list width until a task is selected and then opens its inspector", () => {
     mockTasks = [
       {
         id: "task-1",
@@ -197,9 +198,9 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
     expect(section?.className).toContain("overflow-y-auto");
     expect(section?.className).toContain("overscroll-contain");
 
-    // Placeholder is shown when no task is selected
-    expect(screen.getByText("Select a task")).toBeInTheDocument();
-    expect(screen.getByText(/Details open in the left panel while the task list remains on the right/i)).toBeInTheDocument();
+    // No empty inspector consumes space before selection
+    expect(screen.queryByText("Select a task")).not.toBeInTheDocument();
+    expect(container.querySelector("aside")).not.toBeInTheDocument();
 
     // Clicking a task selects it and renders embedded TaskDetail in the left panel
     const taskTitle = screen.getByText("Write documentation");
@@ -210,11 +211,11 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
     expect(detail.getAttribute("data-mode")).toBe("embedded");
     expect(detail.getAttribute("data-task-id")).toBe("task-1");
 
-    // Closing the detail restores the placeholder
+    // Closing the detail restores the full-width list
     const closeBtn = screen.getByText("Close Detail");
     fireEvent.click(closeBtn);
     expect(screen.queryByTestId("task-detail")).not.toBeInTheDocument();
-    expect(screen.getByText("Select a task")).toBeInTheDocument();
+    expect(screen.queryByText("Select a task")).not.toBeInTheDocument();
   });
 
   it("toggles split view off to single column and opens drawer when a task is selected", () => {
@@ -417,11 +418,25 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
       </MemoryRouter>
     );
 
-    expect(screen.getByTestId("top-priorities")).toHaveTextContent("Urgent personal task");
-    expect(screen.getByTestId("top-priorities")).not.toHaveTextContent("Leitner cards due today");
+    expect(screen.getByTestId("today-active-tasks")).toHaveTextContent("Urgent personal task");
+    expect(screen.getByTestId("today-active-tasks")).not.toHaveTextContent("Leitner cards due today");
     expect(screen.getByTestId("study-due-today")).toHaveTextContent("Leitner cards due today");
     expect(screen.getByTestId("overdue-tasks")).toHaveTextContent("Overdue personal task");
     expect(screen.getByTestId("overdue-tasks")).not.toHaveTextContent("Overdue lesson");
     expect(screen.getByTestId("overdue-study")).toHaveTextContent("Overdue lesson");
   });
+});
+
+
+it("puts pinned tasks first without the former top-three section", () => {
+  localStorage.clear();
+  const due = new Date().toISOString();
+  mockTasks = [
+    { id: "urgent", title: "Urgent but not pinned", due_date: due, priority: "urgent", completed: false, parent_id: null },
+    { id: "pinned", title: "Pinned by me", due_date: due, priority: "low", pinned: true, completed: false, parent_id: null },
+  ] as Task[];
+  render(<MemoryRouter><TodayDashboardView /></MemoryRouter>);
+  const list = screen.getByTestId("today-active-tasks");
+  expect(list.textContent!.indexOf("Pinned by me")).toBeLessThan(list.textContent!.indexOf("Urgent but not pinned"));
+  expect(screen.queryByTestId("top-priorities")).not.toBeInTheDocument();
 });

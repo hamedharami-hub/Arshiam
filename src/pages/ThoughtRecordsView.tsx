@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
@@ -234,7 +235,7 @@ export default function ThoughtRecordsView() {
     >
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold mb-1.5">{T("ثبت افکار (CBT)", "Thought Records (CBT)")}</h1>
+          <HeaderTitlePortal title={T("ثبت افکار (CBT)", "Thought Records (CBT)")} />
           <p className="text-muted-foreground text-sm">
             {T(
               "مسیر ۵ مرحله‌ای: اتفاق ← فکر خودکار ← احساس ← شواهد ← برداشت متعادل‌تر.",

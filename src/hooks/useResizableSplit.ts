@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from "react";
 
 interface UseResizableSplitOptions {
   storageKey: string;
+  direction?: "ltr" | "rtl";
   defaultRatio?: number;
   minRatio?: number;
   maxRatio?: number;
@@ -9,6 +10,7 @@ interface UseResizableSplitOptions {
 
 export function useResizableSplit({
   storageKey,
+  direction = "ltr",
   defaultRatio = 46,
   minRatio = 25,
   maxRatio = 75,
@@ -50,12 +52,12 @@ export function useResizableSplit({
       const rect = containerRef.current.getBoundingClientRect();
       if (rect.width <= 0) return;
 
-      const offset = e.clientX - rect.left;
+      const offset = direction === "rtl" ? rect.right - e.clientX : e.clientX - rect.left;
       const rawRatio = (offset / rect.width) * 100;
       const clamped = Math.min(Math.max(rawRatio, minRatio), maxRatio);
       setSplitRatio(clamped);
     },
-    [isResizing, minRatio, maxRatio]
+    [isResizing, minRatio, maxRatio, direction]
   );
 
   const handlePointerUp = useCallback(

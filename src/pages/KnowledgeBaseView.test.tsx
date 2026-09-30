@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import KnowledgeBaseView from "./KnowledgeBaseView";
 import { getPharmacyImportStatus, importPharmacyKnowledge } from "@/lib/pharmacyImportService";
-import { deleteKnowledgeDocument, KnowledgeDocumentDeletionError } from "@/lib/knowledgeService";
+import { getKnowledgeFolders, deleteKnowledgeDocument, KnowledgeDocumentDeletionError } from "@/lib/knowledgeService";
 import { toast } from "sonner";
 import type { KnowledgeDocument } from "@/lib/knowledgeTypes";
 
@@ -339,13 +339,46 @@ describe("KnowledgeBaseView (/app/knowledge) Page Verification", { timeout: 1500
 
     fireEvent.click(screen.getByRole("button", { name: "بازگشت به سند قبلی" }));
     await waitFor(() => expect(screen.queryByTestId("knowledge-linked-document-dialog")).not.toBeInTheDocument());
-    expect(screen.getByRole("heading", { name: "راهنمای فلوکستین", level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "راهنمای فلوکستین", level: 1 })).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("باز کردن سند دوم"));
     expect(await screen.findByRole("dialog", { name: "Second document" })).toBeInTheDocument();
     await act(async () => browserBack?.());
     await waitFor(() => expect(screen.queryByTestId("knowledge-linked-document-dialog")).not.toBeInTheDocument());
-    expect(screen.getByRole("heading", { name: "راهنمای فلوکستین", level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "راهنمای فلوکستین", level: 1 })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Tasks route" })).not.toBeInTheDocument();
   }, 30000);
+});
+
+
+describe("Knowledge loading and navigation recovery", () => {
+  beforeEach(() => {
+    mockIsEn = true;
+    currentFolders = [...mockFolders];
+    currentDocs = [...mockDocs];
+    vi.clearAllMocks();
+  });
+
+  it("shows a retry action after a load failure and recovers the lesson", async () => {
+    vi.mocked(getKnowledgeFolders).mockRejectedValueOnce(new Error("Network unavailable"));
+    render(<MemoryRouter><KnowledgeBaseView /></MemoryRouter>);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Lessons could not be loaded");
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    expect((await screen.findAllByText("Fluoxetine Guide")).length).toBeGreaterThan(0);
+  });
+
+  it("reports an unavailable deep-linked lesson instead of displaying another lesson", async () => {
+    render(<MemoryRouter initialEntries={["/app/knowledge?docId=missing"]}><KnowledgeBaseView /></MemoryRouter>);
+    expect(await screen.findByText("This lesson is unavailable.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open library" }));
+    expect((await screen.findAllByText("Fluoxetine Guide")).length).toBeGreaterThan(0);
+  });
+
+  it("lets a deep-linked reader reopen its desktop chapters sidebar", async () => {
+    render(<MemoryRouter initialEntries={["/app/knowledge?docId=doc-1"]}><KnowledgeBaseView /></MemoryRouter>);
+    const toggle = await screen.findByTitle("Show Chapters Sidebar (Ctrl+B)");
+    fireEvent.click(toggle);
+    expect(await screen.findByTitle("Hide Chapters Sidebar (Ctrl+B)")).toBeInTheDocument();
+  });
 });

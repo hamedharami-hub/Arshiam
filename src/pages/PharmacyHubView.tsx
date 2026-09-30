@@ -1,7 +1,9 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, ChevronDown, ExternalLink, FolderClosed, Layers3, Pill, Search, X } from "lucide-react";
+import { BookOpen, ChevronDown, ExternalLink, FolderClosed, Layers3, Search, X } from "lucide-react";
 import PharmacyShortcuts from "@/components/PharmacyShortcuts";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,12 +31,16 @@ export default function PharmacyHubView() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [openCategoryId, setOpenCategoryId] = useState<string | null>(null);
   const [categoryQuery, setCategoryQuery] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const userId = user?.id || "anonymous-kb-user";
 
   useEffect(() => {
     let active = true;
     setIsLoading(true);
     setLoadFailed(false);
+    setFolders([]);
+    setDocuments([]);
+    setOpenCategoryId(null);
     void Promise.all([getKnowledgeFolders(userId), getKnowledgeDocuments(userId)]).then(([savedFolders, savedDocuments]) => {
       if (active) { setFolders(savedFolders); setDocuments(savedDocuments); }
     }).catch(() => {
@@ -43,7 +49,7 @@ export default function PharmacyHubView() {
       if (active) setIsLoading(false);
     });
     return () => { active = false; };
-  }, [userId]);
+  }, [userId, loadAttempt]);
 
   const { categories, additional } = useMemo(() => {
     const rootFolders = splitPharmacyRootFolders(
@@ -83,24 +89,56 @@ export default function PharmacyHubView() {
   const visibleCategories = useMemo(() => {
     const query = categoryQuery.trim().toLocaleLowerCase();
     if (!query) return categories;
+    const matchesFolder = (id: string, seen: Set<string>): boolean => {
+      if (seen.has(id)) return false;
+      seen.add(id);
+      if ((folderDocuments.get(id) ?? []).some((lesson) =>
+        `${lesson.title} ${lesson.title_en ?? ""}`.toLocaleLowerCase().includes(query))) return true;
+      return (childFolders.get(id) ?? []).some((folder) =>
+        folder.name.toLocaleLowerCase().includes(query) || matchesFolder(folder.id, seen));
+    };
     return categories.filter((category) =>
       category.name.toLocaleLowerCase().includes(query) ||
-      category.subfolders.some((folder) => folder.name.toLocaleLowerCase().includes(query)),
+      matchesFolder(category.id, new Set()),
     );
-  }, [categories, categoryQuery]);
+  }, [categories, categoryQuery, childFolders, folderDocuments]);
 
-  function countLessons(folderId: string, depth = 0): number {
-    if (depth > 12) return 0;
-    const own = folderDocuments.get(folderId)?.length ?? 0;
-    return own + (childFolders.get(folderId) ?? []).reduce((sum, child) => sum + countLessons(child.id, depth + 1), 0);
-  }
+  const lessonCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    const parents = new Map(folders.map((folder) => [folder.id, folder.parent_id]));
+    for (const [folderId, lessons] of folderDocuments) {
+      const seen = new Set<string>();
+      let id: string | null | undefined = folderId;
+      while (id && !seen.has(id)) {
+        seen.add(id);
+        counts.set(id, (counts.get(id) ?? 0) + lessons.length);
+        id = parents.get(id);
+      }
+    }
+    return counts;
+  }, [folders, folderDocuments]);
+
+  const searchResults = useMemo(() => {
+    const query = categoryQuery.trim().toLocaleLowerCase();
+    if (!query) return [];
+    const scope = new Set<string>();
+    const pending = [...categories, ...additional].map((folder) => folder.id);
+    while (pending.length) {
+      const id = pending.pop()!;
+      if (scope.has(id)) continue;
+      scope.add(id);
+      pending.push(...(childFolders.get(id) ?? []).map((folder) => folder.id));
+    }
+    return documents.filter((lesson) => scope.has(lesson.folder_id ?? "") &&
+      `${lesson.title} ${lesson.title_en ?? ""}`.toLocaleLowerCase().includes(query));
+  }, [categoryQuery, categories, additional, childFolders, documents]);
 
   function renderLessons(lessons: KnowledgeDocument[]) {
     if (!lessons.length) return null;
     return <ul className="pharmacy-lesson-list">
       {lessons.map((lesson) => <li key={lesson.id}>
         <Link to={`/app/knowledge?docId=${encodeURIComponent(lesson.id)}`} data-testid={`pharmacy-lesson-${lesson.id}`} className="pharmacy-lesson-link">
-          <BookOpen className="h-4 w-4 shrink-0" aria-hidden="true" /><span>{lesson.title}</span>
+          <BookOpen className="h-4 w-4 shrink-0" aria-hidden="true" /><span dir="auto">{isEn ? lesson.title_en || lesson.title : lesson.title}</span>
         </Link>
       </li>)}
     </ul>;
@@ -109,7 +147,7 @@ export default function PharmacyHubView() {
   function renderFolder(folder: KnowledgeFolder, depth: number) {
     const children = depth < 12 ? childFolders.get(folder.id) ?? [] : [];
     const lessons = folderDocuments.get(folder.id) ?? [];
-    const lessonCount = countLessons(folder.id);
+    const lessonCount = lessonCounts.get(folder.id) ?? 0;
     return <details key={folder.id} data-testid={`pharmacy-subcategory-${folder.id}`} className="pharmacy-folder">
       <summary className="pharmacy-folder-summary">
         <FolderClosed className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -130,7 +168,7 @@ export default function PharmacyHubView() {
 
   function renderCategory(category: KnowledgeFolder & { subfolders: KnowledgeFolder[] }) {
     const directLessons = folderDocuments.get(category.id) ?? [];
-    const total = countLessons(category.id);
+    const total = lessonCounts.get(category.id) ?? 0;
     const isOpen = openCategoryId === category.id;
     return <article key={category.id} data-testid={`pharmacy-category-${category.id}`} className={`pharmacy-category ${isOpen ? "is-open" : ""}`}>
       <div className="pharmacy-category-header">
@@ -152,10 +190,7 @@ export default function PharmacyHubView() {
 
   return (
     <main className="pharmacy-hub" dir={isEn ? "ltr" : "rtl"}>
-      <header className="pharmacy-hub-header">
-        <span className="pharmacy-hub-mark" aria-hidden="true"><Pill className="h-6 w-6" /></span>
-        <div><h1>{T("فارماسی", "Pharmacy")}</h1><p>{T("دانش و تمرین داروسازی، مرتب و در دسترس", "Pharmacy knowledge and practice, clearly organized")}</p></div>
-      </header>
+      <HeaderTitlePortal title={T("فارماسی", "Pharmacy")} />
 
       <PharmacyShortcuts />
 
@@ -168,16 +203,26 @@ export default function PharmacyHubView() {
         {isLoading ? (
           <p className="text-sm text-muted-foreground" role="status">{T("در حال بارگذاری دسته‌بندی‌ها…", "Loading categories…")}</p>
         ) : loadFailed ? (
-          <p className="text-sm text-muted-foreground" role="status">{T("بارگذاری دسته‌بندی‌ها انجام نشد. از دانشنامه دوباره تلاش کن.", "Could not load categories. Open the knowledge base to try again.")}</p>
+          <div role="alert" className="space-y-3">
+            <p className="text-sm text-muted-foreground">{T("دسته‌بندی‌ها بارگذاری نشدند.", "Could not load categories.")}</p>
+            <Button variant="outline" size="sm" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>{T("تلاش دوباره", "Retry")}</Button>
+          </div>
         ) : categories.length === 0 ? (
           <Card className="p-4 text-sm text-muted-foreground">
             {T("برای این حساب هنوز شاخه‌های Pharmacy در دانشنامه پیدا نشد. از صفحهٔ دانشنامه می‌توانی مطالب جاافتاده را اضافه کنی.", "No Pharmacy folders were found for this account. You can add missing content from the knowledge base.")}
           </Card>
         ) : (
           <div>
-            <div className="pharmacy-search"><Search className="h-4 w-4" aria-hidden="true" /><Input value={categoryQuery} onChange={(event) => setCategoryQuery(event.target.value)} placeholder={T("جست‌وجوی دسته یا زیرشاخه…", "Search categories or subfolders…")} aria-label={T("جست‌وجوی دسته‌ها", "Search categories")} />{categoryQuery && <button type="button" onClick={() => setCategoryQuery("")} aria-label={T("پاک کردن جست‌وجو", "Clear search")}><X className="h-4 w-4" /></button>}</div>
+            <div className="pharmacy-search"><Search className="h-4 w-4" aria-hidden="true" /><Input value={categoryQuery} onChange={(event) => setCategoryQuery(event.target.value)} placeholder={T("جست‌وجوی دسته، زیرشاخه یا درس…", "Search categories, folders or lessons…")} aria-label={T("جست‌وجوی دسته‌ها", "Search categories")} />{categoryQuery && <button type="button" onClick={() => setCategoryQuery("")} aria-label={T("پاک کردن جست‌وجو", "Clear search")}><X className="h-4 w-4" /></button>}</div>
+            {categoryQuery.trim() && searchResults.length > 0 && <section aria-label={T("درس‌های پیدا شده", "Matching lessons")} className="pharmacy-search-results">
+              <p role="status">{T(`${searchResults.length} درس پیدا شد`, `${searchResults.length} matching lessons`)}</p>
+              {renderLessons(searchResults)}
+            </section>}
+            {!categoryQuery.trim() && <nav className="pharmacy-category-nav" aria-label={T("انتخاب دسته", "Choose category")}>
+              {categories.map((category) => <button key={category.id} type="button" aria-label={T(`انتخاب ${category.name}`, `Choose ${category.name}`)} aria-pressed={openCategoryId === category.id} onClick={() => setOpenCategoryId(category.id)}>{category.name}</button>)}
+            </nav>}
             <div className="pharmacy-category-list">
-              {visibleCategories.length ? visibleCategories.map(renderCategory) : <p className="pharmacy-no-results">{T("دسته‌ای با این نام پیدا نشد.", "No matching category found.")}</p>}
+              {visibleCategories.length ? visibleCategories.filter((category) => categoryQuery.trim() || !openCategoryId || category.id === openCategoryId).map(renderCategory) : <p className="pharmacy-no-results">{T("دسته‌ای با این نام پیدا نشد.", "No matching category found.")}</p>}
             </div>
             {additional.length > 0 && (
               <details className="pharmacy-additional">

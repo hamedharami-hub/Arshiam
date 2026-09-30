@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BookOpen, CircleAlert, Gamepad2, Layers, Loader2, Search, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -772,7 +773,7 @@ export const InteractiveStudyView: React.FC = () => {
           <div className="flex min-w-0 items-center gap-3">
             <div className="rounded-2xl bg-primary/10 p-3 text-primary"><Gamepad2 className="h-6 w-6" /></div>
             <div className="min-w-0">
-              <h1 className="truncate text-lg font-bold text-foreground sm:text-xl">{labels.title}</h1>
+              <HeaderTitlePortal title={labels.title} />
               <p className="mt-1 max-w-3xl text-xs leading-6 text-muted-foreground sm:text-sm">{labels.description}</p>
             </div>
           </div>

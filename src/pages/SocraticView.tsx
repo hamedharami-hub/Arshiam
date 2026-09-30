@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -308,10 +309,7 @@ export default function SocraticView() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 shrink-0">
         <div>
-          <h1 className="text-2xl font-bold mb-1 flex items-center gap-2">
-            <Brain className="w-6 h-6 text-purple-500" />
-            {T("چت و چالش سقراطی", "Socratic Dialogue")}
-          </h1>
+          <HeaderTitlePortal title={T("چت و چالش سقراطی", "Socratic Dialogue")} />
           <p className="text-muted-foreground text-xs">
             {T(
               "پرسشگری هدایت‌شده: هر بار فقط یک سؤال باز، بدون قضاوت و بدون پیش‌فرض تناقض.",

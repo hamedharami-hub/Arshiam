@@ -19,7 +19,7 @@ export function SectionCard({
   className?: string;
 }) {
   return (
-    <Card className={cn("p-5 space-y-4 bg-card/60 border-border/60", className)}>
+    <Card className={cn("p-3 sm:p-4 space-y-3 bg-card border-border", className)}>
       <div className="flex items-center gap-2">
         {Icon && <Icon className="w-4 h-4 text-primary" />}
         <h2 className="font-semibold">{title}</h2>
@@ -44,7 +44,7 @@ export function SettingRow({
   return (
     <div
       className={cn(
-        "flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3 border-b last:border-0 border-border/40",
+        "flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2.5 border-b last:border-0 border-border/40",
         className,
       )}
     >
@@ -52,7 +52,7 @@ export function SettingRow({
         <Label className="text-sm font-medium">{label}</Label>
         {help && <p className="text-xs text-muted-foreground">{help}</p>}
       </div>
-      <div className="min-w-[140px] shrink-0">{children}</div>
+      <div className="min-w-0 sm:min-w-[140px] shrink-0">{children}</div>
     </div>
   );
 }

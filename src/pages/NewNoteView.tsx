@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
@@ -133,7 +134,7 @@ export default function NewNoteView() {
           {isEn ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
           {T("برگشت", "Back")}
         </Button>
-        <h1 className="text-lg font-bold">{T("نوت جدید", "New Note")}</h1>
+        <HeaderTitlePortal title={T("نوت جدید", "New Note")} />
         <Button onClick={submit} disabled={busy || !title.trim()} size="sm">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : T("ذخیره نوت", "Save Note")}
         </Button>

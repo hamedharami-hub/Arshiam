@@ -55,7 +55,7 @@ export const KnowledgeDriveAttachments: React.FC<KnowledgeDriveAttachmentsProps>
   const accessTokenRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const hasDriveFiles = attachments.length > 0;
+  const hasDriveFiles = attachments.some(item => item.provider === "google_drive");
 
   useEffect(() => {
     setAttachments(document.attachments || []);
@@ -415,7 +415,7 @@ export const KnowledgeDriveAttachments: React.FC<KnowledgeDriveAttachmentsProps>
 
           {hasDriveFiles && (
             <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-              {attachments.map((attachment) => {
+              {attachments.filter(item => item.provider === "google_drive").map((attachment) => {
                 const previewUrl = getGoogleDrivePreviewUrl(attachment.file_id);
                 const viewUrl = getGoogleDriveViewUrl(attachment.file_id);
                 const isVideo = attachment.mime_type.startsWith("video/");

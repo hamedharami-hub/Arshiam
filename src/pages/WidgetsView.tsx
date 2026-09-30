@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { isPathAllowed } from "@/lib/appModules";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -273,9 +274,7 @@ export default function WidgetsView() {
             <LayoutGrid className="h-4 w-4" />
             <span>ARSHNAZ WIDGET STUDIO</span>
           </div>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            {T("استودیوی ویجت‌ها و نمای تعاملی", "Widget Studio & Interactive Preview")}
-          </h1>
+          <HeaderTitlePortal title={T("استودیوی ویجت‌ها و نمای تعاملی", "Widget Studio & Interactive Preview")} />
           <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
             {T("پیش‌نمایش زنده، شخصی‌سازی ظاهر، تنظیمات بومی اندروید و تست در لحظه", "Live preview, appearance customization, native Android settings & instant testing")}
           </p>

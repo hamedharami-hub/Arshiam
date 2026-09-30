@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useMemo, useState } from "react";
 import { AlertTriangle, FlaskConical, Layers, Plus, Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +35,7 @@ export default function PharmacyCypView() {
       <header className="flex items-start gap-3">
         <div className="rounded-2xl bg-primary/10 p-3 text-primary" aria-hidden="true"><FlaskConical className="h-6 w-6" /></div>
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{T("ماتریس CYP و بررسی تداخل", "CYP matrix & interaction checker")}</h1>
+          <HeaderTitlePortal title={T("ماتریس CYP و بررسی تداخل", "CYP matrix & interaction checker")} />
           <p className="text-sm text-muted-foreground">{T("نقش هر دارو روی آنزیم‌های CYP و P-gp را ببین و الگوی تداخل چند دارو را تمرین کن.", "See each medicine's role on CYP enzymes and P-gp, and practise spotting interaction patterns.")}</p>
         </div>
       </header>

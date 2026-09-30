@@ -57,6 +57,7 @@ export const SIDEBAR_QUICK_LINK_OPTIONS: SidebarQuickLink[] = [
   { url: "/app/thoughts", labelFa: "ثبت افکار (CBT)", labelEn: "Thought Records (CBT)", group: "mind" },
   { url: "/app/abc", labelFa: "مدل ABC", labelEn: "ABC Model", group: "mind" },
   { url: "/app/socratic", labelFa: "چت سقراطی", labelEn: "Socratic Chat", group: "mind" },
+  { url: "/app/sleep", labelFa: "خواب و آرامش", labelEn: "Sleep & Relaxation", group: "mind" },
   { url: "/app/breathing", labelFa: "تمرین تنفس ۳بعدی", labelEn: "3D Breathing", group: "mind" },
 
   // 5. Me (خودِ من)

@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sparkles, Save, Trash2, Languages, Download, ShieldOff, Shield, Settings2, Bell, Moon, Palette, Type, ZoomIn, LayoutGrid, Heart, Coffee, Star, Wand2, RotateCw, Sun, Upload, CheckCircle2, AlertCircle, Clock, Zap, Cpu, Eye, EyeOff, RefreshCw, Package, Database, Info, Compass, ArrowUp, ArrowDown, Pin, Sliders, PanelLeft, CalendarDays, FolderTree, Tag, Inbox, Calendar, Filter, Timer, BarChart3, Sprout, Target, FileText, BrainCircuit, Activity, BookOpen, MessageCircleQuestion, Wind, User, Users, Search, GripVertical } from "lucide-react";
@@ -42,6 +43,7 @@ import { isAndroid, nativeExperience, type NativeAppInfo } from "@/lib/nativeExp
 import { SectionCard, SettingRow } from "./settings/SectionCard";
 import { TimeHorizonSettings } from "./settings/TimeHorizonSettings";
 import { TimeBucketsSettings } from "./settings/TimeBucketsSettings";
+import { TaskListSortSettings } from "./settings/TaskListSortSettings";
 import { CompletedTasksSettings } from "./settings/CompletedTasksSettings";
 import { CrisisSupportSettings } from "./settings/CrisisSupportSettings";
 import { SidebarQuickLinksSettings } from "./settings/SidebarQuickLinksSettings";
@@ -680,10 +682,8 @@ export default function SettingsView() {
 
   return (
     <div className="max-w-3xl mx-auto p-4 md:p-8 pb-24 animate-fade-in" dir={isEn ? "ltr" : "rtl"}>
-      <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-          <Sparkles className="w-6 h-6 text-primary" /> {t("settings.title")}
-        </h1>
+      <div className="mb-3">
+        <HeaderTitlePortal title={t("settings.title")} />
         <p className="text-sm text-muted-foreground mt-1">{t("settings.subtitle")}</p>
       </div>
 
@@ -746,7 +746,7 @@ export default function SettingsView() {
         </TabsContent>
 
         <TabsContent value="tasks" className="space-y-5 mt-5">
-          <AssistantAccessSettings />
+          <TaskListSortSettings />
           <CompletedTasksSettings />
           {reminders && (
             <TaskDefaultSettings
@@ -809,6 +809,7 @@ export default function SettingsView() {
         </TabsContent>
 
         <TabsContent value="ai" className="space-y-5 mt-5">
+          <AssistantAccessSettings />
           <AISettingsTab
             settings={settings}
             setSettings={setSettings}

@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, ClipboardCheck, FileSignature, RotateCcw, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -136,7 +137,7 @@ export default function PharmacyScenarioPracticeView() {
       <header className="flex items-start gap-3">
         <div className="rounded-2xl bg-primary/10 p-3 text-primary" aria-hidden="true"><ClipboardCheck className="h-6 w-6" /></div>
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{T("تمرین تعاملی سناریوهای Pharmacy", "Pharmacy scenario practice")}</h1>
+          <HeaderTitlePortal title={T("تمرین تعاملی سناریوهای Pharmacy", "Pharmacy scenario practice")} />
           <p className="text-sm text-muted-foreground">{T("پرونده را مرحله‌به‌مرحله بخوان، پاسخ بیمار را باز کن و بعد تصمیم منبع را ببین.", "Work through a case, reveal the patient's replies, then compare your choice with the source label.")}</p>
         </div>
         <div className="ms-auto min-w-[10rem] space-y-1 text-end" data-testid="scenario-progress-summary">
@@ -155,7 +156,7 @@ export default function PharmacyScenarioPracticeView() {
         </p>
       </Card>
 
-      <section className="grid gap-3 md:grid-cols-[minmax(14rem,1fr)_14rem_minmax(15rem,1.4fr)]" aria-label={T("انتخاب سناریو", "Choose a scenario")}>
+      <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_12rem_minmax(0,1.4fr)]" aria-label={T("انتخاب سناریو", "Choose a scenario")}>
         <div className="relative min-w-0">
           <Search className={`pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground ${isEn ? "left-3" : "right-3"}`} aria-hidden="true" />
           <Input

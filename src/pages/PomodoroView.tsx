@@ -7,7 +7,7 @@ import { useBilingual } from "@/hooks/useBilingual";
 import { toPersianDigits } from "@/lib/persianDigits";
 import { Clock, ListChecks, TrendingUp, Target } from "lucide-react";
 import PomodoroTimer from "@/components/PomodoroTimer";
-import { SleepSoundsCard } from "@/components/SleepSoundsCard";
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { subDays, startOfDay, format, isSameDay } from "date-fns";
 import { getCalendarSystem, jalaliDayOfWeek, WEEKDAY_SHORT_FA, formatDate } from "@/lib/jalali";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -84,6 +84,7 @@ export default function PomodoroView() {
 
   return (
     <div dir={isEn ? "ltr" : "rtl"} className="p-4 md:p-6 max-w-md mx-auto space-y-4 page-enter">
+      <HeaderTitlePortal title={T("پومودورو", "Pomodoro")} />
       <Card className="p-4 sm:p-6 space-y-5">
         <div className="space-y-1.5">
           <label className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -118,7 +119,7 @@ export default function PomodoroView() {
         />
       </Card>
 
-      <SleepSoundsCard isEn={isEn} />
+
 
       <Card className="p-4 space-y-4" data-testid="pomodoro-stats">
         <div className="grid grid-cols-2 gap-3">

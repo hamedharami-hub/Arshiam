@@ -1,3 +1,4 @@
+import { NoteMarkdown } from "@/components/NoteMarkdown";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { hasModule, isPathAllowed, useModules } from "@/lib/appModules";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -80,7 +81,7 @@ import { addTaskToAndroidCalendar } from "@/lib/androidNative";
 import { Switch } from "@/components/ui/switch";
 import { pushUndo } from "@/lib/undoStack";
 import { enqueueOp, cacheGet, cacheSet } from "@/lib/offlineQueue";
-import { persistTask } from "@/lib/firestoreDataService";
+import { subscribeFolders, subscribeTags, persistTask } from "@/lib/firestoreDataService";
 import { deleteTaskCascade } from "@/features/tasks/taskService";
 import { buildTaskChildrenMap, collectTaskDescendantIds } from "@/features/tasks/taskTree";
 import type { Task, TaskNote, ConfirmState } from "@/lib/taskTypes";
@@ -321,31 +322,34 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   }, [task.id, hasTimeBlock, user?.id]);
 
   useEffect(() => {
-    if (!user) return;
-    const loadCached = async () => {
-      const [cf, ct, caRaw] = await Promise.all([
-        cacheGet<any[]>(`folders:${user.id}`),
-        cacheGet<any[]>(`tags:${user.id}`),
-        cacheGet<unknown>(`tasks:all:${user.id}`),
-      ]);
-      if (Array.isArray(cf)) setFolders(cf);
-      if (Array.isArray(ct)) setTags(ct);
-      const ca = extractTasksFromCache(caRaw);
-      if (ca.length > 0) setAllTasks(ca.map(t => ({ id: t.id, title: t.title, parent_id: t.parent_id ?? null })));
+    setFolders([]);
+    setTags([]);
+    setAllTasks([]);
+    if (!user?.id) return;
+    let active = true;
+    // Use the same live taxonomy as the sidebar. Server orderBy excludes older
+    // folders without a position field and must not replace the cache with [].
+    const unsubscribeFolders = subscribeFolders(user.id, (items) => {
+      if (active) setFolders(items);
+    });
+    const unsubscribeTags = subscribeTags(user.id, (items) => {
+      if (active) setTags(items);
+    });
+    void cacheGet<unknown>(`tasks:all:${user.id}`).then((raw) => {
+      const cached = extractTasksFromCache(raw);
+      if (active && cached.length) setAllTasks(cached.map((item) => ({ id: item.id, title: item.title, parent_id: item.parent_id ?? null })));
+    });
+    if (typeof navigator === "undefined" || navigator.onLine) {
+      void firebaseStore.from("tasks").select("id,title,parent_id").order("title").then(({ data, error }) => {
+        if (active && !error && data) setAllTasks(data as unknown as typeof allTasks);
+      });
+    }
+    return () => {
+      active = false;
+      unsubscribeFolders();
+      unsubscribeTags();
     };
-    loadCached();
-
-    if (typeof navigator !== "undefined" && !navigator.onLine) return;
-    firebaseStore.from("folders").select("id,name,parent_id,color").order("position").then(({ data }) => {
-      setFolders((data || []) as any);
-    });
-    firebaseStore.from("tags").select("id,name,color").order("name").then(({ data }) => {
-      setTags((data || []) as any);
-    });
-    firebaseStore.from("tasks").select("id,title,parent_id").order("title").then(({ data }) => {
-      setAllTasks((data || []) as unknown as typeof allTasks);
-    });
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!t.parent_id) { setParentTitle(""); return; }
@@ -1440,9 +1444,9 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                   </div>
                 </div>
                 {n.content && (
-                  <p className="mt-1 text-[11px] sm:text-xs text-muted-foreground line-clamp-2 leading-relaxed text-start" dir="auto">
-                    <BidiText text={n.content} />
-                  </p>
+                  <div className="mt-1 text-[11px] sm:text-xs text-muted-foreground line-clamp-2 leading-relaxed text-start" dir="auto">
+                    <NoteMarkdown>{n.content}</NoteMarkdown>
+                  </div>
                 )}
                 {n.updated_at && (
                   <div className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground/70">

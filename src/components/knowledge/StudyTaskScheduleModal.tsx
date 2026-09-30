@@ -226,7 +226,7 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         dir={isEn ? "ltr" : "rtl"}
-        className="max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-3xl bg-card border border-border shadow-2xl font-sans"
+        className="max-w-lg max-h-[90dvh] overflow-y-auto p-4 sm:p-6 rounded-lg bg-card border border-border shadow-lg font-sans"
       >
         <DialogHeader className="space-y-1.5 text-start">
           <div className="flex items-center gap-2.5">

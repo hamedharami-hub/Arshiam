@@ -1,7 +1,9 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useMemo, useState } from "react";
 import { BookOpen, PackageSearch, Search, SlidersHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useSearchParams } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -40,11 +42,24 @@ export default function PharmacyProductsView() {
     [categoryId, query, schedule, subcategoryId],
   );
 
+  const pageSize = 24;
+  const pageCount = Math.max(1, Math.ceil(products.length / pageSize));
+  const requestedPage = Number(searchParams.get("page") ?? 1);
+  const page = Number.isSafeInteger(requestedPage) ? Math.min(pageCount, Math.max(1, requestedPage)) : 1;
+  const visibleProducts = products.slice((page - 1) * pageSize, page * pageSize);
+  const changePage = (nextPage: number) => setSearchParams((previous) => {
+    const next = new URLSearchParams(previous);
+    if (nextPage > 1) next.set("page", String(nextPage));
+    else next.delete("page");
+    return next;
+  });
+
   const updateFilter = (key: string, value: string, clearSubcategory = false) => {
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous);
       if (value && value !== "all") next.set(key, value);
       else next.delete(key);
+      next.delete("page");
       if (clearSubcategory) next.delete("subcategory");
       return next;
     }, { replace: true });
@@ -53,7 +68,7 @@ export default function PharmacyProductsView() {
   const resetFilters = () => {
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous);
-      for (const key of ["q", "schedule", "category", "subcategory"]) next.delete(key);
+      for (const key of ["q", "schedule", "category", "subcategory", "page"]) next.delete(key);
       return next;
     }, { replace: true });
   };
@@ -72,7 +87,7 @@ export default function PharmacyProductsView() {
             <PackageSearch className="h-6 w-6" />
           </div>
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{T("فهرست محصولات دارویی", "Pharmacy product catalogue")}</h1>
+            <HeaderTitlePortal title={T("فهرست محصولات دارویی", "Pharmacy product catalogue")} />
             <p className="text-sm text-muted-foreground">
               {T("نمایهٔ جست‌وجوپذیر محصولات منبع Pharmacy؛ برای دسترسی سریع به مدخل‌ها.", "A searchable index of Pharmacy source products for quick reference.")}
             </p>
@@ -148,7 +163,7 @@ export default function PharmacyProductsView() {
 
       {products.length > 0 ? (
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-label={T("محصولات", "Products")}>
-          {products.map((product) => (
+          {visibleProducts.map((product) => (
             <Card key={product.id} className="h-full p-0 transition-colors hover:border-primary/50 hover:bg-accent/30 focus-within:border-primary">
               <button
                 type="button"
@@ -179,6 +194,12 @@ export default function PharmacyProductsView() {
           <p className="mt-1 text-sm text-muted-foreground">{T("عبارت یا فیلترها را تغییر بده.", "Try a different search or reset the filters.")}</p>
         </Card>
       )}
+
+      {products.length > pageSize && <nav className="flex flex-wrap items-center justify-center gap-3" aria-label={T("صفحه‌های محصولات", "Product pages")}>
+        <Button variant="outline" size="sm" disabled={page === 1} onClick={() => changePage(page - 1)}>{T("قبلی", "Previous")}</Button>
+        <span role="status" className="text-sm text-muted-foreground">{T(`صفحهٔ ${page} از ${pageCount}`, `Page ${page} of ${pageCount}`)}</span>
+        <Button variant="outline" size="sm" disabled={page === pageCount} onClick={() => changePage(page + 1)}>{T("بعدی", "Next")}</Button>
+      </nav>}
 
       <Dialog open={Boolean(selectedProduct)} onOpenChange={(open) => { if (!open) setSelectedProduct(null); }}>
         <DialogContent className="max-h-[88dvh] overflow-y-auto sm:max-w-xl">

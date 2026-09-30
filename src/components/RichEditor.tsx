@@ -1,3 +1,4 @@
+import { useBilingual } from "@/hooks/useBilingual";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
@@ -60,6 +61,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   readOnly = false,
   showVoiceButton = true,
 }, ref) {
+  const { T } = useBilingual();
   const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingKind, setPendingKind] = useState<"image" | "audio" | "video" | "file">("file");
@@ -70,6 +72,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
 
   const editor = useEditor({
     editable: !readOnly,
+    shouldRerenderOnTransaction: true,
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] }, link: { openOnClick: false, autolink: true } }),
       Highlight.configure({ multicolor: false }),
@@ -129,13 +132,14 @@ export const RichEditor = forwardRef<RichEditorHandle, {
         /* editor view not ready yet — content already supplied via `content` option */
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, initialHtml, initialMarkdown]);
+
+  useEffect(() => { editor?.setEditable(!readOnly); }, [editor, readOnly]);
 
   // Detect when toolbar scrolls out of view → show floating "show toolbar" FAB
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel) return;
+    if (!sentinel || typeof IntersectionObserver === "undefined") return;
     const obs = new IntersectionObserver(
       ([entry]) => setToolbarOnScreen(entry.isIntersecting),
       { rootMargin: "-1px 0px 0px 0px", threshold: 0 }
@@ -229,165 +233,50 @@ export const RichEditor = forwardRef<RichEditorHandle, {
 
       <div ref={sentinelRef} aria-hidden className="h-px" />
 
-      {/* Toolbar */}
-      <div ref={toolbarRef} data-testid="rich-editor-toolbar" className="flex flex-nowrap md:flex-wrap items-center gap-0.5 border-b py-1 px-1.5 sticky top-0 bg-background/95 backdrop-blur z-10 overflow-x-auto md:overflow-visible overscroll-contain">
-        <Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" onClick={() => editor.chain().focus().undo().run()} title="Undo">
-          <Undo2 className="w-4 h-4" />
-        </Button>
-        <Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" onClick={() => editor.chain().focus().redo().run()} title="Redo">
-          <Redo2 className="w-4 h-4" />
-        </Button>
-        <Separator orientation="vertical" className="h-6 mx-1 shrink-0" />
-
-        {/* Headings — desktop only, inside "More" on mobile */}
-        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive("heading", { level: 1 })}
-          onPressedChange={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
-          <Heading1 className="w-4 h-4" />
-        </Toggle>
-        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive("heading", { level: 2 })}
-          onPressedChange={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
-          <Heading2 className="w-4 h-4" />
-        </Toggle>
-        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive("heading", { level: 3 })}
-          onPressedChange={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
-          <Heading3 className="w-4 h-4" />
-        </Toggle>
-
-        <Separator orientation="vertical" className="hidden md:block h-6 mx-1" />
-
-        {/* Primary inline formatting — always visible */}
-        <Toggle size="sm" className="shrink-0" pressed={editor.isActive("bold")} onPressedChange={() => editor.chain().focus().toggleBold().run()}>
-          <Bold className="w-4 h-4" />
-        </Toggle>
-        <Toggle size="sm" className="shrink-0" pressed={editor.isActive("italic")} onPressedChange={() => editor.chain().focus().toggleItalic().run()}>
-          <Italic className="w-4 h-4" />
-        </Toggle>
-        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive("underline")} onPressedChange={() => editor.chain().focus().toggleUnderline().run()}>
-          <UnderlineIcon className="w-4 h-4" />
-        </Toggle>
-        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive("strike")} onPressedChange={() => editor.chain().focus().toggleStrike().run()}>
-          <Strikethrough className="w-4 h-4" />
-        </Toggle>
-        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive("highlight")} onPressedChange={() => editor.chain().focus().toggleHighlight().run()}>
-          <Highlighter className="w-4 h-4" />
-        </Toggle>
-
-        <Separator orientation="vertical" className="h-6 mx-1 shrink-0" />
-
-        {/* Lists — bullet + task always visible */}
-        <Toggle size="sm" className="shrink-0" pressed={editor.isActive("bulletList")} onPressedChange={() => editor.chain().focus().toggleBulletList().run()}>
-          <List className="w-4 h-4" />
-        </Toggle>
-        <Toggle size="sm" className="shrink-0" pressed={editor.isActive("taskList")} onPressedChange={() => editor.chain().focus().toggleTaskList().run()}>
-          <ListChecks className="w-4 h-4" />
-        </Toggle>
-        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive("orderedList")} onPressedChange={() => editor.chain().focus().toggleOrderedList().run()}>
-          <ListOrdered className="w-4 h-4" />
-        </Toggle>
-        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive("blockquote")} onPressedChange={() => editor.chain().focus().toggleBlockquote().run()}>
-          <Quote className="w-4 h-4" />
-        </Toggle>
-        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive("codeBlock")} onPressedChange={() => editor.chain().focus().toggleCodeBlock().run()}>
-          <Code className="w-4 h-4" />
-        </Toggle>
-
-        <Separator orientation="vertical" className="hidden md:block h-6 mx-1" />
-
-        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive({ textAlign: "left" })} onPressedChange={() => editor.chain().focus().setTextAlign("left").run()}>
-          <AlignLeft className="w-4 h-4" />
-        </Toggle>
-        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive({ textAlign: "center" })} onPressedChange={() => editor.chain().focus().setTextAlign("center").run()}>
-          <AlignCenter className="w-4 h-4" />
-        </Toggle>
-        <Toggle size="sm" className="hidden md:inline-flex" pressed={editor.isActive({ textAlign: "right" })} onPressedChange={() => editor.chain().focus().setTextAlign("right").run()}>
-          <AlignRight className="w-4 h-4" />
-        </Toggle>
-
-        <Separator orientation="vertical" className="h-6 mx-1 shrink-0" />
-
-        {/* Attach: image always visible; audio/video/file/link/hr on desktop or inside "More" */}
-        <Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" onClick={() => onPickFile("image")} title="تصویر">
-          <ImgIcon className="w-4 h-4" />
-        </Button>
-        <Button size="sm" variant="ghost" className="hidden md:inline-flex h-8 px-2" onClick={() => onPickFile("audio")} title="صدا">
-          <Music className="w-4 h-4" />
-        </Button>
-        <Button size="sm" variant="ghost" className="hidden md:inline-flex h-8 px-2" onClick={() => onPickFile("video")} title="ویدیو">
-          <Video className="w-4 h-4" />
-        </Button>
-        <Button size="sm" variant="ghost" className="hidden md:inline-flex h-8 px-2" onClick={() => onPickFile("file")} title="فایل">
-          <Paperclip className="w-4 h-4" />
-        </Button>
-        <Button size="sm" variant="ghost" className="hidden md:inline-flex h-8 px-2" onClick={addLink} title="لینک">
-          <LinkIcon className="w-4 h-4" />
-        </Button>
-        <Button size="sm" variant="ghost" className="hidden md:inline-flex h-8 px-2" onClick={() => editor.chain().focus().setHorizontalRule().run()} title="خط افقی">
-          <Minus className="w-4 h-4" />
-        </Button>
-        <Separator orientation="vertical" className="h-6 mx-1 shrink-0" />
-        {showVoiceButton && <VoiceInputButton
-          continuous
-          onTranscript={(text) => editor?.chain().focus().insertContent(text + " ").run()}
-          disabled={!editor || readOnly}
-          size="sm"
-          className="h-8 px-2 shrink-0"
-          title={"ضبط صوتی"}
-        />}
-
-        {/* Mobile-only "More" menu holding the less-used tools */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="ghost" className="md:hidden h-8 px-2 shrink-0" title="ابزارهای بیشتر" data-testid="editor-more-tools">
-              <Wrench className="w-4 h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="max-h-[60vh] overflow-y-auto w-52">
-            <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}><Heading1 className="w-4 h-4 me-2" /> عنوان ۱</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 className="w-4 h-4 me-2" /> عنوان ۲</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}><Heading3 className="w-4 h-4 me-2" /> عنوان ۳</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => editor.chain().focus().toggleUnderline().run()}><UnderlineIcon className="w-4 h-4 me-2" /> زیرخط</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => editor.chain().focus().toggleStrike().run()}><Strikethrough className="w-4 h-4 me-2" /> خط‌خورده</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => editor.chain().focus().toggleHighlight().run()}><Highlighter className="w-4 h-4 me-2" /> هایلایت</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => editor.chain().focus().toggleOrderedList().run()}><ListOrdered className="w-4 h-4 me-2" /> لیست شماره‌دار</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => editor.chain().focus().toggleBlockquote().run()}><Quote className="w-4 h-4 me-2" /> نقل‌قول</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => editor.chain().focus().toggleCodeBlock().run()}><Code className="w-4 h-4 me-2" /> بلوک کد</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => editor.chain().focus().setTextAlign("right").run()}><AlignRight className="w-4 h-4 me-2" /> راست‌چین</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => editor.chain().focus().setTextAlign("center").run()}><AlignCenter className="w-4 h-4 me-2" /> وسط‌چین</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => editor.chain().focus().setTextAlign("left").run()}><AlignLeft className="w-4 h-4 me-2" /> چپ‌چین</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onPickFile("audio")}><Music className="w-4 h-4 me-2" /> صدا</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onPickFile("video")}><Video className="w-4 h-4 me-2" /> ویدیو</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onPickFile("file")}><Paperclip className="w-4 h-4 me-2" /> فایل</DropdownMenuItem>
-            <DropdownMenuItem onClick={addLink}><LinkIcon className="w-4 h-4 me-2" /> لینک</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => editor.chain().focus().setHorizontalRule().run()}><Minus className="w-4 h-4 me-2" /> خط افقی</DropdownMenuItem>
+      {!readOnly && <div ref={toolbarRef} data-testid="rich-editor-toolbar" role="toolbar" aria-label={T("قالب‌بندی متن", "Text formatting")} className="flex items-center gap-0.5 border-b p-1 sticky top-0 bg-background z-10 overflow-x-auto">
+        <Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" aria-label="Undo" onClick={() => editor.chain().focus().undo().run()}><Undo2 className="w-4 h-4" /></Button>
+        <Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" aria-label="Redo" onClick={() => editor.chain().focus().redo().run()}><Redo2 className="w-4 h-4" /></Button>
+        {([ ["bold", Bold], ["italic", Italic], ["underline", UnderlineIcon] ] as const).map(([mark, Icon]) => <Toggle key={mark} size="sm" className="shrink-0 h-8 w-8 px-0" data-mark={mark} aria-label={mark === "bold" ? T("پررنگ", "Bold") : mark === "italic" ? T("مورب", "Italic") : mark === "underline" ? T("زیرخط", "Underline") : T("هایلایت", "Highlight")} pressed={editor.isActive(mark)} onPressedChange={() => editor.chain().focus().toggleMark(mark).run()}><Icon className="w-4 h-4" /></Toggle>)}
+        <DropdownMenu><DropdownMenuTrigger asChild><Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" aria-label={T("قالب‌بندی بیشتر", "More formatting")} data-testid="editor-more-tools"><Wrench className="w-4 h-4" /></Button></DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="max-h-[60dvh] overflow-y-auto">
+            {[1, 2, 3].map(level => <DropdownMenuItem key={level} onClick={() => editor.chain().focus().toggleHeading({ level: level as 1 | 2 | 3 }).run()}>{T("عنوان", "Heading")} {level}</DropdownMenuItem>)}
+            <DropdownMenuItem onClick={() => editor.chain().focus().setParagraph().run()}>{T("متن معمولی", "Paragraph")}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleStrike().run()}>{T("خط‌خورده", "Strikethrough")}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleHighlight().run()}>{T("هایلایت", "Highlight")}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleBulletList().run()}>{T("فهرست", "Bullet list")}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleOrderedList().run()}>{T("فهرست شماره‌دار", "Numbered list")}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleTaskList().run()}>{T("چک‌لیست", "Checklist")}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleBlockquote().run()}>{T("نقل‌قول", "Quote")}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleCodeBlock().run()}>{T("بلوک کد", "Code block")}</DropdownMenuItem>
+            {(["right", "center", "left"] as const).map(align => <DropdownMenuItem key={align} onClick={() => editor.chain().focus().setTextAlign(align).run()}>{align === "right" ? T("راست‌چین", "Align right") : align === "left" ? T("چپ‌چین", "Align left") : T("وسط‌چین", "Align center")}</DropdownMenuItem>)}
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
-
-      {/* Bubble menu for AI */}
-      <BubbleMenu editor={editor} updateDelay={100}>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" className="gap-1 shadow-elegant" disabled={aiBusy}>
-              {aiBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-              AI
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="max-h-80 overflow-y-auto">
-            {AI_ACTIONS.map((a) => (
-              <DropdownMenuItem key={a.key} onClick={() => runAI(a.key)}>
-                {a.label}
-              </DropdownMenuItem>
-            ))}
+        <DropdownMenu><DropdownMenuTrigger asChild><Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" aria-label={T("درج پیوست", "Insert attachment")}><Paperclip className="w-4 h-4" /></Button></DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {(["image", "audio", "video", "file"] as const).map(kind => <DropdownMenuItem key={kind} onClick={() => onPickFile(kind)}>{kind === "image" ? T("تصویر", "Image") : kind === "audio" ? T("صدا", "Audio") : kind === "video" ? T("ویدیو", "Video") : T("فایل", "File")}</DropdownMenuItem>)}
+            <DropdownMenuItem onClick={addLink}>{T("لینک", "Link")}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().setHorizontalRule().run()}>{T("خط افقی", "Divider")}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </BubbleMenu>
+        {showVoiceButton && <VoiceInputButton continuous onTranscript={text => editor.chain().focus().insertContent(text + " ").run()} size="sm" className="h-8 px-2 shrink-0" />}
+      </div>}
+
+      {!readOnly && <BubbleMenu editor={editor} updateDelay={100}>
+        <div role="toolbar" aria-label={T("قالب‌بندی انتخاب", "Selection formatting")} className="flex items-center gap-0.5 rounded-md border bg-popover p-1 shadow-md" onMouseDown={event => event.preventDefault()}>
+          {([ ["bold", Bold], ["italic", Italic], ["underline", UnderlineIcon], ["highlight", Highlighter] ] as const).map(([mark, Icon]) => <Toggle key={mark} size="sm" className="h-8 w-8 px-0" data-mark={mark} aria-label={mark === "bold" ? T("پررنگ", "Bold") : mark === "italic" ? T("مورب", "Italic") : mark === "underline" ? T("زیرخط", "Underline") : T("هایلایت", "Highlight")} pressed={editor.isActive(mark)} onPressedChange={() => editor.chain().focus().toggleMark(mark).run()}><Icon className="w-4 h-4" /></Toggle>)}
+          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" aria-label={T("لینک", "Link")} onClick={addLink}><LinkIcon className="w-4 h-4" /></Button>
+          <DropdownMenu><DropdownMenuTrigger asChild><Button size="sm" variant="ghost" className="h-8 px-2" disabled={aiBusy} aria-label="AI">{aiBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}</Button></DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="max-h-80 overflow-y-auto">{AI_ACTIONS.map(action => <DropdownMenuItem key={action.key} onClick={() => runAI(action.key)}>{action.label}</DropdownMenuItem>)}</DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </BubbleMenu>}
 
       <div className="px-1 py-2">
         <EditorContent editor={editor} />
       </div>
 
       {/* Floating "show toolbar" FAB when toolbar is scrolled out */}
-      {!toolbarOnScreen && (
+      {!readOnly && !toolbarOnScreen && (
         <button
           type="button"
           onClick={scrollToToolbar}

@@ -29,14 +29,14 @@ export function SleepSoundsCard({ isEn }: { isEn: boolean }) {
 
   useEffect(() => { try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch { /* ignore */ } }, [prefs]);
 
-  const play = (sound = prefs.sound, minutes = prefs.minutes) => {
-    startSynth(sound, prefs.vol);
+  const configureTimer = (minutes: number, vol: number) => {
     if (minutes > 0) {
       const total = minutes * 60;
-      scheduleSleepFade(total, Math.min(600, total / 3), prefs.vol);
+      scheduleSleepFade(total, Math.min(600, total / 3), vol);
       setEndAt(Date.now() + total * 1000);
     } else { cancelSleepFade(); setEndAt(Infinity); }
   };
+  const play = (sound = prefs.sound, minutes = prefs.minutes, vol = prefs.vol) => { startSynth(sound, vol); configureTimer(minutes, vol); };
   const stop = () => { cancelSleepFade(); stopSynth(); setEndAt(null); };
 
   useEffect(() => {
@@ -51,12 +51,13 @@ export function SleepSoundsCard({ isEn }: { isEn: boolean }) {
     return () => clearInterval(id);
   }, [endAt]);
 
-  useEffect(() => () => cancelSleepFade(), []);
+  useEffect(() => () => { cancelSleepFade(); stopSynth(); }, []);
 
   const pick = (patch: Partial<typeof prefs>) => {
     const next = { ...prefs, ...patch };
     setPrefs(next);
-    if (playing && (patch.sound || patch.minutes !== undefined)) play(next.sound, next.minutes);
+    if (playing && patch.sound && patch.sound !== prefs.sound) play(next.sound, next.minutes, next.vol);
+    else if (playing && patch.minutes !== undefined) configureTimer(next.minutes, next.vol);
   };
   const setVol = (v: number) => {
     setPrefs((p: typeof prefs) => ({ ...p, vol: v }));
