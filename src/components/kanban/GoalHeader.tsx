@@ -13,6 +13,7 @@ import { PriorityFlag } from "@/components/PriorityFlag";
 import { TIME_HORIZONS, type GoalKanban } from "@/lib/kanbanGoals";
 
 interface GoalHeaderProps {
+  showTitle?: boolean;
   goal: GoalKanban | null | undefined;
   canDelete: boolean;
   onRename: (title: string) => void;
@@ -23,7 +24,7 @@ interface GoalHeaderProps {
 }
 
 // One row: icon + click-to-edit title, horizon chip, priority flag, trailing tools and ⋯ menu.
-export function GoalHeader({ goal, canDelete, onRename, onEditSettings, onAddGoal, onDelete, children }: GoalHeaderProps) {
+export function GoalHeader({ showTitle = true, goal, canDelete, onRename, onEditSettings, onAddGoal, onDelete, children }: GoalHeaderProps) {
   const { t, i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
   const [editing, setEditing] = useState(false);
@@ -45,8 +46,8 @@ export function GoalHeader({ goal, canDelete, onRename, onEditSettings, onAddGoa
 
   return (
     <div className="flex min-h-10 items-center gap-2" data-testid="goal-header">
-      <span className="text-lg leading-none" aria-hidden>{goal?.icon || "🎯"}</span>
-      {editing ? (
+      {showTitle && <span className="text-lg leading-none" aria-hidden>{goal?.icon || "🎯"}</span>}
+      {showTitle && (editing ? (
         <input
           ref={inputRef}
           value={draft}
@@ -74,7 +75,7 @@ export function GoalHeader({ goal, canDelete, onRename, onEditSettings, onAddGoa
         >
           {title}
         </button>
-      )}
+      ))}
       {horizon && horizon.id !== "none" && (
         <span className="shrink-0 rounded-md border border-border px-1.5 py-0.5 text-[11px] text-muted-foreground" data-testid="goal-header-horizon">
           {isEn ? horizon.labelEn : horizon.labelFa}

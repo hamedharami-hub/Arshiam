@@ -1,8 +1,10 @@
+import { useTaskListSort } from "@/lib/taskListSort";
+import { filterAndSortTasks, DEFAULT_FILTERS } from "@/lib/smartListService";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { endOfDay, startOfDay } from "date-fns";
 import {
-  Star, ChevronDown, ChevronRight, CheckSquare, Columns2,
+  ChevronDown, ChevronRight, CheckSquare, Columns2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasksData } from "@/hooks/useTasksData";
@@ -100,7 +102,8 @@ export default function TodayDashboardView() {
     };
   }, []);
 
-  const isSplitActive = splitView && isWideOrFoldable;
+  const [availableWidth, setAvailableWidth] = useState<number | null>(null);
+  const isSplitActive = splitView && isWideOrFoldable && (availableWidth === null || availableWidth >= 640);
 
   const {
     splitRatio,
@@ -115,6 +118,16 @@ export default function TodayDashboardView() {
     minRatio: 28,
     maxRatio: 72,
   });
+
+  useEffect(() => {
+    const container = splitContainerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return;
+    const measure = () => setAvailableWidth(container.getBoundingClientRect().width);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [splitContainerRef]);
 
   const toggleSplitView = () => {
     setSplitView((prev) => {
@@ -199,32 +212,18 @@ export default function TodayDashboardView() {
     [todayTasks],
   );
 
-  // Active today tasks: sorted by pinned, then priority, then due date
-  const activeTodayTasks = useMemo(() => {
-    return todayPersonalTasks
-      .filter((t) => !t.completed)
-      .sort((a, b) => {
-        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-        const priorityDiff = (PRIORITY_META[a.priority]?.rank ?? 3) - (PRIORITY_META[b.priority]?.rank ?? 3);
-        if (priorityDiff !== 0) return priorityDiff;
-        const aDue = taskDueTimestamp(a.due_date);
-        const bDue = taskDueTimestamp(b.due_date);
-        if (aDue !== bDue) return aDue - bDue;
-        return a.id.localeCompare(b.id);
-      });
-  }, [todayPersonalTasks]);
+  const todaySort = useTaskListSort("today:_");
 
-  const activeTodayStudyTasks = useMemo(() => todayStudyTasks
-    .filter((task) => !task.completed)
-    .sort((a, b) => {
-      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-      const priorityDiff = (PRIORITY_META[a.priority]?.rank ?? 3) - (PRIORITY_META[b.priority]?.rank ?? 3);
-      if (priorityDiff !== 0) return priorityDiff;
-      const aDue = taskDueTimestamp(a.due_date);
-      const bDue = taskDueTimestamp(b.due_date);
-      if (aDue !== bDue) return aDue - bDue;
-      return a.id.localeCompare(b.id);
-    }), [todayStudyTasks]);
+  // Pinned tasks lead; the two display rules are configured in Settings.
+  const activeTodayTasks = useMemo(() => filterAndSortTasks(
+    todayPersonalTasks.filter((task) => !task.completed),
+    { ...DEFAULT_FILTERS, ...todaySort, show_completed: true }, {}, [],
+  ), [todayPersonalTasks, todaySort]);
+
+  const activeTodayStudyTasks = useMemo(() => filterAndSortTasks(
+    todayStudyTasks.filter((task) => !task.completed),
+    { ...DEFAULT_FILTERS, ...todaySort, show_completed: true }, {}, [],
+  ), [todayStudyTasks, todaySort]);
   const completedTodayStudyTasks = useMemo(() => todayStudyTasks
     .filter((task) => task.completed)
     .sort((a, b) => {
@@ -233,20 +232,6 @@ export default function TodayDashboardView() {
       if (aTime !== bTime) return bTime - aTime;
       return a.id.localeCompare(b.id);
     }), [todayStudyTasks]);
-
-  // Top priorities: up to three urgent or high priority tasks from today
-  const priorityTasks = useMemo(() => {
-    return activeTodayTasks
-      .filter((t) => t.priority === "urgent" || t.priority === "high")
-      .slice(0, 3);
-  }, [activeTodayTasks]);
-
-  const priorityIds = useMemo(() => new Set(priorityTasks.map((t) => t.id)), [priorityTasks]);
-
-  // Remaining active today tasks (excluding top priorities)
-  const activeRemaining = useMemo(() => {
-    return activeTodayTasks.filter((t) => !priorityIds.has(t.id));
-  }, [activeTodayTasks, priorityIds]);
 
   // Completed today tasks
   const completedTodayTasks = useMemo(() => {
@@ -267,30 +252,15 @@ export default function TodayDashboardView() {
     return !isNaN(due) && due < startOfToday;
   }, [startOfToday]);
 
-  const overdueTasks = useMemo(() => {
-    return allTasks
-      .filter((t) => isStandaloneTaskForScope(t, isDueOverdue, taskMap) && !getStudyTaskNavigation(t).isStudyTask)
-      .sort((a, b) => {
-        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-        const aDue = taskDueTimestamp(a.due_date);
-        const bDue = taskDueTimestamp(b.due_date);
-        if (aDue !== bDue) return aDue - bDue;
-        const priorityDiff = (PRIORITY_META[a.priority]?.rank ?? 3) - (PRIORITY_META[b.priority]?.rank ?? 3);
-        if (priorityDiff !== 0) return priorityDiff;
-        return a.id.localeCompare(b.id);
-      });
-  }, [allTasks, isDueOverdue, taskMap]);
+  const overdueTasks = useMemo(() => filterAndSortTasks(
+    allTasks.filter((task) => isStandaloneTaskForScope(task, isDueOverdue, taskMap) && !getStudyTaskNavigation(task).isStudyTask),
+    { ...DEFAULT_FILTERS, ...todaySort, show_completed: true }, {}, [],
+  ), [allTasks, isDueOverdue, taskMap, todaySort]);
 
-  const overdueStudyTasks = useMemo(() => allTasks
-    .filter((task) => isStandaloneTaskForScope(task, isDueOverdue, taskMap) && getStudyTaskNavigation(task).isStudyTask)
-    .sort((a, b) => {
-      const aDue = taskDueTimestamp(a.due_date);
-      const bDue = taskDueTimestamp(b.due_date);
-      if (aDue !== bDue) return aDue - bDue;
-      const priorityDiff = (PRIORITY_META[a.priority]?.rank ?? 3) - (PRIORITY_META[b.priority]?.rank ?? 3);
-      if (priorityDiff !== 0) return priorityDiff;
-      return a.id.localeCompare(b.id);
-    }), [allTasks, isDueOverdue, taskMap]);
+  const overdueStudyTasks = useMemo(() => filterAndSortTasks(
+    allTasks.filter((task) => isStandaloneTaskForScope(task, isDueOverdue, taskMap) && getStudyTaskNavigation(task).isStudyTask),
+    { ...DEFAULT_FILTERS, ...todaySort, show_completed: true }, {}, [],
+  ), [allTasks, isDueOverdue, taskMap, todaySort]);
 
   const totalCount = todayTasks.length;
   const completedCount = completedTodayTasks.length + completedTodayStudyTasks.length;
@@ -473,15 +443,14 @@ export default function TodayDashboardView() {
 
   const sortableItems = useMemo(() => {
     return [
-      ...priorityTasks.map((t) => t.id),
-      ...activeRemaining.map((t) => t.id),
+      ...activeTodayTasks.map((t) => t.id),
       ...activeTodayStudyTasks.map((t) => t.id),
       ...(showCompleted ? completedTodayTasks.map((t) => t.id) : []),
       ...(showCompleted ? completedTodayStudyTasks.map((t) => t.id) : []),
       ...overdueTasks.map((t) => t.id),
       ...overdueStudyTasks.map((t) => t.id),
     ];
-  }, [priorityTasks, activeRemaining, activeTodayStudyTasks, completedTodayTasks, completedTodayStudyTasks, overdueTasks, overdueStudyTasks, showCompleted]);
+  }, [activeTodayTasks, activeTodayStudyTasks, completedTodayTasks, completedTodayStudyTasks, overdueTasks, overdueStudyTasks, showCompleted]);
 
   const todayJalali = formatDate(new Date(), "EEEE، d MMMM yyyy", "jalali");
   const todayGregorian = formatDate(new Date(), "EEEE, MMMM d, yyyy", "gregorian");
@@ -574,16 +543,15 @@ export default function TodayDashboardView() {
         } ${isSplitResizing ? "select-none cursor-col-resize" : ""}`}
       >
         {/* پنل سمت چپ جزئیات تسک در نمایش دسکتاپ/ویندوز/تاشو با اسکرول مستقل */}
-        {isSplitActive && (
+        {isSplitActive && selectedTask && (
           <aside
             dir={isEn ? "ltr" : "rtl"}
-            style={{ width: `${splitRatio}%` }}
+            style={{ width: `clamp(280px, ${splitRatio}%, calc(100% - 320px))` }}
             className={`shrink-0 min-w-[280px] max-w-[75%] h-full overflow-hidden ${
               isSplitResizing ? "transition-none" : "transition-[width] duration-150 ease-out"
             }`}
           >
-            {selectedTask ? (
-              <TaskDetail
+            <TaskDetail
                 key={selectedTask.id}
                 task={selectedTask}
                 mode="embedded"
@@ -598,22 +566,11 @@ export default function TodayDashboardView() {
                 onBack={selectedTaskHistory.length > 0 ? handleBackInDrawer : undefined}
                 hasBackHistory={selectedTaskHistory.length > 0}
               />
-            ) : (
-              <div className="h-full rounded-lg border border-dashed border-border flex flex-col items-center justify-center p-6 text-center text-muted-foreground">
-                <div className="w-10 h-10 text-muted-foreground flex items-center justify-center mb-2">
-                  <CheckSquare className="w-6 h-6" />
-                </div>
-                <p className="text-sm font-semibold text-foreground">{T("یک تسک را انتخاب کنید", "Select a task")}</p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-[260px] leading-5">
-                  {T("جزئیات و ویرایش در پنل سمت چپ باز می‌شود؛ فهرست کارها در سمت راست باقی می‌ماند.", "Details open in the left panel while the task list remains on the right.")}
-                </p>
-              </div>
-            )}
           </aside>
         )}
 
         {/* دستگیره درگ تغییر عرض ستون‌ها در حالت دوپنله */}
-        {isSplitActive && (
+        {isSplitActive && selectedTask && (
           <div
             role="separator"
             aria-orientation="vertical"
@@ -659,26 +616,9 @@ export default function TodayDashboardView() {
           >
             <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
               <div className="space-y-2">
-                {/* اولویت‌های برتر (تا ۳ تسک فوری یا بالا) با تمایز ملایم */}
-                {priorityTasks.length > 0 && (
-                  <div data-testid="top-priorities" className="space-y-1 pb-2 border-b border-border">
-                    <div className="flex items-center px-1 pt-0.5 pb-0.5" title={T("اولویت‌های برتر", "Top Priorities")}>
-                      <Star
-                        className="w-4 h-4 text-muted-foreground shrink-0"
-                        aria-label={T("اولویت‌های برتر", "Top Priorities")}
-                      />
-                      <span className="sr-only">{T("اولویت‌های برتر", "Top Priorities")}</span>
-                    </div>
-                    <div className="space-y-1">
-                      {priorityTasks.map((t) => renderTaskItem(t))}
-                    </div>
-                  </div>
-                )}
-
-                {/* سایر کارهای فعال امروز */}
-                {activeRemaining.length > 0 && (
-                  <div className="space-y-1">
-                    {activeRemaining.map((t) => renderTaskItem(t))}
+                {activeTodayTasks.length > 0 && (
+                  <div className="space-y-1" data-testid="today-active-tasks">
+                    {activeTodayTasks.map((task) => renderTaskItem(task))}
                   </div>
                 )}
 

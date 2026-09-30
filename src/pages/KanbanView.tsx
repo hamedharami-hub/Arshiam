@@ -478,6 +478,7 @@ export default function KanbanView() {
         </div>
       )}
       <GoalHeader
+        showTitle={false}
         goal={activeGoal}
         canDelete={Boolean(activeGoal)}
         onRename={(title) => activeGoal && handleSaveGoal({ id: activeGoal.id, title })}

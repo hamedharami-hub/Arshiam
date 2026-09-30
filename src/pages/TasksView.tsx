@@ -1,3 +1,4 @@
+import { readTaskListSort, TASK_LIST_SORT_EVENT } from "@/lib/taskListSort";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -262,7 +263,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   // Fit both panels into the content area, including an expanded desktop sidebar.
   useEffect(() => {
     const container = splitContainerRef.current;
-    if (!container) return;
+    if (!container || typeof ResizeObserver === "undefined") return;
     const measure = () => setSplitAvailableWidth(container.getBoundingClientRect().width);
     measure();
     const observer = new ResizeObserver(measure);
@@ -434,28 +435,38 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         }
       }
     } catch { void 0; }
-    return DEFAULT_FILTERS;
+    return { ...DEFAULT_FILTERS, ...readTaskListSort(scopeKey) };
   };
-  const [filters, setFilters] = useState<TaskFilters>(loadSavedFilters());
+  const [filters, setFilters] = useState<TaskFilters>(loadSavedFilters);
   useEffect(() => {
     setFilters((current) => current.show_completed === showCompletedTasks
       ? current
       : { ...current, show_completed: showCompletedTasks });
   }, [showCompletedTasks]);
+  const [filtersScope, setFiltersScope] = useState(scopeKey);
   // Reload saved filters when scope/folder/tag changes
   useEffect(() => {
     setFilters(loadSavedFilters());
+    setFiltersScope(scopeKey);
+    const refresh = () => setFilters(loadSavedFilters());
+    window.addEventListener(TASK_LIST_SORT_EVENT, refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener(TASK_LIST_SORT_EVENT, refresh);
+      window.removeEventListener("storage", refresh);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope, params.id]);
-  // Persist whole filter object per-scope
+  // Do not write the previous route’s filters into a newly opened scope.
   useEffect(() => {
+    if (filtersScope !== scopeKey) return;
     try {
       const raw = localStorage.getItem(SORT_KEY);
       const obj = raw ? JSON.parse(raw) : {};
       obj[scopeKey] = filters;
       localStorage.setItem(SORT_KEY, JSON.stringify(obj));
     } catch { void 0; }
-  }, [filters, scopeKey]);
+  }, [filters, scopeKey, filtersScope]);
   const title = {
     inbox: T("صندوق ورودی", "Inbox"), today: T("امروز", "Today"), tomorrow: T("فردا", "Tomorrow"), next7: T("۷ روز آینده", "Next 7 Days"),
     smart: T("لیست‌های هوشمند", "Smart Lists"), folder: folderName || T("فولدر", "Folder"), tag: `#${tagName || T("تگ", "Tag")}`,
@@ -1143,8 +1154,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                 isSplitResizing ? "transition-none" : "transition-[width] duration-150 ease-out"
               }`}
             >
-              {selectedTask ? (
-                <TaskDetail
+              <TaskDetail
                   key={selectedTask.id}
                   task={selectedTask}
                   mode="embedded"
@@ -1159,17 +1169,6 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                   onBack={selectedTaskHistory.length > 0 ? handleBackInDrawer : undefined}
                   hasBackHistory={selectedTaskHistory.length > 0}
                 />
-              ) : (
-                <div className="h-full rounded-2xl border border-dashed border-border/70 bg-card/40 flex flex-col items-center justify-center p-6 text-center text-muted-foreground shadow-sm">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3">
-                    <CheckSquare className="w-6 h-6" />
-                  </div>
-                  <p className="text-sm font-semibold text-foreground">{T("یک تسک را انتخاب کنید", "Select a task")}</p>
-                  <p className="text-xs text-muted-foreground mt-1 max-w-[260px] leading-5">
-                    {T("جزئیات و ویرایش در پنل سمت چپ باز می‌شود؛ فهرست کارها در سمت راست باقی می‌ماند.", "Details open in the left panel while the task list remains on the right.")}
-                  </p>
-                </div>
-              )}
             </aside>
           )}
 

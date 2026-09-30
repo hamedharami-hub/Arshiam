@@ -436,7 +436,7 @@ export function filterAndSortTasks(
   const secondaryCmp = cmpForSortLevel(secondary);
 
   list = [...list].sort((a, b) => {
-    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    if (Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
     return primaryCmp(a, b) || secondaryCmp(a, b);
   });
 

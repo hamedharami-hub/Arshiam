@@ -433,8 +433,10 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
     fireEvent.click(activeCard);
     fireEvent.click(await screen.findByRole("button", { name: /بلدم/ }));
 
-    activeCard = await screen.findByTestId("flip-card");
-    expect(within(activeCard).getByText("Selected lesson B question")).toBeInTheDocument();
+    await waitFor(() => {
+      activeCard = screen.getByTestId("flip-card");
+      expect(within(activeCard).getByText("Selected lesson B question")).toBeInTheDocument();
+    });
     expect(within(activeCard).queryByText("Upcoming lesson question")).not.toBeInTheDocument();
   });
 
@@ -510,8 +512,9 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
       expect(rescheduleLeitnerStudyTaskAfterSession).not.toHaveBeenCalled();
       expect(toastMock.info).toHaveBeenCalledWith(expect.stringContaining("نتیجه محلی ذخیره و برای همگام‌سازی صف شد."));
     });
-    expect(getKnowledgeDocuments).toHaveBeenCalledTimes(1);
-    expect(getKnowledgeFolders).toHaveBeenCalledTimes(1);
+    // The finished session reloads inventory after saving its result.
+    expect(getKnowledgeDocuments).toHaveBeenCalledTimes(2);
+    expect(getKnowledgeFolders).toHaveBeenCalledTimes(2);
   });
 
   it("moves the linked study task to the next scheduled date after a due session", async () => {
