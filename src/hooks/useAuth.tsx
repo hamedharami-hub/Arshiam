@@ -1,3 +1,4 @@
+import { startGoalsCloudSync } from "@/lib/kanbanGoals";
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import {
   auth,
@@ -54,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     clearLegacyAuthStorage();
     setGardenUser(user?.id ?? null);
+    startGoalsCloudSync(user?.id ?? null);
   }, [user?.id]);
 
   useEffect(() => {

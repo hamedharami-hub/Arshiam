@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { DndContext, PointerSensor, TouchSensor, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
+import { HeaderActionsPortal } from "@/components/HeaderActionsPortal";
 import { AlertTriangle, ChevronLeft, ChevronRight, CalendarClock, Settings2, Target } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -214,10 +216,10 @@ export default function BucketsView() {
     <div className="mx-auto w-full max-w-3xl px-3 sm:px-4 pb-24 pt-2 space-y-3" dir={fa ? "rtl" : "ltr"} data-testid="horizon-view">
       {/* sticky header: title, timeline, period nav, progress */}
       <div className="sticky top-0 z-20 -mx-3 sm:-mx-4 px-3 sm:px-4 pt-1 pb-2 bg-background/95 backdrop-blur space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="text-lg font-bold">{fa ? "بازه‌های زمانی" : "Time Buckets"}</h1>
+        <HeaderTitlePortal title={fa ? "بازه‌های زمانی" : "Time Buckets"} />
+        <HeaderActionsPortal>
           <TimeSettingsPopover settings={settings} fa={fa} onChanged={refreshSettings} />
-        </div>
+        </HeaderActionsPortal>
         <HorizonTimeline levels={levels} value={effectiveHorizon} onChange={changeLevel} lang={lang} />
         <div className="flex items-center gap-2">
           <Button size="icon" variant="ghost" className="h-10 w-10 shrink-0" onClick={() => setAnchor(prevPeriod(period, settings).start)} aria-label={fa ? "دورهٔ قبل" : "Previous"} data-testid="horizon-prev-period">
@@ -597,8 +599,8 @@ function TimeSettingsPopover({ settings, fa, onChanged }: { settings: TimeSettin
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button size="icon" variant="ghost" className="h-10 w-10" aria-label={fa ? "تنظیمات زمان" : "Time settings"} data-testid="horizon-settings-btn">
-          <Settings2 className="w-5 h-5" />
+        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" aria-label={fa ? "تنظیمات زمان" : "Time settings"} title={fa ? "تنظیمات زمان" : "Time settings"} data-testid="horizon-settings-btn">
+          <Settings2 className="w-4 h-4" />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 space-y-3">

@@ -10,6 +10,7 @@ import PlantPickerModal from "@/components/garden/PlantPickerModal";
 import { useBilingual } from "@/hooks/useBilingual";
 import { toPersianDigits } from "@/lib/jalali";
 import { getCurrentTimeOfDay, getGardenState, PLANT_SPECIES, plantNewSeed, saveGardenState, setTimeOfDayMode, waterActivePlant, type GardenState, type PlantType, type TimeOfDay } from "@/lib/garden";
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import "./GardenView.css";
 
 const TIMES: { mode: "auto" | TimeOfDay; fa: string; en: string }[] = [
@@ -80,13 +81,13 @@ export default function GardenView() {
 
   return (
     <main className="garden-page" dir={isEn ? "ltr" : "rtl"}>
-      <header className="garden-header">
-        <div><h1>{T("گلخانه من", "My Greenhouse")}</h1><p>{T("هر قدم کوچک، جایی برای رشد دارد.", "Every small step has room to grow.")}</p></div>
+      <HeaderTitlePortal title={T("گلخانه من", "My Greenhouse")} />
+      <header className="garden-header" data-testid="garden-header">
         <div className="garden-header-tools">
-          <div className="garden-resource"><Droplets aria-hidden="true" /><span><strong>{digit(garden.waterDrops)}</strong>{T("قطره آب", "Water drops")}</span></div>
+          <div className="garden-resource" data-testid="garden-water-drops"><Droplets aria-hidden="true" /><span><strong>{digit(garden.waterDrops)}</strong>{T("قطره آب", "Water drops")}</span></div>
           <div className="garden-resource"><Sun aria-hidden="true" /><span><strong>{digit(garden.sunEnergy)}</strong>{T("انرژی خورشید", "Sun energy")}</span></div>
           <div className="garden-resource"><Sparkles aria-hidden="true" /><span><strong>{digit(garden.focusBlossoms || 0)}</strong>{T("شکوفه تمرکز", "Focus blooms")}</span></div>
-          <Button variant="outline" size="icon" className="garden-sound" onClick={toggleSound} aria-label={garden.soundEnabled ? T("خاموش کردن صدا", "Mute sound") : T("روشن کردن صدا", "Enable sound")}>{garden.soundEnabled ? <Volume2 /> : <VolumeX />}</Button>
+          <Button variant="ghost" size="icon" className="garden-sound" data-testid="garden-sound-toggle" onClick={toggleSound} aria-label={garden.soundEnabled ? T("خاموش کردن صدا", "Mute sound") : T("روشن کردن صدا", "Enable sound")}>{garden.soundEnabled ? <Volume2 /> : <VolumeX />}</Button>
         </div>
       </header>
 
@@ -102,7 +103,7 @@ export default function GardenView() {
               <Button className="garden-scene-switch" onClick={() => setPickerOpen(true)}><RefreshCw className="size-4" />{plant ? T("تعویض بذر", "Change seed") : T("کاشت بذر", "Plant a seed")}</Button>
             </div>
             <div className="garden-growth-panel"><div className="garden-growth-heading"><h2>{T("مسیر رشد", "Growth journey")}</h2><span>{plant ? `${digit(plant.currentPoints)} / ${digit(meta.pointsToBloom)}` : "—"} {T("امتیاز", "points")}</span></div><Progress value={progress} className="h-2.5" aria-label={T("پیشرفت رشد گیاه", "Plant growth progress")} /><ol className="garden-stages">{STAGES.map(([fa, en], index) => <li key={fa} className={plant && index + 1 <= plant.stage ? "reached" : ""}><span>{plant && index + 1 < plant.stage ? <Check className="size-3.5" /> : index + 1}</span>{isEn ? en : fa}</li>)}</ol></div>
-            <div className="garden-water-panel"><div><h2>{T("آبیاری گل", "Water your plant")}</h2><p>{plant?.stage === 5 ? T("این گل شکوفا شده است؛ برای ادامه بذر تازه بکارید.", "This plant has bloomed. Plant a new seed to continue.") : T(`تا شکوفایی ${digit(remaining)} امتیاز باقی مانده است.`, `${remaining} points remain until bloom.`)}</p></div><div className="garden-water-actions"><div className="garden-water-options" aria-label={T("مقدار آبیاری", "Watering amount")}>{[5, 15, 30].map(amount => <button type="button" key={amount} aria-pressed={waterAmount === amount} className={waterAmount === amount ? "selected" : ""} onClick={() => setWaterAmount(amount)}>{digit(amount)} <Droplets className="size-3.5" /></button>)}</div>{plant?.stage === 5 ? <Button onClick={() => setPickerOpen(true)}><Plus className="size-4" />{T("کاشت گل تازه", "Plant another flower")}</Button> : <Button className="garden-water-button" disabled={!canWater} onClick={handleWater}><Droplets className="size-4" />{T("آبیاری", "Water plant")}</Button>}</div></div>
+            <div className="garden-water-panel"><div><h2>{T("آبیاری گل", "Water your plant")}</h2><p>{plant?.stage === 5 ? T("این گل شکوفا شده است؛ برای ادامه بذر تازه بکارید.", "This plant has bloomed. Plant a new seed to continue.") : T(`تا شکوفایی ${digit(remaining)} امتیاز باقی مانده است.`, `${remaining} points remain until bloom.`)}</p></div><div className="garden-water-actions"><div className="garden-water-options" aria-label={T("مقدار آبیاری", "Watering amount")}>{[5, 15, 30].map(amount => <button type="button" key={amount} aria-pressed={waterAmount === amount} className={waterAmount === amount ? "selected" : ""} onClick={() => setWaterAmount(amount)}>{digit(amount)} <Droplets className="size-3.5" /></button>)}</div>{plant?.stage === 5 ? <Button onClick={() => setPickerOpen(true)}><Plus className="size-4" />{T("کاشت گل تازه", "Plant another flower")}</Button> : <Button className="garden-water-button" disabled={!canWater} onClick={handleWater} data-testid="garden-water-button"><Droplets className="size-4" />{T("آبیاری", "Water plant")}</Button>}</div></div>
             {plant && garden.waterDrops < waterAmount && plant.stage < 5 && <p className="garden-water-hint">{T("قطره کافی ندارید؛ کارهای روزانه را کامل کنید یا مقدار آبیاری را کمتر کنید.", "Not enough drops. Complete daily activities or choose a smaller amount.")}</p>}
           </section>
           <aside className="garden-sidebar">

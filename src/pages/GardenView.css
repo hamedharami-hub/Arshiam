@@ -28,3 +28,45 @@
 @media(max-width:760px){.garden-page{padding:18px 14px 88px}.garden-header{gap:18px}.garden-header-tools{gap:7px}.garden-resource{min-width:0;flex:1;padding:8px}.garden-resource svg{width:19px;height:19px}.garden-resource strong{font-size:15px}.garden-resource span{font-size:9px}.garden-sound{width:36px;height:36px}.garden-main-grid{grid-template-columns:1fr}.garden-scene{min-height:390px;background-position:center center}.garden-scene-plant{width:170px;height:235px;bottom:27%}.garden-time-picker{top:10px;inset-inline:10px;justify-content:space-between}.garden-time-picker button{padding:7px 6px;min-width:0}.garden-water-panel{padding:18px}.garden-sidebar{display:grid;grid-template-columns:1fr 1fr}.garden-sidebar .garden-info-panel:first-child{grid-column:1/-1}}
 @media(max-width:520px){.garden-header-tools{width:100%}.garden-resource{gap:4px}.garden-scene{min-height:345px}.garden-scene-plant{width:140px;height:205px;bottom:26%}.garden-sidebar{display:flex}.garden-growth-panel{padding:18px 15px}.garden-stages li{font-size:10px}.garden-tab-list{width:100%;display:flex}.garden-tab-list button{flex:1;justify-content:center;padding:9px 7px}.garden-water-actions{width:100%}.garden-water-options{flex:1;justify-content:space-around}.garden-water-actions>button{flex:1}.garden-collection{padding:17px}}
 @media(prefers-reduced-motion:reduce){.garden-scene-plant,.garden-water-animation{animation:none}}
+
+/* ---- Tidy + theme-aware layer (light & dark) ---- */
+.garden-page{--garden-green:hsl(var(--primary));--garden-ink:hsl(var(--foreground));--garden-line:hsl(var(--border));--garden-surface:hsl(var(--card));--garden-muted:hsl(var(--muted-foreground));--garden-soft:hsl(var(--muted));background:transparent;padding-top:16px;max-width:1280px}
+.garden-header{margin-bottom:16px;justify-content:flex-start}
+.garden-header-tools{gap:6px}
+.garden-resource{min-width:0;padding:6px 12px;border-radius:999px;box-shadow:none;gap:7px}
+.garden-resource span{flex-direction:row;align-items:baseline;gap:5px;font-size:11px;color:var(--garden-muted)}
+.garden-resource strong{font-size:14px}
+.garden-resource svg{width:16px;height:16px}
+.garden-sound{width:32px;height:32px;background:transparent}
+.garden-header p,.garden-growth-heading span,.garden-water-panel p,.garden-info-panel>p,.garden-collection-heading p,.garden-plant-title p,.garden-history small,.garden-bloom p,.garden-bloom small,.garden-collection-empty p,.garden-stages li{color:var(--garden-muted)}
+.garden-tab-list{background:var(--garden-soft);border-radius:10px;margin-bottom:14px}
+.garden-tab-list button{border-radius:8px;padding:7px 13px;font-weight:600}
+.garden-tab-list button[data-state=active]{background:var(--garden-surface);color:var(--garden-ink);box-shadow:none}
+.garden-scene{border-radius:14px;box-shadow:none;min-height:380px}
+.garden-growth-panel,.garden-water-panel,.garden-info-panel,.garden-collection{border-radius:12px;box-shadow:none}
+.garden-growth-panel,.garden-water-panel{padding:16px 18px}
+.garden-info-panel{padding:16px}
+.garden-growth-heading h2,.garden-water-panel h2,.garden-info-panel h2,.garden-collection h2{font-size:15px;font-weight:700}
+.garden-stages li>span{background:var(--garden-soft);color:var(--garden-muted)}
+.garden-stages li.reached{color:var(--garden-ink)}
+.garden-stages li.reached>span{background:var(--garden-green);color:hsl(var(--primary-foreground))}
+.garden-growth-panel [role=progressbar]>div{background:var(--garden-green)}
+.garden-water-options{background:var(--garden-soft)}
+.garden-water-options button{color:var(--garden-muted)}
+.garden-water-options button.selected{background:var(--garden-surface);color:var(--garden-ink)}
+.garden-water-button,.garden-collection-empty button{background:var(--garden-green);color:hsl(var(--primary-foreground))}
+.garden-water-button:hover{background:var(--garden-green);opacity:.9}
+.garden-affinity{background:var(--garden-soft);color:var(--garden-ink)}
+.garden-history li:not(:last-child):before{background:var(--garden-line)}
+.garden-history-dot{background:var(--garden-green)}
+.garden-rewards li{border-color:var(--garden-line)}
+.garden-bloom{border-color:var(--garden-line);border-radius:12px}
+.garden-info-panel h2 svg{color:var(--garden-green)}
+.garden-time-picker{border-radius:10px}
+.garden-time-picker button{border-radius:7px}
+.dark .garden-time-picker{background:#111a14d9;border-color:#ffffff26}
+.dark .garden-time-picker button{color:#cfe3d4}
+.dark .garden-scene::after{background:#0000002e}
+.dark .garden-scene-night::after{background:#0b1230a8}
+@media(max-width:760px){.garden-page{padding:12px 12px 88px}.garden-header-tools{width:100%;flex-wrap:nowrap}.garden-resource{flex:1;justify-content:center;padding:6px 8px}.garden-resource span{font-size:10px}}
+@media(max-width:420px){.garden-resource span{flex-direction:column;align-items:center;gap:0}}

@@ -1,0 +1,54 @@
+{
+  "summary": "Frontend-only regression QA of ARSHNAZ RTL app on https://task-tracker-2339.preview.emergentagent.com (viewport 1920x900 + 390x844). Verified sidebar restructure, Kanban empty state and goal-editor flow, legacy default goal hiding, sync-status bar behaviour, PWA no-toast on fresh load, smart-list & buckets toolbars, dark theme toggle, and no-console-errors on primary routes. Login via disclaimer checkbox + test.arshnaz@example.com / Test123456 succeeded.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "SmartListProfileBar / TasksView toolbar",
+        "issue": "Missing data-testid=\"tasks-toggle-filter\" on the filter (funnel) button in the list-view toolbar. Review spec explicitly requires this testid. Visual funnel icon is present but has no testid so automation & the review acceptance criterion cannot key on it.",
+        "selector": "[data-testid=\"tasks-toggle-filter\"] (not found)",
+        "priority": "MEDIUM"
+      },
+      {
+        "component": "Kanban quick-add row (KanbanView)",
+        "issue": "The kanban goal quick-add row shows both a leading '+' button AND the input placeholder still starts with '+ افزودن تسک جدید به «...»' — visually reads as a double plus. Review spec for the tasks toolbar says '+ placeholder افزودن تسک به «...» (no double plus)'. On /app/smart, /app/inbox, /app/today this is clean (svg-plus + text 'افزودن تسک به «اینباکس/امروز»' with 0 raw '+' chars), but /app/kanban still has the '+' literal in the placeholder text.",
+        "selector": "/app/kanban input placeholder",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_flows": {
+    "auth": "PASS - disclaimer checkbox + email/password lands on /app/today. No console errors.",
+    "sidebar_primary_nav": "PASS - data-testid=sidebar-primary-nav contains exactly ['امروز','صندوق ورودی','بازه‌های کلی','تقویم']. No 'کانبان' in primary. Expanding sidebar-section-do reveals: فردا, ۷ روز آینده, خاطرات روزانه, افراد, کانبان, پومودورو, آمار و خلاصه (کانبان present here; بازه‌های کلی NOT duplicated in the group).",
+    "kanban_empty_state": "PASS - /app/kanban with no user goals shows data-testid=kanban-empty-goals block with title 'هنوز هدفی تعریف نکرده‌ای' and button 'هدف جدید' (data-testid=kanban-empty-add-goal). No sample default goals visible. Header h1 = 'کانبان'. No goal tabs prior to add.",
+    "kanban_goal_creation": "PASS - Clicking kanban-empty-add-goal opens modal with goal-editor-title-input, goal-editor-folder-select, goal-editor-save. Typing '__TEST_GOAL__' and saving creates a tab '🎯__TEST_GOAL__', header goal-header-title='__TEST_GOAL__', and empty-goal message 'هنوز تسکی برای این هدف نیست' shown.",
+    "legacy_default_goal_hidden": "PASS - After setting localStorage arshnaz_kanban_goals_v3_<uid> to include id 'a0000000-0000-4000-8000-000000000002' with title 'Legacy Default', /app/kanban does not show a matching goal-tab and body text does not contain 'Legacy Default'.",
+    "sync_status_bar": "PASS (with note) - On fresh online session with empty queue, data-testid=sync-status-bar is NOT rendered (previous 'Online · last sync' bug is fixed). After injecting a fallback outbox item into localStorage 'arshnaz_offline_outbox_fallback', the bar appears with text '1 تغییر در صف' and data-testid=sync-status-dismiss; clicking dismiss hides the bar as expected. NOTE: sync-status-details is intentionally only rendered when issueItems.length>0 (failedItems for current user OR unattributedItems with no owner claims at all). Simulating with payload.user_id!=current uid marks the op as belonging to another user (neither failed-for-me nor unattributed) so Details doesn't render — that is correct code behaviour, not a bug.",
+    "pwa_update_toast": "PASS - No 'new version available' toast on fresh load in dev (vite version.json middleware ignores query string).",
+    "smart_list_pills": "PASS - /app/smart shows 5 pills [smart-profile-preset-high-priority, ...-goals, ...-due-soon, ...-buckets, ...-inbox]. Each pill label has exactly one leading emoji (e.g. '⏳عقب‌افتاده و امروز', no '⏳ ⏳' duplication). Pills, quick-add-collapsed, tasks-toggle-completed and tasks-toggle-split all share the same row (top≈102-108px). smart-profile-reset only appears when a filter is active (not present in default state — correct). No horizontal overflow at 1920 or 390px.",
+    "buckets_toolbar": "PASS - /app/buckets shows one-line filter row: فیلترها, انجام‌شده‌ها (horizon-toggle-completed) with checkmark, sort dropdown (horizon-sort-trigger 'مرتب‌سازی: اهمیت'), and search input on the same row. Empty day periods render as single slim lines ('خالی — تسک را اینجا رها کن').",
+    "dark_theme_toggle": "PASS - Clicking data-testid=header-theme-toggle flips html.className 'light' -> 'dark'; page remains readable in dark screenshot.",
+    "no_console_errors": "PASS - No console errors captured across login, today, kanban, smart, inbox, buckets navigations."
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Add data-testid=\"tasks-toggle-filter\" to the filter (funnel) button in the shared TasksView / SmartListProfileBar toolbar so the review acceptance criterion is satisfied and automation can target it.",
+    "Fix /app/kanban quick-add row: remove the leading '+' literal from the placeholder text (KanbanView quick-add input placeholder) or drop the visual '+' button beside the input — currently reads as a double plus (svg + '+ افزودن تسک جدید به «...»'). The /app/smart, /app/inbox, /app/today rows are already correct."
+  ],
+  "critical_code_review_comments": [
+    "src/lib/offlineQueue.ts getQueue() concatenates IndexedDB items and localStorage fallback items; if both stores end up with the same record after a partial fallback write, duplicates could accumulate. Consider dedupe by (table, op, createdAt+ownerId) or clear the LS fallback after a successful IDB flush.",
+    "src/components/OfflineIndicator.tsx: 'Details' button is only wired to unattributed OR canReplayForOwner-failed items; items that belonged to a different user id (e.g. legacy multi-account testing) stay pending forever with no UI affordance to discard/inspect. Consider surfacing a small 'legacy from other account' hint next to the count.",
+    "vite.config.ts versionJsonPlugin returns the same buildId on every request — good; ensure usePwaUpdateToast compares fullVersion (not buildId) to avoid noisy toasts if only build time changes.",
+    "KanbanView quick-add: mixing a lucide <Plus/> icon and an in-string '+' in the placeholder duplicates the plus glyph — align with the shared quick-add-collapsed pattern that uses only the icon."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "~93% - 11/12 review acceptance blocks fully pass; 1 missing testid + 1 cosmetic double-plus on kanban"},
+  "test_credentials": "test.arshnaz@example.com / Test123456 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Created one kanban goal titled '__TEST_GOAL__' with no folder while testing the empty-state → editor flow. Also transiently injected an item into localStorage 'arshnaz_offline_outbox_fallback' and removed it. Injected a legacy goal id and (attempted) cleanup. Recommend main agent verifying via UI that the test goal is removed or expected to be cleaned by user.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "React Router in this app does not react to plain history.pushState — always trigger a popstate event after pushState, or click the actual sidebar link. Firebase Web auth uses IndexedDB (not localStorage) for persistence; you cannot read the uid from localStorage 'firebase:authUser*'. To get the uid in test, either look for a key that starts with 'arshnaz_kanban_goals_v3_' after creating a goal, or call `await auth.currentUser?.uid` via a page function. The tasks-toggle-* testids only render when the tasks list is in list-mode (not the split/two-pane view); toggle 'نمای دوپنله' off first. Smart profile pills prepend the emoji directly to the label with no space — that is intentional and does NOT constitute the '⏳ ⏳' double-emoji bug. Cloudflare bot challenge did not trigger during this run (kept reloads sparse).",
+  "rca_of_issue": "Missing tasks-toggle-filter testid: search of SmartListProfileBar.tsx/TasksView.tsx will show the filter Button element does not have a data-testid attribute; adding data-testid=\"tasks-toggle-filter\" to that Button will satisfy the spec. Kanban quick-add double '+': KanbanView quick-add input placeholder string literally begins with '+ افزودن…' while a sibling Plus icon is rendered; simply strip the leading '+ ' from that placeholder string (or the icon) to match the pattern used by QuickAddTask collapsed row on the other list pages."
+}

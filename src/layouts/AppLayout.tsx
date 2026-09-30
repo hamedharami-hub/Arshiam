@@ -117,44 +117,33 @@ export default function AppLayout() {
         >
           {!isTaskPage && (
             <header
-              className="border-b flex items-center justify-between px-3 lg:px-6 bg-card/50 backdrop-blur sticky top-0 z-10"
+              className="border-b border-border/60 flex items-center justify-between gap-2 px-3 lg:px-6 bg-background sticky top-0 z-10"
+              data-testid="app-header"
               style={{ paddingTop: "env(safe-area-inset-top)", minHeight: "calc(3rem + env(safe-area-inset-top))" }}
             >
               <div className="flex items-center gap-1.5 min-w-0">
-                <SidebarTrigger />
+                <SidebarTrigger className="size-9 md:hidden" />
                 <HeaderBackButton />
                 <div id="app-header-title" className="min-w-0 flex items-center" />
               </div>
-              <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
+              <div className="flex items-center gap-1 justify-end shrink-0">
                 <div id="app-header-actions" className="flex items-center gap-2 shrink-0 empty:hidden" />
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
                   onClick={() => {
                     window.dispatchEvent(new CustomEvent("arshnaz:open-search"));
                     window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, ctrlKey: true }));
                   }}
-                  className="hidden sm:flex items-center gap-2 h-8 px-3 rounded-md border bg-background/50 text-muted-foreground text-xs hover:bg-accent transition flex-1 max-w-xs"
-                >
-                  <Search className="w-3.5 h-3.5" />
-                  <span className="flex-1 text-start">{document.documentElement.lang?.startsWith("en") ? "Search tasks and notes…" : "جستجو در تسک‌ها و نوت‌ها…"}</span>
-                  <kbd className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-mono ltr">
-                    {typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent || "") ? "⌘K" : "Ctrl+K"}
-                  </kbd>
-                </button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 sm:hidden shrink-0"
-                  onClick={() => {
-                    window.dispatchEvent(new CustomEvent("arshnaz:open-search"));
-                    window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
-                  }}
-                  title="جستجو (Ctrl+K)"
+                  aria-label={document.documentElement.lang?.startsWith("en") ? "Search (Ctrl+K)" : "جستجو (Ctrl+K)"}
+                  title={document.documentElement.lang?.startsWith("en") ? "Search (Ctrl+K)" : "جستجو (Ctrl+K)"}
+                  data-testid="header-search-button"
                 >
                   <Search className="w-4 h-4 text-muted-foreground" />
                 </Button>
                 <ThemeToggle />
-                <Button variant="ghost" size="icon" onClick={() => setAiOpen(true)} className="h-8 w-8 shrink-0" title="AI">
+                <Button variant="ghost" size="icon" onClick={() => setAiOpen(true)} className="h-8 w-8 shrink-0" title="AI" aria-label="AI" data-testid="header-ai-button">
                   <Sparkles className="w-4 h-4 text-primary" />
                 </Button>
               </div>

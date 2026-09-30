@@ -224,9 +224,10 @@ export function TaskFilterSheet({
       ) : (
         <SheetTrigger asChild>
           <Button
-            variant="outline"
+            variant="ghost"
             size="icon"
-            className="h-9 w-9 shrink-0 rounded-full relative"
+            className="h-8 w-8 shrink-0 rounded-md relative text-muted-foreground"
+            data-testid="tasks-toggle-filter"
             title="فیلتر و لیست هوشمند"
             aria-label="فیلتر و لیست هوشمند"
           >

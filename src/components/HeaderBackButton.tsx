@@ -1,20 +1,21 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
-// Routes considered "root" — no back button should appear.
-const ROOT_PATHS = new Set([
-  "/app",
-  "/app/today",
-  "/app/inbox",
-]);
+// Only nested detail routes (e.g. /app/self/test/x, /app/review/pharmacy) get a back button;
+// top-level destinations are reached from the sidebar / bottom bar.
+function needsBack(pathname: string): boolean {
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts[0] !== "app" || parts.length < 3) return false;
+  return !["folder", "tag", "review"].includes(parts[1]);
+}
 
 export default function HeaderBackButton() {
   const loc = useLocation();
   const navigate = useNavigate();
 
-  if (!loc.pathname.startsWith("/app")) return null;
-  if (ROOT_PATHS.has(loc.pathname)) return null;
+  if (!needsBack(loc.pathname)) return null;
+  const isRtl = typeof document === "undefined" || document.documentElement.dir !== "ltr";
 
   const onClick = () => {
     if (window.history.state?.idx > 0) {
@@ -29,11 +30,11 @@ export default function HeaderBackButton() {
       variant="ghost"
       size="icon"
       onClick={onClick}
-      aria-label="بازگشت"
+      aria-label={isRtl ? "بازگشت" : "Back"}
       className="h-8 w-8"
+      data-testid="header-back-button"
     >
-      {/* RTL: arrow pointing right means "back" */}
-      <ArrowRight className="w-5 h-5" />
+      {isRtl ? <ArrowRight className="w-5 h-5" /> : <ArrowLeft className="w-5 h-5" />}
     </Button>
   );
 }

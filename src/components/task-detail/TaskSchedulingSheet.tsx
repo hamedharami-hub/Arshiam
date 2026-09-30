@@ -215,9 +215,10 @@ export function TaskSchedulingSheet({
         {triggerButton}
       </PopoverTrigger>
       <PopoverContent
-        className="w-[min(92vw,22rem)] max-h-[65vh] overflow-y-auto rounded-2xl p-3"
+        className="w-[min(92vw,22rem)] h-[min(60vh,30rem)] overflow-y-auto overscroll-contain rounded-xl p-3"
         align="center"
         side="top"
+        sticky="always"
         collisionPadding={12}
         data-testid="task-schedule-popover"
       >

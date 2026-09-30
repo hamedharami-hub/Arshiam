@@ -62,6 +62,8 @@ export interface GardenState {
   soundEnabled: boolean;
   timeOfDayMode: "auto" | TimeOfDay;
   lastCheckinRewardDate?: string;
+  /** Local revision time used for cross-device sync (ms). */
+  updatedAt?: number;
 }
 
 export const PLANT_SPECIES: Record<PlantType, PlantMetadata> = {
@@ -268,8 +270,49 @@ function defaultGardenState(): GardenState {
   };
 }
 
+let gardenCloud: { push: () => void; stop: () => void } | null = null;
+let gardenCloudUser: string | null = null;
+
+function hasStoredGarden(): boolean {
+  try { return localStorage.getItem(gardenKey()) !== null; } catch { return false; }
+}
+
+function mergeHerbarium(a: GardenHerbariumItem[] = [], b: GardenHerbariumItem[] = []): GardenHerbariumItem[] {
+  const map = new Map<string, GardenHerbariumItem>();
+  [...a, ...b].forEach((item) => map.set(item.id, item));
+  return [...map.values()].sort((x, y) => (y.bloomedAt || "").localeCompare(x.bloomedAt || ""));
+}
+
+function startGardenCloudSync(userId: string | null) {
+  if (gardenCloudUser === userId) return;
+  gardenCloud?.stop();
+  gardenCloud = null;
+  gardenCloudUser = userId;
+  if (!userId || typeof window === "undefined" || import.meta.env.MODE === "test") return;
+  void import("./cloudStateSync")
+    .then(({ bindCloudState }) => {
+      if (gardenCloudUser !== userId) return;
+      gardenCloud = bindCloudState(userId, "garden", {
+        read: () => (hasStoredGarden() ? { updatedAt: getGardenState().updatedAt || 0, data: getGardenState() } : null),
+        apply: (data, updatedAt, local) => {
+          const remote = data as GardenState;
+          const localState = local ? (local.data as GardenState) : null;
+          const next: GardenState = {
+            ...defaultGardenState(),
+            ...remote,
+            herbarium: mergeHerbarium(localState?.herbarium, remote.herbarium),
+            updatedAt,
+          };
+          writeGardenState(next);
+        },
+      });
+    })
+    .catch(() => undefined);
+}
+
 export function setGardenUser(userId: string | null) {
   currentGardenUserId = userId;
+  startGardenCloudSync(userId);
   try {
     if (userId) localStorage.setItem(GARDEN_USER_KEY, userId);
     else localStorage.removeItem(GARDEN_USER_KEY);
@@ -297,13 +340,18 @@ export function getGardenState(): GardenState {
   }
 }
 
-export function saveGardenState(state: GardenState) {
+function writeGardenState(state: GardenState) {
   try {
     localStorage.setItem(gardenKey(), JSON.stringify(state));
     window.dispatchEvent(new CustomEvent("arshnaz-garden-updated", { detail: state }));
   } catch (e) {
     console.error("Failed to save garden state:", e);
   }
+}
+
+export function saveGardenState(state: GardenState) {
+  writeGardenState({ ...state, updatedAt: Date.now() });
+  gardenCloud?.push();
 }
 
 export function awardWaterDrops(amount: number, reason: string): number {

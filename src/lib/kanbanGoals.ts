@@ -209,12 +209,75 @@ export function getUserOwnGoals(folders: Array<{ id: string; name?: string }>, u
   return out;
 }
 
+// ---- Cross-device sync of all goal lists (global + per folder) ----
+let goalsCloud: { push: () => void; stop: () => void } | null = null;
+let goalsCloudUser: string | null = null;
+const syncStampKey = (userId: string) => `arshnaz_kanban_goals_sync_${userId}`;
+
+function userGoalKeys(userId: string): string[] {
+  const keys: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(GOALS_STORAGE_KEY) && k.endsWith(`_${userId}`)) keys.push(k);
+  }
+  return keys;
+}
+
+function folderIdFromKey(key: string, userId: string): string | null {
+  const body = key.slice(GOALS_STORAGE_KEY.length, key.length - userId.length - 1);
+  return body.startsWith("_folder_") ? body.slice("_folder_".length) : null;
+}
+
+export function startGoalsCloudSync(userId: string | null) {
+  if (goalsCloudUser === userId) return;
+  goalsCloud?.stop();
+  goalsCloud = null;
+  goalsCloudUser = userId;
+  if (!userId || typeof window === "undefined" || import.meta.env.MODE === "test") return;
+  void import("./cloudStateSync")
+    .then(({ bindCloudState }) => {
+      if (goalsCloudUser !== userId) return;
+      goalsCloud = bindCloudState(userId, "kanban_goals", {
+        read: () => {
+          const keys = userGoalKeys(userId);
+          if (!keys.length) return null;
+          const data: Record<string, unknown> = {};
+          keys.forEach((k) => { try { data[k] = JSON.parse(localStorage.getItem(k) || "[]"); } catch { data[k] = []; } });
+          return { updatedAt: Number(localStorage.getItem(syncStampKey(userId)) || 0), data };
+        },
+        apply: (data, updatedAt, local) => {
+          const remote = { ...((data || {}) as Record<string, unknown>) };
+          // A device that never synced before merges its own goals instead of losing them.
+          const neverSynced = Boolean(local && local.updatedAt === 0);
+          if (neverSynced && local) {
+            Object.entries(local.data as Record<string, GoalKanban[]>).forEach(([k, list]) => {
+              const byId = new Map<string, GoalKanban>();
+              [...(list || []), ...((remote[k] as GoalKanban[]) || [])].forEach((g) => byId.set(g.id, g));
+              remote[k] = [...byId.values()];
+            });
+          }
+          if (!neverSynced) userGoalKeys(userId).forEach((k) => { if (!(k in remote)) localStorage.removeItem(k); });
+          Object.entries(remote).forEach(([k, v]) => {
+            if (!k.startsWith(GOALS_STORAGE_KEY) || !k.endsWith(`_${userId}`)) return;
+            localStorage.setItem(k, JSON.stringify(v));
+            window.dispatchEvent(new CustomEvent("arshnaz-goals-updated", { detail: { folderId: folderIdFromKey(k, userId), goals: v } }));
+          });
+          localStorage.setItem(syncStampKey(userId), String(neverSynced ? Date.now() : updatedAt));
+          if (neverSynced) goalsCloud?.push();
+        },
+      });
+    })
+    .catch(() => undefined);
+}
+
 export function saveKanbanGoals(goals: GoalKanban[], folderId?: string | null, userId?: string) {
   const sanitized = sanitizeGoalsUUIDs(goals);
   const { key } = goalsKey(folderId, userId);
   try {
     localStorage.setItem(key, JSON.stringify(sanitized));
+    if (userId) localStorage.setItem(syncStampKey(userId), String(Date.now()));
     window.dispatchEvent(new CustomEvent("arshnaz-goals-updated", { detail: { folderId, goals: sanitized } }));
+    goalsCloud?.push();
   } catch (e) {
     console.error("Failed to save kanban goals:", e);
   }

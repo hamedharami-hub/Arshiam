@@ -548,14 +548,16 @@ export default function TodayDashboardView() {
           )}
           {isWideOrFoldable && (
             <Button
-              variant={splitView ? "secondary" : "outline"}
-              size="sm"
+              variant={splitView ? "secondary" : "ghost"}
+              size="icon"
               onClick={toggleSplitView}
-              className="inline-flex items-center gap-1.5 text-xs h-7 sm:h-8 px-2 sm:px-2.5 rounded-lg border border-border/60 font-medium transition-colors cursor-pointer shrink-0"
+              className="h-8 w-8 shrink-0 text-muted-foreground"
+              aria-pressed={splitView}
+              aria-label={splitView ? T("حالت تمام‌صفحه", "Full width") : T("نمای دوپنله", "Split view")}
               title={splitView ? T("حالت تمام‌صفحه", "Full width") : T("نمای دوپنله (نیمه چپ)", "Split view (left panel)")}
+              data-testid="today-toggle-split"
             >
-              <Columns2 className="w-3.5 h-3.5" />
-              <span className="text-[11px] sm:text-xs">{splitView ? T("نمای دوپنله", "Split view") : T("تمام‌صفحه", "Full width")}</span>
+              <Columns2 className="w-4 h-4" />
             </Button>
           )}
         </div>

@@ -47,6 +47,7 @@ export function StreakCard({ compact = false }: { compact?: boolean } = {}) {
   });
 
   if (compact) {
+    if (stats.streak <= 0) return null;
     return (
       <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground" data-testid="streak-card-compact" title={T("روز پیاپی", "day streak")}>
         <Flame className={`h-4 w-4 shrink-0 ${stats.streak > 0 ? "text-primary" : ""}`} />

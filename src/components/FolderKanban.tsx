@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { PriorityFlag } from "@/components/PriorityFlag";
+import { TaskMetaQuickEdit, type TaskMetaPatch } from "@/components/kanban/TaskMetaQuickEdit";
 import { format } from "date-fns";
 import { PRIORITY_META, type Priority } from "@/lib/priority";
 import { haptic } from "@/lib/haptics";
@@ -258,6 +259,19 @@ export function FolderKanban({
   );
 
   // Task mutations
+  const patchTask = async (task: Task, patch: TaskMetaPatch) => {
+    if (!user) return;
+    const updated: Task = { ...task, ...patch, updated_at: new Date().toISOString() } as Task;
+    setAllTasks((prev) => prev.map((x) => (x.id === task.id ? updated : x)));
+    const ok = await upsertTask(user.id, updated);
+    if (!ok) {
+      setAllTasks((prev) => prev.map((x) => (x.id === task.id ? task : x)));
+      toast.error(T("خطا در ذخیره تغییر", "Failed to save change"));
+    } else {
+      window.dispatchEvent(new Event("tasks-changed"));
+    }
+  };
+
   const toggleTask = async (task: Task) => {
     if (!user) return;
     const newCompleted = !task.completed;
@@ -556,7 +570,8 @@ export function FolderKanban({
               value={quickTitle}
               onChange={(e) => setQuickTitle(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addQuickTask(quickTitle)}
-              placeholder={`+ افزودن تسک جدید به «${activeGoal?.title || "این بخش"}»...`}
+              placeholder={`افزودن تسک جدید به «${activeGoal?.title || "این بخش"}»`}
+              dir="auto"
               className="bg-card/70 border-border/70 text-sm h-11 rounded-2xl shadow-xs"
             />
             <Button
@@ -608,19 +623,12 @@ export function FolderKanban({
                       onClick={() => onOpenTask?.(t.id)}
                       className="flex-1 min-w-0 cursor-pointer text-start"
                     >
-                      <h4 className="text-[15px] font-bold text-foreground hover:text-primary transition-colors leading-snug">
+                      <h4 dir="auto" className="text-[15px] font-semibold text-foreground hover:text-primary transition-colors leading-snug text-start" style={{ unicodeBidi: "plaintext" }}>
                         {t.title}
                       </h4>
 
-                      <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                        {t.priority !== "none" && (
-                          <PriorityFlag priority={t.priority} />
-                        )}
-                        {t.due_date && (
-                          <span className="text-[11px] text-muted-foreground font-mono flex items-center gap-1">
-                            <Calendar className="w-3 h-3" /> {new Date(t.due_date).toLocaleDateString(isEn ? "en-US" : "fa-IR", { month: "short", day: "numeric" })}
-                          </span>
-                        )}
+                      <div className="mt-1.5">
+                        <TaskMetaQuickEdit taskId={t.id} priority={t.priority} dueDate={t.due_date} isEn={isEn} onChange={(patch) => patchTask(t, patch)} />
                       </div>
                     </div>
                   </div>
@@ -735,6 +743,7 @@ export function FolderKanban({
                   }}
                   onMove={moveTaskColumn}
                   onToggle={toggleTask}
+                  onPatch={patchTask}
                   onOpenTask={onOpenTask}
                 />
               );
@@ -784,6 +793,7 @@ function KanbanColumn({
   onMove,
   onToggle,
   onOpenTask,
+  onPatch,
 }: {
   column: (typeof COLUMNS)[number];
   tasks: Task[];
@@ -794,6 +804,7 @@ function KanbanColumn({
   onMove: (taskId: string, newStatus: Status) => void;
   onToggle?: (task: Task) => void;
   onOpenTask?: (taskId: string) => void;
+  onPatch?: (task: Task, patch: TaskMetaPatch) => void;
 }) {
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
@@ -850,6 +861,7 @@ function KanbanColumn({
               onMove={onMove}
               onToggle={onToggle}
               onOpenTask={onOpenTask}
+              onPatch={onPatch}
             />
           ))}
           {tasks.length === 0 && (
@@ -870,6 +882,7 @@ function SortableTaskCard({
   onMove,
   onToggle,
   onOpenTask,
+  onPatch,
 }: {
   task: Task;
   prevCol?: Status;
@@ -877,6 +890,7 @@ function SortableTaskCard({
   onMove: (taskId: string, newStatus: Status) => void;
   onToggle?: (task: Task) => void;
   onOpenTask?: (taskId: string) => void;
+  onPatch?: (task: Task, patch: TaskMetaPatch) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -896,6 +910,7 @@ function SortableTaskCard({
         nextCol={nextCol}
         onMove={onMove}
         onToggle={onToggle ? () => onToggle(task) : undefined}
+        onPatch={onPatch ? (patch) => onPatch(task, patch) : undefined}
         onOpen={() => onOpenTask?.(task.id)}
       />
     </div>
@@ -911,6 +926,7 @@ function TaskCard({
   onMove,
   onToggle,
   onOpen,
+  onPatch,
 }: {
   task: Task;
   dragging?: boolean;
@@ -920,6 +936,7 @@ function TaskCard({
   onMove?: (taskId: string, newStatus: Status) => void;
   onToggle?: () => void;
   onOpen?: () => void;
+  onPatch?: (patch: TaskMetaPatch) => void;
 }) {
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
@@ -954,23 +971,23 @@ function TaskCard({
             {task.completed && <Check className="w-3 h-3 stroke-[3]" />}
           </button>
         )}
-        <button type="button" onClick={onOpen} className="flex-1 min-w-0 text-start">
-          <p
-            className={`text-sm font-medium hover:underline ${
-              task.completed ? "line-through text-muted-foreground" : ""
-            }`}
-          >
-            {task.title}
-          </p>
+        <div className="flex-1 min-w-0 text-start">
+          <button type="button" onClick={onOpen} className="block w-full text-start">
+            <p
+              dir="auto"
+              style={{ unicodeBidi: "plaintext" }}
+              className={`text-sm font-medium text-start hover:underline ${
+                task.completed ? "line-through text-muted-foreground" : ""
+              }`}
+            >
+              {task.title}
+            </p>
+          </button>
           <div className="flex flex-wrap items-center gap-1.5 mt-2">
-            {task.priority !== "none" && (
-              <PriorityFlag priority={task.priority} />
-            )}
-            {task.due_date && (
-              <Badge variant="secondary" className="text-[10px] gap-1 font-mono">
-                <Calendar className="w-2.5 h-2.5" />
-                {new Date(task.due_date).toLocaleDateString(isEn ? "en-US" : "fa-IR", { month: "short", day: "numeric" })}
-              </Badge>
+            {onPatch ? (
+              <TaskMetaQuickEdit taskId={task.id} priority={task.priority} dueDate={task.due_date} isEn={isEn} onChange={onPatch} />
+            ) : (
+              task.priority !== "none" && <PriorityFlag priority={task.priority} />
             )}
             {task.kanban_column_id && (
               <Badge variant="outline" className="text-[10px] gap-1 border-primary/25 bg-primary/10 text-primary">
@@ -979,7 +996,7 @@ function TaskCard({
               </Badge>
             )}
           </div>
-        </button>
+        </div>
         {(prevCol || nextCol) && onMove && (
           <div className="flex items-center gap-0.5 shrink-0 self-start" onClick={(e) => e.stopPropagation()}>
             {prevCol && (
