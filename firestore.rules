@@ -38,6 +38,29 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
+      // Permanent, non-sensitive deletion markers fence both old clients and concurrent batches.
+      match /cycle_profile_tombstones/{profileId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.keys().hasOnly(['deleted', 'requested_at'])
+          && request.resource.data.deleted == true;
+        allow update, delete: if false;
+      }
+      match /cycle_profiles/{profileId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && !existsAfter(/databases/$(database)/documents/users/$(userId)/cycle_profile_tombstones/$(profileId));
+        allow delete: if isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId)/cycle_profile_tombstones/$(profileId));
+      }
+      match /cycle_logs/{logId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && request.resource.data.profile_id is string
+          && existsAfter(/databases/$(database)/documents/users/$(userId)/cycle_profiles/$(request.resource.data.profile_id))
+          && !existsAfter(/databases/$(database)/documents/users/$(userId)/cycle_profile_tombstones/$(request.resource.data.profile_id));
+      }
+
       // Matching allow expressions are ORed: a more specific false does not
       // override this grant. Keep server-managed collections out of it,
       // including every nested document beneath those collections.
@@ -47,7 +70,10 @@ service cloud.firestore {
             'user_roles',
             'assistant_grants',
             'assistant_audit',
-            'assistant_trash'
+            'assistant_trash',
+            'cycle_profiles',
+            'cycle_logs',
+            'cycle_profile_tombstones'
           ]);
       }
     }

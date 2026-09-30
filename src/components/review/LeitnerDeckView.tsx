@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { filterCardsForDocuments, filterKnowledgeForFolderBranch } from "@/lib/reviewScope";
 import {
   Layers,
   Sparkles,
@@ -216,73 +217,59 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   const [lapsedOnly, setLapsedOnly] = useState(false);
   const [cardViewMode, setCardViewMode] = useState<"list" | "outline">("list");
 
+  const viewScopeKey = JSON.stringify([userId, scopeRootFolderId, initialStudyFolderId, initialStudyDocumentId]);
+  const scopeRef = React.useRef(viewScopeKey);
+  scopeRef.current = viewScopeKey;
+  const requestRef = React.useRef(0);
+  const [loadedScope, setLoadedScope] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+
   const loadData = useCallback(async () => {
+    const requestId = ++requestRef.current;
+    const valid = () => requestId === requestRef.current && scopeRef.current === viewScopeKey;
+    setLoadedScope(null);
+    setLoadError(false);
+    setCards([]);
+    setDueCards([]);
     try {
-      const allCards = await getLeitnerCards(userId);
+      const [allCards, docs, knowledgeFolders] = await Promise.all([
+        getLeitnerCards(userId), getKnowledgeDocuments(userId), getKnowledgeFolders(userId),
+      ]);
+      const branch = filterKnowledgeForFolderBranch(knowledgeFolders, docs, scopeRootFolderId);
+      const rootCards = scopeRootFolderId ? filterCardsForDocuments(allCards, branch.documents) : allCards;
+      let inventory = effectiveFolderScopeId
+        ? getLeitnerCardsForFolderBranch(rootCards, branch.folders, branch.documents, effectiveFolderScopeId)
+        : rootCards;
+      if (initialStudyDocumentId) inventory = inventory.filter((card) => card.document_id === initialStudyDocumentId);
       const evaluatedAt = new Date();
-      const [due, s] = await Promise.all([
-        getDueLeitnerCards(userId, allCards, evaluatedAt),
-        getLeitnerBoxStats(userId, allCards, evaluatedAt),
+      const [due, nextStats] = await Promise.all([
+        getDueLeitnerCards(userId, inventory, evaluatedAt), getLeitnerBoxStats(userId, inventory, evaluatedAt),
       ]);
-      setCards(allCards);
+      if (!valid()) return;
+      setDocuments(branch.documents);
+      setFolders(branch.folders);
+      setCards(inventory);
       setDueCards(due);
-      setStats({
-        box1: s?.box1 ?? 0,
-        box2: s?.box2 ?? 0,
-        box3: s?.box3 ?? 0,
-        box4: s?.box4 ?? 0,
-        box5: s?.box5 ?? 0,
-        dueToday: s?.dueToday ?? 0,
-        totalCards: s?.totalCards ?? 0,
-        masteredCount: s?.masteredCount ?? 0,
-        retentionRate: s?.retentionRate ?? 100,
-        lapsedCardsCount: s?.lapsedCardsCount ?? 0,
-        upcomingForecast: s?.upcomingForecast || {
-          today: s?.dueToday ?? 0,
-          tomorrow: 0,
-          next3Days: 0,
-          next7Days: 0,
-        },
-        streakDays: s?.streakDays ?? 0,
-      });
-    } catch (e) {
-      console.error("Error loading Leitner data", e);
+      setStats(nextStats);
+      setLoadedScope(viewScopeKey);
+    } catch (error) {
+      if (!valid()) return;
+      setCards([]);
+      setDueCards([]);
+      setDocuments([]);
+      setFolders([]);
+      setLoadError(true);
+      setLoadedScope(viewScopeKey);
     }
-  }, [userId]);
-
-  const loadKnowledgeStructure = useCallback(async () => {
-    try {
-      const [docs, knowledgeFolders] = await Promise.all([
-        getKnowledgeDocuments(userId),
-        getKnowledgeFolders(userId).catch(() => []),
-      ]);
-      setDocuments(docs);
-      setFolders(knowledgeFolders);
-    } catch (e) {
-      console.error("Error loading Leitner outline structure", e);
-    }
-  }, [userId]);
+  }, [userId, scopeRootFolderId, initialStudyDocumentId, effectiveFolderScopeId, viewScopeKey]);
 
   useEffect(() => {
-    loadData();
-    loadKnowledgeStructure();
-  }, [loadData, loadKnowledgeStructure]);
-
-  useEffect(() => {
-    if (!effectiveFolderScopeId) return;
-    let alive = true;
-    setStats({
-      box1: 0, box2: 0, box3: 0, box4: 0, box5: 0, dueToday: 0, totalCards: 0,
-      masteredCount: 0, retentionRate: 100, lapsedCardsCount: 0,
-      upcomingForecast: { today: 0, tomorrow: 0, next3Days: 0, next7Days: 0 }, streakDays: 0,
-    });
-    void getLeitnerBoxStats(userId, scopedInventoryCards, new Date()).then((next) => {
-      if (alive) setStats(next);
-    }).catch(() => {
-      // Keep the cleared scoped statistics instead of showing numbers from another scope.
-    });
-    return () => { alive = false; };
-  }, [effectiveFolderScopeId, scopedInventoryCards, userId]);
+    setIsStudying(false);
+    setActiveQueue([]);
+    setCurrentIndex(0);
+    void loadData();
+    return () => { requestRef.current++; };
+  }, [loadData]);
 
   // Cram cards calculation based on active filters
   const cramCards = useMemo(() => {
@@ -737,6 +724,12 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
     return [...folderOptions, ...documentOptions];
   }, [cards, documents, folders, isEn]);
 
+  if (loadedScope !== viewScopeKey) return <div className="p-4 text-sm text-muted-foreground" role="status" data-testid="review-deck-loading">{isEn ? "Loading this scope…" : "در حال بارگذاری این محدوده…"}</div>;
+  if (loadError) return <div className="p-4 space-y-2" role="alert" data-testid="review-deck-error">
+    <p>{isEn ? "Could not load this scope. No previous scope data is shown." : "بارگذاری این محدوده ناموفق بود؛ اطلاعات محدودهٔ قبلی نمایش داده نمی‌شود."}</p>
+    <button type="button" className="text-primary underline" onClick={() => void loadData()}>{isEn ? "Retry" : "تلاش دوباره"}</button>
+  </div>;
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto p-4 md:p-6 space-y-6">
       {/* Header & Stats Banner */}
@@ -838,7 +831,9 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
           </div>
           <div className="space-y-0.5">
             <div className="text-[11px] text-muted-foreground font-medium">
-              {isEn ? "Study Streak" : "توالی روزهای مرور"}
+              {effectiveFolderScopeId || initialStudyDocumentId
+                ? (isEn ? "Study streak · this scope" : "توالی مرور · همین محدوده")
+                : (isEn ? "Study streak · all folders" : "توالی مرور · همهٔ پوشه‌ها")}
             </div>
             <div className="text-lg font-black text-foreground">
               {stats.streakDays}{" "}

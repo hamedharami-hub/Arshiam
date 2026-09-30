@@ -35,11 +35,11 @@ export function ReviewInsights({ userId, isEn, scopeRootFolderId }: { userId: st
 
   useEffect(() => {
     let alive = true;
-    const requestId = ++loadIdRef.current;
-    setCards([]);
-    setLoading(true);
-    setLoadFailed(false);
     const load = async () => {
+      const requestId = ++loadIdRef.current;
+      setCards([]);
+      setLoading(true);
+      setLoadFailed(false);
       try {
         const [allCards, folders, documents] = await Promise.all([
           getLeitnerCards(userId),
@@ -91,11 +91,11 @@ export function ReviewInsights({ userId, isEn, scopeRootFolderId }: { userId: st
         </div>
         <ChevronDown className={`w-4 h-4 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
-      <div className="px-3 pb-1"><Progress value={goalPct} className="h-1.5" /></div>
+      <div className="px-3 pb-1">{!loading && !loadFailed && <Progress value={goalPct} className="h-1.5" />}</div>
 
       {open && (
         <div className="p-3 pt-2 space-y-5">
-          <div>
+          {!loading && !loadFailed && <div>
             <div className="text-xs font-semibold mb-2">{isEn ? "Review forecast (14 days)" : "پیش‌بینی حجم مرور (۱۴ روز)"}</div>
             <div className="flex items-end gap-1 h-24" data-testid="review-forecast-chart">
               {forecast.map((f, i) => (
@@ -106,7 +106,7 @@ export function ReviewInsights({ userId, isEn, scopeRootFolderId }: { userId: st
                 </div>
               ))}
             </div>
-          </div>
+          </div>}
 
           <div>
             <div className="flex items-center justify-between text-xs font-semibold mb-2">

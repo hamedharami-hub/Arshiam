@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BookOpen, CheckCircle2, CircleDashed, PlayCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { MindMapSyncStatus } from "./MindMapSyncStatus";
 import type { KnowledgeDocument, KnowledgeFolder } from "@/lib/knowledgeTypes";
 import {
   loadMindMapStudyProgress,
@@ -84,6 +85,7 @@ export function MindMapStudyPlanner({
             {isEn ? `${counts.done} done · ${counts.studying} studying · ${counts.later} later` : `${counts.done} تمام‌شده · ${counts.studying} در حال مطالعه · ${counts.later} برای بعد`}
           </DialogDescription>
         </DialogHeader>
+        <MindMapSyncStatus userId={userId} isEn={isEn} />
         <div className="flex flex-wrap gap-2">
           <Button type="button" size="sm" onClick={() => nextDocument && onOpenDocument(nextDocument)} disabled={!nextDocument} className="gap-1.5">
             <PlayCircle className="h-4 w-4" />{isEn ? "Open next item" : "رفتن به مورد بعدی"}

@@ -57,4 +57,45 @@ describe("cycle profile persistence", () => {
     expect(fromMock).toHaveBeenCalledTimes(1);
     expect(logEq).toHaveBeenCalledWith("profile_id", "profile-1");
   });
+
+
+  it("BASELINE BUG: no fence against concurrent log creation between second delete and verification", async () => {
+    // BUG: cycleProfileService.ts lines 15-36
+    // The function does: delete logs -> delete profile -> delete logs again -> verify
+    // But there's no fence preventing a new log from being created AFTER the second delete
+    // and BEFORE the verification query runs
+    // Expected: Should use a transaction or lock to prevent concurrent writes
+    // Actual: A stale device could create a log between line 23 and line 26
+    // Impact: Verification could pass even though a log exists, or fail incorrectly
+
+    const events: string[] = [];
+    let allowLateLog = false;
+
+    fromMock.mockImplementation(((table: string) => ({
+      delete: () => ({
+        eq: vi.fn().mockImplementation(async () => {
+          events.push(`delete-${table}`);
+          // Simulate a concurrent log creation after second delete
+          if (table === "cycle_logs" && events.filter(e => e === "delete-cycle_logs").length === 2) {
+            allowLateLog = true;
+          }
+          return { error: null };
+        }),
+      }),
+      select: () => ({
+        eq: vi.fn().mockResolvedValue({
+          data: allowLateLog && table === "cycle_logs" ? [{ id: "concurrent-log" }] : [],
+          error: null,
+        }),
+      }),
+    })) as never);
+
+    const result = await deleteCycleProfileAndLogs("profile-1");
+    
+    // The function correctly detects the concurrent log in verification
+    // But the bug is that there's no prevention mechanism - it relies on detection only
+    expect(result.error?.message).toContain("incomplete");
+    expect(events).toEqual(["delete-cycle_logs", "delete-cycle_profiles", "delete-cycle_logs"]);
+  });
+
 });

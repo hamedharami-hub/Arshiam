@@ -16,6 +16,7 @@ import {
 } from "@/lib/firebase";
 import { deleteObject, getDownloadURL, getStorage, ref, uploadBytes } from "firebase/storage";
 import type { QueryConstraint } from "firebase/firestore";
+import { writeCycleRecord } from "./cyclePersistence";
 
 type Row = Record<string, any>;
 type Result<T = Row[]> = { data: T | null; error: Error | null; count?: number | null };
@@ -256,7 +257,12 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
           id,
           user_id: raw.user_id || userId,
         };
-        await setDoc(doc(db, "users", userId, this.table, id), row, { merge: true });
+        if (currentUserId() !== userId) throw new Error("Account changed before saving.");
+        if (this.table === "cycle_profiles" || this.table === "cycle_logs") {
+          await writeCycleRecord(userId, this.table, row);
+        } else {
+          await setDoc(doc(db, "users", userId, this.table, id), row, { merge: true });
+        }
         saved.push(row);
       }
       if (typeof window !== "undefined") window.dispatchEvent(new Event("firebase-store-changed"));
@@ -270,7 +276,8 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
       const userId = currentUserId();
       if (!userId) return { data: null, error: new Error("برای ذخیره وارد شوید") };
       const idFilter = this.filters.find((f) => f.field === "id" && f.operator === "eq");
-      if (idFilter && typeof idFilter.value === "string" && this.filters.length === 1) {
+      if (idFilter && typeof idFilter.value === "string" && this.filters.length === 1
+        && this.table !== "cycle_profiles" && this.table !== "cycle_logs") {
         try {
           const docRef = doc(db, "users", userId, this.table, idFilter.value);
           const updatedRow = { ...patch, id: idFilter.value, user_id: userId, updated_at: patch.updated_at || new Date().toISOString() };

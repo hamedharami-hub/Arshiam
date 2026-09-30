@@ -32,7 +32,9 @@ export const ReviewView: React.FC = () => {
   const studyTaskId = searchParams.get("studyTaskId");
   const urlTab = searchParams.get("tab");
   const scopeRootFolderId = reviewFolder === "pharmacy" ? PHARMACY_ROOT_FOLDER_ID : undefined;
-  const preservedSearch = searchParams.toString() ? `?${searchParams.toString()}` : "";
+  const folderSwitchParams = new URLSearchParams(searchParams);
+  for (const key of ["folderId", "docId", "studyFolderId", "studyDocId", "studyTaskId"]) folderSwitchParams.delete(key);
+  const preservedSearch = folderSwitchParams.toString() ? `?${folderSwitchParams.toString()}` : "";
 
   const activeTab: "leitner" | "mindmap" = urlTab === "mindmap"
     ? "mindmap"
@@ -170,12 +172,13 @@ export const ReviewView: React.FC = () => {
             </button>
           ))}
         </div>
-        <ReviewInsights userId={userId} isEn={isEn} scopeRootFolderId={scopeRootFolderId} />
+        <ReviewInsights key={`${userId}:${reviewFolder}`} userId={userId} isEn={isEn} scopeRootFolderId={scopeRootFolderId} />
       </div>
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-background relative">
         {(visitedTabs.leitner || activeTab === "leitner") && (
           <div className={`flex-1 flex flex-col h-full min-h-0 ${activeTab === "leitner" ? "" : "hidden"}`}>
             <LeitnerDeckView
+              key={`${userId}:${reviewFolder}:${studyFolderId || ""}:${studyDocId || ""}`}
               userId={userId}
               onOpenDocument={handleOpenDoc}
               initialStudyDocumentId={studyDocId || undefined}

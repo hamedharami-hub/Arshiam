@@ -111,7 +111,7 @@ export async function listAttachments(taskId: string): Promise<RemoteAttachment[
   // Older native builds may have attachments in the separate FastAPI service.
   if (!ARSH_API_BASE) return firebaseItems.sort((a, b) => b.created_at.localeCompare(a.created_at));
   const legacy = await arshFetch<{ items: RemoteAttachment[] }>(`/api/arsh/attachments?task_id=${encodeURIComponent(taskId)}`)
-    .then((response) => response.items).catch(() => []);
+    .then((response) => response.items);
   return [...firebaseItems, ...legacy].sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
@@ -132,20 +132,24 @@ export async function uploadAttachment(
   file: Blob & { name: string },
   onProgress?: (fraction: number) => void,
   source = "device",
+  identity?: { id: string; ownerId: string },
 ): Promise<RemoteAttachment> {
   const v = validateAttachmentFile(file);
   if (!v.ok) throw new ArshApiError(v.reason === "too_large" ? 413 : 415, v.reason);
   const uid = requireOwnerId();
-  // Keep objects directly under the task folder so listAll() can find them.
-  const fileRef = ref(getStorage(), `${attachmentFolder(uid, taskId)}/${crypto.randomUUID()}_${encodeURIComponent(file.name)}`);
+  if (identity && identity.ownerId !== uid) throw new ArshApiError(403, "Account changed; attachment remains queued");
+  // Reuse the same storage object after an ambiguous result; retries cannot create duplicate objects.
+  const fileRef = ref(getStorage(), `${attachmentFolder(uid, taskId)}/${encodeURIComponent(identity?.id || crypto.randomUUID())}_${encodeURIComponent(file.name)}`);
   return new Promise<RemoteAttachment>((resolve, reject) => {
     const upload = uploadBytesResumable(fileRef, file, {
       contentType: v.mime,
       customMetadata: { fileName: file.name, source },
     });
     upload.on("state_changed", (snapshot) => {
+      if (auth.currentUser?.uid !== uid) { upload.cancel(); return; }
       if (snapshot.totalBytes > 0) onProgress?.(snapshot.bytesTransferred / snapshot.totalBytes);
     }, reject, () => {
+      if (auth.currentUser?.uid !== uid) { reject(new ArshApiError(403, "Account changed; file remains queued")); return; }
       onProgress?.(1);
       void fromStorageRef(fileRef, taskId).then(resolve, reject);
     });
@@ -153,7 +157,9 @@ export async function uploadAttachment(
 }
 
 export function isNetworkError(e: unknown): boolean {
-  return (e instanceof ArshApiError && (e.status === 0 || e.status >= 502)) || e instanceof TypeError;
+  const code = (e as { code?: string } | null)?.code || "";
+  return code === "storage/retry-limit-exceeded" || code === "storage/network-request-failed"
+    || (e instanceof ArshApiError && (e.status === 0 || e.status >= 502)) || e instanceof TypeError;
 }
 
 // ---------------- Offline queue (IndexedDB) ----------------
@@ -167,6 +173,7 @@ export type QueuedAttachment = {
   size: number;
   blob: Blob;
   createdAt: string;
+  lastError?: string;
 };
 
 const QUEUE_EVENT = "arshnaz:attachment-queue-changed";
@@ -194,10 +201,12 @@ export function onQueueChange(handler: (taskId: string) => void): () => void {
   return () => window.removeEventListener(QUEUE_EVENT, fn);
 }
 
-export async function enqueueAttachment(taskId: string, file: File): Promise<QueuedAttachment> {
+export async function enqueueAttachment(taskId: string, file: File, id = crypto.randomUUID(), expectedOwnerId?: string): Promise<QueuedAttachment> {
+  const uid = requireOwnerId();
+  if (expectedOwnerId && expectedOwnerId !== uid) throw new ArshApiError(403, "Account changed; file was not queued in another account");
   const item: QueuedAttachment = {
-    id: `q_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    ownerId: requireOwnerId(),
+    id,
+    ownerId: uid,
     taskId,
     name: file.name,
     type: resolveMime(file),
@@ -211,12 +220,30 @@ export async function enqueueAttachment(taskId: string, file: File): Promise<Que
 }
 
 export async function listQueued(taskId: string): Promise<QueuedAttachment[]> {
-  return (await queueDb()).getAllFromIndex("queue", "taskId", taskId);
+  const uid = requireOwnerId();
+  const items: QueuedAttachment[] = await (await queueDb()).getAllFromIndex("queue", "taskId", taskId);
+  return auth.currentUser?.uid === uid ? items.filter((item) => item.ownerId === uid) : [];
 }
 
 export async function removeQueued(id: string, taskId: string): Promise<void> {
-  await (await queueDb()).delete("queue", id);
+  const uid = requireOwnerId();
+  const database = await queueDb();
+  const existing = await database.get("queue", id) as QueuedAttachment | undefined;
+  if (!existing) return;
+  if (existing.ownerId !== uid || existing.taskId !== taskId || auth.currentUser?.uid !== uid) {
+    throw new ArshApiError(403, "Queued attachment belongs to another account");
+  }
+  await database.delete("queue", id);
   notifyQueue(taskId);
+}
+
+export async function recordAttachmentQueueError(id: string, error: unknown): Promise<void> {
+  const database = await queueDb();
+  const item = await database.get("queue", id) as QueuedAttachment | undefined;
+  if (!item) return;
+  item.lastError = error instanceof Error ? error.message : String(error);
+  await database.put("queue", item);
+  notifyQueue(item.taskId);
 }
 
 let flushing = false;
@@ -232,18 +259,20 @@ export async function flushAttachmentQueue(): Promise<number> {
     const all: QueuedAttachment[] = await (await queueDb()).getAll("queue");
     for (const item of all) {
       // Never upload an old unattributed blob or another account's blob.
+      if (auth.currentUser?.uid !== uid) break;
       if (item.ownerId !== uid) continue;
       try {
         const file = Object.assign(item.blob, { name: item.name }) as Blob & { name: string };
         Object.defineProperty(file, "type", { value: item.type, configurable: true });
-        await uploadAttachment(item.taskId, file);
+        await uploadAttachment(item.taskId, file, undefined, "device", { id: item.id, ownerId: uid });
+        if (auth.currentUser?.uid !== uid) break;
         await removeQueued(item.id, item.taskId);
         window.dispatchEvent(new CustomEvent(`arshnaz:attach-refresh:${item.taskId}`));
         done++;
       } catch (e) {
-        if (isNetworkError(e)) break; // still offline-ish, try later
-        // Preserve the file on any other error (rules, quota, auth, etc.) so
-        // the user can retry after the cloud configuration is repaired.
+        await recordAttachmentQueueError(item.id, e);
+        if (isNetworkError(e)) break;
+        // Keep both the original blob and visible failure for explicit retry.
       }
     }
   } finally {

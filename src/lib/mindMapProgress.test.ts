@@ -114,4 +114,38 @@ describe("mind map study progress", () => {
     const result = await syncMindMapStudyProgressToCloud("u1", { d1: "studying" });
     expect(result).toBe(false);
   });
+
+  it("BASELINE BUG: remote snapshot overwrites local changes for same document ID", () => {
+    // User makes offline change to d1
+    saveMindMapStudyStatus("u1", "d1", "studying");
+    saveMindMapStudyStatus("u1", "d2", "done");
+    expect(loadMindMapStudyProgress("u1")).toEqual({ d1: "studying", d2: "done" });
+
+    let snapshotListener!: (snap: any) => void;
+    onSnapshotMock.mockImplementation((_docRef, callback) => {
+      snapshotListener = callback;
+      return () => {};
+    });
+
+    const received: any[] = [];
+    subscribeMindMapStudyProgress("u1", (progress) => {
+      received.push(progress);
+    });
+
+    // Remote snapshot arrives with older data for d1 (was "later" before user changed to "studying")
+    snapshotListener({
+      exists: () => true,
+      data: () => ({
+        progress: { d1: "later", d3: "done" },
+      }),
+    });
+
+    // BUG: Local d1:"studying" is overwritten by remote d1:"later"
+    // Expected: { d1: "studying", d2: "done", d3: "done" } (local wins for conflicts)
+    // Actual: { d1: "later", d2: "done", d3: "done" } (remote overwrites local)
+    const latest = received[received.length - 1];
+    expect(latest.d1).toBe("later"); // BUG: should be "studying"
+    expect(latest.d2).toBe("done");
+    expect(latest.d3).toBe("done");
+  });
 });

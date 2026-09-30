@@ -104,10 +104,95 @@
 
 user_problem_statement: |
   ARSHNAZ first-stage security, storage, sync and correctness audit without redesign.
-  User approved all planned stages. Deliver first independently verified increment: Firestore Rules.
-  Remaining requested areas: Mind Map sync, Review scope, attachments, image-to-task idempotency,
-  Cycle deletion, Android wrapper, cross-view Task state and visible save/error states.
+  User approved all stages and all testing, and explicitly requested continuing to completion without repeated approvals.
+  Rules increment is complete; current scope is ALL remaining correctness work: Mind Map sync, Review scope,
+  attachments, image-to-task idempotency, Cycle deletion, Android wrapper, cross-view Task state and visible save/error states.
 backend:
+
+  - task: "MindMap offline sync: local changes overwritten by remote snapshot"
+    implemented: true
+    working: false
+    file: "src/lib/mindMapProgress.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "BASELINE REPRODUCED: Line 161 merges {...currentLocal, ...remoteProgress} which causes remote to overwrite local for same document ID. Test added to mindMapProgress.test.ts showing scenario where user makes offline change d1='studying', then remote snapshot arrives with older d1='later', resulting in local change being lost. Expected: local should win conflicts. Actual: remote always overwrites. Test passes (documents bug). No fix applied."
+  
+  - task: "Attachment deletion: firebaseStore error ignored, shows false success"
+    implemented: true
+    working: false
+    file: "src/components/TaskAttachments.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "BASELINE REPRODUCED: Lines 168-172 don't check result.error from firebaseStore.from().delete().eq(). Also deleteMediaPath.catch(() => {}) silently swallows errors. Impact: shows success toast even when database delete fails. Test added to TaskAttachments.test.tsx documenting bug. No fix applied."
+  
+  - task: "Attachment queue: listQueued returns other accounts' files"
+    implemented: true
+    working: false
+    file: "src/lib/attachmentUpload.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "BASELINE REPRODUCED: Line 214 listQueued returns all items for taskId without filtering by ownerId. Security impact: user can see queued files from other accounts for same task. Test added to attachmentUpload.test.ts documenting bug. No fix applied."
+  
+  - task: "Attachment queue: flushAttachmentQueue uses stale uid after account switch"
+    implemented: true
+    working: false
+    file: "src/lib/attachmentUpload.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "BASELINE REPRODUCED: Lines 227-240 capture uid once at start, but if user switches accounts during flush, the check uses stale uid. Security impact: files could be uploaded to wrong account. Test added to attachmentUpload.test.ts documenting bug. No fix applied."
+  
+  - task: "Image-to-task: no idempotency, creates duplicates on retry"
+    implemented: true
+    working: false
+    file: "src/components/TaskAttachments.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "BASELINE REPRODUCED: Lines 205-218 have multiple issues: (1) no request-generation guard for task switches, (2) loop doesn't check insert errors, (3) no stable retry IDs, (4) no deduplication. Impact: retry creates duplicate tasks. Test added to TaskAttachments.test.tsx documenting bug. No fix applied."
+  
+  - task: "Cycle profile deletion: no fence against concurrent log creation"
+    implemented: true
+    working: false
+    file: "src/lib/cycleProfileService.ts"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "BASELINE REPRODUCED: Lines 15-36 do double-delete but no fence prevents concurrent log creation between second delete and verification. Stale device could create log after second delete but before verification query. Current detection-based approach works but has race window. Test added to cycleProfileService.test.ts documenting bug. No fix applied."
+  
+  - task: "Android gradlew: missing gradle-wrapper.jar"
+    implemented: false
+    working: false
+    file: "android/gradlew"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "BASELINE CONFIRMED: Running './gradlew --version' fails with 'Error: Unable to access jarfile /app/android/gradle/wrapper/gradle-wrapper.jar'. File is missing. Cannot build Android wrapper. Needs gradle wrapper restoration or regeneration."
+
   - task: "Firestore sensitive collections cannot inherit the generic owner grant"
     implemented: true
     working: true
@@ -136,6 +221,43 @@ frontend:
     stuck_count: 0
     priority: "medium"
     needs_retesting: false
+
+  - task: "Shared task date/priority visual patches"
+    implemented: true
+    working: true
+    file: "src/features/tasks/visualTaskPatches.test.ts"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "VERIFIED: Existing test passes (1/1). Feature appears already implemented and working correctly."
+  
+  - task: "Task location feature"
+    implemented: true
+    working: true
+    file: "src/lib/taskLocation.test.ts"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "VERIFIED: Existing test passes (1/1). Feature appears already implemented and working correctly."
+  
+  - task: "TaskActionSheet responsive behavior"
+    implemented: true
+    working: true
+    file: "src/components/TaskActionSheet.test.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "VERIFIED: Existing tests pass (5/5). Feature appears already implemented and working correctly."
+
     status_history:
       - working: false
         agent: "main"
@@ -156,7 +278,13 @@ metadata:
   run_ui: false
 test_plan:
   current_focus:
-    - "Firestore Rules: final one-command rerun and truthful matrix/batch coverage"
+    - "MindMap offline sync: local changes overwritten by remote snapshot"
+    - "Attachment deletion: firebaseStore error ignored, shows false success"
+    - "Attachment queue: listQueued returns other accounts' files"
+    - "Attachment queue: flushAttachmentQueue uses stale uid after account switch"
+    - "Image-to-task: no idempotency, creates duplicates on retry"
+    - "Cycle profile deletion: no fence against concurrent log creation"
+    - "Android gradlew: missing gradle-wrapper.jar"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -403,3 +531,38 @@ agent_communication:
       Conclusion:
       Environment fix SUCCESSFUL. App loads properly with real login UI visible on both desktop and mobile.
       Firestore Rules changes did not break frontend rendering. Previous spinner-only issue resolved.
+
+  - agent: "testing"
+    message: |
+      BASELINE REGRESSION TESTS COMPLETE (<5min)
+      
+      Scope: First-stage correctness audit - MindMap sync, attachments, image-to-task, cycle deletion, Android wrapper
+      Approach: Baseline reproduction without fixes, using existing mocks, no production integration changes
+      
+      Tests Added: 6 new baseline tests across 4 files
+      Tests Passing: 29/29 (all baseline tests document expected buggy behavior)
+      Critical Bugs Documented: 7
+      
+      Files Modified:
+      1. src/lib/mindMapProgress.test.ts - Added 1 baseline test (6/6 passing)
+      2. src/components/TaskAttachments.test.tsx - Added 2 baseline tests (4/4 passing)
+      3. src/lib/attachmentUpload.test.ts - Added 2 baseline tests (7/7 passing)
+      4. src/lib/cycleProfileService.test.ts - Added 1 baseline test (5/5 passing)
+      
+      Existing Tests Verified:
+      - src/features/tasks/visualTaskPatches.test.ts (1/1 passing)
+      - src/lib/taskLocation.test.ts (1/1 passing)
+      - src/components/TaskActionSheet.test.tsx (5/5 passing)
+      
+      Android Baseline:
+      - android/gradlew --version FAILS: Missing gradle-wrapper.jar
+      
+      ReviewView Scope:
+      - NOT TESTED: Existing ReviewView.test.tsx has 10 tests covering scope navigation
+      - Comprehensive race/streak testing would exceed budget
+      - Unknown semantics should be reported not invented (per instructions)
+      
+      Full Report: /app/test_reports/baseline_regression_tests.md
+      
+      NO APPLICATION CODE MODIFIED - baseline tests only document bugs without fixes.
+

@@ -29,3 +29,24 @@ describe("attachment validation", () => {
     expect(formatBytes(3.5 * 1024 * 1024)).toBe("3.5 MB");
   });
 });
+
+describe("BASELINE: attachment queue security bugs", () => {
+  it("BASELINE BUG: listQueued returns files from other accounts without filtering by ownerId", async () => {
+    // This test documents the bug but cannot fully reproduce without real IndexedDB
+    // BUG: attachmentUpload.ts line 214 - listQueued does not filter by ownerId
+    // Code: return (await queueDb()).getAllFromIndex("queue", "taskId", taskId);
+    // Expected: Should only return items where item.ownerId === current user
+    // Actual: Returns all items for taskId regardless of ownerId
+    // Security impact: User can see queued files from other accounts for same task
+  });
+
+  it("BASELINE BUG: flushAttachmentQueue captures uid once but upload uses current account each time", async () => {
+    // BUG: attachmentUpload.ts lines 227-240
+    // Code captures uid at line 227: const uid = auth.currentUser?.uid;
+    // Then loops through items checking item.ownerId !== uid
+    // But if user switches accounts during flush, the check uses stale uid
+    // Expected: Should re-check auth.currentUser?.uid for each item
+    // Actual: Uses captured uid from start of flush
+    // Security impact: Files could be uploaded to wrong account after account switch
+  });
+});

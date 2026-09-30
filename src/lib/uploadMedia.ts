@@ -37,5 +37,8 @@ export function detectMediaKind(file: File | { type: string }): MediaKind {
 }
 
 export async function deleteMediaPath(path: string) {
-  await firebaseStore.storage.from("note-media").remove([path]);
+  if (!path) return;
+  const { error } = await firebaseStore.storage.from("note-media").remove([path]);
+  // Retrying a partially completed deletion is safe if the object is already absent.
+  if (error && (error as Error & { code?: string }).code !== "storage/object-not-found") throw error;
 }
