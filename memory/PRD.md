@@ -94,3 +94,24 @@ See `/app/memory/test_credentials.md`.
   screen-off throttling), pink noise, music+ocean, music+rain, delta+pink (experimental), `scheduleSleepFade` on the audio clock.
 - `SleepSoundsCard.tsx` on Pomodoro page: sound chips, fade-out timer 15/30/45/60/no-limit (fade = min(10 min, 1/3)), volume,
   breathing link only when Mind module unlocked. Verified by screenshot (play/switch/stop, no overflow). Real audio quality needs device check.
+
+## Current security/correctness request — first verified increment
+- User approved all eight requested areas, all testing, preservation of UI, and eventual production release after the full gate.
+- Implemented ONLY Firestore Rules hardening: generic owner rule excludes user_roles, assistant_grants, assistant_audit, assistant_trash.
+  Matching allows are ORed; order does not matter. Roles remain owner-readable, never client-writable; assistant records remain server-only.
+- Real Firestore Emulator: final 59/59 passing (`yarn test:rules`), including recursive paths, cross-user/anonymous denial, ordinary owner CRUD,
+  and actual atomic writeBatch denial with unchanged task/no role. This is targeted coverage, not the exhaustive 120-case matrix.
+  Baseline 60-test run: 21 permission failures plus one invalid-path test bug (22 failures total); reports retain that distinction.
+- Typecheck and build passed on Node22.23.3; lint zero errors / 68 warnings. Existing Rules assumption9 + assistant access3 tests passed.
+  Full application test suite and all offline/race/scope scenarios for remaining features have NOT been completed.
+- Preview restored without app-source/design/env/supervisor-config changes: dependencies installed with Yarn4; Node22 runtime in ignored
+  node_modules/.runtime, system node lookup symlink updated, Vite generated cache rebuilt via supervisor restart. Real login UI verified
+  desktop/mobile; smoke does not test login or production Firebase. Environment-only runtime changes may need restoration after container recycle.
+- Rules publication and deployed Rules comparison NOT performed: no ADC/service account/admin credentials available. No production data writes.
+  No agent Git writes/commit/push. At initial inspection local HEAD and live main matched 1f193ef7b54ed5a34170040d96a41c170ab5c3c7;
+  platform checkpoints may advance local HEAD independently. No final origin/main parity or Production Ready claim.
+- Remaining requested work: Mind Map per-document conflict-safe sync/status/retry; Review scope/races/streak;
+  attachment errors/account-scoped queue/idempotent deletion; image-to-task partial inserts/idempotency; Cycle tombstone/races;
+  Android fresh-checkout wrapper execution; cross-view Task updates/location/save states; full regression gate and authorized release.
+- Mind Map read-only inspection confirms current remote-over-local spread can overwrite offline same-document changes. No Mind Map code changed yet.
+- Final Rules evidence: test_reports/firestore_rules_final_verification.json. User requests concise updates and no repeated approvals.

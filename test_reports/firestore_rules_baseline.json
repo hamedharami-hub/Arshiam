@@ -1,0 +1,166 @@
+{
+  "test_run": {
+    "timestamp": "2026-09-30T09:38:26Z",
+    "environment": {
+      "node_version": "20.20.2",
+      "java_version": "17.0.20.1",
+      "firebase_cli_version": "13.35.1",
+      "emulator_version": "v1.19.8",
+      "vitest_version": "4.1.11"
+    },
+    "configuration": {
+      "project_id": "demo-arshnaz-rules",
+      "emulator_host": "127.0.0.1:8080",
+      "rules_file": "firestore.rules",
+      "rules_backup": "/tmp/firestore.rules.original"
+    }
+  },
+  "summary": {
+    "total_tests": 60,
+    "passed": 38,
+    "failed": 22,
+    "skipped": 0,
+    "duration_ms": 3500
+  },
+  "security_findings": {
+    "critical_vulnerabilities": {
+      "user_roles_collection": {
+        "severity": "HIGH",
+        "description": "Owner can CREATE, UPDATE, DELETE in user_roles subcollection despite rules intending to deny writes",
+        "affected_operations": ["CREATE", "UPDATE", "DELETE"],
+        "expected_behavior": "Only READ allowed for owner, all writes denied",
+        "actual_behavior": "All operations (GET, LIST, CREATE, UPDATE, DELETE) succeed for owner",
+        "root_cause": "Generic wildcard rule at line 42 'match /{subcollection}/{docId=**}' grants full access AFTER specific user_roles deny rule at line 25-28",
+        "failed_tests": [
+          "should DENY owner CREATE in user_roles",
+          "should DENY owner UPDATE in user_roles",
+          "should DENY owner DELETE in user_roles"
+        ]
+      },
+      "assistant_grants_collection": {
+        "severity": "HIGH",
+        "description": "Owner can perform ALL operations on assistant_grants despite rules denying all access",
+        "affected_operations": ["GET", "LIST", "CREATE", "UPDATE", "DELETE"],
+        "expected_behavior": "All operations denied for everyone including owner",
+        "actual_behavior": "All operations succeed for owner",
+        "root_cause": "Generic wildcard rule at line 42 overrides specific deny rule at lines 31-33",
+        "failed_tests": [
+          "should DENY owner GET assistant_grants",
+          "should DENY owner LIST assistant_grants",
+          "should DENY owner CREATE assistant_grants",
+          "should DENY owner UPDATE assistant_grants",
+          "should DENY owner DELETE assistant_grants"
+        ]
+      },
+      "assistant_audit_collection": {
+        "severity": "HIGH",
+        "description": "Owner can perform ALL operations on assistant_audit despite rules denying all access",
+        "affected_operations": ["GET", "LIST", "CREATE", "UPDATE", "DELETE"],
+        "expected_behavior": "All operations denied for everyone including owner",
+        "actual_behavior": "All operations succeed for owner",
+        "root_cause": "Generic wildcard rule at line 42 overrides specific deny rule at lines 34-36",
+        "failed_tests": [
+          "should DENY owner GET assistant_audit",
+          "should DENY owner LIST assistant_audit",
+          "should DENY owner CREATE assistant_audit",
+          "should DENY owner UPDATE assistant_audit",
+          "should DENY owner DELETE assistant_audit"
+        ]
+      },
+      "assistant_trash_collection": {
+        "severity": "HIGH",
+        "description": "Owner can perform ALL operations on assistant_trash despite rules denying all access",
+        "affected_operations": ["GET", "LIST", "CREATE", "UPDATE", "DELETE"],
+        "expected_behavior": "All operations denied for everyone including owner",
+        "actual_behavior": "All operations succeed for owner",
+        "root_cause": "Generic wildcard rule at line 42 overrides specific deny rule at lines 37-39",
+        "failed_tests": [
+          "should DENY owner GET assistant_trash",
+          "should DENY owner LIST assistant_trash",
+          "should DENY owner CREATE assistant_trash",
+          "should DENY owner UPDATE assistant_trash",
+          "should DENY owner DELETE assistant_trash"
+        ]
+      },
+      "recursive_path_protection": {
+        "severity": "HIGH",
+        "description": "Nested paths under sensitive collections are accessible to owner",
+        "affected_collections": ["user_roles", "assistant_grants"],
+        "expected_behavior": "Nested paths should be denied",
+        "actual_behavior": "Nested paths accessible due to wildcard rule",
+        "root_cause": "Generic wildcard rule at line 42 allows nested document creation",
+        "failed_tests": [
+          "should DENY owner access to nested paths under user_roles",
+          "should DENY owner access to nested paths under assistant_grants"
+        ]
+      }
+    },
+    "working_correctly": {
+      "user_roles_read_access": {
+        "description": "Owner can correctly READ (GET and LIST) user_roles",
+        "passed_tests": [
+          "should allow owner to GET user_roles",
+          "should allow owner to LIST user_roles collection"
+        ]
+      },
+      "cross_user_protection": {
+        "description": "Other users and anonymous users correctly denied access to all sensitive collections",
+        "passed_tests": [
+          "should DENY other user GET user_roles",
+          "should DENY other user LIST user_roles",
+          "should DENY other user CREATE in user_roles",
+          "should DENY anonymous GET user_roles",
+          "should DENY anonymous LIST user_roles",
+          "should DENY anonymous CREATE in user_roles",
+          "All other user and anonymous tests for assistant_grants, assistant_audit, assistant_trash"
+        ]
+      },
+      "regular_collections": {
+        "description": "Regular user collections (tasks, profile, folders) work correctly with proper owner access and cross-user denial",
+        "passed_tests": [
+          "should allow owner CRUD on tasks subcollection",
+          "should allow owner to list tasks subcollection",
+          "should allow owner CRUD on profile subcollection",
+          "should allow owner CRUD on folders subcollection",
+          "should DENY other user access to owner tasks/profile/folders",
+          "should DENY anonymous access to owner tasks"
+        ]
+      },
+      "top_level_protection": {
+        "description": "Unknown and server-only top-level collections correctly denied",
+        "passed_tests": [
+          "should DENY access to unknown top-level collections",
+          "should DENY access to server-only collections"
+        ]
+      }
+    }
+  },
+  "test_harness_fixes_applied": [
+    "Fixed vitest.config.ts to only include rules-tests/**/*.test.ts (was **/*.test.ts)",
+    "Fixed test to expect owner LIST user_roles to SUCCEED (was incorrectly expecting FAIL)",
+    "Removed hardcoded host/port, now uses FIRESTORE_EMULATOR_HOST environment variable",
+    "Added fail-fast check if FIRESTORE_EMULATOR_HOST not set",
+    "Added optional cleanup in afterAll to handle initialization failures",
+    "Updated firebase.emulator.json to use default firestore port (removed explicit 8080)",
+    "Expanded test matrix to cover owner/other/anonymous x GET/LIST/CREATE/UPDATE/DELETE for all 4 sensitive collections",
+    "Added tests for regular collections (profile, folders) to verify normal operations work",
+    "Fixed package.json test:rules script to use METADATA_SERVER_DETECTION=none and proper quotes"
+  ],
+  "emulator_execution": {
+    "method": "Direct Java JAR execution",
+    "reason": "Firebase CLI emulators:exec hung on metadata.google.internal probe",
+    "workaround": "Ran cloud-firestore-emulator-v1.19.8.jar directly with explicit host binding",
+    "command": "java -jar /root/.cache/firebase/emulators/cloud-firestore-emulator-v1.19.8.jar --host=127.0.0.1 --port=8080 --rules=firestore.rules"
+  },
+  "credentials_status": {
+    "service_account_files": "None found in /app",
+    "application_default_credentials": "Not present",
+    "note": "Emulator tests use synthetic auth contexts, no live credentials required"
+  },
+  "next_steps": [
+    "Main agent should fix firestore.rules to prevent wildcard rule from overriding specific deny rules",
+    "Recommended fix: Move specific sensitive collection rules AFTER the generic wildcard rule, or use more specific path matching",
+    "Re-run tests after rules fix to verify all 22 failed tests now pass",
+    "Consider adding explicit deny rules that take precedence over allow rules"
+  ]
+}

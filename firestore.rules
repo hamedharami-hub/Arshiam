@@ -38,8 +38,17 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
+      // Matching allow expressions are ORed: a more specific false does not
+      // override this grant. Keep server-managed collections out of it,
+      // including every nested document beneath those collections.
       match /{subcollection}/{docId=**} {
-        allow read, write: if isOwner(userId);
+        allow read, write: if isOwner(userId)
+          && !(subcollection in [
+            'user_roles',
+            'assistant_grants',
+            'assistant_audit',
+            'assistant_trash'
+          ]);
       }
     }
 
