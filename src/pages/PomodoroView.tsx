@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -83,13 +83,13 @@ export default function PomodoroView() {
 
   return (
     <div dir={isEn ? "ltr" : "rtl"} className="p-4 md:p-6 max-w-md mx-auto space-y-4 page-enter">
-      <Card className="p-6 space-y-4">
+      <Card className="p-4 sm:p-6 space-y-5">
         <div className="space-y-1.5">
           <label className="text-xs text-muted-foreground flex items-center gap-1.5">
             <Target className="w-3 h-3" /> {T("تسک فعلی", "Current Task")}
           </label>
           <Select value={selectedTaskId || "none"} onValueChange={(v) => setSelectedTaskId(v === "none" ? null : v)}>
-            <SelectTrigger className="h-9 text-xs">
+            <SelectTrigger className="h-9 text-xs" data-testid="pomodoro-task-select">
               <SelectValue placeholder={T("انتخاب تسک برای تمرکز", "Select a task to focus on")} />
             </SelectTrigger>
             <SelectContent>
@@ -117,68 +117,54 @@ export default function PomodoroView() {
         />
       </Card>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Clock className="w-4 h-4 text-primary" /> {T("امروز", "Today")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <div className="text-3xl font-bold tabular-nums text-primary text-center">
-            {isEn ? totalMin : toPersianDigits(totalMin)} <span className="text-sm font-normal text-muted-foreground">{T("دقیقه تمرکز", "focus minutes")}</span>
-          </div>
-          <div className="text-xs text-muted-foreground text-center">
-            {isEn ? today.length : toPersianDigits(today.length)} {T("جلسه کامل", "sessions completed")}
-          </div>
-
-          {(taskTotals.size > 0 || freeMin > 0) && (
-            <div className="border-t pt-3 mt-3 space-y-1.5">
-              <div className="text-xs font-semibold flex items-center gap-1 text-muted-foreground">
-                <ListChecks className="w-3 h-3" /> {T("تفکیک", "Breakdown")}
-              </div>
-              {Array.from(taskTotals.entries()).map(([id, v]) => (
-                <div key={id} className="flex justify-between text-sm">
-                  <span className="truncate flex-1 ms-2">{v.title}</span>
-                  <span className="tabular-nums text-muted-foreground">{isEn ? `${v.min}m` : `${toPersianDigits(v.min)}د`}</span>
-                </div>
-              ))}
-              {freeMin > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{T("بدون تسک", "No task")}</span>
-                  <span className="tabular-nums text-muted-foreground">{isEn ? `${freeMin}m` : `${toPersianDigits(freeMin)}د`}</span>
-                </div>
-              )}
+      <Card className="p-4 space-y-4" data-testid="pomodoro-stats">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-lg bg-muted/50 p-3">
+            <div className="flex items-center gap-1 text-[11px] text-muted-foreground"><Clock className="w-3 h-3" /> {T("تمرکز امروز", "Focus today")}</div>
+            <div className="mt-1 text-2xl font-bold tabular-nums text-primary" data-testid="pomodoro-today-minutes">
+              {isEn ? totalMin : toPersianDigits(totalMin)} <span className="text-xs font-normal text-muted-foreground">{T("دقیقه", "min")}</span>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+          <div className="rounded-lg bg-muted/50 p-3">
+            <div className="flex items-center gap-1 text-[11px] text-muted-foreground"><ListChecks className="w-3 h-3" /> {T("جلسهٔ کامل", "Sessions")}</div>
+            <div className="mt-1 text-2xl font-bold tabular-nums" data-testid="pomodoro-today-sessions">{isEn ? today.length : toPersianDigits(today.length)}</div>
+          </div>
+        </div>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-primary" />
-            {T("۷ روز اخیر", "Last 7 Days")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-40 w-full">
+        {(taskTotals.size > 0 || freeMin > 0) && (
+          <div className="space-y-1.5">
+            {Array.from(taskTotals.entries()).map(([id, v]) => (
+              <div key={id} className="flex justify-between text-sm">
+                <span className="truncate flex-1 ms-2" dir="auto">{v.title}</span>
+                <span className="tabular-nums text-muted-foreground">{isEn ? `${v.min}m` : `${toPersianDigits(v.min)}د`}</span>
+              </div>
+            ))}
+            {freeMin > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">{T("بدون تسک", "No task")}</span>
+                <span className="tabular-nums text-muted-foreground">{isEn ? `${freeMin}m` : `${toPersianDigits(freeMin)}د`}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="border-t border-border pt-3">
+          <div className="mb-2 flex items-center gap-1 text-[11px] text-muted-foreground"><TrendingUp className="w-3 h-3" /> {T("۷ روز اخیر", "Last 7 days")}</div>
+          <div className="h-32 w-full" data-testid="pomodoro-week-chart">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weekData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+              <BarChart data={weekData} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+                <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} reversed={!isEn} />
+                <YAxis hide />
                 <Tooltip
-                  contentStyle={{ borderRadius: "0.75rem" }}
-                  formatter={(value: number) => [
-                    isEn ? `${value} min` : `${toPersianDigits(value)} دقیقه`,
-                    T("تمرکز", "Focus"),
-                  ]}
-                  labelFormatter={(label: string) => label}
+                  cursor={{ fill: "hsl(var(--muted))" }}
+                  contentStyle={{ borderRadius: "0.5rem", fontSize: 12 }}
+                  formatter={(value: number) => [isEn ? `${value} min` : `${toPersianDigits(value)} دقیقه`, T("تمرکز", "Focus")]}
                 />
-                <Bar dataKey="minutes" radius={[4, 4, 0, 0]} fill="hsl(var(--primary))" />
+                <Bar dataKey="minutes" radius={[3, 3, 0, 0]} fill="hsl(var(--primary))" maxBarSize={28} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </CardContent>
+        </div>
       </Card>
     </div>
   );

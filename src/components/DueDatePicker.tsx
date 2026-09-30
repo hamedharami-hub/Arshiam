@@ -17,6 +17,7 @@ import { toast } from "sonner";
 
 import { addDays, format, startOfDay } from "date-fns";
 import { formatDate } from "@/lib/jalali";
+import { InlineDatePicker } from "@/components/InlineDatePicker";
 
 /**
  * Smart due-date & multi-step reliable reminder picker.
@@ -50,6 +51,7 @@ export function DueDatePicker({
   const [datePart, setDatePart] = useState<string>("");
   const [timePart, setTimePart] = useState<string>("");
   const [includeTime, setIncludeTime] = useState<boolean>(false);
+  const [showCal, setShowCal] = useState<boolean>(compact);
 
   // Reminder active state
   const effectivePlan = reminderPlan || (reminderValue ? resolveEffectiveReminder({ reminder_at: reminderValue }) : null);
@@ -239,17 +241,28 @@ export function DueDatePicker({
           variant={isTomorrow(datePart) ? "default" : "outline"}
           onClick={() => setQuick(1)} className="h-8 text-xs px-2"
         >{T("فردا", "Tomorrow")}</Button>
-        <Input
-          type="date" value={datePart}
-          onChange={(e) => { setDatePart(e.target.value); emitDate(e.target.value, timePart, includeTime); }}
-          className="h-8 flex-1 min-w-[130px] text-xs"
-        />
+        <Button
+          type="button" size="sm" variant={showCal ? "secondary" : "outline"}
+          onClick={() => setShowCal((v) => !v)} className="h-8 flex-1 min-w-[110px] justify-start gap-1.5 text-xs px-2"
+          data-testid="due-date-calendar-toggle"
+        >
+          <Calendar className="w-3.5 h-3.5" />
+          <span className="truncate">{datePart ? formatDate(new Date(`${datePart}T12:00:00`), "d MMM", isEn ? "gregorian" : undefined) : T("انتخاب تاریخ", "Pick date")}</span>
+        </Button>
         {value && (
-          <Button type="button" size="icon" variant="ghost" onClick={clear} className="h-8 w-8" title={T("حذف", "Delete")}>
+          <Button type="button" size="icon" variant="ghost" onClick={clear} className="h-8 w-8" title={T("حذف", "Delete")} data-testid="due-date-clear">
             <X className="w-3.5 h-3.5" />
           </Button>
         )}
       </div>
+
+      {showCal && (
+        <InlineDatePicker
+          value={datePart}
+          isEn={isEn}
+          onSelect={(ymd) => { setDatePart(ymd); emitDate(ymd, timePart, includeTime); }}
+        />
+      )}
 
       {!label && jalaliPreview && (
         <div className="text-[11px] font-medium text-primary text-end">

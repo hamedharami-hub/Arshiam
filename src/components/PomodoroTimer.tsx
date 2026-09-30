@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type TouchEvent as RTouchEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Play, Pause, RotateCcw, SkipForward, Volume2, VolumeX, Music2 } from "lucide-react";
+import { Play, Pause, RotateCcw, SkipForward, Volume2, VolumeX, Music2, Settings2, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
@@ -9,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { AMBIENT_SOUNDS, SOUND_CATEGORY_META, type SoundCategory } from "@/lib/ambientSounds";
+import { AMBIENT_SOUNDS } from "@/lib/ambientSounds";
 import { startSynth, stopSynth, setSynthVolume } from "@/lib/pomodoroSynth";
 import { END_BELLS, playEndBell, type EndBellId } from "@/lib/pomodoroSounds";
 import { useTapGestures } from "@/lib/useTapGestures";
@@ -55,6 +56,7 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
   const [endAt, setEndAt] = useState<number | null>(null);
   const [remaining, setRemaining] = useState(prefs.minutes * 60);
   const [doneToday, setDoneToday] = useState(loadCount);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const startedAtRef = useRef<number | null>(null);
   const finishingRef = useRef(false);
   const running = endAt !== null;
@@ -276,10 +278,10 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
             <Label className="text-xs">{T("مدت تمرکز", "Focus length")}</Label>
             <span className="tabular-nums text-muted-foreground">{num(prefs.minutes)} {T("دقیقه", "min")}</span>
           </div>
-          <Slider value={[prefs.minutes]} min={5} max={90} step={5} onValueChange={([v]) => setWorkMinutes(v)} />
+          <Slider value={[prefs.minutes]} min={5} max={90} step={5} onValueChange={([v]) => setWorkMinutes(v)} dir={isEn ? "ltr" : "rtl"} data-testid="pomodoro-minutes-slider" />
           <div className="flex flex-wrap justify-center gap-1">
             {[15, 25, 45, 60].map((m) => (
-              <Button key={m} size="sm" variant={prefs.minutes === m ? "default" : "outline"} className="h-7 rounded-full px-3 text-xs" onClick={() => setWorkMinutes(m)}>
+              <Button key={m} size="sm" variant={prefs.minutes === m ? "default" : "outline"} className="h-7 rounded-full px-3 text-xs" onClick={() => setWorkMinutes(m)} data-testid={`pomodoro-preset-${m}`}>
                 {T(`${num(m)} د`, `${m}m`)}
               </Button>
             ))}
@@ -287,63 +289,68 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
         </div>
       )}
 
-      <div className="space-y-3 rounded-lg border border-border p-3">
-        <div className="flex items-center gap-2 text-xs font-semibold"><Music2 className="h-4 w-4 text-muted-foreground" />{T("صدا و موسیقی", "Sound & music")}</div>
-        <div className="flex items-center gap-2">
-          <Label className="flex-1 text-xs">{T("صدای محیطی", "Ambient")}</Label>
-          <Select value={prefs.ambient} onValueChange={(v) => setPrefs((p) => ({ ...p, ambient: v }))}>
-            <SelectTrigger className="h-8 w-48 text-xs" data-testid="pomodoro-ambient-select"><SelectValue placeholder={T("بدون صدا", "No sound")} /></SelectTrigger>
-            <SelectContent className="max-h-80">
-              <SelectItem value="none">🔇 {T("بدون صدا", "No sound")}</SelectItem>
-              {(Object.keys(SOUND_CATEGORY_META) as SoundCategory[]).map((cat) => {
-                const items = AMBIENT_SOUNDS.filter((s) => s.category === cat);
-                if (!items.length) return null;
-                const meta = SOUND_CATEGORY_META[cat];
-                return (
-                  <div key={cat}>
-                    <div className="mt-1 border-t px-2 py-1 text-[10px] text-muted-foreground">{meta.emoji} {T(meta.label, meta.labelEn)}</div>
-                    {items.map((s) => <SelectItem key={s.id} value={s.id}>{s.emoji} {T(s.name, s.nameEn)}</SelectItem>)}
-                  </div>
-                );
-              })}
-            </SelectContent>
-          </Select>
+      <div className="space-y-2" data-testid="pomodoro-sound-panel">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs font-semibold"><Music2 className="h-3.5 w-3.5 text-muted-foreground" />{T("صدای محیطی", "Ambient sound")}</div>
+          {currentSound?.hint && <span className="text-[10px] text-amber-600 dark:text-amber-400">{T(currentSound.hint, currentSound.hintEn || currentSound.hint)}</span>}
         </div>
-        {currentSound?.hint && <div className="text-[10px] text-amber-600 dark:text-amber-400">{T(currentSound.hint, currentSound.hintEn || currentSound.hint)}</div>}
+        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]" data-testid="pomodoro-ambient-chips">
+          {[{ id: "none", emoji: "", name: "بی‌صدا", nameEn: "Off" }, ...AMBIENT_SOUNDS].map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setPrefs((p) => ({ ...p, ambient: s.id }))}
+              className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-xs transition-colors ${prefs.ambient === s.id ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+              data-testid={`pomodoro-ambient-${s.id}`}
+            >
+              {s.id === "none" ? <VolumeX className="h-3 w-3" /> : <span>{s.emoji}</span>}
+              {T(s.name, s.nameEn)}
+            </button>
+          ))}
+        </div>
         {prefs.ambient !== "none" && (
           <div className="flex items-center gap-2">
             {prefs.ambientVol === 0 ? <VolumeX className="h-4 w-4 text-muted-foreground" /> : <Volume2 className="h-4 w-4 text-muted-foreground" />}
-            <Slider value={[prefs.ambientVol]} min={0} max={100} step={5} onValueChange={([v]) => setPrefs((p) => ({ ...p, ambientVol: v }))} className="flex-1" />
+            <Slider value={[prefs.ambientVol]} min={0} max={100} step={5} onValueChange={([v]) => setPrefs((p) => ({ ...p, ambientVol: v }))} className="flex-1" dir={isEn ? "ltr" : "rtl"} data-testid="pomodoro-ambient-volume" />
             <span className="w-9 text-center text-xs tabular-nums">{num(prefs.ambientVol)}%</span>
           </div>
         )}
-        <div className="flex items-center gap-2">
-          <Label className="flex-1 text-xs">{T("زنگ پایان", "End bell")}</Label>
-          <Select value={prefs.bell} onValueChange={(v) => { setPrefs((p) => ({ ...p, bell: v as EndBellId })); playEndBell(v as EndBellId); }}>
-            <SelectTrigger className="h-8 w-48 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {END_BELLS.map((b) => <SelectItem key={b.id} value={b.id}>{b.emoji} {T(b.name, b.nameEn)}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid grid-cols-3 gap-2 border-t border-border pt-3">
-          {([["shortBreak", "استراحت کوتاه", "Short break", [3, 5, 10]], ["longBreak", "استراحت بلند", "Long break", [10, 15, 20, 30]], ["longEvery", "بلند بعد از", "Long every", [2, 3, 4, 5, 6]]] as const).map(([key, fa, en, opts]) => (
-            <div key={key} className="space-y-1">
-              <Label className="text-[11px] text-muted-foreground">{T(fa, en)}</Label>
-              <Select value={String(prefs[key])} onValueChange={(v) => { setPrefs((p) => ({ ...p, [key]: Number(v) })); if (!running && mode !== "work") setRemaining(Number(v) * 60); }}>
-                <SelectTrigger className="h-8 text-xs" data-testid={`pomodoro-${key}`}><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {opts.map((o) => <SelectItem key={o} value={String(o)}>{key === "longEvery" ? T(`${num(o)} جلسه`, `${o} sessions`) : T(`${num(o)} دقیقه`, `${o} min`)}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center justify-between">
-          <Label htmlFor="pomodoro-autostart" className="text-xs">{T("شروع خودکار مرحلهٔ بعد", "Auto-start next phase")}</Label>
-          <Switch id="pomodoro-autostart" checked={prefs.autoStart} onCheckedChange={(v) => setPrefs((p) => ({ ...p, autoStart: v }))} data-testid="pomodoro-autostart" />
-        </div>
       </div>
+
+      <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen} className="rounded-lg border border-border">
+        <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2.5 text-xs font-semibold" data-testid="pomodoro-settings-toggle">
+          <span className="flex items-center gap-1.5"><Settings2 className="h-3.5 w-3.5 text-muted-foreground" />{T("تنظیمات", "Settings")}</span>
+          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${settingsOpen ? "rotate-180" : ""}`} />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-3 border-t border-border p-3">
+          <div className="flex items-center gap-2">
+            <Label className="flex-1 text-xs">{T("زنگ پایان", "End bell")}</Label>
+            <Select value={prefs.bell} onValueChange={(v) => { setPrefs((p) => ({ ...p, bell: v as EndBellId })); playEndBell(v as EndBellId); }}>
+              <SelectTrigger className="h-8 w-40 text-xs" data-testid="pomodoro-bell-select"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {END_BELLS.map((b) => <SelectItem key={b.id} value={b.id}>{b.emoji} {T(b.name, b.nameEn)}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {([["shortBreak", "استراحت کوتاه", "Short break", [3, 5, 10]], ["longBreak", "استراحت بلند", "Long break", [10, 15, 20, 30]], ["longEvery", "بلند بعد از", "Long every", [2, 3, 4, 5, 6]]] as const).map(([key, fa, en, opts]) => (
+              <div key={key} className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">{T(fa, en)}</Label>
+                <Select value={String(prefs[key])} onValueChange={(v) => { setPrefs((p) => ({ ...p, [key]: Number(v) })); if (!running && ((key === "shortBreak" && mode === "short") || (key === "longBreak" && mode === "long"))) setRemaining(Number(v) * 60); }}>
+                  <SelectTrigger className="h-8 text-xs" data-testid={`pomodoro-${key}`}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {opts.map((o) => <SelectItem key={o} value={String(o)}>{key === "longEvery" ? T(`${num(o)} جلسه`, `${o} sessions`) : T(`${num(o)} دقیقه`, `${o} min`)}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="pomodoro-autostart" className="text-xs">{T("شروع خودکار مرحلهٔ بعد", "Auto-start next phase")}</Label>
+            <Switch id="pomodoro-autostart" checked={prefs.autoStart} onCheckedChange={(v) => setPrefs((p) => ({ ...p, autoStart: v }))} data-testid="pomodoro-autostart" />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 }

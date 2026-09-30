@@ -79,3 +79,12 @@ See `/app/memory/test_credentials.md`.
 - P1: Real-device QA (FA/EN × 3 themes), Android widget build check; Onboarding dialog still Persian-only in EN.
 - P1: Sweep remaining hardcoded strings on secondary pages (Knowledge, Review, Pharmacy) into i18n.
 - P2: Autosave (TickTick-style) only after user approval; accent sync to Firestore settings (currently localStorage).
+
+### 2026-09-30 (fork) — Pomodoro redesign + date picker fix
+- `PomodoroTimer.tsx`: timestamp engine, focus/short/long modes, ring, session dots, ambient sound chips (horizontal scroll) + volume,
+  collapsible «تنظیمات» (end bell, break lengths, long-every, auto-start), RTL sliders. Ambient plays during focus only.
+- `PomodoroView.tsx`: single compact stats card (today minutes/sessions, per-task breakdown, 7-day chart).
+- New `InlineDatePicker.tsx` (Jalali/Gregorian month grid, respects week start) replaces native `<input type=date>` in `DueDatePicker`
+  (kanban date popover + task schedule sheet). Verified via screenshot at 390px, no overflow. Testing agent NOT run (user asked to save credits).
+## Backlog
+- P2: Verify Garden cloud sync across two devices; optional custom music URL for Pomodoro.
