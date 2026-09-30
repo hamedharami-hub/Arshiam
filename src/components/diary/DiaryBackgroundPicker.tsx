@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ImagePlus, Link2, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,9 @@ type Props = {
 export function DiaryBackgroundPicker({ entry, onChange }: Props) {
   const { user } = useAuth();
   const { T, isEn } = useBilingual();
+  const targetRef = useRef(""); targetRef.current = `${user?.id ?? ""}:${entry.id}`;
+  const mountedRef = useRef(true);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [urlDraft, setUrlDraft] = useState(entry.diary_background === "custom" ? entry.diary_photo_url || "" : "");
@@ -24,7 +27,9 @@ export function DiaryBackgroundPicker({ entry, onChange }: Props) {
     if (!user?.id) return;
     setUploading(true);
     try {
+      const target = targetRef.current;
       const url = await uploadMedia(file, user.id);
+      if (!mountedRef.current || targetRef.current !== target) return;
       onChange({ diary_background: "custom", diary_photo_url: url });
       setUrlDraft(url);
       toast.success(T("پس‌زمینهٔ شخصی اضافه شد", "Custom background added"));

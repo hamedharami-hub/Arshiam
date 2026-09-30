@@ -1,3 +1,4 @@
+import { KnowledgeSectionContent } from "@/components/knowledge/KnowledgeSectionContent";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, Loader2 } from "lucide-react";
 import { useInRouterContext, useNavigate } from "react-router-dom";
@@ -100,10 +101,11 @@ export function PharmacyDocumentDialog({ documentId, onClose }: PharmacyDocument
             ref={bodyRef}
             onClick={handleBodyClick}
             dir={isEn ? "ltr" : "rtl"}
-            className="knowledge-content prose prose-sm max-w-none break-words dark:prose-invert"
+            className="min-w-0"
             data-testid="pharmacy-document-body"
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
+          >
+            <KnowledgeSectionContent html={html} dir={isEn ? "ltr" : "rtl"} className="knowledge-content prose prose-sm max-w-none break-words dark:prose-invert" />
+          </div>
         ) : (
           <p className="rounded-lg bg-muted/50 p-4 text-sm" data-testid="pharmacy-document-missing">{T("این سند نه در Knowledge شما و نه در snapshot منبع پیدا شد.", "This document was not found in your Knowledge or in the source snapshot.")}</p>
         )}

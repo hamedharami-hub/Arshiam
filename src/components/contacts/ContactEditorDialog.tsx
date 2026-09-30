@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import type {
   Contact,
+  ContactOccasion,
   ContactPhone,
   ContactEmail,
   ContactAddress,
@@ -42,6 +43,7 @@ import {
   uploadContactPhoto,
   findDuplicateSuggestions,
 } from "@/lib/contactService";
+import { ContactOccasionsEditor } from "./ContactOccasionsEditor";
 import { ContactAvatar } from "./ContactAvatar";
 import { ContactSymbolPicker } from "./ContactSymbolPicker";
 
@@ -77,6 +79,7 @@ export function ContactEditorDialog({
   const [lastName, setLastName] = useState("");
   const [company, setCompany] = useState("");
   const [jobTitle, setJobTitle] = useState("");
+  const photoIdentity = useRef(""); photoIdentity.current = `${userId}:${contact?.id || "new"}:${open}`;
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined);
   const [avatarIcon, setAvatarIcon] = useState<string | undefined>(undefined);
   const [avatarColor, setAvatarColor] = useState<string | undefined>(undefined);
@@ -87,6 +90,8 @@ export function ContactEditorDialog({
   const [addresses, setAddresses] = useState<ContactAddress[]>([]);
   const [websites, setWebsites] = useState<ContactWebsite[]>([]);
   const [socialLinks, setSocialLinks] = useState<ContactSocialLink[]>([]);
+  const [birthday, setBirthday] = useState("");
+  const [occasions, setOccasions] = useState<ContactOccasion[]>([]);
   const [notes, setNotes] = useState("");
 
   // Duplicate suggestions
@@ -114,6 +119,8 @@ export function ContactEditorDialog({
       setAddresses(contact.addresses ? [...contact.addresses] : []);
       setWebsites(contact.websites ? [...contact.websites] : []);
       setSocialLinks(contact.social_links ? [...contact.social_links] : []);
+      setBirthday(contact.birthday || "");
+      setOccasions(contact.occasions || []);
       setNotes(contact.notes || "");
     } else {
       setDisplayName(initialValues?.display_name || "");
@@ -130,6 +137,8 @@ export function ContactEditorDialog({
       setAddresses(initialValues?.addresses ? [...initialValues.addresses] : []);
       setWebsites(initialValues?.websites ? [...initialValues.websites] : []);
       setSocialLinks(initialValues?.social_links ? [...initialValues.social_links] : []);
+      setBirthday(initialValues?.birthday || "");
+      setOccasions(initialValues?.occasions || []);
       setNotes(initialValues?.notes || "");
     }
   }, [open, contact, initialValues]);
@@ -159,14 +168,11 @@ export function ContactEditorDialog({
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error(T("حجم عکس نباید بیشتر از ۲ مگابایت باشد", "Photo size must not exceed 2MB"));
-      return;
-    }
-
     setPhotoUploading(true);
     try {
+      const target = photoIdentity.current;
       const url = await uploadContactPhoto(userId, contact?.id || "temp", file);
+      if (photoIdentity.current !== target) return;
       setPhotoUrl(url);
       toast.success(T("عکس بارگذاری شد", "Photo uploaded"));
     } catch (err) {
@@ -211,6 +217,8 @@ export function ContactEditorDialog({
         addresses: validAddresses,
         websites: validWebsites,
         social_links: validSocial,
+        birthday,
+        occasions: occasions.map(item => ({ ...item, label: item.label.trim() })),
         notes: notes.trim() || undefined,
       };
 
@@ -495,6 +503,8 @@ export function ContactEditorDialog({
           </div>
         ))}
       </div>
+
+      <ContactOccasionsEditor birthday={birthday} onBirthdayChange={setBirthday} occasions={occasions} onChange={setOccasions} T={T} />
 
       {/* Notes */}
       <div>

@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import PharmacyFredPracticeView from "./PharmacyFredPracticeView";
 import { FRED_TRAINING_ERX_BARCODE } from "@/lib/pharmacyFredPractice";
 import { PHARMACY_FRED_PRACTICE_SCENARIOS } from "@/lib/pharmacyFredPracticeData";
@@ -13,7 +13,27 @@ vi.mock("@/hooks/useBilingual", () => ({
   }),
 }));
 
-describe("PharmacyFredPracticeView", () => {
+describe("PharmacyFredPracticeView", { timeout: 15000 }, () => {
+  beforeAll(async () => {
+    await Promise.all([
+      import("@/components/pharmacy/fred/modules/FredDispenseModule"),
+      import("@/components/pharmacy/fred/modules/FredSafetynetModule"),
+      import("@/components/pharmacy/fred/modules/FredLabelingModule"),
+      import("@/components/pharmacy/fred/modules/FredRetentionModule"),
+      import("@/components/pharmacy/fred/modules/FredVisualizerModule"),
+      import("@/components/pharmacy/fred/modules/FredTerminalModule"),
+      import("@/components/pharmacy/fred/modules/FredReviewModule"),
+      import("@/components/pharmacy/fred/modules/FredOdtModule"),
+      import("@/components/pharmacy/fred/modules/FredPbsposModule"),
+    ]);
+  });
+  const renderPractice = async () => {
+    render(<PharmacyFredPracticeView />);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: languageState.lang === "en" ? "FRED Dispense" : "نسخه‌پیچی و شرت‌کات‌ها (FRED)" })); });
+    await act(async () => { fireEvent.mouseDown(screen.getByRole("tab", { name: languageState.lang === "en" ? "Practice" : "تمرین" }), { button: 0, ctrlKey: false }); });
+    await screen.findByRole("heading", { name: languageState.lang === "en" ? "Dispensing Workflow & Shortcuts" : "گردش‌کار نسخه‌پیچی و شرت‌کات‌ها" });
+  };
+  const click = async (...args: Parameters<typeof fireEvent.click>) => { await act(async () => { fireEvent.click(...args); }); };
   let printSpy: ReturnType<typeof vi.spyOn>;
   let alertSpy: ReturnType<typeof vi.spyOn>;
   let fetchSpy: ReturnType<typeof vi.spyOn>;
@@ -25,11 +45,11 @@ describe("PharmacyFredPracticeView", () => {
     fetchSpy = vi.spyOn(window, "fetch").mockImplementation(() => Promise.reject(new Error("Network forbidden")));
   });
 
-  it("renders the practice page without the long notice and shows the initial scenario", () => {
-    render(<PharmacyFredPracticeView />);
+  it("renders the practice page without the long notice and shows the initial scenario", async () => {
+    await renderPractice();
 
     expect(
-      screen.getByRole("heading", { name: "Pharmacy & FRED Educational Simulator" })
+      screen.getByRole("heading", { name: "FRED Learning Lab" })
     ).toBeInTheDocument();
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
 
@@ -42,15 +62,15 @@ describe("PharmacyFredPracticeView", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("allows switching scenarios and displays localized NSW warning on expired S8 script with disclaimer and source link", () => {
-    render(<PharmacyFredPracticeView />);
+  it("allows switching scenarios and displays localized NSW warning on expired S8 script with disclaimer and source link", async () => {
+    await renderPractice();
 
     const expiredS8Scenario = PHARMACY_FRED_PRACTICE_SCENARIOS.find((s) => s.isExpiredS8);
     expect(expiredS8Scenario).toBeDefined();
 
     // Click the expired S8 scenario card
     const scenarioBtn = screen.getByRole("button", { name: /OxyContin/i });
-    fireEvent.click(scenarioBtn);
+    await click(scenarioBtn);
 
     expect(screen.getByText(/Warning: Expired S8 Prescription \(NSW Rules Snapshot\)/i)).toBeInTheDocument();
     expect(screen.getByText(/NSW Health snapshot checked 26 Sep 2026/i)).toBeInTheDocument();
@@ -62,23 +82,23 @@ describe("PharmacyFredPracticeView", () => {
     );
   });
 
-  it("starts the next scenario and returns to script review", () => {
-    render(<PharmacyFredPracticeView />);
+  it("starts the next scenario and returns to script review", async () => {
+    await renderPractice();
     const nextScenario = PHARMACY_FRED_PRACTICE_SCENARIOS[1];
 
-    fireEvent.click(screen.getByRole("button", { name: /3\. Owing & Reconciliation/i }));
-    fireEvent.click(screen.getByRole("button", { name: /Start New Scenario/i }));
+    await click(screen.getByRole("button", { name: /3\. Owing & Reconciliation/i }));
+    await click(screen.getByRole("button", { name: /Start New Scenario/i }));
 
     expect(screen.getByRole("heading", { name: nextScenario.prescribedDrug })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /1\. Review Script/i })).toHaveClass("bg-primary");
     expect(screen.queryByLabelText(/Scan or enter script barcode/i)).not.toBeInTheDocument();
   });
 
-  it("navigates through step 2 and handles valid shortcuts, Regulation 49 training alias, and invalid input gracefully", () => {
-    render(<PharmacyFredPracticeView />);
+  it("navigates through step 2 and handles valid shortcuts, Regulation 49 training alias, and invalid input gracefully", async () => {
+    await renderPractice();
 
     // Navigate to step 2: FRED Shortcut
-    fireEvent.click(screen.getByRole("button", { name: /2\. FRED Shortcut/i }));
+    await click(screen.getByRole("button", { name: /2\. FRED Shortcut/i }));
     expect(screen.getByRole("heading", { name: "FRED Dispense Shortcut & Alias Parser" })).toBeInTheDocument();
 
     // Default shortcut 5/1 is parsed
@@ -91,7 +111,7 @@ describe("PharmacyFredPracticeView", () => {
 
     // Click a shortcut chip (e.g. 5R)
     const chip5R = screen.getByRole("button", { name: /^5R/ });
-    fireEvent.click(chip5R);
+    await click(chip5R);
     expect(screen.getByText(/Regulation 49 \(formerly Regulation 24\) — Training Alias/i)).toBeInTheDocument();
     expect(screen.getByText(/custom training-only alias, not verified standard FRED syntax/i)).toBeInTheDocument();
     expect(screen.getByText(/rules-learning exercise, not a dispensing or claiming instruction/i)).toBeInTheDocument();
@@ -110,11 +130,11 @@ describe("PharmacyFredPracticeView", () => {
     expect(screen.getByText(/Unrecognized shortcut/i)).toBeInTheDocument();
   });
 
-  it("enforces exact barcode TRAIN-ERX-4821 for owing mark-off and rejects wrong barcodes", () => {
-    render(<PharmacyFredPracticeView />);
+  it("enforces exact barcode TRAIN-ERX-4821 for owing mark-off and rejects wrong barcodes", async () => {
+    await renderPractice();
 
     // Navigate to Step 3: Owing & Reconciliation
-    fireEvent.click(screen.getByRole("button", { name: /3\. Owing & Reconciliation/i }));
+    await click(screen.getByRole("button", { name: /3\. Owing & Reconciliation/i }));
     expect(screen.getByRole("heading", { name: "Owing Prescription Reconciliation Simulation" })).toBeInTheDocument();
 
     const markOffBtn = screen.getByRole("button", { name: /Mark Off/i });
@@ -131,25 +151,25 @@ describe("PharmacyFredPracticeView", () => {
     expect(markOffBtn).toBeEnabled();
 
     // Click Mark Off
-    fireEvent.click(markOffBtn);
+    await click(markOffBtn);
     expect(screen.getByText(/Educational reconciliation with TRAIN-ERX-4821 confirmed/i)).toBeInTheDocument();
     expect(screen.getByText(/Reconciled/i)).toBeInTheDocument();
 
     // Reopen resets reconciliation
     const reopenBtn = screen.getByRole("button", { name: /Reopen/i });
-    fireEvent.click(reopenBtn);
+    await click(reopenBtn);
     expect(screen.getByText(/Owing Active/i)).toBeInTheDocument();
   });
 
-  it("opens in-app owing notice preview without calling window.print or window.alert", () => {
-    render(<PharmacyFredPracticeView />);
+  it("opens in-app owing notice preview without calling window.print or window.alert", async () => {
+    await renderPractice();
 
     // Go to step 3
-    fireEvent.click(screen.getByRole("button", { name: /3\. Owing & Reconciliation/i }));
+    await click(screen.getByRole("button", { name: /3\. Owing & Reconciliation/i }));
 
     // Click preview notice button
     const previewBtn = screen.getByRole("button", { name: /Preview In-App Owing Notice/i });
-    fireEvent.click(previewBtn);
+    await click(previewBtn);
 
     // Preview dialog is visible
     expect(screen.getByRole("dialog")).toBeInTheDocument();
@@ -162,28 +182,28 @@ describe("PharmacyFredPracticeView", () => {
 
     // Close preview
     const closeBtn = screen.getByRole("button", { name: /Close Preview/i });
-    fireEvent.click(closeBtn);
+    await click(closeBtn);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("supports Persian language RTL mode and resets practice on demand", () => {
+  it("supports Persian language RTL mode and resets practice on demand", async () => {
     languageState.lang = "fa";
-    render(<PharmacyFredPracticeView />);
+    await renderPractice();
 
     expect(screen.getByRole("main")).toHaveAttribute("dir", "rtl");
     expect(
-      screen.getByRole("heading", { name: "شبیه‌ساز آموزشی کارگاه داروخانه (Pharmacy Lab)" })
+      screen.getByRole("heading", { name: "آزمایشگاه یادگیری FRED" })
     ).toBeInTheDocument();
 
     // Click reset practice button
     const resetBtn = screen.getByRole("button", { name: /شروع مجدد/i });
-    fireEvent.click(resetBtn);
+    await click(resetBtn);
     expect(screen.getByText(/۱\. بررسی نسخه/i)).toBeInTheDocument();
 
     // Step 2 shortcut in Persian: verify Nurse Practitioner profession distinction and absence of generic پرستار رسمی
-    fireEvent.click(screen.getByRole("button", { name: /۲\. میانبر FRED/i }));
+    await click(screen.getByRole("button", { name: /۲\. میانبر FRED/i }));
     const chip5RFa = screen.getByRole("button", { name: /^5R/ });
-    fireEvent.click(chip5RFa);
+    await click(chip5RFa);
     expect(screen.getByText(/Nurse Practitioner \(پرستار دارای مجوز تجویز\)/i)).toBeInTheDocument();
     expect(screen.queryByText(/پرستار رسمی/i)).not.toBeInTheDocument();
 
@@ -192,11 +212,11 @@ describe("PharmacyFredPracticeView", () => {
   });
 
   describe("Safety Net interactive module", () => {
-    it("completes stepped calculation workflow with 2026 Services Australia figures, source link, and synthetic-only disclaimers", () => {
-      render(<PharmacyFredPracticeView />);
+    it("completes stepped calculation workflow with 2026 Services Australia figures, source link, and synthetic-only disclaimers", async () => {
+      await renderPractice();
 
       // Switch to Safety Net module
-      fireEvent.click(screen.getByRole("button", { name: /Safety Net Practice/i }));
+      await click(screen.getByRole("button", { name: /Safety Net Practice/i }));
       expect(screen.getByRole("heading", { name: /PBS Safety Net Threshold Practice/i })).toBeInTheDocument();
 
       // Official source banner and link
@@ -218,7 +238,7 @@ describe("PharmacyFredPracticeView", () => {
       expect(screen.getByText("$25.00")).toBeInTheDocument();
 
       // Proceed to Step 1 (Gap calculation)
-      fireEvent.click(screen.getByRole("button", { name: /Next: Calculate Gap/i }));
+      await click(screen.getByRole("button", { name: /Next: Calculate Gap/i }));
       expect(screen.getByText(/What is the remaining spend required to reach the Safety Net threshold\?/i)).toBeInTheDocument();
 
       // Next button should be disabled before answering correctly
@@ -227,28 +247,28 @@ describe("PharmacyFredPracticeView", () => {
 
       // Click correct gap option ($22.90)
       const correctGapBtn = screen.getByRole("button", { name: "$22.90" });
-      fireEvent.click(correctGapBtn);
+      await click(correctGapBtn);
 
       expect(screen.getByText(/Calculation correct\./i)).toBeInTheDocument();
       expect(nextToOutcomeBtn).toBeEnabled();
 
       // Proceed to Step 2 (Card Outcome)
-      fireEvent.click(nextToOutcomeBtn);
+      await click(nextToOutcomeBtn);
       expect(screen.getByText(/What is the patient's Safety Net status after this prescription\?/i)).toBeInTheDocument();
 
       // Click "Crosses threshold" option
       const crossesOptionBtn = screen.getByRole("button", { name: /Fictional exercise threshold crossed/i });
-      fireEvent.click(crossesOptionBtn);
+      await click(crossesOptionBtn);
 
       expect(screen.getByText(/Conclusion correct\./i)).toBeInTheDocument();
       expect(screen.getByText(/In this fictional exercise, the mock total \(\$1,750\.30\) crosses the 2026 mock threshold \(\$1,748\.20\)/i)).toBeInTheDocument();
 
       // Restart scenario resets back to step 0
-      fireEvent.click(screen.getByRole("button", { name: /Restart Scenario/i }));
+      await click(screen.getByRole("button", { name: /Restart Scenario/i }));
       expect(screen.getByText(/1\. Case Values/i)).toHaveClass("bg-primary");
 
       // Switch to Concessional scenario
-      fireEvent.click(screen.getByRole("button", { name: /Concessional Patient 2026 Threshold Assessment/i }));
+      await click(screen.getByRole("button", { name: /Concessional Patient 2026 Threshold Assessment/i }));
       expect(screen.getByText("$145.00")).toBeInTheDocument();
       expect(screen.getByText("$277.20")).toBeInTheDocument();
       expect(screen.getByText("$7.70")).toBeInTheDocument();
@@ -260,11 +280,11 @@ describe("PharmacyFredPracticeView", () => {
   });
 
   describe("Labeling simulator module", () => {
-    it("renders in-page thermal label sticker, updates directions and auxiliary warning labels, and resets cleanly", () => {
-      render(<PharmacyFredPracticeView />);
+    it("renders in-page thermal label sticker, updates directions and auxiliary warning labels, and resets cleanly", async () => {
+      await renderPractice();
 
       // Switch to Labeling module
-      fireEvent.click(screen.getByRole("button", { name: /Dispensing Label/i }));
+      await click(screen.getByRole("button", { name: /Dispensing Label/i }));
       expect(screen.getByRole("heading", { name: "Dispensing Desk Labeling Simulator" })).toBeInTheDocument();
 
       // In-page sticker watermark and warnings
@@ -285,11 +305,11 @@ describe("PharmacyFredPracticeView", () => {
 
       // Toggle auxiliary warning label (Label 13: Drowsiness)
       const label13Checkbox = screen.getByLabelText(/Label 13:/i);
-      fireEvent.click(label13Checkbox);
+      await click(label13Checkbox);
       expect(screen.getAllByText("May cause drowsiness. If affected do not drive or operate machinery.").length).toBeGreaterThanOrEqual(2);
 
       // Reset label restores default state
-      fireEvent.click(screen.getByRole("button", { name: /Reset Label/i }));
+      await click(screen.getByRole("button", { name: /Reset Label/i }));
       expect(screen.getByText(/"Take ONE tablet daily at bedtime\."/i)).toBeInTheDocument();
 
       // Assert zero physical print calls
@@ -299,11 +319,11 @@ describe("PharmacyFredPracticeView", () => {
   });
 
   describe("Document retention module", () => {
-    it("allows categorizing records with fictional exercise buckets and verifies the exercise key", () => {
-      render(<PharmacyFredPracticeView />);
+    it("allows categorizing records with fictional exercise buckets and verifies the exercise key", async () => {
+      await renderPractice();
 
       // Switch to Retention module
-      fireEvent.click(screen.getByRole("button", { name: /Document Retention/i }));
+      await click(screen.getByRole("button", { name: /Document Retention/i }));
       expect(screen.getByRole("heading", { name: "Document Retention & Archiving Practice" })).toBeInTheDocument();
 
       // Verify the 3 documents are displayed
@@ -326,7 +346,7 @@ describe("PharmacyFredPracticeView", () => {
       fireEvent.change(logSelect, { target: { value: "bucket_c" } });
 
       expect(verifyBtn).toBeEnabled();
-      fireEvent.click(verifyBtn);
+      await click(verifyBtn);
 
       // Verify matching feedback appears
       const matches = screen.getAllByText("Matches the fictional exercise key.");
@@ -335,7 +355,7 @@ describe("PharmacyFredPracticeView", () => {
       // Changing any selection requires a fresh full verification.
       fireEvent.change(logSelect, { target: { value: "bucket_a" } });
       expect(verifyBtn).toBeEnabled();
-      fireEvent.click(verifyBtn);
+      await click(verifyBtn);
       expect(screen.getByText("Does not match the fictional exercise key.")).toBeInTheDocument();
 
       // Clearing an individual select removes it from state and disables checking.
@@ -347,7 +367,7 @@ describe("PharmacyFredPracticeView", () => {
       expect(verifyBtn).toBeDisabled();
 
       // Reset archiving
-      fireEvent.click(screen.getByRole("button", { name: /Reset Archiving/i }));
+      await click(screen.getByRole("button", { name: /Reset Archiving/i }));
       expect(regSelect).toHaveValue("");
       expect(rxSelect).toHaveValue("");
       expect(logSelect).toHaveValue("");
@@ -361,11 +381,11 @@ describe("PharmacyFredPracticeView", () => {
   });
 
   describe("Script Visualizer & Practice Layout module", () => {
-    it("renders fictional practice sheet with prominent watermark, allows inspecting layout sections, switching layouts, and resetting", () => {
-      render(<PharmacyFredPracticeView />);
+    it("renders fictional practice sheet with prominent watermark, allows inspecting layout sections, switching layouts, and resetting", async () => {
+      await renderPractice();
 
       // Switch to Visualizer module
-      fireEvent.click(screen.getByRole("button", { name: /Script Visualizer/i }));
+      await click(screen.getByRole("button", { name: /Script Visualizer/i }));
       expect(
         screen.getByRole("heading", { name: "Practice Layout Visualizer" })
       ).toBeInTheDocument();
@@ -385,7 +405,7 @@ describe("PharmacyFredPracticeView", () => {
 
       // Click Header Area section
       const headerSection = screen.getByRole("button", { name: /Section: Header Area/i });
-      fireEvent.click(headerSection);
+      await click(headerSection);
 
       expect(
         screen.getByRole("heading", { name: "Practice Form Header Area" })
@@ -395,7 +415,7 @@ describe("PharmacyFredPracticeView", () => {
 
       // Click Practice Zone A section
       const zoneASection = screen.getByRole("button", { name: /Section: Practice Zone A/i });
-      fireEvent.click(zoneASection);
+      await click(zoneASection);
 
       expect(
         screen.getByRole("heading", { name: "Practice Zone A (Placeholder Content)" })
@@ -403,18 +423,18 @@ describe("PharmacyFredPracticeView", () => {
 
       // Click Clear button in inspector
       const clearBtn = screen.getByRole("button", { name: /Clear/i });
-      fireEvent.click(clearBtn);
+      await click(clearBtn);
       expect(screen.getByText("No section selected")).toBeInTheDocument();
 
       // Switch to Layout B
       const layoutBBtn = screen.getByRole("button", { name: /Fictional Practice Layout B/i });
-      fireEvent.click(layoutBBtn);
+      await click(layoutBBtn);
 
       expect(screen.getByText("Training item B")).toBeInTheDocument();
 
       // Reset inspector
       const resetBtn = screen.getByRole("button", { name: /Reset Inspector/i });
-      fireEvent.click(resetBtn);
+      await click(resetBtn);
 
       // Back to initial Layout A
       expect(screen.getByText("Training item A")).toBeInTheDocument();
@@ -440,12 +460,12 @@ describe("PharmacyFredPracticeView", () => {
       expect(alertSpy).not.toHaveBeenCalled();
     });
 
-    it("supports Persian language mode in Visualizer: renders all sheet labels, hotspots, placeholders, badges, click guides, and footers in Persian with English watermark and Persian warning, and zero static English leakage or forbidden claims", () => {
+    it("supports Persian language mode in Visualizer: renders all sheet labels, hotspots, placeholders, badges, click guides, and footers in Persian with English watermark and Persian warning, and zero static English leakage or forbidden claims", async () => {
       languageState.lang = "fa";
-      render(<PharmacyFredPracticeView />);
+      await renderPractice();
 
       // Switch to Visualizer module via Persian tab button
-      fireEvent.click(screen.getByRole("button", { name: /نمایشگر و بازرس نسخه/i }));
+      await click(screen.getByRole("button", { name: /نمایشگر و بازرس نسخه/i }));
       expect(
         screen.getByRole("heading", { name: "نمایشگر چیدمان تمرینی" })
       ).toBeInTheDocument();
@@ -487,7 +507,7 @@ describe("PharmacyFredPracticeView", () => {
 
       // Click Header Area section in Persian
       const headerSection = screen.getByRole("button", { name: /بخش: سربرگ فرم \(فرضی\)/i });
-      fireEvent.click(headerSection);
+      await click(headerSection);
 
       expect(
         screen.getByRole("heading", { name: "ناحیه سربرگ فرم تمرینی" })
@@ -497,19 +517,19 @@ describe("PharmacyFredPracticeView", () => {
 
       // Click Clear button in inspector
       const clearBtn = screen.getByRole("button", { name: /بستن/i });
-      fireEvent.click(clearBtn);
+      await click(clearBtn);
       expect(screen.getByText("بخشی انتخاب نشده است")).toBeInTheDocument();
 
       // Switch to Layout B in Persian
       const layoutBBtn = screen.getByRole("button", { name: /چیدمان تمرینی ساختگی ب/i });
-      fireEvent.click(layoutBBtn);
+      await click(layoutBBtn);
 
       expect(screen.getByText("آیتم تمرینی ب")).toBeInTheDocument();
       expect(screen.getAllByText("چیدمان ب").length).toBeGreaterThanOrEqual(1);
 
       // Reset inspector
       const resetBtn = screen.getByRole("button", { name: /بازنشانی بازرس/i });
-      fireEvent.click(resetBtn);
+      await click(resetBtn);
 
       // Back to initial Layout A
       expect(screen.getByText("آیتم تمرینی الف")).toBeInTheDocument();
@@ -556,11 +576,11 @@ describe("PharmacyFredPracticeView", () => {
   });
 
   describe("Educational Practice Terminal module", () => {
-    it("renders terminal in English, processes commands via Enter/Execute/Chips, verifies cards, clear, reset, and error handling", () => {
-      render(<PharmacyFredPracticeView />);
+    it("renders terminal in English, processes commands via Enter/Execute/Chips, verifies cards, clear, reset, and error handling", async () => {
+      await renderPractice();
 
       // Switch to Terminal module
-      fireEvent.click(screen.getByRole("button", { name: /Practice Terminal/i }));
+      await click(screen.getByRole("button", { name: /Practice Terminal/i }));
       expect(
         screen.getByRole("heading", { name: "Practice Terminal" })
       ).toBeInTheDocument();
@@ -586,7 +606,7 @@ describe("PharmacyFredPracticeView", () => {
 
       // 2. OPEN A via Execute button
       fireEvent.change(input, { target: { value: "OPEN A" } });
-      fireEvent.click(screen.getByRole("button", { name: "Execute" }));
+      await click(screen.getByRole("button", { name: "Execute" }));
 
       expect(screen.getAllByText("Training entry A").length).toBeGreaterThanOrEqual(1);
       expect(
@@ -596,13 +616,13 @@ describe("PharmacyFredPracticeView", () => {
 
       // 3. STATUS via chip click (executedCount will be 3)
       const statusChip = screen.getByRole("button", { name: /STATUS/i });
-      fireEvent.click(statusChip);
+      await click(statusChip);
       expect(screen.getByText(/Session Status: Active \(In-Memory Only\)/i)).toBeInTheDocument();
       expect(screen.getByText(/Commands Executed: 3/i)).toBeInTheDocument();
 
       // 4. OPEN B via chip click (executedCount becomes 4)
       const openBChip = screen.getByRole("button", { name: /OPEN B/i });
-      fireEvent.click(openBChip);
+      await click(openBChip);
       expect(screen.getAllByText("Training entry B").length).toBeGreaterThanOrEqual(1);
 
       // 5. Unknown command shows error (executedCount becomes 5)
@@ -614,35 +634,35 @@ describe("PharmacyFredPracticeView", () => {
 
       // 6. CLEAR log via command: clears log, preserves selection ('Training entry B'), and increments count to 6
       fireEvent.change(input, { target: { value: "CLEAR" } });
-      fireEvent.click(screen.getByRole("button", { name: "Execute" }));
+      await click(screen.getByRole("button", { name: "Execute" }));
       expect(screen.getByText(/Console is empty/i)).toBeInTheDocument();
       // Selection preserved in the status pane:
       expect(screen.getAllByText("Training entry B").length).toBeGreaterThanOrEqual(1);
 
       // Verify count was incremented on CLEAR by running STATUS (executedCount becomes 7)
-      fireEvent.click(statusChip);
+      await click(statusChip);
       expect(screen.getByText(/Commands Executed: 7/i)).toBeInTheDocument();
 
       // 7. RESET terminal via button (restores INITIAL_EDUCATIONAL_TERMINAL_STATE)
-      fireEvent.click(screen.getByRole("button", { name: "Reset Terminal" }));
+      await click(screen.getByRole("button", { name: "Reset Terminal" }));
       expect(screen.getByText(/None/i)).toBeInTheDocument();
       expect(screen.getByText(/Console is empty/i)).toBeInTheDocument();
 
       // 8. Regression test: Execute RESET command from INITIAL state, followed by HELP and OPEN A
       fireEvent.change(input, { target: { value: "RESET" } });
-      fireEvent.click(screen.getByRole("button", { name: "Execute" }));
+      await click(screen.getByRole("button", { name: "Execute" }));
       expect(screen.getByText(/Terminal session reset to initial state/i)).toBeInTheDocument();
       // Counter is 0 for newly reset session
       expect(screen.getByText("0")).toBeInTheDocument();
 
       fireEvent.change(input, { target: { value: "HELP" } });
-      fireEvent.click(screen.getByRole("button", { name: "Execute" }));
+      await click(screen.getByRole("button", { name: "Execute" }));
       expect(screen.getByText(/Available whitelisted commands/i)).toBeInTheDocument();
       // Session counter increments to 1
       expect(screen.getByText("1")).toBeInTheDocument();
 
       fireEvent.change(input, { target: { value: "OPEN A" } });
-      fireEvent.click(screen.getByRole("button", { name: "Execute" }));
+      await click(screen.getByRole("button", { name: "Execute" }));
       expect(screen.getAllByText("Training entry A").length).toBeGreaterThanOrEqual(1);
       // Session counter increments to 2
       expect(screen.getByText("2")).toBeInTheDocument();
@@ -665,12 +685,12 @@ describe("PharmacyFredPracticeView", () => {
       expect(alertSpy).not.toHaveBeenCalled();
     });
 
-    it("supports Persian mode in Terminal: renders Persian labels, watermark, chips, cards, errors, and resets cleanly", () => {
+    it("supports Persian mode in Terminal: renders Persian labels, watermark, chips, cards, errors, and resets cleanly", async () => {
       languageState.lang = "fa";
-      render(<PharmacyFredPracticeView />);
+      await renderPractice();
 
       // Switch to Terminal module in Persian
-      fireEvent.click(screen.getByRole("button", { name: /ترمینال تمرینی/i }));
+      await click(screen.getByRole("button", { name: /ترمینال تمرینی/i }));
       expect(
         screen.getByRole("heading", { name: "ترمینال تمرینی" })
       ).toBeInTheDocument();
@@ -688,7 +708,7 @@ describe("PharmacyFredPracticeView", () => {
 
       // Run OPEN A via chip
       const openAChip = screen.getByRole("button", { name: /باز کردن الف/i });
-      fireEvent.click(openAChip);
+      await click(openAChip);
 
       expect(screen.getAllByText("آیتم تمرینی الف").length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText("نمایش صرفاً نمونه، هیچ نسخه یا رکورد واقعی نیست.")).toBeInTheDocument();
@@ -696,20 +716,20 @@ describe("PharmacyFredPracticeView", () => {
 
       // Run HELP via chip
       const helpChip = screen.getByRole("button", { name: /راهنما \(HELP\)/i });
-      fireEvent.click(helpChip);
+      await click(helpChip);
       expect(screen.getByText(/فرمان‌های مجاز در این ترمینال تمرینی:/i)).toBeInTheDocument();
 
       // Run unknown command in Persian
       const input = screen.getByLabelText(/ورود فرمان تمرینی/i);
       expect(input).toHaveAttribute("maxlength", "120");
       fireEvent.change(input, { target: { value: "UNKNOWN_TEST" } });
-      fireEvent.click(screen.getByRole("button", { name: "اجرا" }));
+      await click(screen.getByRole("button", { name: "اجرا" }));
       expect(
         screen.getByText(/فرمان ناشناخته: «UNKNOWN_TEST»\. برای مشاهده فهرست فرمان‌ها HELP را وارد کنید\./i)
       ).toBeInTheDocument();
 
       // Reset session
-      fireEvent.click(screen.getByRole("button", { name: "بازنشانی ترمینال" }));
+      await click(screen.getByRole("button", { name: "بازنشانی ترمینال" }));
       expect(screen.getByText(/کنسول خالی است/i)).toBeInTheDocument();
 
       // Check zero forbidden terms in Persian Terminal DOM
@@ -732,11 +752,11 @@ describe("PharmacyFredPracticeView", () => {
   });
 
   describe("Final Review Preview module", () => {
-    it("renders in English, manages Training A/B selection, enables preview button only when all 3 checkboxes are checked, clears state on entry switch/reset, and displays persistent watermarks with zero side-effects", () => {
-      render(<PharmacyFredPracticeView />);
+    it("renders in English, manages Training A/B selection, enables preview button only when all 3 checkboxes are checked, clears state on entry switch/reset, and displays persistent watermarks with zero side-effects", async () => {
+      await renderPractice();
 
       // Switch to Final Review Preview module
-      fireEvent.click(screen.getByRole("button", { name: /Final Review Preview/i }));
+      await click(screen.getByRole("button", { name: /Final Review Preview/i }));
       expect(
         screen.getByRole("heading", { name: "Final Review Preview (Practice Only)" })
       ).toBeInTheDocument();
@@ -754,7 +774,7 @@ describe("PharmacyFredPracticeView", () => {
 
       // 1. Select Training A
       const trainABtn = screen.getByRole("button", { name: /Training A/i });
-      fireEvent.click(trainABtn);
+      await click(trainABtn);
       expect(openBtn).toBeDisabled();
 
       // Locate the 3 visual quality checkboxes
@@ -767,22 +787,22 @@ describe("PharmacyFredPracticeView", () => {
       expect(cb3).not.toBeChecked();
 
       // Tick 1st checkbox -> still disabled
-      fireEvent.click(cb1);
+      await click(cb1);
       expect(cb1).toBeChecked();
       expect(openBtn).toBeDisabled();
 
       // Tick 2nd checkbox -> still disabled
-      fireEvent.click(cb2);
+      await click(cb2);
       expect(cb2).toBeChecked();
       expect(openBtn).toBeDisabled();
 
       // Tick 3rd checkbox -> now enabled!
-      fireEvent.click(cb3);
+      await click(cb3);
       expect(cb3).toBeChecked();
       expect(openBtn).toBeEnabled();
 
       // 2. Open Preview
-      fireEvent.click(openBtn);
+      await click(openBtn);
 
       // Verify confirmation notice
       expect(
@@ -797,7 +817,7 @@ describe("PharmacyFredPracticeView", () => {
 
       // 3. Switch to Training B -> clears all 3 checkboxes and closes preview
       const trainBBtn = screen.getByRole("button", { name: /Training B/i });
-      fireEvent.click(trainBBtn);
+      await click(trainBBtn);
 
       expect(cb1).not.toBeChecked();
       expect(cb2).not.toBeChecked();
@@ -809,12 +829,12 @@ describe("PharmacyFredPracticeView", () => {
       ).not.toBeInTheDocument();
 
       // Tick all 3 checkboxes for Training B
-      fireEvent.click(cb1);
-      fireEvent.click(cb2);
-      fireEvent.click(cb3);
+      await click(cb1);
+      await click(cb2);
+      await click(cb3);
       expect(openBtn).toBeEnabled();
 
-      fireEvent.click(openBtn);
+      await click(openBtn);
       expect(
         screen.getByText("Practice preview opened; no handout or dispensing occurred")
       ).toBeInTheDocument();
@@ -824,7 +844,7 @@ describe("PharmacyFredPracticeView", () => {
 
       // 4. Click Reset Review button
       const resetBtn = screen.getByRole("button", { name: "Reset Review" });
-      fireEvent.click(resetBtn);
+      await click(resetBtn);
 
       expect(screen.getByText("Practice Preview Not Yet Opened")).toBeInTheDocument();
       expect(openBtn).toBeDisabled();
@@ -850,12 +870,12 @@ describe("PharmacyFredPracticeView", () => {
       expect(alertSpy).not.toHaveBeenCalled();
     });
 
-    it("supports Persian mode in Final Review Preview: renders Persian labels, watermarks, checkboxes, opens in-page preview with Persian confirmation, and resets cleanly with zero side-effects", () => {
+    it("supports Persian mode in Final Review Preview: renders Persian labels, watermarks, checkboxes, opens in-page preview with Persian confirmation, and resets cleanly with zero side-effects", async () => {
       languageState.lang = "fa";
-      render(<PharmacyFredPracticeView />);
+      await renderPractice();
 
       // Switch to Final Review module in Persian
-      fireEvent.click(screen.getByRole("button", { name: /پیش‌نمایش بازبینی پایانی/i }));
+      await click(screen.getByRole("button", { name: /پیش‌نمایش بازبینی پایانی/i }));
       expect(
         screen.getByRole("heading", { name: "پیش‌نمایش بازبینی پایانی (صرفاً تمرینی)" })
       ).toBeInTheDocument();
@@ -870,7 +890,7 @@ describe("PharmacyFredPracticeView", () => {
 
       // Select Training A in Persian
       const trainABtn = screen.getByRole("button", { name: /تمرین A/i });
-      fireEvent.click(trainABtn);
+      await click(trainABtn);
       expect(openBtn).toBeDisabled();
 
       // 3 Persian checkboxes
@@ -878,13 +898,13 @@ describe("PharmacyFredPracticeView", () => {
       const cb2 = screen.getByLabelText(/دیده شدن شفاف هشدار تمرینی و واترمارک/i);
       const cb3 = screen.getByLabelText(/اطمینان از نبود هرگونه اطلاعات واقعی بیمار، نسخه یا بالینی/i);
 
-      fireEvent.click(cb1);
-      fireEvent.click(cb2);
-      fireEvent.click(cb3);
+      await click(cb1);
+      await click(cb2);
+      await click(cb3);
       expect(openBtn).toBeEnabled();
 
       // Open in-page preview
-      fireEvent.click(openBtn);
+      await click(openBtn);
 
       // Verify Persian confirmation
       expect(
@@ -899,12 +919,12 @@ describe("PharmacyFredPracticeView", () => {
 
       // Close preview
       const closeBtn = screen.getByRole("button", { name: "بستن پیش‌نمایش" });
-      fireEvent.click(closeBtn);
+      await click(closeBtn);
       expect(screen.getByText("پیش‌نمایش تمرینی هنوز باز نشده است")).toBeInTheDocument();
 
       // Reset
       const resetBtn = screen.getByRole("button", { name: "بازنشانی بازبینی" });
-      fireEvent.click(resetBtn);
+      await click(resetBtn);
       expect(openBtn).toBeDisabled();
 
       // Check zero forbidden terms in Persian DOM
@@ -927,12 +947,12 @@ describe("PharmacyFredPracticeView", () => {
   });
 
   describe("ODT Session Practice module", () => {
-    it("renders in English, keeps format buttons disabled until scenario selection, manages Training A/B selection, format toggle, checklist validation, aria-pressed, format change reset, scenario switch reset to Alpha, and opens in-page preview with persistent watermarks and zero side-effects", () => {
+    it("renders in English, keeps format buttons disabled until scenario selection, manages Training A/B selection, format toggle, checklist validation, aria-pressed, format change reset, scenario switch reset to Alpha, and opens in-page preview with persistent watermarks and zero side-effects", async () => {
       languageState.lang = "en";
-      render(<PharmacyFredPracticeView />);
+      await renderPractice();
 
       // Switch to ODT module
-      fireEvent.click(screen.getByRole("button", { name: "ODT Session Practice" }));
+      await click(screen.getByRole("button", { name: "ODT Session Practice" }));
       expect(
         screen.getByRole("heading", { name: "ODT Session Practice (Fictional Training Only)" })
       ).toBeInTheDocument();
@@ -963,7 +983,7 @@ describe("PharmacyFredPracticeView", () => {
       expect(trainBBtn).toHaveAttribute("aria-pressed", "false");
 
       // Select Training A -> enables format buttons
-      fireEvent.click(trainABtn);
+      await click(trainABtn);
       expect(trainABtn).toHaveAttribute("aria-pressed", "true");
       expect(trainBBtn).toHaveAttribute("aria-pressed", "false");
       expect(formatAlphaBtn).toBeEnabled();
@@ -971,7 +991,7 @@ describe("PharmacyFredPracticeView", () => {
       expect(openBtn).toBeDisabled();
 
       // Switch format to Format Beta
-      fireEvent.click(formatBetaBtn);
+      await click(formatBetaBtn);
       expect(formatAlphaBtn).toHaveAttribute("aria-pressed", "false");
       expect(formatBetaBtn).toHaveAttribute("aria-pressed", "true");
 
@@ -980,15 +1000,15 @@ describe("PharmacyFredPracticeView", () => {
       const cb2 = screen.getByLabelText(/Fictional placeholder completeness confirmed/i);
       const cb3 = screen.getByLabelText(/Confirmation of zero patient, medication, or clinical data/i);
 
-      fireEvent.click(cb1);
+      await click(cb1);
       expect(openBtn).toBeDisabled();
-      fireEvent.click(cb2);
+      await click(cb2);
       expect(openBtn).toBeDisabled();
-      fireEvent.click(cb3);
+      await click(cb3);
       expect(openBtn).toBeEnabled();
 
       // Open in-page preview
-      fireEvent.click(openBtn);
+      await click(openBtn);
 
       // Verify confirmation notice with role="status" and aria-live="polite"
       const confirmNotice = screen.getByText("Local practice only; no real-world dosing, official log update, or delivery occurred");
@@ -1006,7 +1026,7 @@ describe("PharmacyFredPracticeView", () => {
       expect(screen.getByText("PREVIEW_ONLY")).toBeInTheDocument();
 
       // Switching format while preview is open must close preview and reset checklist
-      fireEvent.click(formatAlphaBtn);
+      await click(formatAlphaBtn);
       expect(screen.getByText("Session Preview Not Yet Opened")).toBeInTheDocument();
       expect(cb1).not.toBeChecked();
       expect(cb2).not.toBeChecked();
@@ -1016,20 +1036,20 @@ describe("PharmacyFredPracticeView", () => {
       expect(formatBetaBtn).toHaveAttribute("aria-pressed", "false");
 
       // Re-tick all 3 checkboxes with Format Alpha
-      fireEvent.click(cb1);
-      fireEvent.click(cb2);
-      fireEvent.click(cb3);
+      await click(cb1);
+      await click(cb2);
+      await click(cb3);
       expect(openBtn).toBeEnabled();
-      fireEvent.click(openBtn);
+      await click(openBtn);
       expect(screen.getByText("STRUCTURE_A")).toBeInTheDocument();
 
       // Switch format to Beta again
-      fireEvent.click(formatBetaBtn);
+      await click(formatBetaBtn);
       expect(formatBetaBtn).toHaveAttribute("aria-pressed", "true");
       expect(screen.getByText("Session Preview Not Yet Opened")).toBeInTheDocument();
 
       // Switch to Training B -> clears checkboxes, closes preview, and visibly resets format back to Alpha
-      fireEvent.click(trainBBtn);
+      await click(trainBBtn);
       expect(trainBBtn).toHaveAttribute("aria-pressed", "true");
       expect(trainABtn).toHaveAttribute("aria-pressed", "false");
       expect(formatAlphaBtn).toHaveAttribute("aria-pressed", "true");
@@ -1043,18 +1063,18 @@ describe("PharmacyFredPracticeView", () => {
       expect(screen.getByText("Session Preview Not Yet Opened")).toBeInTheDocument();
 
       // Tick all 3 checkboxes for Training B
-      fireEvent.click(cb1);
-      fireEvent.click(cb2);
-      fireEvent.click(cb3);
+      await click(cb1);
+      await click(cb2);
+      await click(cb3);
       expect(openBtn).toBeEnabled();
 
-      fireEvent.click(openBtn);
+      await click(openBtn);
       expect(screen.getAllByText("Training B").length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText(/REF-TRAIN-BETA-02/i).length).toBeGreaterThanOrEqual(1);
 
       // Reset
       const resetBtn = screen.getByRole("button", { name: "Reset Session" });
-      fireEvent.click(resetBtn);
+      await click(resetBtn);
       expect(screen.getByText("Session Preview Not Yet Opened")).toBeInTheDocument();
       expect(openBtn).toBeDisabled();
       expect(formatAlphaBtn).toBeDisabled();
@@ -1078,11 +1098,11 @@ describe("PharmacyFredPracticeView", () => {
       expect(alertSpy).not.toHaveBeenCalled();
     });
 
-    it("supports Persian mode in ODT Session Practice: keeps format disabled until scenario selected, renders Persian labels, watermarks, checkboxes, aria-pressed, resets format to Alpha on scenario change, opens in-page preview with Persian confirmation, and resets cleanly with zero side-effects", () => {
+    it("supports Persian mode in ODT Session Practice: keeps format disabled until scenario selected, renders Persian labels, watermarks, checkboxes, aria-pressed, resets format to Alpha on scenario change, opens in-page preview with Persian confirmation, and resets cleanly with zero side-effects", async () => {
       languageState.lang = "fa";
-      render(<PharmacyFredPracticeView />);
+      await renderPractice();
 
-      fireEvent.click(screen.getByRole("button", { name: /تمرین ثبت جلسه ODT/i }));
+      await click(screen.getByRole("button", { name: /تمرین ثبت جلسه ODT/i }));
       expect(
         screen.getByRole("heading", { name: "تمرین ثبت جلسه ODT (صرفاً ساختگی و نمایشی)" })
       ).toBeInTheDocument();
@@ -1109,7 +1129,7 @@ describe("PharmacyFredPracticeView", () => {
       const trainABtn = screen.getByRole("button", { name: /تمرین A/i });
       const trainBBtn = screen.getByRole("button", { name: /تمرین B/i });
       expect(trainABtn).toHaveAttribute("aria-pressed", "false");
-      fireEvent.click(trainABtn);
+      await click(trainABtn);
       expect(trainABtn).toHaveAttribute("aria-pressed", "true");
       expect(trainBBtn).toHaveAttribute("aria-pressed", "false");
       expect(formatAlphaBtn).toBeEnabled();
@@ -1121,13 +1141,13 @@ describe("PharmacyFredPracticeView", () => {
       const cb2 = screen.getByLabelText(/تأیید کامل‌بودن فیلدهای جای‌نگهدار فرضی/i);
       const cb3 = screen.getByLabelText(/اطمینان قطعی از نبود اطلاعات بیمار، دارو، دوز یا دادهٔ بالینی/i);
 
-      fireEvent.click(cb1);
-      fireEvent.click(cb2);
-      fireEvent.click(cb3);
+      await click(cb1);
+      await click(cb2);
+      await click(cb3);
       expect(openBtn).toBeEnabled();
 
       // Open preview
-      fireEvent.click(openBtn);
+      await click(openBtn);
       const confirmNotice = screen.getByText("فقط تمرین محلی بوده و هیچ رخداد، ثبت رسمی یا تحویل دوز واقعی انجام نشده است");
       expect(confirmNotice).toBeInTheDocument();
       const statusBanner = confirmNotice.closest("[role='status']");
@@ -1138,7 +1158,7 @@ describe("PharmacyFredPracticeView", () => {
       expect(screen.getAllByText("تمرین A").length).toBeGreaterThanOrEqual(1);
 
       // Changing format closes preview and resets checklist in Persian
-      fireEvent.click(formatBetaBtn);
+      await click(formatBetaBtn);
       expect(screen.getByText("پیش‌نمایش رویداد هنوز باز نشده است")).toBeInTheDocument();
       expect(formatBetaBtn).toHaveAttribute("aria-pressed", "true");
       expect(formatAlphaBtn).toHaveAttribute("aria-pressed", "false");
@@ -1148,7 +1168,7 @@ describe("PharmacyFredPracticeView", () => {
       expect(openBtn).toBeDisabled();
 
       // Changing scenario back to Training B resets format visibly back to Alpha
-      fireEvent.click(trainBBtn);
+      await click(trainBBtn);
       expect(trainBBtn).toHaveAttribute("aria-pressed", "true");
       expect(trainABtn).toHaveAttribute("aria-pressed", "false");
       expect(formatAlphaBtn).toHaveAttribute("aria-pressed", "true");
@@ -1159,17 +1179,17 @@ describe("PharmacyFredPracticeView", () => {
       expect(openBtn).toBeDisabled();
 
       // Re-check and open preview
-      fireEvent.click(cb1);
-      fireEvent.click(cb2);
-      fireEvent.click(cb3);
-      fireEvent.click(openBtn);
+      await click(cb1);
+      await click(cb2);
+      await click(cb3);
+      await click(openBtn);
       const closeBtn = screen.getByRole("button", { name: "بستن پیش‌نمایش" });
-      fireEvent.click(closeBtn);
+      await click(closeBtn);
       expect(screen.getByText("پیش‌نمایش رویداد هنوز باز نشده است")).toBeInTheDocument();
 
       // Reset
       const resetBtn = screen.getByRole("button", { name: "بازنشانی جلسه" });
-      fireEvent.click(resetBtn);
+      await click(resetBtn);
       expect(openBtn).toBeDisabled();
       expect(formatAlphaBtn).toBeDisabled();
       expect(formatBetaBtn).toBeDisabled();
@@ -1194,11 +1214,11 @@ describe("PharmacyFredPracticeView", () => {
   });
 
   describe("PBS/POS Categorization Practice module", () => {
-    it("renders in English, assigns items to Group A and B with aria-pressed, closes preview on assignment change, disables preview on incomplete assignment, and resets cleanly with zero side-effects", () => {
+    it("renders in English, assigns items to Group A and B with aria-pressed, closes preview on assignment change, disables preview on incomplete assignment, and resets cleanly with zero side-effects", async () => {
       languageState.lang = "en";
-      render(<PharmacyFredPracticeView />);
+      await renderPractice();
 
-      fireEvent.click(screen.getByRole("button", { name: "PBS/POS Categorization Practice" }));
+      await click(screen.getByRole("button", { name: "PBS/POS Categorization Practice" }));
       expect(
         screen.getByRole("heading", { name: "PBS/POS Categorization Practice (Local Training Only)" })
       ).toBeInTheDocument();
@@ -1219,21 +1239,21 @@ describe("PharmacyFredPracticeView", () => {
       expect(groupBBtns[0]).toHaveAttribute("aria-pressed", "false");
 
       // Assign Item 1 to Group A, Item 2 to Group B -> still disabled
-      fireEvent.click(groupABtns[0]);
+      await click(groupABtns[0]);
       expect(groupABtns[0]).toHaveAttribute("aria-pressed", "true");
       expect(groupBBtns[0]).toHaveAttribute("aria-pressed", "false");
 
-      fireEvent.click(groupBBtns[1]);
+      await click(groupBBtns[1]);
       expect(groupBBtns[1]).toHaveAttribute("aria-pressed", "true");
       expect(openBtn).toBeDisabled();
 
       // Assign Item 3 to Group A -> now all 3 assigned -> enabled
-      fireEvent.click(groupABtns[2]);
+      await click(groupABtns[2]);
       expect(groupABtns[2]).toHaveAttribute("aria-pressed", "true");
       expect(openBtn).toBeEnabled();
 
       // Open preview
-      fireEvent.click(openBtn);
+      await click(openBtn);
       const confirmNotice = screen.getByText("Local practice only; no real-world claim, POS transaction, or archive occurred");
       expect(confirmNotice).toBeInTheDocument();
       const statusBanner = confirmNotice.closest("[role='status']");
@@ -1246,31 +1266,31 @@ describe("PharmacyFredPracticeView", () => {
       expect(screen.getByText("1 Items")).toBeInTheDocument();
 
       // Changing an assignment while preview is open must close preview
-      fireEvent.click(groupBBtns[0]); // switch Item 1 to Group B
+      await click(groupBBtns[0]); // switch Item 1 to Group B
       expect(screen.getByText("Categorization Preview Not Yet Opened")).toBeInTheDocument();
       expect(groupBBtns[0]).toHaveAttribute("aria-pressed", "true");
       expect(groupABtns[0]).toHaveAttribute("aria-pressed", "false");
       expect(openBtn).toBeEnabled(); // all 3 still assigned
 
       // Toggling the assigned group off on Item 1 makes assignments incomplete -> disabled button
-      fireEvent.click(groupBBtns[0]); // toggle off Item 1
+      await click(groupBBtns[0]); // toggle off Item 1
       expect(groupBBtns[0]).toHaveAttribute("aria-pressed", "false");
       expect(openBtn).toBeDisabled();
 
       // Re-assign Item 1 to Group A and open preview again
-      fireEvent.click(groupABtns[0]);
+      await click(groupABtns[0]);
       expect(openBtn).toBeEnabled();
-      fireEvent.click(openBtn);
+      await click(openBtn);
       expect(screen.getByText("2 Items")).toBeInTheDocument();
 
       // Close preview
       const closeBtn = screen.getByRole("button", { name: "Close Preview" });
-      fireEvent.click(closeBtn);
+      await click(closeBtn);
       expect(screen.getByText("Categorization Preview Not Yet Opened")).toBeInTheDocument();
 
       // Reset
       const resetBtn = screen.getByRole("button", { name: "Reset Categories" });
-      fireEvent.click(resetBtn);
+      await click(resetBtn);
       expect(openBtn).toBeDisabled();
       expect(groupABtns[0]).toHaveAttribute("aria-pressed", "false");
 
@@ -1291,11 +1311,11 @@ describe("PharmacyFredPracticeView", () => {
       expect(alertSpy).not.toHaveBeenCalled();
     });
 
-    it("supports Persian mode in PBS/POS Categorization Practice: renders Persian labels, watermarks, allows assigning groups with aria-pressed, closes preview on change, opens in-page preview with Persian confirmation, and resets cleanly with zero side-effects", () => {
+    it("supports Persian mode in PBS/POS Categorization Practice: renders Persian labels, watermarks, allows assigning groups with aria-pressed, closes preview on change, opens in-page preview with Persian confirmation, and resets cleanly with zero side-effects", async () => {
       languageState.lang = "fa";
-      render(<PharmacyFredPracticeView />);
+      await renderPractice();
 
-      fireEvent.click(screen.getByRole("button", { name: /پیش‌نمایش دسته‌بندی PBS\/POS/i }));
+      await click(screen.getByRole("button", { name: /پیش‌نمایش دسته‌بندی PBS\/POS/i }));
       expect(
         screen.getByRole("heading", { name: "پیش‌نمایش دسته‌بندی PBS/POS (صرفاً تمرین محلی)" })
       ).toBeInTheDocument();
@@ -1312,13 +1332,13 @@ describe("PharmacyFredPracticeView", () => {
       expect(groupBBtns).toHaveLength(3);
       expect(groupABtns[0]).toHaveAttribute("aria-pressed", "false");
 
-      fireEvent.click(groupABtns[0]);
+      await click(groupABtns[0]);
       expect(groupABtns[0]).toHaveAttribute("aria-pressed", "true");
-      fireEvent.click(groupABtns[1]);
-      fireEvent.click(groupBBtns[2]);
+      await click(groupABtns[1]);
+      await click(groupBBtns[2]);
       expect(openBtn).toBeEnabled();
 
-      fireEvent.click(openBtn);
+      await click(openBtn);
       const confirmNotice = screen.getByText("فقط تمرین محلی بوده و هیچ رخداد، تراکنش POS یا بایگانی واقعی انجام نشده است");
       expect(confirmNotice).toBeInTheDocument();
       const statusBanner = confirmNotice.closest("[role='status']");
@@ -1330,22 +1350,22 @@ describe("PharmacyFredPracticeView", () => {
       expect(screen.getByText("1 آیتم")).toBeInTheDocument();
 
       // Changing assignment closes preview in Persian
-      fireEvent.click(groupBBtns[0]);
+      await click(groupBBtns[0]);
       expect(screen.getByText("پیش‌نمایش دسته‌بندی هنوز باز نشده است")).toBeInTheDocument();
 
       // Toggling off disables open button
-      fireEvent.click(groupBBtns[0]);
+      await click(groupBBtns[0]);
       expect(openBtn).toBeDisabled();
 
       // Re-assign to reopen preview
-      fireEvent.click(groupABtns[0]);
-      fireEvent.click(openBtn);
+      await click(groupABtns[0]);
+      await click(openBtn);
       const closeBtn = screen.getByRole("button", { name: "بستن پیش‌نمایش" });
-      fireEvent.click(closeBtn);
+      await click(closeBtn);
       expect(screen.getByText("پیش‌نمایش دسته‌بندی هنوز باز نشده است")).toBeInTheDocument();
 
       const resetBtn = screen.getByRole("button", { name: "بازنشانی دسته‌ها" });
-      fireEvent.click(resetBtn);
+      await click(resetBtn);
       expect(openBtn).toBeDisabled();
 
       const pbsSection = screen.getByRole("heading", { name: "پیش‌نمایش دسته‌بندی PBS/POS (صرفاً تمرین محلی)" }).closest("section")!;

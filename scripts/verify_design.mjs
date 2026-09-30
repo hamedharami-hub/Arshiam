@@ -16,14 +16,15 @@ try {
   const socket=new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((resolve,reject)=>{socket.onopen=resolve;socket.onerror=()=>reject(new Error("Browser connection failed"));});
   let counter=0; const requests=new Map();
-  socket.onmessage=({data})=>{const msg=JSON.parse(data);if(msg.method === "Runtime.exceptionThrown") console.error("Browser runtime exception",JSON.stringify(msg.params));if(requests.has(msg.id)){const request=requests.get(msg.id);clearTimeout(request.timer);msg.error ? request.reject(new Error(msg.error.message)) : request.resolve(msg.result);requests.delete(msg.id);}};
+  socket.onmessage=({data})=>{const msg=JSON.parse(data);if(msg.method === "Runtime.exceptionThrown") { console.error("Browser runtime exception",JSON.stringify(msg.params)); process.exitCode=1; }if(requests.has(msg.id)){const request=requests.get(msg.id);clearTimeout(request.timer);msg.error ? request.reject(new Error(msg.error.message)) : request.resolve(msg.result);requests.delete(msg.id);}};
   const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++counter;const timer=setTimeout(()=>{requests.delete(id);reject(new Error(`Browser request timed out: ${method}`));},15000);requests.set(id,{resolve,reject,timer});socket.send(JSON.stringify({id,method,params}));});
   await send('Page.enable');
   await send('Runtime.enable');
   await send('Page.addScriptToEvaluateOnNewDocument', { source: `window.__qaAudioSources=[]; const OriginalAudioContext=window.AudioContext; if(OriginalAudioContext) window.AudioContext=class extends OriginalAudioContext { createBufferSource() { const source=super.createBufferSource(); window.__qaAudioSources.push(source); return source; } };` });
   await fs.mkdir(artifactDir,{recursive:true});
   for (const [width,height] of [[390,844],[853,690],[1440,900]]) {
-    for(const [lang,theme,view] of [['fa','oled','reader'],['en','light','reader'],['fa','dark','settings'],['fa','oled','editor'],['en','light','editor'],['fa','oled','sleep'],['fa','oled','pharmacy'],['en','light','products'],['fa','oled','scenarios'],['en','light','fred'],['fa','oled','cyp']]) {
+    if(process.env.QA_WIDTHS && !process.env.QA_WIDTHS.split(",").includes(String(width))) continue;
+    for(const [lang,theme,view] of [['fa','oled','reader'],['en','light','reader'],['fa','dark','settings'],['fa','oled','editor'],['en','light','editor'],['fa','oled','sleep'],['fa','oled','pharmacy'],['en','light','products'],['fa','oled','scenarios'],['en','light','fred'],['fa','oled','fred'],['fa','oled','cyp']]) {
       if(process.env.QA_VIEWS && !process.env.QA_VIEWS.split(',').includes(view)) continue;
       await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<1000});
       await send('Page.navigate',{url:'about:blank'});
@@ -37,9 +38,19 @@ try {
       console.log(width,height,lang,theme,view,status);
       if (!status.rendered || status.overflow || status.headerTitles !== 1) process.exitCode = 1;
       if (view === 'fred') {
+        const practicePosition=await send('Runtime.evaluate',{expression:`(()=>{const rect=document.querySelector('[role=tab][id$="trigger-practice"]').getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2};})()`,returnByValue:true});
+        await send('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...practicePosition.result.value});
+        await send('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...practicePosition.result.value});
+        await new Promise(resolve=>setTimeout(resolve,250));
+        const activePractice=await send('Runtime.evaluate',{expression:`document.querySelector('[role=tab][id$="trigger-practice"]').getAttribute('aria-selected') === 'true'`,returnByValue:true});
+        if(!activePractice.result?.value) { console.error('FRED practice tab did not activate'); process.exitCode=1; }
         const count=await send('Runtime.evaluate',{expression:'document.querySelectorAll("main nav button").length',returnByValue:true});
         for(let index=0;index<(count.result?.value ?? 0);index++) {
           await send('Runtime.evaluate',{expression:`document.querySelectorAll('main nav button')[${index}].click()`});
+          for(let attempt=0;attempt<50;attempt++) {
+            const pending=await send('Runtime.evaluate',{expression:`document.querySelector('[role=tabpanel][id$="content-practice"]').textContent.includes('Preparing the exercise') || document.querySelector('[role=tabpanel][id$="content-practice"]').textContent.includes('در حال آماده‌سازی')`,returnByValue:true});
+            if(!pending.result?.value) break; await new Promise(resolve=>setTimeout(resolve,200));
+          }
           await new Promise(resolve=>setTimeout(resolve,100));
           const overflow=await send('Runtime.evaluate',{expression:'document.documentElement.scrollWidth>innerWidth',returnByValue:true});
           if(overflow.result?.value) { console.error('FRED module overflow',width,index);process.exitCode=1; }
@@ -52,6 +63,13 @@ try {
         if(!opened.result?.value) { console.error('Pharmacy category did not open',width);process.exitCode=1; }
       }
       if (view === 'editor') {
+        if(width === 390 && lang === 'fa') {
+          const compression=await send('Runtime.evaluate',{awaitPromise:true,returnByValue:true,expression:`(async()=>{const {compressImage}=await import('/src/lib/imageCompression.ts');const results=[];for(const [w,h] of [[1200,1800],[128,192]]){const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const context=canvas.getContext('2d');const pixels=context.createImageData(w,h);let seed=123;for(let i=0;i<pixels.data.length;i+=4){seed=(seed*1664525+1013904223)>>>0;pixels.data[i]=seed&255;pixels.data[i+1]=(seed>>>8)&255;pixels.data[i+2]=(seed>>>16)&255;pixels.data[i+3]=255;}context.putImageData(pixels,0,0);const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));const file=new File([blob],'portrait.png',{type:'image/png'});const output=await compressImage(file,{maxDimension:1024});const bitmap=await createImageBitmap(output);results.push({original:file.size,optimized:output.size,width:bitmap.width,height:bitmap.height});bitmap.close();}return results;})()`});
+          const sizes=compression.result?.value;
+          console.log('native photo optimization:',sizes);
+          if(!Array.isArray(sizes) || sizes[0].original<=2*1024*1024 || sizes.some(value=>value.optimized>=value.original || value.optimized>2*1024*1024) || sizes[0].height!==1024) process.exitCode=1;
+        }
+
         await send('Runtime.evaluate', {expression: `(() => { const node=document.querySelector('.tiptap p').firstChild; const range=document.createRange(); range.setStart(node,0); range.setEnd(node,Math.min(6,node.textContent.length)); const selection=window.getSelection(); selection.removeAllRanges(); selection.addRange(range); document.dispatchEvent(new Event('selectionchange')); })()`});
         await new Promise(resolve=>setTimeout(resolve,250));
         await send('Runtime.evaluate', {expression: `document.querySelector('[data-testid="rich-editor-toolbar"] [data-mark="underline"]').click()`});

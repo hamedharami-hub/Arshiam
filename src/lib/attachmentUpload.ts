@@ -1,3 +1,4 @@
+import { compressImage } from "./imageCompression";
 import { openDB, type IDBPDatabase } from "idb";
 import { deleteObject, getDownloadURL, getMetadata, getStorage, listAll, ref, uploadBytesResumable } from "firebase/storage";
 import { auth } from "@/lib/firebase";
@@ -134,9 +135,12 @@ export async function uploadAttachment(
   source = "device",
   identity?: { id: string; ownerId: string },
 ): Promise<RemoteAttachment> {
+  const initialOwner = requireOwnerId();
+  file = await compressImage(file instanceof File ? file : new File([file], file.name, { type: file.type }));
   const v = validateAttachmentFile(file);
   if (!v.ok) throw new ArshApiError(v.reason === "too_large" ? 413 : 415, v.reason);
   const uid = requireOwnerId();
+  if (uid !== initialOwner) throw new ArshApiError(403, "Account changed; attachment remains queued");
   if (identity && identity.ownerId !== uid) throw new ArshApiError(403, "Account changed; attachment remains queued");
   // Reuse the same storage object after an ambiguous result; retries cannot create duplicate objects.
   const fileRef = ref(getStorage(), `${attachmentFolder(uid, taskId)}/${encodeURIComponent(identity?.id || crypto.randomUUID())}_${encodeURIComponent(file.name)}`);

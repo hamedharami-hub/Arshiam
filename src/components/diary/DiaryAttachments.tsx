@@ -8,17 +8,35 @@ import { uploadMediaFull, type MediaKind } from "@/lib/uploadMedia";
 import type { DiaryAttachment } from "@/lib/diary";
 
 type Props = {
+  entryId?: string;
+  onInsert?: (item: DiaryAttachment) => void;
   attachments: DiaryAttachment[];
   onChange: (next: DiaryAttachment[]) => void;
 };
 
 const KIND_ICON: Record<MediaKind, typeof Music> = { image: ImageIcon, audio: Music, video: Video, file: FileText };
 
-export function DiaryAttachments({ attachments, onChange }: Props) {
+export function DiaryAttachments({ attachments, onChange, entryId = "", onInsert }: Props) {
   const { user } = useAuth();
   const { T } = useBilingual();
   const fileRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const identityRef = useRef(""); identityRef.current = `${user?.id ?? ""}:${entryId}`;
+  const attachmentsRef = useRef(attachments); attachmentsRef.current = attachments;
+  const onChangeRef = useRef(onChange); onChangeRef.current = onChange;
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      const recorder = recorderRef.current;
+      if (recorder) {
+        recorder.onstop = null;
+        if (recorder.state !== "inactive") recorder.stop();
+        recorder.stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [entryId, user?.id]);
   const chunksRef = useRef<Blob[]>([]);
   const [uploading, setUploading] = useState(0);
   const [recording, setRecording] = useState(false);
@@ -32,19 +50,22 @@ export function DiaryAttachments({ attachments, onChange }: Props) {
 
   const upload = async (files: File[]) => {
     if (!user?.id || !files.length) return;
+    const identity = identityRef.current;
     setUploading((value) => value + files.length);
     const added: DiaryAttachment[] = [];
     for (const file of files) {
+      if (!mountedRef.current || identityRef.current !== identity) break;
       try {
         const result = await uploadMediaFull(file, user.id);
+        if (!mountedRef.current || identityRef.current !== identity) return;
         added.push({ id: crypto.randomUUID(), url: result.url, kind: result.kind, name: result.name, path: result.path });
       } catch (error: any) {
         toast.error(error?.message || T(`آپلود ${file.name} ناموفق بود`, `Upload of ${file.name} failed`));
       } finally {
-        setUploading((value) => value - 1);
+        if (mountedRef.current && identityRef.current === identity) setUploading(value => value - 1);
       }
     }
-    if (added.length) onChange([...attachments, ...added]);
+    if (added.length && mountedRef.current && identityRef.current === identity) onChangeRef.current([...attachmentsRef.current, ...added]);
   };
 
   const pick = (accept: string) => {
@@ -55,13 +76,16 @@ export function DiaryAttachments({ attachments, onChange }: Props) {
   };
 
   const startRecording = async () => {
+    const identity = identityRef.current;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!mountedRef.current || identityRef.current !== identity) { stream.getTracks().forEach(track => track.stop()); return; }
       const recorder = new MediaRecorder(stream);
       chunksRef.current = [];
       recorder.ondataavailable = (event) => { if (event.data.size) chunksRef.current.push(event.data); };
       recorder.onstop = () => {
         stream.getTracks().forEach((track) => track.stop());
+        if (!mountedRef.current || identityRef.current !== identity) return;
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
         const ext = (recorder.mimeType || "audio/webm").includes("mp4") ? "m4a" : "webm";
         void upload([new File([blob], `voice-${Date.now()}.${ext}`, { type: blob.type })]);
@@ -102,12 +126,13 @@ export function DiaryAttachments({ attachments, onChange }: Props) {
           {attachments.map((item) => {
             const Icon = KIND_ICON[item.kind];
             return (
-              <li key={item.id} data-testid={`diary-attachment-${item.id}`} className="group relative overflow-hidden rounded-xl border bg-background/85 p-2 shadow-sm">
+              <li key={item.id} data-testid={`diary-attachment-${item.id}`} className="group relative overflow-hidden rounded-md border bg-background/85 p-2">
                 <div className="mb-1.5 flex items-center gap-2 text-xs">
                   <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
                   <span className="truncate font-medium" dir="ltr">{item.name}</span>
                   <button type="button" aria-label={T("حذف پیوست", "Remove attachment")} data-testid={`diary-attachment-remove-${item.id}`} onClick={() => onChange(attachments.filter((entry) => entry.id !== item.id))} className="ms-auto rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
+                {onInsert && <Button type="button" size="sm" variant="ghost" className="mb-2 text-xs" onClick={() => onInsert(item)}>{T("درج در متن", "Insert into text")}</Button>}
                 {item.kind === "image" && <img src={item.url} alt={item.name} className="max-h-64 w-full rounded-lg object-cover" loading="lazy" />}
                 {item.kind === "audio" && <audio controls preload="none" src={item.url} className="w-full" />}
                 {item.kind === "video" && <video controls preload="metadata" src={item.url} className="max-h-72 w-full rounded-lg bg-black" />}

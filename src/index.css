@@ -1747,3 +1747,6 @@ html[lang^="en"] body { font-feature-settings: "cv11"; }
 @media (min-width: 768px) {
   .study-workspace { height: calc(100dvh - 3rem - env(safe-area-inset-top, 0px) - 0.5rem); }
 }
+
+.rich-editor-surface .tiptap img{max-width:100%;height:auto;border-radius:8px;margin-block:12px;border:1px solid hsl(var(--border))}
+.rich-editor-surface .tiptap a[href*="firebasestorage.googleapis.com"]{overflow-wrap:anywhere;text-decoration:none;border-bottom:1px solid hsl(var(--primary));padding:3px 2px;line-height:1.9}

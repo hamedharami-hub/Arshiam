@@ -1,6 +1,7 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { StudyTaskScheduleModal } from "./StudyTaskScheduleModal";
 
 const mocks = vi.hoisted(() => ({
@@ -28,6 +29,18 @@ describe("StudyTaskScheduleModal authentication boundary", () => {
     mocks.toastError.mockReset();
     mocks.toastSuccess.mockReset();
     mocks.toastWarning.mockReset();
+  });
+
+  it("opens the created task from the success action using an existing route", async () => {
+    mocks.user = { id: "synthetic-user" };
+    mocks.createStudyTask.mockResolvedValueOnce({ ok: true, task: { id: "created-task" } });
+    function Location() { return <output data-testid="task-location">{useLocation().pathname}</output>; }
+    render(<MemoryRouter><Location /><StudyTaskScheduleModal open onOpenChange={vi.fn()} targetType="knowledge_doc" targetId="doc-1" targetTitle="Lesson" /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: "ثبت تسک مطالعه" }));
+    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+    const options = mocks.toastSuccess.mock.calls[0][1];
+    act(() => options.action.onClick());
+    expect(screen.getByTestId("task-location")).toHaveTextContent("/app/tasks/created-task");
   });
 
   it("does not schedule under a synthetic user when signed out", async () => {

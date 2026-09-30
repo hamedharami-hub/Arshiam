@@ -2,7 +2,8 @@ import { firebaseStore } from "./firebaseStore";
 import { cacheGet, cacheSet, enqueueOp, enqueueOps } from "./offlineQueue";
 import { saveEntityToFirestore, deleteEntityFromFirestore } from "./firestoreSync";
 import { doc, writeBatch } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { compressImage } from "./imageCompression";
+import { auth, db } from "@/lib/firebase";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import type {
   Contact,
@@ -12,6 +13,7 @@ import type {
   ContactPhone,
   ContactEmail,
 } from "./contactTypes";
+import { validateContactDates } from "./contactDates";
 import type { Task } from "./taskTypes";
 
 const makeId = () =>
@@ -212,6 +214,7 @@ export async function createContact(
   const trimmedName = (input.display_name || "").trim();
   if (!trimmedName) throw new Error("نام شخص الزامی است / Display name is required");
 
+  validateContactDates(input);
   const now = new Date().toISOString();
   const contact: Contact = {
     id: makeId(),
@@ -231,6 +234,8 @@ export async function createContact(
     addresses: input.addresses || [],
     websites: input.websites || [],
     social_links: input.social_links || [],
+    birthday: input.birthday || "",
+    occasions: input.occasions || [],
     notes: input.notes?.trim() || undefined,
     source: input.source || "manual",
     created_at: now,
@@ -265,6 +270,7 @@ export async function updateContact(
 ): Promise<Contact> {
   if (!contactId || !userId) throw new Error("Contact ID and User ID are required");
 
+  validateContactDates(patch);
   const current = await getContact(contactId, userId);
   if (!current) throw new Error("Contact not found");
 
@@ -532,11 +538,9 @@ export async function uploadContactPhoto(
     throw new Error("فقط فایل‌های تصویری مجاز هستند / Only image files are allowed");
   }
 
-  // Validate size (2MB)
-  const MAX_SIZE = 2 * 1024 * 1024;
-  if (file.size > MAX_SIZE) {
-    throw new Error("حجم عکس نباید بیشتر از ۲ مگابایت باشد / Photo size must not exceed 2MB");
-  }
+  if (auth.currentUser?.uid !== userId) throw new Error("Authentication required");
+  file = await compressImage(file, { maxDimension: 1024 });
+  if (auth.currentUser?.uid !== userId) throw new Error("Account changed");
 
   // Offline check
   if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -545,7 +549,7 @@ export async function uploadContactPhoto(
 
   const storage = getStorage();
   const extension = file.name.split(".").pop() || "jpg";
-  const path = `users/${userId}/contact_photos/${contactId || makeId()}_${Date.now()}.${extension}`;
+  const path = `users/${userId}/task-attachments/contact-${encodeURIComponent(contactId || makeId())}/${makeId()}.${extension}`;
   const storageRef = ref(storage, path);
 
   await uploadBytes(storageRef, file, { contentType: file.type });

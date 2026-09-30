@@ -1,3 +1,4 @@
+import { compressImage } from "./imageCompression";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
 import { auth } from "@/lib/firebase";
 import { validateAttachmentFile } from "./attachmentUpload";
@@ -6,6 +7,9 @@ import type { KnowledgeMediaAttachment } from "./knowledgeTypes";
 export async function uploadKnowledgeAttachment(userId: string, documentId: string, file: File,
   onProgress: (percentage: number) => void, signal?: AbortSignal): Promise<KnowledgeMediaAttachment> {
   if (auth.currentUser?.uid !== userId) throw new Error("Sign in before uploading.");
+  file = await compressImage(file);
+  if (signal?.aborted) throw new Error("Upload cancelled");
+  if (auth.currentUser?.uid !== userId) throw new Error("Account changed");
   const validation = validateAttachmentFile(file);
   if (!validation.ok) throw new Error(validation.reason === "too_large" ? "Maximum file size is 25 MB." : "Unsupported or empty file.");
   const id = crypto.randomUUID();

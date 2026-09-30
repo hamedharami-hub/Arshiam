@@ -28,6 +28,13 @@ export interface ContactSocialLink {
   handle?: string;
 }
 
+export interface ContactOccasion {
+  id: string;
+  label: string;
+  date: string;
+  annual: boolean;
+}
+
 export type ContactSource = "manual" | "device_import";
 
 export type ContactAvatarShape = "circle" | "rounded" | "square" | "hexagon" | "diamond";
@@ -50,6 +57,8 @@ export interface Contact {
   addresses: ContactAddress[];
   websites: ContactWebsite[];
   social_links: ContactSocialLink[];
+  birthday?: string;
+  occasions?: ContactOccasion[];
   notes?: string;
   source: ContactSource;
   created_at: string;
