@@ -1,6 +1,6 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Sparkles, Save, Trash2, Languages, Download, ShieldOff, Shield, Settings2, Bell, Moon, Palette, Type, ZoomIn, LayoutGrid, Heart, Coffee, Star, Wand2, RotateCw, Sun, Upload, CheckCircle2, AlertCircle, Clock, Zap, Cpu, Eye, EyeOff, RefreshCw, Package, Database, Info, Compass, ArrowUp, ArrowDown, Pin, Sliders, PanelLeft, CalendarDays, FolderTree, Tag, Inbox, Calendar, Filter, Timer, BarChart3, Sprout, Target, FileText, BrainCircuit, Activity, BookOpen, MessageCircleQuestion, Wind, User, Users, Search, GripVertical } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
@@ -406,20 +406,22 @@ export default function SettingsView() {
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [reminders, setReminders] = useState<UserSettings | null>(null);
-  const [activeTab, setActiveTab] = useState(() => new URLSearchParams(window.location.search).get("tab") || "general");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const requestedTab = searchParams.get("tab");
+  const activeTab = location.hash.startsWith("#ai-") ? "ai" : ["general", "tasks", "notifications", "ai", "data", "about"].includes(requestedTab || "") ? requestedTab! : "general";
+  const setActiveTab = (tab: string) => setSearchParams(previous => { const next = new URLSearchParams(previous); next.set("tab", tab); return next; });
 
   useEffect(() => {
     setSettings(loadAISettings());
     setLang(getAILanguage());
+    let cancelled = false;
+    setReminders(null);
     if (user) {
-      loadSettings(user.id).then(setReminders);
+      loadSettings(user.id).then(value => { if (!cancelled) setReminders(value); }).catch(() => { if (!cancelled) toast.error(isEn ? "Could not load settings" : "تنظیمات بارگذاری نشد"); });
     }
-  }, [user]);
-
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (hash.startsWith("#ai-")) setActiveTab("ai");
-  }, []);
+    return () => { cancelled = true; };
+  }, [user, isEn]);
 
   useEffect(() => {
     if (!settings) return;
@@ -444,6 +446,7 @@ export default function SettingsView() {
     try {
       await saveSettings(user.id, patch);
     } catch (e) {
+      setReminders(current => current === next ? reminders : current);
       toast.error((isEn ? "Save failed: " : "ذخیره نشد: ") + (e instanceof Error ? e.message : String(e)));
     }
   };

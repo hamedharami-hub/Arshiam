@@ -81,7 +81,7 @@ export const ReviewView: React.FC = () => {
       {/* Top Header & Tab Navigation */}
       <div className="p-2 md:px-4 border-b border-border bg-background flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-2xl bg-primary/10 border border-primary/20 text-primary shadow-sm">
+          <div className="p-1.5 rounded-md bg-primary/10 text-primary">
             <Layers className="w-5 h-5" />
           </div>
           <div>
@@ -96,12 +96,12 @@ export const ReviewView: React.FC = () => {
 
         {/* Tab Switcher */}
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <div className="flex items-center p-1 rounded-2xl bg-muted/60 border border-border text-xs">
+          <div className="flex items-center p-1 rounded-lg bg-muted/60 border border-border text-xs">
             <button
               type="button"
               aria-pressed={activeTab === "leitner"}
               onClick={() => selectTab("leitner")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md font-bold transition cursor-pointer ${
                 activeTab === "leitner"
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -115,7 +115,7 @@ export const ReviewView: React.FC = () => {
               type="button"
               aria-pressed={activeTab === "mindmap"}
               onClick={() => selectTab("mindmap")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md font-bold transition cursor-pointer ${
                 activeTab === "mindmap"
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -126,7 +126,7 @@ export const ReviewView: React.FC = () => {
             </button>
           </div>
 
-          <div role="group" aria-label={isEn ? "Flashcard content language" : "زبان محتوای کارت‌ها"} className="flex items-center gap-1 rounded-2xl border border-border bg-card p-1 text-xs">
+          <div role="group" aria-label={isEn ? "Flashcard content language" : "زبان محتوای کارت‌ها"} className="flex items-center gap-1 rounded-lg border border-border bg-card p-1 text-xs">
             <Languages aria-hidden="true" className="mx-1 h-4 w-4 text-muted-foreground" />
             {(["fa", "en", "bilingual"] as const).map((language) => (
               <button
@@ -137,7 +137,7 @@ export const ReviewView: React.FC = () => {
                   setCardLanguage(language);
                   saveStudyContentLanguage(language);
                 }}
-                className={`rounded-xl px-2.5 py-1.5 font-semibold transition ${cardLanguage === language ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                className={`rounded-md px-2.5 py-1.5 font-semibold transition ${cardLanguage === language ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >
                 {language === "fa" ? "فارسی" : language === "en" ? "English" : isEn ? "Bilingual" : "دوزبانه"}
               </button>
@@ -177,8 +177,9 @@ export const ReviewView: React.FC = () => {
         {(visitedTabs.leitner || activeTab === "leitner") && (
           <div className={`flex-1 flex flex-col h-full min-h-0 ${activeTab === "leitner" ? "" : "hidden"}`}>
             <LeitnerDeckView
-              key={`${userId}:${reviewFolder}:${studyFolderId || ""}:${studyDocId || ""}`}
+              key={`${userId}:${reviewFolder}:${studyFolderId || ""}:${studyDocId || ""}:${studyTaskId || ""}`}
               userId={userId}
+              isActive={activeTab === "leitner"}
               onOpenDocument={handleOpenDoc}
               initialStudyDocumentId={studyDocId || undefined}
               initialStudyFolderId={studyFolderId || undefined}
@@ -191,6 +192,8 @@ export const ReviewView: React.FC = () => {
         {(visitedTabs.mindmap || activeTab === "mindmap") && (
           <div className={`flex-1 flex flex-col h-full min-h-0 ${activeTab === "mindmap" ? "" : "hidden"}`}>
             <KnowledgeMindMapView
+              key={`${userId}:${reviewFolder}`}
+              isActive={activeTab === "mindmap"}
               userId={userId}
               onOpenDocument={handleOpenDoc}
               initialFolderId={urlFolderId || undefined}

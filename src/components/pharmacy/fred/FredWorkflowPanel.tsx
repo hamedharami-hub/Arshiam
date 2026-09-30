@@ -57,10 +57,10 @@ export function FredWorkflowPanel() {
           <TabsTrigger value="safetynet" data-testid="fred-step-safetynet">{T("۳. Safety Net", "3. Safety Net")}</TabsTrigger>
           <TabsTrigger value="odt" data-testid="fred-step-odt">{T("۴. دفتر ODT", "4. ODT log")}</TabsTrigger>
         </TabsList>
-        <TabsContent value="label" className="mt-4"><FredLabelStep key={script.id} script={script} label={label} onChange={setLabel} onNext={() => setStep("check")} /></TabsContent>
-        <TabsContent value="check" className="mt-4"><FredFinalCheckStep key={script.id} script={script} label={label} onEditLabel={() => setStep("label")} /></TabsContent>
-        <TabsContent value="safetynet" className="mt-4"><FredSafetyNetCalculator /></TabsContent>
-        <TabsContent value="odt" className="mt-4"><FredOdtLog /></TabsContent>
+        <TabsContent value="label" forceMount hidden={step !== "label"} className="mt-4"><FredLabelStep key={script.id} script={script} label={label} onChange={setLabel} onNext={() => setStep("check")} /></TabsContent>
+        <TabsContent value="check" forceMount hidden={step !== "check"} className="mt-4"><FredFinalCheckStep key={script.id} script={script} label={label} onEditLabel={() => setStep("label")} /></TabsContent>
+        <TabsContent value="safetynet" forceMount hidden={step !== "safetynet"} className="mt-4"><FredSafetyNetCalculator /></TabsContent>
+        <TabsContent value="odt" forceMount hidden={step !== "odt"} className="mt-4"><FredOdtLog /></TabsContent>
       </Tabs>
     </section>
   );

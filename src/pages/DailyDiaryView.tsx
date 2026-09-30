@@ -41,6 +41,7 @@ function stripUndefined<T extends object>(value: T): T {
 
 export default function DailyDiaryView() {
   const { user } = useAuth();
+  const userId = user?.id;
   const { T, isEn } = useBilingual();
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [draft, setDraft] = useState<DiaryEntry | null>(null);
@@ -56,14 +57,22 @@ export default function DailyDiaryView() {
   const revisionRef = useRef(0);
   const saveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const pendingSavesRef = useRef(0);
+  const ownerRef = useRef(user?.id);
+  ownerRef.current = user?.id;
+  const dirtyRef = useRef(dirty); dirtyRef.current = dirty;
+  const deletingRef = useRef(new Set<string>());
+  const navigationRef = useRef(0);
   draftRef.current = draft;
 
   useEffect(() => {
-    if (!user?.id) return;
-    return subscribeNotes(user.id, (notes) => {
+    setEntries([]); setDraft(null); setDirty(false); setSaveFailed(false);
+    if (!userId) return;
+    const owner = userId;
+    return subscribeNotes(owner, (notes) => {
+      if (ownerRef.current !== owner) return;
       setEntries((notes as DiaryEntry[]).filter((note) => note.kind === "diary").map(normalizeEntry));
     });
-  }, [user?.id]);
+  }, [userId]);
 
   const ordered = useMemo(() => [...entries].sort((a, b) => (b.diary_date || "").localeCompare(a.diary_date || "") || b.updated_at.localeCompare(a.updated_at)), [entries]);
   const background = draft ? resolveBackground(draft) : null;
@@ -77,7 +86,7 @@ export default function DailyDiaryView() {
   }, []);
 
   const persist = useCallback(async (entry: DiaryEntry, silent = false) => {
-    if (!user?.id) return false;
+    if (!user?.id || ownerRef.current !== user.id || entry.user_id !== user.id || deletingRef.current.has(entry.id)) return false;
     if (!entry.title.trim() && !entry.content.trim() && !entry.diary_attachments?.length && !entry.diary_google_photos?.length && !entry.diary_mood) {
       if (!silent) toast.error(T("عنوان یا متن خاطره را بنویس", "Write a title or some text first"));
       return false;
@@ -88,7 +97,9 @@ export default function DailyDiaryView() {
     const next: DiaryEntry = stripUndefined({ ...entry, title: entry.title.trim() || T("خاطرهٔ روزانه", "Daily entry"), updated_at: new Date().toISOString() });
     const operation = saveQueueRef.current.catch(() => undefined).then(async () => {
       try {
+        if (ownerRef.current !== user.id || deletingRef.current.has(next.id)) return false;
         const ok = await upsertNote(user.id, next);
+        if (ownerRef.current !== user.id) return false;
         if (!ok) {
           if (draftRef.current?.id === next.id) setSaveFailed(true);
           if (!silent) toast.error(T("خاطره ذخیره نشد؛ دوباره تلاش کن", "Entry was not saved; please retry"));
@@ -103,6 +114,7 @@ export default function DailyDiaryView() {
         if (!silent) toast.success(T("خاطره ذخیره شد", "Entry saved"));
         return true;
       } catch {
+        if (ownerRef.current !== user.id) return false;
         if (draftRef.current?.id === next.id) setSaveFailed(true);
         if (!silent) toast.error(T("خاطره ذخیره نشد؛ دوباره تلاش کن", "Entry was not saved; please retry"));
         return false;
@@ -126,35 +138,42 @@ export default function DailyDiaryView() {
     pageRef.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
   }, [draft?.id]);
 
-  const openEntry = (entry: DiaryEntry) => {
-    if (dirty && draft) void persist(draft, true);
-    revisionRef.current += 1;
-    setDraft(entry);
-    setDirty(false);
-    setSaveFailed(false);
-    setInterimTranscript("");
-    setEditorVersion((value) => value + 1);
-  };
+  const persistRef = useRef(persist); persistRef.current = persist;
+  useEffect(() => () => {
+    const current = draftRef.current;
+    if (dirtyRef.current && current && !deletingRef.current.has(current.id)) void persistRef.current(current, true);
+  }, []);
 
-  const createEntry = () => {
-    if (!user?.id) return;
-    if (dirty && draft) void persist(draft, true);
+  const changeEntry = async (entry: DiaryEntry) => {
+    const owner = ownerRef.current;
+    const navigation = ++navigationRef.current;
+    if (dirtyRef.current && draftRef.current && !(await persist(draftRef.current))) return;
+    if (ownerRef.current !== owner || navigation !== navigationRef.current) return;
     revisionRef.current += 1;
-    setDraft(newDiaryEntry(user.id));
-    setDirty(false);
-    setSaveFailed(false);
-    setInterimTranscript("");
-    setEditorVersion((value) => value + 1);
+    draftRef.current = entry;
+    dirtyRef.current = false;
+    setDraft(entry); setDirty(false); setSaveFailed(false); setInterimTranscript("");
+    setEditorVersion(value => value + 1);
   };
+  const openEntry = (entry: DiaryEntry) => { void changeEntry(entry); };
+  const createEntry = () => { if (user?.id) void changeEntry(newDiaryEntry(user.id)); };
 
   const removeEntry = async () => {
     if (!user?.id || !draft) return;
-    const ok = await deleteNote(user.id, draft.id);
+    const owner = user.id; const target = draft.id;
+    deletingRef.current.add(target);
+    dirtyRef.current = false; setDirty(false);
+    await saveQueueRef.current.catch(() => undefined);
+    if (ownerRef.current !== owner) return;
+    const ok = await deleteNote(owner, target);
+    if (ownerRef.current !== owner) return;
     setConfirmDelete(false);
-    if (!ok) { toast.error(T("حذف انجام نشد", "Could not delete")); return; }
-    setEntries((previous) => previous.filter((item) => item.id !== draft.id));
-    setDraft(null);
-    setDirty(false);
+    if (!ok) {
+      deletingRef.current.delete(target); setDirty(true);
+      toast.error(T("حذف انجام نشد", "Could not delete")); return;
+    }
+    setEntries(previous => previous.filter(item => item.id !== target));
+    if (draftRef.current?.id === target) { draftRef.current = null; setDraft(null); }
     toast.success(T("خاطره حذف شد", "Entry deleted"));
   };
 
@@ -229,6 +248,11 @@ export default function DailyDiaryView() {
                   <RichEditor
                     key={`${draft.id}-${editorVersion}`}
                     ref={editorRef}
+                    attachmentScopeId={draft.id}
+                    onAttachmentUploaded={(media) => {
+                      if (draftRef.current?.id !== draft.id) return;
+                      patch({ diary_attachments: [...(draftRef.current.diary_attachments ?? []), { id: crypto.randomUUID(), url: media.url, name: media.name, kind: media.kind, path: media.path }] });
+                    }}
                     initialMarkdown={draft.content}
                     placeholder={T("امروز چه گذشت؟ چه چیزی را نمی‌خواهی فراموش کنی؟", "What happened today? What don't you want to forget?")}
                     onChange={(html, markdown) => patch({ content: markdown, diary_html: html })}
@@ -241,10 +265,10 @@ export default function DailyDiaryView() {
               </div>
 
               <div className="diary-dictation" data-testid="diary-dictation">
-                <span className="diary-dictation-icon" aria-hidden="true"><Mic className="h-5 w-5" /></span>
+
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">{T("نوشتن با صدا", "Write with your voice")}</p>
-                  <p className="text-xs text-muted-foreground">{T("متن گفتار مستقیم به خاطره اضافه می‌شود؛ فایل صوتی جداگانه در پیوست‌ها ضبط می‌شود.", "Speech becomes text in this entry; record an audio file separately in attachments.")}</p>
+
                   {interimTranscript && <p className="mt-1 text-xs text-primary" role="status" data-testid="diary-interim-transcript">{interimTranscript}</p>}
                 </div>
                 <VoiceInputButton
@@ -262,16 +286,19 @@ export default function DailyDiaryView() {
                 />
               </div>
 
-              <Tabs defaultValue="look" className="diary-extras p-3 backdrop-blur-sm">
+              <details className="diary-extras rounded-lg border">
+                <summary className="cursor-pointer px-3 py-2 text-xs font-medium">{T("ظاهر صفحه و پیوست‌ها", "Page appearance and attachments")}{draft.diary_attachments?.length ? ` · ${draft.diary_attachments.length}` : ""}</summary>
+              <Tabs defaultValue="media" className="p-3">
                 <TabsList className="flex w-full flex-wrap justify-start bg-muted/60">
                   <TabsTrigger value="look" data-testid="diary-tab-look" className="gap-1.5"><Palette className="h-4 w-4" />{T("ظاهر صفحه", "Page look")}</TabsTrigger>
-                  <TabsTrigger value="media" data-testid="diary-tab-media" className="gap-1.5"><Paperclip className="h-4 w-4" />{T("صدا و ویدیو", "Audio & video")} {draft.diary_attachments?.length ? `(${draft.diary_attachments.length})` : ""}</TabsTrigger>
+                  <TabsTrigger value="media" data-testid="diary-tab-media" className="gap-1.5"><Paperclip className="h-4 w-4" />{T("فایل‌های این خاطره", "Entry files")} {draft.diary_attachments?.length ? `(${draft.diary_attachments.length})` : ""}</TabsTrigger>
                   <TabsTrigger value="gphotos" data-testid="diary-tab-gphotos" className="gap-1.5"><Images className="h-4 w-4" />Google Photos {draft.diary_google_photos?.length ? `(${draft.diary_google_photos.length})` : ""}</TabsTrigger>
                 </TabsList>
-                <TabsContent value="look" className="mt-3"><DiaryBackgroundPicker entry={draft} onChange={patch} /></TabsContent>
-                <TabsContent value="media" className="mt-3"><DiaryAttachments attachments={draft.diary_attachments ?? []} onChange={(next) => patch({ diary_attachments: next })} /></TabsContent>
+                <TabsContent value="look" className="mt-3"><DiaryBackgroundPicker key={draft.id} entry={draft} onChange={patch} /></TabsContent>
+                <TabsContent value="media" className="mt-3"><DiaryAttachments key={draft.id} entryId={draft.id} onInsert={item => editorRef.current?.insertAttachment(item)} attachments={draft.diary_attachments ?? []} onChange={(next) => patch({ diary_attachments: next })} /></TabsContent>
                 <TabsContent value="gphotos" className="mt-3"><DiaryGooglePhotos links={draft.diary_google_photos ?? []} onChange={(next) => patch({ diary_google_photos: next })} /></TabsContent>
               </Tabs>
+              </details>
             </div>
           </section>
         ) : (

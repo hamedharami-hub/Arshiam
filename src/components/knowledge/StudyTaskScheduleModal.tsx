@@ -188,10 +188,11 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
             : isMindMap
             ? T("تسک مرور نقشه ذهنی با موفقیت ایجاد شد", "Mind map review task created")
             : T("تسک مطالعه شاخه با موفقیت ایجاد شد", "Study task created successfully");
+        const taskUrl = `/app/tasks/${res.task.id}`;
         const toastOptions = {
           action: {
             label: T("مشاهده در تسک‌ها", "View in Tasks"),
-            onClick: () => navigate("/app/tasks"),
+            onClick: () => navigate(taskUrl),
           },
         };
 

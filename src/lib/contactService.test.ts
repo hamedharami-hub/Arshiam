@@ -58,6 +58,19 @@ vi.mock("@/lib/firebase", () => ({
 describe("contactService & task_contacts relations", () => {
   const userId = "user-test-123";
 
+  it("persists birthday and multiple occasions and allows clearing them", async () => {
+    const occasions = [
+      { id: "wedding", label: "Wedding", date: "2020-05-12", annual: true },
+      { id: "graduation", label: "Graduation", date: "2026-09-30", annual: false },
+    ];
+    const created = await createContact(userId, { display_name: "Sara", birthday: "2000-02-29", occasions });
+    expect((await getContact(created.id, userId))?.occasions).toEqual(occasions);
+    expect(created.birthday).toBe("2000-02-29");
+    const cleared = await updateContact(created.id, userId, { birthday: "", occasions: [] });
+    expect(cleared.birthday).toBe("");
+    expect((await getContact(created.id, userId))?.occasions).toEqual([]);
+  });
+
   beforeEach(async () => {
     vi.clearAllMocks();
     localStorage.clear();

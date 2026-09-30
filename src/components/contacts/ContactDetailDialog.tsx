@@ -213,6 +213,13 @@ export function ContactDetailDialog({
           </div>
         ))}
 
+        {(contact.birthday || contact.occasions?.length) ? (
+          <section className="space-y-2 border-t border-border/40 pt-2" aria-label={T("تولد و مناسبت‌ها", "Birthday and occasions")}>
+            {contact.birthday && <div className="flex justify-between gap-3"><span>{T("تولد", "Birthday")}</span><time dateTime={contact.birthday} dir="ltr">{contact.birthday}</time></div>}
+            {contact.occasions?.map(item => <div key={item.id} className="flex flex-wrap justify-between gap-2"><span>{item.label}{item.annual ? ` · ${T("هر سال", "Every year")}` : ""}</span><time dateTime={item.date} dir="ltr">{item.date}</time></div>)}
+          </section>
+        ) : null}
+
         {/* Notes */}
         {contact.notes && (
           <div className="pt-1.5 border-t border-border/40">

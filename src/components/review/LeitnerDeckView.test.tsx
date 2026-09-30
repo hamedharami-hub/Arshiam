@@ -151,6 +151,20 @@ describe("LeitnerDeckView", { timeout: 15000 }, () => {
     });
   });
 
+  it("ignores review keyboard shortcuts while its tab is inactive", async () => {
+    const view = render(<LeitnerDeckView userId="user-test" />);
+    fireEvent.click(await screen.findByRole("button", { name: /شروع مرور/ }));
+    await screen.findByTestId("flip-card");
+    view.rerender(<LeitnerDeckView userId="user-test" isActive={false} />);
+    fireEvent.keyDown(window, { key: " ", code: "Space" });
+    fireEvent.keyDown(window, { key: "1" });
+    expect(screen.getByTestId("flip-card")).toHaveAttribute("aria-label", "روی پرسش — برای برگرداندن لمس کن");
+    expect(reviewLeitnerCardWithRatingResult).not.toHaveBeenCalled();
+    view.rerender(<LeitnerDeckView userId="user-test" isActive />);
+    fireEvent.keyDown(window, { key: " ", code: "Space" });
+    expect(screen.getByTestId("flip-card")).toHaveAttribute("aria-label", "روی پاسخ");
+  });
+
   it("shows the front and back in Persian and English when bilingual mode is selected", async () => {
     const bilingualCard = {
       ...mockCards[0],

@@ -1,5 +1,5 @@
 import { useBilingual } from "@/hooks/useBilingual";
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
 import { Separator } from "@/components/ui/separator";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { uploadMedia, detectMediaKind } from "@/lib/uploadMedia";
+import { uploadMediaFull, type UploadedMedia } from "@/lib/uploadMedia";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { callAI, getAILanguage } from "@/lib/ai";
@@ -44,6 +44,7 @@ export type RichEditorHandle = {
   getHtml: () => string;
   getMarkdown: () => string;
   insertText: (text: string) => void;
+  insertAttachment: (media: Pick<UploadedMedia, "url" | "name" | "kind">) => void;
 };
 
 export const RichEditor = forwardRef<RichEditorHandle, {
@@ -53,6 +54,8 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   placeholder?: string;
   readOnly?: boolean;
   showVoiceButton?: boolean;
+  attachmentScopeId?: string;
+  onAttachmentUploaded?: (media: UploadedMedia) => void;
 }>(function RichEditor({
   initialHtml = "",
   initialMarkdown = "",
@@ -60,9 +63,13 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   placeholder = "شروع به نوشتن کنید...",
   readOnly = false,
   showVoiceButton = true,
+  attachmentScopeId = "",
+  onAttachmentUploaded,
 }, ref) {
   const { T } = useBilingual();
   const { user } = useAuth();
+  const attachmentIdentity = useRef(""); attachmentIdentity.current = `${user?.id ?? ""}:${attachmentScopeId}`;
+  const onUploadedRef = useRef(onAttachmentUploaded); onUploadedRef.current = onAttachmentUploaded;
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingKind, setPendingKind] = useState<"image" | "audio" | "video" | "file">("file");
   const [aiBusy, setAiBusy] = useState(false);
@@ -99,7 +106,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
         const files = Array.from(event.dataTransfer?.files || []);
         if (!files.length) return false;
         event.preventDefault();
-        files.forEach((f) => insertFile(f));
+        void (async () => { for (const file of files) await insertFile(file); })();
         return true;
       },
       handlePaste: (_view, event) => {
@@ -107,20 +114,30 @@ export const RichEditor = forwardRef<RichEditorHandle, {
         const files = Array.from(event.clipboardData?.files || []);
         if (!files.length) return false;
         event.preventDefault();
-        files.forEach((f) => insertFile(f));
+        void (async () => { for (const file of files) await insertFile(file); })();
         return true;
       },
     },
   });
+
+  const insertMedia = useCallback((media: Pick<UploadedMedia, "url" | "name" | "kind">) => {
+    if (!editor || editor.isDestroyed || readOnly) return;
+    if (media.kind === "image") editor.chain().focus().setImage({ src: media.url, alt: media.name, title: media.name }).run();
+    else editor.chain().focus().insertContent({ type: "paragraph", content: [
+      { type: "text", text: "📎 " },
+      { type: "text", text: media.name, marks: [{ type: "link", attrs: { href: media.url, target: "_blank", rel: "noopener noreferrer" } }] },
+    ] }).run();
+  }, [editor, readOnly]);
 
   useImperativeHandle(ref, () => ({
     getHtml: () => editor?.getHTML() ?? "",
     getMarkdown: () => editor ? htmlToMarkdown(editor.getHTML()) : "",
     insertText: (text: string) => {
       if (!editor || readOnly || !text.trim()) return;
-      editor.chain().focus().insertContent(text.trim() + " ").run();
+      editor.chain().focus().insertContent({ type: "text", text: text.trim() + " " }).run();
     },
-  }), [editor, readOnly]);
+    insertAttachment: (media: Pick<UploadedMedia, "url" | "name" | "kind">) => { if (editor && !readOnly) insertMedia(media); },
+  }), [editor, readOnly, insertMedia]);
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
@@ -153,31 +170,21 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   };
 
   const insertFile = async (file: File) => {
-    if (!user) return toast.error("ابتدا وارد شوید");
-    const kind = detectMediaKind(file);
-    const tid = toast.loading(`در حال آپلود ${file.name}...`);
+    if (!user || !editor || readOnly) return toast.error(T("ابتدا وارد حساب شوید", "Sign in first"));
+    const target = attachmentIdentity.current;
+    let position = editor.state.selection.from;
+    const mapPosition = ({ transaction }: { transaction: import("@tiptap/pm/state").Transaction }) => { position = transaction.mapping.map(position, 1); };
+    editor.on("transaction", mapPosition);
+    const tid = toast.loading(T(`در حال بارگذاری ${file.name}…`, `Uploading ${file.name}…`));
     try {
-      const url = await uploadMedia(file, user.id);
-      if (!editor) return;
-      if (kind === "image") {
-        editor.chain().focus().setImage({ src: url, alt: file.name }).run();
-      } else if (kind === "video") {
-        editor.chain().focus().insertContent(
-          `<p><a href="${url}" target="_blank" rel="noopener">video</a></p><p></p>`
-        ).run();
-      } else if (kind === "audio") {
-        editor.chain().focus().insertContent(
-          `<p><a href="${url}" target="_blank" rel="noopener">audio</a></p><p></p>`
-        ).run();
-      } else {
-        editor.chain().focus().insertContent(
-          `<p>📎 <a href="${url}" target="_blank" rel="noopener">${file.name}</a></p>`
-        ).run();
-      }
-      toast.success("اضافه شد", { id: tid });
-    } catch (e: any) {
-      toast.error(e.message || "آپلود ناموفق", { id: tid });
-    }
+      const media = await uploadMediaFull(file, user.id);
+      if (editor.isDestroyed || attachmentIdentity.current !== target) { toast.dismiss(tid); return; }
+      editor.chain().focus().setTextSelection(Math.min(position, editor.state.doc.content.size)).run();
+      insertMedia(media); onUploadedRef.current?.(media);
+      toast.success(T("در متن اضافه شد", "Added to the text"), { id: tid });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : T("بارگذاری ناموفق بود", "Upload failed"), { id: tid });
+    } finally { editor.off("transaction", mapPosition); if (fileRef.current) fileRef.current.value = ""; }
   };
 
   const onPickFile = (kind: "image" | "audio" | "video" | "file") => {
@@ -224,7 +231,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
       style={{ WebkitTouchCallout: "none" } as any}
     >
       <input
-        ref={fileRef} type="file" className="hidden"
+        ref={fileRef} type="file" className="hidden" aria-label={T("انتخاب پیوست برای درج در متن", "Choose an attachment to insert in the text")}
         onChange={(e) => {
           const f = e.target.files?.[0];
           if (f) insertFile(f);

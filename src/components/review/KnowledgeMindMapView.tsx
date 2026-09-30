@@ -94,6 +94,7 @@ const isCompactMindMapViewport = () =>
   typeof window !== "undefined" && window.innerWidth <= READABLE_OUTLINE_MAX_VIEWPORT;
 
 interface KnowledgeMindMapViewProps {
+  isActive?: boolean;
   userId: string;
   cardLanguage?: StudyContentLanguage;
   onOpenDocument?: (docId: string) => void;
@@ -746,6 +747,7 @@ MindMapNodeItem.displayName = "MindMapNodeItem";
 
 export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   userId,
+  isActive = true,
   cardLanguage = "fa",
   onOpenDocument,
   onStartReview,
@@ -951,7 +953,8 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   }, [scopeRootFolderId, userId]);
 
   useEffect(() => {
-    loadData();
+    void loadData();
+    return () => { loadRequestRef.current++; };
   }, [loadData]);
 
   const searchResult = useMemo(
@@ -1521,15 +1524,15 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     if (target) setRevealCounts((prev) => ({ ...prev, [target]: (prev[target] ?? 0) + 1 }));
   }, [revealCounts, expandedNodeIds]);
   useEffect(() => {
-    if (!revealMode) return;
+    if (!isActive || !revealMode) return;
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target instanceof Element && e.target.closest('[contenteditable="true"], [role="dialog"]'))) return;
       if (e.key === " " || e.key === "ArrowDown") { e.preventDefault(); revealNext(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [revealMode, revealNext]);
+  }, [isActive, revealMode, revealNext]);
   const outlineEntries = useMemo(() => buildMindMapOutline(displayNodes), [displayNodes]);
 
   // Fit View To Container

@@ -76,6 +76,7 @@ import { StudyTaskScheduleModal } from "@/components/knowledge/StudyTaskSchedule
 import { toast } from "sonner";
 
 interface LeitnerDeckViewProps {
+  isActive?: boolean;
   userId: string;
   cardLanguage?: StudyContentLanguage;
   onOpenDocument?: (docId: string) => void;
@@ -93,6 +94,7 @@ interface StudyStartOptions {
 
 export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   userId,
+  isActive = true,
   cardLanguage = "fa",
   onOpenDocument,
   initialStudyDocumentId,
@@ -283,6 +285,14 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
 
   const activeCard = activeQueue[currentIndex] || null;
 
+  const speechOwned = React.useRef(false);
+  useEffect(() => {
+    if (!isActive && speechOwned.current) {
+      window.speechSynthesis?.cancel(); speechOwned.current = false; setIsSpeaking(false);
+    }
+    return () => { if (speechOwned.current) { window.speechSynthesis?.cancel(); speechOwned.current = false; } };
+  }, [isActive]);
+
   // Text to Speech
   const handleSpeak = useCallback(
     (text: string) => {
@@ -306,9 +316,10 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
         const isPersian = isPersianText(text);
         utterance.lang = isPersian ? "fa-IR" : "en-US";
         utterance.rate = 0.95;
-        utterance.onend = () => setIsSpeaking(false);
-        utterance.onerror = () => setIsSpeaking(false);
+        utterance.onend = () => { speechOwned.current = false; setIsSpeaking(false); };
+        utterance.onerror = () => { speechOwned.current = false; setIsSpeaking(false); };
         setIsSpeaking(true);
+        speechOwned.current = true;
         window.speechSynthesis.speak(utterance);
       } catch {
         setIsSpeaking(false);
@@ -522,11 +533,13 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
 
   // Keyboard shortcuts
   useEffect(() => {
-    if (!isStudying || !activeCard) return;
+    if (!isActive || !isStudying || !activeCard) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
-      if (tag === "input" || tag === "textarea" || tag === "select") return;
+      const target = e.target instanceof Element ? e.target : null;
+      if (tag === "input" || tag === "textarea" || tag === "select" || target?.closest('[contenteditable="true"], [role="dialog"]')) return;
+      if ((e.code === "Space" || e.code === "Enter") && target?.closest('button, a, [role="button"]')) return;
 
       if (e.code === "Space" || e.code === "Enter") {
         e.preventDefault();
@@ -569,7 +582,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isStudying, activeCard, isFlipped, isFocusMode, handleSpeak, handleReviewAnswer, activeQueue, currentIndex, openEditModal, cardLanguage]);
+  }, [isActive, isStudying, activeCard, isFlipped, isFocusMode, handleSpeak, handleReviewAnswer, activeQueue, currentIndex, openEditModal, cardLanguage]);
 
   const handleCreateCard = async (e: React.FormEvent) => {
     e.preventDefault();
