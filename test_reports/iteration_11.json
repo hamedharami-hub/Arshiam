@@ -1,5 +1,5 @@
 {
-  "summary": "Frontend-only regression QA of ARSHNAZ RTL app on https://task-tracker-2339.preview.emergentagent.com (viewport 1920x900 + 390x844). Verified sidebar restructure, Kanban empty state and goal-editor flow, legacy default goal hiding, sync-status bar behaviour, PWA no-toast on fresh load, smart-list & buckets toolbars, dark theme toggle, and no-console-errors on primary routes. Login via disclaimer checkbox + test.arshnaz@example.com / Test123456 succeeded.",
+  "summary": "Frontend-only regression QA of ARSHNAZ RTL app on https://mindmap-stage.preview.emergentagent.com (viewport 1920x900 + 390x844). Verified sidebar restructure, Kanban empty state and goal-editor flow, legacy default goal hiding, sync-status bar behaviour, PWA no-toast on fresh load, smart-list & buckets toolbars, dark theme toggle, and no-console-errors on primary routes. Login via disclaimer checkbox + test.arshnaz@example.com / Test123456 succeeded.",
   "backend_issues": {"critical": [], "minor": []},
   "frontend_issues": {
     "ui_bugs": [
