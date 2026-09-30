@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, type TouchEvent as RTouchEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type TouchEvent as RTouchEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Play, Pause, RotateCcw, Volume2, VolumeX } from "lucide-react";
+import { Play, Pause, RotateCcw, SkipForward, Volume2, VolumeX, Music2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,74 +24,82 @@ type Props = {
   onSessionComplete?: () => void;
 };
 
+type Mode = "work" | "short" | "long";
 const PREF_KEY = "pomodoro_prefs_v1";
-type Prefs = { minutes: number; bell: EndBellId; ambient: string; ambientVol: number };
+const COUNT_KEY = "pomodoro_today_count_v1";
+type Prefs = {
+  minutes: number; shortBreak: number; longBreak: number; longEvery: number;
+  autoStart: boolean; bell: EndBellId; ambient: string; ambientVol: number;
+};
+const DEFAULT_PREFS: Prefs = { minutes: 25, shortBreak: 5, longBreak: 15, longEvery: 4, autoStart: false, bell: "bell", ambient: "none", ambientVol: 30 };
 
 function loadPrefs(): Prefs {
-  try { return { minutes: 25, bell: "bell", ambient: "none", ambientVol: 30, ...JSON.parse(localStorage.getItem(PREF_KEY) || "{}") }; }
-  catch { return { minutes: 25, bell: "bell", ambient: "none", ambientVol: 30 }; }
+  try { return { ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem(PREF_KEY) || "{}") }; } catch { return DEFAULT_PREFS; }
 }
-function savePrefs(p: Prefs) { localStorage.setItem(PREF_KEY, JSON.stringify(p)); }
+const todayKey = () => new Date().toISOString().slice(0, 10);
+function loadCount(): number {
+  try { const v = JSON.parse(localStorage.getItem(COUNT_KEY) || "{}"); return v.date === todayKey() ? Number(v.count) || 0 : 0; } catch { return 0; }
+}
+function saveCount(count: number) {
+  try { localStorage.setItem(COUNT_KEY, JSON.stringify({ date: todayKey(), count })); } catch { /* ignore */ }
+}
 
 export default function PomodoroTimer({ taskId = null, defaultMinutes, compact = false, onSessionComplete }: Props) {
   const { user } = useAuth();
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
-  const [prefs, setPrefs] = useState<Prefs>(loadPrefs());
-  const [minutes, setMinutes] = useState(defaultMinutes ?? prefs.minutes);
-  const [seconds, setSeconds] = useState(0);
-  const [running, setRunning] = useState(false);
-  const [mode, setMode] = useState<"work" | "break">("work");
+  const num = (n: number) => (isEn ? String(n) : toPersianDigits(n));
+  const [prefs, setPrefs] = useState<Prefs>(() => ({ ...loadPrefs(), ...(defaultMinutes ? { minutes: defaultMinutes } : {}) }));
+  const [mode, setMode] = useState<Mode>("work");
+  const [endAt, setEndAt] = useState<number | null>(null);
+  const [remaining, setRemaining] = useState(prefs.minutes * 60);
+  const [doneToday, setDoneToday] = useState(loadCount);
   const startedAtRef = useRef<number | null>(null);
-  const totalSecRef = useRef<number>((defaultMinutes ?? prefs.minutes) * 60);
+  const finishingRef = useRef(false);
+  const running = endAt !== null;
 
-  // sync prefs to storage
-  useEffect(() => { savePrefs(prefs); }, [prefs]);
+  const lengthOf = useCallback((m: Mode) => (m === "work" ? prefs.minutes : m === "short" ? prefs.shortBreak : prefs.longBreak) * 60, [prefs]);
+  const total = lengthOf(mode);
 
-  // Ambient/music: switch instantly when running (offline synth)
+  useEffect(() => { try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch { /* ignore */ } }, [prefs]);
+
+  // Ambient sound follows the running state (focus only).
   useEffect(() => {
-    if (!running) { stopSynth(); return; }
-    if (prefs.ambient && prefs.ambient !== "none") {
-      startSynth(prefs.ambient, prefs.ambientVol);
-    } else {
-      stopSynth();
-    }
+    if (running && mode === "work" && prefs.ambient !== "none") startSynth(prefs.ambient, prefs.ambientVol);
+    else stopSynth();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefs.ambient, running]);
+  }, [prefs.ambient, running, mode]);
+  useEffect(() => { setSynthVolume(prefs.ambientVol); }, [prefs.ambientVol]);
+  useEffect(() => () => stopSynth(), []);
 
-  useEffect(() => {
-    setSynthVolume(prefs.ambientVol);
-  }, [prefs.ambientVol]);
-
-  // Tick
-  useEffect(() => {
-    if (!running) return;
-    const id = window.setInterval(() => {
-      setSeconds((s) => {
-        if (s > 0) return s - 1;
-        // s === 0 → decrement minutes
-        setMinutes((m) => {
-          if (m > 0) return m - 1;
-          // session finished
-          finishSession();
-          return 0;
-        });
-        return 59;
-      });
-    }, 1000);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running]);
+  const switchMode = (m: Mode, autoStart = false) => {
+    setMode(m);
+    const len = lengthOf(m);
+    setRemaining(len);
+    startedAtRef.current = autoStart ? Date.now() : null;
+    setEndAt(autoStart ? Date.now() + len * 1000 : null);
+  };
 
   const finishSession = async () => {
-    setRunning(false);
+    if (finishingRef.current) return;
+    finishingRef.current = true;
+    setEndAt(null);
     stopSynth();
     playEndBell(prefs.bell);
+    haptic("success");
     if (mode === "work") {
-      const dur = Math.round(totalSecRef.current / 60);
+      const dur = Math.round(total / 60);
+      const count = doneToday + 1;
+      setDoneToday(count);
+      saveCount(count);
+      recordPomodoroFocusSession(dur);
+      onSessionComplete?.();
+      const next: Mode = count % prefs.longEvery === 0 ? "long" : "short";
+      toast.success(T(`${num(dur)} دقیقه تمرکز ثبت شد — وقت استراحت`, `${dur} min focus logged — time for a break`));
+      switchMode(next, prefs.autoStart);
       if (user) {
-        await firebaseStore.from("pomodoro_sessions").insert({
+        void firebaseStore.from("pomodoro_sessions").insert({
           user_id: user.id,
           task_id: taskId || null,
           duration_minutes: dur,
@@ -99,186 +108,241 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
           ended_at: new Date().toISOString(),
         });
       }
-      recordPomodoroFocusSession(dur);
-      toast.success(T(`${dur} دقیقه تمرکز ثبت شد ✅ — ۵ دقیقه استراحت`, `${dur} min focus logged ✅ — 5 min break`));
-      onSessionComplete?.();
-      setMode("break");
-      setMinutes(5); setSeconds(0);
-      totalSecRef.current = 5 * 60;
     } else {
       toast.success(T("استراحت تمام شد. آماده‌ای؟", "Break finished. Ready?"));
-      setMode("work");
-      setMinutes(prefs.minutes); setSeconds(0);
-      totalSecRef.current = prefs.minutes * 60;
+      switchMode("work", prefs.autoStart);
     }
+    finishingRef.current = false;
   };
 
-  const start = () => {
-    if (!running) {
-      if (minutes === 0 && seconds === 0) {
-        setMinutes(mode === "work" ? prefs.minutes : 5);
-        totalSecRef.current = (mode === "work" ? prefs.minutes : 5) * 60;
-      } else {
-        totalSecRef.current = minutes * 60 + seconds;
-      }
-      startedAtRef.current = Date.now();
-      if (prefs.ambient && prefs.ambient !== "none") {
-        startSynth(prefs.ambient, prefs.ambientVol);
-      }
-    } else {
-      stopSynth();
+  // Timestamp-based ticking: accurate even when the tab/phone sleeps.
+  useEffect(() => {
+    if (!endAt) return;
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+      setRemaining(left);
+      if (left <= 0) void finishSession();
+    };
+    tick();
+    const id = window.setInterval(tick, 250);
+    document.addEventListener("visibilitychange", tick);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", tick); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [endAt]);
+
+  // Show the countdown in the browser tab while running.
+  useEffect(() => {
+    if (!running) return;
+    const prev = document.title;
+    const mm = String(Math.floor(remaining / 60)).padStart(2, "0");
+    const ss = String(remaining % 60).padStart(2, "0");
+    document.title = `${mm}:${ss} · ${mode === "work" ? T("تمرکز", "Focus") : T("استراحت", "Break")}`;
+    return () => { document.title = prev; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remaining, running, mode]);
+
+  const toggle = () => {
+    if (running) {
+      setEndAt(null);
+      return;
     }
-    setRunning(!running);
+    const left = remaining > 0 ? remaining : total;
+    if (!startedAtRef.current) startedAtRef.current = Date.now();
+    setRemaining(left);
+    setEndAt(Date.now() + left * 1000);
   };
 
   const reset = () => {
-    setRunning(false);
-    stopSynth();
-    const m = mode === "work" ? prefs.minutes : 5;
-    setMinutes(m); setSeconds(0);
-    totalSecRef.current = m * 60;
+    setEndAt(null);
+    setRemaining(total);
+    startedAtRef.current = null;
   };
 
-  const onMinutesChange = (v: number) => {
-    if (running) return;
-    setPrefs(p => ({ ...p, minutes: v }));
-    if (mode === "work") { setMinutes(v); setSeconds(0); totalSecRef.current = v * 60; }
+  const skip = () => {
+    setEndAt(null);
+    if (mode === "work") switchMode(((doneToday + 1) % prefs.longEvery === 0) ? "long" : "short");
+    else switchMode("work");
+  };
+
+  const setWorkMinutes = (v: number) => {
+    setPrefs((p) => ({ ...p, minutes: v }));
+    if (mode === "work" && !running) setRemaining(v * 60);
   };
 
   const { handlers: timerHandlers } = useTapGestures({
-    onDoubleTap: () => { haptic("light"); start(); },
+    onDoubleTap: () => { haptic("light"); toggle(); },
     onLongPress: () => { haptic("warning"); reset(); },
   });
 
-  const totalSeconds = (mode === "work" ? prefs.minutes : 5) * 60;
-  const remainingSeconds = minutes * 60 + seconds;
-  const progress = totalSeconds > 0 ? Math.max(0, Math.min(1, remainingSeconds / totalSeconds)) : 0;
-
-  // Vertical swipe ±5min, horizontal swipe → toggle work/break
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
   const onTimerTouchStart = (e: RTouchEvent) => {
-    const t = e.touches[0]; if (!t) return;
-    swipeStart.current = { x: t.clientX, y: t.clientY };
+    const t = e.touches[0]; if (t) swipeStart.current = { x: t.clientX, y: t.clientY };
   };
   const onTimerTouchEnd = (e: RTouchEvent) => {
     const s = swipeStart.current; swipeStart.current = null;
-    if (!s) return;
-    const t = e.changedTouches[0]; if (!t) return;
-    const dx = t.clientX - s.x;
+    const t = e.changedTouches[0];
+    if (!s || !t || running) return;
     const dy = t.clientY - s.y;
-    if (Math.abs(dy) > 40 && Math.abs(dy) > Math.abs(dx)) {
-      if (running) return;
-      const delta = dy < 0 ? 5 : -5;
-      const next = Math.max(5, Math.min(90, prefs.minutes + delta));
-      onMinutesChange(next);
+    if (Math.abs(dy) > 40 && mode === "work") {
+      const next = Math.max(5, Math.min(90, prefs.minutes + (dy < 0 ? 5 : -5)));
+      setWorkMinutes(next);
       haptic("light");
-      toast.message(T(`${next} دقیقه`, `${next} min`));
-    } else if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
-      if (running) return;
-      const newMode = mode === "work" ? "break" : "work";
-      setMode(newMode);
-      const m = newMode === "work" ? prefs.minutes : 5;
-      setMinutes(m); setSeconds(0); totalSecRef.current = m * 60;
-      haptic("medium");
-      toast.message(newMode === "work" ? T("حالت تمرکز", "Focus mode") : T("حالت استراحت", "Break mode"));
     }
   };
 
+  const progress = total > 0 ? 1 - remaining / total : 0;
+  const R = 88;
+  const C = 2 * Math.PI * R;
+  const mm = String(Math.floor(remaining / 60)).padStart(2, "0");
+  const ss = String(remaining % 60).padStart(2, "0");
+  const MODES: { id: Mode; fa: string; en: string }[] = [
+    { id: "work", fa: "تمرکز", en: "Focus" },
+    { id: "short", fa: "استراحت کوتاه", en: "Short break" },
+    { id: "long", fa: "استراحت بلند", en: "Long break" },
+  ];
+  const cycleDone = doneToday % prefs.longEvery;
+  const currentSound = AMBIENT_SOUNDS.find((s) => s.id === prefs.ambient);
+
   return (
-    <div className="space-y-4">
-      <div className="text-center">
-        <div className="text-xs text-muted-foreground mb-1">{mode === "work" ? T("زمان تمرکز", "Focus time") : T("استراحت", "Break")}</div>
+    <div className="space-y-5" data-testid="pomodoro-timer">
+      <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1" role="tablist">
+        {MODES.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            role="tab"
+            aria-selected={mode === m.id}
+            disabled={running}
+            onClick={() => switchMode(m.id)}
+            className={`rounded-md px-2 py-1.5 text-xs transition-colors disabled:opacity-60 ${mode === m.id ? "bg-card font-semibold text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            data-testid={`pomodoro-mode-${m.id}`}
+          >
+            {T(m.fa, m.en)}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-col items-center">
         <div
           {...timerHandlers}
           onTouchStart={(e) => { timerHandlers.onTouchStart(e); onTimerTouchStart(e); }}
           onTouchEnd={(e) => { timerHandlers.onTouchEnd(); onTimerTouchEnd(e); }}
-          className={`tabular-nums font-bold text-primary ${compact ? "text-5xl" : "text-7xl"} my-3 select-none cursor-pointer`}
-          title={T("دابل‌تاچ: شروع/توقف • نگه‌داشتن: ریست • سوایپ عمودی: ±۵د • سوایپ افقی: تمرکز/استراحت", "Double-tap: start/stop • Hold: reset • Vertical swipe: ±5m • Horizontal swipe: focus/break")}
+          className={`relative select-none ${compact ? "h-44 w-44" : "h-56 w-56"}`}
+          title={T("دابل‌تاچ: شروع/توقف • نگه‌داشتن: ریست • سوایپ عمودی: ±۵ دقیقه", "Double-tap: start/stop • Hold: reset • Vertical swipe: ±5 min")}
         >
-          {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
+          <svg viewBox="0 0 200 200" className="h-full w-full -rotate-90">
+            <circle cx="100" cy="100" r={R} fill="none" strokeWidth="8" className="stroke-muted" />
+            <circle
+              cx="100" cy="100" r={R} fill="none" strokeWidth="8" strokeLinecap="round"
+              className={mode === "work" ? "stroke-primary" : "stroke-emerald-500"}
+              strokeDasharray={C}
+              strokeDashoffset={C * (1 - progress)}
+              style={{ transition: "stroke-dashoffset 0.3s linear" }}
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center" dir="ltr">
+            <span className={`font-bold tabular-nums tracking-tight text-foreground ${compact ? "text-4xl" : "text-5xl"}`} data-testid="pomodoro-time">{mm}:{ss}</span>
+            <span className="mt-1 text-xs text-muted-foreground" dir={isEn ? "ltr" : "rtl"}>
+              {running ? (mode === "work" ? T("در حال تمرکز", "Focusing") : T("در حال استراحت", "On a break")) : T("آماده", "Ready")}
+            </span>
+          </div>
         </div>
-        <div className="flex gap-2 justify-center">
-          <Button size={compact ? "default" : "lg"} onClick={start}>
-            {running ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+
+        <div className="mt-4 flex items-center gap-3">
+          <Button size="icon" variant="ghost" className="h-10 w-10 rounded-full" onClick={reset} aria-label={T("ریست", "Reset")} title={T("ریست", "Reset")} data-testid="pomodoro-reset">
+            <RotateCcw className="h-4 w-4" />
           </Button>
-          <Button size={compact ? "default" : "lg"} variant="outline" onClick={reset}>
-            <RotateCcw className="w-5 h-5" />
+          <Button className="h-14 w-14 rounded-full" onClick={toggle} aria-label={running ? T("توقف", "Pause") : T("شروع", "Start")} data-testid="pomodoro-toggle">
+            {running ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+          </Button>
+          <Button size="icon" variant="ghost" className="h-10 w-10 rounded-full" onClick={skip} aria-label={T("رد کردن", "Skip")} title={T("رد کردن این مرحله", "Skip this phase")} data-testid="pomodoro-skip">
+            <SkipForward className="h-4 w-4" />
           </Button>
         </div>
-        <div className="h-2 w-full max-w-xs mx-auto bg-muted rounded-full overflow-hidden mt-3">
-          <div
-            className="h-full bg-primary transition-all duration-1000 ease-linear"
-            style={{ width: `${progress * 100}%` }}
-          />
+
+        <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground" data-testid="pomodoro-sessions">
+          <div className="flex gap-1">
+            {Array.from({ length: prefs.longEvery }).map((_, i) => (
+              <span key={i} className={`h-2 w-2 rounded-full ${i < cycleDone ? "bg-primary" : "bg-muted-foreground/25"}`} />
+            ))}
+          </div>
+          <span>{T(`امروز ${num(doneToday)} جلسه`, `${doneToday} today`)}</span>
         </div>
       </div>
 
       {!running && mode === "work" && (
         <div className="space-y-2">
-          <Label className="text-xs">{T("مدت زمان", "Duration")}: {toPersianDigits(prefs.minutes)} {T("دقیقه", "min")}</Label>
-          <Slider value={[prefs.minutes]} min={5} max={90} step={5} onValueChange={([v]) => onMinutesChange(v)} />
-          <div className="flex flex-wrap gap-1 justify-center">
-            {[15, 25, 45, 60].map(m => (
-              <Button key={m} size="sm" variant={prefs.minutes === m ? "default" : "outline"}
-                className="h-7 px-2 text-xs" onClick={() => onMinutesChange(m)}>
-                {T(`${m}د`, `${m}m`)}
+          <div className="flex items-center justify-between text-xs">
+            <Label className="text-xs">{T("مدت تمرکز", "Focus length")}</Label>
+            <span className="tabular-nums text-muted-foreground">{num(prefs.minutes)} {T("دقیقه", "min")}</span>
+          </div>
+          <Slider value={[prefs.minutes]} min={5} max={90} step={5} onValueChange={([v]) => setWorkMinutes(v)} />
+          <div className="flex flex-wrap justify-center gap-1">
+            {[15, 25, 45, 60].map((m) => (
+              <Button key={m} size="sm" variant={prefs.minutes === m ? "default" : "outline"} className="h-7 rounded-full px-3 text-xs" onClick={() => setWorkMinutes(m)}>
+                {T(`${num(m)} د`, `${m}m`)}
               </Button>
             ))}
           </div>
         </div>
       )}
 
-      <div className="space-y-2 border-t pt-3">
+      <div className="space-y-3 rounded-lg border border-border p-3">
+        <div className="flex items-center gap-2 text-xs font-semibold"><Music2 className="h-4 w-4 text-muted-foreground" />{T("صدا و موسیقی", "Sound & music")}</div>
         <div className="flex items-center gap-2">
-          <Label className="text-xs flex-1">{T("صدای پایان", "End sound")}</Label>
-          <Select value={prefs.bell} onValueChange={(v) => { setPrefs(p => ({ ...p, bell: v as EndBellId })); playEndBell(v as EndBellId); }}>
-            <SelectTrigger className="h-8 w-40 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {END_BELLS.map(b => <SelectItem key={b.id} value={b.id}>{b.emoji} {T(b.name, b.nameEn)}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Label className="text-xs flex-1">{T("صدای محیطی / موسیقی", "Ambient / music")}</Label>
-          <Select value={prefs.ambient} onValueChange={(v) => setPrefs(p => ({ ...p, ambient: v }))}>
-            <SelectTrigger className="h-8 w-44 text-xs"><SelectValue placeholder={T("بدون صدا", "No sound")} /></SelectTrigger>
+          <Label className="flex-1 text-xs">{T("صدای محیطی", "Ambient")}</Label>
+          <Select value={prefs.ambient} onValueChange={(v) => setPrefs((p) => ({ ...p, ambient: v }))}>
+            <SelectTrigger className="h-8 w-48 text-xs" data-testid="pomodoro-ambient-select"><SelectValue placeholder={T("بدون صدا", "No sound")} /></SelectTrigger>
             <SelectContent className="max-h-80">
               <SelectItem value="none">🔇 {T("بدون صدا", "No sound")}</SelectItem>
               {(Object.keys(SOUND_CATEGORY_META) as SoundCategory[]).map((cat) => {
-                const items = AMBIENT_SOUNDS.filter(s => s.category === cat);
+                const items = AMBIENT_SOUNDS.filter((s) => s.category === cat);
                 if (!items.length) return null;
                 const meta = SOUND_CATEGORY_META[cat];
                 return (
                   <div key={cat}>
-                    <div className="px-2 py-1 text-[10px] text-muted-foreground border-t mt-1">
-                      {meta.emoji} {T(meta.label, meta.labelEn)}
-                    </div>
-                    {items.map(s => (
-                      <SelectItem key={s.id} value={s.id}>{s.emoji} {T(s.name, s.nameEn)}</SelectItem>
-                    ))}
+                    <div className="mt-1 border-t px-2 py-1 text-[10px] text-muted-foreground">{meta.emoji} {T(meta.label, meta.labelEn)}</div>
+                    {items.map((s) => <SelectItem key={s.id} value={s.id}>{s.emoji} {T(s.name, s.nameEn)}</SelectItem>)}
                   </div>
                 );
               })}
             </SelectContent>
           </Select>
         </div>
-
-        {(() => {
-          const cur = AMBIENT_SOUNDS.find(s => s.id === prefs.ambient);
-          if (cur?.hint) return <div className="text-[10px] text-amber-600 dark:text-amber-400 ms-1">⚠️ {T(cur.hint, cur.hintEn || cur.hint)}</div>;
-          return null;
-        })()}
-
-
+        {currentSound?.hint && <div className="text-[10px] text-amber-600 dark:text-amber-400">{T(currentSound.hint, currentSound.hintEn || currentSound.hint)}</div>}
         {prefs.ambient !== "none" && (
           <div className="flex items-center gap-2">
-            {prefs.ambientVol === 0 ? <VolumeX className="w-4 h-4 text-muted-foreground" /> : <Volume2 className="w-4 h-4 text-muted-foreground" />}
-            <Slider value={[prefs.ambientVol]} min={0} max={100} step={5}
-              onValueChange={([v]) => setPrefs(p => ({ ...p, ambientVol: v }))} className="flex-1" />
-            <span className="text-xs tabular-nums w-8 text-center">{prefs.ambientVol}%</span>
+            {prefs.ambientVol === 0 ? <VolumeX className="h-4 w-4 text-muted-foreground" /> : <Volume2 className="h-4 w-4 text-muted-foreground" />}
+            <Slider value={[prefs.ambientVol]} min={0} max={100} step={5} onValueChange={([v]) => setPrefs((p) => ({ ...p, ambientVol: v }))} className="flex-1" />
+            <span className="w-9 text-center text-xs tabular-nums">{num(prefs.ambientVol)}%</span>
           </div>
         )}
+        <div className="flex items-center gap-2">
+          <Label className="flex-1 text-xs">{T("زنگ پایان", "End bell")}</Label>
+          <Select value={prefs.bell} onValueChange={(v) => { setPrefs((p) => ({ ...p, bell: v as EndBellId })); playEndBell(v as EndBellId); }}>
+            <SelectTrigger className="h-8 w-48 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {END_BELLS.map((b) => <SelectItem key={b.id} value={b.id}>{b.emoji} {T(b.name, b.nameEn)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid grid-cols-3 gap-2 border-t border-border pt-3">
+          {([["shortBreak", "استراحت کوتاه", "Short break", [3, 5, 10]], ["longBreak", "استراحت بلند", "Long break", [10, 15, 20, 30]], ["longEvery", "بلند بعد از", "Long every", [2, 3, 4, 5, 6]]] as const).map(([key, fa, en, opts]) => (
+            <div key={key} className="space-y-1">
+              <Label className="text-[11px] text-muted-foreground">{T(fa, en)}</Label>
+              <Select value={String(prefs[key])} onValueChange={(v) => { setPrefs((p) => ({ ...p, [key]: Number(v) })); if (!running && mode !== "work") setRemaining(Number(v) * 60); }}>
+                <SelectTrigger className="h-8 text-xs" data-testid={`pomodoro-${key}`}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {opts.map((o) => <SelectItem key={o} value={String(o)}>{key === "longEvery" ? T(`${num(o)} جلسه`, `${o} sessions`) : T(`${num(o)} دقیقه`, `${o} min`)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="pomodoro-autostart" className="text-xs">{T("شروع خودکار مرحلهٔ بعد", "Auto-start next phase")}</Label>
+          <Switch id="pomodoro-autostart" checked={prefs.autoStart} onCheckedChange={(v) => setPrefs((p) => ({ ...p, autoStart: v }))} data-testid="pomodoro-autostart" />
+        </div>
       </div>
     </div>
   );
