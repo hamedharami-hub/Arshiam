@@ -1,3 +1,4 @@
+import { NoteMarkdown } from "@/components/NoteMarkdown";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { hasModule, isPathAllowed, useModules } from "@/lib/appModules";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -1443,9 +1444,9 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                   </div>
                 </div>
                 {n.content && (
-                  <p className="mt-1 text-[11px] sm:text-xs text-muted-foreground line-clamp-2 leading-relaxed text-start" dir="auto">
-                    <BidiText text={n.content} />
-                  </p>
+                  <div className="mt-1 text-[11px] sm:text-xs text-muted-foreground line-clamp-2 leading-relaxed text-start" dir="auto">
+                    <NoteMarkdown>{n.content}</NoteMarkdown>
+                  </div>
                 )}
                 {n.updated_at && (
                   <div className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground/70">

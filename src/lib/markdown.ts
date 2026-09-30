@@ -3,6 +3,15 @@ import { marked } from "marked";
 
 const turndown = new TurndownService({ headingStyle: "atx", codeBlockStyle: "fenced" });
 
+// Markdown has no underline/highlight syntax; retain semantic HTML for round trips.
+for (const tag of ["u", "mark"] as const) {
+  turndown.addRule(tag, { filter: tag, replacement: (content) => `<${tag}>${content}</${tag}>` });
+}
+turndown.addRule("textAlignment", {
+  filter: (node: HTMLElement) => /^(P|H[1-3])$/.test(node.nodeName) && /^(left|center|right|justify)$/.test(node.style.textAlign),
+  replacement: (_content, node: HTMLElement) => `\n\n<${node.nodeName.toLowerCase()} style="text-align: ${node.style.textAlign}">${node.innerHTML}</${node.nodeName.toLowerCase()}>\n\n`,
+});
+
 turndown.addRule("img", {
   filter: "img",
   replacement: (_c, node: any) => `![${node.getAttribute("alt") || ""}](${node.getAttribute("src") || ""})`,

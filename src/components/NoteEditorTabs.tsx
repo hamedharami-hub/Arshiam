@@ -4,9 +4,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { markdownToHtml } from "@/lib/markdown";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { Loader2 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { MarkdownMediaLink } from "@/components/MarkdownMediaLink";
+import { NoteMarkdown } from "@/components/NoteMarkdown";
+import { useBilingual } from "@/hooks/useBilingual";
 
 const RichEditor = lazy(() =>
   import("@/components/RichEditor").then((m) => ({ default: m.RichEditor }))
@@ -33,6 +32,7 @@ export function NoteEditorTabs({
   onModeChange?: (mode: "visual" | "markdown" | "preview") => void;
   hideTabsList?: boolean;
 }) {
+  const { T } = useBilingual();
   const [internalTab, setInternalTab] = useState<"visual" | "markdown" | "preview">("visual");
   const currentTab = mode ?? internalTab;
   const handleTabChange = (val: string) => {
@@ -44,10 +44,10 @@ export function NoteEditorTabs({
   return (
     <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
       {!hideTabsList && (
-        <TabsList className="h-7 p-0.5 bg-muted/60 border border-border/40">
-          <TabsTrigger value="visual" className="h-6 px-2 text-xs">📖 ویژوال</TabsTrigger>
-          <TabsTrigger value="markdown" className="h-6 px-2 text-xs">📝 مارک‌داون</TabsTrigger>
-          <TabsTrigger value="preview" className="h-6 px-2 text-xs">👁 پیش‌نمایش</TabsTrigger>
+        <TabsList className="h-9 p-0.5 bg-muted/60 border border-border/40">
+          <TabsTrigger value="visual" className="h-8 px-3 text-xs">{T("ویرایش", "Edit")}</TabsTrigger>
+          <TabsTrigger value="markdown" className="h-8 px-3 text-xs">{T("مارک‌داون", "Markdown")}</TabsTrigger>
+          <TabsTrigger value="preview" className="h-8 px-3 text-xs">{T("پیش‌نمایش", "Preview")}</TabsTrigger>
         </TabsList>
       )}
 
@@ -92,9 +92,9 @@ export function NoteEditorTabs({
         <div>
           <p className="text-xs text-muted-foreground mb-1">پیش‌نمایش زنده:</p>
           <div className="prose-note max-w-none">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MarkdownMediaLink }}>
+            <NoteMarkdown>
               {markdown || ""}
-            </ReactMarkdown>
+            </NoteMarkdown>
           </div>
         </div>
       </TabsContent>
@@ -102,9 +102,9 @@ export function NoteEditorTabs({
       <TabsContent value="preview" className="mt-1">
         <div className="min-h-[50vh]">
           <div className="prose-note max-w-none">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MarkdownMediaLink }}>
+            <NoteMarkdown>
               {markdown || ""}
-            </ReactMarkdown>
+            </NoteMarkdown>
           </div>
         </div>
       </TabsContent>

@@ -1,0 +1,22 @@
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import { MarkdownMediaLink } from "@/components/MarkdownMediaLink";
+
+const schema = {
+  ...defaultSchema,
+  tagNames: [...(defaultSchema.tagNames ?? []), "u", "mark"],
+  attributes: {
+    ...defaultSchema.attributes,
+    ...Object.fromEntries(["p", "h1", "h2", "h3"].map(tag => [tag, [
+      ...(defaultSchema.attributes?.[tag] ?? []),
+      ["style", /^text-align:\s*(left|center|right|justify);?$/],
+    ]])),
+  },
+};
+
+/** Render supported note HTML safely alongside Markdown and media links. */
+export function NoteMarkdown({ children }: { children: string }) {
+  return <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw, [rehypeSanitize, schema]]} components={{ a: MarkdownMediaLink }}>{children}</ReactMarkdown>;
+}

@@ -1,3 +1,4 @@
+import { RichEditor } from "@/components/RichEditor";
 // Read-only fixture using the production reader, tree and task header components.
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -15,6 +16,7 @@ import "../index.css";
 
 const params = new URLSearchParams(location.search);
 const isEn = params.get("lang") === "en";
+const isEditor = params.get("view") === "editor";
 const isSettings = params.get("view") === "settings";
 void i18n.changeLanguage(isEn ? "en" : "fa");
 document.documentElement.dir = isEn ? "ltr" : "rtl";
@@ -40,7 +42,7 @@ function Fixture() {
       <div id="app-header-actions" className="shrink-0" />
     </header>
     <HeaderTitlePortal title={isSettings ? T("تنظیمات", "Settings") : T("پایگاه دانش", "Knowledge")} />
-    {isSettings ? <main className="p-3 max-w-3xl mx-auto"><TaskListSortSettings /></main> : <>
+    {isEditor ? <main className="p-3 max-w-5xl mx-auto"><RichEditor initialMarkdown="A note with **bold** and <u>underlined text</u>." showVoiceButton={false} onChange={(_html, markdown) => { document.body.dataset.savedMarkdown = markdown; }} /></main> : isSettings ? <main className="p-3 max-w-3xl mx-auto"><TaskListSortSettings /></main> : <>
     <div className="border-b px-3 py-1">
       <TaskDetailTopBar T={T} isEn={isEn} canEdit folderLabel={folders[0].name} hasFolder onFolder={noop} onGoal={noop} goalLabel={null} save={null} more={null} />
     </div>

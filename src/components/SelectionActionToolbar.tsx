@@ -39,7 +39,7 @@ function getSelectionRect(): { rect: DOMRect; container: Element } | null {
     if (text.length === 0) return null;
     const node = range.commonAncestorContainer;
     const el = (node.nodeType === 1 ? node : node.parentElement) as Element | null;
-    if (!el) return null;
+    if (!el || el.closest(".tiptap")) return null;
     const container = el.closest("[data-rich-selection]");
     if (!container) return null;
     const rect = range.getBoundingClientRect();
@@ -104,13 +104,17 @@ function wrapSelection(prefix: string, suffix = prefix) {
     replaceSelectedText(prefix + text + suffix);
     return;
   }
-  // contenteditable: just wrap text
-  const text = getSelectedText();
-  if (text) replaceSelectedText(prefix + text + suffix);
+  // Rich editors own their selection menu. Native editables need real formatting.
+  const selection = window.getSelection();
+  const element = selection?.anchorNode?.parentElement;
+  if (!element?.closest('[contenteditable="true"]')) return;
+  const command = prefix === "**" ? "bold" : prefix === "*" ? "italic" : "underline";
+  document.execCommand(command, false);
 }
 
 export function SelectionActionToolbar() {
   const [pos, setPos] = useState<Pos | null>(null);
+  const [canFormat, setCanFormat] = useState(false);
   const [busy, setBusy] = useState(false);
   const lastSelRef = useRef<string>("");
 
@@ -125,10 +129,13 @@ export function SelectionActionToolbar() {
           lastSelRef.current = "";
           return;
         }
+        const active = document.activeElement as HTMLTextAreaElement | null;
+        const anchor = window.getSelection()?.anchorNode?.parentElement;
+        setCanFormat(Boolean(anchor?.closest('[contenteditable="true"]')) || Boolean(active?.tagName === "TEXTAREA" && !active.readOnly && !active.disabled));
         const r = info.rect;
         lastSelRef.current = getSelectedText();
         const top = Math.max(8, r.top - 52);
-        const left = Math.min(window.innerWidth - 16, Math.max(8, r.left + r.width / 2));
+        const left = Math.min(window.innerWidth - 148, Math.max(148, r.left + r.width / 2));
         setPos({ top, left, width: r.width });
       });
     };
@@ -193,19 +200,19 @@ export function SelectionActionToolbar() {
   return createPortal(
     <div
       style={{ top: pos.top, left: pos.left, transform: "translateX(-50%)" }}
-      className="fixed z-[2147483646] flex items-center gap-1 rounded-full border bg-background/95 backdrop-blur shadow-elegant px-1.5 py-1 animate-in fade-in slide-in-from-bottom-2"
+      className="fixed z-[2147483646] flex items-center gap-1 rounded-md border bg-popover shadow-md px-1.5 py-1 animate-in fade-in slide-in-from-bottom-2"
       onMouseDown={(e) => e.preventDefault()}
       onTouchStart={(e) => e.stopPropagation()}
     >
-      <button className="h-8 w-8 grid place-items-center rounded-full hover:bg-accent" title="Bold" onClick={() => wrapSelection("**")}><Bold className="w-4 h-4" /></button>
-      <button className="h-8 w-8 grid place-items-center rounded-full hover:bg-accent" title="Italic" onClick={() => wrapSelection("*")}><Italic className="w-4 h-4" /></button>
-      <button className="h-8 w-8 grid place-items-center rounded-full hover:bg-accent" title="Underline" onClick={() => wrapSelection("<u>", "</u>")}><Underline className="w-4 h-4" /></button>
-      <div className="w-px h-5 bg-border mx-0.5" />
-      <button className="h-8 w-8 grid place-items-center rounded-full hover:bg-accent" title="Copy" onClick={doCopy}><Copy className="w-4 h-4" /></button>
-      <button className="h-8 w-8 grid place-items-center rounded-full hover:bg-accent" title="Share" onClick={doShare}><Share2 className="w-4 h-4" /></button>
+      {canFormat && <><button className="h-8 w-8 grid place-items-center rounded-md hover:bg-accent" title="Bold" onClick={() => wrapSelection("**")}><Bold className="w-4 h-4" /></button>
+      <button className="h-8 w-8 grid place-items-center rounded-md hover:bg-accent" title="Italic" onClick={() => wrapSelection("*")}><Italic className="w-4 h-4" /></button>
+      <button className="h-8 w-8 grid place-items-center rounded-md hover:bg-accent" title="Underline" onClick={() => wrapSelection("<u>", "</u>")}><Underline className="w-4 h-4" /></button>
+      <div className="w-px h-5 bg-border mx-0.5" /></>}
+      <button className="h-8 w-8 grid place-items-center rounded-md hover:bg-accent" title="Copy" onClick={doCopy}><Copy className="w-4 h-4" /></button>
+      <button className="h-8 w-8 grid place-items-center rounded-md hover:bg-accent" title="Share" onClick={doShare}><Share2 className="w-4 h-4" /></button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="h-8 px-2 grid place-items-center rounded-full bg-primary text-primary-foreground hover:opacity-90 gap-1 inline-flex" title="AI">
+          <button className="h-8 px-2 grid place-items-center rounded-md bg-primary text-primary-foreground hover:opacity-90 gap-1 inline-flex" title="AI">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
             <span className="text-xs font-semibold">AI</span>
           </button>
