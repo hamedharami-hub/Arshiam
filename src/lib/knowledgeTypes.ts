@@ -25,9 +25,10 @@ export interface KnowledgeContentReviewEvidence {
   references: KnowledgeReviewReference[];
 }
 
-/** Metadata-only reference to user-owned media in Google Drive; never store OAuth tokens or file bytes here. */
+/** Metadata-only reference to owner cloud/Drive files; never store OAuth tokens or file bytes here. */
 export interface KnowledgeMediaAttachment {
-  provider: "google_drive";
+  provider: "google_drive" | "firebase";
+  storage_path?: string;
   file_id: string;
   name: string;
   mime_type: string;
@@ -53,7 +54,7 @@ export interface KnowledgeDocument {
   content_review_status?: "unreviewed" | "reviewed";
   /** Optional audit evidence for a manually recorded review. */
   content_review_evidence?: KnowledgeContentReviewEvidence;
-  /** Optional external media links. Removing a link from a lesson never deletes the Drive file. */
+  /** Optional cloud/Drive file links. Detaching a link retains its stored file. */
   attachments?: KnowledgeMediaAttachment[];
   is_favorite?: boolean;
   is_pinned?: boolean;

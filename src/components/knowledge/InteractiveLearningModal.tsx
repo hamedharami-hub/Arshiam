@@ -230,7 +230,7 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
     <Dialog open={open} onOpenChange={(val) => { if (!isApplying) onOpenChange(val); }}>
       <DialogContent
         dir={isEn ? "ltr" : "rtl"}
-        className="max-w-4xl w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden bg-card border border-border rounded-3xl shadow-xl"
+        className="max-w-4xl w-[95vw] max-h-[90dvh] flex flex-col p-0 overflow-hidden bg-card border border-border rounded-lg shadow-lg"
       >
         {/* Header */}
         <DialogHeader className="p-4 sm:p-5 border-b border-border bg-muted/20 shrink-0">
@@ -282,7 +282,7 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
         </DialogHeader>
 
         {/* Body Content */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 min-h-[260px] sm:min-h-[380px]">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5">
           {activeTab === "presets" ? (
             <div className="space-y-6">
               {/* Presets Chips Grid */}

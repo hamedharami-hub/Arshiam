@@ -11,6 +11,9 @@ import { comparePharmacySeed, getPharmacyImportStatus, importPharmacyKnowledge, 
 import { sanitizeKnowledgeHtml } from "./knowledgeHtmlSanitizer";
 import { PHARMACY_CLINICAL_ENTITIES, PHARMACY_CLINICAL_SOURCE_COMMIT } from "./pharmacyClinicalGraph.generated";
 
+// These integration fixtures sanitize the full bilingual clinical library. Allow constrained CI runners enough time without changing functional assertions.
+const IMPORT_FIXTURE_TIMEOUT = 60_000;
+
 const remote = vi.hoisted(() => ({
   knowledge_folders: new Map<string, Record<string, unknown>>(),
   knowledge_documents: new Map<string, Record<string, unknown>>(),
@@ -75,7 +78,7 @@ describe("pharmacyImportService", () => {
     await importPharmacyKnowledge(userId, { importCards: false });
     expect(remote.knowledge_folders.get(PHARMACY_ROOT_FOLDER_ID)?.parent_id).toBe("legacy-root");
     expect(remote.knowledge_folders.get("legacy-root")?.name).toContain("Pharmacy Knowledge");
-  }, 15_000);
+  }, IMPORT_FIXTURE_TIMEOUT);
 
   it("generates complete source categories with valid folder and document links", () => {
     expect(PHARMACY_SEED_FOLDERS).toHaveLength(34);
@@ -325,7 +328,7 @@ describe("pharmacyImportService", () => {
     expect(importedExample?.content_html).toBe(sanitizeKnowledgeHtml(PHARMACY_SEED_DOCUMENTS[0].content_html));
     expect(importedExample?.content_en).toBe(sanitizeKnowledgeHtml(PHARMACY_SEED_DOCUMENTS[0].content_en || ""));
     expect(await isPharmacyImported(userId)).toBe(true);
-  }, 15_000);
+  }, IMPORT_FIXTURE_TIMEOUT);
 
   it("records a docs-only provenance manifest and does not rewrite it on an idempotent repeat", async () => {
     const first = await importPharmacyKnowledge(userId, { importCards: false });
@@ -436,7 +439,7 @@ describe("pharmacyImportService", () => {
     expect(updated.read_count).toBe(9);
     expect(updated.is_favorite).toBe(true);
     expect(result.status.docsUpgradeable).toBe(0);
-  }, 15_000);
+  }, IMPORT_FIXTURE_TIMEOUT);
 
   it("safely upgrades the unchanged PBS co-payment case while preserving personal study state", async () => {
     for (const folder of PHARMACY_SEED_FOLDERS) {
@@ -466,7 +469,7 @@ describe("pharmacyImportService", () => {
     expect(updated.read_count).toBe(6);
     expect(updated.is_favorite).toBe(true);
     expect(result.status.docsUpgradeable).toBe(0);
-  }, 15_000);
+  }, IMPORT_FIXTURE_TIMEOUT);
 
   it("does not overwrite a user-edited PBS co-payment case during the safe seed upgrade", async () => {
     for (const folder of PHARMACY_SEED_FOLDERS) {
@@ -487,7 +490,7 @@ describe("pharmacyImportService", () => {
 
     expect(result.docsUpdated).toBe(0);
     expect(remote.knowledge_documents.get(target.id)?.content_html).toBe(personalCopy.content_html);
-  }, 15_000);
+  }, IMPORT_FIXTURE_TIMEOUT);
 
   it("refreshes only unchanged historical pseudoephedrine lessons and preserves personal state", async () => {
     for (const folder of PHARMACY_SEED_FOLDERS) {
@@ -529,7 +532,7 @@ describe("pharmacyImportService", () => {
     expect(refreshed.is_favorite).toBe(true);
     expect(String(preserved.content_html)).toContain("Personal study note");
     expect(result.status.docsUpgradeable).toBe(0);
-  }, 15_000);
+  }, IMPORT_FIXTURE_TIMEOUT);
 
   it("preserves a user-customized English title on an otherwise upgradeable Pharmacy document", async () => {
     for (const folder of PHARMACY_SEED_FOLDERS) {
@@ -560,7 +563,7 @@ describe("pharmacyImportService", () => {
 
     expect(result.docsUpdated).toBeGreaterThanOrEqual(1);
     expect(remote.knowledge_documents.get(baseline.id)?.title_en).toBe(customTitle);
-  }, 15_000);
+  }, IMPORT_FIXTURE_TIMEOUT);
 
   it("preserves user-customized tags on an otherwise upgradeable Pharmacy document", async () => {
     for (const folder of PHARMACY_SEED_FOLDERS) {
@@ -591,7 +594,7 @@ describe("pharmacyImportService", () => {
 
     expect(result.docsUpdated).toBeGreaterThanOrEqual(1);
     expect(remote.knowledge_documents.get(baseline.id)?.tags).toEqual(customTags);
-  }, 15_000);
+  }, IMPORT_FIXTURE_TIMEOUT);
 
   it("refreshes an unchanged historical Leitner card without resetting review progress", async () => {
     for (const folder of PHARMACY_SEED_FOLDERS) {
@@ -638,7 +641,7 @@ describe("pharmacyImportService", () => {
     expect(refreshed.last_reviewed_at).toBe("2026-09-24T09:30:00.000Z");
     expect(refreshed.fsrs_state).toMatchObject({ stability: 18, reps: 17, lapses: 3 });
     expect(result.status.cardsUpgradeable).toBe(0);
-  }, 15_000);
+  }, IMPORT_FIXTURE_TIMEOUT);
 
   it("does not overwrite a manually edited historical Leitner card", async () => {
     const baseline = PHARMACY_SEED_UPGRADE_CARD_BASELINES.find(
@@ -658,7 +661,7 @@ describe("pharmacyImportService", () => {
     expect(String(preserved.back)).toContain("Personal card note.");
     expect(preserved.box).toBe(3);
     expect(preserved.review_count).toBe(8);
-  }, 15_000);
+  }, IMPORT_FIXTURE_TIMEOUT);
 
   it("safely upgrades an unchanged legacy UTI record with the current sourced correction", async () => {
     for (const folder of PHARMACY_SEED_FOLDERS) {
@@ -688,7 +691,7 @@ describe("pharmacyImportService", () => {
     expect(upgraded.read_count).toBe(14);
     expect(upgraded.is_favorite).toBe(true);
     expect(result.status.docsUpgradeable).toBe(0);
-  }, 15_000);
+  }, IMPORT_FIXTURE_TIMEOUT);
 
   it("preserves existing edits and review progress even when force is requested", async () => {
     const doc = { ...PHARMACY_SEED_DOCUMENTS[0], user_id: userId, title: "My edited title" };
@@ -712,7 +715,7 @@ describe("pharmacyImportService", () => {
     expect(remote.knowledge_documents.get(local.id)?.title).toBe(PHARMACY_SEED_DOCUMENTS[0].title);
     expect((await cacheGet<typeof local[]>(getDocsCacheKey(userId)))?.find((doc) => doc.id === local.id)?.title)
       .toBe(PHARMACY_SEED_DOCUMENTS[0].title);
-  }, 15_000);
+  }, IMPORT_FIXTURE_TIMEOUT);
 
   it("stops before writing when this user's knowledge changes are pending offline", async () => {
     vi.mocked(getPendingOps).mockResolvedValue([{
@@ -735,14 +738,14 @@ describe("pharmacyImportService", () => {
     expect(remote.knowledge_documents.get(old.id)?.content_html).toBe(next.content_html);
     expect(remote.knowledge_documents.get(old.id)?.read_count).toBe(12);
     expect(remote.knowledge_documents.get(old.id)?.is_favorite).toBe(true);
-  }, 15_000);
+  }, IMPORT_FIXTURE_TIMEOUT);
 
   it("does not replace a legacy document whose authored content was edited", async () => {
     const old = LEGACY_DOCUMENTS.find((item) => item.id === "doc-disease-eczema")!;
     remote.knowledge_documents.set(old.id, { ...old, user_id: userId, content_html: `${old.content_html}<p>My note</p>` });
     await importPharmacyKnowledge(userId);
     expect(String(remote.knowledge_documents.get(old.id)?.content_html)).toContain("My note");
-  }, 15_000);
+  }, IMPORT_FIXTURE_TIMEOUT);
 
   it("preserves a custom source link on a legacy document", async () => {
     const old = LEGACY_DOCUMENTS.find((item) => item.id === "doc-disease-eczema")!;
@@ -750,7 +753,7 @@ describe("pharmacyImportService", () => {
     remote.knowledge_documents.set(old.id, { ...old, user_id: userId, source_url: personalSource });
     await importPharmacyKnowledge(userId);
     expect(remote.knowledge_documents.get(old.id)?.source_url).toBe(personalSource);
-  }, 15_000);
+  }, IMPORT_FIXTURE_TIMEOUT);
 
   it("preserves the manual content-review status and evidence on a legacy document", async () => {
     const old = LEGACY_DOCUMENTS.find((item) => item.id === "doc-disease-eczema")!;
@@ -774,7 +777,7 @@ describe("pharmacyImportService", () => {
     await importPharmacyKnowledge(userId);
     expect(remote.knowledge_documents.get(old.id)?.content_review_status).toBe("reviewed");
     expect(remote.knowledge_documents.get(old.id)?.content_review_evidence).toEqual(reviewEvidence);
-  }, 15_000);
+  }, IMPORT_FIXTURE_TIMEOUT);
 
   it("fails visibly on partial server writes and safely resumes", async () => {
     remote.failId = PHARMACY_SEED_DOCUMENTS[0].id;

@@ -156,7 +156,7 @@ export default function PharmacyScenarioPracticeView() {
         </p>
       </Card>
 
-      <section className="grid gap-3 md:grid-cols-[minmax(14rem,1fr)_14rem_minmax(15rem,1.4fr)]" aria-label={T("انتخاب سناریو", "Choose a scenario")}>
+      <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_12rem_minmax(0,1.4fr)]" aria-label={T("انتخاب سناریو", "Choose a scenario")}>
         <div className="relative min-w-0">
           <Search className={`pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground ${isEn ? "left-3" : "right-3"}`} aria-hidden="true" />
           <Input

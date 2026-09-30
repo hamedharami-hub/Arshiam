@@ -40,15 +40,15 @@ function stripHtmlToPlainText(html: string): string {
     .trim();
 }
 
-export function normalizeKnowledgeMediaAttachments(value: unknown): KnowledgeDocument["attachments"] {
+export function normalizeKnowledgeMediaAttachments(value: unknown, ownerId?: string): KnowledgeDocument["attachments"] {
   if (!Array.isArray(value)) return [];
   return value.filter((attachment) =>
     attachment && typeof attachment === "object" &&
-    attachment.provider === "google_drive" &&
+    (attachment.provider === "google_drive" || (attachment.provider === "firebase" && typeof attachment.storage_path === "string" && /^users\/[A-Za-z0-9_-]+\/task-attachments\/knowledge-[^/]+\/[A-Za-z0-9_-]+$/.test(attachment.storage_path) && (!ownerId || attachment.storage_path.startsWith(`users/${ownerId}/task-attachments/knowledge-`)))) &&
     typeof attachment.file_id === "string" && /^[A-Za-z0-9_-]{5,200}$/.test(attachment.file_id) &&
     typeof attachment.name === "string" && attachment.name.trim().length > 0 && attachment.name.length <= 255 &&
-    typeof attachment.mime_type === "string" && /^(image|video)\/[a-z0-9.+-]+$/i.test(attachment.mime_type) &&
-    Number.isSafeInteger(attachment.size_bytes) && attachment.size_bytes > 0 &&
+    typeof attachment.mime_type === "string" && (attachment.provider === "google_drive" ? /^(image|video)\/[a-z0-9.+-]+$/i.test(attachment.mime_type) : /^(image\/(jpeg|png|gif|webp|heic|heif)|application\/(pdf|msword|vnd\.openxmlformats-officedocument\.wordprocessingml\.document)|audio\/(mpeg|mp4|x-m4a|m4a|wav|x-wav|ogg|webm)|video\/(mp4|quicktime|webm)|text\/plain)$/.test(attachment.mime_type)) &&
+    Number.isSafeInteger(attachment.size_bytes) && attachment.size_bytes > 0 && (attachment.provider !== "firebase" || attachment.size_bytes <= 25 * 1024 * 1024) &&
     typeof attachment.added_at === "string",
   );
 }
@@ -61,7 +61,7 @@ export function normalizeKnowledgeDocument(document: KnowledgeDocument): Knowled
   const contentPlain = typeof document.content_plain === "string" ? document.content_plain : "";
   const attachments = document.attachments === undefined
     ? undefined
-    : normalizeKnowledgeMediaAttachments(document.attachments);
+    : normalizeKnowledgeMediaAttachments(document.attachments, document.user_id);
 
   return {
     ...document,
@@ -535,7 +535,7 @@ export async function updateKnowledgeDocumentWithPersistence(
     ...(patch.content_html !== undefined ? { content_html: sanitizeKnowledgeHtml(patch.content_html) } : {}),
     ...(patch.content_en !== undefined ? { content_en: sanitizeKnowledgeHtml(patch.content_en) } : {}),
     ...(patch.source_url !== undefined ? { source_url: normalizeSourceUrl(patch.source_url) } : {}),
-    ...(patch.attachments !== undefined ? { attachments: normalizeKnowledgeMediaAttachments(patch.attachments) } : {}),
+    ...(patch.attachments !== undefined ? { attachments: normalizeKnowledgeMediaAttachments(patch.attachments, userId) } : {}),
   };
   const contentChanged =
     (normalizedPatch.title !== undefined && normalizedPatch.title !== current.title) ||

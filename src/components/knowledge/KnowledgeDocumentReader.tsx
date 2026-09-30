@@ -1,3 +1,5 @@
+import { KnowledgeAttachments } from "./KnowledgeAttachments";
+import { KnowledgeSectionContent } from "./KnowledgeSectionContent";
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   BookOpen,
@@ -50,7 +52,6 @@ import { createLeitnerCard } from "@/lib/leitnerService";
 import { getKnowledgeReviewState, getSafeKnowledgeExternalUrl, isPharmacyKnowledgeDocument } from "@/lib/knowledgeReviewEvidence";
 import { hasSubstantialPersianInEnglish } from "@/lib/bilingualHelper";
 import { TextSelectionFloatingBar } from "./TextSelectionFloatingBar";
-import { KnowledgeDriveAttachments } from "./KnowledgeDriveAttachments";
 const AiQuestionGeneratorModal = React.lazy(() =>
   import("./AiQuestionGeneratorModal").then((m) => ({
     default: m.AiQuestionGeneratorModal,
@@ -824,10 +825,9 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
               </div>
             </div>
 
-            <KnowledgeDriveAttachments
+            <KnowledgeAttachments key={`${userId}:${document.id}`}
               document={document}
               userId={userId}
-              isEn={isEn}
               onDocumentUpdated={onDocumentUpdated}
             />
 
@@ -861,22 +861,14 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 
             {/* TAB 1: PERSIAN ONLY VIEW (RTL) */}
             {docLangMode === "fa" && (
-              <div
-                dir="rtl"
-                className="knowledge-html-content dir-rtl text-right"
-                dangerouslySetInnerHTML={{ __html: safeHtmlFa }}
-              />
+              <KnowledgeSectionContent dir="rtl" className="knowledge-html-content dir-rtl text-right" html={safeHtmlFa} />
             )}
 
             {/* TAB 2: ENGLISH ONLY VIEW (LTR) */}
             {docLangMode === "en" && (
               <div dir="ltr" className="space-y-4">
                 {safeHtmlEn ? (
-                  <div
-                    dir="ltr"
-                    className="knowledge-html-content dir-ltr text-left"
-                    dangerouslySetInnerHTML={{ __html: safeHtmlEn }}
-                  />
+                  <KnowledgeSectionContent dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlEn} />
                 ) : (
                   <div className="space-y-4">
                     <div role="status" className="rounded-2xl border border-border bg-muted/30 p-4 text-sm leading-6">
@@ -892,11 +884,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                     </div>
 
                     {safeHtmlFa ? (
-                      <div
-                        dir={originalContentIsPersian ? "rtl" : "ltr"}
-                        className={`knowledge-html-content ${originalContentIsPersian ? "dir-rtl text-right" : "dir-ltr text-left"}`}
-                        dangerouslySetInnerHTML={{ __html: safeHtmlFa }}
-                      />
+                      <KnowledgeSectionContent dir={originalContentIsPersian ? "rtl" : "ltr"} className={`knowledge-html-content ${originalContentIsPersian ? "dir-rtl text-right" : "dir-ltr text-left"}`} html={safeHtmlFa} />
                     ) : document.plain_text?.trim() ? (
                       <p
                         dir={originalContentIsPersian ? "rtl" : "ltr"}
@@ -939,11 +927,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                   </div>
                   {originalContentIsPersian ? (
                     safeHtmlFa ? (
-                      <div
-                        dir="rtl"
-                        className="knowledge-html-content dir-rtl text-right"
-                        dangerouslySetInnerHTML={{ __html: safeHtmlFa }}
-                      />
+                      <KnowledgeSectionContent dir="rtl" className="knowledge-html-content dir-rtl text-right" html={safeHtmlFa} />
                     ) : document.plain_text?.trim() ? (
                       <p dir="rtl" className="knowledge-html-content dir-rtl whitespace-pre-wrap text-right">
                         {document.plain_text}
@@ -968,18 +952,10 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                   </div>
 
                   {safeHtmlEnBilingual ? (
-                    <div
-                      dir="ltr"
-                      className="knowledge-html-content dir-ltr text-left"
-                      dangerouslySetInnerHTML={{ __html: safeHtmlEnBilingual }}
-                    />
+                    <KnowledgeSectionContent dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlEnBilingual} />
                   ) : !originalContentIsPersian && hasOriginalContent ? (
                     safeHtmlFa ? (
-                      <div
-                        dir="ltr"
-                        className="knowledge-html-content dir-ltr text-left"
-                        dangerouslySetInnerHTML={{ __html: safeHtmlFa }}
-                      />
+                      <KnowledgeSectionContent dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlFa} />
                     ) : (
                       <p dir="ltr" className="knowledge-html-content dir-ltr whitespace-pre-wrap text-left">
                         {document.plain_text}

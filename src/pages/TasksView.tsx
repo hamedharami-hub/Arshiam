@@ -1,4 +1,4 @@
-import { readTaskListSort, TASK_LIST_SORT_EVENT } from "@/lib/taskListSort";
+import { readTaskListSort, saveTaskListSort, TASK_LIST_SORT_EVENT } from "@/lib/taskListSort";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -428,8 +428,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           return {
             ...DEFAULT_FILTERS,
             ...saved,
-            sort_primary: saved.sort_primary || DEFAULT_FILTERS.sort_primary,
-            sort_secondary: saved.sort_secondary || DEFAULT_FILTERS.sort_secondary,
+            ...readTaskListSort(scopeKey),
             show_completed: getShowCompletedTasks(),
           };
         }
@@ -463,7 +462,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     try {
       const raw = localStorage.getItem(SORT_KEY);
       const obj = raw ? JSON.parse(raw) : {};
-      obj[scopeKey] = filters;
+      const { sort_primary: _primary, sort_secondary: _secondary, ...filterValues } = filters;
+      obj[scopeKey] = { ...(obj[scopeKey] || {}), ...filterValues };
       localStorage.setItem(SORT_KEY, JSON.stringify(obj));
     } catch { void 0; }
   }, [filters, scopeKey, filtersScope]);
@@ -984,6 +984,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
               filters={filters}
               onChangeFilters={(next) => {
                 if (next.show_completed !== filters.show_completed) setShowCompletedTasks(next.show_completed);
+                if (JSON.stringify([next.sort_primary, next.sort_secondary]) !== JSON.stringify([filters.sort_primary, filters.sort_secondary])) saveTaskListSort(scopeKey, next);
                 setFilters(next);
               }}
               isEn={isEn}
@@ -1008,7 +1009,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                 onOpenChange={setFilterSheetOpen}
                 onChange={(next) => {
                   if (next.show_completed !== filters.show_completed) setShowCompletedTasks(next.show_completed);
-                  setFilters(next);
+                  if (JSON.stringify([next.sort_primary, next.sort_secondary]) !== JSON.stringify([filters.sort_primary, filters.sort_secondary])) saveTaskListSort(scopeKey, next);
+                setFilters(next);
                 }}
               />
               <Button

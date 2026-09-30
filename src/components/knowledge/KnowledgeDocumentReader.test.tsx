@@ -42,7 +42,7 @@ vi.mock("./InteractiveLearningModal", () => ({
 
 let mockIsEn = false;
 vi.mock("@/hooks/useBilingual", () => ({
-  useBilingual: () => ({ isEn: mockIsEn }),
+  useBilingual: () => ({ isEn: mockIsEn, T: (fa: string, en: string) => mockIsEn ? en : fa }),
 }));
 
 describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {

@@ -75,7 +75,7 @@ export default function BucketsView() {
   const listSort = useTaskListSort(sortScope);
   const hasListSort = hasTaskListSort(sortScope);
   const sortForView = (items: Task[]) => hasListSort
-    ? filterAndSortTasks(items, { ...DEFAULT_FILTERS, ...listSort, show_completed: true })
+    ? filterAndSortTasks(items, { ...DEFAULT_FILTERS, ...listSort, show_completed: true }).sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || Number(Boolean(a.completed)) - Number(Boolean(b.completed)))
     : sortTasks(items, filter.sort);
   const [anchor, setAnchor] = useState<string | null>(null); // period_start of the viewed period (null = current)
   const [zoomDir, setZoomDir] = useState<1 | -1>(1);

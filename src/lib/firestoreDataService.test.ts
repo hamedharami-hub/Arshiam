@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => {
     cacheGet: vi.fn(async (key: string) => cache.get(key)),
     cacheSet: vi.fn(async (key: string, value: unknown) => { cache.set(key, value); }),
     enqueueOp: vi.fn(),
+    getPendingOps: vi.fn().mockResolvedValue([]),
     setDoc: vi.fn(),
     deleteDoc: vi.fn(),
     doc: vi.fn((...segments: string[]) => segments.join("/")),
@@ -28,13 +29,15 @@ vi.mock("./firebase", () => ({
   onSnapshot: mocks.onSnapshot,
 }));
 
-vi.mock("./offlineQueue", () => ({
+vi.mock("./offlineQueue", async (importOriginal) => ({
+  ...await importOriginal<typeof import("./offlineQueue")>(),
+  getPendingOps: mocks.getPendingOps,
   cacheGet: mocks.cacheGet,
   cacheSet: mocks.cacheSet,
   enqueueOp: mocks.enqueueOp,
 }));
 
-import { deleteTask, persistTask, subscribeTasks, upsertNote } from "./firestoreDataService";
+import { deleteTask, persistTask, subscribeTasks, upsertNote, subscribeFolders, subscribeTags } from "./firestoreDataService";
 
 const cacheKey = "tasks:all:user-1";
 const baseTask = {
@@ -236,5 +239,25 @@ describe("firestoreDataService task cache rollback", () => {
       ownerId: "user-1", table: "notes", op: "upsert",
       payload: expect.objectContaining({ id: "note-queued", user_id: "user-1" }),
     }));
+  });
+});
+
+
+describe("pending taxonomy subscriptions", () => {
+  it.each(["folders", "tags"] as const)("keeps offline %s visible until replay, excluding another account", async table => {
+    mocks.cache.clear();
+    const cached = { id: "pending", user_id: "user-1", name: "Local" };
+    mocks.cache.set(`${table}:all:user-1`, [cached]);
+    mocks.getPendingOps.mockResolvedValue([
+      { table, op: "insert", ownerId: "user-1", payload: cached, createdAt: 1 },
+      { table, op: "insert", ownerId: "user-2", payload: { id: "foreign", name: "Other" }, createdAt: 2 },
+    ]);
+    let receive!: (snapshot: unknown) => void;
+    mocks.onSnapshot.mockImplementation((_ref, callback) => { receive = callback; return vi.fn(); });
+    const update = vi.fn();
+    const unsubscribe = table === "folders" ? subscribeFolders("user-1", update) : subscribeTags("user-1", update);
+    receive({ forEach: () => {} });
+    await vi.waitFor(() => expect(update).toHaveBeenCalledWith([cached]));
+    unsubscribe();
   });
 });

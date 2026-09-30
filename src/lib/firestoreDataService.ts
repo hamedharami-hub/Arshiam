@@ -1,3 +1,4 @@
+import { reconcileRemoteRowsWithPending } from "./offlineReconcile";
 import {
   db,
   collection,
@@ -8,7 +9,7 @@ import {
   getDocs,
   onSnapshot,
 } from "./firebase";
-import { cacheGet, cacheSet, enqueueOp } from "./offlineQueue";
+import { cacheGet, cacheSet, enqueueOp, getPendingOps } from "./offlineQueue";
 import {
   extractTasksFromCache,
   createTaskCacheEnvelope,
@@ -387,9 +388,20 @@ export function subscribeFolders(
     return () => {};
   }
 
-  cacheGet<FolderItem[]>(CACHE_KEYS.folders(userId)).then((cached) => {
-    if (cached && Array.isArray(cached)) onUpdate(cached);
-  });
+  let active = true;
+  let serial = Promise.resolve();
+  const emit = (remote?: FolderItem[]) => {
+    serial = serial.then(async () => {
+      if (!active) return;
+      const [cached, pending] = await Promise.all([cacheGet<FolderItem[]>(CACHE_KEYS.folders(userId)), getPendingOps("folders")]);
+      const items = reconcileRemoteRowsWithPending(remote ?? cached ?? [], cached ?? [], pending, "folders", userId);
+      items.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+      if (!active) return;
+      await cacheSet(CACHE_KEYS.folders(userId), items);
+      if (active) onUpdate(items);
+    }).catch(error => console.warn("[FirestoreData] subscribeFolders:", error));
+  };
+  emit();
 
   try {
     const foldersCol = collection(db, "users", userId, "folders");
@@ -401,18 +413,16 @@ export function subscribeFolders(
           items.push({ id: d.id, ...(d.data() as any) });
         });
         items.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-        cacheSet(CACHE_KEYS.folders(userId), items);
-        onUpdate(items);
+        emit(items);
       },
       async (err) => {
         console.warn("[FirestoreData] subscribeFolders notice:", err?.message);
-        const cached = await cacheGet<FolderItem[]>(CACHE_KEYS.folders(userId));
-        if (cached) onUpdate(cached);
+        emit();
       }
     );
-    return unsub;
+    return () => { active = false; unsub(); };
   } catch {
-    return () => {};
+    return () => { active = false; };
   }
 }
 
@@ -451,9 +461,20 @@ export function subscribeTags(
     return () => {};
   }
 
-  cacheGet<TagItem[]>(CACHE_KEYS.tags(userId)).then((cached) => {
-    if (cached && Array.isArray(cached)) onUpdate(cached);
-  });
+  let active = true;
+  let serial = Promise.resolve();
+  const emit = (remote?: TagItem[]) => {
+    serial = serial.then(async () => {
+      if (!active) return;
+      const [cached, pending] = await Promise.all([cacheGet<TagItem[]>(CACHE_KEYS.tags(userId)), getPendingOps("tags")]);
+      const items = reconcileRemoteRowsWithPending(remote ?? cached ?? [], cached ?? [], pending, "tags", userId);
+      items.sort((a, b) => a.name.localeCompare(b.name));
+      if (!active) return;
+      await cacheSet(CACHE_KEYS.tags(userId), items);
+      if (active) onUpdate(items);
+    }).catch(error => console.warn("[FirestoreData] subscribeTags:", error));
+  };
+  emit();
 
   try {
     const tagsCol = collection(db, "users", userId, "tags");
@@ -465,18 +486,16 @@ export function subscribeTags(
           items.push({ id: d.id, ...(d.data() as any) });
         });
         items.sort((a, b) => a.name.localeCompare(b.name));
-        cacheSet(CACHE_KEYS.tags(userId), items);
-        onUpdate(items);
+        emit(items);
       },
       async (err) => {
         console.warn("[FirestoreData] subscribeTags notice:", err?.message);
-        const cached = await cacheGet<TagItem[]>(CACHE_KEYS.tags(userId));
-        if (cached) onUpdate(cached);
+        emit();
       }
     );
-    return unsub;
+    return () => { active = false; unsub(); };
   } catch {
-    return () => {};
+    return () => { active = false; };
   }
 }
 

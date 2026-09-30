@@ -830,3 +830,15 @@ describe("knowledgeService", () => {
     expect(remoteFolderRows).toContainEqual(expect.objectContaining({ id: child.id, parent_id: parent.id }));
   });
 });
+
+
+describe("private app-cloud lesson attachment normalization", () => {
+  const file = { provider: "firebase", file_id: "file-12345", storage_path: "users/owner/task-attachments/knowledge-lesson/file-12345", name: "source.pdf", mime_type: "application/pdf", size_bytes: 100, added_at: "2026-10-01" };
+  it("retains supported owner files without Google Drive IDs", () => {
+    expect(normalizeKnowledgeMediaAttachments([file], "owner")).toEqual([file]);
+  });
+  it("rejects another owner's path, oversized files and executable HTML", () => {
+    expect(normalizeKnowledgeMediaAttachments([file], "another-owner")).toEqual([]);
+    expect(normalizeKnowledgeMediaAttachments([{ ...file, size_bytes: 26 * 1024 * 1024 }, { ...file, mime_type: "text/html" }], "owner")).toEqual([]);
+  });
+});

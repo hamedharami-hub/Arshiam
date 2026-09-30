@@ -151,6 +151,11 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!/\.html?$/i.test(file.name) || file.size === 0 || file.size > 5 * 1024 * 1024) {
+      toast.error(isEn ? "Choose a non-empty HTML file up to 5 MB." : "یک فایل HTML غیرخالی و حداکثر ۵ مگابایت انتخاب کنید.");
+      e.target.value = "";
+      return;
+    }
 
     if (!title) {
       const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
@@ -169,7 +174,9 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
         toast.info(isEn ? "File loaded into editor" : "محتوای فایل در ویرایشگر قرار گرفت");
       }
     };
+    reader.onerror = () => toast.error(isEn ? "Could not read the file." : "فایل خوانده نشد.");
     reader.readAsText(file);
+    e.target.value = "";
   };
 
   const handleBeautify = async () => {
@@ -294,8 +301,8 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[92vh] flex flex-col p-0 bg-card border border-border text-card-foreground rounded-3xl shadow-2xl overflow-hidden">
+    <Dialog open={open} onOpenChange={next => { if (!isSaving) onOpenChange(next); }}>
+      <DialogContent className="max-w-3xl max-h-[92dvh] flex flex-col p-0 bg-card border border-border text-card-foreground rounded-lg shadow-lg overflow-hidden">
         <DialogHeader className="p-4 sm:p-5 border-b border-border bg-card">
           <DialogTitle className="text-base font-bold flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-primary" />
@@ -316,7 +323,7 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-y-auto">
           <div className="p-4 sm:p-5 space-y-3.5 border-b border-border bg-muted/20 shrink-0">
             {/* Title Inputs: Persian and English */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -542,7 +549,7 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
           </div>
 
           {/* Content Area */}
-          <div className="flex-1 min-h-[180px] sm:min-h-[280px] overflow-y-auto p-3 sm:p-4 bg-muted/15">
+          <div className="shrink-0 min-h-[180px] sm:min-h-[280px] p-3 sm:p-4 bg-muted/15">
             {activeTab === "edit" ? (
               <div className="flex min-h-full flex-col gap-3">
                 <details className="rounded-xl border border-border bg-card px-3 py-2">
@@ -776,9 +783,10 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
           </div>
 
           {/* Footer Actions */}
-          <div className="p-3.5 border-t border-border bg-card flex items-center justify-end gap-2">
+          <div className="sticky bottom-0 shrink-0 p-3.5 border-t border-border bg-card flex items-center justify-end gap-2">
             <button
               type="button"
+              disabled={isSaving}
               onClick={() => onOpenChange(false)}
               className="px-3.5 py-1.5 rounded-xl text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition cursor-pointer"
             >

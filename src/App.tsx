@@ -65,6 +65,7 @@ const SettingsView = lazy(() => import("./pages/SettingsView"));
 const KanbanView = lazy(() => import("./pages/KanbanView"));
 
 const SelfKnowledgeView = lazy(() => import("./pages/SelfKnowledgeView"));
+const SleepView = lazy(() => import("./pages/SleepView"));
 const MindView = lazy(() => import("./pages/MindView"));
 const LifeArchitectView = lazy(() => import("./pages/LifeArchitectView"));
 const AssessmentRunner = lazy(() => import("./pages/AssessmentRunner"));
@@ -356,6 +357,7 @@ const App = () => {
                       <Route path="abc" element={<ABCView />} />
                       <Route path="socratic" element={<SocraticView />} />
                       <Route path="breathing" element={<BreathingView />} />
+                      <Route path="sleep" element={<SleepView />} />
                       <Route path="screener/:type" element={<ScreenerView />} />
                       <Route path="values" element={<ValuesGoalsView />} />
                       <Route path="life-architect" element={<LifeArchitectView />} />

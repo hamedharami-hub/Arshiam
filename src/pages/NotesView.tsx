@@ -1,7 +1,8 @@
+import { createDebouncedWrites } from "@/lib/debouncedWrites";
 import { useResizableSplit } from "@/hooks/useResizableSplit";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { HeaderActionsPortal } from "@/components/HeaderActionsPortal";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -149,6 +150,11 @@ export default function NotesView() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [notes, setNotes] = useState<Note[]>([]);
+  const notesRef = useRef(notes);
+  notesRef.current = notes;
+  const accountRef = useRef(user?.id);
+  accountRef.current = user?.id;
+  const [writes] = useState(() => createDebouncedWrites());
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [tags, setTags] = useState<TagItem[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null); // null = all, '__none__' = uncategorized, or folderId
@@ -345,40 +351,43 @@ export default function NotesView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  const save = async (patch: Partial<Note>): Promise<boolean> => {
-    if (!selected) return false;
-    if (!user) {
-      toast.error(T("برای ذخیره وارد حساب شوید", "Sign in to save this note"));
+  const persistNote = async (target: Note, patch: Partial<Note>, accountId: string, editable: boolean): Promise<boolean> => {
+    if (accountRef.current !== accountId || !editable) return false;
+    const latest = notesRef.current.find(note => note.id === target.id) ?? target;
+    const updated = { ...latest, ...patch, updated_at: new Date().toISOString() };
+    const nextNotes = notesRef.current.map(note => note.id === target.id ? updated : note);
+    notesRef.current = nextNotes;
+    setNotes(nextNotes);
+    setSelected(current => current?.id === target.id ? { ...current, ...patch, updated_at: updated.updated_at } : current);
+    try {
+      const saved = await upsertNote(accountId, updated);
+      if (!saved) throw new Error("Save failed");
+      if (accountRef.current !== accountId) return true;
+      await cacheSet(NOTES_CACHE_KEY, notesRef.current);
+      window.dispatchEvent(new Event("notes-changed"));
+      return true;
+    } catch {
+      if (accountRef.current === accountId) toast.error(T("تغییر ذخیره نشد؛ متن در نوت باقی است و دوباره تلاش کنید", "Change was not saved; the text remains in the note. Please retry"));
       return false;
     }
-    if (!canEdit) {
-      toast(T("دسترسی ویرایش ندارید", "You don't have edit permission"));
-      return false;
-    }
-    const updated = { ...selected, ...patch, updated_at: new Date().toISOString() };
-    setSelected(updated);
-    setNotes((prev) => prev.map((n) => (n.id === selected.id ? updated : n)));
-    const nextNotes = notes.map((n) => (n.id === selected.id ? updated : n));
-    const saved = await upsertNote(user.id, updated);
-    if (!saved) {
-      toast.error(T("تغییر ذخیره نشد؛ متن در ویرایشگر باقی است و دوباره تلاش کنید", "Change was not saved; the text remains in the editor. Please retry"));
-      return false;
-    }
-    await cacheSet(NOTES_CACHE_KEY, nextNotes);
-    window.dispatchEvent(new Event("notes-changed"));
-    return true;
   };
 
+  const save = async (patch: Partial<Note>): Promise<boolean> => {
+    if (!selected || !user || !canEdit) return false;
+    await writes.flush(selected.id);
+    return persistNote(selected, patch, user.id, canEdit);
+  };
+
+  // Flush the previous document before its editor disappears; writes retain their own record/account.
   useEffect(() => {
-    if (!draft || !selected) return;
-    const t = setTimeout(() => {
-      save({ content: draft.md });
-    }, 600);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line
-  }, [draft?.md]);
+    const id = selected?.id;
+    return () => { if (id) void writes.flush(id).catch(() => undefined); };
+  }, [selected?.id, writes]);
+  useEffect(() => () => { void writes.flushAll(); }, [writes]);
 
   const del = async (id: string) => {
+    writes.cancel(id);
+    await writes.settle(id).catch(() => undefined);
     const note = notes.find((n) => n.id === id);
     if (!user) {
       toast.error(T("برای حذف وارد حساب شوید", "Sign in to delete this note"));
@@ -905,7 +914,18 @@ export default function NotesView() {
       <NoteEditorTabs
         noteId={selected.id}
         markdown={draft?.md ?? selected.content ?? ""}
-        onChange={(md, html) => setDraft({ html, md })}
+        onChange={(md, html) => {
+          setDraft({ html, md });
+          if (user && canEdit) {
+            const nextNotes = notesRef.current.map(note => note.id === selected.id ? { ...note, content: md } : note);
+            notesRef.current = nextNotes;
+            setNotes(nextNotes);
+            setSelected(current => current?.id === selected.id ? { ...current, content: md } : current);
+            const target = selected;
+            const accountId = user.id;
+            writes.schedule(target.id, () => persistNote(target, { content: md }, accountId, true));
+          }
+        }}
         readOnly={!canEdit}
         mode={editorMode}
         onModeChange={setEditorMode}

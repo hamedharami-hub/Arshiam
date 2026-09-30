@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { isPathAllowed, useModules, type ModulesState } from "@/lib/appModules";
 import {
-  Inbox, Calendar as CalIcon, CalendarDays, Filter, Tag, FileText,
+  Moon, Inbox, Calendar as CalIcon, CalendarDays, Filter, Tag, FileText,
   Target, Timer, Calendar, ChevronDown, Sparkles, LayoutGrid,
   TrendingUp, Activity, MessageCircleQuestion, Zap, ShieldAlert, BookOpen, Sun,
   ListTodo, BrainCircuit, GripVertical, User, Shield, Pill,
@@ -28,6 +28,7 @@ export const EN_LABELS: Record<string, string> = {
   "لیست‌های هوشمند": "Smart Lists",
   "رشد": "Grow",
   "ذهن": "Mind",
+  "خواب و آرامش": "Sleep & Relaxation",
   "خودِ من": "Me",
   "امروز": "Today",
   "فردا": "Tomorrow",
@@ -156,6 +157,7 @@ export const SECTIONS: Section[] = [
       { url: "/app/abc", icon: Zap, label: "مدل ABC" },
       { url: "/app/socratic", icon: MessageCircleQuestion, label: "چت سقراطی" },
       { url: "/app/breathing", icon: Wind, label: "تمرین تنفس ۳بعدی" },
+      { url: "/app/sleep", icon: Moon, label: "خواب و آرامش" },
       { url: "/app/crisis", icon: ShieldAlert, label: "پشتیبانی بحران (SOS)" },
     ],
   },

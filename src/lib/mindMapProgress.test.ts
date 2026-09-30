@@ -1,151 +1,72 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const { docMock, setDocMock, onSnapshotMock } = vi.hoisted(() => ({
-  docMock: vi.fn((...args: unknown[]) => ({ path: args.join("/") })),
-  setDocMock: vi.fn().mockResolvedValue(undefined),
-  onSnapshotMock: vi.fn(),
+const mocks = vi.hoisted(() => ({
+  auth: { currentUser: { uid: "u1" } as { uid: string } | null },
+  doc: vi.fn((_db: unknown, ...parts: string[]) => ({ path: parts.join("/") })),
+  snapshot: vi.fn(), transaction: vi.fn(), set: vi.fn(),
 }));
-
-vi.mock("@/lib/firebase", () => ({
-  db: {},
-  doc: docMock,
-  setDoc: setDocMock,
-  onSnapshot: onSnapshotMock,
-}));
-
-import {
-  loadMindMapStudyProgress,
-  mindMapProgressCounts,
-  saveMindMapStudyStatus,
-  subscribeMindMapStudyProgress,
-  syncMindMapStudyProgressToCloud,
-} from "./mindMapProgress";
+vi.mock("@/lib/firebase", () => ({ auth: mocks.auth, db: {}, doc: mocks.doc, onSnapshot: mocks.snapshot }));
+vi.mock("firebase/firestore", () => ({ runTransaction: mocks.transaction }));
 
 describe("mind map study progress", () => {
   beforeEach(() => {
-    localStorage.clear();
-    vi.clearAllMocks();
+    vi.resetModules(); vi.clearAllMocks(); localStorage.clear(); mocks.auth.currentUser = { uid: "u1" };
+    mocks.transaction.mockImplementation(async (_db, callback) => callback({
+      get: async () => ({ exists: () => false, data: () => ({}) }), set: mocks.set,
+    }));
   });
-
-  it("stores per-document planning states and counts unfinished work", () => {
-    saveMindMapStudyStatus("u1", "d1", "studying");
-    saveMindMapStudyStatus("u1", "d2", "done");
-    const progress = loadMindMapStudyProgress("u1");
+  it("stores planning states and counts unfinished documents", async () => {
+    const service = await import("./mindMapProgress");
+    service.saveMindMapStudyStatus("u1", "d1", "studying");
+    service.saveMindMapStudyStatus("u1", "d2", "done");
+    await service.syncMindMapStudyProgressToCloud("u1");
+    const progress = service.loadMindMapStudyProgress("u1");
     expect(progress).toEqual({ d1: "studying", d2: "done" });
-    expect(mindMapProgressCounts(["d1", "d2", "d3"], progress)).toEqual({ later: 1, studying: 1, done: 1 });
+    expect(service.mindMapProgressCounts(["d1", "d2", "d3"], progress)).toEqual({ later: 1, studying: 1, done: 1 });
   });
-
-  it("triggers cloud sync on status update and targets user's private mind settings", async () => {
-    saveMindMapStudyStatus("u1", "d1", "studying");
-    expect(docMock).toHaveBeenCalledWith({}, "users", "u1", "mind_settings", "mind_map_progress");
-    expect(setDocMock).toHaveBeenCalledWith(
-      expect.objectContaining({ path: "[object Object]/users/u1/mind_settings/mind_map_progress" }),
-      expect.objectContaining({
-        progress: { d1: "studying" },
-        user_id: "u1",
-      }),
-      { merge: true }
-    );
+  it("syncs versioned progress through a transaction under the authenticated user's private path", async () => {
+    const service = await import("./mindMapProgress");
+    expect(await service.syncMindMapStudyProgressToCloud("u1", { d1: "studying" })).toBe(true);
+    expect(mocks.doc).toHaveBeenCalledWith({}, "users", "u1", "mind_settings", "mind_map_progress");
+    expect(mocks.set).toHaveBeenCalledWith({ path: "users/u1/mind_settings/mind_map_progress" }, expect.objectContaining({
+      progress: { d1: "studying" }, user_id: "u1", schema_version: 2,
+      entries: { d1: expect.objectContaining({ status: "studying", pending: false }) },
+    }), { merge: true });
   });
-
-  it("subscribes to cloud snapshot and merges remote progress with local data", () => {
-    saveMindMapStudyStatus("u1", "d1", "studying");
-
-    let snapshotListener!: (snap: any) => void;
-    onSnapshotMock.mockImplementation((_docRef, callback) => {
-      snapshotListener = callback;
-      return () => {};
-    });
-
-    const received: any[] = [];
-    const unsubscribe = subscribeMindMapStudyProgress("u1", (progress) => {
-      received.push(progress);
-    });
-
-    // 1. Initial callback with local progress
-    expect(received[0]).toEqual({ d1: "studying" });
-
-    // 2. Incoming cloud snapshot with new remote item
-    snapshotListener({
-      exists: () => true,
-      data: () => ({
-        progress: { d2: "done", d3: "later" },
-      }),
-    });
-
-    // 3. Merged state contains both local d1 and remote d2, d3
-    const latest = received[received.length - 1];
-    expect(latest).toEqual({ d1: "studying", d2: "done", d3: "later" });
-    expect(loadMindMapStudyProgress("u1")).toEqual({ d1: "studying", d2: "done", d3: "later" });
-
-    unsubscribe();
+  it("merges snapshots without letting an older remote value erase a local edit", async () => {
+    const service = await import("./mindMapProgress");
+    mocks.transaction.mockRejectedValue(new Error("offline"));
+    await service.syncMindMapStudyProgressToCloud("u1", { d1: "studying", d2: "done" });
+    let receive!: (snapshot: unknown) => void;
+    const dispose = vi.fn();
+    mocks.snapshot.mockImplementation((_ref, _options, callback) => { receive = callback; return dispose; });
+    const onUpdate = vi.fn();
+    const unsubscribe = service.subscribeMindMapStudyProgress("u1", onUpdate);
+    receive({ exists: () => true, data: () => ({ progress: { d1: "later", d3: "done" } }), metadata: { fromCache: true, hasPendingWrites: false } });
+    expect(onUpdate).toHaveBeenLastCalledWith({ d1: "studying", d2: "done", d3: "done" });
+    unsubscribe(); expect(dispose).toHaveBeenCalled();
   });
-
-  it("syncs local progress back to cloud when cloud snapshot is empty", async () => {
-    saveMindMapStudyStatus("u1", "d1", "done");
-    setDocMock.mockClear();
-
-    let snapshotListener!: (snap: any) => void;
-    onSnapshotMock.mockImplementation((_docRef, callback) => {
-      snapshotListener = callback;
-      return () => {};
-    });
-
-    subscribeMindMapStudyProgress("u1", () => {});
-
-    // Empty cloud snapshot
-    snapshotListener({
-      exists: () => false,
-      data: () => null,
-    });
-
-    expect(setDocMock).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        progress: { d1: "done" },
-        user_id: "u1",
-      }),
-      { merge: true }
-    );
+  it("retains local edits and reports cloud errors for retry", async () => {
+    const service = await import("./mindMapProgress");
+    mocks.transaction.mockRejectedValueOnce(new Error("network failure"));
+    expect(await service.syncMindMapStudyProgressToCloud("u1", { d1: "studying" })).toBe(false);
+    expect(service.loadMindMapStudyProgress("u1")).toEqual({ d1: "studying" });
+    expect(service.getMindMapSyncState("u1")).toMatchObject({ status: "error", pendingCount: 1 });
+    expect(await service.retryMindMapStudyProgressSync("u1")).toBe(true);
+    expect(service.getMindMapSyncState("u1")).toMatchObject({ status: "synced", pendingCount: 0 });
   });
-
-  it("handles cloud sync failure gracefully without throwing or losing local changes", async () => {
-    setDocMock.mockRejectedValueOnce(new Error("network failure"));
-    const result = await syncMindMapStudyProgressToCloud("u1", { d1: "studying" });
-    expect(result).toBe(false);
+  it("never sends another account's local progress to Firestore", async () => {
+    const service = await import("./mindMapProgress"); mocks.auth.currentUser = { uid: "u2" };
+    expect(await service.syncMindMapStudyProgressToCloud("u1", { d1: "done" })).toBe(false);
+    expect(mocks.transaction).not.toHaveBeenCalled();
+    expect(service.loadMindMapStudyProgress("u1")).toEqual({ d1: "done" });
   });
-
-  it("BASELINE BUG: remote snapshot overwrites local changes for same document ID", () => {
-    // User makes offline change to d1
-    saveMindMapStudyStatus("u1", "d1", "studying");
-    saveMindMapStudyStatus("u1", "d2", "done");
-    expect(loadMindMapStudyProgress("u1")).toEqual({ d1: "studying", d2: "done" });
-
-    let snapshotListener!: (snap: any) => void;
-    onSnapshotMock.mockImplementation((_docRef, callback) => {
-      snapshotListener = callback;
-      return () => {};
+  it("does not acknowledge a commit after an account switch", async () => {
+    const service = await import("./mindMapProgress");
+    mocks.transaction.mockImplementation(async (_db, callback) => {
+      const result = await callback({ get: async () => ({ exists: () => false }), set: mocks.set });
+      mocks.auth.currentUser = { uid: "u2" }; return result;
     });
-
-    const received: any[] = [];
-    subscribeMindMapStudyProgress("u1", (progress) => {
-      received.push(progress);
-    });
-
-    // Remote snapshot arrives with older data for d1 (was "later" before user changed to "studying")
-    snapshotListener({
-      exists: () => true,
-      data: () => ({
-        progress: { d1: "later", d3: "done" },
-      }),
-    });
-
-    // BUG: Local d1:"studying" is overwritten by remote d1:"later"
-    // Expected: { d1: "studying", d2: "done", d3: "done" } (local wins for conflicts)
-    // Actual: { d1: "later", d2: "done", d3: "done" } (remote overwrites local)
-    const latest = received[received.length - 1];
-    expect(latest.d1).toBe("later"); // BUG: should be "studying"
-    expect(latest.d2).toBe("done");
-    expect(latest.d3).toBe("done");
+    expect(await service.syncMindMapStudyProgressToCloud("u1", { d1: "done" })).toBe(false);
+    expect(service.getMindMapSyncState("u1").pendingCount).toBe(1);
   });
 });

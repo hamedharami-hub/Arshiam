@@ -76,4 +76,17 @@ describe("PharmacyProductsView", () => {
     expect(screen.getByRole("searchbox", { name: "Search products" })).toHaveValue("Panadol");
     expect(screen.getByRole("button", { name: "View Panadol 500mg" })).toBeInTheDocument();
   });
+  it("limits rendered cards and resets pagination when searching", () => {
+    renderView();
+    expect(screen.getAllByRole("button", { name: /^View / })).toHaveLength(24);
+    const first = screen.getAllByRole("button", { name: /^View / })[0].getAttribute("aria-label");
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByText("Page 2 of 6")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /^View / })[0]).not.toHaveAttribute("aria-label", first);
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search products" }), { target: { value: "Panadol" } });
+    expect(screen.getByRole("button", { name: "View Panadol 500mg" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+    expect(screen.getByText("Page 1 of 6")).toBeInTheDocument();
+  });
+
 });

@@ -481,7 +481,7 @@ export const KnowledgeBaseView: React.FC = () => {
   // Include the English body even for older imports whose plain_text only indexed Persian.
   const searchTextById = useMemo(() => new Map(documents.map((doc) => [
     doc.id,
-    `${doc.title} ${doc.title_en || ""} ${doc.plain_text || ""} ${doc.content_en || ""}`
+    `${doc.title} ${doc.title_en || ""} ${doc.plain_text || ""} ${doc.content_html || ""} ${doc.content_en || ""}`
       .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").toLowerCase(),
   ])), [documents]);
 
@@ -497,7 +497,7 @@ export const KnowledgeBaseView: React.FC = () => {
       });
     }
     if (!debouncedSearch.trim()) return docs;
-    const q = debouncedSearch.toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     return docs.filter((d) => searchTextById.get(d.id)?.includes(q) ||
       d.tags?.some((tag) => tag.toLowerCase().includes(q)));
   }, [documents, selectedTag, debouncedSearch, searchTextById]);
