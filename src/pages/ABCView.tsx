@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useState, useMemo } from "react";
 import { toPersianDigits } from "@/lib/jalali";
 import { firebaseStore } from "@/lib/firebaseStore";
@@ -265,7 +266,7 @@ export default function ABCView() {
     >
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold mb-1.5">{T("مدل رفتار (ABC)", "ABC Model")}</h1>
+          <HeaderTitlePortal title={T("مدل رفتار (ABC)", "ABC Model")} />
           <p className="text-muted-foreground text-sm">
             {T(
               "محرک (A) ← باور آنی (B) ← احساس و رفتار (C). کشف الگوهای واقعی برای اقدام آگاهانه.",

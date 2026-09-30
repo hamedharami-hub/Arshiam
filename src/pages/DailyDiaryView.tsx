@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BookHeart, CalendarDays, Check, Cloud, Images, Loader2, Palette, Paperclip, Plus, Save, Trash2, Mic } from "lucide-react";
 import { toast } from "sonner";
@@ -171,7 +172,7 @@ export default function DailyDiaryView() {
           <div className="flex items-center gap-4">
             <span className="diary-header-mark"><BookHeart className="h-6 w-6" /></span>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{T("دفتر خاطرات روزانه", "Daily Diary")}</h1>
+              <HeaderTitlePortal title={T("دفتر خاطرات روزانه", "Daily Diary")} />
               <p className="mt-1 text-sm text-muted-foreground">{T("جایی آرام برای نوشتن و نگه‌داشتن لحظه‌های روز", "A quiet place to write and remember your day")}</p>
               <p className="mt-2 text-xs text-muted-foreground" data-testid="diary-stats">{T(`${ordered.length} خاطره`, `${ordered.length} entries`)}</p>
             </div>

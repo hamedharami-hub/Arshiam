@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useMemo, useState } from "react";
 import { BookOpen, PackageSearch, Search, SlidersHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -72,7 +73,7 @@ export default function PharmacyProductsView() {
             <PackageSearch className="h-6 w-6" />
           </div>
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{T("فهرست محصولات دارویی", "Pharmacy product catalogue")}</h1>
+            <HeaderTitlePortal title={T("فهرست محصولات دارویی", "Pharmacy product catalogue")} />
             <p className="text-sm text-muted-foreground">
               {T("نمایهٔ جست‌وجوپذیر محصولات منبع Pharmacy؛ برای دسترسی سریع به مدخل‌ها.", "A searchable index of Pharmacy source products for quick reference.")}
             </p>

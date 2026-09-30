@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useState } from "react";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -175,9 +176,7 @@ export default function AboutMeView() {
     return (
       <div dir={isEn ? "ltr" : "rtl"} className="p-4 md:p-6 max-w-3xl mx-auto space-y-5 page-enter">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-primary" /> {T("درباره من", "About Me")}
-          </h1>
+          <HeaderTitlePortal title={T("درباره من", "About Me")} />
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => { setMode("wizard"); setStep(0); }}>
               ✏️ {T("ویرایش پاسخ‌ها", "Edit Answers")}
@@ -430,9 +429,7 @@ export default function AboutMeView() {
   return (
     <div dir={isEn ? "ltr" : "rtl"} className="p-4 md:p-6 max-w-2xl mx-auto space-y-5 page-enter">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Sparkles className="w-6 h-6 text-primary" /> {T("درباره من", "About Me")}
-        </h1>
+        <HeaderTitlePortal title={T("درباره من", "About Me")} />
         <div className="flex items-center gap-2">
           {(row?.ai_analysis || (row?.answers && Object.keys(row.answers).length > 0)) && (
             <Button variant="ghost" size="sm" onClick={() => setMode("review")} className="text-xs">

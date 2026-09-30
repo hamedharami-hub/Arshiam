@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useState } from "react";
 import {
   AlertTriangle,
@@ -431,9 +432,7 @@ export default function PharmacyFredPracticeView() {
             <Keyboard className="h-6 w-6" />
           </div>
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              {T("شبیه‌ساز آموزشی کارگاه داروخانه (Pharmacy Lab)", "Pharmacy & FRED Educational Simulator")}
-            </h1>
+            <HeaderTitlePortal title={T("شبیه‌ساز آموزشی کارگاه داروخانه (Pharmacy Lab)", "Pharmacy & FRED Educational Simulator")} />
             <p className="text-sm text-muted-foreground">
               {T(
                 "تمرین مرحله‌ای سناریوهای نسخه، شرت‌کات‌ها، آستانه Safety Net، طراحی برچسب و نگهداری اسناد (شبیه‌سازی محلی).",

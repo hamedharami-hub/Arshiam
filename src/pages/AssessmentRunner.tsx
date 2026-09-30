@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -199,7 +200,7 @@ export default function AssessmentRunner() {
       </div>
 
       <div>
-        <h1 className="text-xl font-semibold mb-2">{title}</h1>
+        <HeaderTitlePortal title={title} />
         <Progress value={progress} className="h-2" />
       </div>
 

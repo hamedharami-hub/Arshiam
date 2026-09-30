@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useMemo, useState } from "react";
 import { addDays, differenceInCalendarDays, format } from "date-fns";
 import { Card } from "@/components/ui/card";
@@ -309,9 +310,7 @@ export default function CycleView() {
             <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-white/70 px-2.5 py-1 text-[10px] font-medium tracking-wide text-rose-700 dark:border-rose-800 dark:bg-background/50 dark:text-rose-200">
               <Activity className="h-3.5 w-3.5" /> {T("سلامت و ثبت روزانه", "WELLNESS · DAILY TRACKING")}
             </div>
-            <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight md:text-3xl">
-              <Heart className="h-6 w-6 text-rose-500" /> {T("پیگیری چرخه", "Cycle Tracking")}
-            </h1>
+            <HeaderTitlePortal title={T("پیگیری چرخه", "Cycle Tracking")} />
             <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">
               {T("الگوهای بدنت را ثبت کن و برآوردهای تقویمی را با احتیاط دنبال کن.", "Record your patterns and use calendar estimates with care.")}
             </p>

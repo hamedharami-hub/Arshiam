@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
@@ -177,9 +178,7 @@ export default function ArticleRewriteView() {
           <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1">
             <BackIcon className="w-4 h-4" /> {T("برگشت", "Back")}
           </Button>
-          <h1 className="text-lg font-bold flex items-center gap-2">
-            <Wand2 className="w-5 h-5 text-primary" /> {T("بازنویسی خبر/مقاله", "Article / News Rewrite")}
-          </h1>
+          <HeaderTitlePortal title={T("بازنویسی خبر/مقاله", "Article / News Rewrite")} />
           <span className="w-12" />
         </div>
 

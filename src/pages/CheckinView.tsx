@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useMemo, useState } from "react";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -432,7 +433,7 @@ export default function CheckinView() {
 
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold mb-1.5">{T("Check-in روزانه", "Daily Check-in")}</h1>
+          <HeaderTitlePortal title={T("Check-in روزانه", "Daily Check-in")} />
           <p className="text-muted-foreground text-sm">
             {T(
               "پایش آگاهانهٔ وضعیت درون بدون قضاوت؛ انتخاب مقادیر اختیاری است.",

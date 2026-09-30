@@ -132,7 +132,6 @@ export const RichEditor = forwardRef<RichEditorHandle, {
         /* editor view not ready yet — content already supplied via `content` option */
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, initialHtml, initialMarkdown]);
 
   useEffect(() => { editor?.setEditable(!readOnly); }, [editor, readOnly]);

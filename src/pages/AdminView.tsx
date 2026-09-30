@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,10 +38,7 @@ export default function AdminView() {
             <Lock className="w-6 h-6" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-              <Shield className="w-5 h-5 text-primary" />
-              {T("پنل مدیریت ARSHNAZ", "ARSHNAZ Admin Panel")}
-            </h1>
+            <HeaderTitlePortal title={T("پنل مدیریت ARSHNAZ", "ARSHNAZ Admin Panel")} />
             <p className="text-sm text-muted-foreground leading-relaxed">
               {isEn ? adminCapability.reason_en : adminCapability.reason}
             </p>

@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -248,7 +249,7 @@ export default function BreathingView() {
     <div className="max-w-2xl mx-auto p-4 md:p-8 space-y-5 animate-fade-in" dir={isEn ? "ltr" : "rtl"}>
       <div className="flex items-center gap-2">
         <Wind className="w-6 h-6 text-primary" />
-        <h1 className="text-2xl font-bold">{T("تمرین تنفس ۳بعدی", "3D Breathing Practice")}</h1>
+        <HeaderTitlePortal title={T("تمرین تنفس ۳بعدی", "3D Breathing Practice")} />
       </div>
       <p className="text-sm text-muted-foreground">
         {T(

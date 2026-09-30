@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
@@ -320,7 +321,7 @@ export default function ScreenerView() {
         <>
           <div className="rounded-3xl p-6 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent border space-y-3">
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              <h1 className="text-2xl font-bold">{title}</h1>
+              <HeaderTitlePortal title={title} />
               {meta.isStandardized ? (
                 <Badge variant="secondary" className="text-xs">
                   {T("مقیاس استاندارد بالینی", "Standardized Clinical Scale")}

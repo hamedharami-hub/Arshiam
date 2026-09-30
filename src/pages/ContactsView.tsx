@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,9 +98,7 @@ export default function ContactsView() {
             <Users className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">
-              {T("افراد و مخاطبین", "People & Contacts")}
-            </h1>
+            <HeaderTitlePortal title={T("افراد و مخاطبین", "People & Contacts")} />
             <p className="text-xs text-muted-foreground mt-0.5">
               {T("مدیریت و اتصال مخاطبین به تسک‌ها", "Manage and link contacts to tasks")}
             </p>

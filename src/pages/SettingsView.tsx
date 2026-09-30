@@ -746,7 +746,6 @@ export default function SettingsView() {
         </TabsContent>
 
         <TabsContent value="tasks" className="space-y-5 mt-5">
-          <AssistantAccessSettings />
           <TaskListSortSettings />
           <CompletedTasksSettings />
           {reminders && (
@@ -810,6 +809,7 @@ export default function SettingsView() {
         </TabsContent>
 
         <TabsContent value="ai" className="space-y-5 mt-5">
+          <AssistantAccessSettings />
           <AISettingsTab
             settings={settings}
             setSettings={setSettings}

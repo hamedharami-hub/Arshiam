@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import React, { useCallback, useEffect, useState } from "react";
 import { Layers, Languages, Network } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -84,9 +85,7 @@ export const ReviewView: React.FC = () => {
             <Layers className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-sm md:text-base font-bold text-foreground">
-              {isEn ? "Review & Concept Mind Map" : "مرور، یادگیری و نقشه ذهنی"}
-            </h1>
+            <HeaderTitlePortal title={isEn ? "Review & Concept Mind Map" : "مرور، یادگیری و نقشه ذهنی"} />
             <p className="text-[11px] text-muted-foreground">
               {isEn
                 ? "Spaced repetition flashcards & visual concept knowledge graph"

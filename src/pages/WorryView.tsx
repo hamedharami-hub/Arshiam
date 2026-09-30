@@ -1,3 +1,4 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
@@ -201,9 +202,7 @@ export default function WorryView() {
           <Brain className="w-4 h-4" />
           {T("درخت نگرانی و حل مسئله", "Worry Tree & Problem Solving")}
         </div>
-        <h1 className="text-2xl md:text-3xl font-bold mb-2">
-          {T("تفکیک دغدغه و اقدام هدفمند", "Triage & Targeted Action")}
-        </h1>
+        <HeaderTitlePortal title={T("تفکیک دغدغه و اقدام هدفمند", "Triage & Targeted Action")} />
         <p className="text-sm opacity-90 leading-7">
           {T(
             "۳ مسیر تفکیک: دغدغه قابل اقدام، موضوع با کنترل نسبی، یا خارج از کنترل. ذهن با تفکیک عینی از نشخوار فکری رها می‌شود.",
