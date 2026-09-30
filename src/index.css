@@ -1739,3 +1739,11 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
 /* Toasts use the app font; Latin digits in English mode (ss01 = Persian digits) */
 [data-sonner-toaster], [data-sonner-toast] { font-family: "Vazirmatn", "Tahoma", system-ui, sans-serif !important; }
 html[lang^="en"] body { font-feature-settings: "cv11"; }
+
+/* Study panes scroll within the space left by the shared header and navigation. */
+.study-workspace {
+  height: calc(100dvh - 3rem - env(safe-area-inset-top, 0px) - var(--app-bottom-space, 0.5rem));
+}
+@media (min-width: 768px) {
+  .study-workspace { height: calc(100dvh - 3rem - env(safe-area-inset-top, 0px) - 0.5rem); }
+}

@@ -75,10 +75,10 @@ export const ReviewView: React.FC = () => {
   return (
     <div
       dir={isEn ? "ltr" : "rtl"}
-      className="flex flex-col h-[calc(100dvh-3.5rem-env(safe-area-inset-top))] min-h-[28rem] w-full bg-background text-foreground overflow-hidden font-sans"
+      className="study-workspace flex flex-col min-h-0 w-full bg-background text-foreground overflow-hidden font-sans"
     >
       {/* Top Header & Tab Navigation */}
-      <div className="p-3 md:px-6 border-b border-border bg-card/70 backdrop-blur-md flex flex-wrap items-center justify-between gap-3 shrink-0">
+      <div className="p-2 md:px-4 border-b border-border bg-background flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-2xl bg-primary/10 border border-primary/20 text-primary shadow-sm">
             <Layers className="w-5 h-5" />

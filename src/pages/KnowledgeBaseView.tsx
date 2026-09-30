@@ -19,7 +19,9 @@ import { KnowledgeSidebarTree } from "@/components/knowledge/KnowledgeSidebarTre
 import { KnowledgeDocumentReader } from "@/components/knowledge/KnowledgeDocumentReader";
 import { KnowledgeDocumentEditorModal } from "@/components/knowledge/KnowledgeDocumentEditorModal";
 import { StudyTaskScheduleModal } from "@/components/knowledge/StudyTaskScheduleModal";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -51,6 +53,9 @@ export const KnowledgeBaseView: React.FC = () => {
   const urlDocId = searchParams.get("docId");
   const urlFolderId = searchParams.get("folderId");
 
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const loadRequestRef = useRef(0);
   const [folders, setFolders] = useState<KnowledgeFolder[]>([]);
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
@@ -113,7 +118,7 @@ export const KnowledgeBaseView: React.FC = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
         const tag = (e.target as HTMLElement)?.tagName;
-        if (tag === "INPUT" || tag === "TEXTAREA") return;
+        if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) return;
         e.preventDefault();
         toggleSidebar();
       }
@@ -133,12 +138,16 @@ export const KnowledgeBaseView: React.FC = () => {
   const documentScrollPositionsRef = useRef<Map<string, number>>(new Map());
 
   const loadData = useCallback(async () => {
+    const request = ++loadRequestRef.current;
+    setIsLoading(true);
+    setLoadError(false);
     try {
       const [fList, dList] = await Promise.all([
         getKnowledgeFolders(userId),
         getKnowledgeDocuments(userId),
       ]);
 
+      if (request !== loadRequestRef.current) return;
       setFolders(fList);
       setDocuments(dList);
       // Existing saved lessons are already available from the normal data load.
@@ -147,6 +156,9 @@ export const KnowledgeBaseView: React.FC = () => {
       setPharmacyImportStatus(null);
     } catch (e) {
       console.error("Error loading knowledge base data", e);
+      if (request === loadRequestRef.current) setLoadError(true);
+    } finally {
+      if (request === loadRequestRef.current) setIsLoading(false);
     }
   }, [userId]);
 
@@ -186,14 +198,20 @@ export const KnowledgeBaseView: React.FC = () => {
   }, [userId, isEn, loadData]);
 
   useEffect(() => {
-    loadData();
+    setFolders([]);
+    setDocuments([]);
+    setSelectedDocId(null);
+    void loadData();
+    return () => { loadRequestRef.current += 1; };
   }, [loadData]);
 
   // The URL is the source of truth for document navigation, including browser Back.
   useEffect(() => {
     if (urlDocId && documents.some((d) => d.id === urlDocId)) {
       setSelectedDocId(urlDocId);
-    } else if (!urlDocId) {
+    } else if (urlDocId) {
+      setSelectedDocId(null);
+    } else {
       const folderDocument = urlFolderId
         ? documents.find((d) => d.folder_id === urlFolderId)
         : undefined;
@@ -488,10 +506,11 @@ export const KnowledgeBaseView: React.FC = () => {
   return (
     <div
       dir={isEn ? "ltr" : "rtl"}
-      className="flex-1 flex flex-col h-full w-full bg-background text-foreground overflow-hidden"
+      className="study-workspace flex flex-col min-h-0 w-full bg-background text-foreground overflow-hidden"
     >
+      <HeaderTitlePortal title={isEn ? "Knowledge" : "پایگاه دانش"} />
       {/* Top Mobile Bar */}
-      <div className="md:hidden flex items-center justify-between p-3 border-b border-border bg-card/80 backdrop-blur-md shrink-0">
+      <div className="md:hidden flex items-center justify-between p-3 border-b border-border bg-background shrink-0">
         <button
           type="button"
           onClick={() => setMobileTreeOpen(true)}
@@ -516,7 +535,7 @@ export const KnowledgeBaseView: React.FC = () => {
         {/* Desktop Sidebar Folder Tree */}
         <div
           className={`hidden md:block shrink-0 h-full transition-all duration-300 ease-in-out ${
-            sidebarCollapsed || Boolean(urlDocId)
+            sidebarCollapsed
               ? "w-0 opacity-0 overflow-hidden -me-3 pointer-events-none"
               : "w-72 lg:w-80 opacity-100"
           }`}
@@ -551,8 +570,10 @@ export const KnowledgeBaseView: React.FC = () => {
         <Sheet open={mobileTreeOpen} onOpenChange={setMobileTreeOpen}>
           <SheetContent
             side={isEn ? "left" : "right"}
-            className="w-80 p-0 bg-card border-border text-card-foreground"
+            dir={isEn ? "ltr" : "rtl"}
+            className="w-[min(20rem,100vw)] pt-12 px-0 pb-0 bg-card border-border text-card-foreground"
           >
+            <SheetTitle className="sr-only">{isEn ? "Lessons and categories" : "درس‌ها و دسته‌بندی‌ها"}</SheetTitle>
             <KnowledgeSidebarTree
               tree={tree}
               allFolders={folders}
@@ -593,9 +614,21 @@ export const KnowledgeBaseView: React.FC = () => {
 
         {/* Reader Document Main Panel */}
         <div className="flex-1 flex flex-col h-full min-w-0">
-          {urlDocId && <button type="button" onClick={() => setMobileTreeOpen(true)} className="hidden md:inline-flex w-fit items-center gap-2 rounded-xl border bg-card px-3 py-1.5 mb-2 text-xs font-medium text-primary hover:bg-muted">
-            <Menu className="h-4 w-4" />{isEn ? "Lessons and categories" : "درس‌ها و دسته‌بندی‌ها"}
-          </button>}
+          {isLoading ? (
+            <div role="status" className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+              {isEn ? "Loading lessons…" : "در حال بارگذاری درس‌ها…"}
+            </div>
+          ) : loadError ? (
+            <div role="alert" className="flex flex-1 flex-col items-center justify-center gap-3 p-4 text-center">
+              <p className="text-sm">{isEn ? "Lessons could not be loaded. Please try again." : "درس‌ها بارگذاری نشدند؛ دوباره تلاش کن."}</p>
+              <Button variant="outline" onClick={() => void loadData()}>{isEn ? "Retry" : "تلاش دوباره"}</Button>
+            </div>
+          ) : urlDocId && !currentDoc ? (
+            <div role="status" className="flex flex-1 flex-col items-center justify-center gap-3 p-4 text-center">
+              <p className="text-sm">{isEn ? "This lesson is unavailable." : "این درس در دسترس نیست."}</p>
+              <Button variant="outline" onClick={() => navigate(location.pathname)}>{isEn ? "Open library" : "بازکردن کتابخانه"}</Button>
+            </div>
+          ) : (
           <KnowledgeDocumentReader
             document={currentDoc}
             folder={currentFolder}
@@ -606,7 +639,7 @@ export const KnowledgeBaseView: React.FC = () => {
             onDelete={handleDeleteDoc}
             userId={userId}
             isSidebarCollapsed={sidebarCollapsed}
-            onToggleSidebar={urlDocId ? undefined : toggleSidebar}
+            onToggleSidebar={toggleSidebar}
             onOpenReview={() => navigate("/app/review")}
             onDocumentUpdated={(updated) => {
               setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
@@ -617,6 +650,7 @@ export const KnowledgeBaseView: React.FC = () => {
             isImportingPharmacy={isImportingPharmacy}
             scrollPositionsMap={documentScrollPositionsRef.current}
           />
+          )}
         </div>
       </div>
 

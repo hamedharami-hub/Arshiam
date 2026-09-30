@@ -484,7 +484,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 
   if (!document) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-foreground bg-card/60 border border-border rounded-3xl">
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-foreground bg-card/60 border border-border rounded-lg">
         <BookOpen className="w-16 h-16 text-muted-foreground/40 mb-4 stroke-1" />
         <h3 className="text-base font-bold text-foreground mb-1">
           {isEn ? "Select or Add a Document" : "یک سند را انتخاب یا اضافه کنید"}
@@ -541,9 +541,9 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   );
 
   return (
-    <div className="knowledge-reader-shell flex-1 flex flex-col h-full bg-card border border-border rounded-3xl overflow-hidden shadow-sm relative">
+    <div className="knowledge-reader-shell flex-1 flex flex-col h-full bg-card border border-border rounded-lg overflow-hidden shadow-sm relative">
       {/* Top Toolbar */}
-      <div className="p-3.5 border-b border-border flex flex-wrap items-center justify-between gap-2 bg-muted/20">
+      <div className="p-2.5 border-b border-border flex flex-wrap items-center justify-between gap-2 bg-muted/20">
         <div className="flex items-center gap-2 min-w-0">
           {onBackDocument && (
             <button
@@ -591,18 +591,13 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
           )}
 
           {folder && (
-            <div className="flex items-center gap-1 text-[11px] text-primary font-semibold shrink-0">
+            <div className="flex items-center gap-1 text-[11px] text-primary font-medium min-w-0">
               <Folder className="w-3.5 h-3.5" />
-              <span>{folder.name}</span>
+              <span className="truncate max-w-[10rem]" title={folder.name}>{folder.name}</span>
               <span className="text-muted-foreground/60">/</span>
             </div>
           )}
-          <h2
-            dir="auto"
-            className="text-sm font-bold text-foreground break-words line-clamp-2 sm:line-clamp-none text-start"
-          >
-            {docLangMode === "en" && document.title_en ? document.title_en : document.title}
-          </h2>
+
         </div>
 
         {/* View Mode & Actions Toolbar */}
