@@ -41,7 +41,7 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
     // Check if selection is inside containerRef if provided
     if (containerRef && containerRef.current) {
       const anchorNode = selection.anchorNode;
-      if (anchorNode && !containerRef.current.contains(anchorNode)) {
+      if (!anchorNode || !containerRef.current.contains(anchorNode) || !selection.focusNode || !containerRef.current.contains(selection.focusNode)) {
         setCoords(null);
         setSelectedText("");
         return;

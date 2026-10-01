@@ -5,16 +5,28 @@ import { normalizeLessonLabel } from '@/lib/lessonTemplates';
 import type { LessonQuiz } from '@/lib/lessonQuiz';
 import './LessonCardLayout.css';
 
-export function PharmacyLessonQuiz({ quiz, sourceHtml, dir, className, visibleTitles = [] }: {
-  quiz: LessonQuiz; sourceHtml: string; dir: 'rtl' | 'ltr'; className: string; visibleTitles?: (string | undefined)[];
+export function PharmacyLessonQuiz({ quiz, sourceHtml, dir, className, visibleTitles = [], documentId, userId }: {
+  quiz: LessonQuiz; sourceHtml: string; dir: 'rtl' | 'ltr'; className: string; visibleTitles?: (string | undefined)[]; documentId?: string; userId?: string;
 }) {
   const { T } = useBilingual();
   const id = useId();
   const questionRoot = document.createElement('div'); questionRoot.innerHTML = quiz.questionHtml;
   const plainQuestion = !questionRoot.querySelector('img,table,a,ul,ol,pre,blockquote,video,audio');
   const questionInTitle = plainQuestion && visibleTitles.some(title => title && normalizeLessonLabel(title) === normalizeLessonLabel(questionRoot.textContent));
-  const [selected, setSelected] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
+  const storageKey = userId && userId !== 'guest' && documentId ? `arshiam:lesson-practice:${userId}:${documentId}` : null;
+  const [restored] = useState(() => {
+    try {
+      const value = storageKey ? JSON.parse(sessionStorage.getItem(storageKey) ?? 'null') : null;
+      return value && value.correctId === quiz.correctId && value.options === quiz.options.map(option => option.id).sort().join('|') && quiz.options.some(option => option.id === value.selected) ? value : null;
+    } catch { return null; }
+  });
+  const [selected, setSelected] = useState<string | null>(restored?.selected ?? null);
+  const [submitted, setSubmitted] = useState(restored?.submitted === true);
+  useEffect(() => {
+    if (!storageKey) return;
+    try { sessionStorage.setItem(storageKey, JSON.stringify({ selected, submitted, correctId: quiz.correctId, options: quiz.options.map(option => option.id).sort().join('|') })); }
+    catch { /* Practice remains usable when browser storage is unavailable. */ }
+  }, [storageKey, selected, submitted, quiz]);
   const [source, setSource] = useState(false);
   const feedbackRef = useRef<HTMLElement>(null);
   useEffect(() => { if (submitted && !source) feedbackRef.current?.focus(); }, [submitted, source]);
