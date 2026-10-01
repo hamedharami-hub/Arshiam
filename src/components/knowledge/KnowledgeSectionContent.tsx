@@ -4,6 +4,8 @@ import { splitKnowledgeSections } from "@/lib/knowledgeSections";
 import { useBilingual } from "@/hooks/useBilingual";
 import { DrugTiers, isDrugLike } from "./DrugTiers";
 import { PharmacyImageViewer, enhanceImagesHtml, replaceBrokenImage } from "./PharmacyImageViewer";
+import { buildLessonCards } from "@/lib/lessonCards";
+import { LessonCardLayout } from "./LessonCardLayout";
 
 function readSectionParam(): string | null {
   try { return new URLSearchParams(window.location.search).get("section"); } catch { return null; }
@@ -17,10 +19,11 @@ function writeSectionParam(id: string) {
 }
 
 /** Horizontal section navigation; All retains the complete source presentation. */
-export function KnowledgeSectionContent({ html: rawHtml, dir, className }: { html: string; dir: "ltr" | "rtl"; className: string }) {
+export function KnowledgeSectionContent({ html: rawHtml, dir, className, multiCard = false }: { html: string; dir: "ltr" | "rtl"; className: string; multiCard?: boolean }) {
   const { T } = useBilingual();
   const html = useMemo(() => enhanceImagesHtml(rawHtml), [rawHtml]);
   const sections = useMemo(() => splitKnowledgeSections(html), [html]);
+  const cards = useMemo(() => multiCard ? buildLessonCards(html, dir === "rtl" ? "fa" : "en") : [], [html, dir, multiCard]);
   const [viewer, setViewer] = useState<{ src: string; alt: string } | null>(null);
   const tiered = isDrugLike(sections.sections);
   return <div className="min-w-0" onClickCapture={event => {
@@ -29,7 +32,9 @@ export function KnowledgeSectionContent({ html: rawHtml, dir, className }: { htm
   }} onErrorCapture={event => {
     if ((event.target as Element).tagName === "IMG") replaceBrokenImage(event.target as HTMLImageElement, T("تصویر در دسترس نیست", "Image unavailable"));
   }}>
-    {tiered
+    {cards.length > 0
+      ? <LessonCardLayout key={html} cards={cards} sourceHtml={html} dir={dir} contentClassName={className} />
+      : tiered
       ? <DrugTiers introduction={sections.introduction} sections={sections.sections} dir={dir} className={className} />
       : <SectionPresentation key={html} html={html} dir={dir} className={className} introduction={sections.introduction} sections={sections.sections} T={T} />}
     <PharmacyImageViewer image={viewer} onClose={() => setViewer(null)} />

@@ -109,6 +109,30 @@ describe("timeBuckets", () => {
     expect(resMonth.matchReason).toBe("nested_bucket");
   });
 
+  it("includes a week across the month boundary only in months it overlaps", () => {
+    const task = { bucket_kind: "week" as const, bucket_anchor: "2026-09-28" };
+    for (const anchor of ["2026-09-01", "2026-10-01"]) {
+      expect(doesTaskMatchBucketScope(task, { scopeKind: "month", calendar: "gregorian", anchor }).matches).toBe(true);
+    }
+    expect(doesTaskMatchBucketScope(task, { scopeKind: "month", calendar: "gregorian", anchor: "2026-11-01" }).matches).toBe(false);
+    expect(doesTaskMatchBucketScope(task, { scopeKind: "month", calendar: "gregorian", anchor: "2026-10-01", hierarchical: false }).matches).toBe(false);
+  });
+
+  it("includes a Saturday-based week across a Jalali month boundary", () => {
+    const task = { bucket_kind: "week" as const, bucket_anchor: "2026-09-19" };
+    for (const anchor of ["2026-08-23", "2026-09-23"]) {
+      expect(doesTaskMatchBucketScope(task, { scopeKind: "month", calendar: "jalali", anchor }).matches).toBe(true);
+    }
+    expect(doesTaskMatchBucketScope(task, { scopeKind: "month", calendar: "jalali", anchor: "2026-10-23" }).matches).toBe(false);
+  });
+
+  it("preserves a task's calendar when finding overlap with a different calendar scope", () => {
+    const gregorianWeek = { bucket_kind: "week" as const, bucket_calendar: "gregorian" as const, bucket_anchor: "2026-08-17" };
+    expect(doesTaskMatchBucketScope(gregorianWeek, { scopeKind: "month", calendar: "jalali", anchor: "2026-08-23" }).matches).toBe(true);
+    const jalaliWeek = { bucket_kind: "week" as const, bucket_calendar: "jalali" as const, bucket_anchor: "2026-08-29" };
+    expect(doesTaskMatchBucketScope(jalaliWeek, { scopeKind: "month", calendar: "gregorian", anchor: "2026-09-01" }).matches).toBe(true);
+  });
+
   it("respects strict filter mode (hierarchical: false) to show only exact matching buckets", () => {
     const today = currentAnchor("day", "gregorian");
     const morningTask = {

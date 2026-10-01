@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import ContinueLearningView from "./ContinueLearningView";
@@ -36,6 +36,9 @@ describe("Continue learning (K01)", () => {
     cards.fn.mockResolvedValue([]);
     renderPage();
     expect(await screen.findByTestId("continue-last-missing", undefined, { timeout: 4000 })).toHaveTextContent("no longer exists");
+    await waitFor(() => expect(docs.fn).toHaveBeenCalled());
+    // Let account/local sync replace the LastStudy object with the same document ID.
+    await act(async () => { await Promise.resolve(); });
     expect(screen.queryByRole("link", { name: "Gone" })).not.toBeInTheDocument();
   });
   it("shows a loading state before data arrives", async () => {
