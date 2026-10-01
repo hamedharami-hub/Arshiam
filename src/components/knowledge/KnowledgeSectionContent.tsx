@@ -5,6 +5,9 @@ import { useBilingual } from "@/hooks/useBilingual";
 import { DrugTiers, isDrugLike } from "./DrugTiers";
 import { PharmacyImageViewer, enhanceImagesHtml, replaceBrokenImage } from "./PharmacyImageViewer";
 import { buildLessonCards } from "@/lib/lessonCards";
+import { getLessonTemplate } from "@/lib/lessonTemplates";
+import { parseLessonQuiz } from "@/lib/lessonQuiz";
+import { PharmacyLessonQuiz } from "./PharmacyLessonQuiz";
 import { LessonCardLayout } from "./LessonCardLayout";
 
 function readSectionParam(): string | null {
@@ -19,11 +22,13 @@ function writeSectionParam(id: string) {
 }
 
 /** Horizontal section navigation; All retains the complete source presentation. */
-export function KnowledgeSectionContent({ html: rawHtml, dir, className, multiCard = false }: { html: string; dir: "ltr" | "rtl"; className: string; multiCard?: boolean }) {
+export function KnowledgeSectionContent({ html: rawHtml, dir, className, multiCard = false, documentId, visibleTitles }: { html: string; dir: "ltr" | "rtl"; className: string; multiCard?: boolean; documentId?: string; visibleTitles?: (string | undefined)[] }) {
   const { T } = useBilingual();
   const html = useMemo(() => enhanceImagesHtml(rawHtml), [rawHtml]);
   const sections = useMemo(() => splitKnowledgeSections(html), [html]);
-  const cards = useMemo(() => multiCard ? buildLessonCards(html, dir === "rtl" ? "fa" : "en") : [], [html, dir, multiCard]);
+  const cards = useMemo(() => multiCard ? buildLessonCards(html, dir === "rtl" ? "fa" : "en", documentId, visibleTitles) : [], [html, dir, multiCard, documentId, visibleTitles]);
+  const template = getLessonTemplate(documentId);
+  const quiz = useMemo(() => multiCard && template === "quiz" ? parseLessonQuiz(html) : null, [html, multiCard, template]);
   const [viewer, setViewer] = useState<{ src: string; alt: string } | null>(null);
   const tiered = isDrugLike(sections.sections);
   return <div className="min-w-0" onClickCapture={event => {
@@ -32,8 +37,8 @@ export function KnowledgeSectionContent({ html: rawHtml, dir, className, multiCa
   }} onErrorCapture={event => {
     if ((event.target as Element).tagName === "IMG") replaceBrokenImage(event.target as HTMLImageElement, T("تصویر در دسترس نیست", "Image unavailable"));
   }}>
-    {cards.length > 0
-      ? <LessonCardLayout key={html} cards={cards} sourceHtml={html} dir={dir} contentClassName={className} />
+    {quiz ? <PharmacyLessonQuiz key={html} quiz={quiz} visibleTitles={visibleTitles} sourceHtml={html} dir={dir} className={className} /> : cards.length > 0
+      ? <LessonCardLayout key={html} template={template} cards={cards} sourceHtml={html} dir={dir} contentClassName={className} />
       : tiered
       ? <DrugTiers introduction={sections.introduction} sections={sections.sections} dir={dir} className={className} />
       : <SectionPresentation key={html} html={html} dir={dir} className={className} introduction={sections.introduction} sections={sections.sections} T={T} />}

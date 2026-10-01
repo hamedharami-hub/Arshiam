@@ -27,4 +27,21 @@ describe('multi-card lesson workflow', () => {
     expect(params.get('docId')).toBe('d1');
     expect(params.get('card')).toMatch(/^card-/);
   });
+  it('keeps embedded safety and interaction cards visible when another group is selected', () => {
+    const source = '<div class="knowledge-card"><section><h2>Milestones</h2><dl><div><dt>Safety</dt><dd>Essential step warning.</dd></div></dl></section><section><h2>Interactions</h2><p>Essential interaction.</p></section><section><h2>Overview</h2><p>General reading.</p></section></div>';
+    render(<KnowledgeSectionContent multiCard documentId="doc-study-track-example" html={source} dir="ltr" className="knowledge-html-content" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+    expect(screen.getByText('Essential step warning.')).toBeVisible();
+    expect(screen.getByText('Essential interaction.')).toBeVisible();
+    expect(screen.getByText('General reading.')).toBeVisible();
+  });
+  it('makes source document references usable by keyboard', () => {
+    const source = '<div class="knowledge-card"><section><h2>Milestones</h2><div data-doc-link="doc-existing">A linked lesson</div></section><section><h2>Overview</h2><p>General reading.</p></section></div>';
+    const onClick = vi.fn();
+    render(<div onClick={onClick}><KnowledgeSectionContent multiCard documentId="doc-study-track-example" html={source} dir="ltr" className="knowledge-html-content" /></div>);
+    const link = screen.getByRole('link', { name: 'A linked lesson' });
+    expect(link).toHaveAttribute('tabindex', '0');
+    fireEvent.keyDown(link, { key: 'Enter' });
+    expect(onClick).toHaveBeenCalledOnce();
+  });
 });
