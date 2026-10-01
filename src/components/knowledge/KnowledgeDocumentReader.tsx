@@ -17,6 +17,8 @@ import {
   Languages,
   Loader2,
   PanelLeftClose,
+  BookOpenCheck,
+  Maximize2,
   PanelLeftOpen,
   ArrowLeft,
   ArrowRight,
@@ -156,6 +158,8 @@ interface KnowledgeDocumentReaderProps {
   userId?: string;
   isSidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
+  studyMode?: boolean;
+  onToggleStudyMode?: () => void;
   onOpenReview?: () => void;
   onDocumentUpdated?: (doc: KnowledgeDocument) => void;
   onScheduleStudy?: (doc: KnowledgeDocument) => void;
@@ -182,6 +186,8 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   userId = "guest",
   isSidebarCollapsed,
   onToggleSidebar,
+  studyMode = false,
+  onToggleStudyMode,
   onOpenReview,
   onDocumentUpdated,
   onScheduleStudy,
@@ -615,6 +621,31 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
             <span aria-hidden="true">{languageModeLabel}</span>
           </button>
 
+          {onToggleStudyMode && (
+            <button
+              type="button"
+              onClick={onToggleStudyMode}
+              aria-pressed={studyMode}
+              data-testid="knowledge-study-mode-toggle"
+              className={`inline-flex h-8 items-center gap-1.5 rounded-xl border px-2 text-xs font-semibold transition ${studyMode ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/60 text-foreground hover:bg-muted"}`}
+              title={isEn ? "Study mode hides tools, not content (Esc to exit)" : "حالت مطالعه ابزارها را پنهان می‌کند، نه محتوا را (خروج با Esc)"}
+            >
+              <BookOpenCheck className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{isEn ? "Study mode" : "حالت مطالعه"}</span>
+            </button>
+          )}
+          {onToggleStudyMode && studyMode && (
+            <button
+              type="button"
+              onClick={() => { const root = window.document.documentElement; if (window.document.fullscreenElement) void window.document.exitFullscreen?.(); else void root.requestFullscreen?.().catch(() => undefined); }}
+              data-testid="knowledge-fullscreen-toggle"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-secondary text-foreground transition hover:bg-secondary/80"
+              aria-label={isEn ? "Toggle full screen" : "تمام‌صفحه"}
+            >
+              <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          )}
+          {!studyMode && (<>
           {/* AI Bilingual Generator Button */}
           <button
             type="button"
@@ -683,6 +714,8 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
             </button>
           )}
 
+          </>)}
+
           {/* Font Resizer */}
           <div className="flex items-center rounded-xl border border-border bg-muted/50 p-0.5">
               <button
@@ -708,6 +741,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
               </button>
           </div>
 
+          {!studyMode && (<>
           {/* Edit Document */}
           <button
             type="button"
@@ -727,6 +761,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
+          </>)}
         </div>
       </div>
 

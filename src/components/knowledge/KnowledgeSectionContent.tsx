@@ -5,6 +5,17 @@ import { useBilingual } from "@/hooks/useBilingual";
 import { DrugTiers, isDrugLike } from "./DrugTiers";
 import { PharmacyImageViewer, enhanceImagesHtml, replaceBrokenImage } from "./PharmacyImageViewer";
 
+function readSectionParam(): string | null {
+  try { return new URLSearchParams(window.location.search).get("section"); } catch { return null; }
+}
+function writeSectionParam(id: string) {
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set("section", id);
+    window.history.replaceState(window.history.state, "", url);
+  } catch { /* history unavailable */ }
+}
+
 /** Horizontal section navigation; All retains the complete source presentation. */
 export function KnowledgeSectionContent({ html: rawHtml, dir, className }: { html: string; dir: "ltr" | "rtl"; className: string }) {
   const { T } = useBilingual();
@@ -28,7 +39,11 @@ function SectionPresentation({ html, dir, className, introduction, sections, T }
   html: string; dir: "ltr" | "rtl"; className: string; introduction: string;
   sections: ReturnType<typeof splitKnowledgeSections>["sections"]; T: (fa: string, en: string) => string;
 }) {
-  const [active, setActive] = useState(sections[0]?.id ?? "all");
+  const [active, setActiveRaw] = useState(() => {
+    const wanted = readSectionParam();
+    return wanted && (wanted === "all" || sections.some(section => section.id === wanted)) ? wanted : sections[0]?.id ?? "all";
+  });
+  const setActive = (next: string) => { setActiveRaw(next); writeSectionParam(next); };
   const id = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   if (!sections.length) return <div dir={dir} className={className} dangerouslySetInnerHTML={{ __html: html }} />;

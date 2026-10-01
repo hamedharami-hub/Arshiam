@@ -1753,3 +1753,5 @@ html[lang^="en"] body { font-feature-settings: "cv11"; }
 
 .knowledge-html-content img{display:block;width:100%;max-width:32rem;aspect-ratio:4/3;object-fit:contain;background:hsl(var(--muted)/.4);border-radius:6px;cursor:zoom-in}
 .knowledge-image-placeholder{display:flex;align-items:center;justify-content:center;width:100%;max-width:32rem;aspect-ratio:4/3;padding:12px;text-align:center;font-size:12px;color:hsl(var(--muted-foreground));border:1px dashed hsl(var(--border));border-radius:6px;background:hsl(var(--muted)/.4)}
+
+.knowledge-html-content table{display:block;max-width:100%;overflow-x:auto}

@@ -228,6 +228,25 @@ describe("KnowledgeBaseView (/app/knowledge) Page Verification", { timeout: 1500
     expect(getPharmacyImportStatus).not.toHaveBeenCalled();
   });
 
+  it("study mode hides the desktop topic column and persists, Escape leaves it", async () => {
+    localStorage.removeItem("knowledge_study_mode"); localStorage.removeItem("knowledge_sidebar_collapsed");
+    render(
+      <MemoryRouter initialEntries={["/app/knowledge?docId=" + mockDocs[0].id]}>
+        <Routes><Route path="/app/knowledge" element={<KnowledgeBaseView />} /></Routes>
+      </MemoryRouter>
+    );
+    const sidebar = await screen.findByTestId("knowledge-desktop-sidebar");
+    const toggle = await screen.findByTestId("knowledge-study-mode-toggle");
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(sidebar).toHaveAttribute("aria-hidden", "true");
+    expect(localStorage.getItem("knowledge_study_mode")).toBe("true");
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(localStorage.getItem("knowledge_study_mode")).toBe("false");
+  });
+
   it("keeps documents visible and ancestor expansion bounded for malformed folder links", async () => {
     currentFolders = [
       { ...mockFolders[0], id: "folder-a", parent_id: "folder-b", name: "Folder A" },

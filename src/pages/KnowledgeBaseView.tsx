@@ -75,6 +75,26 @@ export const KnowledgeBaseView: React.FC = () => {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [mobileTreeOpen, setMobileTreeOpen] = useState(false);
+  const [studyMode, setStudyMode] = useState<boolean>(() => {
+    try { return localStorage.getItem("knowledge_study_mode") === "true"; } catch { return false; }
+  });
+  const toggleStudyMode = useCallback(() => {
+    setStudyMode((prev) => {
+      const next = !prev;
+      try { localStorage.setItem("knowledge_study_mode", String(next)); } catch {}
+      return next;
+    });
+  }, []);
+  useEffect(() => {
+    if (!studyMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (e.key !== "Escape" || el?.tagName === "INPUT" || el?.tagName === "TEXTAREA" || el?.isContentEditable || document.querySelector("[role=dialog]")) return;
+      toggleStudyMode();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [studyMode, toggleStudyMode]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
     try {
       return localStorage.getItem("knowledge_sidebar_collapsed") === "true";
@@ -544,8 +564,10 @@ export const KnowledgeBaseView: React.FC = () => {
       <div className="flex-1 flex overflow-hidden p-2 md:p-4 gap-3 min-h-0">
         {/* Desktop Sidebar Folder Tree */}
         <div
+          data-testid="knowledge-desktop-sidebar"
+          aria-hidden={sidebarCollapsed || studyMode}
           className={`hidden md:block shrink-0 h-full transition-all duration-300 ease-in-out ${
-            sidebarCollapsed
+            sidebarCollapsed || studyMode
               ? "w-0 opacity-0 overflow-hidden -me-3 pointer-events-none"
               : "w-72 lg:w-80 opacity-100"
           }`}
@@ -650,6 +672,8 @@ export const KnowledgeBaseView: React.FC = () => {
             userId={userId}
             isSidebarCollapsed={sidebarCollapsed}
             onToggleSidebar={toggleSidebar}
+            studyMode={studyMode}
+            onToggleStudyMode={toggleStudyMode}
             onOpenReview={() => navigate("/app/review")}
             onDocumentUpdated={(updated) => {
               setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));

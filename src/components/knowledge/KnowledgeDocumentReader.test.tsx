@@ -107,6 +107,19 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
     expect(screen.getByText("داروی ضد افسردگی SSRI")).toBeInTheDocument();
   });
 
+  it("study mode hides tools but keeps the full lesson, and can be toggled off", () => {
+    const toggle = vi.fn();
+    const { rerender } = render(<KnowledgeDocumentReader document={dummyDoc} folder={dummyFolder} onEdit={() => {}} onDelete={() => {}} onToggleStudyMode={toggle} studyMode={false} />);
+    expect(screen.getByTitle("حذف سند")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("knowledge-study-mode-toggle"));
+    expect(toggle).toHaveBeenCalledTimes(1);
+    const before = screen.getByText(dummyDoc.title).textContent;
+    rerender(<KnowledgeDocumentReader document={dummyDoc} folder={dummyFolder} onEdit={() => {}} onDelete={() => {}} onToggleStudyMode={toggle} studyMode />);
+    expect(screen.queryByTitle("حذف سند")).toBeNull();
+    expect(screen.getByTestId("knowledge-study-mode-toggle")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("knowledge-fullscreen-toggle")).toBeInTheDocument();
+    expect(screen.getByText(dummyDoc.title).textContent).toBe(before);
+  });
   it("warns when a legacy Persian view still contains mostly English body text", () => {
     const mixedDoc: KnowledgeDocument = {
       ...dummyDoc,
