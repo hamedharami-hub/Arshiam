@@ -197,11 +197,11 @@ export default function PharmacyHubView() {
     </details>;
   }
 
-  const selectedCategory = visibleCategories.find((category) => category.id === openCategoryId) ?? visibleCategories[0] ?? null;
+  const selectedCategory = visibleCategories.find((category) => category.id === openCategoryId) ?? null;
 
   function renderTopicNav() {
     return <nav className="pharmacy-category-nav" aria-label={T("انتخاب موضوع", "Choose topic")}>
-      {visibleCategories.map((category) => <button key={category.id} type="button" data-testid={`pharmacy-category-${category.id}`} aria-label={T(`انتخاب ${category.name}`, `Choose ${category.name}`)} aria-pressed={selectedCategory?.id === category.id} onClick={() => { const next = new URLSearchParams(searchParams); next.set("pharmacyCategory", category.id); setSearchParams(next, { replace: true }); setTopicsOpen(false); }}>
+      {visibleCategories.map((category) => <button key={category.id} type="button" data-testid={`pharmacy-category-${category.id}`} aria-label={T(`انتخاب ${category.name}`, `Choose ${category.name}`)} aria-pressed={selectedCategory?.id === category.id} onClick={() => { const next = new URLSearchParams(searchParams); next.set("pharmacyCategory", category.id); setSearchParams(next); setTopicsOpen(false); }}>
         <FolderClosed className="h-4 w-4 shrink-0" aria-hidden="true" /><span className="pharmacy-topic-name">{category.name}</span><span className="pharmacy-topic-count">{lessonCounts.get(category.id) ?? 0}</span>
       </button>)}
     </nav>;
@@ -252,17 +252,12 @@ export default function PharmacyHubView() {
     <main className="pharmacy-hub" dir={isEn ? "ltr" : "rtl"}>
       <HeaderTitlePortal title={T("فارماسی", "Pharmacy")} />
       <header className="pharmacy-hero" data-testid="pharmacy-hero">
-        <div className="pharmacy-hero-mark" aria-hidden="true"><GraduationCap className="h-6 w-6" /></div>
-        <div className="min-w-0">
-          <div className="pharmacy-hero-title">{T("فارماسی", "Pharmacy")}</div>
-          <p>{T("درس بخوان، با ابزارها تمرین کن، و در Review مرور کن؛ همه از یک‌جا.", "Study lessons, practise with the tools, then review, all from one place.")}</p>
-        </div>
         {lastPharmacyDocument && <Link to={`/app/knowledge?docId=${encodeURIComponent(lastPharmacyDocument.id)}`} className="pharmacy-continue" data-testid="pharmacy-continue-link">
           <History className="h-4 w-4 shrink-0" aria-hidden="true" />
           <span><small>{T("ادامهٔ مطالعه", "Continue")}</small><b dir="auto">{isEn ? lastPharmacyDocument.title_en || lastPharmacyDocument.title : lastPharmacyDocument.title}</b></span>
         </Link>}
       </header>
-      <PharmacyShortcuts />
+      <details className="pharmacy-tools-disclosure"><summary>{T("ابزارهای تمرین و مرور", "Practice and review tools")}</summary><PharmacyShortcuts /></details>
 
 
       <section className="pharmacy-knowledge" aria-labelledby="pharmacy-categories-heading">
@@ -289,6 +284,7 @@ export default function PharmacyHubView() {
               <p role="status">{T(`${searchResults.length} درس پیدا شد`, `${searchResults.length} matching lessons`)}</p>
               {renderLessons(searchResults)}
             </section>}
+            {selectedCategory && <button type="button" className="pharmacy-collection-back" onClick={() => { const next = new URLSearchParams(searchParams); next.delete("pharmacyCategory"); setSearchParams(next); }}>{T("همهٔ مجموعه‌ها", "All collections")}</button>}
             {selectedCategory ? <div className="pharmacy-layout" data-collapsed={collapsed}>
               <aside className="pharmacy-topics" data-testid="pharmacy-topics">
                 <button type="button" className="pharmacy-topics-toggle" aria-expanded={!collapsed} aria-controls="pharmacy-topic-list" onClick={() => setCollapsed((value) => !value)} data-testid="pharmacy-topics-toggle">
@@ -303,6 +299,10 @@ export default function PharmacyHubView() {
                 </Sheet>
               </div>
               {!(categoryQuery.trim() && searchResults.length > 0) && renderTopicPanel(selectedCategory)}
+            </div> : visibleCategories.length > 0 ? <div className="pharmacy-collection-grid">
+              {visibleCategories.map(category => <button key={category.id} type="button" className="pharmacy-collection-card" onClick={() => { const next = new URLSearchParams(searchParams); next.set("pharmacyCategory", category.id); setSearchParams(next); }}>
+                <FolderClosed className="h-7 w-7 text-primary" aria-hidden="true" /><strong>{category.name}</strong><span>{T(`${lessonCounts.get(category.id) ?? 0} درس`, `${lessonCounts.get(category.id) ?? 0} lessons`)}</span>
+              </button>)}
             </div> : <p className="pharmacy-no-results">{T("دسته‌ای با این نام پیدا نشد.", "No matching category found.")}</p>}
             {additional.length > 0 && (
               <details className="pharmacy-additional">

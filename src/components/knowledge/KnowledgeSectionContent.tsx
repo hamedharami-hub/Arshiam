@@ -22,7 +22,7 @@ function writeSectionParam(id: string) {
 }
 
 /** Horizontal section navigation; All retains the complete source presentation. */
-export function KnowledgeSectionContent({ html: rawHtml, dir, className, multiCard = false, documentId, visibleTitles }: { html: string; dir: "ltr" | "rtl"; className: string; multiCard?: boolean; documentId?: string; visibleTitles?: (string | undefined)[] }) {
+export function KnowledgeSectionContent({ html: rawHtml, dir, className, multiCard = false, documentId, visibleTitles, onOpenDocument }: { html: string; dir: "ltr" | "rtl"; className: string; multiCard?: boolean; documentId?: string; visibleTitles?: (string | undefined)[]; onOpenDocument?: (id: string) => void }) {
   const { T } = useBilingual();
   const html = useMemo(() => enhanceImagesHtml(rawHtml), [rawHtml]);
   const sections = useMemo(() => splitKnowledgeSections(html), [html]);
@@ -38,7 +38,7 @@ export function KnowledgeSectionContent({ html: rawHtml, dir, className, multiCa
     if ((event.target as Element).tagName === "IMG") replaceBrokenImage(event.target as HTMLImageElement, T("تصویر در دسترس نیست", "Image unavailable"));
   }}>
     {quiz ? <PharmacyLessonQuiz key={html} quiz={quiz} visibleTitles={visibleTitles} sourceHtml={html} dir={dir} className={className} /> : cards.length > 0
-      ? <LessonCardLayout key={html} template={template} cards={cards} sourceHtml={html} dir={dir} contentClassName={className} />
+      ? <LessonCardLayout key={html} documentId={documentId} onOpenDocument={onOpenDocument} template={template} cards={cards} sourceHtml={html} dir={dir} contentClassName={className} />
       : tiered
       ? <DrugTiers introduction={sections.introduction} sections={sections.sections} dir={dir} className={className} />
       : <SectionPresentation key={html} html={html} dir={dir} className={className} introduction={sections.introduction} sections={sections.sections} T={T} />}

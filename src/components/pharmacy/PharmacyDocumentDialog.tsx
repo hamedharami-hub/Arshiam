@@ -27,11 +27,12 @@ export function PharmacyDocumentDialog({ documentId, onClose }: PharmacyDocument
   const inRouter = useInRouterContext();
   const [stack, setStack] = useState<string[]>([]);
   const [loaded, setLoaded] = useState<LoadedDocument | "loading">("loading");
+  const [showTranslation, setShowTranslation] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   const currentId = stack[stack.length - 1] ?? null;
   const isEn = lang === "en";
 
-  useEffect(() => { setStack(documentId ? [documentId] : []); }, [documentId]);
+  useEffect(() => { setStack(documentId ? [documentId] : []); setShowTranslation(false); }, [documentId]);
 
   useEffect(() => {
     if (!currentId) return;
@@ -48,11 +49,13 @@ export function PharmacyDocumentDialog({ documentId, onClose }: PharmacyDocument
   }, [currentId, user?.id]);
 
   const loadedDoc = loaded === "loading" ? null : loaded;
+  const scenarioEnglish = Boolean(currentId?.startsWith("doc-scenario-") && loadedDoc?.document.content_en && !showTranslation);
+  const contentIsEn = isEn || scenarioEnglish;
   const html = useMemo(() => {
     if (!loadedDoc) return "";
     const { document } = loadedDoc;
-    return sanitizeKnowledgeHtml((isEn ? document.content_en || document.content_html : document.content_html) || "");
-  }, [isEn, loadedDoc]);
+    return sanitizeKnowledgeHtml((contentIsEn ? document.content_en || document.content_html : document.content_html) || "");
+  }, [contentIsEn, loadedDoc]);
 
   const handleBodyClick = (event: React.MouseEvent<HTMLDivElement>) => {
     const link = (event.target as HTMLElement).closest("[data-doc-link]");
@@ -84,6 +87,7 @@ export function PharmacyDocumentDialog({ documentId, onClose }: PharmacyDocument
         </DialogHeader>
 
         <div className="flex flex-wrap gap-2">
+          {!isEn && currentId?.startsWith("doc-scenario-") && loadedDoc?.document.content_en && <Button type="button" size="sm" variant="ghost" aria-pressed={showTranslation} onClick={() => setShowTranslation(value => !value)}>{showTranslation ? "English" : "نمایش ترجمهٔ فارسی"}</Button>}
           {stack.length > 1 && (
             <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={() => setStack((previous) => previous.slice(0, -1))} data-testid="pharmacy-document-back-btn">
               {isEn ? <ArrowLeft className="h-4 w-4" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" aria-hidden="true" />}
@@ -101,11 +105,11 @@ export function PharmacyDocumentDialog({ documentId, onClose }: PharmacyDocument
           <div
             ref={bodyRef}
             onClick={handleBodyClick}
-            dir={isEn ? "ltr" : "rtl"}
+            dir={contentIsEn ? "ltr" : "rtl"}
             className="min-w-0"
             data-testid="pharmacy-document-body"
           >
-            <KnowledgeSectionContent visibleTitles={[title]} documentId={loadedDoc?.document.id} multiCard html={html} dir={isEn ? "ltr" : "rtl"} className="knowledge-content prose prose-sm max-w-none break-words dark:prose-invert" />
+            <KnowledgeSectionContent onOpenDocument={id => setStack(previous => [...previous, id])} visibleTitles={[title]} documentId={loadedDoc?.document.id} multiCard html={html} dir={contentIsEn ? "ltr" : "rtl"} className="knowledge-content prose prose-sm max-w-none break-words dark:prose-invert" />
           </div>
         ) : (
           <p className="rounded-lg bg-muted/50 p-4 text-sm" data-testid="pharmacy-document-missing">{T("این سند نه در Knowledge شما و نه در snapshot منبع پیدا شد.", "This document was not found in your Knowledge or in the source snapshot.")}</p>

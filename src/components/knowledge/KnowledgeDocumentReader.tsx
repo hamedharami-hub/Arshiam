@@ -563,6 +563,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   return (
     <div className="knowledge-reader-shell flex-1 flex flex-col h-full bg-card border border-border rounded-lg overflow-hidden shadow-sm relative">
       <KnowledgeReaderHeader
+        title={docLangMode === "en" && document.title_en ? document.title_en : document.title}
         isEn={isEn}
         collapsed={headerCollapsed && !studyMode}
         folderName={folder?.name}
@@ -601,18 +602,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
         </button>
       )}
 
-      {headerCollapsed && !studyMode && (
-        <button
-          type="button"
-          onClick={() => setHeaderCollapsed(false)}
-          className="absolute end-2 top-1.5 z-10 grid h-7 w-7 place-items-center rounded-full border border-border bg-card/90 text-muted-foreground shadow-sm backdrop-blur hover:text-foreground"
-          aria-label={isEn ? "Show toolbar" : "نمایش نوار ابزار"}
-          title={isEn ? "Show toolbar" : "نمایش نوار ابزار"}
-          data-testid="knowledge-header-reveal"
-        >
-          <ChevronDown className="h-4 w-4" aria-hidden="true" />
-        </button>
-      )}
+
 
       {/* Reader Content Body */}
       <div className="flex-1 overflow-y-auto p-4 md:p-8" ref={contentContainerRef} onScroll={handleScroll}>
@@ -624,7 +614,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
             <div className="border-b border-border pb-4 mb-6">
               <h1
                 dir={isTitleRtl ? "rtl" : "ltr"}
-                className={`break-words text-xl md:text-2xl font-black text-foreground mb-2 tracking-tight ${
+                className={`hidden md:block break-words text-xl md:text-2xl font-black text-foreground mb-2 tracking-tight ${
                   isTitleRtl ? "text-right" : "text-left"
                 }`}
               >
@@ -730,14 +720,14 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 
             {/* TAB 1: PERSIAN ONLY VIEW (RTL) */}
             {docLangMode === "fa" && (
-              <KnowledgeSectionContent visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="rtl" className="knowledge-html-content dir-rtl text-right" html={safeHtmlFa} />
+              <KnowledgeSectionContent onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="rtl" className="knowledge-html-content dir-rtl text-right" html={safeHtmlFa} />
             )}
 
             {/* TAB 2: ENGLISH ONLY VIEW (LTR) */}
             {docLangMode === "en" && (
               <div dir="ltr" className="space-y-4">
                 {safeHtmlEn ? (
-                  <KnowledgeSectionContent visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlEn} />
+                  <KnowledgeSectionContent onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlEn} />
                 ) : (
                   <div className="space-y-4">
                     <div role="status" className="rounded-2xl border border-border bg-muted/30 p-4 text-sm leading-6">
@@ -753,7 +743,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                     </div>
 
                     {safeHtmlFa ? (
-                      <KnowledgeSectionContent visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir={originalContentIsPersian ? "rtl" : "ltr"} className={`knowledge-html-content ${originalContentIsPersian ? "dir-rtl text-right" : "dir-ltr text-left"}`} html={safeHtmlFa} />
+                      <KnowledgeSectionContent onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir={originalContentIsPersian ? "rtl" : "ltr"} className={`knowledge-html-content ${originalContentIsPersian ? "dir-rtl text-right" : "dir-ltr text-left"}`} html={safeHtmlFa} />
                     ) : document.plain_text?.trim() ? (
                       <p
                         dir={originalContentIsPersian ? "rtl" : "ltr"}
@@ -796,7 +786,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                   </div>
                   {originalContentIsPersian ? (
                     safeHtmlFa ? (
-                      <KnowledgeSectionContent visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="rtl" className="knowledge-html-content dir-rtl text-right" html={safeHtmlFa} />
+                      <KnowledgeSectionContent onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="rtl" className="knowledge-html-content dir-rtl text-right" html={safeHtmlFa} />
                     ) : document.plain_text?.trim() ? (
                       <p dir="rtl" className="knowledge-html-content dir-rtl whitespace-pre-wrap text-right">
                         {document.plain_text}
@@ -821,10 +811,10 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                   </div>
 
                   {safeHtmlEnBilingual ? (
-                    <KnowledgeSectionContent visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlEnBilingual} />
+                    <KnowledgeSectionContent onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlEnBilingual} />
                   ) : !originalContentIsPersian && hasOriginalContent ? (
                     safeHtmlFa ? (
-                      <KnowledgeSectionContent visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlFa} />
+                      <KnowledgeSectionContent onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlFa} />
                     ) : (
                       <p dir="ltr" className="knowledge-html-content dir-ltr whitespace-pre-wrap text-left">
                         {document.plain_text}
@@ -983,6 +973,8 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
               </div>
             )}
 
+            <details className="border-t border-border pt-2">
+              <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-muted-foreground">{isEn ? "Connections and further reading" : "پیوندها و مطالعهٔ بیشتر"}</summary>
             {/* Interconnected Clinical & Drug Relations Network */}
             <React.Suspense fallback={null}>
               <ClinicalRelationsNetwork
@@ -1062,6 +1054,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                 </div>
               </div>
             )}
+            </details>
         </div>
       </div>
 

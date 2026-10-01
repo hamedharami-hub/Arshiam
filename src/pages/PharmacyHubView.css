@@ -54,3 +54,13 @@
 .pharmacy-collection-empty{padding:16px;border:1px dashed var(--ph-line);border-radius:10px;font-size:12px;color:var(--ph-muted)}.pharmacy-collection-empty button{margin-top:10px;min-height:36px;color:var(--ph-accent)}
 .pharmacy-collection-filters button:focus-visible,.pharmacy-collection-lesson:focus-visible,.pharmacy-collection-empty button:focus-visible,.pharmacy-collection-original>summary:focus-visible{outline:2px solid hsl(var(--ring));outline-offset:2px}
 @container(min-width:580px){.pharmacy-collection-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Collection entrance uses the available container, including folded screens. */
+.pharmacy-collection-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr)); gap:1rem; }
+.pharmacy-collection-card { display:flex; flex-direction:column; gap:.75rem; padding:1.25rem; min-height:9rem; text-align:start; border:1px solid hsl(var(--border)); border-radius:.75rem; background:hsl(var(--card)); }
+.pharmacy-collection-card:hover { border-color:hsl(var(--primary)); background:hsl(var(--muted)/.3); }
+.pharmacy-collection-card:focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:3px; }
+.pharmacy-collection-card span { font-size:.8rem; color:hsl(var(--muted-foreground)); }
+.pharmacy-tools-disclosure > summary, .pharmacy-collection-back { min-height:44px; display:flex; align-items:center; cursor:pointer; color:hsl(var(--primary)); font-size:.85rem; }
+.pharmacy-hub .pharmacy-hero:empty { display:none; }
+@media (max-width:640px) { .pharmacy-collection-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; } .pharmacy-collection-card { padding:1rem; min-height:8rem; } }

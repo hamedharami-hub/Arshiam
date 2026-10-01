@@ -13,6 +13,7 @@ type Props = {
   isEn: boolean;
   collapsed: boolean;
   folderName?: string;
+  title?: string;
   tags?: string[];
   studyMode: boolean;
   fontSize: number;
@@ -35,7 +36,7 @@ type Props = {
   pharmacyLinks?: PharmacyHeaderLinks;
 };
 
-const iconBtn = "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const iconBtn = "inline-flex h-11 w-11 md:h-8 md:w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function KnowledgeReaderHeader(p: Props) {
   const { isEn } = p;
@@ -50,7 +51,7 @@ export function KnowledgeReaderHeader(p: Props) {
       data-testid="knowledge-reader-header"
       aria-hidden={p.collapsed || undefined}
     >
-      <div className="flex h-10 items-center gap-1 px-2">
+      <div className="flex min-h-12 md:min-h-10 items-center gap-1 px-2">
         {p.onBackDocument && (
           <button type="button" onClick={p.onBackDocument} className={iconBtn} title={T("بازگشت به سند قبلی", "Back to previous document")} aria-label={T("بازگشت به سند قبلی", "Back to previous document")}>
             {isEn ? <ArrowLeft className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
@@ -67,7 +68,8 @@ export function KnowledgeReaderHeader(p: Props) {
           </button>
         )}
 
-        <nav className="flex min-w-0 flex-1 items-center gap-1 text-[12px] text-muted-foreground" aria-label={T("مسیر", "Breadcrumb")} data-testid="knowledge-reader-breadcrumb">
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold md:hidden" title={p.title}>{p.title ?? p.folderName}</span>
+        <nav className="hidden md:flex min-w-0 flex-1 items-center gap-1 text-[12px] text-muted-foreground" aria-label={T("مسیر", "Breadcrumb")} data-testid="knowledge-reader-breadcrumb">
           {p.pharmacyLinks && (
             <>
               <Link to={p.pharmacyLinks.hub} className="shrink-0 font-medium text-primary hover:underline">{T("فارماسی", "Pharmacy")}</Link>
@@ -84,7 +86,7 @@ export function KnowledgeReaderHeader(p: Props) {
 
         <button
           type="button" onClick={p.onCycleLanguage}
-          className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted"
+          className="hidden md:inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted"
           aria-label={p.languageAriaLabel}
           title={isEn ? `${p.languageAriaLabel} · click to change` : `${p.languageAriaLabel} · برای تغییر کلیک کنید`}
           data-testid="knowledge-language-toggle"
@@ -97,7 +99,7 @@ export function KnowledgeReaderHeader(p: Props) {
           <button
             type="button" onClick={p.onToggleStudyMode} aria-pressed={p.studyMode}
             data-testid="knowledge-study-mode-toggle"
-            className={`${iconBtn} ${p.studyMode ? "bg-primary/10 text-primary" : ""}`}
+            className={`${iconBtn} ${p.studyMode ? "inline-flex" : "hidden md:inline-flex"} ${p.studyMode ? "bg-primary/10 text-primary" : ""}`}
             title={T("حالت مطالعه ابزارها را پنهان می‌کند، نه محتوا را (خروج با Esc)", "Study mode hides tools, not content (Esc to exit)")}
             aria-label={T("حالت مطالعه", "Study mode")}
           >
@@ -116,16 +118,16 @@ export function KnowledgeReaderHeader(p: Props) {
 
         {!p.studyMode && (
           <>
-            <button type="button" disabled={p.isGeneratingBilingual} onClick={p.onGenerateBilingual} className={iconBtn} title={T("دوزبانه کردن و ترجمه درس با هوش مصنوعی", "Generate bilingual version with AI")} aria-label={T("دوزبانه کردن و ترجمه درس با هوش مصنوعی", "Generate bilingual version with AI")} aria-busy={p.isGeneratingBilingual} data-testid="knowledge-translate">
+            <button type="button" disabled={p.isGeneratingBilingual} onClick={p.onGenerateBilingual} className={`${iconBtn} hidden md:inline-flex`} title={T("دوزبانه کردن و ترجمه درس با هوش مصنوعی", "Generate bilingual version with AI")} aria-label={T("دوزبانه کردن و ترجمه درس با هوش مصنوعی", "Generate bilingual version with AI")} aria-busy={p.isGeneratingBilingual} data-testid="knowledge-translate">
               {p.isGeneratingBilingual ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : <Globe className="h-4 w-4" aria-hidden="true" />}
             </button>
-            <button type="button" onClick={p.onOpenInteractive} className={iconBtn} title={T("آموزش تعاملی: کارت، کوییز، سناریو و بازی", "Interactive learning: cards, quizzes, scenarios & games")} aria-label={T("آموزش تعاملی", "Interactive learning studio")} data-testid="knowledge-interactive">
+            <button type="button" onClick={p.onOpenInteractive} className={`${iconBtn} hidden md:inline-flex`} title={T("آموزش تعاملی: کارت، کوییز، سناریو و بازی", "Interactive learning: cards, quizzes, scenarios & games")} aria-label={T("آموزش تعاملی", "Interactive learning studio")} data-testid="knowledge-interactive">
               <Gamepad2 className="h-4 w-4 text-primary" aria-hidden="true" />
             </button>
-            <button type="button" onClick={p.onGenerateAi} className={`${iconBtn} text-primary`} title={T("تولید سوالات لایتنر و نقشه ذهنی با هوش مصنوعی", "Generate Leitner & Mind Map questions with AI")} aria-label={T("تولید سوالات لایتنر و نقشه ذهنی با هوش مصنوعی", "Generate Leitner and Mind Map cards with AI")} data-testid="knowledge-ai-generate">
+            <button type="button" onClick={p.onGenerateAi} className={`${iconBtn} hidden md:inline-flex text-primary`} title={T("تولید سوالات لایتنر و نقشه ذهنی با هوش مصنوعی", "Generate Leitner & Mind Map questions with AI")} aria-label={T("تولید سوالات لایتنر و نقشه ذهنی با هوش مصنوعی", "Generate Leitner and Mind Map cards with AI")} data-testid="knowledge-ai-generate">
               <Sparkles className="h-4 w-4" aria-hidden="true" />
             </button>
-            <button type="button" onClick={p.onEdit} className={iconBtn} title={T("ویرایش سند", "Edit document")} aria-label={T("ویرایش سند", "Edit document")} data-testid="knowledge-edit">
+            <button type="button" onClick={p.onEdit} className={`${iconBtn} hidden md:inline-flex`} title={T("ویرایش سند", "Edit document")} aria-label={T("ویرایش سند", "Edit document")} data-testid="knowledge-edit">
               <Edit className="h-4 w-4" aria-hidden="true" />
             </button>
             <DropdownMenu dir={isEn ? "ltr" : "rtl"}>
@@ -135,6 +137,15 @@ export function KnowledgeReaderHeader(p: Props) {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
+                <div className="md:hidden">
+                  <DropdownMenuItem onSelect={p.onCycleLanguage}><Languages className="h-4 w-4" />{p.languageAriaLabel}</DropdownMenuItem>
+                  {p.onToggleStudyMode && <DropdownMenuItem onSelect={p.onToggleStudyMode}><BookOpenCheck className="h-4 w-4" />{T("حالت مطالعه", "Study mode")}</DropdownMenuItem>}
+                  <DropdownMenuItem onSelect={p.onEdit}><Edit className="h-4 w-4" />{T("ویرایش سند", "Edit document")}</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={p.onOpenInteractive}><Gamepad2 className="h-4 w-4" />{T("آموزش تعاملی", "Interactive learning")}</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={p.onGenerateAi}><Sparkles className="h-4 w-4" />{T("تولید کارت و سوال", "Generate cards and questions")}</DropdownMenuItem>
+                  <DropdownMenuItem disabled={p.isGeneratingBilingual} onSelect={p.onGenerateBilingual}><Globe className="h-4 w-4" />{T("تولید ترجمه", "Generate translation")}</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </div>
                 <div className="flex items-center justify-between gap-2 px-2 py-1.5 text-xs text-muted-foreground" data-testid="knowledge-font-row">
                   <span>{T("اندازهٔ متن", "Text size")}</span>
                   <div className="flex items-center gap-1">
@@ -171,7 +182,7 @@ export function KnowledgeReaderHeader(p: Props) {
       </div>
 
       {tags.length > 0 && (
-        <div className="flex items-center gap-1.5 px-3 pb-1.5" data-testid="knowledge-reader-tags">
+        <div className="hidden md:flex items-center gap-1.5 px-3 pb-1.5" data-testid="knowledge-reader-tags">
           <Tag className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
           <div className={`flex min-w-0 flex-1 items-center gap-1 ${tagsOpen ? "flex-wrap" : "overflow-x-auto whitespace-nowrap [scrollbar-width:none]"}`}>
             {shownTags.map((tag, i) => (
