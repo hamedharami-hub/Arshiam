@@ -23,7 +23,7 @@ describe("PharmacyDocumentDialog", () => {
     expect(screen.queryByText("Original reference text.")).not.toBeInTheDocument();
     fireEvent.mouseDown(screen.getByRole("tab", { name: "References" }), { button: 0, ctrlKey: false });
     await screen.findByText("Original reference text.");
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "All sections" }), { button: 0, ctrlKey: false });
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Interactions" }), { button: 0, ctrlKey: false });
     expect(screen.getByText("Original interaction text.")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Related lesson"));
     await screen.findByText("Linked original text.");

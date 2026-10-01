@@ -103,3 +103,33 @@
   [data-testid=knowledge-reader-header] .hidden.md\:inline-flex{display:none!important}
 }
 .lesson-safety-access button{min-height:44px}
+
+/* Section labels belong to the current source, not a global lesson template. */
+.lesson-workspace-navigation{margin-bottom:10px;gap:4px}
+.lesson-workspace-tabs [role=tab]{max-width:240px;overflow:hidden;text-overflow:ellipsis;display:block}
+.lesson-workspace-panel .lesson-card-group{margin-block:8px 14px}
+.lesson-content-card__header{margin-bottom:8px}
+.lesson-content-card{padding:14px}
+@container (max-width:640px){.lesson-workspace-tabs [role=tab]{max-width:190px}.lesson-content-card{padding:12px}}
+
+/* Quiet, readable scientific tables; values, units and source order stay intact. */
+.lesson-content-card__body table{width:100%;border-collapse:collapse;font-size:inherit;line-height:1.65}
+.lesson-content-card__body table th,.lesson-content-card__body table td{padding:10px 12px;border-color:hsl(var(--border));vertical-align:top;white-space:normal;overflow-wrap:break-word}
+.lesson-content-card__body table th{font-weight:600;background:hsl(var(--muted))!important;color:hsl(var(--foreground))!important}
+.lesson-content-card__body table td{color:hsl(var(--foreground))!important;background:hsl(var(--card))!important}
+.lesson-content-card__body table td p{margin-block:0 6px}
+.lesson-content-card__body [class*=text-emerald-],.lesson-content-card__body [class*=text-violet-],.lesson-content-card__body [class*=text-blue-],.lesson-content-card__body [class*=text-indigo-],.lesson-content-card__body [class*=text-teal-]{color:hsl(var(--foreground))!important}
+.lesson-content-card__body [class*=bg-emerald-],.lesson-content-card__body [class*=bg-violet-],.lesson-content-card__body [class*=bg-blue-],.lesson-content-card__body [class*=bg-indigo-],.lesson-content-card__body [class*=bg-teal-]{background:hsl(var(--muted)/.45)!important}
+.lesson-content-card__body .lesson-duplicate-title{display:none!important}
+.lesson-content-card__body .knowledge-card{margin:0!important;max-width:none!important}
+.lesson-content-card__body .knowledge-card> :not([hidden])~ :not([hidden]){margin-top:12px!important;margin-bottom:0!important}
+.lesson-content-card__body .knowledge-card>header:has(>.lesson-duplicate-title){padding:0!important;border:0!important;background:transparent!important}
+.lesson-content-card__body .knowledge-card>header:has(>.lesson-duplicate-title):not(:has(>:not(.lesson-duplicate-title,.lesson-field--technical))){display:none!important}
+/* Avoid the display:block table box clipping wrapped final rows. Scroll the
+   native table wrapper, and let the table calculate row heights normally. */
+.lesson-content-card__body table{display:table;overflow:visible;margin-block:12px;table-layout:auto}
+.lesson-content-card__body .mobile-table-wrapper{overflow-x:auto;overscroll-behavior-inline:contain}
+.lesson-content-card__body .knowledge-card>:first-child:has(>.lesson-duplicate-title){padding:0!important;border:0!important;background:transparent!important}
+/* Use Latin glyphs for English scientific names and doses, even in a Persian UI. */
+[data-learning-language=en], [data-learning-language=fa] [dir=ltr],
+.knowledge-reader-shell h1[dir=ltr]{font-family:system-ui,-apple-system,"Segoe UI",sans-serif}

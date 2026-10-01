@@ -57,11 +57,11 @@ export function sourceCards(document: Pick<KnowledgeDocument, "id" | "title" | "
       while (sourceKeys.has(sourceKey)) sourceKey = `${sourceKeyBase}-${learningVersion(piece.html)}-${duplicate++}`; sourceKeys.add(sourceKey);
       if (heading && !heading.querySelector('a,img,[id]')) { const anchor = window.document.createElement('span'); if (heading.id) anchor.id = heading.id; heading.replaceWith(anchor); }
       const classified = classifyLessonCard(piece.title);
-      return { id: sourceKey, title: piece.title, ...classified, sourceHtml: piece.html, html: element.innerHTML, wide: classified.kind === 'safety' || !!element.querySelector('table,pre') || element.textContent.length > 1600, safetyProtected: classified.kind === 'safety' || /warning|contraindicat|referral|red flag|هشدار|منع مصرف|ارجاع/i.test(piece.html) };
+      return { id: sourceKey, title: piece.title, introduction: piece.id === 'introduction', ...classified, sourceHtml: piece.html, html: element.innerHTML, wide: classified.kind === 'safety' || !!element.querySelector('table,pre') || element.textContent.length > 1600, safetyProtected: classified.kind === 'safety' || /warning|contraindicat|referral|red flag|هشدار|منع مصرف|ارجاع/i.test(piece.html) };
     });
   }
   // Rich or unsupported legacy documents remain intact in one named card.
-  return cards.length ? cards : [{ id: 'original', title: language === 'en' ? document.title_en || document.title : document.title, kind: 'overview', group: 'understand', html, sourceHtml: html, wide: true, safetyProtected: /warning|contraindicat|referral|red flag|هشدار|منع مصرف|ارجاع/i.test(html) || classifyLessonCard(document.title).kind === "safety" }];
+  return cards.length ? cards : [{ id: 'original', title: language === 'en' ? document.title_en || document.title : document.title, kind: 'overview', group: 'understand', html, sourceHtml: html, wide: true, wholeDocument: true, safetyProtected: /warning|contraindicat|referral|red flag|هشدار|منع مصرف|ارجاع/i.test(html) || classifyLessonCard(document.title).kind === "safety" }];
 }
 export function createLearningWorkspace(document: KnowledgeDocument): LearningWorkspace {
   if (document.learning_workspace) return structuredClone(document.learning_workspace);
@@ -81,7 +81,7 @@ export function applyLearningWorkspace(cards: LessonContentCard[], workspace: Le
     if (!source) return [];
     used.add(source.id);
     if (card.hidden && !source.safetyProtected && source.kind !== 'safety') return [];
-    return [{ ...source, id: card.id, title: card.titles[language] || source.title, group: source.kind === 'metadata' ? source.group : card.group, wide: source.wide || card.wide }];
+    return [{ ...source, id: card.id, sourceGroup: source.group, title: card.titles[language] || source.title, group: source.kind === 'metadata' ? source.group : card.group, wide: source.wide || card.wide }];
   });
   // An unrecognised source block never disappears after a parser upgrade.
   return [...result, ...cards.filter(card => !used.has(card.id))];

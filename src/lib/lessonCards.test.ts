@@ -54,4 +54,22 @@ describe('lesson card presentation preserves the scientific source', () => {
     expect(classifyLessonCard('ردهٔ رنگ')).toEqual({ kind: 'metadata', group: 'reference' });
     expect(classifyLessonCard('منابع')).toEqual({ kind: 'reference', group: 'reference' });
   });
+  it('keeps one legal rule intact but gives separate topics to a multi-topic legal lesson', () => {
+    const single = '<div class="knowledge-card"><h2>Storage rule</h2><p>Keep this rule and its exception together.</p></div>';
+    expect(buildLessonCards(single, 'en', 'doc-storage-test')[0].wholeDocument).toBe(true);
+    const multiple = '<div class="knowledge-card"><h2>Storage</h2><p>Storage instruction.</p><h2>Recording</h2><p>Recording instruction.</p></div>';
+    const cards = buildLessonCards(multiple, 'en', 'doc-storage-test');
+    expect(cards.map(card => card.title)).toEqual(['Storage', 'Recording']);
+    expect(cards.every(card => !card.wholeDocument)).toBe(true);
+    expect(plain(cards[0].sourceHtml)).toBe('StorageStorageinstruction.');
+  });
+  it('keeps an assessment question and its answer with their heading and comparison columns together', () => {
+    const source = '<div class="knowledge-card"><h2>Assessment</h2><p>Question for this case?</p><p>This case answer.</p><h2>Management</h2><div class="grid"><section><h3>A</h3><p>One</p></section><section><h3>B</h3><p>Two</p></section></div></div>';
+    const cards = buildLessonCards(source, 'en');
+    expect(cards.map(card => card.title)).toEqual(['Assessment', 'Management']);
+    expect(cards[0].html).toContain('This case answer.');
+    expect(cards[1].html).toContain('One'); expect(cards[1].html).toContain('Two');
+    expect(cards[1].html).not.toContain('This case answer.');
+  });
+
 });

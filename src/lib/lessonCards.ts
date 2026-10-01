@@ -1,4 +1,4 @@
-import { normalizeLessonLabel, getLessonTemplate, isTechnicalLessonField, templateCardGroup } from './lessonTemplates';
+import { normalizeLessonLabel, getLessonTemplate, TEMPLATE_GROUPS, isTechnicalLessonField, templateCardGroup } from './lessonTemplates';
 import { decorateLessonBody } from './lessonBodyPresentation';
 export type LessonCardKind = 'overview' | 'mechanism' | 'use' | 'safety' | 'practice' | 'reference' | 'metadata';
 export type LessonCardGroup = 'understand' | 'apply' | 'safety' | 'practice' | 'reference' | 'identity' | 'symptoms' | 'counselling' | 'label' | 'rules' | 'language' | 'assessment' | 'decision' | 'comparison' | 'milestones';
@@ -11,6 +11,10 @@ export interface LessonContentCard {
   sourceHtml: string;
   wide: boolean;
   safetyProtected?: boolean;
+  wholeDocument?: boolean;
+  introduction?: boolean;
+  sourceGroup?: LessonCardGroup;
+  comparison?: { id: string; title: string };
 }
 
 export const LESSON_GROUPS: { id: LessonCardGroup; fa: string; en: string }[] = [
@@ -60,24 +64,79 @@ export function buildLessonCards(safeHtml: string, language: 'fa' | 'en', docume
   // Unsupported loose text must remain in the original renderer, never disappear in extraction.
   if (Array.from(root.childNodes).some(node => node.nodeType === 3 && node.textContent.trim())) return [];
   const template = getLessonTemplate(documentId);
+  const whole = (): LessonContentCard[] => {
+    const title = visibleTitles[language === 'fa' ? 0 : 1] || visibleTitles[0] || getTitleElement(root)?.textContent.trim() || (language === 'fa' ? 'مطلب' : 'Lesson');
+    const clone = root.cloneNode(true) as Element;
+    decorateLessonBody(clone, language, title);
+    for (const element of Array.from(clone.querySelectorAll('h1,h2,h3,div,span'))) {
+      if (!element.children.length && !element.id && !element.hasAttribute('data-doc-link') &&
+        visibleTitles.some(visible => visible && normalizeLessonLabel(visible) === normalizeLessonLabel(element.textContent)) &&
+        (/^H[1-6]$/.test(element.tagName) || /font-(bold|semibold|black)/.test(element.className))) element.classList.add('lesson-duplicate-title');
+    }
+    return [{ id: `card-whole-${documentId || hashText(safeHtml)}`, title, kind: 'overview', group: TEMPLATE_GROUPS[template][0].id, sourceHtml: safeHtml, html: clone.outerHTML, wide: true, wholeDocument: true,
+      safetyProtected: Array.from(root.querySelectorAll('h2,h3,h4,dt,strong,.font-bold,.font-semibold,.font-black')).some(element => classifyLessonCard(element.textContent).kind === 'safety') || template === 'label' }];
+  };
+  // Identify authored topics, not nested record labels or table column names.
+  const headingLevel = root.querySelector('h2:not(header h2)') ? 'h2' : 'h3';
+  const topicHeadings = Array.from(root.querySelectorAll(headingLevel)).filter(heading => !heading.closest('header,dl,table,blockquote,pre') && !(template === 'cyp' && heading.closest('.grid')));
+  const fields = Array.from(root.querySelectorAll(':scope > dl > div > dt')).map(field => normalizeLessonLabel(field.textContent));
+  const mechanismRecord = fields.some(field => /^(action classification|action type|cellular effect|نوع اثر|طبقه بندی اثر|اثر سلولی)$/.test(field));
+  const simpleMonograph = template === 'medicine' && !fields.length && root.children.length >= 3 && root.children.length <= 5 &&
+    /therapeutic indications|موارد مصرف/.test(root.children[1].textContent.toLowerCase()) &&
+    /counsel|مشاوره/.test(root.lastElementChild.textContent.toLowerCase());
+  const atomic = ['label', 'storage', 'concept', 'prescription'].includes(template);
+  const academicContext = template === 'academic' && root.children.length === 3 &&
+    /^(module|ماژول)\s*[۱-۶1-6]/i.test(root.firstElementChild.textContent.trim()) &&
+    /pearl|نکته.*کلیدی|نکته.*اجرایی/.test(root.children[1].textContent.toLowerCase());
+  // A single law/label/record remains whole, regardless of its length. Multiple
+  // explicit topic headings always take precedence, including short legal lessons.
+  // Academic pearl + body/table is one context, not three unrelated navigation tabs.
+  if (topicHeadings.length < 2 && (atomic || mechanismRecord || simpleMonograph || academicContext)) return whole();
+
+  // Nested authored headings are sliced by the range-based section renderer,
+  // rather than naming an entire multi-topic body after its first heading.
+  if (Array.from(root.children).some(child => topicHeadings.filter(heading => child.contains(heading)).length > 1)) return [];
+
   const blocks: Element[] = [];
+  const comparisons = new WeakMap<Element, { id: string; title: string }>();
+  let headingSection: Element | null = null;
   for (const block of Array.from(root.children)) {
+    const roles = Array.from(block.children);
+    if (template === 'cyp' && block.classList.contains('grid') && roles.length > 1 && roles.every(role => getTitleElement(role))) {
+      const title = roles.map(role => getTitleElement(role).textContent.trim()).join(' · ');
+      const comparison = { id: `comparison-${hashText(title)}`, title };
+      roles.forEach(role => { comparisons.set(role, comparison); blocks.push(role); });
+      continue;
+    }
+    if (block.tagName.toLowerCase() === headingLevel) {
+      headingSection = document.createElement('section');
+      headingSection.append(block.cloneNode(true)); blocks.push(headingSection); continue;
+    }
+    if (headingSection) { headingSection.append(block.cloneNode(true)); continue; }
     if (block.tagName === 'DL') {
       if (Array.from(block.childNodes).some(node => node.nodeType === 3 && node.textContent.trim())) return [];
       if (!Array.from(block.children).every(child => child.querySelector(':scope > dt') && child.querySelector(':scope > dd'))) return [];
       blocks.push(...Array.from(block.children));
     }
-    else if (template !== 'general' && block.classList.contains('grid') && !block.id && !block.hasAttribute('data-doc-link') && !Array.from(block.childNodes).some(node => node.nodeType === 3 && node.textContent.trim()) && block.children.length > 1 && Array.from(block.children).every(child => getTitleElement(child))) {
-      blocks.push(...Array.from(block.children));
-    } else blocks.push(block);
+    else blocks.push(block);
   }
-  if (blocks.filter(block => block.textContent.trim() || block.querySelector('img,table,video,audio')).length < 2) return [];
+  // Untitled prose is supporting context. Keep it with its preceding topic;
+  // an unrecognised leading structure stays whole rather than inventing a title.
+  for (let index = 0; index < blocks.length; index++) {
+    if (getTitleElement(blocks[index]) || blocks[index].querySelector('table')) continue;
+    if (index === 0) return whole();
+    const section = document.createElement('section');
+    section.append(blocks[index - 1].cloneNode(true), blocks[index].cloneNode(true));
+    blocks.splice(index - 1, 2, section); index--;
+  }
+  if (blocks.filter(block => block.textContent.trim() || block.querySelector('img,table,video,audio')).length < 2) return whole();
   const occurrences = new Map<string, number>();
   const usedIds = new Set<string>();
   return blocks.filter(block => block.textContent.trim() || block.querySelector('img,table,video,audio')).map((block, index) => {
     const titleElement = getTitleElement(block);
     const tableTitle = block.querySelector('th')?.textContent.trim();
-    const title = titleElement?.textContent.trim() || (tableTitle
+    const gridTitles = block.classList.contains('grid') ? Array.from(block.children).map(child => getTitleElement(child)?.textContent.trim()).filter(Boolean) : [];
+    const title = (gridTitles.length > 1 ? gridTitles.join(' · ') : titleElement?.textContent.trim()) || (tableTitle
       ? (language === 'fa' ? `جدول: ${tableTitle}` : `Table: ${tableTitle}`)
       : language === 'fa' ? `مطالعهٔ بخش ${index + 1}` : `Reading ${index + 1}`);
     let { kind, group: defaultGroup } = block.tagName === 'HEADER' && /\bSource:/i.test(block.textContent)
@@ -95,14 +154,16 @@ export function buildLessonCards(safeHtml: string, language: 'fa' | 'en', docume
       kind = 'metadata'; defaultGroup = 'reference';
     }
     const group = templateCardGroup(template, title, kind, defaultGroup);
-    const safetyProtected = kind === 'safety' || Array.from(block.querySelectorAll('dt,h2,h3,h4,strong')).some(element => classifyLessonCard(element.textContent.trim()).kind === 'safety');
+    const safetyProtected = kind === 'safety' || Array.from(block.querySelectorAll('dt,h2,h3,h4,strong,.font-bold,.font-semibold,.font-black')).some(element => classifyLessonCard(element.textContent.trim()).kind === 'safety');
     const sourceHtml = block.outerHTML;
     const clone = block.cloneNode(true) as Element;
     const cloneTitle = getTitleElement(clone);
     // Keep links/IDs and rich title content in the body when removing it would lose an anchor.
-    if (cloneTitle && cloneTitle !== clone && !cloneTitle.id && !cloneTitle.querySelector('a,img,[id],[data-doc-link]')) cloneTitle.remove();
+    if (gridTitles.length < 2 && cloneTitle && cloneTitle !== clone && !cloneTitle.id && !cloneTitle.querySelector('a,img,[id],[data-doc-link]')) cloneTitle.remove();
     // Only the outer frame is replaced. Nested scientific emphasis and data attributes stay intact.
+    const sourceGrid = clone.classList.contains('grid');
     clone.removeAttribute('class');
+    if (sourceGrid) clone.classList.add('lesson-record-grid');
     if (template !== 'general') decorateLessonBody(clone, language, title);
     const hash = hashText(title);
     const ordinal = occurrences.get(hash) ?? 0;
@@ -114,8 +175,8 @@ export function buildLessonCards(safeHtml: string, language: 'fa' | 'en', docume
     usedIds.add(id);
     return {
       id,
-      title, kind, group, safetyProtected, sourceHtml, html: clone.outerHTML,
-      wide: kind === 'safety' || !!block.querySelector('table,pre') || block.textContent.length > 1600,
+      title, kind, group, comparison: comparisons.get(block), safetyProtected: safetyProtected || comparisons.has(block), sourceHtml, html: clone.outerHTML,
+      wide: (template === 'cyp' && group === 'identity') || kind === 'safety' || !!block.querySelector('table,pre') || block.textContent.length > 1600,
     };
   });
 }

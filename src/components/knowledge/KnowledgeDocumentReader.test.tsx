@@ -436,71 +436,15 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
     expect(reader?.getAttribute("style")).toContain("--knowledge-reader-font-size: 16px");
   });
 
-  it("follows reader language for Active Recall and Leitner cards", async () => {
-    const otcDoc: KnowledgeDocument = {
-      id: "doc-otc-asthma",
-      user_id: "user-1",
-      folder_id: "folder-1",
-      title: "آسم حاد",
-      title_en: "Acute asthma",
-      content_html: `
-        <h2>🎯 داروی خط اول و پروتکل دوزاژ</h2>
-        <p>سالبوتامول ۴ پاف با دمیار</p>
-      `,
-      content_en: "<h2>🎯 First-Line Treatment and Dosing</h2><p>English display-only answer text.</p>",
-      tags: ["Respiratory"],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    render(
-      <KnowledgeDocumentReader
-        document={otcDoc}
-        folder={dummyFolder}
-        onEdit={() => {}}
-        onDelete={() => {}}
-      />
-    );
-
-    expect(screen.getByText(/خودآزمایی سریع و نکات کلیدی/i)).toBeInTheDocument();
-    expect(screen.getByText(/What is the first-line medication and standard dosing for/)).toBeInTheDocument();
-    expect(screen.getByText("First-Line Dosing")).toBeInTheDocument();
-
-    expect(screen.queryByText(/افزودن به جعبه لایتنر/i)).not.toBeInTheDocument();
-
-    const showBtn = screen.getByRole("button", { name: /مشاهده پاسخ/i });
-    fireEvent.click(showBtn);
-
-    expect(screen.getAllByText("English display-only answer text.").length).toBeGreaterThan(1);
-    expect(screen.getByText(/افزودن به جعبه لایتنر/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /مخفی‌سازی/i })).toBeInTheDocument();
-
+  it("preserves the selected source language without inventing recall questions", () => {
+    const doc = { ...dummyDoc, title: "آسم", title_en: "Asthma", content_html: "<h2>درمان</h2><p>متن فارسی درمان</p>", content_en: "<h2>Treatment</h2><p>English source treatment.</p>" };
+    render(<KnowledgeDocumentReader document={doc} folder={dummyFolder} onEdit={() => {}} onDelete={() => {}} />);
+    expect(screen.getByText("English source treatment.")).toBeVisible();
+    expect(screen.queryByText(/What is the first-line medication/)).toBeNull();
+    expect(screen.queryByText(/خودآزمایی سریع و نکات کلیدی/)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /زبان مطالعه: انگلیسی/ }));
-    expect(screen.getByText(/داروی خط اول و دستور مصرف استاندارد برای/)).toBeInTheDocument();
-    expect(screen.getByText("خط اول درمان")).toBeInTheDocument();
-    expect(screen.getAllByText(/سالبوتامول ۴ پاف با دمیار/).length).toBeGreaterThan(1);
-
-    fireEvent.click(screen.getByRole("button", { name: /زبان مطالعه: فارسی/ }));
-    expect(screen.getByText(/What is the first-line medication and standard dosing for/)).toBeInTheDocument();
-    expect(screen.getAllByText(/English display-only answer text/).length).toBeGreaterThan(1);
-    expect(screen.getByText(/داروی خط اول و دستور مصرف استاندارد برای/)).toBeInTheDocument();
-    expect(screen.getAllByText(/سالبوتامول ۴ پاف با دمیار/).length).toBeGreaterThan(1);
-    expect(screen.getByText(/خط اول درمان/)).toBeInTheDocument();
-    expect(screen.getByText(/First-Line Dosing/)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /افزودن به جعبه لایتنر/i }));
-    await waitFor(() => expect(mockCreateLeitnerCard).toHaveBeenCalledTimes(1));
-    expect(mockCreateLeitnerCard).toHaveBeenCalledWith("guest", expect.objectContaining({
-      front: expect.stringMatching(/[\u0600-\u06ff]/),
-      back: expect.stringMatching(/[\u0600-\u06ff]/),
-      front_fa: expect.stringMatching(/[\u0600-\u06ff]/),
-      front_en: expect.stringMatching(/[a-z]/i),
-      back_fa: expect.stringMatching(/[\u0600-\u06ff]/),
-      back_en: expect.stringMatching(/[a-z]/i),
-      clue: expect.stringContaining("English:"),
-      document_id: otcDoc.id,
-      folder_id: otcDoc.folder_id,
-    }));
+    expect(screen.getByText("متن فارسی درمان")).toBeVisible();
+    expect(mockCreateLeitnerCard).not.toHaveBeenCalled();
   });
 
   it("5. renders suggested further reading with its match basis and opens the selected document", () => {
@@ -658,46 +602,11 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
     expect(scrollContainer.scrollTop).toBe(450);
   });
 
-  it("renders checkpoint with identical Persian and English text once with dir=auto and no missing-translation warning", () => {
-    const docWithIdenticalCheckpoint: KnowledgeDocument = {
-      ...dummyDoc,
-      preferred_language: "bilingual",
-      title: "پروتکل آموکسی‌سیلین",
-      content_html: `
-        <h2>🎯 داروی خط اول و پروتکل دوزاژ (First-Line Drug & Dosage)</h2>
-        <p>Amoxicillin 500mg TDS</p>
-      `,
-      content_en: `
-        <h2>🎯 First-line Drug & Standard Dosing</h2>
-        <p>Amoxicillin 500mg TDS</p>
-      `,
-    };
-
-    render(
-      <KnowledgeDocumentReader
-        document={docWithIdenticalCheckpoint}
-        folder={dummyFolder}
-        onEdit={() => {}}
-        onDelete={() => {}}
-      />
-    );
-
-    // Click show answer on the checkpoint
-    const showAnswerBtn = screen.getByRole("button", { name: /مشاهده پاسخ|show answer/i });
-    fireEvent.click(showAnswerBtn);
-
-    // Answer text "Amoxicillin 500mg TDS" is rendered
-    const answerElements = screen.getAllByText("Amoxicillin 500mg TDS");
-    // Should not render missing translation alerts
-    expect(screen.queryByText(/نسخهٔ انگلیسی موجود نیست/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/English version is not available/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/نسخهٔ فارسی موجود نیست/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Persian version is not available/i)).not.toBeInTheDocument();
-
-    // Verify the rendered answer in the checkpoint has dir="auto"
-    const checkpointAnswerNode = answerElements.find((el) => el.getAttribute("dir") === "auto");
-    expect(checkpointAnswerNode).toBeDefined();
-    expect(checkpointAnswerNode?.getAttribute("dir")).toBe("auto");
+  it("does not duplicate a source dosing statement into a synthetic question", () => {
+    const doc = { ...dummyDoc, content_html: "<h2>دوز</h2><p>Amoxicillin 500mg TDS</p>", content_en: "<h2>Dosing</h2><p>Amoxicillin 500mg TDS</p>" };
+    render(<KnowledgeDocumentReader document={doc} folder={dummyFolder} onEdit={() => {}} onDelete={() => {}} />);
+    expect(screen.getAllByText("Amoxicillin 500mg TDS")).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: /مشاهده پاسخ|show answer/i })).toBeNull();
   });
 
   describe("Interactive Learning bilingual connection", () => {
