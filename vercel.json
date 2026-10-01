@@ -25,7 +25,7 @@
       "destination": "/api/v1/agent?path=:path*"
     },
     {
-      "source": "/((?!api/|openapi\\.json|version\\.json).*)",
+      "source": "/((?!api/|openapi\\.json|agent-openapi\\.json|version\\.json).*)",
       "destination": "/index.html"
     }
   ]

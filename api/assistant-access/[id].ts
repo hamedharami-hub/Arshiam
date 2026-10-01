@@ -1,4 +1,4 @@
-import { authenticateOwner, revokeGrant } from "../_lib/assistantAccess.js";
+import { AssistantConfigurationError, authenticateOwner, revokeGrant } from "../_lib/assistantAccess.js";
 import { handleCors, sendError, sendJson } from "../_lib/response.js";
 
 export default async function handler(req: any, res: any) {
@@ -12,6 +12,7 @@ export default async function handler(req: any, res: any) {
     if (!(await revokeGrant(userId, id))) return sendError(res, 404, "NOT_FOUND", "Access grant not found.");
     return sendJson(res, 200, { success: true });
   } catch (error) {
+    if (error instanceof AssistantConfigurationError) return sendError(res, 503, "SERVICE_NOT_CONFIGURED", error.message);
     console.error("Assistant access revocation failed", error);
     return sendError(res, 500, "INTERNAL_ERROR", "Could not revoke assistant access.");
   }

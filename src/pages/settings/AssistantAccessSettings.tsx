@@ -22,6 +22,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { agentInstructions, agentServerOrigin, readAgentResponse } from "@/lib/agentConnection";
+import agentSchema from "../../../public/agent-openapi.json";
 
 export type Scope =
   | "tasks:read"
@@ -104,10 +106,10 @@ const READONLY_SCOPES: Scope[] = [
   "calendar:read",
 ];
 
-async function request(path: string, init: RequestInit = {}) {
+async function request(path: string, isEn: boolean, init: RequestInit = {}) {
   const user = auth.currentUser;
   if (!user) throw new Error("لطفاً برای مدیریت عامل‌ها وارد حساب خود شوید.");
-  const response = await fetch(path, {
+  const response = await fetch(`${agentServerOrigin(window.location.origin)}${path}`, {
     ...init,
     headers: {
       Authorization: `Bearer ${await user.getIdToken()}`,
@@ -116,9 +118,7 @@ async function request(path: string, init: RequestInit = {}) {
     },
     cache: "no-store",
   });
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.error?.message || "درخواست با خطا مواجه شد.");
-  return body;
+  return readAgentResponse(response, isEn);
 }
 
 export function AssistantAccessSettings() {
@@ -134,18 +134,26 @@ export function AssistantAccessSettings() {
   const [busy, setBusy] = useState(false);
   const [copiedToken, setCopiedToken] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const baseApiUrl =
     typeof window !== "undefined"
-      ? `${window.location.origin}/api/v1/agent`
-      : "https://your-domain.com/api/v1/agent";
+      ? `${agentServerOrigin(window.location.origin)}/api/v1/agent`
+      : "https://arshiam.vercel.app/api/v1/agent";
+  const serverOrigin = baseApiUrl.replace(/\/api\/v1\/agent$/, "");
 
   const refresh = async () => {
+    setLoading(true);
     try {
-      const result = await request("/api/assistant-access");
+      const result = await request("/api/assistant-access", isEn);
       setGrants(result.data || []);
+      setLoadError("");
     } catch (err: any) {
+      setLoadError(err.message || T("خطا در اتصال به سرور عامل", "Could not connect to the agent server"));
       toast.error(err.message || "خطا در بارگیری توکن‌ها");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -170,7 +178,7 @@ export function AssistantAccessSettings() {
     setBusy(true);
     setNewToken("");
     try {
-      const result = await request("/api/assistant-access", {
+      const result = await request("/api/assistant-access", isEn, {
         method: "POST",
         body: JSON.stringify({ name: name.trim(), scopes, expiresInDays: days }),
       });
@@ -188,7 +196,7 @@ export function AssistantAccessSettings() {
   const revokeToken = async (id: string) => {
     setBusy(true);
     try {
-      await request(`/api/assistant-access/${id}`, { method: "DELETE" });
+      await request(`/api/assistant-access/${id}`, isEn, { method: "DELETE" });
       toast.success(T("توکن با موفقیت لغو و غیرفعال شد", "Token successfully revoked"));
       await refresh();
     } catch (err: any) {
@@ -198,8 +206,13 @@ export function AssistantAccessSettings() {
     }
   };
 
-  const copyToClipboard = (text: string, isToken: boolean) => {
-    void navigator.clipboard.writeText(text);
+  const copyToClipboard = async (text: string, isToken: boolean) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      toast.error(T("کپی انجام نشد؛ متن را دستی انتخاب و کپی کنید.", "Copy failed; select and copy the text manually."));
+      return;
+    }
     if (isToken) {
       setCopiedToken(true);
       setTimeout(() => setCopiedToken(false), 2000);
@@ -209,6 +222,16 @@ export function AssistantAccessSettings() {
       setTimeout(() => setCopiedUrl(false), 2000);
       toast.success(T("آدرس API کپی شد", "API URL copied"));
     }
+  };
+
+  const downloadSchema = () => {
+    const schema = { ...agentSchema, servers: [{ url: serverOrigin }] };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(schema, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "arshnaz-agent-openapi.json";
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   return (
@@ -261,6 +284,31 @@ export function AssistantAccessSettings() {
           )}
         </p>
       </div>
+
+      <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-3">
+        <h3 className="text-sm font-bold">{T("اتصال به ChatGPT، Codex و Gemini", "Connect ChatGPT, Codex and Gemini")}</h3>
+        <p className="text-xs text-muted-foreground">{T("این اتصال تغییرات حساب شما را انجام می‌دهد، نه تغییر کد برنامه. عامل باید ابزار ارسال درخواست HTTP داشته باشد؛ دادن توکن به یک چت معمولی کافی نیست.", "This connection changes your account data, not application code. The agent needs an HTTP tool; pasting a token into an ordinary chat is not enough.")}</p>
+        <ol className="list-decimal ps-5 space-y-2 text-xs leading-relaxed">
+          <li><strong>ChatGPT:</strong> {T("در یک GPT سفارشی خصوصی، بخش Actions را باز کنید، فایل OpenAPI را وارد کنید و Authentication را روی API Key با نوع Bearer بگذارید. توکن را فقط در فیلد احراز هویت وارد کنید. دسترسی به Actions به حساب و محیط شما بستگی دارد.", "In a private custom GPT, open Actions, import the OpenAPI file, and set Authentication to API Key with Bearer authentication. Enter the token only in the authentication field. Actions availability depends on your account and workspace.")}</li>
+          <li><strong>Codex:</strong> {T("توکن را به‌صورت متغیر امن ARSHNAZ_AGENT_TOKEN در محیط عامل تنظیم کنید، دسترسی HTTPS به دامنهٔ سرور بدهید و راهنمای اتصال را به تسک بدهید. عامل می‌تواند از ابزار HTTP یا curl استفاده کند.", "Configure ARSHNAZ_AGENT_TOKEN securely in the agent environment, allow HTTPS access to the server domain, and provide the connection instructions to the task. The agent can use an HTTP tool or curl.")}</li>
+          <li><strong>Gemini:</strong> {T("برای Gemini CLI یا یک عامل مبتنی بر Gemini، ابزار HTTP یا function calling برای این API تنظیم کنید. توکن باید در تنظیمات امن ابزار باشد. چت معمولی Gemini لزوماً امکان اجرای این درخواست‌ها را ندارد.", "For Gemini CLI or a Gemini-based agent, configure an HTTP tool or function calling for this API. Keep the token in secure tool configuration. Ordinary Gemini chat may not be able to execute these requests.")}</li>
+        </ol>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={downloadSchema}>{T("دریافت فایل OpenAPI", "Download OpenAPI")}</Button>
+          <Button type="button" variant="outline" size="sm" onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(agentInstructions(serverOrigin));
+              toast.success(T("راهنمای اتصال کپی شد؛ توکن در آن نیست.", "Connection instructions copied; no token is included."));
+            } catch { toast.error(T("کپی راهنما انجام نشد", "Could not copy instructions")); }
+          }}>{T("کپی راهنمای عامل", "Copy agent instructions")}</Button>
+        </div>
+        <p className="text-xs text-muted-foreground">{T("پس از اتصال، از عامل بخواهید ابتدا اطلاعات اتصال را از مسیر /me بخواند و سپس تغییر موردنظر شما را انجام دهد. برای هر عامل یک توکن جدا بسازید.", "After connecting, ask the agent to read /me first, then perform your requested change. Create a separate token for each agent.")}</p>
+      </div>
+
+      {loadError && <div role="alert" className="rounded-xl border border-destructive/40 p-3 text-xs text-destructive space-y-2">
+        <p>{loadError}</p>
+        <Button type="button" variant="outline" size="sm" onClick={() => void refresh()}>{T("تلاش دوباره", "Retry connection")}</Button>
+      </div>}
 
       {/* Token Creation Card */}
       <div className="rounded-xl border border-border/60 bg-card p-4 space-y-4">
@@ -426,7 +474,7 @@ export function AssistantAccessSettings() {
           </h3>
         </div>
 
-        {grants.length === 0 ? (
+        {loading ? <p role="status" className="text-xs text-muted-foreground">{T("در حال دریافت توکن‌ها…", "Loading tokens…")}</p> : grants.length === 0 && !loadError ? (
           <div className="rounded-xl border border-dashed border-border/80 p-8 text-center bg-muted/10">
             <Bot className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
             <p className="text-xs text-muted-foreground">

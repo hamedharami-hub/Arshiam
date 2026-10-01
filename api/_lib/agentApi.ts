@@ -1,6 +1,7 @@
 import { randomBytes, createHash } from "node:crypto";
 import {
   adminDb,
+  AssistantConfigurationError,
   authenticateAssistant,
   testStore,
   type AssistantGrant,
@@ -956,7 +957,7 @@ export async function handleAgentRequest(req: any, res: any): Promise<void> {
   try {
     // 1. /api/v1/agent/me
     if (segments.length === 1 && segments[0] === "me" && method === "GET") {
-      const grant = await authenticateAssistant(req, res, "tasks:read");
+      const grant = await authenticateAssistant(req, res);
       if (!grant) return;
       return handleGetMe(grant, res);
     }
@@ -1106,6 +1107,7 @@ export async function handleAgentRequest(req: any, res: any): Promise<void> {
 
     return sendError(res, 404, "NOT_FOUND", `Endpoint not found: ${method} ${pathname}`);
   } catch (error: any) {
+    if (error instanceof AssistantConfigurationError) return sendError(res, 503, "SERVICE_NOT_CONFIGURED", error.message);
     console.error("[AgentApi] Internal server error", error);
     return sendError(res, 500, "INTERNAL_ERROR", error?.message || "An unexpected error occurred.");
   }

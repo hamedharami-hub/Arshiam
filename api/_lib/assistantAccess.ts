@@ -21,6 +21,12 @@ export const ASSISTANT_SCOPES = [
 ] as const;
 
 export type AssistantScope = (typeof ASSISTANT_SCOPES)[number];
+export class AssistantConfigurationError extends Error {
+  constructor() {
+    super("The agent service is not configured. Configure Firebase Admin credentials for this application's Firebase project on the server.");
+    this.name = "AssistantConfigurationError";
+  }
+}
 const databaseId = process.env.FIREBASE_DATABASE_ID || (firebaseConfig as any).firestoreDatabaseId || "(default)";
 
 /** In-memory test store used for fast, isolated unit and integration testing */
@@ -52,7 +58,7 @@ function adminApp() {
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
     return initializeApp({ credential: applicationDefault(), projectId: (firebaseConfig as any).projectId });
   }
-  throw new Error("Assistant access requires FIREBASE_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS");
+  throw new AssistantConfigurationError();
 }
 
 export function adminDb() {
@@ -220,7 +226,7 @@ export async function recordGrantUsage(grant: AssistantGrant): Promise<void> {
 export async function authenticateAssistant(
   req: any,
   res: any,
-  scope: AssistantScope
+  scope?: AssistantScope
 ): Promise<AssistantGrant | null> {
   const token = extractBearerToken(req);
   if (!token?.startsWith("arshnaz_pat_")) {
@@ -241,7 +247,7 @@ export async function authenticateAssistant(
       sendError(res, 401, "UNAUTHORIZED", "Assistant access has expired or been revoked.");
       return null;
     }
-    if (!grantAllows(indexed.userId, grant, scope)) {
+    if (scope && !grantAllows(indexed.userId, grant, scope)) {
       sendError(res, 403, "FORBIDDEN", `Assistant access lacks ${scope}.`);
       return null;
     }
@@ -262,7 +268,7 @@ export async function authenticateAssistant(
     sendError(res, 401, "UNAUTHORIZED", "Assistant access has expired or been revoked.");
     return null;
   }
-  if (!grantAllows(userId, grant, scope)) {
+  if (scope && !grantAllows(userId, grant, scope)) {
     sendError(res, 403, "FORBIDDEN", `Assistant access lacks ${scope}.`);
     return null;
   }
