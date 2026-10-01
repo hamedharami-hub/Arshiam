@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useFredWorkflowState } from "./FredPracticeContext";
 import { AlertTriangle, ClipboardList } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,9 +18,12 @@ const emptyLabel = (): FredLabelDraft => ({ directions: "", quantity: 0, repeats
 export function FredWorkflowPanel() {
   const { T, lang } = useBilingual();
   const isEn = lang === "en";
-  const [scriptId, setScriptId] = useState(PHARMACY_FRED_PRACTICE_SCENARIOS[0]?.id ?? "");
-  const [labels, setLabels] = useState<Record<string, FredLabelDraft>>({});
-  const [step, setStep] = useState("label");
+  const [state, setState] = useFredWorkflowState();
+  const scriptId = state.scriptId || (PHARMACY_FRED_PRACTICE_SCENARIOS[0]?.id ?? "");
+  const { labels, step } = state;
+  const setScriptId = (id: string) => setState((previous) => ({ ...previous, scriptId: id }));
+  const setLabels = (update: (previous: Record<string, FredLabelDraft>) => Record<string, FredLabelDraft>) => setState((previous) => ({ ...previous, labels: update(previous.labels) }));
+  const setStep = (next: string) => setState((previous) => ({ ...previous, step: next }));
   const script = useMemo(() => PHARMACY_FRED_PRACTICE_SCENARIOS.find((entry) => entry.id === scriptId) ?? PHARMACY_FRED_PRACTICE_SCENARIOS[0], [scriptId]);
   const label = labels[script.id] ?? emptyLabel();
   const setLabel = (next: FredLabelDraft) => setLabels((previous) => ({ ...previous, [script.id]: next }));

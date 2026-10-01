@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import PharmacyFredPracticeView from "./PharmacyFredPracticeView";
 import { FRED_TRAINING_ERX_BARCODE } from "@/lib/pharmacyFredPractice";
@@ -27,11 +27,16 @@ describe("PharmacyFredPracticeView", { timeout: 15000 }, () => {
       import("@/components/pharmacy/fred/modules/FredPbsposModule"),
     ]);
   });
-  const renderPractice = async () => {
+  const TOOL_LESSON: Record<string, string> = { dispense: "dispense", terminal: "dispense", labeling: "label", pbspos: "pbs-payment", safetynet: "pbs-payment", workflow: "safety-check", review: "safety-check", retention: "records", odt: "records", visualizer: "reading" };
+  const openTool = async (tool: string) => {
+    await act(async () => { fireEvent.click(screen.getByTestId(`fred-nav-${TOOL_LESSON[tool]}`)); });
+    await act(async () => { fireEvent.click(screen.getByTestId("fred-step-example")); });
+    await act(async () => { fireEvent.click(screen.getByTestId(`fred-tool-${tool}`)); });
+  };
+  const renderPractice = async (tool = "dispense") => {
     render(<PharmacyFredPracticeView />);
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: languageState.lang === "en" ? "FRED Dispense" : "نسخه‌پیچی و شرت‌کات‌ها (FRED)" })); });
-    await act(async () => { fireEvent.mouseDown(screen.getByRole("tab", { name: languageState.lang === "en" ? "Practice" : "تمرین" }), { button: 0, ctrlKey: false }); });
-    await screen.findByRole("heading", { name: languageState.lang === "en" ? "Dispensing Workflow & Shortcuts" : "گردش‌کار نسخه‌پیچی و شرت‌کات‌ها" });
+    await openTool(tool);
+    if (tool === "dispense") await screen.findByRole("heading", { name: languageState.lang === "en" ? "Dispensing Workflow & Shortcuts" : "گردش‌کار نسخه‌پیچی و شرت‌کات‌ها" });
   };
   const click = async (...args: Parameters<typeof fireEvent.click>) => { await act(async () => { fireEvent.click(...args); }); };
   let printSpy: ReturnType<typeof vi.spyOn>;
@@ -49,7 +54,7 @@ describe("PharmacyFredPracticeView", { timeout: 15000 }, () => {
     await renderPractice();
 
     expect(
-      screen.getByRole("heading", { name: "FRED Learning Lab" })
+      screen.getByRole("heading", { name: "Learning pharmacy work (FRED)" })
     ).toBeInTheDocument();
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
 
@@ -192,7 +197,7 @@ describe("PharmacyFredPracticeView", { timeout: 15000 }, () => {
 
     expect(screen.getByRole("main")).toHaveAttribute("dir", "rtl");
     expect(
-      screen.getByRole("heading", { name: "آزمایشگاه یادگیری FRED" })
+      screen.getByRole("heading", { name: "یادگیری کار داروخانه (FRED)" })
     ).toBeInTheDocument();
 
     // Click reset practice button
@@ -216,7 +221,7 @@ describe("PharmacyFredPracticeView", { timeout: 15000 }, () => {
       await renderPractice();
 
       // Switch to Safety Net module
-      await click(screen.getByRole("button", { name: /Safety Net Practice/i }));
+      await openTool("safetynet");
       expect(screen.getByRole("heading", { name: /PBS Safety Net Threshold Practice/i })).toBeInTheDocument();
 
       // Official source banner and link
@@ -284,7 +289,7 @@ describe("PharmacyFredPracticeView", { timeout: 15000 }, () => {
       await renderPractice();
 
       // Switch to Labeling module
-      await click(screen.getByRole("button", { name: /Dispensing Label/i }));
+      await openTool("labeling");
       expect(screen.getByRole("heading", { name: "Dispensing Desk Labeling Simulator" })).toBeInTheDocument();
 
       // In-page sticker watermark and warnings
@@ -323,7 +328,7 @@ describe("PharmacyFredPracticeView", { timeout: 15000 }, () => {
       await renderPractice();
 
       // Switch to Retention module
-      await click(screen.getByRole("button", { name: /Document Retention/i }));
+      await openTool("retention");
       expect(screen.getByRole("heading", { name: "Document Retention & Archiving Practice" })).toBeInTheDocument();
 
       // Verify the 3 documents are displayed
@@ -385,7 +390,7 @@ describe("PharmacyFredPracticeView", { timeout: 15000 }, () => {
       await renderPractice();
 
       // Switch to Visualizer module
-      await click(screen.getByRole("button", { name: /Script Visualizer/i }));
+      await openTool("visualizer");
       expect(
         screen.getByRole("heading", { name: "Practice Layout Visualizer" })
       ).toBeInTheDocument();
@@ -465,7 +470,7 @@ describe("PharmacyFredPracticeView", { timeout: 15000 }, () => {
       await renderPractice();
 
       // Switch to Visualizer module via Persian tab button
-      await click(screen.getByRole("button", { name: /نمایشگر و بازرس نسخه/i }));
+      await openTool("visualizer");
       expect(
         screen.getByRole("heading", { name: "نمایشگر چیدمان تمرینی" })
       ).toBeInTheDocument();
@@ -580,7 +585,7 @@ describe("PharmacyFredPracticeView", { timeout: 15000 }, () => {
       await renderPractice();
 
       // Switch to Terminal module
-      await click(screen.getByRole("button", { name: /Practice Terminal/i }));
+      await click(screen.getByTestId("fred-tool-terminal"));
       expect(
         screen.getByRole("heading", { name: "Practice Terminal" })
       ).toBeInTheDocument();
@@ -653,19 +658,19 @@ describe("PharmacyFredPracticeView", { timeout: 15000 }, () => {
       await click(screen.getByRole("button", { name: "Execute" }));
       expect(screen.getByText(/Terminal session reset to initial state/i)).toBeInTheDocument();
       // Counter is 0 for newly reset session
-      expect(screen.getByText("0")).toBeInTheDocument();
+      expect(within(screen.getByRole("heading", { name: "Practice Terminal" }).closest("section")!).getByText("0")).toBeInTheDocument();
 
       fireEvent.change(input, { target: { value: "HELP" } });
       await click(screen.getByRole("button", { name: "Execute" }));
       expect(screen.getByText(/Available whitelisted commands/i)).toBeInTheDocument();
       // Session counter increments to 1
-      expect(screen.getByText("1")).toBeInTheDocument();
+      expect(within(screen.getByRole("heading", { name: "Practice Terminal" }).closest("section")!).getByText("1")).toBeInTheDocument();
 
       fireEvent.change(input, { target: { value: "OPEN A" } });
       await click(screen.getByRole("button", { name: "Execute" }));
       expect(screen.getAllByText("Training entry A").length).toBeGreaterThanOrEqual(1);
       // Session counter increments to 2
-      expect(screen.getByText("2")).toBeInTheDocument();
+      expect(within(screen.getByRole("heading", { name: "Practice Terminal" }).closest("section")!).getByText("2")).toBeInTheDocument();
 
       // Check zero forbidden terms in Terminal DOM
       const terminalSection = screen.getByRole("heading", { name: "Practice Terminal" }).closest("section")!;
@@ -756,7 +761,7 @@ describe("PharmacyFredPracticeView", { timeout: 15000 }, () => {
       await renderPractice();
 
       // Switch to Final Review Preview module
-      await click(screen.getByRole("button", { name: /Final Review Preview/i }));
+      await openTool("review");
       expect(
         screen.getByRole("heading", { name: "Final Review Preview (Practice Only)" })
       ).toBeInTheDocument();
@@ -875,7 +880,7 @@ describe("PharmacyFredPracticeView", { timeout: 15000 }, () => {
       await renderPractice();
 
       // Switch to Final Review module in Persian
-      await click(screen.getByRole("button", { name: /پیش‌نمایش بازبینی پایانی/i }));
+      await openTool("review");
       expect(
         screen.getByRole("heading", { name: "پیش‌نمایش بازبینی پایانی (صرفاً تمرینی)" })
       ).toBeInTheDocument();
@@ -952,7 +957,7 @@ describe("PharmacyFredPracticeView", { timeout: 15000 }, () => {
       await renderPractice();
 
       // Switch to ODT module
-      await click(screen.getByRole("button", { name: "ODT Session Practice" }));
+      await openTool("odt");
       expect(
         screen.getByRole("heading", { name: "ODT Session Practice (Fictional Training Only)" })
       ).toBeInTheDocument();
@@ -1102,7 +1107,7 @@ describe("PharmacyFredPracticeView", { timeout: 15000 }, () => {
       languageState.lang = "fa";
       await renderPractice();
 
-      await click(screen.getByRole("button", { name: /تمرین ثبت جلسه ODT/i }));
+      await openTool("odt");
       expect(
         screen.getByRole("heading", { name: "تمرین ثبت جلسه ODT (صرفاً ساختگی و نمایشی)" })
       ).toBeInTheDocument();
@@ -1218,7 +1223,7 @@ describe("PharmacyFredPracticeView", { timeout: 15000 }, () => {
       languageState.lang = "en";
       await renderPractice();
 
-      await click(screen.getByRole("button", { name: "PBS/POS Categorization Practice" }));
+      await openTool("pbspos");
       expect(
         screen.getByRole("heading", { name: "PBS/POS Categorization Practice (Local Training Only)" })
       ).toBeInTheDocument();
@@ -1315,7 +1320,7 @@ describe("PharmacyFredPracticeView", { timeout: 15000 }, () => {
       languageState.lang = "fa";
       await renderPractice();
 
-      await click(screen.getByRole("button", { name: /پیش‌نمایش دسته‌بندی PBS\/POS/i }));
+      await openTool("pbspos");
       expect(
         screen.getByRole("heading", { name: "پیش‌نمایش دسته‌بندی PBS/POS (صرفاً تمرین محلی)" })
       ).toBeInTheDocument();

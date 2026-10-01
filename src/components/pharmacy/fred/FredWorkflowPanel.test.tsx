@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { FredWorkflowPanel } from "./FredWorkflowPanel";
+import { FredPracticeProvider } from "./FredPracticeContext";
 import { PHARMACY_FRED_PRACTICE_SCENARIOS } from "@/lib/pharmacyFredPracticeData";
 
 vi.mock("@/hooks/useBilingual", () => ({ useBilingual: () => ({ lang: "en", T: (_fa: string, en: string) => en }) }));
@@ -13,7 +14,7 @@ const openTab = (testId: string) => {
 describe("FredWorkflowPanel", () => {
   it("labels a script, then approves it only when everything matches", () => {
     const script = PHARMACY_FRED_PRACTICE_SCENARIOS[0];
-    render(<FredWorkflowPanel />);
+    render(<FredPracticeProvider><FredWorkflowPanel /></FredPracticeProvider>);
     fireEvent.change(screen.getByTestId("fred-label-directions"), { target: { value: script.directions } });
     fireEvent.change(screen.getByTestId("fred-label-quantity"), { target: { value: String(script.quantity) } });
     fireEvent.change(screen.getByTestId("fred-label-repeats"), { target: { value: String(script.repeats) } });
@@ -31,7 +32,7 @@ describe("FredWorkflowPanel", () => {
   });
 
   it("calculates the Safety Net with 2026 amounts", () => {
-    render(<FredWorkflowPanel />);
+    render(<FredPracticeProvider><FredWorkflowPanel /></FredPracticeProvider>);
     openTab("fred-step-safetynet");
     expect(screen.getByTestId("fred-sn-copayment")).toHaveTextContent("$25.00");
     expect(screen.getByTestId("fred-sn-crossed")).toBeInTheDocument();
@@ -40,7 +41,7 @@ describe("FredWorkflowPanel", () => {
   });
 
   it("refuses an unsigned ODT dose and records a valid one", () => {
-    render(<FredWorkflowPanel />);
+    render(<FredPracticeProvider><FredWorkflowPanel /></FredPracticeProvider>);
     openTab("fred-step-odt");
     fireEvent.change(screen.getByTestId("fred-odt-date"), { target: { value: "2026-08-10" } });
     fireEvent.click(screen.getByTestId("fred-odt-add-btn"));
