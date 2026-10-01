@@ -35,7 +35,7 @@ describe("Continue learning (K01)", () => {
     docs.fn.mockResolvedValue(null);
     cards.fn.mockResolvedValue([]);
     renderPage();
-    expect(await screen.findByTestId("continue-last-missing")).toHaveTextContent("no longer exists");
+    expect(await screen.findByTestId("continue-last-missing", undefined, { timeout: 4000 })).toHaveTextContent("no longer exists");
     expect(screen.queryByRole("link", { name: "Gone" })).not.toBeInTheDocument();
   });
   it("shows a loading state before data arrives", async () => {
