@@ -131,7 +131,6 @@ export interface MindTrendChartsProps {
   streak: number;
   thoughtCount: number;
   abcCount: number;
-  activeToolsCount: number;
   trend: MindTrendDataPoint[];
   heatmap: MindHeatmapDay[];
   topDistortions: Array<{ key: string; n: number }>;
@@ -144,7 +143,6 @@ export function MindTrendCharts({
   streak,
   thoughtCount,
   abcCount,
-  activeToolsCount,
   trend,
   heatmap,
   topDistortions,
@@ -174,12 +172,6 @@ export function MindTrendCharts({
           value={isEn ? abcCount : toPersianDigits(abcCount)}
           icon={Zap}
           tone="text-amber-500"
-        />
-        <StatCard
-          label={T("ابزارهای فعال", "Active Tools")}
-          value={activeToolsCount}
-          icon={Brain}
-          tone="text-emerald-500"
         />
       </div>
 

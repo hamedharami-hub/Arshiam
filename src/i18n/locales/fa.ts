@@ -82,7 +82,6 @@ export default {
     checkin: "چک‌این روزانه",
     thoughts: "افکار (CBT)",
     abc: "مدل ABC",
-    socratic: "گفتگوی سقراطی",
     decisions: "تصمیم‌گیری",
     shared: "اشتراک‌ها",
     menu: "منو",

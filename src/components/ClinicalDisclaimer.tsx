@@ -45,7 +45,7 @@ export default function ClinicalDisclaimer() {
         <div className="space-y-3 text-sm leading-7 text-end">
           <p>
             این اپلیکیشن یک <strong>ابزار خودیاری و خودشناسی</strong> است و <strong>جایگزین درمان حرفه‌ای، روان‌درمانی، یا تشخیص پزشکی نیست</strong>.
-            ابزارهای CBT، ABC، ثبت افکار، و چت سقراطی برای آگاهی شخصی طراحی شده‌اند.
+            ابزارهای بررسی فکر، نگرانی و ثبت حال برای آگاهی شخصی طراحی شده‌اند.
           </p>
           <div className="bg-rose-500/10 border border-rose-500/30 rounded-md p-3 space-y-2">
             <div className="font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-2">

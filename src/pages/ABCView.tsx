@@ -1,5 +1,5 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { toPersianDigits } from "@/lib/jalali";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +21,7 @@ import {
   type AbcRecordItem,
 } from "@/lib/firestoreDataService";
 import { useBilingual } from "@/hooks/useBilingual";
+import { useMindDraft } from "@/lib/mindDraft";
 
 export interface AbcOption {
   id: string;
@@ -101,10 +102,11 @@ export function normalizeConsequenceId(text: string): string {
 
 export const normalizeBehaviorId = normalizeConsequenceId;
 
-export default function ABCView() {
+export default function ABCView({ embedded = false }: { embedded?: boolean } = {}) {
   const { user } = useAuth();
   const { T, isEn } = useBilingual();
   const [records, setRecords] = useState<AbcRecordItem[]>([]);
+  const recordIdRef = useRef(`abc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`);
   const [editing, setEditing] = useState(false);
   const [customTrigger, setCustomTrigger] = useState("");
   const [customBehavior, setCustomBehavior] = useState("");
@@ -135,6 +137,22 @@ export default function ABCView() {
     return () => unsub();
   }, [user]);
 
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("record");
+    if (!embedded || !id) return;
+    const t = setTimeout(() => document.getElementById(`record-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 500);
+    return () => clearTimeout(t);
+  }, [embedded, records.length]);
+
+  const { draft: mindDraft, clear: clearMindDraftText } = useMindDraft(user?.id);
+  const abcSeededRef = useRef(false);
+  useEffect(() => {
+    if (!embedded || abcSeededRef.current || !mindDraft?.text) return;
+    abcSeededRef.current = true;
+    setForm((prev) => (prev.belief ? prev : { ...prev, belief: mindDraft.text }));
+    setEditing(true);
+  }, [embedded, mindDraft]);
+
   async function save() {
     const finalTrigger = form.trigger === "other" ? customTrigger.trim() || "other" : form.trigger;
     const finalBehaviors = [...form.behaviors];
@@ -160,7 +178,7 @@ export default function ABCView() {
       next_reaction: form.next_reaction.trim() || null,
     };
 
-    const savedId = await upsertAbcRecord(user.id, payload);
+    const savedId = await upsertAbcRecord(user.id, { ...payload, id: recordIdRef.current });
     if (savedId) {
       firebaseStore
         .from("abc_records")
@@ -168,8 +186,10 @@ export default function ABCView() {
         .catch(() => {});
 
       // If user provided an intended reaction for next time, convert to Task
+      let taskOk = true;
       if (form.next_reaction.trim()) {
-        await createTaskFromMind({
+        const taskRes = await createTaskFromMind({
+          id: `task_${savedId}`,
           user_id: user.id,
           title: (isEn
             ? `Try alternative reaction: ${form.next_reaction.trim()}`
@@ -182,9 +202,16 @@ export default function ABCView() {
           source_type: "abc_model",
           source_id: savedId,
         });
+        taskOk = taskRes.ok;
       }
 
-      toast.success(T("ثبت شد ✨", "Saved ✨"));
+      if (!taskOk) {
+        toast.error(T("رکورد ذخیره شد، اما ساخت تسک ناموفق بود. دوباره «ثبت» را بزنید؛ تکراری ساخته نمی‌شود.", "Record saved, but the task could not be created. Press Save again; no duplicate will be made."));
+        return;
+      }
+      clearMindDraftText();
+      recordIdRef.current = `abc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      toast.success(T("ثبت شد", "Saved"));
       setEditing(false);
       setCustomTrigger("");
       setCustomBehavior("");
@@ -262,11 +289,11 @@ export default function ABCView() {
   return (
     <div
       dir={isEn ? "ltr" : "rtl"}
-      className="page-shell page-shell--lg space-y-6 animate-fade-in"
+      className={embedded ? "space-y-6" : "page-shell page-shell--lg space-y-6 animate-fade-in"}
     >
       <div className="flex items-center justify-between gap-3">
         <div>
-          <HeaderTitlePortal title={T("مدل رفتار (ABC)", "ABC Model")} />
+          {!embedded && <HeaderTitlePortal title={T("مدل رفتار (ABC)", "ABC Model")} />}
           <p className="text-muted-foreground text-sm">
             {T(
               "محرک (A) ← باور آنی (B) ← احساس و رفتار (C). کشف الگوهای واقعی برای اقدام آگاهانه.",
@@ -562,7 +589,7 @@ export default function ABCView() {
       {/* Records History */}
       <div className="space-y-3">
         {records.map((r) => (
-          <Card key={r.id}>
+          <Card key={r.id} id={`record-${r.id}`} className={new URLSearchParams(window.location.search).get("record") === r.id ? "ring-2 ring-primary" : ""}>
             <CardContent className="p-4 space-y-2 text-sm">
               <div className="flex justify-between items-start gap-2">
                 <div className="font-semibold text-foreground">

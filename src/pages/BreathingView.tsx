@@ -122,6 +122,14 @@ export default function BreathingView() {
     return seq;
   }, [pattern]);
 
+  useEffect(() => {
+    if (autoStartedRef.current || new URLSearchParams(window.location.search).get("start") !== "1") return;
+    if (!sequence.length) return;
+    autoStartedRef.current = true;
+    start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sequence.length]);
+
   const stop = useCallback((reset = false) => {
     runningRef.current = false;
     setRunning(false);
@@ -192,6 +200,7 @@ export default function BreathingView() {
     rafRef.current = requestAnimationFrame(loop_);
   }, [sequence, pattern.loops, stop, isEn, T]);
 
+  const autoStartedRef = useRef(false);
   const start = () => {
     if (runningRef.current) return;
     if (!sequence.length) return;

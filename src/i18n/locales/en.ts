@@ -82,7 +82,6 @@ export default {
     checkin: "Check-in",
     thoughts: "Thoughts (CBT)",
     abc: "ABC Model",
-    socratic: "Socratic Dialogue",
     decisions: "Decisions",
     shared: "Shared with me",
     menu: "Menu",

@@ -3,7 +3,7 @@ import { isPathAllowed, useModules, type ModulesState } from "@/lib/appModules";
 import {
   Moon, Inbox, Calendar as CalIcon, CalendarDays, Filter, Tag, FileText,
   Target, Timer, Calendar, ChevronDown, Sparkles, LayoutGrid,
-  TrendingUp, Activity, MessageCircleQuestion, Zap, ShieldAlert, BookOpen, Sun,
+  TrendingUp, Activity, Heart, HeartPulse, ShieldAlert, BookOpen, Sun,
   ListTodo, BrainCircuit, GripVertical, User, Shield, Pill,
   BarChart3, Sprout, Wind, Compass, Users, Gamepad2, PackageSearch, ClipboardCheck, Keyboard, FlaskConical, Columns3, Hourglass, PlayCircle,
 } from "lucide-react";
@@ -48,7 +48,11 @@ export const EN_LABELS: Record<string, string> = {
   "ژورنال تصمیم": "Decision Journal",
   "ثبت افکار (CBT)": "Thought Records (CBT)",
   "مدل ABC": "ABC Model",
-  "چت سقراطی": "Socratic Chat",
+  "بررسی فکر": "Think it through",
+  "حال امروز": "Today's mood",
+  "آرام‌شدن": "Calm down",
+  "ارزش‌ها و اهداف": "Values & Goals",
+  "سلامت": "Health",
   "درباره من": "About Me",
   "تنظیمات": "Settings",
   "پنل مدیریت": "Admin Panel",
@@ -122,6 +126,7 @@ export const SECTIONS: Section[] = [
   {
     id: "grow", title: "رشد", icon: TrendingUp, defaultOpen: false,
     items: [
+      { url: "/app/values", icon: Heart, label: "ارزش‌ها و اهداف" },
       { url: "/app/life-architect", icon: Compass, label: "معمار زندگی" },
       { url: "/app/garden", icon: Sprout, label: "باغ رشد" },
       { url: "/app/notes", icon: FileText, label: "نوت‌ها" },
@@ -146,6 +151,11 @@ export const SECTIONS: Section[] = [
           { url: "/app/continue", icon: PlayCircle, label: "ادامهٔ یادگیری" },
         ],
       },
+    ],
+  },
+  {
+    id: "health", title: "سلامت", icon: HeartPulse, defaultOpen: false,
+    items: [
       { url: "/app/cycle", icon: Calendar, label: "سیکل پریود" },
     ],
   },
@@ -153,12 +163,9 @@ export const SECTIONS: Section[] = [
     id: "mind", title: "ذهن", icon: BrainCircuit, defaultOpen: false,
     items: [
       { url: "/app/mind", icon: BrainCircuit, label: "داشبورد ذهن" },
-      { url: "/app/checkin", icon: Activity, label: "چک‌این روزانه" },
-      { url: "/app/thoughts", icon: BookOpen, label: "ثبت افکار (CBT)" },
-      { url: "/app/abc", icon: Zap, label: "مدل ABC" },
-      { url: "/app/socratic", icon: MessageCircleQuestion, label: "چت سقراطی" },
-      { url: "/app/breathing", icon: Wind, label: "تمرین تنفس ۳بعدی" },
-      { url: "/app/sleep", icon: Moon, label: "خواب و آرامش" },
+      { url: "/app/checkin", icon: Activity, label: "حال امروز" },
+      { url: "/app/thoughts", icon: BookOpen, label: "بررسی فکر" },
+      { url: "/app/calm", icon: Wind, label: "آرام‌شدن" },
       { url: "/app/crisis", icon: ShieldAlert, label: "پشتیبانی بحران (SOS)" },
     ],
   },

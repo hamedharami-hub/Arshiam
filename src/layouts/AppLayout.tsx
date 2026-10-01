@@ -18,6 +18,7 @@ import { migrateLegacyComments } from "@/lib/commentMigration";
 import { startAttachmentQueueRunner } from "@/lib/attachmentUpload";
 import BackButtonHandler from "@/components/BackButtonHandler";
 import CommandPalette from "@/components/CommandPalette";
+import { purgeRetiredFeatureKeys } from "@/lib/retiredFeatures";
 import { PageColorButton } from "@/components/PageColorButton";
 import { pageKeyForPath, pageTint, usePageBackground } from "@/lib/pageBackground";
 import QuickCaptureDialog from "@/components/QuickCaptureDialog";
@@ -47,6 +48,7 @@ export default function AppLayout() {
   const loc = useLocation();
   useTwoFingerSwipe();
   const { user: layoutUser } = useAuth();
+  useEffect(() => { purgeRetiredFeatureKeys(); }, []);
   const pageKey = pageKeyForPath(loc.pathname);
   const pageBg = usePageBackground(layoutUser?.id, pageKey);
   useEffect(() => { void syncModulesForUser(layoutUser?.id ?? null); }, [layoutUser?.id]);

@@ -23,7 +23,7 @@ describe("Android deep links", () => {
 
   it("allows the native mind and problem-solving widget routes", () => {
     expect(nativeRoute("arshnaz://mind")).toBe("/app/mind");
-    expect(nativeRoute("arshnaz://socratic")).toBe("/app/socratic");
+    expect(nativeRoute("arshnaz://calm")).toBe("/app/calm");
     expect(nativeRoute("arshnaz://life-architect")).toBe("/app/life-architect");
     expect(nativeRoute("arshnaz://widgets")).toBe("/app/widgets");
     expect(nativeRoute("arshnaz://crisis")).toBe("/app/crisis");

@@ -54,11 +54,9 @@ export const SIDEBAR_QUICK_LINK_OPTIONS: SidebarQuickLink[] = [
   // 4. Mind (ذهن)
   { url: "/app/mind", labelFa: "داشبورد ذهن", labelEn: "Mind Dashboard", group: "mind" },
   { url: "/app/checkin", labelFa: "چک‌این روزانه", labelEn: "Daily Check-in", group: "mind" },
-  { url: "/app/thoughts", labelFa: "ثبت افکار (CBT)", labelEn: "Thought Records (CBT)", group: "mind" },
-  { url: "/app/abc", labelFa: "مدل ABC", labelEn: "ABC Model", group: "mind" },
-  { url: "/app/socratic", labelFa: "چت سقراطی", labelEn: "Socratic Chat", group: "mind" },
-  { url: "/app/sleep", labelFa: "خواب و آرامش", labelEn: "Sleep & Relaxation", group: "mind" },
-  { url: "/app/breathing", labelFa: "تمرین تنفس ۳بعدی", labelEn: "3D Breathing", group: "mind" },
+  { url: "/app/thoughts", labelFa: "بررسی فکر", labelEn: "Think it through", group: "mind" },
+  { url: "/app/calm", labelFa: "آرام‌شدن", labelEn: "Calm down", group: "mind" },
+  { url: "/app/values", labelFa: "ارزش‌ها و اهداف", labelEn: "Values & Goals", group: "grow" },
 
   // 5. Me (خودِ من)
   { url: "/app/about-me", labelFa: "درباره من", labelEn: "About Me", group: "me" },

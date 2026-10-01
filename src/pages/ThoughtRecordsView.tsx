@@ -1,5 +1,8 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import ABCView from "@/pages/ABCView";
+import { useMindDraft } from "@/lib/mindDraft";
 import { useNavigate } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -70,6 +73,13 @@ export default function ThoughtRecordsView() {
   const [editing, setEditing] = useState(false);
   const [activeStep, setActiveStep] = useState<number>(1);
   const [form, setForm] = useState(emptyForm());
+  const [searchParams] = useSearchParams();
+  const [mode, setMode] = useState<"full" | "short">(searchParams.get("mode") === "short" ? "short" : "full");
+  const { draft, save: saveDraft, clear: clearDraft } = useMindDraft(user?.id);
+  const recordIdRef = useRef(`thought_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`);
+  const [pendingTaskRetry, setPendingTaskRetry] = useState(false);
+  const seededRef = useRef(false);
+  const focusRecordId = searchParams.get("record");
   const [aiBusy, setAiBusy] = useState(false);
   const [aiExplanations, setAiExplanations] = useState<Record<string, string>>({});
   const [aiAlternative, setAiAlternative] = useState("");
@@ -98,6 +108,7 @@ export default function ThoughtRecordsView() {
   // Stale AI suggestion invalidator when inputs change
   function updateFormField<K extends keyof ReturnType<typeof emptyForm>>(key: K, value: ReturnType<typeof emptyForm>[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+    if (key === "situation") saveDraft({ text: String(value), path: "think" });
     if (key === "automatic_thought" || key === "situation") {
       if (aiAlternative || Object.keys(aiExplanations).length > 0) {
         setAiAlternative("");
@@ -169,6 +180,20 @@ export default function ThoughtRecordsView() {
     }
   }
 
+  useEffect(() => {
+    if (seededRef.current || !draft?.text) return;
+    seededRef.current = true;
+    setForm((prev) => (prev.situation ? prev : { ...prev, situation: draft.text }));
+    setEditing(true);
+  }, [draft]);
+
+  useEffect(() => {
+    if (!focusRecordId) return;
+    setActiveTab("history");
+    const t = setTimeout(() => document.getElementById(`record-${focusRecordId}`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 400);
+    return () => clearTimeout(t);
+  }, [focusRecordId, records.length]);
+
   async function save() {
     if (!user || !form.situation.trim() || !form.automatic_thought.trim()) {
       toast.error(T("موقعیت و فکر خودکار را پر کن", "Please fill in situation and automatic thought"));
@@ -189,7 +214,7 @@ export default function ThoughtRecordsView() {
       distortions: form.distortions,
     };
 
-    const savedId = await upsertThoughtRecord(user.id, payload);
+    const savedId = await upsertThoughtRecord(user.id, { ...payload, id: recordIdRef.current });
     if (savedId) {
       firebaseStore
         .from("thought_records")
@@ -197,8 +222,10 @@ export default function ThoughtRecordsView() {
         .catch(() => {});
 
       // If user provided a next step and wants it as a task
+      let taskOk = true;
       if (form.next_step?.trim()) {
-        await createTaskFromMind({
+        const taskRes = await createTaskFromMind({
+          id: `task_${savedId}`,
           user_id: user.id,
           title: form.next_step.trim().slice(0, 140),
           description: isEn
@@ -208,9 +235,18 @@ export default function ThoughtRecordsView() {
           source_type: "cbt_thought",
           source_id: savedId,
         });
+        taskOk = taskRes.ok;
       }
 
-      toast.success(T("ثبت شد ✨", "Saved ✨"));
+      if (!taskOk) {
+        setPendingTaskRetry(true);
+        toast.error(T("فکر ذخیره شد، اما ساخت تسک ناموفق بود. دوباره «ثبت» را بزنید؛ رکورد تکراری ساخته نمی‌شود.", "Record saved, but the task could not be created. Press Save again; no duplicate will be made."));
+        return;
+      }
+      setPendingTaskRetry(false);
+      recordIdRef.current = `thought_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      clearDraft();
+      toast.success(T("ثبت شد", "Saved"));
       setEditing(false);
       setForm(emptyForm());
       setAiAlternative("");
@@ -235,7 +271,7 @@ export default function ThoughtRecordsView() {
     >
       <div className="flex items-center justify-between gap-3">
         <div>
-          <HeaderTitlePortal title={T("ثبت افکار (CBT)", "Thought Records (CBT)")} />
+          <HeaderTitlePortal title={T("بررسی فکر", "Think it through")} />
           <p className="text-muted-foreground text-sm">
             {T(
               "مسیر ۵ مرحله‌ای: اتفاق ← فکر خودکار ← احساس ← شواهد ← برداشت متعادل‌تر.",
@@ -250,6 +286,14 @@ export default function ThoughtRecordsView() {
         )}
       </div>
 
+      <div className="inline-flex rounded-lg border border-border p-0.5 text-sm" role="tablist" aria-label={T("حالت بررسی", "Mode")}>
+        {([["full", T("مسیر کامل", "Full path")], ["short", T("حالت کوتاه: اتفاق ← برداشت ← واکنش", "Quick: event → view → reaction")]] as const).map(([k, label]) => (
+          <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => setMode(k)} data-testid={`think-mode-${k}`}
+            className={`rounded-md px-3 py-1.5 ${mode === k ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>{label}</button>
+        ))}
+      </div>
+      {mode === "short" && <ABCView embedded />}
+      {mode === "full" && (<>
       {/* Guide Accordion */}
       <Card className="border-primary/20">
         <CardContent className="p-0">
@@ -555,7 +599,7 @@ export default function ThoughtRecordsView() {
       {/* Records List */}
       <div className="space-y-3">
         {records.map((r) => (
-          <Card key={r.id}>
+          <Card key={r.id} id={`record-${r.id}`} className={focusRecordId === r.id ? "ring-2 ring-primary" : ""}>
             <CardContent className="p-4 space-y-2.5 text-sm">
               <div className="flex justify-between items-start gap-2">
                 <div className="font-semibold text-foreground">{r.situation}</div>
@@ -636,6 +680,7 @@ export default function ThoughtRecordsView() {
           </div>
         )}
       </div>
+      </>)}
     </div>
   );
 }

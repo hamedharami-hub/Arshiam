@@ -28,7 +28,6 @@ export type AIOperation =
   | "task_metadata_suggest"
   | "task_chat"
   | "folder_chat"
-  | "socratic"
   | "distortion_detect"
   | "about_me_analysis";
 
@@ -66,7 +65,6 @@ export const OPERATIONS: OperationMeta[] = [
   // Folder
   { key: "folder_chat",           labelFa: "چت روی یک فولدر (پروژه)",        labelEn: "Chat on a folder (project)",    descFa: "گفتگو روی همه تسک‌ها/نوت‌های یک فولدر.",                     descEn: "Chat across a whole folder of tasks/notes.",                   usedInFa: "فولدر → چت AI", usedInEn: "Folder → AI chat", group: "فولدر", groupEn: "Folder" },
   // Mental health & Personalization
-  { key: "socratic",              labelFa: "چت سقراطی (فقط سوال)",            labelEn: "Socratic chat (questions only)", descFa: "فقط سوال می‌پرسد تا خودت به پاسخ برسی.",                    descEn: "Only asks questions, helping you self-discover.",              usedInFa: "ذهن → چت سقراطی (نیاز به اتصال)", usedInEn: "Mind → Socratic (needs wiring)", group: "سلامت ذهن", groupEn: "Mental health" },
   { key: "distortion_detect",     labelFa: "تشخیص خطای شناختی (CBT)",         labelEn: "Cognitive distortion detection (CBT)", descFa: "خطاهای شناختی را در متن پیدا می‌کند.",                descEn: "Finds cognitive distortions in your text.",                    usedInFa: "ذهن → Thought Records", usedInEn: "Mind → Thought Records", group: "سلامت ذهن", groupEn: "Mental health" },
   { key: "about_me_analysis",     labelFa: "تحلیل هوشمند درباره من",          labelEn: "About Me analysis",             descFa: "تحلیل ارزش‌ها، اهداف و الگوهای شخصی بدون ادعای بالینی.",      descEn: "Analyzes personal goals and patterns without clinical claims.", usedInFa: "درباره من → تحلیل و استخراج", usedInEn: "About Me → Analyze & extract", group: "شخصی‌سازی", groupEn: "Personalization" },
 ];
@@ -89,7 +87,6 @@ export const OP_RECOMMENDED: Record<AIOperation, { provider: Provider; model: st
   inline_edit:           { provider: "gemini", model: "gemini-3-flash-preview",                    whyFa: "ویرایش دقیق محدوده انتخاب‌شده",                whyEn: "Precise edits on selected text" },
   suggest:               { provider: "gemini", model: "gemini-3-flash-preview",       whyFa: "پیشنهاد متنوع و سریع",                         whyEn: "Diverse suggestions, fast" },
   chat:                  { provider: "gemini", model: "gemini-3-flash-preview",                    whyFa: "همه‌کاره و متعادل",                            whyEn: "Versatile & balanced" },
-  socratic:              { provider: "gemini", model: "gemini-3.1-pro-preview",                          whyFa: "سوال‌پرسی عمیق و درست",                        whyEn: "Deep, well-aimed questions" },
   distortion_detect:     { provider: "gemini", model: "gemini-3.1-pro-preview",                        whyFa: "reasoning قوی برای تحلیل CBT",                 whyEn: "Strong reasoning for CBT analysis" },
   about_me_analysis:     { provider: "gemini", model: "gemini-3-flash-preview",                    whyFa: "استخراج ساختاریافته اهداف بدون برچسب بالینی",   whyEn: "Structured goal extraction without clinical labeling" },
   note_actions:          { provider: "gemini", model: "gemini-3-flash-preview",                    whyFa: "قالب‌بندی و ترجمه آموزشی سریع",                 whyEn: "Fast educational formatting & translation" },

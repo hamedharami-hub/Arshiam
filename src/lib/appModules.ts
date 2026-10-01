@@ -22,8 +22,8 @@ export const APP_MODULES: Record<ModuleId, ModuleDef> = {
   },
   mind: {
     titleFa: "ذهن", titleEn: "Mind",
-    descFa: "داشبورد ذهن، چک‌این، CBT، ABC، چت سقراطی، تنفس، نگرانی و ارزش‌ها", descEn: "Mind dashboard, check-in, CBT, ABC, Socratic chat, breathing, worry and values",
-    paths: ["/app/mind", "/app/checkin", "/app/thoughts", "/app/abc", "/app/socratic", "/app/breathing", "/app/screener", "/app/worry", "/app/values"],
+    descFa: "داشبورد ذهن، حال امروز، بررسی فکر، آرام‌شدن، تنفس و نگرانی", descEn: "Mind dashboard, daily mood, thought check, calming, breathing and worry",
+    paths: ["/app/mind", "/app/checkin", "/app/thoughts", "/app/abc", "/app/calm", "/app/sleep", "/app/breathing", "/app/screener", "/app/worry"],
     prefetch: () => Promise.all([import("@/pages/MindView"), import("@/pages/CheckinView")]),
   },
 };

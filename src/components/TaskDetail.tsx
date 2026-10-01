@@ -1,3 +1,4 @@
+import { mindSourceRoute } from "@/lib/taskFromMind";
 import { NoteMarkdown } from "@/components/NoteMarkdown";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { hasModule, isPathAllowed, useModules } from "@/lib/appModules";
@@ -1030,9 +1031,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             icon={Brain}
             color="bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30"
             onClick={() => {
-              if (t.source_type === "cbt_thought") navigate("/app/thoughts");
-              else if (t.source_type === "abc_model") navigate("/app/abc");
-              else if (t.source_type === "worry_tree") navigate("/app/worry");
+              const route = mindSourceRoute(t);
+              if (route) navigate(route);
               else if (t.source_type === "values_goal") navigate("/app/values");
               else navigate("/app/mind");
             }}
@@ -1622,9 +1622,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           size="sm"
           className="h-6 px-2 text-[11px] text-purple-600 dark:text-purple-400 hover:bg-purple-500/10"
           onClick={() => {
-            if (t.source_type === "cbt_thought") navigate("/app/thoughts");
-            else if (t.source_type === "abc_model") navigate("/app/abc");
-            else if (t.source_type === "worry_tree") navigate("/app/worry");
+            const route = mindSourceRoute(t);
+            if (route) navigate(route);
             else if (t.source_type === "values_goal") navigate("/app/values");
             else navigate("/app/mind");
           }}

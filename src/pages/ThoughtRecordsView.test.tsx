@@ -40,7 +40,7 @@ describe("ThoughtRecordsView route", () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByRole("heading", { name: "ثبت افکار (CBT)" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "بررسی فکر" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "ثبت جدید" })).toBeInTheDocument();
   });
 });

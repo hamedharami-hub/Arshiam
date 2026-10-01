@@ -2,8 +2,6 @@ import type { Distortion } from "@/lib/distortions";
 import { DISTORTION_LABELS } from "@/lib/distortions";
 import type {
   CbtAnalysisOutput,
-  SocraticDialogueOutput,
-  SocraticSummaryOutput,
   WorryBrainstormOutput,
   WeeklyInsightOutput,
 } from "./types";
@@ -115,73 +113,6 @@ export function validateCbtOutput(raw: any, fallbackText = ""): CbtAnalysisOutpu
     alternative_perspective,
     missing_information,
     suggested_next_step,
-  };
-}
-
-export function validateSocraticDialogueOutput(raw: any, fallbackText = ""): SocraticDialogueOutput {
-  const data = typeof raw === "object" && raw !== null ? raw : parseJsonFromText(fallbackText) || {};
-
-  let question = "";
-  let observationOrEmpathy: string | undefined = undefined;
-  let focusArea: SocraticDialogueOutput["focusArea"] = "evidence";
-
-  if (typeof data.question === "string" && data.question.trim()) {
-    question = data.question.trim();
-    observationOrEmpathy = typeof data.observationOrEmpathy === "string" ? data.observationOrEmpathy.trim() : undefined;
-    if (["evidence", "perspective", "value", "action", "clarification"].includes(data.focusArea)) {
-      focusArea = data.focusArea;
-    }
-  } else if (typeof fallbackText === "string" && fallbackText.trim()) {
-    // If output was plain text rather than JSON, extract the question
-    const text = fallbackText.trim();
-    // Split sentences
-    const sentences = text.split(/(?<=[.!?؟\n])\s+/).filter(Boolean);
-    const qSentence = sentences.find((s) => s.includes("?") || s.includes("؟"));
-    if (qSentence) {
-      question = qSentence.trim();
-      const nonQ = sentences.filter((s) => s !== qSentence).join(" ").trim();
-      if (nonQ) observationOrEmpathy = nonQ.slice(0, 150);
-    } else {
-      question = text;
-    }
-  }
-
-  if (!question) {
-    question = "چه شواهد مشخصی از این موقعیت داری که قابل مشاهده برای دیگران هم باشد؟";
-  }
-
-  return {
-    question,
-    observationOrEmpathy,
-    focusArea,
-  };
-}
-
-export function validateSocraticSummaryOutput(raw: any, fallbackText = ""): SocraticSummaryOutput {
-  const data = typeof raw === "object" && raw !== null ? raw : parseJsonFromText(fallbackText) || {};
-
-  let key_insights: string[] = [];
-  if (Array.isArray(data.key_insights) && data.key_insights.length > 0) {
-    key_insights = data.key_insights.map(String).filter(Boolean);
-  } else if (typeof fallbackText === "string" && fallbackText.trim()) {
-    key_insights = fallbackText
-      .split("\n")
-      .map((l) => l.replace(/^[\d\-\.\*\s]+/, "").trim())
-      .filter(Boolean)
-      .slice(0, 3);
-  }
-
-  if (key_insights.length === 0) {
-    key_insights = ["بررسی افکار و شواهد در این گفت‌وگو به افزایش وضوح موضوع کمک کرد."];
-  }
-
-  return {
-    key_insights,
-    potential_next_step: typeof data.potential_next_step === "string" ? data.potential_next_step.trim() : null,
-    user_agency_note:
-      typeof data.user_agency_note === "string"
-        ? data.user_agency_note.trim()
-        : "انتخاب اقدام و تفسیر نهایی همواره بر عهده خود شماست.",
   };
 }
 

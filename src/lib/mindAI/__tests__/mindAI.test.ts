@@ -3,8 +3,6 @@ import {
   createMindAIContext,
   formatContextForPrompt,
   validateCbtOutput,
-  validateSocraticDialogueOutput,
-  validateSocraticSummaryOutput,
   validateWorryBrainstormOutput,
   validateWeeklyInsightOutput,
   normalizeDistortionKey,
@@ -261,18 +259,6 @@ describe("Mind AI Contract & Synthetic Evaluation Suite", () => {
     expect(res.flags).toContain("suicidal_ideation"); // Independently flagged!
   });
 
-  // Extra test: Socratic Dialogue output validator enforces 1 question and focusArea
-  it("Socratic output validator normalizes question and empathy reflection", () => {
-    const raw = {
-      question: "چه شواهد دیگری در حمایت از این فکر داری؟",
-      observationOrEmpathy: "می‌شنوم که این موقعیت برایت استرس‌زا بوده است.",
-      focusArea: "evidence",
-    };
-    const out = validateSocraticDialogueOutput(raw);
-    expect(out.question).toBe("چه شواهد دیگری در حمایت از این فکر داری؟");
-    expect(out.observationOrEmpathy).toBe("می‌شنوم که این موقعیت برایت استرس‌زا بوده است.");
-    expect(out.focusArea).toBe("evidence");
-  });
 
   // Extra test: Normalizes common distortion aliases
   it("Normalizes common distortion aliases to valid app keys", () => {

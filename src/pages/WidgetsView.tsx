@@ -372,7 +372,7 @@ export default function WidgetsView() {
                 { id: "pomodoro", name: T("Focus Timer (تایمر تمرکز)", "Focus Timer (Pomodoro)"), desc: T("شمارش معکوس زنده ۲۵ دقیقه‌ای با شروع/توقف", "Live 25-minute countdown with start/pause"), icon: TimerReset },
                 { id: "action_hub", name: T("Quick Actions Hub", "Quick Actions Hub"), desc: T("دکمه‌های فوری تسک جدید، ویس، ذهن و پومودورو", "Instant shortcuts for task, voice, mind & timer"), icon: Sparkles },
                 { id: "mind", name: T("Mind Reset (تنظیم ذهن)", "Mind Reset"), desc: T("چک‌این روحی، ثبت فکر CBT و تمرین تنفس ۳بعدی", "Mood check-in, CBT thought log & 3D breathing"), icon: Activity },
-                { id: "problem", name: T("Problem Solver (حل مسئله)", "Problem Solver"), desc: T("چارچوب ABC، تفکر سقراطی و قدم بعدی", "ABC framework, Socratic questioning & next steps"), icon: BrainCircuit },
+                { id: "problem", name: T("Problem Solver (حل مسئله)", "Problem Solver"), desc: T("بررسی فکر، نگرانی و قدم بعدی", "Think it through, worries & next step"), icon: BrainCircuit },
               ].map((w) => {
                 const Icon = w.icon;
                 const isSelected = activeWidget === w.id;
@@ -865,31 +865,22 @@ export default function WidgetsView() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
                           <BrainCircuit className="h-4 w-4 text-violet-400" />
-                          <span className="text-xs font-bold">{T("حل مسئله و تفکر سقراطی", "Problem Solving & Socratic Thinking")}</span>
+                          <span className="text-xs font-bold">{T("بررسی فکر و حل نگرانی", "Thought check & worry solving")}</span>
                         </div>
                         <Badge variant="outline" className="text-[10px] text-violet-400 border-violet-400/30">CBT</Badge>
                       </div>
                       <p className="text-[11px] text-muted-foreground leading-5">
-                        {T("تفکیک مسئله، پاسخ به سوالات سقراطی و کشف قدم بعدی", "Deconstruct problem, answer Socratic questions & find next step")}
+                        {T("بررسی فکر، تفکیک نگرانی و کشف قدم بعدی", "Check a thought, sort a worry & find the next step")}
                       </p>
                       <div className="flex gap-2 pt-1">
-                        {isPathAllowed("/app/socratic") && (
-                          <Button
-                            size="sm"
-                            onClick={() => navigate("/app/socratic")}
-                            className="h-9 flex-1 text-xs rounded-xl"
-                          >
-                            {T("چت سقراطی", "Socratic Chat")}
+                        {isPathAllowed("/app/thoughts") && (
+                          <Button size="sm" onClick={() => navigate("/app/thoughts")} className="h-9 flex-1 text-xs rounded-xl">
+                            {T("بررسی فکر", "Think it through")}
                           </Button>
                         )}
-                        {isPathAllowed("/app/abc") && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => navigate("/app/abc")}
-                            className="h-9 flex-1 text-xs rounded-xl"
-                          >
-                            {T("مدل ABC", "ABC Model")}
+                        {isPathAllowed("/app/worry") && (
+                          <Button size="sm" variant="outline" onClick={() => navigate("/app/worry")} className="h-9 flex-1 text-xs rounded-xl">
+                            {T("نگرانی", "Worry")}
                           </Button>
                         )}
                       </div>

@@ -1213,7 +1213,7 @@ export async function deleteMindGoal(userId: string, goalId: string): Promise<bo
   }
 }
 
-// ==================== SOCRATIC SESSION ====================
+// ==================== LEGACY SOCRATIC SESSION (read-only archive) ====================
 
 export interface SocraticMessageItem {
   role: "user" | "assistant";
@@ -1269,56 +1269,4 @@ export function subscribeSocraticSession(
   }
 }
 
-export async function saveSocraticSession(
-  userId: string,
-  session: Partial<SocraticSessionItem>
-): Promise<boolean> {
-  if (!userId) return false;
-  const now = new Date().toISOString();
-  const payload: SocraticSessionItem = {
-    id: "current",
-    user_id: userId,
-    messages: session.messages || [],
-    summary: session.summary ?? null,
-    draft_text: session.draft_text ?? "",
-    updated_at: now,
-    created_at: session.created_at || now,
-    ...session,
-  };
-
-  cacheSet(`socratic:session:${userId}`, payload);
-
-  try {
-    const docRef = doc(db, "users", userId, "socratic_sessions", "current");
-    await setDoc(docRef, payload, { merge: true });
-    return true;
-  } catch (err) {
-    console.warn("[FirestoreData] saveSocraticSession error, queuing:", err);
-    try {
-      const ok = await enqueueOp({
-        ownerId: userId,
-        table: "socratic_sessions",
-        op: "upsert",
-        payload,
-        match: { id: "current" },
-      });
-      return ok;
-    } catch {
-      return false;
-    }
-  }
-}
-
-export async function clearSocraticSession(userId: string): Promise<boolean> {
-  if (!userId) return false;
-  cacheSet(`socratic:session:${userId}`, null);
-  try {
-    const docRef = doc(db, "users", userId, "socratic_sessions", "current");
-    await deleteDoc(docRef);
-    return true;
-  } catch (err) {
-    console.warn("[FirestoreData] clearSocraticSession error:", err);
-    return false;
-  }
-}
 

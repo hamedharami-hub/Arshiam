@@ -16,7 +16,7 @@ type PageBgMap = Record<string, PageColorChoice>;
 
 const TASK_PAGES = new Set(["today", "inbox", "tomorrow", "next7", "smart", "tag", "kanban", "buckets", "calendar", "stats", "widgets", "pomodoro", "habits"]);
 const KNOWLEDGE_PAGES = new Set(["knowledge", "notes", "diary", "pharmacy", "pharmacy-products", "pharmacy-scenario-practice", "pharmacy-fred-practice", "pharmacy-cyp", "interactive-study", "review", "continue"]);
-const MIND_PAGES = new Set(["mind", "checkin", "thoughts", "abc", "socratic", "breathing", "sleep", "values", "life-architect", "worry", "cycle", "self", "about-me", "garden", "screener"]);
+const MIND_PAGES = new Set(["mind", "checkin", "thoughts", "abc", "calm", "breathing", "sleep", "values", "life-architect", "worry", "cycle", "self", "about-me", "garden", "screener"]);
 
 /** Gentle suggested tint per app section; users can override or turn it off per page. */
 export function defaultPageColor(pageKey: string | null): PageColorId | null {

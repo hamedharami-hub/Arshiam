@@ -539,6 +539,9 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     } else {
       list = list.filter(t => !t.parent_id);
     }
+    if (searchParams.get("source") === "mind") {
+      list = list.filter(t => t.source_type === "cbt_thought" || t.source_type === "abc_model" || t.source_type === "worry_tree");
+    }
 
     // Apply advanced filters and multi-level sorting via filterAndSortTasks
     const effectiveFilters: TaskFilters = {
@@ -554,7 +557,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     }
 
     return list;
-  }, [effectiveAllTasks, scope, params.id, filters, taskTagsMap, graceMap, taskMap, currentDayKey, showCompletedTasks, goals]);
+  }, [effectiveAllTasks, scope, params.id, filters, taskTagsMap, graceMap, taskMap, currentDayKey, showCompletedTasks, goals, searchParams]);
 
   const isFolder = scope === "folder" && !!params.id;
   const folderTopLevel = useMemo(() => {

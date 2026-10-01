@@ -42,7 +42,6 @@ const getNavItems = (T: (fa: string, en: string) => string) => [
   { label: T("چک‌این روزانه", "Daily Check-in"), to: "/app/checkin", icon: Heart, keywords: "checkin checkin روزانه" },
   { label: T("ثبت افکار CBT", "CBT Thoughts"), to: "/app/thoughts", icon: Brain, keywords: "thought cbt افکار" },
   { label: T("مدل ABC", "ABC Model"), to: "/app/abc", icon: Brain, keywords: "abc الگو" },
-  { label: T("چت سقراطی", "Socratic Chat"), to: "/app/socratic", icon: Brain, keywords: "socratic سقراط" },
   { label: T("تمرین تنفس", "Breathing Exercise"), to: "/app/breathing", icon: Heart, keywords: "breath breathing تنفس مدیتیشن" },
   { label: T("پشتیبانی بحران و اضطراری (SOS)", "Crisis Support & Emergency (SOS)"), to: "/app/crisis", icon: ShieldAlert, keywords: "crisis sos help emergency بحران اضطراری کمک اورژانس خودکشی" },
   { label: T("معمار زندگی", "Life Architect"), to: "/app/life-architect", icon: Compass, keywords: "life architect معمار زندگی برنامه ریزی هدف اهداف" },

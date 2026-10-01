@@ -255,19 +255,6 @@ function generateSmartChatResponse(raw: string, fa: boolean, mode: AIOperation =
         "3. Let me know the primary milestone to generate tailored items.";
   }
 
-  // Socratic guide (reflective questions only)
-  if (mode === "socratic") {
-    return fa
-      ? "سه پرسش برای وضوح بیشتر ذهن شما:\n" +
-        "۱. چه عاملی باعث شده این موضوع در این لحظه بیشترین اهمیت یا درگیری ذهنی را داشته باشد؟\n" +
-        "۲. اگر مطمئن بودید که شکست نمی‌خورید، اولین اقدام فیزیکی شما در ۳۰ ثانیه آینده چه بود؟\n" +
-        "۳. بدترین نتیجه احتمالی که ذهن از آن واهمه دارد چیست، و در عمل چقدر احتمال وقوع دارد؟"
-      : "Three reflective questions for clarity:\n" +
-        "1. What makes this issue feel most significant or pressing to you right now?\n" +
-        "2. If success were guaranteed, what exact 30-second action would you take first?\n" +
-        "3. What is the catastrophic worst-case your mind fears, and how realistically manageable is it?";
-  }
-
   // 1. Procrastination / Overwhelm / Stress / CBT inquiry
   if (/(اهمال|تعلل|حوصله ندارم|خسته‌?ام|استرس|گیجم|سخته|نمی‌?تونم|procrastinat|overwhelm|tired|stressed|hard)/i.test(text)) {
     return fa
@@ -473,16 +460,6 @@ export function offlineAssistant(
         source: "offline-deterministic",
       },
       text: JSON.stringify(result),
-    };
-  }
-
-  if (mode === "socratic") {
-    const responseText = generateSmartChatResponse(raw, fa, "socratic", context);
-    return {
-      offline: true,
-      tier: 3,
-      data: { source: "offline-deterministic" },
-      text: responseText,
     };
   }
 

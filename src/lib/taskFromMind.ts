@@ -54,3 +54,11 @@ export async function createTaskFromMind(opts: CreateTaskFromMindOptions): Promi
 
   return { ok, error: ok ? undefined : "Failed to create task", task: taskData };
 }
+
+/** Route that opens the exact Mind record a task came from. */
+export function mindSourceRoute(task: { source_type?: string | null; source_id?: string | null }): string | null {
+  const id = task.source_id ? `record=${encodeURIComponent(task.source_id)}` : "";
+  if (task.source_type === "cbt_thought" || task.source_type === "worry_tree") return `/app/thoughts${id ? `?${id}` : ""}`;
+  if (task.source_type === "abc_model") return `/app/thoughts?mode=short${id ? `&${id}` : ""}`;
+  return null;
+}

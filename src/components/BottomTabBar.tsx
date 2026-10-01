@@ -105,7 +105,8 @@ export function BottomTabBar() {
         p.startsWith("/app/worry") ||
         p.startsWith("/app/values") ||
         p.startsWith("/app/breathing") ||
-        p.startsWith("/app/socratic") ||
+        p.startsWith("/app/calm") ||
+        p.startsWith("/app/sleep") ||
         p.startsWith("/app/screener") ||
         p.startsWith("/app/self"),
     },

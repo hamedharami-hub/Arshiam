@@ -101,8 +101,8 @@ const QUICK_LINK_ICONS: Record<string, any> = {
   "/app/checkin": Activity,
   "/app/thoughts": BookOpen,
   "/app/abc": Zap,
-  "/app/socratic": MessageCircleQuestion,
-  "/app/breathing": Wind,
+  "/app/calm": Wind,
+  "/app/values": Compass,
   "/app/about-me": User,
   "/app/self": Sparkles,
 };

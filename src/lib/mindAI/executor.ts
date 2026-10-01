@@ -3,8 +3,6 @@ import type {
   MindAIContext,
   MindAIResult,
   CbtAnalysisOutput,
-  SocraticDialogueOutput,
-  SocraticSummaryOutput,
   WorryBrainstormOutput,
   WeeklyInsightOutput,
 } from "./types";
@@ -12,8 +10,6 @@ import { formatContextForPrompt } from "./contextBuilder";
 import { getMindPrompt } from "./prompts";
 import {
   validateCbtOutput,
-  validateSocraticDialogueOutput,
-  validateSocraticSummaryOutput,
   validateWorryBrainstormOutput,
   validateWeeklyInsightOutput,
 } from "./schemas";
@@ -71,8 +67,6 @@ export async function executeMindAI<T = any>(
       // Map MindAIOperation to base AIMode
       let baseMode: AIMode = "chat";
       if (ctx.operation === "cbt_analysis") baseMode = "distortion_detect";
-      else if (ctx.operation === "socratic_dialogue") baseMode = "socratic";
-      else if (ctx.operation === "socratic_summary") baseMode = "chat";
       else if (ctx.operation === "worry_brainstorm") baseMode = "suggest";
       else if (ctx.operation === "weekly_insight") baseMode = "chat";
 
@@ -102,12 +96,6 @@ export async function executeMindAI<T = any>(
       switch (ctx.operation) {
         case "cbt_analysis":
           validatedData = validateCbtOutput(rawData, rawText) as CbtAnalysisOutput;
-          break;
-        case "socratic_dialogue":
-          validatedData = validateSocraticDialogueOutput(rawData, rawText) as SocraticDialogueOutput;
-          break;
-        case "socratic_summary":
-          validatedData = validateSocraticSummaryOutput(rawData, rawText) as SocraticSummaryOutput;
           break;
         case "worry_brainstorm":
           validatedData = validateWorryBrainstormOutput(rawData, rawText) as WorryBrainstormOutput;

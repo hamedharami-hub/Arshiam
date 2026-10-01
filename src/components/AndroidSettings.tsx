@@ -19,7 +19,7 @@ const WIDGETS = [
   { name: "Quick Actions", description: "Add, check-in, focus and notes", icon: Sparkles },
   { name: "Focus Timer", description: "Start a Pomodoro and select a task", icon: TimerReset },
   { name: "Mind Reset", description: "Check-in, thought record and breathing", icon: Activity },
-  { name: "Problem Solver", description: "Thought record, Socratic prompts and next steps", icon: Zap },
+  { name: "Problem Solver", description: "Thought record, short ABC and next steps", icon: Zap },
 ] as const;
 
 function StatusTile({ icon: Icon, label, value, good }: { icon: typeof BellRing; label: string; value: string; good?: boolean }) {

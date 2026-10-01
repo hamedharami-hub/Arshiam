@@ -12,8 +12,6 @@ export interface ProvenanceField<T = any> {
 
 export type MindAIOperation =
   | "cbt_analysis"
-  | "socratic_dialogue"
-  | "socratic_summary"
   | "worry_brainstorm"
   | "weekly_insight";
 
@@ -66,18 +64,6 @@ export interface CbtAnalysisOutput {
   alternative_perspective: string | null;
   missing_information: string[];
   suggested_next_step: string | null;
-}
-
-export interface SocraticDialogueOutput {
-  question: string;
-  observationOrEmpathy?: string;
-  focusArea: "evidence" | "perspective" | "value" | "action" | "clarification";
-}
-
-export interface SocraticSummaryOutput {
-  key_insights: string[];
-  potential_next_step: string | null;
-  user_agency_note: string;
 }
 
 export interface WorryBrainstormOutput {

@@ -1,5 +1,6 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useMindDraft } from "@/lib/mindDraft";
 import { useNavigate } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -40,7 +41,16 @@ export default function WorryView() {
   const BackIcon = isEn ? ArrowLeft : ArrowRight;
 
   const [stage, setStage] = useState<Stage>("intake");
-  const [worry, setWorry] = useState("");
+  const [worry, setWorryState] = useState("");
+  const { draft: mindDraft, save: saveMindDraft, clear: clearMindDraft } = useMindDraft(user?.id);
+  const setWorry = (value: string) => { setWorryState(value); saveMindDraft({ text: value, path: "worry" }); };
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (seededRef.current || !mindDraft?.text) return;
+    seededRef.current = true;
+    setWorryState((prev) => prev || mindDraft.text);
+  }, [mindDraft]);
+  const sessionIdRef = useRef(`worry_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`);
   // Branch: "actionable" | "partial" | "uncontrollable"
   const [controlBranch, setControlBranch] = useState<"actionable" | "partial" | "uncontrollable" | null>("actionable");
   const triageChoice = controlBranch;
@@ -140,20 +150,39 @@ export default function WorryView() {
           .filter(Boolean)
           .join("\n\n");
 
+    const recordId = sessionIdRef.current;
+    const savedRecord = await upsertThoughtRecord(user.id, {
+      id: recordId,
+      user_id: user.id,
+      situation: isEn ? `Worry: ${worry}` : `نگرانی: ${worry}`,
+      automatic_thought: worry,
+      emotions: [isEn ? "Anxiety" : "اضطراب"],
+      alternative_thought: chosenSolution != null ? solutions[chosenSolution] || null : null,
+      next_step: taskTitle.trim(),
+      distortions: [],
+    });
+    if (!savedRecord) {
+      toast.error(T("رکورد نگرانی ذخیره نشد؛ دوباره تلاش کنید.", "Could not save the worry record; please retry."));
+      return;
+    }
+
     const res = await createTaskFromMind({
+      id: `task_${recordId}`,
       user_id: user.id,
       title: taskTitle.trim(),
       description: desc,
       due_in_days: taskDueDateDays,
       source_type: "worry_tree",
+      source_id: recordId,
       priority: "medium",
     });
 
     if (res.ok) {
-      toast.success(T("تسک با موفقیت اضافه شد ✨", "Task successfully added ✨"));
+      clearMindDraft();
+      toast.success(T("نگرانی ذخیره و تسک ساخته شد", "Worry saved and task created"));
       setStage("done");
     } else {
-      toast.error(res.error || T("خطا در ایجاد تسک", "Error creating task"));
+      toast.error(T("نگرانی ذخیره شد، اما ساخت تسک ناموفق بود. دوباره تلاش کنید؛ تکراری ساخته نمی‌شود.", "Worry saved, but the task could not be created. Retry; no duplicate will be made."));
     }
   }
 
@@ -174,13 +203,14 @@ export default function WorryView() {
       distortions: [],
     };
 
-    const savedId = await upsertThoughtRecord(user.id, payload);
+    const savedId = await upsertThoughtRecord(user.id, { ...payload, id: sessionIdRef.current });
     if (savedId) {
       firebaseStore
         .from("thought_records")
         .upsert({ ...payload, id: savedId }, { onConflict: "id" })
         .catch(() => {});
-      toast.success(T("یادداشت در Thought Records ثبت شد ✨", "Saved to Thought Records ✨"));
+      clearMindDraft();
+      toast.success(T("پذیرش ثبت شد", "Acceptance saved"));
       setStage("done");
     } else {
       toast.error(T("خطا در ذخیره یادداشت پذیرش", "Error saving acceptance record"));
@@ -197,13 +227,13 @@ export default function WorryView() {
       </Button>
 
       {/* Header Banner */}
-      <div className="rounded-3xl p-6 bg-gradient-to-br from-sky-500 via-blue-500 to-indigo-500 text-white shadow-md">
-        <div className="flex items-center gap-2 text-xs opacity-85 mb-1.5">
+      <div className="surface-card p-4 sm:p-5">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5">
           <Brain className="w-4 h-4" />
           {T("درخت نگرانی و حل مسئله", "Worry Tree & Problem Solving")}
         </div>
-        <HeaderTitlePortal title={T("تفکیک دغدغه و اقدام هدفمند", "Triage & Targeted Action")} />
-        <p className="text-sm opacity-90 leading-7">
+        <HeaderTitlePortal title={T("حل نگرانی", "Worry")} />
+        <p className="text-sm text-muted-foreground leading-7">
           {T(
             "۳ مسیر تفکیک: دغدغه قابل اقدام، موضوع با کنترل نسبی، یا خارج از کنترل. ذهن با تفکیک عینی از نشخوار فکری رها می‌شود.",
             "3 pathways: actionable worry, partially controllable, or currently uncontrollable. Break the rumination loop."
