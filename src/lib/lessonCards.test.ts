@@ -23,6 +23,14 @@ describe('lesson card presentation preserves the scientific source', () => {
         }
       }
   });
+  it('assigns unique card IDs even when source IDs repeat or collide with a title hash', () => {
+    const first = '<section><h2>Overview</h2><p>A</p></section>';
+    const hashId = buildLessonCards(`<div class="knowledge-card">${first}<p>B</p></div>`, 'en')[0].id.slice(5);
+    const source = `<div class="knowledge-card">${first}<section id="${hashId}"><h2>Use</h2><p>B</p></section><section id="${hashId}"><h2>Warning</h2><p>C</p></section></div>`;
+    const cards = buildLessonCards(source, 'en');
+    expect(new Set(cards.map(card => card.id)).size).toBe(3);
+    expect(plain(cards.map(card => card.sourceHtml).join(''))).toBe(plain(source));
+  });
   it('does not drop loose text or unsupported definition-list structures', () => {
     expect(buildLessonCards('Important warning<div class="knowledge-card"><p>A</p><p>B</p></div>', 'en')).toEqual([]);
     expect(buildLessonCards('<div class="knowledge-card">Important warning<p>A</p><p>B</p></div>', 'en')).toEqual([]);

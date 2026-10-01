@@ -65,6 +65,7 @@ export function buildLessonCards(safeHtml: string, language: 'fa' | 'en'): Lesso
   }
   if (blocks.filter(block => block.textContent.trim() || block.querySelector('img,table,video,audio')).length < 2) return [];
   const occurrences = new Map<string, number>();
+  const usedIds = new Set<string>();
   return blocks.filter(block => block.textContent.trim() || block.querySelector('img,table,video,audio')).map((block, index) => {
     const titleElement = getTitleElement(block);
     const tableTitle = block.querySelector('th')?.textContent.trim();
@@ -84,8 +85,13 @@ export function buildLessonCards(safeHtml: string, language: 'fa' | 'en'): Lesso
     const hash = hashText(title);
     const ordinal = occurrences.get(hash) ?? 0;
     occurrences.set(hash, ordinal + 1);
+    const baseId = `card-${block.id || `${hash}${ordinal ? `-${ordinal}` : ''}`}`;
+    let id = baseId;
+    let suffix = 1;
+    while (usedIds.has(id)) id = `${baseId}-${suffix++}`;
+    usedIds.add(id);
     return {
-      id: `card-${block.id || `${hash}${ordinal ? `-${ordinal}` : ''}`}`,
+      id,
       title, kind, group, sourceHtml, html: clone.outerHTML,
       wide: kind === 'safety' || !!block.querySelector('table,pre') || block.textContent.length > 1600,
     };
