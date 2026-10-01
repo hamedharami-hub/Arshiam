@@ -5,7 +5,7 @@ import {
   Target, Timer, Calendar, ChevronDown, Sparkles, LayoutGrid,
   TrendingUp, Activity, MessageCircleQuestion, Zap, ShieldAlert, BookOpen, Sun,
   ListTodo, BrainCircuit, GripVertical, User, Shield, Pill,
-  BarChart3, Sprout, Wind, Compass, Users, Gamepad2, PackageSearch, ClipboardCheck, Keyboard, FlaskConical, Columns3, Hourglass,
+  BarChart3, Sprout, Wind, Compass, Users, Gamepad2, PackageSearch, ClipboardCheck, Keyboard, FlaskConical, Columns3, Hourglass, PlayCircle,
 } from "lucide-react";
 import { toPersianDigits } from "@/lib/persianDigits";
 import {
@@ -140,9 +140,10 @@ export const SECTIONS: Section[] = [
               { url: "/app/pharmacy-cyp", icon: FlaskConical, label: "ماتریس CYP و تداخل" },
             ],
           },
-          { url: "/app/review/pharmacy", icon: BrainCircuit, label: "مرور" },
+          { url: "/app/review", icon: BrainCircuit, label: "مرور" },
           { url: "/app/knowledge", icon: BookOpen, label: "کتابخانه دانش" },
           { url: "/app/interactive-study", icon: Gamepad2, label: "استودیوی مطالعه تعاملی" },
+          { url: "/app/continue", icon: PlayCircle, label: "ادامهٔ یادگیری" },
         ],
       },
       { url: "/app/cycle", icon: Calendar, label: "سیکل پریود" },

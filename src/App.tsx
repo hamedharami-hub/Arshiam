@@ -100,6 +100,8 @@ const PharmacyFredPracticeView = lazy(() => import("./pages/PharmacyFredPractice
 const PharmacyCypView = lazy(() => import("./pages/PharmacyCypView"));
 const InteractiveStudyView = lazy(() => import("./pages/InteractiveStudyView"));
 const ReviewView = lazy(() => import("./pages/ReviewView"));
+const ReviewRedirect = lazy(() => import("./pages/ReviewRedirect"));
+const ContinueLearningView = lazy(() => import("./pages/ContinueLearningView"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -341,7 +343,8 @@ const App = () => {
                       <Route path="pharmacy-cyp" element={<PharmacyCypView />} />
                       <Route path="interactive-study" element={<InteractiveStudyView />} />
                       <Route path="review" element={<ReviewView />} />
-                      <Route path="review/:folder" element={<ReviewView />} />
+                      <Route path="review/:folder" element={<ReviewRedirect />} />
+                      <Route path="continue" element={<ContinueLearningView />} />
                       <Route path="stats" element={<StatsView />} />
                       <Route path="kanban" element={<KanbanView />} />
                       <Route path="buckets" element={<BucketsView />} />

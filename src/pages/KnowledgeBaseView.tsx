@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { BookOpen, Menu, Plus, Sparkles, FolderPlus, ArrowLeft, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { recordLastStudy } from "@/lib/lastStudy";
 import { useBilingual } from "@/hooks/useBilingual";
 import type { KnowledgeFolder, KnowledgeDocument, KnowledgeFolderNode } from "@/lib/knowledgeTypes";
 import {
@@ -218,6 +219,15 @@ export const KnowledgeBaseView: React.FC = () => {
       setSelectedDocId(folderDocument?.id ?? (urlFolderId ? null : documents[0]?.id ?? null));
     }
   }, [urlDocId, urlFolderId, documents]);
+
+  const lastRecordedDocRef = useRef<string | null>(null);
+  useEffect(() => {
+    const opened = urlDocId && selectedDocId === urlDocId ? documents.find((doc) => doc.id === urlDocId) : undefined;
+    if (opened && lastRecordedDocRef.current !== `${userId}:${opened.id}`) {
+      lastRecordedDocRef.current = `${userId}:${opened.id}`;
+      void recordLastStudy(userId, { docId: opened.id, title: opened.title, titleEn: opened.title_en });
+    }
+  }, [urlDocId, selectedDocId, documents, userId]);
 
   const handleSelectDocument = useCallback((docId: string) => {
     const target = documents.find((doc) => doc.id === docId);

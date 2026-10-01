@@ -11,13 +11,13 @@ export const APP_MODULES: Record<ModuleId, ModuleDef> = {
   pharmacy: {
     titleFa: "فارماسی", titleEn: "Pharmacy",
     descFa: "خانهٔ فارماسی، محصولات، سناریوها، FRED، CYP و مرور فارماسی", descEn: "Pharmacy home, products, scenarios, FRED, CYP and pharmacy review",
-    paths: ["/app/pharmacy", "/app/pharmacy-products", "/app/pharmacy-scenario-practice", "/app/pharmacy-fred-practice", "/app/pharmacy-cyp", "/app/review"],
+    paths: ["/app/pharmacy", "/app/pharmacy-products", "/app/pharmacy-scenario-practice", "/app/pharmacy-fred-practice", "/app/pharmacy-cyp", "/app/review", "/app/continue"],
     prefetch: () => Promise.all([import("@/pages/PharmacyHubView"), import("@/pages/PharmacyProductsView"), import("@/pages/ReviewView")]),
   },
   study: {
     titleFa: "استودیوی مطالعه", titleEn: "Study studio",
     descFa: "کتابخانهٔ دانش، مطالعهٔ تعاملی، مایندمپ و مرور درس‌ها", descEn: "Knowledge library, interactive study, mind map and lesson review",
-    paths: ["/app/knowledge", "/app/interactive-study", "/app/review"],
+    paths: ["/app/knowledge", "/app/interactive-study", "/app/review", "/app/continue"],
     prefetch: () => Promise.all([import("@/pages/KnowledgeBaseView"), import("@/pages/InteractiveStudyView")]),
   },
   mind: {

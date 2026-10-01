@@ -20,7 +20,7 @@ describe("Knowledge navigation hierarchy", () => {
     const knowledge = grow?.items.find((item) => item.label === "دانش");
     expect(knowledge?.children?.slice(0, 2)).toMatchObject([
       { url: "/app/pharmacy", label: "فارماسی" },
-      { url: "/app/review/pharmacy", label: "مرور" },
+      { url: "/app/review", label: "مرور" },
     ]);
   });
 
@@ -30,16 +30,17 @@ describe("Knowledge navigation hierarchy", () => {
     expect(knowledge).toBeDefined();
     expect(knowledge?.children?.map((item) => item.url)).toEqual([
       "/app/pharmacy",
-      "/app/review/pharmacy",
+      "/app/review",
       "/app/knowledge",
       "/app/interactive-study",
+      "/app/continue",
     ]);
   });
 
   it("preserves unique routes for collapsed sidebar and quick navigation", () => {
     const urls = NAV_ITEMS.map((item) => item.url).filter((url): url is string => Boolean(url));
     expect(urls).toContain("/app/knowledge");
-    expect(urls).toContain("/app/review/pharmacy");
+    expect(urls).toContain("/app/review");
     expect(urls).toContain("/app/interactive-study");
     expect(urls).toContain("/app/pharmacy");
     expect(urls).toContain("/app/pharmacy-products");
