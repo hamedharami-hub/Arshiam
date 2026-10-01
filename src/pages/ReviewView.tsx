@@ -1,3 +1,4 @@
+import { learningSourceUrl } from "@/lib/learningWorkspace";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import React, { useCallback, useEffect, useState } from "react";
 import { Layers, Languages, Network } from "lucide-react";
@@ -66,8 +67,8 @@ export const ReviewView: React.FC = () => {
 
   const userId = user?.id || "anonymous-review-user";
 
-  const handleOpenDoc = (docId: string) => {
-    navigate(`/app/knowledge?docId=${docId}`);
+  const handleOpenDoc = (docId: string, sourceCardId?: string, sourceQuestionId?: string, sourceLanguage?: 'fa' | 'en') => {
+    navigate(learningSourceUrl(docId, sourceCardId, sourceQuestionId, sourceLanguage));
   };
 
   const handleStartMindMapReview = useCallback((scope: KnowledgeMindMapReviewScope) => {

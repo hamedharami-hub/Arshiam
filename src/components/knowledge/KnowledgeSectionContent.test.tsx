@@ -14,7 +14,7 @@ describe("scientific lesson section tabs", () => {
     expect(combined.querySelector("#dose")?.textContent).toBe("Dosing");
     expect(combined.querySelector("a")?.getAttribute("href")).toBe("https://example.org/primary");
   });
-  it("offers horizontal sections, retains introductory warnings and can show the whole source", () => {
+  it("offers actual horizontal sections and retains introductory context", () => {
     render(<KnowledgeSectionContent html={content} dir="ltr" className="knowledge-html-content" />);
     expect(screen.getByText("Important source warning.")).toBeVisible();
     expect(screen.getByText("5 mg daily.")).toBeVisible();
@@ -22,8 +22,9 @@ describe("scientific lesson section tabs", () => {
     fireEvent.mouseDown(screen.getByRole("tab", { name: "References" }), { button: 0, ctrlKey: false });
     expect(screen.getByText("Primary source")).toBeVisible();
     expect(screen.getByText("Important source warning.")).toBeVisible();
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "All sections" }), { button: 0, ctrlKey: false });
-    expect(screen.getByText("5 mg daily.")).toBeVisible(); expect(screen.getByText("Primary source")).toBeVisible();
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Dosing" }), { button: 0, ctrlKey: false });
+    expect(screen.getByText("5 mg daily.")).toBeVisible(); expect(screen.queryByText("Primary source")).toBeNull();
+    expect(screen.queryByRole("tab", { name: "All sections" })).toBeNull();
   });
   it("keeps small documents as a complete article and resets the section when the document changes", () => {
     const { rerender } = render(<KnowledgeSectionContent html={content} dir="rtl" className="knowledge-html-content" />);
@@ -36,8 +37,8 @@ describe("scientific lesson section tabs", () => {
     render(<KnowledgeSectionContent html={content} dir="ltr" className="knowledge-html-content" />);
     expect(screen.getByText("Primary source")).toBeVisible();
     expect(screen.queryByText("5 mg daily.")).toBeNull();
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "All sections" }), { button: 0, ctrlKey: false });
-    expect(new URLSearchParams(window.location.search).get("section")).toBe("all");
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Dosing" }), { button: 0, ctrlKey: false });
+    expect(new URLSearchParams(window.location.search).get("section")).toBe("section-0");
     expect(new URLSearchParams(window.location.search).get("docId")).toBe("d1");
   });
   it("ignores an unknown ?section= and shows the first real section", () => {

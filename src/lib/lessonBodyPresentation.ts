@@ -11,6 +11,14 @@ export function resolveLessonDocumentLink(id: string): LessonDocumentLink | unde
 
 /** Adds presentation semantics to a clone; source strings, field order and clinical text stay intact. */
 export function decorateLessonBody(root: Element, language: 'fa' | 'en', sourceTitle = ''): void {
+  // Source filenames and a repeated document title are presentation metadata.
+  // Preserve their DOM/text for source comparison, without repeating the heading.
+  for (const header of Array.from(root.querySelectorAll('header'))) {
+    for (const child of Array.from(header.children)) {
+      if (/^Source:/.test(child.textContent.trim())) child.classList.add('lesson-field--technical');
+      if (/^H[1-6]$/.test(child.tagName) && normalizeLessonLabel(child.textContent) === normalizeLessonLabel(sourceTitle) && !child.querySelector('a,img')) child.classList.add('lesson-duplicate-title');
+    }
+  }
   for (const dt of Array.from(root.querySelectorAll('dt'))) {
     const field = dt.parentElement;
     const value = field?.querySelector(':scope > dd');

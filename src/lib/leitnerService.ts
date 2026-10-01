@@ -1,3 +1,4 @@
+import type { LearningAnchor } from "./learningWorkspace";
 import { firebaseStore } from "./firebaseStore";
 import { cacheGet, cacheSet, enqueueOp, getPendingOps } from "./offlineQueue";
 import { saveEntityToFirestore, deleteEntityFromFirestore } from "./firestoreSync";
@@ -55,6 +56,11 @@ export interface LeitnerCardCreationInput {
   folder_id?: string | null;
   box?: number;
   scheduling_algorithm?: LeitnerSchedulingAlgorithm;
+  idempotency_key?: string;
+  source_card_id?: string;
+  source_question_id?: string;
+  source_question_version?: string;
+  source_anchor?: LearningAnchor;
 }
 
 const leitnerMutationTails = new Map<string, Promise<unknown>>();
@@ -515,14 +521,21 @@ async function createLeitnerCardUnlocked(
   const back = data.back.trim();
   if (!front || !back) throw new Error("Front and back of card cannot be empty");
 
+  const stableId = data.idempotency_key ? `learning-${data.idempotency_key}` : null;
+  if (stableId && !/^[A-Za-z0-9_-]{1,120}$/.test(stableId)) throw new Error("Invalid stable review card key.");
+  if (stableId) { const previous = (await getLeitnerCards(userId)).find(card => card.id === stableId); if (previous) return previous; }
   const now = new Date();
   const initialBox = data.box && data.box >= 1 && data.box <= 5 ? data.box : 1;
   const nextReview = now.toISOString(); // New cards are due immediately
   const schedulingAlgorithm: LeitnerSchedulingAlgorithm = "fsrs6";
 
   const card: LeitnerCard = {
-    id: makeId(),
+    id: stableId || makeId(),
     user_id: userId,
+    ...(data.source_card_id ? { source_card_id: data.source_card_id } : {}),
+    ...(data.source_question_id ? { source_question_id: data.source_question_id } : {}),
+    ...(data.source_question_version ? { source_question_version: data.source_question_version } : {}),
+    ...(data.source_anchor ? { source_anchor: data.source_anchor } : {}),
     document_id: data.document_id || null,
     folder_id: data.folder_id || null,
     front,
@@ -558,7 +571,7 @@ async function createLeitnerCardUnlocked(
     let savedRemotely = false;
     if (isOnline()) {
       try {
-        savedRemotely = await saveEntityToFirestore(userId, "leitner_cards", card.id, card);
+        savedRemotely = await saveEntityToFirestore(userId, "leitner_cards", card.id, stableId ? { ...card, _create_once: true } : card);
       } catch {
         savedRemotely = false;
       }
@@ -569,7 +582,7 @@ async function createLeitnerCardUnlocked(
         ownerId: userId,
         table: "leitner_cards",
         op: "insert",
-        payload: card,
+        payload: stableId ? { ...card, _create_once: true } : card,
       });
       if (!queued) {
         throw new Error("Could not safely save this flashcard: sync queue storage is unavailable. Free storage space and retry.");
@@ -583,6 +596,7 @@ async function createLeitnerCardUnlocked(
     throw error;
   }
 
+  if (stableId && isOnline()) return (await getLeitnerCards(userId)).find(item => item.id === stableId) || card;
   return card;
 }
 
@@ -771,4 +785,11 @@ export async function getLeitnerBoxStats(
   if (!userId) return computeBoxStats([], referenceTime);
   const snapshot = cards ?? (await getLeitnerCards(userId));
   return computeBoxStats(snapshot, referenceTime);
+}
+
+export async function createLeitnerCardWithReceipt(userId: string, data: LeitnerCardCreationInput) {
+  const card = await createLeitnerCard(userId, data);
+  const pending = await getPendingOps("leitner_cards");
+  const queued = pending.some(operation => operation.ownerId === userId && (operation.payload as { id?: string })?.id === card.id);
+  return { card, persistence: queued ? "queued" as const : "synced" as const };
 }

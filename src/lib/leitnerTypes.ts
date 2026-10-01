@@ -1,3 +1,4 @@
+import type { LearningAnchor } from "./learningWorkspace";
 export interface SerializedFsrsCard {
   due: string;
   stability: number;
@@ -19,6 +20,10 @@ export interface LeitnerCard {
   user_id: string;
   document_id?: string | null;
   folder_id?: string | null;
+  source_card_id?: string;
+  source_question_id?: string;
+  source_question_version?: string;
+  source_anchor?: LearningAnchor;
   front: string; // Question / Concept
   back: string;  // Answer / Clinical note / Solution
   front_fa?: string;

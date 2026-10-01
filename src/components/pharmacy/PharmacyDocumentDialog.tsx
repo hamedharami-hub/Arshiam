@@ -109,7 +109,7 @@ export function PharmacyDocumentDialog({ documentId, onClose }: PharmacyDocument
             className="min-w-0"
             data-testid="pharmacy-document-body"
           >
-            <KnowledgeSectionContent userId={user?.id} onOpenDocument={id => setStack(previous => [...previous, id])} visibleTitles={[title]} documentId={loadedDoc?.document.id} multiCard html={html} dir={contentIsEn ? "ltr" : "rtl"} className="knowledge-content prose prose-sm max-w-none break-words dark:prose-invert" />
+            <KnowledgeSectionContent workspace={loadedDoc.document.learning_workspace} userId={user?.id} onOpenDocument={id => setStack(previous => [...previous, id])} visibleTitles={[title]} documentId={loadedDoc?.document.id} multiCard html={html} dir={contentIsEn ? "ltr" : "rtl"} className="knowledge-content prose prose-sm max-w-none break-words dark:prose-invert" />
           </div>
         ) : (
           <p className="rounded-lg bg-muted/50 p-4 text-sm" data-testid="pharmacy-document-missing">{T("این سند نه در Knowledge شما و نه در snapshot منبع پیدا شد.", "This document was not found in your Knowledge or in the source snapshot.")}</p>

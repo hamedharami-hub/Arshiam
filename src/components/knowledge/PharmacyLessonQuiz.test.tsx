@@ -16,8 +16,7 @@ describe('Pharmacy practice workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(screen.queryByText('Source explanation.')).toBeNull();
     expect(screen.getByRole('button', { name: 'Check answer' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Original text & details' }));
-    expect(screen.getByText('Complete source')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Original text & details' })).toBeNull();
   });
   it('uses an already visible question title once, but preserves custom and rich questions', () => {
     const { rerender } = render(<PharmacyLessonQuiz quiz={quiz} sourceHtml="Source" dir="ltr" className="prose" visibleTitles={['Source question?']} />);

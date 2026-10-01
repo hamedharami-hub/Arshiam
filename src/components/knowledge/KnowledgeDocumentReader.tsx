@@ -1,3 +1,6 @@
+import { LearningNotebook, type LearningNotebookHandle } from "./LearningNotebook";
+import { captureLearningAnchor, learningVersion, type LearningAnchor } from "@/lib/learningWorkspace";
+import { LearningCardEditor } from "./LearningCardEditor";
 import { KnowledgeAttachments } from "./KnowledgeAttachments";
 import { KnowledgeReaderHeader, type PharmacyHeaderLinks } from "./KnowledgeReaderHeader";
 import { KnowledgeSectionContent } from "./KnowledgeSectionContent";
@@ -13,7 +16,6 @@ import {
   ZoomOut,
   Folder,
   Tag,
-  Clock,
   Sparkles,
   Languages,
   Loader2,
@@ -46,13 +48,8 @@ import {
   tagPrimaryBilingualBlock,
 } from "@/lib/interactiveLearningHelper";
 import {
-  extractDocumentCheckpoints,
-  getCheckpointTextLanguage,
-  getCheckpointTextForLanguage,
   getRelatedDocumentSuggestions,
-  type KnowledgeCheckpoint,
 } from "@/lib/knowledgeCheckpointHelper";
-import { createLeitnerCard } from "@/lib/leitnerService";
 import { getKnowledgeReviewState, getSafeKnowledgeExternalUrl, isPharmacyKnowledgeDocument } from "@/lib/knowledgeReviewEvidence";
 import { hasSubstantialPersianInEnglish } from "@/lib/bilingualHelper";
 import { TextSelectionFloatingBar } from "./TextSelectionFloatingBar";
@@ -72,81 +69,6 @@ const ClinicalRelationsNetwork = React.lazy(() =>
   }))
 );
 import { toast } from "sonner";
-
-interface CheckpointLocalizedTextProps {
-  persianText: string;
-  englishText?: string;
-  languageMode: DocumentLanguageMode;
-  isEn: boolean;
-}
-
-const CheckpointLocalizedText: React.FC<CheckpointLocalizedTextProps> = ({
-  persianText,
-  englishText,
-  languageMode,
-  isEn,
-}) => {
-  const fa = persianText.trim();
-  const en = englishText?.trim() ?? "";
-  const hasFa = Boolean(fa);
-  const hasEn = Boolean(en);
-  const isSameText = hasFa && hasEn && fa === en;
-
-  if (isSameText && fa) {
-    return (
-      <span dir="auto" className="block whitespace-pre-wrap break-words text-start">
-        {fa}
-      </span>
-    );
-  }
-
-  if (languageMode === "bilingual") {
-    return (
-      <span className="grid min-w-0 gap-2 sm:grid-cols-2">
-        {hasFa ? (
-          <span lang="fa" dir="rtl" className="block whitespace-pre-wrap break-words text-right">{fa}</span>
-        ) : (
-          <span role="status" className="block text-xs font-normal text-muted-foreground">
-            {isEn ? "Persian version is not available." : "نسخهٔ فارسی موجود نیست."}
-          </span>
-        )}
-        {hasEn && !isSameText ? (
-          <span lang="en" dir="ltr" className="block whitespace-pre-wrap break-words text-left">{en}</span>
-        ) : (
-          <span role="status" className="block text-xs font-normal text-muted-foreground" dir="auto">
-            {isEn ? "English version is not available." : "نسخهٔ انگلیسی موجود نیست."}
-          </span>
-        )}
-      </span>
-    );
-  }
-
-  const selectedText = languageMode === "fa" ? fa || en : en || fa;
-  const selectedLanguage = getCheckpointTextLanguage(fa, en, languageMode);
-  const selectedIsPersian = selectedLanguage === "fa";
-  const selectedTextContent = (
-    <span
-      lang={selectedIsPersian ? "fa" : "en"}
-      dir={selectedIsPersian ? "rtl" : "ltr"}
-      className={selectedIsPersian ? "block whitespace-pre-wrap break-words text-right" : "block whitespace-pre-wrap break-words text-left"}
-    >
-      {selectedText}
-    </span>
-  );
-
-  if (languageMode === "en" && !hasEn && hasFa) {
-    return (
-      <span className="grid min-w-0 gap-1">
-        <span role="status" className="text-xs font-normal text-muted-foreground">
-          {isEn ? "English version unavailable; showing the Persian source." : "نسخهٔ انگلیسی موجود نیست؛ متن فارسی نمایش داده شده است."}
-        </span>
-        {selectedTextContent}
-      </span>
-    );
-  }
-
-  return selectedTextContent;
-};
 
 interface KnowledgeDocumentReaderProps {
   document: KnowledgeDocument | null;
@@ -178,7 +100,7 @@ interface KnowledgeDocumentReaderProps {
 }
 
 export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = ({
-  document,
+  document: externalDocument,
   folder,
   allDocuments = [],
   onSelectDocument,
@@ -192,7 +114,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   studyMode = false,
   onToggleStudyMode,
   onOpenReview,
-  onDocumentUpdated,
+  onDocumentUpdated: notifyDocumentUpdated,
   onScheduleStudy,
   onAddToNote,
   onAddToTask,
@@ -204,6 +126,10 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   pharmacyLinks,
 }) => {
   const { isEn } = useBilingual();
+  const [localDocument, setLocalDocument] = useState<KnowledgeDocument | null>(null);
+  const activeDocumentIdentity = useRef(''); activeDocumentIdentity.current = `${userId}:${externalDocument?.id || ''}`;
+  const document = localDocument && externalDocument && localDocument.id === externalDocument.id && localDocument.user_id === externalDocument.user_id && localDocument.updated_at >= externalDocument.updated_at ? localDocument : externalDocument;
+  const onDocumentUpdated = (updated: KnowledgeDocument) => { if (activeDocumentIdentity.current !== `${updated.user_id}:${updated.id}`) return; setLocalDocument(updated); notifyDocumentUpdated?.(updated); };
   const isPharmacySourceFile = document ? isPharmacyKnowledgeDocument(document) : false;
   const documentId = document?.id;
   const reviewState = document
@@ -215,14 +141,9 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [interactiveModalOpen, setInteractiveModalOpen] = useState(false);
   const [selectedSnippetForAi, setSelectedSnippetForAi] = useState("");
-  const [revealedCheckpoints, setRevealedCheckpoints] = useState<Record<string, boolean>>({});
-  const [addedToLeitner, setAddedToLeitner] = useState<Record<string, boolean>>({});
   const contentContainerRef = useRef<HTMLDivElement>(null);
-
-  // Compute active recall checkpoints from current document
-  const checkpoints = useMemo(() => {
-    return document ? extractDocumentCheckpoints(document) : [];
-  }, [document]);
+  const notebookRef = useRef<LearningNotebookHandle>(null);
+  const [selectedLearningAnchor, setSelectedLearningAnchor] = useState<LearningAnchor | undefined>();
 
   // Compute smart related documents
   const relatedSuggestions = useMemo(() => {
@@ -258,8 +179,6 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 
   // Reset revealed answers and restore or reset scroll position when document changes
   useEffect(() => {
-    setRevealedCheckpoints({});
-    setAddedToLeitner({});
     if (contentContainerRef.current && document?.id) {
       const map = scrollPositionsMap || localScrollPositionsRef.current;
       const savedScroll = map.get(document.id) ?? 0;
@@ -273,42 +192,18 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
     }
   }, [document?.id, scrollPositionsMap]);
 
-  const handleAddCheckpointToLeitner = async (cp: KnowledgeCheckpoint) => {
-    if (!document || !userId) return;
-    try {
-      const questionFa = cp.questionFa.trim();
-      const questionEn = cp.questionEn.trim();
-      const answerFa = cp.answerFa.trim();
-      const answerEn = cp.answerEn?.trim() ?? "";
-      const question = docLangMode === "en" ? questionEn || questionFa : questionFa || questionEn;
-      const answer = docLangMode === "en" ? answerEn || answerFa : answerFa || answerEn;
-      await createLeitnerCard(userId, {
-        front: question,
-        back: answer,
-        ...(questionFa ? { front_fa: questionFa } : {}),
-        ...(questionEn ? { front_en: questionEn } : {}),
-        ...(answerFa ? { back_fa: answerFa } : {}),
-        ...(answerEn ? { back_en: answerEn } : {}),
-        clue: getCheckpointTextForLanguage(cp.badgeFa, cp.badgeEn, docLangMode),
-        document_id: document.id,
-        folder_id: document.folder_id,
-        box: 1,
-      });
-      setAddedToLeitner((prev) => ({ ...prev, [cp.id]: true }));
-      toast.success(
-        isEn
-          ? "Checkpoint added to your Leitner deck!"
-          : "نکته کلیدی به جعبه مرور لایتنر شما اضافه شد!"
-      );
-    } catch (err: any) {
-      console.error("Failed to add checkpoint to Leitner", err);
-      toast.error(err.message || (isEn ? "Failed to add card" : "خطا در افزودن به لایتنر"));
-    }
-  };
-
   // Open each document in the user's requested default reading language.
   useEffect(() => {
-    if (documentId) setDocLangMode("en");
+    const syncSourceLanguage = () => {
+      const params = new URLSearchParams(window.location.search);
+      const own = params.get('docId') === documentId || params.get('lesson') === documentId;
+      const language = params.get('sourceLang');
+      if (documentId && own && (language === 'fa' || language === 'en' || language === 'bilingual')) setDocLangMode(language);
+    };
+    if (documentId) setDocLangMode('en');
+    syncSourceLanguage();
+    window.addEventListener('popstate', syncSourceLanguage);
+    return () => window.removeEventListener('popstate', syncSourceLanguage);
   }, [documentId]);
 
   // Attach interactive delegated click listeners (flip cards, quizzes, pairs, cases, etc.)
@@ -435,7 +330,8 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   const hasOriginalContent = Boolean(safeHtmlFa || document?.plain_text?.trim());
   const safeSourceUrl = getSafeKnowledgeExternalUrl(document?.source_url);
 
-  const handleTriggerAiFromSelection = (text: string) => {
+  const handleTriggerAiFromSelection = (text: string, suppliedAnchor?: LearningAnchor) => {
+    if (document) setSelectedLearningAnchor(suppliedAnchor || captureLearningAnchor(document, window.getSelection()?.anchorNode?.parentElement?.closest<HTMLElement>("[data-learning-language]")?.dataset.learningLanguage === "fa" ? "fa" : "en", text));
     setSelectedSnippetForAi(text);
     setAiModalOpen(true);
   };
@@ -444,14 +340,19 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
     if (!document) return;
     const selection = window.getSelection()?.toString().trim();
     const targetText = selection || document.plain_text || document.title;
+    setSelectedLearningAnchor(captureLearningAnchor(document, docLangMode === "fa" ? "fa" : "en", targetText));
     setSelectedSnippetForAi(targetText);
     setAiModalOpen(true);
   };
 
   const cycleDocumentLanguage = () => {
-    setDocLangMode((current) =>
-      current === "en" ? "fa" : current === "fa" ? "bilingual" : "en"
-    );
+    const next = docLangMode === "en" ? "fa" : docLangMode === "fa" ? "bilingual" : "en";
+    setDocLangMode(next);
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('docId') === documentId || url.searchParams.get('lesson') === documentId) {
+      url.searchParams.set('sourceLang', next);
+      window.history.replaceState(window.history.state, '', url);
+    }
   };
 
   const languageModeLabel =
@@ -605,13 +506,13 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 
 
       {/* Reader Content Body */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-8" ref={contentContainerRef} onScroll={handleScroll}>
+      <div className="flex-1 overflow-y-auto p-3 md:p-5" ref={contentContainerRef} onScroll={handleScroll}>
         <div
             style={{ "--knowledge-reader-font-size": `${fontSize}px` } as React.CSSProperties}
-            className="knowledge-reader-prose max-w-5xl mx-auto leading-relaxed space-y-6 select-text"
+            className="knowledge-reader-prose max-w-5xl mx-auto leading-relaxed space-y-3 select-text"
           >
             {/* Header banner in reader mode */}
-            <div className="border-b border-border pb-4 mb-6">
+            <div className="border-b border-border pb-2">
               <h1
                 dir={isTitleRtl ? "rtl" : "ltr"}
                 className={`hidden md:block break-words text-xl md:text-2xl font-black text-foreground mb-2 tracking-tight ${
@@ -628,14 +529,6 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
               )}
 
               <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                <div className="flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>
-                    {new Date(document.updated_at || document.created_at).toLocaleDateString(
-                      isEn ? "en-US" : "fa-IR"
-                    )}
-                  </span>
-                </div>
                 {safeSourceUrl && (
                   <a
                     href={safeSourceUrl}
@@ -684,11 +577,17 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
               </div>
             </div>
 
+            {document.learning_workspace_unavailable && <p role="alert" className="text-xs text-muted-foreground">{isEn ? "This workspace needs a newer app. Original content is retained." : "این دفتر درس به نسخهٔ جدیدتر نیاز دارد؛ متن اصلی محفوظ است."}</p>}
+            {document.learning_workspace?.enabled && (document.learning_workspace.source_versions.fa !== learningVersion(document.content_html) || document.learning_workspace.source_versions.en !== learningVersion(document.content_en)) && <p role="status" className="text-xs text-muted-foreground">{isEn ? "Source changed. Showing its current text; refresh the card preview before reapplying layout." : "منبع تغییر کرده؛ متن فعلی نمایش داده می‌شود. پیش‌نمایش کارت‌ها را پیش از اعمال دوباره تازه کنید."}</p>}
+            {!studyMode && <div className="learning-reader-tools flex flex-wrap items-center gap-1 border-b border-border pb-1">
+            <LearningNotebook key={`notebook:${userId}:${document.id}`} ref={notebookRef} document={document} userId={userId} language={docLangMode === "fa" ? "fa" : "en"} containerRef={contentContainerRef} onUpdated={onDocumentUpdated} onGenerateReview={handleTriggerAiFromSelection} />
+            <LearningCardEditor key={`layout:${userId}:${document.id}`} document={document} userId={userId} onUpdated={onDocumentUpdated} />
             <KnowledgeAttachments key={`${userId}:${document.id}`}
               document={document}
               userId={userId}
               onDocumentUpdated={onDocumentUpdated}
             />
+            </div>}
 
             {(reviewState === "missing-evidence" || (reviewState === "unreviewed" && !isPharmacySourceFile)) && (
               <div role="note" className="mb-5 rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-foreground">
@@ -720,14 +619,14 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 
             {/* TAB 1: PERSIAN ONLY VIEW (RTL) */}
             {docLangMode === "fa" && (
-              <KnowledgeSectionContent userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="rtl" className="knowledge-html-content dir-rtl text-right" html={safeHtmlFa} />
+              <KnowledgeSectionContent workspace={document.learning_workspace} userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="rtl" className="knowledge-html-content dir-rtl text-right" html={safeHtmlFa} />
             )}
 
             {/* TAB 2: ENGLISH ONLY VIEW (LTR) */}
             {docLangMode === "en" && (
               <div dir="ltr" className="space-y-4">
                 {safeHtmlEn ? (
-                  <KnowledgeSectionContent userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlEn} />
+                  <KnowledgeSectionContent workspace={document.learning_workspace} userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlEn} />
                 ) : (
                   <div className="space-y-4">
                     <div role="status" className="rounded-2xl border border-border bg-muted/30 p-4 text-sm leading-6">
@@ -743,7 +642,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                     </div>
 
                     {safeHtmlFa ? (
-                      <KnowledgeSectionContent userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir={originalContentIsPersian ? "rtl" : "ltr"} className={`knowledge-html-content ${originalContentIsPersian ? "dir-rtl text-right" : "dir-ltr text-left"}`} html={safeHtmlFa} />
+                      <KnowledgeSectionContent workspace={document.learning_workspace} userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir={originalContentIsPersian ? "rtl" : "ltr"} className={`knowledge-html-content ${originalContentIsPersian ? "dir-rtl text-right" : "dir-ltr text-left"}`} html={safeHtmlFa} />
                     ) : document.plain_text?.trim() ? (
                       <p
                         dir={originalContentIsPersian ? "rtl" : "ltr"}
@@ -786,7 +685,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                   </div>
                   {originalContentIsPersian ? (
                     safeHtmlFa ? (
-                      <KnowledgeSectionContent userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="rtl" className="knowledge-html-content dir-rtl text-right" html={safeHtmlFa} />
+                      <KnowledgeSectionContent workspace={document.learning_workspace} userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="rtl" className="knowledge-html-content dir-rtl text-right" html={safeHtmlFa} />
                     ) : document.plain_text?.trim() ? (
                       <p dir="rtl" className="knowledge-html-content dir-rtl whitespace-pre-wrap text-right">
                         {document.plain_text}
@@ -811,10 +710,10 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                   </div>
 
                   {safeHtmlEnBilingual ? (
-                    <KnowledgeSectionContent userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlEnBilingual} />
+                    <KnowledgeSectionContent workspace={document.learning_workspace} userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlEnBilingual} />
                   ) : !originalContentIsPersian && hasOriginalContent ? (
                     safeHtmlFa ? (
-                      <KnowledgeSectionContent userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlFa} />
+                      <KnowledgeSectionContent workspace={document.learning_workspace} userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlFa} />
                     ) : (
                       <p dir="ltr" className="knowledge-html-content dir-ltr whitespace-pre-wrap text-left">
                         {document.plain_text}
@@ -837,138 +736,6 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                       </button>
                     </div>
                   )}
-                </div>
-              </div>
-            )}
-
-            {/* Active Recall & Key Checkpoints Section */}
-            {checkpoints.length > 0 && (
-              <div className="mt-10 pt-6 border-t border-border/80 space-y-4">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <span className="p-2 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                      <Sparkles className="w-4 h-4" />
-                    </span>
-                    <div>
-                      <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                        <span>
-                          {isEn
-                            ? "Active Recall & Key Checkpoints"
-                            : "خودآزمایی سریع و نکات کلیدی (Active Recall)"}
-                        </span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-semibold">
-                          {checkpoints.length} {isEn ? "Checkpoints" : "نکته کلیدی"}
-                        </span>
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        {isEn
-                          ? "Test your clinical retention, reveal answers, and add them directly into your Leitner deck"
-                          : "درک مطلب خود را بیازمایید و نکات مهم را با یک کلیک به جعبه لایتنر بفرستید"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3">
-                  {checkpoints.map((cp) => {
-                    const isRevealed = !!revealedCheckpoints[cp.id];
-                    const isAdded = !!addedToLeitner[cp.id];
-                    return (
-                      <div
-                        key={cp.id}
-                        className="p-4 rounded-2xl bg-card border border-border/80 shadow-2xs space-y-3 transition hover:border-primary/40"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="space-y-1.5 min-w-0">
-                            <span
-                              className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md border"
-                              style={{
-                                color: cp.color,
-                                borderColor: `${cp.color}40`,
-                                backgroundColor: `${cp.color}15`,
-                              }}
-                              dir={docLangMode === "en" ? "ltr" : "auto"}
-                            >
-                              {getCheckpointTextForLanguage(cp.badgeFa, cp.badgeEn, docLangMode)}
-                            </span>
-                            <h4 className="text-xs md:text-sm font-semibold text-foreground leading-snug">
-                              <CheckpointLocalizedText
-                                persianText={cp.questionFa}
-                                englishText={cp.questionEn}
-                                languageMode={docLangMode}
-                                isEn={isEn}
-                              />
-                            </h4>
-                          </div>
-
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setRevealedCheckpoints((prev) => ({
-                                  ...prev,
-                                  [cp.id]: !prev[cp.id],
-                                }))
-                              }
-                              className="px-2.5 py-1 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground text-xs font-medium border border-border transition cursor-pointer flex items-center gap-1"
-                            >
-                              <Eye className="w-3.5 h-3.5 text-primary" />
-                              <span>
-                                {isRevealed
-                                  ? isEn
-                                    ? "Hide"
-                                    : "مخفی‌سازی"
-                                  : isEn
-                                  ? "Show Answer"
-                                  : "مشاهده پاسخ"}
-                              </span>
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Revealed Answer Content */}
-                        {isRevealed && (
-                          <div className="pt-2 border-t border-border/50 text-xs md:text-sm text-foreground/90 space-y-2.5 animate-in fade-in duration-200">
-                            <div className="p-3 rounded-xl bg-muted/40 border border-border/60 leading-relaxed font-sans select-text">
-                              <CheckpointLocalizedText
-                                persianText={cp.answerFa}
-                                englishText={cp.answerEn}
-                                languageMode={docLangMode}
-                                isEn={isEn}
-                              />
-                            </div>
-
-                            <div className="flex items-center justify-end">
-                              <button
-                                type="button"
-                                disabled={isAdded}
-                                onClick={() => handleAddCheckpointToLeitner(cp)}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer border ${
-                                  isAdded
-                                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 cursor-default"
-                                    : "bg-primary hover:bg-primary/90 text-primary-foreground border-transparent shadow-2xs"
-                                }`}
-                              >
-                                {isAdded ? (
-                                  <>
-                                    <Check className="w-3.5 h-3.5" />
-                                    <span>{isEn ? "Added to Leitner" : "✓ به لایتنر اضافه شد"}</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Sparkles className="w-3.5 h-3.5" />
-                                    <span>
-                                      {isEn ? "Add to Leitner Deck" : "⚡ افزودن به جعبه لایتنر"}
-                                    </span>
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
                 </div>
               </div>
             )}
@@ -1060,7 +827,8 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 
       <TextSelectionFloatingBar
         containerRef={contentContainerRef}
-        onAddToNote={onAddToNote}
+        onAddToNote={userId !== "guest" && document.user_id === userId ? text => notebookRef.current?.addNote(text) : onAddToNote}
+        onCreateQuestion={userId !== "guest" && document.user_id === userId ? text => notebookRef.current?.addQuestion(text) : undefined}
         onAddToTask={onAddToTask}
         onAiAction={onAiAction}
         onGenerateQuestions={handleTriggerAiFromSelection}
@@ -1070,8 +838,10 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
       {aiModalOpen && (
         <React.Suspense fallback={null}>
           <AiQuestionGeneratorModal
+            key={`${userId}:${document.id}`}
             open={aiModalOpen}
             onClose={() => setAiModalOpen(false)}
+            sourceAnchor={selectedLearningAnchor}
             initialText={selectedSnippetForAi}
             documentId={document?.id}
             documentTitle={document?.title}

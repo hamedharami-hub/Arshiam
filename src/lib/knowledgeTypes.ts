@@ -1,3 +1,4 @@
+import type { LearningWorkspace } from "./learningWorkspace";
 export interface KnowledgeFolder {
   id: string;
   user_id: string;
@@ -42,6 +43,13 @@ export interface KnowledgeDocument {
   folder_id: string | null;
   title: string;
   content_html: string;
+  learning_workspace?: LearningWorkspace;
+  /** Cache/outbox-only precondition, removed before cloud serialization. */
+  _expected_learning_revision?: string;
+  _expected_document_updated_at?: string;
+  last_mutation_id?: string;
+  _learning_patch_only?: boolean;
+  learning_workspace_unavailable?: boolean;
   title_en?: string;
   content_en?: string;
   preferred_language?: "fa" | "en" | "bilingual";

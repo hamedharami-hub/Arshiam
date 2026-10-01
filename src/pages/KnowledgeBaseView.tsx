@@ -10,6 +10,8 @@ import {
   createKnowledgeFolder,
   deleteKnowledgeFolder,
   getKnowledgeDocuments,
+  getKnowledgeDocument,
+  updateKnowledgeDocumentWithPersistence,
   createKnowledgeDocument,
   updateKnowledgeDocument,
   deleteKnowledgeDocument,
@@ -506,9 +508,13 @@ export const KnowledgeBaseView: React.FC = () => {
     content_review_evidence?: KnowledgeDocument["content_review_evidence"];
   }) => {
     if (editingDoc) {
-      const updated = await updateKnowledgeDocument(userId, editingDoc.id, data);
+      if (editingDoc.user_id !== userId) throw new Error('Account changed; reopen the editor.');
+      const latest = await getKnowledgeDocument(userId, editingDoc.id);
+      if (!latest || latest.content_html !== editingDoc.content_html || latest.content_en !== editingDoc.content_en || latest.title !== editingDoc.title || latest.title_en !== editingDoc.title_en) throw new Error(isEn ? 'Source changed elsewhere. Your draft is retained; reopen the current lesson.' : 'منبع در جای دیگری تغییر کرده؛ پیش‌نویس محفوظ است. نسخهٔ فعلی را دوباره باز کنید.');
+      const result = await updateKnowledgeDocumentWithPersistence(userId, editingDoc.id, { ...data, _expected_document_updated_at: editingDoc.updated_at });
+      const updated = result.document;
       setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
-      toast.success(isEn ? "Document updated" : "سند به‌روزرسانی شد");
+      toast.success(result.persistence === "queued" ? (isEn ? "Document queued for sync" : "سند در صف همگام‌سازی است") : (isEn ? "Document updated" : "سند به‌روزرسانی شد"));
     } else {
       const created = await createKnowledgeDocument(userId, data);
       setDocuments((prev) => [created, ...prev]);
@@ -794,6 +800,7 @@ export const KnowledgeBaseView: React.FC = () => {
 
       {/* Document Create/Edit Modal */}
       <KnowledgeDocumentEditorModal
+        userId={userId}
         open={editorOpen}
         onOpenChange={setEditorOpen}
         document={editingDoc}

@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { CheckCircle2, CircleHelp, RotateCcw } from 'lucide-react';
 import { useBilingual } from '@/hooks/useBilingual';
-import { normalizeLessonLabel } from '@/lib/lessonTemplates';
+import { isTechnicalLessonField, normalizeLessonLabel } from '@/lib/lessonTemplates';
 import type { LessonQuiz } from '@/lib/lessonQuiz';
 import './LessonCardLayout.css';
 
@@ -27,16 +27,20 @@ export function PharmacyLessonQuiz({ quiz, sourceHtml, dir, className, visibleTi
     try { sessionStorage.setItem(storageKey, JSON.stringify({ selected, submitted, correctId: quiz.correctId, options: quiz.options.map(option => option.id).sort().join('|') })); }
     catch { /* Practice remains usable when browser storage is unavailable. */ }
   }, [storageKey, selected, submitted, quiz]);
-  const [source, setSource] = useState(false);
+  const sourceRoot = document.createElement('div'); sourceRoot.innerHTML = sourceHtml;
+  const metadataHtml = Array.from(sourceRoot.querySelectorAll('.knowledge-card > dl > div')).filter(field => {
+    const label = normalizeLessonLabel(field.querySelector(':scope > dt')?.textContent || '');
+    return isTechnicalLessonField(label) && (submitted || !['correct option id', 'شناسه گزینه درست'].includes(label));
+  }).map(field => field.outerHTML).join('');
   const feedbackRef = useRef<HTMLElement>(null);
-  useEffect(() => { if (submitted && !source) feedbackRef.current?.focus(); }, [submitted, source]);
+  useEffect(() => { if (submitted) feedbackRef.current?.focus(); }, [submitted]);
   const correct = selected === quiz.correctId;
   return <div className="lesson-card-layout lesson-quiz" dir={dir} data-testid="pharmacy-lesson-quiz">
     <div className="lesson-card-layout__toolbar">
       <span className="lesson-card-layout__summary"><CircleHelp aria-hidden="true" />{T('تمرین از محتوای همین درس', 'Practice from this lesson')}</span>
-      <button type="button" className="lesson-quiz__source" aria-pressed={source} onClick={() => setSource(!source)}>{source ? T('بازگشت به تمرین', 'Back to practice') : T('متن اصلی و مشخصات', 'Original text & details')}</button>
+
     </div>
-    {source ? <div className={className} dangerouslySetInnerHTML={{ __html: sourceHtml }} /> : <>
+    <>
       <div className={`lesson-quiz__grid ${questionInTitle ? "lesson-quiz__grid--title-question" : ""}`}>
         {!questionInTitle && <section className="lesson-content-card" aria-labelledby={`${id}-question`}>
           <h2 id={`${id}-question`} className="lesson-quiz__heading">{T('پرسش', 'Question')}</h2>
@@ -60,6 +64,7 @@ export function PharmacyLessonQuiz({ quiz, sourceHtml, dir, className, visibleTi
         <h2 id={`${id}-feedback`} className="lesson-quiz__heading" role="status">{correct ? T('پاسخت درست است', 'Your answer is correct') : T('پاسخ درست مشخص شده است؛ توضیح را بخوان', 'The correct answer is marked; read the explanation')}</h2>
         <div className={className} dangerouslySetInnerHTML={{ __html: quiz.explanationHtml }} />
       </section>}
-    </>}
+    </>
+    {metadataHtml && <details className="lesson-card-layout__metadata"><summary>{T('مشخصات مبدأ', 'Source metadata')}</summary><dl className={className} dangerouslySetInnerHTML={{ __html: metadataHtml }} /></details>}
   </div>;
 }

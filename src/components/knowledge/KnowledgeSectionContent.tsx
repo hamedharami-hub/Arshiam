@@ -1,3 +1,4 @@
+import { applyLearningWorkspace, sourceCards, type LearningWorkspace } from "@/lib/learningWorkspace";
 import { useId, useMemo, useState, useRef } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { splitKnowledgeSections } from "@/lib/knowledgeSections";
@@ -21,24 +22,28 @@ function writeSectionParam(id: string) {
   } catch { /* history unavailable */ }
 }
 
-/** Horizontal section navigation; All retains the complete source presentation. */
-export function KnowledgeSectionContent({ html: rawHtml, dir, className, multiCard = false, documentId, visibleTitles, onOpenDocument, userId }: { html: string; dir: "ltr" | "rtl"; className: string; multiCard?: boolean; documentId?: string; visibleTitles?: (string | undefined)[]; onOpenDocument?: (id: string) => void; userId?: string }) {
+/** Navigation follows source headings; a single topic stays a complete article. */
+export function KnowledgeSectionContent({ html: rawHtml, dir, className, multiCard = false, documentId, visibleTitles, onOpenDocument, userId, workspace }: { html: string; dir: "ltr" | "rtl"; className: string; multiCard?: boolean; documentId?: string; visibleTitles?: (string | undefined)[]; onOpenDocument?: (id: string) => void; userId?: string; workspace?: LearningWorkspace }) {
   const { T } = useBilingual();
   const html = useMemo(() => enhanceImagesHtml(rawHtml), [rawHtml]);
   const sections = useMemo(() => splitKnowledgeSections(html), [html]);
-  const cards = useMemo(() => multiCard ? buildLessonCards(html, dir === "rtl" ? "fa" : "en", documentId, visibleTitles) : [], [html, dir, multiCard, documentId, visibleTitles]);
+  const cards = useMemo(() => {
+    const built = multiCard || workspace?.enabled ? buildLessonCards(html, dir === "rtl" ? "fa" : "en", documentId, visibleTitles) : [];
+    const original = (multiCard || workspace?.enabled) && !built.length ? sourceCards({ id: documentId || 'draft', title: visibleTitles?.[0] || T('متن درس', 'Lesson text'), title_en: visibleTitles?.[1], content_html: rawHtml, content_en: rawHtml }, dir === 'rtl' ? 'fa' : 'en') : built;
+    return applyLearningWorkspace(original, workspace, dir === "rtl" ? "fa" : "en", rawHtml);
+  }, [html, rawHtml, dir, multiCard, documentId, visibleTitles, workspace, T]);
   const template = getLessonTemplate(documentId);
   const quiz = useMemo(() => multiCard && template === "quiz" ? parseLessonQuiz(html) : null, [html, multiCard, template]);
   const [viewer, setViewer] = useState<{ src: string; alt: string } | null>(null);
   const tiered = isDrugLike(sections.sections);
-  return <div className="min-w-0" onClickCapture={event => {
+  return <div data-learning-language={dir === "rtl" ? "fa" : "en"} className="min-w-0" onClickCapture={event => {
     const target = event.target as Element;
     if (target.tagName === "IMG" && !target.closest("a")) { const img = target as HTMLImageElement; setViewer({ src: img.currentSrc || img.src, alt: img.alt }); }
   }} onErrorCapture={event => {
     if ((event.target as Element).tagName === "IMG") replaceBrokenImage(event.target as HTMLImageElement, T("تصویر در دسترس نیست", "Image unavailable"));
   }}>
     {quiz ? <PharmacyLessonQuiz key={`${userId}:${documentId}:${html}`} documentId={documentId} userId={userId} quiz={quiz} visibleTitles={visibleTitles} sourceHtml={html} dir={dir} className={className} /> : cards.length > 0
-      ? <LessonCardLayout key={html} documentId={documentId} onOpenDocument={onOpenDocument} template={template} cards={cards} sourceHtml={html} dir={dir} contentClassName={className} />
+      ? <LessonCardLayout key={html} documentId={documentId} onOpenDocument={onOpenDocument} template={template} workspace={workspace} cards={cards} sourceHtml={html} dir={dir} contentClassName={className} />
       : tiered
       ? <DrugTiers introduction={sections.introduction} sections={sections.sections} dir={dir} className={className} />
       : <SectionPresentation key={html} html={html} dir={dir} className={className} introduction={sections.introduction} sections={sections.sections} T={T} />}
@@ -72,14 +77,13 @@ function SectionPresentation({ html, dir, className, introduction, sections, T }
     <Tabs value={active} onValueChange={setActive} dir={dir}>
       <div className="overflow-x-auto max-w-full border-b mb-4 pb-1" role="region" aria-label={T("بخش‌های مطلب", "Lesson sections")}>
         <TabsList className="w-max min-w-full justify-start h-auto gap-1 bg-transparent p-0">
-          <TabsTrigger value="all" className="shrink-0 h-auto min-h-9 px-3">{T("کل مطلب", "All sections")}</TabsTrigger>
           {sections.map(section => <TabsTrigger key={section.id} value={section.id} className="shrink-0 h-auto min-h-9 max-w-64 whitespace-normal text-start px-3 text-xs leading-5">{section.title}</TabsTrigger>)}
         </TabsList>
       </div>
       {active !== "all" && introduction && <div className={className} dangerouslySetInnerHTML={{ __html: introduction }} />}
       <TabsContent value="all" className="mt-0"><div className={className} dangerouslySetInnerHTML={{ __html: html }} /></TabsContent>
       {sections.map(section => <TabsContent key={section.id} value={section.id} className="mt-0" aria-describedby={`${id}-reading-hint`}><div className={className} dangerouslySetInnerHTML={{ __html: section.html }} /></TabsContent>)}
-      <p id={`${id}-reading-hint`} className="text-xs text-muted-foreground border-t mt-4 pt-2">{T("برای دیدن همهٔ بخش‌ها و منابع در کنار هم، «کل مطلب» را انتخاب کنید.", "Choose All sections to read every section and its sources together.")}</p>
+      <p id={`${id}-reading-hint`} className="sr-only">{T("بخش‌ها از تیترهای همین مطلب گرفته شده‌اند.", "Sections follow this lesson’s own headings.")}</p>
     </Tabs>
   </div>;
 }

@@ -18,7 +18,7 @@ import {
   normalizeKnowledgeMediaAttachments,
 } from "./knowledgeService";
 import { cacheGet, cacheSet, clearQueue, enqueueOp, getPendingOps } from "./offlineQueue";
-import { deleteEntityFromFirestore, saveEntityToFirestore } from "./firestoreSync";
+import { deleteEntityFromFirestore, saveEntityToFirestore, saveEntityToFirestoreWithOutcome } from "./firestoreSync";
 import type { KnowledgeDocument } from "./knowledgeTypes";
 
 const { remoteKnowledgeRows, remoteFolderRows, remoteLeitnerRows, remoteTaskLinkRows, remoteReadFailure, remoteTaskLinkReadFailure } = vi.hoisted(() => ({
@@ -62,10 +62,14 @@ vi.mock("@/lib/firebaseStore", () => ({
   },
 }));
 
-vi.mock("@/lib/firestoreSync", () => ({
-  saveEntityToFirestore: vi.fn().mockResolvedValue(true),
-  deleteEntityFromFirestore: vi.fn().mockResolvedValue(true),
-}));
+vi.mock("@/lib/firestoreSync", () => {
+  const saveEntityToFirestore = vi.fn().mockResolvedValue(true);
+  return {
+    saveEntityToFirestore,
+    saveEntityToFirestoreWithOutcome: vi.fn(async (...args: unknown[]) => await saveEntityToFirestore(...args) ? 'saved' : 'failed'),
+    deleteEntityFromFirestore: vi.fn().mockResolvedValue(true),
+  };
+});
 
 function mockSuccessfulFirestoreWrites() {
   vi.mocked(saveEntityToFirestore).mockImplementation(async (_userId, collection, id, data) => {
@@ -841,4 +845,18 @@ describe("private app-cloud lesson attachment normalization", () => {
     expect(normalizeKnowledgeMediaAttachments([file], "another-owner")).toEqual([]);
     expect(normalizeKnowledgeMediaAttachments([{ ...file, size_bytes: 26 * 1024 * 1024 }, { ...file, mime_type: "text/html" }], "owner")).toEqual([]);
   });
+  it('rejects a confirmed remote conflict without queuing or changing the local document', async () => {
+    const userId = 'conflict-owner';
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+    const document = await createKnowledgeDocument(userId, { title: 'Keep this', content_html: '<p>Original source</p>' });
+    await clearQueue();
+    await cacheSet(getDocsCacheKey(userId), [document]);
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true);
+    vi.mocked(saveEntityToFirestoreWithOutcome).mockResolvedValueOnce('stale');
+    await expect(updateKnowledgeDocumentWithPersistence(userId, document.id, { title: 'Stale replacement' })).rejects.toThrow('not confirmed or safely queued');
+    expect(await getPendingOps('knowledge_documents')).toHaveLength(0);
+    const cached = await cacheGet<KnowledgeDocument[]>(getDocsCacheKey(userId));
+    expect(cached?.find(item => item.id === document.id)?.title).toBe('Keep this');
+  });
+
 });

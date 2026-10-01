@@ -17,7 +17,7 @@ describe("TextSelectionFloatingBar", () => {
     expect(screen.queryByRole("button", { name: /copy|کپی/i })).not.toBeInTheDocument();
   });
 
-  it("shows only the requested AI action when text is selected", async () => {
+  it("offers copy and the requested creation action when text is selected", async () => {
     const onGenerateQuestions = vi.fn();
 
     // Mock window.getSelection
@@ -47,9 +47,9 @@ describe("TextSelectionFloatingBar", () => {
       await new Promise((r) => setTimeout(r, 100));
     });
 
-    expect(screen.queryByRole("button", { name: /copy|کپی/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /copy|کپی/i }).length).toBeGreaterThan(0);
 
-    const aiBtns = screen.getAllByTitle(/تولید کارت‌های لایتنر/i);
+    const aiBtns = screen.getAllByRole("button", { name: "کارت مرور" });
     expect(aiBtns.length).toBeGreaterThan(0);
 
     await act(async () => {

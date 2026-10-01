@@ -360,13 +360,13 @@ describe("KnowledgeBaseView (/app/knowledge) Page Verification", { timeout: 1500
 
     fireEvent.click(screen.getByRole("button", { name: "بازگشت به سند قبلی" }));
     await waitFor(() => expect(screen.queryByTestId("knowledge-linked-document-dialog")).not.toBeInTheDocument());
-    expect(screen.getByRole("heading", { name: "راهنمای فلوکستین", level: 1 })).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: "راهنمای فلوکستین", level: 1 })[0]).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("باز کردن سند دوم"));
     expect(await screen.findByRole("dialog", { name: "Second document" })).toBeInTheDocument();
     await act(async () => browserBack?.());
     await waitFor(() => expect(screen.queryByTestId("knowledge-linked-document-dialog")).not.toBeInTheDocument());
-    expect(screen.getByRole("heading", { name: "راهنمای فلوکستین", level: 1 })).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: "راهنمای فلوکستین", level: 1 })[0]).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Tasks route" })).not.toBeInTheDocument();
   }, 30000);
 });

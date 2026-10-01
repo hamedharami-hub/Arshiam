@@ -5,15 +5,18 @@ vi.mock('@/hooks/useBilingual', () => ({ useBilingual: () => ({ T: (_fa: string,
 const html = '<div class="knowledge-card"><section><h2>Mechanism</h2><p>Preserved scientific text.</p></section><section><h2>Warning</h2><p>Essential warning.</p></section><section><h2>Example</h2><p>Worked example.</p></section><dl><div><dt>ID</dt><dd>source-id</dd></div></dl></div>';
 describe('multi-card lesson workflow', () => {
   beforeEach(() => window.history.replaceState(null, '', '/app/knowledge?docId=d1'));
-  it('groups named cards, keeps safety visible when filtering and offers the exact original document', () => {
+  it('uses actual topic names and retains warnings and metadata without generic tabs', () => {
     render(<KnowledgeSectionContent multiCard html={html} dir="ltr" className="knowledge-html-content" />);
     expect(screen.getByTestId('lesson-card-layout')).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: 'Practice & connections' }));
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Example' }), { button: 0, ctrlKey: false });
     expect(screen.getByText('Worked example.')).toBeVisible();
+    expect(screen.queryByText('Essential warning.')).toBeNull();
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Warning' }), { button: 0, ctrlKey: false });
     expect(screen.getByText('Essential warning.')).toBeVisible();
     expect(screen.queryByText('Preserved scientific text.')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Original text' }));
-    expect(screen.getByTestId('lesson-original-text').innerHTML).toBe(html);
+    expect(screen.queryByRole('tab', { name: 'Original text' })).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'All' })).toBeNull();
+    fireEvent.click(screen.getByText('Source metadata'));
     expect(screen.getByText('source-id')).toBeVisible();
   });
   it('keeps ordinary Knowledge documents on their existing presentation', () => {
@@ -27,19 +30,24 @@ describe('multi-card lesson workflow', () => {
     expect(params.get('docId')).toBe('d1');
     expect(params.get('card')).toMatch(/^card-/);
   });
-  it('keeps embedded safety and interaction cards visible when another group is selected', () => {
+  it('keeps embedded safety in its own milestone topic and interactions in theirs', () => {
     const source = '<div class="knowledge-card"><section><h2>Milestones</h2><dl><div><dt>Safety</dt><dd>Essential step warning.</dd></div></dl></section><section><h2>Interactions</h2><p>Essential interaction.</p></section><section><h2>Overview</h2><p>General reading.</p></section></div>';
     render(<KnowledgeSectionContent multiCard documentId="doc-study-track-example" html={source} dir="ltr" className="knowledge-html-content" />);
-    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
-    expect(screen.getByText('Essential step warning.')).toBeVisible();
-    expect(screen.getByText('Essential interaction.')).toBeVisible();
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Overview' }), { button: 0, ctrlKey: false });
     expect(screen.getByText('General reading.')).toBeVisible();
+    expect(screen.queryByText('Essential step warning.')).toBeNull();
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Milestones' }), { button: 0, ctrlKey: false });
+    expect(screen.getByText('Essential step warning.')).toBeVisible();
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Interactions' }), { button: 0, ctrlKey: false });
+    expect(screen.getByText('Essential interaction.')).toBeVisible();
   });
   it('makes source document references usable by keyboard', () => {
     const source = '<div class="knowledge-card"><section><h2>Milestones</h2><div data-doc-link="doc-existing">A linked lesson</div></section><section><h2>Overview</h2><p>General reading.</p></section></div>';
     const onClick = vi.fn();
     render(<div onClick={onClick}><KnowledgeSectionContent multiCard documentId="doc-study-track-example" html={source} dir="ltr" className="knowledge-html-content" /></div>);
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Milestones' }), { button: 0, ctrlKey: false });
     const link = screen.getByRole('link', { name: 'A linked lesson' });
+    onClick.mockClear();
     expect(link).toHaveAttribute('tabindex', '0');
     fireEvent.keyDown(link, { key: 'Enter' });
     expect(onClick).toHaveBeenCalledOnce();
