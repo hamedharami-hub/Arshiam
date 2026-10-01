@@ -41,7 +41,9 @@ interface AiQuestionGeneratorModalProps {
   onOpenReview?: () => void;
 }
 
-export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> = ({
+export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> = props => props.open ? <AiQuestionGeneratorModalForm key={`${props.userId}:${props.documentId || "draft"}`} {...props} /> : null;
+
+const AiQuestionGeneratorModalForm: React.FC<AiQuestionGeneratorModalProps> = ({
   open,
   onClose,
   initialText,

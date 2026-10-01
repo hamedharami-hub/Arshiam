@@ -1,7 +1,9 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render as renderBase, screen, fireEvent, waitFor } from "@testing-library/react";
 import { KnowledgeDocumentReader } from "./KnowledgeDocumentReader";
+import { MemoryRouter } from "react-router-dom";
+const render = (ui: React.ReactNode, options?: import("@testing-library/react").RenderOptions) => renderBase(ui, { wrapper: MemoryRouter, ...options });
 import type { KnowledgeDocument, KnowledgeFolder } from "@/lib/knowledgeTypes";
 
 const mockCreateLeitnerCard = vi.hoisted(() => vi.fn());
@@ -113,12 +115,12 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
     expect(screen.getByTestId("knowledge-more-menu")).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("knowledge-study-mode-toggle"));
     expect(toggle).toHaveBeenCalledTimes(1);
-    const before = screen.getByText(dummyDoc.title).textContent;
+    const before = screen.getAllByText(dummyDoc.title).at(-1)!.textContent;
     rerender(<KnowledgeDocumentReader document={dummyDoc} folder={dummyFolder} onEdit={() => {}} onDelete={() => {}} onToggleStudyMode={toggle} studyMode />);
     expect(screen.queryByTestId("knowledge-more-menu")).toBeNull();
     expect(screen.getByTestId("knowledge-study-mode-toggle")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("knowledge-fullscreen-toggle")).toBeInTheDocument();
-    expect(screen.getByText(dummyDoc.title).textContent).toBe(before);
+    expect(screen.getAllByText(dummyDoc.title).at(-1)!.textContent).toBe(before);
   });
   it("warns when a legacy Persian view still contains mostly English body text", () => {
     const mixedDoc: KnowledgeDocument = {
@@ -385,7 +387,7 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
       />
     );
 
-    const title = screen.getByRole("heading", { name: longTitle, level: 1 });
+    const title = screen.getAllByRole("heading", { name: longTitle, level: 1 }).find(element => element.classList.contains("break-words"))!;
     const sectionHeading = container.querySelector(".knowledge-html-content h2");
     expect(title).toHaveClass("break-words");
     expect(title).toHaveTextContent(longTitle);

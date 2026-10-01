@@ -27,7 +27,7 @@ async function persist(userId: string, current: KnowledgeDocument, workspace: Le
   if (new TextEncoder().encode(JSON.stringify({ ...current, learning_workspace: next })).length > 900000) throw new Error("Lesson plus notebook exceeds the cloud document limit. Split it into smaller lessons.");
   const result = await updateKnowledgeDocumentWithPersistence(userId, current.id, {
     learning_workspace: next,
-    _expected_learning_revision: current._expected_learning_revision ?? current.learning_workspace?.revision ?? '',
+    _expected_learning_revision: current.learning_workspace?.revision ?? '',
     _learning_patch_only: true,
   });
   if (result.persistence === "synced") { const fresh = await getKnowledgeDocument(userId, current.id); if (fresh) return { ...result, document: fresh }; }

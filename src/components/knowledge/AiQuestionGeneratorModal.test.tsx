@@ -19,6 +19,7 @@ vi.mock("@/lib/knowledgeQuestionGenerator", () => ({
 }));
 vi.mock("@/lib/leitnerService", () => ({
   createLeitnerCard: mocks.createLeitnerCard,
+  createLeitnerCardWithReceipt: async (userId: string, data: unknown) => ({ card: await mocks.createLeitnerCard(userId, data), persistence: "synced" }),
 }));
 vi.mock("sonner", () => ({
   toast: { success: mocks.toastSuccess, error: mocks.toastError },
@@ -109,6 +110,7 @@ describe("AiQuestionGeneratorModal", () => {
     expect(screen.getByRole("note")).toHaveTextContent(/با فشردن «تولید»، عنوان درس، متن انتخابی/i);
     expect(screen.getByRole("note")).toHaveTextContent(/در صورت فعال‌بودن شخصی‌سازی/i);
     expect(mocks.generateQuestionsFromText).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByRole("button", { name: /تولید سوالات با هوش مصنوعی/i })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: /تولید سوالات با هوش مصنوعی/i }));
 
     await waitFor(() => {
@@ -126,7 +128,7 @@ describe("AiQuestionGeneratorModal", () => {
 
     await waitFor(() => {
       expect(createLeitnerCard).toHaveBeenCalledTimes(2);
-      expect(createLeitnerCard).toHaveBeenCalledWith("user-test-1", {
+      expect(createLeitnerCard).toHaveBeenCalledWith("user-test-1", expect.objectContaining({
         front: "مکانیسم داروی سرترالین چیست؟",
         back: "مهارکننده انتخابی بازجذب سروتونین (SSRI)",
         front_fa: "مکانیسم داروی سرترالین چیست؟",
@@ -137,7 +139,8 @@ describe("AiQuestionGeneratorModal", () => {
         document_id: "doc-test-1",
         folder_id: "folder-test-1",
         box: 1,
-      });
+        idempotency_key: expect.any(String),
+      }));
       expect(onCardsSaved).toHaveBeenCalledWith(2);
     });
   });
@@ -158,6 +161,7 @@ describe("AiQuestionGeneratorModal", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /افزودن دستی کارت/i }));
+    await waitFor(() => expect(screen.getByPlaceholderText(/مکانیسم اثر فلوکستین چیست؟/i)).toBeEnabled());
     fireEvent.change(screen.getByPlaceholderText(/مکانیسم اثر فلوکستین چیست؟/i), {
       target: { value: "دوز شروع سرترالین؟" },
     });
@@ -174,7 +178,7 @@ describe("AiQuestionGeneratorModal", () => {
     fireEvent.click(screen.getByRole("button", { name: /افزودن کارت به لایتنر و نقشه ذهنی/i }));
 
     await waitFor(() => {
-      expect(createLeitnerCard).toHaveBeenCalledWith("user-test-1", {
+      expect(createLeitnerCard).toHaveBeenCalledWith("user-test-1", expect.objectContaining({
         front: "دوز شروع سرترالین؟",
         back: "۲۵ تا ۵۰ میلی‌گرم روزانه",
         front_en: "What is the starting dose of sertraline?",
@@ -183,7 +187,8 @@ describe("AiQuestionGeneratorModal", () => {
         document_id: "doc-test-2",
         folder_id: null,
         box: 1,
-      });
+        idempotency_key: expect.any(String),
+      }));
       expect(onCardsSaved).toHaveBeenCalledWith(1);
     });
   });
@@ -198,6 +203,7 @@ describe("AiQuestionGeneratorModal", () => {
     rerender(<AiQuestionGeneratorModal {...props} />);
     expect(mocks.generateQuestionsFromText).not.toHaveBeenCalled();
 
+    await waitFor(() => expect(screen.getByRole("button", { name: "Generate Questions with AI" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Generate Questions with AI" }));
     await waitFor(() => expect(mocks.generateQuestionsFromText).toHaveBeenCalledTimes(1));
 
@@ -218,6 +224,7 @@ describe("AiQuestionGeneratorModal", () => {
       .mockResolvedValueOnce(currentCards);
 
     const { rerender, props } = renderModal();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Generate Questions with AI" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Generate Questions with AI" }));
     await waitFor(() => expect(mocks.generateQuestionsFromText).toHaveBeenCalledTimes(1));
 
@@ -233,6 +240,7 @@ describe("AiQuestionGeneratorModal", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Generate Questions with AI" })).toBeEnabled();
     });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Generate Questions with AI" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Generate Questions with AI" }));
     expect(await screen.findByDisplayValue("New lesson question?")).toBeInTheDocument();
 
@@ -249,6 +257,7 @@ describe("AiQuestionGeneratorModal", () => {
     mocks.generateQuestionsFromText.mockResolvedValue(englishCandidates);
     const { onCardsSaved } = renderModal();
     expect(mocks.generateQuestionsFromText).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Generate Questions with AI" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Generate Questions with AI" }));
     await screen.findByDisplayValue("Question one?");
     mocks.createLeitnerCard

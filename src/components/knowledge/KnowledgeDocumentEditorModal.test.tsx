@@ -38,7 +38,7 @@ describe("KnowledgeDocumentEditorModal review evidence", () => {
     updated_at: "2026-09-01T00:00:00.000Z",
   };
 
-  function renderEditor(document: KnowledgeDocument, onSave = vi.fn(async (_data: EditorSaveData) => {})) {
+  async function renderEditor(document: KnowledgeDocument, onSave = vi.fn(async (_data: EditorSaveData) => {})) {
     render(
       <KnowledgeDocumentEditorModal
         open
@@ -49,11 +49,12 @@ describe("KnowledgeDocumentEditorModal review evidence", () => {
         onSave={onSave}
       />
     );
+    await waitFor(() => expect(screen.getByRole("button", { name: "ذخیره سند" })).toBeEnabled());
     return onSave;
   }
 
   it("blocks a reviewed status until required review metadata and an HTTPS source are complete", async () => {
-    const onSave = renderEditor(baseDocument);
+    const onSave = await renderEditor(baseDocument);
     fireEvent.click(screen.getByText("وضعیت بازبینی و شواهد منابع"));
     fireEvent.change(screen.getByRole("combobox", { name: "وضعیت بازبینی" }), {
       target: { value: "reviewed" },
@@ -67,7 +68,7 @@ describe("KnowledgeDocumentEditorModal review evidence", () => {
   });
 
   it("saves complete review evidence and preserves the reviewer/source caveat", async () => {
-    const onSave = renderEditor(baseDocument);
+    const onSave = await renderEditor(baseDocument);
     fireEvent.click(screen.getByText("وضعیت بازبینی و شواهد منابع"));
     fireEvent.change(screen.getByRole("combobox", { name: "وضعیت بازبینی" }), {
       target: { value: "reviewed" },
@@ -105,7 +106,7 @@ describe("KnowledgeDocumentEditorModal review evidence", () => {
   });
 
   it("does not rewrite legacy review fields when they were not edited", async () => {
-    const onSave = renderEditor({
+    const onSave = await renderEditor({
       ...baseDocument,
       content_review_status: "reviewed",
     });
