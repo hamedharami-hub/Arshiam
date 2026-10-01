@@ -1,0 +1,60 @@
+{
+  "summary": "Frontend regression for the ARSHNAZ January 2026 iteration (search palette, page-color persistence, task description attach+link, tag page filtering, calendar RTL + AU/IR occasion toggles, Time Buckets inbox tray, Life Architect, Knowledge compact reader header, folder background, dark mode and page-load regression). Logged in with test.arshnaz@example.com and executed Playwright flows on http://localhost:3000 (preview URL). 9 of 11 features verified PASS. 2 features partially unverified due to UI entry-points (tag chip picker in task drawer did not surface newly created tags; sidebar '+' folder-create flow did not persist a folder from a Playwright-driven input). No crash, no new console errors beyond the preexisting Vite HMR wss:// and Firestore unavailable noise.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "TaskDrawer برچسب‌ها (tags) chip picker",
+        "issue": "After creating a tag 'qa-tag-test' from the sidebar + (title='تگ جدید'), opening the task drawer and clicking the 'برچسب‌ها' chip did NOT show the newly-created tag in the picker (get_by_text('qa-tag-test') timed out). The tag page itself DOES correctly scope to only tasks carrying that tag (empty state 'هیچ تسکی در این لیست نیست' instead of leaking all tasks — this part of the fix is verified), but users cannot assign an existing user-created tag from the drawer. May be a propagation/query issue in src/lib/taskTagService.ts or the chip component.",
+        "selector": "task drawer 'برچسب‌ها' chip → popover list of tags",
+        "priority": "HIGH"
+      },
+      {
+        "component": "Sidebar 'فولدرها' + button",
+        "issue": "Clicking the '+' button with title='فولدر جدید' then typing a name + Enter did not create a folder (folder links list stayed at 0). Likely uses a different widget (dialog/prompt) than a plain inline input. This blocked verification of the folder background image feature (data-testid=folder-bg-image, color swatches, delete bg image).",
+        "selector": "button[title='فولدر جدید']",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_flows": {
+    "search_palette": "PASS — [data-testid=header-search-button] opens role=dialog with cmdk input; typing 'تست' shows group 'نتایج جستجو' with 5 result items; Ctrl+K also opens the palette; Escape closes it. Previously-reported auto-close bug is NOT reproducible.",
+    "page_background_color": "PASS — on /app/today click header-page-color-button → page-color-sky tints <main> (bg = srgb(0.895,0.943,0.961)); after full reload the same bg is restored. page-color-none clears it. Independent per page.",
+    "task_description_link_dialog": "PASS — [data-testid=task-description-add-link] opens [data-testid=link-dialog]; 'javascript:alert(1)' triggers [data-testid=link-dialog-error] and keeps the dialog open; 'example.com/page' submits, closes the dialog, and inserts a link into the description.",
+    "task_description_attach_image": "PASS — [data-testid=task-description-attach] file chooser accepts a PNG (/root/t.png) and after blur the image shows inside the description preview (<img> count ≥ 1).",
+    "calendar_rtl_jalali": "PASS — in شمسی mode the weekday row of the month grid runs with ش on the right (x=1021) and ج on the left (x=118). Visual: Oct 2026 rows show numbers 28..3 top row with Saturday rightmost.",
+    "calendar_au_occasions_toggle_persist": "PASS — [data-testid=calendar-occasions-AU] toggles the 'آغاز ساعت تابستانی' (12 Oct) chip on/off; state survives a full reload (true→false→true, and true after reload). IR button present as [data-testid=calendar-occasions-IR].",
+    "buckets_inbox_tray_assign": "PASS — /app/buckets exposes [data-testid=horizon-purpose], [data-testid=horizon-inbox-tray], [data-testid=horizon-inbox-tray-toggle] and [data-testid=horizon-overdue-section]. Clicking a [data-testid^=horizon-inbox-assign-] button decremented inbox-assign count from 4 → 3 (task moved into current period). Switching levels (روزانه/هفتگی/ماهانه/فصلی/سالانه) works without console errors.",
+    "life_architect_stage_cards": "PASS — /app/life-architect renders [data-testid=life-stage-values|goals|plans|actions] (each count=1) and [data-testid=life-progress]. 'شروع معماری کامل' starts the wizard. Layout at 1400px looks right-aligned (RTL) as expected.",
+    "knowledge_reader_compact_header": "PASS — [data-testid=knowledge-reader-header] height = 41px (≈40px slim line as required). All 7 testids present: knowledge-language-toggle, knowledge-study-mode-toggle, knowledge-translate, knowledge-interactive, knowledge-ai-generate, knowledge-edit, knowledge-more-menu. Opening more-menu exposes [data-testid=knowledge-delete]; cancel/escape leaves document intact.",
+    "tag_page_scoping_fix": "PASS (scoping) — /app/tag/<id> for a tag that has no tasks correctly shows the empty state 'هیچ تسکی در این لیست نیست' and does NOT leak the two unrelated tasks that exist in /app/today (previously reported bug). Could not positively verify a tag with one assigned task because the drawer chip picker did not expose the newly created tag — see bug above.",
+    "dark_mode_toggle": "PASS — header-theme-toggle flips html.dark on and back off.",
+    "regression_pages_load": "PASS — /app/today, /app/inbox, /app/notes, /app/kanban all render <main> without crash and with no new app-level console errors."
+  },
+  "unverified_flows": {
+    "folder_background_image": "Not verified end-to-end because no folder exists for the test account and the sidebar '+' flow did not produce a folder from Playwright. Main agent should seed a folder or confirm the create-folder UX (dialog?)."
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Investigate why the task drawer 'برچسب‌ها' chip picker does not list user-created tags (regression candidate; verify assignTagToTask flow in src/lib/taskTagService.ts and the tag listing hook that feeds the chip).",
+    "Clarify / fix the sidebar فولدرها '+' create flow so a folder name typed into the input actually creates a folder (so folder-bg-image can be regression-tested).",
+    "Re-run after fixes to verify (a) tag page shows exactly one task when a tag is assigned to one task, and (b) folder bg image uploads/persist/clear with [data-testid=folder-bg-image]."
+  ],
+  "critical_code_review_comments": [
+    "src/components/CommandPalette.tsx: previously-reported instant close is no longer reproducible — good. Confirm that pointer-events on the trigger button are not re-added later; the dialog opens from header-search-button and from Ctrl+K.",
+    "src/components/TaskDescriptionEditor.tsx: attach + link flow is sound; link dialog validates URLs and only inserts the sanitized href. Consider keeping the attach button accessible in preview mode (currently only visible in edit mode) so users do not have to re-focus the textarea.",
+    "src/pages/CalendarView.tsx + src/lib/holidays.ts: AU occasions correctly show (Daylight Saving on 12 Oct 2026) and persist. RTL weekday ordering is correct in Jalali mode.",
+    "src/components/knowledge/KnowledgeReaderHeader.tsx: slim 41px header with icon-only buttons matches the brief; verify responsive collapse at ~700px foldable width in a follow-up (not re-run here).",
+    "src/lib/taskTagService.ts / useTasksData.ts: tag scoping on /app/tag/<id> now works, but the drawer chip picker still appears to filter out user-created tags — likely a reactive-list sync between tag creation and the drawer’s cached tag list."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "~90% — 11/13 primary flows PASS, 1 HIGH tag-picker bug, 1 MEDIUM folder-create UX gap blocked folder-bg verification"},
+  "test_credentials": "test.arshnaz@example.com / Test123456 (from /app/memory/test_credentials.md). Disclaimer must be clicked via get_by_text('مسئولیت‌نامه را مطالعه کردم'). Onboarding dialog dismissed via get_by_text('رد کن').",
+  "seed_data_creation": "Created one tag named 'qa-tag-test' (id dbd57f08-f239-4c3f-9b82-d3ca08d262cc). Attached a small PNG and link https://example.com/page to the existing task 'تست طراحی جدید متا' description. No folders created.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Vite HMR wss://localhost/ errors and 'Could not reach Cloud Firestore backend' are environmental noise and should be ignored. page.goto with wait_until='networkidle' hangs because the live Firestore listener keeps the connection busy — always use wait_until='domcontentloaded' + wait_for_timeout(2500-3000ms). For the task drawer tags chip, inspect the popover DOM to find the correct input/option selectors before trying to assign a tag. For folder creation, inspect the DOM after clicking button[title='فولدر جدید'] — it may open a shadcn Dialog with a specific form rather than an inline input. Knowledge module unlock: set every localStorage key beginning with 'arshnaz:modules:' to {ready:true,unlocked:['pharmacy','study','mind'],installed:[...]}; after login the Knowledge page becomes accessible.",
+  "rca_of_issue": "Tag page scoping (bug 'tag page shows all tasks') is FIXED per /app/tag/<id> correctly honouring the scope==='tag' branch in src/pages/TasksView.tsx. Remaining gap is the drawer chip picker not surfacing user tags — likely a stale list in the component that supplies options to the chip (not the tag page itself). Folder bg image fix cannot be exercised until a folder exists; the sidebar '+' flow needs a UX confirmation."
+}
