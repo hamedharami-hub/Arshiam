@@ -8,9 +8,10 @@ import { KnowledgeMindMapView } from "@/components/review/KnowledgeMindMapView";
 import type { KnowledgeMindMapReviewScope } from "@/lib/knowledgeMindMapReview";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ReviewInsights } from "@/components/review/ReviewInsights";
-import { PHARMACY_ROOT_FOLDER_ID } from "@/lib/pharmacyConstants";
 
-export const REVIEW_FOLDERS = [{ id: "pharmacy", fa: "فارماسی", en: "Pharmacy" }] as const;
+import { REVIEW_DOMAINS, resolveReviewScope } from "@/lib/reviewDomains";
+
+export const REVIEW_FOLDERS = REVIEW_DOMAINS;
 import {
   loadStudyContentLanguage,
   saveStudyContentLanguage,
@@ -24,18 +25,21 @@ export const ReviewView: React.FC = () => {
     () => loadStudyContentLanguage(isEn ? "en" : "fa"),
   );
   const navigate = useNavigate();
-  const { folder: reviewFolder = "all" } = useParams<{ folder: string }>();
+  const { folder: legacyFolder } = useParams<{ folder: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { domain: reviewFolder, scopeRootFolderId, topic } = resolveReviewScope(searchParams.get("domain") ?? legacyFolder, searchParams.get("topic"));
   const urlFolderId = searchParams.get("folderId");
   const urlDocId = searchParams.get("docId");
   const studyDocId = searchParams.get("studyDocId");
   const studyFolderId = searchParams.get("studyFolderId");
   const studyTaskId = searchParams.get("studyTaskId");
   const urlTab = searchParams.get("tab");
-  const scopeRootFolderId = reviewFolder === "pharmacy" ? PHARMACY_ROOT_FOLDER_ID : undefined;
-  const folderSwitchParams = new URLSearchParams(searchParams);
-  for (const key of ["folderId", "docId", "studyFolderId", "studyDocId", "studyTaskId"]) folderSwitchParams.delete(key);
-  const preservedSearch = folderSwitchParams.toString() ? `?${folderSwitchParams.toString()}` : "";
+  const domainHref = (domain: string) => {
+    const next = new URLSearchParams(searchParams);
+    for (const key of ["folderId", "docId", "studyFolderId", "studyDocId", "studyTaskId", "topic"]) next.delete(key);
+    if (domain === "all") next.delete("domain"); else next.set("domain", domain);
+    return `/app/review${next.toString() ? `?${next.toString()}` : ""}`;
+  };
 
   const activeTab: "leitner" | "mindmap" = urlTab === "mindmap"
     ? "mindmap"
@@ -68,9 +72,11 @@ export const ReviewView: React.FC = () => {
 
   const handleStartMindMapReview = useCallback((scope: KnowledgeMindMapReviewScope) => {
     const params = new URLSearchParams({ tab: "leitner" });
+    if (reviewFolder !== "all") params.set("domain", reviewFolder);
+    if (topic) params.set("topic", topic);
     if (scope.kind === "folder") params.set("studyFolderId", scope.id);
     if (scope.kind === "document") params.set("studyDocId", scope.id);
-    navigate(`/app/review/${reviewFolder}?${params.toString()}`);
+    navigate(`/app/review?${params.toString()}`);
   }, [navigate, reviewFolder]);
 
   return (
@@ -152,7 +158,7 @@ export const ReviewView: React.FC = () => {
           <button
             type="button"
             aria-pressed={reviewFolder === "all"}
-            onClick={() => navigate(`/app/review${preservedSearch}`)}
+            onClick={() => navigate(domainHref("all"))}
             data-testid="review-folder-all"
             className={`shrink-0 h-8 px-3 rounded-full border text-xs font-semibold ${reviewFolder === "all" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`}
           >
@@ -163,7 +169,7 @@ export const ReviewView: React.FC = () => {
               key={f.id}
               type="button"
               aria-pressed={reviewFolder === f.id}
-              onClick={() => navigate(`/app/review/${f.id}${preservedSearch}`)}
+              onClick={() => navigate(domainHref(f.id))}
               data-testid={`review-folder-${f.id}`}
               className={`shrink-0 h-8 px-3 rounded-full border text-xs font-semibold ${reviewFolder === f.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`}
             >

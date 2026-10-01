@@ -29,7 +29,8 @@ export function filterKnowledgeForFolderBranch(
   };
 }
 
-export function filterCardsForDocuments(cards: LeitnerCard[], documents: KnowledgeDocument[]): LeitnerCard[] {
+export function filterCardsForDocuments(cards: LeitnerCard[], documents: KnowledgeDocument[], folders: KnowledgeFolder[] = []): LeitnerCard[] {
   const documentIds = new Set(documents.map((document) => document.id));
-  return cards.filter((card) => Boolean(card.document_id && documentIds.has(card.document_id)));
+  const folderIds = new Set(folders.map((folder) => folder.id));
+  return cards.filter((card) => Boolean((card.document_id && documentIds.has(card.document_id)) || (!card.document_id && card.folder_id && folderIds.has(card.folder_id))));
 }

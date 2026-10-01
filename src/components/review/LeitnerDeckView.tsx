@@ -238,7 +238,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
         getLeitnerCards(userId), getKnowledgeDocuments(userId), getKnowledgeFolders(userId),
       ]);
       const branch = filterKnowledgeForFolderBranch(knowledgeFolders, docs, scopeRootFolderId);
-      const rootCards = scopeRootFolderId ? filterCardsForDocuments(allCards, branch.documents) : allCards;
+      const rootCards = scopeRootFolderId ? filterCardsForDocuments(allCards, branch.documents, branch.folders) : allCards;
       let inventory = effectiveFolderScopeId
         ? getLeitnerCardsForFolderBranch(rootCards, branch.folders, branch.documents, effectiveFolderScopeId)
         : rootCards;

@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import ReviewView, { REVIEW_FOLDERS } from "./ReviewView";
+import ReviewRedirect from "./ReviewRedirect";
 
 vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({ user: { id: "synthetic-user" } }),
@@ -150,5 +151,35 @@ describe("ReviewView scoped Leitner task navigation", () => {
     fireEvent.click(screen.getByRole("button", { name: "نقشه مفهومی" }));
     expect(screen.getByTestId("review-search")).toHaveTextContent("tab=mindmap");
     expect(screen.getByTestId("knowledge-mind-map").parentElement).not.toHaveClass("hidden");
+  });
+});
+
+describe("ReviewView single module with ?domain=&topic=", () => {
+  const renderAt = (url: string) => render(
+    <MemoryRouter initialEntries={[url]}>
+      <Routes>
+        <Route path="/app/review" element={<ReviewView />} />
+        <Route path="/app/review/:folder" element={<ReviewRedirect />} />
+      </Routes>
+    </MemoryRouter>
+  );
+  it("passes one domain scope to Leitner, insights and the map views", () => {
+    renderAt("/app/review?domain=pharmacy");
+    expect(screen.getByTestId("review-folder-pharmacy")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("leitner-deck")).toHaveAttribute("data-scope-root", "folder-pharmacy-root");
+  });
+  it("scopes to a topic folder inside the domain", () => {
+    renderAt("/app/review?domain=pharmacy&topic=folder-cardio");
+    expect(screen.getByTestId("leitner-deck")).toHaveAttribute("data-scope-root", "folder-cardio");
+  });
+  it("ignores an unknown domain and shows everything", () => {
+    renderAt("/app/review?domain=nope");
+    expect(screen.getByTestId("review-folder-all")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("leitner-deck")).toHaveAttribute("data-scope-root", "");
+  });
+  it("redirects an old /app/review/pharmacy deep link and keeps its other params", () => {
+    renderAt("/app/review/pharmacy?studyDocId=doc-9&tab=leitner");
+    expect(screen.getByTestId("review-folder-pharmacy")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("leitner-deck")).toHaveAttribute("data-study-document-id", "doc-9");
   });
 });
