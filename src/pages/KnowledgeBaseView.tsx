@@ -674,17 +674,13 @@ export const KnowledgeBaseView: React.FC = () => {
               <Button variant="outline" onClick={() => navigate(location.pathname)}>{isEn ? "Open library" : "بازکردن کتابخانه"}</Button>
             </div>
           ) : (<>
-          {pharmacyTopicId && !studyMode && (
-            <nav className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b bg-card px-3 py-1.5 text-xs" aria-label={isEn ? "Pharmacy lesson path" : "مسیر درس فارماسی"} data-testid="pharmacy-lesson-strip">
-              <Link to="/app/pharmacy" className="text-primary hover:underline">{isEn ? "Pharmacy" : "فارماسی"}</Link>
-              <span className="ms-auto flex gap-3">
-                <Link to="/app/pharmacy-scenario-practice" className="text-primary hover:underline" data-testid="pharmacy-strip-practice">{isEn ? "Practice" : "تمرین"}</Link>
-                <Link to={`/app/review?domain=pharmacy&topic=${encodeURIComponent(pharmacyTopicId)}`} className="text-primary hover:underline" data-testid="pharmacy-strip-review">{isEn ? "Review this topic" : "مرور این موضوع"}</Link>
-              </span>
-            </nav>
-          )}
           <KnowledgeDocumentReader
             document={currentDoc}
+            pharmacyLinks={pharmacyTopicId ? {
+              hub: "/app/pharmacy",
+              practice: "/app/pharmacy-scenario-practice",
+              review: `/app/review?domain=pharmacy&topic=${encodeURIComponent(pharmacyTopicId)}`,
+            } : undefined}
             folder={currentFolder}
             allDocuments={documents}
             onSelectDocument={handleOpenLinkedDocument}

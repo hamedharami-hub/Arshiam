@@ -18,6 +18,8 @@ import { migrateLegacyComments } from "@/lib/commentMigration";
 import { startAttachmentQueueRunner } from "@/lib/attachmentUpload";
 import BackButtonHandler from "@/components/BackButtonHandler";
 import CommandPalette from "@/components/CommandPalette";
+import { PageColorButton } from "@/components/PageColorButton";
+import { pageKeyForPath, pageTint, usePageBackground } from "@/lib/pageBackground";
 import QuickCaptureDialog from "@/components/QuickCaptureDialog";
 import KeyboardShortcutsDialog from "@/components/KeyboardShortcutsDialog";
 import { BottomTabBar } from "@/components/BottomTabBar";
@@ -45,6 +47,8 @@ export default function AppLayout() {
   const loc = useLocation();
   useTwoFingerSwipe();
   const { user: layoutUser } = useAuth();
+  const pageKey = pageKeyForPath(loc.pathname);
+  const pageBg = usePageBackground(layoutUser?.id, pageKey);
   useEffect(() => { void syncModulesForUser(layoutUser?.id ?? null); }, [layoutUser?.id]);
   useEffect(() => {
     if (!layoutUser?.id) return;
@@ -128,13 +132,13 @@ export default function AppLayout() {
               </div>
               <div className="flex items-center gap-1 justify-end shrink-0">
                 <div id="app-header-actions" className="flex items-center gap-2 shrink-0 empty:hidden" />
+                {pageKey && <PageColorButton color={pageBg.color} onChange={pageBg.set} />}
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 shrink-0"
                   onClick={() => {
                     window.dispatchEvent(new CustomEvent("arshnaz:open-search"));
-                    window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, ctrlKey: true }));
                   }}
                   aria-label={document.documentElement.lang?.startsWith("en") ? "Search (Ctrl+K)" : "جستجو (Ctrl+K)"}
                   title={document.documentElement.lang?.startsWith("en") ? "Search (Ctrl+K)" : "جستجو (Ctrl+K)"}
@@ -151,7 +155,7 @@ export default function AppLayout() {
           )}
           <main
             id="main-scroll"
-            style={{ "--app-bottom-space": showMobileBottomBar ? "calc(5.2rem + env(safe-area-inset-bottom))" : "0.5rem" } as CSSProperties}
+            style={{ "--app-bottom-space": showMobileBottomBar ? "calc(5.2rem + env(safe-area-inset-bottom))" : "0.5rem", backgroundColor: pageTint(pageBg.color) } as CSSProperties}
             className={cn(
               "flex-1 overflow-auto",
               showMobileBottomBar

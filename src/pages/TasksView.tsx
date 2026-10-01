@@ -1,5 +1,5 @@
 import { readTaskListSort, saveTaskListSort, TASK_LIST_SORT_EVENT } from "@/lib/taskListSort";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
@@ -532,6 +532,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       list = list.filter(t => !t.parent_id && (!t.completed || isGraceActive(t.id)));
     } else if (scope === "folder") {
       list = list.filter(t => !t.parent_id && t.folder_id === params.id);
+    } else if (scope === "tag") {
+      const tagId = params.id;
+      const hasTag = (t?: Task) => !!t && !!tagId && (taskTagsMap[t.id] || []).includes(tagId);
+      list = list.filter(t => hasTag(t) && (!t.parent_id || !hasTag(taskMap.get(t.parent_id))));
     } else {
       list = list.filter(t => !t.parent_id);
     }
@@ -1114,16 +1118,16 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
   return (
     <div
-      className={`p-2 sm:p-3 md:p-4 lg:px-5 xl:px-7 lg:py-5 w-full mx-auto relative${isFolder ? " min-h-screen" : ""}`}
-      style={isFolder ? {
-        backgroundColor: folderPrefs.bgColor ?? undefined,
-        backgroundImage: folderPrefs.bgImage ?? undefined,
-        backgroundSize: folderPrefs.bgImage ? "cover" : undefined,
-        backgroundAttachment: folderPrefs.bgImage ? "fixed" : undefined,
-      } : undefined}
+      className={`p-2 sm:p-3 md:p-4 lg:px-5 xl:px-7 lg:py-5 w-full mx-auto relative${isFolder ? " min-h-screen" : ""}${isFolder && folderPrefs.bgColor ? " folder-tint" : ""}`}
+      style={isFolder && folderPrefs.bgColor ? ({ "--folder-bg": folderPrefs.bgColor } as CSSProperties) : undefined}
     >
       {isFolder && folderPrefs.bgImage && (
-        <div className="absolute inset-0 bg-background/70 backdrop-blur-[2px] pointer-events-none" />
+        <div
+          aria-hidden
+          data-testid="folder-bg-image"
+          className="pointer-events-none absolute inset-0 z-0 bg-cover bg-center opacity-[0.16] dark:opacity-[0.12]"
+          style={{ backgroundImage: /^https?:|^data:|^blob:/.test(folderPrefs.bgImage) ? `url("${folderPrefs.bgImage}")` : folderPrefs.bgImage }}
+        />
       )}
       <div className="relative z-10">
         <TasksHeader

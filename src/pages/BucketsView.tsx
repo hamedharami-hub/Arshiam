@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { HorizonTimeline } from "@/components/horizon/HorizonTimeline";
 import { HorizonTaskRow } from "@/components/horizon/HorizonTaskRow";
 import { HorizonFilterBar } from "@/components/horizon/HorizonFilterBar";
+import { HorizonInboxTray } from "@/components/horizon/HorizonInboxTray";
 import { HorizonSmartAdd } from "@/components/horizon/HorizonSmartAdd";
 import { TimeSettingsFields } from "@/components/horizon/TimeSettingsFields";
 import { WeatherWeekStrip } from "@/components/weather/WeatherWeekStrip";
@@ -41,6 +42,14 @@ import type { FolderItem } from "@/lib/firestoreDataService";
 
 const LEVEL_KEY = "arsh_horizon_level_v1";
 const LEGACY_KIND: Record<string, Horizon> = { morning: "day", noon: "day", afternoon: "day", night: "day", day: "day", week: "week", month: "month", quarter: "quarter", year: "year" };
+
+const HORIZON_PURPOSE: Record<Horizon, { fa: string; en: string }> = {
+  day: { fa: "کارهای همین روز؛ کوچک، مشخص و قابل‌انجام.", en: "What you will do on this day: small, concrete, doable." },
+  week: { fa: "اولویت‌های هفته را به روزها بسپار.", en: "Spread this week's priorities across its days." },
+  month: { fa: "کارهای مهم ماه؛ بعداً به هفته‌ها تقسیم می‌شوند.", en: "The month's important work, later split into weeks." },
+  quarter: { fa: "هدف‌های فصل؛ دید میان‌مدت.", en: "Seasonal goals: the mid-term view." },
+  year: { fa: "جهت کلی سال؛ چند هدف بزرگ.", en: "The year's direction: a few big goals." },
+};
 
 function useTimeSettings(): [TimeSettings, () => void] {
   const [s, setS] = useState<TimeSettings>(getTimeSettings);
@@ -166,12 +175,12 @@ export default function BucketsView() {
   const inPeriod = filtered.filter((x) => taskInPeriod(x.tf!, period));
   const children = childPeriods(period, settings);
   const wholePeriodAll = sortForView(inPeriod.filter((x) => x.tf!.horizon === effectiveHorizon).map((x) => x.t));
-  const wholePeriod = wholePeriodAll.filter(isVisibleForCompleted);
+  const wholePeriod = wholePeriodAll.filter((t) => isVisibleForCompleted(t) && !overdueIds.has(t.id));
   const childGroupsAll = children.map((cp) => ({
     cp,
     tasks: sortForView(filtered.filter((x) => x.tf!.horizon !== effectiveHorizon && taskInPeriod(x.tf!, cp)).map((x) => x.t)),
   }));
-  const childGroups = childGroupsAll.map((group) => ({ ...group, visibleTasks: group.tasks.filter(isVisibleForCompleted) }));
+  const childGroups = childGroupsAll.map((group) => ({ ...group, visibleTasks: group.tasks.filter((t) => isVisibleForCompleted(t) && !overdueIds.has(t.id)) }));
   const progressTasks = [...wholePeriodAll, ...childGroupsAll.flatMap((g) => g.tasks.filter((t) => taskInPeriod(getTaskTime(t, settings)!, period)))];
   const uniqueProgress = [...new Map(progressTasks.map((t) => [t.id, t])).values()];
   const doneCount = uniqueProgress.filter((t) => t.completed).length;
@@ -221,9 +230,9 @@ export default function BucketsView() {
   const NextIcon = fa ? ChevronLeft : ChevronRight;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-3 sm:px-4 pb-24 pt-2 space-y-3" dir={fa ? "rtl" : "ltr"} data-testid="horizon-view">
+    <div className="page-shell page-shell--narrow !pt-2 pb-24 space-y-3" dir={fa ? "rtl" : "ltr"} data-testid="horizon-view">
       {/* sticky header: title, timeline, period nav, progress */}
-      <div className="sticky top-0 z-20 -mx-3 sm:-mx-4 px-3 sm:px-4 pt-1 pb-2 bg-background/95 backdrop-blur space-y-2">
+      <div className="sticky top-0 z-20 -mx-4 md:-mx-8 px-4 md:px-8 pt-1 pb-2 bg-background/95 backdrop-blur space-y-2">
         <HeaderTitlePortal title={fa ? "بازه‌های زمانی" : "Time Buckets"} />
         <HeaderActionsPortal>
           <TimeSettingsPopover settings={settings} fa={fa} onChanged={refreshSettings} />
@@ -251,9 +260,15 @@ export default function BucketsView() {
             </Button>
           )}
         </div>
+        <p className="text-[11px] leading-5 text-muted-foreground" data-testid="horizon-purpose">{HORIZON_PURPOSE[effectiveHorizon][fa ? "fa" : "en"]}</p>
         {effectiveHorizon === "week" && <WeatherWeekStrip start={period.start} />}
         <HorizonFilterBar filter={filter} onChange={setFilter} folders={folders} tags={tags} goals={goals} lang={lang} tasks={withTime.map((x) => x.t)} />
       </div>
+
+      <HorizonInboxTray
+        tasks={tasks} settings={settings} fa={fa}
+        onAssign={(t) => { void setTime(t.id, fieldsForPeriod(period)); haptic("light"); toast.success(fa ? `به «${periodLabel(period, settings, lang)}» اضافه شد` : `Added to ${periodLabel(period, settings, lang)}`); }}
+      />
 
       <HorizonSmartAdd period={period} inherited={inheritFromFilter(filter)} settings={settings} folders={folders} tags={tags} lang={lang} onCreate={onCreate} />
 

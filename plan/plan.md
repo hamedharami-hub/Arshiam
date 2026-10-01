@@ -1,68 +1,96 @@
-# ARSHNAZ — بازطراحی و پایدارسازی نسخه وب
+# ARSHNAZ (ارشناز) — Unified Design, Bug Fixes and Feature Upgrade
 
-اپلیکیشن فارسی‌محور مدیریت تسک، نوت، عادت، سلامت روان و مطالعه‌ی فارماسی که روی Firebase کار می‌کند.
-هدف این کار: یکدست‌کردن اتصال بخش‌ها، رفع باگ‌ها و طراحی مجدد مدرن و واکنش‌گرا (موبایل/تبلت/ویندوز) با هویت گرم و عاطفی «ارشناز».
+ARSHNAZ is an existing Persian (RTL) app for tasks, notes, habits, mental wellbeing and learning, imported from the GitHub repository hamedharami-hub/Arshiam. The work gives the whole app one consistent TickTick-inspired look, fixes the reported bugs, and upgrades Time Buckets, Life Architect, the calendar, and the Knowledge section. The uploaded handoff document (ARSHIAM_REMAINING_WORK_HANDOFF.fa.md) is the master backlog for the later phases.
 
-## این برای چه کسی است
-- کاربران فارسی‌زبانی که برنامه‌ی روزمره‌ی خود (کارها، عادت‌ها، یادداشت‌ها) را در یک اپ مدیریت می‌کنند.
-- دانشجویان/کاربران فارماسی که برای مطالعه و تمرین سناریوها و محصولات دارویی از بخش Pharmacy استفاده می‌کنند.
-- کاربرانی که ابزارهای سلامت روان (چک‌این، تنفس، ثبت افکار و…) را در کنار برنامه‌ریزی روزانه می‌خواهند.
-- استفاده اصلی روی مرورگر وب در موبایل، تبلت و دسکتاپ ویندوز؛ زبان اصلی فارسی و راست‌به‌چپ (RTL).
+## Who it's for
+Persian-speaking individuals who manage daily tasks, notes, habits, wellbeing and study (including pharmacy study material) in one place. They use it on desktop, phone and foldable (including the Android build), and want a calm, fast, TickTick-like experience.
 
-## قابلیت‌ها و تجربه‌ی اصلی
-تمرکز این مرحله روی «درست کار کردن، درست وصل بودن، و ظاهر به‌روز» برای بخش‌های پرکاربرد و بخش فارماسی است:
+## Core features and experience
 
-- **صفحات روزمره**
-  - Today (داشبورد امروز): نمای یکپارچه‌ی کارها/عادت‌های امروز با ویرایش سریع و بدون گیر/فریز.
-  - تسک‌ها (Inbox، امروز، فردا، ۷ روز، هوشمند، پوشه‌ها و برچسب‌ها): ساخت، ویرایش، تکمیل، حذف و جابه‌جایی مطمئن.
-  - نوت‌ها: ساخت/ویرایش/ذخیره‌ی پایدار و نمایش درست فهرست.
-  - عادت‌ها (Habits): ثبت روزانه و نمایش پیشرفت.
-- **بخش فارماسی (تمرکز ویژه)**
-  - محصولات دارویی (Pharmacy Products)، تمرین سناریو (Scenario Practice)، تمرین FRED و بخش CYP.
-  - رفع باگ‌های عملکردی، درست‌کردن مسیر ورود/خروج بین این صفحات و ناوبری به آن‌ها، و هماهنگ‌کردن ظاهر با بقیه‌ی اپ.
-- **پوسته و اتصال کلی**
-  - ناوبری یکدست (منو/سایدبار در دسکتاپ، تب/منوی موبایل) که همه‌ی این بخش‌ها را درست به هم وصل کند و لینک‌های مرده/مسیرهای خراب رفع شوند.
-  - حالت روشن/تیره با کلید سوییچ، ماندگار بین نشست‌ها.
-- **پایه‌ی داده**
-  - همان Firebase (Auth / Firestore / Storage) حفظ می‌شود؛ داده‌ی هر کاربر خصوصی می‌ماند.
+**Reported bugs to fix (Phase 1)**
+- **Top search bar** on Today and the other task pages does not work. It must search tasks and open results.
+- **Attachments in Description / Notes**: attaching a link or an image fails. Attaching must work, show upload status, allow retry, and never lose the typed text.
+- **Tags**: opening a tag shows all tasks, including ones without that tag. A tag page must show only the tasks that carry it.
+- **Planning section** bugs (calendar/schedule, task placement, dates, ordering, task details) are reproduced and fixed. Existing planning features are kept.
 
-## جریان کاربر
-1. کاربر وارد می‌شود (ورود ایمیل/رمز؛ ورود گوگل در بخش «فرض‌ها» توضیح داده شده).
-2. به داشبورد Today می‌رسد و کارها/عادت‌های امروز را می‌بیند و مدیریت می‌کند.
-3. از ناوبری اصلی به تسک‌ها، نوت‌ها، عادت‌ها یا فارماسی می‌رود؛ همه‌ی مسیرها بدون خطا باز می‌شوند.
-4. در فارماسی، محصولات را مرور و تمرین‌ها (سناریو/FRED/CYP) را اجرا می‌کند و نتیجه/پیشرفت درست ذخیره می‌شود.
-5. در هر لحظه می‌تواند بین حالت روشن/تیره سوییچ کند؛ روی موبایل، تبلت و دسکتاپ چیدمان درست و خوانا است.
+**Upgrades (Phase 1)**
+- **Time Buckets**: a deep review. The many errors are found and fixed, and the screen is redesigned to be simpler and more useful, with a clear purpose per bucket (daily, weekly, monthly, seasonal, yearly), easy assignment of tasks, and a clear view of what sits in each bucket. Its connection to Smart Lists and filters is kept consistent.
+- **Life Architect**: a significant improvement of this section, covering clearer structure from values to goals to plans to tasks/habits, easier creation, progress visibility, and a cleaner layout.
+- **Calendar occasions**: Australian occasions (public holidays and notable days) are added next to the Iranian occasions. The user can show or hide each set.
+- **Page backgrounds**: each page's background color is saved and kept after reload. A folder can also have a background image, shown faintly behind its content.
+- **Knowledge (نالج) — second, deeper review across every part** (notes, diary, pharmacy/lesson reader, folders and topics, tags, search, editor, practice and review links): the whole section is re-examined for usability gaps and bugs, and each part is optimized. This means easier creation, clearer organization and retrieval, better search and filter, tidier cards, a more comfortable editor, faster navigation between folder, lesson and related items, and the same look across all Knowledge screens.
+- **Compact lesson/topic header (the toolbar shown in the Knowledge reader screenshot)**: today it takes a lot of vertical space (breadcrumb row, a full row of large buttons, then a tag row). It becomes smaller, minimal and takes much less space:
+  - One slim line holding the breadcrumb/title on one side and small icon-only buttons on the other (language, study mode, translate, AI, games/practice, add to calendar, text size, edit, delete), each with a tooltip.
+  - Rarely used actions (delete, text size, calendar, and similar) move into a single "more" menu. Only the few most-used actions stay visible.
+  - Tags become a single small, scrollable or collapsible line instead of large pills. Tapping expands them.
+  - The top "Pharmacy / Practice / Review this topic" strip is merged into the same slim header.
+  - The header scrolls away or shrinks while reading, so the lesson text gets the screen. Works on phone, foldable panel and desktop in both languages.
+  - All existing actions and tags are kept. Only their size, grouping and placement change.
+- **Consistent design across every screen**: one shared set of colors, spacing, type sizes, corner radii, buttons, cards, lists, dialogs, empty states and icons, with correct RTL/LTR behavior, mobile layout and foldable-panel widths.
 
-## حس بصری (UI/UX)
-- هویت گرم و عاطفی «ارشناز»: پالت مبتنی بر رنگ‌های گرم/صورتی-رُز با لهجه‌ی محبت‌آمیز، به‌همراه حالت تیره‌ی هماهنگ.
-- طراحی مدرن، تمیز و واکنش‌گرا؛ چیدمان RTL درست، تایپوگرافی فارسی خوانا، فاصله‌گذاری منظم.
-- ناوبری واضح و ثابت؛ تعامل‌های نرم (انیمیشن‌های ملایم) بدون سنگین‌شدن.
-- رنگ به‌تنهایی حامل معنا نباشد (خوانایی و دسترس‌پذیری برای اطلاعات مهم/بالینی فارماسی).
+**Unchanged**: Firebase auth and data, Firestore rules and data structure, storage, the BYOK AI setup, and the Android/Capacitor setup.
 
-## مراحل اجرا
+## User flow
+1. User signs in as today (Firebase).
+2. Lands on a refreshed home with the same sections in the sidebar.
+3. Searches from the top bar and opens a result.
+4. Opens a tag and sees only that tag's tasks.
+5. Opens Time Buckets, places tasks into buckets, and reviews each bucket.
+6. Opens the calendar and sees Iranian and Australian occasions.
+7. Opens Planning, Life Architect and Knowledge, and works with the same look and interaction patterns on every page.
+8. Sets a page color or a folder background image, which stays after reload.
+9. Attaches images or links in task description and notes.
 
-### فاز ۱ — MVP (اکنون ساخته می‌شود)
-- راه‌اندازی و اجرای اپ روی همین محیط با Firebase موجود.
-- ممیزی سریع مسیرها/ناوبری و رفع لینک‌ها و اتصال‌های خراب بین بخش‌های هدف.
-- رفع باگ‌های عملکردی و بازطراحی واکنش‌گرا برای: Today، تسک‌ها، نوت‌ها، عادت‌ها.
-- رفع باگ و بازطراحی بخش فارماسی (Products، Scenario، FRED، CYP) و درست‌کردن اتصال آن‌ها.
-- افزودن/یکدست‌کردن سوییچ حالت روشن/تیره با هویت رنگی ارشناز.
-- تست بخش‌های بالا با حساب تستی و ارسال منظم تغییرات به GitHub.
+## UI/UX feel
+- Keeps the current color mood, tightened into a consistent system. TickTick is the layout and interaction reference: neat lists, soft cards, subtle dividers, clear priority/date accents, a quiet sidebar.
+- Light, dark and OLED appearance stay supported.
+- Persian-first typography with good line height. English and Persian are equally well handled.
+- Subtle motion only. Every screen has one clear title and one main action, with no duplicated headings or nested boxes.
+- After the work, optional visual changes are offered. Nothing beyond the agreed look is changed without approval.
 
-### فاز ۲
-- بخش سلامت روان/ذهن (Mind، Check-in، Thought Records، ABC، Socratic، Breathing، Worry، Cycle، Values، Crisis و…): رفع باگ و بازطراحی هماهنگ.
-- بخش دانش/مطالعه (Knowledge Base، Interactive Study، Review/Leitner، Article Rewrite): پایدارسازی و یکدست‌سازی ظاهر.
+## Implementation phases
 
-### فاز ۳
-- بخش‌های تکمیلی و ابزارها: Calendar، Kanban، Stats، Buckets، Garden، Pomodoro، Contacts، Widgets، Shared/Admin/Settings.
-- صیقل نهایی طراحی، دسترس‌پذیری، و بهینه‌سازی کارایی در کل اپ.
+**Phase 1 — MVP (built now)**
+- Import the repository and run it as-is.
+- Reproduce and fix: search bar, attachments (link/image), tag filtering, Planning bugs.
+- Time Buckets deep review, fix and simplified redesign.
+- Life Architect improvement.
+- Iranian + Australian calendar occasions.
+- Saved page colors and folder background images.
+- Knowledge section: a second full review of all its parts, then optimization of each part.
+- Compact, minimal lesson/topic header that uses far less space.
+- Unified design pass and mobile/RTL polish across all sections.
+- Each handoff item is first checked against the latest code before being changed. Items already done are not rebuilt.
 
-## فرض‌ها
-- بک‌اند همان Firebase باقی می‌ماند؛ پیکربندی موجود در ریپو استفاده می‌شود و مهاجرت داده انجام نمی‌شود.
-- فقط نسخه‌ی وب در این مرحله کار می‌شود؛ اندروید/Capacitor و زیرپروژه‌ی PTE دست‌نخورده و خارج از دامنه‌ی این فاز می‌مانند.
-- زبان و جهت پیش‌فرض فارسی و RTL است.
-- چون به کنسول Firebase دسترسی قطعی نیست، ممکن است ورود گوگل روی دامنه‌ی پیش‌نمایش کار نکند؛ برای تست از ورود ایمیل/رمز و حساب تستی شما استفاده می‌شود. (اگر بعداً دامنه‌ی پیش‌نمایش به Authorized domains اضافه شود، گوگل هم فعال می‌شود.)
-- تغییرات علمی/بالینی فارماسی (دوز، هشدار، منبع) در بازطراحی حفظ می‌شوند و فقط ظاهر/اتصال اصلاح می‌شود، نه معنای محتوا.
-- هویت رنگی «ارشناز» به‌صورت پالت گرم/عاطفی توسط سازنده انتخاب و اعمال می‌شود (لوگو/رنگ برند خاصی ارائه نشده).
-- ارسال تغییرات به GitHub از طریق قابلیت «Save to GitHub» انجام می‌شود و به‌صورت منظم بعد از هر گام معنادار.
-- در هر فاز، عمق کامل همه‌ی صفحات همان فاز پوشش داده می‌شود؛ بخش‌های فازهای بعد تا نوبتشان تغییر نمی‌کنند.
+**Phase 2 — Reliability and shared foundations (from the handoff document, not built now)**
+- Honest save results ("saved on device / queued / saved to cloud / failed"), protection against old responses overwriting new edits, account-switch safety.
+- Multi-step Undo/Redo and draft recovery in note, task description and diary editors, plus versioned backup and restore.
+- Reliable AI: provider/key/model settings, test connection, preview → apply/reject → undo, no hidden paid calls.
+- Task and planning consistency: one shared definition of dates and filters across lists, Kanban, calendar, Smart Lists and widgets. Pinned and ordered lists applied in Today, Tomorrow, Inbox and This Week. Correct habit statistics, Pomodoro saving, and calendar behavior on fast month changes.
+- Notes and diary: fixed toolbar clutter, inline images and files with upload state, full-text search that opens the exact document.
+- Mind, self-knowledge, values and goals: step-by-step forms that never lose text, check-in/thought records → tasks → back to the record, personality-test resume, periodic goal review.
+- Focus, sleep, contacts and occasions: shared audio controls, focus and breathing sessions feeding stats and Garden, occasion → calendar → reminder, vCard import with preview.
+- Settings regrouped into six groups: appearance/language, planning, reminders, AI, account/data/connections, app/updates.
+
+**Phase 3 — Pharmacy learning and final integration (from the handoff document, not built now)**
+- Review of the remaining pharmacy lesson groups (clinical, drug and scenario lessons; pharmacology and supplementary collections), checking card titles, order, layout, duplicates and warnings without changing source text, doses, warnings or references.
+- Permanent learning-card model: book → collection → branch → lesson → card group → named card, with safe versioned migration, rollback, and no overwriting of user data.
+- Notes and annotations anchored to cards, direct image/file upload from phone or Windows with compression, continue-learning position, direct links to cards in both languages, optional review cards created from lessons.
+- A reusable template so other (non-medical) books can use the same card system.
+- Final integration of learning/review, FRED progress, mind map performance, and release checks.
+- Out of scope: the handoff's "future" and "rejected" items (long-term version history, saved task filters, new drug comparison, error-analysis practice), real-account testing, and enabling Shared/Admin features.
+
+## Assumptions
+- The repo is imported and runs unchanged first. Only agreed areas are modified.
+- Firebase stays as backend and database, with no migration, no change to rules or data shape, and no new backend.
+- "Planning" means the planning/scheduling area. Exact bugs are identified by using it, and the user is told what was found and fixed.
+- "Knowledge (نالج)" means the notes/knowledge area, including the pharmacy lesson reader. Improvements focus on usability, organization and space, not new storage formats.
+- Which header actions stay visible versus go into the "more" menu is decided by how common they are (language, study mode, AI and edit stay visible). The user can adjust this after seeing it.
+- Australian occasions use the national public holidays plus well-known observances. State-specific holidays are not included unless asked.
+- A folder background image is shown faintly (low opacity) so text stays readable. Page color is chosen per page and saved per user.
+- Time Buckets keeps its purpose and its link with Smart Lists, but screen layout and interaction may change substantially for simplicity.
+- Life Architect keeps its existing data. Its structure and layout are redesigned, and new fields are added only where needed.
+- The existing color mood and current font are kept unless a font renders Persian poorly.
+- Testing uses test/sample data only. Real-account testing is excluded, and any limit is reported.
+- Pharmacy lesson text, doses, warnings and scientific references are never edited without a valid source.
+- Work is delivered step by step, and the user reviews each step before the next.

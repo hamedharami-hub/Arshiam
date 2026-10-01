@@ -267,7 +267,7 @@ frontend:
         comment: "User explicitly approved all testing and asked no more confirmation. No UI source changed. Verify public/login page renders desktop/mobile without mutation; live authentication and deployed Rules are outside this local Rules test."
       - working: true
         agent: "testing"
-        comment: "READ-ONLY SMOKE COMPLETE: Public preview at https://mindmap-stage.preview.emergentagent.com renders successfully. Desktop (1920x1080): No fatal errors, no horizontal overflow, loading spinner visible. Mobile (390x844): No fatal errors, no horizontal overflow, loading spinner visible. Console: 5 non-fatal 504 resource errors (external resources), 0 fatal JavaScript errors, no React error overlay. Screenshots captured. NO login/authentication/data mutation performed as instructed. Firestore Rules changes did not break frontend rendering. Test duration: <2min as requested."
+        comment: "READ-ONLY SMOKE COMPLETE: Public preview at https://arshiam-preview.preview.emergentagent.com renders successfully. Desktop (1920x1080): No fatal errors, no horizontal overflow, loading spinner visible. Mobile (390x844): No fatal errors, no horizontal overflow, loading spinner visible. Console: 5 non-fatal 504 resource errors (external resources), 0 fatal JavaScript errors, no React error overlay. Screenshots captured. NO login/authentication/data mutation performed as instructed. Firestore Rules changes did not break frontend rendering. Test duration: <2min as requested."
       - working: true
         agent: "testing"
         comment: "RETEST AFTER ENVIRONMENT FIX: ✓ PASS - Real content now loads successfully. Desktop (1920x1080): Login form with H1 'ARSHNAZ', 5 buttons (ورود/ثبت‌نام/ورود به حساب/رمز عبور را فراموش کرده‌ام/ادامه با حساب Google), 2 input fields (email/password), 1 form visible within 2s. Mobile (390x844): Same content, 7 interactive elements, fully responsive. Page title: 'ARSHNAZ — Tasks, Notes & Focus'. Console: Vite HMR connected, 5 ERR_ABORTED (Cloudflare CDN/RUM + font files - non-critical, app uses fallback fonts), 0 fatal errors, no React error overlay. Environment fix (Node22 + Vite cache clear) successful - previous spinner-only issue resolved. Screenshots: .screenshots/desktop_content_check.png, .screenshots/mobile_content_check.png. Test duration: <2min. NO login/authentication/data mutation performed."
@@ -454,7 +454,7 @@ agent_communication:
       READ-ONLY FRONTEND SMOKE COMPLETE
       
       Test Scope (as requested):
-      - Preview URL: https://mindmap-stage.preview.emergentagent.com
+      - Preview URL: https://arshiam-preview.preview.emergentagent.com
       - Viewports: Desktop (1920x1080) + Mobile (390x844)
       - Checks: Fatal render errors, horizontal overflow, console fatal errors only
       - NO login, NO user creation, NO live Firebase data mutation

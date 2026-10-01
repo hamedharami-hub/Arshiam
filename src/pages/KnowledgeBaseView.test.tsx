@@ -157,7 +157,8 @@ describe("KnowledgeBaseView (/app/knowledge) Page Verification", { timeout: 1500
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByTitle("Delete Document"));
+    fireEvent.keyDown(await screen.findByTestId("knowledge-more-menu"), { key: "Enter" });
+    fireEvent.click(await screen.findByTestId("knowledge-delete"));
     fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
 
     await waitFor(() => {
@@ -182,7 +183,8 @@ describe("KnowledgeBaseView (/app/knowledge) Page Verification", { timeout: 1500
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByTitle("Delete Document"));
+    fireEvent.keyDown(await screen.findByTestId("knowledge-more-menu"), { key: "Enter" });
+    fireEvent.click(await screen.findByTestId("knowledge-delete"));
     fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
 
     await waitFor(() => {

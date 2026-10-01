@@ -1,4 +1,5 @@
 import { KnowledgeAttachments } from "./KnowledgeAttachments";
+import { KnowledgeReaderHeader, type PharmacyHeaderLinks } from "./KnowledgeReaderHeader";
 import { KnowledgeSectionContent } from "./KnowledgeSectionContent";
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
@@ -27,6 +28,7 @@ import {
   Layers,
   FileText,
   X,
+  ChevronDown,
 } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
 import type {
@@ -172,6 +174,7 @@ interface KnowledgeDocumentReaderProps {
   isPharmacyImported?: boolean;
   isImportingPharmacy?: boolean;
   scrollPositionsMap?: Map<string, number>;
+  pharmacyLinks?: PharmacyHeaderLinks;
 }
 
 export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = ({
@@ -198,6 +201,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   isPharmacyImported = true,
   isImportingPharmacy = false,
   scrollPositionsMap,
+  pharmacyLinks,
 }) => {
   const { isEn } = useBilingual();
   const isPharmacySourceFile = document ? isPharmacyKnowledgeDocument(document) : false;
@@ -229,11 +233,18 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 
   const localScrollPositionsRef = useRef<Map<string, number>>(new Map());
 
+  const lastScrollTopRef = useRef(0);
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const handleScroll = useCallback(() => {
     if (document?.id && contentContainerRef.current) {
       const top = contentContainerRef.current.scrollTop;
       const map = scrollPositionsMap || localScrollPositionsRef.current;
       map.set(document.id, top);
+      const delta = top - lastScrollTopRef.current;
+      if (top < 48) setHeaderCollapsed(false);
+      else if (delta > 8) setHeaderCollapsed(true);
+      else if (delta < -8) setHeaderCollapsed(false);
+      lastScrollTopRef.current = top;
     }
   }, [document?.id, scrollPositionsMap]);
 
@@ -551,235 +562,56 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 
   return (
     <div className="knowledge-reader-shell flex-1 flex flex-col h-full bg-card border border-border rounded-lg overflow-hidden shadow-sm relative">
-      {/* Top Toolbar */}
-      <div className="p-2.5 border-b border-border flex flex-wrap items-center justify-between gap-2 bg-muted/20">
-        <div className="flex items-center gap-2 min-w-0">
-          {onBackDocument && (
-            <button
-              type="button"
-              onClick={onBackDocument}
-              className="inline-flex shrink-0 items-center justify-center rounded-xl border border-border bg-secondary p-1.5 text-foreground hover:bg-secondary/80"
-              aria-label={isEn ? "Back to previous document" : "بازگشت به سند قبلی"}
-              title={isEn ? "Back to previous document" : "بازگشت به سند قبلی"}
-            >
-              {isEn ? <ArrowLeft className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
-            </button>
-          )}
-          {onClosePopup && (
-            <button
-              type="button"
-              onClick={onClosePopup}
-              className="inline-flex shrink-0 items-center justify-center rounded-xl border border-border bg-secondary p-1.5 text-foreground hover:bg-secondary/80"
-              aria-label={isEn ? "Close linked document" : "بستن پنجرهٔ سند"}
-              title={isEn ? "Close linked document" : "بستن پنجرهٔ سند"}
-            >
-              <X className="h-4 w-4" aria-hidden="true" />
-            </button>
-          )}
-          {onToggleSidebar && (
-            <button
-              type="button"
-              onClick={onToggleSidebar}
-              className="hidden md:flex items-center justify-center p-1.5 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground border border-border transition cursor-pointer shrink-0"
-              title={
-                isSidebarCollapsed
-                  ? isEn
-                    ? "Show Chapters Sidebar (Ctrl+B)"
-                    : "نمایش سایدبار فصل‌ها (Ctrl+B)"
-                  : isEn
-                  ? "Hide Chapters Sidebar (Ctrl+B)"
-                  : "بستن سایدبار فصل‌ها (Ctrl+B)"
-              }
-            >
-              {isSidebarCollapsed ? (
-                <PanelLeftOpen className="w-4 h-4 text-primary" />
-              ) : (
-                <PanelLeftClose className="w-4 h-4 text-muted-foreground" />
-              )}
-            </button>
-          )}
+      <KnowledgeReaderHeader
+        isEn={isEn}
+        collapsed={headerCollapsed && !studyMode}
+        folderName={folder?.name}
+        tags={document.tags}
+        studyMode={studyMode}
+        fontSize={fontSize}
+        onFontSize={setFontSize}
+        languageLabel={languageModeLabel}
+        languageAriaLabel={languageModeAccessibleLabel}
+        onCycleLanguage={cycleDocumentLanguage}
+        onBackDocument={onBackDocument}
+        onClosePopup={onClosePopup}
+        onToggleSidebar={onToggleSidebar}
+        isSidebarCollapsed={isSidebarCollapsed}
+        onToggleStudyMode={onToggleStudyMode}
+        onGenerateAi={handleTriggerAiFromToolbar}
+        onGenerateBilingual={handleGenerateBilingualLesson}
+        isGeneratingBilingual={isGeneratingBilingual}
+        onOpenInteractive={() => setInteractiveModalOpen(true)}
+        onSchedule={onScheduleStudy ? () => onScheduleStudy(document) : undefined}
+        onEdit={() => onEdit(document)}
+        onDelete={() => onDelete(document.id)}
+        pharmacyLinks={pharmacyLinks}
+      />
 
-          {folder && (
-            <div className="flex items-center gap-1 text-[11px] text-primary font-medium min-w-0">
-              <Folder className="w-3.5 h-3.5" />
-              <span className="truncate max-w-[10rem]" title={folder.name}>{folder.name}</span>
-              <span className="text-muted-foreground/60">/</span>
-            </div>
-          )}
+      {headerCollapsed && !studyMode && (
+        <button
+          type="button"
+          onClick={() => setHeaderCollapsed(false)}
+          className="absolute end-2 top-1.5 z-10 grid h-7 w-7 place-items-center rounded-full border border-border bg-card/90 text-muted-foreground shadow-sm backdrop-blur hover:text-foreground"
+          aria-label={isEn ? "Show toolbar" : "نمایش نوار ابزار"}
+          title={isEn ? "Show toolbar" : "نمایش نوار ابزار"}
+          data-testid="knowledge-header-reveal"
+        >
+          <ChevronDown className="h-4 w-4" aria-hidden="true" />
+        </button>
+      )}
 
-        </div>
-
-        {/* View Mode & Actions Toolbar */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {/* Compact language control: English → Persian → bilingual. */}
-          <button
-            type="button"
-            onClick={cycleDocumentLanguage}
-            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-border bg-muted/60 px-2 text-xs font-semibold text-foreground transition hover:bg-muted"
-            aria-label={languageModeAccessibleLabel}
-            title={isEn ? `${languageModeAccessibleLabel} · click to change` : `${languageModeAccessibleLabel} · برای تغییر کلیک کنید`}
-          >
-            <Languages className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-            <span aria-hidden="true">{languageModeLabel}</span>
-          </button>
-
-          {onToggleStudyMode && (
-            <button
-              type="button"
-              onClick={onToggleStudyMode}
-              aria-pressed={studyMode}
-              data-testid="knowledge-study-mode-toggle"
-              className={`inline-flex h-8 items-center gap-1.5 rounded-xl border px-2 text-xs font-semibold transition ${studyMode ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/60 text-foreground hover:bg-muted"}`}
-              title={isEn ? "Study mode hides tools, not content (Esc to exit)" : "حالت مطالعه ابزارها را پنهان می‌کند، نه محتوا را (خروج با Esc)"}
-            >
-              <BookOpenCheck className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{isEn ? "Study mode" : "حالت مطالعه"}</span>
-            </button>
-          )}
-          {onToggleStudyMode && studyMode && (
-            <button
-              type="button"
-              onClick={() => { const root = window.document.documentElement; if (window.document.fullscreenElement) void window.document.exitFullscreen?.(); else void root.requestFullscreen?.().catch(() => undefined); }}
-              data-testid="knowledge-fullscreen-toggle"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-secondary text-foreground transition hover:bg-secondary/80"
-              aria-label={isEn ? "Toggle full screen" : "تمام‌صفحه"}
-            >
-              <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
-            </button>
-          )}
-          {!studyMode && (<>
-          {/* AI Bilingual Generator Button */}
-          <button
-            type="button"
-            disabled={isGeneratingBilingual}
-            onClick={handleGenerateBilingualLesson}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-secondary text-foreground transition hover:bg-secondary/80 disabled:cursor-wait disabled:opacity-60"
-            aria-label={isEn ? "Generate bilingual version with AI" : "دوزبانه کردن و ترجمه درس با هوش مصنوعی"}
-            aria-busy={isGeneratingBilingual}
-            title={
-              isEn
-                ? "Generate bilingual version with AI"
-                : "دوزبانه کردن و ترجمه درس با هوش مصنوعی"
-            }
-          >
-            {isGeneratingBilingual ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-            ) : (
-              <Languages className="w-3.5 h-3.5 text-primary" />
-            )}
-          </button>
-
-          {/* AI Flashcard Generator Button */}
-          <button
-            type="button"
-            onClick={handleTriggerAiFromToolbar}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs transition hover:bg-primary/90"
-            aria-label={isEn ? "Generate Leitner and Mind Map cards with AI" : "تولید سوالات لایتنر و نقشه ذهنی با هوش مصنوعی"}
-            title={
-              isEn
-                ? "Generate Leitner & Mind Map questions with AI"
-                : "تولید سوالات لایتنر و نقشه ذهنی با هوش مصنوعی"
-            }
-          >
-            <Sparkles className="h-4 w-4 text-amber-300" aria-hidden="true" />
-          </button>
-
-          {/* Interactive Learning Studio Button */}
-          <button
-            type="button"
-            onClick={() => setInteractiveModalOpen(true)}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-secondary text-foreground transition hover:bg-secondary/80"
-            aria-label={isEn ? "Interactive learning studio" : "آموزش تعاملی"}
-            title={
-              isEn
-                ? "Generate 3D cards, quizzes, scenarios & games"
-                : "تولید کارت‌های ۳ بعدی، کوییز تشخیصی، سناریوی بالینی و بازی‌ها"
-            }
-          >
-            <Gamepad2 className="h-4 w-4 text-primary" aria-hidden="true" />
-          </button>
-
-          {/* Schedule Study Task Button */}
-          {onScheduleStudy && (
-            <button
-              type="button"
-              onClick={() => onScheduleStudy(document)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-emerald-500/25 bg-emerald-500/10 text-emerald-600 shadow-2xs transition hover:bg-emerald-500/20 dark:text-emerald-400"
-              aria-label={isEn ? "Schedule a study or review task for this lesson" : "برنامه‌ریزی مطالعه و ایجاد تسک برای این درس"}
-              title={
-                isEn
-                  ? "Schedule a study/review task for this lesson"
-                  : "برنامه‌ریزی مطالعه و ایجاد تسک برای این درس"
-              }
-            >
-              <CalendarPlus className="h-4 w-4" aria-hidden="true" />
-            </button>
-          )}
-
-          </>)}
-
-          {/* Font Resizer */}
-          <div className="flex items-center rounded-xl border border-border bg-muted/50 p-0.5">
-              <button
-                type="button"
-                onClick={() => setFontSize((s) => Math.max(12, s - 1))}
-                className="p-1 text-muted-foreground hover:text-foreground rounded transition cursor-pointer"
-                aria-label={isEn ? "Smaller text" : "کوچک‌تر کردن متن"}
-                title={isEn ? "Smaller text" : "کوچک‌تر"}
-              >
-                <ZoomOut className="w-3.5 h-3.5" />
-              </button>
-              <output className="px-1 font-mono text-[10px] text-muted-foreground" aria-live="polite" aria-label={isEn ? `Font size ${fontSize}` : `اندازهٔ قلم ${fontSize}`}>
-                {fontSize}
-              </output>
-              <button
-                type="button"
-                onClick={() => setFontSize((s) => Math.min(24, s + 1))}
-                className="p-1 text-muted-foreground hover:text-foreground rounded transition cursor-pointer"
-                aria-label={isEn ? "Larger text" : "بزرگ‌تر کردن متن"}
-                title={isEn ? "Larger text" : "بزرگ‌تر"}
-              >
-                <ZoomIn className="w-3.5 h-3.5" />
-              </button>
-          </div>
-
-          {!studyMode && (<>
-          {/* Edit Document */}
-          <button
-            type="button"
-            onClick={() => onEdit(document)}
-            className="p-1.5 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground transition cursor-pointer border border-border"
-            title={isEn ? "Edit Document" : "ویرایش سند"}
-          >
-            <Edit className="w-3.5 h-3.5 text-primary" />
-          </button>
-
-          {/* Delete Document */}
-          <button
-            type="button"
-            onClick={() => onDelete(document.id)}
-            className="p-1.5 rounded-xl bg-secondary hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition cursor-pointer border border-border"
-            title={isEn ? "Delete Document" : "حذف سند"}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-          </>)}
-        </div>
-      </div>
-
-      {/* Tags and Meta Row */}
-      {document.tags && document.tags.length > 0 && (
-        <div className="px-4 py-2 border-b border-border/60 bg-muted/15 flex items-center gap-1.5 flex-wrap">
-          <Tag className="w-3 h-3 text-muted-foreground" />
-          {document.tags.map((tag, i) => (
-            <span
-              key={i}
-              className="text-[10px] px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
+      {headerCollapsed && !studyMode && (
+        <button
+          type="button"
+          onClick={() => setHeaderCollapsed(false)}
+          className="absolute end-2 top-1.5 z-10 grid h-7 w-7 place-items-center rounded-full border border-border bg-card/90 text-muted-foreground shadow-sm backdrop-blur hover:text-foreground"
+          aria-label={isEn ? "Show toolbar" : "نمایش نوار ابزار"}
+          title={isEn ? "Show toolbar" : "نمایش نوار ابزار"}
+          data-testid="knowledge-header-reveal"
+        >
+          <ChevronDown className="h-4 w-4" aria-hidden="true" />
+        </button>
       )}
 
       {/* Reader Content Body */}

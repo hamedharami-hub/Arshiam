@@ -10,6 +10,17 @@ export async function persistTaskTagChange(
   tagId: string,
   action: TaskTagAction,
 ): Promise<TaskTagSaveResult> {
+  const result = await persistTaskTagChangeInner(userId, taskId, tagId, action);
+  if (result !== "failed" && typeof window !== "undefined") window.dispatchEvent(new Event("task-tags-changed"));
+  return result;
+}
+
+async function persistTaskTagChangeInner(
+  userId: string,
+  taskId: string,
+  tagId: string,
+  action: TaskTagAction,
+): Promise<TaskTagSaveResult> {
   const op = action === "add"
     ? {
         ownerId: userId,

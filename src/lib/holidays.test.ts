@@ -36,12 +36,13 @@ describe("Australian holidays", () => {
   });
   it("requests the chosen state and falls back to the offline cache", async () => {
     const r1 = await getHolidaysForRange(new Date(2026, 0, 1), new Date(2026, 11, 31), ["AU"]);
-    expect(r1.map((h) => h.name)).toEqual(["Australia Day", "Bank Holiday"]);
+    expect(r1.filter((h) => h.type !== "observance").map((h) => h.name)).toEqual(["Australia Day", "Bank Holiday"]);
+    expect(r1.some((h) => h.type === "observance" && h.name === "Mother's Day")).toBe(true);
     expect(vi.mocked(arshFetch).mock.calls[0][0]).toContain("state=NSW");
     vi.mocked(arshFetch).mockRejectedValueOnce(new Error("offline"));
     setAuState("NSW"); // clears memo
     const r2 = await getHolidaysForRange(new Date(2026, 0, 1), new Date(2026, 11, 31), ["AU"]);
-    expect(r2).toHaveLength(2);
+    expect(r2.filter((h) => h.type !== "observance")).toHaveLength(2);
   });
   it("day-off and dominant colour helpers", () => {
     const off = { kind: "off", official: true } as any;

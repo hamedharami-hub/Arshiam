@@ -110,12 +110,12 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
   it("study mode hides tools but keeps the full lesson, and can be toggled off", () => {
     const toggle = vi.fn();
     const { rerender } = render(<KnowledgeDocumentReader document={dummyDoc} folder={dummyFolder} onEdit={() => {}} onDelete={() => {}} onToggleStudyMode={toggle} studyMode={false} />);
-    expect(screen.getByTitle("حذف سند")).toBeInTheDocument();
+    expect(screen.getByTestId("knowledge-more-menu")).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("knowledge-study-mode-toggle"));
     expect(toggle).toHaveBeenCalledTimes(1);
     const before = screen.getByText(dummyDoc.title).textContent;
     rerender(<KnowledgeDocumentReader document={dummyDoc} folder={dummyFolder} onEdit={() => {}} onDelete={() => {}} onToggleStudyMode={toggle} studyMode />);
-    expect(screen.queryByTitle("حذف سند")).toBeNull();
+    expect(screen.queryByTestId("knowledge-more-menu")).toBeNull();
     expect(screen.getByTestId("knowledge-study-mode-toggle")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("knowledge-fullscreen-toggle")).toBeInTheDocument();
     expect(screen.getByText(dummyDoc.title).textContent).toBe(before);
@@ -417,7 +417,7 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
     expect(bilingualDoc.preferred_language).toBe("bilingual");
   });
 
-  it("changes the reader font-size setting when the larger-text control is used", () => {
+  it("changes the reader font-size setting when the larger-text control is used", async () => {
     const { container } = render(
       <KnowledgeDocumentReader
         document={dummyDoc}
@@ -429,7 +429,8 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
     const reader = container.querySelector(".knowledge-reader-prose");
     expect(reader?.getAttribute("style")).toContain("--knowledge-reader-font-size: 15px");
 
-    fireEvent.click(screen.getByRole("button", { name: "بزرگ‌تر کردن متن" }));
+    fireEvent.keyDown(screen.getByTestId("knowledge-more-menu"), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("button", { name: "بزرگ‌تر کردن متن" }));
     expect(reader?.getAttribute("style")).toContain("--knowledge-reader-font-size: 16px");
   });
 

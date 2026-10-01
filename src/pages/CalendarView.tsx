@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { getCalendarSystem, setCalendarSystem, formatDate, type CalendarSystem } from "@/lib/jalali";
-import { getHolidaysForRange, HOLIDAYS_EVENT, type Holiday } from "@/lib/holidays";
+import { getHolidaysForRange, getOccasionSets, setOccasionSets, HOLIDAYS_EVENT, type Holiday, type OccasionSet } from "@/lib/holidays";
 import { HolidayList } from "@/components/calendar/HolidayList";
 import { getTimeSettings, periodFor, fromLocalISO } from "@/lib/timeHorizon";
 import { addMonths as jAddMonths } from "date-fns-jalali";
@@ -34,6 +34,7 @@ export default function CalendarView() {
   const [view, setView] = useState<ViewMode>("month");
   const [tasks, setTasks] = useState<any[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [occasionSets, setSets] = useState<OccasionSet[]>(getOccasionSets);
   const [system, setSystem] = useState<CalendarSystem>(getCalendarSystem());
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeCycleProfileId, setActiveCycleProfileId] = useState<string | null>(null);
@@ -107,11 +108,11 @@ export default function CalendarView() {
         }
         setTasks(matching);
       });
-    getHolidaysForRange(subDays(start, 40), addDays(end, 40), ["IR", "AU"]).then(setHolidays).catch(() => setHolidays([]));
-  }, [user, date, view, refreshKey, system]);
+    getHolidaysForRange(subDays(start, 40), addDays(end, 40), occasionSets).then(setHolidays).catch(() => setHolidays([]));
+  }, [user, date, view, refreshKey, system, occasionSets]);
 
   useEffect(() => {
-    const on = () => setRefreshKey((k) => k + 1);
+    const on = () => { setSets(getOccasionSets()); setRefreshKey((k) => k + 1); };
     window.addEventListener(HOLIDAYS_EVENT, on);
     return () => window.removeEventListener(HOLIDAYS_EVENT, on);
   }, []);
@@ -145,14 +146,14 @@ export default function CalendarView() {
   const NextIcon = isEn ? ChevronRight : ChevronLeft;
 
   return (
-    <div dir={isEn ? "ltr" : "rtl"} className="max-w-6xl mx-auto p-4 md:p-8 space-y-6 pb-20 page-enter">
+    <div dir={isEn ? "ltr" : "rtl"} className="page-shell space-y-6 pb-20 page-enter">
       <div className="flex items-start md:items-end justify-between gap-4 flex-wrap">
         <div>
           <HeaderTitlePortal title={headerLabel} />
           <p className="text-xs md:text-sm text-muted-foreground mt-1">{altLabel}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Tabs value={system} onValueChange={(v) => persistSystem(v as CalendarSystem)}>
+          <Tabs dir={isEn ? "ltr" : "rtl"} value={system} onValueChange={(v) => persistSystem(v as CalendarSystem)}>
             <TabsList className="h-8 bg-muted p-1">
               <TabsTrigger value="jalali" className="text-xs h-6 rounded-md data-[state=active]:bg-background">
                 {T("شمسی", "Jalali")}
@@ -173,6 +174,19 @@ export default function CalendarView() {
               <NextIcon className="w-4 h-4" />
             </Button>
           </div>
+          <div className="flex items-center gap-1" role="group" aria-label={T("نمایش مناسبت‌ها", "Show occasions")} data-testid="calendar-occasion-sets">
+            {([["IR", T("ایران", "Iran"), "🇮🇷"], ["AU", T("استرالیا", "Australia"), "🇦🇺"]] as const).map(([code, label, flag]) => {
+              const on = occasionSets.includes(code);
+              return (
+                <Button key={code} size="sm" variant={on ? "secondary" : "outline"} aria-pressed={on}
+                  className="h-8 gap-1 rounded-lg border border-border/60 text-xs"
+                  onClick={() => setOccasionSets(on ? occasionSets.filter((c) => c !== code) : [...occasionSets, code])}
+                  data-testid={`calendar-occasions-${code}`}>
+                  <span aria-hidden>{flag}</span><span className={on ? "" : "text-muted-foreground line-through"}>{label}</span>
+                </Button>
+              );
+            })}
+          </div>
           <Button
             size="sm"
             variant={showCompletedTasks ? "secondary" : "outline"}
@@ -187,7 +201,7 @@ export default function CalendarView() {
         </div>
       </div>
 
-      <Tabs value={view} onValueChange={(v) => setView(v as ViewMode)} className="space-y-4">
+      <Tabs dir={isEn ? "ltr" : "rtl"} value={view} onValueChange={(v) => setView(v as ViewMode)} className="space-y-4">
         <TabsList className="bg-muted p-1 h-9">
           <TabsTrigger value="month" className="text-xs rounded-md data-[state=active]:bg-background">
             {T("ماهانه", "Month")}

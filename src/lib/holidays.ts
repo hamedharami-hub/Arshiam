@@ -30,6 +30,26 @@ export const AU_STATES = ["NSW", "VIC", "QLD", "SA", "WA", "TAS", "ACT", "NT"] a
 export type AuState = (typeof AU_STATES)[number] | "";
 const STATE_KEY = "arsh_au_state_v1";
 export const HOLIDAYS_EVENT = "arsh:holidays-settings";
+const SETS_KEY = "arsh_occasion_sets_v1";
+export type OccasionSet = "IR" | "AU";
+
+export function getOccasionSets(): OccasionSet[] {
+  try {
+    const raw = localStorage.getItem(SETS_KEY);
+    if (!raw) return ["IR", "AU"];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((c): c is OccasionSet => c === "IR" || c === "AU") : ["IR", "AU"];
+  } catch {
+    return ["IR", "AU"];
+  }
+}
+
+export function setOccasionSets(sets: OccasionSet[]) {
+  try {
+    localStorage.setItem(SETS_KEY, JSON.stringify(sets));
+    window.dispatchEvent(new Event(HOLIDAYS_EVENT));
+  } catch {}
+}
 
 /** Default NSW (user choice). Empty string = national holidays only. */
 export function getAuState(): AuState {
@@ -79,6 +99,33 @@ export function iranHolidaysForRange(start: Date, end: Date): Holiday[] {
   return out;
 }
 
+function nthWeekday(year: number, month: number, weekday: number, n: number): Date {
+  const first = new Date(year, month, 1);
+  return new Date(year, month, 1 + ((weekday - first.getDay() + 7) % 7) + (n - 1) * 7);
+}
+
+/** Pure: well-known Australian observances (not public holidays), computed locally. */
+export function auObservancesForYear(year: number): Holiday[] {
+  const list: Array<[Date, string, string]> = [
+    [new Date(year, 1, 14), "Valentine's Day", "روز ولنتاین"],
+    [nthWeekday(year, 2, 0, 1), "Clean Up Australia Day", "روز پاکسازی استرالیا"],
+    [new Date(year, 2, 21), "Harmony Day", "روز هماهنگی (Harmony Day)"],
+    [nthWeekday(year, 3, 0, 1), "Daylight saving ends", "پایان ساعت تابستانی"],
+    [nthWeekday(year, 4, 0, 2), "Mother's Day", "روز مادر (استرالیا)"],
+    [new Date(year, 4, 26), "National Sorry Day", "روز ملی عذرخواهی"],
+    [new Date(year, 5, 3), "Mabo Day", "روز مابو"],
+    [nthWeekday(year, 6, 0, 1), "NAIDOC Week begins", "آغاز هفتهٔ NAIDOC"],
+    [nthWeekday(year, 8, 0, 1), "Father's Day", "روز پدر (استرالیا)"],
+    [nthWeekday(year, 9, 0, 1), "Daylight saving begins", "آغاز ساعت تابستانی"],
+    [new Date(year, 9, 31), "Halloween", "هالووین"],
+    [new Date(year, 10, 11), "Remembrance Day", "روز یادبود"],
+  ];
+  return list.map(([d, name, fa]) => ({
+    id: `AUO-${iso(d)}-${name}`, date: iso(d), country_code: "AU" as const, name, local_name: fa,
+    type: "observance", kind: "occasion" as const, official: false, region: null,
+  }));
+}
+
 type AuItem = { date: string; name: string; local_name: string; national: boolean; region: string | null };
 
 async function auYear(year: number, state: AuState): Promise<Holiday[]> {
@@ -122,7 +169,7 @@ export async function getHolidaysForRange(start: Date, end: Date, countries: str
         const s = iso(start);
         const e = iso(end);
         for (let y = start.getFullYear(); y <= end.getFullYear(); y++) {
-          result.push(...(await auYear(y, state)).filter((h) => h.date >= s && h.date <= e));
+          result.push(...[...(await auYear(y, state)), ...auObservancesForYear(y)].filter((h) => h.date >= s && h.date <= e));
         }
       }
       return result.sort((a, b) => a.date.localeCompare(b.date));

@@ -12,7 +12,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Trash2 } from "lucide-react";
+import { ImagePlus, ImageOff, Loader2, MoreVertical, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { uploadMediaFull } from "@/lib/uploadMedia";
 import type { FolderPrefs } from "@/lib/folderPrefs";
 
 export const FOLDER_BG_COLORS = [
@@ -51,8 +54,30 @@ export function TasksHeader({
   setDelFolderOpen,
   T,
 }: TasksHeaderProps) {
+  const { user } = useAuth();
+  const imageInputRef = React.useRef<HTMLInputElement>(null);
+  const [uploadingBg, setUploadingBg] = React.useState(false);
+  const uploadBackground = async (file: File) => {
+    if (!user) return;
+    setUploadingBg(true);
+    try {
+      const media = await uploadMediaFull(file, user.id);
+      if (media.kind !== "image") throw new Error(T("فقط تصویر انتخاب کنید", "Choose an image"));
+      updateFolderPrefs({ bgImage: media.url });
+      toast.success(T("تصویر پس‌زمینه ذخیره شد", "Background image saved"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : T("بارگذاری ناموفق بود", "Upload failed"), {
+        action: { label: T("تلاش دوباره", "Retry"), onClick: () => void uploadBackground(file) },
+      });
+    } finally {
+      setUploadingBg(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
+  };
   return (
     <>
+      <input ref={imageInputRef} type="file" accept="image/*" className="hidden" data-testid="folder-bg-file-input"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadBackground(f); }} />
       <HeaderTitlePortal title={title} />
       {isFolder && (
         <HeaderActionsPortal>
@@ -144,6 +169,15 @@ export function TasksHeader({
                   ×
                 </button>
               </div>
+
+              <DropdownMenuItem onSelect={() => imageInputRef.current?.click()} disabled={uploadingBg} className="rounded-lg cursor-pointer" data-testid="folder-bg-image-upload">
+                {uploadingBg ? <Loader2 className="w-3.5 h-3.5 ms-1 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5 ms-1" />} {T("تصویر پس‌زمینه", "Background image")}
+              </DropdownMenuItem>
+              {folderPrefs.bgImage && (
+                <DropdownMenuItem onSelect={() => updateFolderPrefs({ bgImage: null })} className="rounded-lg cursor-pointer" data-testid="folder-bg-image-remove">
+                  <ImageOff className="w-3.5 h-3.5 ms-1" /> {T("حذف تصویر پس‌زمینه", "Remove background image")}
+                </DropdownMenuItem>
+              )}
 
               <DropdownMenuSeparator />
 

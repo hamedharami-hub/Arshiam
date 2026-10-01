@@ -111,13 +111,22 @@ export function useTasksData({ user, scope, scopeId }: UseTasksDataOptions) {
 
   useEffect(() => {
     if (!user) return;
-    firebaseStore.from("task_tags").select("task_id,tag_id").then(({ data }) => {
-      const mapping: Record<string, string[]> = {};
-      (data || []).forEach((row: { task_id: string; tag_id: string }) => {
-        (mapping[row.task_id] ||= []).push(row.tag_id);
+    const loadTags = () => {
+      firebaseStore.from("task_tags").select("task_id,tag_id").then(({ data }) => {
+        const mapping: Record<string, string[]> = {};
+        (data || []).forEach((row: { task_id: string; tag_id: string }) => {
+          (mapping[row.task_id] ||= []).push(row.tag_id);
+        });
+        setTaskTagsMap(mapping);
       });
-      setTaskTagsMap(mapping);
-    });
+    };
+    loadTags();
+    window.addEventListener("tasks-changed", loadTags);
+    window.addEventListener("task-tags-changed", loadTags);
+    return () => {
+      window.removeEventListener("tasks-changed", loadTags);
+      window.removeEventListener("task-tags-changed", loadTags);
+    };
   }, [allTasks.length, user]);
 
   useEffect(() => {

@@ -303,7 +303,7 @@ export default function CommandPalette() {
               {hits.map((h) => {
                 const Icon = h.kind === "task" ? CheckSquare : h.kind === "note" ? FileText : h.kind === "folder" ? Folder : Hash;
                 const to = h.kind === "task" ? `/app/tasks/${h.id}` :
-                           h.kind === "note" ? `/app/notes` :
+                           h.kind === "note" ? `/app/notes?select=${h.id}` :
                            h.kind === "folder" ? `/app/folder/${h.id}` : `/app/tag/${h.id}`;
                 return (
                   <CommandItem

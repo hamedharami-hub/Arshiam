@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { callAI, getAILanguage } from "@/lib/ai";
 import { htmlToMarkdown, markdownToHtml } from "@/lib/markdown";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
+import { LinkDialog } from "@/components/LinkDialog";
 
 const AI_ACTIONS = [
   { key: "improve", label: "✨ بهبود نگارش" },
@@ -196,10 +197,21 @@ export const RichEditor = forwardRef<RichEditorHandle, {
     fileRef.current.click();
   };
 
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkSelection, setLinkSelection] = useState("");
   const addLink = () => {
-    const url = prompt("لینک:");
-    if (!url) return;
-    editor?.chain().focus().setLink({ href: url }).run();
+    if (!editor) return;
+    const { from, to } = editor.state.selection;
+    setLinkSelection(editor.state.doc.textBetween(from, to, " "));
+    setLinkOpen(true);
+  };
+  const submitLink = (url: string, text: string) => {
+    if (!editor || editor.isDestroyed) return;
+    if (editor.state.selection.empty) {
+      editor.chain().focus().insertContent({ type: "text", text: text || url, marks: [{ type: "link", attrs: { href: url } }] }).run();
+    } else {
+      editor.chain().focus().setLink({ href: url }).run();
+    }
   };
 
   const runAI = async (action: string) => {
@@ -281,6 +293,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
       <div className="px-1 py-2">
         <EditorContent editor={editor} />
       </div>
+      <LinkDialog open={linkOpen} onOpenChange={setLinkOpen} initialText={linkSelection} askText={!linkSelection} onSubmit={submitLink} />
 
       {/* Floating "show toolbar" FAB when toolbar is scrolled out */}
       {!readOnly && !toolbarOnScreen && (

@@ -1,4 +1,5 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
+import { LifeSystemMap } from "@/components/LifeSystemMap";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -278,29 +279,30 @@ export default function LifeArchitectView() {
   const highestDomainEntry = [...wheelEntries].sort((a, b) => b[1] - a[1])[0];
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6 pb-28 min-h-[85vh] flex flex-col justify-center" dir={isEn ? "ltr" : "rtl"}>
+    <div className={`page-shell page-shell--reading pb-28 ${mode === "welcome" ? "" : "min-h-[85vh] flex flex-col justify-center"}`} dir={isEn ? "ltr" : "rtl"}>
       {/* MODE 1: WELCOME SCREEN */}
       {mode === "welcome" && (
-        <div className="space-y-6 text-center animate-fade-in py-6">
-          <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-primary via-primary/80 to-amber-500/80 text-primary-foreground flex items-center justify-center shadow-xl shadow-primary/25 ring-8 ring-primary/10">
-            <Compass className="w-10 h-10 animate-spin-slow" />
+        <div className="space-y-6 animate-fade-in py-2">
+          <HeaderTitlePortal title={T("معمار زندگی", "Life Architect")} />
+          <div className="flex items-start gap-3">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
+              <Compass className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold leading-tight">{T("سیستم زندگی من", "My life system")}</h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                {T(
+                  "از ارزش‌ها تا هدف، برنامه و کار روزانه؛ ببین هر لایه کجاست و قدم بعدی چیست.",
+                  "From values to goals, plans and daily actions: see where each layer stands and what to do next."
+                )}
+              </p>
+            </div>
           </div>
 
-          <div className="space-y-2 max-w-xl mx-auto">
-            <Badge variant="outline" className="px-3 py-1 gap-1 text-xs border-primary/30 text-primary">
-              <Sparkles className="w-3.5 h-3.5" />
-              {T("معمار هوشمند سیستم زندگی ۲.۰", "Smart Life Architect 2.0")}
-            </Badge>
-            <HeaderTitlePortal title={T("معمار زندگی", "Life Architect")} />
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {T(
-                "پیوندِ علم طراحی زندگی استنفورد، روانشناسی رفتاری ACT و عصب‌شناسی عادت‌ها؛ پوشه‌ها، اهداف چندسطحی، عادات کلیدی و تسک‌های آغازین خود را در چند گام متصل و هماهنگ بسازید.",
-                "Blending Stanford Life Design, ACT behavioral therapy, and habit neuroscience to structure your folders, multi-tier goals, and keystone habits."
-              )}
-            </p>
-          </div>
+          {user && <LifeSystemMap userId={user.id} isEn={isEn} />}
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 max-w-3xl mx-auto pt-4 text-start">
+          <h3 className="pt-2 text-sm font-semibold text-muted-foreground">{T("ساخت یا بازسازی سیستم", "Build or tune the system")}</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-start">
             <Card
               onClick={() => startWizard(0)}
               className="p-5 cursor-pointer hover:border-primary/60 hover:shadow-lg transition-all group relative overflow-hidden bg-card/80 border-border/80"
