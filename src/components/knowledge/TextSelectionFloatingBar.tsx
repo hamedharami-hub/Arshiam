@@ -1,12 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Sparkles, X, BookOpen } from "lucide-react";
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
+import { Sparkles, X, Copy, StickyNote } from "lucide-react";
+import { toast } from "sonner";
 import { useBilingual } from "@/hooks/useBilingual";
 
 interface TextSelectionFloatingBarProps {
   containerRef?: React.RefObject<HTMLElement | null>;
-  /** @deprecated Removed per user request — AI Question generation preferred */
   onAddToNote?: (text: string) => void;
-  /** @deprecated Removed per user request — AI Question generation preferred */
   onAddToTask?: (text: string) => void;
   onAiAction?: (text: string) => void;
   onGenerateQuestions?: (text: string) => void;
@@ -14,6 +13,7 @@ interface TextSelectionFloatingBarProps {
 
 export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> = ({
   containerRef,
+  onAddToNote,
   onAiAction,
   onGenerateQuestions,
 }) => {
@@ -56,8 +56,8 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
       return;
     }
 
-    const top = Math.max(12, rect.top - 54);
-    const left = Math.max(16, Math.min(window.innerWidth - 320, rect.left + rect.width / 2 - 140));
+    const top = Math.max(12, rect.top - 62);
+    const left = Math.max(16, Math.min(window.innerWidth - 430, rect.left + rect.width / 2 - 140));
 
     setSelectedText(text);
     setCoords({ top, left });
@@ -104,6 +104,19 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
     };
   }, [checkSelection]);
 
+  useLayoutEffect(() => {
+    if (!selectedText || !desktopBubbleRef.current) return;
+    const selection = window.getSelection();
+    if (!selection?.rangeCount) return;
+    const selectedRect = selection.getRangeAt(0).getBoundingClientRect();
+    const toolbar = desktopBubbleRef.current.getBoundingClientRect();
+    if (!toolbar.width) return;
+    setCoords({
+      top: Math.max(8, selectedRect.top - toolbar.height - 8),
+      left: Math.max(8, Math.min(window.innerWidth - toolbar.width - 8, selectedRect.left + selectedRect.width / 2 - toolbar.width / 2)),
+    });
+  }, [selectedText]);
+
   const handleDismiss = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -126,99 +139,19 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
 
   if (!selectedText) return null;
 
-  const wordCount = selectedText.split(/\s+/).filter(Boolean).length;
-  const previewSnippet =
-    selectedText.length > 40 ? `${selectedText.substring(0, 40)}...` : selectedText;
-
-  const hasAiAction = Boolean(onGenerateQuestions || onAiAction);
-
-  return (
-    <>
-      {/* 1. Desktop Smart Floating Pill */}
-      {coords && (
-        <div
-          ref={desktopBubbleRef}
-          style={{
-            position: "fixed",
-            top: `${coords.top}px`,
-            left: `${coords.left}px`,
-            zIndex: 99999,
-          }}
-          className="hidden md:flex items-center gap-1.5 p-1.5 rounded-2xl bg-slate-900/95 border border-purple-500/60 shadow-2xl backdrop-blur-xl ring-1 ring-purple-400/20 text-xs animate-in fade-in zoom-in-95 duration-150 select-none"
-        >
-          {/* AI Flashcard & Question Generation Button */}
-          {hasAiAction && (
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={handleTriggerAiQuestions}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-linear-to-r from-purple-600 via-indigo-600 to-sky-600 hover:from-purple-500 hover:to-sky-500 text-white font-bold transition cursor-pointer shadow-sm shadow-purple-500/25"
-              title={isEn ? "Generate Leitner & Mind Map cards with AI" : "تولید کارت‌های لایتنر و نقشه ذهنی با هوش مصنوعی"}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-              <span>{isEn ? "Generate Cards (AI)" : "تولید کارت و سوال هوشمند"}</span>
-            </button>
-          )}
-
-          {hasAiAction && <div className="w-px h-4 bg-slate-700 mx-0.5" />}
-
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={handleDismiss}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition cursor-pointer"
-            title={isEn ? "Dismiss" : "بستن"}
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
-
-      {/* 2. Responsive Mobile & Touch Dock */}
-      <div
-        ref={mobileBubbleRef}
-        style={{ zIndex: 99998 }}
-        className="md:hidden fixed bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)] inset-x-3 max-w-lg mx-auto animate-in slide-in-from-bottom-4 fade-in duration-200 select-none"
-      >
-        <div className="p-3 rounded-2xl bg-slate-900/95 border border-purple-500/60 shadow-2xl backdrop-blur-2xl flex flex-col gap-2 ring-1 ring-purple-400/25">
-          {/* Header Row: Word Count & Snippet Preview */}
-          <div className="flex items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-1.5 min-w-0 text-purple-300">
-              <BookOpen className="w-4 h-4 text-purple-400 shrink-0" />
-              <span className="font-bold truncate">
-                {isEn ? `${wordCount} words selected:` : `${wordCount} کلمه انتخاب شد:`}
-              </span>
-              <span className="text-[11px] text-slate-300 truncate opacity-90">
-                "{previewSnippet}"
-              </span>
-            </div>
-
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={handleDismiss}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition shrink-0"
-              title={isEn ? "Close" : "بستن"}
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {hasAiAction && (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={handleTriggerAiQuestions}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-linear-to-r from-purple-600 via-indigo-600 to-sky-600 text-white font-bold text-xs shadow-md shadow-purple-500/25 transition cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-                <span>{isEn ? "Generate Cards (AI)" : "تولید سوال هوشمند (AI)"}</span>
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </>
-  );
+  const create = Boolean(onGenerateQuestions || onAiAction);
+  const actionClass = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-3 text-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  const actions = <>
+    <button type="button" className={actionClass} onMouseDown={event => event.preventDefault()} onClick={async () => {
+      try { await navigator.clipboard.writeText(selectedText); toast.success(isEn ? "Copied" : "کپی شد"); }
+      catch { toast.error(isEn ? "Could not copy. Use your browser’s Copy action." : "کپی انجام نشد؛ از گزینهٔ کپی مرورگر استفاده کنید."); }
+    }}><Copy className="h-4 w-4" />{isEn ? "Copy" : "کپی"}</button>
+    {onAddToNote && <button type="button" className={actionClass} onMouseDown={event => event.preventDefault()} onClick={event => { onAddToNote(selectedText); handleDismiss(event); }}><StickyNote className="h-4 w-4" />{isEn ? "Note" : "یادداشت"}</button>}
+    {create && <button type="button" className={`${actionClass} text-primary`} onMouseDown={event => event.preventDefault()} onClick={handleTriggerAiQuestions}><Sparkles className="h-4 w-4" />{isEn ? "Create cards / questions" : "ساخت کارت / سؤال"}</button>}
+    <button type="button" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted" onMouseDown={event => event.preventDefault()} onClick={handleDismiss} aria-label={isEn ? "Dismiss" : "بستن"}><X className="h-4 w-4" /></button>
+  </>;
+  return <>
+    {coords && <div ref={desktopBubbleRef} style={{ position: "fixed", top: coords.top, left: coords.left, zIndex: 99999 }} className="hidden md:flex max-w-[min(430px,calc(100vw-2rem))] flex-wrap items-center rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-lg select-none" role="toolbar" aria-label={isEn ? "Selected text actions" : "ابزارهای متن انتخاب‌شده"}>{actions}</div>}
+    <div ref={mobileBubbleRef} className="md:hidden fixed bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)] inset-x-3 z-[99998] mx-auto flex max-w-lg flex-wrap items-center justify-center rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-lg select-none" role="toolbar" aria-label={isEn ? "Selected text actions" : "ابزارهای متن انتخاب‌شده"}>{actions}</div>
+  </>;
 };
