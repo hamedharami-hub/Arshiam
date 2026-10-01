@@ -1,5 +1,7 @@
+import { normalizeLessonLabel, getLessonTemplate, isTechnicalLessonField, templateCardGroup } from './lessonTemplates';
+import { decorateLessonBody } from './lessonBodyPresentation';
 export type LessonCardKind = 'overview' | 'mechanism' | 'use' | 'safety' | 'practice' | 'reference' | 'metadata';
-export type LessonCardGroup = 'understand' | 'apply' | 'safety' | 'practice' | 'reference';
+export type LessonCardGroup = 'understand' | 'apply' | 'safety' | 'practice' | 'reference' | 'identity' | 'symptoms' | 'counselling' | 'label' | 'rules' | 'language' | 'assessment' | 'decision' | 'comparison' | 'milestones';
 export interface LessonContentCard {
   id: string;
   title: string;
@@ -8,6 +10,7 @@ export interface LessonContentCard {
   html: string;
   sourceHtml: string;
   wide: boolean;
+  safetyProtected?: boolean;
 }
 
 export const LESSON_GROUPS: { id: LessonCardGroup; fa: string; en: string }[] = [
@@ -19,8 +22,10 @@ export const LESSON_GROUPS: { id: LessonCardGroup; fa: string; en: string }[] = 
 ];
 
 export function classifyLessonCard(title: string): { kind: LessonCardKind; group: LessonCardGroup } {
-  if (/^(شناسه|شمارهٔ مسیر|نام آیکون|نوع آیکون|رنگ برچسب|ردهٔ رنگ|شناسهٔ.*|عنوان|نام|نام ردهٔ دارویی|زیرعنوان|برچسب|درس اصلی|id|.*\bid\b|icon|icon name|icon type|badge color|color class|title|name|subtitle|badge|main lesson)$/i.test(title.trim())) return { kind: 'metadata', group: 'reference' };
-  if (/هشدار|منع مصرف|احتیاط|عوارض|سمیت|ارجاع|red flag|warning|contraindicat|precaution|adverse|toxicity|referral/i.test(title)) return { kind: 'safety', group: 'safety' };
+  if (/related.*(?:ids|items)|شناسه.*مرتبط/i.test(title)) return { kind: 'practice', group: 'practice' };
+  if (isTechnicalLessonField(title)) return { kind: 'metadata', group: 'reference' };
+  if (/^(شناسه|شمارهٔ مسیر|نام آیکون|نوع آیکون|رنگ برچسب|ردهٔ رنگ|شناسهٔ.*|عنوان|نام|برچسب|درس اصلی|id|.*\bid\b|icon|icon name|icon type|badge color|color class|title|name|badge|main lesson)$/i.test(title.trim())) return { kind: 'metadata', group: 'reference' };
+  if (/هشدار|منع مصرف|احتیاط|عوارض|سمیت|ایمنی|ارجاع|علائم خطر|پرچم.*قرمز|safety|red flag|warning|contraindicat|precaution|caution|adverse|toxicity|referral|interaction|تداخل/i.test(title)) return { kind: 'safety', group: 'safety' };
   if (/منبع|منابع|بازبینی|reference|source|review evidence/i.test(title)) return { kind: 'reference', group: 'reference' };
   if (/تمرین|پرسش|گزینه|پاسخ|سناریو|مکالمه|مثال|مراحل|مسیر یادگیری|practice|question|answer|option|case|dialogue|example|step|track/i.test(title)) return { kind: 'practice', group: 'practice' };
   if (/مکانیسم|مسیر.*سلول|پاتوفیزیولوژی|mechanism|pathophysiology|pathway/i.test(title)) return { kind: 'mechanism', group: 'understand' };
@@ -45,7 +50,7 @@ function getTitleElement(block: Element): Element | null {
 }
 
 /** Presentation adapter only: keeps source blocks intact; never writes or rewrites a document. */
-export function buildLessonCards(safeHtml: string, language: 'fa' | 'en'): LessonContentCard[] {
+export function buildLessonCards(safeHtml: string, language: 'fa' | 'en', documentId?: string, visibleTitles: (string | undefined)[] = []): LessonContentCard[] {
   if (typeof document === 'undefined') return [];
   const container = document.createElement('div');
   container.innerHTML = safeHtml;
@@ -54,6 +59,7 @@ export function buildLessonCards(safeHtml: string, language: 'fa' | 'en'): Lesso
   if (Array.from(container.childNodes).some(node => node.nodeType === 3 && node.textContent.trim())) return [];
   // Unsupported loose text must remain in the original renderer, never disappear in extraction.
   if (Array.from(root.childNodes).some(node => node.nodeType === 3 && node.textContent.trim())) return [];
+  const template = getLessonTemplate(documentId);
   const blocks: Element[] = [];
   for (const block of Array.from(root.children)) {
     if (block.tagName === 'DL') {
@@ -61,7 +67,9 @@ export function buildLessonCards(safeHtml: string, language: 'fa' | 'en'): Lesso
       if (!Array.from(block.children).every(child => child.querySelector(':scope > dt') && child.querySelector(':scope > dd'))) return [];
       blocks.push(...Array.from(block.children));
     }
-    else blocks.push(block);
+    else if (template !== 'general' && block.classList.contains('grid') && !block.id && !block.hasAttribute('data-doc-link') && !Array.from(block.childNodes).some(node => node.nodeType === 3 && node.textContent.trim()) && block.children.length > 1 && Array.from(block.children).every(child => getTitleElement(child))) {
+      blocks.push(...Array.from(block.children));
+    } else blocks.push(block);
   }
   if (blocks.filter(block => block.textContent.trim() || block.querySelector('img,table,video,audio')).length < 2) return [];
   const occurrences = new Map<string, number>();
@@ -72,9 +80,15 @@ export function buildLessonCards(safeHtml: string, language: 'fa' | 'en'): Lesso
     const title = titleElement?.textContent.trim() || (tableTitle
       ? (language === 'fa' ? `جدول: ${tableTitle}` : `Table: ${tableTitle}`)
       : language === 'fa' ? `مطالعهٔ بخش ${index + 1}` : `Reading ${index + 1}`);
-    const { kind, group } = block.tagName === 'HEADER' && /\bSource:/i.test(block.textContent)
+    let { kind, group: defaultGroup } = block.tagName === 'HEADER' && /\bSource:/i.test(block.textContent)
       ? { kind: 'metadata' as const, group: 'reference' as const }
       : classifyLessonCard(title);
+    const value = block.querySelector(':scope > dd');
+    if (/^(class name|نام رده دارویی)$/.test(normalizeLessonLabel(title)) && value && visibleTitles.some(visible => visible && normalizeLessonLabel(visible) === normalizeLessonLabel(value.textContent))) {
+      kind = 'metadata'; defaultGroup = 'reference';
+    }
+    const group = templateCardGroup(template, title, kind, defaultGroup);
+    const safetyProtected = kind === 'safety' || Array.from(block.querySelectorAll('dt,h2,h3,h4,strong')).some(element => classifyLessonCard(element.textContent.trim()).kind === 'safety');
     const sourceHtml = block.outerHTML;
     const clone = block.cloneNode(true) as Element;
     const cloneTitle = getTitleElement(clone);
@@ -82,6 +96,7 @@ export function buildLessonCards(safeHtml: string, language: 'fa' | 'en'): Lesso
     if (cloneTitle && cloneTitle !== clone && !cloneTitle.id && !cloneTitle.querySelector('a,img,[id],[data-doc-link]')) cloneTitle.remove();
     // Only the outer frame is replaced. Nested scientific emphasis and data attributes stay intact.
     clone.removeAttribute('class');
+    if (template !== 'general') decorateLessonBody(clone, language, title);
     const hash = hashText(title);
     const ordinal = occurrences.get(hash) ?? 0;
     occurrences.set(hash, ordinal + 1);
@@ -92,7 +107,7 @@ export function buildLessonCards(safeHtml: string, language: 'fa' | 'en'): Lesso
     usedIds.add(id);
     return {
       id,
-      title, kind, group, sourceHtml, html: clone.outerHTML,
+      title, kind, group, safetyProtected, sourceHtml, html: clone.outerHTML,
       wide: kind === 'safety' || !!block.querySelector('table,pre') || block.textContent.length > 1600,
     };
   });

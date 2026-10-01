@@ -1,23 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, BookOpen, FileText, FlaskConical, Layers3 } from 'lucide-react';
 import { useBilingual } from '@/hooks/useBilingual';
-import { LESSON_GROUPS, type LessonContentCard, type LessonCardGroup } from '@/lib/lessonCards';
+import { TEMPLATE_GROUPS, type LessonTemplate } from '@/lib/lessonTemplates';
+import { type LessonContentCard, type LessonCardGroup } from '@/lib/lessonCards';
 import './LessonCardLayout.css';
 
 function readCardParam() {
   try { return new URLSearchParams(window.location.search).get('card'); } catch { return null; }
 }
 
-export function LessonCardLayout({ cards, sourceHtml, dir, contentClassName }: {
-  cards: LessonContentCard[]; sourceHtml: string; dir: 'rtl' | 'ltr'; contentClassName: string;
+export function LessonCardLayout({ cards, sourceHtml, dir, contentClassName, template = 'general' }: {
+  cards: LessonContentCard[]; sourceHtml: string; dir: 'rtl' | 'ltr'; contentClassName: string; template?: LessonTemplate;
 }) {
   const { T } = useBilingual();
+  const [showTechnical, setShowTechnical] = useState(false);
   const [view, setView] = useState<'cards' | 'source'>('cards');
   const [activeGroup, setActiveGroup] = useState<LessonCardGroup | 'all'>('all');
   const [linkedCard, setLinkedCard] = useState<string | null>(readCardParam);
   const rootRef = useRef<HTMLDivElement>(null);
   const targetCard = linkedCard;
-  const groups = useMemo(() => LESSON_GROUPS.filter(group => cards.some(card => card.group === group.id && card.kind !== 'metadata')), [cards]);
+  const groups = useMemo(() => TEMPLATE_GROUPS[template].filter(group => cards.some(card => card.group === group.id && card.kind !== 'metadata')), [cards, template]);
+  const hasTechnical = cards.some(card => card.html.includes('lesson-field--technical'));
+  const visibleCards = (group: LessonCardGroup) => cards.filter(card => card.group === group && card.kind !== 'metadata' && (activeGroup === 'all' || activeGroup === group || card.safetyProtected));
   const metadata = cards.filter(card => card.kind === 'metadata');
   useEffect(() => {
     if (!targetCard) return;
@@ -41,12 +45,16 @@ export function LessonCardLayout({ cards, sourceHtml, dir, contentClassName }: {
     return <article key={card.id} data-lesson-card={card.id} data-kind={card.kind} className={`lesson-content-card ${card.wide ? 'lesson-content-card--wide' : ''} ${targetCard === card.id ? 'lesson-content-card--linked' : ''}`}>
       <header className="lesson-content-card__header">
         <Icon className="lesson-content-card__icon" aria-hidden="true" />
-        <h3><a href={`?${(() => { const params = new URLSearchParams(window.location.search); params.set('card', card.id); return params.toString(); })()}`} onClick={event => { event.preventDefault(); openCard(card.id); }}>{card.title}</a></h3>
+        <h3><a href={`?${(() => { const params = new URLSearchParams(window.location.search); params.set('card', card.id); return params.toString(); })()}`} onClick={event => { if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return; event.preventDefault(); openCard(card.id); }}>{card.title}</a></h3>
       </header>
       <div className={`lesson-content-card__body ${contentClassName}`} dangerouslySetInnerHTML={{ __html: card.html }} />
     </article>;
   };
-  return <div ref={rootRef} dir={dir} className="lesson-card-layout" data-testid="lesson-card-layout" onClickCapture={event => {
+  return <div ref={rootRef} dir={dir} className="lesson-card-layout" data-template={template} data-show-technical={showTechnical} onKeyDown={event => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const target = (event.target as Element).closest<HTMLElement>("[data-doc-link]");
+    if (target && !target.matches("a,button")) { event.preventDefault(); target.click(); }
+  }} data-testid="lesson-card-layout" onClickCapture={event => {
     const link = (event.target as Element).closest?.('a[href^="#"]');
     if (!link || link.hasAttribute("data-doc-link")) return;
     const rawId = link.getAttribute('href')?.slice(1);
@@ -70,10 +78,11 @@ export function LessonCardLayout({ cards, sourceHtml, dir, contentClassName }: {
         <button type="button" aria-pressed={activeGroup === 'all'} onClick={() => setActiveGroup('all')}>{T('همهٔ کارت‌ها', 'All cards')}</button>
         {groups.map(group => <button key={group.id} type="button" aria-pressed={activeGroup === group.id} onClick={() => setActiveGroup(group.id)}>{T(group.fa, group.en)}</button>)}
       </nav>
-      {groups.filter(group => activeGroup === 'all' || activeGroup === group.id || group.id === 'safety').map(group => <section key={group.id} className="lesson-card-group" aria-label={T(group.fa, group.en)}>
-        <h2 className="lesson-card-group__title"><span>{T(group.fa, group.en)}</span><span className="lesson-card-group__count">{cards.filter(card => card.group === group.id && card.kind !== 'metadata').length}</span></h2>
-        <div className="lesson-card-group__grid">{cards.filter(card => card.group === group.id && card.kind !== 'metadata').map(renderCard)}</div>
+      {groups.filter(group => activeGroup === 'all' || activeGroup === group.id || cards.some(card => card.group === group.id && card.safetyProtected)).map(group => <section key={group.id} className="lesson-card-group" aria-label={T(group.fa, group.en)}>
+        <h2 className="lesson-card-group__title"><span>{T(group.fa, group.en)}</span><span className="lesson-card-group__count">{visibleCards(group.id).length}</span></h2>
+        <div className="lesson-card-group__grid">{visibleCards(group.id).map(renderCard)}</div>
       </section>)}
+      {hasTechnical && <button type="button" className="lesson-technical-toggle" aria-pressed={showTechnical} onClick={() => setShowTechnical(!showTechnical)}>{showTechnical ? T("پنهان‌کردن مشخصات فنی", "Hide technical details") : T("نمایش مشخصات فنی", "Show technical details")}</button>}
       {metadata.length > 0 && <details className="lesson-card-layout__metadata"><summary>{T('مشخصات مبدأ', 'Source metadata')} <span>({metadata.length})</span></summary><div className="lesson-card-group__grid">{metadata.map(renderCard)}</div></details>}
     </>}
   </div>;

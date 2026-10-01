@@ -58,6 +58,7 @@ export function PharmacyDocumentDialog({ documentId, onClose }: PharmacyDocument
     const link = (event.target as HTMLElement).closest("[data-doc-link]");
     const target = link?.getAttribute("data-doc-link");
     if (!target) return;
+    if (link.matches("a") && (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)) return;
     event.preventDefault();
     setStack((previous) => [...previous, target]);
     bodyRef.current?.scrollTo?.({ top: 0 });
@@ -104,7 +105,7 @@ export function PharmacyDocumentDialog({ documentId, onClose }: PharmacyDocument
             className="min-w-0"
             data-testid="pharmacy-document-body"
           >
-            <KnowledgeSectionContent multiCard html={html} dir={isEn ? "ltr" : "rtl"} className="knowledge-content prose prose-sm max-w-none break-words dark:prose-invert" />
+            <KnowledgeSectionContent visibleTitles={[title]} documentId={loadedDoc?.document.id} multiCard html={html} dir={isEn ? "ltr" : "rtl"} className="knowledge-content prose prose-sm max-w-none break-words dark:prose-invert" />
           </div>
         ) : (
           <p className="rounded-lg bg-muted/50 p-4 text-sm" data-testid="pharmacy-document-missing">{T("این سند نه در Knowledge شما و نه در snapshot منبع پیدا شد.", "This document was not found in your Knowledge or in the source snapshot.")}</p>

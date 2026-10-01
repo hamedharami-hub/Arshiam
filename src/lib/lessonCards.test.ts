@@ -1,3 +1,4 @@
+import { getLessonTemplate, TEMPLATE_GROUPS } from './lessonTemplates';
 import { describe, expect, it } from 'vitest';
 import { buildLessonCards, classifyLessonCard } from './lessonCards';
 import { PHARMACY_SEED_DOCUMENTS, PHARMACY_SEED_FOLDERS, PHARMACY_SEED_CARDS } from './pharmacySeedData';
@@ -5,16 +6,18 @@ import { applyPharmacyClinicalEditorialOverrides } from './pharmacyClinicalEdito
 import { applyPharmacyPbsEditorialOverrides } from './pharmacyPbsEditorialOverrides';
 import { sanitizeKnowledgeHtml } from './knowledgeHtmlSanitizer';
 
-const plain = (html: string) => { const root = document.createElement('div'); root.innerHTML = html; return root.textContent.replace(/\s+/g, ''); };
+const plain = (html: string) => { const root = document.createElement('div'); root.innerHTML = html; root.querySelectorAll('[data-lesson-decoration]').forEach(node => node.remove()); return root.textContent.replace(/\s+/g, ''); };
 const seed = applyPharmacyPbsEditorialOverrides(applyPharmacyClinicalEditorialOverrides({ PHARMACY_SEED_DOCUMENTS, PHARMACY_SEED_FOLDERS, PHARMACY_SEED_CARDS }));
 describe('lesson card presentation preserves the scientific source', () => {
   it.each(seed.PHARMACY_SEED_DOCUMENTS)('preserves every bilingual source block in $id', (doc) => {
       for (const language of ['fa', 'en'] as const) {
         const source = sanitizeKnowledgeHtml(language === 'fa' ? doc.content_html : doc.content_en || doc.content_html);
-        const cards = buildLessonCards(source, language);
+        const cards = buildLessonCards(source, language, doc.id);
         if (!cards.length) continue; // unsupported structure uses the full original renderer
         expect(plain(cards.map(card => card.sourceHtml).join('')), doc.id).toBe(plain(source));
         expect(new Set(cards.map(card => card.id)).size, doc.id).toBe(cards.length);
+        const groups = TEMPLATE_GROUPS[getLessonTemplate(doc.id)].map(group => group.id);
+        expect(cards.filter(card => card.kind !== 'metadata').every(card => groups.includes(card.group)), doc.id).toBe(true);
         // Removing a repeated title may move it into the card header, but cannot remove body text.
         for (const card of cards) {
           const body = plain(card.html);
