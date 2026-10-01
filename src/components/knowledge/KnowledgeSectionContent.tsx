@@ -2,12 +2,27 @@ import { useId, useMemo, useState, useRef } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { splitKnowledgeSections } from "@/lib/knowledgeSections";
 import { useBilingual } from "@/hooks/useBilingual";
+import { DrugTiers, isDrugLike } from "./DrugTiers";
+import { PharmacyImageViewer, enhanceImagesHtml, replaceBrokenImage } from "./PharmacyImageViewer";
 
 /** Horizontal section navigation; All retains the complete source presentation. */
-export function KnowledgeSectionContent({ html, dir, className }: { html: string; dir: "ltr" | "rtl"; className: string }) {
+export function KnowledgeSectionContent({ html: rawHtml, dir, className }: { html: string; dir: "ltr" | "rtl"; className: string }) {
   const { T } = useBilingual();
+  const html = useMemo(() => enhanceImagesHtml(rawHtml), [rawHtml]);
   const sections = useMemo(() => splitKnowledgeSections(html), [html]);
-  return <SectionPresentation key={html} html={html} dir={dir} className={className} introduction={sections.introduction} sections={sections.sections} T={T} />;
+  const [viewer, setViewer] = useState<{ src: string; alt: string } | null>(null);
+  const tiered = isDrugLike(sections.sections);
+  return <div className="min-w-0" onClickCapture={event => {
+    const target = event.target as Element;
+    if (target.tagName === "IMG" && !target.closest("a")) { const img = target as HTMLImageElement; setViewer({ src: img.currentSrc || img.src, alt: img.alt }); }
+  }} onErrorCapture={event => {
+    if ((event.target as Element).tagName === "IMG") replaceBrokenImage(event.target as HTMLImageElement, T("تصویر در دسترس نیست", "Image unavailable"));
+  }}>
+    {tiered
+      ? <DrugTiers introduction={sections.introduction} sections={sections.sections} dir={dir} className={className} />
+      : <SectionPresentation key={html} html={html} dir={dir} className={className} introduction={sections.introduction} sections={sections.sections} T={T} />}
+    <PharmacyImageViewer image={viewer} onClose={() => setViewer(null)} />
+  </div>;
 }
 function SectionPresentation({ html, dir, className, introduction, sections, T }: {
   html: string; dir: "ltr" | "rtl"; className: string; introduction: string;

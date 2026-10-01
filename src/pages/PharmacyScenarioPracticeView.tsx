@@ -28,6 +28,12 @@ const initialScenarioId =
   ?? PHARMACY_PRACTICE_SCENARIOS[0]?.id
   ?? "";
 
+const SCENARIO_OBJECTIVE: Record<string, readonly [string, string]> = {
+  MODE_A_ADMIN: ["هدف: درخواست را بررسی کن و تصمیم بگیر دارو تأمین شود یا بیمار ارجاع شود.", "Goal: assess the request and decide whether to supply or refer."],
+  MODE_B_SLANG: ["هدف: منظور بیمار را از زبان روزمره‌اش بفهم و روشن پاسخ بده.", "Goal: understand the patient's everyday wording and answer clearly."],
+  MODE_C_CONFLICT: ["هدف: اختلاف را با حفظ ایمنی و اعتماد بیمار حل کن.", "Goal: resolve the disagreement safely while keeping the patient's trust."],
+};
+
 export default function PharmacyScenarioPracticeView() {
   const { T, lang } = useBilingual();
   const isEn = lang === "en";
@@ -197,6 +203,7 @@ export default function PharmacyScenarioPracticeView() {
               <div className="min-w-0 space-y-1">
                 <h2 className="break-words text-lg font-semibold leading-snug">{isEn ? scenario.titleEn : scenario.titleFa}</h2>
                 <p className="break-words text-sm text-muted-foreground">{isEn ? scenario.categoryEn : scenario.categoryFa}</p>
+                <p className="break-words text-sm" data-testid="scenario-objective">{isEn ? SCENARIO_OBJECTIVE[scenario.mode][1] : SCENARIO_OBJECTIVE[scenario.mode][0]}</p>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 <Badge variant="secondary">{getModeLabel(scenario.mode)}</Badge>

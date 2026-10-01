@@ -11,3 +11,17 @@
 @media(prefers-reduced-motion:reduce){.pharmacy-shortcut,.pharmacy-category-chevron,.pharmacy-folder-chevron{transition:none}}
 
 .pharmacy-category-nav{display:flex;gap:6px;overflow-x:auto;max-width:100%;padding:3px 2px 12px}.pharmacy-category-nav button{flex:none;padding:8px 12px;border:1px solid var(--ph-line);border-radius:8px;font-size:12px;min-height:40px}.pharmacy-category-nav button[aria-pressed=true]{background:var(--ph-soft);border-color:var(--ph-accent);color:var(--ph-accent)}.pharmacy-category-nav button:focus-visible{outline:2px solid var(--ph-accent);outline-offset:1px}.pharmacy-search-results{margin-bottom:16px;padding:12px;border:1px solid var(--ph-line);border-radius:8px}.pharmacy-search-results>p{font-size:12px;color:var(--ph-muted);margin-bottom:8px}.pharmacy-lesson-link span{overflow-wrap:anywhere}
+.pharmacy-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin-top:12px}
+.pharmacy-topics{display:none}
+.pharmacy-topics-mobile{display:block}
+.pharmacy-category-nav{display:flex;flex-direction:column;gap:4px}
+.pharmacy-category-nav button{display:flex;align-items:center;gap:8px;min-height:40px;padding:8px 10px;border-radius:6px;text-align:start;font-size:13px;color:hsl(var(--muted-foreground))}
+.pharmacy-category-nav button:hover,.pharmacy-category-nav button[aria-pressed=true]{background:hsl(var(--muted));color:hsl(var(--foreground))}
+.pharmacy-category-nav button[aria-pressed=true]{font-weight:600;box-shadow:inset 3px 0 hsl(var(--primary))}
+.pharmacy-hub[dir=rtl] .pharmacy-category-nav button[aria-pressed=true]{box-shadow:inset -3px 0 hsl(var(--primary))}
+.pharmacy-category-nav button:focus-visible,.pharmacy-topics-toggle:focus-visible{outline:2px solid hsl(var(--ring));outline-offset:1px}
+.pharmacy-topics-toggle{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;margin-bottom:8px;border-radius:6px;border:1px solid hsl(var(--border))}
+.pharmacy-topic-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-bottom:12px}
+.pharmacy-topic-head h3{font-size:1.125rem;font-weight:600}.pharmacy-topic-head p{font-size:12px;color:hsl(var(--muted-foreground))}
+.pharmacy-topic-panel{min-width:0}
+@media(min-width:900px){.pharmacy-layout{grid-template-columns:240px minmax(0,1fr)}.pharmacy-layout[data-collapsed=true]{grid-template-columns:48px minmax(0,1fr)}.pharmacy-topics{display:block;border-inline-end:1px solid hsl(var(--border));padding-inline-end:12px}.pharmacy-topics-mobile{display:none}}

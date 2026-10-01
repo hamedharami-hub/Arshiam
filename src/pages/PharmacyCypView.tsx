@@ -94,7 +94,7 @@ function CypMatrix({ onOpenDocument, onAdd, selectedKeys }: { onOpenDocument: (i
         <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
         <Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={T("نام دارو…", "Medicine name…")} aria-label={T("جست‌وجوی دارو در ماتریس", "Search medicines in the matrix")} className="ps-9" data-testid="cyp-matrix-search" />
       </div>
-      <RoleLegend />
+      <details open className="text-xs" data-testid="cyp-legend-details"><summary className="cursor-pointer select-none py-1 text-muted-foreground">{T("راهنمای نقش‌ها", "Role legend")}</summary><RoleLegend /></details>
       <p className="text-sm text-muted-foreground" aria-live="polite" data-testid="cyp-matrix-count">{T(`${rows.length} دارو`, `${rows.length} medicines`)}</p>
       <div className="max-h-[65vh] overflow-auto rounded-xl border" data-testid="cyp-matrix-scroll">
         <table className="w-full min-w-[40rem] border-collapse text-sm" data-testid="cyp-matrix-table">

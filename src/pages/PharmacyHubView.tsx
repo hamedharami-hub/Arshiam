@@ -1,11 +1,13 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, ChevronDown, ExternalLink, FolderClosed, Layers3, Search, X } from "lucide-react";
+import { BookOpen, ChevronDown, ExternalLink, FolderClosed, Layers3, Menu, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
 import PharmacyShortcuts from "@/components/PharmacyShortcuts";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
 import { PHARMACY_ROOT_FOLDER_ID } from "@/lib/pharmacyConstants";
@@ -32,6 +34,8 @@ export default function PharmacyHubView() {
   const [openCategoryId, setOpenCategoryId] = useState<string | null>(null);
   const [categoryQuery, setCategoryQuery] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [collapsed, setCollapsed] = useState(false);
+  const [topicsOpen, setTopicsOpen] = useState(false);
   const userId = user?.id || "anonymous-kb-user";
 
   useEffect(() => {
@@ -166,33 +170,48 @@ export default function PharmacyHubView() {
     </details>;
   }
 
-  function renderCategory(category: KnowledgeFolder & { subfolders: KnowledgeFolder[] }) {
+  const selectedCategory = visibleCategories.find((category) => category.id === openCategoryId) ?? visibleCategories[0] ?? null;
+
+  function renderTopicNav() {
+    return <nav className="pharmacy-category-nav" aria-label={T("انتخاب موضوع", "Choose topic")}>
+      {visibleCategories.map((category) => <button key={category.id} type="button" data-testid={`pharmacy-category-${category.id}`} aria-label={T(`انتخاب ${category.name}`, `Choose ${category.name}`)} aria-pressed={selectedCategory?.id === category.id} onClick={() => { setOpenCategoryId(category.id); setTopicsOpen(false); }}>
+        <FolderClosed className="h-4 w-4 shrink-0" aria-hidden="true" /><span className="pharmacy-topic-name">{category.name}</span>
+      </button>)}
+    </nav>;
+  }
+
+  function renderTopicPanel(category: KnowledgeFolder & { subfolders: KnowledgeFolder[] }) {
     const directLessons = folderDocuments.get(category.id) ?? [];
     const total = lessonCounts.get(category.id) ?? 0;
-    const isOpen = openCategoryId === category.id;
-    return <article key={category.id} data-testid={`pharmacy-category-${category.id}`} className={`pharmacy-category ${isOpen ? "is-open" : ""}`}>
-      <div className="pharmacy-category-header">
-        <button type="button" className="pharmacy-category-toggle" aria-expanded={isOpen} aria-controls={`pharmacy-category-panel-${category.id}`} onClick={() => setOpenCategoryId(isOpen ? null : category.id)}>
-          <span className="pharmacy-category-icon"><FolderClosed className="h-5 w-5" aria-hidden="true" /></span>
-          <span className="pharmacy-category-title">{category.name}</span>
-          <span className="pharmacy-category-meta">{T(`${category.subfolders.length} زیرشاخه · ${total} درس`, `${category.subfolders.length} subcategories · ${total} lessons`)}</span>
-          <ChevronDown className="pharmacy-category-chevron h-5 w-5" aria-hidden="true" />
-        </button>
-        <Link to={knowledgeFolderUrl(category.id)} className="pharmacy-category-link" aria-label={T(`باز کردن صفحه ${category.name}`, `Open ${category.name} folder`)} title={T("باز کردن پوشه در دانشنامه", "Open folder in knowledge base")}><ExternalLink className="h-4 w-4" aria-hidden="true" /></Link>
+    return <section className="pharmacy-topic-panel" aria-labelledby="pharmacy-topic-title" data-testid="pharmacy-topic-panel">
+      <div className="pharmacy-topic-head">
+        <h3 id="pharmacy-topic-title">{category.name}</h3>
+        <p>{T(`${category.subfolders.length} زیرشاخه · ${total} درس`, `${category.subfolders.length} subcategories · ${total} lessons`)}</p>
+        <Link to={knowledgeFolderUrl(category.id)} className="pharmacy-category-link" aria-label={T(`باز کردن صفحه ${category.name}`, `Open ${category.name} folder`)}><ExternalLink className="h-4 w-4" aria-hidden="true" /></Link>
       </div>
-      {isOpen && <div id={`pharmacy-category-panel-${category.id}`} className="pharmacy-category-content">
-        {category.subfolders.map((child) => renderFolder(child, 1))}
-        {directLessons.length > 0 && <details className="pharmacy-folder"><summary className="pharmacy-folder-summary"><BookOpen className="h-4 w-4" aria-hidden="true" /><span className="pharmacy-folder-name">{T("درس‌های این دسته", "Lessons in this category")}</span><span className="pharmacy-folder-count">{directLessons.length}</span><ChevronDown className="pharmacy-folder-chevron h-4 w-4" aria-hidden="true" /></summary><div className="pharmacy-folder-content">{renderLessons(directLessons)}</div></details>}
-        {category.subfolders.length === 0 && directLessons.length === 0 && <p className="pharmacy-empty-folder">{T("این شاخه هنوز خالی است", "This category is still empty")}</p>}
-      </div>}
-    </article>;
+      <Tabs key={category.id} defaultValue="study" dir={isEn ? "ltr" : "rtl"}>
+        <TabsList className="mb-3">
+          <TabsTrigger value="study" data-testid="pharmacy-path-study">{T("مطالعه", "Study")}</TabsTrigger>
+          <TabsTrigger value="practice" data-testid="pharmacy-path-practice">{T("تمرین", "Practice")}</TabsTrigger>
+          <TabsTrigger value="review" data-testid="pharmacy-path-review">{T("مرور", "Review")}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="study" className="pharmacy-category-content">
+          {category.subfolders.map((child) => renderFolder(child, 1))}
+          {directLessons.length > 0 && <details className="pharmacy-folder"><summary className="pharmacy-folder-summary"><BookOpen className="h-4 w-4" aria-hidden="true" /><span className="pharmacy-folder-name">{T("درس‌های این دسته", "Lessons in this category")}</span><span className="pharmacy-folder-count">{directLessons.length}</span><ChevronDown className="pharmacy-folder-chevron h-4 w-4" aria-hidden="true" /></summary><div className="pharmacy-folder-content">{renderLessons(directLessons)}</div></details>}
+          {category.subfolders.length === 0 && directLessons.length === 0 && <p className="pharmacy-empty-folder">{T("این شاخه هنوز خالی است", "This category is still empty")}</p>}
+        </TabsContent>
+        <TabsContent value="practice"><PharmacyShortcuts /></TabsContent>
+        <TabsContent value="review" className="space-y-2">
+          <p className="text-sm text-muted-foreground">{T("کارت‌ها و نقشهٔ همین موضوع را مرور کن.", "Review the cards and map for this topic.")}</p>
+          <Button asChild size="sm"><Link to={`/app/review?domain=pharmacy&topic=${encodeURIComponent(category.id)}`} data-testid="pharmacy-review-topic-link">{T("مرور این موضوع", "Review this topic")}</Link></Button>
+        </TabsContent>
+      </Tabs>
+    </section>;
   }
 
   return (
     <main className="pharmacy-hub" dir={isEn ? "ltr" : "rtl"}>
       <HeaderTitlePortal title={T("فارماسی", "Pharmacy")} />
-
-      <PharmacyShortcuts />
 
       <section className="pharmacy-knowledge" aria-labelledby="pharmacy-categories-heading">
         <div className="pharmacy-section-head">
@@ -218,12 +237,21 @@ export default function PharmacyHubView() {
               <p role="status">{T(`${searchResults.length} درس پیدا شد`, `${searchResults.length} matching lessons`)}</p>
               {renderLessons(searchResults)}
             </section>}
-            {!categoryQuery.trim() && <nav className="pharmacy-category-nav" aria-label={T("انتخاب دسته", "Choose category")}>
-              {categories.map((category) => <button key={category.id} type="button" aria-label={T(`انتخاب ${category.name}`, `Choose ${category.name}`)} aria-pressed={openCategoryId === category.id} onClick={() => setOpenCategoryId(category.id)}>{category.name}</button>)}
-            </nav>}
-            <div className="pharmacy-category-list">
-              {visibleCategories.length ? visibleCategories.filter((category) => categoryQuery.trim() || !openCategoryId || category.id === openCategoryId).map(renderCategory) : <p className="pharmacy-no-results">{T("دسته‌ای با این نام پیدا نشد.", "No matching category found.")}</p>}
-            </div>
+            {selectedCategory ? <div className="pharmacy-layout" data-collapsed={collapsed}>
+              <aside className="pharmacy-topics" data-testid="pharmacy-topics">
+                <button type="button" className="pharmacy-topics-toggle" aria-expanded={!collapsed} aria-controls="pharmacy-topic-list" onClick={() => setCollapsed((value) => !value)} data-testid="pharmacy-topics-toggle">
+                  {collapsed ? <PanelLeftOpen className="h-4 w-4" aria-hidden="true" /> : <PanelLeftClose className="h-4 w-4" aria-hidden="true" />}<span className="sr-only">{collapsed ? T("باز کردن ستون موضوعات", "Expand topics") : T("جمع کردن ستون موضوعات", "Collapse topics")}</span>
+                </button>
+                <div id="pharmacy-topic-list" hidden={collapsed}>{renderTopicNav()}</div>
+              </aside>
+              <div className="pharmacy-topics-mobile">
+                <Sheet open={topicsOpen} onOpenChange={setTopicsOpen}>
+                  <SheetTrigger asChild><Button type="button" variant="outline" size="sm" data-testid="pharmacy-topics-open"><Menu className="me-2 h-4 w-4" aria-hidden="true" />{T("موضوعات", "Topics")}: {selectedCategory.name}</Button></SheetTrigger>
+                  <SheetContent side={isEn ? "left" : "right"}><SheetHeader><SheetTitle>{T("موضوعات", "Topics")}</SheetTitle></SheetHeader>{renderTopicNav()}</SheetContent>
+                </Sheet>
+              </div>
+              {!(categoryQuery.trim() && searchResults.length > 0) && renderTopicPanel(selectedCategory)}
+            </div> : <p className="pharmacy-no-results">{T("دسته‌ای با این نام پیدا نشد.", "No matching category found.")}</p>}
             {additional.length > 0 && (
               <details className="pharmacy-additional">
                 <summary>

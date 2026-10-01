@@ -1750,3 +1750,6 @@ html[lang^="en"] body { font-feature-settings: "cv11"; }
 
 .rich-editor-surface .tiptap img{max-width:100%;height:auto;border-radius:8px;margin-block:12px;border:1px solid hsl(var(--border))}
 .rich-editor-surface .tiptap a[href*="firebasestorage.googleapis.com"]{overflow-wrap:anywhere;text-decoration:none;border-bottom:1px solid hsl(var(--primary));padding:3px 2px;line-height:1.9}
+
+.knowledge-html-content img{display:block;width:100%;max-width:32rem;aspect-ratio:4/3;object-fit:contain;background:hsl(var(--muted)/.4);border-radius:6px;cursor:zoom-in}
+.knowledge-image-placeholder{display:flex;align-items:center;justify-content:center;width:100%;max-width:32rem;aspect-ratio:4/3;padding:12px;text-align:center;font-size:12px;color:hsl(var(--muted-foreground));border:1px dashed hsl(var(--border));border-radius:6px;background:hsl(var(--muted)/.4)}
