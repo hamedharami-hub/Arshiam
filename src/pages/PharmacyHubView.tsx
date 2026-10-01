@@ -1,6 +1,6 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { BookOpen, ChevronDown, GraduationCap, History, ExternalLink, FolderClosed, Layers3, Menu, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
 import PharmacyShortcuts from "@/components/PharmacyShortcuts";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,8 @@ import { PHARMACY_ROOT_FOLDER_ID } from "@/lib/pharmacyConstants";
 import { splitPharmacyRootFolders } from "@/lib/pharmacyCategorySections";
 import { getKnowledgeDocuments, getKnowledgeFolders } from "@/lib/knowledgeService";
 import type { KnowledgeDocument, KnowledgeFolder } from "@/lib/knowledgeTypes";
+import { PharmacyLessonCollection } from "@/components/pharmacy/PharmacyLessonCollection";
+import { buildPharmacyLessonCollections, pharmacyDescendantLessons } from "@/lib/pharmacyLessonCollections";
 import "./PharmacyHubView.css";
 
 function knowledgeFolderUrl(folderId: string) {
@@ -34,7 +36,8 @@ export default function PharmacyHubView() {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [openCategoryId, setOpenCategoryId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openCategoryId = searchParams.get("pharmacyCategory");
   const [categoryQuery, setCategoryQuery] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [collapsed, setCollapsed] = useState(false);
@@ -44,6 +47,7 @@ export default function PharmacyHubView() {
   const [practisedDocIds, setPractisedDocIds] = useState<Set<string>>(new Set());
   useEffect(() => {
     let active = true;
+    setPractisedDocIds(new Set());
     void getLeitnerCards(userId).then((cards) => {
       if (active) setPractisedDocIds(new Set(cards.filter((card) => card.document_id && card.review_count > 0).map((card) => card.document_id as string)));
     }).catch(() => undefined);
@@ -64,7 +68,6 @@ export default function PharmacyHubView() {
     setLoadFailed(false);
     setFolders([]);
     setDocuments([]);
-    setOpenCategoryId(null);
     void Promise.all([getKnowledgeFolders(userId), getKnowledgeDocuments(userId)]).then(([savedFolders, savedDocuments]) => {
       if (active) { setFolders(savedFolders); setDocuments(savedDocuments); }
     }).catch(() => {
@@ -157,6 +160,8 @@ export default function PharmacyHubView() {
       `${lesson.title} ${lesson.title_en ?? ""}`.toLocaleLowerCase().includes(query));
   }, [categoryQuery, categories, additional, childFolders, documents]);
 
+  const lastPharmacyDocument = useMemo(() => pharmacyDescendantLessons(PHARMACY_ROOT_FOLDER_ID, folders, documents).find(document => document.id === lastStudy?.docId), [folders, documents, lastStudy?.docId]);
+
   function renderLessons(lessons: KnowledgeDocument[]) {
     if (!lessons.length) return null;
     return <ul className="pharmacy-lesson-list">
@@ -185,7 +190,7 @@ export default function PharmacyHubView() {
         <Link className="pharmacy-open-folder" to={knowledgeFolderUrl(folder.id)}>
           <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />{T("باز کردن پوشه", "Open folder")}
         </Link>
-        {renderLessons(lessons)}
+        {folder.id === "folder-mono-special" ? <PharmacyLessonCollection lessons={lessons} kind="schedule" statusOf={statusOf} lastDocId={lastStudy?.docId} /> : renderLessons(lessons)}
         {children.map((child) => renderFolder(child, depth + 1))}
         {lessons.length === 0 && children.length === 0 && <p className="pharmacy-empty-folder">{T("هنوز درسی ثبت نشده", "No lessons yet")}</p>}
       </div>
@@ -196,7 +201,7 @@ export default function PharmacyHubView() {
 
   function renderTopicNav() {
     return <nav className="pharmacy-category-nav" aria-label={T("انتخاب موضوع", "Choose topic")}>
-      {visibleCategories.map((category) => <button key={category.id} type="button" data-testid={`pharmacy-category-${category.id}`} aria-label={T(`انتخاب ${category.name}`, `Choose ${category.name}`)} aria-pressed={selectedCategory?.id === category.id} onClick={() => { setOpenCategoryId(category.id); setTopicsOpen(false); }}>
+      {visibleCategories.map((category) => <button key={category.id} type="button" data-testid={`pharmacy-category-${category.id}`} aria-label={T(`انتخاب ${category.name}`, `Choose ${category.name}`)} aria-pressed={selectedCategory?.id === category.id} onClick={() => { const next = new URLSearchParams(searchParams); next.set("pharmacyCategory", category.id); setSearchParams(next, { replace: true }); setTopicsOpen(false); }}>
         <FolderClosed className="h-4 w-4 shrink-0" aria-hidden="true" /><span className="pharmacy-topic-name">{category.name}</span><span className="pharmacy-topic-count">{lessonCounts.get(category.id) ?? 0}</span>
       </button>)}
     </nav>;
@@ -205,10 +210,13 @@ export default function PharmacyHubView() {
   function renderTopicPanel(category: KnowledgeFolder & { subfolders: KnowledgeFolder[] }) {
     const directLessons = folderDocuments.get(category.id) ?? [];
     const total = lessonCounts.get(category.id) ?? 0;
+    const academic = category.id === "folder-pharmacy-cat-academic-modules";
+    const academicLessons = academic ? pharmacyDescendantLessons(category.id, folders, documents) : [];
+    const moduleCount = academic ? buildPharmacyLessonCollections(academicLessons, "academic").filter(group => group.id !== "other").length : 0;
     return <section className="pharmacy-topic-panel" aria-labelledby="pharmacy-topic-title" data-testid="pharmacy-topic-panel">
       <div className="pharmacy-topic-head">
         <h3 id="pharmacy-topic-title">{category.name}</h3>
-        <p>{T(`${category.subfolders.length} زیرشاخه · ${total} درس`, `${category.subfolders.length} subcategories · ${total} lessons`)}</p>
+        <p>{academic ? T(`${moduleCount} ماژول · ${total} درس`, `${moduleCount} modules · ${total} lessons`) : T(`${category.subfolders.length} زیرشاخه · ${total} درس`, `${category.subfolders.length} subcategories · ${total} lessons`)}</p>
         <Link to={knowledgeFolderUrl(category.id)} className="pharmacy-category-link" aria-label={T(`باز کردن صفحه ${category.name}`, `Open ${category.name} folder`)}><ExternalLink className="h-4 w-4" aria-hidden="true" /></Link>
       </div>
       <Tabs key={category.id} defaultValue="study" dir={isEn ? "ltr" : "rtl"}>
@@ -218,8 +226,11 @@ export default function PharmacyHubView() {
           <TabsTrigger value="review" data-testid="pharmacy-path-review">{T("مرور", "Review")}</TabsTrigger>
         </TabsList>
         <TabsContent value="study" className="pharmacy-category-content">
-          {category.subfolders.map((child) => renderFolder(child, 1))}
-          {directLessons.length > 0 && <details className="pharmacy-folder"><summary className="pharmacy-folder-summary"><BookOpen className="h-4 w-4" aria-hidden="true" /><span className="pharmacy-folder-name">{T("درس‌های این دسته", "Lessons in this category")}</span><span className="pharmacy-folder-count">{directLessons.length}</span><ChevronDown className="pharmacy-folder-chevron h-4 w-4" aria-hidden="true" /></summary><div className="pharmacy-folder-content">{renderLessons(directLessons)}</div></details>}
+          {academic ? <>
+            <PharmacyLessonCollection lessons={academicLessons} kind="academic" statusOf={statusOf} lastDocId={lastStudy?.docId} />
+            <details className="pharmacy-collection-original"><summary>{T("پوشه‌های اصلی", "Original folders")}</summary>{category.subfolders.map((child) => renderFolder(child, 1))}</details>
+          </> : category.subfolders.map((child) => renderFolder(child, 1))}
+          {!academic && directLessons.length > 0 && <details className="pharmacy-folder"><summary className="pharmacy-folder-summary"><BookOpen className="h-4 w-4" aria-hidden="true" /><span className="pharmacy-folder-name">{T("درس‌های این دسته", "Lessons in this category")}</span><span className="pharmacy-folder-count">{directLessons.length}</span><ChevronDown className="pharmacy-folder-chevron h-4 w-4" aria-hidden="true" /></summary><div className="pharmacy-folder-content">{renderLessons(directLessons)}</div></details>}
           {category.subfolders.length === 0 && directLessons.length === 0 && <p className="pharmacy-empty-folder">{T("این شاخه هنوز خالی است", "This category is still empty")}</p>}
         </TabsContent>
         <TabsContent value="practice" className="space-y-2">
@@ -246,9 +257,9 @@ export default function PharmacyHubView() {
           <div className="pharmacy-hero-title">{T("فارماسی", "Pharmacy")}</div>
           <p>{T("درس بخوان، با ابزارها تمرین کن، و در Review مرور کن؛ همه از یک‌جا.", "Study lessons, practise with the tools, then review, all from one place.")}</p>
         </div>
-        {lastStudy && <Link to={`/app/knowledge?docId=${encodeURIComponent(lastStudy.docId)}`} className="pharmacy-continue" data-testid="pharmacy-continue-link">
+        {lastPharmacyDocument && <Link to={`/app/knowledge?docId=${encodeURIComponent(lastPharmacyDocument.id)}`} className="pharmacy-continue" data-testid="pharmacy-continue-link">
           <History className="h-4 w-4 shrink-0" aria-hidden="true" />
-          <span><small>{T("ادامهٔ مطالعه", "Continue")}</small><b dir="auto">{isEn ? lastStudy.titleEn || lastStudy.title : lastStudy.title}</b></span>
+          <span><small>{T("ادامهٔ مطالعه", "Continue")}</small><b dir="auto">{isEn ? lastPharmacyDocument.title_en || lastPharmacyDocument.title : lastPharmacyDocument.title}</b></span>
         </Link>}
       </header>
       <PharmacyShortcuts />

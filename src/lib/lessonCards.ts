@@ -25,11 +25,11 @@ export function classifyLessonCard(title: string): { kind: LessonCardKind; group
   if (/related.*(?:ids|items)|شناسه.*مرتبط/i.test(title)) return { kind: 'practice', group: 'practice' };
   if (isTechnicalLessonField(title)) return { kind: 'metadata', group: 'reference' };
   if (/^(شناسه|شمارهٔ مسیر|نام آیکون|نوع آیکون|رنگ برچسب|ردهٔ رنگ|شناسهٔ.*|عنوان|نام|برچسب|درس اصلی|id|.*\bid\b|icon|icon name|icon type|badge color|color class|title|name|badge|main lesson)$/i.test(title.trim())) return { kind: 'metadata', group: 'reference' };
-  if (/هشدار|منع مصرف|احتیاط|عوارض|سمیت|ایمنی|ارجاع|علائم خطر|پرچم.*قرمز|safety|red flag|warning|contraindicat|precaution|caution|adverse|toxicity|referral|interaction|تداخل/i.test(title)) return { kind: 'safety', group: 'safety' };
+  if (/هشدار|منع مصرف|احتیاط|عوارض|سمیت|ایمنی|ارجاع|علائم خطر|پرچم.*قرمز|safety|red flag|warning|contraindicat|precaution|caution|adverse|toxic|referral|interaction|cautionary|advisory label|cal labels|تداخل/i.test(title)) return { kind: 'safety', group: 'safety' };
   if (/منبع|منابع|بازبینی|reference|source|review evidence/i.test(title)) return { kind: 'reference', group: 'reference' };
   if (/تمرین|پرسش|گزینه|پاسخ|سناریو|مکالمه|مثال|مراحل|مسیر یادگیری|practice|question|answer|option|case|dialogue|example|step|track/i.test(title)) return { kind: 'practice', group: 'practice' };
   if (/مکانیسم|مسیر.*سلول|پاتوفیزیولوژی|mechanism|pathophysiology|pathway/i.test(title)) return { kind: 'mechanism', group: 'understand' };
-  if (/مصرف|کاربرد|درمان|دوز|تداخل|نگهداری|مشاوره|مادهٔ|بسته|indication|dose|dosing|use|treatment|interaction|storage|counsel|ingredient|pack/i.test(title)) return { kind: 'use', group: 'apply' };
+  if (/مصرف|کاربرد|درمان|دوز|تداخل|نگهداری|مشاوره|مادهٔ|بسته|indication|dose|dosing|use|treatment|interaction|storage|counsel|ingredient|pack|pharmacotherap/i.test(title)) return { kind: 'use', group: 'apply' };
   return { kind: 'overview', group: 'understand' };
 }
 
@@ -83,6 +83,13 @@ export function buildLessonCards(safeHtml: string, language: 'fa' | 'en', docume
     let { kind, group: defaultGroup } = block.tagName === 'HEADER' && /\bSource:/i.test(block.textContent)
       ? { kind: 'metadata' as const, group: 'reference' as const }
       : classifyLessonCard(title);
+    if (template === 'academic' && tableTitle && !titleElement) { kind = 'overview'; defaultGroup = 'comparison'; }
+    // Known academic introductions contain only a module label and the exact visible lesson title.
+    // Custom/richer introductions stay in the reading flow.
+    const introChildren = Array.from(block.children);
+    if (template === 'academic' && index === 0 && introChildren.length === 2 && introChildren.every(child => child.children.length === 0) && /^(module|ماژول)\s+[1-6]/i.test(introChildren[0].textContent.trim()) && visibleTitles.some(visible => visible && normalizeLessonLabel(visible) === normalizeLessonLabel(introChildren[1].textContent))) {
+      kind = 'metadata'; defaultGroup = 'reference';
+    }
     const value = block.querySelector(':scope > dd');
     if (/^(class name|نام رده دارویی)$/.test(normalizeLessonLabel(title)) && value && visibleTitles.some(visible => visible && normalizeLessonLabel(visible) === normalizeLessonLabel(value.textContent))) {
       kind = 'metadata'; defaultGroup = 'reference';
