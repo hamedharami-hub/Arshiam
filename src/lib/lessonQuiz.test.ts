@@ -18,4 +18,11 @@ describe('source-backed Pharmacy quizzes', () => {
     const source = questions[0].content_en.replace(/(<dt[^>]*>Correct option ID<\/dt><dd[^>]*><span>)[^<]+/, '$1unknown');
     expect(parseLessonQuiz(source)).toBeNull();
   });
+  it('retains the original presentation for extra clinical fields or duplicate question fields', () => {
+    const source = questions[0].content_en;
+    const warning = '<div><dt>Safety</dt><dd>Essential extra warning</dd></div>';
+    expect(parseLessonQuiz(source.replace('</dl>', warning + '</dl>'))).toBeNull();
+    expect(parseLessonQuiz(source.replace('</dl>', '<div><dt>Question</dt><dd>Another question</dd></div></dl>'))).toBeNull();
+    expect(parseLessonQuiz(source + '<p>Additional clinical context</p>')).toBeNull();
+  });
 });
