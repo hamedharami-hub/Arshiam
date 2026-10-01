@@ -109,7 +109,7 @@ describe("PharmacyHubView", () => {
     render(<MemoryRouter><PharmacyHubView /></MemoryRouter>);
     await screen.findByRole("button", { name: "Choose Diseases" });
     fireEvent.change(screen.getByRole("textbox", { name: "Search categories" }), { target: { value: " asthma " } });
-    expect(screen.getByRole("link", { name: "Asthma" })).toHaveAttribute("href", "/app/knowledge?docId=asthma");
+    expect(screen.getByRole("link", { name: /^Asthma/ })).toHaveAttribute("href", "/app/knowledge?docId=asthma");
     expect(screen.getByText("1 matching lessons")).toBeInTheDocument();
   });
 

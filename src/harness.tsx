@@ -6,6 +6,8 @@ import { cacheSet } from "@/lib/offlineQueue";
 import { getFoldersCacheKey, getDocsCacheKey } from "@/lib/knowledgeService";
 import { PHARMACY_SEED_FOLDERS as F, PHARMACY_SEED_DOCUMENTS as D, PHARMACY_SEED_CARDS as C } from "@/lib/pharmacySeedData";
 import { KnowledgeMindMapView } from "@/components/review/KnowledgeMindMapView";
+import PharmacyHubView from "@/pages/PharmacyHubView";
+import PharmacyFredPracticeView from "@/pages/PharmacyFredPracticeView";
 import { LeitnerDeckView } from "@/components/review/LeitnerDeckView";
 
 const q = new URLSearchParams(location.search);
@@ -19,10 +21,12 @@ async function main() {
   }
   await cacheSet(getFoldersCacheKey("bench"), f);
   await cacheSet(getDocsCacheKey("bench"), d);
+  await cacheSet(getFoldersCacheKey("anonymous-kb-user"), f);
+  await cacheSet(getDocsCacheKey("anonymous-kb-user"), d);
   await cacheSet("leitner_cards:bench", c);
   (window as unknown as { __counts: unknown }).__counts = { folders: f.length, docs: d.length, cards: c.length };
   (window as unknown as { __t0: number }).__t0 = performance.now();
   const view = q.get("view") ?? "mindmap";
-  createRoot(document.getElementById("root")!).render(<MemoryRouter>{view === "mindmap" ? <KnowledgeMindMapView userId="bench" isActive cardLanguage="en" /> : <LeitnerDeckView userId="bench" />}</MemoryRouter>);
+  createRoot(document.getElementById("root")!).render(<MemoryRouter>{view === "mindmap" ? <KnowledgeMindMapView userId="bench" isActive cardLanguage="en" /> : view === "pharmacy" ? <PharmacyHubView /> : view === "fred" ? <PharmacyFredPracticeView /> : <LeitnerDeckView userId="bench" />}</MemoryRouter>);
 }
 void main();

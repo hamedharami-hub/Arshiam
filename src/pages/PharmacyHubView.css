@@ -34,3 +34,5 @@
 .pharmacy-topic-count{margin-inline-start:auto;font-size:10px;padding:1px 7px;border-radius:999px;background:var(--ph-soft);color:var(--ph-muted)}
 .pharmacy-lesson-link[data-current]{background:hsl(var(--primary)/.08)}.pharmacy-lesson-badge{margin-inline-start:auto;flex:none;font-size:10px;padding:1px 8px;border-radius:999px;background:var(--ph-accent);color:hsl(var(--primary-foreground))}
 @media(max-width:520px){.pharmacy-hero{padding:14px}.pharmacy-continue{width:100%}.pharmacy-shortcut-text small{display:none}.pharmacy-shortcut-icon{width:30px;height:30px;padding:6px}}
+.pharmacy-topics-mobile,.pharmacy-topic-panel,.pharmacy-layout>*{min-width:0}.pharmacy-topics-mobile button{max-width:100%}
+.pharmacy-hub{overflow-x:clip}

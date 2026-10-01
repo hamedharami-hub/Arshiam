@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, MemoryRouter, useSearchParams } from "react-router-dom";
-import { Search } from "lucide-react";
-import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
+import { Keyboard, Search } from "lucide-react";
+import { PharmacyPageHeader } from "@/components/pharmacy/PharmacyPageHeader";
+import { PharmacyStatusBadge } from "@/components/pharmacy/PharmacyStatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useBilingual } from "@/hooks/useBilingual";
@@ -64,7 +65,8 @@ function FredWorkspace({ userId, lessonId, onLesson }: { userId: string; lessonI
   const goStep = (i: number) => { void update(lesson.id, { stepIndex: i }); if (i === KEYPOINTS_STEP && cards[lesson.id]?.topicId === null) setCards(m => { const { [lesson.id]: _removed, ...rest } = m; return rest; }); };
 
   return <main className="fred-learning mx-auto w-full max-w-7xl px-3 py-4 sm:px-5" dir={isEn ? "ltr" : "rtl"} data-testid="fred-learning-workspace">
-    <HeaderTitlePortal title={T("یادگیری کار داروخانه (FRED)", "Learning pharmacy work (FRED)")} />
+    <div className="mb-3"><PharmacyPageHeader icon={Keyboard} title={T("یادگیری کار داروخانه (FRED)", "Learning pharmacy work (FRED)")} description={T("هفت درس کوتاه از دریافت نسخه تا ثبت سوابق؛ هر درس: هدف، مثال، تمرین و نکات کلیدی.", "Seven short lessons from receiving a script to record keeping; each has a goal, example, practice and key points.")}
+      aside={<p className="ms-auto text-xs text-muted-foreground" data-testid="fred-progress-summary">{T(`${FRED_LESSONS.filter(l => records[l.id]?.status === "practised").length} از ${FRED_LESSONS.length} درس تمرین‌شده`, `${FRED_LESSONS.filter(l => records[l.id]?.status === "practised").length} of ${FRED_LESSONS.length} lessons practised`)}</p>} /></div>
     <p data-testid="fred-edu-notice" className="mb-2 text-xs text-muted-foreground">{T("فقط آموزشی: هیچ ابزاری ادعای فروش، دوز یا درمان واقعی ندارد و به سیستم داروخانه وصل نیست.", "Educational only: these tools make no claim of real sales, doses or treatment and are not connected to any pharmacy system.")}</p>
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b pb-3 text-xs">
       <p className="text-muted-foreground">{T("درس‌ها قفل نیستند؛ از هر جا شروع کن.", "Lessons are never locked; start anywhere.")}</p>
@@ -80,7 +82,7 @@ function FredWorkspace({ userId, lessonId, onLesson }: { userId: string; lessonI
           {FRED_LESSONS.map((l, i) => <option key={l.id} value={l.id}>{i + 1}. {loc(l.title)} — {loc(STATUS_LABEL[records[l.id]?.status ?? "not_started"])}</option>)}
         </select>
         <nav className="fred-desktop-lessons" aria-label={T("درس‌های FRED", "FRED lessons")}>
-          {visible.map(l => { const status = records[l.id]?.status ?? "not_started"; return <button key={l.id} type="button" aria-pressed={l.id === lesson.id} data-testid={`fred-nav-${l.id}`} data-status={status} onClick={() => onLesson(l.id)} className="fred-lesson-button"><span>{FRED_LESSONS.indexOf(l) + 1}. {loc(l.title)}</span><span className="shrink-0 text-[10px] text-muted-foreground">{loc(STATUS_LABEL[status])}</span></button>; })}
+          {visible.map(l => { const status = records[l.id]?.status ?? "not_started"; return <button key={l.id} type="button" aria-pressed={l.id === lesson.id} data-testid={`fred-nav-${l.id}`} data-status={status} onClick={() => onLesson(l.id)} className="fred-lesson-button"><span>{FRED_LESSONS.indexOf(l) + 1}. {loc(l.title)}</span><PharmacyStatusBadge status={status} /></button>; })}
           {visible.length === 0 && <p className="p-2 text-xs">{T("درسی پیدا نشد.", "No lessons found.")}</p>}
         </nav>
       </aside>

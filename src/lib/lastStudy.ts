@@ -15,6 +15,14 @@ function parse(raw: unknown): LastStudy | null {
   return typeof r.docId === "string" && typeof r.title === "string" ? { docId: r.docId, title: r.title, titleEn: typeof r.titleEn === "string" ? r.titleEn : undefined, openedAt: typeof r.openedAt === "number" ? r.openedAt : 0 } : null;
 }
 
+const studiedKey = (uid: string) => `arshnaz:studied-docs:v1:${uid}`;
+export function getStudiedDocIds(uid: string): Set<string> {
+  try { const raw = JSON.parse(localStorage.getItem(studiedKey(uid)) ?? "[]"); return new Set(Array.isArray(raw) ? raw.filter((id): id is string => typeof id === "string") : []); } catch { return new Set(); }
+}
+function markStudied(uid: string, docId: string) {
+  try { const ids = getStudiedDocIds(uid); ids.add(docId); localStorage.setItem(studiedKey(uid), JSON.stringify([...ids])); } catch { /* storage unavailable */ }
+}
+
 export function getLastStudy(uid: string): LastStudy | null {
   try { return parse(JSON.parse(localStorage.getItem(key(uid)) ?? "null")); } catch { return null; }
 }
@@ -52,6 +60,7 @@ const defaultRemote = createFirestoreLastStudyRemote();
 export async function recordLastStudy(uid: string, doc: { docId: string; title: string; titleEn?: string }, remote: LastStudyRemote = defaultRemote): Promise<void> {
   const value: LastStudy = { ...doc, openedAt: Date.now() };
   setLocal(uid, value);
+  markStudied(uid, doc.docId);
   if (!isCloudUid(uid)) return;
   setPending(uid, true);
   try { await remote.setIfNewer(uid, value); setPending(uid, false); } catch { /* stays pending */ }

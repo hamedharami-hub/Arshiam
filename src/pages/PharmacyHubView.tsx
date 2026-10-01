@@ -10,7 +10,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
-import { getLastStudy } from "@/lib/lastStudy";
+import { PharmacyStatusBadge, type LessonStatus } from "@/components/pharmacy/PharmacyStatusBadge";
+import { getLastStudy, getStudiedDocIds } from "@/lib/lastStudy";
+import { getLeitnerCards } from "@/lib/leitnerService";
 import { PHARMACY_ROOT_FOLDER_ID } from "@/lib/pharmacyConstants";
 import { splitPharmacyRootFolders } from "@/lib/pharmacyCategorySections";
 import { getKnowledgeDocuments, getKnowledgeFolders } from "@/lib/knowledgeService";
@@ -39,6 +41,16 @@ export default function PharmacyHubView() {
   const [topicsOpen, setTopicsOpen] = useState(false);
   const userId = user?.id || "anonymous-kb-user";
   const lastStudy = useMemo(() => getLastStudy(userId), [userId]);
+  const [practisedDocIds, setPractisedDocIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let active = true;
+    void getLeitnerCards(userId).then((cards) => {
+      if (active) setPractisedDocIds(new Set(cards.filter((card) => card.document_id && card.review_count > 0).map((card) => card.document_id as string)));
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [userId]);
+  const studiedDocIds = useMemo(() => getStudiedDocIds(userId), [userId, lastStudy]);
+  const statusOf = (docId: string): LessonStatus => practisedDocIds.has(docId) ? "practised" : studiedDocIds.has(docId) || lastStudy?.docId === docId ? "learning" : "not_started";
 
   useEffect(() => {
     let active = true;
@@ -146,6 +158,7 @@ export default function PharmacyHubView() {
         <Link to={`/app/knowledge?docId=${encodeURIComponent(lesson.id)}`} data-testid={`pharmacy-lesson-${lesson.id}`} className="pharmacy-lesson-link" data-current={lastStudy?.docId === lesson.id || undefined}>
           <BookOpen className="h-4 w-4 shrink-0" aria-hidden="true" /><span dir="auto">{isEn ? lesson.title_en || lesson.title : lesson.title}</span>
           {lastStudy?.docId === lesson.id && <span className="pharmacy-lesson-badge">{T("آخرین مطالعه", "Last studied")}</span>}
+          <span className={lastStudy?.docId === lesson.id ? "" : "ms-auto"}><PharmacyStatusBadge status={statusOf(lesson.id)} testId={`pharmacy-lesson-status-${lesson.id}`} /></span>
         </Link>
       </li>)}
     </ul>;
@@ -268,7 +281,7 @@ export default function PharmacyHubView() {
               </aside>
               <div className="pharmacy-topics-mobile">
                 <Sheet open={topicsOpen} onOpenChange={setTopicsOpen}>
-                  <SheetTrigger asChild><Button type="button" variant="outline" size="sm" data-testid="pharmacy-topics-open"><Menu className="me-2 h-4 w-4" aria-hidden="true" />{T("موضوعات", "Topics")}: {selectedCategory.name}</Button></SheetTrigger>
+                  <SheetTrigger asChild><Button type="button" variant="outline" size="sm" data-testid="pharmacy-topics-open"><Menu className="me-2 h-4 w-4 shrink-0" aria-hidden="true" /><span className="truncate">{T("موضوعات", "Topics")}: {selectedCategory.name}</span></Button></SheetTrigger>
                   <SheetContent side={isEn ? "left" : "right"}><SheetHeader><SheetTitle>{T("موضوعات", "Topics")}</SheetTitle></SheetHeader>{renderTopicNav()}</SheetContent>
                 </Sheet>
               </div>

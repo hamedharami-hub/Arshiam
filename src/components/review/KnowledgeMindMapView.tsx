@@ -2110,7 +2110,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
         </div>
 
         {/* Right: Expand/Collapse & Quick Search */}
-        <div className="flex items-center gap-2 pointer-events-auto">
+        <div className="flex flex-wrap items-center gap-2 max-w-full pointer-events-auto">
           {viewMode === "canvas" && (
             <div role="group" aria-label={isEn ? "Canvas layout" : "چیدمان نقشه"} className="flex items-center gap-0.5 rounded-xl border border-border bg-card/90 p-1 shadow-lg backdrop-blur-xl">
               <button
@@ -2349,7 +2349,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
 
       {/* Breadcrumb Navigation Strip when focused on a branch */}
       {selectedScopeId !== "all" && (
-        <div className="absolute top-28 sm:top-16 start-3 z-20 flex items-center gap-1 px-3 py-1.5 rounded-2xl bg-card/90 border border-primary/25 backdrop-blur-xl shadow-md text-xs pointer-events-auto max-w-[92vw] overflow-x-auto">
+        <div className="absolute top-40 sm:top-16 start-3 z-20 flex items-center gap-1 px-3 py-1.5 rounded-2xl bg-card/90 border border-primary/25 backdrop-blur-xl shadow-md text-xs pointer-events-auto max-w-[92vw] overflow-x-auto">
           <span className="text-[10px] font-bold text-muted-foreground uppercase me-1 shrink-0">
             {isEn ? "Branch:" : "شاخه:"}
           </span>
@@ -2533,7 +2533,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       ) : (
         <div
           aria-label={isEn ? "Knowledge mind map outline" : "فهرست نقشه ذهنی پایگاه دانش"}
-          className="absolute inset-0 overflow-y-auto overscroll-contain px-3 pb-24 pt-32 sm:px-6 sm:pt-28"
+          className="absolute inset-0 overflow-y-auto overscroll-contain px-3 pb-24 pt-44 sm:px-6 sm:pt-28"
         >
           {outlineEntries.length > 0 ? (
             <ul className="mx-auto max-w-4xl space-y-3" aria-label={isEn ? "Knowledge hierarchy" : "ساختار مطالب"}>
