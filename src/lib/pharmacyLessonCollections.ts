@@ -20,8 +20,8 @@ export function buildPharmacyLessonCollections(lessons: KnowledgeDocument[], kin
   const collections = specs.map(spec => ({ ...spec, lessons: [] as KnowledgeDocument[] }));
   const other: PharmacyLessonCollection = { id: 'other', fa: kind === 'academic' ? 'سایر درس‌ها' : 'سایر برچسب‌ها', en: kind === 'academic' ? 'Other lessons' : 'Other / untagged', lessons: [] };
   for (const lesson of lessons) {
-    const schedules = lesson.tags?.filter(tag => /^Schedule (S2|S3|S4|S8|Unscheduled)$/.test(tag)) ?? [];
-    const id = kind === 'academic' ? lesson.id.match(/^doc-(m[1-6])-sec\d+$/)?.[1] : schedules.length === 1 ? schedules[0].slice(9) : undefined;
+    const schedules = lesson.tags?.filter(tag => /^Schedule\b/i.test(tag)) ?? [];
+    const id = kind === 'academic' ? lesson.id.match(/^doc-(m[1-6])-sec\d+$/)?.[1] : schedules.length === 1 && /^Schedule (S2|S3|S4|S8|Unscheduled)$/.test(schedules[0]) ? schedules[0].slice(9) : undefined;
     (collections.find(collection => collection.id === id) ?? other).lessons.push(lesson);
   }
   for (const collection of collections) collection.lessons.sort((a, b) => kind === 'academic'

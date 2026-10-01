@@ -83,11 +83,11 @@ export function buildLessonCards(safeHtml: string, language: 'fa' | 'en', docume
     let { kind, group: defaultGroup } = block.tagName === 'HEADER' && /\bSource:/i.test(block.textContent)
       ? { kind: 'metadata' as const, group: 'reference' as const }
       : classifyLessonCard(title);
-    if (template === 'academic' && tableTitle && !titleElement) { kind = 'overview'; defaultGroup = 'comparison'; }
+    if (template === 'academic' && tableTitle && !titleElement && kind !== 'safety') { kind = 'overview'; defaultGroup = 'comparison'; }
     // Known academic introductions contain only a module label and the exact visible lesson title.
     // Custom/richer introductions stay in the reading flow.
     const introChildren = Array.from(block.children);
-    if (template === 'academic' && index === 0 && introChildren.length === 2 && introChildren.every(child => child.children.length === 0) && /^(module|ماژول)\s+[1-6]/i.test(introChildren[0].textContent.trim()) && visibleTitles.some(visible => visible && normalizeLessonLabel(visible) === normalizeLessonLabel(introChildren[1].textContent))) {
+    if (template === 'academic' && index === 0 && !Array.from(block.childNodes).some(node => node.nodeType === 3 && node.textContent.trim()) && introChildren.length === 2 && introChildren.every(child => child.children.length === 0) && /^(module|ماژول)\s+[1-6]/i.test(introChildren[0].textContent.trim()) && visibleTitles.some(visible => visible && normalizeLessonLabel(visible) === normalizeLessonLabel(introChildren[1].textContent))) {
       kind = 'metadata'; defaultGroup = 'reference';
     }
     const value = block.querySelector(':scope > dd');
