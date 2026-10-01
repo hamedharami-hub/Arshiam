@@ -1,5 +1,5 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,7 +11,7 @@ import { ArrowRight, ArrowLeft, Loader2, FolderInput, Pin, Tag as TagIcon, Plus,
 import { toast } from "sonner";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { useBilingual } from "@/hooks/useBilingual";
-import { upsertNote } from "@/lib/firestoreDataService";
+import { persistNote } from "@/lib/firestoreDataService";
 
 const RichEditor = lazy(() =>
   import("@/components/RichEditor").then((m) => ({ default: m.RichEditor }))
@@ -21,6 +21,11 @@ type FolderItem = { id: string; name: string; color?: string };
 type TagItem = { id: string; name: string; color?: string };
 
 export default function NewNoteView() {
+  const { user } = useAuth();
+  return <NewNoteForm key={user?.id || "signed-out"} />;
+}
+
+function NewNoteForm() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -36,6 +41,11 @@ export default function NewNoteView() {
   const [newTagName, setNewTagName] = useState("");
   const [showTagInput, setShowTagInput] = useState(false);
   const [busy, setBusy] = useState(false);
+  const saving = useRef(false);
+  const pendingId = useRef<string | null>(null);
+  const activeOwner = useRef(user?.id);
+  activeOwner.current = user?.id;
+  useEffect(() => { activeOwner.current = user?.id; return () => { activeOwner.current = undefined; }; }, [user?.id]);
 
   useEffect(() => {
     if (!user) return;
@@ -98,8 +108,12 @@ export default function NewNoteView() {
       toast.error(T("عنوان الزامی است", "Title is required"));
       return;
     }
+    if (saving.current) return;
+    saving.current = true;
     setBusy(true);
-    const newId = generateId();
+    const ownerId = user.id;
+    const newId = pendingId.current || generateId();
+    pendingId.current = newId;
     const noteData = {
       id: newId,
       user_id: user.id,
@@ -112,17 +126,23 @@ export default function NewNoteView() {
     };
 
     try {
-      const ok = await upsertNote(user.id, noteData);
+      const outcome = await persistNote(ownerId, noteData);
+      if (activeOwner.current !== ownerId) return;
+      if (outcome === "failed") {
+        toast.error(T("نوت ذخیره نشد؛ متن حفظ شده، دوباره تلاش کنید", "Note was not saved; your text is kept. Please retry."));
+        return;
+      }
       window.dispatchEvent(new Event("notes-changed"));
-      if (ok) {
+      if (outcome === "synced") {
         toast.success(T("نوت ساخته شد و ذخیره گردید", "Note created and synced"));
       } else {
         toast.info(T("نوت در صف آفلاین ذخیره شد", "Note queued for sync"));
       }
       navigate(`/app/notes?select=${newId}`);
     } catch (e: any) {
-      toast.error(e.message || T("خطا در ذخیره نوت", "Error saving note"));
+      if (activeOwner.current === ownerId) toast.error(e.message || T("خطا در ذخیره نوت", "Error saving note"));
     } finally {
+      saving.current = false;
       setBusy(false);
     }
   };
@@ -140,7 +160,8 @@ export default function NewNoteView() {
         </Button>
       </div>
 
-      <Card className="p-4 space-y-4">
+      <Card className="p-4">
+        <fieldset disabled={busy} className="space-y-4">
         <div className="flex items-center gap-2">
           <Input
             autoFocus
@@ -271,9 +292,10 @@ export default function NewNoteView() {
               </div>
             }
           >
-            <RichEditor initialMarkdown={content} onChange={(_html, md) => setContent(md)} />
+            <RichEditor initialMarkdown={content} readOnly={busy} onChange={(_html, md) => setContent(md)} />
           </Suspense>
         </div>
+        </fieldset>
       </Card>
     </div>
   );
