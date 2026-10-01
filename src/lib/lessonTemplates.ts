@@ -51,7 +51,9 @@ export function isTechnicalLessonField(label: string): boolean {
 export function templateCardGroup(template: LessonTemplate, title: string, kind: LessonCardKind, fallback: LessonCardGroup): LessonCardGroup {
   if (template === 'general' || kind === 'metadata' || kind === 'reference' || kind === 'safety') return fallback;
   const label = normalizeLessonLabel(title);
-  if (/related|linked|مرتبط|پیوند/.test(label)) return 'practice';
+  if (/related|linked|مرتبط|پیوند|فرآورده.*قفسه/.test(label)) return 'practice';
+  if (template === 'mechanism' && /^pharmacological class\b/.test(label)) return 'identity';
+  if (template === 'cyp' && /^(hepatic metabolic pathway|مسیر متابولیسم)/.test(label)) return 'identity';
   if (template === 'clinical' && /symptom|pathophysiology|diagnos|assessment|علائم|نشانه|پاتوفیزیولوژی|تشخیص|ارزیابی/.test(label)) return 'symptoms';
   if (template === 'mechanism' && /target|cellular|action|effect|mechanism|هدف|محل اثر|سلول|اثر|عملکرد|مکانیسم/.test(label)) return 'understand';
   if (template === 'mechanism' && /clinical relevance|اهمیت بالینی|ارتباط بالینی/.test(label)) return 'apply';
