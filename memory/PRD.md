@@ -23,3 +23,12 @@ Import https://github.com/hamedharami-hub/Arshiam.git (already in /app, Vite + R
 - P1: Phase 2 items from handoff (honest save states, undo/redo + draft recovery in editors, AI settings preview/apply/undo, one shared date/filter model, pinned order in Today/Tomorrow/Inbox/This Week, habit stats, notes full-text search, settings regroup).
 - P1: Deeper Knowledge pass (sidebar tree cards, editor comfort, search/filter), verify Planning (Kanban/week view) edge cases with real data.
 - P2: Cloud-sync page colors/folder prefs (currently device-local); Phase 3 pharmacy card model.
+
+## Iteration 2 — 2026-10-01
+- Suggested soft default page tint per section (tasks=sky, knowledge/notes=emerald, mind/life=violet); per-page override, "none" and "back to suggested" (src/lib/pageBackground.ts).
+- Cloud sync of page colors + folder prefs/background image via users/{uid}/app_state/ui_prefs (src/lib/uiPrefsSync.ts) — verified across fresh browser contexts.
+- `page-shell` layout applied to ~19 more pages (Mind/Values/Checkin are in the hidden mind module; shell is applied in code, not visible without module unlock).
+- Knowledge: forgiving Persian search (src/lib/knowledgeSearch.ts), search clear/Escape, icon-only new-folder button, editor unsaved-changes confirm + Ctrl/Cmd+S.
+- Tests: /app/test_reports/iteration_14.json (all pass).
+## Backlog
+- Knowledge: editor draft recovery, sidebar card density, reader search highlight; Planning week view/Kanban edge cases; Phase 2/3 from handoff.
