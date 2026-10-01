@@ -56,8 +56,10 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
       return;
     }
 
-    const top = Math.max(12, rect.top - 62);
-    const left = Math.max(16, Math.min(window.innerWidth - 430, rect.left + rect.width / 2 - 140));
+    const toolbar = desktopBubbleRef.current?.getBoundingClientRect();
+    const width = toolbar?.width || Math.min(430, window.innerWidth - 32);
+    const top = Math.max(8, rect.top - (toolbar?.height || 54) - 8);
+    const left = Math.max(8, Math.min(window.innerWidth - width - 8, rect.left + rect.width / 2 - width / 2));
 
     setSelectedText(text);
     setCoords({ top, left });
@@ -90,6 +92,10 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
       }
     };
 
+    window.addEventListener("resize", checkSelection);
+    document.addEventListener("scroll", checkSelection, true);
+    document.addEventListener("keyup", handleMouseUp);
+    document.addEventListener("selectionchange", handleMouseUp);
     document.addEventListener("mouseup", handleMouseUp);
     document.addEventListener("touchend", handleTouchEnd);
     document.addEventListener("mousedown", handleMouseDown);
@@ -97,6 +103,10 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
 
     return () => {
       clearTimeout(timer);
+      window.removeEventListener("resize", checkSelection);
+      document.removeEventListener("scroll", checkSelection, true);
+      document.removeEventListener("keyup", handleMouseUp);
+      document.removeEventListener("selectionchange", handleMouseUp);
       document.removeEventListener("mouseup", handleMouseUp);
       document.removeEventListener("touchend", handleTouchEnd);
       document.removeEventListener("mousedown", handleMouseDown);

@@ -68,7 +68,7 @@ export function KnowledgeReaderHeader(p: Props) {
           </button>
         )}
 
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold md:hidden" title={p.title}>{p.title ?? p.folderName}</span>
+        <h1 className="min-w-0 flex-1 truncate text-sm font-semibold md:hidden" title={p.title}>{p.title ?? p.folderName}</h1>
         <nav className="hidden md:flex min-w-0 flex-1 items-center gap-1 text-[12px] text-muted-foreground" aria-label={T("مسیر", "Breadcrumb")} data-testid="knowledge-reader-breadcrumb">
           {p.pharmacyLinks && (
             <>
