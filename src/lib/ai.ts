@@ -3,14 +3,16 @@ import { offlineAssistant } from "@/lib/offlineAssistant";
 import { DISTORTION_LABELS, type Distortion } from "@/lib/distortions";
 import { GEMINI_SYSTEM_PROMPTS } from "@/lib/geminiDirect";
 import { buildPersonalizationContext } from "@/lib/aiPersonalization";
+import { AIProviderError, aiErrorMessage, classifyAIError, fallbackModelFor, getProviderKey } from "@/lib/aiProviders";
 
 export type AIMode = AIOperation;
 
 function getAISettings(mode: AIMode) {
   const cfg = getOpConfig(mode);
   if (!cfg.provider) return null;
-  if (cfg.provider !== "offline" && !cfg.apiKey) return null;
-  return cfg;
+  if (cfg.provider === "offline") return cfg;
+  const apiKey = cfg.apiKey || getProviderKey(cfg.provider);
+  return apiKey ? { ...cfg, apiKey } : null;
 }
 
 export type AILanguage = "fa" | "en" | "auto";
@@ -72,42 +74,39 @@ export async function callAI(
   if (context) promptText = `زمینه (Context):\n${context}\n\nورودی:\n${promptText}`;
   if (action) promptText = `دستور (Action): ${action}\n\n${promptText}`;
 
-  // 1. Direct Google Gemini REST API support
-  if (settings.provider === "gemini") {
-    const { getGeminiApiKey, callDirectGemini } = await import("./geminiDirect");
-    const geminiKey = settings.apiKey || getGeminiApiKey();
-    if (!geminiKey) {
-      throw new Error("کلید Google Gemini وارد نشده است. لطفاً در تنظیمات → AI کلید خود را وارد کنید.");
+  const invoke = async (model: string) => {
+    if (settings.provider === "gemini") {
+      const { getGeminiApiKey, callDirectGemini } = await import("./geminiDirect");
+      const geminiKey = settings.apiKey || getGeminiApiKey();
+      if (!geminiKey) throw new AIProviderError(aiErrorMessage("invalid_key", lang === "en" ? "en" : "fa", { provider: "Gemini" }), "invalid_key");
+      return callDirectGemini({ prompt: promptText, systemPrompt, model, apiKey: geminiKey, signal: opts?.signal });
     }
-    const res = await callDirectGemini({
-      prompt: promptText,
-      systemPrompt,
-      model: settings.model || "gemini-2.5-flash",
-      apiKey: geminiKey,
-      signal: opts?.signal,
-    });
-    return sanitizeAIResult(mode, res);
-  }
-
-  // 2. OpenAI, Groq, OpenRouter, Custom, Anthropic direct support
-  if (
-    settings.provider === "openai" ||
-    settings.provider === "groq" ||
-    settings.provider === "openrouter" ||
-    settings.provider === "custom" ||
-    settings.provider === "anthropic"
-  ) {
     const { callDirectOpenAICompat } = await import("./openAICompatDirect");
-    const res = await callDirectOpenAICompat({
-      provider: settings.provider,
-      prompt: promptText,
-      systemPrompt,
-      model: settings.model,
-      apiKey: settings.apiKey,
-      baseUrl: settings.baseUrl,
-      signal: opts?.signal,
+    return callDirectOpenAICompat({
+      provider: settings.provider as "openai" | "groq" | "openrouter" | "custom" | "anthropic",
+      prompt: promptText, systemPrompt, model, apiKey: settings.apiKey, baseUrl: settings.baseUrl, signal: opts?.signal,
     });
-    return sanitizeAIResult(mode, res);
+  };
+  const supported = ["gemini", "openai", "groq", "openrouter", "custom", "anthropic"];
+  if (supported.includes(settings.provider)) {
+    const primary = settings.model || (settings.provider === "gemini" ? "gemini-3-flash-preview" : "");
+    const errLang = lang === "en" ? "en" : "fa";
+    const fail = (e: unknown, model: string, fallback: string | null): never => {
+      if (e instanceof AIProviderError) throw e;
+      if ((e as { name?: string })?.name === "AbortError") throw e;
+      const kind = classifyAIError(e);
+      if (kind === "unknown") throw e;
+      throw new AIProviderError(aiErrorMessage(kind, errLang, { provider: settings.provider, model, fallback, raw: e instanceof Error ? e.message : "" }), kind, fallback);
+    };
+    try {
+      return sanitizeAIResult(mode, await invoke(primary));
+    } catch (e) {
+      const fallback = primary ? fallbackModelFor(primary) : null;
+      if (classifyAIError(e) === "model_unavailable" && fallback) {
+        try { return sanitizeAIResult(mode, await invoke(fallback)); } catch (e2) { return fail(e2, fallback, fallbackModelFor(fallback)); }
+      }
+      return fail(e, primary, fallback);
+    }
   }
 
   throw new Error(`سرویس «${settings.provider}» پشتیبانی نمی‌شود یا پیکربندی نشده است.`);

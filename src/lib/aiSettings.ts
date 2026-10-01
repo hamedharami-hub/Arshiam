@@ -75,25 +75,25 @@ export const OPERATIONS: OperationMeta[] = [
 // These are *smart defaults* — picked for quality/cost/latency per task type.
 // Users can override per-operation in Settings → AI.
 export const OP_RECOMMENDED: Record<AIOperation, { provider: Provider; model: string; whyFa: string; whyEn: string }> = {
-  article_rewrite:       { provider: "gemini", model: "gemini-2.5-flash", whyFa: "بازنویسی متن", whyEn: "Article rewriting" },
-  assessment_analysis:   { provider: "gemini", model: "gemini-2.5-flash", whyFa: "تحلیل متن ارزیابی", whyEn: "Assessment explanation" },
-  parse_task:            { provider: "gemini", model: "gemini-2.5-flash",       whyFa: "سریع و دقیق برای استخراج ساختار",            whyEn: "Fast & accurate at structured extraction" },
-  breakdown:             { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "استدلال مرحله‌ای بهتر",                       whyEn: "Better step-by-step reasoning" },
-  task_subtasks:         { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "تقسیم منطقی کار",                              whyEn: "Logical work breakdown" },
-  task_metadata_suggest: { provider: "gemini", model: "gemini-2.5-flash-lite",         whyFa: "کار سبک، بسیار سریع",                          whyEn: "Lightweight & very fast" },
-  task_chat:             { provider: "gemini", model: "gemini-2.5-flash",       whyFa: "متعادل — سریع و خوب",                          whyEn: "Balanced — fast and capable" },
-  folder_chat:           { provider: "gemini", model: "gemini-2.5-pro",                whyFa: "context طولانی برای پروژه",                    whyEn: "Long context for whole projects" },
-  generate_note:         { provider: "gemini", model: "gemini-2.5-pro",                          whyFa: "کیفیت نوشتاری بالا",                           whyEn: "High writing quality" },
-  summarize_note:        { provider: "gemini", model: "gemini-2.5-flash",              whyFa: "خلاصه‌سازی سریع و وفادار",                     whyEn: "Fast, faithful summaries" },
-  improve_note:          { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "بازنویسی طبیعی",                               whyEn: "Natural rewriting" },
-  inline_edit:           { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "ویرایش دقیق محدوده انتخاب‌شده",                whyEn: "Precise edits on selected text" },
-  suggest:               { provider: "gemini", model: "gemini-2.5-flash",       whyFa: "پیشنهاد متنوع و سریع",                         whyEn: "Diverse suggestions, fast" },
-  chat:                  { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "همه‌کاره و متعادل",                            whyEn: "Versatile & balanced" },
-  socratic:              { provider: "gemini", model: "gemini-2.5-pro",                          whyFa: "سوال‌پرسی عمیق و درست",                        whyEn: "Deep, well-aimed questions" },
-  distortion_detect:     { provider: "gemini", model: "gemini-2.5-pro",                        whyFa: "reasoning قوی برای تحلیل CBT",                 whyEn: "Strong reasoning for CBT analysis" },
-  about_me_analysis:     { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "استخراج ساختاریافته اهداف بدون برچسب بالینی",   whyEn: "Structured goal extraction without clinical labeling" },
-  note_actions:          { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "قالب‌بندی و ترجمه آموزشی سریع",                 whyEn: "Fast educational formatting & translation" },
-  interactive_learning:  { provider: "gemini", model: "gemini-2.5-flash",                    whyFa: "تولید ویجت‌های تعاملی یادگیری",                whyEn: "Interactive learning widget generation" },
+  article_rewrite:       { provider: "gemini", model: "gemini-3-flash-preview", whyFa: "بازنویسی متن", whyEn: "Article rewriting" },
+  assessment_analysis:   { provider: "gemini", model: "gemini-3-flash-preview", whyFa: "تحلیل متن ارزیابی", whyEn: "Assessment explanation" },
+  parse_task:            { provider: "gemini", model: "gemini-3-flash-preview",       whyFa: "سریع و دقیق برای استخراج ساختار",            whyEn: "Fast & accurate at structured extraction" },
+  breakdown:             { provider: "gemini", model: "gemini-3-flash-preview",                    whyFa: "استدلال مرحله‌ای بهتر",                       whyEn: "Better step-by-step reasoning" },
+  task_subtasks:         { provider: "gemini", model: "gemini-3-flash-preview",                    whyFa: "تقسیم منطقی کار",                              whyEn: "Logical work breakdown" },
+  task_metadata_suggest: { provider: "gemini", model: "gemini-3-flash-preview",         whyFa: "کار سبک، بسیار سریع",                          whyEn: "Lightweight & very fast" },
+  task_chat:             { provider: "gemini", model: "gemini-3-flash-preview",       whyFa: "متعادل — سریع و خوب",                          whyEn: "Balanced — fast and capable" },
+  folder_chat:           { provider: "gemini", model: "gemini-3.1-pro-preview",                whyFa: "context طولانی برای پروژه",                    whyEn: "Long context for whole projects" },
+  generate_note:         { provider: "gemini", model: "gemini-3.1-pro-preview",                          whyFa: "کیفیت نوشتاری بالا",                           whyEn: "High writing quality" },
+  summarize_note:        { provider: "gemini", model: "gemini-3-flash-preview",              whyFa: "خلاصه‌سازی سریع و وفادار",                     whyEn: "Fast, faithful summaries" },
+  improve_note:          { provider: "gemini", model: "gemini-3-flash-preview",                    whyFa: "بازنویسی طبیعی",                               whyEn: "Natural rewriting" },
+  inline_edit:           { provider: "gemini", model: "gemini-3-flash-preview",                    whyFa: "ویرایش دقیق محدوده انتخاب‌شده",                whyEn: "Precise edits on selected text" },
+  suggest:               { provider: "gemini", model: "gemini-3-flash-preview",       whyFa: "پیشنهاد متنوع و سریع",                         whyEn: "Diverse suggestions, fast" },
+  chat:                  { provider: "gemini", model: "gemini-3-flash-preview",                    whyFa: "همه‌کاره و متعادل",                            whyEn: "Versatile & balanced" },
+  socratic:              { provider: "gemini", model: "gemini-3.1-pro-preview",                          whyFa: "سوال‌پرسی عمیق و درست",                        whyEn: "Deep, well-aimed questions" },
+  distortion_detect:     { provider: "gemini", model: "gemini-3.1-pro-preview",                        whyFa: "reasoning قوی برای تحلیل CBT",                 whyEn: "Strong reasoning for CBT analysis" },
+  about_me_analysis:     { provider: "gemini", model: "gemini-3-flash-preview",                    whyFa: "استخراج ساختاریافته اهداف بدون برچسب بالینی",   whyEn: "Structured goal extraction without clinical labeling" },
+  note_actions:          { provider: "gemini", model: "gemini-3-flash-preview",                    whyFa: "قالب‌بندی و ترجمه آموزشی سریع",                 whyEn: "Fast educational formatting & translation" },
+  interactive_learning:  { provider: "gemini", model: "gemini-3-flash-preview",                    whyFa: "تولید ویجت‌های تعاملی یادگیری",                whyEn: "Interactive learning widget generation" },
 };
 
 export const PROVIDER_INFO: Record<Provider, { label: string; defaultModel: string; baseUrl: string; help: string; models: string[] }> = {
@@ -106,24 +106,26 @@ export const PROVIDER_INFO: Record<Provider, { label: string; defaultModel: stri
   },
   openai: {
     label: "OpenAI",
-    defaultModel: "gpt-5-mini",
+    defaultModel: "gpt-5.4-mini",
     baseUrl: "https://api.openai.com/v1",
     help: "از platform.openai.com کلید بگیرید.",
-    models: ["gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "o3-mini"],
+    models: ["gpt-5.4", "gpt-5.4-mini", "gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "o3-mini"],
   },
   anthropic: {
     label: "Anthropic Claude",
-    defaultModel: "claude-3-5-sonnet-latest",
+    defaultModel: "claude-sonnet-4-6",
     baseUrl: "https://api.anthropic.com/v1",
     help: "از console.anthropic.com کلید بگیرید.",
-    models: ["claude-sonnet-4-5", "claude-opus-4-1", "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest"],
+    models: ["claude-sonnet-4-6", "claude-haiku-4-5", "claude-sonnet-4-5", "claude-opus-4-1", "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest"],
   },
   gemini: {
     label: "Google Gemini (مستقیم)",
-    defaultModel: "gemini-2.5-flash",
+    defaultModel: "gemini-3-flash-preview",
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
-    help: "از aistudio.google.com کلید بگیرید (پشتیبانی مستقیم از مدل‌های رسمی Gemini 2.5 Flash ،Pro و Flash-Lite).",
+    help: "از aistudio.google.com کلید بگیرید (Gemini 3 Flash، Gemini 3.1 Pro و نسل ۲٫۵).",
     models: [
+      "gemini-3-flash-preview",
+      "gemini-3.1-pro-preview",
       "gemini-2.5-flash",
       "gemini-2.5-pro",
       "gemini-2.5-flash-lite",
@@ -177,7 +179,7 @@ export type AIPerOpSettings = {
 };
 
 export function defaultConfig(): ProviderConfig {
-  return { provider: "gemini", apiKey: "", model: "gemini-2.5-flash", baseUrl: PROVIDER_INFO.gemini.baseUrl };
+  return { provider: "gemini", apiKey: "", model: "gemini-3-flash-preview", baseUrl: PROVIDER_INFO.gemini.baseUrl };
 }
 
 export function recommendedConfig(op: AIOperation): ProviderConfig {
@@ -208,6 +210,10 @@ export const MODEL_DESCRIPTIONS: Record<string, string> = {
   "mixtral-8x7b-32768": "context طولانی (32k)",
   "gemma2-9b-it": "سبک و سریع از Google",
   "gemini-3.1-pro-preview": "Gemini 3.1 Pro — قوی‌ترین",
+  "gpt-5.4": "GPT-5.4 — دقت بالا",
+  "gpt-5.4-mini": "GPT-5.4 Mini — سبک و ارزان",
+  "claude-sonnet-4-6": "Claude Sonnet 4.6 — متعادل",
+  "claude-haiku-4-5": "Claude Haiku 4.5 — سریع",
   "gemini-3.1-flash-preview": "Gemini 3.1 Flash — متعادل",
   "gemini-3.1-flash-lite-preview": "Gemini 3.1 Flash-Lite — سریع‌ترین",
   "gemini-3-pro-preview": "Gemini 3 Pro",
@@ -349,6 +355,7 @@ export function operationLabel(key: AIOperation, lang: "fa" | "en"): string {
 export function clearAllStoredAIKeys(): void {
   try {
     localStorage.removeItem("gemini_api_key");
+    localStorage.removeItem("ai_provider_keys_v1");
   } catch {}
 
   try {

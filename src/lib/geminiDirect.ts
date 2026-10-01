@@ -74,6 +74,8 @@ export function getGeminiApiKey(): string | null {
   return null;
 }
 
+const VERIFIED_GEMINI_3 = new Set(["gemini-3-flash-preview", "gemini-3.1-pro-preview"]);
+
 export function normalizeGeminiModel(model?: string): string {
   if (!model) return "gemini-2.5-flash";
   let m = model.trim();
@@ -83,7 +85,7 @@ export function normalizeGeminiModel(model?: string): string {
   // Model truthfulness: Never silently substitute the user's selected model.
   // If an unreleased or unsupported model name is requested (such as gemini-3 previews),
   // fail honestly with a clear compatibility error instead of silent substitution.
-  if (m.startsWith("gemini-3")) {
+  if (m.startsWith("gemini-3") && !VERIFIED_GEMINI_3.has(m)) {
     throw new Error(
       `مدل انتخابی «${m}» در دسترس نیست یا توسط API پشتیبانی نمی‌شود. لطفاً در تنظیمات → AI یکی از مدل‌های معتبر (مانند gemini-2.5-flash یا gemini-2.5-pro) را انتخاب کنید.`
     );

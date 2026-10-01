@@ -50,7 +50,7 @@ describe("callAI multi-provider support", () => {
 
     expect(capturedUrl).toContain("generativelanguage.googleapis.com");
     expect(capturedUrl).toContain("key=test-gemini-key");
-    expect(capturedUrl).toContain("gemini-2.5-flash");
+    expect(capturedUrl).toContain("gemini-3-flash-preview");
 
     const body = JSON.parse(capturedInit?.body as string);
     expect(body.contents[0].parts[0].text).toContain("Buy milk tomorrow");
@@ -235,6 +235,11 @@ describe("callAI multi-provider support", () => {
       expect(normalizeGeminiModel("google/gemini-2.5-pro")).toBe("gemini-2.5-pro");
       expect(normalizeGeminiModel("gemini-2.5-flash-lite")).toBe("gemini-2.5-flash-lite");
       expect(normalizeGeminiModel(undefined)).toBe("gemini-2.5-flash");
+    });
+
+    it("accepts the verified Gemini 3 model IDs unchanged", () => {
+      expect(normalizeGeminiModel("gemini-3-flash-preview")).toBe("gemini-3-flash-preview");
+      expect(normalizeGeminiModel("models/gemini-3.1-pro-preview")).toBe("gemini-3.1-pro-preview");
     });
 
     it("throws clear compatibility error for unsupported gemini-3 preview models rather than silently substituting", () => {

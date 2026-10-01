@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { SectionCard } from "./SectionCard";
+import { AIProviderKeysCard } from "./AIProviderKeysCard";
 import { OfflineIntelligenceSettings } from "@/components/OfflineIntelligenceSettings";
 import { getAILanguage, setAILanguage, type AILanguage } from "@/lib/ai";
 import {
@@ -566,6 +567,7 @@ export function AISettingsTab({
         </div>
       </SectionCard>
 
+      <AIProviderKeysCard isEn={isEn} />
       <ProviderModelManager settings={settings} isEn={isEn} onUpdateHidden={updateProviderHidden} />
 
       <SectionCard
