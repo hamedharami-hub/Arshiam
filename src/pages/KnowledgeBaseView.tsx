@@ -511,7 +511,7 @@ export const KnowledgeBaseView: React.FC = () => {
       if (editingDoc.user_id !== userId) throw new Error('Account changed; reopen the editor.');
       const latest = await getKnowledgeDocument(userId, editingDoc.id);
       if (!latest || latest.content_html !== editingDoc.content_html || latest.content_en !== editingDoc.content_en || latest.title !== editingDoc.title || latest.title_en !== editingDoc.title_en) throw new Error(isEn ? 'Source changed elsewhere. Your draft is retained; reopen the current lesson.' : 'منبع در جای دیگری تغییر کرده؛ پیش‌نویس محفوظ است. نسخهٔ فعلی را دوباره باز کنید.');
-      const result = await updateKnowledgeDocumentWithPersistence(userId, editingDoc.id, data);
+      const result = await updateKnowledgeDocumentWithPersistence(userId, editingDoc.id, { ...data, _expected_document_updated_at: editingDoc.updated_at });
       const updated = result.document;
       setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
       toast.success(result.persistence === "queued" ? (isEn ? "Document queued for sync" : "سند در صف همگام‌سازی است") : (isEn ? "Document updated" : "سند به‌روزرسانی شد"));

@@ -107,6 +107,7 @@ function LearningRecordEditor({ document, userId, kind, record, anchor, onUpdate
   const draft = useLearningDraft(`learning-${kind}:${userId}:${document.id}:${record?.id || 'new'}`, initial, record?.updated_at || `${anchor.version}:${learningVersion(anchor.quote)}`);
   const [busy, setBusy] = useState(false); const [message, setMessage] = useState('');
   const request = useRef<AbortController | null>(null);
+  const savedRevision = useRef('');
   const alive = useRef(true); useEffect(() => { alive.current = true; return () => { alive.current = false; request.current?.abort(); }; }, []);
   const change = (patch: Partial<LearningNote & LearningQuestion>, typing = true) => draft.change(previous => ({ ...previous, ...patch }), typing);
   const note = draft.value as LearningNote; const question = draft.value as LearningQuestion;
@@ -117,8 +118,10 @@ function LearningRecordEditor({ document, userId, kind, record, anchor, onUpdate
     setBusy(true); setMessage('');
     const saved = { ...snapshot, updated_at: new Date().toISOString(), ...(kind === 'questions' && question.type === 'choice' ? { options: question.options.filter(option => option.text.trim()) } : {}) };
     try {
-      const result = kind === 'notes' ? await saveLearningRecord(userId, document.id, kind, saved as LearningNote, record ? draft.baseline : '') : await saveLearningRecord(userId, document.id, kind, saved as LearningQuestion, record ? draft.baseline : '');
+      const expectedRevision = record ? draft.baseline : savedRevision.current;
+      const result = kind === 'notes' ? await saveLearningRecord(userId, document.id, kind, saved as LearningNote, expectedRevision) : await saveLearningRecord(userId, document.id, kind, saved as LearningQuestion, expectedRevision);
       if (!alive.current) return;
+      if (!record) savedRevision.current = saved.updated_at;
       onUpdated(result.document);
       if (draft.isCurrent(snapshot)) { if (!record) await draft.clear(); else draft.accept(saved, saved.updated_at); onSaved(); }
       else draft.rebaseline(saved.updated_at);

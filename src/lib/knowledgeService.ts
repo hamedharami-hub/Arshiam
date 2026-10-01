@@ -1,7 +1,7 @@
 import { normalizeLearningWorkspace } from "./learningWorkspace";
 import { firebaseStore } from "./firebaseStore";
 import { cacheGet, cacheSet, canReplayForOwner, enqueueOp, getPendingOps } from "./offlineQueue";
-import { saveEntityToFirestore, deleteEntityFromFirestore } from "./firestoreSync";
+import { saveEntityToFirestoreWithOutcome, deleteEntityFromFirestore } from "./firestoreSync";
 import type { KnowledgeFolder, KnowledgeDocument, KnowledgeFolderNode } from "./knowledgeTypes";
 import type { TaskKnowledgeLink } from "./taskKnowledgeTypes";
 import { reconcileRemoteRowsWithPending } from "./offlineReconcile";
@@ -109,9 +109,11 @@ async function saveKnowledgeRowOrQueueWithPersistence(
 ): Promise<{ accepted: boolean; persistence: "synced" | "queued" }> {
   if (isOnline()) {
     try {
-      if (await saveEntityToFirestore(userId, collection, item.id, item)) {
-        return { accepted: true, persistence: "synced" };
-      }
+      const outcome = await saveEntityToFirestoreWithOutcome(userId, collection, item.id, item);
+      if (outcome === 'saved') return { accepted: true, persistence: 'synced' };
+      // A confirmed version conflict is not a retryable network failure.
+      // Refuse it before local cache or drafts accept the mutation.
+      if (outcome === 'stale') return { accepted: false, persistence: 'queued' };
     } catch {
       // A failed server write can still be safely accepted by the outbox.
     }
