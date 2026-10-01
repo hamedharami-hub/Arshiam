@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronDown,
   RotateCcw,
+  LocateFixed,
   Eye,
   Target,
   ArrowRightLeft,
@@ -88,6 +89,9 @@ import {
 } from "@/lib/mindMapProgress";
 
 const MIN_MIND_MAP_ZOOM = 0.02;
+const UNREADABLE_FIT_ZOOM = 0.22;
+const CULL_MIN_NODES = 150;
+const LOD_ZOOM = 0.3;
 const READABLE_OUTLINE_MAX_VIEWPORT = 768;
 
 const isCompactMindMapViewport = () =>
@@ -783,6 +787,8 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   const [treeDirection, setTreeDirection] = useState<"rtl" | "ltr">("ltr");
   const [zoomLevel, setZoomLevel] = useState<number>(0.9);
   const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 60, y: 80 });
+  const zoomLevelRef = useRef(zoomLevel);
+  zoomLevelRef.current = zoomLevel;
   const [isDragging, setIsDragging] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -1535,6 +1541,62 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   }, [isActive, revealMode, revealNext]);
   const outlineEntries = useMemo(() => buildMindMapOutline(displayNodes), [displayNodes]);
 
+  const rootNode = useMemo(
+    () => {
+      const scopeRootId = selectedScopeId === "all" ? "root-kb" : selectedScopeId;
+      return displayNodes.find((n) => n.id === scopeRootId) ?? displayNodes.find((n) => n.type === "root") ?? displayNodes[0];
+    },
+    [displayNodes, selectedScopeId],
+  );
+
+  // Big maps render only what is near the viewport; the region is re-computed only when the viewport leaves it.
+  const [cullRegion, setCullRegion] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const cullingOn = displayNodes.length > CULL_MIN_NODES;
+  useEffect(() => {
+    if (!cullingOn) { setCullRegion(null); return; }
+    const cw = containerRef.current?.clientWidth || 900;
+    const ch = containerRef.current?.clientHeight || 650;
+    const view = { x0: -panOffset.x / zoomLevel, y0: -panOffset.y / zoomLevel, x1: (cw - panOffset.x) / zoomLevel, y1: (ch - panOffset.y) / zoomLevel };
+    setCullRegion((prev) => {
+      if (prev && view.x0 >= prev.x0 && view.y0 >= prev.y0 && view.x1 <= prev.x1 && view.y1 <= prev.y1) return prev;
+      const w = view.x1 - view.x0;
+      const h = view.y1 - view.y0;
+      return { x0: view.x0 - w, y0: view.y0 - h, x1: view.x1 + w, y1: view.y1 + h };
+    });
+  }, [cullingOn, panOffset, zoomLevel]);
+  const renderedNodes = useMemo(() => {
+    if (!cullingOn || !cullRegion) return displayNodes;
+    return displayNodes.filter((n) => n === rootNode || (n.x + n.width >= cullRegion.x0 && n.x <= cullRegion.x1 && n.y + n.height >= cullRegion.y0 && n.y <= cullRegion.y1));
+  }, [cullingOn, cullRegion, displayNodes, rootNode]);
+  const linkPathData = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const link of links) map.set(link.id, getKnowledgeMindMapConnectorPath(link, canvasLayout, connectorStyle, radialRootCenters.get(link.sourceId)));
+    return map;
+  }, [links, canvasLayout, connectorStyle, radialRootCenters]);
+  const renderedIds = useMemo(() => new Set(renderedNodes.map((n) => n.id)), [renderedNodes]);
+  const lowDetail = cullingOn && zoomLevel < LOD_ZOOM;
+  const lowDetailLayer = useMemo(
+    () => (lowDetail
+      ? renderedNodes.filter((n) => n !== rootNode).map((node) => (
+        <div key={node.id} aria-hidden="true" data-testid="mindmap-lod-node" style={{ position: "absolute", left: node.x, top: node.y, width: node.width, height: node.height, borderRadius: 12, background: node.accentColor || node.color, opacity: 0.55 }} />
+      ))
+      : null),
+    [lowDetail, renderedNodes, rootNode],
+  );
+
+  // Center the main (root) cell at a readable zoom; the escape hatch when the map is huge or panned away.
+  const goToRoot = useCallback((zoom?: number) => {
+    if (!rootNode || !containerRef.current) return;
+    const cw = containerRef.current.clientWidth || 900;
+    const ch = containerRef.current.clientHeight || 650;
+    const z = +Math.min(1, Math.max(0.5, zoom ?? zoomLevelRef.current)).toFixed(2);
+    setZoomLevel(z);
+    setPanOffset({
+      x: Math.round(cw / 2 - (rootNode.x + rootNode.width / 2) * z),
+      y: Math.round(ch / 2 - (rootNode.y + rootNode.height / 2) * z),
+    });
+  }, [rootNode]);
+
   // Fit View To Container
   const fitViewToContainer = useCallback(() => {
     if (!fullscreenRootRef.current) return;
@@ -1549,6 +1611,10 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     const topInset = ch > 420 ? 120 : 0;
     const scaleY = (ch - 80) / bHeight;
     const optimalScale = Math.min(1.1, Math.max(MIN_MIND_MAP_ZOOM, Math.min(scaleX, scaleY)));
+    if (optimalScale < UNREADABLE_FIT_ZOOM && rootNode) {
+      goToRoot(0.5);
+      return;
+    }
     const finalZoom = +optimalScale.toFixed(2);
 
     const contentCenterX = (bounds.minX + bounds.maxX) / 2;
@@ -1559,7 +1625,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
 
     setZoomLevel(finalZoom);
     setPanOffset({ x: targetPanX, y: targetPanY });
-  }, [bounds]);
+  }, [bounds, goToRoot, rootNode]);
 
   // Keep revealed branches in view while stepping, and re-fit when leaving reveal mode.
   const revealFitMountedRef = useRef(false);
@@ -1869,6 +1935,16 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
             title={isEn ? "Fit to View" : "تطبیق نما"}
           >
             <RotateCcw className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => goToRoot()}
+            data-testid="mindmap-go-root"
+            className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition cursor-pointer"
+            title={isEn ? "Go to the main cell" : "رفتن به سلول اصلی"}
+            aria-label={isEn ? "Go to the main cell" : "رفتن به سلول اصلی"}
+          >
+            <LocateFixed className="w-4 h-4" />
           </button>
           <button
             type="button"
@@ -2321,6 +2397,20 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
 
       {viewMode === "canvas" ? (
       <>
+      {rootNode && containerRef.current && (() => {
+        const cw = containerRef.current.clientWidth || 900;
+        const ch = containerRef.current.clientHeight || 650;
+        const left = rootNode.x * zoomLevel + panOffset.x;
+        const top = rootNode.y * zoomLevel + panOffset.y;
+        const out = left + rootNode.width * zoomLevel < 0 || left > cw || top + rootNode.height * zoomLevel < 0 || top > ch;
+        return out ? (
+          <button type="button" onClick={() => goToRoot()} data-testid="mindmap-root-offscreen"
+            className="absolute bottom-14 left-1/2 z-30 -translate-x-1/2 inline-flex items-center gap-2 rounded-full border border-primary bg-card px-4 py-2 text-sm font-medium text-primary shadow-lg">
+            <LocateFixed className="h-4 w-4" aria-hidden="true" />
+            {isEn ? "Main cell is out of view — go back" : "سلول اصلی خارج از دید است — بازگشت"}
+          </button>
+        ) : null;
+      })()}
       {/* Bottom Info Badge */}
       <div className="absolute bottom-3 left-3 z-20 hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-card/80 border border-border text-xs text-muted-foreground backdrop-blur-md shadow-md">
         <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
@@ -2370,13 +2460,8 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
             className="absolute inset-0 w-full h-full pointer-events-none"
             style={{ zIndex: 1 }}
           >
-            {links.map((link) => {
-              const pathData = getKnowledgeMindMapConnectorPath(
-                link,
-                canvasLayout,
-                connectorStyle,
-                radialRootCenters.get(link.sourceId),
-              );
+            {links.filter((link) => !cullingOn || renderedIds.has(link.sourceId) || renderedIds.has(link.targetId)).map((link) => {
+              const pathData = linkPathData.get(link.id) ?? "";
 
               return (
                 <path
@@ -2393,7 +2478,8 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
           </svg>
 
           {/* Render Memoized Nodes */}
-          {displayNodes.map((node) => {
+          {lowDetail && lowDetailLayer}
+          {(lowDetail ? renderedNodes.filter((n) => n === rootNode) : renderedNodes).map((node) => {
             const isHighlighted =
               debouncedSearch.trim() !== "" &&
               mindMapNodeMatchesSearch(node, searchResult);

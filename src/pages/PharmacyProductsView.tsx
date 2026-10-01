@@ -1,4 +1,4 @@
-import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
+import { PharmacyPageHeader } from "@/components/pharmacy/PharmacyPageHeader";
 import { useMemo, useState } from "react";
 import { BookOpen, PackageSearch, Search, SlidersHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -81,19 +81,7 @@ export default function PharmacyProductsView() {
   return (
     <main className="mx-auto w-full max-w-6xl space-y-5 px-3 py-4 sm:px-5 sm:py-6" dir={isEn ? "ltr" : "rtl"}>
       <UrlParamListener name="product" onValue={(id) => setSelectedProduct(PHARMACY_PRODUCT_CATALOG.find((product) => product.id === id) ?? null)} />
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <div className="rounded-2xl bg-primary/10 p-3 text-primary" aria-hidden="true">
-            <PackageSearch className="h-6 w-6" />
-          </div>
-          <div className="space-y-1">
-            <HeaderTitlePortal title={T("فهرست محصولات دارویی", "Pharmacy product catalogue")} />
-            <p className="text-sm text-muted-foreground">
-              {T("نمایهٔ جست‌وجوپذیر محصولات منبع Pharmacy؛ برای دسترسی سریع به مدخل‌ها.", "A searchable index of Pharmacy source products for quick reference.")}
-            </p>
-          </div>
-        </div>
-      </header>
+      <PharmacyPageHeader icon={PackageSearch} title={T("فهرست محصولات دارویی", "Pharmacy product catalogue")} description={T("نمایهٔ جست‌وجوپذیر محصولات منبع Pharmacy؛ برای دسترسی سریع به مدخل‌ها.", "A searchable index of Pharmacy source products for quick reference.")} />
 
       <section aria-label={T("جست‌وجو و فیلتر", "Search and filters")} className="space-y-3">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(12rem,1fr)_7rem_minmax(10rem,13rem)_minmax(10rem,13rem)_auto]">

@@ -52,8 +52,9 @@ describe("PharmacyHubView", () => {
     expect(screen.getByRole("link", { name: /Full library/ })).toHaveAttribute("href", "/app/knowledge?folderId=folder-pharmacy-root");
     fireEvent.mouseDown(screen.getByRole("tab", { name: "Review" }), { button: 0, ctrlKey: false });
     expect(screen.getByTestId("pharmacy-review-topic-link")).toHaveAttribute("href", "/app/review?domain=pharmacy&topic=diseases");
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "Practice" }), { button: 0, ctrlKey: false });
     expect(screen.getByTestId("pharmacy-shortcuts")).toBeInTheDocument();
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Practice" }), { button: 0, ctrlKey: false });
+    expect(screen.getByTestId("pharmacy-practice-fred")).toHaveAttribute("href", "/app/pharmacy-fred-practice");
     fireEvent.click(screen.getByTestId("pharm-shortcut-cyp"));
     expect(screen.getByText("CYP destination")).toBeInTheDocument();
   });

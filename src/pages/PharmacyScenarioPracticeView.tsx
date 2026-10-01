@@ -1,4 +1,4 @@
-import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
+import { PharmacyPageHeader } from "@/components/pharmacy/PharmacyPageHeader";
 import { useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, ClipboardCheck, FileSignature, RotateCcw, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -140,17 +140,10 @@ export default function PharmacyScenarioPracticeView() {
   return (
     <main className="mx-auto w-full max-w-5xl space-y-5 px-3 py-4 sm:px-5 sm:py-6" dir={isEn ? "ltr" : "rtl"}>
       <UrlParamListener name="scenario" onValue={openScenarioFromUrl} />
-      <header className="flex items-start gap-3">
-        <div className="rounded-2xl bg-primary/10 p-3 text-primary" aria-hidden="true"><ClipboardCheck className="h-6 w-6" /></div>
-        <div className="space-y-1">
-          <HeaderTitlePortal title={T("تمرین تعاملی سناریوهای Pharmacy", "Pharmacy scenario practice")} />
-          <p className="text-sm text-muted-foreground">{T("پرونده را مرحله‌به‌مرحله بخوان، پاسخ بیمار را باز کن و بعد تصمیم منبع را ببین.", "Work through a case, reveal the patient's replies, then compare your choice with the source label.")}</p>
-        </div>
-        <div className="ms-auto min-w-[10rem] space-y-1 text-end" data-testid="scenario-progress-summary">
+      <PharmacyPageHeader icon={ClipboardCheck} title={T("تمرین تعاملی سناریوهای Pharmacy", "Pharmacy scenario practice")} description={T("پرونده را مرحله‌به‌مرحله بخوان، پاسخ بیمار را باز کن و بعد تصمیم منبع را ببین.", "Work through a case, reveal the patient's replies, then compare your choice with the source label.")} aside={<div className="ms-auto min-w-[10rem] space-y-1 text-end" data-testid="scenario-progress-summary">
           <p className="text-xs text-muted-foreground">{T(`${Object.keys(progress).length} از ${PHARMACY_PRACTICE_SCENARIOS.length} پرونده انجام شده`, `${Object.keys(progress).length} of ${PHARMACY_PRACTICE_SCENARIOS.length} cases done`)}</p>
           <SyncBadge state={syncState} />
-        </div>
-      </header>
+        </div>} />
 
       <Card role="note" className="flex items-start gap-3 border-amber-500/40 bg-amber-500/5 p-4 text-sm">
         <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />

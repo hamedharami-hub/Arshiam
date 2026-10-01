@@ -7,6 +7,8 @@ const ITEMS = [
     url: "/app/pharmacy-products",
     icon: PackageSearch,
     fa: "محصولات دارویی",
+    descFa: "جست‌وجوی سریع مدخل‌ها",
+    descEn: "Quick product lookup",
     en: "Products",
     testid: "pharm-shortcut-products",
   },
@@ -14,6 +16,8 @@ const ITEMS = [
     url: "/app/pharmacy-scenario-practice",
     icon: ClipboardCheck,
     fa: "تمرین سناریو",
+    descFa: "پرونده‌های مرحله‌به‌مرحله",
+    descEn: "Step-by-step cases",
     en: "Scenarios",
     testid: "pharm-shortcut-scenario",
   },
@@ -21,6 +25,8 @@ const ITEMS = [
     url: "/app/pharmacy-fred-practice",
     icon: Keyboard,
     fa: "تمرین FRED",
+    descFa: "یادگیری کار داروخانه",
+    descEn: "Learn the dispensing flow",
     en: "FRED",
     testid: "pharm-shortcut-fred",
   },
@@ -28,6 +34,8 @@ const ITEMS = [
     url: "/app/pharmacy-cyp",
     icon: FlaskConical,
     fa: "ماتریس CYP",
+    descFa: "آنزیم‌ها و تداخل‌ها",
+    descEn: "Enzymes and interactions",
     en: "CYP Matrix",
     testid: "pharm-shortcut-cyp",
   },
@@ -41,7 +49,7 @@ export default function PharmacyShortcuts() {
 
   return (
     <nav className="pharmacy-shortcuts" data-testid="pharmacy-shortcuts" aria-label={T("ابزارهای فارماسی", "Pharmacy tools")}>
-        {ITEMS.map(({ url, icon: Icon, fa, en, testid }) => (
+        {ITEMS.map(({ url, icon: Icon, fa, en, descFa, descEn, testid }) => (
           <Link
             key={url}
             to={url}
@@ -49,7 +57,7 @@ export default function PharmacyShortcuts() {
             className="pharmacy-shortcut"
           >
             <Icon className="pharmacy-shortcut-icon" aria-hidden="true" />
-            <span>{T(fa, en)}</span>
+            <span className="pharmacy-shortcut-text"><b>{T(fa, en)}</b><small>{T(descFa, descEn)}</small></span>
             <ChevronLeft className="pharmacy-shortcut-arrow" aria-hidden="true" />
           </Link>
         ))}

@@ -104,6 +104,22 @@ describe("KnowledgeMindMapView outline mode", () => {
     }
   });
 
+  it("has a go-to-main-cell button that recenters the root at a readable zoom", async () => {
+    const previousWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
+    try {
+      render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);
+      await screen.findByText("Study Folder");
+      const canvas = () => [...document.querySelectorAll<HTMLElement>("div")].find(el => /scale\(/.test(el.style.transform))!;
+      fireEvent.click(screen.getByTestId("mindmap-go-root"));
+      const scale = Number(/scale\(([\d.]+)\)/.exec(canvas().style.transform)?.[1]);
+      expect(scale).toBeGreaterThanOrEqual(0.5);
+      expect(scale).toBeLessThanOrEqual(1);
+    } finally {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: previousWidth });
+    }
+  });
+
   it("reveals branches step by step and dims non-focused nodes in focus mode", async () => {
     const previousWidth = window.innerWidth;
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });

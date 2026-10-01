@@ -1,4 +1,4 @@
-import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
+import { PharmacyPageHeader } from "@/components/pharmacy/PharmacyPageHeader";
 import { useMemo, useState } from "react";
 import { AlertTriangle, FlaskConical, Layers, Plus, Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -32,13 +32,7 @@ export default function PharmacyCypView() {
 
   return (
     <main className="mx-auto w-full max-w-6xl space-y-5 px-3 py-4 sm:px-5 sm:py-6" dir={isEn ? "ltr" : "rtl"}>
-      <header className="flex items-start gap-3">
-        <div className="rounded-2xl bg-primary/10 p-3 text-primary" aria-hidden="true"><FlaskConical className="h-6 w-6" /></div>
-        <div className="space-y-1">
-          <HeaderTitlePortal title={T("ماتریس CYP و بررسی تداخل", "CYP matrix & interaction checker")} />
-          <p className="text-sm text-muted-foreground">{T("نقش هر دارو روی آنزیم‌های CYP و P-gp را ببین و الگوی تداخل چند دارو را تمرین کن.", "See each medicine's role on CYP enzymes and P-gp, and practise spotting interaction patterns.")}</p>
-        </div>
-      </header>
+      <PharmacyPageHeader icon={FlaskConical} title={T("ماتریس CYP و بررسی تداخل", "CYP matrix & interaction checker")} description={T("نقش هر دارو روی آنزیم‌های CYP و P-gp را ببین و الگوی تداخل چند دارو را تمرین کن.", "See each medicine's role on CYP enzymes and P-gp, and practise spotting interaction patterns.")} />
 
       <Card role="note" className="flex items-start gap-3 border-amber-500/40 bg-amber-500/5 p-4 text-sm" data-testid="cyp-disclaimer">
         <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />

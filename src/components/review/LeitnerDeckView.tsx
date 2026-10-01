@@ -744,7 +744,8 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
   </div>;
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-y-auto p-4 md:p-6 space-y-6">
+    <div className="flex-1 h-full overflow-y-auto" data-testid="leitner-scroll-root">
+    <div className="mx-auto flex w-full max-w-5xl flex-col space-y-4 p-3 pb-24 sm:space-y-6 sm:p-4 md:p-6 md:pb-6" data-testid="leitner-content">
       {/* Header & Stats Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-3xl bg-card border border-border shadow-sm backdrop-blur-md">
         <div className="space-y-1">
@@ -761,7 +762,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
           <button
             type="button"
             onClick={() => setScheduleModalOpen(true)}
@@ -784,7 +785,8 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
           <button
             type="button"
             onClick={() => handleStartStudy("due")}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold shadow-md shadow-primary/25 transition cursor-pointer"
+            data-testid="leitner-start-review"
+            className="fixed inset-x-3 bottom-3 z-20 flex min-h-12 items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-xl shadow-primary/30 transition hover:bg-primary/90 sm:static sm:inset-auto sm:min-h-0 sm:rounded-xl sm:text-xs sm:shadow-md sm:shadow-primary/25 cursor-pointer"
           >
             <Zap className="w-4 h-4 text-amber-300 animate-pulse" />
             <span>
@@ -795,29 +797,30 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
       </div>
 
       {/* 5 Boxes Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-5 gap-1.5 sm:gap-3" data-testid="leitner-boxes">
         {boxesConfig.map((b) => (
           <div
             key={b.box}
-            className={`p-3.5 rounded-2xl border flex flex-col justify-between gap-2 transition relative overflow-hidden ${b.color}`}
+            className={`min-w-0 p-2 sm:p-3.5 rounded-xl sm:rounded-2xl border flex flex-col justify-between gap-1 sm:gap-2 transition relative overflow-hidden ${b.color} ${b.count === 0 ? "opacity-60" : ""}`}
           >
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold truncate">{b.label}</span>
-              <span className={`w-2 h-2 rounded-full ${b.accent}`} />
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[10px] sm:text-[11px] font-bold truncate sm:hidden">{isEn ? `Box ${b.box}` : `جعبه ${b.box}`}</span>
+              <span className="hidden text-[11px] font-bold truncate sm:inline">{b.label}</span>
+              <span className={`w-2 h-2 shrink-0 rounded-full ${b.accent}`} />
             </div>
-            <div className="flex items-baseline justify-between mt-1">
-              <span className="text-2xl font-black">{b.count}</span>
-              <span className="text-[10px] opacity-75 font-medium">{isEn ? "cards" : "کارت"}</span>
+            <div className="flex items-baseline justify-between sm:mt-1">
+              <span className="text-lg sm:text-2xl font-black tabular-nums">{b.count}</span>
+              <span className="hidden sm:inline text-[10px] opacity-75 font-medium">{isEn ? "cards" : "کارت"}</span>
             </div>
           </div>
         ))}
       </div>
 
       {/* Modern Memory Health & Spaced Repetition Analytics Dashboard */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 md:gap-3" data-testid="leitner-analytics">
         {/* Retention Rate Gauge */}
-        <div className="p-4 rounded-2xl bg-card border border-border flex items-center gap-3 shadow-xs">
-          <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+        <div className="min-w-0 p-2.5 md:p-4 rounded-xl md:rounded-2xl bg-card border border-border flex flex-col items-start md:flex-row md:items-center gap-1.5 md:gap-3 shadow-xs">
+          <div className="p-1.5 md:p-3 rounded-lg md:rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
             <TrendingUp className="w-5 h-5" />
           </div>
           <div className="space-y-0.5">
@@ -838,8 +841,8 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
         </div>
 
         {/* Daily Streak Counter */}
-        <div className="p-4 rounded-2xl bg-card border border-border flex items-center gap-3 shadow-xs">
-          <div className="p-3 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+        <div className="min-w-0 p-2.5 md:p-4 rounded-xl md:rounded-2xl bg-card border border-border flex flex-col items-start md:flex-row md:items-center gap-1.5 md:gap-3 shadow-xs">
+          <div className="p-1.5 md:p-3 rounded-lg md:rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
             <Flame className="w-5 h-5" />
           </div>
           <div className="space-y-0.5">
@@ -858,8 +861,8 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
         </div>
 
         {/* Upcoming Reviews Forecast */}
-        <div className="p-4 rounded-2xl bg-card border border-border flex items-center gap-3 shadow-xs">
-          <div className="p-3 rounded-xl bg-primary/10 text-primary">
+        <div className="min-w-0 p-2.5 md:p-4 rounded-xl md:rounded-2xl bg-card border border-border flex flex-col items-start md:flex-row md:items-center gap-1.5 md:gap-3 shadow-xs">
+          <div className="p-1.5 md:p-3 rounded-lg md:rounded-xl bg-primary/10 text-primary">
             <Calendar className="w-5 h-5" />
           </div>
           <div className="space-y-0.5 min-w-0 flex-1">
@@ -1769,6 +1772,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
           targetOptions={scheduleTargetOptions}
         />
       )}
+    </div>
     </div>
   );
 };

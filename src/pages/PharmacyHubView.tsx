@@ -1,7 +1,7 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, ChevronDown, ExternalLink, FolderClosed, Layers3, Menu, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
+import { BookOpen, ChevronDown, GraduationCap, History, ExternalLink, FolderClosed, Layers3, Menu, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
 import PharmacyShortcuts from "@/components/PharmacyShortcuts";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
+import { getLastStudy } from "@/lib/lastStudy";
 import { PHARMACY_ROOT_FOLDER_ID } from "@/lib/pharmacyConstants";
 import { splitPharmacyRootFolders } from "@/lib/pharmacyCategorySections";
 import { getKnowledgeDocuments, getKnowledgeFolders } from "@/lib/knowledgeService";
@@ -37,6 +38,7 @@ export default function PharmacyHubView() {
   const [collapsed, setCollapsed] = useState(false);
   const [topicsOpen, setTopicsOpen] = useState(false);
   const userId = user?.id || "anonymous-kb-user";
+  const lastStudy = useMemo(() => getLastStudy(userId), [userId]);
 
   useEffect(() => {
     let active = true;
@@ -141,8 +143,9 @@ export default function PharmacyHubView() {
     if (!lessons.length) return null;
     return <ul className="pharmacy-lesson-list">
       {lessons.map((lesson) => <li key={lesson.id}>
-        <Link to={`/app/knowledge?docId=${encodeURIComponent(lesson.id)}`} data-testid={`pharmacy-lesson-${lesson.id}`} className="pharmacy-lesson-link">
+        <Link to={`/app/knowledge?docId=${encodeURIComponent(lesson.id)}`} data-testid={`pharmacy-lesson-${lesson.id}`} className="pharmacy-lesson-link" data-current={lastStudy?.docId === lesson.id || undefined}>
           <BookOpen className="h-4 w-4 shrink-0" aria-hidden="true" /><span dir="auto">{isEn ? lesson.title_en || lesson.title : lesson.title}</span>
+          {lastStudy?.docId === lesson.id && <span className="pharmacy-lesson-badge">{T("آخرین مطالعه", "Last studied")}</span>}
         </Link>
       </li>)}
     </ul>;
@@ -175,7 +178,7 @@ export default function PharmacyHubView() {
   function renderTopicNav() {
     return <nav className="pharmacy-category-nav" aria-label={T("انتخاب موضوع", "Choose topic")}>
       {visibleCategories.map((category) => <button key={category.id} type="button" data-testid={`pharmacy-category-${category.id}`} aria-label={T(`انتخاب ${category.name}`, `Choose ${category.name}`)} aria-pressed={selectedCategory?.id === category.id} onClick={() => { setOpenCategoryId(category.id); setTopicsOpen(false); }}>
-        <FolderClosed className="h-4 w-4 shrink-0" aria-hidden="true" /><span className="pharmacy-topic-name">{category.name}</span>
+        <FolderClosed className="h-4 w-4 shrink-0" aria-hidden="true" /><span className="pharmacy-topic-name">{category.name}</span><span className="pharmacy-topic-count">{lessonCounts.get(category.id) ?? 0}</span>
       </button>)}
     </nav>;
   }
@@ -200,7 +203,13 @@ export default function PharmacyHubView() {
           {directLessons.length > 0 && <details className="pharmacy-folder"><summary className="pharmacy-folder-summary"><BookOpen className="h-4 w-4" aria-hidden="true" /><span className="pharmacy-folder-name">{T("درس‌های این دسته", "Lessons in this category")}</span><span className="pharmacy-folder-count">{directLessons.length}</span><ChevronDown className="pharmacy-folder-chevron h-4 w-4" aria-hidden="true" /></summary><div className="pharmacy-folder-content">{renderLessons(directLessons)}</div></details>}
           {category.subfolders.length === 0 && directLessons.length === 0 && <p className="pharmacy-empty-folder">{T("این شاخه هنوز خالی است", "This category is still empty")}</p>}
         </TabsContent>
-        <TabsContent value="practice"><PharmacyShortcuts /></TabsContent>
+        <TabsContent value="practice" className="space-y-2">
+          <p className="text-sm text-muted-foreground">{T("بعد از خواندن درس، همان مفهوم را با تمرین محک بزن.", "After a lesson, test the same idea with practice.")}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline"><Link to="/app/pharmacy-fred-practice" data-testid="pharmacy-practice-fred">{T("درس‌های تمرینی FRED", "FRED practice lessons")}</Link></Button>
+            <Button asChild size="sm" variant="outline"><Link to="/app/pharmacy-scenario-practice" data-testid="pharmacy-practice-scenarios">{T("سناریوهای تمرینی", "Practice scenarios")}</Link></Button>
+          </div>
+        </TabsContent>
         <TabsContent value="review" className="space-y-2">
           <p className="text-sm text-muted-foreground">{T("کارت‌ها و نقشهٔ همین موضوع را مرور کن.", "Review the cards and map for this topic.")}</p>
           <Button asChild size="sm"><Link to={`/app/review?domain=pharmacy&topic=${encodeURIComponent(category.id)}`} data-testid="pharmacy-review-topic-link">{T("مرور این موضوع", "Review this topic")}</Link></Button>
@@ -212,6 +221,19 @@ export default function PharmacyHubView() {
   return (
     <main className="pharmacy-hub" dir={isEn ? "ltr" : "rtl"}>
       <HeaderTitlePortal title={T("فارماسی", "Pharmacy")} />
+      <header className="pharmacy-hero" data-testid="pharmacy-hero">
+        <div className="pharmacy-hero-mark" aria-hidden="true"><GraduationCap className="h-6 w-6" /></div>
+        <div className="min-w-0">
+          <div className="pharmacy-hero-title">{T("فارماسی", "Pharmacy")}</div>
+          <p>{T("درس بخوان، با ابزارها تمرین کن، و در Review مرور کن؛ همه از یک‌جا.", "Study lessons, practise with the tools, then review, all from one place.")}</p>
+        </div>
+        {lastStudy && <Link to={`/app/knowledge?docId=${encodeURIComponent(lastStudy.docId)}`} className="pharmacy-continue" data-testid="pharmacy-continue-link">
+          <History className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span><small>{T("ادامهٔ مطالعه", "Continue")}</small><b dir="auto">{isEn ? lastStudy.titleEn || lastStudy.title : lastStudy.title}</b></span>
+        </Link>}
+      </header>
+      <PharmacyShortcuts />
+
 
       <section className="pharmacy-knowledge" aria-labelledby="pharmacy-categories-heading">
         <div className="pharmacy-section-head">

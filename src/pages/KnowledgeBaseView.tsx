@@ -34,7 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
+import { Link, useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import type { PharmacyImportStatus } from "@/lib/pharmacyImportService";
 import { PHARMACY_ROOT_FOLDER_ID } from "@/lib/pharmacyConstants";
@@ -345,6 +345,19 @@ export const KnowledgeBaseView: React.FC = () => {
   const currentDoc = useMemo(() => {
     return documents.find((d) => d.id === selectedDocId) || null;
   }, [documents, selectedDocId]);
+
+  const pharmacyTopicId = useMemo(() => {
+    const parents = new Map(folders.map((folder) => [folder.id, folder.parent_id]));
+    let id: string | null | undefined = currentDoc?.folder_id;
+    let topic: string | null = null;
+    for (let hops = 0; id && hops < 50; hops += 1) {
+      const parent = parents.get(id);
+      if (parent === PHARMACY_ROOT_FOLDER_ID) topic = id;
+      if (id === PHARMACY_ROOT_FOLDER_ID) return topic;
+      id = parent;
+    }
+    return null;
+  }, [folders, currentDoc]);
 
   const linkedDocument = useMemo(() => {
     const linkedDocId = linkedDocumentStack[linkedDocumentStack.length - 1];
@@ -660,7 +673,16 @@ export const KnowledgeBaseView: React.FC = () => {
               <p className="text-sm">{isEn ? "This lesson is unavailable." : "این درس در دسترس نیست."}</p>
               <Button variant="outline" onClick={() => navigate(location.pathname)}>{isEn ? "Open library" : "بازکردن کتابخانه"}</Button>
             </div>
-          ) : (
+          ) : (<>
+          {pharmacyTopicId && !studyMode && (
+            <nav className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b bg-card px-3 py-1.5 text-xs" aria-label={isEn ? "Pharmacy lesson path" : "مسیر درس فارماسی"} data-testid="pharmacy-lesson-strip">
+              <Link to="/app/pharmacy" className="text-primary hover:underline">{isEn ? "Pharmacy" : "فارماسی"}</Link>
+              <span className="ms-auto flex gap-3">
+                <Link to="/app/pharmacy-scenario-practice" className="text-primary hover:underline" data-testid="pharmacy-strip-practice">{isEn ? "Practice" : "تمرین"}</Link>
+                <Link to={`/app/review?domain=pharmacy&topic=${encodeURIComponent(pharmacyTopicId)}`} className="text-primary hover:underline" data-testid="pharmacy-strip-review">{isEn ? "Review this topic" : "مرور این موضوع"}</Link>
+              </span>
+            </nav>
+          )}
           <KnowledgeDocumentReader
             document={currentDoc}
             folder={currentFolder}
@@ -684,7 +706,7 @@ export const KnowledgeBaseView: React.FC = () => {
             isImportingPharmacy={isImportingPharmacy}
             scrollPositionsMap={documentScrollPositionsRef.current}
           />
-          )}
+          </>)}
         </div>
       </div>
 
