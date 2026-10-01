@@ -37,7 +37,7 @@ vi.mock("./offlineQueue", async (importOriginal) => ({
   enqueueOp: mocks.enqueueOp,
 }));
 
-import { deleteTask, persistTask, subscribeTasks, upsertNote, subscribeFolders, subscribeTags } from "./firestoreDataService";
+import { deleteTask, persistTask, subscribeTasks, upsertNote, persistNote, subscribeFolders, subscribeTags } from "./firestoreDataService";
 
 const cacheKey = "tasks:all:user-1";
 const baseTask = {
@@ -224,6 +224,17 @@ describe("firestoreDataService task cache rollback", () => {
       ...originalNote,
       content: "Concurrent content",
     }]);
+  });
+
+  it("distinguishes cloud, durable queue, and rejected note writes", async () => {
+    const note = { id: "note-outcome", title: "My text" };
+    await expect(persistNote("user-1", note)).resolves.toBe("synced");
+    mocks.setDoc.mockRejectedValueOnce(new Error("offline"));
+    mocks.enqueueOp.mockResolvedValueOnce(true);
+    await expect(persistNote("user-1", note)).resolves.toBe("queued");
+    mocks.setDoc.mockRejectedValueOnce(new Error("offline"));
+    mocks.enqueueOp.mockResolvedValueOnce(false);
+    await expect(persistNote("user-1", note)).resolves.toBe("failed");
   });
 
   it("reports an offline note save only when its owner-bound outbox write succeeds", async () => {

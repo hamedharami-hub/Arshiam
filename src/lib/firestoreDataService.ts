@@ -612,8 +612,14 @@ async function rollbackOptimisticNoteWrite(
   }
 }
 
+/** Explicit outcome for callers that display sync state; legacy callers keep boolean acceptance. */
+export type NoteSaveOutcome = "synced" | "queued" | "failed";
 export async function upsertNote(userId: string, note: Partial<NoteItem> & { id: string }): Promise<boolean> {
-  if (!userId || !note.id) return false;
+  return (await persistNote(userId, note)) !== "failed";
+}
+
+export async function persistNote(userId: string, note: Partial<NoteItem> & { id: string }): Promise<NoteSaveOutcome> {
+  if (!userId || !note.id) return "failed";
   const dataToSave = {
     ...note,
     user_id: userId,
@@ -647,7 +653,7 @@ export async function upsertNote(userId: string, note: Partial<NoteItem> & { id:
   try {
     const noteRef = doc(db, "users", userId, "notes", note.id);
     await setDoc(noteRef, dataToSave, { merge: true });
-    return true;
+    return "synced";
   } catch (err) {
     console.warn("[FirestoreData] upsertNote remote save failed, falling back to offline queue:", err);
     try {
@@ -660,10 +666,10 @@ export async function upsertNote(userId: string, note: Partial<NoteItem> & { id:
         match: { id: note.id },
       });
       if (!ok && cacheUpdated && cacheSnapshotRead) await rollbackOptimisticNoteWrite(userId, note.id, dataToSave, previousNote);
-      return ok;
+      return ok ? "queued" : "failed";
     } catch {
       if (cacheUpdated && cacheSnapshotRead) await rollbackOptimisticNoteWrite(userId, note.id, dataToSave, previousNote);
-      return false;
+      return "failed";
     }
   }
 }
