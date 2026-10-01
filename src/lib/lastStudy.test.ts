@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { getLastStudy, recordLastStudy, syncLastStudy, type LastStudy, type LastStudyRemote } from "./lastStudy";
+import { getLastStudy, getStudiedDocIds, recordLastStudy, syncLastStudy, syncStudiedDocs, type LastStudy, type LastStudyRemote } from "./lastStudy";
 
 class Cloud implements LastStudyRemote {
   doc = new Map<string, LastStudy>(); down = false;
@@ -50,5 +50,38 @@ describe("last study sync across devices (simulated with a shared in-memory acco
     await recordLastStudy("u1", { docId: "a", title: "A" }, cloud);
     expect(getLastStudy("u2")).toBeNull();
     expect(await syncLastStudy("u2", cloud)).toBeNull();
+  });
+});
+
+describe("opened-lesson status sync", () => {
+  class StudiedCloud extends Cloud {
+    ids = new Set<string>();
+    async getStudied() { if (this.down) throw new Error("offline"); return [...this.ids]; }
+    async addStudied(_uid: string, ids: string[]) { if (this.down) throw new Error("offline"); ids.forEach(i => this.ids.add(i)); }
+  }
+  it("a lesson opened on the phone is marked learning on the laptop", async () => {
+    const cloud = new StudiedCloud();
+    await recordLastStudy("u1", { docId: "a", title: "A" }, cloud);
+    await new Promise(r => setTimeout(r, 0));
+    localStorage.clear();
+    expect(getStudiedDocIds("u1").size).toBe(0);
+    expect([...(await syncStudiedDocs("u1", cloud))]).toEqual(["a"]);
+    expect(getStudiedDocIds("u1").has("a")).toBe(true);
+  });
+  it("lessons opened offline are pushed on the next sync and merged with the other device", async () => {
+    const cloud = new StudiedCloud(); cloud.ids.add("laptop-doc");
+    cloud.down = true;
+    await recordLastStudy("u1", { docId: "phone-doc", title: "P" }, cloud);
+    expect(cloud.ids.has("phone-doc")).toBe(false);
+    cloud.down = false;
+    const merged = await syncStudiedDocs("u1", cloud);
+    expect([...merged].sort()).toEqual(["laptop-doc", "phone-doc"]);
+    expect(cloud.ids.has("phone-doc")).toBe(true);
+  });
+  it("guests never touch the account", async () => {
+    const cloud = new StudiedCloud();
+    await recordLastStudy("guest", { docId: "g", title: "G" }, cloud);
+    expect(cloud.ids.size).toBe(0);
+    expect((await syncStudiedDocs("guest", cloud)).has("g")).toBe(true);
   });
 });

@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
 import { PharmacyStatusBadge, type LessonStatus } from "@/components/pharmacy/PharmacyStatusBadge";
-import { getLastStudy, getStudiedDocIds } from "@/lib/lastStudy";
+import { getLastStudy, getStudiedDocIds, syncStudiedDocs } from "@/lib/lastStudy";
 import { getLeitnerCards } from "@/lib/leitnerService";
 import { PHARMACY_ROOT_FOLDER_ID } from "@/lib/pharmacyConstants";
 import { splitPharmacyRootFolders } from "@/lib/pharmacyCategorySections";
@@ -49,7 +49,13 @@ export default function PharmacyHubView() {
     }).catch(() => undefined);
     return () => { active = false; };
   }, [userId]);
-  const studiedDocIds = useMemo(() => getStudiedDocIds(userId), [userId, lastStudy]);
+  const [studiedDocIds, setStudiedDocIds] = useState<Set<string>>(() => getStudiedDocIds(userId));
+  useEffect(() => {
+    let active = true;
+    setStudiedDocIds(getStudiedDocIds(userId));
+    void syncStudiedDocs(userId).then((ids) => { if (active) setStudiedDocIds(ids); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [userId]);
   const statusOf = (docId: string): LessonStatus => practisedDocIds.has(docId) ? "practised" : studiedDocIds.has(docId) || lastStudy?.docId === docId ? "learning" : "not_started";
 
   useEffect(() => {

@@ -3,6 +3,8 @@ export interface LastStudyRemote {
   get(uid: string): Promise<LastStudy | null>;
   /** Writes only when `value` is at least as new as the stored one; returns what is stored afterwards. */
   setIfNewer(uid: string, value: LastStudy): Promise<LastStudy>;
+  getStudied?(uid: string): Promise<string[]>;
+  addStudied?(uid: string, ids: string[]): Promise<void>;
 }
 
 const key = (uid: string) => `arshnaz:last-study:v1:${uid}`;
@@ -19,8 +21,15 @@ const studiedKey = (uid: string) => `arshnaz:studied-docs:v1:${uid}`;
 export function getStudiedDocIds(uid: string): Set<string> {
   try { const raw = JSON.parse(localStorage.getItem(studiedKey(uid)) ?? "[]"); return new Set(Array.isArray(raw) ? raw.filter((id): id is string => typeof id === "string") : []); } catch { return new Set(); }
 }
+const studiedPendingKey = (uid: string) => `arshnaz:studied-docs-pending:v1:${uid}`;
+function readIds(key: string): Set<string> {
+  try { const raw = JSON.parse(localStorage.getItem(key) ?? "[]"); return new Set(Array.isArray(raw) ? raw.filter((id): id is string => typeof id === "string") : []); } catch { return new Set(); }
+}
+function writeIds(key: string, ids: Set<string>) {
+  try { if (ids.size) localStorage.setItem(key, JSON.stringify([...ids])); else localStorage.removeItem(key); } catch { /* storage unavailable */ }
+}
 function markStudied(uid: string, docId: string) {
-  try { const ids = getStudiedDocIds(uid); ids.add(docId); localStorage.setItem(studiedKey(uid), JSON.stringify([...ids])); } catch { /* storage unavailable */ }
+  writeIds(studiedKey(uid), new Set([...getStudiedDocIds(uid), docId]));
 }
 
 export function getLastStudy(uid: string): LastStudy | null {
@@ -32,6 +41,18 @@ const isPending = (uid: string) => { try { return localStorage.getItem(pendingKe
 
 export function createFirestoreLastStudyRemote(): LastStudyRemote {
   return {
+    async getStudied(uid) {
+      const { db } = await import("@/lib/firebase");
+      const { doc, getDoc } = await import("firebase/firestore");
+      const snap = await getDoc(doc(db, "users", uid, "studyState", "studiedDocs"));
+      const ids = snap.exists() ? snap.data().ids : [];
+      return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : [];
+    },
+    async addStudied(uid, ids) {
+      const { db } = await import("@/lib/firebase");
+      const { doc, setDoc, arrayUnion } = await import("firebase/firestore");
+      await setDoc(doc(db, "users", uid, "studyState", "studiedDocs"), { ids: arrayUnion(...ids), updatedAt: Date.now() }, { merge: true });
+    },
     async get(uid) {
       const { db } = await import("@/lib/firebase");
       const { doc, getDoc } = await import("firebase/firestore");
@@ -62,6 +83,7 @@ export async function recordLastStudy(uid: string, doc: { docId: string; title: 
   setLocal(uid, value);
   markStudied(uid, doc.docId);
   if (!isCloudUid(uid)) return;
+  void pushStudied(uid, [doc.docId], remote);
   setPending(uid, true);
   try { await remote.setIfNewer(uid, value); setPending(uid, false); } catch { /* stays pending */ }
 }
@@ -79,4 +101,25 @@ export async function syncLastStudy(uid: string, remote: LastStudyRemote = defau
     return result.openedAt > local.openedAt ? result : local;
   }
   return local;
+}
+
+async function pushStudied(uid: string, ids: string[], remote: LastStudyRemote): Promise<void> {
+  if (!remote.addStudied || !ids.length) return;
+  const queued = readIds(studiedPendingKey(uid));
+  ids.forEach(id => queued.add(id));
+  writeIds(studiedPendingKey(uid), queued);
+  try { await remote.addStudied(uid, [...queued]); writeIds(studiedPendingKey(uid), new Set()); } catch { /* stays queued for the next sync */ }
+}
+
+/** Opened lessons from every device: local and account lists are merged, anything only local is pushed. Throws when the account cannot be reached. */
+export async function syncStudiedDocs(uid: string, remote: LastStudyRemote = defaultRemote): Promise<Set<string>> {
+  const local = getStudiedDocIds(uid);
+  if (!isCloudUid(uid) || !remote.getStudied) return local;
+  const stored = new Set(await remote.getStudied(uid));
+  const merged = new Set([...local, ...stored]);
+  writeIds(studiedKey(uid), merged);
+  const queued = readIds(studiedPendingKey(uid));
+  const toPush = [...merged].filter(id => !stored.has(id));
+  if (toPush.length || queued.size) await pushStudied(uid, toPush, remote);
+  return merged;
 }

@@ -795,6 +795,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<KnowledgeDocument | null>(null);
   const [plannerOpen, setPlannerOpen] = useState(false);
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const [studyProgress, setStudyProgress] = useState(() => loadMindMapStudyProgress(userId));
   const [viewMode, setViewMode] = useState<"canvas" | "outline">(() =>
     isCompactMindMapViewport() ? "outline" : "canvas",
@@ -1909,7 +1910,15 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   return (
     <div ref={fullscreenRootRef} className="flex-1 flex flex-col h-full w-full bg-background text-foreground overflow-hidden relative select-none font-sans fullscreen:min-h-screen fullscreen:min-w-full">
       {/* Top Floating Glass Toolbar */}
-      <div className="absolute top-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+      <div className="absolute top-3 left-3 right-3 z-30 flex items-center gap-1 rounded-2xl border border-border bg-card/90 p-1 shadow-lg backdrop-blur-xl sm:hidden" data-testid="mindmap-mobile-bar">
+        <button type="button" onClick={handleZoomOut} aria-label={isEn ? "Quick zoom out" : "کوچک‌نمایی سریع"} className="rounded-xl p-2 text-muted-foreground hover:bg-muted"><ZoomOut className="h-4 w-4" aria-hidden="true" /></button>
+        <span className="min-w-[2.75rem] text-center text-xs tabular-nums text-muted-foreground after:content-[attr(data-zoom)]" data-testid="mindmap-mobile-zoom" data-zoom={`${Math.round(zoomLevel * 100)}%`} aria-hidden="true" />
+        <button type="button" onClick={handleZoomIn} aria-label={isEn ? "Quick zoom in" : "بزرگ‌نمایی سریع"} className="rounded-xl p-2 text-muted-foreground hover:bg-muted"><ZoomIn className="h-4 w-4" aria-hidden="true" /></button>
+        <button type="button" onClick={() => goToRoot()} aria-label={isEn ? "Quick go to main cell" : "رفتن سریع به سلول اصلی"} className="rounded-xl p-2 text-muted-foreground hover:bg-muted" data-testid="mindmap-mobile-root"><LocateFixed className="h-4 w-4" aria-hidden="true" /></button>
+        <button type="button" onClick={() => setViewMode((mode) => (mode === "canvas" ? "outline" : "canvas"))} aria-label={viewMode === "canvas" ? (isEn ? "Switch to outline" : "رفتن به نمای فهرستی") : (isEn ? "Switch to map" : "رفتن به نمای نقشه")} className="rounded-xl p-2 text-muted-foreground hover:bg-muted">{viewMode === "canvas" ? <ListTree className="h-4 w-4" aria-hidden="true" /> : <GitBranch className="h-4 w-4" aria-hidden="true" />}</button>
+        <button type="button" onClick={() => setMobileToolsOpen((open) => !open)} aria-expanded={mobileToolsOpen} aria-label={isEn ? "More map tools" : "ابزارهای بیشتر نقشه"} data-testid="mindmap-mobile-more" className={`ms-auto rounded-xl p-2 ${mobileToolsOpen ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}><MoreHorizontal className="h-4 w-4" aria-hidden="true" /></button>
+      </div>
+      <div className={`absolute left-3 right-3 z-20 flex-wrap items-center justify-between gap-2 pointer-events-none ${mobileToolsOpen ? "top-16 flex max-h-[calc(100%-5rem)] overflow-y-auto rounded-2xl border border-border bg-background/98 p-2 shadow-xl pointer-events-auto" : "hidden"} sm:top-3 sm:flex sm:max-h-none sm:overflow-visible sm:bg-transparent sm:p-0 sm:backdrop-blur-none sm:pointer-events-none`} data-testid="mindmap-toolbar">
         {/* Left: Zoom & View Controls */}
         <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-card/90 border border-border backdrop-blur-xl shadow-lg pointer-events-auto">
           <button
@@ -2349,7 +2358,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
 
       {/* Breadcrumb Navigation Strip when focused on a branch */}
       {selectedScopeId !== "all" && (
-        <div className="absolute top-40 sm:top-16 start-3 z-20 flex items-center gap-1 px-3 py-1.5 rounded-2xl bg-card/90 border border-primary/25 backdrop-blur-xl shadow-md text-xs pointer-events-auto max-w-[92vw] overflow-x-auto">
+        <div className="absolute top-16 sm:top-16 start-3 z-20 flex items-center gap-1 px-3 py-1.5 rounded-2xl bg-card/90 border border-primary/25 backdrop-blur-xl shadow-md text-xs pointer-events-auto max-w-[92vw] overflow-x-auto">
           <span className="text-[10px] font-bold text-muted-foreground uppercase me-1 shrink-0">
             {isEn ? "Branch:" : "شاخه:"}
           </span>
@@ -2533,7 +2542,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
       ) : (
         <div
           aria-label={isEn ? "Knowledge mind map outline" : "فهرست نقشه ذهنی پایگاه دانش"}
-          className="absolute inset-0 overflow-y-auto overscroll-contain px-3 pb-24 pt-44 sm:px-6 sm:pt-28"
+          className="absolute inset-0 overflow-y-auto overscroll-contain px-3 pb-24 pt-20 sm:px-6 sm:pt-28"
         >
           {outlineEntries.length > 0 ? (
             <ul className="mx-auto max-w-4xl space-y-3" aria-label={isEn ? "Knowledge hierarchy" : "ساختار مطالب"}>

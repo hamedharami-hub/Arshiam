@@ -120,6 +120,22 @@ describe("KnowledgeMindMapView outline mode", () => {
     }
   });
 
+  it("offers a compact mobile bar whose overflow button opens the full toolbar", async () => {
+    render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);
+    await screen.findByText("Study Folder");
+    const toolbar = screen.getByTestId("mindmap-toolbar");
+    expect(toolbar.className).toMatch(/\bhidden\b/);
+    const more = screen.getByTestId("mindmap-mobile-more");
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(more);
+    expect(more).toHaveAttribute("aria-expanded", "true");
+    expect(toolbar.className).not.toMatch(/(^|\s)hidden(\s|$)/);
+    fireEvent.click(screen.getByLabelText("Quick zoom in"));
+    expect(screen.getByTestId("mindmap-mobile-zoom").dataset.zoom).toMatch(/%$/);
+    fireEvent.click(screen.getByLabelText("Switch to outline"));
+    expect(screen.getByRole("button", { name: "Outline view" })).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("reveals branches step by step and dims non-focused nodes in focus mode", async () => {
     const previousWidth = window.innerWidth;
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
