@@ -124,10 +124,11 @@ export function normalizeLearningWorkspace(value: unknown): LearningWorkspace | 
   if (new TextEncoder().encode(JSON.stringify(result)).length > 650000) throw new Error('This lesson workspace is too large. Split it into smaller lessons.');
   return result;
 }
-export function learningSourceUrl(documentId: string, cardId?: string, questionId?: string) {
+export function learningSourceUrl(documentId: string, cardId?: string, questionId?: string, language?: LearningLanguage) {
   const query = new URLSearchParams({ docId: documentId, lesson: documentId });
   if (cardId) query.set('card', cardId);
   if (questionId) query.set('question', questionId);
+  if (language) query.set('sourceLang', language);
   return `/app/knowledge?${query}`;
 }
 export function captureLearningAnchor(document: KnowledgeDocument, language: LearningLanguage, quote: string): LearningAnchor {

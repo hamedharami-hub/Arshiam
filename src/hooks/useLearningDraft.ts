@@ -54,8 +54,8 @@ export function useLearningDraft<T>(key: string, initial: T, baseline: string, v
           if (cached.baseline === baseline) { current.current = cached; setState(cached); }
           else setConflict(cached);
         }
-        setStatus(cached ? 'saved' : 'saving');
-      } catch { if (!cancelled) setStatus('unavailable'); }
+        setStatus(validCached ? 'saved' : 'saving');
+      } catch { allowWrites.current = false; if (!cancelled) setStatus('unavailable'); }
       if (!cancelled) setReady(true);
     })();
     return () => { cancelled = true; epoch.current++; };

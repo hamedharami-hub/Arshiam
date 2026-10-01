@@ -317,7 +317,16 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 
   // Open each document in the user's requested default reading language.
   useEffect(() => {
-    if (documentId) setDocLangMode("en");
+    const syncSourceLanguage = () => {
+      const params = new URLSearchParams(window.location.search);
+      const own = params.get('docId') === documentId || params.get('lesson') === documentId;
+      const language = params.get('sourceLang');
+      if (documentId && own && (language === 'fa' || language === 'en' || language === 'bilingual')) setDocLangMode(language);
+    };
+    if (documentId) setDocLangMode('en');
+    syncSourceLanguage();
+    window.addEventListener('popstate', syncSourceLanguage);
+    return () => window.removeEventListener('popstate', syncSourceLanguage);
   }, [documentId]);
 
   // Attach interactive delegated click listeners (flip cards, quizzes, pairs, cases, etc.)
@@ -460,9 +469,13 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   };
 
   const cycleDocumentLanguage = () => {
-    setDocLangMode((current) =>
-      current === "en" ? "fa" : current === "fa" ? "bilingual" : "en"
-    );
+    const next = docLangMode === "en" ? "fa" : docLangMode === "fa" ? "bilingual" : "en";
+    setDocLangMode(next);
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('docId') === documentId || url.searchParams.get('lesson') === documentId) {
+      url.searchParams.set('sourceLang', next);
+      window.history.replaceState(window.history.state, '', url);
+    }
   };
 
   const languageModeLabel =

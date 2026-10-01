@@ -1246,7 +1246,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
         color,
         accentColor,
         dataId,
-        sourceHref: sourceCard?.document_id ? learningSourceUrl(sourceCard.document_id, sourceCard.source_card_id, sourceCard.source_question_id) : undefined,
+        sourceHref: sourceCard?.document_id ? learningSourceUrl(sourceCard.document_id, sourceCard.source_card_id, sourceCard.source_question_id, sourceCard.source_anchor?.language) : undefined,
         docRef,
       };
 

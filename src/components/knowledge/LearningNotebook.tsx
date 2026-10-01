@@ -38,7 +38,7 @@ export const LearningNotebook = forwardRef<LearningNotebookHandle, { document: K
   const incoming = searchParams.get('question') || searchParams.get('annotation');
   useEffect(() => { if (incoming && searchParams.get('docId') === document.id) { setTab(searchParams.has('question') ? 'questions' : 'notes'); setOpen(true); } }, [incoming, searchParams, document.id]);
   const source = (anchor: LearningAnchor) => {
-    const url = new URL(learningSourceUrl(document.id, anchor.card_id), window.location.origin);
+    const url = new URL(learningSourceUrl(document.id, anchor.card_id, undefined, anchor.language), window.location.origin);
     if (!anchor.card_id) url.searchParams.set('lessonTab', 'source');
     window.history.pushState({ ...window.history.state, idx: (window.history.state?.idx || 0) + 1 }, '', url);
     window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }));

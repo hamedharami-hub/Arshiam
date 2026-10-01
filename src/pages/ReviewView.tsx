@@ -67,8 +67,8 @@ export const ReviewView: React.FC = () => {
 
   const userId = user?.id || "anonymous-review-user";
 
-  const handleOpenDoc = (docId: string, sourceCardId?: string, sourceQuestionId?: string) => {
-    navigate(learningSourceUrl(docId, sourceCardId, sourceQuestionId));
+  const handleOpenDoc = (docId: string, sourceCardId?: string, sourceQuestionId?: string, sourceLanguage?: 'fa' | 'en') => {
+    navigate(learningSourceUrl(docId, sourceCardId, sourceQuestionId, sourceLanguage));
   };
 
   const handleStartMindMapReview = useCallback((scope: KnowledgeMindMapReviewScope) => {
