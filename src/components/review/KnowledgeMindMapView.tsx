@@ -1,3 +1,4 @@
+import { learningSourceUrl } from "@/lib/learningWorkspace";
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { focusSet, nextRevealTarget, revealProgress } from "@/lib/mindMapFocus";
 import {
@@ -127,6 +128,7 @@ interface MindMapNode {
   appearance?: KnowledgeMindMapNodeStyle;
   dataId?: string;
   docRef?: KnowledgeDocument;
+  sourceHref?: string;
 }
 
 type MindMapReviewScopeResolver = (node: MindMapNode) => KnowledgeMindMapReviewScope | null;
@@ -226,6 +228,7 @@ const MindMapNodeActions = React.memo<MindMapNodeActionsProps>(({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
+          {node.sourceHref && <DropdownMenuItem asChild><a href={node.sourceHref}><Eye className="me-2 h-4 w-4 text-primary" />{isEn ? "Open exact source" : "بازکردن منبع دقیق"}</a></DropdownMenuItem>}
           {hasReadAction && (
             <DropdownMenuItem onSelect={() => node.docRef && onOpenPreview(node.docRef)}>
               <Eye className="me-2 h-4 w-4 text-primary" />
@@ -1225,6 +1228,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
         }
       }
 
+      const sourceCard = type === "card" ? cards.find(card => card.id === dataId) : undefined;
       const item: MindMapNode = {
         id,
         type,
@@ -1242,6 +1246,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
         color,
         accentColor,
         dataId,
+        sourceHref: sourceCard?.document_id ? learningSourceUrl(sourceCard.document_id, sourceCard.source_card_id, sourceCard.source_question_id) : undefined,
         docRef,
       };
 

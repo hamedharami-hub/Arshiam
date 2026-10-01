@@ -1,3 +1,5 @@
+import { runTransaction } from "firebase/firestore";
+import { sanitizeKnowledgeHtml } from "./knowledgeHtmlSanitizer";
 import {
   db,
   auth,
@@ -137,6 +139,40 @@ export async function saveEntityToFirestoreWithOutcome(
 
   try {
     const docRef = doc(db, "users", userId, collectionName, docId);
+    if (collectionName === "leitner_cards" && data._create_once === true) {
+      if (auth.currentUser?.uid !== userId) return "failed";
+      return await runTransaction(db, async transaction => {
+        const snapshot = await transaction.get(docRef);
+        if (snapshot.exists()) return "saved";
+        const { _create_once, ...clean } = data; void _create_once;
+        if (auth.currentUser?.uid !== userId) return "failed";
+        transaction.set(docRef, stripUndefinedDeep({ ...clean, id: docId, userId, updatedAt: new Date().toISOString() }));
+        return "saved";
+      });
+    }
+    if (collectionName === "knowledge_documents" && (typeof data._expected_learning_revision === "string" || typeof data._expected_document_updated_at === "string")) {
+      if (auth.currentUser?.uid !== userId) return "failed";
+      return await runTransaction(db, async transaction => {
+        const snapshot = await transaction.get(docRef);
+        if (!snapshot.exists()) return "stale";
+        const remote = snapshot.data();
+        if (data.last_mutation_id && remote?.last_mutation_id === data.last_mutation_id) return "saved";
+        const revision = remote?.learning_workspace?.revision || "";
+        if (data._learning_patch_only !== true && data._expected_document_updated_at !== undefined && remote?.updated_at !== data._expected_document_updated_at) return "stale";
+        if (snapshot.exists() && data._learning_patch_only === true && revision === data.learning_workspace?.revision) return "saved";
+        if (snapshot.exists() && ((typeof data._expected_learning_revision === "string" && revision !== data._expected_learning_revision && revision !== data.learning_workspace?.revision) ||
+          (data._learning_patch_only === true && (sanitizeKnowledgeHtml(remote?.content_html || "") !== sanitizeKnowledgeHtml(data.content_html || "") ||
+          sanitizeKnowledgeHtml(remote?.content_en || "") !== sanitizeKnowledgeHtml(data.content_en || ""))))) return "stale";
+        const { _expected_learning_revision, _expected_document_updated_at, _learning_patch_only, learning_workspace_unavailable, ...clean } = data;
+        void _expected_learning_revision; void _expected_document_updated_at; void learning_workspace_unavailable;
+        if (auth.currentUser?.uid !== userId) return "failed";
+        transaction.set(docRef, stripUndefinedDeep(_learning_patch_only && snapshot.exists()
+          ? { learning_workspace: clean.learning_workspace, last_mutation_id: clean.last_mutation_id, updated_at: clean.updated_at, updatedAt: new Date().toISOString() }
+          : { ...clean, id: docId, userId, updatedAt: new Date().toISOString() }), { merge: true });
+        return "saved";
+      });
+    }
+
 
     // Conflict protection: check if remote document is newer than incoming local data
     try {

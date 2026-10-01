@@ -1,3 +1,5 @@
+import { useLearningDraft } from "@/hooks/useLearningDraft";
+import { Undo2, Redo2 } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import {
   Save,
@@ -35,6 +37,7 @@ import { toast } from "sonner";
 
 interface KnowledgeDocumentEditorModalProps {
   open: boolean;
+  userId?: string;
   onOpenChange: (open: boolean) => void;
   document: KnowledgeDocument | null;
   initialFolderId: string | null;
@@ -70,8 +73,10 @@ function createEmptyReviewEvidence(): KnowledgeContentReviewEvidence {
   };
 }
 
-export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModalProps> = ({
+export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModalProps> = props => props.open ? <KnowledgeDocumentEditorForm key={`${props.userId || props.document?.user_id || 'new'}:${props.document?.id || 'new'}`} {...props} /> : null;
+const KnowledgeDocumentEditorForm: React.FC<KnowledgeDocumentEditorModalProps> = ({
   open,
+  userId,
   onOpenChange,
   document,
   initialFolderId,
@@ -79,13 +84,11 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
   onSave,
 }) => {
   const { isEn } = useBilingual();
-  const [title, setTitle] = useState("");
-  const [titleEn, setTitleEn] = useState("");
-  const [folderId, setFolderId] = useState<string | null>(initialFolderId);
-  const [contentHtml, setContentHtml] = useState("");
-  const [contentEn, setContentEn] = useState("");
-  const [tagsInput, setTagsInput] = useState("");
-  const [sourceUrl, setSourceUrl] = useState("");
+  const initialDraft = React.useMemo(() => ({ title: document?.title || '', titleEn: document?.title_en || '', folderId: document?.folder_id || initialFolderId, contentHtml: document?.content_html || '', contentEn: document?.content_en || '', tagsInput: document?.tags?.join(', ') || '', sourceUrl: document?.source_url || '', reviewStatus: document?.content_review_status || 'unreviewed' as KnowledgeDocument['content_review_status'], reviewEvidence: document?.content_review_evidence || createEmptyReviewEvidence(), reviewTouched: false }), []);
+  const draft = useLearningDraft(`knowledge-editor:${userId || document?.user_id || 'new'}:${document?.id || 'new'}`, initialDraft, document?.updated_at || 'new');
+  const { title, titleEn, folderId, contentHtml, contentEn, tagsInput, sourceUrl, reviewStatus, reviewEvidence, reviewTouched } = draft.value;
+  const setter = <K extends keyof typeof initialDraft,>(key: K): React.Dispatch<React.SetStateAction<typeof initialDraft[K]>> => value => draft.change(previous => ({ ...previous, [key]: typeof value === 'function' ? (value as (value: typeof initialDraft[K]) => typeof initialDraft[K])(previous[key]) : value }), true);
+  const setTitle = setter('title'), setTitleEn = setter('titleEn'), setFolderId = setter('folderId'), setContentHtml = setter('contentHtml'), setContentEn = setter('contentEn'), setTagsInput = setter('tagsInput'), setSourceUrl = setter('sourceUrl'), setReviewStatus = setter('reviewStatus'), setReviewEvidence = setter('reviewEvidence'), setReviewTouched = setter('reviewTouched');
   const [langTab, setLangTab] = useState<"fa" | "en">("fa");
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
   const [isSaving, setIsSaving] = useState(false);
@@ -93,9 +96,6 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
   const [isTranslating, setIsTranslating] = useState(false);
   const [interactiveModalOpen, setInteractiveModalOpen] = useState(false);
   const [showMetadata, setShowMetadata] = useState(false);
-  const [reviewStatus, setReviewStatus] = useState<KnowledgeDocument["content_review_status"]>("unreviewed");
-  const [reviewEvidence, setReviewEvidence] = useState<KnowledgeContentReviewEvidence>(createEmptyReviewEvidence);
-  const [reviewTouched, setReviewTouched] = useState(false);
   const currentReviewState = document
     ? getKnowledgeReviewState(
         document,
@@ -103,14 +103,10 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
       )
     : "not-required";
 
-  const baselineSig = JSON.stringify(document
-    ? [document.title || "", document.title_en || "", document.folder_id || null, document.content_html || "", document.content_en || "", document.tags ? document.tags.join(", ") : "", document.source_url || ""]
-    : ["", "", initialFolderId ?? null, "", "", "", ""]);
-  const currentSig = JSON.stringify([title, titleEn, folderId, contentHtml, contentEn, tagsInput, sourceUrl]);
-  const isDirty = open && !isSaving && currentSig !== baselineSig;
-
-  const requestClose = () => {
-    if (isDirty && !window.confirm(isEn ? "Discard unsaved changes?" : "تغییرات ذخیره‌نشده از بین می‌رود. خارج می‌شوید؟")) return;
+  const isDirty = open && !isSaving && JSON.stringify(draft.value) !== JSON.stringify(initialDraft);
+  const requestClose = async () => {
+    const retained = await draft.flush();
+    if (!retained && isDirty && !window.confirm(isEn ? 'Device draft storage is unavailable. Close without saving?' : 'ذخیرهٔ پیش‌نویس دستگاه ممکن نیست. بدون ذخیره خارج می‌شوید؟')) return;
     onOpenChange(false);
   };
 
@@ -141,36 +137,9 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
   };
 
   useEffect(() => {
-    if (document) {
-      setTitle(document.title || "");
-      setTitleEn(document.title_en || "");
-      setFolderId(document.folder_id || null);
-      setContentHtml(document.content_html || "");
-      setContentEn(document.content_en || "");
-      setTagsInput(document.tags ? document.tags.join(", ") : "");
-      setSourceUrl(document.source_url || "");
-      setReviewStatus(document.content_review_status || "unreviewed");
-      setReviewEvidence(document.content_review_evidence || createEmptyReviewEvidence());
-      setReviewTouched(false);
-      if (document.folder_id || (document.tags && document.tags.length > 0) || document.source_url) {
-        setShowMetadata(true);
-      }
-    } else {
-      setTitle("");
-      setTitleEn("");
-      setFolderId(initialFolderId);
-      setContentHtml("");
-      setContentEn("");
-      setTagsInput("");
-      setSourceUrl("");
-      setReviewStatus("unreviewed");
-      setReviewEvidence(createEmptyReviewEvidence());
-      setReviewTouched(false);
-      setShowMetadata(Boolean(initialFolderId));
-    }
-    setLangTab("fa");
-    setActiveTab("edit");
-  }, [document, initialFolderId, open]);
+    setShowMetadata(Boolean(document?.folder_id || document?.tags?.length || document?.source_url || initialFolderId));
+    setLangTab('fa'); setActiveTab('edit');
+  }, [document?.id, initialFolderId]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -213,8 +182,10 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
     }
 
     setIsBeautifying(true);
+    const snapshot = draft.value;
     try {
       const formatted = await smartAiBeautifyDocument(currentTitle || "Document", currentContent);
+      if (!draft.isCurrent(snapshot)) { toast.info(isEn ? "The draft changed. The older formatting result was not applied." : "پیش‌نویس تغییر کرده؛ نتیجهٔ قدیمی اعمال نشد."); return; }
       if (langTab === "fa") {
         setContentHtml(formatted);
       } else {
@@ -240,6 +211,7 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
     }
 
     setIsTranslating(true);
+    const snapshot = draft.value;
     try {
       toast.info(isEn ? "Generating English translation..." : "در حال تولید نسخه انگلیسی درس...");
       const res = await generateBilingualLesson({
@@ -249,6 +221,7 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
         targetLang: "en",
       });
 
+      if (!draft.isCurrent(snapshot)) { toast.info(isEn ? "The draft changed. The older translation was not applied." : "پیش‌نویس تغییر کرده؛ ترجمهٔ قدیمی اعمال نشد."); return; }
       setTitleEn(res.title_en);
       setContentEn(res.content_en);
       setLangTab("en");
@@ -294,7 +267,9 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
       return;
     }
 
+    if (!draft.ready || draft.conflict) return;
     setIsSaving(true);
+    const snapshot = draft.value;
     try {
       const tags = tagsInput
         .split(/[,،]+/)
@@ -316,7 +291,7 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
           : {}),
       });
 
-      onOpenChange(false);
+      if (draft.isCurrent(snapshot)) { await draft.clear(); onOpenChange(false); }
     } catch (err: any) {
       toast.error(err.message || "Failed to save document");
     } finally {
@@ -348,6 +323,13 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
         </DialogHeader>
 
         <form ref={formRef} onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+          <div className="flex flex-wrap items-center gap-2 px-4 py-2 text-xs text-muted-foreground">
+            <button type="button" disabled={!draft.canUndo || isSaving} onClick={draft.undo} aria-label={isEn ? 'Undo' : 'بازگردانی'} className="grid h-11 w-11 place-items-center rounded-lg hover:bg-muted"><Undo2 className="h-4 w-4" /></button>
+            <button type="button" disabled={!draft.canRedo || isSaving} onClick={draft.redo} aria-label={isEn ? 'Redo' : 'انجام دوباره'} className="grid h-11 w-11 place-items-center rounded-lg hover:bg-muted"><Redo2 className="h-4 w-4" /></button>
+            <span role="status">{draft.status === 'saved' ? (isEn ? 'Device draft retained' : 'پیش‌نویس دستگاه محفوظ است') : draft.status === 'unavailable' ? (isEn ? 'Device draft storage unavailable' : 'ذخیرهٔ پیش‌نویس دستگاه در دسترس نیست') : (isEn ? 'Saving device draft…' : 'ذخیرهٔ پیش‌نویس…')}</span>
+            {draft.conflict && <div role="alert"><p>{isEn ? 'A draft from another revision exists. Review before restoring.' : 'پیش‌نویس نسخهٔ دیگری موجود است؛ پیش از بازیابی بررسی کنید.'}</p><button type="button" className="min-h-11 px-2 text-primary" onClick={draft.restore}>{isEn ? 'Restore draft' : 'بازیابی پیش‌نویس'}</button><button type="button" className="min-h-11 px-2" onClick={draft.dismissConflict}>{isEn ? 'Use current version' : 'نسخهٔ فعلی'}</button></div>}
+          </div>
+          <fieldset disabled={!draft.ready || isSaving || Boolean(draft.conflict)} className="contents">
           <div className="p-4 sm:p-5 space-y-3.5 border-b border-border bg-muted/20 shrink-0">
             {/* Title Inputs: Persian and English */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -833,6 +815,7 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
               </span>
             </button>
           </div>
+          </fieldset>
         </form>
       </DialogContent>
 

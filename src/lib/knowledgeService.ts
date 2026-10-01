@@ -1,3 +1,4 @@
+import { normalizeLearningWorkspace } from "./learningWorkspace";
 import { firebaseStore } from "./firebaseStore";
 import { cacheGet, cacheSet, canReplayForOwner, enqueueOp, getPendingOps } from "./offlineQueue";
 import { saveEntityToFirestore, deleteEntityFromFirestore } from "./firestoreSync";
@@ -63,8 +64,13 @@ export function normalizeKnowledgeDocument(document: KnowledgeDocument): Knowled
     ? undefined
     : normalizeKnowledgeMediaAttachments(document.attachments, document.user_id);
 
+  let workspace = document.learning_workspace;
+  let unavailable = false;
+  try { workspace = normalizeLearningWorkspace(workspace); } catch { unavailable = true; workspace = undefined; }
   return {
     ...document,
+    ...(document.learning_workspace !== undefined ? { learning_workspace: workspace } : {}),
+    ...(unavailable ? { learning_workspace_unavailable: true } : {}),
     content_html: contentHtml,
     content_en: contentEn,
     plain_text: stripHtmlToPlainText(contentHtml) || stripHtmlToPlainText(contentPlain),
@@ -457,7 +463,7 @@ export async function getKnowledgeDocument(
   return docs.find((d) => d.id === docId) || null;
 }
 
-export async function createKnowledgeDocument(
+async function createKnowledgeDocumentUnlocked(
   userId: string,
   data: {
     folder_id?: string | null;
@@ -517,7 +523,7 @@ export async function createKnowledgeDocument(
   return doc;
 }
 
-export async function updateKnowledgeDocumentWithPersistence(
+async function updateKnowledgeDocumentWithPersistenceUnlocked(
   userId: string,
   docId: string,
   patch: Partial<KnowledgeDocument>
@@ -532,6 +538,7 @@ export async function updateKnowledgeDocumentWithPersistence(
   const current = existing[idx];
   const normalizedPatch: Partial<KnowledgeDocument> = {
     ...patch,
+    ...(patch.learning_workspace !== undefined ? { learning_workspace: normalizeLearningWorkspace(patch.learning_workspace) } : {}),
     ...(patch.content_html !== undefined ? { content_html: sanitizeKnowledgeHtml(patch.content_html) } : {}),
     ...(patch.content_en !== undefined ? { content_en: sanitizeKnowledgeHtml(patch.content_en) } : {}),
     ...(patch.source_url !== undefined ? { source_url: normalizeSourceUrl(patch.source_url) } : {}),
@@ -555,6 +562,10 @@ export async function updateKnowledgeDocumentWithPersistence(
   const updated: KnowledgeDocument = {
     ...current,
     ...safePatch,
+    _learning_patch_only: patch._learning_patch_only === true,
+    _expected_learning_revision: patch._expected_learning_revision ?? current._expected_learning_revision ?? current.learning_workspace?.revision ?? '',
+    _expected_document_updated_at: patch._expected_document_updated_at ?? current._expected_document_updated_at ?? current.updated_at,
+    last_mutation_id: makeId(),
     plain_text: plainText,
     updated_at: new Date().toISOString(),
   };
@@ -567,6 +578,7 @@ export async function updateKnowledgeDocumentWithPersistence(
   );
   requireMutationAccepted(saveResult.accepted, "Document update");
 
+  if (saveResult.persistence === "synced") { delete updated._expected_learning_revision; delete updated._learning_patch_only; delete updated._expected_document_updated_at; }
   const next = [...existing];
   next[idx] = updated;
   await cacheSet(cacheKey, next);
@@ -583,7 +595,7 @@ export async function updateKnowledgeDocument(
   return result.document;
 }
 
-export async function deleteKnowledgeDocument(userId: string, docId: string): Promise<boolean> {
+async function deleteKnowledgeDocumentUnlocked(userId: string, docId: string): Promise<boolean> {
   if (!userId || !docId) return false;
 
   const cacheKey = getDocsCacheKey(userId);
@@ -795,3 +807,15 @@ export async function searchKnowledgeDocuments(
     );
   });
 }
+
+// Serialise document cache read-modify-write operations for one owner, including
+// updates to different lessons that share the same cached document array.
+const knowledgeMutationTails = new Map<string, Promise<unknown>>();
+async function withKnowledgeMutation<T>(owner: string, action: () => Promise<T>): Promise<T> {
+  const previous = knowledgeMutationTails.get(owner) || Promise.resolve();
+  const next = previous.catch(() => undefined).then(action); knowledgeMutationTails.set(owner, next);
+  try { return await next; } finally { if (knowledgeMutationTails.get(owner) === next) knowledgeMutationTails.delete(owner); }
+}
+export const createKnowledgeDocument = (...args: Parameters<typeof createKnowledgeDocumentUnlocked>) => withKnowledgeMutation(args[0], () => createKnowledgeDocumentUnlocked(...args));
+export const updateKnowledgeDocumentWithPersistence = (...args: Parameters<typeof updateKnowledgeDocumentWithPersistenceUnlocked>) => withKnowledgeMutation(args[0], () => updateKnowledgeDocumentWithPersistenceUnlocked(...args));
+export const deleteKnowledgeDocument = (...args: Parameters<typeof deleteKnowledgeDocumentUnlocked>) => withKnowledgeMutation(args[0], () => deleteKnowledgeDocumentUnlocked(...args));

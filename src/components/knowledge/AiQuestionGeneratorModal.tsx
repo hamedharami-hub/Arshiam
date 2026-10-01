@@ -1,3 +1,7 @@
+import { useLearningDraft } from "@/hooks/useLearningDraft";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Undo2, Redo2 } from "lucide-react";
+import { learningId, learningVersion, type LearningAnchor } from "@/lib/learningWorkspace";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Sparkles,
@@ -21,7 +25,7 @@ import {
   generateQuestionsFromText,
   type GeneratedQuestionItem,
 } from "@/lib/knowledgeQuestionGenerator";
-import { createLeitnerCard } from "@/lib/leitnerService";
+import { createLeitnerCardWithReceipt } from "@/lib/leitnerService";
 import { toast } from "sonner";
 
 interface AiQuestionGeneratorModalProps {
@@ -32,6 +36,7 @@ interface AiQuestionGeneratorModalProps {
   documentTitle?: string;
   folderId?: string | null;
   userId: string;
+  sourceAnchor?: LearningAnchor;
   onCardsSaved?: (count: number) => void;
   onOpenReview?: () => void;
 }
@@ -44,19 +49,20 @@ export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> =
   documentTitle,
   folderId,
   userId,
+  sourceAnchor: suppliedAnchor,
   onCardsSaved,
   onOpenReview,
 }) => {
   const { isEn } = useBilingual();
   const [activeTab, setActiveTab] = useState<"ai" | "manual">("ai");
-  const [snippetText, setSnippetText] = useState(initialText);
-  const [generationMode, setGenerationMode] = useState<
-    "auto" | "clinical_pearl" | "warning" | "dosing"
-  >("auto");
-  const [customPrompt, setCustomPrompt] = useState("");
+  const initialDraft = React.useMemo(() => ({ snippetText: initialText, generationMode: 'auto' as 'auto' | 'clinical_pearl' | 'warning' | 'dosing', customPrompt: '', candidateCards: [] as GeneratedQuestionItem[], manualFront: '', manualBack: '', manualFrontFa: '', manualBackFa: '', manualFrontEn: '', manualBackEn: '', manualClue: '', manualId: learningId('manual'), sourceAnchor: suppliedAnchor }), []);
+  const draft = useLearningDraft(`learning-generator:${userId}:${documentId || 'unlinked'}`, initialDraft, `${suppliedAnchor?.version || 'source'}:${learningVersion(initialText)}`);
+  const { snippetText, generationMode, customPrompt, candidateCards, manualFront, manualBack, manualFrontFa, manualBackFa, manualFrontEn, manualBackEn, manualClue, sourceAnchor, manualId } = draft.value;
+  const setter = <K extends keyof typeof initialDraft,>(key: K): React.Dispatch<React.SetStateAction<typeof initialDraft[K]>> => value => draft.change(previous => ({ ...previous, [key]: typeof value === 'function' ? (value as (previous: typeof initialDraft[K]) => typeof initialDraft[K])(previous[key]) : value }), true);
+  const setSnippetText = setter('snippetText'), setGenerationMode = setter('generationMode'), setCustomPrompt = setter('customPrompt'), setCandidateCards = setter('candidateCards');
+  const setManualFront = setter('manualFront'), setManualBack = setter('manualBack'), setManualFrontFa = setter('manualFrontFa'), setManualBackFa = setter('manualBackFa'), setManualFrontEn = setter('manualFrontEn'), setManualBackEn = setter('manualBackEn'), setManualClue = setter('manualClue');
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [candidateCards, setCandidateCards] = useState<GeneratedQuestionItem[]>([]);
   const [successSavedCount, setSuccessSavedCount] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const generationRequestIdRef = useRef(0);
@@ -70,17 +76,12 @@ export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> =
     setIsGenerating(false);
   }, []);
 
-  // Manual Tab Form State
-  const [manualFront, setManualFront] = useState("");
-  const [manualBack, setManualBack] = useState("");
-  const [manualFrontFa, setManualFrontFa] = useState("");
-  const [manualBackFa, setManualBackFa] = useState("");
-  const [manualFrontEn, setManualFrontEn] = useState("");
-  const [manualBackEn, setManualBackEn] = useState("");
-  const [manualClue, setManualClue] = useState("");
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; invalidateGeneration(); }; }, [invalidateGeneration]);
 
   const handleGenerate = useCallback(
     async (textToUse: string) => {
+      if (!draft.ready || draft.conflict) return;
       const targetText = textToUse || snippetText;
       if (!targetText || !targetText.trim()) {
         setErrorMsg(
@@ -131,7 +132,7 @@ export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> =
         }
       }
     },
-    [snippetText, documentTitle, generationMode, customPrompt, isEn]
+    [snippetText, documentTitle, generationMode, customPrompt, isEn, draft.ready, draft.conflict, setCandidateCards]
   );
 
   // Sync the selected source when the modal opens or the source document changes.
@@ -152,10 +153,8 @@ export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> =
     if (resetSourceRef.current !== sourceKey) {
       invalidateGeneration();
       resetSourceRef.current = sourceKey;
-      setSnippetText(initialText || "");
       setErrorMsg(null);
       setSuccessSavedCount(null);
-      setCandidateCards([]);
     }
   }, [open, documentId, folderId, initialText, documentTitle, invalidateGeneration]);
 
@@ -193,13 +192,18 @@ export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> =
       return;
     }
 
+    if (!draft.ready || draft.conflict) return;
     setIsSaving(true);
     setErrorMsg(null);
 
+    let queued = false;
     let saved = 0;
     try {
       for (const card of selected) {
-        await createLeitnerCard(userId, {
+        const receipt = await createLeitnerCardWithReceipt(userId, {
+          idempotency_key: card.id,
+          source_anchor: sourceAnchor,
+          source_card_id: sourceAnchor?.card_id,
           front: card.front,
           back: card.back,
           ...(card.front_fa?.trim() ? { front_fa: card.front_fa.trim() } : {}),
@@ -211,18 +215,22 @@ export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> =
           folder_id: folderId || null,
           box: 1,
         });
+        if (!alive.current) return;
+        queued ||= receipt.persistence === "queued";
         saved++;
       }
 
       setSuccessSavedCount(saved);
-      setCandidateCards([]);
-      toast.success(
+      const savedIds = new Set(selected.map(card => card.id));
+      setCandidateCards(previous => previous.filter(card => !savedIds.has(card.id)));
+      toast.success(queued ? (isEn ? "Cards queued for sync." : "کارت‌ها در صف همگام‌سازی هستند.") : (
         isEn
           ? `${saved} card(s) added to Leitner Box and Mind Map!`
-          : `${saved} کارت با موفقیت به جعبه لایتنر و نقشه ذهنی افزوده شد!`
+          : `${saved} کارت با موفقیت به جعبه لایتنر و نقشه ذهنی افزوده شد!`)
       );
       if (onCardsSaved) onCardsSaved(saved);
     } catch (err: any) {
+      if (!alive.current) return;
       console.error("Error saving Leitner cards:", err);
       if (saved > 0) {
         const savedIds = new Set(selected.slice(0, saved).map((card) => card.id));
@@ -258,11 +266,15 @@ export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> =
       return;
     }
 
+    if (!draft.ready || draft.conflict) return;
     setIsSaving(true);
     setErrorMsg(null);
 
     try {
-      await createLeitnerCard(userId, {
+      const receipt = await createLeitnerCardWithReceipt(userId, {
+        idempotency_key: manualId,
+        source_anchor: sourceAnchor,
+        source_card_id: sourceAnchor?.card_id,
         front: manualFront,
         back: manualBack,
         ...(manualFrontFa.trim() ? { front_fa: manualFrontFa.trim() } : {}),
@@ -275,7 +287,9 @@ export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> =
         box: 1,
       });
 
+      if (!alive.current) return;
       setSuccessSavedCount(1);
+      draft.change(previous => ({ ...previous, manualId: learningId("manual") }), false);
       setManualFront("");
       setManualBack("");
       setManualFrontFa("");
@@ -283,13 +297,14 @@ export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> =
       setManualFrontEn("");
       setManualBackEn("");
       setManualClue("");
-      toast.success(
+      toast.success(receipt.persistence === "queued" ? (isEn ? "Card queued for sync." : "کارت در صف همگام‌سازی است.") : (
         isEn
           ? "Card added to Leitner Box and Mind Map!"
-          : "کارت جدید با موفقیت به جعبه لایتنر و نقشه ذهنی افزوده شد!"
+          : "کارت جدید با موفقیت به جعبه لایتنر و نقشه ذهنی افزوده شد!")
       );
       if (onCardsSaved) onCardsSaved(1);
     } catch (err: any) {
+      if (!alive.current) return;
       console.error("Error saving manual card:", err);
       setErrorMsg(err.message || (isEn ? "Failed to save card" : "خطا در ثبت کارت دستی"));
     } finally {
@@ -300,16 +315,9 @@ export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> =
   if (!open) return null;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-50 bg-background/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
-      onClick={onClose}
-    >
-      <div
-        className="relative w-full max-w-2xl bg-card border border-border rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] text-card-foreground ring-1 ring-primary/20"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Dialog open={open} onOpenChange={next => { if (!next && !isSaving) { void draft.flush(); onClose(); } }}>
+      <DialogContent className="w-[calc(100%-1.5rem)] max-w-2xl p-0 gap-0 border-border rounded-2xl overflow-hidden flex flex-col max-h-[90dvh] [&>button]:hidden">
+        <DialogDescription className="sr-only">{isEn ? 'Preview and confirm source-linked review cards.' : 'پیش‌نمایش و تأیید کارت‌های مرور مرتبط با منبع.'}</DialogDescription>
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-border bg-card flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
@@ -317,11 +325,11 @@ export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> =
               <Sparkles className="w-5 h-5 text-primary animate-pulse" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2 truncate">
+              <DialogTitle className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2 truncate">
                 <span>
                   {isEn ? "AI Leitner & Mind Map Flashcard Generator" : "تولید هوشمند سوالات لایتنر و نقشه ذهنی"}
                 </span>
-              </h2>
+              </DialogTitle>
               <p className="text-xs text-muted-foreground truncate">
                 {documentTitle
                   ? `${isEn ? "Source:" : "سند منبع:"} ${documentTitle}`
@@ -334,7 +342,8 @@ export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> =
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => { if (!isSaving) { void draft.flush(); onClose(); } }}
+            aria-label={isEn ? "Close" : "بستن"}
             className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition cursor-pointer shrink-0"
             title={isEn ? "Close" : "بستن"}
           >
@@ -378,8 +387,13 @@ export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> =
           </button>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2 px-4 py-2 text-xs text-muted-foreground">
+          <button type="button" className="grid h-11 w-11 place-items-center rounded-lg hover:bg-muted" disabled={!draft.canUndo || isSaving || isGenerating} onClick={draft.undo} aria-label={isEn ? 'Undo' : 'بازگردانی'}><Undo2 className="h-4 w-4" /></button><button type="button" className="grid h-11 w-11 place-items-center rounded-lg hover:bg-muted" disabled={!draft.canRedo || isSaving || isGenerating} onClick={draft.redo} aria-label={isEn ? 'Redo' : 'انجام دوباره'}><Redo2 className="h-4 w-4" /></button>
+          <span role="status">{draft.status === 'saved' ? (isEn ? 'Device draft retained' : 'پیش‌نویس دستگاه محفوظ است') : draft.status === 'unavailable' ? (isEn ? 'Device draft storage unavailable' : 'ذخیرهٔ پیش‌نویس دستگاه در دسترس نیست') : (isEn ? 'Saving device draft…' : 'ذخیرهٔ پیش‌نویس…')}</span>
+          {draft.conflict && <div role="alert"><p>{isEn ? 'An older source draft exists. Review before restoring it.' : 'پیش‌نویس منبع دیگری موجود است؛ پیش از بازیابی بررسی کنید.'}</p><button type="button" className="min-h-11 px-2 text-primary" onClick={draft.restore}>{isEn ? 'Restore' : 'بازیابی'}</button><button type="button" className="min-h-11 px-2" onClick={draft.dismissConflict}>{isEn ? 'Use current source' : 'منبع فعلی'}</button></div>}
+        </div>
         {/* Modal Body */}
-        <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
+        <fieldset disabled={!draft.ready || Boolean(draft.conflict) || isSaving || isGenerating} className="min-w-0 p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
           {/* Success Banner */}
           {successSavedCount !== null && (
             <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs sm:text-sm flex items-center justify-between gap-3 animate-in fade-in">
@@ -803,8 +817,8 @@ export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> =
               </div>
             </div>
           )}
-        </div>
-      </div>
-    </div>
+        </fieldset>
+      </DialogContent>
+    </Dialog>
   );
 };

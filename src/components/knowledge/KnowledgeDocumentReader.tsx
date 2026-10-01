@@ -1,3 +1,6 @@
+import { LearningNotebook, type LearningNotebookHandle } from "./LearningNotebook";
+import { captureLearningAnchor, learningVersion, type LearningAnchor } from "@/lib/learningWorkspace";
+import { LearningCardEditor } from "./LearningCardEditor";
 import { KnowledgeAttachments } from "./KnowledgeAttachments";
 import { KnowledgeReaderHeader, type PharmacyHeaderLinks } from "./KnowledgeReaderHeader";
 import { KnowledgeSectionContent } from "./KnowledgeSectionContent";
@@ -178,7 +181,7 @@ interface KnowledgeDocumentReaderProps {
 }
 
 export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = ({
-  document,
+  document: externalDocument,
   folder,
   allDocuments = [],
   onSelectDocument,
@@ -192,7 +195,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   studyMode = false,
   onToggleStudyMode,
   onOpenReview,
-  onDocumentUpdated,
+  onDocumentUpdated: notifyDocumentUpdated,
   onScheduleStudy,
   onAddToNote,
   onAddToTask,
@@ -204,6 +207,10 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   pharmacyLinks,
 }) => {
   const { isEn } = useBilingual();
+  const [localDocument, setLocalDocument] = useState<KnowledgeDocument | null>(null);
+  const activeDocumentIdentity = useRef(''); activeDocumentIdentity.current = `${userId}:${externalDocument?.id || ''}`;
+  const document = localDocument && externalDocument && localDocument.id === externalDocument.id && localDocument.user_id === externalDocument.user_id && localDocument.updated_at >= externalDocument.updated_at ? localDocument : externalDocument;
+  const onDocumentUpdated = (updated: KnowledgeDocument) => { if (activeDocumentIdentity.current !== `${updated.user_id}:${updated.id}`) return; setLocalDocument(updated); notifyDocumentUpdated?.(updated); };
   const isPharmacySourceFile = document ? isPharmacyKnowledgeDocument(document) : false;
   const documentId = document?.id;
   const reviewState = document
@@ -218,6 +225,8 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   const [revealedCheckpoints, setRevealedCheckpoints] = useState<Record<string, boolean>>({});
   const [addedToLeitner, setAddedToLeitner] = useState<Record<string, boolean>>({});
   const contentContainerRef = useRef<HTMLDivElement>(null);
+  const notebookRef = useRef<LearningNotebookHandle>(null);
+  const [selectedLearningAnchor, setSelectedLearningAnchor] = useState<LearningAnchor | undefined>();
 
   // Compute active recall checkpoints from current document
   const checkpoints = useMemo(() => {
@@ -435,7 +444,8 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   const hasOriginalContent = Boolean(safeHtmlFa || document?.plain_text?.trim());
   const safeSourceUrl = getSafeKnowledgeExternalUrl(document?.source_url);
 
-  const handleTriggerAiFromSelection = (text: string) => {
+  const handleTriggerAiFromSelection = (text: string, suppliedAnchor?: LearningAnchor) => {
+    if (document) setSelectedLearningAnchor(suppliedAnchor || captureLearningAnchor(document, window.getSelection()?.anchorNode?.parentElement?.closest<HTMLElement>("[data-learning-language]")?.dataset.learningLanguage === "fa" ? "fa" : "en", text));
     setSelectedSnippetForAi(text);
     setAiModalOpen(true);
   };
@@ -444,6 +454,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
     if (!document) return;
     const selection = window.getSelection()?.toString().trim();
     const targetText = selection || document.plain_text || document.title;
+    setSelectedLearningAnchor(captureLearningAnchor(document, docLangMode === "fa" ? "fa" : "en", targetText));
     setSelectedSnippetForAi(targetText);
     setAiModalOpen(true);
   };
@@ -684,11 +695,17 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
               </div>
             </div>
 
+            {document.learning_workspace_unavailable && <p role="alert" className="text-xs text-muted-foreground">{isEn ? "This workspace needs a newer app. Original content is retained." : "این دفتر درس به نسخهٔ جدیدتر نیاز دارد؛ متن اصلی محفوظ است."}</p>}
+            {document.learning_workspace?.enabled && (document.learning_workspace.source_versions.fa !== learningVersion(document.content_html) || document.learning_workspace.source_versions.en !== learningVersion(document.content_en)) && <p role="status" className="text-xs text-muted-foreground">{isEn ? "Source changed. Showing its current text; refresh the card preview before reapplying layout." : "منبع تغییر کرده؛ متن فعلی نمایش داده می‌شود. پیش‌نمایش کارت‌ها را پیش از اعمال دوباره تازه کنید."}</p>}
+            {!studyMode && <div className="learning-reader-tools flex flex-wrap items-center gap-1 border-b border-border pb-1">
+            <LearningNotebook key={`notebook:${userId}:${document.id}`} ref={notebookRef} document={document} userId={userId} language={docLangMode === "fa" ? "fa" : "en"} containerRef={contentContainerRef} onUpdated={onDocumentUpdated} onGenerateReview={handleTriggerAiFromSelection} />
+            <LearningCardEditor key={`layout:${userId}:${document.id}`} document={document} userId={userId} onUpdated={onDocumentUpdated} />
             <KnowledgeAttachments key={`${userId}:${document.id}`}
               document={document}
               userId={userId}
               onDocumentUpdated={onDocumentUpdated}
             />
+            </div>}
 
             {(reviewState === "missing-evidence" || (reviewState === "unreviewed" && !isPharmacySourceFile)) && (
               <div role="note" className="mb-5 rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-foreground">
@@ -720,14 +737,14 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 
             {/* TAB 1: PERSIAN ONLY VIEW (RTL) */}
             {docLangMode === "fa" && (
-              <KnowledgeSectionContent userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="rtl" className="knowledge-html-content dir-rtl text-right" html={safeHtmlFa} />
+              <KnowledgeSectionContent workspace={document.learning_workspace} userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="rtl" className="knowledge-html-content dir-rtl text-right" html={safeHtmlFa} />
             )}
 
             {/* TAB 2: ENGLISH ONLY VIEW (LTR) */}
             {docLangMode === "en" && (
               <div dir="ltr" className="space-y-4">
                 {safeHtmlEn ? (
-                  <KnowledgeSectionContent userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlEn} />
+                  <KnowledgeSectionContent workspace={document.learning_workspace} userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlEn} />
                 ) : (
                   <div className="space-y-4">
                     <div role="status" className="rounded-2xl border border-border bg-muted/30 p-4 text-sm leading-6">
@@ -743,7 +760,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                     </div>
 
                     {safeHtmlFa ? (
-                      <KnowledgeSectionContent userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir={originalContentIsPersian ? "rtl" : "ltr"} className={`knowledge-html-content ${originalContentIsPersian ? "dir-rtl text-right" : "dir-ltr text-left"}`} html={safeHtmlFa} />
+                      <KnowledgeSectionContent workspace={document.learning_workspace} userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir={originalContentIsPersian ? "rtl" : "ltr"} className={`knowledge-html-content ${originalContentIsPersian ? "dir-rtl text-right" : "dir-ltr text-left"}`} html={safeHtmlFa} />
                     ) : document.plain_text?.trim() ? (
                       <p
                         dir={originalContentIsPersian ? "rtl" : "ltr"}
@@ -786,7 +803,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                   </div>
                   {originalContentIsPersian ? (
                     safeHtmlFa ? (
-                      <KnowledgeSectionContent userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="rtl" className="knowledge-html-content dir-rtl text-right" html={safeHtmlFa} />
+                      <KnowledgeSectionContent workspace={document.learning_workspace} userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="rtl" className="knowledge-html-content dir-rtl text-right" html={safeHtmlFa} />
                     ) : document.plain_text?.trim() ? (
                       <p dir="rtl" className="knowledge-html-content dir-rtl whitespace-pre-wrap text-right">
                         {document.plain_text}
@@ -811,10 +828,10 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                   </div>
 
                   {safeHtmlEnBilingual ? (
-                    <KnowledgeSectionContent userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlEnBilingual} />
+                    <KnowledgeSectionContent workspace={document.learning_workspace} userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlEnBilingual} />
                   ) : !originalContentIsPersian && hasOriginalContent ? (
                     safeHtmlFa ? (
-                      <KnowledgeSectionContent userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlFa} />
+                      <KnowledgeSectionContent workspace={document.learning_workspace} userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlFa} />
                     ) : (
                       <p dir="ltr" className="knowledge-html-content dir-ltr whitespace-pre-wrap text-left">
                         {document.plain_text}
@@ -1060,7 +1077,8 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 
       <TextSelectionFloatingBar
         containerRef={contentContainerRef}
-        onAddToNote={onAddToNote}
+        onAddToNote={userId !== "guest" && document.user_id === userId ? text => notebookRef.current?.addNote(text) : onAddToNote}
+        onCreateQuestion={userId !== "guest" && document.user_id === userId ? text => notebookRef.current?.addQuestion(text) : undefined}
         onAddToTask={onAddToTask}
         onAiAction={onAiAction}
         onGenerateQuestions={handleTriggerAiFromSelection}
@@ -1070,8 +1088,10 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
       {aiModalOpen && (
         <React.Suspense fallback={null}>
           <AiQuestionGeneratorModal
+            key={`${userId}:${document.id}`}
             open={aiModalOpen}
             onClose={() => setAiModalOpen(false)}
+            sourceAnchor={selectedLearningAnchor}
             initialText={selectedSnippetForAi}
             documentId={document?.id}
             documentTitle={document?.title}

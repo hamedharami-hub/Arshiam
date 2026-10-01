@@ -91,3 +91,15 @@
 .lesson-related-sheet__content .grid{grid-template-columns:minmax(0,1fr)!important}
 .lesson-content-card__header{padding-bottom:0;border-bottom:0;margin-bottom:12px}.lesson-content-card{border-radius:12px}
 @media(max-width:640px){.lesson-related-sheet{top:auto!important;bottom:0!important;inset-inline:0!important;width:100%!important;max-width:100%!important;height:auto!important;max-height:75dvh;border-radius:18px 18px 0 0!important;border-inline:0!important}.lesson-related-trigger span{display:none}.lesson-workspace-tabs{gap:14px}.lesson-workspace-tabs [role=tab]{font-size:12px}}
+
+.lesson-card-group[data-layout=sequence] .lesson-card-group__grid,
+.lesson-card-group[data-layout=fullWidth] .lesson-card-group__grid{grid-template-columns:minmax(0,1fr)}
+.knowledge-reader-shell{container-type:inline-size;container-name:learning-reader}
+@container learning-reader (max-width:640px){
+  .learning-tool-label,.learning-tool-extra{display:none!important}
+  .learning-reader-mobile-title{display:block!important;min-width:0}
+  .learning-reader-mobile-actions{display:inline-flex!important}
+  [data-testid=knowledge-reader-header] .hidden.md\:flex{display:none!important}
+  [data-testid=knowledge-reader-header] .hidden.md\:inline-flex{display:none!important}
+}
+.lesson-safety-access button{min-height:44px}

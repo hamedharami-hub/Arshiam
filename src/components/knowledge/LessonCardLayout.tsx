@@ -1,3 +1,4 @@
+import { learningGroups, type LearningWorkspace } from "@/lib/learningWorkspace";
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, BookOpen, FileText, FlaskConical, Link2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -18,8 +19,8 @@ function isRelated(card: LessonContentCard) {
     /related|linked|پیوند|مرتبط|فرآورده.*قفسه/i.test(card.title) && /data-doc-link|lesson-related-link|lesson-related-unavailable/.test(card.html);
 }
 
-export function LessonCardLayout({ cards, sourceHtml, dir, contentClassName, template = 'general', documentId, onOpenDocument }: {
-  cards: LessonContentCard[]; sourceHtml: string; dir: 'rtl' | 'ltr'; contentClassName: string; template?: LessonTemplate; documentId?: string; onOpenDocument?: (id: string) => void;
+export function LessonCardLayout({ cards, sourceHtml, dir, contentClassName, template = 'general', documentId, onOpenDocument, workspace }: {
+  cards: LessonContentCard[]; sourceHtml: string; dir: 'rtl' | 'ltr'; contentClassName: string; template?: LessonTemplate; documentId?: string; onOpenDocument?: (id: string) => void; workspace?: LearningWorkspace;
 }) {
   const { T } = useBilingual();
   const [showTechnical, setShowTechnical] = useState(false);
@@ -28,21 +29,26 @@ export function LessonCardLayout({ cards, sourceHtml, dir, contentClassName, tem
   const related = useMemo(() => cards.filter(isRelated), [cards]);
   const metadata = cards.filter(card => card.kind === 'metadata');
   const reading = cards.filter(card => card.kind !== 'metadata' && !isRelated(card));
-  const groups = TEMPLATE_GROUPS[template].filter(group => reading.some(card => card.group === group.id));
+  const groups = (workspace?.enabled ? [...TEMPLATE_GROUPS[template], ...learningGroups.filter(group => !TEMPLATE_GROUPS[template].some(item => item.id === group.id))] : TEMPLATE_GROUPS[template]).filter(group => reading.some(card => card.group === group.id));
   const initial = readPosition(documentId);
   const validTab = (wanted: string | null) => wanted === 'source' || wanted === 'warnings' || wanted === 'all' || groups.some(group => group.id === wanted) ? wanted! : groups[0]?.id ?? 'source';
-  const target = cards.find(card => card.id === initial.card);
-  const [activeTab, setActiveTab] = useState(() => target && !isRelated(target) ? target.kind === 'metadata' ? 'source' : target.group : validTab(initial.tab));
-  const [linkedCard, setLinkedCard] = useState(initial.card);
+  const canonicalId = (id: string | null) => {
+    const card = workspace?.cards.find(card => card.id === id || card.aliases.includes(id || ''));
+    if (!card) return id;
+    return cards.some(item => item.id === card.id) ? card.id : card.sources[dir === 'rtl' ? 'fa' : 'en'] || id;
+  };
+  const target = cards.find(card => card.id === canonicalId(initial.card));
+  const [activeTab, setActiveTab] = useState(() => target && !isRelated(target) ? target.kind === 'metadata' ? 'source' : target.group : initial.card ? 'source' : validTab(initial.tab));
+  const [linkedCard, setLinkedCard] = useState(canonicalId(initial.card));
   const hasTechnical = cards.some(card => card.html.includes('lesson-field--technical'));
   const safety = reading.filter(card => card.safetyProtected || card.kind === 'safety');
 
   useEffect(() => {
     const sync = () => {
       const next = readPosition(documentId);
-      const card = cards.find(item => item.id === next.card);
-      setLinkedCard(next.card);
-      setActiveTab(card && !isRelated(card) ? card.kind === 'metadata' ? 'source' : card.group : validTab(next.tab));
+      const card = cards.find(item => item.id === canonicalId(next.card));
+      setLinkedCard(canonicalId(next.card));
+      setActiveTab(card && !isRelated(card) ? card.kind === 'metadata' ? 'source' : card.group : next.card ? 'source' : validTab(next.tab));
       setRelatedOpen(Boolean(card && isRelated(card)));
     };
     window.addEventListener('popstate', sync);
@@ -93,6 +99,7 @@ export function LessonCardLayout({ cards, sourceHtml, dir, contentClassName, tem
     event.preventDefault(); selectTab('source');
     requestAnimationFrame(() => Array.from(rootRef.current?.querySelectorAll('[id]') ?? []).find(element => element.id === id)?.scrollIntoView?.({ block: 'nearest' }));
   }}>
+    {initial.card && !target && <p role="status" className="mb-3 text-xs text-muted-foreground">{T("کارت این پیوند در نسخهٔ فعلی پیدا نشد؛ متن اصلی محفوظ است.", "This linked card is unavailable in the current revision. Original text is retained.")}</p>}
     <Tabs value={activeTab} onValueChange={selectTab} dir={dir}>
       <div className="lesson-workspace-navigation">
         <TabsList className="lesson-workspace-tabs" aria-label={T('بخش‌های درس', 'Lesson sections')}>
@@ -104,7 +111,7 @@ export function LessonCardLayout({ cards, sourceHtml, dir, contentClassName, tem
       </div>
       {safety.length > 0 && activeTab !== 'source' && activeTab !== 'warnings' && <div className="lesson-safety-access"><AlertTriangle aria-hidden="true" /><span>{T('ایمنی و معیارهای ارجاع', 'Safety & referral')}</span><button type="button" onClick={() => selectTab('warnings')}>{T('دیدن هشدارها', 'Read warnings')}</button></div>}
       {groups.map(group => <TabsContent key={group.id} value={group.id} className="lesson-workspace-panel">
-        <section className="lesson-card-group" aria-label={T(group.fa, group.en)}><div className="lesson-card-group__grid">{reading.filter(card => card.group === group.id).map(renderCard)}</div></section>
+        <section data-layout={workspace?.groups[group.id] || "grid"} className="lesson-card-group" aria-label={T(group.fa, group.en)}><div className="lesson-card-group__grid">{reading.filter(card => card.group === group.id).map(renderCard)}</div></section>
       </TabsContent>)}
       <TabsContent value="warnings" className="lesson-workspace-panel"><section aria-label={T('ایمنی و هشدارها', 'Safety & warnings')}><div className="lesson-card-group__grid">{safety.map(renderCard)}</div></section></TabsContent>
       <TabsContent value="all" className="lesson-workspace-panel"><div className="lesson-card-group__grid">{reading.map(renderCard)}</div></TabsContent>

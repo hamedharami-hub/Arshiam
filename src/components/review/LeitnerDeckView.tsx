@@ -79,7 +79,7 @@ interface LeitnerDeckViewProps {
   isActive?: boolean;
   userId: string;
   cardLanguage?: StudyContentLanguage;
-  onOpenDocument?: (docId: string) => void;
+  onOpenDocument?: (docId: string, sourceCardId?: string, sourceQuestionId?: string) => void;
   initialStudyDocumentId?: string;
   initialStudyFolderId?: string;
   initialStudyTaskId?: string;
@@ -1221,7 +1221,7 @@ export const LeitnerDeckView: React.FC<LeitnerDeckViewProps> = ({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onOpenDocument(activeCard.document_id!);
+                      onOpenDocument(activeCard.document_id!, activeCard.source_card_id, activeCard.source_question_id);
                     }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 text-xs font-medium transition cursor-pointer"
                   >

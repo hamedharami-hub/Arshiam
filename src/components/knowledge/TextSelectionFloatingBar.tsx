@@ -9,6 +9,7 @@ interface TextSelectionFloatingBarProps {
   onAddToTask?: (text: string) => void;
   onAiAction?: (text: string) => void;
   onGenerateQuestions?: (text: string) => void;
+  onCreateQuestion?: (text: string) => void;
 }
 
 export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> = ({
@@ -16,6 +17,7 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
   onAddToNote,
   onAiAction,
   onGenerateQuestions,
+  onCreateQuestion,
 }) => {
   const { isEn } = useBilingual();
   const [selectedText, setSelectedText] = useState("");
@@ -157,7 +159,8 @@ export const TextSelectionFloatingBar: React.FC<TextSelectionFloatingBarProps> =
       catch { toast.error(isEn ? "Could not copy. Use your browser’s Copy action." : "کپی انجام نشد؛ از گزینهٔ کپی مرورگر استفاده کنید."); }
     }}><Copy className="h-4 w-4" />{isEn ? "Copy" : "کپی"}</button>
     {onAddToNote && <button type="button" className={actionClass} onMouseDown={event => event.preventDefault()} onClick={event => { onAddToNote(selectedText); handleDismiss(event); }}><StickyNote className="h-4 w-4" />{isEn ? "Note" : "یادداشت"}</button>}
-    {create && <button type="button" className={`${actionClass} text-primary`} onMouseDown={event => event.preventDefault()} onClick={handleTriggerAiQuestions}><Sparkles className="h-4 w-4" />{isEn ? "Create cards / questions" : "ساخت کارت / سؤال"}</button>}
+    {onCreateQuestion && <button type="button" className={`${actionClass} text-primary`} onMouseDown={event => event.preventDefault()} onClick={event => { onCreateQuestion(selectedText); handleDismiss(event); }}>{isEn ? "Question" : "سؤال"}</button>}
+    {create && <button type="button" className={`${actionClass} text-primary`} onMouseDown={event => event.preventDefault()} onClick={handleTriggerAiQuestions}><Sparkles className="h-4 w-4" />{isEn ? "Review card" : "کارت مرور"}</button>}
     <button type="button" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted" onMouseDown={event => event.preventDefault()} onClick={handleDismiss} aria-label={isEn ? "Dismiss" : "بستن"}><X className="h-4 w-4" /></button>
   </>;
   return <>

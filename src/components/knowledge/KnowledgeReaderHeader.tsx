@@ -68,7 +68,7 @@ export function KnowledgeReaderHeader(p: Props) {
           </button>
         )}
 
-        <h1 className="min-w-0 flex-1 truncate text-sm font-semibold md:hidden" title={p.title}>{p.title ?? p.folderName}</h1>
+        <h1 className="min-w-0 flex-1 truncate text-sm font-semibold md:hidden learning-reader-mobile-title" title={p.title}>{p.title ?? p.folderName}</h1>
         <nav className="hidden md:flex min-w-0 flex-1 items-center gap-1 text-[12px] text-muted-foreground" aria-label={T("مسیر", "Breadcrumb")} data-testid="knowledge-reader-breadcrumb">
           {p.pharmacyLinks && (
             <>
@@ -137,7 +137,7 @@ export function KnowledgeReaderHeader(p: Props) {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
-                <div className="md:hidden">
+                <div className="md:hidden learning-reader-mobile-actions">
                   <DropdownMenuItem onSelect={p.onCycleLanguage}><Languages className="h-4 w-4" />{p.languageAriaLabel}</DropdownMenuItem>
                   {p.onToggleStudyMode && <DropdownMenuItem onSelect={p.onToggleStudyMode}><BookOpenCheck className="h-4 w-4" />{T("حالت مطالعه", "Study mode")}</DropdownMenuItem>}
                   <DropdownMenuItem onSelect={p.onEdit}><Edit className="h-4 w-4" />{T("ویرایش سند", "Edit document")}</DropdownMenuItem>

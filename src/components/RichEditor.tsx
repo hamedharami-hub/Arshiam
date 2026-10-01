@@ -50,6 +50,7 @@ export type RichEditorHandle = {
 
 export const RichEditor = forwardRef<RichEditorHandle, {
   initialHtml?: string;
+  controlledHtml?: string;
   initialMarkdown?: string;
   onChange?: (html: string, markdown: string) => void;
   placeholder?: string;
@@ -59,6 +60,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   onAttachmentUploaded?: (media: UploadedMedia) => void;
 }>(function RichEditor({
   initialHtml = "",
+  controlledHtml,
   initialMarkdown = "",
   onChange,
   placeholder = "شروع به نوشتن کنید...",
@@ -152,6 +154,9 @@ export const RichEditor = forwardRef<RichEditorHandle, {
     }
   }, [editor, initialHtml, initialMarkdown]);
 
+  useEffect(() => {
+    if (editor && !editor.isDestroyed && controlledHtml !== undefined && editor.getHTML() !== controlledHtml) editor.commands.setContent(controlledHtml, { emitUpdate: false });
+  }, [editor, controlledHtml]);
   useEffect(() => { editor?.setEditable(!readOnly); }, [editor, readOnly]);
 
   // Detect when toolbar scrolls out of view → show floating "show toolbar" FAB
