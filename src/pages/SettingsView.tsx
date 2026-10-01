@@ -684,7 +684,7 @@ export default function SettingsView() {
   const currentTheme = reminders?.theme || theme || "system";
 
   return (
-    <div className="max-w-3xl mx-auto p-4 md:p-8 pb-24 animate-fade-in" dir={isEn ? "ltr" : "rtl"}>
+    <div className="page-shell page-shell--narrow pb-24 animate-fade-in" dir={isEn ? "ltr" : "rtl"}>
       <div className="mb-3">
         <HeaderTitlePortal title={t("settings.title")} />
         <p className="text-sm text-muted-foreground mt-1">{t("settings.subtitle")}</p>

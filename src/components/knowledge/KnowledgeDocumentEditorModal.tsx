@@ -103,6 +103,30 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
       )
     : "not-required";
 
+  const baselineSig = JSON.stringify(document
+    ? [document.title || "", document.title_en || "", document.folder_id || null, document.content_html || "", document.content_en || "", document.tags ? document.tags.join(", ") : "", document.source_url || ""]
+    : ["", "", initialFolderId ?? null, "", "", "", ""]);
+  const currentSig = JSON.stringify([title, titleEn, folderId, contentHtml, contentEn, tagsInput, sourceUrl]);
+  const isDirty = open && !isSaving && currentSig !== baselineSig;
+
+  const requestClose = () => {
+    if (isDirty && !window.confirm(isEn ? "Discard unsaved changes?" : "تغییرات ذخیره‌نشده از بین می‌رود. خارج می‌شوید؟")) return;
+    onOpenChange(false);
+  };
+
+  const formRef = React.useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        formRef.current?.requestSubmit();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   const handleInsertInteractive = (html: string, mode: "append" | "replace") => {
     if (langTab === "fa") {
       setContentHtml((prev) =>
@@ -301,7 +325,7 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
   };
 
   return (
-    <Dialog open={open} onOpenChange={next => { if (!isSaving) onOpenChange(next); }}>
+    <Dialog open={open} onOpenChange={next => { if (isSaving) return; if (next) onOpenChange(true); else requestClose(); }}>
       <DialogContent className="max-w-3xl max-h-[92dvh] flex flex-col p-0 bg-card border border-border text-card-foreground rounded-lg shadow-lg overflow-hidden">
         <DialogHeader className="p-4 sm:p-5 border-b border-border bg-card">
           <DialogTitle className="text-base font-bold flex items-center gap-2">
@@ -323,7 +347,7 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+        <form ref={formRef} onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-y-auto">
           <div className="p-4 sm:p-5 space-y-3.5 border-b border-border bg-muted/20 shrink-0">
             {/* Title Inputs: Persian and English */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -787,7 +811,7 @@ export const KnowledgeDocumentEditorModal: React.FC<KnowledgeDocumentEditorModal
             <button
               type="button"
               disabled={isSaving}
-              onClick={() => onOpenChange(false)}
+              onClick={requestClose}
               className="px-3.5 py-1.5 rounded-xl text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition cursor-pointer"
             >
               {isEn ? "Cancel" : "انصراف"}

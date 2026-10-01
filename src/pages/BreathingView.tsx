@@ -246,7 +246,7 @@ export default function BreathingView() {
   const displaySeconds = Math.max(1, Math.ceil(phaseLeft));
 
   return (
-    <div className="max-w-2xl mx-auto p-4 md:p-8 space-y-5 animate-fade-in" dir={isEn ? "ltr" : "rtl"}>
+    <div className="page-shell page-shell--sm space-y-5 animate-fade-in" dir={isEn ? "ltr" : "rtl"}>
       <div className="flex items-center gap-2">
         <Wind className="w-6 h-6 text-primary" />
         <HeaderTitlePortal title={T("تمرین تنفس ۳بعدی", "3D Breathing Practice")} />

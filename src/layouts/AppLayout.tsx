@@ -132,7 +132,7 @@ export default function AppLayout() {
               </div>
               <div className="flex items-center gap-1 justify-end shrink-0">
                 <div id="app-header-actions" className="flex items-center gap-2 shrink-0 empty:hidden" />
-                {pageKey && <PageColorButton color={pageBg.color} onChange={pageBg.set} />}
+                {pageKey && <PageColorButton color={pageBg.color} isDefault={pageBg.isDefault} onChange={pageBg.set} />}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -155,7 +155,7 @@ export default function AppLayout() {
           )}
           <main
             id="main-scroll"
-            style={{ "--app-bottom-space": showMobileBottomBar ? "calc(5.2rem + env(safe-area-inset-bottom))" : "0.5rem", backgroundColor: pageTint(pageBg.color) } as CSSProperties}
+            style={{ "--app-bottom-space": showMobileBottomBar ? "calc(5.2rem + env(safe-area-inset-bottom))" : "0.5rem", backgroundColor: pageTint(pageBg.color, pageBg.isDefault ? 6 : 10) } as CSSProperties}
             className={cn(
               "flex-1 overflow-auto",
               showMobileBottomBar

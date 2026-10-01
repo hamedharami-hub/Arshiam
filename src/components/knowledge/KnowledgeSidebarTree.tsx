@@ -15,6 +15,7 @@ import {
   CalendarPlus,
   Sparkles,
   Loader2,
+  X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useBilingual } from "@/hooks/useBilingual";
@@ -511,11 +512,12 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
             <button
               type="button"
               onClick={() => handleOpenCreateFolder(null)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground text-xs font-semibold border border-border transition cursor-pointer"
+              className="p-1.5 rounded-xl hover:bg-secondary text-muted-foreground hover:text-primary transition cursor-pointer border border-border"
               title={isEn ? "Create new root category" : "ساخت فولدر جدید"}
+              aria-label={isEn ? "New folder" : "فولدر جدید"}
+              data-testid="knowledge-new-folder"
             >
-              <FolderPlus className="w-3.5 h-3.5 text-primary" />
-              <span>{isEn ? "Folder" : "فولدر"}</span>
+              <FolderPlus className="w-3.5 h-3.5" />
             </button>
 
             <button
@@ -585,8 +587,22 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={isEn ? "Search titles, tags, text..." : "جستجو در اسناد و داروها..."}
-            className="w-full py-1.5 ps-8 pe-3 bg-background border border-input rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
+            onKeyDown={(e) => { if (e.key === "Escape" && searchQuery) { e.preventDefault(); onSearchChange(""); } }}
+            data-testid="knowledge-search-input"
+            aria-label={isEn ? "Search knowledge" : "جستجو در پایگاه دانش"}
+            className="w-full py-1.5 ps-8 pe-8 bg-background border border-input rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => onSearchChange("")}
+              className="absolute end-1.5 top-1/2 -translate-y-1/2 grid h-5 w-5 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label={isEn ? "Clear search" : "پاک کردن جستجو"}
+              data-testid="knowledge-search-clear"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
         </div>
 
         {/* High-Yield Category Tag Filter Chips */}

@@ -609,7 +609,7 @@ export default function MindView() {
 
   return (
     <div
-      className="max-w-5xl mx-auto p-4 md:p-8 space-y-5 pb-20 animate-fade-in"
+      className="page-shell page-shell--xl space-y-5 pb-20 animate-fade-in"
       dir={isEn ? "ltr" : "rtl"}
     >
       {/* Compact Hero Header */}

@@ -1,3 +1,5 @@
+import { markUiPrefsChanged } from "./uiPrefsSync";
+
 export interface FolderPrefs {
   view: "list" | "kanban-stream" | "kanban-columns";
   bgColor: string | null;
@@ -58,6 +60,7 @@ export function getFolderPrefs(folderId: string, userId?: string): FolderPrefs {
 export function saveFolderPrefs(folderId: string, prefs: FolderPrefs, userId?: string) {
   try {
     localStorage.setItem(storageKey(folderId, userId), JSON.stringify(prefs));
+    markUiPrefsChanged(userId);
     window.dispatchEvent(
       new CustomEvent("arshnaz-folder-prefs-updated", {
         detail: { folderId, userId, prefs },

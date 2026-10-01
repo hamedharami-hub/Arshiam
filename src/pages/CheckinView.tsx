@@ -427,7 +427,7 @@ export default function CheckinView() {
   return (
     <div
       dir={isEn ? "ltr" : "rtl"}
-      className="max-w-3xl mx-auto p-4 md:p-8 space-y-6 animate-fade-in"
+      className="page-shell page-shell--narrow space-y-6 animate-fade-in"
     >
       {savedTick && <ProfileMicroPrompt trigger={`checkin-${savedTick}`} />}
 

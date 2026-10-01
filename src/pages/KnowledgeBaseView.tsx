@@ -1,3 +1,4 @@
+import { matchesAllTokens, normalizeSearchText, searchRank } from "@/lib/knowledgeSearch";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { BookOpen, Menu, Plus, Sparkles, FolderPlus, ArrowLeft, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -525,8 +526,8 @@ export const KnowledgeBaseView: React.FC = () => {
   const searchTextById = useMemo(() => new Map(documents.map((doc) => [
     doc.id,
     `${doc.title} ${doc.title_en || ""} ${doc.plain_text || ""} ${doc.content_html || ""} ${doc.content_en || ""}`
-      .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").toLowerCase(),
-  ])), [documents]);
+      .replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " "),
+  ].map((v, i) => (i === 1 ? normalizeSearchText(v as string) : v)) as [string, string])), [documents]);
 
   // Search & Tag filter
   const filteredDocuments = useMemo(() => {
@@ -540,9 +541,12 @@ export const KnowledgeBaseView: React.FC = () => {
       });
     }
     if (!debouncedSearch.trim()) return docs;
-    const q = debouncedSearch.trim().toLowerCase();
-    return docs.filter((d) => searchTextById.get(d.id)?.includes(q) ||
-      d.tags?.some((tag) => tag.toLowerCase().includes(q)));
+    const matched = docs.filter((d) => matchesAllTokens(
+      `${searchTextById.get(d.id) || ""} ${normalizeSearchText((d.tags || []).join(" "))}`, debouncedSearch));
+    return matched
+      .map((d) => ({ d, r: searchRank(d.title || "", d.tags || [], debouncedSearch) }))
+      .sort((a, b) => a.r - b.r)
+      .map((x) => x.d);
   }, [documents, selectedTag, debouncedSearch, searchTextById]);
 
 

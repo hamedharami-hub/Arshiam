@@ -128,7 +128,7 @@ export default function NewNoteView() {
   };
 
   return (
-    <div dir={isEn ? "ltr" : "rtl"} className="p-4 md:p-6 max-w-3xl mx-auto pb-24">
+    <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--narrow pb-24">
       <div className="flex items-center justify-between mb-4">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1">
           {isEn ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}

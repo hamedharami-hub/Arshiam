@@ -452,7 +452,7 @@ export default function KanbanView() {
   const activeTaskObj = activeId ? allTasks.find((t) => t.id === activeId) : null;
 
   return (
-    <div dir={isEn ? "ltr" : "rtl"} className="max-w-5xl mx-auto p-3 md:p-6 space-y-4 pb-24 page-enter relative min-h-screen">
+    <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--xl space-y-4 pb-24 page-enter relative min-h-screen">
       <HeaderTitlePortal title={T("کانبان", "Kanban")} />
       {goals.length === 0 ? (
         <div data-testid="kanban-empty-goals" className="mx-auto max-w-md rounded-lg border border-dashed border-border px-6 py-12 text-center space-y-3">

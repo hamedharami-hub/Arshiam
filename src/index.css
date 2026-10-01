@@ -1759,6 +1759,7 @@ html[lang^="en"] body { font-feature-settings: "cv11"; }
 .folder-tint { background-color: var(--folder-bg); }
 .dark .folder-tint { background-color: color-mix(in srgb, var(--folder-bg) 10%, hsl(var(--background))); }
 
+@layer components {
 /* ===== Shared page layout primitives (one rhythm for every screen) ===== */
 .page-shell { width: 100%; max-width: var(--page-max, 72rem); margin-inline: auto; padding: 1rem; }
 @media (min-width: 768px) { .page-shell { padding: 1.5rem 2rem; } }
@@ -1768,3 +1769,7 @@ html[lang^="en"] body { font-feature-settings: "cv11"; }
 .section-label { font-size: 0.75rem; line-height: 1rem; font-weight: 600; color: hsl(var(--muted-foreground)); }
 .page-lead { font-size: 0.875rem; line-height: 1.75rem; color: hsl(var(--muted-foreground)); }
 :focus-visible { outline-offset: 2px; }
+.page-shell--sm { --page-max: 42rem; }
+.page-shell--lg { --page-max: 56rem; }
+.page-shell--xl { --page-max: 64rem; }
+}

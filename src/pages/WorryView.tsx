@@ -190,7 +190,7 @@ export default function WorryView() {
   return (
     <div
       dir={isEn ? "ltr" : "rtl"}
-      className="max-w-3xl mx-auto p-4 md:p-8 space-y-5 animate-fade-in"
+      className="page-shell page-shell--narrow space-y-5 animate-fade-in"
     >
       <Button variant="ghost" size="sm" onClick={() => navigate("/app/mind")}>
         <BackIcon className={`w-4 h-4 ${isEn ? "me-1" : "ms-1"}`} /> {T("ذهن", "Mind")}

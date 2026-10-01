@@ -231,7 +231,7 @@ export default function ThoughtRecordsView() {
   return (
     <div
       dir={isEn ? "ltr" : "rtl"}
-      className="max-w-4xl mx-auto p-4 md:p-8 space-y-6 animate-fade-in"
+      className="page-shell page-shell--lg space-y-6 animate-fade-in"
     >
       <div className="flex items-center justify-between gap-3">
         <div>

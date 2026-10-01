@@ -295,7 +295,7 @@ export default function ScreenerView() {
   return (
     <div
       dir={isEn ? "ltr" : "rtl"}
-      className="max-w-3xl mx-auto p-4 md:p-8 space-y-5 animate-fade-in"
+      className="page-shell page-shell--narrow space-y-5 animate-fade-in"
     >
       {/* Header Bar */}
       <div className="flex items-center justify-between">

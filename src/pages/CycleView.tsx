@@ -302,7 +302,7 @@ export default function CycleView() {
     : [];
 
   return (
-    <div dir={isEn ? "ltr" : "rtl"} className="mx-auto max-w-5xl space-y-5 p-4 pb-10 md:p-6">
+    <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--xl space-y-5 pb-10">
       <Card className="relative overflow-hidden border-rose-200/70 bg-gradient-to-br from-rose-50 via-white to-pink-100/70 p-5 shadow-sm dark:border-rose-900/60 dark:from-rose-950/50 dark:via-card dark:to-pink-950/30 md:p-7">
         <div aria-hidden="true" className="pointer-events-none absolute -end-8 -top-12 h-44 w-44 rounded-full bg-rose-300/20 blur-2xl" />
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">

@@ -144,7 +144,7 @@ export default function StatsView() {
   const bestHabit = habitStats[0];
 
   return (
-    <div dir={isEn ? "ltr" : "rtl"} className="max-w-3xl mx-auto p-4 md:p-8 space-y-6 pb-24 page-enter">
+    <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--narrow space-y-6 pb-24 page-enter">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <HeaderTitlePortal title={T("آمار و خلاصه", "Stats & Summary")} />

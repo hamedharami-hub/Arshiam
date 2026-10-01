@@ -17,7 +17,7 @@ export default function SharedWithMeView() {
   return (
     <div
       dir={isEn ? "ltr" : "rtl"}
-      className="p-4 md:p-8 max-w-2xl mx-auto page-enter space-y-6"
+      className="page-shell page-shell--sm page-enter space-y-6"
       data-testid="shared-with-me-view"
     >
       <div className="flex items-center justify-between">

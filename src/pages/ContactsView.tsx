@@ -89,7 +89,7 @@ export default function ContactsView() {
   return (
     <div
       dir={isEn ? "ltr" : "rtl"}
-      className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6 animate-in fade-in duration-200"
+      className="page-shell page-shell--xl space-y-6 animate-in fade-in duration-200"
     >
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

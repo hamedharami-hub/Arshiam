@@ -174,7 +174,7 @@ export default function AboutMeView() {
     const a = row?.ai_analysis;
     const s = row?.ai_suggestions;
     return (
-      <div dir={isEn ? "ltr" : "rtl"} className="p-4 md:p-6 max-w-3xl mx-auto space-y-5 page-enter">
+      <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--narrow space-y-5 page-enter">
         <div className="flex items-center justify-between">
           <HeaderTitlePortal title={T("درباره من", "About Me")} />
           <div className="flex gap-2">

@@ -17,7 +17,7 @@ export default function AdminView() {
   return (
     <div
       dir={isEn ? "ltr" : "rtl"}
-      className="p-4 md:p-8 space-y-6 max-w-3xl mx-auto page-enter"
+      className="page-shell page-shell--narrow space-y-6 page-enter"
       data-testid="admin-view"
     >
       <div className="flex items-center justify-between">
