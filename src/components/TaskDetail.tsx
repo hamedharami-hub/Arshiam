@@ -1620,6 +1620,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         <Button
           variant="ghost"
           size="sm"
+          data-testid="task-origin-mind-chip"
           className="h-6 px-2 text-[11px] text-purple-600 dark:text-purple-400 hover:bg-purple-500/10"
           onClick={() => {
             const route = mindSourceRoute(t);

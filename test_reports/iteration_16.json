@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend-only E2E test of the Mind → Worry → Task flow and CBT origin links on the live Vite+React+Firebase ARSHNAZ app. Verified: (1) /app/mind busy input + 'درخت نگرانی' path entry (data-testid=mind-busy-input, mind-path-worry); (2) WorryView 5-step flow (intake → triage(actionable) → solve(problem+solution+select) → confirm_task → done); (3) saveConfirmedTask shows toast 'نگرانی ذخیره و تسک ساخته شد' and produces EXACTLY ONE task 'QA worry task' in /app/inbox and /app/smart?source=mind with the 'نگرانی' badge; (4) opening the task shows the purple Mind origin chip labelled 'درخت نگرانی' which navigates to /app/thoughts?record=worry_<ts>_<rand>, auto-switches to the 'مسیر کامل' tab, scrolls to and ring-highlights the matching record card (ring-primary), and the record situation starts with 'نگرانی: ...'; (5) double-clicking confirm quickly still produces EXACTLY ONE task (stable task_${sessionIdRef.current} id ⇒ upsert); (6) CBT full-path flow — mode 'مسیر کامل' → 'ثبت جدید' → fills situation/automatic_thought/next_step → 'ذخیره رکورد' → toast 'ثبت شد'; a task 'QA cbt task' is created with 'ثبت فکر (CBT)' chip that navigates to /app/thoughts?record=thought_<ts>_<rand> and ring-highlights the record. All QA tasks were deleted via task-detail bottom-rail 'بیشتر' menu → data-testid=task-bottom-rail-delete → confirm dialog ('حذف'). Thought records could NOT be cleaned up from the UI because /app/thoughts history has no record delete button (see action items).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ThoughtRecordsView history card", "issue": "No delete/trash button on individual record cards (/app/thoughts). Only existing per-card action is 'افزودن به عنوان تسک فردا'. The review request explicitly expects a record delete button for cleanup. deleteThoughtRecord() exists in /app/src/lib/firestoreDataService.ts (line 891) but is never wired to UI.", "selector": "[id^=\"record-\"] button", "priority": "MEDIUM"},
+      {"component": "TaskDetail origin chip", "issue": "Mind origin chip (purple 'درخت نگرانی' / 'ثبت فکر (CBT)') has no data-testid; functionality works but it is harder to target in automation. Suggest data-testid=\"task-origin-mind-chip\".", "selector": "button:has-text('درخت نگرانی')", "priority": "LOW"},
+      {"component": "WorryView confirm stage", "issue": "The 'تایید و ذخیره در Tasks' button and task-title input in confirm_task stage have no data-testid; selectors must rely on text/placeholder.", "selector": "input[placeholder*='اقدام مشخص']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_16.json"],
+  "action_items": [
+    "Add a per-record delete button (Trash2 icon) on ThoughtRecordsView history cards wired to deleteThoughtRecord(user.id, r.id) with a confirmation dialog — required so users (and QA) can clean up Mind records created from worry/CBT flows.",
+    "Add data-testid attributes for Worry/CBT critical controls: mind-worry-confirm-btn, mind-worry-task-title-input, task-origin-mind-chip, record-delete-btn (per card).",
+    "Consider surfacing the delete action in the task-detail header '...' popover (data-testid=task-detail-header-more) in addition to the bottom-rail 'بیشتر' popover — current header '...' menu only offers complete/copy/duplicate/calendar/open-fullscreen, no delete, which was confusing during cleanup."
+  ],
+  "critical_code_review_comments": [
+    "WorryView.saveConfirmedTask correctly uses stable id task_${sessionIdRef.current}; double-click dedup is handled by upsert → good (verified empirically).",
+    "mindSourceRoute in /app/src/lib/taskFromMind.ts correctly builds /app/thoughts?record=<id> for cbt_thought and worry_tree; abc_model additionally appends &mode=short — OK.",
+    "ThoughtRecordsView has focus/ring + auto-scroll + tab-switch on ?record= param — works correctly.",
+    "TaskDetail.tsx is 2108 lines — exceeds the 700-line guideline; should be split into smaller modules (header, metadata rail, action sheets, etc.).",
+    "Mind origin chip onClick fallback navigates to /app/mind when source_type is unknown — reasonable.",
+    "No UI entry point exists for deleteThoughtRecord even though the service exists — dead-code smell / missing feature."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "100% of the requested worry→task and CBT origin flows; cleanup partially blocked by missing record delete UI"},
+  "test_credentials": "test.arshnaz@example.com / Test123456 (per /app/memory/test_credentials.md)",
+  "seed_data_creation": "localStorage keys starting with 'arshnaz:modules:' were seeded with {ready:true, unlocked/installed:['pharmacy','study','mind'], isAdmin/isOwner:false} after login so /app/mind is reachable. 3 QA tasks were created and then deleted. 3 thought records remain in Firestore (worry_1790857745645_hti7o, worry_1790857847764_koqur, thought_1790857862898_fhoey) because no record-delete UI exists.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Mind redesign + worry→task + origin links verified end-to-end. The only cleanup gap is thought records (no UI delete button). If a future iteration adds a record delete button, exercise it to purge the three lingering worry/thought records listed above. Double-click idempotency of worry save is confirmed. Vite HMR websocket errors in console are benign (preview container has no wss listener)."
+}

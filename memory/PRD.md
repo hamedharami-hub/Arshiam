@@ -32,3 +32,14 @@ Import https://github.com/hamedharami-hub/Arshiam.git (already in /app, Vite + R
 - Tests: /app/test_reports/iteration_14.json (all pass).
 ## Backlog
 - Knowledge: editor draft recovery, sidebar card density, reader search highlight; Planning week view/Kanban edge cases; Phase 2/3 from handoff.
+
+## Iteration 3 — Mind redesign (2026-10-01)
+- /app/mind now exactly 3 entries (Today's mood, Calm down, My mind is busy) + optional "continue last note" + trends link + fixed SOS pill. Honest save states (saved/queued/failed) with stale-response guard.
+- New pages: /app/calm (breathing quick start `?start=1` + sleep sounds), /app/mind/trends (metric chart, weekly review from Mind-only sources via completed_at, screeners with non-diagnostic note, collapsible details, read-only legacy Socratic archive, AI only after preview).
+- Socratic chat removed (view, prompts, validators, executor ops, aiSettings key, menu/palette/widget/pins; save/clear API removed, read subscription kept for archive). /app/socratic → /app/mind. Retired pin keys purged (src/lib/retiredFeatures.ts).
+- ABC merged into "Think it through" (/app/thoughts, mode toggle); /app/abc → /app/thoughts?mode=short. Shared draft (src/lib/mindDraft.ts) carries text across paths/back/reload.
+- Worry: record saved first, task linked by source_id, stable ids (no duplicate on retry); task origin chip → /app/thoughts?record=id; per-record delete added.
+- Moved: values → Growth (no longer Mind-gated), cycle → new Health group; Pomodoro untouched.
+- Tests: iteration_15 (home/calm/trends/redirects) and iteration_16 (worry/CBT task+origin) pass; unit suite: only env-bound api/* tests fail + 1 flaky Knowledge test under load.
+## Not done / limits
+- Not pushed to GitHub or deployed (use "Save to GitHub"); no before/after screenshots captured; real-account testing excluded; screener draft resume not implemented; data of old Socratic session shown read-only only if present.

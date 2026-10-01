@@ -26,6 +26,7 @@ import {
   Check,
   ArrowRight,
   ArrowLeft,
+  Trash2,
 } from "lucide-react";
 import {
   DISTORTION_LABELS,
@@ -37,6 +38,7 @@ import {
 import { createMindAIContext, executeMindAI, type CbtAnalysisOutput } from "@/lib/mindAI";
 import { createTaskFromMind } from "@/lib/taskFromMind";
 import {
+  deleteThoughtRecord,
   subscribeThoughtRecords,
   upsertThoughtRecord,
   type ThoughtRecordItem,
@@ -603,8 +605,21 @@ export default function ThoughtRecordsView() {
             <CardContent className="p-4 space-y-2.5 text-sm">
               <div className="flex justify-between items-start gap-2">
                 <div className="font-semibold text-foreground">{r.situation}</div>
-                <div className="text-xs text-muted-foreground shrink-0">
+                <div className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
                   {new Date(r.created_at).toLocaleDateString(isEn ? "en-US" : "fa-IR")}
+                  <button
+                    type="button"
+                    className="grid h-7 w-7 place-items-center rounded-md hover:bg-destructive/10 hover:text-destructive"
+                    aria-label={T("حذف این ثبت", "Delete this record")}
+                    data-testid={`record-delete-${r.id}`}
+                    onClick={async () => {
+                      if (!user || !window.confirm(T("این ثبت حذف شود؟", "Delete this record?"))) return;
+                      const ok = await deleteThoughtRecord(user.id, r.id);
+                      if (!ok) toast.error(T("حذف نشد", "Could not delete"));
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               </div>
 
