@@ -26,13 +26,14 @@ function ContinueLearning({ userId }: { userId: string }) {
   const [lastStudy, setLastStudy] = useState<LastStudy | null>(() => getLastStudy(userId));
   const [lastFailed, setLastFailed] = useState(false);
   const [lastMissing, setLastMissing] = useState(false);
+  const lastStudyDocId = lastStudy?.docId;
   useEffect(() => {
     setLastMissing(false);
-    if (!lastStudy) return;
+    if (!lastStudyDocId) return;
     let active = true;
-    getKnowledgeDocument(userId, lastStudy.docId).then(doc => { if (active && doc === null) setLastMissing(true); }).catch(() => undefined);
+    getKnowledgeDocument(userId, lastStudyDocId).then(doc => { if (active && doc === null) setLastMissing(true); }).catch(() => undefined);
     return () => { active = false; };
-  }, [userId, lastStudy]);
+  }, [userId, lastStudyDocId]);
   const loadDue = useCallback(() => {
     setDueFailed(false); setDue(null); setLastFailed(false);
     getLeitnerCards(userId).then(cards => setDue(computeDueCards(cards, new Date()).length)).catch(() => setDueFailed(true));

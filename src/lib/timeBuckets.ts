@@ -329,7 +329,9 @@ export function doesTaskMatchBucketScope(
 
     if (taskLevel < scopeLevel) {
       const taskAnchor = task.bucket_anchor || currentAnchor(task.bucket_kind, cal);
-      if (taskAnchor >= scopeRange.start && taskAnchor <= scopeRange.end) {
+      const taskRange = bucketRange(task.bucket_kind, cal, taskAnchor);
+      // A fuzzy week can span two months; include it wherever its period overlaps.
+      if (taskRange.start <= scopeRange.end && taskRange.end >= scopeRange.start) {
         return {
           matches: true,
           matchReason: "nested_bucket",
