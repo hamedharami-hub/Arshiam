@@ -1,0 +1,38 @@
+.lesson-card-layout{container-type:inline-size;min-width:0;--lesson-gap:16px}
+.lesson-card-layout__toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding-block:4px 16px}
+.lesson-card-layout__summary{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:hsl(var(--muted-foreground))}
+.lesson-card-layout__summary svg{width:16px;height:16px}
+.lesson-card-layout__view{display:flex;gap:3px;border:1px solid hsl(var(--border));border-radius:10px;padding:3px;background:hsl(var(--muted)/.4)}
+.lesson-card-layout__view button,.lesson-card-layout__groups button{min-height:38px;border-radius:7px;padding:7px 12px;font-size:12px;transition:background-color .15s,color .15s}
+.lesson-card-layout__view button[aria-pressed=true]{background:hsl(var(--background));color:hsl(var(--foreground));box-shadow:0 1px 3px hsl(var(--foreground)/.06)}
+.lesson-card-layout__groups{display:flex;overflow-x:auto;gap:6px;padding:0 0 14px;margin-bottom:8px;border-bottom:1px solid hsl(var(--border));scrollbar-width:thin}
+.lesson-card-layout__groups button{flex:none;color:hsl(var(--muted-foreground));white-space:nowrap}
+.lesson-card-layout__groups button[aria-pressed=true]{background:hsl(var(--primary)/.09);color:hsl(var(--primary));font-weight:600}
+.lesson-card-layout button:focus-visible,.lesson-content-card__header a:focus-visible{outline:2px solid hsl(var(--ring));outline-offset:3px}
+.lesson-card-group{margin-block:22px 30px;min-width:0}
+.lesson-card-group__title{display:flex;align-items:center;gap:10px;margin-bottom:12px;font-size:14px;font-weight:650;color:hsl(var(--foreground))}
+.lesson-card-group__count{display:inline-flex;align-items:center;justify-content:center;min-width:21px;height:21px;border-radius:6px;font-size:11px;font-weight:500;color:hsl(var(--muted-foreground));background:hsl(var(--muted))}
+.lesson-card-group__grid{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--lesson-gap);align-items:start}
+.lesson-content-card{min-width:0;padding:18px;border:1px solid hsl(var(--border));border-radius:14px;background:hsl(var(--card));color:hsl(var(--card-foreground));overflow-wrap:anywhere}
+.lesson-content-card--wide{grid-column:1/-1}
+.lesson-card-group__grid>.lesson-content-card:only-child{grid-column:1/-1}
+.lesson-content-card--linked{outline:2px solid hsl(var(--ring));outline-offset:2px}
+.lesson-content-card__header{display:flex;align-items:flex-start;gap:9px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid hsl(var(--border)/.6)}
+.lesson-content-card__header h3{min-width:0;font-size:15px;line-height:1.6;font-weight:650;margin:0}
+.lesson-content-card__header a{color:inherit;text-decoration:none}
+.lesson-content-card__icon{width:17px;height:17px;flex:none;margin-top:3px;color:hsl(var(--primary))}
+.lesson-content-card[data-kind=safety]{border-inline-start:3px solid hsl(var(--destructive));background:hsl(var(--destructive)/.025)}
+.lesson-content-card[data-kind=safety] .lesson-content-card__icon{color:hsl(var(--destructive))}
+.lesson-content-card__body{font-size:var(--knowledge-reader-font-size,15px);line-height:1.85;min-width:0}
+.lesson-content-card__body>div,.lesson-content-card__body>section,.lesson-content-card__body>header{margin:0}
+.lesson-content-card__body table{max-width:100%}
+.lesson-content-card__body .mobile-table-wrapper{max-width:100%;overflow-x:auto}
+.lesson-content-card__body [class*=text-xs]{font-size:calc(var(--knowledge-reader-font-size,15px)*.93)}
+.lesson-content-card__body [class*="text-["]{font-size:calc(var(--knowledge-reader-font-size,15px)*.87)}
+.lesson-card-layout__metadata{border-top:1px solid hsl(var(--border));padding-block:14px;margin-top:20px;color:hsl(var(--muted-foreground));font-size:12px}
+.lesson-card-layout__metadata summary{cursor:pointer;min-height:36px;padding-block:6px}
+.lesson-card-layout__metadata .lesson-card-group__grid{margin-top:12px}
+@container(min-width:620px){.lesson-card-group__grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container(min-width:1050px){.lesson-card-group__grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container(max-width:450px){.lesson-content-card{padding:14px;border-radius:12px}.lesson-card-layout{--lesson-gap:12px}.lesson-card-layout__view button{min-height:40px}.lesson-content-card__header h3{font-size:14px}}
+@media(prefers-reduced-motion:reduce){.lesson-card-layout button{transition:none}}

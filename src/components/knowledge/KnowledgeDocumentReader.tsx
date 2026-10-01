@@ -896,14 +896,14 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
 
             {/* TAB 1: PERSIAN ONLY VIEW (RTL) */}
             {docLangMode === "fa" && (
-              <KnowledgeSectionContent dir="rtl" className="knowledge-html-content dir-rtl text-right" html={safeHtmlFa} />
+              <KnowledgeSectionContent multiCard={isPharmacySourceFile} dir="rtl" className="knowledge-html-content dir-rtl text-right" html={safeHtmlFa} />
             )}
 
             {/* TAB 2: ENGLISH ONLY VIEW (LTR) */}
             {docLangMode === "en" && (
               <div dir="ltr" className="space-y-4">
                 {safeHtmlEn ? (
-                  <KnowledgeSectionContent dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlEn} />
+                  <KnowledgeSectionContent multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlEn} />
                 ) : (
                   <div className="space-y-4">
                     <div role="status" className="rounded-2xl border border-border bg-muted/30 p-4 text-sm leading-6">
@@ -919,7 +919,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                     </div>
 
                     {safeHtmlFa ? (
-                      <KnowledgeSectionContent dir={originalContentIsPersian ? "rtl" : "ltr"} className={`knowledge-html-content ${originalContentIsPersian ? "dir-rtl text-right" : "dir-ltr text-left"}`} html={safeHtmlFa} />
+                      <KnowledgeSectionContent multiCard={isPharmacySourceFile} dir={originalContentIsPersian ? "rtl" : "ltr"} className={`knowledge-html-content ${originalContentIsPersian ? "dir-rtl text-right" : "dir-ltr text-left"}`} html={safeHtmlFa} />
                     ) : document.plain_text?.trim() ? (
                       <p
                         dir={originalContentIsPersian ? "rtl" : "ltr"}
@@ -962,7 +962,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                   </div>
                   {originalContentIsPersian ? (
                     safeHtmlFa ? (
-                      <KnowledgeSectionContent dir="rtl" className="knowledge-html-content dir-rtl text-right" html={safeHtmlFa} />
+                      <KnowledgeSectionContent multiCard={isPharmacySourceFile} dir="rtl" className="knowledge-html-content dir-rtl text-right" html={safeHtmlFa} />
                     ) : document.plain_text?.trim() ? (
                       <p dir="rtl" className="knowledge-html-content dir-rtl whitespace-pre-wrap text-right">
                         {document.plain_text}
@@ -987,10 +987,10 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                   </div>
 
                   {safeHtmlEnBilingual ? (
-                    <KnowledgeSectionContent dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlEnBilingual} />
+                    <KnowledgeSectionContent multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlEnBilingual} />
                   ) : !originalContentIsPersian && hasOriginalContent ? (
                     safeHtmlFa ? (
-                      <KnowledgeSectionContent dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlFa} />
+                      <KnowledgeSectionContent multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlFa} />
                     ) : (
                       <p dir="ltr" className="knowledge-html-content dir-ltr whitespace-pre-wrap text-left">
                         {document.plain_text}
