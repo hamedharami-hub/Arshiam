@@ -126,6 +126,13 @@ describe("timeBuckets", () => {
     expect(doesTaskMatchBucketScope(task, { scopeKind: "month", calendar: "jalali", anchor: "2026-10-23" }).matches).toBe(false);
   });
 
+  it("preserves a task's calendar when finding overlap with a different calendar scope", () => {
+    const gregorianWeek = { bucket_kind: "week" as const, bucket_calendar: "gregorian" as const, bucket_anchor: "2026-08-17" };
+    expect(doesTaskMatchBucketScope(gregorianWeek, { scopeKind: "month", calendar: "jalali", anchor: "2026-08-23" }).matches).toBe(true);
+    const jalaliWeek = { bucket_kind: "week" as const, bucket_calendar: "jalali" as const, bucket_anchor: "2026-08-29" };
+    expect(doesTaskMatchBucketScope(jalaliWeek, { scopeKind: "month", calendar: "gregorian", anchor: "2026-09-01" }).matches).toBe(true);
+  });
+
   it("respects strict filter mode (hierarchical: false) to show only exact matching buckets", () => {
     const today = currentAnchor("day", "gregorian");
     const morningTask = {

@@ -328,8 +328,9 @@ export function doesTaskMatchBucketScope(
     const scopeLevel = BUCKET_LEVEL[options.scopeKind];
 
     if (taskLevel < scopeLevel) {
-      const taskAnchor = task.bucket_anchor || currentAnchor(task.bucket_kind, cal);
-      const taskRange = bucketRange(task.bucket_kind, cal, taskAnchor);
+      const taskCalendar = task.bucket_calendar || cal;
+      const taskAnchor = task.bucket_anchor || currentAnchor(task.bucket_kind, taskCalendar);
+      const taskRange = bucketRange(task.bucket_kind, taskCalendar, taskAnchor);
       // A fuzzy week can span two months; include it wherever its period overlaps.
       if (taskRange.start <= scopeRange.end && taskRange.end >= scopeRange.start) {
         return {
