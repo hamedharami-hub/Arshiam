@@ -1,10 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card } from "@/components/ui/card";
 import type { RecurrenceRule } from "@/lib/recurrence";
 import { describeRule } from "@/lib/recurrence";
 
@@ -19,9 +16,17 @@ const WEEKDAYS_EN = [
   { key: "FR" as const, label: "Fr" },
 ];
 
+const FREQUENCIES = ["daily", "weekly", "monthly", "yearly"] as const;
+
 export function RecurrenceEditor({
-  value, onChange,
-}: { value: RecurrenceRule | null; onChange: (v: RecurrenceRule | null) => void }) {
+  value,
+  onChange,
+  defaultTime,
+}: {
+  value: RecurrenceRule | null;
+  onChange: (v: RecurrenceRule | null) => void;
+  defaultTime?: string | null;
+}) {
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
@@ -29,66 +34,104 @@ export function RecurrenceEditor({
   const [enabled, setEnabled] = useState(!!value);
   const v: RecurrenceRule = value || { freq: "daily", interval: 1 };
 
-  const update = (patch: Partial<RecurrenceRule>) => onChange({ ...v, ...patch });
+  useEffect(() => setEnabled(!!value), [value]);
 
-  const toggleDay = (d: NonNullable<RecurrenceRule["byweekday"]>[number]) => {
-    const cur = new Set(v.byweekday || []);
-    if (cur.has(d)) {
-      cur.delete(d);
-    } else {
-      cur.add(d);
-    }
-    update({ byweekday: Array.from(cur) });
+  const update = (patch: Partial<RecurrenceRule>) => onChange({ ...v, ...patch });
+  const toggleDay = (day: NonNullable<RecurrenceRule["byweekday"]>[number]) => {
+    const days = new Set(v.byweekday || []);
+    if (days.has(day)) days.delete(day);
+    else days.add(day);
+    update({ byweekday: Array.from(days) });
+  };
+  const enable = () => {
+    setEnabled(true);
+    const [hour, minute] = defaultTime?.split(":").map(Number) || [];
+    onChange({
+      ...v,
+      ...(Number.isFinite(hour) && Number.isFinite(minute) ? { byhour: hour, byminute: minute } : {}),
+    });
   };
 
   return (
-    <Card className="p-3 space-y-3">
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">{T("تکرار", "Repeat")}</Label>
-        <Button
-          size="sm" variant={enabled ? "default" : "outline"}
-          onClick={() => {
-            const ne = !enabled;
-            setEnabled(ne);
-            onChange(ne ? v : null);
-          }}
+    <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-3">
+      {!enabled ? (
+        <button
+          type="button"
+          onClick={enable}
+          className="flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-2 text-start transition hover:bg-muted/60"
         >
-          {enabled ? T("فعال", "On") : T("غیرفعال", "Off")}
-        </Button>
-      </div>
-
-      {enabled && (
+          <span>
+            <span className="block text-xs font-medium text-foreground">{T("تکرار تسک", "Repeat task")}</span>
+            <span className="mt-0.5 block text-[11px] text-muted-foreground">{T("بدون تکرار", "Does not repeat")}</span>
+          </span>
+          <span className="rounded-full border bg-background px-3 py-1 text-[11px] font-medium text-primary">{T("افزودن", "Add")}</span>
+        </button>
+      ) : (
         <>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="flex items-center justify-between gap-3">
             <div>
-              <Label className="text-xs text-muted-foreground">{T("دوره", "Frequency")}</Label>
-              <Select value={v.freq} onValueChange={(f: any) => update({ freq: f })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">{T("روزانه", "Daily")}</SelectItem>
-                  <SelectItem value="weekly">{T("هفتگی", "Weekly")}</SelectItem>
-                  <SelectItem value="monthly">{T("ماهانه", "Monthly")}</SelectItem>
-                  <SelectItem value="yearly">{T("سالانه", "Yearly")}</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label className="text-xs font-semibold">{T("تکرار تسک", "Repeat task")}</Label>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{describeRule(v, isEn)}</p>
             </div>
+            <button
+              type="button"
+              onClick={() => { setEnabled(false); onChange(null); }}
+              className="shrink-0 rounded-full px-2.5 py-1 text-[11px] text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            >
+              {T("خاموش", "Off")}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-1.5" role="group" aria-label={T("دورهٔ تکرار", "Repeat frequency")}>
+            {FREQUENCIES.map((freq) => {
+              const label = freq === "daily" ? T("روزانه", "Daily") : freq === "weekly" ? T("هفتگی", "Weekly") : freq === "monthly" ? T("ماهانه", "Monthly") : T("سالانه", "Yearly");
+              return (
+                <button
+                  key={freq}
+                  type="button"
+                  aria-pressed={v.freq === freq}
+                  onClick={() => update({ freq })}
+                  className={`min-h-9 rounded-lg border px-3 text-xs font-medium transition ${v.freq === freq ? "border-primary bg-primary text-primary-foreground shadow-sm" : "border-border/70 bg-background hover:bg-muted"}`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-[1fr_6rem] items-center gap-3">
             <div>
-              <Label className="text-xs text-muted-foreground">{isEn ? `Every ${v.freq === "daily" ? "day" : v.freq === "weekly" ? "week" : v.freq === "monthly" ? "month" : "year"}s` : `هر چند ${v.freq === "daily" ? "روز" : v.freq === "weekly" ? "هفته" : v.freq === "monthly" ? "ماه" : "سال"}`}</Label>
-              <Input type="number" min={1} value={v.interval}
-                onChange={(e) => update({ interval: Math.max(1, parseInt(e.target.value) || 1) })} />
+              <Label htmlFor="recurrence-interval" className="text-[11px] text-muted-foreground">
+                {T("هر چند", "Repeat every")} {v.freq === "daily" ? T("روز", "days") : v.freq === "weekly" ? T("هفته", "weeks") : v.freq === "monthly" ? T("ماه", "months") : T("سال", "years")}
+              </Label>
             </div>
+            <Input
+              id="recurrence-interval"
+              type="number"
+              min={1}
+              max={365}
+              value={v.interval}
+              onChange={(event) => update({ interval: Math.min(365, Math.max(1, parseInt(event.target.value, 10) || 1)) })}
+              className="h-9 text-center text-sm tabular-nums"
+            />
           </div>
 
           {v.freq === "weekly" && (
-            <div>
-              <Label className="text-xs text-muted-foreground">{T("روزهای هفته", "Weekdays")}</Label>
-              <div className="flex gap-1 mt-1 flex-wrap">
-                {WEEKDAYS.map((d) => {
-                  const active = v.byweekday?.includes(d.key);
+            <div className="space-y-1.5">
+              <Label className="text-[11px] text-muted-foreground">{T("روزهای هفته", "Days of the week")}</Label>
+              <div className="grid grid-cols-7 gap-1">
+                {WEEKDAYS.map((day) => {
+                  const active = v.byweekday?.includes(day.key) || false;
                   return (
-                    <button key={d.key} type="button" onClick={() => toggleDay(d.key)}
-                      className={`w-8 h-8 rounded-full text-xs font-medium transition ${active ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-accent"}`}>
-                      {d.label}
+                    <button
+                      key={day.key}
+                      type="button"
+                      aria-label={day.label}
+                      aria-pressed={active}
+                      onClick={() => toggleDay(day.key)}
+                      className={`aspect-square min-w-0 rounded-full text-[11px] font-medium transition ${active ? "bg-primary text-primary-foreground" : "border border-border/60 bg-background hover:bg-muted"}`}
+                    >
+                      {day.label}
                     </button>
                   );
                 })}
@@ -96,30 +139,21 @@ export function RecurrenceEditor({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label className="text-xs text-muted-foreground">{T("ساعت", "Hour")}</Label>
-              <Input type="number" min={0} max={23} value={v.byhour ?? ""}
-                placeholder="--"
-                onChange={(e) => {
-                  const n = e.target.value === "" ? undefined : Math.min(23, Math.max(0, parseInt(e.target.value) || 0));
-                  update({ byhour: n });
-                }} />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">{T("دقیقه", "Minute")}</Label>
-              <Input type="number" min={0} max={59} value={v.byminute ?? ""}
-                placeholder="--"
-                onChange={(e) => {
-                  const n = e.target.value === "" ? undefined : Math.min(59, Math.max(0, parseInt(e.target.value) || 0));
-                  update({ byminute: n });
-                }} />
-            </div>
+          <div className="grid grid-cols-[1fr_7rem] items-center gap-3 border-t border-border/50 pt-2">
+            <Label htmlFor="recurrence-time" className="text-[11px] text-muted-foreground">{T("ساعت تکرار", "Repeat at")}</Label>
+            <Input
+              id="recurrence-time"
+              type="time"
+              value={typeof v.byhour === "number" ? `${String(v.byhour).padStart(2, "0")}:${String(v.byminute || 0).padStart(2, "0")}` : ""}
+              onChange={(event) => {
+                const [hour, minute] = event.target.value.split(":").map(Number);
+                update(event.target.value ? { byhour: hour, byminute: minute } : { byhour: undefined, byminute: undefined });
+              }}
+              className="h-9 text-xs tabular-nums"
+            />
           </div>
-
-          <p className="text-xs text-muted-foreground italic">📅 {describeRule(v, isEn)}</p>
         </>
       )}
-    </Card>
+    </div>
   );
 }

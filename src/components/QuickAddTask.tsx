@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { PRIORITY_META, PRIORITY_SELECTABLE, type Priority } from "@/lib/priority";
 import type { Task } from "@/lib/taskTypes";
+import type { RecurrenceRule } from "@/lib/recurrence";
 import { listTaskTemplates, buildTaskFromTemplate } from "@/lib/taskTemplates";
 import { uploadMediaFull } from "@/lib/uploadMedia";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
@@ -23,6 +24,7 @@ import { fieldsForExact, getTimeSettings, timePatch, type TimeFields } from "@/l
 type Defaults = {
   folder_id?: string | null;
   due_date?: string | null;
+  recurrence_rule?: RecurrenceRule | null;
   parent_id?: string | null;
   tag_id?: string | null;
   tag_ids?: string[];
@@ -72,6 +74,7 @@ export function QuickAddTask({
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
   const [due, setDue] = useState<string | null>(defaults.due_date ?? null);
+  const [recurrence, setRecurrence] = useState<RecurrenceRule | null>(defaults.recurrence_rule ?? null);
   const [priority, setPriority] = useState<Priority | null>(null);
   const [folderId, setFolderId] = useState<string | null>(defaults.folder_id ?? null);
   const defaultTagKey = JSON.stringify([...new Set([...(defaults.tag_id ? [defaults.tag_id] : []), ...(defaults.tag_ids || [])])]);
@@ -95,6 +98,10 @@ export function QuickAddTask({
   useEffect(() => {
     setDue(defaults.due_date ?? null);
   }, [defaults.due_date]);
+
+  useEffect(() => {
+    setRecurrence(defaults.recurrence_rule ?? null);
+  }, [defaults.recurrence_rule]);
 
   useEffect(() => {
     setFolderId(defaults.folder_id ?? null);
@@ -184,6 +191,8 @@ export function QuickAddTask({
       title: finalTitle,
       folder_id: finalFolderId,
       due_date: finalDue,
+      recurrence_rule: recurrence,
+      recurrence: recurrence && recurrence.freq !== "yearly" ? recurrence.freq : "none" as const,
       parent_id: defaults.parent_id ?? null,
       priority: finalPriority,
       completed: defaults.status === "done",
@@ -216,6 +225,7 @@ export function QuickAddTask({
         }
         setTitle("");
         setDue(defaults.due_date ?? null);
+        setRecurrence(defaults.recurrence_rule ?? null);
         setPriority(null);
         setFolderId(defaults.folder_id ?? null);
         setTagIds(JSON.parse(defaultTagKey));
@@ -268,6 +278,7 @@ export function QuickAddTask({
 
     setTitle("");
     setDue(defaults.due_date ?? null);
+    setRecurrence(defaults.recurrence_rule ?? null);
     setPriority(null);
     setFolderId(defaults.folder_id ?? null);
     setTagIds(JSON.parse(defaultTagKey));
@@ -330,6 +341,7 @@ export function QuickAddTask({
   const applyTemplate = (tpl: Partial<Task>) => {
     if (tpl.title) setTitle(tpl.title);
     if (tpl.due_date) setDue(tpl.due_date);
+    setRecurrence(tpl.recurrence_rule ?? null);
     if (tpl.priority) setPriority(tpl.priority);
     if (tpl.folder_id) setFolderId(tpl.folder_id);
     setTemplateOpen(false);
@@ -380,6 +392,7 @@ export function QuickAddTask({
     const qp = new URLSearchParams();
     if (title.trim()) qp.set("title", finalTitle);
     if (finalDue) qp.set("due_date", finalDue);
+    if (recurrence) qp.set("recurrence_rule", JSON.stringify(recurrence));
     if (finalFolderId) qp.set("folder_id", finalFolderId);
     if (defaults.kanban_column_id) qp.set("kanban_goal_id", defaults.kanban_column_id);
     if (defaults.status) qp.set("status", defaults.status);
@@ -611,13 +624,15 @@ export function QuickAddTask({
                     <span>{formatDueLabel(finalDue)}</span>
                   </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-72 space-y-3 p-3" align="start">
+                <PopoverContent className="max-h-[min(78dvh,42rem)] w-[min(92vw,26rem)] space-y-3 overflow-y-auto p-3" align="start">
                   <DueDatePicker
                     value={due}
                     onChange={(val) => {
                       setDue(val);
                       setDateOpen(false);
                     }}
+                    recurrenceValue={recurrence}
+                    onRecurrenceChange={setRecurrence}
                     compact
                   />
                 </PopoverContent>

@@ -14,6 +14,7 @@ import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DueDatePicker } from "@/components/DueDatePicker";
+import type { RecurrenceRule } from "@/lib/recurrence";
 import { Calendar, Flag, Folder as FolderIcon, ListTodo, FileText, X, Loader2 } from "lucide-react";
 
 const priorityKeywords: Record<string, Priority> = {
@@ -37,6 +38,7 @@ export default function QuickCaptureDialog() {
   const [busy, setBusy] = useState(false);
 
   const [due, setDue] = useState<string | null>(null);
+  const [recurrence, setRecurrence] = useState<RecurrenceRule | null>(null);
   const [priority, setPriority] = useState<Priority>("none");
   const [folderId, setFolderId] = useState<string | null>(null);
   const [folders, setFolders] = useState<{ id: string; name: string; color: string | null }[]>([]);
@@ -65,6 +67,7 @@ export default function QuickCaptureDialog() {
       setTitle("");
       setTab("task");
       setDue(null);
+      setRecurrence(null);
       setPriority("none");
       setFolderId(null);
       return;
@@ -89,6 +92,7 @@ export default function QuickCaptureDialog() {
     }
 
     setDue(initialDue);
+    setRecurrence(null);
     setFolderId(initialFolderId);
 
     if (!user) return;
@@ -174,6 +178,8 @@ export default function QuickCaptureDialog() {
           title: finalTitle,
           description: null,
           due_date: finalDue,
+          recurrence_rule: recurrence,
+          recurrence: recurrence && recurrence.freq !== "yearly" ? recurrence.freq : "none" as const,
           priority: finalPriority,
           folder_id: finalFolderId,
           completed: false,
@@ -287,8 +293,8 @@ export default function QuickCaptureDialog() {
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-72 space-y-3 p-3" align="start" side="top">
-                <DueDatePicker value={due} onChange={setDue} compact />
+              <PopoverContent className="max-h-[min(78dvh,42rem)] w-[min(92vw,26rem)] space-y-3 overflow-y-auto p-3" align="start" side="top">
+                <DueDatePicker value={due} onChange={setDue} recurrenceValue={recurrence} onRecurrenceChange={setRecurrence} compact />
               </PopoverContent>
             </Popover>
           </div>

@@ -423,10 +423,12 @@ const TaskListItemComponent = ({
                         <bdi dir="ltr" className="whitespace-nowrap">{formatTaskDueDateDisplay(t.due_date, isEn)}</bdi>
                       </button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-72 p-3" align="start" onClick={(e) => e.stopPropagation()}>
+                    <PopoverContent className="max-h-[min(78dvh,42rem)] w-[min(92vw,26rem)] overflow-y-auto p-3" align="start" onClick={(e) => e.stopPropagation()}>
                       <DueDatePicker
                         value={t.due_date}
                         onChange={(iso) => onPatchTask(t.id, { due_date: iso })}
+                        recurrenceValue={t.recurrence_rule || null}
+                        onRecurrenceChange={(rule) => onPatchTask(t.id, { recurrence_rule: rule, recurrence: rule ? (rule.freq as any) : "none" })}
                         reminderValue={t.reminder_at}
                         reminderPlan={t.reminder_plan}
                         onReminderPlanChange={(plan) => onPatchTask(t.id, { reminder_plan: plan, reminder_at: plan?.trigger_at ?? null })}
@@ -447,10 +449,12 @@ const TaskListItemComponent = ({
                         <span>{T("افزودن تاریخ", "Add date")}</span>
                       </button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-72 p-3" align="start" onClick={(e) => e.stopPropagation()}>
+                    <PopoverContent className="max-h-[min(78dvh,42rem)] w-[min(92vw,26rem)] overflow-y-auto p-3" align="start" onClick={(e) => e.stopPropagation()}>
                       <DueDatePicker
                         value={null}
                         onChange={(iso) => onPatchTask(t.id, { due_date: iso })}
+                        recurrenceValue={t.recurrence_rule || null}
+                        onRecurrenceChange={(rule) => onPatchTask(t.id, { recurrence_rule: rule, recurrence: rule ? (rule.freq as any) : "none" })}
                         reminderValue={t.reminder_at}
                         reminderPlan={t.reminder_plan}
                         onReminderPlanChange={(plan) => onPatchTask(t.id, { reminder_plan: plan, reminder_at: plan?.trigger_at ?? null })}

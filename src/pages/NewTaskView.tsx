@@ -8,6 +8,7 @@ import { ArrowRight, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { TaskDetail, type TaskDetailHandle } from "@/components/TaskDetail";
 import type { Task, ConfirmState, TaskStatus } from "@/lib/taskTypes";
+import type { RecurrenceRule } from "@/lib/recurrence";
 import { deleteTask } from "@/lib/firestoreDataService";
 import { enqueueOp } from "@/lib/offlineQueue";
 import { fieldsForPeriod, fromLocalISO, getTimeSettings, periodFor, timePatch, type Horizon } from "@/lib/timeHorizon";
@@ -18,6 +19,31 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { useBilingual } from "@/hooks/useBilingual";
+
+const WEEKDAYS = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"] as const;
+function parseRecurrenceRule(raw: string | null): RecurrenceRule | null {
+  if (!raw) return null;
+  try {
+    const candidate = JSON.parse(raw);
+    if (!candidate || !["daily", "weekly", "monthly", "yearly"].includes(candidate.freq)) return null;
+    const interval = Number(candidate.interval);
+    if (!Number.isInteger(interval) || interval < 1) return null;
+    const byweekday = Array.isArray(candidate.byweekday)
+      ? candidate.byweekday.filter((day: unknown): day is NonNullable<RecurrenceRule["byweekday"]>[number] => WEEKDAYS.includes(day as typeof WEEKDAYS[number]))
+      : undefined;
+    const byhour = Number.isInteger(candidate.byhour) && candidate.byhour >= 0 && candidate.byhour <= 23 ? candidate.byhour : undefined;
+    const byminute = Number.isInteger(candidate.byminute) && candidate.byminute >= 0 && candidate.byminute <= 59 ? candidate.byminute : undefined;
+    return {
+      freq: candidate.freq,
+      interval: Math.min(365, interval),
+      ...(byweekday?.length ? { byweekday } : {}),
+      ...(byhour !== undefined ? { byhour } : {}),
+      ...(byminute !== undefined ? { byminute } : {}),
+    };
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Full-screen "new task" page. Keeps a local draft until a real save boundary,
@@ -49,6 +75,7 @@ export default function NewTaskView() {
     const folderId = params.get("folder_id");
     const kanbanColumnId = params.get("kanban_goal_id") || params.get("goal_id") || params.get("kanban_column_id");
     const dueDate = params.get("due_date");
+    const recurrenceRule = parseRecurrenceRule(params.get("recurrence_rule"));
     const initialTitle = params.get("title") || "";
     const initialDescription = params.get("description") || "";
     const id = (() => {
@@ -81,8 +108,8 @@ export default function NewTaskView() {
       completed: isCompleted,
       status: statusParam,
       reminder_at: null,
-      recurrence: "none",
-      recurrence_rule: null,
+      recurrence: recurrenceRule && recurrenceRule.freq !== "yearly" ? recurrenceRule.freq : "none",
+      recurrence_rule: recurrenceRule,
       pinned: false,
       start_at: null,
       end_at: null,

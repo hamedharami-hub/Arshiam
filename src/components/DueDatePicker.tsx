@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Calendar, Clock, X, Bell, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Calendar, Clock, X, Bell, AlertCircle, ChevronDown, ChevronUp, Repeat } from "lucide-react";
 import {
   ensureNotificationPermission,
   toLocalDatetimeInputString,
@@ -18,6 +18,8 @@ import { toast } from "sonner";
 import { addDays, format, startOfDay } from "date-fns";
 import { formatDate } from "@/lib/jalali";
 import { InlineDatePicker } from "@/components/InlineDatePicker";
+import { RecurrenceEditor } from "@/components/RecurrenceEditor";
+import { describeRule, type RecurrenceRule } from "@/lib/recurrence";
 
 /**
  * Smart due-date & multi-step reliable reminder picker.
@@ -32,6 +34,8 @@ export function DueDatePicker({
   onReminderChange,
   reminderPlan = null,
   onReminderPlanChange,
+  recurrenceValue = null,
+  onRecurrenceChange,
   label,
   compact = false,
 }: {
@@ -41,6 +45,8 @@ export function DueDatePicker({
   onReminderChange?: (iso: string | null) => void;
   reminderPlan?: ReminderPlan | null;
   onReminderPlanChange?: (plan: ReminderPlan | null) => void;
+  recurrenceValue?: RecurrenceRule | null;
+  onRecurrenceChange?: (rule: RecurrenceRule | null) => void;
   label?: string;
   compact?: boolean;
 }) {
@@ -52,6 +58,7 @@ export function DueDatePicker({
   const [timePart, setTimePart] = useState<string>("");
   const [includeTime, setIncludeTime] = useState<boolean>(false);
   const [showCal, setShowCal] = useState<boolean>(compact);
+  const [showRecurrence, setShowRecurrence] = useState<boolean>(!!recurrenceValue);
 
   // Reminder active state
   const effectivePlan = reminderPlan || (reminderValue ? resolveEffectiveReminder({ reminder_at: reminderValue }) : null);
@@ -84,6 +91,10 @@ export function DueDatePicker({
     setIncludeTime(!isEndOfDayMarker);
     setTimePart(isEndOfDayMarker ? "09:00" : `${h}:${mm}`);
   }, [value]);
+
+  useEffect(() => {
+    if (recurrenceValue) setShowRecurrence(true);
+  }, [recurrenceValue]);
 
   useEffect(() => {
     const active = !!reminderPlan?.enabled || !!reminderValue;
@@ -230,31 +241,32 @@ export function DueDatePicker({
       )}
 
       {/* Quick chips + date input */}
-      <div className="flex gap-1.5 items-center flex-wrap">
+      <div className="grid grid-cols-3 items-center gap-1.5">
         <Button
           type="button" size="sm"
           variant={isToday(datePart) ? "default" : "outline"}
-          onClick={() => setQuick(0)} className="h-8 text-xs px-2"
+          onClick={() => setQuick(0)} className="h-9 min-w-0 text-xs px-2"
         >{T("امروز", "Today")}</Button>
         <Button
           type="button" size="sm"
           variant={isTomorrow(datePart) ? "default" : "outline"}
-          onClick={() => setQuick(1)} className="h-8 text-xs px-2"
+          onClick={() => setQuick(1)} className="h-9 min-w-0 text-xs px-2"
         >{T("فردا", "Tomorrow")}</Button>
         <Button
           type="button" size="sm" variant={showCal ? "secondary" : "outline"}
-          onClick={() => setShowCal((v) => !v)} className="h-8 flex-1 min-w-[110px] justify-start gap-1.5 text-xs px-2"
+          onClick={() => setShowCal((v) => !v)} className="h-9 min-w-0 justify-center gap-1.5 text-xs px-2"
           data-testid="due-date-calendar-toggle"
         >
           <Calendar className="w-3.5 h-3.5" />
-          <span className="truncate">{datePart ? formatDate(new Date(`${datePart}T12:00:00`), "d MMM", isEn ? "gregorian" : undefined) : T("انتخاب تاریخ", "Pick date")}</span>
+          <span className="truncate">{datePart ? formatDate(new Date(`${datePart}T12:00:00`), "d MMM", isEn ? "gregorian" : undefined) : T("انتخاب", "Choose")}</span>
         </Button>
-        {value && (
-          <Button type="button" size="icon" variant="ghost" onClick={clear} className="h-8 w-8" title={T("حذف", "Delete")} data-testid="due-date-clear">
-            <X className="w-3.5 h-3.5" />
-          </Button>
-        )}
       </div>
+
+      {value && (
+        <Button type="button" size="sm" variant="ghost" onClick={clear} className="h-7 w-full text-[11px] text-muted-foreground" title={T("حذف تاریخ و یادآور", "Clear date and reminder")} data-testid="due-date-clear">
+          <X className="me-1 h-3 w-3" /> {T("پاک کردن تاریخ", "Clear date")}
+        </Button>
+      )}
 
       {showCal && (
         <InlineDatePicker
@@ -292,6 +304,35 @@ export function DueDatePicker({
           />
         )}
       </div>
+
+      {onRecurrenceChange && (
+        <div className="border-t border-border/50 pt-2">
+          <button
+            type="button"
+            onClick={() => setShowRecurrence((open) => !open)}
+            aria-expanded={showRecurrence}
+            className="flex min-h-9 w-full items-center gap-2 rounded-lg px-1.5 text-start transition hover:bg-muted/50"
+          >
+            <Repeat className="h-3.5 w-3.5 shrink-0 text-primary" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs font-medium">{T("تکرار تسک", "Repeat task")}</span>
+              <span className="block truncate text-[10px] text-muted-foreground">
+                {recurrenceValue ? describeRule(recurrenceValue, isEn) : T("بدون تکرار", "Does not repeat")}
+              </span>
+            </span>
+            {showRecurrence ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+          </button>
+          {showRecurrence && (
+            <div className="mt-2">
+              <RecurrenceEditor
+                value={recurrenceValue}
+                onChange={onRecurrenceChange}
+                defaultTime={includeTime ? timePart : null}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Multi-step Reliable Reminder Section */}
       {(onReminderChange || onReminderPlanChange) && (

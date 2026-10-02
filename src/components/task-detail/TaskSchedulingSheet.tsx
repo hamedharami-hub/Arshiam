@@ -82,6 +82,8 @@ export function TaskSchedulingSheet({
             <DueDatePicker
               label=""
               value={t.due_date}
+              recurrenceValue={t.recurrence_rule || null}
+              onRecurrenceChange={(rule) => save({ recurrence_rule: rule, recurrence: rule ? (rule.freq as any) : "none" })}
               reminderValue={t.reminder_at}
               reminderPlan={t.reminder_plan}
               onReminderPlanChange={(plan) => save({ reminder_plan: plan, reminder_at: plan?.trigger_at ?? null })}
@@ -217,7 +219,7 @@ export function TaskSchedulingSheet({
         {triggerButton}
       </PopoverTrigger>
       <PopoverContent
-        className="w-[min(92vw,22rem)] h-[min(60vh,30rem)] overflow-y-auto overscroll-contain rounded-xl p-3"
+        className="max-h-[min(82dvh,42rem)] w-[min(94vw,28rem)] overflow-y-auto overscroll-contain rounded-2xl p-3 sm:p-4"
         align="center"
         side="top"
         sticky="always"
