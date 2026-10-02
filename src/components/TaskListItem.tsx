@@ -5,7 +5,7 @@ import {
   CornerDownRight, ChevronDown, ChevronRight, Pin, X, Ban,
   GripVertical, Flag, Calendar, Repeat, GitBranch, Check, Trash2, Clock, FolderInput, Brain,
   Network, BookOpen, FolderTree, ExternalLink, Layers,
-  Sunrise, Sun, Sunset, Moon, CalendarRange, Target,
+  Sunrise, Sun, Sunset, Moon, CalendarRange,
 } from "lucide-react";
 import { PriorityFlag } from "@/components/PriorityFlag";
 import { Card } from "@/components/ui/card";
@@ -379,17 +379,6 @@ const TaskListItemComponent = ({
                 })()}
 
                 <TaskPlanningPicker task={t} onPatch={patch => onPatchTask(t.id, patch)} />
-
-                {/* Kanban Goal Tag */}
-                {t.kanban_column_id && (
-                  <span
-                    className="inline-flex items-center gap-1 text-[9px] px-2 h-5 rounded-full border border-primary/25 bg-primary/10 text-primary font-medium"
-                    title={T("متصل به هدف کانبان", "Linked to Kanban Goal")}
-                  >
-                    <Target className="w-2.5 h-2.5 shrink-0" />
-                    <span>{T("هدف", "Goal")}</span>
-                  </span>
-                )}
 
                 <Popover>
                   <PopoverTrigger asChild>
