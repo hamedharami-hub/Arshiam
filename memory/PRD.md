@@ -43,3 +43,18 @@ Import https://github.com/hamedharami-hub/Arshiam.git (already in /app, Vite + R
 - Tests: iteration_15 (home/calm/trends/redirects) and iteration_16 (worry/CBT task+origin) pass; unit suite: only env-bound api/* tests fail + 1 flaky Knowledge test under load.
 ## Not done / limits
 - Not pushed to GitHub or deployed (use "Save to GitHub"); no before/after screenshots captured; real-account testing excluded; screener draft resume not implemented; data of old Socratic session shown read-only only if present.
+
+
+## Session 3 — 2026-10-02 (re-import + review, Knowledge excluded)
+- Re-imported repo into /app (npm ci at root; yarn cannot link this layout). Backend .env got FIREBASE_PROJECT_ID / ARSH_* values (backend optional).
+- Time-bucket planning rebuilt as cascading Planning: /app/planning (sidebar primary item), /app/buckets redirects. Levels year→quarter→month→week→day linked by `plan_parent_id`; upper-level panel (pull / smaller step / move), roll-up progress, carry-over card, unplanned tray, week-day strip, period picker, swipe, mobile panes. Files: src/lib/planCascade.ts, src/components/planning/*, src/pages/PlanningView.tsx.
+- List header view switch (src/components/ListViewSwitch.tsx): Inbox list/buckets, folders list/kanban/buckets; stored in folder prefs (inbox uses id "inbox"), cloud-synced. Old TaskPlanningPanel + BucketsView removed.
+- planningPatch no longer mirrors bucket_* (planned tasks no longer become overdue). Today shows day-planned tasks.
+- Firestore quota: persistent multi-tab cache, shared collection listeners (src/lib/firestoreLive.ts) behind firebaseStore/fetchTasks/notes/fetchFromFirestore, no pre-write server read, quota pause until Pacific midnight in offlineQueue, Persian sync bar with "همگام‌سازی الان", usage card (Settings → داده‌ها). Root cause: reminders polled full tasks collection every 60s.
+- Fixes: UTC "today" in Widgets/Pomodoro, RTL counters, endless loading on listener error, mobile header crowding, settings subtitle.
+- Auth page redesigned (brand panel + cleaner form, password toggle).
+- QA uses local Firebase emulators (tests/emulator/start.sh, localStorage arsh_use_emulator=1, dev only). Report: docs/ARSHNAZ_REVIEW_REPORT_2026-10.fa.md. Testing: /app/test_reports/iteration_17.json (all planning flows passed).
+
+### Backlog
+- P1: guided weekly/monthly review; link yearly goals to Values/Life Architect.
+- P2: undo/redo + draft recovery, notes full-text search, AI goal breakdown, Android widget "today + week progress".
