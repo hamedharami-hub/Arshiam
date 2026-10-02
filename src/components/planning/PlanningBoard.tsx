@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, CornerDownLeft, Target } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, CornerDownLeft, Sparkles, Target } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,6 +20,8 @@ import { PlanItemCard, ProgressLine } from "./PlanItemCard";
 import { PeriodPicker } from "./PeriodPicker";
 import { UpperLevelPanel } from "./UpperLevelPanel";
 import { CarryOverCard, UnplannedTray } from "./PlanningTrays";
+import { PeriodReviewDialog, reviewDue } from "./PeriodReview";
+import { ValuesGoalsPanel, domainOf, useMindGoals } from "./ValuesGoalsPanel";
 import { format as gFormat } from "date-fns";
 import { format as jFormat } from "date-fns-jalali";
 
@@ -63,6 +65,19 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
   const carried = useMemo(() => (isCurrent ? carryOver(live, period, settings) : []), [live, period, settings, isCurrent]);
   const upperItems = useMemo(() => (parentPeriod ? order(itemsInPeriod(live, parentPeriod, settings)) : []), [live, parentPeriod?.start, settings]); // eslint-disable-line react-hooks/exhaustive-deps
   const loose = useMemo(() => unplanned(live, settings), [live, settings]);
+  const goals = useMindGoals();
+  const goalById = useMemo(() => new Map(goals.map((g) => [g.id, g])), [goals]);
+  const valueLabel = (t: Task) => {
+    if (t.source_type !== "values_goal") return undefined;
+    const d = domainOf(goalById.get(t.source_id || "")?.domain);
+    return d ? `${d.icon} ${fa ? d.label : d.label_en}` : (fa ? "ارزش‌ها و اهداف" : "Values & Goals");
+  };
+  const [reviewP, setReviewP] = useState<Period | null>(null);
+  const [reviewTick, setReviewTick] = useState(0);
+  useEffect(() => { const on = () => setReviewTick((n) => n + 1); window.addEventListener("arsh:plan-reviewed", on); return () => window.removeEventListener("arsh:plan-reviewed", on); }, []);
+  const prevP = prevPeriod(period, settings);
+  const due = useMemo(() => (isCurrent ? reviewDue(user?.id, period, prevP, itemsInPeriod(live, prevP, settings).length > 0) : null), [isCurrent, user?.id, period, live, settings, reviewTick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const reviewItems = useMemo(() => (reviewP ? itemsInPeriod(live, reviewP, settings) : []), [reviewP, live, settings]);
 
   const ratio = items.length ? items.reduce((s, t) => s + progressOf(t, kids).ratio, 0) / items.length : 0;
   const doneCount = items.filter(isClosed).length;
@@ -77,7 +92,7 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
   };
   const go = (dir: 1 | -1) => { setAnchor((dir === 1 ? nextPeriod(period, settings) : prevPeriod(period, settings)).start); haptic("light"); };
 
-  const create = async (title: string, p: Period, parent?: Task) => {
+  const create = async (title: string, p: Period, parent?: Task, extra?: Partial<Task>) => {
     if (!user?.id || !title.trim()) return;
     const now = new Date().toISOString();
     const task = {
@@ -85,6 +100,7 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
       parent_id: null, position: 0, created_at: now, updated_at: now,
       folder_id: parent ? parent.folder_id ?? null : defaults?.folder_id ?? null,
       ...planPatch(p, settings, parent ? parent.id : null),
+      ...extra,
     } as Task;
     const ok = await upsertTask(user.id, task);
     if (!ok) { toast.error(fa ? "ذخیره نشد؛ دوباره تلاش کن" : "Not saved, please retry"); return; }
@@ -123,6 +139,9 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
           <button type="button" onClick={() => go(-1)} className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-muted" aria-label={fa ? "دورهٔ قبل" : "Previous period"} data-testid="planning-prev"><Prev className="h-5 w-5" /></button>
           <div className="flex min-w-0 flex-1 justify-center"><PeriodPicker key={`${lv}:${period.start}`} period={period} settings={settings} fa={fa} onPick={(p) => setAnchor(p.start)} /></div>
           <button type="button" onClick={() => go(1)} className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-muted" aria-label={fa ? "دورهٔ بعد" : "Next period"} data-testid="planning-next"><Next className="h-5 w-5" /></button>
+          <button type="button" onClick={() => setReviewP(period)} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs text-muted-foreground hover:bg-muted" title={fa ? "مرور این دوره" : "Review this period"} data-testid="planning-review-open">
+            <Sparkles className="h-3.5 w-3.5" /><span className="hidden sm:inline">{fa ? "مرور" : "Review"}</span>
+          </button>
           {!isCurrent && (
             <button type="button" onClick={() => setAnchor(null)} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full border border-border px-3 text-xs font-medium hover:bg-muted" data-testid="planning-now">
               <Target className="h-3.5 w-3.5" />{nowName}
@@ -131,13 +150,13 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
         </div>
         <div className="flex items-center gap-3">
           <p className="min-w-0 flex-1 text-xs leading-5 text-muted-foreground" data-testid="planning-purpose">{LEVEL_PURPOSE[lv][lang]}</p>
-          <div className="flex w-32 shrink-0 items-center gap-2" title={fa ? "پیشرفت این دوره" : "Progress of this period"}>
+          <div className="flex w-36 shrink-0 items-center gap-2" title={fa ? "پیشرفت این دوره" : "Progress of this period"}>
             <ProgressLine ratio={ratio} level={lv} />
-            <span className="text-[11px] tabular-nums text-muted-foreground" data-testid="planning-progress-text">{frac(doneCount, items.length, fa)}</span>
+            <span className="whitespace-nowrap text-[11px] tabular-nums text-muted-foreground" data-testid="planning-progress-text">{frac(doneCount, items.length, fa)}</span>
           </div>
         </div>
         <div className="flex gap-1 lg:hidden" role="tablist">
-          {([["main", fa ? "این دوره" : "This period", items.length], ...(up ? [["upper", fa ? `از ${LEVEL_NAME[up].fa}` : `From ${LEVEL_NAME[up].en}`, upperItems.length]] : []), ["unplanned", fa ? "برنامه‌ریزی‌نشده" : "Unplanned", loose.length]] as [typeof pane, string, number][]).map(([id, label, n]) => (
+          {([["main", fa ? "این دوره" : "This period", items.length], ...(up ? [["upper", fa ? `از ${LEVEL_NAME[up].fa}` : `From ${LEVEL_NAME[up].en}`, upperItems.length]] : [["upper", fa ? "از ارزش‌ها" : "From values", goals.length]]), ["unplanned", fa ? "برنامه‌ریزی‌نشده" : "Unplanned", loose.length]] as [typeof pane, string, number][]).map(([id, label, n]) => (
             <button key={id} type="button" role="tab" aria-selected={pane === id} onClick={() => setPane(id)} data-testid={`planning-pane-${id}`}
               className={cn("h-9 flex-1 rounded-full text-xs transition-colors duration-150", pane === id ? "bg-foreground text-background font-semibold" : "bg-muted/60 text-muted-foreground")}>
               {label} <span className="tabular-nums opacity-70">{num(n)}</span>
@@ -148,6 +167,13 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className={cn("space-y-3", pane !== "main" && "hidden lg:block")} onTouchStart={(e) => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }} onTouchEnd={onTouchEnd} data-testid="planning-main">
+          {due && (
+            <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-gradient-to-l from-amber-500/10 to-transparent p-3" data-testid="planning-review-banner">
+              <Sparkles className="h-4 w-4 shrink-0 text-amber-500" />
+              <p className="min-w-0 flex-1 text-sm">{fa ? `وقت مرور «${periodLabel(due, settings, lang)}» است — کمتر از دو دقیقه.` : `Time to review ${periodLabel(due, settings, lang)} — under two minutes.`}</p>
+              <button type="button" onClick={() => setReviewP(due)} className="h-8 shrink-0 rounded-full bg-foreground px-3 text-xs font-medium text-background" data-testid="planning-review-start">{fa ? "شروع مرور" : "Start"}</button>
+            </div>
+          )}
           <CarryOverCard tasks={carried} settings={settings} fa={fa} onMoveHere={(t) => plan(t, period)} onComplete={complete}
             onDrop={(t) => plan(t, null, null)} onMoveAll={() => carried.forEach((t) => plan(t, period))} />
           <form className="flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); void create(draft, period); setDraft(""); }}>
@@ -164,7 +190,7 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
           ) : (
             <div className="space-y-2" data-testid="planning-items">
               {items.map((t) => (
-                <PlanItemCard key={t.id} task={t} kids={kids} byId={byId} settings={settings} fa={fa} childLevelName={down}
+                <PlanItemCard key={t.id} task={t} kids={kids} byId={byId} settings={settings} fa={fa} childLevelName={down} valueLabel={valueLabel(t)}
                   onToggle={(x) => void onToggle(x)} onOpen={onOpen} onMoveNext={moveNext} onUnplan={(x) => plan(x, null, null)}
                   onAddChild={down ? (parent, title) => void create(title, defaultChildPeriod(planOf(parent, settings) || period, down, settings), parent) : undefined} />
               ))}
@@ -172,11 +198,18 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
           )}
           {lv === "week" && <WeekDays period={period} tasks={live} settings={settings} fa={fa} onPick={(d) => { setLevelState("day"); localStorage.setItem(LEVEL_KEY, "day"); setAnchor(d); }} />}
         </div>
+        <PeriodReviewDialog key={reviewP ? `${reviewP.horizon}:${reviewP.start}` : "none"} period={reviewP} items={reviewItems} settings={settings} fa={fa} onClose={() => setReviewP(null)}
+          onMove={(t, p) => plan(t, p)} onDrop={(t) => plan(t, null, null)} onComplete={complete} onAdd={(title, p) => void create(title, p)} />
         <aside className={cn("space-y-3", pane === "main" && "hidden lg:block")}>
           {up && parentPeriod && (
             <div className={cn(pane === "unplanned" && "hidden lg:block")}>
               <UpperLevelPanel parentPeriod={parentPeriod} items={upperItems} kids={kids} current={period} settings={settings} fa={fa} onOpen={onOpen}
                 onPull={(parent, title) => void create(title, period, parent)} onMoveHere={(t) => plan(t, period)} />
+            </div>
+          )}
+          {lv === "year" && (
+            <div className={cn(pane === "unplanned" && "hidden lg:block")}>
+              <ValuesGoalsPanel goals={goals} tasks={live} fa={fa} onAdd={(g) => void create(g.text, period, undefined, { source_type: "values_goal", source_id: g.id })} />
             </div>
           )}
           <div className={cn(pane === "upper" && "hidden lg:block")}>

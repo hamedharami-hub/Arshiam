@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   webDir: "dist",
   loggingBehavior: "none",
   android: {
-    backgroundColor: "#0F172A",
+    backgroundColor: "#F6F0E8",
   },
   plugins: {
     StatusBar: {
@@ -15,7 +15,7 @@ const config: CapacitorConfig = {
       overlaysWebView: true,
     },
     SplashScreen: {
-      backgroundColor: "#0F172A",
+      backgroundColor: "#F6F0E8",
       androidScaleType: "CENTER_CROP",
       showSpinner: false,
     },

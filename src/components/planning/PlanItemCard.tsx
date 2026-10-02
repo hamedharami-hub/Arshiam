@@ -19,7 +19,7 @@ export type PlanItemActions = {
 
 type Props = PlanItemActions & {
   task: Task; kids: Map<string, Task[]>; byId: Map<string, Task>;
-  settings: TimeSettings; fa: boolean; childLevelName?: Horizon | null;
+  settings: TimeSettings; fa: boolean; childLevelName?: Horizon | null; valueLabel?: string;
 };
 
 export const CheckDot = ({ done, level, onClick, testId }: { done: boolean; level: Horizon; onClick: () => void; testId: string }) => (
@@ -50,7 +50,7 @@ export function ParentChip({ parent, settings, fa }: { parent: Task; settings: T
   );
 }
 
-export function PlanItemCard({ task, kids, byId, settings, fa, childLevelName, ...a }: Props) {
+export function PlanItemCard({ task, kids, byId, settings, fa, childLevelName, valueLabel, ...a }: Props) {
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
@@ -69,7 +69,12 @@ export function PlanItemCard({ task, kids, byId, settings, fa, childLevelName, .
         <CheckDot done={done} level={level} onClick={() => a.onToggle(task)} testId={`plan-item-toggle-${task.id}`} />
         <button type="button" className="min-w-0 flex-1 text-start" onClick={() => a.onOpen(task)} data-testid={`plan-item-open-${task.id}`}>
           <p className={cn("text-sm font-medium leading-6 break-words", done && "text-muted-foreground line-through")}>{task.title || (fa ? "بدون عنوان" : "Untitled")}</p>
-          {parent && <div className="mt-1"><ParentChip parent={parent} settings={settings} fa={fa} /></div>}
+          {(parent || valueLabel) && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {parent && <ParentChip parent={parent} settings={settings} fa={fa} />}
+              {valueLabel && <span className="inline-flex max-w-full items-center gap-1 truncate rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-800 dark:text-amber-300" data-testid={`plan-value-chip-${task.id}`}>{valueLabel}</span>}
+            </div>
+          )}
         </button>
         {children.length > 0 && (
           <button type="button" onClick={() => setOpen(!open)} className="flex h-8 items-center gap-1 rounded-full px-2 text-xs text-muted-foreground hover:bg-muted" data-testid={`plan-item-expand-${task.id}`} aria-expanded={open}>

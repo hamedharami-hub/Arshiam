@@ -391,6 +391,9 @@ export default {
   },
   onboarding: {
     welcome: "Welcome to ARSHNAZ",
+    stepPlanTitle: "From the year's goal to today's task",
+    stepPlanDesc: "In Planning, break yearly goals into seasons, months, weeks and days; every tick moves all levels forward.",
+    stepPlanCta: "Start planning",
     step1Title: "Write your first task",
     step1Desc: "Hand whatever is on your mind to the app — add one small thing for today.",
     step1Cta: "Go to tasks",

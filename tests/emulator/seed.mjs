@@ -38,4 +38,12 @@ for (const d of docs) {
   const r = await fetch(`${base}/tasks/${d.id}`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: "Bearer owner" }, body: JSON.stringify({ fields }) });
   if (!r.ok) console.error(d.id, r.status, await r.text());
 }
-console.log("seeded", docs.length);
+const goals = [
+  { id: "g1", user_id: uid, domain: "health", text: "هر هفته سه بار ورزش", horizon: "year", created_at: ts },
+  { id: "g2", user_id: uid, domain: "learning", text: "خواندن ۱۲ کتاب", horizon: "year", created_at: ts },
+];
+for (const g of goals) {
+  const fields = Object.fromEntries(Object.entries(g).map(([k, v]) => [k, val(v)]));
+  await fetch(`${base}/mind_goals/${g.id}`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: "Bearer owner" }, body: JSON.stringify({ fields }) });
+}
+console.log("seeded", docs.length, "+", goals.length, "goals");
