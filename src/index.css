@@ -1803,16 +1803,14 @@ html[lang^="en"] body { font-feature-settings: "cv11"; }
 .auth-field { height: 2.9rem; width: 100%; border: 0; border-bottom: 1px solid hsl(var(--auth-rule)); background: transparent; padding-inline: .1rem; font-size: .95rem; color: hsl(var(--auth-ink)); outline: none; transition: border-color .25s ease; }
 .auth-field::placeholder { color: hsl(var(--auth-muted) / .55); }
 .auth-field:focus { border-bottom-color: hsl(var(--auth-line)); }
-.angel-stroke { stroke-dasharray: 1; stroke-dashoffset: 0; animation: angel-draw 2.4s cubic-bezier(.45,.05,.25,1) both; }
-.angel-ink { animation: angel-fade 1.4s ease 1.8s both; }
-.angel-star { transform-box: fill-box; transform-origin: center; animation: angel-fade .9s ease 2.6s both, angel-breathe 3.8s ease-in-out 3.5s infinite; }
-.angel-star-glow { animation: angel-fade 1.2s ease 2.8s both, angel-glow 3.8s ease-in-out 3.5s infinite; }
-@keyframes angel-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-@keyframes angel-fade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes angel-breathe { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .55; transform: scale(.86); } }
-@keyframes angel-glow { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.angel-stage { position: relative; display: inline-block; aspect-ratio: 1312 / 1199; vertical-align: middle; }
+.angel-illustration { display: block; width: 100%; height: 100%; object-fit: contain; animation: angel-float 5s ease-in-out 1s infinite, angel-appear .9s ease both; }
+.angel-star-sparkle { position: absolute; top: 26%; left: 64%; color: #d59a70; font-size: clamp(1rem, 3vw, 2.2rem); line-height: 1; text-shadow: 0 0 10px #ffe4ba, 0 0 22px #f5c889; transform-origin: center; animation: angel-breathe 2.6s ease-in-out 1.1s infinite; }
+@keyframes angel-appear { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes angel-float { 0%, 100% { translate: 0 0; rotate: 0deg; } 50% { translate: 0 -7px; rotate: -.6deg; } }
+@keyframes angel-breathe { 0%, 100% { opacity: .8; scale: .85; rotate: -8deg; } 50% { opacity: 1; scale: 1.12; rotate: 8deg; } }
 @keyframes auth-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .auth-rise { animation: auth-rise .7s cubic-bezier(.22,.61,.36,1) both; }
 @media (prefers-reduced-motion: reduce) {
-  .angel-stroke, .angel-ink, .angel-star, .angel-star-glow, .auth-rise { animation: none !important; }
+  .angel-illustration, .angel-star-sparkle, .auth-rise { animation: none !important; }
 }
