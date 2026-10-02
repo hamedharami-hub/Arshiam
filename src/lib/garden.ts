@@ -1,4 +1,4 @@
-import { creditIsland } from "./island";
+import { creditIsland, recordIslandTask } from "./island";
 import { showMascotMoment } from "./mascot";
 import { toast } from "sonner";
 
@@ -531,6 +531,7 @@ export function awardTaskWatering(
   title: string,
   isSubtask = false
 ): TaskWateringResult {
+  recordIslandTask(isSubtask);
   const current = getGardenState();
   const dropsAmount = isSubtask ? 5 : 10;
   const growthPoints = isSubtask ? 5 : 10;

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { ISLAND_UNLOCK_EVENT, canBuild, creditIsland, getDayPhase, getNewlyUnlocked, getIslandLevel, getIslandState, moveBuilding, placeBuilding, removeBuilding } from "./island";
+import { ISLAND_UNLOCK_EVENT, claimWeeklyGift, consumeCheers, getWeekKey, getWeekProgress, recordIslandTask, refreshIslandWeek, canBuild, creditIsland, getDayPhase, getNewlyUnlocked, getIslandLevel, getIslandState, moveBuilding, placeBuilding, removeBuilding } from "./island";
 
 describe("island game", () => {
   beforeEach(() => localStorage.clear());
@@ -56,5 +56,36 @@ describe("island game", () => {
   it("maps real hours to day phases", () => {
     const at = (h: number) => getDayPhase(new Date(2026, 0, 1, h));
     expect([at(6), at(13), at(18), at(22), at(3)]).toEqual(["morning", "day", "sunset", "night", "night"]);
+  });
+
+  it("weekly gift: 5 tasks unlock a free decoration that can be placed and refunded", () => {
+    const now = new Date(2026, 9, 1, 10); // Thursday
+    for (let i = 0; i < 4; i++) recordIslandTask(false, now);
+    recordIslandTask(true, now); // subtasks do not count toward the weekly goal
+    expect(getWeekProgress(getIslandState(), now)).toMatchObject({ tasks: 4, ready: false });
+    expect(claimWeeklyGift(now)).toBeNull();
+    recordIslandTask(false, now);
+    expect(getWeekProgress(getIslandState(), now).ready).toBe(true);
+    const gift = claimWeeklyGift(now)!;
+    expect(gift).toBe("flowerbed");
+    expect(claimWeeklyGift(now)).toBeNull();
+    const points = getIslandState().points;
+    expect(placeBuilding(gift, 0, 0).ok).toBe(true);
+    expect(getIslandState().points).toBe(points);
+    expect(getIslandState().gifts?.flowerbed).toBe(0);
+    removeBuilding(getIslandState().buildings[0].id);
+    expect(getIslandState().gifts?.flowerbed).toBe(1);
+    expect(consumeCheers()).toBe(6);
+    expect(consumeCheers()).toBe(0);
+  });
+
+  it("auto-grants an unclaimed gift when the week rolls over", () => {
+    const thu = new Date(2026, 9, 1, 10);
+    for (let i = 0; i < 5; i++) recordIslandTask(false, thu);
+    const nextWeek = new Date(2026, 9, 4, 10); // Sunday, new Saturday-start week
+    expect(getWeekKey(thu)).not.toBe(getWeekKey(nextWeek));
+    const { autoGift, state } = refreshIslandWeek(nextWeek);
+    expect(autoGift).toBe("flowerbed");
+    expect(state.week).toMatchObject({ tasks: 0, claimed: false });
   });
 });

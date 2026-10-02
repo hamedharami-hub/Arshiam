@@ -6,7 +6,9 @@
 export type MaterialId = "wood" | "stone" | "brick" | "glass" | "marble" | "gold";
 export type BuildingType =
   | "tree" | "palm" | "hut" | "well" | "house" | "windmill"
-  | "market" | "lighthouse" | "fountain" | "tower" | "palace";
+  | "market" | "lighthouse" | "fountain" | "tower" | "palace"
+  | GiftType;
+export type GiftType = "flowerbed" | "lantern" | "bench" | "statue" | "arch";
 
 export interface Material {
   id: MaterialId;
@@ -24,6 +26,7 @@ export interface BuildingSpec {
   material: MaterialId;
   descFa: string;
   descEn: string;
+  gift?: boolean;
 }
 
 export interface PlacedBuilding {
@@ -46,6 +49,11 @@ export interface IslandState {
   buildings: PlacedBuilding[];
   log: IslandLogItem[];
   updatedAt?: number;
+  /** Activities finished since the residents last celebrated. */
+  pendingCheers?: number;
+  week?: { key: string; tasks: number; claimed: boolean };
+  gifts?: Partial<Record<GiftType, number>>;
+  giftsEarned?: number;
 }
 
 export const GRID_SIZE = 8;
@@ -73,10 +81,20 @@ export const BUILDINGS: BuildingSpec[] = [
   { type: "palace", fa: "کاخ", en: "Palace", cost: 200, material: "gold", descFa: "شاهکار جزیرهٔ شما", descEn: "Your island's masterpiece" },
 ];
 
+/** Special, free decorations earned from the weekly gift (5 tasks in a week). */
+export const GIFTS: BuildingSpec[] = [
+  { type: "flowerbed", fa: "باغچهٔ گل", en: "Flowerbed", cost: 0, material: "wood", gift: true, descFa: "هدیهٔ یک هفتهٔ پرتلاش", descEn: "A gift for a busy week" },
+  { type: "lantern", fa: "فانوس کوچه", en: "Street Lantern", cost: 0, material: "wood", gift: true, descFa: "شب‌های جزیره را روشن می‌کند", descEn: "Lights up island nights" },
+  { type: "bench", fa: "نیمکت", en: "Bench", cost: 0, material: "wood", gift: true, descFa: "جایی برای نفس تازه کردن", descEn: "A place to catch your breath" },
+  { type: "statue", fa: "تندیس افتخار", en: "Pride Statue", cost: 0, material: "wood", gift: true, descFa: "یادبود پیوستگی شما", descEn: "A monument to your consistency" },
+  { type: "arch", fa: "طاق رنگین‌کمان", en: "Rainbow Arch", cost: 0, material: "wood", gift: true, descFa: "دروازه‌ای شاد به جزیره", descEn: "A joyful gateway" },
+];
+export const WEEKLY_GOAL = 5;
+
 export const ISLAND_LEVELS = [0, 3, 7, 12, 18, 25, 34, 45];
 
 export function getBuildingSpec(type: BuildingType): BuildingSpec {
-  return BUILDINGS.find((b) => b.type === type) || BUILDINGS[0];
+  return BUILDINGS.find((b) => b.type === type) || GIFTS.find((b) => b.type === type) || BUILDINGS[0];
 }
 
 export function getMaterial(id: MaterialId): Material {
@@ -102,6 +120,7 @@ const STORAGE_KEY = "arshnaz_island_v1";
 const USER_KEY = "arshnaz_garden_user";
 export const ISLAND_EVENT = "arshnaz-island-updated";
 export const ISLAND_UNLOCK_EVENT = "arshnaz-island-unlock";
+export const ISLAND_CHEER_EVENT = "arshnaz-island-cheer";
 
 export type DayPhase = "morning" | "day" | "sunset" | "night";
 /** Real-time lighting phase for the island. */
@@ -205,6 +224,7 @@ export type BuildResult = { ok: true; state: IslandState } | { ok: false; reason
 
 export function canBuild(state: IslandState, type: BuildingType): "ok" | "locked" | "points" {
   const spec = getBuildingSpec(type);
+  if (spec.gift) return (state.gifts?.[type as GiftType] || 0) > 0 ? "ok" : "locked";
   if (!isMaterialUnlocked(spec.material, state.lifetime)) return "locked";
   if (state.points < spec.cost) return "points";
   return "ok";
@@ -225,8 +245,11 @@ export function placeBuilding(type: BuildingType, x: number, y: number): BuildRe
   if (check !== "ok") return { ok: false, reason: check };
   const spec = getBuildingSpec(type);
   const id = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `b-${Date.now()}-${Math.random()}`;
+  const gifts = { ...(state.gifts || {}) };
+  if (spec.gift) gifts[type as GiftType] = Math.max(0, (gifts[type as GiftType] || 0) - 1);
   const next: IslandState = {
     ...state,
+    gifts,
     points: state.points - spec.cost,
     buildings: [...state.buildings, { id, type, x, y, placedAt: new Date().toISOString() }],
   };
@@ -248,11 +271,87 @@ export function removeBuilding(id: string): IslandState {
   const state = getIslandState();
   const target = state.buildings.find((b) => b.id === id);
   if (!target) return state;
+  const spec = getBuildingSpec(target.type);
+  const gifts = { ...(state.gifts || {}) };
+  if (spec.gift) gifts[target.type as GiftType] = (gifts[target.type as GiftType] || 0) + 1;
   const next = {
     ...state,
-    points: state.points + getBuildingSpec(target.type).cost,
+    gifts,
+    points: state.points + spec.cost,
     buildings: state.buildings.filter((b) => b.id !== id),
   };
   saveIslandState(next);
   return next;
+}
+
+// ---------- Weekly gift & resident cheers ----------
+
+/** Week key (local date of the week's Saturday, Iranian week start). */
+export function getWeekKey(date = new Date()): string {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  d.setDate(d.getDate() - ((d.getDay() + 1) % 7));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function grantGift(state: IslandState): { state: IslandState; gift: GiftType } {
+  const gift = GIFTS[(state.giftsEarned || 0) % GIFTS.length].type as GiftType;
+  const gifts = { ...(state.gifts || {}) };
+  gifts[gift] = (gifts[gift] || 0) + 1;
+  return { state: { ...state, gifts, giftsEarned: (state.giftsEarned || 0) + 1 }, gift };
+}
+
+/** Rolls the week over. A reached-but-unclaimed gift from last week is granted automatically (nothing is lost). */
+function rollWeek(state: IslandState, now = new Date()): { state: IslandState; autoGift: GiftType | null; changed: boolean } {
+  const key = getWeekKey(now);
+  if (state.week?.key === key) return { state, autoGift: null, changed: false };
+  let next = state;
+  let autoGift: GiftType | null = null;
+  if (state.week && state.week.tasks >= WEEKLY_GOAL && !state.week.claimed) {
+    const r = grantGift(state);
+    next = r.state;
+    autoGift = r.gift;
+  }
+  return { state: { ...next, week: { key, tasks: 0, claimed: false } }, autoGift, changed: true };
+}
+
+export function refreshIslandWeek(now = new Date()): { state: IslandState; autoGift: GiftType | null } {
+  const r = rollWeek(getIslandState(), now);
+  if (r.changed) saveIslandState(r.state);
+  return { state: r.state, autoGift: r.autoGift };
+}
+
+export function getWeekProgress(state: IslandState, now = new Date()) {
+  const current = state.week?.key === getWeekKey(now) ? state.week : { key: getWeekKey(now), tasks: 0, claimed: false };
+  return { tasks: Math.min(current.tasks, WEEKLY_GOAL), goal: WEEKLY_GOAL, ready: current.tasks >= WEEKLY_GOAL && !current.claimed, claimed: current.claimed };
+}
+
+/** Called when a task (or subtask) is completed anywhere in the app. */
+export function recordIslandTask(isSubtask = false, now = new Date()): IslandState {
+  const { state } = rollWeek(getIslandState(), now);
+  const week = state.week!;
+  const next: IslandState = {
+    ...state,
+    pendingCheers: (state.pendingCheers || 0) + 1,
+    week: isSubtask ? week : { ...week, tasks: week.tasks + 1 },
+  };
+  saveIslandState(next);
+  try { window.dispatchEvent(new CustomEvent(ISLAND_CHEER_EVENT, { detail: next.pendingCheers })); } catch { /* non-browser */ }
+  return next;
+}
+
+export function claimWeeklyGift(now = new Date()): GiftType | null {
+  const { state } = rollWeek(getIslandState(), now);
+  if (!state.week || state.week.tasks < WEEKLY_GOAL || state.week.claimed) return null;
+  const r = grantGift(state);
+  saveIslandState({ ...r.state, week: { ...state.week, claimed: true } });
+  return r.gift;
+}
+
+/** Returns how many finished activities the residents should celebrate, then resets the counter. */
+export function consumeCheers(): number {
+  const state = getIslandState();
+  const n = state.pendingCheers || 0;
+  if (n) saveIslandState({ ...state, pendingCheers: 0 });
+  return n;
 }

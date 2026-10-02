@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowRightLeft, Moon, Sunrise, Sun, Sunset, Coins, Hammer, History, Info, Lock, MousePointerClick, Sparkles, Trash2, Trophy, X } from "lucide-react";
+import { ArrowRightLeft, Camera, Download, Gift, PartyPopper, Share2, Moon, Sunrise, Sun, Sunset, Coins, Hammer, History, Info, Lock, MousePointerClick, Sparkles, Trash2, Trophy, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,11 +8,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { BuildingPreview, IslandScene } from "@/components/island/IslandScene";
 import { ZoomPan } from "@/components/island/ZoomPan";
+import { captureIsland, downloadBlob, shareBlob } from "@/lib/islandSnapshot";
 import "@/components/island/island.css";
 import { useBilingual } from "@/hooks/useBilingual";
 import { toPersianDigits } from "@/lib/jalali";
 import {
-  BUILDINGS, ISLAND_EVENT, MATERIALS, getDayPhase, type DayPhase, canBuild, getBuildingSpec, getIslandLevel, getIslandState, getNextMaterial,
+  BUILDINGS, GIFTS, ISLAND_CHEER_EVENT, ISLAND_EVENT, MATERIALS, claimWeeklyGift, consumeCheers, getDayPhase, getWeekProgress, refreshIslandWeek, type DayPhase, type GiftType, canBuild, getBuildingSpec, getIslandLevel, getIslandState, getNextMaterial,
   isMaterialUnlocked, moveBuilding, placeBuilding, removeBuilding, type BuildingType, type IslandState, type PlacedBuilding,
 } from "@/lib/island";
 
@@ -23,12 +24,72 @@ export default function IslandView() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [moving, setMoving] = useState(false);
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
+  const [cheerKey, setCheerKey] = useState(0);
+  const [snapshot, setSnapshot] = useState<{ url: string; blob: Blob } | null>(null);
+  const [capturing, setCapturing] = useState(false);
 
   useEffect(() => {
     const onUpdate = (e: Event) => setState((e as CustomEvent<IslandState>).detail || getIslandState());
     window.addEventListener(ISLAND_EVENT, onUpdate);
     return () => window.removeEventListener(ISLAND_EVENT, onUpdate);
   }, []);
+
+  // Residents celebrate tasks finished since the last visit, and live while the island is open.
+  useEffect(() => {
+    const { autoGift } = refreshIslandWeek();
+    if (autoGift) toast.success(T("هدیهٔ هفتهٔ قبل به انبار هدیه‌ها اضافه شد", "Last week's gift was added to your gifts"));
+    const celebrate = () => {
+      const n = consumeCheers();
+      if (!n) return;
+      setCheerKey((k) => k + 1);
+      toast.success(T(`ساکنان جزیره برای ${toPersianDigits(n)} کار انجام‌شده جشن گرفتند!`, `Your residents are cheering for ${n} finished ${n === 1 ? "task" : "tasks"}!`), { icon: <PartyPopper className="size-4" /> });
+    };
+    const first = window.setTimeout(celebrate, 900);
+    window.addEventListener(ISLAND_CHEER_EVENT, celebrate);
+    return () => { window.clearTimeout(first); window.removeEventListener(ISLAND_CHEER_EVENT, celebrate); };
+  }, [T]);
+
+  useEffect(() => () => { if (snapshot) URL.revokeObjectURL(snapshot.url); }, [snapshot]);
+  useEffect(() => {
+    if (snapshot) window.setTimeout(() => document.querySelector('[data-testid="island-snapshot-panel"]')?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
+  }, [snapshot]);
+
+  const week = getWeekProgress(state);
+  const giftCount = (type: BuildingType) => state.gifts?.[type as GiftType] || 0;
+
+  const handleClaim = () => {
+    const gift = claimWeeklyGift();
+    if (!gift) return;
+    const spec = getBuildingSpec(gift);
+    toast.success(T(`هدیهٔ هفته: «${spec.fa}» به انبار شما اضافه شد!`, `Weekly gift: “${spec.en}” added to your gifts!`), { icon: <Gift className="size-4" /> });
+    setSelectedId(null); setMoving(false); setBuildType(gift);
+  };
+
+  const handleSnapshot = async () => {
+    const svg = document.querySelector<SVGSVGElement>('[data-testid="island-map"]');
+    if (!svg) return;
+    setCapturing(true);
+    try {
+      const date = new Date().toLocaleDateString(isEn ? "en-AU" : "fa-IR-u-ca-persian", { year: "numeric", month: "long", day: "numeric" });
+      const blob = await captureIsland(svg, {
+        title: T("جزیرهٔ من", "My Island"),
+        subtitle: T(`${date} · سطح ${toPersianDigits(getIslandLevel(state.buildings.length).level)} · ${toPersianDigits(state.buildings.length)} سازه`, `${date} · Level ${getIslandLevel(state.buildings.length).level} · ${state.buildings.length} buildings`),
+        phase,
+        rtl: !isEn,
+      });
+      setSnapshot((prev) => { if (prev) URL.revokeObjectURL(prev.url); return { url: URL.createObjectURL(blob), blob }; });
+    } catch {
+      toast.error(T("ساخت تصویر ممکن نشد؛ دوباره تلاش کنید.", "Couldn't create the picture — please try again."));
+    } finally {
+      setCapturing(false);
+    }
+  };
+  const snapName = () => `arshnaz-island-${new Date().toISOString().slice(0, 10)}.png`;
+  const handleShare = async () => {
+    if (!snapshot) return;
+    const ok = await shareBlob(snapshot.blob, snapName(), T("جزیرهٔ من", "My Island"));
+    if (!ok) { downloadBlob(snapshot.blob, snapName()); toast.info(T("اشتراک‌گذاری در این دستگاه پشتیبانی نمی‌شود؛ تصویر دانلود شد.", "Sharing isn't supported here — the picture was downloaded.")); }
+  };
 
   const digit = useCallback((v: number) => (isEn ? v.toLocaleString("en") : toPersianDigits(v)), [isEn]);
   const name = useCallback((type: BuildingType) => { const s = getBuildingSpec(type); return isEn ? s.en : s.fa; }, [isEn]);
@@ -70,7 +131,7 @@ export default function IslandView() {
       const res = placeBuilding(buildType, x, y);
       if (res.ok) {
         toast.success(T(`${name(buildType)} ساخته شد!`, `${name(buildType)} built!`));
-        if (res.state.points < getBuildingSpec(buildType).cost) setBuildType(null);
+        if (canBuild(res.state, buildType) !== "ok") setBuildType(null);
       } else if (res.reason === "points") toast.info(T("امتیاز کافی نیست؛ با انجام کارها امتیاز بیشتری جمع کنید.", "Not enough points yet — complete tasks to earn more."));
       return;
     }
@@ -85,9 +146,10 @@ export default function IslandView() {
 
   const handleRemove = () => {
     if (!selected) return;
-    const cost = getBuildingSpec(selected.type).cost;
+    const spec = getBuildingSpec(selected.type);
     removeBuilding(selected.id);
-    toast.success(T(`${digit(cost)} امتیاز کامل به کیف شما برگشت`, `${cost} points fully refunded`));
+    if (spec.gift) toast.success(T("هدیه به انبار هدیه‌ها برگشت", "Gift returned to your stock"));
+    else toast.success(T(`${digit(spec.cost)} امتیاز کامل به کیف شما برگشت`, `${spec.cost} points fully refunded`));
     clearModes();
   };
 
@@ -120,14 +182,31 @@ export default function IslandView() {
         <section className={`island-sea island-sea-${phase} overflow-hidden rounded-3xl border shadow-sm lg:sticky lg:top-4 lg:self-start`} aria-label={T("نقشه جزیره", "Island map")}>
           <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 p-3">
             <p className="flex items-center gap-2 rounded-full bg-background/80 px-3 py-1.5 text-sm backdrop-blur-md" data-testid="island-mode-hint"><MousePointerClick className="size-4 text-primary" />{modeHint}</p>
+            <div className="flex items-center gap-2">
+            <Button size="sm" variant="secondary" className="rounded-full" onClick={handleSnapshot} disabled={capturing} data-testid="island-snapshot-btn"><Camera className="size-4" />{capturing ? T("در حال ثبت…", "Capturing…") : T("عکس یادگاری", "Snapshot")}</Button>
             <span className="flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-1.5 text-sm backdrop-blur-md" data-testid="island-day-phase">{PHASE_META[phase].icon}{isEn ? PHASE_META[phase].en : PHASE_META[phase].fa}</span>
+            </div>
             {(buildType || moving || selectedId) && <Button size="sm" variant="secondary" className="rounded-full" onClick={clearModes} data-testid="island-cancel-mode"><X className="size-4" />{T("لغو", "Cancel")}</Button>}
           </div>
           <div className="px-2 pb-4">
             <ZoomPan initialScale={initialZoom} labels={{ zoomIn: T("بزرگ‌نمایی", "Zoom in"), zoomOut: T("کوچک‌نمایی", "Zoom out"), reset: T("اندازهٔ اولیه", "Reset view"), hint: T("برای جابه‌جایی نقشه بکشید", "Drag to move the map") }}>
-              <IslandScene buildings={state.buildings} selectedId={selectedId} ghostType={moving && selected ? selected.type : buildType} hover={hover} phase={phase} labelFor={labelFor} onHover={setHover} onTile={onTile} onBuilding={onBuilding} />
+              <IslandScene buildings={state.buildings} selectedId={selectedId} ghostType={moving && selected ? selected.type : buildType} hover={hover} phase={phase} cheerKey={cheerKey} cheerText={T("آفرین!", "Yay!")} labelFor={labelFor} onHover={setHover} onTile={onTile} onBuilding={onBuilding} />
             </ZoomPan>
           </div>
+          {snapshot && (
+            <div className="island-pop relative z-10 mx-3 mb-3 flex flex-col gap-3 rounded-2xl bg-background/90 p-3 backdrop-blur-md sm:flex-row sm:items-center" data-testid="island-snapshot-panel">
+              <img src={snapshot.url} alt={T("عکس یادگاری جزیره", "Island snapshot")} className="w-full rounded-xl border sm:w-48" data-testid="island-snapshot-image" />
+              <div className="flex-1 space-y-2">
+                <p className="text-sm font-medium">{T("عکس یادگاری آماده است", "Your snapshot is ready")}</p>
+                <p className="text-xs text-muted-foreground">{T("ذخیره کنید یا با دوستانتان به اشتراک بگذارید.", "Save it or share it with friends.")}</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => downloadBlob(snapshot.blob, snapName())} data-testid="island-snapshot-download"><Download className="size-4" />{T("ذخیره", "Save")}</Button>
+                  <Button size="sm" variant="outline" onClick={handleShare} data-testid="island-snapshot-share"><Share2 className="size-4" />{T("اشتراک‌گذاری", "Share")}</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setSnapshot(null)} data-testid="island-snapshot-close"><X className="size-4" />{T("بستن", "Close")}</Button>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
 
         <aside className="space-y-4">
@@ -138,7 +217,7 @@ export default function IslandView() {
                 <div className="min-w-0 flex-1">
                   <h2 className="text-lg font-semibold">{name(selected.type)}</h2>
                   <p className="text-sm text-muted-foreground">{isEn ? getBuildingSpec(selected.type).descEn : getBuildingSpec(selected.type).descFa}</p>
-                  <Badge variant="secondary" className="mt-2">{T("ارزش:", "Value:")} {digit(getBuildingSpec(selected.type).cost)}</Badge>
+                  <Badge variant="secondary" className="mt-2">{getBuildingSpec(selected.type).gift ? T("هدیهٔ ویژه", "Special gift") : `${T("ارزش:", "Value:")} ${digit(getBuildingSpec(selected.type).cost)}`}</Badge>
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2">
@@ -156,6 +235,31 @@ export default function IslandView() {
                 <TabsTrigger value="history" data-testid="island-tab-history"><History className="size-4" />{T("تاریخچه", "History")}</TabsTrigger>
               </TabsList>
               <TabsContent value="build" className="mt-3 space-y-4">
+                <div data-testid="island-gifts-section">
+                  <div className="mb-2 flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-2 font-medium"><Gift className="size-3.5 text-primary" />{T("هدیه‌های ویژه", "Special gifts")}</span>
+                    <span className="text-xs text-muted-foreground">{T("رایگان", "Free")}</span>
+                  </div>
+                  {GIFTS.some((g) => giftCount(g.type) > 0 || state.buildings.some((b) => b.type === g.type)) ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      {GIFTS.filter((g) => giftCount(g.type) > 0 || state.buildings.some((b) => b.type === g.type)).map((g) => {
+                        const n = giftCount(g.type);
+                        const active = buildType === g.type;
+                        return (
+                          <button key={g.type} type="button" data-testid={`island-build-${g.type}`} disabled={n === 0} aria-pressed={active}
+                            onClick={() => { setSelectedId(null); setMoving(false); setBuildType(active ? null : g.type); }}
+                            className={`flex min-h-[44px] items-center gap-2 rounded-xl border p-2 text-start transition-[transform,opacity] duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0 ${active ? "border-primary bg-primary/10" : "bg-background"}`}>
+                            <BuildingPreview type={g.type} className="size-11 shrink-0" />
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm font-medium">{isEn ? g.en : g.fa}</span>
+                              <span className="text-xs text-primary">{n > 0 ? T(`${digit(n)} عدد در انبار`, `${n} in stock`) : T("همه چیده شده", "All placed")}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : <p className="rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">{T("با انجام ۵ تسک در هفته، هدیهٔ ویژه‌ای اینجا ظاهر می‌شود.", "Finish 5 tasks in a week and a special gift appears here.")}</p>}
+                </div>
                 {MATERIALS.map((mat) => {
                   const unlocked = isMaterialUnlocked(mat.id, state.lifetime);
                   const items = BUILDINGS.filter((b) => b.material === mat.id);
@@ -205,6 +309,20 @@ export default function IslandView() {
                 ) : <p className="text-sm text-muted-foreground">{T("هنوز امتیازی ثبت نشده است.", "No points yet.")}</p>}
               </TabsContent>
             </Tabs>
+          </section>
+
+          <section className="rounded-2xl border bg-card p-4" data-testid="island-weekly-gift">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="flex items-center gap-2 font-semibold"><Gift className="size-4 text-primary" />{T("هدیهٔ هفته", "Weekly gift")}</h2>
+              <span className="text-sm tabular-nums text-muted-foreground" data-testid="island-weekly-count">{digit(week.tasks)} / {digit(week.goal)}</span>
+            </div>
+            <Progress value={(week.tasks / week.goal) * 100} className="mt-3 h-2" aria-label={T("پیشرفت هدیهٔ هفته", "Weekly gift progress")} />
+            <p className="mt-2 text-xs text-muted-foreground">
+              {week.claimed ? T("هدیهٔ این هفته را گرفته‌اید. هفتهٔ بعد هدیهٔ تازه‌ای منتظر شماست!", "You've claimed this week's gift. A new one awaits next week!")
+                : week.ready ? T("آفرین! هدیهٔ ویژهٔ این هفته آماده است.", "Well done! This week's special gift is ready.")
+                : T(`با انجام ${digit(week.goal - week.tasks)} تسک دیگر در این هفته، یک تزئین ویژهٔ رایگان بگیرید.`, `Finish ${week.goal - week.tasks} more ${week.goal - week.tasks === 1 ? "task" : "tasks"} this week to get a free special decoration.`)}
+            </p>
+            {week.ready && <Button className="mt-3 w-full" onClick={handleClaim} data-testid="island-claim-gift"><Gift className="size-4" />{T("دریافت هدیه", "Claim gift")}</Button>}
           </section>
 
           <section className="rounded-2xl border bg-card p-4" data-testid="island-earn-info">

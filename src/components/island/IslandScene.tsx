@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useState, type ReactNode } from "react";
 import { GRID_SIZE, getMaterial, type BuildingType, type DayPhase, type PlacedBuilding } from "@/lib/island";
 
 const TW = 72;
@@ -89,6 +89,16 @@ export function renderBuilding(type: BuildingType, cx: number, cy: number): Reac
       return (<g><Box cx={cx} cy={cy} w={0.42} h={56} color={m("marble")} /><Roof cx={cx} cy={cy} w={0.5} base={56} rise={22} color={C.roofBlue} /><Door cx={cx} cy={cy} /><polygon points={pts([[cx - 10, cy - 30], [cx - 6, cy - 28], [cx - 6, cy - 36], [cx - 10, cy - 38]])} fill={C.light} /></g>);
     case "palace":
       return (<g><Box cx={cx} cy={cy} w={0.8} h={22} color={m("marble")} /><Box cx={cx} cy={cy} w={0.42} h={14} color={m("marble")} lift={22} /><ellipse cx={cx} cy={cy - 40} rx={14} ry={12} fill={m("gold")} /><ellipse cx={cx - 4} cy={cy - 44} rx={4} ry={4} fill={C.light} opacity={0.7} /><line x1={cx} y1={cy - 52} x2={cx} y2={cy - 62} stroke={m("gold")} strokeWidth={2} /><Door cx={cx} cy={cy} color={m("gold")} /></g>);
+    case "flowerbed":
+      return (<g><Box cx={cx} cy={cy} w={0.6} h={5} color="#7a5233" />{[[-12, -6, "#ff7aa8"], [-3, -9, "#ffd166"], [6, -6, "#c58cff"], [-6, -2, "#ff8f6b"], [3, -2, "#7ad3ff"], [12, -5, "#ff7aa8"]].map(([dx, dy, c], i) => <g key={i}><circle cx={cx + (dx as number)} cy={cy + (dy as number) - 3} r={3.2} fill={c as string} /><circle cx={cx + (dx as number)} cy={cy + (dy as number) - 3} r={1.2} fill="#fff6c9" /></g>)}</g>);
+    case "lantern":
+      return (<g><Box cx={cx} cy={cy} w={0.16} h={4} color="#3c3c44" /><rect x={cx - 1.2} y={cy - 32} width={2.4} height={28} fill="#3c3c44" /><Box cx={cx} cy={cy} w={0.16} h={8} color={C.light} lift={30} /><Roof cx={cx} cy={cy} w={0.2} base={38} rise={5} color="#3c3c44" /></g>);
+    case "bench":
+      return (<g><Box cx={cx - 8} cy={cy + 2} w={0.06} h={6} color="#5a3a22" /><Box cx={cx + 8} cy={cy - 2} w={0.06} h={6} color="#5a3a22" /><Box cx={cx} cy={cy} w={0.42} h={2.5} color={getMaterial("wood").color} lift={6} /><polygon points={pts([[cx - 15, cy - 13], [cx + 15, cy - 20], [cx + 15, cy - 14], [cx - 15, cy - 7]])} fill={shade(getMaterial("wood").color, 0.9)} /></g>);
+    case "statue":
+      return (<g><Box cx={cx} cy={cy} w={0.4} h={12} color={getMaterial("marble").color} /><Box cx={cx} cy={cy} w={0.12} h={16} color={getMaterial("gold").color} lift={12} /><circle cx={cx} cy={cy - 34} r={6} fill={getMaterial("gold").color} /><polygon points={pts([[cx - 3, cy - 42], [cx, cy - 50], [cx + 3, cy - 42]])} fill={C.light} /></g>);
+    case "arch":
+      return (<g fill="none" strokeLinecap="round">{["#e85d5d", "#f4a259", "#f6d55c", "#7cc46a", "#5fb4d6", "#8e7cc3"].map((c, i) => <path key={c} d={`M ${cx - 24 + i * 2.4} ${cy + 2 - i * 1.2} Q ${cx} ${cy - 58 + i * 5} ${cx + 24 - i * 2.4} ${cy - 2 - i * 1.2}`} stroke={c} strokeWidth={2.6} />)}</g>);
     default:
       return null;
   }
@@ -111,6 +121,8 @@ const NIGHT_LIGHTS: Partial<Record<BuildingType, [number, number, number][]>> = 
   lighthouse: [[0, -50, 16]],
   fountain: [[0, -24, 7]],
   palace: [[9, -3, 6], [-4, -44, 8]],
+  lantern: [[0, -34, 12]],
+  statue: [[0, -46, 6]],
 };
 const STARS: [number, number, number][] = [[40, 22, 1.4], [92, 52, 1], [150, 18, 1.2], [210, 40, 0.9], [420, 26, 1.3], [470, 58, 1], [520, 16, 1.1], [560, 48, 1.4], [600, 30, 0.9], [300, 12, 1]];
 
@@ -138,19 +150,99 @@ const toScreen = (x: number, y: number) => {
   return { sx: ox + ((x - y) * TW) / 2, sy: TOP + ((x + y) * TH) / 2 };
 };
 
+// ---------- Residents ----------
+const HOME_TYPES: BuildingType[] = ["hut", "house", "market", "tower", "palace", "windmill", "lighthouse"];
+const OUTFITS = ["#e07a5f", "#3d8bfd", "#f2cc8f", "#81b29a", "#c084fc", "#f28482"];
+type Walker = { id: number; x: number; y: number; dur: number; next: number; flip: boolean };
+
+function tilePoint(x: number, y: number, jitter = 0): { x: number; y: number } {
+  const { sx, sy } = toScreen(x, y);
+  return { x: sx + jitter, y: sy + TH * 0.78 };
+}
+
+function randomTarget(buildings: PlacedBuilding[], seed: number) {
+  if (buildings.length && Math.random() < 0.75) {
+    const b = buildings[Math.floor(Math.random() * buildings.length)];
+    return tilePoint(b.x, b.y, ((seed % 3) - 1) * 8);
+  }
+  return tilePoint(Math.floor(Math.random() * GRID_SIZE), Math.floor(Math.random() * GRID_SIZE));
+}
+
+const Residents = memo(function Residents({ buildings, cheerKey, cheerText }: { buildings: PlacedBuilding[]; cheerKey: number; cheerText: string }) {
+  const count = Math.min(6, 1 + buildings.filter((b) => HOME_TYPES.includes(b.type)).length);
+  const reduced = useMemo(() => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches, []);
+  const [walkers, setWalkers] = useState<Walker[]>([]);
+  const [cheering, setCheering] = useState(false);
+
+  useEffect(() => {
+    setWalkers((prev) => Array.from({ length: count }, (_, i) => prev[i] || { id: i, ...randomTarget(buildings, i), dur: 0, next: Date.now() + 800 + i * 700, flip: false }));
+  }, [count, buildings]);
+
+  useEffect(() => {
+    if (reduced || cheering) return;
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      setWalkers((prev) => prev.map((w) => {
+        if (now < w.next) return w;
+        const t = randomTarget(buildings, w.id + now);
+        const dur = Math.min(7, Math.max(1.6, Math.hypot(t.x - w.x, t.y - w.y) / 24));
+        return { ...w, ...t, dur, flip: t.x < w.x, next: now + dur * 1000 + 1200 + Math.random() * 2500 };
+      }));
+    }, 700);
+    return () => window.clearInterval(timer);
+  }, [buildings, reduced, cheering]);
+
+  useEffect(() => {
+    if (!cheerKey) return;
+    setCheering(true);
+    const t = window.setTimeout(() => setCheering(false), 3600);
+    return () => window.clearTimeout(t);
+  }, [cheerKey]);
+
+  return (
+    <g pointerEvents="none" data-testid="island-residents" data-cheering={cheering ? "true" : "false"}>
+      {walkers.map((w, i) => (
+        <g key={w.id} style={{ transform: `translate(${w.x}px, ${w.y}px)`, transition: reduced || cheering ? "none" : `transform ${w.dur}s linear` }} data-testid="island-resident">
+          <g className={cheering ? "island-cheer" : "island-walk"} style={{ animationDelay: `${i * 0.12}s` }}>
+            <g transform={w.flip ? "scale(-1.4,1.4)" : "scale(1.4)"}>
+              <ellipse cx={0} cy={1} rx={4} ry={1.6} fill="rgba(0,0,0,0.2)" />
+              <rect x={-1.8} y={-5} width={1.4} height={5} fill="#3a3a48" />
+              <rect x={0.4} y={-5} width={1.4} height={5} fill="#3a3a48" />
+              <rect x={-3} y={-12} width={6} height={7.5} rx={2} fill={OUTFITS[i % OUTFITS.length]} />
+              {cheering ? (
+                <><line x1={-3} y1={-11} x2={-6} y2={-17} stroke="#f1c7a4" strokeWidth={1.5} strokeLinecap="round" /><line x1={3} y1={-11} x2={6} y2={-17} stroke="#f1c7a4" strokeWidth={1.5} strokeLinecap="round" /></>
+              ) : null}
+              <circle cx={0} cy={-15} r={3.2} fill="#f1c7a4" />
+              <path d="M -3.2 -15.5 Q 0 -20 3.2 -15.5 Z" fill="#4a3426" />
+            </g>
+            {cheering && i < 3 && (
+              <g transform="translate(0,-38)" data-testid="island-cheer-bubble">
+                <rect x={-22} y={-9} width={44} height={14} rx={7} fill="#ffffff" opacity={0.95} />
+                <text x={0} y={1.5} textAnchor="middle" fontSize={8} fontWeight={700} fill="#3a3a48" style={{ fontFamily: "inherit" }}>{cheerText}</text>
+              </g>
+            )}
+          </g>
+        </g>
+      ))}
+    </g>
+  );
+});
+
 export interface IslandSceneProps {
   buildings: PlacedBuilding[];
   selectedId: string | null;
   ghostType: BuildingType | null;
   hover: { x: number; y: number } | null;
   phase?: DayPhase;
+  cheerKey?: number;
+  cheerText?: string;
   labelFor: (x: number, y: number, b?: PlacedBuilding) => string;
   onHover: (tile: { x: number; y: number } | null) => void;
   onTile: (x: number, y: number) => void;
   onBuilding: (b: PlacedBuilding) => void;
 }
 
-export const IslandScene = memo(function IslandScene({ buildings, selectedId, ghostType, hover, phase = "day", labelFor, onHover, onTile, onBuilding }: IslandSceneProps) {
+export const IslandScene = memo(function IslandScene({ buildings, selectedId, ghostType, hover, phase = "day", cheerKey = 0, cheerText = "Yay!", labelFor, onHover, onTile, onBuilding }: IslandSceneProps) {
   const W = GRID_SIZE * TW + PAD * 2;
   const H = TOP + GRID_SIZE * TH + CLIFF + PAD + 10;
   const top = toScreen(0, 0), right = toScreen(GRID_SIZE, 0), bottom = toScreen(GRID_SIZE, GRID_SIZE), left = toScreen(0, GRID_SIZE);
@@ -207,6 +299,7 @@ export const IslandScene = memo(function IslandScene({ buildings, selectedId, gh
           </g>
         );
       })}
+      <Residents buildings={buildings} cheerKey={cheerKey} cheerText={cheerText} />
       {showGhost && hover && (() => {
         const { sx, sy } = toScreen(hover.x, hover.y);
         return <g className="island-ghost" pointerEvents="none">{renderBuilding(ghostType, sx, sy + TH / 2)}</g>;

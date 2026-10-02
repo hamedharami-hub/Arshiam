@@ -58,6 +58,12 @@
 @keyframes island-dash { to { stroke-dashoffset: -18; } }
 @keyframes island-pop { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
+/* Residents */
+.island-walk { animation: island-bob 0.5s ease-in-out infinite alternate; }
+.island-cheer { animation: island-jump 0.45s ease-in-out infinite alternate; }
+@keyframes island-bob { from { transform: translateY(0); } to { transform: translateY(-1.2px); } }
+@keyframes island-jump { from { transform: translateY(0); } to { transform: translateY(-7px); } }
+
 /* Real-time day phases */
 .island-sea { transition: background 600ms ease; }
 .island-sea-morning { background: radial-gradient(ellipse at 50% 55%, hsl(190 70% 76%) 0%, hsl(196 58% 62%) 55%, hsl(24 60% 70%) 100%); }
@@ -90,6 +96,6 @@
 @keyframes island-card-in { from { opacity: 0; transform: translateY(-12px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .island-svg, .island-blades, .island-glow, .island-select-ring, .island-pop, .island-star, .island-unlock-card, .island-unlock-swatch { animation: none; }
+  .island-svg, .island-blades, .island-glow, .island-select-ring, .island-pop, .island-star, .island-unlock-card, .island-unlock-swatch, .island-walk, .island-cheer { animation: none; }
   .island-confetti { display: none; }
 }
