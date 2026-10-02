@@ -17,6 +17,7 @@ import {
   loginAsGuest,
 } from "@/lib/authService";
 import { setGardenUser } from "@/lib/garden";
+import { startIslandCloudSync } from "@/lib/island";
 import { startWidgetSessionSync } from "@/lib/androidWidget";
 
 interface AuthContextType {
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     clearLegacyAuthStorage();
     setGardenUser(user?.id ?? null);
+    startIslandCloudSync(user?.id ?? null);
     startGoalsCloudSync(user?.id ?? null);
     startUiPrefsCloudSync(user?.id ?? null);
   }, [user?.id]);

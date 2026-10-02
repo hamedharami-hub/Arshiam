@@ -5,7 +5,7 @@ import {
   Target, Timer, Calendar, ChevronDown, Sparkles, LayoutGrid,
   TrendingUp, Activity, Heart, HeartPulse, ShieldAlert, BookOpen, Sun,
   ListTodo, BrainCircuit, GripVertical, User, Shield, Pill,
-  BarChart3, Sprout, Wind, Compass, Users, Gamepad2, PackageSearch, ClipboardCheck, Keyboard, FlaskConical, Columns3, Hourglass, PlayCircle,
+  BarChart3, Sprout, TreePalm, Wind, Compass, Users, Gamepad2, PackageSearch, ClipboardCheck, Keyboard, FlaskConical, Columns3, Hourglass, PlayCircle,
 } from "lucide-react";
 import { toPersianDigits } from "@/lib/persianDigits";
 import {
@@ -71,6 +71,7 @@ export const EN_LABELS: Record<string, string> = {
   "صندوق ورودی": "Inbox",
   "ویجت‌ها": "Widgets",
   "باغ رشد": "Garden",
+  "جزیرهٔ من": "My Island",
   "افراد": "Contacts",
   "کتابخانه دانش": "Knowledge Base",
   "استودیوی مطالعه تعاملی": "Interactive Study Studio",
@@ -129,6 +130,7 @@ export const SECTIONS: Section[] = [
     items: [
       { url: "/app/values", icon: Heart, label: "ارزش‌ها و اهداف" },
       { url: "/app/life-architect", icon: Compass, label: "معمار زندگی" },
+      { url: "/app/island", icon: TreePalm, label: "جزیرهٔ من" },
       { url: "/app/garden", icon: Sprout, label: "باغ رشد" },
       { url: "/app/notes", icon: FileText, label: "نوت‌ها" },
       {

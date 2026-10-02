@@ -37,7 +37,8 @@ vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({ user: { id: "user-123" } }),
 }));
 vi.mock("react-i18next", () => ({
-  useTranslation: () => ({ i18n: { language: "fa" } }),
+  useTranslation: () => ({ i18n: { language: "fa" }, t: (k: string) => k }),
+  initReactI18next: { type: "3rdParty", init: () => undefined },
 }));
 
 const conflict = {

@@ -1,3 +1,4 @@
+import { creditIsland } from "./island";
 import { showMascotMoment } from "./mascot";
 import { toast } from "sonner";
 
@@ -351,7 +352,15 @@ function writeGardenState(state: GardenState) {
 }
 
 export function saveGardenState(state: GardenState) {
-  const previous = getGardenState().activePlant;
+  const before = getGardenState();
+  const previous = before.activePlant;
+  // Every water drop earned also becomes an island point (penalty-free, earn-only).
+  const earned = (state.waterDrops || 0) - (before.waterDrops || 0);
+  if (earned > 0) {
+    const top = state.activePlant?.contributions?.[0];
+    const fresh = top && top !== previous?.contributions?.[0] && top.date !== previous?.contributions?.[0]?.date;
+    creditIsland(earned, fresh ? top.reason : "پاداش فعالیت");
+  }
   writeGardenState({ ...state, updatedAt: Date.now() });
   gardenCloud?.push();
   if (previous && state.activePlant?.id === previous.id && state.activePlant.stage > previous.stage) showMascotMoment("garden");

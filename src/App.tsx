@@ -59,6 +59,7 @@ const TodayDashboardView = lazy(() => import("./pages/TodayDashboardView"));
 const NotesView = lazy(() => import("./pages/NotesView"));
 const DailyDiaryView = lazy(() => import("./pages/DailyDiaryView"));
 const GardenView = lazy(() => import("./pages/GardenView"));
+const IslandView = lazy(() => import("./pages/IslandView"));
 const PomodoroView = lazy(() => import("./pages/PomodoroView"));
 const CalendarView = lazy(() => import("./pages/CalendarView"));
 const StatsView = lazy(() => import("./pages/StatsView"));
@@ -335,6 +336,7 @@ const App = () => {
                       <Route path="diary" element={<DailyDiaryView />} />
                       <Route path="habits" element={<Navigate to="/app/today" replace />} />
                       <Route path="garden" element={<GardenView />} />
+                      <Route path="island" element={<IslandView />} />
                       <Route path="pomodoro" element={<PomodoroView />} />
                       <Route path="calendar" element={<CalendarView />} />
                       <Route path="contacts" element={<ContactsView />} />

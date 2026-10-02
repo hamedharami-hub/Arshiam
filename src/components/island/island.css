@@ -1,0 +1,63 @@
+.island-sea {
+  background:
+    radial-gradient(ellipse at 50% 55%, hsl(195 70% 72%) 0%, hsl(198 62% 58%) 55%, hsl(202 58% 46%) 100%);
+  position: relative;
+  overflow: hidden;
+}
+.island-sea::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+.island-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 72vh;
+  animation: island-float 6s ease-in-out infinite;
+}
+.island-tile {
+  cursor: pointer;
+  stroke: rgba(255, 255, 255, 0.18);
+  stroke-width: 1;
+  transition: opacity 150ms ease;
+  outline: none;
+}
+.island-tile.is-hover,
+.island-tile:focus-visible {
+  opacity: 0.78;
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 2;
+}
+.island-tile.is-blocked {
+  opacity: 0.55;
+  stroke: hsl(8 70% 55%);
+}
+.island-building {
+  cursor: pointer;
+  transition: opacity 150ms ease;
+}
+.island-building:hover { opacity: 0.92; }
+.island-select-ring {
+  stroke: hsl(48 100% 70%);
+  stroke-width: 2.5;
+  stroke-dasharray: 5 4;
+  animation: island-dash 1.2s linear infinite;
+}
+.island-ghost { opacity: 0.55; }
+.island-blades { animation: island-spin 5s linear infinite; }
+.island-glow { animation: island-pulse 2.4s ease-in-out infinite; }
+.island-pop { animation: island-pop 220ms ease-out; }
+
+@keyframes island-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes island-spin { to { transform: rotate(360deg); } }
+@keyframes island-pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.95; } }
+@keyframes island-dash { to { stroke-dashoffset: -18; } }
+@keyframes island-pop { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .island-svg, .island-blades, .island-glow, .island-select-ring, .island-pop { animation: none; }
+}
