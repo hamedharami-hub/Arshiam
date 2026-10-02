@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useTapGestures } from "@/lib/useTapGestures";
 import { usePinchZoom } from "@/lib/usePinchZoom";
 import { ZoomIn } from "lucide-react";
+import { parseTaskDueDate } from "@/lib/taskDate";
 
 type Task = {
   id: string;
@@ -81,8 +82,8 @@ export default function DayView({
   const onPinchStart = (e: React.TouchEvent) => { if (e.touches.length === 2) showHint(); pinchHandlers.onTouchStart(e); };
 
   const dayTasks = tasks.filter((t) => {
-    const ref = t.start_at || t.due_date;
-    return ref && isSameDay(new Date(ref), date);
+    const ref = t.start_at ? new Date(t.start_at) : t.due_date ? parseTaskDueDate(t.due_date) : null;
+    return !!ref && isSameDay(ref, date);
   });
 
   const blocks = dayTasks
@@ -129,7 +130,7 @@ export default function DayView({
         )}
         <div>
           {HOURS.map((h) => {
-            const slotDue = dueOnly.filter((t) => new Date(t.due_date!).getHours() === h);
+            const slotDue = dueOnly.filter((t) => parseTaskDueDate(t.due_date!)?.getHours() === h);
             return (
               <HourSlot
                 key={h} date={date} h={h} slotDue={slotDue} height={HOUR_HEIGHT}

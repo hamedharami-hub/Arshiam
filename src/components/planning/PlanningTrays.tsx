@@ -2,7 +2,7 @@ import { useState } from "react";
 import { History, Inbox, Plus } from "lucide-react";
 import type { Task } from "@/lib/taskTypes";
 import { periodLabel, type TimeSettings } from "@/lib/timeHorizon";
-import { getTaskPlanning } from "@/lib/taskPlanning";
+import { getTaskPlanning, isTaskOverdue } from "@/lib/taskPlanning";
 import { toPersianDigits } from "@/lib/jalali";
 
 const num = (n: number, fa: boolean) => (fa ? toPersianDigits(n) : String(n));
@@ -54,11 +54,13 @@ export function CarryOverCard({ tasks, settings, fa, onMoveHere, onComplete, onD
       <ul className="space-y-2">
         {tasks.map((t) => {
           const p = getTaskPlanning(t, settings);
+          const overdue = isTaskOverdue(t, settings);
           return (
             <li key={t.id} className="rounded-lg bg-background/70 p-2" data-testid={`planning-carryover-item-${t.id}`}>
               <div className="flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate text-sm">{t.title}</span>
                 {p && <span className="shrink-0 text-[11px] text-muted-foreground">{periodLabel(p, settings, fa ? "fa" : "en")}</span>}
+                {overdue && <span className="shrink-0 rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-medium text-rose-600 dark:text-rose-400" data-testid={`planning-carryover-overdue-${t.id}`}>{fa ? "عقب‌افتاده" : "Overdue"}</span>}
               </div>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 <button type="button" onClick={() => onMoveHere(t)} className="h-8 rounded-full bg-primary/10 px-3 text-xs font-medium text-primary hover:bg-primary/15" data-testid={`planning-carryover-move-${t.id}`}>{fa ? "انتقال به این دوره" : "Move here"}</button>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getTaskPlanning, planningPatch, buildPlanningProjection, planningScopeTasks, planningUnitNumber, planningOffset } from "./taskPlanning";
+import { getTaskPlanning, isTaskOverdue, planningPatch, buildPlanningProjection, planningScopeTasks, planningUnitNumber, planningOffset } from "./taskPlanning";
 import { addDaysLocal, childPeriods, fieldsForPeriod, periodFor, type TimeSettings } from "./timeHorizon";
 import type { Task } from "./taskTypes";
 const settings: TimeSettings = { calendar: "gregorian", weekStart: "sat", seasonsEnabled: true };
@@ -21,6 +21,24 @@ describe("independent task planning", () => {
     expect(getTaskPlanning(legacy, settings)?.horizon).toBe("month");
     expect(getTaskPlanning({ ...legacy, planning_horizon: null }, settings)).toBeNull();
     expect(getTaskPlanning({ ...task("exact"), due_date: now.toISOString(), horizon: "day", is_exact: true }, settings)).toBeNull();
+  });
+  it("keeps overdue tasks on their original date and treats only earlier days as overdue", () => {
+    const today = new Date(2026, 4, 3, 18);
+    const yesterday = { ...task("yesterday"), due_date: "2026-05-02" };
+    const missedTimeToday = { ...task("today"), due_date: "2026-05-03T09:00:00" };
+    expect(isTaskOverdue(yesterday, settings, today)).toBe(true);
+    expect(yesterday.due_date).toBe("2026-05-02");
+    expect(isTaskOverdue(missedTimeToday, settings, today)).toBe(false);
+    expect(isTaskOverdue({ ...yesterday, completed: true }, settings, today)).toBe(false);
+  });
+  it("marks expired daily plans overdue without treating longer planning buckets as deadlines", () => {
+    const today = new Date(2026, 4, 3, 12);
+    const oldDay = { ...task("old-day"), ...planningPatch(periodFor("day", new Date(2026, 4, 2), settings), settings) };
+    const oldWeek = { ...task("old-week"), ...planningPatch(periodFor("week", new Date(2026, 3, 25), settings), settings) };
+    const currentDay = { ...task("current-day"), ...planningPatch(periodFor("day", today, settings), settings) };
+    expect(isTaskOverdue(oldDay, settings, today)).toBe(true);
+    expect(isTaskOverdue(oldWeek, settings, today)).toBe(false);
+    expect(isTaskOverdue(currentDay, settings, today)).toBe(false);
   });
   it("shows the annual book and its future monthly child, but not the current monthly branch", () => {
     expect(projection("year").map(t => [t.id, t.parent_id])).toEqual([["book", null], ["book2", "book"]]);

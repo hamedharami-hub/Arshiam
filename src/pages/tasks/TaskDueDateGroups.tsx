@@ -2,6 +2,8 @@ import { TaskGroupHeader } from "@/components/tasks/TaskGroupHeader";
 import React from "react";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
 import { parseTaskDueDate, taskDueTimestamp } from "@/lib/taskDate";
+import { getTaskPlanning, isTaskOverdue } from "@/lib/taskPlanning";
+import { getTimeSettings } from "@/lib/timeHorizon";
 import { PRIORITY_META } from "@/lib/priority";
 import type { Task } from "@/lib/taskTypes";
 
@@ -17,11 +19,16 @@ export function buildGroupedTasks(
   const now = new Date();
   const todayStart = startOfDay(now).getTime();
   const todayEnd = endOfDay(now).getTime();
-  const tomorrowStart = startOfDay(addDays(now, 1)).getTime();
   const tomorrowEnd = endOfDay(addDays(now, 1)).getTime();
+  const settings = getTimeSettings();
+  const dateForGrouping = (task: Task) => {
+    if (task.due_date || task.due_at) return task.due_date || task.due_at!;
+    const plan = getTaskPlanning(task, settings);
+    return plan?.horizon === "day" ? plan.start : null;
+  };
   const sorted = [...topLevel].sort((a, b) => {
-    const da = taskDueTimestamp(a.due_date);
-    const db = taskDueTimestamp(b.due_date);
+    const da = taskDueTimestamp(dateForGrouping(a));
+    const db = taskDueTimestamp(dateForGrouping(b));
     if (da !== db) return da - db;
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
     if (a.completed !== b.completed) return a.completed ? 1 : -1;
@@ -29,11 +36,12 @@ export function buildGroupedTasks(
   });
   const groups = new Map<string, TaskGroup>();
   for (const task of sorted) {
-    if (!task.due_date) continue;
-    const due = taskDueTimestamp(task.due_date);
+    const dueValue = dateForGrouping(task);
+    if (!dueValue) continue;
+    const due = taskDueTimestamp(dueValue);
     let key: string;
     let label: string;
-    if (due < todayStart) {
+    if (due < todayStart || isTaskOverdue(task, settings, now)) {
       key = "overdue";
       label = T("عقب‌افتاده", "Overdue");
     } else if (due <= todayEnd) {
@@ -43,7 +51,7 @@ export function buildGroupedTasks(
       key = "tomorrow";
       label = T("فردا", "Tomorrow");
     } else {
-      const d = parseTaskDueDate(task.due_date)!;
+      const d = parseTaskDueDate(dueValue)!;
       key = format(d, "yyyy-MM-dd");
       label = d.toLocaleDateString(isEn ? "en-US" : "fa-IR", {
         weekday: "long",

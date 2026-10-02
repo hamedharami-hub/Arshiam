@@ -79,6 +79,7 @@ import { logTaskActivity } from "@/lib/taskActivity";
 import { bucketLabel, kindLabel, isSubDayBucket } from "@/lib/timeBuckets";
 import { describeRule } from "@/lib/recurrence";
 import { addDays, endOfDay } from "date-fns";
+import { parseTaskDueDate } from "@/lib/taskDate";
 import { addTaskToAndroidCalendar } from "@/lib/androidNative";
 
 import { Switch } from "@/components/ui/switch";
@@ -680,7 +681,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   };
 
   const postpone = (days: number) => {
-    const base = t.due_date ? new Date(t.due_date) : endOfDay(new Date());
+    const base = t.due_date ? parseTaskDueDate(t.due_date) || endOfDay(new Date()) : endOfDay(new Date());
     const next = addDays(base, days);
     save({ due_date: next.toISOString() });
     setScheduleOpen(false);
@@ -1903,4 +1904,3 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     </>
   );
 });
-

@@ -18,6 +18,7 @@ import {
 import { loadPharmacySearchSources, searchPharmacy, type PharmacySearchHit } from "@/lib/pharmacySearch";
 
 import { useBilingual } from "@/hooks/useBilingual";
+import { parseTaskDueDate } from "@/lib/taskDate";
 
 type Hit = {
   kind: "task" | "note" | "folder" | "tag" | "action";
@@ -113,8 +114,8 @@ export default function CommandPalette() {
             let dueSubtitle: string | undefined;
             if (t.due_date) {
               try {
-                const parsedDate = new Date(t.due_date);
-                if (!isNaN(parsedDate.getTime())) {
+                const parsedDate = parseTaskDueDate(t.due_date);
+                if (parsedDate) {
                   dueSubtitle = `${T("موعد", "Due")}: ${parsedDate.toLocaleDateString(isEn ? "en-US" : "fa-IR")}`;
                 }
               } catch {}

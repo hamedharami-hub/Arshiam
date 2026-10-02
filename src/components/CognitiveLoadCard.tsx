@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Brain, ChevronDown, ChevronUp } from "lucide-react";
 import { computeCognitiveLoad, loadStatus, CATEGORY_LABELS } from "@/lib/cognitiveLoad";
 import { Button } from "@/components/ui/button";
-import { getLocalDateString } from "@/lib/taskDate";
+import { getLocalDateString, parseTaskDueDate } from "@/lib/taskDate";
 
 export default function CognitiveLoadCard() {
   const { user } = useAuth();
@@ -28,7 +28,8 @@ export default function CognitiveLoadCard() {
 
       const todayTasks = (tasks.data || []).filter((t) => {
         if (!t.due_date) return true;
-        const dt = new Date(t.due_date);
+        const dt = parseTaskDueDate(t.due_date);
+        if (!dt) return false;
         return dt >= todayStart && dt <= todayEnd;
       });
 

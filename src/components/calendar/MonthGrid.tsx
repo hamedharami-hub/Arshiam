@@ -2,6 +2,7 @@ import { format, eachDayOfInterval, isSameDay, isSameMonth, startOfMonth, endOfM
 import { formatDate, toPersianDigits, WEEKDAY_SHORT_FA, type CalendarSystem } from "@/lib/jalali";
 import { isHoliday, dominantKind, HOLIDAY_TONE, type Holiday } from "@/lib/holidays";
 import { getTimeSettings, periodFor, fromLocalISO, toLocalISO, weekStartsOn as weekStartsOnFor } from "@/lib/timeHorizon";
+import { parseTaskDueDate } from "@/lib/taskDate";
 import { computePhase, type CycleProfile, type CycleLog, PHASE_META } from "@/lib/cycle";
 type WeekStartsOn = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -46,7 +47,10 @@ export default function MonthGrid({
       </div>
       <div className="grid grid-cols-7 gap-1">
         {days.map((d) => {
-          const dayTasks = tasks.filter((t) => t.due_date && isSameDay(new Date(t.due_date), d));
+          const dayTasks = tasks.filter((t) => {
+            const due = t.due_date ? parseTaskDueDate(t.due_date) : null;
+            return !!due && isSameDay(due, d);
+          });
           const dayHolidays = isHoliday(d, holidays);
           const isFriday = d.getDay() === 5;
           const isOff = dayHolidays.length > 0 || (system === "jalali" && isFriday);

@@ -1,7 +1,7 @@
 import { PlanningBoard } from "@/components/planning/PlanningBoard";
 import { getTimeSettings } from "@/lib/timeHorizon";
 import { ListViewSwitch } from "@/components/ListViewSwitch";
-import { planningScopeTasks } from "@/lib/taskPlanning";
+import { getTaskPlanning, isTaskOverdue, planningScopeTasks } from "@/lib/taskPlanning";
 import { readTaskListSort, saveTaskListSort, TASK_LIST_SORT_EVENT } from "@/lib/taskListSort";
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -497,11 +497,17 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     if (scope === "inbox") {
       list = list.filter(t => !t.parent_id && !t.folder_id);
     } else if (scope === "today") {
-      // Show overdue tasks plus today, PLUS tasks with today's sub-day / day bucket!
+      // Keep past daily plans visible as overdue without changing their saved plan date.
       const e = endOfDay(new Date()).getTime();
       const todayAnchor = currentAnchor("day");
+      const todayDate = getLocalDateString();
+      const timeSettings = getTimeSettings();
       const isDueTodayOrOverdue = (t: Task) => {
-        if (t.due_date && taskDueTimestamp(t.due_date) <= e) return true;
+        if (isTaskOverdue(t, timeSettings)) return true;
+        const dueDate = t.due_date || t.due_at;
+        if (dueDate && taskDueTimestamp(dueDate) <= e) return true;
+        const plan = getTaskPlanning(t, timeSettings);
+        if (plan?.horizon === "day" && plan.start === todayDate) return true;
         if (t.bucket_kind) {
           if (isSubDayBucket(t.bucket_kind) || t.bucket_kind === "day") {
             if (!t.bucket_anchor || t.bucket_anchor === todayAnchor) return true;
@@ -514,11 +520,15 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       const s = startOfDay(addDays(new Date(), 1)).getTime();
       const e = endOfDay(addDays(new Date(), 1)).getTime();
       const tmrwDateStr = getLocalDateString(addDays(new Date(), 1));
+      const timeSettings = getTimeSettings();
       const isDueTomorrow = (t: Task) => {
-        if (t.due_date) {
-          const ts = taskDueTimestamp(t.due_date);
+        const dueDate = t.due_date || t.due_at;
+        if (dueDate) {
+          const ts = taskDueTimestamp(dueDate);
           if (ts >= s && ts <= e) return true;
         }
+        const plan = getTaskPlanning(t, timeSettings);
+        if (plan?.horizon === "day" && plan.start === tmrwDateStr) return true;
         if (t.bucket_kind && t.bucket_anchor === tmrwDateStr) {
           return true;
         }
@@ -528,8 +538,14 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     } else if (scope === "next7") {
       // Show overdue plus next 7 days, PLUS this week's bucket tasks!
       const e = endOfDay(addDays(new Date(), 7)).getTime();
+      const lastDay = getLocalDateString(addDays(new Date(), 7));
+      const timeSettings = getTimeSettings();
       const isDueNext7 = (t: Task) => {
-        if (t.due_date && taskDueTimestamp(t.due_date) <= e) return true;
+        if (isTaskOverdue(t, timeSettings)) return true;
+        const dueDate = t.due_date || t.due_at;
+        if (dueDate && taskDueTimestamp(dueDate) <= e) return true;
+        const plan = getTaskPlanning(t, timeSettings);
+        if (plan?.horizon === "day" && plan.start <= lastDay) return true;
         if (t.bucket_kind) {
           const match = doesTaskMatchBucketScope(t, { scopeKind: "week", hierarchical: true });
           if (match.matches) return true;
@@ -577,8 +593,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         return (PRIORITY_META[a.priority]?.rank ?? 3) - (PRIORITY_META[b.priority]?.rank ?? 3);
       }
       if (folderPrefs.sortOrder === "due_date") {
-        const aDue = a.due_date ? new Date(a.due_date).getTime() : Infinity;
-        const bDue = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+        const aDueValue = a.due_date || a.due_at;
+        const bDueValue = b.due_date || b.due_at;
+        const aDue = aDueValue ? taskDueTimestamp(aDueValue) : Infinity;
+        const bDue = bDueValue ? taskDueTimestamp(bDueValue) : Infinity;
         return aDue - bDue;
       }
       return a.title.localeCompare(b.title, "fa");

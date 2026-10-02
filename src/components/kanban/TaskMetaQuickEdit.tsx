@@ -7,6 +7,7 @@ import {
 import { PriorityFlag } from "@/components/PriorityFlag";
 import { DueDatePicker } from "@/components/DueDatePicker";
 import { PRIORITY_META, type Priority } from "@/lib/priority";
+import { parseTaskDueDate } from "@/lib/taskDate";
 
 const OPTIONS: Priority[] = ["urgent", "high", "medium", "low", "none"];
 
@@ -29,8 +30,9 @@ export function TaskMetaQuickEdit({
   const [dateOpen, setDateOpen] = useState(false);
   const T = (fa: string, en: string) => (isEn ? en : fa);
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
-  const dateLabel = dueDate
-    ? new Date(dueDate).toLocaleDateString(isEn ? "en-US" : "fa-IR", { month: "short", day: "numeric" })
+  const parsedDueDate = parseTaskDueDate(dueDate);
+  const dateLabel = parsedDueDate
+    ? parsedDueDate.toLocaleDateString(isEn ? "en-US" : "fa-IR", { month: "short", day: "numeric" })
     : T("تاریخ", "Date");
 
   return (

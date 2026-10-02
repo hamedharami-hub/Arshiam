@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { toast } from "sonner";
+import { parseTaskDueDate, taskDueTimestamp } from "@/lib/taskDate";
 
 type Task = { id: string; title: string; due_date: string | null; priority: string };
 
@@ -60,12 +61,15 @@ export default function DayDetailSheet({
 
   if (!date) return null;
   const dayTasks = tasks
-    .filter((t) => t.due_date && isSameDay(new Date(t.due_date), date))
+    .filter((t) => {
+      const due = t.due_date ? parseTaskDueDate(t.due_date) : null;
+      return !!due && isSameDay(due, date);
+    })
     .sort((a, b) => {
       const pa = PRIORITY_ORDER[a.priority] ?? 3;
       const pb = PRIORITY_ORDER[b.priority] ?? 3;
       if (pa !== pb) return pa - pb;
-      return new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime();
+      return taskDueTimestamp(a.due_date) - taskDueTimestamp(b.due_date);
     });
   const dayHolidays = isHoliday(date, holidays);
   const isFriday = date.getDay() === 5;
@@ -136,8 +140,8 @@ export default function DayDetailSheet({
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ background: PRIORITY_COLOR[t.priority] || PRIORITY_COLOR.none }} />
                 <span className="truncate flex-1">{t.title}</span>
                 <span className="text-[10px] text-muted-foreground tabular-nums">
-                  {toPersianDigits(String(t.due_date ? new Date(t.due_date).getHours().toString().padStart(2, "0") : "--"))}
-                  :{toPersianDigits(String(t.due_date ? new Date(t.due_date).getMinutes().toString().padStart(2, "0") : "00"))}
+                  {toPersianDigits(String(t.due_date ? (parseTaskDueDate(t.due_date)?.getHours().toString().padStart(2, "0") ?? "--") : "--"))}
+                  :{toPersianDigits(String(t.due_date ? (parseTaskDueDate(t.due_date)?.getMinutes().toString().padStart(2, "0") ?? "00") : "00"))}
                 </span>
               </button>
             ))}
@@ -151,7 +155,7 @@ export default function DayDetailSheet({
           <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground"><ListChecks className="w-4 h-4 text-primary" /> خط‌زمان</h3>
           <div className="border border-border/60 rounded-xl divide-y max-h-[300px] overflow-y-auto bg-card/40">
             {HOURS.map((h) => {
-              const slot = dayTasks.filter((t) => t.due_date && new Date(t.due_date).getHours() === h);
+              const slot = dayTasks.filter((t) => t.due_date && parseTaskDueDate(t.due_date)?.getHours() === h);
               return (
                 <div key={h} className="grid grid-cols-[40px_1fr] gap-2 p-2 text-xs min-h-[32px]">
                   <div className="text-muted-foreground tabular-nums pt-0.5">{toPersianDigits(String(h).padStart(2, "0"))}</div>

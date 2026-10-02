@@ -3,6 +3,8 @@ import type { Task } from "@/lib/taskTypes";
 import { PRIORITY_META } from "@/lib/priority";
 import { taskDueTimestamp } from "@/lib/taskDate";
 import { startOfDay, endOfDay, addDays } from "date-fns";
+import { isTaskOverdue } from "@/lib/taskPlanning";
+import { getTimeSettings } from "@/lib/timeHorizon";
 import type { GoalKanban } from "@/lib/kanbanGoals";
 
 export type SortKey = "due" | "priority" | "created" | "title" | "time_bucket" | "goal";
@@ -245,7 +247,7 @@ export function doesTaskMatchTimeFilters(
 
   // 1. Time Horizon filter (day, week, month, quarter, year, none)
   if (timeHorizons && timeHorizons.length > 0) {
-    const taskHorizon = t.horizon || t.bucket_kind || null;
+    const taskHorizon = t.planning_horizon || t.horizon || t.bucket_kind || null;
     let horizonMatched = false;
     for (const h of timeHorizons) {
       if (h === "none" && !taskHorizon) {
@@ -264,9 +266,14 @@ export function doesTaskMatchTimeFilters(
   if (dueWindows && dueWindows.length > 0) {
     const rawDue = t.due_date || t.due_at || null;
     const dueTime = rawDue ? taskDueTimestamp(rawDue) : null;
+    const overdue = dueWindows.includes("overdue") && isTaskOverdue(t, getTimeSettings(), now);
 
     let windowMatched = false;
     for (const w of dueWindows) {
+      if (w === "overdue" && overdue) {
+        windowMatched = true;
+        break;
+      }
       if (w === "no_date" && !dueTime) {
         windowMatched = true;
         break;
@@ -276,10 +283,6 @@ export function doesTaskMatchTimeFilters(
         break;
       }
       if (dueTime) {
-        if (w === "overdue" && dueTime < todayStart && !t.completed) {
-          windowMatched = true;
-          break;
-        }
         if (w === "today" && dueTime >= todayStart && dueTime <= todayEnd) {
           windowMatched = true;
           break;

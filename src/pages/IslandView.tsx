@@ -166,7 +166,7 @@ export default function IslandView() {
       if (res.ok) {
         toast.success(T(`${name(buildType)} ساخته شد!`, `${name(buildType)} built!`));
         if (canBuild(res.state, buildType) !== "ok") setBuildType(null);
-      } else if (res.reason === "points") toast.info(T("امتیاز کافی نیست؛ با انجام کارها امتیاز بیشتری جمع کنید.", "Not enough points yet — complete tasks to earn more."));
+      } else if (res.ok === false && res.reason === "points") toast.info(T("امتیاز کافی نیست؛ با انجام کارها امتیاز بیشتری جمع کنید.", "Not enough points yet — complete tasks to earn more."));
       return;
     }
     setSelectedId(null);

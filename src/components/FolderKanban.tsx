@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { firebaseStore } from "@/lib/firebaseStore";
+import { taskDueTimestamp } from "@/lib/taskDate";
 import { upsertTask } from "@/lib/firestoreDataService";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -111,8 +112,8 @@ function sortFolderTasks(tasks: Task[], sortOrder: FolderPrefs["sortOrder"]) {
       return (PRIORITY_META[a.priority]?.rank ?? 3) - (PRIORITY_META[b.priority]?.rank ?? 3);
     }
     if (sortOrder === "due_date") {
-      const aDue = a.due_date ? new Date(a.due_date).getTime() : Infinity;
-      const bDue = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+      const aDue = a.due_date ? taskDueTimestamp(a.due_date) : Infinity;
+      const bDue = b.due_date ? taskDueTimestamp(b.due_date) : Infinity;
       return aDue - bDue;
     }
     return a.title.localeCompare(b.title, "fa");

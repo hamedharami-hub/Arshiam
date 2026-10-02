@@ -12,6 +12,7 @@ import { subDays, startOfDay, format, isSameDay } from "date-fns";
 import { getCalendarSystem, jalaliDayOfWeek, WEEKDAY_SHORT_FA, formatDate } from "@/lib/jalali";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { awardWaterDrops } from "@/lib/garden";
+import { parseTaskDueDate } from "@/lib/taskDate";
 
 type SessionRow = { duration_minutes: number; task_id: string | null; ended_at: string | null; tasks?: { title: string } | null };
 type WeekRow = { duration_minutes: number; started_at: string };
@@ -81,6 +82,7 @@ export default function PomodoroView() {
   }
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId);
+  const selectedTaskDueDate = selectedTask?.due_date ? parseTaskDueDate(selectedTask.due_date) : null;
 
   return (
     <div dir={isEn ? "ltr" : "rtl"} className="p-4 md:p-6 max-w-md mx-auto space-y-4 page-enter">
@@ -105,8 +107,8 @@ export default function PomodoroView() {
           </Select>
           {selectedTask && (
             <p className="text-[10px] text-muted-foreground">
-              {selectedTask.due_date
-                ? `${T("سررسید:", "Due:")} ${system === "jalali" ? formatDate(new Date(selectedTask.due_date), "d MMM", "jalali") : format(new Date(selectedTask.due_date), "d MMM")}`
+              {selectedTaskDueDate
+                ? `${T("سررسید:", "Due:")} ${system === "jalali" ? formatDate(selectedTaskDueDate, "d MMM", "jalali") : format(selectedTaskDueDate, "d MMM")}`
                 : T("بدون سررسید", "No due date")}
             </p>
           )}

@@ -19,6 +19,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { PRIORITY_META, type Priority } from "@/lib/priority";
 import { describeRule, type RecurrenceRule } from "@/lib/recurrence";
+import { parseTaskDueDate } from "@/lib/taskDate";
 
 type TaskLite = {
   id: string; title: string; description?: string | null;
@@ -277,7 +278,7 @@ export function TaskAIPanel({
                   </div>
                 )}
                 {meta.due_date && (
-                  <div className="text-sm"><span className="text-muted-foreground">{T("سررسید:", "Due:")}</span> {new Date(meta.due_date).toLocaleString(isEn ? "en-US" : "fa-IR")}</div>
+                  <div className="text-sm"><span className="text-muted-foreground">{T("سررسید:", "Due:")}</span> {parseTaskDueDate(meta.due_date)?.toLocaleString(isEn ? "en-US" : "fa-IR") || meta.due_date}</div>
                 )}
                 {meta.recurrence_rule && (
                   <div className="text-sm"><span className="text-muted-foreground">{T("تکرار:", "Repeat:")}</span> {describeRule(meta.recurrence_rule, isEn)}</div>

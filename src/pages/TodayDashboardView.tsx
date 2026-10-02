@@ -1,6 +1,7 @@
 import { TaskGroupHeader } from "@/components/tasks/TaskGroupHeader";
 import { useTaskListSort } from "@/lib/taskListSort";
 import { planOf } from "@/lib/planCascade";
+import { isTaskOverdue } from "@/lib/taskPlanning";
 import { getTimeSettings, todayISO } from "@/lib/timeHorizon";
 import { filterAndSortTasks, DEFAULT_FILTERS } from "@/lib/smartListService";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
@@ -201,8 +202,9 @@ export default function TodayDashboardView() {
   const isDueToday = useCallback((t: Task) => {
     const plan = planOf(t, getTimeSettings());
     if (plan?.horizon === "day" && plan.start === todayISO()) return true;
-    if (!t.due_date) return false;
-    const due = taskDueTimestamp(t.due_date);
+    const dueDate = t.due_date || t.due_at;
+    if (!dueDate) return false;
+    const due = taskDueTimestamp(dueDate);
     return !isNaN(due) && due >= startOfToday && due <= endOfToday;
   }, [startOfToday, endOfToday]);
 
@@ -253,12 +255,8 @@ export default function TodayDashboardView() {
       });
   }, [todayPersonalTasks]);
 
-  // Overdue tasks: open tasks with due date strictly before start of today
-  const isDueOverdue = useCallback((t: Task) => {
-    if (t.completed || !t.due_date) return false;
-    const due = taskDueTimestamp(t.due_date);
-    return !isNaN(due) && due < startOfToday;
-  }, [startOfToday]);
+  // Old daily plans are overdue too; weekly and longer plans remain planning buckets.
+  const isDueOverdue = useCallback((t: Task) => isTaskOverdue(t, getTimeSettings()), []);
 
   const overdueTasks = useMemo(() => filterAndSortTasks(
     allTasks.filter((task) => isStandaloneTaskForScope(task, isDueOverdue, taskMap) && !getStudyTaskNavigation(task).isStudyTask),

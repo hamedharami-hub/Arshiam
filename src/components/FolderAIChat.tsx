@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { callAI } from "@/lib/ai";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
+import { parseTaskDueDate } from "@/lib/taskDate";
 
 type Msg = { role: "user" | "assistant"; content: string };
 type Mode = "interview" | "free";
@@ -227,7 +228,7 @@ export default function FolderAIChat({
                             <div className="font-medium">{t.title}</div>
                             <div className="flex flex-wrap gap-1 mt-0.5">
                               {t.priority && t.priority !== "none" && <Badge variant="outline" className="text-[9px] py-0 h-4">{t.priority}</Badge>}
-                              {t.due_date && <Badge variant="outline" className="text-[9px] py-0 h-4">{new Date(t.due_date).toLocaleDateString("fa-IR")}</Badge>}
+                              {t.due_date && <Badge variant="outline" className="text-[9px] py-0 h-4">{parseTaskDueDate(t.due_date)?.toLocaleDateString("fa-IR") || t.due_date}</Badge>}
                               {output === "kanban" && t.kanban_column && <Badge variant="outline" className="text-[9px] py-0 h-4">{t.kanban_column}</Badge>}
                             </div>
                           </div>

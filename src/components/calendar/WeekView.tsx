@@ -7,6 +7,7 @@ import { isHoliday, dominantKind, HOLIDAY_TONE, type Holiday } from "@/lib/holid
 import { useTapGestures } from "@/lib/useTapGestures";
 import { usePinchZoom } from "@/lib/usePinchZoom";
 import { ZoomIn } from "lucide-react";
+import { parseTaskDueDate } from "@/lib/taskDate";
 
 type Task = { id: string; title: string; due_date: string | null; priority: string };
 
@@ -115,7 +116,8 @@ export default function WeekView({
               {days.map((d) => {
                 const slotTasks = tasks.filter((t) => {
                   if (!t.due_date) return false;
-                  const dt = new Date(t.due_date);
+                  const dt = parseTaskDueDate(t.due_date);
+                  if (!dt) return false;
                   return isSameDay(dt, d) && dt.getHours() === h;
                 });
                 return (

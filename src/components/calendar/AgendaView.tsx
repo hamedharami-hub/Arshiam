@@ -2,6 +2,7 @@ import { isSameDay, format, compareAsc } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { formatDate, toPersianDigits, type CalendarSystem } from "@/lib/jalali";
 import { isHoliday, dominantKind, HOLIDAY_TONE, type Holiday } from "@/lib/holidays";
+import { parseTaskDueDate } from "@/lib/taskDate";
 
 type Task = { id: string; title: string; due_date: string | null; priority: string };
 
@@ -16,9 +17,10 @@ export default function AgendaView({
 }) {
   const navigate = useNavigate();
   const items = tasks
-    .filter((t) => t.due_date)
-    .map((t) => ({ ...t, _d: new Date(t.due_date!) }))
-    .filter((t) => t._d >= start && t._d <= end)
+    .flatMap((t) => {
+      const _d = t.due_date ? parseTaskDueDate(t.due_date) : null;
+      return _d && _d >= start && _d <= end ? [{ ...t, _d }] : [];
+    })
     .sort((a, b) => compareAsc(a._d, b._d));
 
   // Group by day
@@ -37,7 +39,7 @@ export default function AgendaView({
   return (
     <div className="space-y-3">
       {keys.map((k) => {
-        const d = new Date(k);
+        const d = parseTaskDueDate(k)!;
         const hol = isHoliday(d, holidays);
         return (
           <div key={k} className="border border-border/60 rounded-xl overflow-hidden bg-card/40">
