@@ -58,6 +58,38 @@
 @keyframes island-dash { to { stroke-dashoffset: -18; } }
 @keyframes island-pop { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
+/* Real-time day phases */
+.island-sea { transition: background 600ms ease; }
+.island-sea-morning { background: radial-gradient(ellipse at 50% 55%, hsl(190 70% 76%) 0%, hsl(196 58% 62%) 55%, hsl(24 60% 70%) 100%); }
+.island-sea-sunset { background: radial-gradient(ellipse at 50% 55%, hsl(200 50% 60%) 0%, hsl(215 40% 46%) 55%, hsl(18 65% 55%) 100%); }
+.island-sea-night { background: radial-gradient(ellipse at 50% 55%, hsl(212 45% 34%) 0%, hsl(222 50% 22%) 60%, hsl(228 55% 13%) 100%); }
+.island-star { animation: island-twinkle 2.8s ease-in-out infinite; }
+.island-phase-night .island-glow { animation-duration: 3.2s; }
+
+/* Material unlock celebration */
+.island-confetti {
+  position: absolute;
+  top: -16px;
+  width: 9px;
+  height: 14px;
+  border-radius: 2px;
+  opacity: 0;
+  animation-name: island-confetti-fall;
+  animation-timing-function: cubic-bezier(0.25, 0.6, 0.4, 1);
+  animation-fill-mode: forwards;
+}
+.island-unlock-card { animation: island-card-in 240ms ease-out; }
+.island-unlock-swatch { animation: island-pop 240ms ease-out; }
+
+@keyframes island-twinkle { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+@keyframes island-confetti-fall {
+  0% { opacity: 1; transform: translateY(0) rotate(0deg); }
+  85% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(105vh) rotate(540deg); }
+}
+@keyframes island-card-in { from { opacity: 0; transform: translateY(-12px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
 @media (prefers-reduced-motion: reduce) {
-  .island-svg, .island-blades, .island-glow, .island-select-ring, .island-pop { animation: none; }
+  .island-svg, .island-blades, .island-glow, .island-select-ring, .island-pop, .island-star, .island-unlock-card, .island-unlock-swatch { animation: none; }
+  .island-confetti { display: none; }
 }

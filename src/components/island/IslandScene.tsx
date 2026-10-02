@@ -1,5 +1,5 @@
 import { memo, type ReactNode } from "react";
-import { GRID_SIZE, getMaterial, type BuildingType, type PlacedBuilding } from "@/lib/island";
+import { GRID_SIZE, getMaterial, type BuildingType, type DayPhase, type PlacedBuilding } from "@/lib/island";
 
 const TW = 72;
 const TH = 36;
@@ -94,6 +94,45 @@ export function renderBuilding(type: BuildingType, cx: number, cy: number): Reac
   }
 }
 
+// Lighting per real-time phase: tint overlay over the whole scene.
+const PHASE_TINT: Record<DayPhase, { color: string; opacity: number }> = {
+  morning: { color: "#ffb27a", opacity: 0.12 },
+  day: { color: "#ffffff", opacity: 0 },
+  sunset: { color: "#ff6a3d", opacity: 0.2 },
+  night: { color: "#0a1838", opacity: 0.42 },
+};
+// Window/door light offsets (relative to building ground centre) shown after dark.
+const NIGHT_LIGHTS: Partial<Record<BuildingType, [number, number, number][]>> = {
+  hut: [[9, -3, 5]],
+  house: [[-12.5, -8.5, 6], [9, -3, 5]],
+  windmill: [[9, -3, 5]],
+  market: [[9, -3, 5]],
+  tower: [[-8, -33, 6], [9, -3, 5]],
+  lighthouse: [[0, -50, 16]],
+  fountain: [[0, -24, 7]],
+  palace: [[9, -3, 6], [-4, -44, 8]],
+};
+const STARS: [number, number, number][] = [[40, 22, 1.4], [92, 52, 1], [150, 18, 1.2], [210, 40, 0.9], [420, 26, 1.3], [470, 58, 1], [520, 16, 1.1], [560, 48, 1.4], [600, 30, 0.9], [300, 12, 1]];
+
+function Sky({ phase, W }: { phase: DayPhase; W: number }) {
+  if (phase === "night") {
+    return (
+      <g pointerEvents="none" data-testid="island-sky-night">
+        {STARS.map(([x, y, r], i) => <circle key={i} className="island-star" style={{ animationDelay: `${i * 0.37}s` }} cx={x} cy={y} r={r} fill="#fff" />)}
+        <circle cx={W - 70} cy={46} r={16} fill="#f3f0dc" />
+        <circle cx={W - 63} cy={41} r={14} fill="#1b2a52" opacity={0.85} />
+      </g>
+    );
+  }
+  const sun = phase === "morning" ? { x: 70, y: 66, c: "#ffd27a" } : phase === "day" ? { x: W / 2 + 150, y: 34, c: "#fff1a8" } : { x: W - 70, y: 74, c: "#ff9a5a" };
+  return (
+    <g pointerEvents="none" data-testid={`island-sky-${phase}`}>
+      <circle className="island-glow" cx={sun.x} cy={sun.y} r={30} fill={sun.c} opacity={0.35} />
+      <circle cx={sun.x} cy={sun.y} r={16} fill={sun.c} />
+    </g>
+  );
+}
+
 const toScreen = (x: number, y: number) => {
   const ox = PAD + (GRID_SIZE * TW) / 2;
   return { sx: ox + ((x - y) * TW) / 2, sy: TOP + ((x + y) * TH) / 2 };
@@ -104,14 +143,14 @@ export interface IslandSceneProps {
   selectedId: string | null;
   ghostType: BuildingType | null;
   hover: { x: number; y: number } | null;
-  isNight?: boolean;
+  phase?: DayPhase;
   labelFor: (x: number, y: number, b?: PlacedBuilding) => string;
   onHover: (tile: { x: number; y: number } | null) => void;
   onTile: (x: number, y: number) => void;
   onBuilding: (b: PlacedBuilding) => void;
 }
 
-export const IslandScene = memo(function IslandScene({ buildings, selectedId, ghostType, hover, isNight, labelFor, onHover, onTile, onBuilding }: IslandSceneProps) {
+export const IslandScene = memo(function IslandScene({ buildings, selectedId, ghostType, hover, phase = "day", labelFor, onHover, onTile, onBuilding }: IslandSceneProps) {
   const W = GRID_SIZE * TW + PAD * 2;
   const H = TOP + GRID_SIZE * TH + CLIFF + PAD + 10;
   const top = toScreen(0, 0), right = toScreen(GRID_SIZE, 0), bottom = toScreen(GRID_SIZE, GRID_SIZE), left = toScreen(0, GRID_SIZE);
@@ -122,7 +161,8 @@ export const IslandScene = memo(function IslandScene({ buildings, selectedId, gh
   const showGhost = ghostType && hover && !occupiedSet.has(`${hover.x}:${hover.y}`);
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="island-svg" role="group" aria-label="island map" data-testid="island-map" onMouseLeave={() => onHover(null)}>
+    <svg viewBox={`0 0 ${W} ${H}`} className={`island-svg island-phase-${phase}`} role="group" aria-label="island map" data-testid="island-map" onMouseLeave={() => onHover(null)}>
+      <Sky phase={phase} W={W} />
       {/* sand ring */}
       <polygon points={pts([[top.sx, top.sy - 12], [right.sx + 22, right.sy], [bottom.sx, bottom.sy + 12], [left.sx - 22, left.sy]])} fill={C.sand} opacity={0.95} />
       {/* cliffs */}
@@ -171,7 +211,15 @@ export const IslandScene = memo(function IslandScene({ buildings, selectedId, gh
         const { sx, sy } = toScreen(hover.x, hover.y);
         return <g className="island-ghost" pointerEvents="none">{renderBuilding(ghostType, sx, sy + TH / 2)}</g>;
       })()}
-      {isNight && <rect x={0} y={0} width={W} height={H} fill="#0b1a33" opacity={0.18} pointerEvents="none" />}
+      {PHASE_TINT[phase].opacity > 0 && <rect x={0} y={0} width={W} height={H} fill={PHASE_TINT[phase].color} opacity={PHASE_TINT[phase].opacity} pointerEvents="none" style={{ mixBlendMode: "multiply" }} data-testid="island-tint" />}
+      {phase === "night" && (
+        <g pointerEvents="none" data-testid="island-night-lights">
+          {sorted.flatMap((b) => {
+            const { sx, sy } = toScreen(b.x, b.y);
+            return (NIGHT_LIGHTS[b.type] || []).map(([dx, dy, r], i) => <circle key={`${b.id}-${i}`} className="island-glow" cx={sx + dx} cy={sy + TH / 2 + dy} r={r} fill={C.light} opacity={0.6} />);
+          })}
+        </g>
+      )}
     </svg>
   );
 });

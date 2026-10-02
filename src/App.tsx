@@ -5,6 +5,7 @@ import { BrowserRouter, Route, Routes, Navigate, useNavigate, useLocation } from
 import { App as CapApp } from "@capacitor/app";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
+import { IslandUnlockCelebration } from "@/components/island/IslandUnlockCelebration";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -281,6 +282,7 @@ const App = () => {
           <TooltipProvider>
             <Toaster />
             <Sonner />
+            <IslandUnlockCelebration />
             <BrowserRouter>
               <CapacitorUrlHandler />
               <AuthProvider>

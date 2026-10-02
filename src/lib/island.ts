@@ -101,6 +101,22 @@ export function getIslandLevel(buildingCount: number): { level: number; current:
 const STORAGE_KEY = "arshnaz_island_v1";
 const USER_KEY = "arshnaz_garden_user";
 export const ISLAND_EVENT = "arshnaz-island-updated";
+export const ISLAND_UNLOCK_EVENT = "arshnaz-island-unlock";
+
+export type DayPhase = "morning" | "day" | "sunset" | "night";
+/** Real-time lighting phase for the island. */
+export function getDayPhase(date = new Date()): DayPhase {
+  const h = date.getHours();
+  if (h >= 5 && h < 11) return "morning";
+  if (h >= 11 && h < 17) return "day";
+  if (h >= 17 && h < 20) return "sunset";
+  return "night";
+}
+
+/** Materials newly unlocked when lifetime points go from `before` to `after`. */
+export function getNewlyUnlocked(before: number, after: number): Material[] {
+  return MATERIALS.filter((m) => m.unlockAt > before && m.unlockAt <= after);
+}
 
 function userId(): string | null {
   try { return localStorage.getItem(USER_KEY); } catch { return null; }
@@ -178,6 +194,10 @@ export function creditIsland(amount: number, reason = "پاداش فعالیت")
     log: [{ reason, points: safe, date: new Date().toISOString() }, ...current.log].slice(0, 30),
   };
   saveIslandState(next);
+  const unlocked = getNewlyUnlocked(current.lifetime, next.lifetime);
+  if (unlocked.length) {
+    try { window.dispatchEvent(new CustomEvent(ISLAND_UNLOCK_EVENT, { detail: unlocked })); } catch { /* non-browser */ }
+  }
   return next;
 }
 

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { canBuild, creditIsland, getIslandLevel, getIslandState, moveBuilding, placeBuilding, removeBuilding } from "./island";
+import { ISLAND_UNLOCK_EVENT, canBuild, creditIsland, getDayPhase, getNewlyUnlocked, getIslandLevel, getIslandState, moveBuilding, placeBuilding, removeBuilding } from "./island";
 
 describe("island game", () => {
   beforeEach(() => localStorage.clear());
@@ -39,5 +39,22 @@ describe("island game", () => {
     expect(getIslandLevel(0).level).toBe(1);
     expect(getIslandLevel(3).level).toBe(2);
     expect(getIslandLevel(7).next).toBe(12);
+  });
+
+  it("fires an unlock event when a material threshold is crossed", () => {
+    const seen: string[] = [];
+    const fn = (e: Event) => (e as CustomEvent<{ id: string }[]>).detail.forEach((m) => seen.push(m.id));
+    window.addEventListener(ISLAND_UNLOCK_EVENT, fn);
+    creditIsland(20);
+    expect(seen).toEqual([]);
+    creditIsland(250);
+    expect(seen).toEqual(["stone", "brick"]);
+    window.removeEventListener(ISLAND_UNLOCK_EVENT, fn);
+    expect(getNewlyUnlocked(0, 99)).toEqual([]);
+  });
+
+  it("maps real hours to day phases", () => {
+    const at = (h: number) => getDayPhase(new Date(2026, 0, 1, h));
+    expect([at(6), at(13), at(18), at(22), at(3)]).toEqual(["morning", "day", "sunset", "night", "night"]);
   });
 });

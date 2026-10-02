@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowRightLeft, Coins, Hammer, History, Info, Lock, MousePointerClick, Sparkles, Trash2, Trophy, X } from "lucide-react";
+import { ArrowRightLeft, Moon, Sunrise, Sun, Sunset, Coins, Hammer, History, Info, Lock, MousePointerClick, Sparkles, Trash2, Trophy, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,11 +7,12 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { BuildingPreview, IslandScene } from "@/components/island/IslandScene";
+import { ZoomPan } from "@/components/island/ZoomPan";
 import "@/components/island/island.css";
 import { useBilingual } from "@/hooks/useBilingual";
 import { toPersianDigits } from "@/lib/jalali";
 import {
-  BUILDINGS, ISLAND_EVENT, MATERIALS, canBuild, getBuildingSpec, getIslandLevel, getIslandState, getNextMaterial,
+  BUILDINGS, ISLAND_EVENT, MATERIALS, getDayPhase, type DayPhase, canBuild, getBuildingSpec, getIslandLevel, getIslandState, getNextMaterial,
   isMaterialUnlocked, moveBuilding, placeBuilding, removeBuilding, type BuildingType, type IslandState, type PlacedBuilding,
 } from "@/lib/island";
 
@@ -37,7 +38,18 @@ export default function IslandView() {
   const nextMat = getNextMaterial(state.lifetime);
   const prevUnlock = [...MATERIALS].reverse().find((m) => m.unlockAt <= state.lifetime)?.unlockAt || 0;
   const matPct = nextMat ? Math.round(((state.lifetime - prevUnlock) / (nextMat.unlockAt - prevUnlock)) * 100) : 100;
-  const isNight = useMemo(() => { const h = new Date().getHours(); return h >= 20 || h < 6; }, []);
+  const [phase, setPhase] = useState<DayPhase>(() => getDayPhase());
+  useEffect(() => {
+    const id = window.setInterval(() => setPhase(getDayPhase()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const initialZoom = useMemo(() => (typeof window !== "undefined" && window.innerWidth < 640 ? 1.5 : 1), []);
+  const PHASE_META: Record<DayPhase, { icon: React.ReactNode; fa: string; en: string }> = {
+    morning: { icon: <Sunrise className="size-4" />, fa: "صبح", en: "Morning" },
+    day: { icon: <Sun className="size-4" />, fa: "روز", en: "Day" },
+    sunset: { icon: <Sunset className="size-4" />, fa: "غروب", en: "Sunset" },
+    night: { icon: <Moon className="size-4" />, fa: "شب", en: "Night" },
+  };
 
   const clearModes = () => { setBuildType(null); setSelectedId(null); setMoving(false); };
 
@@ -105,13 +117,16 @@ export default function IslandView() {
       </section>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="island-sea rounded-3xl border shadow-sm" aria-label={T("نقشه جزیره", "Island map")}>
+        <section className={`island-sea island-sea-${phase} overflow-hidden rounded-3xl border shadow-sm lg:sticky lg:top-4 lg:self-start`} aria-label={T("نقشه جزیره", "Island map")}>
           <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 p-3">
             <p className="flex items-center gap-2 rounded-full bg-background/80 px-3 py-1.5 text-sm backdrop-blur-md" data-testid="island-mode-hint"><MousePointerClick className="size-4 text-primary" />{modeHint}</p>
+            <span className="flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-1.5 text-sm backdrop-blur-md" data-testid="island-day-phase">{PHASE_META[phase].icon}{isEn ? PHASE_META[phase].en : PHASE_META[phase].fa}</span>
             {(buildType || moving || selectedId) && <Button size="sm" variant="secondary" className="rounded-full" onClick={clearModes} data-testid="island-cancel-mode"><X className="size-4" />{T("لغو", "Cancel")}</Button>}
           </div>
           <div className="px-2 pb-4">
-            <IslandScene buildings={state.buildings} selectedId={selectedId} ghostType={moving && selected ? selected.type : buildType} hover={hover} isNight={isNight} labelFor={labelFor} onHover={setHover} onTile={onTile} onBuilding={onBuilding} />
+            <ZoomPan initialScale={initialZoom} labels={{ zoomIn: T("بزرگ‌نمایی", "Zoom in"), zoomOut: T("کوچک‌نمایی", "Zoom out"), reset: T("اندازهٔ اولیه", "Reset view"), hint: T("برای جابه‌جایی نقشه بکشید", "Drag to move the map") }}>
+              <IslandScene buildings={state.buildings} selectedId={selectedId} ghostType={moving && selected ? selected.type : buildType} hover={hover} phase={phase} labelFor={labelFor} onHover={setHover} onTile={onTile} onBuilding={onBuilding} />
+            </ZoomPan>
           </div>
         </section>
 
