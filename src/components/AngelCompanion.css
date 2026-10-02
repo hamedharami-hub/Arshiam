@@ -1,0 +1,17 @@
+.companion-character { display: inline-block; flex-shrink: 0; background-image: url('/images/angel-companion-poses.png'); background-size: 200% 200%; background-repeat: no-repeat; }
+.companion-moment { position: fixed; z-index: 60; bottom: calc(5.5rem + env(safe-area-inset-bottom)); left: max(12px, env(safe-area-inset-left)); display: flex; align-items: center; flex-direction: column; width: 155px; pointer-events: none; animation: companion-entrance .45s ease-out, companion-exit .4s ease-in 2.6s forwards; }
+.companion-caption { max-width: 155px; padding: 5px 10px; text-align: center; font-size: 11px; line-height: 1.6; color: hsl(var(--foreground)); background: hsl(var(--background) / .94); border: 1px solid hsl(var(--border)); border-radius: 14px; box-shadow: 0 3px 15px #0000000a; }
+.companion-dismiss { position: absolute; top: 0; right: 3px; width: 28px; height: 28px; border-radius: 50%; pointer-events: auto; color: hsl(var(--muted-foreground)); background: hsl(var(--background) / .9); font-size: 20px; }
+.companion-moment[data-mode=full] .companion-celebrate { animation: companion-happy 1.1s ease-in-out 2; }
+.companion-moment[data-mode=full] .companion-tomorrow { animation: companion-deliver 2.4s ease-in-out; }
+.companion-moment[data-mode=full] .companion-garden { animation: companion-water 1.2s ease-in-out 2; }
+.companion-busy[data-mode=full] { animation: companion-think 3s ease-in-out infinite; }
+.companion-moment[data-mode=calm] { animation: companion-fade .25s ease-out; }
+@keyframes companion-entrance { from { opacity: 0; transform: translateY(12px) scale(.95); } to { opacity: 1; transform: none; } }
+@keyframes companion-exit { to { opacity: 0; transform: translateY(8px); } }
+@keyframes companion-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes companion-happy { 0%,100% { transform: translateY(0) rotate(0); } 40% { transform: translateY(-9px) rotate(-4deg); } 70% { transform: translateY(-3px) rotate(3deg); } }
+@keyframes companion-deliver { 0%,100% { transform: translateX(0); } 45% { transform: translateX(8px) translateY(-5px) rotate(3deg); } }
+@keyframes companion-water { 0%,100% { transform: rotate(0); } 50% { transform: rotate(-4deg) translateY(-3px); } }
+@keyframes companion-think { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .companion-moment, .companion-character { animation: none !important; } }

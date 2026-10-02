@@ -1,3 +1,4 @@
+import { showMascotMoment } from "./mascot";
 import { getOpConfig, type AIOperation } from "@/lib/aiSettings";
 import { offlineAssistant } from "@/lib/offlineAssistant";
 import { DISTORTION_LABELS, type Distortion } from "@/lib/distortions";
@@ -39,6 +40,7 @@ export async function callAI(
 ) {
   const lang = langOverride ?? getAILanguage();
   const settings = getAISettings(mode);
+  showMascotMoment("thinking");
 
   if (settings?.provider === "offline") {
     const local = offlineAssistant(mode, input, lang, action, context);

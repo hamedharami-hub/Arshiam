@@ -1,3 +1,4 @@
+import { AngelCompanion } from "@/components/AngelCompanion";
 import { lazy, Suspense, useEffect, useRef } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate, useNavigate, useLocation } from "react-router-dom";
@@ -282,6 +283,7 @@ const App = () => {
             <BrowserRouter>
               <CapacitorUrlHandler />
               <AuthProvider>
+                <AngelCompanion />
                 <Suspense fallback={<RouteFallback />}>
                   <Routes>
                     <Route path="/" element={<Index />} />

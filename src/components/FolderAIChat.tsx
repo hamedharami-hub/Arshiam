@@ -1,5 +1,6 @@
+import { MascotCharacter } from "@/components/AngelCompanion";
 import { useState, useEffect, useRef } from "react";
-import { Sparkles, Send, Loader2, Globe, MessageCircleQuestion, MessageSquare, Wand2, LayoutGrid, List } from "lucide-react";
+import { Send, Loader2, Globe, MessageCircleQuestion, MessageSquare, Wand2, LayoutGrid, List } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -157,7 +158,7 @@ export default function FolderAIChat({
       <DialogContent className="max-w-2xl h-[85vh] flex flex-col p-0 gap-0">
         <DialogHeader className="p-4 border-b">
           <DialogTitle className="flex items-center gap-2 text-base">
-            <Sparkles className="w-5 h-5 text-primary" />
+            <MascotCharacter pose="thinking" busy={loading} size={48} />
             چت AI روی فولدر «{folderName}»
           </DialogTitle>
         </DialogHeader>

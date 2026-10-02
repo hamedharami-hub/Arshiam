@@ -1,3 +1,4 @@
+import { showMascotMoment } from "./mascot";
 import { reconcileRemoteRowsWithPending } from "./offlineReconcile";
 import {
   db,
@@ -276,7 +277,8 @@ async function rollbackOptimisticTaskWrite(
  */
 export async function persistTask(
   userId: string,
-  task: Partial<Task> & { id: string }
+  task: Partial<Task> & { id: string },
+  options: { quietCompanion?: boolean } = {},
 ): Promise<TaskPersistenceStatus> {
   if (!userId || !task.id) return "failed";
   const dataToSave = {
@@ -309,9 +311,21 @@ export async function persistTask(
   }
 
   // 2. Persist to Firestore
+  const celebrateAcceptedChange = () => {
+    if (!previousTask || options.quietCompanion) return;
+    if (task.completed === true && !previousTask.completed) showMascotMoment("celebrate");
+    else if (task.due_date && task.due_date !== previousTask.due_date) {
+      const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+      const localDate = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+      const date = new Date(task.due_date);
+      const taskDate = task.due_date.length === 10 ? task.due_date : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      if (taskDate === localDate) showMascotMoment("tomorrow");
+    }
+  };
   try {
     const taskRef = doc(db, "users", userId, "tasks", task.id);
     await setDoc(taskRef, dataToSave, { merge: true });
+    celebrateAcceptedChange();
     return "saved";
   } catch (err) {
     console.warn("[FirestoreData] task write deferred to offline outbox:", err);
@@ -341,6 +355,7 @@ export async function persistTask(
     if (!queued) {
       await rollbackOptimisticTaskWrite(userId, task.id, dataToSave, previousTask, previousIndex);
     }
+    if (queued) celebrateAcceptedChange();
     return queued ? "queued" : "failed";
   }
 }
@@ -1292,5 +1307,3 @@ export function subscribeSocraticSession(
     return () => {};
   }
 }
-
-

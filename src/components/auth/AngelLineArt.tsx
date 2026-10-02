@@ -1,5 +1,6 @@
 import { useRef, type PointerEvent } from "react";
 import { cn } from "@/lib/utils";
+import { useMascotMode } from "@/lib/mascot";
 
 const SPARKS = [
   [782, 258, 5], [918, 254, 4], [965, 353, 6], [784, 406, 4],
@@ -8,13 +9,14 @@ const SPARKS = [
 
 /** The artwork and its light move together; pointer movement adds a gentle tilt. */
 export function AngelLineArt({ className }: { className?: string }) {
+  const mode = useMascotMode();
   const scene = useRef<HTMLSpanElement>(null);
   const resetTilt = () => {
     scene.current?.style.setProperty("--angel-tilt-x", "0deg");
     scene.current?.style.setProperty("--angel-tilt-y", "0deg");
   };
   const followPointer = (event: PointerEvent<HTMLSpanElement>) => {
-    if (event.pointerType !== "mouse" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (mode !== "full" || event.pointerType !== "mouse" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const bounds = event.currentTarget.getBoundingClientRect();
     if (!bounds.width || !bounds.height) return;
     const x = Math.max(-1, Math.min(1, (event.clientX - bounds.left) / bounds.width * 2 - 1));
@@ -28,6 +30,7 @@ export function AngelLineArt({ className }: { className?: string }) {
       role="img"
       aria-label="فرشته‌ای مهربان با بال‌های قلبی که به ستاره‌ای درخشان دست می‌زند"
       data-testid="auth-angel-art"
+      data-mode={mode}
       onPointerMove={followPointer}
       onPointerLeave={resetTilt}
     >
@@ -36,6 +39,7 @@ export function AngelLineArt({ className }: { className?: string }) {
           <span className="angel-aura" aria-hidden="true" />
           <img className="angel-illustration" src="/images/angel-cute.png" alt="" width={1312} height={1199} draggable={false} />
           <svg className="angel-light-layer" viewBox="0 0 1312 1199" aria-hidden="true" focusable="false">
+            <g transform="translate(0 -34)">
             <circle className="angel-light-ring" cx="860" cy="338" r="76" />
             <path className="angel-core-light" d="M860 301 Q866 332 891 338 Q866 344 860 375 Q854 344 829 338 Q854 332 860 301Z" />
             {SPARKS.map(([x, y, radius], index) => (
@@ -43,6 +47,7 @@ export function AngelLineArt({ className }: { className?: string }) {
                 <path d={`M${x} ${y - radius * 2} Q${x + radius / 2} ${y - radius / 2} ${x + radius * 2} ${y} Q${x + radius / 2} ${y + radius / 2} ${x} ${y + radius * 2} Q${x - radius / 2} ${y + radius / 2} ${x - radius * 2} ${y} Q${x - radius / 2} ${y - radius / 2} ${x} ${y - radius * 2}Z`} />
               </g>
             ))}
+            </g>
           </svg>
         </span>
       </span>

@@ -1,6 +1,7 @@
 import { addDays, addMonths, addYears, format } from "date-fns";
 import { firebaseStore } from "./firebaseStore";
 import { persistTask } from "./firestoreDataService";
+import { showMascotMoment } from "./mascot";
 import { getCachedTasks } from "@/features/tasks/taskService";
 import { buildTaskChildrenMap, collectTaskDescendantIds } from "@/features/tasks/taskTree";
 import { nextOccurrence, type RecurrenceRule } from "./recurrence";
@@ -200,7 +201,7 @@ export async function advanceRecurringTask(
         }
       }
 
-      await persistTask(userId, subPatch).catch((e) =>
+      await persistTask(userId, subPatch, { quietCompanion: true }).catch((e) =>
         console.warn("[RecurringTaskService] Failed to reset subtask:", sub.id, e)
       );
     }
@@ -226,10 +227,11 @@ export async function advanceRecurringTask(
   }
 
   // 3. Persist the main task
-  const status = await persistTask(userId, taskPatch);
+  const status = await persistTask(userId, taskPatch, { quietCompanion: true });
   if (status === "failed") {
     return { success: false, error: new Error("Could not persist advanced recurring task") };
   }
+  showMascotMoment("celebrate");
 
   // 4. Log activity
   await logTaskActivity(task.id, userId, "recurrence_advanced", {

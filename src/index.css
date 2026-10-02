@@ -1812,6 +1812,9 @@ html[lang^="en"] body { font-feature-settings: "cv11"; }
 .angel-core-light { fill: #fff6d8; transform-box: fill-box; transform-origin: center; animation: angel-breathe 3.4s ease-in-out infinite; filter: drop-shadow(0 0 9px #ffe3a7); }
 .angel-light-ring { fill: none; stroke: #e5ba88; stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: angel-ripple 4s ease-out infinite; }
 .angel-stardust { fill: #e8bb86; animation: angel-stardust 5.6s ease-in-out infinite; }
+.angel-stage[data-mode=off] *, .angel-stage[data-mode=calm] * { animation: none !important; }
+.angel-stage[data-mode=off] .angel-light-layer, .angel-stage[data-mode=calm] .angel-light-ring { display: none; }
+.angel-stage[data-mode=off] .angel-scene, .angel-stage[data-mode=calm] .angel-scene { transform: none; }
 @keyframes angel-reveal { from { opacity: 0; } to { opacity: 1; } }
 @keyframes angel-float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-8px) rotate(-.6deg); } }
 @keyframes angel-breathe { 0%, 100% { opacity: .35; transform: scale(.78); } 50% { opacity: .95; transform: scale(1.08); } }

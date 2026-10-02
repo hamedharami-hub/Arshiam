@@ -1,3 +1,4 @@
+import { CompanionSettings } from "./settings/CompanionSettings";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
@@ -747,6 +748,7 @@ export default function SettingsView() {
           />
 
           <SidebarQuickLinksSettings isEn={isEn} />
+          <CompanionSettings />
         </TabsContent>
 
         <TabsContent value="tasks" className="space-y-5 mt-5">

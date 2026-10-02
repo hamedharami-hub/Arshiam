@@ -141,7 +141,8 @@ describe("recurringTaskService", () => {
           completed: false,
           status: "todo",
           due_date: "2026-10-01",
-        })
+        }),
+        { quietCompanion: true },
       );
 
       // Verify parent was persisted
@@ -152,7 +153,8 @@ describe("recurringTaskService", () => {
           completed: false,
           status: "todo",
           due_date: "2026-10-01",
-        })
+        }),
+        { quietCompanion: true },
       );
     });
 

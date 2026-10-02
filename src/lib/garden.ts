@@ -1,3 +1,4 @@
+import { showMascotMoment } from "./mascot";
 import { toast } from "sonner";
 
 export type PlantType = "rose" | "bonsai" | "orchid" | "lotus" | "palm" | "bamboo";
@@ -350,8 +351,10 @@ function writeGardenState(state: GardenState) {
 }
 
 export function saveGardenState(state: GardenState) {
+  const previous = getGardenState().activePlant;
   writeGardenState({ ...state, updatedAt: Date.now() });
   gardenCloud?.push();
+  if (previous && state.activePlant?.id === previous.id && state.activePlant.stage > previous.stage) showMascotMoment("garden");
 }
 
 export function awardWaterDrops(amount: number, reason: string): number {
