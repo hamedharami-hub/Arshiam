@@ -1,0 +1,1666 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "ARSHNAZ Personal Agent API",
+    "version": "1.0.0",
+    "description": "Manage only the authenticated account data using a personal agent token. First read /me and inspect permissions. This API does not edit application source code. Read relevant records before writing and verify results. Do not override time conflicts without user approval."
+  },
+  "servers": [
+    {
+      "url": "https://arshiam.vercel.app"
+    }
+  ],
+  "security": [
+    {
+      "agentBearer": []
+    }
+  ],
+  "paths": {
+    "/api/v1/agent/me": {
+      "get": {
+        "operationId": "getAgentConnection",
+        "summary": "Verify token and inspect granted permissions",
+        "description": "Requires a valid, unexpired personal agent token; no resource scope is required. Returns only the current token metadata and granted scopes.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        }
+      }
+    },
+    "/api/v1/agent/audit-log": {
+      "get": {
+        "operationId": "getAgentAuditLog",
+        "summary": "Read changes made by this agent",
+        "description": "Requires tasks:read. Access is limited to the account associated with the token.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/agent/tasks": {
+      "get": {
+        "operationId": "listTasks",
+        "summary": "List tasks",
+        "description": "Requires tasks:read. Access is limited to the account associated with the token.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "priority",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "completed",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "folder_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "due_date",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from_date",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to_date",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createTask",
+        "summary": "Create task",
+        "description": "Requires tasks:write. Access is limited to the account associated with the token.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique for each intended creation; reuse only on retries of the same request."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": [
+                      "p1",
+                      "p2",
+                      "p3",
+                      "p4"
+                    ]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "todo",
+                      "in_progress",
+                      "done",
+                      "wont_do"
+                    ]
+                  },
+                  "completed": {
+                    "type": "boolean"
+                  },
+                  "due_date": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "folder_id": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "pinned": {
+                    "type": "boolean"
+                  },
+                  "start_at": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "end_at": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "estimated_minutes": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "recurrence": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "title"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "x-openai-isConsequential": true
+      }
+    },
+    "/api/v1/agent/tasks/{id}": {
+      "get": {
+        "operationId": "getTask",
+        "summary": "Read task",
+        "description": "Requires tasks:read. Access is limited to the account associated with the token.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID returned by a read/list operation."
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "updateTask",
+        "summary": "Update task",
+        "description": "Requires tasks:write. Access is limited to the account associated with the token.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID returned by a read/list operation."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": [
+                      "p1",
+                      "p2",
+                      "p3",
+                      "p4"
+                    ]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "todo",
+                      "in_progress",
+                      "done",
+                      "wont_do"
+                    ]
+                  },
+                  "completed": {
+                    "type": "boolean"
+                  },
+                  "due_date": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "folder_id": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "pinned": {
+                    "type": "boolean"
+                  },
+                  "start_at": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "end_at": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "estimated_minutes": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "recurrence": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "x-openai-isConsequential": true
+      }
+    },
+    "/api/v1/agent/folders": {
+      "get": {
+        "operationId": "listFolders",
+        "summary": "List folders",
+        "description": "Requires folders:read. Access is limited to the account associated with the token.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createFolder",
+        "summary": "Create folder",
+        "description": "Requires folders:write. Access is limited to the account associated with the token.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "parent_id": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "color": {
+                    "type": "string"
+                  },
+                  "position": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "x-openai-isConsequential": true
+      }
+    },
+    "/api/v1/agent/folders/{id}": {
+      "get": {
+        "operationId": "getFolder",
+        "summary": "Read folder",
+        "description": "Requires folders:read. Access is limited to the account associated with the token.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID returned by a read/list operation."
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "updateFolder",
+        "summary": "Update folder",
+        "description": "Requires folders:write. Access is limited to the account associated with the token.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID returned by a read/list operation."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "parent_id": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "color": {
+                    "type": "string"
+                  },
+                  "position": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "x-openai-isConsequential": true
+      }
+    },
+    "/api/v1/agent/memories": {
+      "get": {
+        "operationId": "listMemorys",
+        "summary": "List memories",
+        "description": "Requires memories:read. Access is limited to the account associated with the token.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "folder_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "task_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createMemory",
+        "summary": "Create memory",
+        "description": "Requires memories:write. Access is limited to the account associated with the token. Provide nonempty title or content.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique for each intended creation; reuse only on retries of the same request."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "note",
+                      "diary"
+                    ]
+                  },
+                  "pinned": {
+                    "type": "boolean"
+                  },
+                  "task_id": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "folder_id": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "diary_date": {
+                    "type": "string"
+                  },
+                  "diary_mood": {
+                    "type": "string"
+                  },
+                  "diary_background": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false,
+                "anyOf": [
+                  {
+                    "required": [
+                      "title"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "content"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "x-openai-isConsequential": true
+      }
+    },
+    "/api/v1/agent/memories/{id}": {
+      "get": {
+        "operationId": "getMemory",
+        "summary": "Read memory",
+        "description": "Requires memories:read. Access is limited to the account associated with the token.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID returned by a read/list operation."
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "updateMemory",
+        "summary": "Update memory",
+        "description": "Requires memories:write. Access is limited to the account associated with the token.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID returned by a read/list operation."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "type": "string"
+                  },
+                  "pinned": {
+                    "type": "boolean"
+                  },
+                  "folder_id": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "diary_date": {
+                    "type": "string"
+                  },
+                  "diary_mood": {
+                    "type": "string"
+                  },
+                  "task_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "x-openai-isConsequential": true
+      }
+    },
+    "/api/v1/agent/tasks/{id}/complete": {
+      "post": {
+        "operationId": "completeTask",
+        "summary": "Complete task",
+        "description": "Requires tasks:write. Access is limited to the account associated with the token.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID returned by a read/list operation."
+          }
+        ],
+        "x-openai-isConsequential": true
+      }
+    },
+    "/api/v1/agent/tasks/{id}/reopen": {
+      "post": {
+        "operationId": "reopenTask",
+        "summary": "Reopen task",
+        "description": "Requires tasks:write. Access is limited to the account associated with the token.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID returned by a read/list operation."
+          }
+        ],
+        "x-openai-isConsequential": true
+      }
+    },
+    "/api/v1/agent/schedule/day": {
+      "get": {
+        "operationId": "getDaySchedule",
+        "summary": "Read day schedule",
+        "description": "Requires calendar:read. Access is limited to the account associated with the token.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/agent/schedule/week": {
+      "get": {
+        "operationId": "getWeekSchedule",
+        "summary": "Read week schedule",
+        "description": "Requires calendar:read. Access is limited to the account associated with the token.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/agent/schedule/month": {
+      "get": {
+        "operationId": "getMonthSchedule",
+        "summary": "Read month schedule",
+        "description": "Requires calendar:read. Access is limited to the account associated with the token.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/agent/calendar/events": {
+      "get": {
+        "operationId": "listCalendarEvents",
+        "summary": "List calendar events",
+        "description": "Requires calendar:read. Access is limited to the account associated with the token.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "start",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": true
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": true
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createCalendarEvent",
+        "summary": "Create event with conflict checking",
+        "description": "Requires calendar:write. Access is limited to the account associated with the token.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique for each intended creation; reuse only on retries of the same request."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "start_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "end_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "priority": {
+                    "type": "string"
+                  },
+                  "folder_id": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "check_conflict": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "force": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "completed": {
+                    "type": "boolean"
+                  },
+                  "status": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "title",
+                  "start_at",
+                  "end_at"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "x-openai-isConsequential": true
+      }
+    },
+    "/api/v1/agent/calendar/events/{id}": {
+      "patch": {
+        "operationId": "updateCalendarEvent",
+        "summary": "Update calendar event",
+        "description": "Requires calendar:write. Access is limited to the account associated with the token.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Status200"
+          },
+          "201": {
+            "$ref": "#/components/responses/Status201"
+          },
+          "400": {
+            "$ref": "#/components/responses/Status400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Status401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Status403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Status404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Status409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Status429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Status503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID returned by a read/list operation."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "start_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "end_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "check_conflict": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "force": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "completed": {
+                    "type": "boolean"
+                  },
+                  "status": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "x-openai-isConsequential": true
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "agentBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "ARSHNAZ personal access token",
+        "description": "Use the arshnaz_pat_ token created in AI Agent Connections, not a Firebase session or provider API key."
+      }
+    },
+    "responses": {
+      "Status200": {
+        "description": "Successful response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    }
+                  ]
+                },
+                "meta": {
+                  "type": "object",
+                  "additionalProperties": true
+                },
+                "pagination": {
+                  "type": "object",
+                  "properties": {
+                    "page": {
+                      "type": "integer"
+                    },
+                    "page_size": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    },
+                    "next_cursor": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Status201": {
+        "description": "Created",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    }
+                  ]
+                },
+                "meta": {
+                  "type": "object",
+                  "additionalProperties": true
+                },
+                "pagination": {
+                  "type": "object",
+                  "properties": {
+                    "page": {
+                      "type": "integer"
+                    },
+                    "page_size": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    },
+                    "next_cursor": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Status400": {
+        "description": "Invalid input"
+      },
+      "Status401": {
+        "description": "Invalid, expired or revoked token"
+      },
+      "Status403": {
+        "description": "Missing scope"
+      },
+      "Status404": {
+        "description": "Record or endpoint not found"
+      },
+      "Status409": {
+        "description": "Conflict. Ask the user before forcing a calendar overlap."
+      },
+      "Status429": {
+        "description": "Rate limited; respect Retry-After"
+      },
+      "Status503": {
+        "description": "Server configuration unavailable"
+      }
+    }
+  }
+}

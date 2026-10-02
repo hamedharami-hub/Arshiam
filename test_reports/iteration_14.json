@@ -1,0 +1,56 @@
+{
+  "summary": "Frontend regression for the ARSHNAZ 2nd-iteration (Jan 2026) covering: suggested per-section page colors + override/none/default/popover ids, Firestore cloud sync of page colors AND folder background image across fresh browser contexts, unified page-shell layout at desktop (1400px) and mobile (390px) widths, Knowledge sidebar forgiving Persian/Arabic search + clear/Escape + title-first ranking + icon-only new-folder button, Knowledge editor confirm-before-discard + Ctrl/Cmd+S submit, and regression (search palette + /today console cleanliness, dark-mode). Logged in with test.arshnaz@example.com on http://localhost:3000 (preview Vite). ~95% of requested flows PASS. One minor gap: three listed pages (/mind, /values, /checkin) do NOT use the new page-shell class.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "/app/mind, /app/values, /app/checkin",
+        "issues": [
+          "These three pages still render without the unified `page-shell` wrapper (shellCount=0 at both 1400px and 390px). Settings, stats, kanban, calendar, buckets and life-architect correctly use it (shellCount=1, pl/pr=32px desktop / 16px mobile, pb preserved). No horizontal overflow and content remains visually acceptable, but side-padding/max-width consistency with the rest of the app is lost. If the intent of the iteration was to unify many pages under page-shell, these three were missed."
+        ]
+      }
+    ]
+  },
+  "verified_flows": {
+    "login": "PASS — /auth, role=checkbox disclaimer, email+password, 'ورود به حساب', 'رد کن' dismissed; landed on /app/today with userId unDTynxHhHeQ4YIrpplKj3MB8Ol1.",
+    "suggested_page_colors": "PASS — /app/today <main> default bg = color(srgb 0.927 0.954 0.962) (soft sky). /app/life-architect default = color(srgb 0.952 0.936 0.958) (violet-ish). /app/calendar = sky. Dark mode toggle (header-theme-toggle) flips html.dark and tint adapts (bg becomes dark variant).",
+    "page_color_popover_ids": "PASS — [data-testid=header-page-color-button] opens popover exposing [data-testid=page-color-rose|amber|emerald|sky|violet|slate|none]. [data-testid=page-color-default] (بازگشت به رنگ پیشنهادی) is ABSENT when there's no stored choice and APPEARS once a user has picked a color or explicit 'none' — correctly implementing the brief.",
+    "page_color_persistence": "PASS — picking violet on /today → bg = color(srgb 0.936 0.912 0.954), persists after full reload. page-color-none → bg = rgba(0,0,0,0) and persists. page-color-default restores suggested sky.",
+    "cloud_sync_page_color": "PASS — set emerald on /today in context 1, waited 6s. Opened a NEW browser context (fresh cookies/localStorage), logged in with same account, /today bg = color(srgb 0.895 0.942 0.910) (same emerald tint); localStorage key arshnaz_page_bg_v1_<uid> hydrated with {\"today\":\"emerald\"} from Firestore. No '[cloudState] could not upload' errors in console.",
+    "cloud_sync_folder_bg_image": "PASS — on /app/folder/<id of پوشه آزمایشی>, triggered the file upload via [data-testid=folder-bg-file-input] (hidden input under the ⋮ menu whose menu-item id is [data-testid=folder-bg-image-upload]) with a small PNG at /root/t.png; [data-testid=folder-bg-image] rendered. Fresh context + fresh login opened the same folder URL and [data-testid=folder-bg-image] rendered again from Firestore (users/{uid}/app_state/ui_prefs). No permission/upload errors in console.",
+    "unified_layout_1400px": "MOSTLY PASS — /settings, /stats, /kanban, /calendar, /buckets, /life-architect have exactly one `.page-shell` with pl/pr=32px, pb={80|96|112}px, no horizontal overflow, content centered inside main. /mind, /values, /checkin render without `.page-shell` (shellCount=0) — see design_issues.",
+    "unified_layout_390px": "MOSTLY PASS — same six pages render `.page-shell` with pl/pr=16px, no overflow, pb intact. /mind, /values, /checkin again lack `.page-shell` at mobile width.",
+    "knowledge_sidebar_search_clear": "PASS — [data-testid=knowledge-search-input] accepts text, shows [data-testid=knowledge-search-clear]; Escape clears the input; clicking the clear button also empties it and restores the full sidebar list.",
+    "knowledge_forgiving_persian_search": "PASS — searching 'بتا' and the Arabic-kaf variant 'بتالاكتام' both reduce the sidebar list the same way as the Persian 'بتالاکتام', confirming Persian/Arabic letter+digit normalization in src/lib/knowledgeSearch.ts.",
+    "knowledge_multi_word_AND_search": "PASS — 'blockers Beta' (reversed order) matches the same docs as 'Beta blockers'; multi-word AND with reorder works.",
+    "knowledge_title_first_ranking": "PASS — searching 'blockers' places 'Beta blockers' (title match) above body-only matches in the sidebar (y-position ordering confirmed).",
+    "knowledge_new_folder_icon_only": "PASS — [data-testid=knowledge-new-folder] has no visible text (inner_text==''), aria-label='فولدر جدید', and clicking it opens the inline new-folder form (input placeholder 'نام فولدر').",
+    "knowledge_editor_confirm_on_cancel": "PASS — opening [data-testid=knowledge-edit] on 'Beta blockers', changing the title, then clicking 'انصراف' triggers window.confirm('تغییرات ذخیره‌نشده از بین می‌رود. خارج می‌شوید؟'). Dismiss → editor stays open. Accept → editor closes (changes discarded).",
+    "knowledge_editor_cancel_without_change": "PASS — opening editor and immediately clicking 'انصراف' closes silently (no confirm dialog triggered).",
+    "knowledge_editor_ctrl_s": "PASS — with a real title change, Ctrl+S triggers form submit (save button shows 'در حال ذخیره...' spinner; src/components/knowledge/KnowledgeDocumentEditorModal.tsx line 121 calls formRef.requestSubmit on (ctrl|meta)+s). Modal remains open while saving — not an error, just a save-in-progress state.",
+    "regression_command_palette": "PASS — [data-testid=header-search-button] opens a role=dialog palette on /app/today; Escape closes it.",
+    "regression_today_console": "PASS — no new app-level console errors on /app/today beyond the pre-existing Vite HMR 'wss://localhost' refused and the preview-only 500 for /api/arsh (both known environmental).",
+    "dark_mode": "PASS — header-theme-toggle on /calendar flips html.dark on; main bg becomes dark variant color(srgb 0.110 0.135 0.144); toggling off restores the light sky tint."
+  },
+  "test_report_links": ["/app/test_reports/iteration_14.json"],
+  "action_items": [
+    "Wrap /app/mind, /app/values and /app/checkin page content in the `page-shell` component (or add the class) so the unified side-padding and max-width match settings/stats/kanban/calendar/buckets/life-architect. Currently shellCount=0 on these three pages at both desktop and mobile widths."
+  ],
+  "critical_code_review_comments": [
+    "src/lib/pageBackground.ts: Clean separation of 'stored' vs 'suggested' and the isDefault check (stored === null) is correct. defaultPageColor correctly groups pages into task/knowledge/mind sets. Suggestion: `tag:` composite key is handled, but ensure new /app/<x> pages added later are also classified (otherwise they'll silently fall through to null).",
+    "src/lib/uiPrefsSync.ts + src/hooks/useAuth.tsx: Cloud roundtrip from ctx1 → Firestore → ctx2 observed within ~7-8 seconds including fresh login; no permission errors. Good.",
+    "src/components/knowledge/KnowledgeDocumentEditorModal.tsx:112-128: window.confirm-based discard-guard is fine, but using a Shadcn AlertDialog instead of the native confirm would match the rest of the app's modal UX and be theme-aware; the test only verifies behavior, not UX.",
+    "src/pages/tasks/TasksHeader.tsx: `data-testid=\"folder-bg-image-upload\"` is on the DropdownMenuItem (only present when the ⋮ menu is open) while the actual file input also has `data-testid=\"folder-bg-file-input\"`. Both are useful; worth documenting so playbook authors use `folder-bg-file-input` for programmatic upload tests.",
+    "Unified layout: three mind-section pages (/mind, /values, /checkin) are missing the `page-shell` wrapper. Low-risk visual inconsistency."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "~95% — all 7 brief items verified; 1 minor design gap on 3 pages missing page-shell"},
+  "test_credentials": "test.arshnaz@example.com / Test123456 (live Firebase, from /app/memory/test_credentials.md). Disclaimer: role=checkbox. Submit button: 'ورود به حساب'. Onboarding dismiss: 'رد کن'.",
+  "seed_data_creation": "No persistent new seed data created in this iteration. During cloud-sync testing the Firestore doc users/{uid}/app_state/ui_prefs was written with {'today':'emerald'} and the folder 'پوشه آزمایشی' bgImage was (re)set to a small 32x32 PNG — both are expected test side-effects on the already-dedicated test account. The temporary 'Beta blockersZ' title tweak on the Beta blockers knowledge doc was reverted at the end of the run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Vite HMR 'wss://localhost' refused and /api/arsh 500 are environmental in the preview — ignore. For Firestore sync tests, always wait >=6s after a write in ctx1 and >=7s after login in ctx2 before reading the restored state. Knowledge sidebar does NOT use `[data-testid^=knowledge-doc-]`; the doc rows are plain divs with class 'space-y-0.5 animate-in fade-in-50 duration-150' wrapping the title text — scope sidebar queries by proximity to [data-testid=knowledge-search-input] instead. For folder bg upload: use [data-testid=folder-bg-file-input] directly (hidden input) rather than opening the ⋮ menu to click [data-testid=folder-bg-image-upload] (the latter is a DropdownMenuItem only mounted when menu is open). The three pages missing page-shell are /mind, /values, /checkin — the next iteration should re-check these after fix.",
+  "rca_of_issue": "/mind, /values, /checkin lacking page-shell: likely those three page components (src/pages/MindView.tsx or similar) still render their own top-level wrapper rather than the unified `<div className='page-shell'>…</div>` used by SettingsView/StatsView/KanbanView/CalendarView/BucketsView/LifeArchitectView. A one-line class swap or wrapping in <PageShell/> should fix it. Not a functional bug, only a visual-consistency miss."
+}

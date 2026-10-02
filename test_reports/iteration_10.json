@@ -1,0 +1,49 @@
+{
+  "summary": "Frontend-only visual/redesign QA of ARSHNAZ v2 (Persian RTL paper theme) on https://arshiam-preview.preview.emergentagent.com at 1440x900 desktop and 390x844 mobile. Login worked; onboarding dismissed. Verified sidebar structure, appearance settings, legacy theme migration, kanban goal header + menus, task detail full anatomy (all data-testids present), meta bar chips, description tools focus behaviour, bottom rail (exactly 4 buttons), delete confirmation dialogs (cancelled - nothing deleted), rename+restore of goal title, mobile drawer list layout. English-mode toggle button exists but the full round-trip could not complete because the preview vite server started returning HTTP 429 and Cloudflare challenges on repeated reloads; core i18n was not blocking so marked partial.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_flows": {
+    "auth_and_onboarding": "PASS - disclaimer checkbox + email/password login lands on /app/today; 'رد کن' dismisses welcome modal.",
+    "sidebar_desktop_1440x900": "PASS - data-testid=sidebar-app-name text='ارشناز'; sidebar-collapse-btn visible; sidebar-primary-nav order امروز/صندوق ورودی/کانبان/تقویم with row height 34px; folders (collapsible), tags, smart lists, groups انجام/رشد/ذهن/خود من all collapsed by default; no streak card in sidebar; no 'بازنشانی ترتیب' button in sidebar. Task counts render in Persian digits (۱, ۲) next to primary nav rows.",
+    "sidebar_account_menu": "PASS - sidebar-account-menu opens popover with sidebar-menu-settings and sidebar-menu-signout visible.",
+    "appearance_settings": "PASS - all 4 theme-option-* (paper-light/paper-dark/oled/system) and all 6 accent-option-* (indigo/olive/amber/steel/rose/brick) present and functional. paper-dark -> html.class='dark'; oled -> 'dark theme-oled'; paper-light -> 'light'. Selecting accents updates html[data-accent]. settings-reset-sidebar-order triggers toast 'ترتیب بازنشانی شد'.",
+    "legacy_theme_migration": "PASS - After setting localStorage 'arshnaz-theme'='arshnaz-dark' and removing 'arshnaz-accent' and reloading, html.className='dark' and data-accent='rose' as required.",
+    "kanban_goal_header": "PASS - goal-header, goal-header-title button, goal-header-horizon='سالانه' (Persian), priority flag icon shown, goal-header-more menu contains 'ویرایش تنظیمات هدف / هدف جدید / حذف این هدف'. Clicking delete opens confirm dialog (title 'حذف این هدف') which was cancelled with 'انصراف' (no data deleted). Tabs are underline style with data-testid goal-tab-* (6 tabs). goal-tab-add renders text 'هدف جدید'. No pencil icons.",
+    "kanban_title_rename": "PASS - Click title -> goal-header-title-input appears -> filled '__TEST_RENAME__' -> Enter -> title reflected as '__TEST_RENAME__'. Renamed back to original 'هدف اصلی کانبان' successfully.",
+    "task_detail_topbar": "PASS - task-detail-topbar visible with task-breadcrumb-folder ('صندوق ورودی'), task-breadcrumb-goal ('بدون هدف'), task-detail-save-status, task-detail-header-more (menu items: تکمیل تسک / کپی لینک تسک / تکثیر تسک / افزودن به تقویم Android / باز کردن در صفحهٔ کامل), task-detail-close.",
+    "task_detail_title_and_toggle": "PASS - task-detail-title is a TEXTAREA (frameless, fontSize 20px, transparent bg); task-detail-complete-toggle round circle to the side.",
+    "task_meta_bar": "PASS - task-meta-bar contains date chip '۷ مهر' (Persian digits), priority flag chip 'فوری', tag chip 'برچسب‌ها', task-meta-pin chip 'سنجاق'. No Folder/Goal tiles present. Pin toggle switches aria-pressed false->true and back.",
+    "task_description": "PASS - task-description is an editable textarea with placeholder 'توضیحات، یادداشت یا لینک…'. On focus, task-description-tools becomes visible.",
+    "task_description_tools_count_note": "task-description-tools contains 4 buttons; spec listed 3 (mic, advanced editor, expand). Likely fourth is voice-note vs mic split or an extra action. Non-blocking; flag for product confirmation.",
+    "task_bottom_rail": "PASS - task-bottom-rail contains exactly 4 buttons: task-bottom-rail-attach-btn (پیوست), task-bottom-rail-subtask-btn (زیرتسک), task-bottom-rail-focus-btn (تمرکز), task-bottom-rail-add-btn (بیشتر).",
+    "task_bottom_rail_more_menu": "PASS - Add-btn menu items in order: دستیار هوش مصنوعی / تسک والد / افزودن نوت / افزودن موقعیت مکانی / شخص / مخاطب / چک‌لیست و مراحل / شاخه‌ها / تاریخچه و گزینه‌های دیگر… / حذف تسک…. task-bottom-rail-delete present. Clicking it opens confirm dialog (cancelled - no task deleted).",
+    "task_folder_dialog": "PASS - Clicking task-breadcrumb-folder opens task-folder-dialog.",
+    "today_streak_inline": "PASS - today-streak-link visible in Today header on desktop, text '۰ روز پیاپی' with Persian digits.",
+    "mobile_390x844_drawer": "PASS - Toggling sidebar on mobile shows drawer with list-style rows (each ~40px tall), no collapse button in the mobile drawer, no grid tile layout in nav. All primary nav items present in list form.",
+    "kanban_task_cards": "Confirmed on Today card that dates render as '۷ مهر' (Persian) with priority flag icon rather than text chip; Latin 'Sep 29' not observed anywhere.",
+    "english_mode_switch": "PARTIAL - The language toggle in Settings (buttons '🇮🇷 فارسی' and '🇬🇧 انگلیسی') exists and is reachable, but the round-trip verification (switch to English, confirm labels 'Today/Inbox/Kanban/Calendar' + groups 'Do/Grow/Mind' + Latin digits, then back to Persian) could not be completed because the preview vite dev server started responding with 429 rate-limit and Cloudflare 'Verify you are human' after several reloads. Not marked as a bug since the button surface and previous vitest suite already cover the mapping. Recommend main agent self-verify with a fresh session."
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: reconcile task-description-tools count with spec (spec says 3 icons mic/advanced editor/expand; UI renders 4). Confirm intended count with product.",
+    "Optional: verify English mode round-trip in a fresh browser session (rate limits blocked me here)."
+  ],
+  "critical_code_review_comments": [
+    "Auth page login CTA relies on the disclaimer checkbox being ticked before enabling submit - good. No design issue observed.",
+    "TaskListItem.tsx line 247 uses div[cursor-pointer] for the click target which is functional but not a button; consider a role='button' + keyboard support for accessibility.",
+    "Kanban delete flow correctly opens a confirmation AlertDialog with 'حذف' primary and 'انصراف' cancel - matches spec.",
+    "'new version available' toast at bottom-left persists across pages; not intercepting clicks but overlaps the sidebar footer area on desktop. Consider adding a close (x) button on that toast."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "~95% (12/13 acceptance blocks fully verified, English-mode round-trip partial)"},
+  "test_credentials": "test.arshnaz@example.com / Test123456 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "none. Goal title was renamed to '__TEST_RENAME__' and restored back to 'هدف اصلی کانبان'. Task pin was toggled on then off. No tasks/goals created or deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Vite dev server on the preview domain rate-limits aggressive reloads with HTTP 429 and Cloudflare challenges appear after ~5 rapid reloads; keep reloads sparse and wait 30-45s between them. On Today, clicking the task title container needs page.mouse.click(x,y) — Playwright's element_handle.click() did not trigger the onClick due to the bidi <BidiText as='p'> child intercepting the pointer. Use JS to get the bounding box of the closest .cursor-pointer and issue a raw mouse click. Groups (انجام/رشد/ذهن/خود من) are collapsed by default; must click their chevron to see children.",
+  "rca_of_issue": "No bugs identified; all critical redesign acceptance criteria pass. Legacy theme migration confirmed working (arshnaz-dark -> class 'dark', missing accent -> 'rose'). The only near-miss is task-description-tools showing 4 icons vs the 3 listed in the review request (needs product confirmation, not a code bug)."
+}

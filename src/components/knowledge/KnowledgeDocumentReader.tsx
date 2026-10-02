@@ -1,0 +1,881 @@
+import { LearningNotebook, type LearningNotebookHandle } from "./LearningNotebook";
+import { captureLearningAnchor, learningVersion, type LearningAnchor } from "@/lib/learningWorkspace";
+import { LearningCardEditor } from "./LearningCardEditor";
+import { KnowledgeAttachments } from "./KnowledgeAttachments";
+import { KnowledgeReaderHeader, type PharmacyHeaderLinks } from "./KnowledgeReaderHeader";
+import { KnowledgeSectionContent } from "./KnowledgeSectionContent";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import {
+  BookOpen,
+  Globe,
+  Check,
+  Eye,
+  Edit,
+  Trash2,
+  ZoomIn,
+  ZoomOut,
+  Folder,
+  Tag,
+  Sparkles,
+  Languages,
+  Loader2,
+  PanelLeftClose,
+  BookOpenCheck,
+  Maximize2,
+  PanelLeftOpen,
+  ArrowLeft,
+  ArrowRight,
+  Gamepad2,
+  CalendarPlus,
+  Layers,
+  FileText,
+  X,
+  ChevronDown,
+} from "lucide-react";
+import { useBilingual } from "@/hooks/useBilingual";
+import type {
+  KnowledgeDocument,
+  KnowledgeFolder,
+  DocumentLanguageMode,
+} from "@/lib/knowledgeTypes";
+import { sanitizeKnowledgeHtml } from "@/lib/knowledgeBeautifier";
+import { isPersianText, detectDirection, generateBilingualLesson } from "@/lib/bilingualHelper";
+import { updateKnowledgeDocument } from "@/lib/knowledgeService";
+import {
+  attachInteractiveListeners,
+  markAsBilingualMirror,
+  stripBilingualMirrorBlocks,
+  tagPrimaryBilingualBlock,
+} from "@/lib/interactiveLearningHelper";
+import {
+  getRelatedDocumentSuggestions,
+} from "@/lib/knowledgeCheckpointHelper";
+import { getKnowledgeReviewState, getSafeKnowledgeExternalUrl, isPharmacyKnowledgeDocument } from "@/lib/knowledgeReviewEvidence";
+import { hasSubstantialPersianInEnglish } from "@/lib/bilingualHelper";
+import { TextSelectionFloatingBar } from "./TextSelectionFloatingBar";
+const AiQuestionGeneratorModal = React.lazy(() =>
+  import("./AiQuestionGeneratorModal").then((m) => ({
+    default: m.AiQuestionGeneratorModal,
+  }))
+);
+const InteractiveLearningModal = React.lazy(() =>
+  import("./InteractiveLearningModal").then((m) => ({
+    default: m.InteractiveLearningModal,
+  }))
+);
+const ClinicalRelationsNetwork = React.lazy(() =>
+  import("./ClinicalRelationsNetwork").then((m) => ({
+    default: m.ClinicalRelationsNetwork,
+  }))
+);
+import { toast } from "sonner";
+
+interface KnowledgeDocumentReaderProps {
+  document: KnowledgeDocument | null;
+  folder: KnowledgeFolder | null;
+  allDocuments?: KnowledgeDocument[];
+  onSelectDocument?: (docId: string) => void;
+  onBackDocument?: () => void;
+  onClosePopup?: () => void;
+  onEdit: (doc: KnowledgeDocument) => void;
+  onDelete: (docId: string) => void;
+  userId?: string;
+  isSidebarCollapsed?: boolean;
+  onToggleSidebar?: () => void;
+  studyMode?: boolean;
+  onToggleStudyMode?: () => void;
+  onOpenReview?: () => void;
+  onDocumentUpdated?: (doc: KnowledgeDocument) => void;
+  onScheduleStudy?: (doc: KnowledgeDocument) => void;
+  /** @deprecated */
+  onAddToNote?: (text: string) => void;
+  /** @deprecated */
+  onAddToTask?: (text: string) => void;
+  onAiAction?: (text: string) => void;
+  onImportPharmacy?: (force?: boolean) => Promise<void>;
+  isPharmacyImported?: boolean;
+  isImportingPharmacy?: boolean;
+  scrollPositionsMap?: Map<string, number>;
+  pharmacyLinks?: PharmacyHeaderLinks;
+}
+
+export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = ({
+  document: externalDocument,
+  folder,
+  allDocuments = [],
+  onSelectDocument,
+  onBackDocument,
+  onClosePopup,
+  onEdit,
+  onDelete,
+  userId = "guest",
+  isSidebarCollapsed,
+  onToggleSidebar,
+  studyMode = false,
+  onToggleStudyMode,
+  onOpenReview,
+  onDocumentUpdated: notifyDocumentUpdated,
+  onScheduleStudy,
+  onAddToNote,
+  onAddToTask,
+  onAiAction,
+  onImportPharmacy,
+  isPharmacyImported = true,
+  isImportingPharmacy = false,
+  scrollPositionsMap,
+  pharmacyLinks,
+}) => {
+  const { isEn } = useBilingual();
+  const [localDocument, setLocalDocument] = useState<KnowledgeDocument | null>(null);
+  const activeDocumentIdentity = useRef(''); activeDocumentIdentity.current = `${userId}:${externalDocument?.id || ''}`;
+  const document = localDocument && externalDocument && localDocument.id === externalDocument.id && localDocument.user_id === externalDocument.user_id && localDocument.updated_at >= externalDocument.updated_at ? localDocument : externalDocument;
+  const onDocumentUpdated = (updated: KnowledgeDocument) => { if (activeDocumentIdentity.current !== `${updated.user_id}:${updated.id}`) return; setLocalDocument(updated); notifyDocumentUpdated?.(updated); };
+  const isPharmacySourceFile = document ? isPharmacyKnowledgeDocument(document) : false;
+  const documentId = document?.id;
+  const reviewState = document
+    ? getKnowledgeReviewState(document, isPharmacySourceFile)
+    : "not-required";
+  const [docLangMode, setDocLangMode] = useState<DocumentLanguageMode>("en");
+  const [fontSize, setFontSize] = useState<number>(15);
+  const [isGeneratingBilingual, setIsGeneratingBilingual] = useState(false);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [interactiveModalOpen, setInteractiveModalOpen] = useState(false);
+  const [selectedSnippetForAi, setSelectedSnippetForAi] = useState("");
+  const contentContainerRef = useRef<HTMLDivElement>(null);
+  const notebookRef = useRef<LearningNotebookHandle>(null);
+  const [selectedLearningAnchor, setSelectedLearningAnchor] = useState<LearningAnchor | undefined>();
+
+  // Compute smart related documents
+  const relatedSuggestions = useMemo(() => {
+    return document && allDocuments.length > 0
+      ? getRelatedDocumentSuggestions(document, allDocuments, 3)
+      : [];
+  }, [document, allDocuments]);
+
+  const localScrollPositionsRef = useRef<Map<string, number>>(new Map());
+
+  const lastScrollTopRef = useRef(0);
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const handleScroll = useCallback(() => {
+    if (document?.id && contentContainerRef.current) {
+      const top = contentContainerRef.current.scrollTop;
+      const map = scrollPositionsMap || localScrollPositionsRef.current;
+      map.set(document.id, top);
+      const delta = top - lastScrollTopRef.current;
+      if (top < 48) setHeaderCollapsed(false);
+      else if (delta > 8) setHeaderCollapsed(true);
+      else if (delta < -8) setHeaderCollapsed(false);
+      lastScrollTopRef.current = top;
+    }
+  }, [document?.id, scrollPositionsMap]);
+
+  const handleNavigateDocument = useCallback((targetDocId: string) => {
+    if (document?.id && contentContainerRef.current) {
+      const map = scrollPositionsMap || localScrollPositionsRef.current;
+      map.set(document.id, contentContainerRef.current.scrollTop);
+    }
+    onSelectDocument?.(targetDocId);
+  }, [document?.id, onSelectDocument, scrollPositionsMap]);
+
+  // Reset revealed answers and restore or reset scroll position when document changes
+  useEffect(() => {
+    if (contentContainerRef.current && document?.id) {
+      const map = scrollPositionsMap || localScrollPositionsRef.current;
+      const savedScroll = map.get(document.id) ?? 0;
+      contentContainerRef.current.scrollTop = savedScroll;
+      const raf = requestAnimationFrame(() => {
+        if (contentContainerRef.current) {
+          contentContainerRef.current.scrollTop = savedScroll;
+        }
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [document?.id, scrollPositionsMap]);
+
+  // Open each document in the user's requested default reading language.
+  useEffect(() => {
+    const syncSourceLanguage = () => {
+      const params = new URLSearchParams(window.location.search);
+      const own = params.get('docId') === documentId || params.get('lesson') === documentId;
+      const language = params.get('sourceLang');
+      if (documentId && own && (language === 'fa' || language === 'en' || language === 'bilingual')) setDocLangMode(language);
+    };
+    if (documentId) setDocLangMode('en');
+    syncSourceLanguage();
+    window.addEventListener('popstate', syncSourceLanguage);
+    return () => window.removeEventListener('popstate', syncSourceLanguage);
+  }, [documentId]);
+
+  // Attach interactive delegated click listeners (flip cards, quizzes, pairs, cases, etc.)
+  useEffect(() => {
+    if (contentContainerRef.current) {
+      const cleanup = attachInteractiveListeners(contentContainerRef.current);
+      return cleanup;
+    }
+  }, [document?.content_html, document?.content_en, docLangMode]);
+
+  // Delegated click listener for in-content cross-document links [data-doc-link="..."]
+  useEffect(() => {
+    const container = contentContainerRef.current;
+    if (!container) return;
+
+    const handleDocLinkClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const linkEl = target.closest("[data-doc-link]") as HTMLElement | null;
+      if (linkEl) {
+        if (linkEl.matches("a") && (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const targetDocId = linkEl.getAttribute("data-doc-link");
+        if (targetDocId && onSelectDocument) {
+          handleNavigateDocument(targetDocId);
+        }
+      }
+    };
+
+    container.addEventListener("click", handleDocLinkClick);
+    return () => {
+      container.removeEventListener("click", handleDocLinkClick);
+    };
+  }, [handleNavigateDocument, onSelectDocument, document?.id]);
+
+  const handleInsertInteractive = async (html: string, mode: "append" | "replace") => {
+    if (!document) return;
+
+    const sanitizedHtml = sanitizeKnowledgeHtml(html);
+    let patch: Partial<KnowledgeDocument>;
+
+    if (docLangMode === "en") {
+      const existing = document.content_en || "";
+      const newContentEn =
+        mode === "append" && existing.trim()
+          ? `${existing}\n<hr class="my-6 border-border/60" />\n${sanitizedHtml}`
+          : sanitizedHtml;
+      patch = { content_en: newContentEn };
+    } else if (docLangMode === "fa") {
+      const existing = document.content_html || "";
+      const newContentFa =
+        mode === "append" && existing.trim()
+          ? `${existing}\n<hr class="my-6 border-border/60" />\n${sanitizedHtml}`
+          : sanitizedHtml;
+      patch = { content_html: newContentFa };
+    } else {
+      // docLangMode === "bilingual"
+      const existingFa = document.content_html || "";
+      const existingEn = document.content_en || "";
+      const blockId = `bilingual-block-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const primaryHtml = tagPrimaryBilingualBlock(sanitizedHtml, blockId);
+      const sanitizedPrimaryHtml = sanitizeKnowledgeHtml(primaryHtml);
+      const mirrorHtml = markAsBilingualMirror(sanitizedHtml, blockId);
+      const sanitizedMirrorHtml = sanitizeKnowledgeHtml(mirrorHtml);
+
+      const newContentFa =
+        mode === "append" && existingFa.trim()
+          ? `${existingFa}\n<hr class="my-6 border-border/60" />\n${sanitizedPrimaryHtml}`
+          : sanitizedPrimaryHtml;
+      const newContentEn =
+        mode === "append" && existingEn.trim()
+          ? `${existingEn}\n<hr class="my-6 border-border/60" />\n${sanitizedMirrorHtml}`
+          : sanitizedMirrorHtml;
+      patch = {
+        content_html: newContentFa,
+        content_en: newContentEn,
+      };
+    }
+
+    try {
+      const updated = await updateKnowledgeDocument(userId, document.id, patch);
+      if (onDocumentUpdated) {
+        onDocumentUpdated(updated);
+      }
+    } catch (err: any) {
+      console.error("Error saving interactive content:", err);
+      throw err;
+    }
+  };
+
+  // Memoize sanitized Persian and English HTML
+  const safeHtmlFa = React.useMemo(() => {
+    if (!document?.content_html) return "";
+    return sanitizeKnowledgeHtml(document.content_html);
+  }, [document?.content_html]);
+
+  const persianBodyIncomplete = React.useMemo(() => {
+    if (!document?.content_html || !document.content_en) return false;
+    const text = document.content_html.replace(/<[^>]+>/g, " ");
+    const persianCharacters = (text.match(/[\u0600-\u06ff]/g) || []).length;
+    const latinCharacters = (text.match(/[a-z]/gi) || []).length;
+    return persianCharacters > 0 && persianCharacters < 200 && latinCharacters > persianCharacters * 2;
+  }, [document?.content_html, document?.content_en]);
+
+  const englishBodyHasPersianPassages = React.useMemo(
+    () => hasSubstantialPersianInEnglish(document?.content_en),
+    [document?.content_en],
+  );
+
+  const safeHtmlEn = React.useMemo(() => {
+    if (!document?.content_en) return "";
+    return sanitizeKnowledgeHtml(document.content_en);
+  }, [document?.content_en]);
+
+  // Strip paired bilingual mirror blocks in side-by-side presentation so modules are not duplicated
+  const safeHtmlEnBilingual = React.useMemo(() => {
+    if (!safeHtmlEn) return "";
+    return stripBilingualMirrorBlocks(safeHtmlEn, safeHtmlFa);
+  }, [safeHtmlEn, safeHtmlFa]);
+  const originalContentIsPersian = isPersianText(
+    document?.content_html || document?.plain_text || document?.title || ""
+  );
+  const hasOriginalContent = Boolean(safeHtmlFa || document?.plain_text?.trim());
+  const safeSourceUrl = getSafeKnowledgeExternalUrl(document?.source_url);
+
+  const handleTriggerAiFromSelection = (text: string, suppliedAnchor?: LearningAnchor) => {
+    if (document) setSelectedLearningAnchor(suppliedAnchor || captureLearningAnchor(document, window.getSelection()?.anchorNode?.parentElement?.closest<HTMLElement>("[data-learning-language]")?.dataset.learningLanguage === "fa" ? "fa" : "en", text));
+    setSelectedSnippetForAi(text);
+    setAiModalOpen(true);
+  };
+
+  const handleTriggerAiFromToolbar = () => {
+    if (!document) return;
+    const selection = window.getSelection()?.toString().trim();
+    const targetText = selection || document.plain_text || document.title;
+    setSelectedLearningAnchor(captureLearningAnchor(document, docLangMode === "fa" ? "fa" : "en", targetText));
+    setSelectedSnippetForAi(targetText);
+    setAiModalOpen(true);
+  };
+
+  const cycleDocumentLanguage = () => {
+    const next = docLangMode === "en" ? "fa" : docLangMode === "fa" ? "bilingual" : "en";
+    setDocLangMode(next);
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('docId') === documentId || url.searchParams.get('lesson') === documentId) {
+      url.searchParams.set('sourceLang', next);
+      window.history.replaceState(window.history.state, '', url);
+    }
+  };
+
+  const languageModeLabel =
+    docLangMode === "en" ? "EN" : docLangMode === "fa" ? "فا" : "فا + EN";
+  const languageModeAccessibleLabel = isEn
+    ? `Reading language: ${docLangMode === "en" ? "English" : docLangMode === "fa" ? "Persian" : "bilingual"}`
+    : `زبان مطالعه: ${docLangMode === "en" ? "انگلیسی" : docLangMode === "fa" ? "فارسی" : "دوزبانه"}`;
+
+  // AI Bilingual Generation
+  const handleGenerateBilingualLesson = async () => {
+    if (!document) return;
+    setIsGeneratingBilingual(true);
+
+    try {
+      toast.info(
+        isEn
+          ? "Generating bilingual lesson with AI..."
+          : "در حال تولید نسخه دوزبانه درس با هوش مصنوعی..."
+      );
+
+      const result = await generateBilingualLesson({
+        title: document.title,
+        content: document.content_html,
+        targetLang: "en",
+      });
+
+      const updated = await updateKnowledgeDocument(userId, document.id, {
+        title_en: result.title_en,
+        content_en: result.content_en,
+        preferred_language: "bilingual",
+      });
+
+      if (onDocumentUpdated) {
+        onDocumentUpdated(updated);
+      }
+      setDocLangMode("bilingual");
+      toast.success(
+        isEn
+          ? "Bilingual version successfully generated!"
+          : "نسخه دوزبانه درس با موفقیت تولید و ذخیره شد!"
+      );
+    } catch (err: any) {
+      console.error("Error generating bilingual lesson:", err);
+      toast.error(err.message || (isEn ? "Failed to bilingualize lesson" : "خطا در دوزبانه کردن درس"));
+    } finally {
+      setIsGeneratingBilingual(false);
+    }
+  };
+
+  if (!document) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-foreground bg-card/60 border border-border rounded-lg">
+        <BookOpen className="w-16 h-16 text-muted-foreground/40 mb-4 stroke-1" />
+        <h3 className="text-base font-bold text-foreground mb-1">
+          {isEn ? "Select or Add a Document" : "یک سند را انتخاب یا اضافه کنید"}
+        </h3>
+        <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
+          {isEn
+            ? "Choose a document from the folder hierarchy or add a new HTML page to start reading."
+            : "سندی را از درخت فولدرها انتخاب کنید یا صفحهٔ HTML جدیدی بیفزایید تا متن آن در سبک بومی برنامه نمایش داده شود."}
+        </p>
+
+        {!isPharmacyImported && onImportPharmacy && (
+          <div className="mt-6 p-5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-primary/10 border border-emerald-500/25 max-w-md text-center space-y-3 shadow-xs animate-in fade-in">
+            <div className="text-2xl">💊</div>
+            <div className="text-xs font-bold text-foreground">
+              {isEn
+                ? "Pharmacy Knowledge & Clinical Modules"
+                : "دایره‌المعارف و آموزش جامع دارویی"}
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              {isEn
+                ? "Add the missing pharmacy reference documents and study cards without replacing your work."
+                : "اسناد و کارت‌های داروییِ جاافتاده را بدون بازنویسی کارهای فعلی اضافه کن."}
+            </p>
+            <button
+              type="button"
+              disabled={isImportingPharmacy}
+              onClick={() => onImportPharmacy(false)}
+              className="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold shadow-xs transition disabled:opacity-60 inline-flex items-center gap-2 cursor-pointer"
+            >
+              {isImportingPharmacy ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5" />
+              )}
+              <span>
+                {isImportingPharmacy
+                  ? isEn
+                    ? "Importing 97 Lessons..."
+                    : "در حال بارگذاری ۹۷ درس..."
+                  : isEn
+                  ? "Install Pharmacy Knowledge"
+                  : "واردسازی بسته جامع دارویی"}
+              </span>
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const visibleLessonTitles = docLangMode === 'bilingual' ? [document.title, document.title_en] : [docLangMode === 'en' && document.title_en ? document.title_en : document.title];
+  // Detect direction of current primary title
+  const isTitleRtl = isPersianText(
+    docLangMode === "en" && document.title_en ? document.title_en : document.title
+  );
+
+  return (
+    <div className="knowledge-reader-shell flex-1 flex flex-col h-full bg-card border border-border rounded-lg overflow-hidden shadow-sm relative">
+      <KnowledgeReaderHeader
+        title={docLangMode === "en" && document.title_en ? document.title_en : document.title}
+        isEn={isEn}
+        collapsed={headerCollapsed && !studyMode}
+        folderName={folder?.name}
+        tags={document.tags}
+        studyMode={studyMode}
+        fontSize={fontSize}
+        onFontSize={setFontSize}
+        languageLabel={languageModeLabel}
+        languageAriaLabel={languageModeAccessibleLabel}
+        onCycleLanguage={cycleDocumentLanguage}
+        onBackDocument={onBackDocument}
+        onClosePopup={onClosePopup}
+        onToggleSidebar={onToggleSidebar}
+        isSidebarCollapsed={isSidebarCollapsed}
+        onToggleStudyMode={onToggleStudyMode}
+        onGenerateAi={handleTriggerAiFromToolbar}
+        onGenerateBilingual={handleGenerateBilingualLesson}
+        isGeneratingBilingual={isGeneratingBilingual}
+        onOpenInteractive={() => setInteractiveModalOpen(true)}
+        onSchedule={onScheduleStudy ? () => onScheduleStudy(document) : undefined}
+        onEdit={() => onEdit(document)}
+        onDelete={() => onDelete(document.id)}
+        pharmacyLinks={pharmacyLinks}
+      />
+
+      {headerCollapsed && !studyMode && (
+        <button
+          type="button"
+          onClick={() => setHeaderCollapsed(false)}
+          className="absolute end-2 top-1.5 z-10 grid h-7 w-7 place-items-center rounded-full border border-border bg-card/90 text-muted-foreground shadow-sm backdrop-blur hover:text-foreground"
+          aria-label={isEn ? "Show toolbar" : "نمایش نوار ابزار"}
+          title={isEn ? "Show toolbar" : "نمایش نوار ابزار"}
+          data-testid="knowledge-header-reveal"
+        >
+          <ChevronDown className="h-4 w-4" aria-hidden="true" />
+        </button>
+      )}
+
+
+
+      {/* Reader Content Body */}
+      <div className="flex-1 overflow-y-auto p-3 md:p-5" ref={contentContainerRef} onScroll={handleScroll}>
+        <div
+            style={{ "--knowledge-reader-font-size": `${fontSize}px` } as React.CSSProperties}
+            className="knowledge-reader-prose max-w-5xl mx-auto leading-relaxed space-y-3 select-text"
+          >
+            {/* Header banner in reader mode */}
+            <div className="border-b border-border pb-2">
+              <h1
+                dir={isTitleRtl ? "rtl" : "ltr"}
+                className={`hidden md:block break-words text-xl md:text-2xl font-black text-foreground mb-2 tracking-tight ${
+                  isTitleRtl ? "text-right" : "text-left"
+                }`}
+              >
+                {docLangMode === "en" && document.title_en ? document.title_en : document.title}
+              </h1>
+
+              {docLangMode === "bilingual" && document.title_en && document.title_en !== document.title && (
+                <div dir="ltr" className="text-sm font-semibold text-muted-foreground mb-2 text-left">
+                  {document.title_en}
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                {safeSourceUrl && (
+                  <a
+                    href={safeSourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary hover:underline flex items-center gap-1 font-medium"
+                  >
+                    <Globe className="w-3 h-3" />
+                    <span>{isPharmacySourceFile
+                      ? isEn ? "Pharmacy source file" : "فایل مبدأ Pharmacy"
+                      : isEn ? "Source Reference" : "منبع سند"}</span>
+                  </a>
+                )}
+                {reviewState === "recorded" && document.content_review_evidence && (
+                  <details className="basis-full rounded-xl border border-border/70 bg-muted/30 px-3 py-2 text-xs leading-5">
+                    <summary className="cursor-pointer font-semibold text-foreground">
+                      {isEn ? "Recorded review evidence" : "شواهد بازبینی ثبت‌شده"}
+                    </summary>
+                    <div className="mt-2 space-y-1.5 text-muted-foreground">
+                      <p>
+                        {isEn ? "Reviewer role:" : "نقش بازبین:"} {document.content_review_evidence.reviewer_role}
+                        {" · "}{isEn ? "Jurisdiction:" : "حوزهٔ قضایی:"} {document.content_review_evidence.jurisdiction}
+                      </p>
+                      <p>
+                        {isEn ? "Scope:" : "دامنهٔ بازبینی:"} {document.content_review_evidence.scope}
+                        {" · "}{isEn ? "Reviewed:" : "تاریخ بازبینی:"} {document.content_review_evidence.reviewed_at}
+                      </p>
+                      <ul className="list-disc space-y-1 ps-5">
+                        {document.content_review_evidence.references.map((reference) => (
+                          <li key={`${reference.url}-${reference.accessed_at}`}>
+                            <a href={reference.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                              {reference.title}
+                            </a>
+                            <span>{" · "}{isEn ? "accessed" : "تاریخ دسترسی"}: {reference.accessed_at}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-[11px]">
+                        {isEn
+                          ? "This is recorded metadata; ARSHNAZ does not independently certify the reviewer or source authority."
+                          : "این فرادادهٔ ثبت‌شده است؛ ARSHNAZ صلاحیت بازبین یا اعتبار مرجع را مستقلاً تأیید نمی‌کند."}
+                      </p>
+                    </div>
+                  </details>
+                )}
+              </div>
+            </div>
+
+            {document.learning_workspace_unavailable && <p role="alert" className="text-xs text-muted-foreground">{isEn ? "This workspace needs a newer app. Original content is retained." : "این دفتر درس به نسخهٔ جدیدتر نیاز دارد؛ متن اصلی محفوظ است."}</p>}
+            {document.learning_workspace?.enabled && (document.learning_workspace.source_versions.fa !== learningVersion(document.content_html) || document.learning_workspace.source_versions.en !== learningVersion(document.content_en)) && <p role="status" className="text-xs text-muted-foreground">{isEn ? "Source changed. Showing its current text; refresh the card preview before reapplying layout." : "منبع تغییر کرده؛ متن فعلی نمایش داده می‌شود. پیش‌نمایش کارت‌ها را پیش از اعمال دوباره تازه کنید."}</p>}
+            {!studyMode && <div className="learning-reader-tools flex flex-wrap items-center gap-1 border-b border-border pb-1">
+            <LearningNotebook key={`notebook:${userId}:${document.id}`} ref={notebookRef} document={document} userId={userId} language={docLangMode === "fa" ? "fa" : "en"} containerRef={contentContainerRef} onUpdated={onDocumentUpdated} onGenerateReview={handleTriggerAiFromSelection} />
+            <LearningCardEditor key={`layout:${userId}:${document.id}`} document={document} userId={userId} onUpdated={onDocumentUpdated} />
+            <KnowledgeAttachments key={`${userId}:${document.id}`}
+              document={document}
+              userId={userId}
+              onDocumentUpdated={onDocumentUpdated}
+            />
+            </div>}
+
+            {(reviewState === "missing-evidence" || (reviewState === "unreviewed" && !isPharmacySourceFile)) && (
+              <div role="note" className="mb-5 rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-foreground">
+                {reviewState === "missing-evidence"
+                  ? isEn
+                    ? "This document is marked reviewed, but its review record is missing valid reviewer, jurisdiction, date, scope, or source details. Treat it as unreviewed."
+                    : "برای این سند برچسب بازبینی‌شده ثبت شده، اما نقش بازبین، حوزهٔ قضایی، تاریخ، دامنه یا جزئیات معتبر منبع کامل نیست؛ فعلاً آن را بازبینی‌نشده در نظر بگیرید."
+                  : isEn
+                      ? "This document is marked unreviewed. Check its primary sources before relying on it for professional decisions."
+                      : "این سند بازبینی‌نشده است؛ پیش از اتکا به آن برای تصمیم حرفه‌ای، منابع اولیه‌اش را بررسی کنید."}
+              </div>
+            )}
+
+            {persianBodyIncomplete && docLangMode !== "en" && (
+              <div role="status" className="mb-5 rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-foreground">
+                {isEn
+                  ? "This older document has Persian headings but much of its body is still English. Its Persian translation is incomplete."
+                  : "ترجمهٔ فارسی این سند قدیمی کامل نیست؛ بعضی بخش‌ها با وجود تیتر فارسی هنوز انگلیسی‌اند."}
+              </div>
+            )}
+
+            {englishBodyHasPersianPassages && docLangMode === "en" && (
+              <div role="status" className="mb-5 rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-foreground">
+                {isEn
+                  ? "The English field contains substantial Persian passages. This may be intentional bilingual content, but this view is not strictly English-only."
+                  : "نسخهٔ انگلیسی این سند بخش‌های فارسیِ قابل‌توجه دارد؛ ممکن است محتوای دوزبانه عمدی باشد، اما این نما کاملاً انگلیسی نیست."}
+              </div>
+            )}
+
+            {/* TAB 1: PERSIAN ONLY VIEW (RTL) */}
+            {docLangMode === "fa" && (
+              <KnowledgeSectionContent workspace={document.learning_workspace} userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="rtl" className="knowledge-html-content dir-rtl text-right" html={safeHtmlFa} />
+            )}
+
+            {/* TAB 2: ENGLISH ONLY VIEW (LTR) */}
+            {docLangMode === "en" && (
+              <div dir="ltr" className="space-y-4">
+                {safeHtmlEn ? (
+                  <KnowledgeSectionContent workspace={document.learning_workspace} userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlEn} />
+                ) : (
+                  <div className="space-y-4">
+                    <div role="status" className="rounded-2xl border border-border bg-muted/30 p-4 text-sm leading-6">
+                      <p className="font-semibold text-foreground">
+                        {originalContentIsPersian
+                          ? isEn
+                            ? "English translation is not available yet; the original Persian content is shown below."
+                            : "ترجمهٔ انگلیسی موجود نیست؛ متن اصلی فارسی در ادامه نمایش داده می‌شود."
+                          : isEn
+                            ? "A separate English version is not available; the original lesson content is shown below."
+                            : "نسخهٔ انگلیسیِ جداگانه موجود نیست؛ متن اصلی درس در ادامه نمایش داده می‌شود."}
+                      </p>
+                    </div>
+
+                    {safeHtmlFa ? (
+                      <KnowledgeSectionContent workspace={document.learning_workspace} userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir={originalContentIsPersian ? "rtl" : "ltr"} className={`knowledge-html-content ${originalContentIsPersian ? "dir-rtl text-right" : "dir-ltr text-left"}`} html={safeHtmlFa} />
+                    ) : document.plain_text?.trim() ? (
+                      <p
+                        dir={originalContentIsPersian ? "rtl" : "ltr"}
+                        className={`knowledge-html-content whitespace-pre-wrap ${originalContentIsPersian ? "dir-rtl text-right" : "dir-ltr text-left"}`}
+                      >
+                        {document.plain_text}
+                      </p>
+                    ) : (
+                      <p className="rounded-xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
+                        {isEn ? "No lesson text is saved in this document yet." : "هنوز متنی برای این درس ذخیره نشده است."}
+                      </p>
+                    )}
+
+                    {originalContentIsPersian && hasOriginalContent && (
+                      <button
+                        type="button"
+                        disabled={isGeneratingBilingual}
+                        onClick={handleGenerateBilingualLesson}
+                        className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-sm hover:bg-primary/90 transition cursor-pointer inline-flex items-center gap-2"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>{isEn ? "Generate English Version" : "تولید نسخه انگلیسی با هوش مصنوعی"}</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 3: BILINGUAL SIDE-BY-SIDE VIEW */}
+            {docLangMode === "bilingual" && (
+              <div className="bilingual-dual-grid">
+                {/* Persian Column (RTL) */}
+                <div className="bilingual-col-fa space-y-3" dir="rtl">
+                  <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                    <span className="text-xs font-bold text-primary flex items-center gap-1.5">
+                      <span>🇮🇷</span>
+                      <span>متن فارسی (راست‌چین)</span>
+                    </span>
+                  </div>
+                  {originalContentIsPersian ? (
+                    safeHtmlFa ? (
+                      <KnowledgeSectionContent workspace={document.learning_workspace} userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="rtl" className="knowledge-html-content dir-rtl text-right" html={safeHtmlFa} />
+                    ) : document.plain_text?.trim() ? (
+                      <p dir="rtl" className="knowledge-html-content dir-rtl whitespace-pre-wrap text-right">
+                        {document.plain_text}
+                      </p>
+                    ) : null
+                  ) : (
+                    <div role="status" className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
+                      {isEn
+                        ? "A Persian version is not available. The saved source is shown in the English column."
+                        : "نسخهٔ فارسی موجود نیست؛ متن اصلیِ ذخیره‌شده در ستون انگلیسی نمایش داده می‌شود."}
+                    </div>
+                  )}
+                </div>
+
+                {/* English Column (LTR) */}
+                <div className="bilingual-col-en space-y-3" dir="ltr">
+                  <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                    <span className="text-xs font-bold text-sky-600 dark:text-sky-400 flex items-center gap-1.5">
+                      <span>🇬🇧</span>
+                      <span>English Text (LTR)</span>
+                    </span>
+                  </div>
+
+                  {safeHtmlEnBilingual ? (
+                    <KnowledgeSectionContent workspace={document.learning_workspace} userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlEnBilingual} />
+                  ) : !originalContentIsPersian && hasOriginalContent ? (
+                    safeHtmlFa ? (
+                      <KnowledgeSectionContent workspace={document.learning_workspace} userId={userId} onOpenDocument={handleNavigateDocument} visibleTitles={visibleLessonTitles} documentId={document.id} multiCard={isPharmacySourceFile} dir="ltr" className="knowledge-html-content dir-ltr text-left" html={safeHtmlFa} />
+                    ) : (
+                      <p dir="ltr" className="knowledge-html-content dir-ltr whitespace-pre-wrap text-left">
+                        {document.plain_text}
+                      </p>
+                    )
+                  ) : (
+                    <div className="p-4 rounded-xl bg-muted/30 border border-border text-center space-y-2 text-xs">
+                      <p className="text-muted-foreground">
+                        {isEn
+                          ? "English translation not generated yet."
+                          : "نسخه انگلیسی هنوز تولید نشده است."}
+                      </p>
+                      <button
+                        type="button"
+                        disabled={isGeneratingBilingual}
+                        onClick={handleGenerateBilingualLesson}
+                        className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold cursor-pointer"
+                      >
+                        {isEn ? "Generate Now" : "تولید اکنون"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <details className="border-t border-border pt-2">
+              <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-muted-foreground">{isEn ? "Connections and further reading" : "پیوندها و مطالعهٔ بیشتر"}</summary>
+            {/* Interconnected Clinical & Drug Relations Network */}
+            <React.Suspense fallback={null}>
+              <ClinicalRelationsNetwork
+                document={document}
+                allDocuments={allDocuments}
+                onSelectDocument={handleNavigateDocument}
+                isEn={isEn}
+              />
+            </React.Suspense>
+
+            {/* Smart Related Knowledge & Products Section */}
+            {relatedSuggestions.length > 0 && (
+              <div className="mt-8 pt-6 border-t border-border/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs md:text-sm font-bold text-foreground flex items-center gap-2">
+                    <span className="p-1 rounded-lg bg-primary/10 text-primary">
+                      <Layers className="w-3.5 h-3.5" />
+                    </span>
+                    <span>
+                      {isEn
+                        ? "Suggested further reading"
+                        : "پیشنهاد برای مطالعهٔ بیشتر"}
+                    </span>
+                  </h3>
+                  <span className="text-[11px] text-muted-foreground font-medium">
+                    {relatedSuggestions.length} {isEn ? "documents" : "سند"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  {relatedSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion.document.id}
+                      type="button"
+                      onClick={() => handleNavigateDocument(suggestion.document.id)}
+                      className="flex flex-col justify-between p-3 rounded-2xl bg-card hover:bg-secondary/70 border border-border/80 hover:border-primary/50 transition text-start group cursor-pointer shadow-2xs space-y-2"
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className="p-1.5 rounded-xl bg-primary/10 text-primary shrink-0 group-hover:scale-105 transition">
+                          <FileText className="w-3.5 h-3.5" />
+                        </span>
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-bold text-foreground group-hover:text-primary transition line-clamp-2">
+                            {isEn && suggestion.document.title_en ? suggestion.document.title_en : suggestion.document.title}
+                          </h4>
+                          <span className="mt-1 inline-flex rounded-full bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground">
+                            {suggestion.match === "shared-tag"
+                              ? `${isEn ? "Specific tag" : "برچسب موضوعی"}: ${suggestion.matchedTags.slice(0, 2).join(", ")}`
+                              : suggestion.match === "shared-category"
+                                ? `${isEn ? "Broad category" : "دسته‌بندی مشترک"}: ${suggestion.matchedTags.slice(0, 2).join(", ")}`
+                                : suggestion.match === "title-overlap"
+                                  ? `${isEn ? "Title overlap" : "هم‌پوشانی عنوان"}: ${suggestion.matchedTitleWords.slice(0, 2).join(", ")}`
+                                  : isEn ? "Same folder" : "همین پوشه"}
+                          </span>
+                          {suggestion.document.title_en && !isEn && (
+                            <p className="text-[10px] text-muted-foreground line-clamp-1" dir="ltr">
+                              {suggestion.document.title_en}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {suggestion.document.tags && suggestion.document.tags.length > 0 && (
+                        <div className="flex items-center gap-1 flex-wrap pt-1 border-t border-border/40">
+                          {suggestion.document.tags.slice(0, 2).map((t, idx) => (
+                            <span
+                              key={idx}
+                              className="text-[9px] px-1.5 py-0.2 rounded-md bg-muted text-muted-foreground"
+                            >
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            </details>
+        </div>
+      </div>
+
+      <TextSelectionFloatingBar
+        containerRef={contentContainerRef}
+        onAddToNote={userId !== "guest" && document.user_id === userId ? text => notebookRef.current?.addNote(text) : onAddToNote}
+        onCreateQuestion={userId !== "guest" && document.user_id === userId ? text => notebookRef.current?.addQuestion(text) : undefined}
+        onAddToTask={onAddToTask}
+        onAiAction={onAiAction}
+        onGenerateQuestions={handleTriggerAiFromSelection}
+      />
+
+      {/* AI Question & Flashcard Generator Modal */}
+      {aiModalOpen && (
+        <React.Suspense fallback={null}>
+          <AiQuestionGeneratorModal
+            key={`${userId}:${document.id}`}
+            open={aiModalOpen}
+            onClose={() => setAiModalOpen(false)}
+            sourceAnchor={selectedLearningAnchor}
+            initialText={selectedSnippetForAi}
+            documentId={document?.id}
+            documentTitle={document?.title}
+            folderId={document?.folder_id}
+            userId={userId}
+            onOpenReview={onOpenReview}
+          />
+        </React.Suspense>
+      )}
+
+      {/* Interactive Learning Studio Modal */}
+      {interactiveModalOpen && (
+        <React.Suspense fallback={null}>
+          <InteractiveLearningModal
+            open={interactiveModalOpen}
+            onOpenChange={setInteractiveModalOpen}
+            documentId={document?.id}
+            documentTitle={
+              docLangMode === "en"
+                ? document?.title_en?.trim() || document?.title || ""
+                : document?.title || ""
+            }
+            documentContent={
+              docLangMode === "en"
+                ? document?.content_en || document?.content_html || ""
+                : document?.content_html || ""
+            }
+            documentTitleEn={document?.title_en?.trim() || ""}
+            documentContentEn={document?.content_en || ""}
+            languageOverride={docLangMode}
+            onInsertContent={handleInsertInteractive}
+          />
+        </React.Suspense>
+      )}
+    </div>
+  );
+};

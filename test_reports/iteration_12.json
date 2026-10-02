@@ -1,0 +1,66 @@
+{
+  "summary": "Frontend-only regression QA of ARSHNAZ RTL app (localhost:3000, Vite dev). Verified minimal header on desktop/mobile & top-level vs nested routes, Today streak-hidden-when-0, Buckets header portal, Kanban goal creation + placeholder + priority-flag popover + date-chip popover (no navigation to task detail on either click), Kanban card RTL (dir=auto on H4 title with Persian content), task detail Schedule popover stability across Date→Repeat→Block→Date tabs, Garden compact resource pills, water button decrements drops, dark mode has no pure-white panels, no horizontal overflow at 390px, sync-status-bar dismiss regression, tasks-toggle-filter testid regression, kanban quick-input placeholder no leading '+'.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "TaskMetaQuickEdit date popover + TaskSchedulingSheet date tab",
+        "issue": "Both the kanban task-date popover and the task-detail schedule Date tab render a native HTML5 <input type=\"date\"> (browser default picker shown as 'mm/dd/yyyy') instead of the shadcn Calendar component. This is inconsistent with the rest of the app and does not honor Jalali/Persian locale.",
+        "selector": "input[type='date'] within [data-testid^='task-date-popover-'] and inside [data-testid='task-schedule-popover']",
+        "priority": "MEDIUM"
+      },
+      {
+        "component": "SidebarTrigger in AppLayout header",
+        "issue": "Mobile-only SidebarTrigger button lacks a data-testid attribute (only has data-sidebar='trigger'). This makes automation/regression testing brittle. Consider adding data-testid='header-sidebar-trigger' or similar.",
+        "selector": "[data-sidebar='trigger'] in [data-testid='app-header']",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Garden dark mode (باغ رشد)", "issues": ["Layout is clean with no white panels in dark; light mode also fine (screenshots /tmp/garden_dark.png, /tmp/garden_mobile.png). Minor: 'قطره آب' counter breaks across two lines inside pill on some resolutions but not overflowing."]}
+    ]
+  },
+  "verified_flows": {
+    "header_minimal_top_level": "PASS - On desktop 1920 for /app/today, /app/inbox, /app/buckets, /app/kanban, /app/garden, /app/calendar the header contains header-search-button, header-ai-button, header-theme-toggle and has NO header-back-button and NO visible sidebar-trigger (SidebarTrigger exists in DOM but is display:none via md:hidden).",
+    "header_back_on_nested": "PASS - /app/self/test/depression shows header-back-button in the header.",
+    "header_mobile_sidebar_trigger": "PASS - At 390px on /app/today, [data-sidebar='trigger'] inside [data-testid='app-header'] is present and visible.",
+    "today_streak_hidden_when_zero": "PASS - /app/today body text does not contain '0 روز پیاپی'. today-toggle-split rendered exactly once.",
+    "buckets_header_portal": "PASS - /app/buckets header contains title 'بازه‌های زمانی' and horizon-settings-btn; no duplicate title in content.",
+    "sync_bar_dismissible": "PASS - Injecting an item to localStorage arshnaz_offline_outbox_fallback renders sync-status-bar; clicking sync-status-dismiss removes it.",
+    "tasks_toggle_filter_testid": "PASS - data-testid='tasks-toggle-filter' present on /app/smart list-mode toolbar.",
+    "kanban_placeholder_no_leading_plus": "PASS - kanban-quick-input placeholder is 'افزودن تسک جدید به «__QA_GOAL__»' (starts_with '+' == False). English UI placeholder: 'Add new task to \"__QA_GOAL__\"'.",
+    "kanban_goal_creation": "PASS - kanban-empty-add-goal opens editor; goal-editor-title-input + goal-editor-save creates a goal; kanban-quick-input appears after.",
+    "kanban_quick_add_task": "PASS - Enter on kanban-quick-input creates a new task; toast 'تسک جدید با موفقیت افزوده شد' shows.",
+    "kanban_priority_flag_popover": "PASS - Clicking [data-testid^='task-priority-trigger-'] opens a dropdown containing all 5 options (urgent/high/medium/low/none). Choosing 'urgent' changes the flag color from rgba(108,102,96,0.6) to rgb(219,36,36). URL stays on /app/kanban (no navigation to task detail).",
+    "kanban_date_chip_popover": "PASS - Clicking [data-testid^='task-date-trigger-'] opens [data-testid^='task-date-popover-'] with 'امروز'/'فردا' quick buttons. Choosing 'فردا' updates the chip from 'تاریخ' to '۹ مهر'. URL stays on /app/kanban.",
+    "kanban_layout_columns_toggle": "PASS - [data-testid='kanban-layout-columns'] exists and toggles view.",
+    "kanban_card_rtl_dir_auto": "PASS - The task-card title element is <h4 dir='auto'> with text-align:start and style unicode-bidi:plaintext (in FolderKanban.tsx:626 and KanbanView.tsx:616). With English UI (arshnaz_app_language=en, htmlDir='ltr') Persian titles still render RTL because of dir='auto'.",
+    "task_detail_schedule_popover_stability": "PASS - On /app/tasks/<id> after clicking task-meta-schedule, task-schedule-popover boundingBox y=326.0 h=480.0 is IDENTICAL across tabs تاریخ→تکرار→تایم‌بلاک→بازه→تاریخ. Y drift = 0, H drift = 0 (previous jump between above/below fixed by TaskSchedulingSheet fixed-height + sticky header).",
+    "garden_header_pills_water": "PASS - /app/garden header title 'گلخانه من', pills garden-water-drops / energy / focus visible, garden-sound-toggle and garden-water-button present. Water button click decreased drops (۳۰→۱۵) and updated progress state.",
+    "garden_dark_mode": "PASS - Toggling header-theme-toggle adds html.dark; no pure-white (rgb(255,255,255)) panels remain. Dark screenshot /tmp/garden_dark.png confirms readability.",
+    "no_horizontal_overflow_390": "PASS - /app/garden at 390px has scrollWidth==clientWidth==390.",
+    "console_errors": "The only console errors are Vite HMR websocket connection failures (wss://localhost/) which are environmental to the preview container, and one Firestore 'Could not reach Cloud Firestore backend' which is the expected offline/quota condition mentioned in the review request. No app-level React errors."
+  },
+  "cross_device_sync_note": "Not directly verified due to Firestore backend being unreachable/offline during this session (FirebaseError: [code=unavailable]). Per review instruction this is treated as environmental. Code review of src/lib/cloudStateSync.ts + src/lib/garden.ts::startGardenCloudSync + src/lib/kanbanGoals.ts::startGoalsCloudSync confirms mirroring to users/{uid}/app_state/garden and users/{uid}/app_state/kanban_goals is wired via useAuth. Expected to work once Firestore connectivity/quota is restored.",
+  "test_report_links": [],
+  "action_items": [
+    "Replace the native <input type=\"date\"> inside task-date-popover (TaskMetaQuickEdit) and inside the Date tab of TaskSchedulingSheet with the shadcn Calendar component so the Jalali date shown on the chip matches the picker locale.",
+    "Add data-testid to SidebarTrigger inside AppLayout header (e.g. 'header-sidebar-trigger') so mobile-only tests can key on the testid rather than the internal data-sidebar attribute."
+  ],
+  "critical_code_review_comments": [
+    "src/components/task-detail/TaskSchedulingSheet.tsx uses a fixed-height container which is good for stability, but the Date tab renders a raw <input type='date'>; migrate to Calendar for locale consistency.",
+    "src/components/kanban/TaskMetaQuickEdit.tsx onClick handlers correctly stopPropagation so priority-flag / date-chip clicks don't navigate to task detail (verified). Consider extracting the Popover content into a shared component reused by the Date tab of TaskSchedulingSheet.",
+    "SidebarTrigger (src/components/ui/sidebar.tsx:326) is a shadcn/ui default component without data-testid; adding one keeps automation stable without disrupting styling.",
+    "src/pages/KanbanView.tsx sets dir on the outer container to ltr in English UI but leaves title h4 dir='auto' — this is the correct pattern; do the same for any goal descriptions or subtitle text that may contain mixed Persian/Latin.",
+    "GardenView cloud sync writes are debounced via cloudStateSync; verify write frequency to avoid burning the Firestore free-tier quota (which appears to be exhausted in this preview project)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped, frontend-only)", "frontend": "~96% - 17/17 primary flows pass; 2 medium/low code-quality follow-ups noted"},
+  "test_credentials": "test.arshnaz@example.com / Test123456 (from /app/memory/test_credentials.md); disclaimer checkbox must be clicked via its label text 'مسئولیت‌نامه را مطالعه کردم' since it is a shadcn checkbox and does not respond to input[type=checkbox].check().",
+  "seed_data_creation": "Created up to three kanban goals in test flows named '__QA_GOAL__' / '__QA_GOAL2__' / '__QA_GOAL3__' / '__QA_G__' with one task each ('__QA_تسک_RTL__', '__QA_تسک_زمانبندی__', '__QA_تسک_ز__'). Left in place on test account for future retest; safe to delete via kanban tab context menu.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Vite HMR wss://localhost/ warnings are noise, ignore. React Router responds to history.pushState only when followed by dispatch of PopStateEvent('popstate') — but page.goto() is simpler and works. Task cards in kanban do NOT have a data-testid on the card container; the reliable way to get a task id from the kanban view is document.querySelector('[data-testid^=\"task-priority-trigger-\"]').getAttribute('data-testid').replace('task-priority-trigger-',''). Schedule popover has role='tab' buttons with text 'تاریخ', 'تایم‌بلاک', 'تکرار', 'بازه' — but the review used the label 'بلاک' — use partial match. Firestore backend may be unreachable due to free-tier quota; cross-device sync is code-verified only.",
+  "rca_of_issue": "No blocking bugs found. All 5 new user requests were satisfied: (1) header is minimal - only search/AI/theme icons on desktop top-level pages, (2) Persian text is RTL via dir='auto' on titles even when UI language is English, (3) priority-flag and date-chip open popovers on kanban cards without navigating away, (4) schedule popover position is pixel-stable across Date/Repeat/Block/Date tab switches, (5) Garden design is clean in both themes with no overflow. Previous iteration_11 minor issues (missing tasks-toggle-filter testid, leading '+' in kanban placeholder) are fixed."
+}

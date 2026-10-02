@@ -1,0 +1,50 @@
+{
+  "summary": "Frontend-only re-test of REVIEW gestures (swipe / double-tap / long-press) and MIND MAP progressive-reveal counter + focus mode against test.arshnaz@example.com on the live preview URL. BLOCKED by an environmental issue: Firestore free-tier daily read quota is exhausted for the shared project (gen-lang-client-0845891098 / project_number 62766860). subscribeFolders, subscribeTags, subscribeTasks and (implicitly) subscribeReviewCards / knowledge-doc subscriptions all fail with 'Quota exceeded for quota metric Free daily read units per project (free tier database)' and Firestore transport falls to offline mode. The seed script may have populated Firestore server-side, but the browser CANNOT read the seeded QA Pharmacology / QA Cardio / 3 lessons / 6 flashcards, therefore: (a) Leitner tab shows 0 آمادهٔ مرور and every box 1–5 is 0, 'شروع مرور (0 آماده)' — no flip-card ever mounts → swipe/double-tap/long-press could not be executed end-to-end; (b) mind-map root renders 'پایگاه دانش جامع — ۰ سند' with 0 child nodes → mindmap-reveal-progress and mindmap-reveal-next are not rendered at all (only reveal-toggle + focus-toggle are). This matches the not_fully_executed section of iteration_7. Cloudflare bot-challenge also intermittently blocked automated navigation after several rapid page.goto calls. Verified what was reachable: login flow, onboarding dismissal ('رد کن'), review page routing, Leitner tab renders, mind map tab renders, mindmap-reveal-toggle label 'تدریجی' present, mindmap-focus-toggle present, Firestore quota warnings surface in console.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Data load (Firestore reads)", "issue": "Firebase Firestore free-tier daily read quota is exhausted for the preview project — subscribeFolders/subscribeTags/subscribeTasks return unavailable, WebChannelConnection RPC 'Listen' transport errors, client falls back to offline mode. Seeded QA data cannot reach the client, blocking gesture + progressive-counter QA on real N>0 data.", "affected_selectors": ["[data-testid=flip-card]", "[data-testid=mindmap-reveal-progress]", "[data-testid=mindmap-reveal-next]"]}
+    ],
+    "design_issues": [],
+    "notes": [
+      {"screen": "/app/review/pharmacy → نقشه مفهومی", "note": "Empty-knowledge-base regression flagged in iteration_7 remains: with total=0, mindmap-reveal-progress and mindmap-reveal-next elements are NOT rendered — only the toggle is. Spec asks progress='0/N N>0' and next label eventually 'تمام شد'. The one-line guard suggested previously (revealDone = total===0 || shown>=total, and always render progress even at 0/0) is still not applied."}
+    ]
+  },
+  "verified_flows": {
+    "auth_login_firebase": "PASS — test.arshnaz@example.com / Test123456 signs in after checking the TOS checkbox; lands on /app/today.",
+    "onboarding_dismiss": "PASS — 'رد کن' button dismisses the onboarding dialog on /app/review/pharmacy.",
+    "review_page_routing": "PASS — /app/review/pharmacy loads Leitner deck view with all 5 boxes rendered (all 0 cards).",
+    "mindmap_tab_switch": "PASS — 'نقشه مفهومی' tab activates mind-map canvas; mindmap-reveal-toggle (text='تدریجی') and mindmap-focus-toggle are in the DOM.",
+    "modules_still_installed": "PASS — sidebar shows فارماسی + مرور فارماسی; direct route /app/review/pharmacy is reachable, confirming pharmacy module is still installed for the account."
+  },
+  "not_fully_executed": {
+    "review_gestures_swipe": "NOT EXECUTABLE — no flip-card mounts because Leitner deck has 0 cards visible to the client (Firestore quota block).",
+    "review_gestures_double_tap": "NOT EXECUTABLE — same reason (no flip-card).",
+    "review_gestures_long_press_edit_dialog": "NOT EXECUTABLE — same reason.",
+    "review_rating_buttons_again_hard_good_easy": "NOT EXECUTABLE — session cannot start (start button disabled logic: label '(0 آماده)').",
+    "gesture_settings_toggles": "NOT EXECUTABLE — gesture-settings icon renders inside the active review session UI which never mounts without a card.",
+    "mindmap_reveal_counter_progression": "NOT EXECUTABLE — 0 knowledge docs → mindmap-reveal-progress / mindmap-reveal-next are absent from the DOM.",
+    "mindmap_focus_on_lesson_node": "NOT EXECUTABLE — only the root '0 سند' node exists; there are no lesson/folder child nodes to tap."
+  },
+  "test_report_links": [],
+  "action_items": [
+    "HIGH / ENVIRONMENT: Enable billing on Firebase project gen-lang-client-0845891098 OR wait for Firestore free-tier daily read quota to reset (Pacific midnight). Without this, seeded review/knowledge data cannot be read by the client and gesture + reveal-counter QA cannot be exercised. This is the SAME blocker reported in iteration_7.",
+    "MEDIUM / VERIFY SEED: Once quota is restored, verify that scripts/seed_review_demo.py actually wrote folder 'QA Pharmacology' > 'QA Cardio' + 3 lessons + 6 flashcards under UID for test.arshnaz@example.com (not just a different UID). If seed writes to a different user path, cards will still be 0 for the test account.",
+    "LOW / CODE FIX (carried from iteration_7): In src/components/review/KnowledgeMindMapView.tsx render mindmap-reveal-progress and mindmap-reveal-next even at total===0, set revealDone=(total===0||shown>=total) so empty knowledge base still shows 'تمام شد' + disabled next, matching the spec.",
+    "LOW / TEST ROBUSTNESS: Repeated automated navigations on the preview URL trigger Cloudflare bot-challenge; space out page.goto calls or reuse a single browser session across all assertions."
+  ],
+  "critical_code_review_comments": [
+    "ReviewSwipeCard.tsx: canSwipe = g.enabled && flipped — swipe is only available AFTER the answer side is revealed. The task description says 'dragging the card right rates Good...' — testers should be aware they must double-tap/click first to flip before dragging. Not a bug, just documentation gap.",
+    "ReviewSwipeCard.tsx: single click already calls onFlip; the doubleTapFlip guard only prevents the SECOND tap from re-flipping. Real double-tap effectively behaves the same as single tap for the first flip. If the intent is 'ONLY double-tap flips (single tap does nothing)' then handleClick logic needs a delayed single-tap that gets cancelled on the second tap. Recommend product-team clarification.",
+    "KnowledgeMindMapView.tsx: reveal-progress and reveal-next appear to be conditionally rendered on total>0. Renders should be unconditional so the counter is always testable — see action_items."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only per request)", "frontend": "0% of the requested new-feature gesture/counter/focus flows exercisable due to Firestore quota; 100% of reachable UI (login, routing, tab switching, static mind-map controls) verified."},
+  "test_credentials": "test.arshnaz@example.com / Test123456 (Firebase). TOS checkbox must be ticked before submit.",
+  "seed_data_creation": "None from this iteration. Attempted seed by main agent (scripts/seed_review_demo.py) could not be verified because Firestore reads are quota-blocked.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Same blocker as iteration_7: Firestore free-tier daily read quota exhausted → seeded flashcards / knowledge docs invisible to the client → flip-card never mounts and mind-map is 1-node. Do NOT waste attempts trying to test gestures until (a) the project has billing enabled OR (b) the quota window has reset AND you have re-run scripts/seed_review_demo.py. Login flow: /auth → check TOS button[role=checkbox] → fill email/password → submit → land /app/today → goto /app/review/pharmacy → dismiss onboarding via 'رد کن'. Rapid consecutive page.goto calls trigger Cloudflare 'Performing security verification' — space by 30s+ or reuse one session. Reveal-progress + reveal-next testids are absent when knowledge-base is empty (still an open action item).",
+  "rca_of_issue": "Root cause is environmental, not code: gen-lang-client-0845891098 is on Firestore free tier; the shared preview project has consumed its per-day read units. Firestore client library logs 'Quota exceeded for quota metric Free daily read units per project (free tier database)' for every listener (subscribeFolders, subscribeTags, subscribeTasks) and 'WebChannelConnection RPC Listen stream transport errored' + 'Could not reach Cloud Firestore backend. Connection failed 1 times' — the SDK then operates in offline mode. Because the local IndexedDB cache for test.arshnaz@example.com has no cached seed docs, the UI renders empty (0 cards, 0 knowledge docs). Repro: sign in as the test user, open /app/review/pharmacy, observe Leitner ready-count=0 and 'پایگاه دانش جامع — ۰ سند' on the mind map, and check DevTools console for the FirestoreData quota warnings. Mitigation: (1) enable billing on the Firebase project, or (2) wait for the daily quota reset (Google Cloud counters reset at midnight Pacific time), then re-run scripts/seed_review_demo.py to ensure due dates are current, then re-test."
+}

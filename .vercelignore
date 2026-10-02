@@ -1,0 +1,7 @@
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+android/
+ios/
+tests/

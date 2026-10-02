@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Attachments are private to the authenticated owner. Never use test mode.
+    match /users/{userId}/task-attachments/{taskId}/{fileId} {
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size > 0
+        && request.resource.size <= 25 * 1024 * 1024
+        && request.resource.contentType.matches(
+          'image/(jpeg|png|gif|webp|heic|heif)|application/pdf|audio/(mpeg|mp4|x-m4a|m4a|wav|x-wav|ogg|webm)|video/(mp4|quicktime|webm)|text/plain|application/msword|application/vnd\\.openxmlformats-officedocument\\.wordprocessingml\\.document'
+        );
+      allow update: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
