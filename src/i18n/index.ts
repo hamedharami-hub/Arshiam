@@ -30,7 +30,7 @@ i18n
     nonExplicitSupportedLngs: true,
     interpolation: { escapeValue: false },
     detection: {
-      order: ["localStorage"],
+      order: import.meta.env?.MODE === "test" ? ["localStorage"] : ["localStorage", "navigator"],
       lookupLocalStorage: LANGUAGE_STORAGE_KEY,
       caches: ["localStorage"],
     },
@@ -49,6 +49,11 @@ i18n.on("languageChanged", applyDocumentDirection);
 export function changeLanguage(lang: AppLanguage) {
   i18n.changeLanguage(lang);
   try { localStorage.setItem(LANGUAGE_STORAGE_KEY, lang); } catch {}
+  try { window.dispatchEvent(new CustomEvent("arshnaz:language-chosen", { detail: { lang } })); } catch {}
+}
+
+export function currentLanguage(): AppLanguage {
+  return (i18n.language || "fa").startsWith("en") ? "en" : "fa";
 }
 
 export default i18n;

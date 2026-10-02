@@ -1,3 +1,4 @@
+import { TaskGroupHeader } from "@/components/tasks/TaskGroupHeader";
 import React from "react";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
 import { parseTaskDueDate, taskDueTimestamp } from "@/lib/taskDate";
@@ -34,7 +35,7 @@ export function buildGroupedTasks(
     let label: string;
     if (due < todayStart) {
       key = "overdue";
-      label = T("تاخیر", "Overdue");
+      label = T("عقب‌افتاده", "Overdue");
     } else if (due <= todayEnd) {
       key = "today";
       label = T("امروز", "Today");
@@ -75,12 +76,7 @@ export function TaskDueDateGroups({ groupedTasks, renderTaskItem }: TaskDueDateG
     <div className="space-y-3">
       {groupedTasks.map((group) => (
         <div key={group.key}>
-          <div className="sticky top-0 z-[5] bg-background/95 backdrop-blur py-1 px-1 text-sm font-semibold text-foreground/80 flex items-center justify-between">
-            <span>{group.label}</span>
-            <span className="text-xs text-muted-foreground font-normal">
-              {group.tasks.length}
-            </span>
-          </div>
+          <TaskGroupHeader label={group.label} count={group.tasks.length} tone={group.key === "overdue" ? "overdue" : "default"} testid={`task-group-${group.key}`} />
           <div className="space-y-1">{group.tasks.map((t) => renderTaskItem(t))}</div>
         </div>
       ))}

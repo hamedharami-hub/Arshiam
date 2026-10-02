@@ -252,14 +252,14 @@ function TaskAttachmentsContent({ taskId, onCountChange }: { taskId: string; onC
         const titles = { extract: "متن استخراج‌شده از تصویر", summarize: "خلاصه/بسط تصویر", research: "یادداشت پژوهشی" } as const;
         const res = await callAI(modeMap[action] as any, { imageUrl: pendingImage.url, text: "Process this image as instructed." });
         const content = res.text || "";
-        if (!content.trim()) { toast.error("نتیجه‌ای دریافت نشد"); return; }
+        if (!content.trim()) { toast.error(T("نتیجه‌ای دریافت نشد", "No result came back")); return; }
         const { error } = await firebaseStore.from("notes").insert({ user_id: user.id, task_id: taskId, title: titles[action], content });
         if (error) { toast.error(error.message); return; }
-        toast.success("نوت ساخته شد");
+        toast.success(T("نوت ساخته شد", "Note created"));
       }
       setPendingImage(null);
     } catch (e: any) {
-      toast.error(e?.message || "خطا در پردازش");
+      toast.error(e?.message || T("پردازش انجام نشد", "Processing failed"));
     } finally {
       setProcessing(null);
     }
@@ -401,17 +401,17 @@ function TaskAttachmentsContent({ taskId, onCountChange }: { taskId: string; onC
       <Dialog open={!!pendingImage} onOpenChange={(v) => !v && !processing && setPendingImage(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Sparkles className="w-4 h-4" /> با این تصویر چه کنیم؟</DialogTitle>
-            <DialogDescription>یکی از گزینه‌ها را انتخاب کن</DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><Sparkles className="w-4 h-4" /> {T("با این تصویر چه کنیم؟", "What should we do with this image?")}</DialogTitle>
+            <DialogDescription>{T("یکی از گزینه‌ها را انتخاب کن", "Choose one option")}</DialogDescription>
           </DialogHeader>
           {pendingImage && <img src={pendingImage.url} alt="" className="max-h-40 rounded mx-auto object-contain" />}
           <div className="grid grid-cols-1 gap-2 mt-2">
-            <ActionBtn label="فقط ضمیمه شود" onClick={() => runImageAction("attach")} disabled={!!processing} testId="image-action-attach" />
-            <ActionBtn label="استخراج متن و افزودن به‌عنوان نوت" onClick={() => runImageAction("extract")} loading={processing === "extract"} disabled={!!processing && processing !== "extract"} />
-            <ActionBtn label="خلاصه / بسط محتوا" onClick={() => runImageAction("summarize")} loading={processing === "summarize"} disabled={!!processing && processing !== "summarize"} />
-            <ActionBtn label="پژوهش بر اساس این تصویر" onClick={() => runImageAction("research")} loading={processing === "research"} disabled={!!processing && processing !== "research"} />
-            <ActionBtn label="ساخت تسک از این تصویر" onClick={() => runImageAction("tasks")} loading={processing === "tasks"} disabled={!!processing && processing !== "tasks"} />
-            <ActionBtn label="ساخت تسک با تاریخ پیشنهادی" onClick={() => runImageAction("scheduled_tasks")} loading={processing === "scheduled_tasks"} disabled={!!processing && processing !== "scheduled_tasks"} />
+            <ActionBtn label={T("فقط پیوست شود", "Just attach it")} onClick={() => runImageAction("attach")} disabled={!!processing} testId="image-action-attach" />
+            <ActionBtn label={T("استخراج متن و افزودن به‌عنوان نوت", "Extract text into a note")} onClick={() => runImageAction("extract")} loading={processing === "extract"} disabled={!!processing && processing !== "extract"} />
+            <ActionBtn label={T("خلاصه / بسط محتوا", "Summarise / expand")} onClick={() => runImageAction("summarize")} loading={processing === "summarize"} disabled={!!processing && processing !== "summarize"} />
+            <ActionBtn label={T("پژوهش بر اساس این تصویر", "Research from this image")} onClick={() => runImageAction("research")} loading={processing === "research"} disabled={!!processing && processing !== "research"} />
+            <ActionBtn label={T("ساخت تسک از این تصویر", "Create tasks from this image")} onClick={() => runImageAction("tasks")} loading={processing === "tasks"} disabled={!!processing && processing !== "tasks"} />
+            <ActionBtn label={T("ساخت تسک با تاریخ پیشنهادی", "Create tasks with suggested dates")} onClick={() => runImageAction("scheduled_tasks")} loading={processing === "scheduled_tasks"} disabled={!!processing && processing !== "scheduled_tasks"} />
           </div>
         </DialogContent>
       </Dialog>

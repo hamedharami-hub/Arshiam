@@ -5,7 +5,7 @@
 آدرس سرویس باید **هنگام ساختن APK** در متغیر `VITE_ARSH_API_URL` قرار بگیرد.
 
 ## ۱. آدرس سرویس را پیدا کن
-- پیش‌نمایش فعلی: `https://arshiam-preview.preview.emergentagent.com`
+- پیش‌نمایش فعلی: `https://code-review-396.preview.emergentagent.com`
 - بعد از Deploy در Emergent: آدرس دامنهٔ Deploy‌شده (مثلاً `https://arshnaz.emergent.host`)
 - فقط origin را بنویس، بدون `/api/arsh` و بدون `/` آخر.
 
@@ -21,7 +21,7 @@
 ### ب) روی کامپیوتر خودت (Android Studio)
 در پوشهٔ پروژه یک فایل `.env.production.local` بساز (در گیت ثبت نمی‌شود):
 ```
-VITE_ARSH_API_URL=https://arshiam-preview.preview.emergentagent.com
+VITE_ARSH_API_URL=https://code-review-396.preview.emergentagent.com
 ```
 بعد:
 ```
@@ -64,8 +64,8 @@ npx cap sync android
      - `https://www.googleapis.com/auth/photospicker.mediaitems.readonly`
    - در **Audience / Test users** ایمیل خودت را اضافه کن.
 4. **APIs & Services › Credentials › Create credentials › OAuth client ID** از نوع **Web application**:
-   - Authorized JavaScript origins: `https://arshiam-preview.preview.emergentagent.com`
-   - Authorized redirect URIs: `https://arshiam-preview.preview.emergentagent.com/api/arsh/google/callback`
+   - Authorized JavaScript origins: `https://code-review-396.preview.emergentagent.com`
+   - Authorized redirect URIs: `https://code-review-396.preview.emergentagent.com/api/arsh/google/callback`
    - بعد از Deploy، همین دو مقدار را با دامنهٔ Deploy‌شده هم اضافه کن.
 5. **Create credentials › API key**. روی کلید بزن و در **API restrictions** فقط **Google Picker API** را انتخاب کن.
 6. **Project number** را از **Dashboard** یا **IAM & Admin › Settings** بردار.

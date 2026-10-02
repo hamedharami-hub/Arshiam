@@ -63,13 +63,14 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   controlledHtml,
   initialMarkdown = "",
   onChange,
-  placeholder = "شروع به نوشتن کنید...",
+  placeholder: placeholderProp,
   readOnly = false,
   showVoiceButton = true,
   attachmentScopeId = "",
   onAttachmentUploaded,
 }, ref) {
   const { T } = useBilingual();
+  const placeholder = placeholderProp ?? T("شروع به نوشتن کن…", "Start writing…");
   const { user } = useAuth();
   const attachmentIdentity = useRef(""); attachmentIdentity.current = `${user?.id ?? ""}:${attachmentScopeId}`;
   const onUploadedRef = useRef(onAttachmentUploaded); onUploadedRef.current = onAttachmentUploaded;
@@ -223,14 +224,14 @@ export const RichEditor = forwardRef<RichEditorHandle, {
     if (!editor) return;
     const { from, to } = editor.state.selection;
     const selected = editor.state.doc.textBetween(from, to, "\n");
-    if (!selected.trim()) return toast.error("ابتدا متن را انتخاب کنید");
+    if (!selected.trim()) return toast.error(T("اول متنی را انتخاب کن", "Select some text first"));
     setAiBusy(true);
     try {
       const r = await callAI("inline_edit", selected, undefined, action, getAILanguage());
       const newText = (r.text || "").trim();
-      if (!newText) throw new Error("نتیجه خالی");
+      if (!newText) throw new Error(T("نتیجه خالی بود", "Empty result"));
       editor.chain().focus().deleteRange({ from, to }).insertContent(markdownToHtml(newText)).run();
-      toast.success("اعمال شد ✨");
+      toast.success(T("اعمال شد", "Applied"));
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -305,9 +306,9 @@ export const RichEditor = forwardRef<RichEditorHandle, {
         <button
           type="button"
           onClick={scrollToToolbar}
-          className="fixed bottom-20 left-4 z-40 h-11 w-11 rounded-full shadow-elegant bg-primary text-primary-foreground flex items-center justify-center hover:scale-105 transition"
-          title="نمایش نوار ابزار"
-          aria-label="نمایش نوار ابزار"
+          className="fixed bottom-20 start-4 z-40 h-11 w-11 rounded-full shadow-elegant bg-primary text-primary-foreground flex items-center justify-center hover:scale-105 transition"
+          title={T("نمایش نوار ابزار", "Show toolbar")}
+          aria-label={T("نمایش نوار ابزار", "Show toolbar")}
         >
           <Wrench className="w-5 h-5" />
         </button>

@@ -1,96 +1,154 @@
-# ARSHNAZ (ارشناز) — Unified Design, Bug Fixes and Feature Upgrade
+# ارشناز — بازبینی بخش‌به‌بخش، دو زبانهٔ کامل، طراحی تازهٔ تسک و نوت، و بازی «جزیرهٔ من»
 
-ARSHNAZ is an existing Persian (RTL) app for tasks, notes, habits, mental wellbeing and learning, imported from the GitHub repository hamedharami-hub/Arshiam. The work gives the whole app one consistent TickTick-inspired look, fixes the reported bugs, and upgrades Time Buckets, Life Architect, the calendar, and the Knowledge section. The uploaded handoff document (ARSHIAM_REMAINING_WORK_HANDOFF.fa.md) is the master backlog for the later phases.
+ارشناز یک اپ دو زبانه (فارسی راست‌به‌چپ و انگلیسی چپ‌به‌راست) برای تسک، نوت، عادت، برنامه‌ریزی، سلامت ذهن و یادگیری است. در این دور، آخرین نسخه از گیت‌هاب وارد می‌شود، صفحه‌ها بخش‌به‌بخش با کاربر بررسی می‌شوند، باگ‌ها رفع می‌شوند، طراحی بهتر می‌شود و امتیازها به یک بازی ساختنیِ جذاب تبدیل می‌شوند.
 
-## Who it's for
-Persian-speaking individuals who manage daily tasks, notes, habits, wellbeing and study (including pharmacy study material) in one place. They use it on desktop, phone and foldable (including the Android build), and want a calm, fast, TickTick-like experience.
+## برای چه کسی
+کاربران فارسی‌زبان و انگلیسی‌زبانی که تسک، نوت و برنامهٔ روزانه‌شان را در یک جا روی دسکتاپ، موبایل و گوشی تاشو (اندروید) مدیریت می‌کنند. ظاهر آرام و مرتب و شبیه TickTick می‌خواهند و دوست دارند پیشرفتشان را در یک بازی زیبا ببینند. صاحب اپ هر بخش را پیش از رفتن به بخش بعد تأیید می‌کند.
 
-## Core features and experience
+## قابلیت‌ها و تجربهٔ اصلی
 
-**Reported bugs to fix (Phase 1)**
-- **Top search bar** on Today and the other task pages does not work. It must search tasks and open results.
-- **Attachments in Description / Notes**: attaching a link or an image fails. Attaching must work, show upload status, allow retry, and never lose the typed text.
-- **Tags**: opening a tag shows all tasks, including ones without that tag. A tag page must show only the tasks that carry it.
-- **Planning section** bugs (calendar/schedule, task placement, dates, ordering, task details) are reproduced and fixed. Existing planning features are kept.
+**وارد کردن برنامه**
+- آخرین نسخه از گیت‌هاب (hamedharami-hub/Arshiam، شاخهٔ main) وارد و اجرا می‌شود.
+- **بخش داروسازی (Pharmacy) در این دور کنار گذاشته می‌شود.** صفحه‌های داروسازی، FRED، CYP، سناریو و محصولات بررسی یا تغییر داده نمی‌شوند. همهٔ بخش‌های دیگر بررسی می‌شوند.
 
-**Upgrades (Phase 1)**
-- **Time Buckets**: a deep review. The many errors are found and fixed, and the screen is redesigned to be simpler and more useful, with a clear purpose per bucket (daily, weekly, monthly, seasonal, yearly), easy assignment of tasks, and a clear view of what sits in each bucket. Its connection to Smart Lists and filters is kept consistent.
-- **Life Architect**: a significant improvement of this section, covering clearer structure from values to goals to plans to tasks/habits, easier creation, progress visibility, and a cleaner layout.
-- **Calendar occasions**: Australian occasions (public holidays and notable days) are added next to the Iranian occasions. The user can show or hide each set.
-- **Page backgrounds**: each page's background color is saved and kept after reload. A folder can also have a background image, shown faintly behind its content.
-- **Knowledge (نالج) — second, deeper review across every part** (notes, diary, pharmacy/lesson reader, folders and topics, tags, search, editor, practice and review links): the whole section is re-examined for usability gaps and bugs, and each part is optimized. This means easier creation, clearer organization and retrieval, better search and filter, tidier cards, a more comfortable editor, faster navigation between folder, lesson and related items, and the same look across all Knowledge screens.
-- **Compact lesson/topic header (the toolbar shown in the Knowledge reader screenshot)**: today it takes a lot of vertical space (breadcrumb row, a full row of large buttons, then a tag row). It becomes smaller, minimal and takes much less space:
-  - One slim line holding the breadcrumb/title on one side and small icon-only buttons on the other (language, study mode, translate, AI, games/practice, add to calendar, text size, edit, delete), each with a tooltip.
-  - Rarely used actions (delete, text size, calendar, and similar) move into a single "more" menu. Only the few most-used actions stay visible.
-  - Tags become a single small, scrollable or collapsible line instead of large pills. Tapping expands them.
-  - The top "Pharmacy / Practice / Review this topic" strip is merged into the same slim header.
-  - The header scrolls away or shrinks while reading, so the lesson text gets the screen. Works on phone, foldable panel and desktop in both languages.
-  - All existing actions and tags are kept. Only their size, grouping and placement change.
-- **Consistent design across every screen**: one shared set of colors, spacing, type sizes, corner radii, buttons, cards, lists, dialogs, empty states and icons, with correct RTL/LTR behavior, mobile layout and foldable-panel widths.
+**دو زبانهٔ کامل (فارسی و انگلیسی)**
+- انتخاب زبان در صفحهٔ ورود و در تنظیمات هست و برای هر کاربر ذخیره می‌شود. بار اول زبان دستگاه پیشنهاد می‌شود.
+- همهٔ متن‌های اپ هر دو نسخهٔ کامل فارسی و انگلیسی را دارند: منوها، دکمه‌ها، پیام‌ها، حالت‌های خالی، خطاها، اعلان‌ها و بازی. هیچ متنی نصفه ترجمه یا مخلوط نمی‌ماند.
+- جهت صفحه با زبان عوض می‌شود: فارسی راست‌به‌چپ و انگلیسی چپ‌به‌راست. سایدبار، آیکن‌های جهت‌دار، تقویم و نمای دوستونی درست آینه می‌شوند.
+- تاریخ و عدد:
+  - فارسی: تاریخ شمسی و اعداد فارسی.
+  - انگلیسی: تاریخ میلادی و اعداد انگلیسی. نمایش تاریخ شمسی در تنظیمات اختیاری است.
+- قلم مناسب هر زبان استفاده می‌شود و متن‌های نوشتهٔ خود کاربر (تسک، نوت) جهت خودشان را خودکار پیدا می‌کنند.
 
-**Unchanged**: Firebase auth and data, Firestore rules and data structure, storage, the BYOK AI setup, and the Android/Capacitor setup.
+**سربرگ تسک (مشکل اصلی فعلی)**
+- وقتی تسکی از Inbox، Today، Tomorrow، این هفته یا یک فولدر باز می‌شود، بالای آن یک ردیف کاشی هست: پوشه، زمان‌بندی، اولویت، برچسب و سنجاق. امروز هر کاشی یک کلمهٔ عنوان («اولویت»، «برچسب‌ها»، …) را کنار مقدارش نشان می‌دهد. با کلیک هم یک پنجرهٔ شناور یا یک پنجرهٔ وسط صفحه باز می‌شود.
+- **نوشته‌ها:** یک خط آرام و یکدست با آیکن و فقط مقدار واقعی، مثلاً «فردا ۱۰:۰۰»، «بالا»، «کار، خانه». کلمه‌های عنوانِ اضافه حذف می‌شوند. موردی که تنظیم نشده فقط یک آیکن کم‌رنگ است. اندازه، وزن و رنگ قلم در همهٔ موردها یکی است.
+- **پاپ‌آپ‌ها حذف می‌شوند:**
+  - با زدن هر مورد، یک پنل کوچک درون خود صفحه و زیر سربرگ باز می‌شود و محتوای زیرش را پایین می‌برد.
+  - در هر لحظه فقط یک پنل باز است. با انتخاب گزینه، زدن دوبارهٔ همان مورد یا Escape بسته می‌شود.
+  - انتخاب پوشه هم از پنجرهٔ وسط صفحه به همین پنل منتقل می‌شود. ساخت پوشه یا برچسب تازه داخل همین پنل انجام می‌شود.
+- همهٔ کارهای فعلی می‌مانند: پوشه، تاریخ و ساعت و تکرار، عقب انداختن، اولویت، کار اجتنابی، برچسب، سنجاق و هدف.
+- عنوان گروه‌ها در فهرست‌ها (مثل «عقب‌افتاده» یا «امروز») هم با همین سبک قلم یکدست می‌شوند.
 
-## User flow
-1. User signs in as today (Firebase).
-2. Lands on a refreshed home with the same sections in the sidebar.
-3. Searches from the top bar and opens a result.
-4. Opens a tag and sees only that tag's tasks.
-5. Opens Time Buckets, places tasks into buckets, and reviews each bucket.
-6. Opens the calendar and sees Iranian and Australian occasions.
-7. Opens Planning, Life Architect and Knowledge, and works with the same look and interaction patterns on every page.
-8. Sets a page color or a folder background image, which stays after reload.
-9. Attaches images or links in task description and notes.
+**صفحهٔ کامل تسک**
+- همهٔ اجزای صفحهٔ تسک بررسی و مرتب می‌شوند: عنوان، توضیحات و پیوست‌ها، زیرتسک‌ها و مرحله‌ها، نوت‌های داخل تسک، دانش و مخاطب مرتبط، نتیجه‌ها، فعالیت‌ها، نوار پایین و منوی بیشتر.
+- فاصله‌ها، کارت‌ها و دکمه‌ها یکدست می‌شوند. عنوان تکراری، کادر تودرتو و دکمه‌ای که فقط با نگه داشتن نشانگر موس پیدا می‌شود حذف می‌شوند. باگ‌ها رفع می‌شوند.
+- رفتار در نمای دوستونی، موبایل و تاشو، و در هر دو زبان بررسی می‌شود.
 
-## UI/UX feel
-- Keeps the current color mood, tightened into a consistent system. TickTick is the layout and interaction reference: neat lists, soft cards, subtle dividers, clear priority/date accents, a quiet sidebar.
-- Light, dark and OLED appearance stay supported.
-- Persian-first typography with good line height. English and Persian are equally well handled.
-- Subtle motion only. Every screen has one clear title and one main action, with no duplicated headings or nested boxes.
-- After the work, optional visual changes are offered. Nothing beyond the agreed look is changed without approval.
+**صفحه‌های فهرست تسک**
+- Inbox، Today، Tomorrow، این هفته، ۷ روز آینده، فولدرها، برچسب‌ها و کانبان: ردیف تسک، شمارنده‌ها، مرتب‌سازی، سنجاق، افزودن سریع و حالت خالی بررسی و رفع اشکال می‌شوند.
 
-## Implementation phases
+**صفحهٔ نوت‌ها**
+- فهرست نوت‌ها، ستون قابل تغییر اندازه، تمام‌صفحه، ویرایشگر و نوار ابزار، پیوست تصویر و فایل، وضعیت ذخیره و جست‌وجو بررسی و رفع اشکال می‌شوند.
+- ظاهر با صفحهٔ تسک یکدست می‌شود. پاپ‌آپ‌های آزاردهنده با همان پنل درون‌صفحه جایگزین می‌شوند.
 
-**Phase 1 — MVP (built now)**
-- Import the repository and run it as-is.
-- Reproduce and fix: search bar, attachments (link/image), tag filtering, Planning bugs.
-- Time Buckets deep review, fix and simplified redesign.
-- Life Architect improvement.
-- Iranian + Australian calendar occasions.
-- Saved page colors and folder background images.
-- Knowledge section: a second full review of all its parts, then optimization of each part.
-- Compact, minimal lesson/topic header that uses far less space.
-- Unified design pass and mobile/RTL polish across all sections.
-- Each handoff item is first checked against the latest code before being changed. Items already done are not rebuilt.
+**بازی «جزیرهٔ من» (مرحلهٔ ۲)**
 
-**Phase 2 — Reliability and shared foundations (from the handoff document, not built now)**
-- Honest save results ("saved on device / queued / saved to cloud / failed"), protection against old responses overwriting new edits, account-switch safety.
-- Multi-step Undo/Redo and draft recovery in note, task description and diary editors, plus versioned backup and restore.
-- Reliable AI: provider/key/model settings, test connection, preview → apply/reject → undo, no hidden paid calls.
-- Task and planning consistency: one shared definition of dates and filters across lists, Kanban, calendar, Smart Lists and widgets. Pinned and ordered lists applied in Today, Tomorrow, Inbox and This Week. Correct habit statistics, Pomodoro saving, and calendar behavior on fast month changes.
-- Notes and diary: fixed toolbar clutter, inline images and files with upload state, full-text search that opens the exact document.
-- Mind, self-knowledge, values and goals: step-by-step forms that never lose text, check-in/thought records → tasks → back to the record, personality-test resume, periodic goal review.
-- Focus, sleep, contacts and occasions: shared audio controls, focus and breathing sessions feeding stats and Garden, occasion → calendar → reminder, vCard import with preview.
-- Settings regrouped into six groups: appearance/language, planning, reminders, AI, account/data/connections, app/updates.
+*ایده:* ترکیب «جزیرهٔ زندگی» و «باغ ایرانی / شهر باستانی». کاربر روی یک جزیرهٔ خالی در دریای فیروزه‌ای، کم‌کم یک شهر-باغ ایرانی می‌سازد. هر بخش زندگی یک محله و یک بنای اصلی دارد:
 
-**Phase 3 — Pharmacy learning and final integration (from the handoff document, not built now)**
-- Review of the remaining pharmacy lesson groups (clinical, drug and scenario lessons; pharmacology and supplementary collections), checking card titles, order, layout, duplicates and warnings without changing source text, doses, warnings or references.
-- Permanent learning-card model: book → collection → branch → lesson → card group → named card, with safe versioned migration, rollback, and no overwriting of user data.
-- Notes and annotations anchored to cards, direct image/file upload from phone or Windows with compression, continue-learning position, direct links to cards in both languages, optional review cards created from lessons.
-- A reusable template so other (non-medical) books can use the same card system.
-- Final integration of learning/review, FRED progress, mind map performance, and release checks.
-- Out of scope: the handoff's "future" and "rejected" items (long-term version history, saved task filters, new drug comparison, error-analysis practice), real-account testing, and enabling Shared/Admin features.
+| بخش زندگی | بنا | از چه کارهایی رشد می‌کند |
+|---|---|---|
+| کارها | بازار و کارگاه | تکمیل تسک، کار اجتنابی، پروژهٔ بزرگ |
+| یادگیری | کتابخانهٔ گنبددار | مطالعه در نالج، مرور کارت، مطالعهٔ تعاملی |
+| ذهن | باغ ایرانی با حوض و چهارباغ (گل‌های گلخانهٔ فعلی اینجا کاشته می‌شوند) | ثبت حال، آرامش و تنفس، فکر و نگرانی، چک‌این |
+| سلامت | چشمه و حمام سنتی | عادت‌ها، خواب، چرخه |
+| برنامه‌ریزی | رصدخانه | برنامه‌ریزی روز، هفته و ماه، و مرور دوره‌ای |
+| تمرکز | برج بادگیر | جلسه‌های پومودورو و تمرکز |
+| نوشتن | خانهٔ خوشنویسی | نوت و خاطره‌نویسی |
 
-## Assumptions
-- The repo is imported and runs unchanged first. Only agreed areas are modified.
-- Firebase stays as backend and database, with no migration, no change to rules or data shape, and no new backend.
-- "Planning" means the planning/scheduling area. Exact bugs are identified by using it, and the user is told what was found and fixed.
-- "Knowledge (نالج)" means the notes/knowledge area, including the pharmacy lesson reader. Improvements focus on usability, organization and space, not new storage formats.
-- Which header actions stay visible versus go into the "more" menu is decided by how common they are (language, study mode, AI and edit stay visible). The user can adjust this after seeing it.
-- Australian occasions use the national public holidays plus well-known observances. State-specific holidays are not included unless asked.
-- A folder background image is shown faintly (low opacity) so text stays readable. Page color is chosen per page and saved per user.
-- Time Buckets keeps its purpose and its link with Smart Lists, but screen layout and interaction may change substantially for simplicity.
-- Life Architect keeps its existing data. Its structure and layout are redesigned, and new fields are added only where needed.
-- The existing color mood and current font are kept unless a font renders Persian poorly.
-- Testing uses test/sample data only. Real-account testing is excluded, and any limit is reported.
-- Pharmacy lesson text, doses, warnings and scientific references are never edited without a valid source.
-- Work is delivered step by step, and the user reviews each step before the next.
+*ساختن:*
+- هر بنا ۵ سطح دارد و در هر سطح بزرگ‌تر و زیباتر می‌شود. مثلاً حوض به فواره و باغ به چهارباغ کامل می‌رسد.
+- هر بخش «مصالح» خودش را می‌دهد: آجر برای کارها، کاغذ برای یادگیری، آب برای ذهن، سنگ برای سلامت، ستاره برای برنامه‌ریزی، نور برای تمرکز و جوهر برای نوشتن. مصالح هر بخش فقط بنای همان بخش را می‌سازد.
+- **سکه‌های طلایی** از همهٔ کارها جمع می‌شوند و خرج تزئین‌ها می‌شوند: درخت سرو و انار، فانوس، کاشی، پل، قایق، مسیر سنگی، نیمکت و پرنده. کاربر جای تزئین‌ها را روی جزیره خودش انتخاب می‌کند.
+- با بزرگ شدن بناها، ساکنان تازه به جزیره می‌آیند: باغبان، کتابدار، منجم، خوشنویس و دیگران. هر کدام هر روز یک مأموریت کوچک پیشنهاد می‌دهد.
+- **داستان و فصل‌ها:** جزیره در چهار فصل روایت می‌شود: بهار و نوروز، تابستان، پاییز، زمستان و یلدا. هر فصل یک بخش تازه از جزیره را باز می‌کند، همراه با یک داستان کوتاه مصور، تزئین‌های ویژه و رویدادهای فصلی (مناسبت‌های ایرانی و استرالیایی).
+- **جریمه ندارد:** هیچ چیزی خراب یا پژمرده نمی‌شود و امتیازی کم نمی‌شود. اگر کاربر چند روز نیاید، جزیره منتظر می‌ماند و با یک خوشامد گرم از او استقبال می‌کند.
+- **امتیاز فقط خرج ساختن در بازی می‌شود.** پاداش بیرون از بازی یا خرید تم در کار نیست.
+
+*امتیاز دادن (گسترده):*
+- **تسک بر اساس سختی:** اولویت و زمان تخمینی امتیاز را بیشتر می‌کنند. کار «اجتنابی» پاداش ویژه دارد و تکمیل پروژه یا تسک بزرگِ دارای زیرتسک پاداش بزرگ دارد.
+- **زنجیرهٔ روزانه (streak):** هر روز پشت سر هم ضریب امتیاز را کمی بالا می‌برد. اگر روزی جا بیفتد، فقط ضریب از اول شروع می‌شود و هیچ چیزی از دست نمی‌رود.
+- **مأموریت روزانه و هفتگی:** مثلاً «۳ تسک مهم + ۱ جلسهٔ تمرکز» یا «۵ روز ثبت حال در هفته». ساکنان جزیره این مأموریت‌ها را پیشنهاد می‌دهند.
+- **نشان‌ها و دستاوردها:** مثلاً «۷ روز خاطره‌نویسی» یا «اولین برنامهٔ ماهانه». هر نشان یک تزئین ویژه برای جزیره باز می‌کند.
+- **برنامه‌ریزی و مرور** روز، هفته و ماه.
+- **نوشتن، ذهن و یادگیری:** نوت، خاطره، ثبت حال، تمرین‌های ذهن، مطالعه و مرور کارت.
+- **عادت‌ها، خواب و تمرکز.**
+- **رویدادهای فصلی** با امتیاز دوبرابر در بازه‌های خاص.
+- هر جا امتیاز گرفته می‌شود، یک نشانهٔ کوچک و آرام مثل «+۱۲ 🧱» برای لحظه‌ای دیده می‌شود. پاپ‌آپ نیست و کار را قطع نمی‌کند.
+- یک صفحهٔ «امتیازها» نشان می‌دهد هر کار چه می‌دهد. تاریخچهٔ امتیازها هم قابل دیدن است.
+- **منصفانه:** اگر تیک یک تسک برداشته شود، امتیازش پس گرفته می‌شود. کارهای تکرارپذیر سقف روزانه دارند. این «پس گرفتن» جریمه نیست و فقط امتیاز نادرست را حذف می‌کند.
+
+*جذابیت و کیفیت ظاهری:*
+- جزیره به سبک تصویرسازی ایزومتریک (دوونیم‌بعدی) و با الهام از نگارگری و معماری ایرانی کشیده می‌شود: گنبد فیروزه‌ای، کاشی، سرو و حوض.
+- حرکت‌های زنده دارد: موج و برق آب، پرواز پرنده، تکان درخت، روشن شدن فانوس‌ها در شب و چرخهٔ صبح، روز، غروب و شب.
+- ارتقای هر بنا یک انیمیشن ساخت کوتاه و چشمگیر دارد. صدای ملایم هم دارد که قابل خاموش کردن است.
+- با لمس روی موبایل و با موس روی دسکتاپ، جزیره جابه‌جا و بزرگ‌نمایی می‌شود. روی موبایل، دسکتاپ و تاشو روان اجرا می‌شود.
+- «کاهش حرکت» رعایت می‌شود و همهٔ متن‌های بازی دو زبانه‌اند.
+- **قبل از ساخت کامل بازی، یک محلهٔ نمونه (باغ ایرانی) در دو سبک تصویری ساخته و به کاربر نشان داده می‌شود.** کاربر یکی را انتخاب می‌کند و بقیهٔ جزیره با همان سبک ساخته می‌شود.
+
+## مسیر کاربر
+1. کاربر وارد می‌شود و زبان فارسی یا انگلیسی را انتخاب می‌کند. کل اپ با همان زبان و جهت نمایش داده می‌شود.
+2. Inbox یا Today را باز می‌کند و روی یک تسک می‌زند.
+3. سربرگ تسک را یک خط آرام می‌بیند. روی تاریخ یا اولویت می‌زند، پنل کوچک زیر سربرگ باز می‌شود، انتخاب می‌کند و پنل بسته می‌شود.
+4. توضیحات، زیرتسک‌ها و نوت‌های تسک را بدون پنجرهٔ مزاحم ویرایش می‌کند. بعد به نوت‌ها می‌رود و می‌نویسد.
+5. (مرحلهٔ ۲) تسکی را تیک می‌زند و «+۱۲ 🧱» می‌بیند. به «جزیرهٔ من» می‌رود و بازار را به سطح ۲ می‌برد. با سکه یک سرو کنار حوض می‌کارد و مأموریت امروز کتابدار را می‌بیند.
+6. (مرحلهٔ ۳) بقیهٔ صفحه‌ها یکی‌یکی با همان زبان طراحی، و در هر دو زبان، دیده و اصلاح می‌شوند.
+7. بعد از هر بخش، کاربر نتیجه را می‌بیند و تأیید یا اصلاح می‌خواهد.
+
+## حس ظاهری و تجربه
+- ظاهر فعلی با الهام از TickTick حفظ و فقط یکدست‌تر و تمیزتر می‌شود. رنگ‌بندی فعلی، حالت روشن، تیره و OLED و قلم فارسی فعلی می‌مانند.
+- متن‌ها کوتاه‌اند و برچسب تکراری ندارند. سلسله‌مراتب قلم در همهٔ صفحه‌ها و هر دو زبان یکی است.
+- پنجرهٔ شناور فقط برای تأیید کارهای پرخطر، مثل حذف، می‌ماند. بقیهٔ انتخاب‌ها درون صفحه انجام می‌شوند.
+- حرکت‌های اپ نرم و کوتاه‌اند. بازی رنگی‌تر و زنده‌تر و به سبک ایرانی است، اما ورود به آن از دل اپ آرام انجام می‌شود.
+
+## مرحله‌های اجرا
+
+**مرحلهٔ ۱ — MVP (همین الان ساخته می‌شود): ورود برنامه، پایهٔ دو زبانه، تسک‌ها و نوت‌ها**
+- وارد کردن آخرین نسخه از گیت‌هاب و اجرای آن، بدون بخش داروسازی در دامنهٔ کار.
+- پایهٔ دو زبانه: انتخاب زبان در ورود و تنظیمات، جهت صفحه، تاریخ شمسی یا میلادی و اعداد.
+- بازطراحی نوشته‌های سربرگ تسک و جایگزینی همهٔ پاپ‌آپ‌های آن با پنل درون‌صفحه.
+- بررسی کامل صفحهٔ تسک، صفحه‌های فهرست تسک و صفحهٔ نوت‌ها: رفع باگ، یکدست کردن طراحی و کامل کردن هر دو زبان.
+- ترتیب کار: سربرگ تسک ← صفحهٔ تسک ← فهرست‌ها ← نوت. بعد از هر قدم، کاربر نتیجه را می‌بیند.
+
+**مرحلهٔ ۲ — بازی «جزیرهٔ من» (الان ساخته نمی‌شود)**
+- نمونهٔ محلهٔ باغ ایرانی در دو سبک برای انتخاب کاربر.
+- جزیره با هفت محله و بنا، هر کدام با ۵ سطح، مصالح هر بخش، سکه و تزئین‌ها، ساکنان و مأموریت‌ها، نشان‌ها، و فصل‌ها با داستان و رویدادهای فصلی.
+- امتیاز دادن در همهٔ بخش‌ها با زنجیره، سختی، سقف روزانه و پس گرفتن امتیاز نادرست. صفحهٔ امتیازها و تاریخچه.
+- انتقال گل‌ها و قطره‌های گلخانهٔ فعلی به باغ ایرانی جزیره.
+
+**مرحلهٔ ۳ — بقیهٔ صفحه‌ها، یکی‌یکی، در هر دو زبان (الان ساخته نمی‌شود)**
+- برنامه‌ریزی (Planning) و تقویم.
+- دفترچهٔ خاطرات.
+- ذهن، آرامش، روند حال، فکر، نگرانی، چک‌این و سنجش‌ها.
+- رشد: ارزش‌ها و هدف‌ها، معمار زندگی، خودشناسی و درباره من.
+- سلامت: چرخه و خواب.
+- پومودورو، آمار، ویجت‌ها و مخاطبین.
+- نالج، بدون داروسازی.
+- تنظیمات، صفحهٔ ورود، اشتراک‌گذاری‌شده با من و ادمین.
+- در هر صفحه این‌ها بررسی می‌شود: عنوان تکراری، کادر تودرتو، پاپ‌آپ‌های قابل حذف، حالت خالی و خطا، موبایل و تاشو، و ترجمهٔ کامل و جهت درست.
+
+## فرض‌ها
+- برنامه از آخرین نسخهٔ گیت‌هاب، شاخهٔ main، وارد می‌شود. اگر کد گیت‌هاب با نسخهٔ فعلی اینجا فرق داشته باشد، نسخهٔ گیت‌هاب مبناست.
+- منظور از «سرتیتر تسک»، ردیف بالای صفحهٔ باز شدهٔ تسک است. منظور از «پاپ‌آپ»، پنجره‌هایی است که با زدن این موردها باز می‌شوند.
+- پاپ‌آپ‌ها روی موبایل هم با همان پنل درون‌صفحه جایگزین می‌شوند، نه پنجرهٔ پایین صفحه.
+- جهت طراحی اپ همان ظاهر فعلی با الهام از TickTick است که یکدست‌تر می‌شود. طراحی تازهٔ کامل فقط برای بازی است.
+- دو زبانه بودن فقط به متن‌های خود اپ مربوط است. محتوایی که کاربر نوشته، مثل تسک‌ها، نوت‌ها و درس‌های نالج، خودکار ترجمه نمی‌شود.
+- تاریخ شمسی برای زبان فارسی و تاریخ میلادی برای زبان انگلیسی پیش‌فرض است. نمایش تاریخ شمسی در انگلیسی اختیاری است.
+- بازی جریمه ندارد و امتیاز فقط خرج ساختن در بازی می‌شود.
+- تصویرهای بازی یک‌بار و در زمان ساخت، با یک سبک یکدست، آماده می‌شوند. هنگام بازی از هوش مصنوعی استفاده نمی‌شود و هزینهٔ اضافه‌ای ندارد.
+- مقدار امتیاز هر کار در ابتدا به این شکل است: تسک ۱۰ تا ۳۰ بسته به سختی، عادت ۱۵، چک‌این ۲۰، و تمرکز بسته به مدت. سقف و ضریب زنجیره بعد از آزمایش تنظیم می‌شوند.
+- پیشرفت بازی و امتیازها به حساب کاربر وصل می‌شوند و بین دستگاه‌ها همگام می‌مانند. گل‌ها و قطره‌های فعلی حفظ می‌شوند.
+- Firebase (ورود، داده، فضای فایل) و قواعد امنیتی و ساختار دادهٔ فعلی بدون تغییر می‌مانند. فقط داده‌های تازهٔ بازی و تنظیم زبان اضافه می‌شوند.
+- تنظیم کلید شخصی هوش مصنوعی (BYOK) و ساختار اندروید تغییر نمی‌کنند.
+- آزمایش با دادهٔ نمونه انجام می‌شود، نه با حساب واقعی. هر محدودیتی گزارش می‌شود.
+- هیچ تغییری بیرون از بخش‌های توافق‌شده بدون تأیید کاربر انجام نمی‌شود.
+
+---
+## وضعیت اجرا — مرحلهٔ ۱ (۲۰۲۶-۱۰-۰۲)
+- [x] ورود برنامه از گیت‌هاب (commit 976f25a) و نصب وابستگی‌ها (npm install در /app)
+- [x] پایهٔ دو زبانه: انتخاب زبان در صفحهٔ ورود و تنظیمات، ذخیره برای حساب (ui_prefs)، پیشنهاد زبان دستگاه بار اول، جهت صفحه، قلم انگلیسی، تقویم میلادی پیش‌فرض در انگلیسی + گزینهٔ تاریخ شمسی، اعداد بر اساس زبان
+- [x] سربرگ تسک: یک خط آرام (آیکن + مقدار)، حذف همهٔ پاپ‌آپ‌ها/دیالوگ پوشه و هدف، پنل درون‌صفحه (یکی در هر لحظه، Escape/زدن دوباره/انتخاب می‌بندد)، ساخت پوشه/برچسب در پنل، برنامه‌ریزی به‌عنوان آیتم سربرگ
+- [x] صفحهٔ تسک: بخش‌های یکدست (TaskSection)، حذف کادرهای تودرتو، حذف خطوط گرادیانی، حذف دکمهٔ فقط-hover، مخاطب خالی پنهان
+- [x] فهرست‌ها: عنوان گروه‌ها یکدست (TaskGroupHeader)، پس‌زمینهٔ مات چسبان، تاریخ «فردا ۱۰:۰۰»، چیپ برنامه‌ریزی فقط وقتی تنظیم شده، آینه شدن ردیف در انگلیسی
+- [x] نوت‌ها: پوشه/برچسب با پنل درون‌صفحه، پیش‌نمایش متن تمیز، رفع ایتالیک اشتباه در `_`
+- [ ] تست کامل با testing agent

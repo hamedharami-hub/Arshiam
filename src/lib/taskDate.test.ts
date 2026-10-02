@@ -26,6 +26,8 @@ describe("task date parsing", () => {
     const formattedDateOnly = formatTaskDueDateDisplay("2026-09-17", true);
     expect(formattedDateOnly).toContain("Sep");
     const formattedWithTime = formatTaskDueDateDisplay("2026-09-17T14:30:00", true);
-    expect(formattedWithTime).toContain("14:30");
+    expect(formattedWithTime).toMatch(/0?2:30\s?PM/);
+    // The picker's "no time" marker (23:59) shows the day only.
+    expect(formatTaskDueDateDisplay("2026-09-17T23:59:00", true)).not.toMatch(/11:59/);
   });
 });

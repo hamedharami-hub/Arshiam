@@ -1,3 +1,4 @@
+import { TaskSection, TaskSectionAction } from "./TaskSection";
 import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -71,25 +72,7 @@ export function TaskRelatedContacts({
   if (taskContacts.length === 0) {
     return (
       <>
-        <div className="flex items-center justify-between py-1 px-2 rounded-xl bg-muted/20 border border-border/30">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Users className="w-3.5 h-3.5" />
-            <span>{T("افراد مرتبط", "Related people")}</span>
-          </div>
-          {canEdit && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setPickerOpen(true)}
-              className="h-6 text-xs px-2 gap-1 text-primary hover:text-primary hover:bg-primary/10 rounded-lg"
-            >
-              <UserPlus className="w-3 h-3" />
-              <span>{T("افزودن شخص", "Add person")}</span>
-            </Button>
-          )}
-        </div>
-
+        {/* Empty: nothing shown — people are added from the bottom bar's "More" menu. */}
         <ContactPickerModal
           open={pickerOpen}
           onOpenChange={setPickerOpen}
@@ -102,30 +85,8 @@ export function TaskRelatedContacts({
   }
 
   return (
-    <section className="rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4 transition-all">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5 text-sm font-semibold">
-          <Users className="h-4 w-4 text-primary" />
-          <span>{T("افراد مرتبط", "Related people")}</span>
-          <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-            {taskContacts.length}
-          </span>
-        </div>
-
-        {canEdit && (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => setPickerOpen(true)}
-            className="h-7 text-xs px-2.5 gap-1 rounded-full"
-          >
-            <UserPlus className="w-3 h-3" />
-            <span>{T("افزودن", "Add")}</span>
-          </Button>
-        )}
-      </div>
-
+    <TaskSection icon={Users} title={T("افراد مرتبط", "Related people")} count={taskContacts.length} testid="task-contacts-section"
+      actions={canEdit ? <TaskSectionAction icon={UserPlus} onClick={() => setPickerOpen(true)}>{T("افزودن", "Add")}</TaskSectionAction> : null}>
       <div className="flex flex-wrap gap-2 pt-1">
         {taskContacts.map((tc) => {
           const c = tc.contact;
@@ -135,7 +96,7 @@ export function TaskRelatedContacts({
             <div
               key={tc.id}
               onClick={() => handleContactClick(c)}
-              className="group flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-card border border-border/60 hover:border-primary/40 hover:bg-accent/40 cursor-pointer transition shadow-xs"
+              className="group flex items-center gap-2 rounded-md bg-muted/40 px-2.5 py-1.5 cursor-pointer transition hover:bg-muted"
             >
               <ContactAvatar contact={c} name={name} size="xs" />
 
@@ -189,6 +150,6 @@ export function TaskRelatedContacts({
           loadData();
         }}
       />
-    </section>
+    </TaskSection>
   );
 }

@@ -37,8 +37,8 @@ export function TaskStepLists({
   onCountChange?: (count: number) => void;
   readOnly?: boolean;
 }) {
-  const { user } = useAuth();
   const { T } = useBilingual();
+  const { user } = useAuth();
   const [lists, setLists] = useState<StepList[]>([]);
   const [steps, setSteps] = useState<Step[]>([]);
   const [newListTitle, setNewListTitle] = useState("");
@@ -259,7 +259,7 @@ export function TaskStepLists({
                     addStep(list.id);
                   }
                 }}
-                placeholder="+ مرحله جدید..."
+                placeholder={T("+ مرحلهٔ تازه…", "+ New step…")}
                 className="text-xs flex-1 min-h-[28px] max-h-[120px] py-1.5"
                 dir="auto"
                 rows={1}
@@ -283,6 +283,7 @@ function StepBullet({
 }: {
   style: StepStyle; index: number; completed: boolean; onToggle: () => void;
 }) {
+  const { T } = useBilingual();
   if (style === "checkbox") {
     return (
       <div className="pt-1.5">
@@ -302,7 +303,7 @@ function StepBullet({
       className={`pt-1 w-6 text-sm tabular-nums text-muted-foreground hover:text-foreground select-none ${
         completed ? "line-through opacity-60" : ""
       }`}
-      title="تیک کامل/ناتمام"
+      title={T("انجام / نیمه‌کاره", "Done / not done")}
     >
       {glyph}
     </button>
@@ -321,6 +322,7 @@ function SortableStepItem({
   onChange: (text: string) => void;
   onDelete: () => void;
 }) {
+  const { T } = useBilingual();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const sty = {
     transform: CSS.Transform.toString(transform),
@@ -334,8 +336,8 @@ function SortableStepItem({
         {...attributes}
         {...listeners}
         className="pt-1.5 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0"
-        aria-label="جابجایی"
-        title="جابجایی"
+        aria-label={T("جابه‌جایی", "Reorder")}
+        title={T("جابه‌جایی", "Reorder")}
       >
         <GripVertical className="w-3.5 h-3.5" />
       </button>

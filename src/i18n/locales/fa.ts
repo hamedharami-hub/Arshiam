@@ -466,4 +466,10 @@ export default {
     toNote: "تبدیل به نوت",
     voice: "ورودی صوتی",
   },
+  offline: {
+    willSync: "با اتصال اینترنت همگام می‌شود",
+  },
+  error: {
+    saveFailed: "ذخیره نشد",
+  },
 };

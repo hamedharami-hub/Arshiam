@@ -159,7 +159,7 @@ export default function AppLayout() {
           )}
           <main
             id="main-scroll"
-            style={{ "--app-bottom-space": showMobileBottomBar ? "calc(5.2rem + env(safe-area-inset-bottom))" : "0.5rem", backgroundColor: pageTint(pageBg.color, pageBg.isDefault ? 6 : 10) } as CSSProperties}
+            style={{ "--app-bottom-space": showMobileBottomBar ? "calc(5.2rem + env(safe-area-inset-bottom))" : "0.5rem", backgroundColor: pageTint(pageBg.color, pageBg.isDefault ? 6 : 10), "--page-surface": pageTint(pageBg.color, pageBg.isDefault ? 6 : 10) || "hsl(var(--background))" } as CSSProperties}
             className={cn(
               "flex-1 overflow-auto",
               showMobileBottomBar

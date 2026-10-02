@@ -56,7 +56,7 @@ export function NoteEditorTabs({
           fallback={
             <div className="h-32 flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground rounded-lg border border-dashed border-border/60 bg-muted/20">
               <Loader2 className="w-4 h-4 animate-spin text-primary" />
-              <span className="text-xs">در حال بارگذاری ویرایشگر...</span>
+              <span className="text-xs">{T("در حال آماده کردن ویرایشگر…", "Loading editor…")}</span>
             </div>
           }
         >
@@ -90,7 +90,7 @@ export function NoteEditorTabs({
           dir="ltr"
         />
         <div>
-          <p className="text-xs text-muted-foreground mb-1">پیش‌نمایش زنده:</p>
+          <p className="text-xs text-muted-foreground mb-1">{T("پیش‌نمایش زنده", "Live preview")}</p>
           <div className="prose-note max-w-none">
             <NoteMarkdown>
               {markdown || ""}

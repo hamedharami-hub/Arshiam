@@ -1,4 +1,4 @@
-import { formatDate } from "./jalali";
+import { formatDueLabel } from "./localeFormat";
 
 /** Parse task dates consistently in the user's local timezone.
  * Date-only Firestore values must not go through Date.parse (UTC), otherwise
@@ -35,9 +35,5 @@ export function getLocalDateString(date: Date = new Date(), timeZone?: string): 
 }
 
 export function formatTaskDueDateDisplay(value: string | null | undefined, isEn = false): string {
-  const d = parseTaskDueDate(value);
-  if (!d) return "";
-  const hasTime = typeof value === "string" && value.includes("T");
-  const system = isEn ? "gregorian" : undefined;
-  return formatDate(d, hasTime ? (isEn ? "d MMM, HH:mm" : "d MMM، HH:mm") : "d MMM", system);
+  return formatDueLabel(value, null, isEn ? "en" : "fa") || "";
 }

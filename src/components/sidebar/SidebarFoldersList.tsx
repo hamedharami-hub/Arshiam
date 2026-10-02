@@ -113,8 +113,8 @@ export function FolderRow({
               style={f.color ? { color: f.color } : undefined}
             />
             {!collapsed && (
-              <span dir="auto" className="min-w-0 flex-1 truncate text-start" style={{ unicodeBidi: "plaintext" }}>
-                {f.name}
+              <span className="min-w-0 flex-1 truncate text-start">
+                <bdi>{f.name}</bdi>
               </span>
             )}
             {!collapsed && <NavCount countKey={`folder:${f.id}`} />}

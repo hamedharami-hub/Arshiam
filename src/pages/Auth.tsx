@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { LanguageToggle } from "@/components/LanguageSwitcher";
 import { safeInternalPath } from "@/lib/safeNavigation";
 import { requestPasswordReset } from "@/lib/authService";
 
@@ -196,6 +197,7 @@ export default function Auth() {
   return (
     <main dir={isEn ? "ltr" : "rtl"} className="auth-theme auth-grain relative min-h-screen overflow-hidden" data-testid="auth-page">
       <div className="relative mx-auto grid min-h-screen w-full max-w-6xl lg:grid-cols-2">
+        <LanguageToggle tone="auth" className="auth-rise absolute top-5 end-5 z-10 sm:end-10" />
         <section className="relative flex flex-col items-center justify-center px-6 pb-2 pt-10 lg:py-14" data-testid="auth-art-panel">
           <p className="auth-wordmark auth-rise absolute top-7 start-6 text-[13px] sm:start-10" style={{ color: "hsl(var(--auth-ink))" }} data-testid="auth-wordmark">ARSHNAZ</p>
           <AngelLineArt className="h-56 w-auto sm:h-72 lg:h-[30rem]" />
@@ -221,7 +223,7 @@ export default function Auth() {
               )}
               <label className="block space-y-1">
                 <span className={fieldLabel} style={{ color: "hsl(var(--auth-muted))" }}>{T("ایمیل", "Email")}</span>
-                <input id={signup ? "email-up" : "email-in"} type="email" required autoComplete="email" dir="ltr" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="auth-field text-left" data-testid={signup ? "email-up-input" : "email-in-input"} />
+                <input id={signup ? "email-up" : "email-in"} type="email" required autoComplete="email" dir="ltr" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="auth-field text-start" data-testid={signup ? "email-up-input" : "email-in-input"} />
               </label>
               <label className="block space-y-1">
                 <span className="flex items-center justify-between">

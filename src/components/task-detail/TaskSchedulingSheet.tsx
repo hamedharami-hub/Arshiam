@@ -1,233 +1,98 @@
-import { TaskPlanningPicker } from "@/components/TaskPlanningPicker";
 import React from "react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Clock } from "lucide-react";
 import { DueDatePicker } from "@/components/DueDatePicker";
-import { RecurrenceEditor } from "@/components/RecurrenceEditor";
 import { BucketPickerBody } from "@/components/BucketPickerInline";
+import { toPersianDigits } from "@/lib/persianDigits";
 import type { Task } from "@/lib/taskTypes";
-import { MetaTile } from "./MetaTile";
 
-export interface TaskSchedulingSheetProps {
+export interface TaskScheduleBodyProps {
   t: Task;
-  scheduleOpen: boolean;
-  setScheduleOpen: (open: boolean) => void;
   canEdit: boolean;
-  isScheduled: boolean;
-  scheduleLabel: string | null;
   hasTimeBlock: boolean;
   save: (patch: Partial<Task>) => void;
   postpone: (days: number) => void;
   T: (fa: string, en: string) => string;
+  isEn: boolean;
 }
 
-export function TaskSchedulingSheet({
-  t,
-  scheduleOpen,
-  setScheduleOpen,
-  canEdit,
-  isScheduled,
-  scheduleLabel,
-  hasTimeBlock,
-  save,
-  postpone,
-  T,
-}: TaskSchedulingSheetProps) {
-  const triggerButton = (
-    <MetaTile
-      icon={Clock}
-      label={T("زمان", "Schedule")}
-      value={scheduleLabel}
-      active={isScheduled}
-      activeClassName="bg-primary/12 text-primary"
-      disabled={!canEdit}
-      title={scheduleLabel ?? T("زمان‌بندی", "Schedule")}
-      aria-label={scheduleLabel ?? T("زمان‌بندی", "Schedule")}
-      data-testid="task-meta-schedule"
-    />
-  );
+const Dot = () => <span className="absolute top-1 end-1 h-1.5 w-1.5 rounded-full bg-primary" />;
 
-  const tabsContent = (
-    <Tabs defaultValue="date">
-          <TabsList className="grid grid-cols-4 w-full mb-2 h-9 rounded-xl bg-muted/60 p-1">
-            <TabsTrigger value="date" className="text-[11px] px-1 relative">
-              {T("تاریخ", "Date")}
-              {(t.due_date || t.reminder_at) && (
-                <span className="absolute top-1 end-1 w-1.5 h-1.5 rounded-full bg-primary" />
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="block" className="text-[11px] px-1 relative">
-              {T("تایم‌بلاک", "Block")}
-              {hasTimeBlock && (
-                <span className="absolute top-1 end-1 w-1.5 h-1.5 rounded-full bg-primary" />
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="repeat" className="text-[11px] px-1 relative">
-              {T("تکرار", "Repeat")}
-              {t.recurrence_rule && (
-                <span className="absolute top-1 end-1 w-1.5 h-1.5 rounded-full bg-primary" />
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="bucket" className="text-[11px] px-1 relative">
-              {T("بازه", "Bucket")}
-              {t.bucket_kind && (
-                <span className="absolute top-1 end-1 w-1.5 h-1.5 rounded-full bg-primary" />
-              )}
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="date" className="mt-0 space-y-3">
-            <DueDatePicker
-              label=""
-              value={t.due_date}
-              recurrenceValue={t.recurrence_rule || null}
-              onRecurrenceChange={(rule) => save({ recurrence_rule: rule, recurrence: rule ? (rule.freq as any) : "none" })}
-              reminderValue={t.reminder_at}
-              reminderPlan={t.reminder_plan}
-              onReminderPlanChange={(plan) => save({ reminder_plan: plan, reminder_at: plan?.trigger_at ?? null })}
-              onReminderChange={(iso) => save({ reminder_at: iso })}
-              onChange={(iso) => save({ due_date: iso })}
-            />
-            <div className="border-t pt-2">
-              <label className="text-[10px] text-muted-foreground mb-1.5 block">
-                {T("به تعویق انداختن", "Postpone")}
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {[1, 3, 7].map((d) => (
-                  <Button
-                    key={d}
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-8 text-xs px-2.5"
-                    onClick={() => postpone(d)}
-                  >
-                    {d === 1
-                      ? T("فردا", "Tomorrow")
-                      : d === 3
-                        ? T("۳ روز دیگر", "+3 days")
-                        : T("هفته آینده", "Next week")}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </TabsContent>
-          <TabsContent value="block" className="mt-0 space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[10px] text-muted-foreground">{T("شروع", "Start")}</label>
-                <Input
-                  type="datetime-local"
-                  className="h-9 text-xs"
-                  value={t.start_at ? t.start_at.slice(0, 16) : ""}
-                  onChange={(e) =>
-                    save({
-                      start_at: e.target.value ? new Date(e.target.value).toISOString() : null,
-                    } as any)
-                  }
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-muted-foreground">{T("پایان", "End")}</label>
-                <Input
-                  type="datetime-local"
-                  className="h-9 text-xs"
-                  value={t.end_at ? t.end_at.slice(0, 16) : ""}
-                  onChange={(e) =>
-                    save({
-                      end_at: e.target.value ? new Date(e.target.value).toISOString() : null,
-                    } as any)
-                  }
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <label className="text-[10px] text-muted-foreground whitespace-nowrap">
-                {T("تخمین (دقیقه):", "Estimate:")}
-              </label>
-              <Input
-                type="number"
-                placeholder="—"
-                value={t.estimated_minutes ?? ""}
-                onChange={(e) =>
-                  save({
-                    estimated_minutes: e.target.value ? Number(e.target.value) : null,
-                  } as any)
-                }
-                className="h-8 w-20 text-xs"
-              />
-              <div className="flex gap-1">
-                {[15, 30, 60].map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => save({ estimated_minutes: m } as any)}
-                    className={`px-2 h-7 text-[10px] rounded-lg border ${
-                      t.estimated_minutes === m
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "hover:bg-accent"
-                    }`}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </TabsContent>
-          <TabsContent value="repeat" className="mt-0">
-            <RecurrenceEditor
-              value={t.recurrence_rule}
-              onChange={(rule) => save({ recurrence_rule: rule } as any)}
-            />
-          </TabsContent>
-          <TabsContent value="bucket" className="mt-0">
-            <p className="text-[10px] text-muted-foreground mb-1.5 px-1">
-              {T(
-                "بازهٔ برنامه‌ریزی مستقل از تاریخ و ساعت دقیق تسک است.",
-                "The planning period is independent of the exact task date and time.",
-              )}
-            </p>
-            <TaskPlanningPicker task={t} onPatch={patch => save(patch)} disabled={!canEdit} />
-            <BucketPickerBody subDayOnly
-              value={{
-                kind: (t.bucket_kind as any) || null,
-                calendar: (t.bucket_calendar as any) || null,
-                anchor: (t.bucket_anchor as any) || null,
-              }}
-              onChange={(v) =>
-                save({
-                  bucket_kind: v.kind,
-                  bucket_calendar: v.calendar,
-                  bucket_anchor: v.anchor,
-                } as any)
-              }
-              onPickTimeOfDay={(hour) => {
-                const d = new Date();
-                d.setHours(hour, 0, 0, 0);
-                save({ due_date: d.toISOString() } as any);
-              }}
-            />
-          </TabsContent>
-        </Tabs>
-  );
-
+/** Date, reminder, repeat, postpone, time block and part-of-day — rendered inline under the task header. */
+export function TaskScheduleBody({ t, canEdit, hasTimeBlock, save, postpone, T, isEn }: TaskScheduleBodyProps) {
+  const label = "mb-1.5 block text-xs text-muted-foreground";
   return (
-    <Popover open={scheduleOpen} onOpenChange={setScheduleOpen}>
-      <PopoverTrigger asChild>
-        {triggerButton}
-      </PopoverTrigger>
-      <PopoverContent
-        className="max-h-[min(82dvh,42rem)] w-[min(94vw,28rem)] overflow-y-auto overscroll-contain rounded-2xl p-3 sm:p-4"
-        align="center"
-        side="top"
-        sticky="always"
-        collisionPadding={12}
-        data-testid="task-schedule-popover"
-      >
-        {tabsContent}
-      </PopoverContent>
-    </Popover>
+    <Tabs defaultValue="date" dir={isEn ? "ltr" : "rtl"} data-testid="task-schedule-body">
+      <TabsList className="mb-3 grid h-8 w-full grid-cols-3 rounded-lg bg-muted/60 p-0.5">
+        <TabsTrigger value="date" className="relative px-1 text-xs" data-testid="schedule-tab-date">
+          {T("تاریخ و تکرار", "Date & repeat")}{(t.due_date || t.reminder_at || t.recurrence_rule) && <Dot />}
+        </TabsTrigger>
+        <TabsTrigger value="block" className="relative px-1 text-xs" data-testid="schedule-tab-block">
+          {T("بازهٔ زمانی", "Time block")}{hasTimeBlock && <Dot />}
+        </TabsTrigger>
+        <TabsTrigger value="bucket" className="relative px-1 text-xs" data-testid="schedule-tab-bucket">
+          {T("بخش روز", "Part of day")}{t.bucket_kind && <Dot />}
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="date" className="mt-0 space-y-3">
+        <DueDatePicker
+          label=""
+          value={t.due_date}
+          recurrenceValue={t.recurrence_rule || null}
+          onRecurrenceChange={(rule) => save({ recurrence_rule: rule, recurrence: rule ? (rule.freq as any) : "none" })}
+          reminderValue={t.reminder_at}
+          reminderPlan={t.reminder_plan}
+          onReminderPlanChange={(plan) => save({ reminder_plan: plan, reminder_at: plan?.trigger_at ?? null })}
+          onReminderChange={(iso) => save({ reminder_at: iso })}
+          onChange={(iso) => save({ due_date: iso })}
+        />
+        <div className="border-t border-border/60 pt-2.5">
+          <span className={label}>{T("عقب انداختن", "Postpone")}</span>
+          <div className="flex flex-wrap gap-1.5">
+            {[1, 3, 7].map((d) => (
+              <Button key={d} type="button" size="sm" variant="ghost" disabled={!canEdit} className="h-8 bg-muted/50 px-2.5 text-xs" onClick={() => postpone(d)} data-testid={`postpone-${d}`}>
+                {d === 1 ? T("فردا", "Tomorrow") : d === 3 ? T("۳ روز بعد", "In 3 days") : T("هفتهٔ بعد", "Next week")}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </TabsContent>
+      <TabsContent value="block" className="mt-0 space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-xs text-muted-foreground">
+            {T("شروع", "Start")}
+            <Input type="datetime-local" className="mt-1 h-9 text-xs" disabled={!canEdit} value={t.start_at ? t.start_at.slice(0, 16) : ""}
+              onChange={(e) => save({ start_at: e.target.value ? new Date(e.target.value).toISOString() : null } as any)} />
+          </label>
+          <label className="text-xs text-muted-foreground">
+            {T("پایان", "End")}
+            <Input type="datetime-local" className="mt-1 h-9 text-xs" disabled={!canEdit} value={t.end_at ? t.end_at.slice(0, 16) : ""}
+              onChange={(e) => save({ end_at: e.target.value ? new Date(e.target.value).toISOString() : null } as any)} />
+          </label>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="whitespace-nowrap text-xs text-muted-foreground">{T("زمان تخمینی (دقیقه)", "Estimate (min)")}</span>
+          <Input type="number" placeholder="—" disabled={!canEdit} value={t.estimated_minutes ?? ""}
+            onChange={(e) => save({ estimated_minutes: e.target.value ? Number(e.target.value) : null } as any)}
+            className="h-8 w-20 text-xs" data-testid="schedule-estimate" />
+          <div className="flex gap-1">
+            {[15, 30, 60].map((m) => (
+              <button key={m} type="button" disabled={!canEdit} onClick={() => save({ estimated_minutes: m } as any)}
+                className={`h-7 rounded-md px-2 text-xs ${t.estimated_minutes === m ? "bg-primary text-primary-foreground" : "bg-muted/50 hover:bg-muted"}`}>
+                {isEn ? m : toPersianDigits(m)}
+              </button>
+            ))}
+          </div>
+        </div>
+      </TabsContent>
+      <TabsContent value="bucket" className="mt-0">
+        <BucketPickerBody subDayOnly
+          value={{ kind: (t.bucket_kind as any) || null, calendar: (t.bucket_calendar as any) || null, anchor: (t.bucket_anchor as any) || null }}
+          onChange={(v) => save({ bucket_kind: v.kind, bucket_calendar: v.calendar, bucket_anchor: v.anchor } as any)}
+          onPickTimeOfDay={(hour) => { const d = new Date(); d.setHours(hour, 0, 0, 0); save({ due_date: d.toISOString() } as any); }}
+        />
+      </TabsContent>
+    </Tabs>
   );
 }

@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 import { format as formatJalali } from "date-fns-jalali";
 import { format as formatGregorian } from "date-fns";
 
@@ -7,6 +8,9 @@ const PREF_KEY = "calendar_system_v1";
 
 export function getCalendarSystem(): CalendarSystem {
   try {
+    // English UI: Gregorian by default; Jalali only when "Show Persian dates" is on.
+    const lang = i18n.language || localStorage.getItem("arshnaz_app_language") || "fa";
+    if (lang && lang.startsWith("en")) return localStorage.getItem("arshnaz_en_show_jalali") === "1" ? "jalali" : "gregorian";
     const v = localStorage.getItem(PREF_KEY);
     if (v === "jalali" || v === "gregorian") return v;
   } catch {}
@@ -18,7 +22,9 @@ export function setCalendarSystem(s: CalendarSystem) {
 }
 
 const FA_DIGITS = ["۰","۱","۲","۳","۴","۵","۶","۷","۸","۹"];
+/** Persian digits in the Persian UI; Latin digits stay as-is in the English UI. */
 export function toPersianDigits(s: string | number): string {
+  if ((i18n.language || "fa").startsWith("en")) return String(s);
   return String(s).replace(/\d/g, (d) => FA_DIGITS[+d]);
 }
 

@@ -47,7 +47,7 @@ function parseInlineMarkdown(input: string): React.ReactNode[] {
     { re: /\*\*\*([^*\n]+?)\*\*\*/, render: (m) => <strong className="font-extrabold text-foreground"><em>{m[1]}</em></strong> },
     // Double asterisk or double underscore: extra bold
     { re: /\*\*([^*\n]+?)\*\*/, render: (m) => <strong className="font-extrabold text-foreground">{m[1]}</strong> },
-    { re: /__([^_\n]+?)__/, render: (m) => <strong className="font-extrabold text-foreground">{m[1]}</strong> },
+    { re: /(?<![\p{L}\p{N}])__([^_\n]+?)__(?![\p{L}\p{N}])/u, render: (m) => <strong className="font-extrabold text-foreground">{m[1]}</strong> },
     // Highlight
     { re: /==([^=\n]+?)==/, render: (m) => <mark className="px-1 py-0.5 rounded bg-amber-400/30 dark:bg-amber-400/20 text-foreground font-semibold">{m[1]}</mark> },
     // Strikethrough
@@ -56,7 +56,7 @@ function parseInlineMarkdown(input: string): React.ReactNode[] {
     { re: /`([^`\n]+?)`/, render: (m) => <code className="px-1.5 py-0.5 rounded bg-muted font-mono text-[0.88em] border border-border/50 ltr inline-block">{m[1]}</code> },
     // Single asterisk or underscore: italic
     { re: /(?<!\*)\*(?!\*)([^*\n]+?)(?<!\*)\*(?!\*)/, render: (m) => <em className="italic">{m[1]}</em> },
-    { re: /(?<!_)_(?!_)([^_\n]+?)(?<!_)_(?!_)/, render: (m) => <em className="italic">{m[1]}</em> },
+    { re: /(?<![_\p{L}\p{N}])_(?!_)([^_\n]+?)(?<!_)_(?![_\p{L}\p{N}])/u, render: (m) => <em className="italic">{m[1]}</em> },
   ];
 
   // Recursive walker

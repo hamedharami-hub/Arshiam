@@ -464,7 +464,7 @@ function SortableSubtaskRow({
           size="icon"
           variant="ghost"
           onClick={onDelete}
-          className="h-6 w-6 opacity-70 sm:opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+          className="h-6 w-6 text-muted-foreground/60 hover:text-destructive focus-visible:text-destructive"
         >
           <Trash2 className="w-3 h-3" />
         </Button>

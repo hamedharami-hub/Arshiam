@@ -51,6 +51,8 @@ interface TaskDetailTopBarProps {
   goalLabel?: string | null;
   onFolder: () => void;
   onGoal: () => void;
+  folderActive?: boolean;
+  goalActive?: boolean;
   onBack?: () => void;
   onClose?: () => void;
   save: React.ReactNode;
@@ -60,9 +62,9 @@ interface TaskDetailTopBarProps {
 
 // One row: [back] folder › goal … save ⋯ ✕
 export function TaskDetailTopBar({
-  T, isEn, canEdit, folderLabel, folderColor, hasFolder, goalLabel, onFolder, onGoal, onBack, onClose, save, more, extra,
+  T, isEn, canEdit, folderLabel, folderColor, hasFolder, goalLabel, onFolder, onGoal, folderActive, goalActive, onBack, onClose, save, more, extra,
 }: TaskDetailTopBarProps) {
-  const crumb = "inline-flex h-8 min-w-0 items-center gap-1.5 rounded-md px-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:hover:bg-transparent";
+  const crumb = (active?: boolean) => `inline-flex h-7 min-w-0 items-center gap-1.5 rounded-md px-1.5 text-[13px] transition-colors disabled:hover:bg-transparent ${active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"}`;
   return (
     <div className="flex min-h-10 items-center gap-1" data-testid="task-detail-topbar">
       {onBack && (
@@ -71,16 +73,16 @@ export function TaskDetailTopBar({
         </Button>
       )}
       <nav className="flex min-w-0 flex-1 items-center" aria-label={T("مسیر تسک", "Task location")}>
-        <button type="button" disabled={!canEdit} onClick={onFolder} className={crumb} title={`${T("تغییر فولدر", "Change folder")}: ${folderLabel}`} data-testid="task-breadcrumb-folder">
+        <button type="button" disabled={!canEdit} onClick={onFolder} className={crumb(folderActive)} aria-expanded={!!folderActive} title={`${T("پوشه", "Folder")}: ${folderLabel}`} data-testid="task-breadcrumb-folder">
           {hasFolder
             ? <FolderIcon className="h-4 w-4 shrink-0" style={folderColor ? { color: folderColor } : undefined} />
             : <Inbox className="h-4 w-4 shrink-0" />}
           <span className="truncate" dir="auto">{folderLabel}</span>
         </button>
         <ChevronLeft className={`h-3.5 w-3.5 shrink-0 text-muted-foreground/60 ${isEn ? "rotate-180" : ""}`} aria-hidden />
-        <button type="button" disabled={!canEdit} onClick={onGoal} className={crumb} title={`${T("تغییر هدف", "Change goal")}: ${goalLabel || T("بدون هدف", "No goal")}`} data-testid="task-breadcrumb-goal">
-          <Target className="h-4 w-4 shrink-0" />
-          <span className="truncate" dir="auto">{goalLabel || T("بدون هدف", "No goal")}</span>
+        <button type="button" disabled={!canEdit} onClick={onGoal} className={crumb(goalActive)} aria-expanded={!!goalActive} title={`${T("هدف", "Goal")}: ${goalLabel || T("بدون هدف", "No goal")}`} data-testid="task-breadcrumb-goal">
+          <Target className={`h-4 w-4 shrink-0 ${goalLabel ? "" : "opacity-50"}`} />
+          {goalLabel && <span className="truncate" dir="auto">{goalLabel}</span>}
         </button>
       </nav>
       <div className="flex shrink-0 items-center">

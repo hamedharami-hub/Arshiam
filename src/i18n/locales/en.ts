@@ -466,4 +466,10 @@ export default {
     toNote: "Move to note",
     voice: "Voice input",
   },
+  offline: {
+    willSync: "will sync when you're online",
+  },
+  error: {
+    saveFailed: "Couldn't save",
+  },
 };

@@ -1,4 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
+import i18n from "@/i18n";
+
+// The stored value is the Persian (RTL) layout; the English (LTR) layout mirrors it so the sidebar stays at the reading start.
+const isLtr = () => (i18n.language || "fa").startsWith("en");
+const flip = (p: "right" | "left"): "right" | "left" => (p === "right" ? "left" : "right");
 
 export type SidebarPosition = "right" | "left";
 
@@ -9,16 +14,17 @@ export function getSidebarPosition(): SidebarPosition {
   if (typeof window === "undefined") return "right";
   try {
     const val = localStorage.getItem(SIDEBAR_POSITION_STORAGE_KEY);
-    if (val === "left" || val === "right") return val;
+    const stored: SidebarPosition = val === "left" || val === "right" ? val : "right";
+    return isLtr() ? flip(stored) : stored;
   } catch {
     // ignore
   }
-  return "right";
+  return isLtr() ? "left" : "right";
 }
 
 export function setSidebarPosition(pos: SidebarPosition): void {
   try {
-    localStorage.setItem(SIDEBAR_POSITION_STORAGE_KEY, pos);
+    localStorage.setItem(SIDEBAR_POSITION_STORAGE_KEY, isLtr() ? flip(pos) : pos);
   } catch {
     // ignore
   }
@@ -49,9 +55,12 @@ export function useSidebarPosition(): {
       }
     };
 
+    const handleLanguage = () => setPositionState(getSidebarPosition());
     window.addEventListener(SIDEBAR_POSITION_EVENT, handleCustomEvent);
     window.addEventListener("storage", handleStorage);
+    i18n.on("languageChanged", handleLanguage);
     return () => {
+      i18n.off("languageChanged", handleLanguage);
       window.removeEventListener(SIDEBAR_POSITION_EVENT, handleCustomEvent);
       window.removeEventListener("storage", handleStorage);
     };

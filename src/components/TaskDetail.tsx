@@ -1,4 +1,3 @@
-import { TaskPlanningPicker } from "./TaskPlanningPicker";
 import { mindSourceRoute } from "@/lib/taskFromMind";
 import { NoteMarkdown } from "@/components/NoteMarkdown";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
@@ -59,7 +58,9 @@ import { TaskOutcomesInline } from "@/components/TaskOutcomesInline";
 import { listTaskOutcomes } from "@/lib/taskOutcomes";
 import { DueDatePicker } from "@/components/DueDatePicker";
 import { BucketPickerBody } from "@/components/BucketPickerInline";
-import { TaskMetaBar } from "@/components/task-detail/TaskMetaBar";
+import { TaskMetaBar, type TaskMetaPanel } from "@/components/task-detail/TaskMetaBar";
+import { TaskSection, TaskSectionAction } from "@/components/task-detail/TaskSection";
+import { formatDueLabel } from "@/lib/localeFormat";
 import { TaskDetailBottomRail } from "@/components/task-detail/TaskDetailBottomRail";
 import { TaskCloseDialog } from "@/components/task-detail/TaskCloseDialog";
 import { SaveStatusButton, TaskDetailTopBar } from "@/components/task-detail/TaskDetailTopBar";
@@ -156,9 +157,13 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [subtaskProgress, setSubtaskProgress] = useState({ completed: 0, total: 0 });
   const [loadedSubtasks, setLoadedSubtasks] = useState<Array<{ id: string; title: string; completed: boolean; position: number }>>([]);
   const [tagOpen, setTagOpen] = useState(false);
-  const [topTagOpen, setTopTagOpen] = useState(false);
-  const [folderOpen, setFolderOpen] = useState(false);
-  const [goalOpen, setGoalOpen] = useState(false);
+  // One inline panel under the task header at a time (folder, goal, schedule, plan, priority, tags).
+  const [metaPanel, setMetaPanel] = useState<TaskMetaPanel | null>(null);
+  const panelSetter = (p: TaskMetaPanel) => (open: boolean) => setMetaPanel((cur) => (open ? p : cur === p ? null : cur));
+  const topTagOpen = metaPanel === "tags";
+  const setTopTagOpen = panelSetter("tags");
+  const folderOpen = metaPanel === "folder";
+  const setFolderOpen = panelSetter("folder");
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [focusOpen, setFocusOpen] = useState(false);
   const [showTimeBlock, setShowTimeBlock] = useState(hasTimeBlock);
@@ -168,7 +173,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [linkUrl, setLinkUrl] = useState("");
   const [voiceListening, setVoiceListening] = useState(false);
   const [voiceInstance, setVoiceInstance] = useState<VoiceInput | null>(null);
-  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const scheduleOpen = metaPanel === "schedule";
+  const setScheduleOpen = panelSetter("schedule");
   const [parentOpen, setParentOpen] = useState(false);
   const [parentTitle, setParentTitle] = useState("");
   const [allTasks, setAllTasks] = useState<{ id: string; title: string; parent_id: string | null }[]>([]);
@@ -602,10 +608,9 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     if (focusOpen) { setFocusOpen(false); return; }
     if (aiOpen) { setAiOpen(false); return; }
     if (outcomeOpen) { setOutcomeOpen(false); return; }
-    if (folderOpen) { setFolderOpen(false); return; }
+    if (metaPanel) { setMetaPanel(null); return; }
     if (parentOpen) { setParentOpen(false); return; }
-    if (scheduleOpen) { setScheduleOpen(false); return; }
-    if (tagOpen || topTagOpen) { setTagOpen(false); setTopTagOpen(false); return; }
+    if (tagOpen) { setTagOpen(false); return; }
     if (editingNote) { setEditingNote(null); return; }
     if (isAddingNote) { setIsAddingNote(false); setNewNoteTitle(""); setNewNoteContent(""); return; }
 
@@ -623,7 +628,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     }
   }, [
     closePromptOpen, actionMenuOpen, focusOpen, aiOpen, outcomeOpen,
-    folderOpen, parentOpen, scheduleOpen, tagOpen, topTagOpen, editingNote, isAddingNote,
+    metaPanel, parentOpen, tagOpen, editingNote, isAddingNote,
     hasPendingChanges, saveState, onBack, onSave, onClose, requestClose,
   ]);
 
@@ -812,22 +817,14 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const dueLabel = formatDue(t.due_date);
   const recLabel = t.recurrence_rule ? describeRule(t.recurrence_rule, isEn) : null;
   const scheduleLabel = (() => {
-    if (t.due_date) {
-      const dateStr = formatDue(t.due_date);
-      if (t.reminder_at) {
-        const timeStr = new Date(t.reminder_at).toLocaleTimeString(isEn ? "en-US" : "fa-IR", { hour: "2-digit", minute: "2-digit" });
-        return `${dateStr} · ${timeStr}`;
-      }
-      return dateStr;
-    }
-    if (t.reminder_at) {
-      return new Date(t.reminder_at).toLocaleTimeString(isEn ? "en-US" : "fa-IR", { hour: "2-digit", minute: "2-digit" });
-    }
+    const lang = isEn ? "en" : "fa";
+    const due = formatDueLabel(t.due_date, t.reminder_at, lang);
+    if (due) return recLabel ? `${due} · ${recLabel}` : due;
     if (t.bucket_kind && t.bucket_anchor) {
-      return bucketLabel(t.bucket_kind, (t.bucket_calendar as any) || "gregorian", t.bucket_anchor, isEn ? "en" : "fa");
+      return bucketLabel(t.bucket_kind, (t.bucket_calendar as any) || "gregorian", t.bucket_anchor, lang);
     }
     if (t.recurrence_rule) return recLabel;
-    if (t.start_at || t.end_at) return T("تایم‌بلاک", "Time block");
+    if (t.start_at || t.end_at) return T("بازهٔ زمانی", "Time block");
     return null;
   })();
   const handleSubtaskProgress = useCallback((completed: number, total: number) => {
@@ -944,7 +941,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   // ── Quick-info chips row (only what's set) ──────────────────────────
   const quickChips = (
     <div className="flex flex-wrap gap-1 px-1 pb-1">
-      <TaskPlanningPicker task={t} onPatch={patch => void save(patch)} disabled={!canEdit} />
       {t.bucket_kind && isSubDayBucket(t.bucket_kind) && t.bucket_anchor && (() => {
         const isSub = isSubDayBucket(t.bucket_kind);
         return (
@@ -993,16 +989,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           title={T("رفتن به تسک مادر", "Go to parent task")}
         >
           {parentTitle || "—"}
-        </Chip>
-      )}
-      {t.is_avoidance && (
-        <Chip
-          icon={Ban}
-          onClear={() => save({ is_avoidance: false } as any)}
-          disabled={!canEdit}
-          color="bg-amber-500/15 text-amber-700 dark:text-amber-400"
-        >
-          {T("اجتنابی", "Avoidance")}
         </Chip>
       )}
       {t.source_type && (() => {
@@ -1145,21 +1131,15 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       t={t}
       canEdit={canEdit}
       isOwner={isOwner}
+      isEn={isEn}
       folders={folders}
-      folderOpen={folderOpen}
-      setFolderOpen={setFolderOpen}
       folderName={folderName}
-      goalOpen={goalOpen}
-      setGoalOpen={setGoalOpen}
-      currentGoal={currentGoal}
-      scheduleOpen={scheduleOpen}
-      setScheduleOpen={setScheduleOpen}
+      goals={availableGoals}
+      panel={metaPanel}
+      setPanel={setMetaPanel}
       isScheduled={isScheduled}
       scheduleLabel={scheduleLabel}
       hasTimeBlock={hasTimeBlock}
-      priorityMeta={priorityMeta}
-      topTagOpen={topTagOpen}
-      setTopTagOpen={setTopTagOpen}
       taskTagIds={taskTagIds}
       tags={tags}
       toggleTag={toggleTag}
@@ -1189,26 +1169,9 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const expandables = (
     <div className="space-y-3 px-1">
       {showSubtasks && (
-        <section className="border-t border-border pt-2" aria-label={T("زیرتسک‌ها", "Subtasks")} data-testid="task-subtasks-section">
-          <div className="mb-1 flex items-center justify-between gap-3">
-            <h3 className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              {T("زیرتسک‌ها", "Subtasks")}
-              {subtaskProgress.total > 0 && (
-                <span className="tabular-nums">
-                  {toPersianDigits(`${subtaskProgress.completed}/${subtaskProgress.total}`)}
-                </span>
-              )}
-            </h3>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-              onClick={() => setShowSubtasks(false)}
-              title={T("بستن بخش زیرتسک‌ها", "Collapse subtasks section")}
-            >
-              <X className="w-3.5 h-3.5" />
-            </Button>
-          </div>
+        <TaskSection testid="task-subtasks-section" icon={ListTree} title={T("زیرتسک‌ها", "Subtasks")}
+          count={subtaskProgress.total > 0 ? `${subtaskProgress.completed}/${subtaskProgress.total}` : null}
+          onClose={() => setShowSubtasks(false)} closeLabel={T("بستن زیرتسک‌ها", "Hide subtasks")}>
           <TaskSubtasksInline
             taskId={t.id}
             initialSubs={loadedSubtasks}
@@ -1227,144 +1190,43 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
               }).catch(() => toast.error(T("ابتدا تغییرات تسک فعلی را ذخیره کن", "Save the current task before opening a subtask")));
             }}
           />
-        </section>
+        </TaskSection>
       )}
 
       {showSteps && (
-        <section className="border-t border-border pt-2" aria-label={T("چک‌لیست و مراحل", "Checklist & Steps")}>
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <h3 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-              <CheckSquare className="h-4 w-4 text-emerald-500" />
-              {T("چک‌لیست و مراحل", "Checklists & Steps")}
-              {stepListCount > 0 && (
-                <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">
-                  {stepListCount}
-                </span>
-              )}
-            </h3>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-              onClick={() => setShowSteps(false)}
-              title={T("بستن بخش چک‌لیست", "Collapse checklist section")}
-            >
-              <X className="w-3.5 h-3.5" />
-            </Button>
-          </div>
+        <TaskSection testid="task-steps-section" icon={CheckSquare} title={T("چک‌لیست و مرحله‌ها", "Checklists & steps")} count={stepListCount}
+          onClose={() => setShowSteps(false)} closeLabel={T("بستن چک‌لیست", "Hide checklists")}>
           <TaskStepLists taskId={t.id} onCountChange={setStepListCount} readOnly={!canEdit} />
-        </section>
+        </TaskSection>
       )}
 
       {showOutcomes && (
-        <section className="rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4 transition-all" aria-label={T("شاخه‌ها و سناریوها", "Branches & Outcomes")}>
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <h3 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-              <GitBranch className="h-4 w-4 text-amber-500" />
-              {T("شاخه‌ها و سناریوهای تصمیم‌گیری", "Decision Branches & Scenarios")}
-              {outcomeCount > 0 && (
-                <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium">
-                  {outcomeCount}
-                </span>
-              )}
-            </h3>
-            <div className="flex items-center gap-1">
-              {canEdit && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-6 px-2 text-[11px] gap-1 rounded-lg"
-                  onClick={() => setOutcomeOpen(true)}
-                >
-                  <Plus className="w-3 h-3" />
-                  {T("مدیریت شاخه‌ها", "Manage branches")}
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                onClick={() => setShowOutcomes(false)}
-                title={T("بستن بخش شاخه‌ها", "Collapse branches section")}
-              >
-                <X className="w-3.5 h-3.5" />
-              </Button>
-            </div>
-          </div>
+        <TaskSection testid="task-outcomes-section" icon={GitBranch} title={T("شاخه‌ها و سناریوها", "Branches & outcomes")} count={outcomeCount}
+          actions={canEdit ? <TaskSectionAction icon={Plus} onClick={() => setOutcomeOpen(true)}>{T("مدیریت", "Manage")}</TaskSectionAction> : null}
+          onClose={() => setShowOutcomes(false)} closeLabel={T("بستن شاخه‌ها", "Hide outcomes")}>
           <TaskOutcomesInline
             taskId={t.id}
             refreshKey={outcomeRefresh}
             onEdit={() => setOutcomeOpen(true)}
             onCountChange={setOutcomeCount}
           />
-        </section>
+        </TaskSection>
       )}
 
       {showAttachments && (
-        <section className="rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4 transition-all">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-1.5 text-sm font-semibold">
-              <Paperclip className="h-4 w-4 text-primary" />
-              {T("پیوست‌ها", "Attachments")}
-              {attachmentCount > 0 && (
-                <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                  {attachmentCount}
-                </span>
-              )}
-            </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-              onClick={() => setShowAttachments(false)}
-            >
-              <X className="w-3.5 h-3.5" />
-            </Button>
-          </div>
+        <TaskSection testid="task-attachments-section" icon={Paperclip} title={T("پیوست‌ها", "Attachments")} count={attachmentCount}
+          onClose={() => setShowAttachments(false)} closeLabel={T("بستن پیوست‌ها", "Hide attachments")}>
           <TaskAttachments taskId={t.id} onCountChange={setAttachmentCount} />
-        </section>
+        </TaskSection>
       )}
 
       {(showNotes || taskNotes.length > 0 || isAddingNote) && (
-        <section className="rounded-2xl border border-border/50 bg-card/45 p-3 sm:p-4 transition-all">
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
-              <FileText className="w-4 h-4 text-blue-500" />
-              <span>{T("نوت‌ها", "Notes")}</span>
-              <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium">
-                {taskNotes.length}
-              </span>
-            </label>
-            <div className="flex items-center gap-1">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setShowNotes(true);
-                  setIsAddingNote(true);
-                }}
-                disabled={!canEdit}
-                className="gap-1 rounded-full h-7 text-xs font-medium"
-              >
-                <Plus className="w-3 h-3" />
-                <span>{T("جدید", "New")}</span>
-              </Button>
-              {taskNotes.length === 0 && !isAddingNote && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                  onClick={() => setShowNotes(false)}
-                >
-                  <X className="w-3.5 h-3.5" />
-                </Button>
-              )}
-            </div>
-          </div>
-
+        <TaskSection testid="task-notes-section" icon={FileText} title={T("نوت‌ها", "Notes")} count={taskNotes.length}
+          actions={<TaskSectionAction icon={Plus} disabled={!canEdit} onClick={() => { setShowNotes(true); setIsAddingNote(true); }} data-testid="task-notes-new">{T("نوت تازه", "New note")}</TaskSectionAction>}
+          onClose={taskNotes.length === 0 && !isAddingNote ? () => setShowNotes(false) : undefined} closeLabel={T("بستن نوت‌ها", "Hide notes")}>
           {/* Compact in-panel note creation form */}
           {isAddingNote && (
-            <div className="p-3 mb-2.5 rounded-xl border border-primary/30 bg-primary/5 space-y-2 animate-in fade-in duration-150">
+            <div className="mb-2 space-y-2 rounded-lg bg-muted/40 p-2.5 animate-in fade-in duration-150">
               <Input
                 placeholder={T("عنوان نوت (اختیاری)...", "Note title (optional)...")}
                 value={newNoteTitle}
@@ -1410,15 +1272,19 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           )}
 
           {/* Notes Cards List */}
-          <div className="space-y-1.5">
+          <div className="-mx-1 space-y-0.5">
             {taskNotes.map((n) => (
-              <Card
+              <div
                 key={n.id}
-                className="p-2.5 rounded-xl border border-border/60 bg-card/60 hover:bg-card/90 transition-all cursor-pointer group"
+                role="button"
+                tabIndex={0}
+                className="group cursor-pointer rounded-md px-2 py-2 transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none"
                 onClick={() => setEditingNote(n)}
+                onKeyDown={(e) => { if (e.key === "Enter") setEditingNote(n); }}
+                data-testid={`task-note-${n.id}`}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <h4 className="flex-1 text-start text-xs sm:text-sm font-semibold truncate text-foreground group-hover:text-primary transition-colors" dir="auto">
+                  <h4 className="flex-1 truncate text-start text-sm font-medium text-foreground" dir="auto">
                     <BidiText text={n.title || T("بدون عنوان", "Untitled")} />
                   </h4>
                   <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -1454,20 +1320,13 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                 {n.updated_at && (
                   <div className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground/70">
                     <Clock className="w-2.5 h-2.5" />
-                    <span>
-                      {new Date(n.updated_at).toLocaleDateString(isEn ? "en-US" : "fa-IR", {
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
+                    <span>{formatDueLabel(n.updated_at, n.updated_at, isEn ? "en" : "fa")}</span>
                   </div>
                 )}
-              </Card>
+              </div>
             ))}
           </div>
-        </section>
+        </TaskSection>
       )}
 
       {user?.id && (
@@ -1765,8 +1624,10 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       folderColor={currentFolder?.color || undefined}
       hasFolder={Boolean(t.folder_id)}
       goalLabel={currentGoal ? taskGoalLabel : null}
-      onFolder={() => setFolderOpen(true)}
-      onGoal={() => setGoalOpen(true)}
+      onFolder={() => setMetaPanel(metaPanel === "folder" ? null : "folder")}
+      onGoal={() => setMetaPanel(metaPanel === "goal" ? null : "goal")}
+      folderActive={metaPanel === "folder"}
+      goalActive={metaPanel === "goal"}
       onBack={onBack || hasBackHistory || mode === "page" ? handleBackClick : undefined}
       onClose={opts.onClose}
       save={saveButton}
@@ -1904,72 +1765,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         savePendingChanges={savePendingChanges}
         T={T}
       />
-
-      {/* Goal Selector Dialog */}
-      <Dialog open={goalOpen} onOpenChange={setGoalOpen}>
-        <DialogContent dir={isEn ? "ltr" : "rtl"} className="max-w-md rounded-2xl p-4 sm:p-5">
-          <DialogHeader>
-            <DialogTitle className="text-start text-base font-bold flex items-center gap-2">
-              <Target className="w-4 h-4 text-primary" />
-              {T("انتخاب هدف کانبان", "Select Kanban Goal")}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2 py-2">
-            <button
-              type="button"
-              onClick={async () => {
-                await save({ kanban_column_id: null });
-                setGoalOpen(false);
-              }}
-              className={`w-full text-start px-3 py-2.5 rounded-xl text-xs flex items-center justify-between transition-colors ${
-                !t.kanban_column_id ? "bg-primary/10 text-primary font-bold border border-primary/30" : "hover:bg-muted text-muted-foreground border border-transparent"
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <Ban className="w-3.5 h-3.5 text-muted-foreground" />
-                <span>{T("بدون هدف (حذف از کانبان)", "No goal (Remove from Kanban)")}</span>
-              </span>
-              {!t.kanban_column_id && <Check className="w-3.5 h-3.5 text-primary" />}
-            </button>
-
-            <div className="max-h-72 overflow-y-auto space-y-1.5 pe-1 pt-1">
-              {availableGoals.map((g) => {
-                const isSelected = t.kanban_column_id === g.id;
-                const horizonMeta = TIME_HORIZONS.find((th) => th.id === g.timeHorizon);
-                return (
-                  <button
-                    key={g.id}
-                    type="button"
-                    onClick={async () => {
-                      await save({ kanban_column_id: g.id });
-                      setGoalOpen(false);
-                    }}
-                    className={`w-full text-start px-3 py-2.5 rounded-xl text-xs flex items-center justify-between transition-colors ${
-                      isSelected ? "bg-primary/10 text-primary font-bold border border-primary/30" : "hover:bg-muted border border-border/50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="text-base shrink-0">{g.icon || "🎯"}</span>
-                      <div className="truncate">
-                        <div className="font-semibold text-foreground truncate">{g.title}</div>
-                        {g.description && <div className="text-[10px] text-muted-foreground truncate">{g.description}</div>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {horizonMeta && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted font-normal text-muted-foreground">
-                          {isEn ? horizonMeta.labelEn : horizonMeta.labelFa}
-                        </span>
-                      )}
-                      {isSelected && <Check className="w-4 h-4 text-primary" />}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Add / Edit Location Dialog */}
       <Dialog open={addLocationOpen} onOpenChange={setAddLocationOpen}>

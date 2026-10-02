@@ -232,7 +232,7 @@ const TaskListItemComponent = ({
                 </div>
               )}
               {/* Row 1: chevron + pin + TITLE (wide) + checkbox (right) */}
-              <div dir="rtl" className="flex items-start gap-1.5">
+              <div dir={isEn ? "ltr" : "rtl"} className="flex items-start gap-1.5">
                 {visibleSubs.length > 0 ? (
                   <button type="button" aria-label={open ? T("بستن زیرتسک‌ها", "Collapse subtasks") : T("نمایش زیرتسک‌ها", "Expand subtasks")} onClick={(e) => { e.stopPropagation(); onToggleExpand(t.id); }} className="text-muted-foreground hover:text-foreground shrink-0 pt-0.5">
                     {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -308,7 +308,7 @@ const TaskListItemComponent = ({
               </div>
 
               {/* Row 2: metadata */}
-              <div className="flex items-center gap-1.5 mt-1 ms-5 flex-wrap min-h-[20px]" dir="rtl">
+              <div className="flex items-center gap-1.5 mt-1 ms-5 flex-wrap min-h-[20px]" dir={isEn ? "ltr" : "rtl"}>
                 {allowDrag && (
                   <button {...dragHandle} data-drag-handle data-no-swipe-nav className="text-muted-foreground/60 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0 h-5 w-5 rounded flex items-center justify-center" aria-label={T("جابجایی", "Drag")} title={T("جابجایی", "Drag")}>
                     <GripVertical className="w-3 h-3" />
@@ -378,7 +378,7 @@ const TaskListItemComponent = ({
                   return null;
                 })()}
 
-                <TaskPlanningPicker task={t} onPatch={patch => onPatchTask(t.id, patch)} />
+                <TaskPlanningPicker task={t} onPatch={patch => onPatchTask(t.id, patch)} hideWhenEmpty />
 
                 <Popover>
                   <PopoverTrigger asChild>
@@ -420,7 +420,7 @@ const TaskListItemComponent = ({
                         title={T("تغییر تاریخ", "Change date")}
                       >
                         <Calendar className="w-2.5 h-2.5 opacity-70" />
-                        <bdi dir="ltr" className="whitespace-nowrap">{formatTaskDueDateDisplay(t.due_date, isEn)}</bdi>
+                        <bdi dir={isEn ? "ltr" : "rtl"} className="whitespace-nowrap">{formatTaskDueDateDisplay(t.due_date, isEn)}</bdi>
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="max-h-[min(78dvh,42rem)] w-[min(92vw,26rem)] overflow-y-auto p-3" align="start" onClick={(e) => e.stopPropagation()}>

@@ -1,3 +1,4 @@
+import { TaskGroupHeader } from "@/components/tasks/TaskGroupHeader";
 import { useTaskListSort } from "@/lib/taskListSort";
 import { planOf } from "@/lib/planCascade";
 import { getTimeSettings, todayISO } from "@/lib/timeHorizon";
@@ -603,7 +604,7 @@ export default function TodayDashboardView() {
           }`}
         >
           {/* باکس درج سریع تسک در نمای امروز به سبک تیک‌تیک */}
-          <div className="sticky top-0 z-20 bg-background py-1.5 -mx-1 px-1 mb-2">
+          <div className="sticky top-0 z-20 py-1.5 -mx-1 px-1 mb-2" style={{ background: "var(--page-surface, hsl(var(--background)))" }}>
             <QuickAddTask
               defaults={{
                 due_date: new Date().toISOString(),
@@ -631,10 +632,7 @@ export default function TodayDashboardView() {
 
                 {(activeTodayStudyTasks.length > 0 || (showCompleted && completedTodayStudyTasks.length > 0)) && (
                   <section data-testid="study-due-today" aria-label={T("مرورهای امروز", "Study due today")} className="space-y-1 pb-2 border-b border-border">
-                    <div className="flex items-center justify-between px-1 py-0.5 text-xs font-medium text-muted-foreground">
-                      <span>{T("مرورهای امروز", "Study due today")}</span>
-                      <span className="text-xs font-normal text-muted-foreground">{toPersianDigits(todayStudyTasks.length)}</span>
-                    </div>
+                    <TaskGroupHeader label={T("مرورهای امروز", "Study due today")} count={todayStudyTasks.length} />
                     <div className="space-y-1">
                       {activeTodayStudyTasks.map((task) => renderTaskItem(task))}
                       {showCompleted && completedTodayStudyTasks.map((task) => renderTaskItem(task))}
@@ -648,12 +646,12 @@ export default function TodayDashboardView() {
                     <button
                       type="button"
                       onClick={() => setShowCompletedTasks(!showCompleted)}
-                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground py-1 px-1 font-medium cursor-pointer transition-colors"
+                      className="flex items-center gap-1.5 px-1 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
                       aria-label={showCompleted ? T("مخفی کردن تسک‌های تکمیل‌شده", "Hide completed tasks") : T("نمایش تسک‌های تکمیل‌شده", "Show completed tasks")}
                     >
                       {showCompleted ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5 rtl:rotate-180" />}
                       <span>{T("تکمیل‌شده", "Completed")}</span>
-                      <span className="text-[11px] text-muted-foreground">({toPersianDigits(completedTodayTasks.length)})</span>
+                      <span className="text-xs font-normal text-muted-foreground/80">{toPersianDigits(completedTodayTasks.length)}</span>
                     </button>
                     {showCompleted && (
                       <div className="space-y-1 mt-1 opacity-75">
@@ -666,14 +664,7 @@ export default function TodayDashboardView() {
                 {/* تسک‌های به‌تعویق‌افتاده، حتماً بعد و پایین تسک‌های امروز */}
                 {overdueTasks.length > 0 && (
                   <section data-testid="overdue-tasks" className="space-y-1 pt-3">
-                    <div className="sticky top-0 z-[5] bg-background/95 backdrop-blur py-1 px-1 text-xs sm:text-sm font-semibold text-rose-500 flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
-                        <span>{T("به‌تعویق‌افتاده", "Overdue")}</span>
-                      </span>
-                      <span className="text-xs text-muted-foreground font-normal">
-                        {toPersianDigits(overdueTasks.length)}
-                      </span>
-                    </div>
+                    <TaskGroupHeader label={T("عقب‌افتاده", "Overdue")} count={overdueTasks.length} tone="overdue" testid="task-group-overdue" />
                     <div className="space-y-1">
                       {overdueTasks.map((t) => renderTaskItem(t))}
                     </div>
@@ -682,10 +673,7 @@ export default function TodayDashboardView() {
 
                 {overdueStudyTasks.length > 0 && (
                   <section data-testid="overdue-study" aria-label={T("مرورهای عقب‌افتاده", "Overdue study")} className="space-y-1 pt-3">
-                    <div className="sticky top-0 z-[5] bg-background/95 backdrop-blur py-1 px-1 text-xs sm:text-sm font-semibold text-primary flex items-center justify-between">
-                      <span>{T("مرورهای عقب‌افتاده", "Overdue study")}</span>
-                      <span className="text-xs text-muted-foreground font-normal">{toPersianDigits(overdueStudyTasks.length)}</span>
-                    </div>
+                    <TaskGroupHeader label={T("مرورهای عقب‌افتاده", "Overdue study")} count={overdueStudyTasks.length} tone="accent" />
                     <div className="space-y-1">
                       {overdueStudyTasks.map((task) => renderTaskItem(task))}
                     </div>

@@ -259,7 +259,15 @@ export function periodLabel(p: Period, s: TimeSettings, lang: "fa" | "en", now: 
   const a = fromLocalISO(p.start);
   const b = fromLocalISO(p.end);
   const jal = s.calendar === "jalali";
-  const f = (d: Date, fmt: string) => (jal ? faDigits(j.format(d, fmt)) : g.format(d, fmt));
+  // English + Jalali: Latin Solar Hijri names (e.g. "Mehr 4") instead of Persian script.
+  const enJal = jal && lang === "en";
+  const intlOpts: Record<string, Intl.DateTimeFormatOptions> = {
+    "d MMM": { day: "numeric", month: "short" }, "MMMM yyyy": { month: "long", year: "numeric" },
+    "EEEE d MMMM": { weekday: "long", day: "numeric", month: "long" }, yyyy: { year: "numeric" },
+  };
+  const f = (d: Date, fmt: string) => (enJal
+    ? d.toLocaleDateString("en-US-u-ca-persian", intlOpts[fmt] || intlOpts["d MMM"]).replace(/\s?AP$/, "")
+    : jal ? faDigits(j.format(d, fmt)) : g.format(d, fmt));
   const today = todayISO(now);
   if (p.horizon === "day") {
     if (p.start === today) return lang === "fa" ? "امروز" : "Today";
@@ -270,8 +278,8 @@ export function periodLabel(p: Period, s: TimeSettings, lang: "fa" | "en", now: 
   if (p.horizon === "month") return f(a, "MMMM yyyy");
   if (p.horizon === "quarter") {
     if (jal) {
-      const seasons = ["بهار", "تابستان", "پاییز", "زمستان"];
-      return `${seasons[Math.floor(j.getMonth(a) / 3)]} ${faDigits(j.format(a, "yyyy"))}`;
+      const seasons = lang === "en" ? ["Spring", "Summer", "Autumn", "Winter"] : ["بهار", "تابستان", "پاییز", "زمستان"];
+      return lang === "en" ? `${seasons[Math.floor(j.getMonth(a) / 3)]} ${j.format(a, "yyyy")}` : `${seasons[Math.floor(j.getMonth(a) / 3)]} ${faDigits(j.format(a, "yyyy"))}`;
     }
     return `Q${g.getQuarter(a)} ${g.format(a, "yyyy")}`;
   }
