@@ -64,6 +64,28 @@
 @keyframes island-bob { from { transform: translateY(0); } to { transform: translateY(-1.2px); } }
 @keyframes island-jump { from { transform: translateY(0); } to { transform: translateY(-7px); } }
 
+.island-resident { cursor: pointer; outline: none; }
+.island-resident:focus-visible rect { stroke: hsl(48 100% 70%); stroke-width: 1.5; }
+.island-talk { overflow: visible; }
+.island-talk-bubble {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  text-align: center;
+  font-size: 7.5px;
+  line-height: 1.45;
+  color: #2f2a38;
+  animation: island-card-in 200ms ease-out;
+}
+.island-talk-bubble b, .island-talk-bubble span {
+  background: rgba(255, 255, 255, 0.96);
+  padding: 2px 6px;
+}
+.island-talk-bubble b { border-radius: 6px 6px 0 0; font-size: 7px; color: hsl(var(--primary)); }
+.island-talk-bubble span { border-radius: 8px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12); }
+
 /* Real-time day phases */
 .island-sea { transition: background 600ms ease; }
 .island-sea-morning { background: radial-gradient(ellipse at 50% 55%, hsl(190 70% 76%) 0%, hsl(196 58% 62%) 55%, hsl(24 60% 70%) 100%); }

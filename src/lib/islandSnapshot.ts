@@ -12,7 +12,7 @@ export async function captureIsland(svg: SVGSVGElement, opts: { title: string; s
   const vb = svg.viewBox.baseVal;
   const scale = 2;
   const clone = svg.cloneNode(true) as SVGSVGElement;
-  clone.querySelectorAll(".island-ghost, .island-select-ring").forEach((n) => n.remove());
+  clone.querySelectorAll(".island-ghost, .island-select-ring, .island-talk, foreignObject").forEach((n) => n.remove());
   clone.querySelectorAll(".island-tile").forEach((n) => { n.setAttribute("stroke", "rgba(255,255,255,0.18)"); });
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
   clone.setAttribute("width", String(vb.width * scale));
@@ -78,4 +78,21 @@ export async function shareBlob(blob: Blob, filename: string, title: string): Pr
     try { await nav.share({ files: [file], title }); return true; } catch { return false; }
   }
   return false;
+}
+
+/** Down-scaled JPEG thumbnail for the album grid. */
+export async function makeThumb(blob: Blob, width = 360): Promise<Blob> {
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => { const el = new Image(); el.onload = () => resolve(el); el.onerror = reject; el.src = url; });
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = Math.round((img.naturalHeight / img.naturalWidth) * width);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return blob;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b || blob), "image/jpeg", 0.82));
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }

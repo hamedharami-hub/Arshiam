@@ -54,6 +54,10 @@ export interface IslandState {
   week?: { key: string; tasks: number; claimed: boolean };
   gifts?: Partial<Record<GiftType, number>>;
   giftsEarned?: number;
+  /** Custom names chosen by the user, by resident index. */
+  residentNames?: string[];
+  /** Show the mini island card on the Today page (default on). */
+  showOnToday?: boolean;
 }
 
 export const GRID_SIZE = 8;
@@ -354,4 +358,59 @@ export function consumeCheers(): number {
   const n = state.pendingCheers || 0;
   if (n) saveIslandState({ ...state, pendingCheers: 0 });
   return n;
+}
+
+// ---------- Residents: names & friendly lines ----------
+
+export const MAX_RESIDENTS = 6;
+const RESIDENT_HOMES: BuildingType[] = ["hut", "house", "market", "tower", "palace", "windmill", "lighthouse"];
+const DEFAULT_NAMES = { fa: ["نیلو", "آرش", "مهتاب", "بردیا", "سارا", "کیان"], en: ["Nilo", "Arash", "Mahtab", "Bardia", "Sara", "Kian"] };
+
+export function getResidentCount(buildings: PlacedBuilding[]): number {
+  return Math.min(MAX_RESIDENTS, 1 + buildings.filter((b) => RESIDENT_HOMES.includes(b.type)).length);
+}
+
+export function getResidentName(state: IslandState, index: number, isEn: boolean): string {
+  const custom = state.residentNames?.[index]?.trim();
+  return custom || (isEn ? DEFAULT_NAMES.en : DEFAULT_NAMES.fa)[index % MAX_RESIDENTS];
+}
+
+export function setResidentName(index: number, name: string): IslandState {
+  const state = getIslandState();
+  const names = [...(state.residentNames || [])];
+  while (names.length <= index) names.push("");
+  names[index] = name.trim().slice(0, 20);
+  const next = { ...state, residentNames: names };
+  saveIslandState(next);
+  return next;
+}
+
+export function setShowIslandOnToday(show: boolean): IslandState {
+  const next = { ...getIslandState(), showOnToday: show };
+  saveIslandState(next);
+  return next;
+}
+
+/** A context-aware friendly line for a resident. `seed` rotates between lines. */
+export function getResidentLine(state: IslandState, index: number, isEn: boolean, seed = 0, now = new Date()): string {
+  const phase = getDayPhase(now);
+  const week = getWeekProgress(state, now);
+  const left = week.goal - week.tasks;
+  const num = (n: number) => (isEn ? String(n) : String(n).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]));
+  const fa: string[] = [
+    phase === "night" ? "شب بخیر! فردا با هم ادامه می‌دهیم." : phase === "morning" ? "صبح بخیر! امروز روز خوبی برای ساختن است." : phase === "sunset" ? "غروب جزیره چقدر قشنگ است، نه؟" : "روز آفتابی‌ای است، یک کار کوچک انجام بدهیم؟",
+    week.claimed ? "هدیهٔ این هفته را گرفتی، به تو افتخار می‌کنیم!" : week.ready ? "هدیهٔ هفته آماده است، زودتر بازش کن!" : `فقط ${num(left)} تسک دیگر تا هدیهٔ هفته مانده.`,
+    `جزیره ${num(state.buildings.length)} سازه دارد؛ هر قدم کوچک حسابش جداست.`,
+    "یادت باشد: اینجا هیچ امتیازی از دست نمی‌رود.",
+    "امروز یک کار کوچک هم کافی است. آرام و پیوسته!",
+  ];
+  const en: string[] = [
+    phase === "night" ? "Good night! We'll keep going tomorrow." : phase === "morning" ? "Good morning! A great day to build." : phase === "sunset" ? "Isn't the island sunset lovely?" : "Sunny day! Shall we finish one small thing?",
+    week.claimed ? "You got this week's gift — we're proud of you!" : week.ready ? "This week's gift is ready, go open it!" : `Only ${left} more ${left === 1 ? "task" : "tasks"} until the weekly gift.`,
+    `The island has ${state.buildings.length} buildings — every small step counts.`,
+    "Remember: no points are ever lost here.",
+    "One small task today is enough. Slow and steady!",
+  ];
+  const lines = isEn ? en : fa;
+  return lines[(index + seed) % lines.length];
 }

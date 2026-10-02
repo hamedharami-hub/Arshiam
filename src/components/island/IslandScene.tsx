@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useState, type ReactNode } from "react";
-import { GRID_SIZE, getMaterial, type BuildingType, type DayPhase, type PlacedBuilding } from "@/lib/island";
+import { GRID_SIZE, getMaterial, getResidentCount, type BuildingType, type DayPhase, type PlacedBuilding } from "@/lib/island";
 
 const TW = 72;
 const TH = 36;
@@ -151,7 +151,6 @@ const toScreen = (x: number, y: number) => {
 };
 
 // ---------- Residents ----------
-const HOME_TYPES: BuildingType[] = ["hut", "house", "market", "tower", "palace", "windmill", "lighthouse"];
 const OUTFITS = ["#e07a5f", "#3d8bfd", "#f2cc8f", "#81b29a", "#c084fc", "#f28482"];
 type Walker = { id: number; x: number; y: number; dur: number; next: number; flip: boolean };
 
@@ -168,8 +167,10 @@ function randomTarget(buildings: PlacedBuilding[], seed: number) {
   return tilePoint(Math.floor(Math.random() * GRID_SIZE), Math.floor(Math.random() * GRID_SIZE));
 }
 
-const Residents = memo(function Residents({ buildings, cheerKey, cheerText }: { buildings: PlacedBuilding[]; cheerKey: number; cheerText: string }) {
-  const count = Math.min(6, 1 + buildings.filter((b) => HOME_TYPES.includes(b.type)).length);
+export interface ResidentTalk { index: number; name: string; text: string; key: number }
+
+const Residents = memo(function Residents({ buildings, cheerKey, cheerText, talk, onResident }: { buildings: PlacedBuilding[]; cheerKey: number; cheerText: string; talk?: ResidentTalk | null; onResident?: (index: number) => void }) {
+  const count = getResidentCount(buildings);
   const reduced = useMemo(() => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches, []);
   const [walkers, setWalkers] = useState<Walker[]>([]);
   const [cheering, setCheering] = useState(false);
@@ -202,7 +203,19 @@ const Residents = memo(function Residents({ buildings, cheerKey, cheerText }: { 
   return (
     <g pointerEvents="none" data-testid="island-residents" data-cheering={cheering ? "true" : "false"}>
       {walkers.map((w, i) => (
-        <g key={w.id} style={{ transform: `translate(${w.x}px, ${w.y}px)`, transition: reduced || cheering ? "none" : `transform ${w.dur}s linear` }} data-testid="island-resident">
+        <g
+          key={w.id}
+          style={{ transform: `translate(${w.x}px, ${w.y}px)`, transition: reduced || cheering ? "none" : `transform ${w.dur}s linear` }}
+          data-testid={`island-resident-${i}`}
+          className="island-resident"
+          pointerEvents={onResident ? "auto" : "none"}
+          role={onResident ? "button" : undefined}
+          tabIndex={onResident ? 0 : undefined}
+          aria-label={onResident ? `resident ${i + 1}` : undefined}
+          onClick={onResident ? (e) => { e.stopPropagation(); onResident(i); } : undefined}
+          onKeyDown={onResident ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onResident(i); } } : undefined}
+        >
+          <rect x={-10} y={-30} width={20} height={34} fill="transparent" />
           <g className={cheering ? "island-cheer" : "island-walk"} style={{ animationDelay: `${i * 0.12}s` }}>
             <g transform={w.flip ? "scale(-1.4,1.4)" : "scale(1.4)"}>
               <ellipse cx={0} cy={1} rx={4} ry={1.6} fill="rgba(0,0,0,0.2)" />
@@ -215,6 +228,14 @@ const Residents = memo(function Residents({ buildings, cheerKey, cheerText }: { 
               <circle cx={0} cy={-15} r={3.2} fill="#f1c7a4" />
               <path d="M -3.2 -15.5 Q 0 -20 3.2 -15.5 Z" fill="#4a3426" />
             </g>
+            {talk && talk.index === i && !cheering && (
+              <foreignObject key={talk.key} x={-80} y={-96} width={160} height={70} className="island-talk" data-testid="island-resident-talk">
+                <div className="island-talk-bubble">
+                  <b>{talk.name}</b>
+                  <span>{talk.text}</span>
+                </div>
+              </foreignObject>
+            )}
             {cheering && i < 3 && (
               <g transform="translate(0,-38)" data-testid="island-cheer-bubble">
                 <rect x={-22} y={-9} width={44} height={14} rx={7} fill="#ffffff" opacity={0.95} />
@@ -236,13 +257,17 @@ export interface IslandSceneProps {
   phase?: DayPhase;
   cheerKey?: number;
   cheerText?: string;
+  talk?: ResidentTalk | null;
+  onResident?: (index: number) => void;
+  /** false = decorative preview (no focusable tiles). */
+  interactive?: boolean;
   labelFor: (x: number, y: number, b?: PlacedBuilding) => string;
   onHover: (tile: { x: number; y: number } | null) => void;
   onTile: (x: number, y: number) => void;
   onBuilding: (b: PlacedBuilding) => void;
 }
 
-export const IslandScene = memo(function IslandScene({ buildings, selectedId, ghostType, hover, phase = "day", cheerKey = 0, cheerText = "Yay!", labelFor, onHover, onTile, onBuilding }: IslandSceneProps) {
+export const IslandScene = memo(function IslandScene({ buildings, selectedId, ghostType, hover, phase = "day", cheerKey = 0, cheerText = "Yay!", talk = null, onResident, interactive = true, labelFor, onHover, onTile, onBuilding }: IslandSceneProps) {
   const W = GRID_SIZE * TW + PAD * 2;
   const H = TOP + GRID_SIZE * TH + CLIFF + PAD + 10;
   const top = toScreen(0, 0), right = toScreen(GRID_SIZE, 0), bottom = toScreen(GRID_SIZE, GRID_SIZE), left = toScreen(0, GRID_SIZE);
@@ -253,7 +278,7 @@ export const IslandScene = memo(function IslandScene({ buildings, selectedId, gh
   const showGhost = ghostType && hover && !occupiedSet.has(`${hover.x}:${hover.y}`);
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className={`island-svg island-phase-${phase}`} role="group" aria-label="island map" data-testid="island-map" onMouseLeave={() => onHover(null)}>
+    <svg viewBox={`0 0 ${W} ${H}`} className={`island-svg island-phase-${phase}`} role={interactive ? "group" : "img"} aria-label="island map" data-testid={interactive ? "island-map" : "island-mini-map"} onMouseLeave={() => onHover(null)}>
       <Sky phase={phase} W={W} />
       {/* sand ring */}
       <polygon points={pts([[top.sx, top.sy - 12], [right.sx + 22, right.sy], [bottom.sx, bottom.sy + 12], [left.sx - 22, left.sy]])} fill={C.sand} opacity={0.95} />
@@ -272,8 +297,8 @@ export const IslandScene = memo(function IslandScene({ buildings, selectedId, gh
             className={cls}
             points={pts([[sx, sy], [sx + TW / 2, sy + TH / 2], [sx, sy + TH], [sx - TW / 2, sy + TH / 2]])}
             fill={(x + y) % 2 ? C.grassA : C.grassB}
-            role="button"
-            tabIndex={0}
+            role={interactive ? "button" : undefined}
+            tabIndex={interactive ? 0 : undefined}
             aria-label={labelFor(x, y, buildings.find((b) => b.x === x && b.y === y))}
             onMouseEnter={() => onHover({ x, y })}
             onFocus={() => onHover({ x, y })}
@@ -299,7 +324,7 @@ export const IslandScene = memo(function IslandScene({ buildings, selectedId, gh
           </g>
         );
       })}
-      <Residents buildings={buildings} cheerKey={cheerKey} cheerText={cheerText} />
+      <Residents buildings={buildings} cheerKey={cheerKey} cheerText={cheerText} talk={talk} onResident={onResident} />
       {showGhost && hover && (() => {
         const { sx, sy } = toScreen(hover.x, hover.y);
         return <g className="island-ghost" pointerEvents="none">{renderBuilding(ghostType, sx, sy + TH / 2)}</g>;

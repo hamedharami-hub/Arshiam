@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { ISLAND_UNLOCK_EVENT, claimWeeklyGift, consumeCheers, getWeekKey, getWeekProgress, recordIslandTask, refreshIslandWeek, canBuild, creditIsland, getDayPhase, getNewlyUnlocked, getIslandLevel, getIslandState, moveBuilding, placeBuilding, removeBuilding } from "./island";
+import { getResidentCount, getResidentLine, getResidentName, setResidentName, ISLAND_UNLOCK_EVENT, claimWeeklyGift, consumeCheers, getWeekKey, getWeekProgress, recordIslandTask, refreshIslandWeek, canBuild, creditIsland, getDayPhase, getNewlyUnlocked, getIslandLevel, getIslandState, moveBuilding, placeBuilding, removeBuilding } from "./island";
 
 describe("island game", () => {
   beforeEach(() => localStorage.clear());
@@ -87,5 +87,20 @@ describe("island game", () => {
     const { autoGift, state } = refreshIslandWeek(nextWeek);
     expect(autoGift).toBe("flowerbed");
     expect(state.week).toMatchObject({ tasks: 0, claimed: false });
+  });
+
+  it("residents: count from homes, custom names, friendly lines", () => {
+    expect(getResidentCount([])).toBe(1);
+    creditIsland(100);
+    placeBuilding("hut", 1, 1);
+    expect(getResidentCount(getIslandState().buildings)).toBe(2);
+    expect(getResidentName(getIslandState(), 0, false)).toBe("نیلو");
+    setResidentName(1, "  Rumi  ");
+    expect(getResidentName(getIslandState(), 1, true)).toBe("Rumi");
+    setResidentName(1, "");
+    expect(getResidentName(getIslandState(), 1, true)).toBe("Arash");
+    const line = getResidentLine(getIslandState(), 0, true, 1, new Date(2026, 9, 1, 10));
+    expect(line).toMatch(/weekly gift/);
+    expect(getResidentLine(getIslandState(), 0, false, 0, new Date(2026, 9, 1, 22))).toMatch(/شب بخیر/);
   });
 });

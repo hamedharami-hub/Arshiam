@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowRightLeft, Camera, Download, Gift, PartyPopper, Share2, Moon, Sunrise, Sun, Sunset, Coins, Hammer, History, Info, Lock, MousePointerClick, Sparkles, Trash2, Trophy, X } from "lucide-react";
+import { ArrowRightLeft, MessageCircle, Shuffle, UserRound, Camera, Download, Gift, PartyPopper, Share2, Moon, Sunrise, Sun, Sunset, Coins, Hammer, History, Info, Lock, MousePointerClick, Sparkles, Trash2, Trophy, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,12 +8,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { BuildingPreview, IslandScene } from "@/components/island/IslandScene";
 import { ZoomPan } from "@/components/island/ZoomPan";
-import { captureIsland, downloadBlob, shareBlob } from "@/lib/islandSnapshot";
+import { IslandAlbum } from "@/components/island/IslandAlbum";
+import type { ResidentTalk } from "@/components/island/IslandScene";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { addToAlbum } from "@/lib/islandAlbum";
+import { captureIsland, downloadBlob, makeThumb, shareBlob } from "@/lib/islandSnapshot";
 import "@/components/island/island.css";
 import { useBilingual } from "@/hooks/useBilingual";
 import { toPersianDigits } from "@/lib/jalali";
 import {
-  BUILDINGS, GIFTS, ISLAND_CHEER_EVENT, ISLAND_EVENT, MATERIALS, claimWeeklyGift, consumeCheers, getDayPhase, getWeekProgress, refreshIslandWeek, type DayPhase, type GiftType, canBuild, getBuildingSpec, getIslandLevel, getIslandState, getNextMaterial,
+  BUILDINGS, GIFTS, ISLAND_CHEER_EVENT, ISLAND_EVENT, MATERIALS, claimWeeklyGift, consumeCheers, getDayPhase, getWeekProgress, refreshIslandWeek, getResidentLine, getResidentName, setResidentName, setShowIslandOnToday, type DayPhase, type GiftType, canBuild, getBuildingSpec, getIslandLevel, getIslandState, getNextMaterial,
   isMaterialUnlocked, moveBuilding, placeBuilding, removeBuilding, type BuildingType, type IslandState, type PlacedBuilding,
 } from "@/lib/island";
 
@@ -27,6 +33,9 @@ export default function IslandView() {
   const [cheerKey, setCheerKey] = useState(0);
   const [snapshot, setSnapshot] = useState<{ url: string; blob: Blob } | null>(null);
   const [capturing, setCapturing] = useState(false);
+  const [residentIdx, setResidentIdx] = useState<number | null>(null);
+  const [talk, setTalk] = useState<ResidentTalk | null>(null);
+  const [nameDraft, setNameDraft] = useState("");
 
   useEffect(() => {
     const onUpdate = (e: Event) => setState((e as CustomEvent<IslandState>).detail || getIslandState());
@@ -78,6 +87,9 @@ export default function IslandView() {
         rtl: !isEn,
       });
       setSnapshot((prev) => { if (prev) URL.revokeObjectURL(prev.url); return { url: URL.createObjectURL(blob), blob }; });
+      try {
+        await addToAlbum({ image: blob, thumb: await makeThumb(blob), level: getIslandLevel(state.buildings.length).level, buildings: state.buildings.length, phase });
+      } catch { /* album is best-effort */ }
     } catch {
       toast.error(T("ساخت تصویر ممکن نشد؛ دوباره تلاش کنید.", "Couldn't create the picture — please try again."));
     } finally {
@@ -89,6 +101,28 @@ export default function IslandView() {
     if (!snapshot) return;
     const ok = await shareBlob(snapshot.blob, snapName(), T("جزیرهٔ من", "My Island"));
     if (!ok) { downloadBlob(snapshot.blob, snapName()); toast.info(T("اشتراک‌گذاری در این دستگاه پشتیبانی نمی‌شود؛ تصویر دانلود شد.", "Sharing isn't supported here — the picture was downloaded.")); }
+  };
+
+  const sayLine = useCallback((i: number, seed: number) => {
+    const s = getIslandState();
+    setTalk({ index: i, name: getResidentName(s, i, isEn), text: getResidentLine(s, i, isEn, seed), key: Date.now() });
+  }, [isEn]);
+  useEffect(() => {
+    if (!talk) return;
+    const t = window.setTimeout(() => setTalk(null), 5000);
+    return () => window.clearTimeout(t);
+  }, [talk]);
+  const onResident = useCallback((i: number) => {
+    setSelectedId(null); setMoving(false); setBuildType(null);
+    setResidentIdx(i);
+    setNameDraft(getIslandState().residentNames?.[i] || "");
+    sayLine(i, Math.floor(Math.random() * 5));
+  }, [sayLine]);
+  const saveName = () => {
+    if (residentIdx === null) return;
+    setResidentName(residentIdx, nameDraft);
+    toast.success(T("نام ساکن ذخیره شد", "Resident name saved"));
+    sayLine(residentIdx, 0);
   };
 
   const digit = useCallback((v: number) => (isEn ? v.toLocaleString("en") : toPersianDigits(v)), [isEn]);
@@ -112,7 +146,7 @@ export default function IslandView() {
     night: { icon: <Moon className="size-4" />, fa: "شب", en: "Night" },
   };
 
-  const clearModes = () => { setBuildType(null); setSelectedId(null); setMoving(false); };
+  const clearModes = () => { setBuildType(null); setSelectedId(null); setMoving(false); setResidentIdx(null); };
 
   const labelFor = useCallback((x: number, y: number, b?: PlacedBuilding) =>
     b ? `${name(b.type)} (${digit(x + 1)}, ${digit(y + 1)})` : T(`زمین خالی ${digit(x + 1)}، ${digit(y + 1)}`, `Empty tile ${x + 1}, ${y + 1}`), [name, digit, T]);
@@ -126,7 +160,7 @@ export default function IslandView() {
       toast.success(T("سازه جابه‌جا شد", "Moved"));
       return;
     }
-    if (occupant) { setBuildType(null); setSelectedId(occupant.id); return; }
+    if (occupant) { setBuildType(null); setResidentIdx(null); setSelectedId(occupant.id); return; }
     if (buildType) {
       const res = placeBuilding(buildType, x, y);
       if (res.ok) {
@@ -141,6 +175,7 @@ export default function IslandView() {
   const onBuilding = useCallback((b: PlacedBuilding) => {
     if (moving) { onTile(b.x, b.y); return; }
     setBuildType(null);
+    setResidentIdx(null);
     setSelectedId(b.id);
   }, [moving, onTile]);
 
@@ -157,7 +192,7 @@ export default function IslandView() {
     ? T("زمین خالی مقصد را انتخاب کنید", "Choose an empty tile to move to")
     : buildType
       ? T(`روی یک زمین خالی بزنید تا «${name(buildType)}» ساخته شود`, `Tap an empty tile to build “${name(buildType)}”`)
-      : T("یک سازه از فهرست انتخاب کنید یا روی سازه‌ها بزنید", "Pick a building from the list or tap a building");
+      : T("سازه‌ای از فهرست انتخاب کنید، یا روی سازه‌ها و ساکنان بزنید", "Pick a building, or tap buildings and residents");
 
   return (
     <main className="mx-auto w-full max-w-7xl space-y-5 p-4 pb-28 md:p-6" dir={isEn ? "ltr" : "rtl"} data-testid="island-page">
@@ -186,18 +221,18 @@ export default function IslandView() {
             <Button size="sm" variant="secondary" className="rounded-full" onClick={handleSnapshot} disabled={capturing} data-testid="island-snapshot-btn"><Camera className="size-4" />{capturing ? T("در حال ثبت…", "Capturing…") : T("عکس یادگاری", "Snapshot")}</Button>
             <span className="flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-1.5 text-sm backdrop-blur-md" data-testid="island-day-phase">{PHASE_META[phase].icon}{isEn ? PHASE_META[phase].en : PHASE_META[phase].fa}</span>
             </div>
-            {(buildType || moving || selectedId) && <Button size="sm" variant="secondary" className="rounded-full" onClick={clearModes} data-testid="island-cancel-mode"><X className="size-4" />{T("لغو", "Cancel")}</Button>}
+            {(buildType || moving || selectedId || residentIdx !== null) && <Button size="sm" variant="secondary" className="rounded-full" onClick={clearModes} data-testid="island-cancel-mode"><X className="size-4" />{T("لغو", "Cancel")}</Button>}
           </div>
           <div className="px-2 pb-4">
             <ZoomPan initialScale={initialZoom} labels={{ zoomIn: T("بزرگ‌نمایی", "Zoom in"), zoomOut: T("کوچک‌نمایی", "Zoom out"), reset: T("اندازهٔ اولیه", "Reset view"), hint: T("برای جابه‌جایی نقشه بکشید", "Drag to move the map") }}>
-              <IslandScene buildings={state.buildings} selectedId={selectedId} ghostType={moving && selected ? selected.type : buildType} hover={hover} phase={phase} cheerKey={cheerKey} cheerText={T("آفرین!", "Yay!")} labelFor={labelFor} onHover={setHover} onTile={onTile} onBuilding={onBuilding} />
+              <IslandScene buildings={state.buildings} selectedId={selectedId} ghostType={moving && selected ? selected.type : buildType} hover={hover} phase={phase} cheerKey={cheerKey} cheerText={T("آفرین!", "Yay!")} talk={talk} onResident={onResident} labelFor={labelFor} onHover={setHover} onTile={onTile} onBuilding={onBuilding} />
             </ZoomPan>
           </div>
           {snapshot && (
             <div className="island-pop relative z-10 mx-3 mb-3 flex flex-col gap-3 rounded-2xl bg-background/90 p-3 backdrop-blur-md sm:flex-row sm:items-center" data-testid="island-snapshot-panel">
               <img src={snapshot.url} alt={T("عکس یادگاری جزیره", "Island snapshot")} className="w-full rounded-xl border sm:w-48" data-testid="island-snapshot-image" />
               <div className="flex-1 space-y-2">
-                <p className="text-sm font-medium">{T("عکس یادگاری آماده است", "Your snapshot is ready")}</p>
+                <p className="text-sm font-medium">{T("عکس یادگاری در آلبوم ذخیره شد", "Snapshot saved to your album")}</p>
                 <p className="text-xs text-muted-foreground">{T("ذخیره کنید یا با دوستانتان به اشتراک بگذارید.", "Save it or share it with friends.")}</p>
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" onClick={() => downloadBlob(snapshot.blob, snapName())} data-testid="island-snapshot-download"><Download className="size-4" />{T("ذخیره", "Save")}</Button>
@@ -210,6 +245,25 @@ export default function IslandView() {
         </section>
 
         <aside className="space-y-4">
+          {residentIdx !== null && (
+            <section className="island-pop rounded-2xl border bg-card p-4" data-testid="island-resident-panel">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="flex items-center gap-2 font-semibold"><UserRound className="size-4 text-primary" />{getResidentName(state, residentIdx, isEn)}</h2>
+                <Button size="icon" variant="ghost" className="size-9" onClick={() => setResidentIdx(null)} aria-label={T("بستن", "Close")} data-testid="island-resident-close"><X className="size-4" /></Button>
+              </div>
+              {talk?.index === residentIdx && (
+                <p className="mt-2 flex items-start gap-2 rounded-xl bg-primary/10 p-3 text-sm" data-testid="island-resident-line"><MessageCircle className="mt-0.5 size-4 shrink-0 text-primary" />{talk.text}</p>
+              )}
+              <form className="mt-3 space-y-2" onSubmit={(e) => { e.preventDefault(); saveName(); }}>
+                <Label htmlFor="resident-name" className="text-xs text-muted-foreground">{T("نام این ساکن", "This resident's name")}</Label>
+                <div className="flex gap-2">
+                  <Input id="resident-name" value={nameDraft} maxLength={20} placeholder={getResidentName({ ...state, residentNames: [] }, residentIdx, isEn)} onChange={(e) => setNameDraft(e.target.value)} data-testid="island-resident-name-input" />
+                  <Button type="submit" data-testid="island-resident-name-save">{T("ذخیره", "Save")}</Button>
+                </div>
+              </form>
+              <Button variant="outline" size="sm" className="mt-3 w-full" onClick={() => sayLine(residentIdx, Math.floor(Math.random() * 5) + 1)} data-testid="island-resident-another"><Shuffle className="size-4" />{T("یک حرف دیگر بزن", "Say something else")}</Button>
+            </section>
+          )}
           {selected ? (
             <section className="island-pop rounded-2xl border bg-card p-4" data-testid="island-selected-panel">
               <div className="flex items-start gap-3">
@@ -332,10 +386,16 @@ export default function IslandView() {
                 <li key={label} className="flex justify-between"><span className="text-muted-foreground">{label}</span><b>{val}</b></li>
               ))}
             </ul>
+            <div className="mt-4 flex items-center justify-between gap-3 border-t pt-3">
+              <Label htmlFor="island-on-today" className="text-sm">{T("نمایش جزیره در صفحهٔ امروز", "Show island on Today")}</Label>
+              <Switch id="island-on-today" checked={state.showOnToday !== false} onCheckedChange={(v) => setShowIslandOnToday(v)} data-testid="island-show-on-today" />
+            </div>
             <p className="mt-3 text-xs text-muted-foreground">{T("بدون جریمه: امتیاز هرگز کم نمی‌شود؛ فقط خودتان آن را برای ساختن خرج می‌کنید.", "No penalties: points never drop — you only spend them to build.")}</p>
           </section>
         </aside>
       </div>
+
+      <IslandAlbum onCapture={handleSnapshot} capturing={capturing} />
     </main>
   );
 }

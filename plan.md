@@ -13,3 +13,7 @@
 - Residents (IslandScene Residents): 1 + homes (max 6) walk between buildings; cheer (jump + "آفرین!") for tasks done since last visit / live (pendingCheers, ISLAND_CHEER_EVENT via recordIslandTask in garden.awardTaskWatering)
 - Weekly gift: 5 tasks/week (Saturday start) -> free special decoration (5 gift types), unclaimed gift auto-granted on rollover; gifts placed free, removal returns to stock
 - Snapshot: lib/islandSnapshot.ts renders SVG -> PNG postcard (title/date/level), inline panel with Save / Share (Web Share API, download fallback)
+## Phase 2d: Album, Resident names, Today preview (COMPLETED)
+- lib/islandAlbum.ts (IndexedDB per user, max 60) + components/island/IslandAlbum.tsx (grid, inline viewer, growth badges, save/share/delete); snapshots auto-saved
+- Residents tappable: name editing (residentNames in state), context-aware friendly lines (getResidentLine) as bubble + inline panel
+- components/island/IslandMiniCard.tsx lazy in TodayDashboardView: live mini island, points, weekly gift progress; toggle "showOnToday" on island page
