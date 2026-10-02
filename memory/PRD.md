@@ -58,3 +58,4 @@ Import https://github.com/hamedharami-hub/Arshiam.git (already in /app, Vite + R
 ### Backlog
 - P1: guided weekly/monthly review; link yearly goals to Values/Life Architect.
 - P2: undo/redo + draft recovery, notes full-text search, AI goal breakdown, Android widget "today + week progress".
+- 2026-10-02 (later): Auth page rebuilt to approved concept A "line angel": ivory/plum/rose-gold theme vars (.auth-theme in index.css, dark variant), traced SVG angel (src/components/auth/AngelLineArt.tsx) with draw-in + breathing star (reduced-motion safe), underline fields, mode link toggle (auth-tab-signin/signup testids), local Cormorant Garamond font.

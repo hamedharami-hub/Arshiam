@@ -1773,3 +1773,46 @@ html[lang^="en"] body { font-feature-settings: "cv11"; }
 .page-shell--lg { --page-max: 56rem; }
 .page-shell--xl { --page-max: 64rem; }
 }
+
+/* ── Sign-in: ivory paper, rose-gold line angel ─────────────────────────── */
+@font-face { font-family: "Cormorant Garamond"; src: url('/fonts/CormorantGaramond-Medium-latin.woff2') format('woff2'); font-weight: 500; font-style: normal; font-display: swap; }
+.auth-theme {
+  --auth-bg: 34 46% 94%;
+  --auth-paper: 36 52% 97%;
+  --auth-ink: 306 31% 18%;
+  --auth-muted: 306 9% 42%;
+  --auth-line: 14 34% 57%;
+  --auth-rule: 18 28% 80%;
+  background-color: hsl(var(--auth-bg));
+  color: hsl(var(--auth-ink));
+}
+.dark .auth-theme {
+  --auth-bg: 316 22% 8%;
+  --auth-paper: 316 18% 11%;
+  --auth-ink: 32 45% 92%;
+  --auth-muted: 30 10% 66%;
+  --auth-line: 16 52% 74%;
+  --auth-rule: 316 12% 24%;
+}
+.auth-grain::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.45 0 0 0 0 0.35 0 0 0 0 0.3 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.dark .auth-grain::before { mix-blend-mode: screen; opacity: .25; }
+.auth-wordmark { font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif; letter-spacing: .42em; font-weight: 500; }
+.auth-field { height: 2.9rem; width: 100%; border: 0; border-bottom: 1px solid hsl(var(--auth-rule)); background: transparent; padding-inline: .1rem; font-size: .95rem; color: hsl(var(--auth-ink)); outline: none; transition: border-color .25s ease; }
+.auth-field::placeholder { color: hsl(var(--auth-muted) / .55); }
+.auth-field:focus { border-bottom-color: hsl(var(--auth-line)); }
+.angel-stroke { stroke-dasharray: 1; stroke-dashoffset: 0; animation: angel-draw 2.4s cubic-bezier(.45,.05,.25,1) both; }
+.angel-ink { animation: angel-fade 1.4s ease 1.8s both; }
+.angel-star { transform-box: fill-box; transform-origin: center; animation: angel-fade .9s ease 2.6s both, angel-breathe 3.8s ease-in-out 3.5s infinite; }
+.angel-star-glow { animation: angel-fade 1.2s ease 2.8s both, angel-glow 3.8s ease-in-out 3.5s infinite; }
+@keyframes angel-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes angel-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes angel-breathe { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .55; transform: scale(.86); } }
+@keyframes angel-glow { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@keyframes auth-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.auth-rise { animation: auth-rise .7s cubic-bezier(.22,.61,.36,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .angel-stroke, .angel-ink, .angel-star, .angel-star-glow, .auth-rise { animation: none !important; }
+}

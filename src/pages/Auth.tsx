@@ -1,13 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ShieldAlert, CheckCircle, Sparkles, User, Mail, Lock, LogIn, UserPlus, Eye, EyeOff } from "lucide-react";
-import { AuthBrandPanel } from "@/components/auth/AuthBrandPanel";
+import { Eye, EyeOff } from "lucide-react";
+import { AngelLineArt } from "@/components/auth/AngelLineArt";
 import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { safeInternalPath } from "@/lib/safeNavigation";
@@ -36,6 +32,7 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [accepted, setAccepted] = useState(() => {
     try {
       return localStorage.getItem(DISCLAIMER_KEY) === "1";
@@ -171,11 +168,11 @@ export default function Auth() {
     }
   };
 
+  const signup = mode === "signup";
   const disclaimer = (
     <label
-      className={`flex cursor-pointer select-none items-start gap-2.5 rounded-xl border p-3 text-xs leading-6 transition-colors duration-300 ${
-        highlightDisclaimer ? "border-amber-500 bg-amber-500/15 ring-2 ring-amber-500/30" : "border-amber-500/30 bg-amber-500/5"
-      }`}
+      className={`flex cursor-pointer select-none items-start gap-2.5 rounded-lg py-1.5 text-[12px] leading-6 transition-colors duration-300 ${highlightDisclaimer ? "bg-[hsl(var(--auth-line)/0.14)] px-2 ring-1 ring-[hsl(var(--auth-line))]" : ""}`}
+      style={{ color: "hsl(var(--auth-muted))" }}
       data-testid="auth-disclaimer"
     >
       <Checkbox
@@ -187,114 +184,94 @@ export default function Auth() {
           if (ok) localStorage.setItem(DISCLAIMER_KEY, "1");
           else localStorage.removeItem(DISCLAIMER_KEY);
         }}
-        className="mt-1 data-[state=checked]:border-primary data-[state=checked]:bg-primary"
+        className="mt-1 h-4 w-4 rounded-[5px] border-[hsl(var(--auth-line))] data-[state=checked]:border-[hsl(var(--auth-ink))] data-[state=checked]:bg-[hsl(var(--auth-ink))] data-[state=checked]:text-[hsl(var(--auth-bg))]"
         data-testid="auth-disclaimer-checkbox"
       />
-      <span>
-        <ShieldAlert className="me-1 inline h-3.5 w-3.5 text-amber-600" />
-        <span className="font-semibold text-foreground">{T("یادآوری بالینی: ", "Clinical note: ")}</span>
-        {T("این اپ ابزار خودمدیریتی است و جایگزین درمان یا دارو نیست. با ورود، این را می‌پذیرم.", "This app is a self-management tool, not a substitute for therapy or medication. I accept this.")}
-      </span>
+      <span>{T("می‌دانم ارشناز ابزار خودمراقبتی است و جایگزین درمان یا دارو نیست.", "I understand ARSHNAZ is a self-care tool, not a substitute for therapy or medication.")}</span>
     </label>
   );
-  const pwLabels: [string, string] = [T("نمایش رمز", "Show password"), T("پنهان کردن رمز", "Hide password")];
-  const inputCls = "h-11 rounded-xl text-sm";
+  const fieldLabel = "block text-[11px] font-medium tracking-wide";
+  const submitCls = "h-12 w-full rounded-full bg-[hsl(var(--auth-ink))] text-sm font-medium text-[hsl(var(--auth-bg))] shadow-[0_10px_30px_-12px_hsl(var(--auth-ink)/0.55)] transition-[transform,box-shadow,opacity] duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_34px_-14px_hsl(var(--auth-ink)/0.6)] disabled:opacity-60";
 
   return (
-    <main dir={isEn ? "ltr" : "rtl"} className="min-h-screen bg-background p-3 sm:p-5" data-testid="auth-page">
-      <div className="mx-auto grid min-h-[calc(100vh-1.5rem)] w-full max-w-6xl gap-4 sm:min-h-[calc(100vh-2.5rem)] lg:grid-cols-[1.05fr_1fr] lg:gap-6">
-        <AuthBrandPanel fa={!isEn} dedication={t("auth.dedication")} />
+    <main dir={isEn ? "ltr" : "rtl"} className="auth-theme auth-grain relative min-h-screen overflow-hidden" data-testid="auth-page">
+      <div className="relative mx-auto grid min-h-screen w-full max-w-6xl lg:grid-cols-2">
+        <section className="relative flex flex-col items-center justify-center px-6 pb-2 pt-10 lg:py-14" data-testid="auth-art-panel">
+          <p className="auth-wordmark auth-rise absolute top-7 start-6 text-[13px] sm:start-10" style={{ color: "hsl(var(--auth-ink))" }} data-testid="auth-wordmark">ARSHNAZ</p>
+          <AngelLineArt className="h-56 w-auto sm:h-72 lg:h-[30rem]" />
+        </section>
 
-        <section className="flex items-center justify-center py-2 lg:py-8">
-          <div className="w-full max-w-md space-y-5">
-            <header className="space-y-1">
-              <h1 className="text-2xl font-bold sm:text-3xl">{T("خوش برگشتی", "Welcome back")}</h1>
-              <p className="text-sm text-muted-foreground">{T("وارد شو تا برنامهٔ امروزت را ببینی.", "Sign in to see today's plan.")}</p>
+        <section className="relative flex items-center justify-center px-6 pb-12 pt-4 lg:border-s lg:border-[hsl(var(--auth-rule)/0.7)] lg:py-14">
+          <div className="auth-rise w-full max-w-[22rem] space-y-7" style={{ animationDelay: "250ms" }}>
+            <header className="space-y-2">
+              <h1 className="text-[1.75rem] font-light leading-[1.4] sm:text-[2rem]" data-testid="auth-title">
+                {signup ? T("ساخت حساب تازه", "Create your account") : T("ورود به حساب کاربری", "Sign in to your account")}
+              </h1>
+              <p className="text-sm font-light" style={{ color: "hsl(var(--auth-muted))" }}>
+                {signup ? T("چند ثانیه، و برنامه‌ات آماده است.", "A few seconds and your space is ready.") : T("خوش برگشتی؛ امروزت منتظر توست.", "Welcome back; your day is waiting.")}
+              </p>
             </header>
 
-            <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="mb-5 grid h-11 w-full grid-cols-2 rounded-xl bg-muted/70 p-1">
-                <TabsTrigger value="signin" className="h-9 rounded-lg text-sm font-medium" data-testid="auth-tab-signin">
-                  <LogIn className="me-1.5 h-4 w-4" />{T("ورود", "Sign In")}
-                </TabsTrigger>
-                <TabsTrigger value="signup" className="h-9 rounded-lg text-sm font-medium" data-testid="auth-tab-signup">
-                  <UserPlus className="me-1.5 h-4 w-4" />{T("ثبت‌نام", "Sign Up")}
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="signin" className="focus:outline-none">
-                <form onSubmit={handleSignIn} className="space-y-4">
-                  <Field id="email-in" label={T("ایمیل", "Email")} icon={Mail}>
-                    <Input id="email-in" type="email" required placeholder="name@example.com" dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} className={`${inputCls} font-mono`} data-testid="email-in-input" />
-                  </Field>
-                  <Field id="pass-in" label={T("رمز عبور", "Password")} icon={Lock}>
-                    <PasswordInput id="pass-in" value={password} onChange={setPassword} show={showPassword} onToggle={() => setShowPassword(!showPassword)} labels={pwLabels} />
-                  </Field>
-                  <div className="flex justify-end">
-                    <button type="button" className="text-xs font-medium text-primary hover:underline disabled:opacity-50" disabled={loading} onClick={handlePasswordReset} data-testid="auth-forgot-password">
-                      {T("رمز عبور را فراموش کرده‌ام", "Forgot password?")}
+            <form onSubmit={signup ? handleSignUp : handleSignIn} className="space-y-5" data-testid={signup ? "auth-signup-form" : "auth-signin-form"}>
+              {signup && (
+                <label className="block space-y-1">
+                  <span className={fieldLabel} style={{ color: "hsl(var(--auth-muted))" }}>{T("نام", "Name")}</span>
+                  <input id="name-up" required autoComplete="name" placeholder={T("نام شما", "Your name")} value={name} onChange={(e) => setName(e.target.value)} className="auth-field" data-testid="name-up-input" />
+                </label>
+              )}
+              <label className="block space-y-1">
+                <span className={fieldLabel} style={{ color: "hsl(var(--auth-muted))" }}>{T("ایمیل", "Email")}</span>
+                <input id={signup ? "email-up" : "email-in"} type="email" required autoComplete="email" dir="ltr" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="auth-field text-left" data-testid={signup ? "email-up-input" : "email-in-input"} />
+              </label>
+              <label className="block space-y-1">
+                <span className="flex items-center justify-between">
+                  <span className={fieldLabel} style={{ color: "hsl(var(--auth-muted))" }}>{signup ? T("رمز عبور (حداقل ۶ نویسه)", "Password (6+ characters)") : T("رمز عبور", "Password")}</span>
+                  {!signup && (
+                    <button type="button" className="text-[11px] underline-offset-4 hover:underline disabled:opacity-50" style={{ color: "hsl(var(--auth-line))" }} disabled={loading} onClick={handlePasswordReset} data-testid="auth-forgot-password">
+                      {T("فراموش کرده‌ام", "Forgot?")}
                     </button>
-                  </div>
-                  {disclaimer}
-                  <Button type="submit" className="h-11 w-full rounded-xl text-sm font-bold shadow-sm transition-shadow hover:shadow-md" disabled={loading} data-testid="auth-signin-submit">
-                    {loading ? T("در حال ورود...", "Signing in...") : T("ورود به حساب", "Sign In")}
-                  </Button>
-                </form>
-              </TabsContent>
+                  )}
+                </span>
+                <PasswordInput id={signup ? "pass-up" : "pass-in"} value={password} onChange={setPassword} minLength={signup ? 6 : undefined} show={showPassword} onToggle={() => setShowPassword(!showPassword)} labels={[T("نمایش رمز", "Show password"), T("پنهان کردن رمز", "Hide password")]} />
+              </label>
+              {disclaimer}
+              <button type="submit" className={submitCls} disabled={loading} data-testid={signup ? "auth-signup-submit" : "auth-signin-submit"}>
+                {loading ? (signup ? T("در حال ساخت حساب…", "Creating account…") : T("در حال ورود…", "Signing in…")) : signup ? T("ساخت حساب", "Create account") : T("ورود به حساب", "Sign in")}
+              </button>
+            </form>
 
-              <TabsContent value="signup" className="focus:outline-none">
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  <Field id="name-up" label={T("نام و نام خانوادگی", "Full Name")} icon={User}>
-                    <Input id="name-up" required placeholder={T("مثال: حامد حرامی", "e.g. John Doe")} value={name} onChange={(e) => setName(e.target.value)} className={inputCls} data-testid="name-up-input" />
-                  </Field>
-                  <Field id="email-up" label={T("ایمیل", "Email")} icon={Mail}>
-                    <Input id="email-up" type="email" required placeholder="name@example.com" dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} className={`${inputCls} font-mono`} data-testid="email-up-input" />
-                  </Field>
-                  <Field id="pass-up" label={T("رمز عبور (حداقل ۶ نویسه)", "Password (min 6 characters)")} icon={Lock}>
-                    <PasswordInput id="pass-up" value={password} onChange={setPassword} minLength={6} show={showPassword} onToggle={() => setShowPassword(!showPassword)} labels={pwLabels} />
-                  </Field>
-                  {disclaimer}
-                  <Button type="submit" className="h-11 w-full rounded-xl text-sm font-bold shadow-sm transition-shadow hover:shadow-md" disabled={loading} data-testid="auth-signup-submit">
-                    {loading ? T("در حال ثبت‌نام...", "Creating account...") : T("ساخت حساب کاربری", "Create Account")}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
-
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="h-px flex-1 bg-border" />{T("یا", "or")}<span className="h-px flex-1 bg-border" />
+            <div className="flex items-center gap-4 text-[11px]" style={{ color: "hsl(var(--auth-muted))" }}>
+              <span className="h-px flex-1 bg-[hsl(var(--auth-rule))]" />{T("یا", "or")}<span className="h-px flex-1 bg-[hsl(var(--auth-rule))]" />
             </div>
 
-            <Button type="button" variant="outline" className="h-11 w-full rounded-xl text-sm font-medium" onClick={handleGoogle} disabled={loading} data-testid="auth-google">
-              <svg className="me-2 h-4 w-4 shrink-0" viewBox="0 0 24 24" aria-hidden>
+            <button type="button" onClick={handleGoogle} disabled={loading} data-testid="auth-google"
+              className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full border border-[hsl(var(--auth-rule))] text-sm transition-colors duration-300 hover:border-[hsl(var(--auth-line))] hover:bg-[hsl(var(--auth-paper))] disabled:opacity-60">
+              <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" aria-hidden>
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
               </svg>
-              {T("ادامه با حساب Google", "Continue with Google")}
-            </Button>
+              {T("ادامه با Google", "Continue with Google")}
+            </button>
+
+            <p className="text-center text-[13px]" style={{ color: "hsl(var(--auth-muted))" }}>
+              {signup ? T("حساب داری؟", "Have an account?") : T("حساب نداری؟", "New here?")}{" "}
+              <button type="button" onClick={() => setMode(signup ? "signin" : "signup")} className="font-medium underline-offset-4 hover:underline" style={{ color: "hsl(var(--auth-ink))" }} data-testid={signup ? "auth-tab-signin" : "auth-tab-signup"}>
+                {signup ? T("وارد شو", "Sign in") : T("ساخت حساب", "Create one")}
+              </button>
+            </p>
 
             {GUEST_LOGIN_ENABLED && (
-              <Button type="button" variant="ghost" size="sm" onClick={handleGuestLogin} disabled={loading} className="w-full gap-1.5 text-xs text-muted-foreground">
-                <Sparkles className="h-3.5 w-3.5 text-amber-500" />{T("ورود آزمایشی و سریع (بدون نیاز به رمز)", "Quick Guest Login (No password needed)")}
-              </Button>
+              <button type="button" onClick={handleGuestLogin} disabled={loading} className="w-full text-center text-xs underline-offset-4 hover:underline" style={{ color: "hsl(var(--auth-muted))" }}>
+                {T("ورود آزمایشی", "Guest login")}
+              </button>
             )}
           </div>
         </section>
       </div>
+      <p className="relative pb-5 text-center text-[11px] font-light" style={{ color: "hsl(var(--auth-muted) / 0.8)" }} data-testid="auth-dedication">{t("auth.dedication")}</p>
     </main>
-  );
-}
-
-function Field({ id, label, icon: Icon, children }: { id: string; label: string; icon: typeof Mail; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id} className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />{label}
-      </Label>
-      {children}
-    </div>
   );
 }
 
@@ -302,13 +279,13 @@ function PasswordInput({ id, value, onChange, minLength, show, onToggle, labels 
   id: string; value: string; onChange: (v: string) => void; minLength?: number; show: boolean; onToggle: () => void; labels: [string, string];
 }) {
   return (
-    <div className="relative">
-      <Input id={id} type={show ? "text" : "password"} required minLength={minLength} placeholder="••••••••" dir="ltr" value={value}
-        onChange={(e) => onChange(e.target.value)} className="h-11 rounded-xl pe-11 font-mono text-sm" data-testid={`${id}-input`} />
+    <span className="relative block">
+      <input id={id} type={show ? "text" : "password"} required minLength={minLength} autoComplete={id === "pass-up" ? "new-password" : "current-password"} placeholder="••••••••" dir="ltr" value={value}
+        onChange={(e) => onChange(e.target.value)} className="auth-field pr-10 text-left" data-testid={`${id}-input`} />
       <button type="button" onClick={onToggle} aria-label={show ? labels[1] : labels[0]} data-testid={`${id}-toggle`}
-        className="absolute inset-y-0 end-0 grid w-11 place-items-center text-muted-foreground transition-colors hover:text-foreground">
+        className="absolute inset-y-0 right-0 grid w-10 place-items-center opacity-60 transition-opacity hover:opacity-100">
         {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
       </button>
-    </div>
+    </span>
   );
 }
