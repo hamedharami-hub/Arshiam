@@ -3,6 +3,18 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
 import NewNoteView from './NewNoteView';
 const mocks = vi.hoisted(() => ({ save: vi.fn(), navigate: vi.fn(), success: vi.fn(), info: vi.fn(), error: vi.fn(), user: { id: 'owner-1' } }));
+vi.mock('@/hooks/useLearningDraft', async () => {
+  const React = await import('react');
+  return { useLearningDraft: (_key: string, initial: Record<string, unknown>) => {
+    const [value, setValue] = React.useState(initial);
+    const [canUndo, setCanUndo] = React.useState(false);
+    const change = (next: Record<string, unknown> | ((previous: Record<string, unknown>) => Record<string, unknown>)) => {
+      setValue(previous => typeof next === 'function' ? next(previous) : next);
+      setCanUndo(true);
+    };
+    return { value, ready: true, status: 'saved', conflict: null, canUndo, canRedo: false, change, undo: vi.fn(), redo: vi.fn(), restore: vi.fn(), clear: async () => {}, flush: async () => true };
+  } };
+});
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: mocks.user }) }));
 vi.mock('@/hooks/useBilingual', () => ({ useBilingual: () => ({ T: (_fa: string, en: string) => en, isEn: true }) }));
 vi.mock('react-router-dom', async original => ({ ...await original<typeof import('react-router-dom')>(), useNavigate: () => mocks.navigate }));
