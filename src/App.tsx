@@ -5,7 +5,6 @@ import { BrowserRouter, Route, Routes, Navigate, useNavigate, useLocation } from
 import { App as CapApp } from "@capacitor/app";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
-import { IslandUnlockCelebration } from "@/components/island/IslandUnlockCelebration";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -60,7 +59,6 @@ const TodayDashboardView = lazy(() => import("./pages/TodayDashboardView"));
 const NotesView = lazy(() => import("./pages/NotesView"));
 const DailyDiaryView = lazy(() => import("./pages/DailyDiaryView"));
 const GardenView = lazy(() => import("./pages/GardenView"));
-const IslandView = lazy(() => import("./pages/IslandView"));
 const PomodoroView = lazy(() => import("./pages/PomodoroView"));
 const CalendarView = lazy(() => import("./pages/CalendarView"));
 const StatsView = lazy(() => import("./pages/StatsView"));
@@ -282,7 +280,6 @@ const App = () => {
           <TooltipProvider>
             <Toaster />
             <Sonner />
-            <IslandUnlockCelebration />
             <BrowserRouter>
               <CapacitorUrlHandler />
               <AuthProvider>
@@ -338,7 +335,6 @@ const App = () => {
                       <Route path="diary" element={<DailyDiaryView />} />
                       <Route path="habits" element={<Navigate to="/app/today" replace />} />
                       <Route path="garden" element={<GardenView />} />
-                      <Route path="island" element={<IslandView />} />
                       <Route path="pomodoro" element={<PomodoroView />} />
                       <Route path="calendar" element={<CalendarView />} />
                       <Route path="contacts" element={<ContactsView />} />

@@ -4,8 +4,7 @@ import { planOf } from "@/lib/planCascade";
 import { isTaskOverdue, isTaskMissedWorkDay } from "@/lib/taskPlanning";
 import { getTimeSettings, todayISO } from "@/lib/timeHorizon";
 import { filterAndSortTasks, DEFAULT_FILTERS } from "@/lib/smartListService";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
-const IslandMiniCard = lazy(() => import("@/components/island/IslandMiniCard").then((m) => ({ default: m.IslandMiniCard })));
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { endOfDay, startOfDay } from "date-fns";
 import {
@@ -620,11 +619,6 @@ export default function TodayDashboardView() {
               onCreated={() => load()}
             />
           </div>
-
-          {/* پیش‌نمایش زندهٔ جزیرهٔ من + پیشرفت هدیهٔ هفته */}
-          <Suspense fallback={null}>
-            <IslandMiniCard />
-          </Suspense>
 
           {/* ۳. لیست تسک‌ها با خط زمان و ریتم فشرده هفتگی */}
           <DndContext

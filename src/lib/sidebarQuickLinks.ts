@@ -41,7 +41,6 @@ export const SIDEBAR_QUICK_LINK_OPTIONS: SidebarQuickLink[] = [
 
   // 3. Grow (رشد)
   { url: "/app/life-architect", labelFa: "معمار زندگی", labelEn: "Life Architect", group: "grow" },
-  { url: "/app/island", labelFa: "جزیرهٔ من", labelEn: "My Island", group: "grow" },
   { url: "/app/garden", labelFa: "باغ رشد", labelEn: "Garden", group: "grow" },
 
   { url: "/app/notes", labelFa: "نوت‌ها", labelEn: "Notes", group: "grow" },
