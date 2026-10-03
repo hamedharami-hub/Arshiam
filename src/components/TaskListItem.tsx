@@ -22,7 +22,6 @@ import { isSubDayBucket, kindLabel } from "@/lib/timeBuckets";
 import { playCompletionFeedback } from "@/lib/completionFeedback";
 import type { Task } from "@/lib/taskTypes";
 import { PRIORITY_META } from "@/lib/priority";
-import { PriorityFlag } from "@/components/PriorityFlag";
 import { isTaskOverdue } from "@/lib/taskPlanning";
 import { getTimeSettings } from "@/lib/timeHorizon";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -384,8 +383,6 @@ const TaskListItemComponent = ({
 
                   return null;
                 })()}
-
-                                {t.priority !== "none" && <PriorityFlag priority={t.priority} className="h-5 shrink-0" />}
 
                 {overdue && (
                   <span
