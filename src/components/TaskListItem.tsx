@@ -4,25 +4,19 @@ import React, { memo } from "react";
 import { isPathAllowed } from "@/lib/appModules";
 import {
   CornerDownRight, ChevronDown, ChevronRight, Pin, X, Ban,
-  GripVertical, Flag, Calendar, Repeat, GitBranch, Check, Trash2, Clock, FolderInput, Brain,
+  GripVertical, Calendar, Repeat, GitBranch, Check, Trash2, Clock, FolderInput, Brain,
   Network, BookOpen, FolderTree, ExternalLink, Layers,
   Sunrise, Sun, Sunset, Moon, CalendarRange,
 } from "lucide-react";
-import { PriorityFlag } from "@/components/PriorityFlag";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { BidiText } from "@/components/BidiText";
-import { DueDatePicker } from "@/components/DueDatePicker";
-import { RecurrenceEditor } from "@/components/RecurrenceEditor";
 import { SortableTaskRow } from "@/components/TaskDnDHelpers";
 import SwipeableRow, { type SwipeAction } from "@/components/gestures/SwipeableRow";
 import { useLongPress } from "@/lib/useLongPress";
-import { PRIORITY_META, PRIORITY_SELECTABLE, type Priority } from "@/lib/priority";
-import { describeRule, type RecurrenceRule } from "@/lib/recurrence";
 import { addDays } from "date-fns";
 import { formatDate } from "@/lib/jalali";
-import { formatTaskDueDateDisplay, getLocalDateString } from "@/lib/taskDate";
+import { formatTaskDueDateDisplay, getLocalDateString, taskWorkDate, workDatePatch } from "@/lib/taskDate";
 import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
 import { isSubDayBucket, kindLabel } from "@/lib/timeBuckets";
 import { playCompletionFeedback } from "@/lib/completionFeedback";
@@ -124,7 +118,6 @@ const TaskListItemComponent = ({
   showCompletedTasks = true,
   externalDragHandle,
 }: TaskListItemProps) => {
-  const pm = PRIORITY_META[t.priority] || PRIORITY_META.none;
   const studyNavigation = getStudyTaskNavigation(t);
   const isScheduledLeitnerReview = isLeitnerStudyTask(t);
   const parentTask = parent || (t.parent_id ? taskMap?.get(t.parent_id) : null);
@@ -186,7 +179,7 @@ const TaskListItemComponent = ({
                 baseClass: "bg-amber-500/80",
                 activeClass: "bg-amber-700",
                 textClass: "text-white",
-                onActivate: () => onPatchTask(t.id, { due_date: getLocalDateString(addDays(new Date(), 1)) }),
+                onActivate: () => onPatchTask(t.id, workDatePatch(t, getLocalDateString(addDays(new Date(), 1)))),
               },
               {
                 id: "move",
@@ -303,7 +296,7 @@ const TaskListItemComponent = ({
                       if (!t.completed) playCompletionFeedback();
                       onToggleTask(t);
                     }}
-                    className={`mt-0.5 shrink-0 rounded-md transition-transform duration-200 active:scale-75 data-[state=checked]:scale-110 ${t.priority === "urgent" ? "border-red-600 data-[state=checked]:bg-red-600" : t.priority === "high" ? "border-rose-500 data-[state=checked]:bg-rose-500" : t.priority === "medium" ? "border-amber-500 data-[state=checked]:bg-amber-500" : t.priority === "low" ? "border-emerald-500 data-[state=checked]:bg-emerald-500" : ""}`}
+                    className={`mt-0.5 h-5 w-5 shrink-0 rounded-md border-2 transition-transform duration-200 active:scale-75 data-[state=checked]:scale-110 ${t.priority === "urgent" ? "border-red-600 data-[state=checked]:bg-red-600" : t.priority === "high" ? "border-rose-500 data-[state=checked]:bg-rose-500" : t.priority === "medium" ? "border-amber-500 data-[state=checked]:bg-amber-500" : t.priority === "low" ? "border-emerald-500 data-[state=checked]:bg-emerald-500" : "border-muted-foreground/50 data-[state=checked]:bg-muted-foreground"}`}
                   />
                 )}
               </div>
@@ -381,50 +374,27 @@ const TaskListItemComponent = ({
 
                 <TaskPlanningPicker task={t} onPatch={patch => onPatchTask(t.id, patch)} hideWhenEmpty />
 
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <button
-                      onClick={(e) => e.stopPropagation()}
-                      className={`inline-flex h-5 items-center rounded px-0.5 hover:bg-muted ${(t.priority as string) === "none" ? "opacity-40 hover:opacity-100" : ""}`}
-                      title={`${T("تغییر اولویت", "Change priority")}: ${T(pm.label, pm.labelEn)}`}
-                      aria-label={`${T("تغییر اولویت", "Change priority")}: ${T(pm.label, pm.labelEn)}`}
-                      data-testid={`task-priority-flag-${t.id}`}
-                    >
-                      <PriorityFlag priority={t.priority} />
-                    </button>
-                  </SheetTrigger>
-                  <SheetContent side="bottom" className="rounded-t-3xl p-5 pt-9 sm:mx-auto sm:max-w-2xl" onClick={(e) => e.stopPropagation()}>
-                    <SheetTitle className="mb-4">{T("اهمیت تسک", "Task priority")}</SheetTitle>
-                    {PRIORITY_SELECTABLE.map(p => {
-                      const m = PRIORITY_META[p];
-                      return (
-                        <button key={p}
-                          onClick={() => onPatchTask(t.id, { priority: p as Priority })}
-                          className={`w-full text-start px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 ${t.priority === p ? "bg-accent" : ""}`}>
-                          <PriorityFlag priority={p} /> {T(m.label, m.labelEn)}
-                        </button>
-                      );
-                    })}
-                    {(t.priority as string) !== "none" && (
-                      <button onClick={() => onPatchTask(t.id, { priority: "none" as Priority })}
-                        className="w-full text-start px-2 py-1.5 text-xs rounded hover:bg-accent text-muted-foreground border-t mt-1">
-                        {T("حذف اولویت", "Remove priority")}
-                      </button>
-                    )}
-                  </SheetContent>
-                </Sheet>
                 <TaskScheduleSheet task={t} onPatch={patch => onPatchTask(t.id, patch)}>
                   <button
                     type="button"
                     onClick={e => e.stopPropagation()}
-                    className={`text-[10px] gap-1 px-2 h-5 font-medium inline-flex items-center rounded-full border transition ${t.due_date ? "bg-secondary/80 text-secondary-foreground hover:bg-secondary" : "border-dashed text-muted-foreground/70 hover:bg-muted/40"}`}
+                    className={`text-[10px] gap-1 px-2 h-5 font-medium inline-flex items-center rounded-full border transition ${taskWorkDate(t) ? "bg-secondary/80 text-secondary-foreground hover:bg-secondary" : "border-dashed text-muted-foreground/70 hover:bg-muted/40"}`}
                     title={T("روز، ساعت و تکرار", "Day, time and repeat")}
                   >
                     <Calendar className="h-3 w-3" />
-                    {t.due_date ? <bdi dir="ltr">{formatTaskDueDateDisplay(t.due_date, isEn)}</bdi> : <span>{T("روز", "Day")}</span>}
+                    {taskWorkDate(t) ? <bdi dir="ltr">{formatTaskDueDateDisplay(taskWorkDate(t), isEn)}</bdi> : <span>{T("روز", "Day")}</span>}
                     {(t.recurrence_rule || (t.recurrence && t.recurrence !== "none")) && <Repeat className="h-3 w-3 text-violet-600" aria-label={T("تکراری", "Repeats")} />}
                   </button>
                 </TaskScheduleSheet>
+                {t.work_date !== undefined && t.due_date && (
+                  <TaskScheduleSheet task={t} onPatch={patch => onPatchTask(t.id, patch)}>
+                    <button type="button" onClick={e => e.stopPropagation()}
+                      className="inline-flex h-5 items-center gap-1 rounded-full border border-rose-500/20 bg-rose-500/5 px-2 text-[10px] text-rose-700 dark:text-rose-300"
+                      title={T("مهلت نهایی", "Deadline")}>
+                      <Clock className="h-3 w-3" /><bdi dir="ltr">{formatTaskDueDateDisplay(t.due_date, isEn)}</bdi>
+                    </button>
+                  </TaskScheduleSheet>
+                )}
                 {effectiveProgress.total > 0 && (visibleSubs.length > 0 ? (
                   <button
                     type="button"

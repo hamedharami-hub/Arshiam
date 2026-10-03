@@ -6,6 +6,7 @@ import { DueDatePicker } from "@/components/DueDatePicker";
 import { BucketPickerBody } from "@/components/BucketPickerInline";
 import { toPersianDigits } from "@/lib/persianDigits";
 import type { Task } from "@/lib/taskTypes";
+import { taskWorkDate, workDatePatch, deadlinePatch } from "@/lib/taskDate";
 
 export interface TaskScheduleBodyProps {
   t: Task;
@@ -36,17 +37,23 @@ export function TaskScheduleBody({ t, canEdit, hasTimeBlock, save, postpone, T, 
         </TabsTrigger>
       </TabsList>
       <TabsContent value="date" className="mt-0 space-y-3">
+        <p className="text-sm font-semibold">{T("روز انجام · نمایش در امروز", "Work day · shown in Today")}</p>
         <DueDatePicker
           label=""
-          value={t.due_date}
+          value={taskWorkDate(t)}
           recurrenceValue={t.recurrence_rule || null}
           onRecurrenceChange={(rule) => save({ recurrence_rule: rule, recurrence: rule ? (rule.freq as any) : "none" })}
           reminderValue={t.reminder_at}
           reminderPlan={t.reminder_plan}
           onReminderPlanChange={(plan) => save({ reminder_plan: plan, reminder_at: plan?.trigger_at ?? null })}
           onReminderChange={(iso) => save({ reminder_at: iso })}
-          onChange={(iso) => save({ due_date: iso })}
+          onChange={(iso) => save(workDatePatch(t, iso))}
         />
+        <div className="border-t pt-3">
+          <p className="mb-2 text-sm font-semibold">{T("مهلت نهایی · مستقل از روز انجام", "Deadline · separate from work day")}</p>
+          <DueDatePicker label="" value={t.work_date === undefined ? null : t.due_date}
+            onChange={(due_date) => save(deadlinePatch(t, due_date))} />
+        </div>
         <div className="border-t border-border/60 pt-2.5">
           <span className={label}>{T("عقب انداختن", "Postpone")}</span>
           <div className="flex flex-wrap gap-1.5">

@@ -1,6 +1,7 @@
 // Cascading planning: year → quarter → month → week → day, linked by plan_parent_id.
 import type { Task } from "./taskTypes";
 import { getTaskPlanning, planningPatch } from "./taskPlanning";
+import { taskWorkDate, parseTaskDueDate, getLocalDateString } from "./taskDate";
 import { addDaysLocal, fromLocalISO, getTaskTime, nextPeriod, periodFor, toLocalISO, type Horizon, type Period, type TimeSettings } from "./timeHorizon";
 
 export const LEVELS_TOP_DOWN: Horizon[] = ["year", "quarter", "month", "week", "day"];
@@ -23,6 +24,10 @@ export const isClosed = (t: Partial<Task>) => !!t.completed || t.status === "don
 export function planOf(t: Partial<Task>, s: TimeSettings): Period | null {
   const p = getTaskPlanning(t, s);
   if (p) return p;
+  if (t.work_date !== undefined) {
+    const day = parseTaskDueDate(taskWorkDate(t));
+    return day ? { horizon: "day", start: getLocalDateString(day), end: getLocalDateString(day) } : null;
+  }
   const tf = getTaskTime(t, s);
   if (!tf) return null;
   if (tf.is_exact && tf.due_at) { const day = toLocalISO(new Date(tf.due_at)); return { horizon: "day", start: day, end: day }; }

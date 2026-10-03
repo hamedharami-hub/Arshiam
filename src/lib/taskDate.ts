@@ -1,4 +1,30 @@
 import { formatDueLabel } from "./localeFormat";
+import type { Task } from "./taskTypes";
+
+/** Legacy tasks used due_date for both scheduling and deadlines. */
+export function taskWorkDate(task: Partial<Task>): string | null {
+  return task.work_date === undefined ? task.due_date || task.due_at || null : task.work_date;
+}
+
+/** Move a legacy schedule into work_date without leaving its old exact due marker behind. */
+export function workDatePatch(task: Partial<Task>, work_date: string | null): Partial<Task> {
+  if (task.work_date !== undefined) return { work_date };
+  return {
+    work_date,
+    due_date: null,
+    ...(task.due_at && task.due_at === task.due_date ? { due_at: null, is_exact: false } : {}),
+  };
+}
+
+/** Preserve the former work day when a legacy task receives its first explicit deadline. */
+export function deadlinePatch(task: Partial<Task>, due_date: string | null): Partial<Task> {
+  if (task.work_date !== undefined) return { due_date };
+  return {
+    work_date: taskWorkDate(task),
+    due_date,
+    ...(task.due_at && task.due_at === task.due_date ? { due_at: null, is_exact: false } : {}),
+  };
+}
 
 /** Parse task dates consistently in the user's local timezone.
  * Date-only Firestore values must not go through Date.parse (UTC), otherwise

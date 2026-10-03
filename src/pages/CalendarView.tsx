@@ -89,8 +89,9 @@ export default function CalendarView() {
         for (const t of (data || []) as any[]) {
           if (!t.id || seenIds.has(t.id)) continue;
           let inRange = false;
-          if (t.due_date) {
-            const d = parseTaskDueDate(t.due_date);
+          const calendarDate = t.work_date === undefined ? t.due_date : t.work_date;
+          if (calendarDate) {
+            const d = parseTaskDueDate(calendarDate);
             if (d && d.getTime() >= startTime && d.getTime() <= endTime) {
               inRange = true;
             }
@@ -103,7 +104,7 @@ export default function CalendarView() {
           }
           if (inRange) {
             seenIds.add(t.id);
-            matching.push(t);
+            matching.push({ ...t, due_date: calendarDate });
           }
         }
         setTasks(matching);

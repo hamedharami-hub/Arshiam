@@ -124,11 +124,12 @@ export async function advanceRecurringTask(
   }
 
   const now = options?.now || new Date();
-  const savedDue = parseTaskDueDate(task.due_date);
+  const savedDue = parseTaskDueDate(task.work_date === undefined ? task.due_date : task.work_date);
+  const occurrenceDate = task.work_date === undefined ? task.due_date : task.work_date;
   const hasRepeatHour = typeof rule.byhour === "number";
   const legacyAllDay = !!savedDue && savedDue.getHours() === 23 && savedDue.getMinutes() === 59;
   const isAllDay = !hasRepeatHour && (
-    /^\d{4}-\d{2}-\d{2}$/.test(task.due_date || "") || legacyAllDay ||
+    /^\d{4}-\d{2}-\d{2}$/.test(occurrenceDate || "") || legacyAllDay ||
     (!savedDue && !task.due_at && !task.start_at)
   );
   const anchor = savedDue || now;
@@ -137,6 +138,10 @@ export async function advanceRecurringTask(
     : anchor;
   const nextDate = calculateNextOccurrence(rule, baseDate, now);
   const deltaMs = nextDate.getTime() - baseDate.getTime();
+  const calendarDaysShift = Math.round((
+    Date.UTC(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate()) -
+    Date.UTC(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate())
+  ) / 86400000);
 
   const nextDueDateStr = isAllDay ? getLocalDateString(nextDate) : nextDate.toISOString();
 
@@ -154,7 +159,17 @@ export async function advanceRecurringTask(
     completed: false,
     status: "todo",
     completed_at: null,
-    due_date: nextDueDateStr,
+    work_date: nextDueDateStr,
+    due_date: task.due_date && task.work_date !== undefined
+      ? (() => {
+        const deadline = parseTaskDueDate(task.due_date);
+        if (!deadline) return task.due_date;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(task.due_date)) {
+          return getLocalDateString(new Date(deadline.getFullYear(), deadline.getMonth(), deadline.getDate() + calendarDaysShift));
+        }
+        return new Date(deadline.getTime() + deltaMs).toISOString();
+      })()
+      : null,
     reminder_at: nextReminderIso,
     ...(task.reminder_plan?.enabled && nextReminderIso ? { reminder_plan: {
       ...task.reminder_plan,

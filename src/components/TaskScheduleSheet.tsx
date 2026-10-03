@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { DueDatePicker } from "@/components/DueDatePicker";
 import { TaskPlanningBody } from "@/components/TaskPlanningPicker";
 import type { Task } from "@/lib/taskTypes";
+import { taskWorkDate, workDatePatch, deadlinePatch } from "@/lib/taskDate";
 
 type Props = {
   task: Task;
@@ -27,9 +28,10 @@ export function TaskScheduleSheet({ task, onPatch, children, initialTab = "date"
         <button type="button" onClick={() => setTab("date")} className={`flex min-h-10 items-center justify-center gap-2 rounded-lg text-sm ${tab === "date" ? "bg-background font-semibold shadow-sm" : "text-muted-foreground"}`}><CalendarDays className="h-4 w-4" />{en ? "Day and repeat" : "روز و تکرار"}</button>
         <button type="button" onClick={() => setTab("planning")} className={`flex min-h-10 items-center justify-center gap-2 rounded-lg text-sm ${tab === "planning" ? "bg-background font-semibold shadow-sm" : "text-muted-foreground"}`}><CalendarRange className="h-4 w-4" />{en ? "Planning" : "برنامه‌ریزی"}</button>
       </div>
-      {tab === "date" ? <DueDatePicker
-        value={task.due_date}
-        onChange={due_date => onPatch({ due_date })}
+      {tab === "date" ? <div className="space-y-5">
+        <div className="rounded-2xl border p-3"><h3 className="mb-3 text-sm font-semibold">{en ? "Work day · shown in Today" : "روز انجام · نمایش در امروز"}</h3><DueDatePicker
+        value={taskWorkDate(task)}
+        onChange={work_date => onPatch(workDatePatch(task, work_date))}
         recurrenceValue={task.recurrence_rule || null}
         onRecurrenceChange={rule => onPatch({ recurrence_rule: rule, recurrence: rule ? (rule.freq as Task["recurrence"]) : "none" })}
         reminderValue={task.reminder_at}
@@ -37,7 +39,13 @@ export function TaskScheduleSheet({ task, onPatch, children, initialTab = "date"
         onReminderPlanChange={plan => onPatch({ reminder_plan: plan, reminder_at: plan?.trigger_at ?? null })}
         onReminderChange={reminder_at => onPatch({ reminder_at })}
         label=""
-      /> : <TaskPlanningBody task={task} onPatch={onPatch} onDone={() => setOpen(false)} />}
+      /></div>
+        <div className="rounded-2xl border p-3"><h3 className="mb-3 text-sm font-semibold">{en ? "Deadline · becomes overdue after this day" : "مهلت نهایی · پس از این روز عقب‌افتاده می‌شود"}</h3><DueDatePicker
+          value={task.work_date === undefined ? null : task.due_date}
+          onChange={due_date => onPatch(deadlinePatch(task, due_date))}
+          label=""
+        /></div>
+      </div> : <TaskPlanningBody task={task} onPatch={onPatch} onDone={() => setOpen(false)} />}
     </SheetContent>
   </Sheet>;
 }

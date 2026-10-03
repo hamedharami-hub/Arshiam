@@ -139,7 +139,8 @@ describe("recurringTaskService", () => {
       const task: Task = { id: "all-day-repeat", user_id: "user-1", title: "Read", completed: false, status: "todo", priority: "none", recurrence: "daily", due_date: oldMarker };
       const result = await advanceRecurringTask("user-1", task, { now });
       expect(result.success).toBe(true);
-      expect(result.patch?.due_date).toBe("2026-10-03");
+      expect(result.patch?.work_date).toBe("2026-10-03");
+      expect(result.patch?.due_date).toBeNull();
     });
 
     it("advances a daily planning bucket with the next task occurrence", async () => {
@@ -152,7 +153,7 @@ describe("recurringTaskService", () => {
       };
       const result = await advanceRecurringTask("user-1", task, { now: new Date(2026, 9, 2, 12) });
       expect(result.patch).toMatchObject({
-        due_date: "2026-10-03", planning_start: "2026-10-03", planning_end: "2026-10-03",
+        work_date: "2026-10-03", planning_start: "2026-10-03", planning_end: "2026-10-03",
         period_start: "2026-10-03", period_end: "2026-10-03", bucket_anchor: "2026-10-03",
       });
     });
@@ -209,7 +210,7 @@ describe("recurringTaskService", () => {
       // Verify parent task patch
       expect(res.patch?.completed).toBe(false);
       expect(res.patch?.status).toBe("todo");
-      expect(res.patch?.due_date).toBe("2026-10-01");
+      expect(res.patch?.work_date).toBe("2026-10-01");
       expect(res.patch?.description).toBe("- [ ] Prepare notes\n- [ ] Check blocker");
 
       // Verify subtask was reset
@@ -231,7 +232,7 @@ describe("recurringTaskService", () => {
           id: "parent-rec-1",
           completed: false,
           status: "todo",
-          due_date: "2026-10-01",
+          work_date: "2026-10-01",
         }),
         { quietCompanion: true },
       );

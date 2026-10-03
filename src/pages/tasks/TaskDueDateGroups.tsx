@@ -1,8 +1,8 @@
 import { TaskGroupHeader } from "@/components/tasks/TaskGroupHeader";
 import React from "react";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
-import { parseTaskDueDate, taskDueTimestamp } from "@/lib/taskDate";
-import { getTaskPlanning, isTaskOverdue } from "@/lib/taskPlanning";
+import { parseTaskDueDate, taskDueTimestamp, taskWorkDate } from "@/lib/taskDate";
+import { getTaskPlanning, isTaskOverdue, isTaskMissedWorkDay } from "@/lib/taskPlanning";
 import { getTimeSettings } from "@/lib/timeHorizon";
 import { PRIORITY_META } from "@/lib/priority";
 import type { Task } from "@/lib/taskTypes";
@@ -22,7 +22,10 @@ export function buildGroupedTasks(
   const tomorrowEnd = endOfDay(addDays(now, 1)).getTime();
   const settings = getTimeSettings();
   const dateForGrouping = (task: Task) => {
-    if (task.due_date || task.due_at) return task.due_date || task.due_at!;
+    const dates = [taskWorkDate(task), task.work_date === undefined ? null : task.due_date]
+      .filter((date): date is string => !!date)
+      .sort((a, b) => taskDueTimestamp(a) - taskDueTimestamp(b));
+    if (dates.length) return dates[0];
     const plan = getTaskPlanning(task, settings);
     return plan?.horizon === "day" ? plan.start : null;
   };
@@ -41,9 +44,12 @@ export function buildGroupedTasks(
     const due = taskDueTimestamp(dueValue);
     let key: string;
     let label: string;
-    if (due < todayStart || isTaskOverdue(task, settings, now)) {
+    if (isTaskOverdue(task, settings, now)) {
       key = "overdue";
       label = T("عقب‌افتاده", "Overdue");
+    } else if (due < todayStart || isTaskMissedWorkDay(task, settings, now)) {
+      key = "missed";
+      label = T("از برنامه عقب‌مانده", "Missed work day");
     } else if (due <= todayEnd) {
       key = "today";
       label = T("امروز", "Today");
@@ -66,9 +72,10 @@ export function buildGroupedTasks(
   const orderedKeys: string[] = [];
   if (groups.has("today")) orderedKeys.push("today");
   if (groups.has("overdue")) orderedKeys.push("overdue");
+  if (groups.has("missed")) orderedKeys.push("missed");
   if (groups.has("tomorrow")) orderedKeys.push("tomorrow");
   [...groups.keys()]
-    .filter((k) => !["overdue", "today", "tomorrow"].includes(k))
+    .filter((k) => !["overdue", "missed", "today", "tomorrow"].includes(k))
     .sort()
     .forEach((k) => orderedKeys.push(k));
   return orderedKeys.map((k) => groups.get(k)!);

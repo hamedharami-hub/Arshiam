@@ -30,6 +30,8 @@ export type Task = {
   description?: string | null;
   priority: Priority;
   due_date?: string | null;
+  /** Day the user intends to work on this task; independent of its deadline. */
+  work_date?: string | null;
   completed: boolean;
   status: TaskStatus;
   folder_id?: string | null;

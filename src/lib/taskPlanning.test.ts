@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { getTaskPlanning, isTaskOverdue, planningPatch, buildPlanningProjection, planningScopeTasks, planningUnitNumber, planningOffset } from "./taskPlanning";
+import { getTaskPlanning, isTaskOverdue, isTaskMissedWorkDay, planningPatch, buildPlanningProjection, planningScopeTasks, planningUnitNumber, planningOffset } from "./taskPlanning";
 import { addDaysLocal, childPeriods, fieldsForPeriod, periodFor, type TimeSettings } from "./timeHorizon";
 import type { Task } from "./taskTypes";
+import { taskWorkDate, workDatePatch } from "./taskDate";
 const settings: TimeSettings = { calendar: "gregorian", weekStart: "sat", seasonsEnabled: true };
 const now = new Date(2026, 4, 3, 12);
 const task = (id: string, h?: "week" | "month" | "year", date = now, parent_id: string | null = null): Task => ({ id, title: id, completed: false, status: "todo", priority: "none", parent_id, ...(h ? planningPatch(periodFor(h, date, settings), settings) : {}) });
@@ -31,12 +32,25 @@ describe("independent task planning", () => {
     expect(isTaskOverdue(missedTimeToday, settings, today)).toBe(false);
     expect(isTaskOverdue({ ...yesterday, completed: true }, settings, today)).toBe(false);
   });
-  it("marks expired daily plans overdue without treating longer planning buckets as deadlines", () => {
+  it("keeps the work day separate from the deadline and reads legacy dates", () => {
+    const today = new Date(2026, 4, 3, 12);
+    const scheduled = { ...task("scheduled"), work_date: "2026-05-03", due_date: "2026-05-08" };
+    expect(taskWorkDate(scheduled)).toBe("2026-05-03");
+    expect(isTaskOverdue(scheduled, settings, today)).toBe(false);
+    expect(isTaskOverdue({ ...scheduled, due_date: "2026-05-02" }, settings, today)).toBe(true);
+    expect(isTaskOverdue({ ...scheduled, work_date: "2026-05-02" }, settings, today)).toBe(false);
+    expect(isTaskMissedWorkDay({ ...scheduled, work_date: "2026-05-02" }, settings, today)).toBe(true);
+    expect(taskWorkDate({ ...task("legacy"), due_date: "2026-05-03" })).toBe("2026-05-03");
+    expect(workDatePatch({ due_date: "2026-05-02T09:00:00Z", due_at: "2026-05-02T09:00:00Z" }, "2026-05-03"))
+      .toEqual({ work_date: "2026-05-03", due_date: null, due_at: null, is_exact: false });
+  });
+  it("marks expired daily plans missed without treating them as deadlines", () => {
     const today = new Date(2026, 4, 3, 12);
     const oldDay = { ...task("old-day"), ...planningPatch(periodFor("day", new Date(2026, 4, 2), settings), settings) };
     const oldWeek = { ...task("old-week"), ...planningPatch(periodFor("week", new Date(2026, 3, 25), settings), settings) };
     const currentDay = { ...task("current-day"), ...planningPatch(periodFor("day", today, settings), settings) };
-    expect(isTaskOverdue(oldDay, settings, today)).toBe(true);
+    expect(isTaskOverdue(oldDay, settings, today)).toBe(false);
+    expect(isTaskMissedWorkDay(oldDay, settings, today)).toBe(true);
     expect(isTaskOverdue(oldWeek, settings, today)).toBe(false);
     expect(isTaskOverdue(currentDay, settings, today)).toBe(false);
   });

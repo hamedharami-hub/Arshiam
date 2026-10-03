@@ -74,7 +74,8 @@ export default function NewTaskView() {
     const tagId = params.get("tag_id");
     const folderId = params.get("folder_id");
     const kanbanColumnId = params.get("kanban_goal_id") || params.get("goal_id") || params.get("kanban_column_id");
-    const dueDate = params.get("due_date");
+    const dueDate = params.get("work_date") ?? params.get("due_date");
+    const deadline = params.has("work_date") ? params.get("due_date") : null;
     const recurrenceRule = parseRecurrenceRule(params.get("recurrence_rule"));
     const initialTitle = params.get("title") || "";
     const initialDescription = params.get("description") || "";
@@ -101,7 +102,8 @@ export default function NewTaskView() {
       folder_id: parentId ? null : folderId,
       kanban_column_id: kanbanColumnId || null,
       parent_id: parentId,
-      due_date: dueDate,
+      work_date: dueDate,
+      due_date: deadline,
       ...timeDefaults,
       ...planningDefaults,
       priority: params.get("priority") && params.get("priority") in PRIORITY_META ? params.get("priority") as Priority : "none",

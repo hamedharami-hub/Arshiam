@@ -25,7 +25,7 @@ import {
   Flag, Repeat, ListTree, Paperclip, X, Image as ImageIcon, Music, Link as LinkIcon,
   CheckSquare, ListChecks, CalendarDays, Mic, MicOff, Pin, PinOff, Maximize2, Minimize2,
   GitBranch, Zap, Brain, Target,
-  Save, ExternalLink, Loader2, Circle, CheckCircle2, MoreHorizontal,
+  Save, ExternalLink, Loader2, MoreHorizontal,
   Copy, Share2, FolderInput, Timer, Network, Edit, BookOpen, FolderTree, Layers,
 } from "lucide-react";
 import { getAllKanbanGoals, type GoalKanban, TIME_HORIZONS } from "@/lib/kanbanGoals";
@@ -79,7 +79,7 @@ import { logTaskActivity } from "@/lib/taskActivity";
 import { bucketLabel, kindLabel, isSubDayBucket } from "@/lib/timeBuckets";
 import { describeRule } from "@/lib/recurrence";
 import { addDays } from "date-fns";
-import { getLocalDateString, parseTaskDueDate } from "@/lib/taskDate";
+import { getLocalDateString, parseTaskDueDate, workDatePatch } from "@/lib/taskDate";
 import { addTaskToAndroidCalendar } from "@/lib/androidNative";
 
 import { Switch } from "@/components/ui/switch";
@@ -150,7 +150,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   // The subtask editor is always visible: a task's hierarchy must never be hidden
   // behind a secondary rail control, including while the app is offline.
   const hasTimeBlock = !!(t.start_at || t.end_at || t.estimated_minutes);
-  const isScheduled = !!t.due_date || !!t.reminder_at || !!t.recurrence_rule || !!t.bucket_kind || hasTimeBlock;
+  const isScheduled = !!t.work_date || !!t.due_date || !!t.reminder_at || !!t.recurrence_rule || !!t.bucket_kind || hasTimeBlock;
   const [showSubtasks, setShowSubtasks] = useState(true);
   const [showSteps, setShowSteps] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
@@ -681,10 +681,11 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   };
 
   const postpone = (days: number) => {
-    const base = t.due_date ? parseTaskDueDate(t.due_date) || new Date() : new Date();
+    const workDate = t.work_date === undefined ? t.due_date : t.work_date;
+    const base = workDate ? parseTaskDueDate(workDate) || new Date() : new Date();
     const next = addDays(base, days);
-    const allDay = !t.due_date || /^\d{4}-\d{2}-\d{2}$/.test(t.due_date) || (base.getHours() === 23 && base.getMinutes() === 59);
-    save({ due_date: allDay ? getLocalDateString(next) : next.toISOString() });
+    const allDay = !workDate || /^\d{4}-\d{2}-\d{2}$/.test(workDate) || (base.getHours() === 23 && base.getMinutes() === 59);
+    save(workDatePatch(t, allDay ? getLocalDateString(next) : next.toISOString()));
     setScheduleOpen(false);
     toast(T(`تسک به ${days} روز دیگر موکول شد`, `Task postponed by ${days} day(s)`));
   };
@@ -820,7 +821,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const recLabel = t.recurrence_rule ? describeRule(t.recurrence_rule, isEn) : null;
   const scheduleLabel = (() => {
     const lang = isEn ? "en" : "fa";
-    const due = formatDueLabel(t.due_date, t.reminder_at, lang);
+    const due = formatDueLabel(t.work_date === undefined ? t.due_date : t.work_date, t.reminder_at, lang);
     if (due) return recLabel ? `${due} · ${recLabel}` : due;
     if (t.bucket_kind && t.bucket_anchor) {
       return bucketLabel(t.bucket_kind, (t.bucket_calendar as any) || "gregorian", t.bucket_anchor, lang);
@@ -864,7 +865,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         type="button"
         disabled={isLeitnerStudyTask(t) && !t.completed ? false : !canEdit}
         onClick={isLeitnerStudyTask(t) && !t.completed ? openLinkedReview : toggleCompletion}
-        className={`mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-md text-muted-foreground hover:text-foreground disabled:opacity-60 paper-chip ${t.completed ? "text-primary" : ""}`}
+        className="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-md disabled:opacity-60"
         aria-label={isLeitnerStudyTask(t) && !t.completed
           ? T("شروع مرور لایتنر", "Open Leitner review")
           : t.completed ? T("بازکردن تسک", "Reopen task") : T("تکمیل تسک", "Complete task")}
@@ -876,7 +877,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       >
         {isLeitnerStudyTask(t) && !t.completed
           ? <BookOpen className="w-5 h-5" />
-          : t.completed ? <CheckCircle2 key="done" className="w-5 h-5 paper-check-done" /> : <Circle className="w-5 h-5" />}
+          : <span className={`grid h-5 w-5 place-items-center rounded-md border-2 ${t.priority === "urgent" ? "border-red-600 bg-red-600" : t.priority === "high" ? "border-rose-500 bg-rose-500" : t.priority === "medium" ? "border-amber-500 bg-amber-500" : t.priority === "low" ? "border-emerald-500 bg-emerald-500" : "border-muted-foreground/50 bg-muted-foreground"} ${t.completed ? "text-white" : "!bg-transparent"}`}>{t.completed && <Check className="h-4 w-4" />}</span>}
       </button>
       <AutoTextarea
         ref={titleInputRef}

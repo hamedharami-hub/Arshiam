@@ -1,7 +1,7 @@
 import { PlanningBoard } from "@/components/planning/PlanningBoard";
 import { getTimeSettings } from "@/lib/timeHorizon";
 import { ListViewSwitch } from "@/components/ListViewSwitch";
-import { getTaskPlanning, isTaskOverdue, planningScopeTasks } from "@/lib/taskPlanning";
+import { getTaskPlanning, isTaskOverdue, isTaskMissedWorkDay, planningScopeTasks } from "@/lib/taskPlanning";
 import { readTaskListSort, saveTaskListSort, TASK_LIST_SORT_EVENT } from "@/lib/taskListSort";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -45,7 +45,7 @@ import { toast } from "sonner";
 import { PRIORITY_META } from "@/lib/priority";
 import { FolderKanban } from "@/components/FolderKanban";
 import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
-import { parseTaskDueDate, taskDueTimestamp, getLocalDateString } from "@/lib/taskDate";
+import { parseTaskDueDate, taskDueTimestamp, getLocalDateString, taskWorkDate, workDatePatch } from "@/lib/taskDate";
 import { pushUndo } from "@/lib/undoStack";
 import { pushDeleted } from "@/lib/recentlyDeleted";
 import { enqueueOp, cacheGet } from "@/lib/offlineQueue";
@@ -353,6 +353,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const visualPatch: Partial<Task> = {};
     if (Object.prototype.hasOwnProperty.call(patch, "priority")) visualPatch.priority = patch.priority;
     if (Object.prototype.hasOwnProperty.call(patch, "due_date")) visualPatch.due_date = patch.due_date;
+    if (Object.prototype.hasOwnProperty.call(patch, "work_date")) visualPatch.work_date = patch.work_date;
     if (owner && Object.keys(visualPatch).length) {
       setVisualPatches(prev => ({ ...prev, [id]: { ...prev[id], ...visualPatch } }));
     }
@@ -487,9 +488,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       const todayDate = getLocalDateString();
       const timeSettings = getTimeSettings();
       const isDueTodayOrOverdue = (t: Task) => {
-        if (isTaskOverdue(t, timeSettings)) return true;
-        const dueDate = t.due_date || t.due_at;
+        if (isTaskOverdue(t, timeSettings) || isTaskMissedWorkDay(t, timeSettings)) return true;
+        const dueDate = taskWorkDate(t);
         if (dueDate && taskDueTimestamp(dueDate) <= e) return true;
+        if (t.work_date !== undefined && t.due_date && taskDueTimestamp(t.due_date) <= e) return true;
         const plan = getTaskPlanning(t, timeSettings);
         if (plan?.horizon === "day" && plan.start === todayDate) return true;
         if (t.bucket_kind) {
@@ -506,10 +508,14 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       const tmrwDateStr = getLocalDateString(addDays(new Date(), 1));
       const timeSettings = getTimeSettings();
       const isDueTomorrow = (t: Task) => {
-        const dueDate = t.due_date || t.due_at;
+        const dueDate = taskWorkDate(t);
         if (dueDate) {
           const ts = taskDueTimestamp(dueDate);
           if (ts >= s && ts <= e) return true;
+        }
+        if (t.work_date !== undefined && t.due_date) {
+          const deadline = taskDueTimestamp(t.due_date);
+          if (deadline >= s && deadline <= e) return true;
         }
         const plan = getTaskPlanning(t, timeSettings);
         if (plan?.horizon === "day" && plan.start === tmrwDateStr) return true;
@@ -525,9 +531,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       const lastDay = getLocalDateString(addDays(new Date(), 7));
       const timeSettings = getTimeSettings();
       const isDueNext7 = (t: Task) => {
-        if (isTaskOverdue(t, timeSettings)) return true;
-        const dueDate = t.due_date || t.due_at;
+        if (isTaskOverdue(t, timeSettings) || isTaskMissedWorkDay(t, timeSettings)) return true;
+        const dueDate = taskWorkDate(t);
         if (dueDate && taskDueTimestamp(dueDate) <= e) return true;
+        if (t.work_date !== undefined && t.due_date && taskDueTimestamp(t.due_date) <= e) return true;
         const plan = getTaskPlanning(t, timeSettings);
         if (plan?.horizon === "day" && plan.start <= lastDay) return true;
         if (t.bucket_kind) {
@@ -836,9 +843,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       const patch: Record<string, any> = { parent_id: null };
       const today = getLocalDateString();
       const tomorrowIso = getLocalDateString(addDays(new Date(), 1));
-      if (sc === "today") patch.due_date = today;
-      else if (sc === "tomorrow") patch.due_date = tomorrowIso;
-      else if (sc === "next7" && !activeTask.due_date) patch.due_date = tomorrowIso;
+      if (sc === "today") patch.work_date = today;
+      else if (sc === "tomorrow") patch.work_date = tomorrowIso;
+      else if (sc === "next7" && !taskWorkDate(activeTask)) patch.work_date = tomorrowIso;
+      if (patch.work_date) Object.assign(patch, workDatePatch(activeTask, patch.work_date));
       else if (sc === "folder") patch.folder_id = params.id || null;
       return patch;
     };
@@ -995,7 +1003,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         <QuickAddTask
           defaults={{
             folder_id: scope === "folder" ? params.id || null : null,
-            due_date: scope === "today"
+            work_date: scope === "today"
               ? getLocalDateString()
               : scope === "tomorrow"
                 ? getLocalDateString(addDays(new Date(), 1))

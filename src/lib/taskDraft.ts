@@ -1,10 +1,11 @@
 import type { Task } from "@/lib/taskTypes";
 
 export const EDITABLE_TASK_FIELDS: (keyof Task)[] = [
-  "title", "description", "priority", "due_date", "completed", "status", "folder_id",
+  "title", "description", "priority", "work_date", "due_date", "completed", "status", "folder_id",
   "reminder_at", "reminder_plan", "recurrence", "recurrence_rule", "parent_id", "outcome_id", "pinned",
   "start_at", "end_at", "estimated_minutes", "is_avoidance", "location", "bucket_kind",
   "bucket_calendar", "bucket_anchor",
+  "planning_horizon", "planning_start", "planning_end", "planning_calendar",
 ];
 
 export function taskPatch(current: Task, saved: Task): Partial<Task> {
@@ -23,6 +24,7 @@ export function clearTaskDraft(taskId: string) {
 export function writeTaskDraft(task: Task) {
   try {
     const fields = EDITABLE_TASK_FIELDS.reduce<Record<string, unknown>>((draft, key) => {
+      if (key === "work_date" && task.work_date === undefined) return draft;
       draft[key] = task[key] ?? null;
       return draft;
     }, {});

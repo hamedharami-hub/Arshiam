@@ -1,7 +1,7 @@
 import { differenceInCalendarMonths as gregorianMonths, getMonth as gregorianMonth } from "date-fns";
 import { differenceInCalendarMonths as jalaliMonths, getMonth as jalaliMonth } from "date-fns-jalali";
 import type { Task } from "./taskTypes";
-import { taskDueTimestamp } from "./taskDate";
+import { taskDueTimestamp, taskWorkDate } from "./taskDate";
 import { ALL_HORIZONS, addDaysLocal, fromLocalISO, getTaskTime, periodFor, todayISO, type Horizon, type Period, type TimeSettings } from "./timeHorizon";
 
 /** Planning is independent of due_date / due_at; old fuzzy buckets remain readable. */
@@ -20,18 +20,25 @@ export function getTaskPlanning(task: Partial<Task>, settings: TimeSettings): Pe
 }
 
 /**
- * A task is overdue after its due day passes. Day-level plans also become
- * overdue when their planned day passes, but week/month/year plans are planning
- * buckets rather than deadlines. Never move the task's saved date implicitly.
+ * Only an expired deadline is overdue. Missing an intended work day is a
+ * separate state, so planning does not silently become a hard deadline.
  */
-export function isTaskOverdue(task: Partial<Task>, settings: TimeSettings, now = new Date()): boolean {
+export function isTaskOverdue(task: Partial<Task>, _settings: TimeSettings, now = new Date()): boolean {
   if (task.completed || task.status === "done" || task.status === "wont_do") return false;
 
-  const today = todayISO(now);
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const due = task.due_date || task.due_at;
+  const due = task.due_date || (task.work_date === undefined ? task.due_at : null);
   if (due && taskDueTimestamp(due) < todayStart) return true;
 
+  return false;
+}
+
+export function isTaskMissedWorkDay(task: Partial<Task>, settings: TimeSettings, now = new Date()): boolean {
+  if (task.completed || task.status === "done" || task.status === "wont_do") return false;
+  const today = todayISO(now);
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const workDay = taskWorkDate(task);
+  if (workDay && taskDueTimestamp(workDay) < todayStart) return true;
   const plan = getTaskPlanning(task, settings);
   if (plan?.horizon === "day") return plan.end < today;
 

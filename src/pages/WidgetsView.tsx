@@ -46,6 +46,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { fetchTasks, saveTask, deleteTask } from "@/features/tasks/taskService";
 import type { Task } from "@/lib/taskTypes";
+import { workDatePatch } from "@/lib/taskDate";
 import { refreshAndroidWidgets, getWidgetDiagnostics } from "@/lib/androidWidget";
 import { isAndroid } from "@/lib/nativeExperience";
 import { haptic } from "@/lib/haptics";
@@ -181,8 +182,8 @@ export default function WidgetsView() {
       if ((!showCompletedTasks || !settings.showCompleted) && (t.completed || t.status === "done")) return false;
       if (settings.highPriorityOnly && t.priority !== "high" && t.priority !== "urgent") return false;
 
-      if (agendaScope === "today") return dueDay(t.due_date) === todayStr;
-      if (agendaScope === "tomorrow") return dueDay(t.due_date) === tomorrowStr;
+      if (agendaScope === "today") return dueDay(t.work_date === undefined ? t.due_date : t.work_date) === todayStr;
+      if (agendaScope === "tomorrow") return dueDay(t.work_date === undefined ? t.due_date : t.work_date) === tomorrowStr;
       if (agendaScope === "high") return t.priority === "high" || t.priority === "urgent";
       return true; // next7 or all
     });
@@ -219,7 +220,7 @@ export default function WidgetsView() {
     const tomorrowStr = toLocalISO(addDaysLocal(new Date(), 1));
     const updated = {
       ...task,
-      due_date: tomorrowStr,
+      ...workDatePatch(task, tomorrowStr),
       updated_at: new Date().toISOString(),
     };
     setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
@@ -556,7 +557,7 @@ export default function WidgetsView() {
                                 </p>
                                 <span className="text-[10px] text-muted-foreground">
                                   {t.priority === "high" || t.priority === "urgent" ? (isEn ? "● High Priority · " : "● اولویت بالا · ") : ""}
-                                  {t.due_date ? t.due_date.slice(5) : T("بدون تاریخ", "No date")}
+                                  {(t.work_date === undefined ? t.due_date : t.work_date)?.slice(5) || T("بدون تاریخ", "No date")}
                                 </span>
                               </div>
 
