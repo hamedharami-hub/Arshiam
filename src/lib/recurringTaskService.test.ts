@@ -200,12 +200,22 @@ describe("recurringTaskService", () => {
         due_date: "2026-09-30",
       };
 
-      mockGetCachedTasks.mockResolvedValue([parentTask, subtask1]);
+      const subtask2: Task = {
+        id: "sub-2",
+        user_id: "user-1",
+        title: "Subtask 2",
+        priority: "low",
+        completed: true,
+        status: "done",
+        parent_id: "parent-rec-1",
+      };
+
+      mockGetCachedTasks.mockResolvedValue([parentTask, subtask1, subtask2]);
 
       const res = await advanceRecurringTask("user-1", parentTask, { now });
 
       expect(res.success).toBe(true);
-      expect(res.updatedSubtaskCount).toBe(1);
+      expect(res.updatedSubtaskCount).toBe(2);
 
       // Verify parent task patch
       expect(res.patch?.completed).toBe(false);
@@ -213,7 +223,7 @@ describe("recurringTaskService", () => {
       expect(res.patch?.work_date).toBe("2026-10-01");
       expect(res.patch?.description).toBe("- [ ] Prepare notes\n- [ ] Check blocker");
 
-      // Verify subtask was reset
+      // Verify subtasks were reset (both subtasks are plain tasks without recurrence)
       expect(mockPersistTask).toHaveBeenCalledWith(
         "user-1",
         expect.objectContaining({
@@ -221,6 +231,15 @@ describe("recurringTaskService", () => {
           completed: false,
           status: "todo",
           due_date: "2026-10-01",
+        }),
+        { quietCompanion: true },
+      );
+      expect(mockPersistTask).toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({
+          id: "sub-2",
+          completed: false,
+          status: "todo",
         }),
         { quietCompanion: true },
       );
@@ -235,6 +254,46 @@ describe("recurringTaskService", () => {
           work_date: "2026-10-01",
         }),
         { quietCompanion: true },
+      );
+    });
+
+    it("does not reset a recurring subtask to tomorrow (nested recurrence advances itself)", async () => {
+      const now = new Date("2026-09-30T10:00:00.000Z");
+
+      const parentTask: Task = {
+        id: "parent-rec-2",
+        user_id: "user-1",
+        title: "Weekly Review",
+        completed: true,
+        status: "done",
+        recurrence: "weekly",
+        due_date: "2026-09-30",
+      };
+
+      // A subtask that is itself recurring must not be hijacked by the parent's advance.
+      const recurringSub: Task = {
+        id: "sub-rec-1",
+        user_id: "user-1",
+        title: "DailyStretch",
+        completed: true,
+        status: "done",
+        parent_id: "parent-rec-2",
+        recurrence: "daily",
+        due_date: "2026-09-30",
+      };
+
+      mockGetCachedTasks.mockResolvedValue([parentTask, recurringSub]);
+
+      const res = await advanceRecurringTask("user-1", parentTask, { now });
+
+      expect(res.success).toBe(true);
+      // The recurring subtask is intentionally left alone: completing the parent
+      // tomorrow should not duplicate or shift the subtask's own daily cadence.
+      expect(res.updatedSubtaskCount).toBe(0);
+      expect(mockPersistTask).not.toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({ id: "sub-rec-1" }),
+        expect.anything(),
       );
     });
 

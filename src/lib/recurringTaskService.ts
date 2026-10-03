@@ -230,9 +230,12 @@ export async function advanceRecurringTask(
     targetTaskIds = [task.id, ...descendantIds];
 
     const subtasks = (allTasks || []).filter((t) => descendantIds.includes(t.id));
-    subtaskCount = subtasks.length;
+    // Subtasks that carry their own recurrence manage their own cadence: resetting
+    // or shifting them here would corrupt their schedule when the parent advances.
+    const plainSubtasks = subtasks.filter((sub) => !isRecurringTask(sub));
+    subtaskCount = plainSubtasks.length;
 
-    for (const sub of subtasks) {
+    for (const sub of plainSubtasks) {
       const subPatch: Partial<Task> & { id: string } = {
         id: sub.id,
         completed: false,
