@@ -1,15 +1,14 @@
 import { useTranslation } from "react-i18next";
+import { Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PRIORITY_META, type Priority } from "@/lib/priority";
 
-export type FlagPriority = "urgent" | "high" | "medium" | "low" | "none";
+export type FlagPriority = Priority;
 
-const FLAG_COLOR: Record<FlagPriority, string> = {
-  urgent: "text-priority-high",
-  high: "text-priority-medium",
-  medium: "text-priority-low",
-  low: "text-priority-none",
-  none: "text-muted-foreground/60",
-};
+/** Narrows any stored or user-provided string to a real priority key (unknown values fall back to "none"). */
+export function normalizePriority(priority: string | null | undefined): FlagPriority {
+  return priority && priority in PRIORITY_META ? (priority as FlagPriority) : "none";
+}
 
 const LABEL_KEY: Record<FlagPriority, string> = {
   urgent: "ui.priorityUrgent",
@@ -20,7 +19,7 @@ const LABEL_KEY: Record<FlagPriority, string> = {
 };
 
 export function priorityLabelKey(priority: string | null | undefined): string {
-  return LABEL_KEY[(priority as FlagPriority) in LABEL_KEY ? (priority as FlagPriority) : "none"];
+  return LABEL_KEY[normalizePriority(priority)];
 }
 
 export function PriorityFlag({
@@ -33,11 +32,15 @@ export function PriorityFlag({
   withLabel?: boolean;
 }) {
   const { t } = useTranslation();
-  const p: FlagPriority = priority && priority in FLAG_COLOR ? (priority as FlagPriority) : "none";
+  const p = normalizePriority(priority);
   const label = t(LABEL_KEY[p]);
   return (
-    <span className={cn("inline-flex items-center gap-1", FLAG_COLOR[p], className)} title={label} data-priority={p}>
-      <span className="h-4 w-4 shrink-0 rounded-[5px] border-2 border-current" aria-hidden />
+    <span
+      className={cn("inline-flex items-center gap-1", PRIORITY_META[p].flagClass, className)}
+      title={label}
+      data-priority={p}
+    >
+      <Flag className={cn("h-3.5 w-3.5 shrink-0", p !== "none" && "fill-current")} aria-hidden />
       {withLabel ? <span className="text-xs text-foreground/80">{label}</span> : <span className="sr-only">{label}</span>}
     </span>
   );

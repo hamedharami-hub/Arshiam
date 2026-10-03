@@ -1,12 +1,12 @@
 import { TaskPlanningPicker } from "./TaskPlanningPicker";
 import { TaskScheduleSheet } from "./TaskScheduleSheet";
-import React, { memo } from "react";
+import React, { memo, useMemo } from "react";
 import { isPathAllowed } from "@/lib/appModules";
 import {
   CornerDownRight, ChevronDown, ChevronRight, Pin, X, Ban,
   GripVertical, Calendar, Repeat, GitBranch, Check, Trash2, Clock, FolderInput, Brain,
   Network, BookOpen, FolderTree, ExternalLink, Layers,
-  Sunrise, Sun, Sunset, Moon, CalendarRange,
+  Sunrise, Sun, Sunset, Moon, CalendarRange, AlertTriangle,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -21,6 +21,10 @@ import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyServi
 import { isSubDayBucket, kindLabel } from "@/lib/timeBuckets";
 import { playCompletionFeedback } from "@/lib/completionFeedback";
 import type { Task } from "@/lib/taskTypes";
+import { PRIORITY_META } from "@/lib/priority";
+import { PriorityFlag } from "@/components/PriorityFlag";
+import { isTaskOverdue } from "@/lib/taskPlanning";
+import { getTimeSettings } from "@/lib/timeHorizon";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
 export function outcomeMeta(
@@ -84,6 +88,8 @@ export interface TaskListItemProps {
   taskMap: Map<string, Task>;
   allowDrag?: boolean;
   showCompletedTasks?: boolean;
+  /** Shows an inline "Overdue" pill; used by lists that do not group rows by due date. */
+  showOverdueBadge?: boolean;
   externalDragHandle?: Record<string, any>;
 }
 
@@ -116,9 +122,16 @@ const TaskListItemComponent = ({
   taskMap,
   allowDrag = false,
   showCompletedTasks = true,
+  showOverdueBadge = false,
   externalDragHandle,
 }: TaskListItemProps) => {
   const studyNavigation = getStudyTaskNavigation(t);
+  const priorityMeta = PRIORITY_META[t.priority] ?? PRIORITY_META.none;
+  // Today/Next-7 group overdue rows under a header, so only ungrouped lists need a row-level pill.
+  const overdue = useMemo(
+    () => (showOverdueBadge ? isTaskOverdue(t, getTimeSettings()) : false),
+    [showOverdueBadge, t],
+  );
   const isScheduledLeitnerReview = isLeitnerStudyTask(t);
   const parentTask = parent || (t.parent_id ? taskMap?.get(t.parent_id) : null);
   const effectiveProgress = progress ?? (typeof getProgress === "function" ? getProgress(t.id) : undefined) ?? { done: 0, total: subs?.length || 0 };
@@ -296,7 +309,7 @@ const TaskListItemComponent = ({
                       if (!t.completed) playCompletionFeedback();
                       onToggleTask(t);
                     }}
-                    className={`mt-0.5 h-5 w-5 shrink-0 rounded-md border-2 transition-transform duration-200 active:scale-75 data-[state=checked]:scale-110 ${t.priority === "urgent" ? "border-red-600 data-[state=checked]:bg-red-600" : t.priority === "high" ? "border-rose-500 data-[state=checked]:bg-rose-500" : t.priority === "medium" ? "border-amber-500 data-[state=checked]:bg-amber-500" : t.priority === "low" ? "border-emerald-500 data-[state=checked]:bg-emerald-500" : "border-muted-foreground/50 data-[state=checked]:bg-muted-foreground"}`}
+                    className={`mt-0.5 h-5 w-5 shrink-0 rounded-md border-2 transition-transform duration-200 active:scale-75 data-[state=checked]:scale-110 ${priorityMeta.checkboxClass}`}
                   />
                 )}
               </div>
@@ -371,6 +384,19 @@ const TaskListItemComponent = ({
 
                   return null;
                 })()}
+
+                                {t.priority !== "none" && <PriorityFlag priority={t.priority} className="h-5 shrink-0" />}
+
+                {overdue && (
+                  <span
+                    data-testid="task-overdue-badge"
+                    className="inline-flex h-5 items-center gap-1 rounded-full border border-rose-500/25 bg-rose-500/10 px-2 text-[10px] font-medium text-rose-700 dark:text-rose-300"
+                    title={T("مهلت این تسک گذشته است", "The deadline has passed")}
+                  >
+                    <AlertTriangle className="h-3 w-3" />
+                    {T("عقب‌افتاده", "Overdue")}
+                  </span>
+                )}
 
                 <TaskPlanningPicker task={t} onPatch={patch => onPatchTask(t.id, patch)} hideWhenEmpty />
 
@@ -482,6 +508,7 @@ const TaskListItemComponent = ({
                     taskMap={taskMap}
                     allowDrag={externalDragHandle ? false : allowDrag}
                     showCompletedTasks={showCompletedTasks}
+                    showOverdueBadge={showOverdueBadge}
                   />
                 ))}
               </SortableContext>

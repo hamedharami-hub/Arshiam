@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useDraggable } from "@dnd-kit/core";
 import { CalendarClock, Clock, GripVertical, Repeat2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { PRIORITY_META } from "@/lib/priority";
 import type { Task } from "@/lib/taskTypes";
 import { formatDate, toPersianDigits } from "@/lib/jalali";
 import { getTaskTime, periodLabel, type TimeSettings } from "@/lib/timeHorizon";
@@ -22,7 +21,6 @@ export function HorizonTaskRow({ task, settings, lang, overdue, showPeriod, goal
   const navigate = useNavigate();
   const { attributes, listeners, setNodeRef, isDragging, transform } = useDraggable({ id: task.id, data: { task } });
   const tf = getTaskTime(task, settings);
-  const pm = PRIORITY_META[task.priority || "none"];
   const fa = lang === "fa";
   const num = (s: string | number) => (fa ? toPersianDigits(s) : String(s));
 
