@@ -4,6 +4,7 @@ import { cacheGet, cacheSet, enqueueOp } from "@/lib/offlineQueue";
 import { fireNotification, hasNotificationPermission } from "@/lib/notify";
 import { cancelNotification, scheduleNotificationAt } from "@/lib/notify";
 import type { Task, ReminderPlan, ReminderMode, ReminderImportance, ReminderPlanStatus } from "@/lib/taskTypes";
+import { getStoredTheme } from "@/lib/theme";
 import { isAndroid, nativeExperience } from "./nativeExperience";
 export { ensureNotificationPermission } from "@/lib/notify";
 export type { ReminderPlan, ReminderMode, ReminderImportance, ReminderPlanStatus };
@@ -400,6 +401,13 @@ const DEFAULT_SETTINGS: UserSettings = {
   task_defaults: {},
 };
 
+// Fabricated fallback (offline/no row/error): carry over the device's own theme choice
+// so entering Settings can never silently flip day↔night. Falls back to DEFAULT only
+// when the device has no stored theme either (true first-run default applies).
+export function fallbackSettings(userId: string): UserSettings {
+  return { ...DEFAULT_SETTINGS, theme: getStoredTheme() || DEFAULT_SETTINGS.theme, user_id: userId };
+}
+
 const settingsCache = new Map<string, Promise<UserSettings | null>>();
 export async function loadSettings(userId: string): Promise<UserSettings | null> {
   const cached = settingsCache.get(userId);
@@ -407,9 +415,9 @@ export async function loadSettings(userId: string): Promise<UserSettings | null>
   const p = (async () => {
     const cachedValue = await cacheGet<UserSettings>(SETTINGS_CACHE_KEY(userId));
 
-    // If offline, return cached or default immediately so navigation isn't blocked
+    // If offline, return cached or fallback immediately so navigation isn't blocked
     if (typeof navigator !== "undefined" && !navigator.onLine) {
-      return cachedValue ? { ...DEFAULT_SETTINGS, ...cachedValue, user_id: userId } : { ...DEFAULT_SETTINGS, user_id: userId };
+      return cachedValue ? { ...fallbackSettings(userId), ...cachedValue, user_id: userId } : fallbackSettings(userId);
     }
 
     try {
@@ -424,11 +432,13 @@ export async function loadSettings(userId: string): Promise<UserSettings | null>
         .insert({ user_id: userId })
         .select()
         .maybeSingle();
-      const settings = { ...DEFAULT_SETTINGS, ...(created as unknown as Partial<UserSettings>), user_id: userId };
+      const settings = created
+        ? { ...DEFAULT_SETTINGS, ...(created as unknown as Partial<UserSettings>), user_id: userId }
+        : fallbackSettings(userId);
       await cacheSet(SETTINGS_CACHE_KEY(userId), settings);
       return settings;
     } catch {
-      return cachedValue ? { ...DEFAULT_SETTINGS, ...cachedValue, user_id: userId } : { ...DEFAULT_SETTINGS, user_id: userId };
+      return cachedValue ? { ...fallbackSettings(userId), ...cachedValue, user_id: userId } : fallbackSettings(userId);
     }
   })();
   settingsCache.set(userId, p);

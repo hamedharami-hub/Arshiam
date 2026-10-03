@@ -4,10 +4,13 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { applyTheme, getStoredTheme, getBaseTheme } from "@/lib/theme";
 import { useTheme } from "next-themes";
+import { useAuth } from "@/hooks/useAuth";
+import { saveSettings } from "@/lib/reminders";
 
 // Quick day/night switch: paper light ↔ paper dark (keeps OLED when already chosen).
 export default function ThemeToggle() {
   const { setTheme } = useTheme();
+  const { user } = useAuth();
   const { t } = useTranslation();
   const [isDark, setIsDark] = useState(false);
 
@@ -29,6 +32,9 @@ export default function ThemeToggle() {
     const next = goingDark ? (getStoredTheme() === "oled" ? "oled" : "paper-dark") : "paper-light";
     applyTheme(next);
     setTheme(getBaseTheme(next));
+    // Persist to cloud settings so entering Settings can't undo this choice
+    // (best effort — offline is fine, saveSettings queues it).
+    if (user) void saveSettings(user.id, { theme: next }).catch(() => {});
     setIsDark(goingDark);
   };
 

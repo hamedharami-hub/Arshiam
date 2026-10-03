@@ -28,7 +28,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { loadSettings, saveSettings, ensureNotificationPermission, type UserSettings } from "@/lib/reminders";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useTheme } from "next-themes";
-import { applyTheme, getBaseTheme } from "@/lib/theme";
+import { applyTheme, getBaseTheme, getStoredTheme, normalizeTheme } from "@/lib/theme";
 import { TaskDefaultSettings } from "@/components/TaskDefaultSettings";
 import FirebaseSyncCard from "@/components/FirebaseSyncCard";
 import { FirestoreUsageCard } from "@/components/FirestoreUsageCard";
@@ -470,10 +470,19 @@ export default function SettingsView() {
   };
 
   useEffect(() => {
-    if (reminders?.theme) {
-      applyTheme(reminders.theme);
-      setTheme(getBaseTheme(reminders.theme));
-    }
+    if (!reminders?.theme) return;
+    // Only re-apply when the cloud value actually differs from the device theme.
+    // This stops loading settings (incl. fabricated offline/first-run defaults)
+    // from silently flipping day↔night when you enter Settings.
+    const stored = getStoredTheme();
+    const cloud = normalizeTheme(reminders.theme);
+    // "system" is the untouched default for most accounts — it must never override a
+    // device-local choice ("system" follows the OS locally anyway, so syncing it
+    // between devices is a semantic no-op).
+    const cloudIsDefaultSystem = cloud === "system" && stored !== null;
+    if (cloudIsDefaultSystem || cloud === stored) return;
+    applyTheme(reminders.theme);
+    setTheme(getBaseTheme(reminders.theme));
   }, [reminders?.theme, setTheme]);
 
   useEffect(() => {
