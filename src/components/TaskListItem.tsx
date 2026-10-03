@@ -1,4 +1,5 @@
 import { TaskPlanningPicker } from "./TaskPlanningPicker";
+import { TaskScheduleSheet } from "./TaskScheduleSheet";
 import React, { memo } from "react";
 import { isPathAllowed } from "@/lib/appModules";
 import {
@@ -10,7 +11,7 @@ import {
 import { PriorityFlag } from "@/components/PriorityFlag";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { BidiText } from "@/components/BidiText";
 import { DueDatePicker } from "@/components/DueDatePicker";
 import { RecurrenceEditor } from "@/components/RecurrenceEditor";
@@ -302,7 +303,7 @@ const TaskListItemComponent = ({
                       if (!t.completed) playCompletionFeedback();
                       onToggleTask(t);
                     }}
-                    className="mt-0.5 shrink-0 rounded-md transition-transform duration-200 active:scale-75 data-[state=checked]:scale-110"
+                    className={`mt-0.5 shrink-0 rounded-md transition-transform duration-200 active:scale-75 data-[state=checked]:scale-110 ${t.priority === "urgent" ? "border-red-600 data-[state=checked]:bg-red-600" : t.priority === "high" ? "border-rose-500 data-[state=checked]:bg-rose-500" : t.priority === "medium" ? "border-amber-500 data-[state=checked]:bg-amber-500" : t.priority === "low" ? "border-emerald-500 data-[state=checked]:bg-emerald-500" : ""}`}
                   />
                 )}
               </div>
@@ -380,8 +381,8 @@ const TaskListItemComponent = ({
 
                 <TaskPlanningPicker task={t} onPatch={patch => onPatchTask(t.id, patch)} hideWhenEmpty />
 
-                <Popover>
-                  <PopoverTrigger asChild>
+                <Sheet>
+                  <SheetTrigger asChild>
                     <button
                       onClick={(e) => e.stopPropagation()}
                       className={`inline-flex h-5 items-center rounded px-0.5 hover:bg-muted ${(t.priority as string) === "none" ? "opacity-40 hover:opacity-100" : ""}`}
@@ -391,8 +392,9 @@ const TaskListItemComponent = ({
                     >
                       <PriorityFlag priority={t.priority} />
                     </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-44 p-1" align="start" onClick={(e) => e.stopPropagation()}>
+                  </SheetTrigger>
+                  <SheetContent side="bottom" className="rounded-t-3xl p-5 pt-9 sm:mx-auto sm:max-w-2xl" onClick={(e) => e.stopPropagation()}>
+                    <SheetTitle className="mb-4">{T("اهمیت تسک", "Task priority")}</SheetTitle>
                     {PRIORITY_SELECTABLE.map(p => {
                       const m = PRIORITY_META[p];
                       return (
@@ -409,80 +411,20 @@ const TaskListItemComponent = ({
                         {T("حذف اولویت", "Remove priority")}
                       </button>
                     )}
-                  </PopoverContent>
-                </Popover>
-                {t.due_date ? (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-[10px] gap-1 px-2 py-0 h-[20px] font-medium inline-flex items-center rounded-full border bg-secondary/80 text-secondary-foreground shadow-2xs hover:bg-secondary transition"
-                        title={T("تغییر تاریخ", "Change date")}
-                      >
-                        <Calendar className="w-2.5 h-2.5 opacity-70" />
-                        <bdi dir={isEn ? "ltr" : "rtl"} className="whitespace-nowrap">{formatTaskDueDateDisplay(t.due_date, isEn)}</bdi>
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="max-h-[min(78dvh,42rem)] w-[min(92vw,26rem)] overflow-y-auto p-3" align="start" onClick={(e) => e.stopPropagation()}>
-                      <DueDatePicker
-                        value={t.due_date}
-                        onChange={(iso) => onPatchTask(t.id, { due_date: iso })}
-                        recurrenceValue={t.recurrence_rule || null}
-                        onRecurrenceChange={(rule) => onPatchTask(t.id, { recurrence_rule: rule, recurrence: rule ? (rule.freq as any) : "none" })}
-                        reminderValue={t.reminder_at}
-                        reminderPlan={t.reminder_plan}
-                        onReminderPlanChange={(plan) => onPatchTask(t.id, { reminder_plan: plan, reminder_at: plan?.trigger_at ?? null })}
-                        onReminderChange={(iso) => onPatchTask(t.id, { reminder_at: iso })}
-                        label=""
-                      />
-                    </PopoverContent>
-                  </Popover>
-                ) : (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-[10px] gap-1 px-1.5 py-0 h-[20px] font-medium inline-flex items-center rounded-full border border-dashed border-muted-foreground/30 text-muted-foreground/60 hover:text-foreground hover:border-border/60 hover:bg-muted/30 transition"
-                        title={T("افزودن تاریخ", "Add date")}
-                      >
-                        <Calendar className="w-2.5 h-2.5 opacity-70" />
-                        <span>{T("افزودن تاریخ", "Add date")}</span>
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="max-h-[min(78dvh,42rem)] w-[min(92vw,26rem)] overflow-y-auto p-3" align="start" onClick={(e) => e.stopPropagation()}>
-                      <DueDatePicker
-                        value={null}
-                        onChange={(iso) => onPatchTask(t.id, { due_date: iso })}
-                        recurrenceValue={t.recurrence_rule || null}
-                        onRecurrenceChange={(rule) => onPatchTask(t.id, { recurrence_rule: rule, recurrence: rule ? (rule.freq as any) : "none" })}
-                        reminderValue={t.reminder_at}
-                        reminderPlan={t.reminder_plan}
-                        onReminderPlanChange={(plan) => onPatchTask(t.id, { reminder_plan: plan, reminder_at: plan?.trigger_at ?? null })}
-                        onReminderChange={(iso) => onPatchTask(t.id, { reminder_at: iso })}
-                        label=""
-                      />
-                    </PopoverContent>
-                  </Popover>
-                )}
-                {t.recurrence_rule && (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-[10px] gap-1 px-2 py-0 h-[20px] font-medium inline-flex items-center rounded-full border bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/25 shadow-2xs hover:bg-violet-500/20 transition"
-                        title={T("تغییر تکرار", "Change repeat")}
-                      >
-                        <Repeat className="w-2.5 h-2.5" /> {describeRule(t.recurrence_rule, isEn)}
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80 p-2" align="start" onClick={(e) => e.stopPropagation()}>
-                      <RecurrenceEditor
-                        value={t.recurrence_rule}
-                        onChange={(rule: RecurrenceRule | null) => onPatchTask(t.id, { recurrence_rule: rule, recurrence: rule ? (rule.freq as any) : "none" })}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                )}
+                  </SheetContent>
+                </Sheet>
+                <TaskScheduleSheet task={t} onPatch={patch => onPatchTask(t.id, patch)}>
+                  <button
+                    type="button"
+                    onClick={e => e.stopPropagation()}
+                    className={`text-[10px] gap-1 px-2 h-5 font-medium inline-flex items-center rounded-full border transition ${t.due_date ? "bg-secondary/80 text-secondary-foreground hover:bg-secondary" : "border-dashed text-muted-foreground/70 hover:bg-muted/40"}`}
+                    title={T("روز، ساعت و تکرار", "Day, time and repeat")}
+                  >
+                    <Calendar className="h-3 w-3" />
+                    {t.due_date ? <bdi dir="ltr">{formatTaskDueDateDisplay(t.due_date, isEn)}</bdi> : <span>{T("روز", "Day")}</span>}
+                    {(t.recurrence_rule || (t.recurrence && t.recurrence !== "none")) && <Repeat className="h-3 w-3 text-violet-600" aria-label={T("تکراری", "Repeats")} />}
+                  </button>
+                </TaskScheduleSheet>
                 {effectiveProgress.total > 0 && (visibleSubs.length > 0 ? (
                   <button
                     type="button"

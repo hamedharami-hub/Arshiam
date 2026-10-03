@@ -114,23 +114,32 @@ describe("recurringTaskService", () => {
     }
   });
 
-  it("skips finished and missed daily occurrences without changing a two-day cadence", () => {
+  it("rolls an overdue two-day occurrence into today without changing its cadence", () => {
     const next = calculateNextOccurrence(
       { freq: "daily", interval: 2 },
       new Date(2026, 9, 1),
       new Date(2026, 9, 3, 10),
     );
-    expect(getLocalDateString(next)).toBe("2026-10-05");
+    expect(getLocalDateString(next)).toBe("2026-10-03");
+  });
+
+  it("moves a daily task from five days ago to today, then to tomorrow", () => {
+    const rule = { freq: "daily" as const, interval: 1 };
+    const now = new Date(2026, 9, 3, 12);
+    const today = calculateNextOccurrence(rule, new Date(2026, 8, 28), now);
+    expect(getLocalDateString(today)).toBe("2026-10-03");
+    const tomorrow = calculateNextOccurrence(rule, today, now);
+    expect(getLocalDateString(tomorrow)).toBe("2026-10-04");
   });
 
   describe("advanceRecurringTask", () => {
-    it("converts the old 23:59 all-day marker and skips today's duplicate after a late completion", async () => {
+    it("converts the old 23:59 all-day marker and rolls yesterday into today", async () => {
       const now = new Date(2026, 9, 3, 12);
       const oldMarker = new Date(2026, 9, 2, 23, 59).toISOString();
       const task: Task = { id: "all-day-repeat", user_id: "user-1", title: "Read", completed: false, status: "todo", priority: "none", recurrence: "daily", due_date: oldMarker };
       const result = await advanceRecurringTask("user-1", task, { now });
       expect(result.success).toBe(true);
-      expect(result.patch?.due_date).toBe("2026-10-04");
+      expect(result.patch?.due_date).toBe("2026-10-03");
     });
 
     it("advances a daily planning bucket with the next task occurrence", async () => {

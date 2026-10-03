@@ -5,9 +5,11 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
-import { Plus, Loader2, Calendar as CalendarIcon, Tag, Folder, Flag, Check } from "lucide-react";
+import { Plus, Loader2, Calendar as CalendarIcon, Tag, Folder, Check } from "lucide-react";
+import { PriorityFlag } from "@/components/PriorityFlag";
 import { parseNaturalDate } from "@/lib/nlDate";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { DueDatePicker } from "@/components/DueDatePicker";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -610,8 +612,8 @@ export function QuickAddTask({
           <div className="flex items-center justify-between gap-1.5 flex-wrap pt-2 mt-1.5 border-t border-border/40 text-xs">
             <div className="flex items-center gap-1.5 flex-wrap">
               {/* Date Picker Chip */}
-              <Popover open={dateOpen} onOpenChange={setDateOpen}>
-                <PopoverTrigger asChild>
+              <Sheet open={dateOpen} onOpenChange={setDateOpen}>
+                <SheetTrigger asChild>
                   <button
                     type="button"
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition cursor-pointer ${
@@ -624,20 +626,18 @@ export function QuickAddTask({
                     <CalendarIcon className="w-3.5 h-3.5" />
                     <span>{formatDueLabel(finalDue)}</span>
                   </button>
-                </PopoverTrigger>
-                <PopoverContent className="max-h-[min(78dvh,42rem)] w-[min(92vw,26rem)] space-y-3 overflow-y-auto p-3" align="start">
+                </SheetTrigger>
+                <SheetContent side="bottom" className="max-h-[88dvh] space-y-3 overflow-y-auto rounded-t-3xl p-5 pt-9 sm:mx-auto sm:max-w-2xl">
+                  <SheetTitle>{T("زمان‌بندی تسک", "Schedule task")}</SheetTitle>
                   <DueDatePicker
                     value={due ?? null}
-                    onChange={(val) => {
-                      setDue(val);
-                      setDateOpen(false);
-                    }}
+                    onChange={setDue}
                     recurrenceValue={recurrence}
                     onRecurrenceChange={setRecurrence}
                     compact
                   />
-                </PopoverContent>
-              </Popover>
+                </SheetContent>
+              </Sheet>
 
               {/* Folder Chip */}
               <Popover open={folderOpen} onOpenChange={setFolderOpen}>
@@ -698,7 +698,7 @@ export function QuickAddTask({
                     }`}
                     title={T("تعیین اولویت", "Set priority")}
                   >
-                    <Flag className={`w-3.5 h-3.5 ${finalPriority !== "none" ? PRIORITY_META[finalPriority].textClass : ""}`} />
+                    <PriorityFlag priority={finalPriority} />
                     <span>{finalPriority !== "none" ? T(PRIORITY_META[finalPriority].label, PRIORITY_META[finalPriority].labelEn) : T("اولویت", "Priority")}</span>
                   </button>
                 </PopoverTrigger>
@@ -717,7 +717,7 @@ export function QuickAddTask({
                           finalPriority === p ? "bg-accent font-semibold" : "hover:bg-accent/50"
                         }`}
                       >
-                        <Flag className={`w-3 h-3 ${m.textClass}`} /> {T(m.label, m.labelEn)}
+                        <PriorityFlag priority={p} /> {T(m.label, m.labelEn)}
                       </button>
                     );
                   })}

@@ -1,4 +1,3 @@
-import { Flag } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +37,7 @@ export function PriorityFlag({
   const label = t(LABEL_KEY[p]);
   return (
     <span className={cn("inline-flex items-center gap-1", FLAG_COLOR[p], className)} title={label} data-priority={p}>
-      <Flag className="h-4 w-4 shrink-0" fill={p === "none" ? "none" : "currentColor"} strokeWidth={p === "urgent" ? 2.25 : 1.75} aria-hidden />
+      <span className="h-4 w-4 shrink-0 rounded-[5px] border-2 border-current" aria-hidden />
       {withLabel ? <span className="text-xs text-foreground/80">{label}</span> : <span className="sr-only">{label}</span>}
     </span>
   );

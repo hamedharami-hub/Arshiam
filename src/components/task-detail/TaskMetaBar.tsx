@@ -10,6 +10,7 @@ import { TIME_HORIZONS, type GoalKanban } from "@/lib/kanbanGoals";
 import type { Task } from "@/lib/taskTypes";
 import { TaskScheduleBody } from "./TaskSchedulingSheet";
 import { MetaTile } from "./MetaTile";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
 export type TaskMetaPanel = "folder" | "goal" | "schedule" | "plan" | "priority" | "tags";
 
@@ -265,7 +266,15 @@ export function TaskMetaBar(props: TaskMetaBarProps) {
           disabled={!canEdit} aria-pressed={Boolean(t.pinned)} onClick={() => save({ pinned: !t.pinned })} data-testid="task-meta-pin" />
       </div>
 
-      {panel && panelBody && (
+      {panel && panelBody && ["schedule", "plan", "priority"].includes(panel) && (
+        <Sheet open onOpenChange={open => { if (!open) setPanel(null); }}>
+          <SheetContent side="bottom" dir={isEn ? "ltr" : "rtl"} className="max-h-[88dvh] overflow-y-auto rounded-t-3xl p-5 pt-9 sm:mx-auto sm:max-w-2xl" data-testid="task-meta-sheet">
+            <SheetTitle className="mb-4">{titles[panel]}</SheetTitle>
+            {panelBody}
+          </SheetContent>
+        </Sheet>
+      )}
+      {panel && panelBody && !["schedule", "plan", "priority"].includes(panel) && (
         <div ref={panelRef} className="task-inline-panel mt-1.5 rounded-lg border border-border/70 bg-card p-2.5 shadow-sm sm:p-3" role="region"
           aria-label={titles[panel]} data-testid="task-inline-panel" data-panel={panel}>
           <div className="mb-2 flex items-center justify-between gap-2">

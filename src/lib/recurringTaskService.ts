@@ -37,16 +37,19 @@ export function resolveRecurrenceRule(task: Task): RecurrenceRule | null {
 }
 
 /**
- * Finds the first occurrence after the completion day, keeping the original
- * recurrence anchor so monthly and alternating-week rules do not drift.
+ * An overdue occurrence can roll into today once. Completing today's
+ * occurrence advances past today, keeping the original cadence anchor.
  */
 export function calculateNextOccurrence(
   rule: RecurrenceRule,
   baseDate: Date = new Date(),
   now: Date = new Date()
 ): Date {
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, -1);
-  const cursor = baseDate.getTime() > dayEnd.getTime() ? baseDate : dayEnd;
+  const overdue = baseDate.getTime() < todayStart.getTime();
+  const cursor = overdue ? new Date(todayStart.getTime() - 1) :
+    baseDate.getTime() > dayEnd.getTime() ? baseDate : dayEnd;
   const next = nextOccurrence(rule, cursor, baseDate);
   if (next && next.getTime() > cursor.getTime()) {
     return next;

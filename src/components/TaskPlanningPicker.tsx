@@ -5,7 +5,7 @@ import { ALL_HORIZONS, childPeriods, currentPeriod, fromLocalISO, getTimeSetting
 import { getTaskPlanning, planningPatch, planningUnitNumber, planningOffset } from "@/lib/taskPlanning";
 import { toPersianDigits } from "@/lib/persianDigits";
 import type { Task } from "@/lib/taskTypes";
-import { Popover, PopoverTrigger, PopoverContent } from "./ui/popover";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "./ui/sheet";
 import { Button } from "./ui/button";
 
 function usePlanningLang() {
@@ -24,8 +24,8 @@ export function useTaskPlanningLabel(task: Task): string | null {
   if (!plan) return null;
   const unit = planningUnitNumber(plan, settings);
   const offset = planningOffset(plan, settings);
-  const units = unitNames(fa);
-  const raw = `${horizonLabel(plan.horizon, lang)} · ${offset > 0 ? `${offset} ${units[plan.horizon]} ${fa ? "بعد" : "later"} · ` : ""}${unit ? `${plan.horizon === "week" ? (fa ? "هفته" : "W") : plan.horizon === "month" ? (fa ? "ماه" : "M") : (fa ? "فصل" : "Q")} ${unit} · ` : ""}${periodLabel(plan, settings, lang)}`;
+  const code = plan.horizon === "day" ? "D" : plan.horizon === "week" ? "W" : plan.horizon === "month" ? "M" : plan.horizon === "quarter" ? "Q" : "Y";
+  const raw = `${code}${offset > 0 ? `+${offset}` : ""}${unit && plan.horizon !== "day" ? `·${unit}` : ""}`;
   return fa ? toPersianDigits(raw) : raw;
 }
 
@@ -79,14 +79,15 @@ export function TaskPlanningPicker({ task, onPatch, disabled = false, hideWhenEm
   const planned = useTaskPlanningLabel(task);
   const label = planned || (fa ? "برنامه‌ریزی" : "Plan");
   if (hideWhenEmpty && !planned) return null;
-  return <Popover open={open} onOpenChange={setOpen}>
-    <PopoverTrigger asChild>
+  return <Sheet open={open} onOpenChange={setOpen}>
+    <SheetTrigger asChild>
       <button type="button" disabled={disabled} onClick={e => e.stopPropagation()} data-testid={`task-planning-${task.id}`} title={label} className="inline-flex max-w-full items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] text-primary hover:bg-primary/10 sm:max-w-[260px]">
         <CalendarRange className="h-3 w-3 shrink-0" /><span className="truncate">{label}</span>
       </button>
-    </PopoverTrigger>
-    <PopoverContent className="w-[min(94vw,27rem)] rounded-2xl p-3 shadow-xl sm:p-4" align="start" dir={fa ? "rtl" : "ltr"} onClick={e => e.stopPropagation()}>
+    </SheetTrigger>
+    <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto rounded-t-3xl p-5 pt-9 sm:mx-auto sm:max-w-2xl" dir={fa ? "rtl" : "ltr"} onClick={e => e.stopPropagation()}>
+      <SheetTitle className="mb-4">{fa ? "بازهٔ برنامه‌ریزی" : "Planning period"}</SheetTitle>
       {open && <TaskPlanningBody task={task} onPatch={onPatch} onDone={() => setOpen(false)} />}
-    </PopoverContent>
-  </Popover>;
+    </SheetContent>
+  </Sheet>;
 }
