@@ -72,7 +72,7 @@ export default function ShareTargetView() {
   };
 
   return (
-    <div dir={isEn ? "ltr" : "rtl"} className="min-h-screen bg-background p-4 pb-24 page-enter">
+    <div dir={isEn ? "ltr" : "rtl"} className="min-h-screen bg-background p-4 pb-safe-bottom page-enter">
       <div className="max-w-md mx-auto">
         <div className="flex items-center justify-between mb-4">
           <Button variant="ghost" size="sm" onClick={() => navigate("/app/today", { replace: true })} className="gap-1">

@@ -510,8 +510,8 @@ export default function TodayDashboardView() {
       dir={isEn ? "ltr" : "rtl"}
       className={`w-full mx-auto relative page-enter ${
         isSplitActive
-          ? "h-[calc(100dvh-5.2rem)] sm:h-[calc(100dvh-5.5rem)] xl:h-[calc(100dvh-5.2rem)] flex flex-col p-2 sm:p-3 md:p-4 lg:px-5 xl:px-7 lg:py-2.5 space-y-2 overflow-hidden"
-          : "p-2 sm:p-3 md:p-4 lg:px-5 xl:px-7 lg:py-4 space-y-3 pb-24"
+          ? "h-[calc(100dvh-var(--bottom-bar-height)-var(--bottom-bar-gap))] sm:h-[calc(100dvh-var(--bottom-bar-height)-var(--bottom-bar-gap))] xl:h-[calc(100dvh-var(--bottom-bar-height)-var(--bottom-bar-gap))] flex flex-col p-2 sm:p-3 md:p-4 lg:px-5 xl:px-7 lg:py-2.5 space-y-2 overflow-hidden"
+          : "p-2 sm:p-3 md:p-4 lg:px-5 xl:px-7 lg:py-4 space-y-3 pb-safe-bottom"
       }`}
     >
       <HeaderTitlePortal

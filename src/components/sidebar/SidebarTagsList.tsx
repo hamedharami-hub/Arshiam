@@ -45,7 +45,7 @@ export function TagRow({
           onLongPress();
         }}
       >
-        <SidebarMenuButton asChild className="h-[34px] flex-1 rounded-md">
+        <SidebarMenuButton asChild className="h-10 flex-1 rounded-md">
           <NavLink
             to={`/app/tag/${tagItem.id}`}
             onClick={(e) => {
@@ -171,7 +171,7 @@ export function SidebarTagsList({
             {dragHandle && (
               <button
                 {...dragHandle}
-                className="cursor-grab active:cursor-grabbing p-0.5 opacity-0 group-hover/section:opacity-60 hover:!opacity-100 transition"
+                className="cursor-grab active:cursor-grabbing grid h-8 w-8 shrink-0 place-items-center rounded-md opacity-40 hover:opacity-100 group-hover/section:opacity-100 transition touch-none"
                 title={isEn ? "Drag to reorder" : "جابجا کن"}
               >
                 <GripVertical className="w-3.5 h-3.5" />
@@ -184,7 +184,7 @@ export function SidebarTagsList({
             <Dialog open={openTagDlg} onOpenChange={setOpenTagDlg}>
               <DialogTrigger asChild>
                 <button
-                  className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground opacity-70 transition-colors hover:bg-sidebar-accent hover:text-foreground hover:opacity-100"
+                  className="grid h-10 w-10 place-items-center rounded-md text-muted-foreground opacity-70 transition-colors hover:bg-sidebar-accent hover:text-foreground hover:opacity-100"
                   title={isEn ? "New Tag" : "تگ جدید"}
                 >
                   <Plus className="w-3.5 h-3.5" />

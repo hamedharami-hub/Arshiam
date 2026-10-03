@@ -128,7 +128,7 @@ export default function StatsView() {
   const chartData = useMemo(() => {
     const days = period === "today"
       ? [startOfDay(new Date())]
-      : Array.from({ length: period === "week" ? 7 : 7 }, (_, i) => startOfDay(subDays(new Date(), 6 - i)));
+      : Array.from({ length: period === "week" ? 7 : 30 }, (_, i) => startOfDay(subDays(new Date(), (period === "week" ? 7 : 30) - 1 - i)));
 
     return days.map((d) => {
       const taskCount = tasks.filter((t) => t.completed && t.completed_at && isSameDay(new Date(t.completed_at), d)).length;
@@ -144,7 +144,7 @@ export default function StatsView() {
   const bestHabit = habitStats[0];
 
   return (
-    <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--narrow space-y-6 pb-24 page-enter">
+    <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--narrow space-y-6 pb-safe-bottom page-enter">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <HeaderTitlePortal title={T("آمار و خلاصه", "Stats & Summary")} />
@@ -177,25 +177,25 @@ export default function StatsView() {
           icon={CheckCircle2}
           label={T("تسک انجام‌شده", "Completed Tasks")}
           value={isEn ? String(completedTasks.length) : toPersianDigits(completedTasks.length)}
-          gradient="from-emerald-500 to-teal-600"
+          tone="bg-success/15 text-success"
         />
         <SummaryCard
           icon={Clock}
           label={T("دقیقه تمرکز", "Focus Minutes")}
           value={isEn ? String(focusMinutes) : toPersianDigits(focusMinutes)}
-          gradient="from-amber-500 to-orange-600"
+          tone="bg-warning/15 text-warning"
         />
         <SummaryCard
           icon={Flame}
           label={T("عادت موفق", "Best Habit")}
           value={bestHabit ? (isEn ? `${bestHabit.rate}%` : toPersianDigits(bestHabit.rate) + "%") : "—"}
-          gradient="from-violet-500 to-purple-600"
+          tone="bg-primary/15 text-primary"
         />
         <SummaryCard
           icon={AlertCircle}
           label={T("تسک عقب‌افتاده", "Overdue Tasks")}
           value={isEn ? String(overdueTasks.length) : toPersianDigits(overdueTasks.length)}
-          gradient="from-rose-500 to-red-600"
+          tone="bg-destructive/15 text-destructive"
         />
       </div>
 
@@ -232,7 +232,7 @@ export default function StatsView() {
                   labelFormatter={(label: string) => label}
                 />
                 <Bar yAxisId="left" dataKey="tasks" radius={[6, 6, 0, 0]} fill="hsl(var(--primary) / 0.75)" />
-                <Line yAxisId="right" type="monotone" dataKey="minutes" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3, fill: "#f59e0b" }} activeDot={{ r: 5 }} />
+                <Line yAxisId="right" type="monotone" dataKey="minutes" stroke="hsl(var(--warning))" strokeWidth={2.5} dot={{ r: 3, fill: "hsl(var(--warning))" }} activeDot={{ r: 5 }} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -249,12 +249,12 @@ export default function StatsView() {
           <CardContent className="space-y-3">
           {(() => {
             const COLORS = [
-              "from-emerald-500 to-teal-500",
-              "from-violet-500 to-purple-500",
-              "from-amber-500 to-orange-500",
-              "from-sky-500 to-blue-500",
-              "from-rose-500 to-pink-500",
-              "from-cyan-500 to-sky-500",
+              "bg-success",
+              "bg-primary",
+              "bg-warning",
+              "bg-priority-low",
+              "bg-destructive/70",
+              "bg-priority-medium",
             ];
             return habitStats.map((h, i) => (
               <div key={h.id} className="space-y-1">
@@ -268,7 +268,7 @@ export default function StatsView() {
                 </div>
                 <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                   <div
-                    className={`h-full bg-gradient-to-r ${COLORS[i % COLORS.length]} rounded-full transition-all duration-700`}
+                    className={`h-full ${COLORS[i % COLORS.length]} rounded-full transition-all duration-700`}
                     style={{ width: `${Math.min(100, h.rate)}%` }}
                   />
                 </div>
@@ -306,17 +306,17 @@ function SummaryCard({
   icon: Icon,
   label,
   value,
-  gradient,
+  tone,
 }: {
   icon: typeof CheckCircle2;
   label: string;
   value: string;
-  gradient: string;
+  tone: string;
 }) {
   return (
-    <div className="group rounded-2xl border border-border/50 bg-card/60 p-4 shadow-2xs card-hover animate-fade-in-up">
+    <div className="group rounded-2xl border border-border/50 bg-card p-4 shadow-2xs card-hover animate-fade-in-up">
       <div className="flex items-center gap-3">
-        <div className={`grid place-items-center h-9 w-9 rounded-xl bg-gradient-to-tr ${gradient} text-white shrink-0 shadow-xs transition-transform group-hover:scale-105`}>
+        <div className={`grid place-items-center h-9 w-9 rounded-xl ${tone} shrink-0 shadow-xs transition-transform group-hover:scale-105`}>
           <Icon className="w-4 h-4" />
         </div>
         <div className="min-w-0 flex-1">

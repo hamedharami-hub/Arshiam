@@ -51,7 +51,7 @@ export function FolderRow({
 
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton asChild className="h-[34px] rounded-md p-0">
+      <SidebarMenuButton asChild className="h-10 rounded-md p-0">
         <div
           className="flex items-center w-full gap-1 rounded-md px-2 transition-colors cursor-pointer select-none group hover:bg-sidebar-accent/70 data-[drag-over=true]:bg-primary/15 data-[drag-over=true]:ring-1 data-[drag-over=true]:ring-primary"
           style={{ paddingInlineStart: 8 + depth * 16 }}
@@ -85,7 +85,7 @@ export function FolderRow({
                 e.stopPropagation();
                 onToggle();
               }}
-              className="-ms-1 grid h-6 w-5 place-items-center rounded shrink-0 text-muted-foreground hover:text-foreground"
+              className="-ms-1.5 grid h-8 w-8 place-items-center rounded shrink-0 text-muted-foreground hover:text-foreground"
               title={open ? (isEn ? "Collapse" : "بستن") : (isEn ? "Expand" : "باز کردن")}
             >
               {open ? (
@@ -269,7 +269,7 @@ export function SidebarFoldersList({
             {dragHandle && (
               <button
                 {...dragHandle}
-                className="cursor-grab active:cursor-grabbing p-0.5 opacity-0 group-hover/section:opacity-60 hover:!opacity-100 transition"
+                className="cursor-grab active:cursor-grabbing grid h-8 w-8 shrink-0 place-items-center rounded-md opacity-40 hover:opacity-100 group-hover/section:opacity-100 transition touch-none"
               >
                 <GripVertical className="w-3.5 h-3.5" />
               </button>
@@ -281,7 +281,7 @@ export function SidebarFoldersList({
             <Dialog open={openFolderDlg} onOpenChange={setOpenFolderDlg}>
               <DialogTrigger asChild>
                 <button
-                  className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground opacity-70 transition-colors hover:bg-sidebar-accent hover:text-foreground hover:opacity-100"
+                  className="grid h-10 w-10 place-items-center rounded-md text-muted-foreground opacity-70 transition-colors hover:bg-sidebar-accent hover:text-foreground hover:opacity-100"
                   title={isEn ? "New Folder" : "فولدر جدید"}
                 >
                   <Plus className="w-3.5 h-3.5" />

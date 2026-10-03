@@ -79,25 +79,25 @@ export default function MonthGrid({
               <div className={`font-medium flex items-center justify-between ${tone ? tone.text : ""}`} data-testid={kind ? `month-day-holiday-${kind}` : undefined}>
                 <span>{dayLabel}</span>
                 {isHolidayDay && (
-                  <span className="text-[8px]">{dayHolidays[0].country_code === "IR" ? "🇮🇷" : "🇦🇺"}</span>
+                  <span className="text-[9px] font-medium text-muted-foreground" aria-hidden>{dayHolidays[0].country_code}</span>
                 )}
               </div>
               <div className="flex-1 overflow-hidden space-y-0.5 mt-0.5">
                 {dayHolidays.slice(0, 1).map((h) => (
-                  <div key={h.id} className={`text-[9px] truncate ${HOLIDAY_TONE[h.kind].text}`} title={h.local_name || h.name}>
+                  <div key={h.id} className={`text-[10px] truncate ${HOLIDAY_TONE[h.kind].text}`} title={h.local_name || h.name}>
                     {h.local_name || h.name}{h.approximate ? (system === "jalali" ? " (تقریبی)" : " (approx.)") : ""}
                   </div>
                 ))}
                 {dayTasks.length > 0 && (
                   <div className="flex flex-col gap-0.5 mt-auto">
                     {dayTasks.slice(0, 2).map((t) => (
-                      <div key={t.id} className="flex items-center gap-1 text-[9px] leading-tight">
+                      <div key={t.id} className="flex items-center gap-1 text-[10px] leading-tight">
                         <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: PRIORITY_COLOR[t.priority] || PRIORITY_COLOR.none }} />
                         <span className="truncate text-foreground/80">{t.title}</span>
                       </div>
                     ))}
                     {dayTasks.length > 2 && (
-                      <span className="text-[9px] text-muted-foreground px-2">+{toPersianDigits(dayTasks.length - 2)}</span>
+                      <span className="text-[10px] text-muted-foreground px-2">+{toPersianDigits(dayTasks.length - 2)}</span>
                     )}
                   </div>
                 )}

@@ -999,7 +999,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const listView = (
     <PullToRefresh onRefresh={load}>
       {/* Inline TickTick quick add task on all form factors */}
-      <div className="sticky top-0 z-20 py-1.5 mb-2" style={{ background: "var(--page-surface, hsl(var(--background)))" }}>
+      <div className="sticky top-0 z-20 py-1.5 -mx-1 px-1 mb-2" style={{ background: "var(--page-surface, hsl(var(--background)))" }}>
         <QuickAddTask
           defaults={{
             folder_id: scope === "folder" ? params.id || null : null,
@@ -1040,12 +1040,12 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                 variant={filters.show_completed ? "secondary" : "ghost"}
                 size="icon"
                 onClick={() => setShowCompletedTasks(!filters.show_completed)}
-                className="h-8 w-8 rounded-md"
+                className="h-10 w-10 rounded-md"
                 aria-pressed={filters.show_completed}
                 title={filters.show_completed ? T("مخفی‌سازی تسک‌های انجام‌شده", "Hide completed tasks") : T("نمایش تسک‌های انجام‌شده", "Show completed tasks")}
                 data-testid="tasks-toggle-completed"
               >
-                <CheckCircle2 className={`w-4 h-4 ${filters.show_completed ? "text-emerald-500" : "text-muted-foreground"}`} />
+                <CheckCircle2 className={`w-4 h-4 ${filters.show_completed ? "text-success" : "text-muted-foreground"}`} />
               </Button>
               <TaskFilterSheet
                 filters={filters}

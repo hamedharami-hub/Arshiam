@@ -51,14 +51,14 @@ export function BottomQuickAddButton({ mode = "mobile", className = "" }: Bottom
   return (
     <div className="relative flex items-center justify-center -mt-6 min-[600px]:-mt-7">
       {/* Soft ambient back-glow */}
-      <div className="absolute -inset-1 rounded-[22px] bg-gradient-to-tr from-primary via-indigo-500 to-violet-500 blur-lg opacity-35 dark:opacity-45 pointer-events-none -z-10" />
+      <div className="absolute -inset-1 rounded-[22px] bg-gradient-primary blur-lg opacity-35 dark:opacity-45 pointer-events-none -z-10" />
       <button
         type="button"
         onClick={handleQuickAdd}
         aria-label={label}
-        className={`group relative h-[3.35rem] w-[3.35rem] min-[600px]:h-[3.6rem] min-[600px]:w-[3.6rem] rounded-[20px] bg-gradient-to-tr from-primary via-indigo-600 to-violet-500 text-white shadow-[0_10px_25px_-4px_rgba(99,102,241,0.4),0_3px_8px_-1px_rgba(0,0,0,0.15)] flex items-center justify-center active:scale-90 hover:scale-105 transition-all duration-200 ring-[4px] ring-background dark:ring-card border border-white/20 select-none ${className}`}
+        className={`group relative h-[3.35rem] w-[3.35rem] min-[600px]:h-[3.6rem] min-[600px]:w-[3.6rem] rounded-[20px] bg-gradient-primary text-primary-foreground shadow-[0_10px_25px_-4px_hsl(var(--primary)/0.4),0_3px_8px_-1px_rgba(0,0,0,0.15)] flex items-center justify-center active:scale-95 hover:scale-105 transition-all duration-200 ring-[4px] ring-background dark:ring-card border border-primary/25 select-none ${className}`}
       >
-        <Plus className="w-6 h-6 min-[600px]:w-6.5 min-[600px]:h-6.5 stroke-[2.5] text-white transition-transform duration-300 ease-out group-hover:rotate-90 group-active:rotate-45" />
+        <Plus className="w-6 h-6 min-[600px]:w-7 min-[600px]:h-7 stroke-[2.5] text-primary-foreground transition-transform duration-300 ease-out group-hover:rotate-90 group-active:rotate-45" />
         <span className="sr-only">{label}</span>
       </button>
     </div>

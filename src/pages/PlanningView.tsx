@@ -43,7 +43,7 @@ export default function PlanningView() {
 
   return (
     <TaskSplitScreen task={selected} onClose={() => setSelected(null)} onChanged={() => {}} setConfirm={setConfirm} allowDelete>
-      <div className="page-shell page-shell--xl !pt-2 pb-24" data-testid="planning-view">
+      <div className="page-shell page-shell--xl !pt-2 pb-safe-bottom" data-testid="planning-view">
         <HeaderTitlePortal title={fa ? "برنامه‌ریزی" : "Planning"} />
         <HeaderActionsPortal>
           <Popover>

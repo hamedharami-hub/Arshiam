@@ -93,7 +93,7 @@ export function BottomTabItem({
       onClick={handleClick}
       aria-label={label}
       aria-current={isActive ? "page" : undefined}
-      className={`group relative h-full flex-1 flex flex-col items-center justify-center pt-1.5 pb-1 select-none active:scale-92 transition-transform duration-150 min-w-0 ${className}`}
+      className={`group relative h-full flex-1 flex flex-col items-center justify-center pt-1.5 pb-1 select-none active:scale-95 transition-transform duration-150 min-w-0 ${className}`}
     >
       {/* Material 3 Capsule Active Indicator (64px x 32px) */}
       <div

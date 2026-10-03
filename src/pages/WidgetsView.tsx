@@ -266,7 +266,7 @@ export default function WidgetsView() {
   const diagnostics = getWidgetDiagnostics();
 
   return (
-    <div dir={isEn ? "ltr" : "rtl"} className="mx-auto max-w-6xl space-y-6 pb-20 pt-4 px-3 sm:px-6">
+    <div dir={isEn ? "ltr" : "rtl"} className="mx-auto max-w-6xl space-y-6 pb-safe-bottom pt-4 px-3 sm:px-6">
       {/* Top Banner & Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>

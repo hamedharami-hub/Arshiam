@@ -8,7 +8,7 @@ export default function MindCalmView() {
   const { T, isEn } = useBilingual();
   const iconWrap = "grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary";
   return (
-    <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--lg space-y-5 pb-24 animate-fade-in" data-testid="mind-calm">
+    <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--lg space-y-5 pb-safe-bottom animate-fade-in" data-testid="mind-calm">
       <HeaderTitlePortal title={T("آرام‌شدن", "Calm down")} />
       <Link to="/app/mind" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
         {isEn ? <ArrowLeft className="h-3.5 w-3.5" /> : <ArrowRight className="h-3.5 w-3.5" />}{T("ذهن", "Mind")}

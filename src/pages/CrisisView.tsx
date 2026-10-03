@@ -82,7 +82,7 @@ export default function CrisisView() {
   return (
     <div
       dir={isEn ? "ltr" : "rtl"}
-      className="page-shell page-shell--lg space-y-6 pb-24 animate-fade-in"
+      className="page-shell page-shell--lg space-y-6 pb-safe-bottom animate-fade-in"
       data-testid="crisis-page"
     >
       {/* Top Bar: Return to Mind & Quick Exit to Safety */}

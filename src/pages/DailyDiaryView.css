@@ -15,11 +15,11 @@
 .diary-header { border-radius: 8px; }
 .diary-header-mark {
   display: grid;
-  width: 48px;
-  height: 48px;
+  width: 34px;
+  height: 34px;
   flex: none;
   place-items: center;
-  border-radius: 14px;
+  border-radius: 6px;
   background: var(--diary-plum-soft);
   color: var(--diary-plum);
 }
@@ -34,6 +34,11 @@
   border-radius: 8px;
   background: hsl(var(--background) / 90%);
 }
+.diary-page-toolbar { gap: 8px; }
+.diary-extras { background: hsl(var(--card)); }
+.diary-extras summary::marker { color: hsl(var(--muted-foreground)); }
+.diary-extras [role="tablist"] { height: auto; gap: 4px; }
+.diary-extras [role="tab"] { min-height: 36px; }
 .diary-writing-surface .rich-editor-surface { background: transparent; }
 .diary-writing-surface [data-testid="rich-editor-toolbar"] {
   flex-wrap: nowrap;
@@ -45,10 +50,11 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 14px 17px;
-  border: 1px solid var(--diary-line);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--diary-plum-soft) 76%, hsl(var(--background)));
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
 }
 .diary-dictation-icon {
   display: grid;
@@ -61,8 +67,8 @@
   color: var(--diary-plum);
 }
 .diary-dictation-button {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: var(--diary-plum);
   color: hsl(var(--primary-foreground));
@@ -71,7 +77,7 @@
 .diary-workspace [data-testid="diary-title-input"] { color: hsl(var(--foreground)); }
 .diary-workspace [data-testid="diary-title-input"]:focus-visible { outline: 2px solid var(--diary-plum); outline-offset: 2px; }
 @media (max-width: 640px) {
-  .diary-entry-rail { max-height: 270px; overflow-y: auto; }
+  /* No nested scroll on mobile: the entries rail grows with the page scroll. */
   .diary-dictation { flex-wrap: wrap; gap: 10px; padding: 12px; }
   .diary-dictation > span:last-child { margin-inline-start: auto; }
   .diary-writing-surface .prose-note { min-height: 220px; }
@@ -79,5 +85,3 @@
 @media (prefers-reduced-motion: reduce) {
   .diary-workspace * { scroll-behavior: auto; }
 }
-
-.diary-header,.diary-entry-rail,.diary-page{border-radius:8px;box-shadow:none}.diary-header-mark{width:34px;height:34px;border-radius:6px}.diary-dictation{padding:6px 10px;border-radius:6px;border:none;background:transparent;box-shadow:none}.diary-extras{background:hsl(var(--card));box-shadow:none}.diary-extras summary::marker{color:hsl(var(--muted-foreground))}.diary-extras [role=tablist]{height:auto;gap:4px}.diary-extras [role=tab]{min-height:36px}.diary-writing-surface{border-radius:8px;box-shadow:none}.diary-page-toolbar{gap:8px}

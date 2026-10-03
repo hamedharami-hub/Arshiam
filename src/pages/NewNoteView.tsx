@@ -5,6 +5,7 @@ import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { ArrowRight, ArrowLeft, Loader2, FolderInput, Pin, Tag as TagIcon, Plus, Check, Undo2, Redo2 } from "lucide-react";
 import { toast } from "sonner";
@@ -89,7 +90,7 @@ function NewNoteForm() {
     try {
       const { data, error } = await firebaseStore
         .from("tags")
-        .insert({ user_id: user.id, name: trimmed, color: "#6366f1" })
+        .insert({ user_id: user.id, name: trimmed, color: "hsl(var(--primary))" })
         .select()
         .single();
       if (!error && data) {
@@ -177,7 +178,7 @@ function NewNoteForm() {
   }, [draft.ready]);
 
   return (
-    <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--narrow pb-24">
+    <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--narrow pb-safe-bottom">
       <div className="flex items-center justify-between mb-4">
         <Button variant="ghost" size="sm" onClick={handleBack} disabled={!draft.ready || busy} className="gap-1">
           {isEn ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
@@ -223,18 +224,17 @@ function NewNoteForm() {
               <FolderInput className="w-3.5 h-3.5 text-primary" />
               <span>{T("پوشه / فولدر", "Folder")}</span>
             </label>
-            <select
-              value={folderId || ""}
-              onChange={(e) => updateDraft({ folderId: e.target.value || null })}
-              className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="">{T("📥 بدون پوشه (اینباکس نوت‌ها)", "📥 No Folder (Inbox)")}</option>
-              {folders.map((f) => (
-                <option key={f.id} value={f.id}>
-                  📁 {f.name}
-                </option>
-              ))}
-            </select>
+            <Select value={folderId || "__inbox__"} onValueChange={(v) => updateDraft({ folderId: v === "__inbox__" ? null : v })}>
+              <SelectTrigger className="w-full h-10">
+                <SelectValue placeholder={T("بدون پوشه (اینباکس نوت‌ها)", "No Folder (Inbox)")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__inbox__">{T("بدون پوشه (اینباکس نوت‌ها)", "No Folder (Inbox)")}</SelectItem>
+                {folders.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <Button
             type="button"
@@ -261,7 +261,7 @@ function NewNoteForm() {
                   key={t.id}
                   type="button"
                   onClick={() => toggleTag(t.id)}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
                     active
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -269,10 +269,10 @@ function NewNoteForm() {
                 >
                   <span
                     className="w-2 h-2 rounded-full shrink-0"
-                    style={{ backgroundColor: t.color || "#6366f1" }}
+                    style={{ backgroundColor: t.color || "hsl(var(--primary))" }}
                   />
                   <span>#{t.name}</span>
-                  {active && <Check className="w-3 h-3 ml-0.5" />}
+                  {active && <Check className="w-3 h-3 ms-0.5" />}
                 </button>
               );
             })}
@@ -291,9 +291,9 @@ function NewNoteForm() {
                     }
                     if (e.key === "Escape") setShowTagInput(false);
                   }}
-                  className="h-7 text-xs w-28 px-2"
+                  className="h-9 text-xs w-28 px-2"
                 />
-                <Button size="sm" variant="ghost" onClick={handleCreateTag} className="h-7 px-2 text-xs">
+                <Button size="sm" variant="ghost" onClick={handleCreateTag} className="h-9 px-2 text-xs">
                   <Check className="w-3 h-3" />
                 </Button>
               </div>
@@ -303,7 +303,7 @@ function NewNoteForm() {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowTagInput(true)}
-                className="h-7 text-xs gap-1 border-dashed"
+                className="h-9 text-xs gap-1 border-dashed"
               >
                 <Plus className="w-3 h-3" />
                 <span>{T("تگ جدید", "New tag")}</span>

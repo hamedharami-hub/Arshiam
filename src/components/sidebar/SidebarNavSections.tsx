@@ -238,10 +238,10 @@ interface SidebarNavTreeItemProps {
   closeOnMobile: () => void;
 }
 
-export const NAV_ITEM_CLASS = "h-[34px] rounded-md px-2 text-start text-[13px] font-normal text-sidebar-foreground/90 transition-colors hover:bg-sidebar-accent/70 [&_svg]:text-muted-foreground";
+export const NAV_ITEM_CLASS = "h-10 rounded-md px-2 text-start text-[13px] font-normal text-sidebar-foreground/90 transition-colors hover:bg-sidebar-accent/70 [&_svg]:text-muted-foreground";
 export const NAV_ITEM_ACTIVE_CLASS = "bg-sidebar-accent text-foreground font-medium [&_svg]:text-primary";
-export const SECTION_HEADER_CLASS = "group/section flex h-8 items-center justify-between gap-1 rounded-md px-0.5 text-muted-foreground";
-export const SECTION_TRIGGER_CLASS = "flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground";
+export const SECTION_HEADER_CLASS = "group/section flex h-10 items-center justify-between gap-1 rounded-md px-0.5 text-muted-foreground";
+export const SECTION_TRIGGER_CLASS = "flex h-10 min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground";
 export const SECTION_ICON_WRAP_CLASS = "grid h-4 w-4 shrink-0 place-items-center text-muted-foreground";
 export const SECTION_CHEVRON_CLASS = "h-3.5 w-3.5 shrink-0 text-muted-foreground";
 
@@ -441,7 +441,7 @@ export function SidebarSectionCollapsible({
             {dragHandle && (
               <button
                 {...dragHandle}
-                className="cursor-grab active:cursor-grabbing p-0.5 opacity-0 group-hover/section:opacity-60 hover:!opacity-100 transition"
+                className="cursor-grab active:cursor-grabbing grid h-8 w-8 shrink-0 place-items-center rounded-md opacity-40 hover:opacity-100 group-hover/section:opacity-100 transition touch-none"
                 title={tr("جابجا کن")}
               >
                 <GripVertical className="w-3.5 h-3.5" />

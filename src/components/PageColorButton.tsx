@@ -9,7 +9,7 @@ export function PageColorButton({ color, isDefault, onChange }: { color: PageCol
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label={T("رنگ صفحه", "Page color")} title={T("رنگ صفحه", "Page color")} data-testid="header-page-color-button">
+        <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0" aria-label={T("رنگ صفحه", "Page color")} title={T("رنگ صفحه", "Page color")} data-testid="header-page-color-button">
           <Palette className="w-4 h-4 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
@@ -17,10 +17,10 @@ export function PageColorButton({ color, isDefault, onChange }: { color: PageCol
         <p className="mb-2 text-xs font-medium text-muted-foreground">{T("رنگ پس‌زمینهٔ این صفحه", "This page's background")}</p>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => onChange("none")} aria-label={T("بدون رنگ", "No color")} data-testid="page-color-none"
-            className={`grid h-7 w-7 place-items-center rounded-full border border-border bg-background text-[11px] ${color === null && !isDefault ? "ring-2 ring-primary ring-offset-1" : ""}`}>×</button>
+            className={`grid h-9 w-9 place-items-center rounded-full border border-border bg-background text-[11px] ${color === null && !isDefault ? "ring-2 ring-primary ring-offset-1" : ""}`}>×</button>
           {PAGE_COLORS.map((c) => (
             <button key={c.id} type="button" onClick={() => onChange(c.id)} aria-label={isEn ? c.en : c.fa} title={isEn ? c.en : c.fa} data-testid={`page-color-${c.id}`}
-              className={`grid h-7 w-7 place-items-center rounded-full border border-border/60 text-white ${color === c.id && !isDefault ? "ring-2 ring-primary ring-offset-1" : ""}`}
+              className={`grid h-9 w-9 place-items-center rounded-full border border-border/60 text-white ${color === c.id && !isDefault ? "ring-2 ring-primary ring-offset-1" : ""}`}
               style={{ backgroundColor: c.accent }}>
               {color === c.id && !isDefault && <Check className="h-3.5 w-3.5" />}
             </button>

@@ -48,6 +48,7 @@ import { TaskMetaQuickEdit, type TaskMetaPatch } from "@/components/kanban/TaskM
 import { format } from "date-fns";
 import { PRIORITY_META, type Priority } from "@/lib/priority";
 import { haptic } from "@/lib/haptics";
+import { toPersianDigits } from "@/lib/persianDigits";
 import { playCompletionFeedback } from "@/lib/completionFeedback";
 import { awardTaskWatering } from "@/lib/garden";
 import { isRecurringTask, advanceRecurringTask } from "@/lib/recurringTaskService";
@@ -105,7 +106,7 @@ type Task = {
 const COLUMNS: { id: Status; labelFa: string; labelEn: string; icon: any; accent: string }[] = [
   { id: "todo", labelFa: "برای انجام", labelEn: "To Do", icon: Circle, accent: "border-t-muted-foreground/40" },
   { id: "in_progress", labelFa: "در حال انجام", labelEn: "In Progress", icon: Loader2, accent: "border-t-primary" },
-  { id: "done", labelFa: "انجام شده", labelEn: "Done", icon: CheckCircle2, accent: "border-t-emerald-500" },
+  { id: "done", labelFa: "انجام شده", labelEn: "Done", icon: CheckCircle2, accent: "border-t-success" },
 ];
 const COL_ORDER: Status[] = ["todo", "in_progress", "done"];
 
@@ -392,7 +393,7 @@ export default function KanbanView() {
       parentId: null,
       timeHorizon: goalData.timeHorizon || "monthly",
       priority: goalData.priority || "medium",
-      color: goalData.color || "#3b82f6",
+      color: goalData.color || "hsl(var(--primary))",
       icon: goalData.icon || "🎯",
       createdAt: now,
       updatedAt: now,
@@ -426,7 +427,7 @@ export default function KanbanView() {
   return (
     <SharedTaskRowsProvider tasks={[...allTasks, ...subtasks] as FullTask[]} onToggle={(t) => void toggleTask(t as Task)} onPatch={(t, patch) => void patchTask(t as Task, patch)} onOpen={setSelectedTask}>
     <TaskSplitScreen task={selectedTask} onClose={() => setSelectedTask(null)} onChanged={() => void loadTasks()} allowDelete>
-    <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--xl space-y-4 pb-24 page-enter relative min-h-screen"
+    <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--xl space-y-4 pb-safe-bottom page-enter relative min-h-screen"
       style={activeGoal?.color ? { background: `linear-gradient(135deg, color-mix(in srgb, ${activeGoal.color} 16%, transparent), color-mix(in srgb, ${activeGoal.color} 5%, transparent))` } : undefined}>
       <HeaderTitlePortal title={T("کانبان", "Kanban")} />
       {goals.length === 0 ? (
@@ -561,8 +562,8 @@ export default function KanbanView() {
                 className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors px-1"
               >
                 <span>{T("انجام‌شده", "Completed")}</span>
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 rounded-full font-mono">
-                  {completedTasks.length}
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 rounded-full">
+                  {isEn ? completedTasks.length : toPersianDigits(completedTasks.length)}
                 </Badge>
                 {completedOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               </button>
@@ -673,10 +674,10 @@ function KanbanColumn({
     >
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
-          <Icon className={`w-4 h-4 ${column.id === "in_progress" ? "animate-spin" : ""}`} />
+          <Icon className={`w-4 h-4 ${column.id === "in_progress" ? "animate-pulse" : ""}`} />
           <h2 className="font-semibold text-sm">{T(column.labelFa, column.labelEn)}</h2>
-          <Badge variant="secondary" className="text-xs font-mono">
-            {tasks.length}
+          <Badge variant="secondary" className="text-xs">
+            {isEn ? tasks.length : toPersianDigits(tasks.length)}
           </Badge>
         </div>
       </div>
@@ -776,8 +777,8 @@ function TaskCard({
   return <div className="space-y-1">
     <SharedTaskRow task={task as FullTask} externalDragHandle={dragHandleProps} />
     {(prevCol || nextCol) && onMove && <div className="flex justify-end gap-1">
-      {prevCol && <Button size="sm" variant="ghost" onClick={() => onMove(task.id, prevCol)} aria-label={T("ستون قبل", "Previous column")}><ArrowRight className="w-3 h-3" /></Button>}
-      {nextCol && <Button size="sm" variant="ghost" onClick={() => onMove(task.id, nextCol)} aria-label={T("ستون بعد", "Next column")}><ArrowLeft className="w-3 h-3" /></Button>}
+      {prevCol && <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => onMove(task.id, prevCol)} aria-label={T("ستون قبل", "Previous column")}>{isEn ? <ArrowLeft className="w-3.5 h-3.5" /> : <ArrowRight className="w-3.5 h-3.5" />}</Button>}
+      {nextCol && <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => onMove(task.id, nextCol)} aria-label={T("ستون بعد", "Next column")}>{isEn ? <ArrowRight className="w-3.5 h-3.5" /> : <ArrowLeft className="w-3.5 h-3.5" />}</Button>}
     </div>}
   </div>;
 }

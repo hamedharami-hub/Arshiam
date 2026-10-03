@@ -536,7 +536,7 @@ export default function NotesView() {
       try {
         const { data, error } = await firebaseStore
           .from("tags")
-          .insert({ user_id: user.id, name: trimmed, color: "#6366f1" })
+          .insert({ user_id: user.id, name: trimmed, color: "hsl(var(--primary))" })
           .select()
           .single();
         if (!error && data) {
@@ -851,7 +851,7 @@ export default function NotesView() {
                     <button key={tg.id} type="button" aria-pressed={hasTag} data-testid={`note-tag-option-${tg.id}`}
                       onClick={() => { const cur = selected.tag_ids || []; save({ tag_ids: hasTag ? cur.filter((x) => x !== tg.id) : [...cur, tg.id] }); }}
                       className={`flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-start text-sm transition-colors ${hasTag ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}>
-                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: tg.color || "#6366f1" }} />
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: tg.color || "hsl(var(--primary))" }} />
                       <span className="min-w-0 flex-1 truncate text-start"><bdi>{tg.name}</bdi></span>
                       {hasTag && <Check className="h-4 w-4 shrink-0" />}
                     </button>
@@ -912,7 +912,7 @@ export default function NotesView() {
 
           {/* Search bar */}
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-2 top-2.5 text-muted-foreground" />
+            <Search className="w-4 h-4 absolute start-2 top-2.5 text-muted-foreground" />
             <Input
               placeholder={T("جستجو در نوت‌ها...", "Search notes...")}
               value={search}
@@ -943,7 +943,7 @@ export default function NotesView() {
               <button
                 type="button"
                 onClick={() => setSelectedFolder(null)}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium shrink-0 transition-all ${
+                className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium shrink-0 transition-all ${
                   selectedFolder === null
                     ? "bg-primary text-primary-foreground shadow-xs"
                     : "bg-muted/70 hover:bg-muted text-muted-foreground"
@@ -955,7 +955,7 @@ export default function NotesView() {
               <button
                 type="button"
                 onClick={() => setSelectedFolder(selectedFolder === "__none__" ? null : "__none__")}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium shrink-0 transition-all ${
+                className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium shrink-0 transition-all ${
                   selectedFolder === "__none__"
                     ? "bg-primary text-primary-foreground shadow-xs"
                     : "bg-muted/70 hover:bg-muted text-muted-foreground"
@@ -972,7 +972,7 @@ export default function NotesView() {
                     key={f.id}
                     type="button"
                     onClick={() => setSelectedFolder(active ? null : f.id)}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium shrink-0 transition-all ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium shrink-0 transition-all ${
                       active
                         ? "bg-primary text-primary-foreground shadow-xs"
                         : "bg-muted/70 hover:bg-muted text-muted-foreground"
@@ -980,9 +980,9 @@ export default function NotesView() {
                   >
                     <span
                       className="w-2 h-2 rounded-full shrink-0"
-                      style={{ backgroundColor: f.color || "#6366f1" }}
+                      style={{ backgroundColor: f.color || "hsl(var(--primary))" }}
                     />
-                    <span className="truncate max-w-[100px]">{f.name}</span>
+                    <span className="truncate max-w-[140px]">{f.name}</span>
                     <span className="opacity-75 text-[10px]">({count})</span>
                   </button>
                 );
@@ -1017,7 +1017,7 @@ export default function NotesView() {
                       key={t.id}
                       type="button"
                       onClick={() => setSelectedTag(active ? null : t.id)}
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium shrink-0 transition-all ${
+                      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium shrink-0 transition-all ${
                         active
                           ? "bg-foreground text-background shadow-xs"
                           : "bg-muted/60 hover:bg-muted text-muted-foreground"
@@ -1025,7 +1025,7 @@ export default function NotesView() {
                     >
                       <span
                         className="w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ backgroundColor: t.color || "#6366f1" }}
+                        style={{ backgroundColor: t.color || "hsl(var(--primary))" }}
                       />
                       <span>#{t.name}</span>
                       <span className="opacity-70 text-[9px]">({count})</span>
@@ -1097,7 +1097,7 @@ export default function NotesView() {
                             >
                               <span
                                 className="w-1.5 h-1.5 rounded-full"
-                                style={{ backgroundColor: fItem.color || "#6366f1" }}
+                                style={{ backgroundColor: fItem.color || "hsl(var(--primary))" }}
                               />
                               <span className="truncate max-w-[80px]">{fItem.name}</span>
                             </span>
@@ -1142,12 +1142,12 @@ export default function NotesView() {
                         >
                           {n.pinned ? (
                             <>
-                              <PinOff className="w-4 h-4 mr-2 text-muted-foreground" />
+                              <PinOff className="w-4 h-4 me-2 text-muted-foreground" />
                               <span>{T("برداشتن سنجاق", "Unpin note")}</span>
                             </>
                           ) : (
                             <>
-                              <Pin className="w-4 h-4 mr-2 text-primary" />
+                              <Pin className="w-4 h-4 me-2 text-primary" />
                               <span>{T("سنجاق کردن", "Pin note")}</span>
                             </>
                           )}
@@ -1159,7 +1159,7 @@ export default function NotesView() {
                             setMoveOpen(true);
                           }}
                         >
-                          <FolderInput className="w-4 h-4 mr-2 text-muted-foreground" />
+                          <FolderInput className="w-4 h-4 me-2 text-muted-foreground" />
                           <span>{T("انتقال به پوشه", "Move to folder")}</span>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
@@ -1170,7 +1170,7 @@ export default function NotesView() {
                           }}
                           className="text-destructive focus:text-destructive"
                         >
-                          <Trash2 className="w-4 h-4 mr-2" />
+                          <Trash2 className="w-4 h-4 me-2" />
                           <span>{T("حذف نوت", "Delete note")}</span>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -1208,7 +1208,7 @@ export default function NotesView() {
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-8 w-8"
+                className="h-10 w-10"
                 onClick={() => setFullScreen(true)}
                 title={T("فول اسکرین", "Full screen")}
               >
@@ -1217,7 +1217,7 @@ export default function NotesView() {
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-8 w-8"
+                className="h-10 w-10"
                 onClick={() => setSelected(null)}
                 title={T("بستن", "Close")}
               >

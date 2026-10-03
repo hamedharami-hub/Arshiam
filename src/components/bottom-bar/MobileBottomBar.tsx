@@ -31,7 +31,7 @@ export function MobileBottomBar({
     <button
       key="bottom-bar-menu-toggle"
       type="button"
-      className="group relative h-full flex-1 flex flex-col items-center justify-center pt-1.5 pb-1 select-none active:scale-92 transition-transform duration-150 min-w-0"
+      className="group relative h-full flex-1 flex flex-col items-center justify-center pt-1.5 pb-1 select-none active:scale-95 transition-transform duration-150 min-w-0"
       aria-label={t("nav.menu", "منو")}
       onClick={() => {
         haptic("light");
@@ -94,7 +94,7 @@ export function MobileBottomBar({
       dir="ltr"
       data-bottom-bar="true"
       data-sidebar-side={sidebarPosition}
-      className="fixed z-40 transition-all duration-300 ease-out select-none inset-x-0 bottom-0 h-[4.85rem] bg-background/85 dark:bg-card/85 backdrop-blur-2xl border-t border-border/25 dark:border-white/10 flex items-stretch shadow-[0_-4px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.4)]"
+      className="fixed z-40 transition-all duration-300 ease-out select-none inset-x-0 bottom-0 h-[var(--bottom-bar-height)] bg-background/85 dark:bg-card/85 backdrop-blur-2xl border-t border-border/25 dark:border-white/10 flex items-stretch shadow-[0_-4px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.4)]"
       style={{
         paddingBottom: "max(env(safe-area-inset-bottom, 0px), 8px)",
       }}

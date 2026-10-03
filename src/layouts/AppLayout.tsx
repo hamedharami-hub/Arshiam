@@ -130,7 +130,7 @@ export default function AppLayout() {
               style={{ paddingTop: "env(safe-area-inset-top)", minHeight: "calc(3rem + env(safe-area-inset-top))" }}
             >
               <div className="flex items-center gap-1.5 min-w-0">
-                <SidebarTrigger className="size-9 md:hidden" data-testid="header-sidebar-trigger" />
+                <SidebarTrigger className="size-10 md:hidden" data-testid="header-sidebar-trigger" />
                 <HeaderBackButton />
                 <div id="app-header-title" className="min-w-0 flex items-center" />
               </div>
@@ -140,7 +140,7 @@ export default function AppLayout() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 shrink-0"
+                  className="h-10 w-10 shrink-0"
                   onClick={() => {
                     window.dispatchEvent(new CustomEvent("arshnaz:open-search"));
                   }}
@@ -151,7 +151,7 @@ export default function AppLayout() {
                   <Search className="w-4 h-4 text-muted-foreground" />
                 </Button>
                 <ThemeToggle />
-                <Button variant="ghost" size="icon" onClick={() => setAiOpen(true)} className="h-8 w-8 shrink-0" title="AI" aria-label="AI" data-testid="header-ai-button">
+                <Button variant="ghost" size="icon" onClick={() => setAiOpen(true)} className="h-10 w-10 shrink-0" title="AI" aria-label="AI" data-testid="header-ai-button">
                   <Sparkles className="w-4 h-4 text-primary" />
                 </Button>
               </div>
@@ -159,12 +159,10 @@ export default function AppLayout() {
           )}
           <main
             id="main-scroll"
-            style={{ "--app-bottom-space": showMobileBottomBar ? "calc(5.2rem + env(safe-area-inset-bottom))" : "0.5rem", backgroundColor: pageTint(pageBg.color, pageBg.isDefault ? 6 : 10), "--page-surface": pageTint(pageBg.color, pageBg.isDefault ? 6 : 10) || "hsl(var(--background))" } as CSSProperties}
+            style={{ "--app-bottom-space": showMobileBottomBar ? "calc(var(--bottom-bar-height) + var(--bottom-bar-gap) + env(safe-area-inset-bottom, 0px))" : "0.5rem", backgroundColor: pageTint(pageBg.color, pageBg.isDefault ? 6 : 10), "--page-surface": pageTint(pageBg.color, pageBg.isDefault ? 6 : 10) || "hsl(var(--background))" } as CSSProperties}
             className={cn(
               "flex-1 overflow-auto",
-              showMobileBottomBar
-                ? "pb-[calc(5.2rem+env(safe-area-inset-bottom))] md:pb-2 xl:pb-2"
-                : "pb-2 md:pb-2 xl:pb-2"
+              showMobileBottomBar ? "pb-safe-bottom" : "pb-2"
             )}
           >
             <div

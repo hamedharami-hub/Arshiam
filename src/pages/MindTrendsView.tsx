@@ -349,7 +349,7 @@ export default function MindTrendsView() {
   const reviewed = weeklyFeedbackStats.totalWithFeedback;
 
   return (
-    <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--lg space-y-5 pb-24 animate-fade-in" data-testid="mind-trends">
+    <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--lg space-y-5 pb-safe-bottom animate-fade-in" data-testid="mind-trends">
       <HeaderTitlePortal title={T("روند و سنجش‌ها", "Trends & check-ups")} />
       <Link to="/app/mind" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
         {isEn ? <ArrowLeft className="h-3.5 w-3.5" /> : <ArrowRight className="h-3.5 w-3.5" />}{T("ذهن", "Mind")}

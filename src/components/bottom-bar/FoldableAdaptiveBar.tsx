@@ -49,7 +49,7 @@ export function FoldableAdaptiveBar({
         toggleSidebar();
       }}
       aria-label={t("nav.menu", "منو")}
-      className={`group relative flex-1 flex flex-col items-center justify-center py-1 rounded-2xl active:scale-92 transition-transform duration-150 min-w-0 ${
+      className={`group relative flex-1 flex flex-col items-center justify-center py-1 rounded-2xl active:scale-95 transition-transform duration-150 min-w-0 ${
         openMobile ? "text-primary font-bold" : "text-muted-foreground/75 hover:text-foreground"
       }`}
     >
@@ -79,7 +79,7 @@ export function FoldableAdaptiveBar({
       dir="ltr"
       data-foldable-adaptive-bar="true"
       data-sidebar-side={sidebarPosition}
-      className="fixed z-40 bottom-4 left-1/2 -translate-x-1/2 w-[min(46rem,calc(100%-2rem))] select-none animate-in fade-in-0 slide-in-from-bottom-3 duration-250"
+      className="fixed z-40 bottom-4 left-1/2 -translate-x-1/2 w-[min(46rem,calc(100%-2rem))] select-none animate-in fade-in-0 slide-in-from-bottom-3 duration-300"
       style={{
         paddingBottom: "max(env(safe-area-inset-bottom, 0px), 2px)",
       }}
@@ -108,7 +108,7 @@ export function FoldableAdaptiveBar({
                 }}
                 aria-label={label}
                 aria-current={isActive ? "page" : undefined}
-                className={`group relative flex-1 flex flex-col items-center justify-center py-1 rounded-2xl active:scale-92 transition-transform duration-150 min-w-0 ${
+                className={`group relative flex-1 flex flex-col items-center justify-center py-1 rounded-2xl active:scale-95 transition-transform duration-150 min-w-0 ${
                   isActive ? "text-primary font-bold" : "text-muted-foreground/75 hover:text-foreground"
                 }`}
               >
@@ -142,14 +142,14 @@ export function FoldableAdaptiveBar({
 
         {/* Center Ergonomic Quick Add FAB (Hinge / Bridge Zone) */}
         <div className="relative px-2 flex items-center justify-center -mt-6">
-          <div className="absolute -inset-1 rounded-[22px] bg-gradient-to-tr from-primary via-indigo-500 to-violet-400 blur-lg opacity-35 pointer-events-none -z-10" />
+          <div className="absolute -inset-1 rounded-[22px] bg-gradient-primary blur-lg opacity-35 pointer-events-none -z-10" />
           <button
             type="button"
             onClick={handleQuickAdd}
             aria-label={t("nav.quickAdd", "افزودن سریع")}
-            className="group relative h-13 w-13 rounded-[20px] bg-gradient-to-tr from-primary via-indigo-600 to-violet-500 text-white shadow-[0_8px_22px_-2px_rgba(99,102,241,0.4)] flex items-center justify-center active:scale-90 hover:scale-105 transition-all duration-200 ring-[4px] ring-background dark:ring-card border border-white/20 select-none"
+            className="group relative h-12 w-12 rounded-[20px] bg-gradient-primary text-primary-foreground shadow-[0_8px_22px_-2px_hsl(var(--primary)/0.4)] flex items-center justify-center active:scale-95 hover:scale-105 transition-all duration-200 ring-[4px] ring-background dark:ring-card border border-primary/25 select-none"
           >
-            <Plus className="w-6 h-6 stroke-[2.5] text-white transition-transform duration-300 ease-out group-hover:rotate-90 group-active:rotate-45" />
+            <Plus className="w-6 h-6 stroke-[2.5] text-primary-foreground transition-transform duration-300 ease-out group-hover:rotate-90 group-active:rotate-45" />
             <span className="sr-only">{t("nav.quickAdd", "افزودن سریع")}</span>
           </button>
         </div>
@@ -171,7 +171,7 @@ export function FoldableAdaptiveBar({
                 }}
                 aria-label={label}
                 aria-current={isActive ? "page" : undefined}
-                className={`group relative flex-1 flex flex-col items-center justify-center py-1 rounded-2xl active:scale-92 transition-transform duration-150 min-w-0 ${
+                className={`group relative flex-1 flex flex-col items-center justify-center py-1 rounded-2xl active:scale-95 transition-transform duration-150 min-w-0 ${
                   isActive ? "text-primary font-bold" : "text-muted-foreground/75 hover:text-foreground"
                 }`}
               >

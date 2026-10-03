@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import type { Contact } from "@/lib/contactTypes";
 import { getContacts, getAllTaskContacts } from "@/lib/contactService";
+import { toPersianDigits } from "@/lib/persianDigits";
+import { toast } from "sonner";
 import { isDeviceContactImportSupported } from "@/lib/deviceContacts";
 import { ContactEditorDialog } from "@/components/contacts/ContactEditorDialog";
 import { ContactDetailDialog } from "@/components/contacts/ContactDetailDialog";
@@ -62,7 +64,7 @@ export default function ContactsView() {
       }
       setTaskCounts(counts);
     } catch {
-      // silent
+      toast.error(T("خطا در بارگذاری افراد. دوباره تلاش کنید.", "Failed to load contacts. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -175,13 +177,14 @@ export default function ContactsView() {
           {filteredContacts.map((c) => {
             const count = taskCounts[c.id] || 0;
             return (
-              <div
+              <button
+                type="button"
                 key={c.id}
                 onClick={() => {
                   setSelectedContact(c);
                   setDetailOpen(true);
                 }}
-                className="p-3.5 rounded-2xl bg-card border border-border/60 hover:border-primary/40 hover:shadow-md transition cursor-pointer flex flex-col justify-between gap-3 group"
+                className="text-start p-3.5 rounded-2xl bg-card border border-border/60 hover:border-primary/40 hover:shadow-md transition cursor-pointer flex flex-col justify-between gap-3 group"
               >
                 <div className="flex items-start gap-3">
                   <ContactAvatar contact={c} size="lg" />
@@ -200,34 +203,34 @@ export default function ContactsView() {
                 </div>
 
                 {/* Badges / Contact Info */}
-                <div className="flex items-center justify-between pt-2 border-t border-border/40 text-[11px]">
+                <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs">
                   <div className="flex items-center gap-2 text-muted-foreground truncate">
                     {c.phones?.[0]?.value && (
-                      <span className="flex items-center gap-1 font-mono" dir="ltr">
+                      <span className="flex items-center gap-1 tabular-nums" dir="ltr">
                         <Phone className="w-3 h-3 text-primary" />
                         {c.phones[0].value}
                       </span>
                     )}
                     {c.emails?.[0]?.value && !c.phones?.[0]?.value && (
-                      <span className="flex items-center gap-1 font-mono truncate" dir="ltr">
-                        <Mail className="w-3 h-3 text-blue-500" />
+                      <span className="flex items-center gap-1 truncate" dir="ltr">
+                        <Mail className="w-3 h-3 text-primary" />
                         {c.emails[0].value}
                       </span>
                     )}
                   </div>
 
                   {count > 0 ? (
-                    <Badge variant="secondary" className="gap-1 text-[10px] shrink-0 font-medium">
+                    <Badge variant="secondary" className="gap-1 text-[11px] shrink-0 font-medium">
                       <ListTodo className="w-3 h-3 text-primary" />
-                      <span>{T(`${count} تسک`, `${count} tasks`)}</span>
+                      <span>{T(`${toPersianDigits(count)} تسک`, `${count} tasks`)}</span>
                     </Badge>
                   ) : (
-                    <span className="text-[10px] text-muted-foreground/60 shrink-0">
+                    <span className="text-[11px] text-muted-foreground/60 shrink-0">
                       {T("بدون تسک", "No tasks")}
                     </span>
                   )}
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>

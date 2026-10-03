@@ -38,7 +38,7 @@ export default function ThemeToggle() {
       variant="ghost"
       size="icon"
       onClick={toggle}
-      className="h-8 w-8 shrink-0 text-muted-foreground"
+      className="h-10 w-10 shrink-0 text-muted-foreground"
       title={label}
       aria-label={label}
       data-testid="header-theme-toggle"

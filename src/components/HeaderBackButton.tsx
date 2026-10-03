@@ -31,7 +31,7 @@ export default function HeaderBackButton() {
       size="icon"
       onClick={onClick}
       aria-label={isRtl ? "بازگشت" : "Back"}
-      className="h-8 w-8"
+      className="h-10 w-10"
       data-testid="header-back-button"
     >
       {isRtl ? <ArrowRight className="w-5 h-5" /> : <ArrowLeft className="w-5 h-5" />}

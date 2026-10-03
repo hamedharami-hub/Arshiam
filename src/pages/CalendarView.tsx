@@ -147,7 +147,7 @@ export default function CalendarView() {
   const NextIcon = isEn ? ChevronRight : ChevronLeft;
 
   return (
-    <div dir={isEn ? "ltr" : "rtl"} className="page-shell space-y-6 pb-20 page-enter">
+    <div dir={isEn ? "ltr" : "rtl"} className="page-shell space-y-6 pb-safe-bottom page-enter">
       <div className="flex items-start md:items-end justify-between gap-4 flex-wrap">
         <div>
           <HeaderTitlePortal title={headerLabel} />
@@ -155,35 +155,35 @@ export default function CalendarView() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Tabs dir={isEn ? "ltr" : "rtl"} value={system} onValueChange={(v) => persistSystem(v as CalendarSystem)}>
-            <TabsList className="h-8 bg-muted p-1">
-              <TabsTrigger value="jalali" className="text-xs h-6 rounded-md data-[state=active]:bg-background">
+            <TabsList className="h-10 bg-muted p-1">
+              <TabsTrigger value="jalali" className="text-xs h-8 rounded-md data-[state=active]:bg-background">
                 {T("شمسی", "Jalali")}
               </TabsTrigger>
-              <TabsTrigger value="gregorian" className="text-xs h-6 rounded-md data-[state=active]:bg-background">
+              <TabsTrigger value="gregorian" className="text-xs h-8 rounded-md data-[state=active]:bg-background">
                 {T("میلادی", "Gregorian")}
               </TabsTrigger>
             </TabsList>
           </Tabs>
           <div className="flex items-center gap-1">
-            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => navigate(-1)} title={T("قبلی", "Previous")}>
+            <Button size="icon" variant="ghost" className="h-10 w-10" onClick={() => navigate(-1)} title={T("قبلی", "Previous")}>
               <PrevIcon className="w-4 h-4" />
             </Button>
             <Button size="sm" variant="secondary" onClick={() => setDate(new Date())}>
               {T("امروز", "Today")}
             </Button>
-            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => navigate(1)} title={T("بعدی", "Next")}>
+            <Button size="icon" variant="ghost" className="h-10 w-10" onClick={() => navigate(1)} title={T("بعدی", "Next")}>
               <NextIcon className="w-4 h-4" />
             </Button>
           </div>
           <div className="flex items-center gap-1" role="group" aria-label={T("نمایش مناسبت‌ها", "Show occasions")} data-testid="calendar-occasion-sets">
-            {([["IR", T("ایران", "Iran"), "🇮🇷"], ["AU", T("استرالیا", "Australia"), "🇦🇺"]] as const).map(([code, label, flag]) => {
+            {([["IR", T("ایران", "Iran")], ["AU", T("استرالیا", "Australia")]] as const).map(([code, label]) => {
               const on = occasionSets.includes(code);
               return (
                 <Button key={code} size="sm" variant={on ? "secondary" : "outline"} aria-pressed={on}
-                  className="h-8 gap-1 rounded-lg border border-border/60 text-xs"
+                  className="h-9 gap-1.5 rounded-lg border border-border/60 text-xs"
                   onClick={() => setOccasionSets(on ? occasionSets.filter((c) => c !== code) : [...occasionSets, code])}
                   data-testid={`calendar-occasions-${code}`}>
-                  <span aria-hidden>{flag}</span><span className={on ? "" : "text-muted-foreground line-through"}>{label}</span>
+                  <span className={on ? "" : "text-muted-foreground line-through"}>{label}</span>
                 </Button>
               );
             })}
@@ -191,12 +191,12 @@ export default function CalendarView() {
           <Button
             size="sm"
             variant={showCompletedTasks ? "secondary" : "outline"}
-            className="h-8 text-xs gap-1.5 rounded-lg border border-border/60"
+            className="h-9 text-xs gap-1.5 rounded-lg border border-border/60"
             onClick={() => setShowCompletedTasks(!showCompletedTasks)}
             title={showCompletedTasks ? T("مخفی‌سازی تسک‌های انجام‌شده", "Hide completed tasks") : T("نمایش تسک‌های انجام‌شده", "Show completed tasks")}
             data-testid="calendar-toggle-completed"
           >
-            <CheckCircle2 className={`w-3.5 h-3.5 ${showCompletedTasks ? "text-emerald-500" : "text-muted-foreground"}`} />
+            <CheckCircle2 className={`w-3.5 h-3.5 ${showCompletedTasks ? "text-success" : "text-muted-foreground"}`} />
             <span className="hidden sm:inline">{showCompletedTasks ? T("تکمیل‌شده‌ها", "Completed") : T("فقط بازها", "Open only")}</span>
           </Button>
         </div>
