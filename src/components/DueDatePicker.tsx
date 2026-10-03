@@ -20,6 +20,7 @@ import { formatDate } from "@/lib/jalali";
 import { InlineDatePicker } from "@/components/InlineDatePicker";
 import { RecurrenceEditor } from "@/components/RecurrenceEditor";
 import { describeRule, type RecurrenceRule } from "@/lib/recurrence";
+import { parseTaskDueDate } from "@/lib/taskDate";
 
 /**
  * Smart due-date & multi-step reliable reminder picker.
@@ -79,17 +80,17 @@ export function DueDatePicker({
       setDatePart(""); setTimePart(""); setIncludeTime(false);
       return;
     }
-    const d = new Date(value);
-    if (isNaN(d.getTime())) return;
+    const d = parseTaskDueDate(value);
+    if (!d) return;
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, "0");
     const day = String(d.getDate()).padStart(2, "0");
     const h = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
     setDatePart(`${y}-${m}-${day}`);
-    const isEndOfDayMarker = d.getHours() === 23 && d.getMinutes() === 59;
-    setIncludeTime(!isEndOfDayMarker);
-    setTimePart(isEndOfDayMarker ? "09:00" : `${h}:${mm}`);
+    const isAllDay = /^\d{4}-\d{2}-\d{2}$/.test(value) || (d.getHours() === 23 && d.getMinutes() === 59);
+    setIncludeTime(!isAllDay);
+    setTimePart(isAllDay ? "09:00" : `${h}:${mm}`);
   }, [value]);
 
   useEffect(() => {
@@ -111,7 +112,8 @@ export function DueDatePicker({
 
   const emitDate = (date: string, time: string, withTime: boolean) => {
     if (!date) { onChange(null); return; }
-    const t = withTime && time ? time : "23:59";
+    if (!withTime) { onChange(date); return; }
+    const t = time || "09:00";
     const [y, m, d] = date.split("-").map(Number);
     const [hh, mm] = t.split(":").map(Number);
     const localD = new Date(y, m - 1, d, hh, mm, 0, 0);

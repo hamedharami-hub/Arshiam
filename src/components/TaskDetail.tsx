@@ -78,8 +78,8 @@ import type { KnowledgeDocument } from "@/lib/knowledgeTypes";
 import { logTaskActivity } from "@/lib/taskActivity";
 import { bucketLabel, kindLabel, isSubDayBucket } from "@/lib/timeBuckets";
 import { describeRule } from "@/lib/recurrence";
-import { addDays, endOfDay } from "date-fns";
-import { parseTaskDueDate } from "@/lib/taskDate";
+import { addDays } from "date-fns";
+import { getLocalDateString, parseTaskDueDate } from "@/lib/taskDate";
 import { addTaskToAndroidCalendar } from "@/lib/androidNative";
 
 import { Switch } from "@/components/ui/switch";
@@ -681,9 +681,10 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   };
 
   const postpone = (days: number) => {
-    const base = t.due_date ? parseTaskDueDate(t.due_date) || endOfDay(new Date()) : endOfDay(new Date());
+    const base = t.due_date ? parseTaskDueDate(t.due_date) || new Date() : new Date();
     const next = addDays(base, days);
-    save({ due_date: next.toISOString() });
+    const allDay = !t.due_date || /^\d{4}-\d{2}-\d{2}$/.test(t.due_date) || (base.getHours() === 23 && base.getMinutes() === 59);
+    save({ due_date: allDay ? getLocalDateString(next) : next.toISOString() });
     setScheduleOpen(false);
     toast(T(`تسک به ${days} روز دیگر موکول شد`, `Task postponed by ${days} day(s)`));
   };

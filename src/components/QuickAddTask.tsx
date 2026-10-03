@@ -20,6 +20,7 @@ import { uploadMediaFull } from "@/lib/uploadMedia";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { enqueueOp, enqueueOps } from "@/lib/offlineQueue";
 import { fieldsForExact, getTimeSettings, timePatch, type TimeFields } from "@/lib/timeHorizon";
+import { parseTaskDueDate } from "@/lib/taskDate";
 
 type Defaults = {
   folder_id?: string | null;
@@ -73,7 +74,7 @@ export function QuickAddTask({
   const T = (fa: string, en: string) => (isEn ? en : fa);
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
-  const [due, setDue] = useState<string | null>(defaults.due_date ?? null);
+  const [due, setDue] = useState<string | null | undefined>(defaults.due_date ?? undefined);
   const [recurrence, setRecurrence] = useState<RecurrenceRule | null>(defaults.recurrence_rule ?? null);
   const [priority, setPriority] = useState<Priority | null>(null);
   const [folderId, setFolderId] = useState<string | null>(defaults.folder_id ?? null);
@@ -96,7 +97,7 @@ export function QuickAddTask({
 
   // Sync state when defaults change dynamically (e.g. switching folders or dates)
   useEffect(() => {
-    setDue(defaults.due_date ?? null);
+    setDue(defaults.due_date ?? undefined);
   }, [defaults.due_date]);
 
   useEffect(() => {
@@ -162,7 +163,7 @@ export function QuickAddTask({
     };
   }, [title, folders, tags]);
 
-  const finalDue = due ?? defaults.due_date ?? parsed.dueDate ?? null;
+  const finalDue = due === undefined ? parsed.dueDate ?? null : due;
   const finalTitle = parsed.title;
   const finalPriority = priority ?? parsed.priority ?? defaults.priority ?? "none";
   const finalFolderId = folderId ?? parsed.folderId ?? defaults.folder_id ?? null;
@@ -224,7 +225,7 @@ export function QuickAddTask({
           toast.info(T("پیوست‌ها در حالت آفلاین ذخیره نمی‌شوند", "Attachments are not saved while offline"));
         }
         setTitle("");
-        setDue(defaults.due_date ?? null);
+        setDue(defaults.due_date ?? undefined);
         setRecurrence(defaults.recurrence_rule ?? null);
         setPriority(null);
         setFolderId(defaults.folder_id ?? null);
@@ -277,7 +278,7 @@ export function QuickAddTask({
       }
 
     setTitle("");
-    setDue(defaults.due_date ?? null);
+    setDue(defaults.due_date ?? undefined);
     setRecurrence(defaults.recurrence_rule ?? null);
     setPriority(null);
     setFolderId(defaults.folder_id ?? null);
@@ -436,8 +437,8 @@ export function QuickAddTask({
 
   const formatDueLabel = (iso: string | null) => {
     if (!iso) return T("تاریخ", "Date");
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return T("تاریخ", "Date");
+    const d = parseTaskDueDate(iso);
+    if (!d) return T("تاریخ", "Date");
     if (isDateToday(d)) return T("امروز", "Today");
     if (isDateTomorrow(d)) return T("فردا", "Tomorrow");
     return d.toLocaleDateString(isEn ? "en-US" : "fa-IR", { month: "short", day: "numeric" });
@@ -453,8 +454,8 @@ export function QuickAddTask({
       if (found) return found.name;
     }
     if (finalDue) {
-      const d = new Date(finalDue);
-      if (!isNaN(d.getTime()) && isDateToday(d)) {
+      const d = parseTaskDueDate(finalDue);
+      if (d && isDateToday(d)) {
         return T("امروز", "Today");
       }
     }
@@ -626,7 +627,7 @@ export function QuickAddTask({
                 </PopoverTrigger>
                 <PopoverContent className="max-h-[min(78dvh,42rem)] w-[min(92vw,26rem)] space-y-3 overflow-y-auto p-3" align="start">
                   <DueDatePicker
-                    value={due}
+                    value={due ?? null}
                     onChange={(val) => {
                       setDue(val);
                       setDateOpen(false);

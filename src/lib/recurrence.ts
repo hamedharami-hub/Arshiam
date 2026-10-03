@@ -20,18 +20,30 @@ const WD_MAP: Record<NonNullable<RecurrenceRule["byweekday"]>[number], Weekday> 
   FR: RRule.FR, SA: RRule.SA, SU: RRule.SU,
 };
 
-export function nextOccurrence(rule: RecurrenceRule, after: Date = new Date()): Date | null {
+export function nextOccurrence(rule: RecurrenceRule, after: Date = new Date(), anchor: Date = after): Date | null {
   try {
+    // RRule treats byhour and byweekday as UTC fields. Feed it floating local
+    // calendar fields, then turn the result back into a local Date so a 09:00
+    // repeat stays at 09:00 in every timezone (including DST transitions).
+    const asFloating = (date: Date) => new Date(Date.UTC(
+      date.getFullYear(), date.getMonth(), date.getDate(),
+      date.getHours(), date.getMinutes(), date.getSeconds(), date.getMilliseconds(),
+    ));
+    const floating = asFloating(after);
     const opts: any = {
       freq: FREQ_MAP[rule.freq],
       interval: Math.max(1, rule.interval || 1),
-      dtstart: after,
+      dtstart: asFloating(anchor),
     };
     if (rule.byweekday?.length) opts.byweekday = rule.byweekday.map((d) => WD_MAP[d]);
     if (typeof rule.byhour === "number") opts.byhour = [rule.byhour];
     if (typeof rule.byminute === "number") opts.byminute = [rule.byminute];
     const r = new RRule(opts);
-    return r.after(after, false);
+    const next = r.after(floating, false);
+    return next ? new Date(
+      next.getUTCFullYear(), next.getUTCMonth(), next.getUTCDate(),
+      next.getUTCHours(), next.getUTCMinutes(), next.getUTCSeconds(), next.getUTCMilliseconds(),
+    ) : null;
   } catch (e) {
     console.error("rrule error", e);
     return null;

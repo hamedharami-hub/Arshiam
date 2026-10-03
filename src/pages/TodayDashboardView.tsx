@@ -606,7 +606,7 @@ export default function TodayDashboardView() {
           <div className="sticky top-0 z-20 py-1.5 -mx-1 px-1 mb-2" style={{ background: "var(--page-surface, hsl(var(--background)))" }}>
             <QuickAddTask
               defaults={{
-                due_date: new Date().toISOString(),
+                due_date: getLocalDateString(),
                 folder_id: null,
               }}
               onCreated={() => load()}

@@ -3,7 +3,7 @@ import { getTimeSettings } from "@/lib/timeHorizon";
 import { ListViewSwitch } from "@/components/ListViewSwitch";
 import { getTaskPlanning, isTaskOverdue, planningScopeTasks } from "@/lib/taskPlanning";
 import { readTaskListSort, saveTaskListSort, TASK_LIST_SORT_EVENT } from "@/lib/taskListSort";
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
@@ -165,6 +165,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const [actionTask, setActionTask] = useState<Task | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [selectedTaskHistory, setSelectedTaskHistory] = useState<Task[]>([]);
+  const completionLinkRef = useRef<string | null>(null);
   useEffect(() => { setSelectedTask(null); setSelectedTaskHistory([]); }, [scope, params.id]);
 
   const handleBackInDrawer = useCallback(() => {
@@ -403,23 +404,6 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     if (!owner && !error) setAllTasks(prev => prev.map(x => x.id === id ? { ...x, ...patch } as Task : x));
   }, [effectiveAllTasks, user?.id, setAllTasks, T]);
 
-  useEffect(() => {
-    const taskId = searchParams.get("completeTaskId");
-    if (!taskId) return;
-    const target = effectiveAllTasks.find((task) => task.id === taskId);
-    if (!target) return;
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.delete("completeTaskId");
-    if (isLeitnerStudyTask(target) && !target.completed) {
-      navigate(getStudyTaskNavigation(target).navUrl, { replace: true });
-      return;
-    }
-    if (!target.completed) {
-      playCompletionFeedback();
-      void patchTask(taskId, { completed: true, status: "done" });
-    }
-    setSearchParams(nextParams, { replace: true });
-  }, [effectiveAllTasks, searchParams, setSearchParams, patchTask, navigate]);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
@@ -747,6 +731,23 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     await completeTask(t);
   };
 
+  useEffect(() => {
+    const taskId = searchParams.get("completeTaskId");
+    if (!taskId) { completionLinkRef.current = null; return; }
+    if (completionLinkRef.current === taskId) return;
+    const target = effectiveAllTasks.find((task) => task.id === taskId);
+    if (!target) return;
+    completionLinkRef.current = taskId;
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("completeTaskId");
+    if (isLeitnerStudyTask(target) && !target.completed) {
+      navigate(getStudyTaskNavigation(target).navUrl, { replace: true });
+      return;
+    }
+    if (!target.completed) void toggleTask(target);
+    setSearchParams(nextParams, { replace: true });
+  }, [effectiveAllTasks, searchParams, setSearchParams, navigate, toggleTask]);
+
   const delTask = async (id: string) => {
     if (!user?.id) return;
     const target = effectiveAllTasks.find(t => t.id === id);
@@ -833,8 +834,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const scopeRootPatch = (): Record<string, any> => {
       const sc = scope as string;
       const patch: Record<string, any> = { parent_id: null };
-      const today = startOfDay(new Date()).toISOString();
-      const tomorrowIso = addDays(new Date(), 1).toISOString();
+      const today = getLocalDateString();
+      const tomorrowIso = getLocalDateString(addDays(new Date(), 1));
       if (sc === "today") patch.due_date = today;
       else if (sc === "tomorrow") patch.due_date = tomorrowIso;
       else if (sc === "next7" && !activeTask.due_date) patch.due_date = tomorrowIso;
@@ -995,11 +996,11 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           defaults={{
             folder_id: scope === "folder" ? params.id || null : null,
             due_date: scope === "today"
-              ? new Date().toISOString()
+              ? getLocalDateString()
               : scope === "tomorrow"
-                ? addDays(new Date(), 1).toISOString()
+                ? getLocalDateString(addDays(new Date(), 1))
                 : scope === "next7"
-                  ? addDays(new Date(), 1).toISOString()
+                  ? getLocalDateString(addDays(new Date(), 1))
                   : null,
             tag_id: scope === "tag" ? params.id || null : null,
           }}

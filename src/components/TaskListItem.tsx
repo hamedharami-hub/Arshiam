@@ -19,9 +19,9 @@ import SwipeableRow, { type SwipeAction } from "@/components/gestures/SwipeableR
 import { useLongPress } from "@/lib/useLongPress";
 import { PRIORITY_META, PRIORITY_SELECTABLE, type Priority } from "@/lib/priority";
 import { describeRule, type RecurrenceRule } from "@/lib/recurrence";
-import { addDays, startOfDay } from "date-fns";
+import { addDays } from "date-fns";
 import { formatDate } from "@/lib/jalali";
-import { formatTaskDueDateDisplay } from "@/lib/taskDate";
+import { formatTaskDueDateDisplay, getLocalDateString } from "@/lib/taskDate";
 import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
 import { isSubDayBucket, kindLabel } from "@/lib/timeBuckets";
 import { playCompletionFeedback } from "@/lib/completionFeedback";
@@ -185,7 +185,7 @@ const TaskListItemComponent = ({
                 baseClass: "bg-amber-500/80",
                 activeClass: "bg-amber-700",
                 textClass: "text-white",
-                onActivate: () => onPatchTask(t.id, { due_date: addDays(startOfDay(new Date()), 1).toISOString() }),
+                onActivate: () => onPatchTask(t.id, { due_date: getLocalDateString(addDays(new Date(), 1)) }),
               },
               {
                 id: "move",

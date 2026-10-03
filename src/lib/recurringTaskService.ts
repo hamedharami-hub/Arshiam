@@ -37,23 +37,18 @@ export function resolveRecurrenceRule(task: Task): RecurrenceRule | null {
 }
 
 /**
- * Calculates the next occurrence date strictly in the future relative to `now`.
+ * Finds the first occurrence after the completion day, keeping the original
+ * recurrence anchor so monthly and alternating-week rules do not drift.
  */
 export function calculateNextOccurrence(
   rule: RecurrenceRule,
   baseDate: Date = new Date(),
   now: Date = new Date()
 ): Date {
-  let next = nextOccurrence(rule, baseDate);
-  let guard = 0;
-  while (next && next.getTime() <= now.getTime() && guard < 500) {
-    const advanced = nextOccurrence(rule, next);
-    if (!advanced || advanced.getTime() <= next.getTime()) break;
-    next = advanced;
-    guard++;
-  }
-
-  if (next && next.getTime() > now.getTime()) {
+  const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, -1);
+  const cursor = baseDate.getTime() > dayEnd.getTime() ? baseDate : dayEnd;
+  const next = nextOccurrence(rule, cursor, baseDate);
+  if (next && next.getTime() > cursor.getTime()) {
     return next;
   }
 
@@ -126,21 +121,27 @@ export async function advanceRecurringTask(
   }
 
   const now = options?.now || new Date();
-  const baseDate = parseTaskDueDate(task.due_date) || now;
+  const savedDue = parseTaskDueDate(task.due_date);
+  const hasRepeatHour = typeof rule.byhour === "number";
+  const legacyAllDay = !!savedDue && savedDue.getHours() === 23 && savedDue.getMinutes() === 59;
+  const isAllDay = !hasRepeatHour && (
+    /^\d{4}-\d{2}-\d{2}$/.test(task.due_date || "") || legacyAllDay ||
+    (!savedDue && !task.due_at && !task.start_at)
+  );
+  const anchor = savedDue || now;
+  const baseDate = isAllDay
+    ? new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate())
+    : anchor;
   const nextDate = calculateNextOccurrence(rule, baseDate, now);
   const deltaMs = nextDate.getTime() - baseDate.getTime();
 
-  const isDateOnly = !task.due_date?.includes("T") && /^\d{4}-\d{2}-\d{2}$/.test(task.due_date || "");
-  const nextDueDateStr = isDateOnly ? getLocalDateString(nextDate) : nextDate.toISOString();
+  const nextDueDateStr = isAllDay ? getLocalDateString(nextDate) : nextDate.toISOString();
 
   let nextReminderIso: string | null = null;
-  if (task.reminder_at && task.due_date) {
-    const reminderTime = new Date(task.reminder_at).getTime();
-    if (!isNaN(reminderTime)) {
-      nextReminderIso = new Date(reminderTime + deltaMs).toISOString();
-    }
-  } else if (task.reminder_at) {
-    nextReminderIso = nextDate.toISOString();
+  const reminderSource = task.reminder_plan?.enabled ? task.reminder_plan.trigger_at : task.reminder_at;
+  if (reminderSource) {
+    const reminderTime = new Date(reminderSource).getTime();
+    if (!isNaN(reminderTime)) nextReminderIso = new Date(reminderTime + deltaMs).toISOString();
   }
 
   const updatedDescription = resetDescriptionCheckboxes(task.description);
@@ -152,17 +153,48 @@ export async function advanceRecurringTask(
     completed_at: null,
     due_date: nextDueDateStr,
     reminder_at: nextReminderIso,
+    ...(task.reminder_plan?.enabled && nextReminderIso ? { reminder_plan: {
+      ...task.reminder_plan,
+      trigger_at: nextReminderIso,
+      status: "pending" as const,
+      fire_count: 0,
+      snooze_until: null,
+      last_fired_at: null,
+    } } : {}),
     description: updatedDescription,
     updated_at: new Date().toISOString(),
   };
+
+  // Day-level placement belongs to the current occurrence. A stale daily plan
+  // would otherwise keep the reset task in Today after its due date advances.
+  const nextDay = getLocalDateString(nextDate);
+  if (task.planning_horizon === "day") {
+    taskPatch.planning_start = nextDay;
+    taskPatch.planning_end = nextDay;
+  }
+  if (task.horizon === "day") {
+    taskPatch.period_start = nextDay;
+    taskPatch.period_end = nextDay;
+  }
+  if (task.bucket_anchor && ["day", "morning", "noon", "afternoon", "night"].includes(task.bucket_kind || "")) {
+    taskPatch.bucket_anchor = nextDay;
+  }
 
   if (task.start_at) {
     const sTime = new Date(task.start_at).getTime();
     if (!isNaN(sTime)) taskPatch.start_at = new Date(sTime + deltaMs).toISOString();
   }
+  if (task.end_at) {
+    const eTime = new Date(task.end_at).getTime();
+    if (!isNaN(eTime)) taskPatch.end_at = new Date(eTime + deltaMs).toISOString();
+  }
   if (task.due_at) {
     const dTime = new Date(task.due_at).getTime();
     if (!isNaN(dTime)) taskPatch.due_at = new Date(dTime + deltaMs).toISOString();
+  }
+  if (isAllDay && (task.is_exact || task.due_at)) {
+    taskPatch.due_at = null;
+    taskPatch.is_exact = false;
   }
 
   // 1. Advance and reset all subtasks under this recurring task

@@ -111,7 +111,7 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
   };
   const plan = (t: Task, p: Period | null, parentId?: string | null) => { void onUpdate(t.id, planPatch(p, settings, parentId)); haptic("light"); };
   const moveNext = (t: Task) => { const p = planOf(t, settings) || period; plan(t, nextPeriod(p, settings)); toast.success(fa ? "به دورهٔ بعد رفت" : "Moved to next period"); };
-  const complete = (t: Task) => void onUpdate(t.id, { completed: true, status: "done", completed_at: new Date().toISOString() });
+  const complete = (t: Task) => { if (!isClosed(t)) void onToggle(t); };
 
   const onTouchEnd = (e: React.TouchEvent) => {
     const start = touch.current; touch.current = null;
