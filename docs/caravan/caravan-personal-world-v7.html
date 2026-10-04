@@ -5618,6 +5618,33 @@ const gateHorizon = we(new Vr(3.6, 32), new cr({
 
 Ai("stargate", "دروازهٔ کیهانی بین سیارات · استارگیت", new D(0, 0, 16), cosmicStargate, () => openGalaxyMap());
 
+// Stargate in Planet of Coders (38, 0, -12)
+const stargateCoders = new jt();
+stargateCoders.position.set(38, 0, -12);
+codersPost.add(stargateCoders);
+we(new Jn(3.5, 3.8, 0.6, 24), pe("#021a12"), 0, 0.3, 0, stargateCoders);
+we(new Pe(4.0, 0.18, 16, 48), pe("#10b981", !0), 0, 3.8, 0, stargateCoders);
+we(new Vr(3.0, 24), new cr({ color: "#10b981", transparent: true, opacity: 0.5, side: 2, depthWrite: false }), 0, 3.8, 0, stargateCoders);
+[-3.8, 3.8].forEach((gx) => {
+  en(0.25, 5.5, pe("#064e3b"), gx, 2.75, 0, stargateCoders);
+  De(0.5, pe("#10b981", !0), gx, 5.8, 0, stargateCoders);
+});
+Ai("stargate_coders", "دروازهٔ بازگشت به دوشاخ‌ها و کهکشان", new D(38, 0, -12), stargateCoders, () => openGalaxyMap());
+
+// Stargate in Planet of Anjeeran (-38, 0, 12)
+const stargateAnjeeran = new jt();
+stargateAnjeeran.position.set(-38, 0, 12);
+anjeeranPost.add(stargateAnjeeran);
+we(new Jn(3.5, 3.8, 0.6, 24), pe("#221203"), 0, 0.3, 0, stargateAnjeeran);
+we(new Pe(4.0, 0.18, 16, 48), pe("#f59e0b", !0), 0, 3.8, 0, stargateAnjeeran);
+we(new Vr(3.0, 24), new cr({ color: "#f59e0b", transparent: true, opacity: 0.5, side: 2, depthWrite: false }), 0, 3.8, 0, stargateAnjeeran);
+[-3.8, 3.8].forEach((gx) => {
+  en(0.25, 5.5, pe("#78350f"), gx, 2.75, 0, stargateAnjeeran);
+  De(0.5, pe("#fbbf24", !0), gx, 5.8, 0, stargateAnjeeran);
+});
+Ai("stargate_anjeeran", "دروازهٔ بازگشت به دوشاخ‌ها و کهکشان", new D(-38, 0, 12), stargateAnjeeran, () => openGalaxyMap());
+
+
 // 9. Sacred Bond Flame in Heart Sanctuary (0, 0, -29)
 const bondFlameGroup = new jt();
 bondFlameGroup.position.set(0, 1.2, -29);
@@ -5908,7 +5935,10 @@ function enhancedCosmicLoop() {
 
   // Stargate Proximity & Dynamic Travel Detection (Pos: 0, 0, 16)
   if (re) {
-    const distToGate = Math.hypot(re.position.x - 0, re.position.z - 16);
+    const distToGateMain = Math.hypot(re.position.x - 0, re.position.z - 16);
+    const distToGateCoders = Math.hypot(re.position.x - 38, re.position.z - (-12));
+    const distToGateAnjeeran = Math.hypot(re.position.x - (-38), re.position.z - 12);
+    const distToGate = Math.min(distToGateMain, distToGateCoders, distToGateAnjeeran);
     if (!_stargatePromptEl) {
       _stargatePromptEl = document.createElement("div");
       _stargatePromptEl.className = "stargate-hud-prompt";
