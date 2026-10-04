@@ -281,20 +281,47 @@ export default function CaravanView() {
             <span>تبدیل ۱۰ انرژی خورشید</span>
           </Button>
 
-          {/* Go to Shadow Syndicate Outpost Button */}
+          {/* Cosmic Galaxy Navigation Shortcuts */}
           <Button
             size="sm"
             variant="outline"
             onClick={() => {
-              iframeRef.current?.contentWindow?.postMessage({ type: "ARSHNAZ_GO_SHADOW" }, "*");
-              toast.info("🗝️ هدایت به مخفی‌گاه سوداگران سایه", {
-                description: "برای قمار گوهرهای نور و خرید بذرهای ممنوعه آماده شوید."
+              iframeRef.current?.contentWindow?.postMessage({ type: "ARSHNAZ_OPEN_GALAXY" }, "*");
+            }}
+            className="h-7 text-xs bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border-indigo-500/30 gap-1"
+            title="نقشه کهکشان و سیارات"
+          >
+            <span>🌌 کهکشان</span>
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              iframeRef.current?.contentWindow?.postMessage({ type: "ARSHNAZ_GO_CODERS" }, "*");
+              toast.info("💻 پرواز به سوی سیارهٔ کدنویس‌ها", {
+                description: "کالبدهای تیره و انگشتان نور در حال کامپایل واقعیت هستند."
               });
             }}
-            className="h-7 text-xs bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border-purple-500/30 gap-1"
-            title="مخفی‌گاه و بازار سیاه سوداگران سایه"
+            className="h-7 text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30 gap-1"
+            title="سیارهٔ کدنویس‌ها · آرتاک"
           >
-            <span>🗝️ سوداگر سایه</span>
+            <span>💻 کدنویس‌ها</span>
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              iframeRef.current?.contentWindow?.postMessage({ type: "ARSHNAZ_GO_ANJEERAN" }, "*");
+              toast.info("⎊ پرواز به سوی سیارهٔ انجیران", {
+                description: "مهندسان معلق در حال ساخت قطعات سازهٔ چشم بزرگ هستند."
+              });
+            }}
+            className="h-7 text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/30 gap-1"
+            title="سیارهٔ انجیران · مهراسپند"
+          >
+            <span>⎊ انجیران</span>
           </Button>
 
           {/* Cloud Sync Button */}
