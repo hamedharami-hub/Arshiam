@@ -76,6 +76,10 @@ const CheckinView = lazy(() => import("./pages/CheckinView"));
 const ThoughtRecordsView = lazy(() => import("./pages/ThoughtRecordsView"));
 const ABCView = lazy(() => import("./pages/ABCView"));
 const MindTrendsView = lazy(() => import("./pages/MindTrendsView"));
+const NeedsBrowseView = lazy(() => import("./pages/mind/NeedsBrowseView"));
+const NeedsSessionView = lazy(() => import("./pages/mind/NeedsSessionView"));
+const NeedsMyView = lazy(() => import("./pages/mind/NeedsMyView"));
+const SelfCheckView = lazy(() => import("./pages/mind/SelfCheckView"));
 const MindCalmView = lazy(() => import("./pages/MindCalmView"));
 const AboutMeView = lazy(() => import("./pages/AboutMeView"));
 const BreathingView = lazy(() => import("./pages/BreathingView"));
@@ -363,6 +367,11 @@ const App = () => {
                       <Route path="thoughts" element={<ThoughtRecordsView />} />
                       <Route path="abc" element={<Navigate to="/app/thoughts?mode=short" replace />} />
                       <Route path="mind/trends" element={<MindTrendsView />} />
+                      <Route path="mind/needs/:cat" element={<NeedsBrowseView />} />
+                      <Route path="mind/needs/:cat/:topic" element={<NeedsBrowseView />} />
+                      <Route path="mind/session/:id" element={<NeedsSessionView />} />
+                      <Route path="mind/my-needs" element={<NeedsMyView />} />
+                      <Route path="mind/check/:id" element={<SelfCheckView />} />
                       <Route path="calm" element={<MindCalmView />} />
                       <Route path="socratic" element={<Navigate to="/app/mind" replace />} />
                       <Route path="breathing" element={<BreathingView />} />

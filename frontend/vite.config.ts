@@ -62,6 +62,12 @@ function versionJsonPlugin() {
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   return ({
+  preview: {
+    host: "0.0.0.0",
+    port: 3000,
+    allowedHosts: true,
+    proxy: { "/api/arsh": { target: "http://localhost:8001", changeOrigin: true } },
+  },
   server: {
     host: "0.0.0.0",
     port: 3000,

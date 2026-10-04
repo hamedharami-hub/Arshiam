@@ -8,6 +8,7 @@ import { useBilingual } from "@/hooks/useBilingual";
 import { subscribeDailyCheckins, upsertDailyCheckin } from "@/lib/firestoreDataService";
 import { getLocalDateString } from "@/lib/taskDate";
 import { toPersianDigits } from "@/lib/jalali";
+import { NeedsEntry } from "@/components/needs/NeedsBits";
 import { useMindDraft, type MindDraftPath } from "@/lib/mindDraft";
 
 type SaveState = "idle" | "saving" | "saved" | "queued" | "failed";
@@ -119,6 +120,9 @@ export default function MindView() {
         </Link>
       )}
 
+      <NeedsEntry />
+
+      <h2 className="pt-1 text-sm font-bold text-muted-foreground">{T("ابزارهای سریع", "Quick tools")}</h2>
       <div className="grid gap-4 md:grid-cols-3">
         <section className={cardClass} aria-labelledby="mind-mood-title" data-testid="mind-card-mood">
           <header className="flex items-start gap-3">

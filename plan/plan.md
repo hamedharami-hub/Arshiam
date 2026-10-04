@@ -1,96 +1,125 @@
-# ARSHNAZ (ارشناز) — Import, Run, and Simplify Task Scheduling
+# ARSHNAZ — خانه‌تکانی بزرگ صفحهٔ «ذهن» + دسته‌بندی چندسطحی نیازها + دستیار هوش مصنوعی
 
-ARSHNAZ is an existing Persian/English app for tasks, notes, habits and wellbeing. It has planning, diary, health and Pomodoro pages, plus a gamified island and an angel companion.
-This work brings the existing GitHub app (hamedharami-hub/Arshiam) into this workspace and runs it as-is. It then redesigns the task "When" and "Planning" pickers to be icon-led, and removes Time block, Part of day and Deadline from the whole app.
+صفحهٔ «ذهن» دوباره چیده می‌شود: همهٔ ابزارها، روش‌های حل مسئله، خودسنجی‌ها و تست‌های فعلی برنامه بررسی می‌شوند و هرکدام یا در درخت جدید جا می‌گیرد، یا اصلاح می‌شود، یا حذف می‌شود؛ و برای خلأها روش و تست تازه اضافه می‌شود.
+کاربر دسته و موضوع نیازش را انتخاب می‌کند، آن را می‌نویسد، و هوش مصنوعی با چند سؤال هدفمند بهترین پیشنهاد، تمرین و آزمون را می‌دهد.
 
-## Who it's for
+## این برنامه برای چه کسانی است
 
-- Persian- and English-speaking individuals who want one place for daily tasks, notes, habits and mental-health support.
-- The repository owner, who needs the app running at the preview URL and wants a simpler task scheduling experience.
+- کاربران فارسی‌زبان (و انگلیسی‌زبان) ارشناز که برای مشکلات روزمره، تصمیم‌گیری، برنامه‌ریزی و حال روحی خود یک جای منظم و قابل‌اعتماد می‌خواهند.
+- کسی که نمی‌داند «مشکلش چه نام دارد» و با پرسش‌های راهنما به شفافیت می‌رسد.
+- صاحب پروژه، که می‌خواهد بخش «ذهن» از دید یک انسان و یک هوش مصنوعی همهٔ نیازهای رایج را پوشش دهد و چیز بی‌مصرف یا تکراری در آن نباشد.
 
-## Core features and experience
+## ویژگی‌ها و تجربه
 
-Everything below already exists in the repository and is carried over unchanged, except where the "Task scheduling changes" section says otherwise.
+### ۱. خانه‌تکانی محتوای فعلی
 
-- Sign-in with email/password and Google, using the project's existing Firebase Authentication.
-- Tasks with a detail view, notes, diary, mind, health, Pomodoro and knowledge pages.
-- Gamified island: points, weekly gift progress, residents with editable names and friendly phrases, a snapshot album (stored on the device only), and an island card on the Today page.
-- Angel companion with appearance and motion settings.
-- Light and dark themes, RTL (Persian) and LTR (English) layouts, desktop and mobile.
-- AI features keep the current bring-your-own-key model. Users enter their own key, and it stays in the browser.
-- User data stays in the existing Firebase Firestore and Storage, private per user.
+هر چیزی که الان در بخش ذهن و اطراف آن هست (ثبت خلق و انرژی، آرام‌سازی و تنفس، ثبت افکار، مدیریت نگرانی، مدل ABC، خواب، چرخهٔ ماهانه، ارزش‌ها و اهداف، معمار زندگی، خودشناسی، روندها و بررسی‌ها، پرسشنامه‌های PHQ-9، GAD-7، WHO-5، فرسودگی شغلی و سایر ارزیابی‌های شخصیتی) یکی‌یکی بررسی می‌شود:
 
-### Task scheduling changes (proposed design, for your approval)
+- **می‌ماند و جا می‌گیرد:** اگر به یک یا چند موضوع درخت جدید می‌خورد، به همان موضوع‌ها وصل می‌شود (یک ابزار می‌تواند در چند موضوع نمایش داده شود).
+- **ویرایش می‌شود:** اگر ایده‌اش درست است ولی متن، پرسش‌ها، نمره‌دهی، ترجمه یا طراحی‌اش ضعیف یا ناکامل است.
+- **حذف می‌شود:** اگر در هیچ موضوعی کاربرد واقعی ندارد، تکراری است، یا کیفیتش پایین است. حذف یعنی از منو و کتابخانه برمی‌دارد؛ نتایجی که کاربران قبلاً ذخیره کرده‌اند پاک نمی‌شود.
+- **اضافه می‌شود:** هر موضوعی از درخت که ابزار، روش یا تست مناسبی ندارد.
 
-**1. "When" picker, opened from the task detail.** It becomes one compact, icon-led panel. There are no text-labelled rows or sections.
+در پایان یک گزارش روشن داده می‌شود: چه چیزهایی ماند، چه چیزهایی ویرایش شد، چه چیزهایی حذف شد و چرا، و چه چیزهایی تازه اضافه شد.
 
-- **Top row, quick day buttons (icons):** Today (sun icon), Tomorrow (sunrise icon), Next week (calendar-forward icon), No date (calendar-with-slash icon). The selected one is highlighted in rose-gold. Each icon has a small tooltip, or a long-press label on mobile, for clarity.
-- **Middle, a month calendar:** shown directly in the panel and not behind a "Pick a date…" row. Tapping a day selects it. Persian users see the Jalali calendar and English users see the Gregorian one, as the app does today.
-- **Bottom, two icon rows with no heading text:**
-  - Clock icon followed by the chosen time (for example "۰۸:۳۰"). Tapping it opens a simple hour/minute wheel to set the exact time. A small "x" clears it. The row is disabled until a day is chosen.
-  - Repeat icon followed by the current rule (for example "هر هفته"). Tapping it opens a short icon menu: none, daily, weekly, monthly, yearly, custom.
-- **Reminder:** stays, and is shown as a bell icon row beneath the clock row. It is only visible once a time is set.
-- **Closing:** choosing a day closes the panel. Changing time, repeat or reminder keeps it open, with a check button to finish.
+نمونه‌هایی از موارد تازه که پیشنهاد می‌شود (فهرست نهایی بعد از بررسی تعیین می‌شود):
 
-**2. "Planning" picker.** It uses the same icon-led style.
+- **روش‌های حل مسئله و تصمیم‌گیری:** تعریف دقیق مسئله، شکستن به قدم‌های کوچک، «پنج چرا»، مزایا و معایب، ماتریس تصمیم، بهترین/بدترین/محتمل‌ترین سناریو، قدم بعدی ۵ دقیقه‌ای، جمله‌های «اگر… آنگاه…» برای اجرا.
+- **روش‌های برنامه‌ریزی و رسیدن به هدف:** ماتریس اولویت، هدف‌گذاری با مانع‌یابی (آرزو، نتیجه، مانع، برنامه)، قانون دو دقیقه، طراحی عادت کوچک، بازبینی هفتگی.
+- **روش‌های حال روحی:** فعال‌سازی رفتاری برای بی‌انگیزگی، زمین‌گیری (۵-۴-۳-۲-۱)، شناسایی خطاهای فکری، مهربانی با خود، نوشتن هیجانی، برنامهٔ نگرانی با «زمان نگرانی».
+- **روش‌های روابط:** جمله‌سازی «من احساس می‌کنم…»، تعیین مرز، آماده‌سازی گفت‌وگوی سخت.
+- **خودسنجی‌ها و تست‌های تازه (کوتاه و غیرتشخیصی):** استرس، اهمال‌کاری، عزت‌نفس، تنهایی، کیفیت خواب، سبک تصمیم‌گیری، عادت‌های برنامه‌ریزی، رضایت از روابط، وضوح ارزش‌ها. متن پرسش‌ها اصیل یا آزاد از حق‌چاپ است؛ برای ابزارهای رسمی که مجوزشان روشن نیست از نسخهٔ الهام‌گرفته استفاده می‌شود و به‌عنوان «استاندارد» برچسب نمی‌خورد.
 
-- A row of period icons for Today, Tomorrow, This week, Next week, This month and Next month. Each is a small calendar icon with a short label and a muted date range beneath it.
-- A custom-range icon (a calendar with a pencil) opens a mini calendar to pick a start and end date, with a check button to apply.
-- The panel closes when a period is chosen, matching the "When" picker behaviour.
+### ۲. درخت دسته‌بندی چندسطحی (انتخاب با خود کاربر)
 
-**3. Full removal of Time block, Part of day and Deadline, from everywhere in the app.**
+سه سطح: دستهٔ اصلی ← موضوع ← جزئیات (در صورت نیاز). هر دسته آیکون خط‌نازک هم‌سبک «زمان» و «برنامه‌ریزی» دارد.
 
-- The three features disappear from the task detail, the pickers, and any lists, filters, sorting, calendar or planning views, task cards, badges and quick-add parsing.
-- The related logic is removed or corrected, including overdue checks, smart reminders and any notifications, stats, island points rules and widgets that depended on them.
-- Overdue status is based on the task's remaining date and time.
-- Translations, settings, help text and the related automated tests are cleaned up, so no stray labels or empty options remain.
-- Old values already saved on existing tasks are ignored and no longer read or shown. They are not deleted from the database.
-- Task completion, repeating tasks, reminders and the island rewards must keep working after the removal.
+| دستهٔ اصلی | نمونه موضوع‌ها |
+|---|---|
+| حل مسئله و تصمیم‌گیری | تصمیم سخت، گیر کردن در یک مسئله، شکستن مسئلهٔ بزرگ به قسمت‌های کوچک، انتخاب بین چند گزینه، ترس از اشتباه |
+| برنامه‌ریزی و بهره‌وری | مشکل برنامه‌ریزی، اهمال‌کاری، تمرکز، اولویت‌بندی، مدیریت زمان، عادت‌سازی، شروع‌نکردن، رسیدن به هدف |
+| حال روحی و هیجان | غمگینی و بی‌انگیزگی (افسردگی)، اضطراب، استرس، خشم، تنهایی، احساس گناه و شرم، عزت‌نفس |
+| روابط | خانواده، همسر، دوستی، مرزها، ارتباط مؤثر، دلخوری و بخشش |
+| کار، تحصیل و مسیر شغلی | فرسودگی شغلی، انتخاب مسیر، آمادگی امتحان یا مصاحبه، یادگیری مؤثر |
+| بدن و سلامت | خواب، انرژی، تغذیه، تحرک، تنش بدنی، چرخهٔ ماهانه |
+| معنا و رشد فردی | هدف و ارزش‌ها، هویت و خودشناسی، رها کردن گذشته، سوگ و فقدان، تغییر زندگی |
+| زندگی روزمره و مالی | بی‌نظمی خانه و وسایل، مدیریت پول، فشار مسئولیت‌ها |
+| نمی‌دانم مشکلم چیست | شروع آزاد: کاربر فقط می‌نویسد؛ هوش مصنوعی یک یا چند دستهٔ محتمل پیشنهاد می‌دهد و کاربر خودش تأیید یا عوض می‌کند |
 
-## User flow
+برای هر موضوع یک «بستهٔ آماده» وجود دارد: پرسش‌های راهنما، روش‌های حل، خودسنجی‌ها و تست‌ها، و ابزارهای مرتبط ارشناز (پومودورو، دفتر خاطرات، عادت‌ها، سلامت، دانش).
 
-1. Open the preview URL and land on the login page.
-2. Sign in with email/password or Google, or create an account.
-3. Arrive on the Today page with the task list and island card.
-4. Open a task. Tap the calendar icon to pick a day, the clock icon for an exact time, and the repeat icon for repetition. Tap the planning icon to pick a period.
-5. There are no Time block, Part of day or Deadline options anywhere.
-6. Complete tasks to earn island points and weekly gifts.
+### ۳. دستیار هوش مصنوعی
 
-## UI/UX feel
+- کاربر موضوع را انتخاب و با متن آزاد توضیح می‌دهد.
+- هوش مصنوعی ۳ تا ۵ سؤال تکمیلی متناسب با همان موضوع می‌پرسد (یکی‌یکی، با امکان رد کردن) و در صورت لزوم خودسنجی مناسب را پیشنهاد می‌دهد.
+- خروجی ساخت‌یافته: خلاصهٔ برداشت از وضعیت، علت‌های محتمل، پیشنهادها از ساده‌ترین قدم به بالا، روش حل مناسب از کتابخانه، پرسش‌های تأمل، تست‌ها یا تمرین‌های بعدی و ابزارهای مرتبط.
+- کاربر می‌تواند وسط مسیر دسته یا موضوع را عوض کند.
+- کلید هوش مصنوعی همان روش فعلی است: کاربر کلید خودش را وارد می‌کند و فقط در مرورگر می‌ماند. بدون کلید، دسته‌بندی، پرسش‌ها، روش‌ها و تست‌ها کار می‌کنند.
 
-- The existing look is preserved: warm paper-cream in light mode, plum-night in dark mode, with rose-gold line art.
-- The new pickers follow it: quiet, uncluttered, icon-first, with soft transitions that respect reduced-motion settings.
-- Fully bilingual with correct right-to-left behaviour. Icons and the calendar mirror correctly in RTL.
+### ۴. ذخیره و تبدیل به عمل
 
-## Implementation phases
+- هر جلسه در حساب خصوصی کاربر در «نیازهای من» ذخیره می‌شود (تاریخ، دسته، خلاصه، پیشنهادها).
+- هر پیشنهاد با یک کلیک به تسک، یادداشت یا عادت تبدیل می‌شود.
+- جلسهٔ قبلی قابل بازکردن و ادامه است.
 
-### Phase 1 — MVP (built now)
+### ۵. ایمنی در موضوعات حساس
 
-- Bring the repository's main app into the workspace and make it build and run at the preview URL.
-- Fix only what breaks in this environment, without changing other features or design.
-- Keep Firebase for login and data.
-- Apply the task scheduling changes above: the new icon-led "When" and "Planning" pickers, and the full removal of Time block, Part of day and Deadline.
-- Google sign-in works only if the Firebase project lists the preview domain as an authorized domain. You will need to add that domain in the Firebase Console.
+- برای موضوعاتی مثل افسردگی، افکار آسیب به خود و بحران، یک پیام ایمنی ثابت و جدا از جواب هوش مصنوعی نشان داده می‌شود: این ابزار جایگزین متخصص نیست و در وضعیت جدی بهتر است با فرد مورد اعتماد یا متخصص صحبت شود. در این پیام هیچ شماره‌ای نوشته نمی‌شود.
+- هوش مصنوعی خود را درمانگر معرفی نمی‌کند و بیماری تشخیص نمی‌دهد.
+- خودسنجی‌ها فقط برای آگاهی هستند، نه تشخیص.
 
-### Phase 2 — Not built now
+## جریان کاربر
 
-- Review and redesign the Planning, Diary, Mind, Health, Pomodoro and Knowledge pages (the repo's own "Phase 3 Review").
-- Backup of the island album to the user's account, so it syncs across devices.
+1. از منوی «ذهن» وارد می‌شود و دسته‌های اصلی را با آیکون می‌بیند.
+2. دسته و بعد موضوع (و جزئیات) را انتخاب می‌کند، یا «نمی‌دانم مشکلم چیست» را می‌زند و مستقیم می‌نویسد.
+3. وضعیت خود را توضیح می‌دهد.
+4. هوش مصنوعی سؤال‌های تکمیلی می‌پرسد؛ کاربر جواب می‌دهد (یا رد می‌کند).
+5. در صورت پیشنهاد، خودسنجی یا تست کوتاه را انجام می‌دهد.
+6. نتیجه را می‌بیند: خلاصه، پیشنهادها، روش حل، پرسش‌های تأمل، ابزارهای مرتبط.
+7. پیشنهادهای دلخواه را به تسک/یادداشت/عادت تبدیل می‌کند یا جلسه را ذخیره می‌کند.
+8. بعداً از «نیازهای من» برمی‌گردد. ابزارهای قدیمی (ثبت افکار، نگرانی، تنفس، خواب و…) از همان درخت یا از میان‌بر در صفحه در دسترس‌اند.
 
-### Phase 3 — Not built now
+## ظاهر و حس کار
 
-- Optional move from Firebase to the platform's own backend and database.
-- Island growth slideshow from the album, and resident requests that give bonus points.
+- هم‌سبک ظاهر فعلی: کاغذی گرم در حالت روشن، بنفش شب در حالت تاریک، خطوط رزگلد.
+- آیکون‌محور و کم‌شلوغ: کارت‌های دسته با آیکون بزرگ و نام کوتاه، مسیر نان‌ریز (دسته ← موضوع).
+- گفت‌وگوی آرام با یک سؤال در هر لحظه؛ انیمیشن‌های نرم که تنظیم «کاهش حرکت» را رعایت می‌کنند.
+- راست‌به‌چپ و چپ‌به‌راست درست، روی موبایل و دسکتاپ.
+- متن‌ها گرم، غیرقضاوتی و ساده؛ بدون اصطلاحات پزشکی سنگین.
 
-## Assumptions
+## فازهای اجرا
 
-- Apart from the scheduling changes, "as-is" means no feature, design or data-layer changes beyond what is needed to run here.
-- The main ARSHNAZ web app is the scope. The PTE Sentence Map sub-project is left out.
-- The Android wrapper, Capacitor and Codemagic files, and the other build and deployment files are left out. The app is viewed as a web app only.
-- The Firebase configuration already in the repository is reused. The existing Firebase project and its data are used directly.
-- Google sign-in may fail on the preview domain until it is authorized in Firebase. Email/password sign-in does not depend on that.
-- The AI features stay bring-your-own-key. No built-in key is added.
-- Existing automated tests and CI workflows are not part of this delivery. Only the tests tied to the removed features and pickers are updated.
-- "Deadline" is removed entirely. A task only has its normal date and time, and overdue is judged from those.
-- The reminder and repeat options stay, because only Time block, Part of day and Deadline were marked for removal.
-- The icon choices, the quick-day buttons and the wheel-style time picker are my proposal. Nothing is built until you approve this plan.
+### فاز ۱ — MVP (همین حالا ساخته می‌شود)
+
+- خانه‌تکانی کامل محتوای فعلی بخش ذهن (نگه‌داشتن، ویرایش، حذف) و گزارش نتیجه.
+- افزودن روش‌ها، خودسنجی‌ها و تست‌های تازه برای همهٔ موضوع‌های درخت که خالی‌اند یا ضعیف‌اند.
+- درخت دسته‌بندی سه‌سطحی با فهرست بالا و بستهٔ آمادهٔ هر موضوع.
+- دستیار هوش مصنوعی با سؤال‌های تکمیلی و خروجی ساخت‌یافته (با کلید خود کاربر).
+- مسیر «نمی‌دانم مشکلم چیست».
+- ذخیره در «نیازهای من» و تبدیل پیشنهادها به تسک/یادداشت/عادت.
+- پیام ایمنی ثابت (بدون شماره).
+
+### فاز ۲ — ساخته نمی‌شود
+
+- بازبینی و بازطراحی آیکونی صفحات برنامه‌ریزی، دفتر خاطرات، سلامت، پومودورو و دانش.
+- ویرایش دسته‌ها و افزودن موضوع شخصی توسط خود کاربر.
+- پشتیبان‌گیری آلبوم جزیره در حساب کاربر.
+
+### فاز ۳ — ساخته نمی‌شود
+
+- روند در طول زمان (مثلاً تغییر نمرهٔ خودسنجی‌ها) و یادآوری تمرین‌ها.
+- با اجازهٔ کاربر، استفاده از دفتر خاطرات و سلامت برای پیشنهاد دقیق‌تر.
+- تمرین‌های صوتی و تنفس هدایت‌شده.
+
+## فرض‌ها (بدون پرسیدن تصمیم گرفته شد)
+
+- در خانه‌تکانی، تصمیم نگه‌داشتن/حذف با من است و نتیجه در گزارش پایانی شفاف می‌آید؛ هر مورد حذف‌شده با دلیل نوشته می‌شود تا بتوانید برگرداندنش را بخواهید.
+- حذف فقط از منو و کتابخانه است؛ داده و نتایج قبلی کاربران پاک نمی‌شود.
+- پرسشنامه‌های استاندارد شناخته‌شده (PHQ-9، GAD-7، WHO-5) اگر نمره‌دهی و متنشان درست باشد می‌مانند و فقط در صورت اشکال اصلاح می‌شوند.
+- ارزیابی‌های شخصیتی و «معمار زندگی» و موارد مشابه که با هیچ موضوع درخت جدید جور نمی‌شوند، حذف نمی‌شوند مگر کیفیت یا تکراری‌بودنشان مشکل داشته باشد؛ در این حالت زیر «معنا و رشد فردی» می‌روند.
+- دسته‌بندی بالا پیشنهاد من است و تأیید شده فرض می‌شود؛ بعد از ساخت می‌شود ویرایشش کرد.
+- زبان پیش‌فرض فارسی است و انگلیسی هم پشتیبانی می‌شود.
+- هوش مصنوعی روی کلید خود کاربر کار می‌کند و فقط متنی که کاربر می‌نویسد به آن می‌رود.
+- جلسه‌ها در همان Firebase فعلی و خصوصی برای هر کاربر ذخیره می‌شوند.
+- صفحهٔ SOS/بحران فعلی و تنظیمات پشتیبانی بحران که کاربر خودش می‌سازد دست‌نخورده می‌مانند؛ فقط پیام ایمنی جدید بدون شماره است.
+- صفحات دیگر (برنامه‌ریزی، دفتر خاطرات، سلامت، پومودورو، دانش) در این فاز تغییر نمی‌کنند.

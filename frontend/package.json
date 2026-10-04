@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 0.0.0.0 --port 3000",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "build": "npm run typecheck && vite build",
     "build:dev": "vite build --mode development",
@@ -13,7 +13,7 @@
     "test": "vitest run",
     "test:rules": "GCE_METADATA_HOST=0.0.0.0 firebase emulators:exec --only firestore --project demo-arshnaz-rules --config firebase.emulator.json \"vitest run --config rules-tests/vitest.config.ts --reporter=verbose\"",
     "qa:layout": "node scripts/verify_layout.mjs",
-    "start": "HOME=${HOME:-/root} SWC_NATIVE_BINDING_CACHE=/app/frontend/.swc-cache vite"
+    "start": "HOME=${HOME:-/root} SWC_NATIVE_BINDING_CACHE=/app/frontend/.swc-cache sh -c \"vite build && vite preview\""
   },
   "dependencies": {
     "@capacitor-community/contacts": "^8.0.0",

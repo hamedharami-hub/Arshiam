@@ -151,7 +151,7 @@ export const BURNOUT: ScreenerMeta = {
     { id: 2, text: "از نظر جسمی احساس تخلیه انرژی دارم", text_en: "I feel physically exhausted" },
     { id: 3, text: "از نظر هیجانی و روانی احساس تخلیه انرژی دارم", text_en: "I feel emotionally exhausted" },
     { id: 4, text: "با خود فکر می‌کنم: «دیگر توان ادامه ندارم»", text_en: "I think to myself: 'I cannot take it anymore'" },
-    { id: 5, text: "احساس فرسایش و آسیب‌پذیری انرژی می‌کنم", text_en: "I feel depleted and vulnerable" },
+    { id: 5, text: "احساس می‌کنم انرژی‌ام ته کشیده و در برابر فشار آسیب‌پذیرم", text_en: "I feel depleted and vulnerable" },
     { id: 6, text: "صبح‌ها با احساس خستگی و بی‌رمقی از خواب بیدار می‌شوم", text_en: "I wake up in the morning lacking energy" },
   ],
 };
