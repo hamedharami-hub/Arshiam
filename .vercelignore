@@ -1,0 +1,12 @@
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+android/
+ios/
+tests/
+frontend/src/**/*.test.ts
+frontend/src/**/*.test.tsx
+backend/
+memory/
+test_reports/

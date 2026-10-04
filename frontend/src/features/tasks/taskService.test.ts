@@ -86,9 +86,9 @@ const task = (id: string, parent_id: string | null = null): Task => ({
   recurrence: "none",
   recurrence_rule: null,
   pinned: false,
-  start_at: null,
-  end_at: null,
-  estimated_minutes: null,
+  
+  
+  
   position: 0,
 });
 

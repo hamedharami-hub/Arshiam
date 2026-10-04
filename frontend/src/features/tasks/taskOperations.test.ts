@@ -6,8 +6,7 @@ import { applyTaskOperations } from "./taskOperations";
 const task = (id: string, title = id): Task => ({
   id, title, parent_id: null, completed: false, status: "todo", description: null,
   priority: "none", due_date: null, folder_id: null, reminder_at: null,
-  recurrence: "none", recurrence_rule: null, pinned: false, start_at: null,
-  end_at: null, estimated_minutes: null,
+  recurrence: "none", recurrence_rule: null, pinned: false, 
 });
 
 const op = (value: Omit<QueuedOp, "id" | "createdAt" | "attempts" | "nextRetryAt">): QueuedOp => ({

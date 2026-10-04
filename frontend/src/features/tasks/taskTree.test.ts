@@ -15,9 +15,9 @@ const task = (id: string, parent_id: string | null = null, completed = false): T
   recurrence: "none",
   recurrence_rule: null,
   pinned: false,
-  start_at: null,
-  end_at: null,
-  estimated_minutes: null,
+  
+  
+  
 });
 
 describe("task tree utilities", () => {

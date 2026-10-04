@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { moduleState } from "../../api/arsh/modules.js";
+import { moduleState } from "../../../api/arsh/modules.js";
 
 describe("module access state", () => {
   it("enables every module for a verified owner without a code", () => {

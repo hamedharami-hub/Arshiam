@@ -1,0 +1,9 @@
+{
+  "name": "arshnaz-vercel-api",
+  "private": true,
+  "type": "module",
+  "description": "Root manifest for the Vercel serverless functions in api/. The web app itself lives in frontend/.",
+  "dependencies": {
+    "firebase-admin": "^14.5.0"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "entities": {
+    "UserProfile": {
+      "description": "User profile information",
+      "collection": "users",
+      "fields": {
+        "displayName": { "type": "string", "description": "User display name" },
+        "email": { "type": "string", "format": "email", "description": "User email" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation date" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update date" }
+      },
+      "required": ["email", "createdAt"]
+    },
+    "Task": {
+      "description": "User tasks and to-dos",
+      "collection": "users/{userId}/tasks",
+      "fields": {
+        "title": { "type": "string", "description": "Task title" },
+        "notes": { "type": "string", "description": "Notes" },
+        "completed": { "type": "boolean", "description": "Completion flag" },
+        "priority": { "type": "string", "description": "Priority" },
+        "dueDate": { "type": "string", "description": "Due date" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
+      },
+      "required": ["title", "createdAt"]
+    },
+    "Note": {
+      "description": "User notes and documents",
+      "collection": "users/{userId}/notes",
+      "fields": {
+        "title": { "type": "string", "description": "Note title" },
+        "content": { "type": "string", "description": "Note body" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
+      },
+      "required": ["title", "createdAt"]
+    },
+    "AppHealth": {
+      "description": "Connection test and diagnostic records",
+      "collection": "_health",
+      "fields": {
+        "status": { "type": "string", "description": "Ping status" },
+        "clientTimestamp": { "type": "string", "description": "Timestamp" }
+      },
+      "required": ["status"]
+    }
+  }
+}

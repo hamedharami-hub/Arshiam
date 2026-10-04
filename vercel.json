@@ -1,12 +1,18 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "cd frontend && yarn install",
-  "buildCommand": "cd frontend && yarn vite build",
+  "installCommand": "yarn install && cd frontend && yarn install",
+  "buildCommand": "cd frontend && yarn typecheck && yarn vite build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
+    { "source": "/api/arsh/modules/me", "destination": "/api/arsh/modules?path=me" },
+    { "source": "/api/arsh/modules/redeem", "destination": "/api/arsh/modules?path=redeem" },
+    { "source": "/api/arsh/modules/admin/codes", "destination": "/api/arsh/modules?path=admin/codes" },
+    { "source": "/api/arsh/modules/admin/codes/:id/revoke", "destination": "/api/arsh/modules?path=admin/codes/:id/revoke" },
+    { "source": "/api/arsh/modules/:module/:action", "destination": "/api/arsh/modules?path=:module/:action" },
+    { "source": "/api/v1/agent/:path*", "destination": "/api/v1/agent?path=:path*" },
     {
-      "source": "/((?!api/|assets/|openapi\\.json|agent-openapi\\.json|version\\.json|sw\\.js|manifest\\.webmanifest).*)",
+      "source": "/((?!api/|openapi\\.json|agent-openapi\\.json|version\\.json).*)",
       "destination": "/index.html"
     }
   ]

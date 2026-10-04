@@ -68,7 +68,7 @@ describe("buildGroupedTasks (Next 7 Days list grouping)", () => {
       task("b", { due_date: day(1) }),
       task("c", { work_date: day(0) }),
       task("d", { planning_horizon: "week", planning_start: day(-1), planning_end: day(4) }),
-      task("e", { bucket_kind: "night", bucket_anchor: day(1), bucket_calendar: "gregorian" }),
+      task("e", { bucket_kind: "night" as never, bucket_anchor: day(1), bucket_calendar: "gregorian" }),
       task("f", { due_date: day(6) }),
       task("g", { due_date: day(-5) }),
     ];
