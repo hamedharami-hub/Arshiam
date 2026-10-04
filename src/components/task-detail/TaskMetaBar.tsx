@@ -85,7 +85,7 @@ function CreateRow({ value, onChange, onSubmit, onCancel, placeholder, color, co
  */
 export function TaskMetaBar(props: TaskMetaBarProps) {
   const {
-    t, canEdit, isOwner, isEn, folders, folderName, goals, panel, setPanel, isScheduled, scheduleLabel, hasTimeBlock,
+    t, canEdit, isOwner, isEn, folders, folderName, goals, panel, setPanel, isScheduled, scheduleLabel,
     taskTagIds, tags, toggleTag, createTagAndAssign, createFolderAndAssign, save, postpone, T,
     showFolderCreate, setShowFolderCreate, newFolderName, setNewFolderName, newFolderColor, setNewFolderColor,
     showTagCreate, setShowTagCreate, newTagName, setNewTagName, newTagColor, setNewTagColor, TAG_COLORS,
@@ -232,11 +232,12 @@ export function TaskMetaBar(props: TaskMetaBarProps) {
     </div>
   );
 
-  // Date/time choices complete the intent, so the inline panel closes right
-  // after them — exactly like picking a tag; reminder/estimate edits keep it open.
+  // Picking a date, deadline, part-of-day or time-block slot completes the
+  // intent, so the inline panel closes right after it — exactly like picking
+  // a tag. Reminder/repeat/estimate edits keep it open.
   const schedulePanelSave = (patch: Partial<Task>) => {
     void save(patch);
-    if (["work_date", "due_date", "bucket_kind", "start_at", "end_at"].some((key) => Object.prototype.hasOwnProperty.call(patch, key))) {
+    if (["work_date", "due_date", "bucket_kind"].some((key) => Object.prototype.hasOwnProperty.call(patch, key))) {
       setPanel(null);
     }
   };
@@ -247,7 +248,7 @@ export function TaskMetaBar(props: TaskMetaBarProps) {
     : panel === "priority" ? priorityPanel
     : panel === "tags" ? tagsPanel
     : panel === "plan" ? <TaskPlanningBody key={t.id} task={t} onPatch={(patch) => void save(patch)} onDone={() => setPanel(null)} />
-    : panel === "schedule" ? <TaskScheduleBody t={t} canEdit={canEdit} hasTimeBlock={hasTimeBlock} save={schedulePanelSave} postpone={postponeAndClose} T={T} isEn={isEn} />
+    : panel === "schedule" ? <TaskScheduleBody t={t} canEdit={canEdit} save={schedulePanelSave} postpone={postponeAndClose} T={T} isEn={isEn} />
     : null;
 
   return (
