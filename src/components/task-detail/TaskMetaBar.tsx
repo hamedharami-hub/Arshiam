@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Folder as FolderIcon, Tag as TagIcon, Ban, Plus, Check, Pin, Clock, CalendarRange, Target, X, Inbox } from "lucide-react";
+import { Folder as FolderIcon, Tag as TagIcon, Ban, Plus, Check, Pin, Clock, CalendarRange, Target, Flag, X, Inbox } from "lucide-react";
 import { PriorityFlag } from "@/components/PriorityFlag";
 import { TaskPlanningBody, useTaskPlanningLabel } from "@/components/TaskPlanningPicker";
 import { PRIORITY_META, PRIORITY_ORDER, type Priority } from "@/lib/priority";
@@ -10,7 +10,6 @@ import { TIME_HORIZONS, type GoalKanban } from "@/lib/kanbanGoals";
 import type { Task } from "@/lib/taskTypes";
 import { TaskScheduleBody } from "./TaskSchedulingSheet";
 import { MetaTile } from "./MetaTile";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
 export type TaskMetaPanel = "folder" | "goal" | "schedule" | "plan" | "priority" | "tags";
 
@@ -233,12 +232,22 @@ export function TaskMetaBar(props: TaskMetaBarProps) {
     </div>
   );
 
+  // Date/time choices complete the intent, so the inline panel closes right
+  // after them — exactly like picking a tag; reminder/estimate edits keep it open.
+  const schedulePanelSave = (patch: Partial<Task>) => {
+    void save(patch);
+    if (["work_date", "due_date", "bucket_kind", "start_at", "end_at"].some((key) => Object.prototype.hasOwnProperty.call(patch, key))) {
+      setPanel(null);
+    }
+  };
+  const postponeAndClose = (days: number) => { postpone(days); setPanel(null); };
+
   const panelBody = panel === "folder" ? folderPanel
     : panel === "goal" ? goalPanel
     : panel === "priority" ? priorityPanel
     : panel === "tags" ? tagsPanel
     : panel === "plan" ? <TaskPlanningBody key={t.id} task={t} onPatch={(patch) => void save(patch)} onDone={() => setPanel(null)} />
-    : panel === "schedule" ? <TaskScheduleBody t={t} canEdit={canEdit} hasTimeBlock={hasTimeBlock} save={save as (p: Partial<Task>) => void} postpone={postpone} T={T} isEn={isEn} />
+    : panel === "schedule" ? <TaskScheduleBody t={t} canEdit={canEdit} hasTimeBlock={hasTimeBlock} save={schedulePanelSave} postpone={postponeAndClose} T={T} isEn={isEn} />
     : null;
 
   return (
@@ -266,21 +275,17 @@ export function TaskMetaBar(props: TaskMetaBarProps) {
           disabled={!canEdit} aria-pressed={Boolean(t.pinned)} onClick={() => save({ pinned: !t.pinned })} data-testid="task-meta-pin" />
       </div>
 
-      {panel && panelBody && ["schedule", "plan", "priority"].includes(panel) && (
-        <Sheet open onOpenChange={open => { if (!open) setPanel(null); }}>
-          <SheetContent side="bottom" dir={isEn ? "ltr" : "rtl"} className="max-h-[88dvh] overflow-y-auto rounded-t-3xl p-5 pt-9 sm:mx-auto sm:max-w-2xl" data-testid="task-meta-sheet">
-            <SheetTitle className="mb-4">{titles[panel]}</SheetTitle>
-            {panelBody}
-          </SheetContent>
-        </Sheet>
-      )}
-      {panel && panelBody && !["schedule", "plan", "priority"].includes(panel) && (
+      {panel && panelBody && (
         <div ref={panelRef} className="task-inline-panel mt-1.5 rounded-lg border border-border/70 bg-card p-2.5 shadow-sm sm:p-3" role="region"
           aria-label={titles[panel]} data-testid="task-inline-panel" data-panel={panel}>
           <div className="mb-2 flex items-center justify-between gap-2">
             <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               {panel === "folder" && <FolderIcon className="h-3.5 w-3.5" />}
               {panel === "goal" && <Target className="h-3.5 w-3.5" />}
+              {panel === "schedule" && <Clock className="h-3.5 w-3.5" />}
+              {panel === "plan" && <CalendarRange className="h-3.5 w-3.5" />}
+              {panel === "priority" && <Flag className="h-3.5 w-3.5" />}
+              {panel === "tags" && <TagIcon className="h-3.5 w-3.5" />}
               {titles[panel]}
             </span>
             <button type="button" onClick={() => setPanel(null)} className="grid h-6 w-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"

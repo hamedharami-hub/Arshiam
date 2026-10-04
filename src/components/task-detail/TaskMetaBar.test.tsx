@@ -53,4 +53,22 @@ describe("Task folder selection (inline panel)", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     expect(input.setPanel).toHaveBeenCalledWith(null);
   });
+
+  it("renders When/Planning/Priority as an inline panel instead of a bottom sheet", () => {
+    const { rerender } = render(<TaskMetaBar {...props(true, "schedule")} />);
+    expect(screen.getByTestId("task-inline-panel")).toHaveAttribute("data-panel", "schedule");
+    expect(screen.queryByTestId("task-meta-sheet")).toBeNull();
+    rerender(<TaskMetaBar {...props(true, "plan")} />);
+    expect(screen.getByTestId("task-inline-panel")).toHaveAttribute("data-panel", "plan");
+    rerender(<TaskMetaBar {...props(true, "priority")} />);
+    expect(screen.getByTestId("task-inline-panel")).toHaveAttribute("data-panel", "priority");
+  });
+
+  it("closes the priority panel right after a choice", () => {
+    const input = props(true, "priority");
+    render(<TaskMetaBar {...input} />);
+    fireEvent.click(screen.getByTestId("task-priority-urgent"));
+    expect(input.save).toHaveBeenCalledWith({ priority: "urgent" });
+    expect(input.setPanel).toHaveBeenCalledWith(null);
+  });
 });
