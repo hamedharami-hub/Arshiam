@@ -21,6 +21,54 @@
 @keyframes fadeInUp{from{opacity:0;transform:translate(-50%,20px)}to{opacity:1;transform:translate(-50%,0)}}
 
 /* === High-Fidelity Visual Overhaul & Cosmic Atmosphere === */
+/* Non-Intrusive Modals & Transparent Clean UI */
+#overlay {
+  background: rgba(10, 20, 28, 0.45) !important;
+  backdrop-filter: blur(4px) !important;
+  pointer-events: auto;
+}
+#overlay .dialog {
+  box-shadow: 0 16px 48px rgba(0,0,0,0.45), 0 0 24px rgba(56,189,248,0.2) !important;
+  border: 1px solid rgba(255,255,255,0.4) !important;
+  animation: modalPop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes modalPop {
+  from { opacity: 0; transform: scale(0.92) translateY(12px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Floating Stargate Interactive Banner */
+.stargate-hud-prompt {
+  position: fixed;
+  bottom: 86px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, rgba(20, 30, 48, 0.92), rgba(36, 59, 85, 0.92));
+  backdrop-filter: blur(12px);
+  border: 1px solid #38bdf8;
+  box-shadow: 0 8px 32px rgba(56, 189, 248, 0.35);
+  border-radius: 20px;
+  padding: 10px 24px;
+  display: none;
+  align-items: center;
+  gap: 12px;
+  color: #f0fdfa;
+  font-size: 13px;
+  font-weight: 700;
+  z-index: 90;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.stargate-hud-prompt:hover {
+  transform: translateX(-50%) scale(1.05);
+  box-shadow: 0 12px 40px rgba(56, 189, 248, 0.6);
+  border-color: #7dd3fc;
+}
+.stargate-hud-prompt.visible {
+  display: inline-flex;
+  animation: fadeInUp 0.3s ease;
+}
+
 #world canvas {
   filter: drop-shadow(0 0 16px rgba(56, 189, 248, 0.25)) contrast(1.05) saturate(1.12);
   transition: filter 0.5s ease;
@@ -5444,66 +5492,131 @@ De(0.25, darkOrbMat, 0, 0.4, 1.8, mehrabPost);
 
 Ai("darkvoid", "دیده‌بانی مهراب · مرز تاریک", mehrabPost.position, mehrabPost, () => openMehrabDialogue("intro"));
 
-// 7. Planet of Coders (38, 0, -28) & Hexagonal Matrix Platform
+// 7. Planet of Coders (38, 0, -28) - Vast Realm (Radius 36) & 3D Character Artak
 const codersPost = new jt();
 codersPost.position.set(38, 0, -28);
 Me.add(codersPost);
 
-// Hexagonal Cybernetic Platform
-we(new Jn(16, 16, 0.4, 6), pe("#04241a"), 0, -0.2, 0, codersPost);
-we(new Pe(15.2, 0.12, 16, 48), pe("#10b981", !0), 0, 0.03, 0, codersPost).rotation.x = Math.PI / 2;
-we(new Pe(8.5, 0.08, 16, 36), pe("#34d399", !0), 0, 0.03, 0, codersPost).rotation.x = Math.PI / 2;
+// Massive Hexagonal Cybernetic Ground Realm
+we(new Jn(36, 36, 0.6, 6), pe("#021a12"), 0, -0.3, 0, codersPost);
+we(new Pe(34.8, 0.18, 16, 64), pe("#10b981", !0), 0, 0.05, 0, codersPost).rotation.x = Math.PI / 2;
+we(new Pe(20.0, 0.12, 16, 48), pe("#34d399", !0), 0, 0.06, 0, codersPost).rotation.x = Math.PI / 2;
 
+// Central Matrix Citadel & Monolith Forest
 const coderMatrixMat = pe("#10b981", !0);
 const coderDarkMat = pe("#064e3b");
+we(new bn(2.2, 8.5, 2.2), coderDarkMat, 0, 4.25, -4, codersPost);
+De(0.8, coderMatrixMat, 0, 9.2, -4, codersPost);
 
-// Matrix Monoliths
-we(new bn(1.2, 5.5, 1.2), coderDarkMat, -2, 2.75, 0, codersPost);
-we(new bn(0.9, 4.2, 0.9), coderDarkMat, 2, 2.1, 0, codersPost);
-we(new bn(1.4, 6.2, 1.4), coderDarkMat, 0, 3.1, -2, codersPost);
+[-6, 6].forEach((mx) => {
+  we(new bn(1.5, 6.2, 1.5), coderDarkMat, mx, 3.1, -2, codersPost);
+  De(0.5, coderMatrixMat, mx, 6.7, -2, codersPost);
+});
 
-// Glowing Code Orbs & Terminals
-De(0.45, coderMatrixMat, -2, 5.8, 0, codersPost);
-De(0.4, coderMatrixMat, 2, 4.5, 0, codersPost);
-De(0.55, coderMatrixMat, 0, 6.6, -2, codersPost);
+// Floating Holographic Rune Tablets in the Air
+for (let rIdx = 0; rIdx < 6; rIdx++) {
+  const rAngle = (rIdx / 6) * Math.PI * 2;
+  const rx = Math.cos(rAngle) * 9.5;
+  const rz = Math.sin(rAngle) * 9.5;
+  const rRing = we(new Pe(1.8, 0.08, 16, 32), pe("#34d399", !0), rx, 3.2 + Math.sin(rIdx)*0.6, rz, codersPost);
+  rRing.rotation.x = Math.PI / 3;
+  De(0.3, pe("#6ee7b7", !0), rx, 3.2 + Math.sin(rIdx)*0.6, rz, codersPost);
+}
 
-// Holographic Floating Data Rings
-const ringMat = pe("#34d399", !0);
-we(new Pe(1.8, 0.08, 16, 32), ringMat, 0, 2.2, 1.5, codersPost).rotation.x = Math.PI / 3;
+// 3D Physical Character: Artak, Master Coder (آرتاک در ردای تیره و هاله‌های سبز ماتریکس)
+const artakGroup = new jt();
+artakGroup.position.set(0, 0, 1.5);
+codersPost.add(artakGroup);
 
-Ai("coders", "سیارهٔ کدنویس‌ها · آرتاک", codersPost.position, codersPost, () => openCodersDialogue("intro"));
+// Artak Robe (Dark tapered humanoid cloak)
+we(new Jn(0.45, 0.95, 2.2, 16), pe("#021a14"), 0, 1.1, 0, artakGroup);
+// Artak Head & Mask
+De(0.42, pe("#064e3b"), 0, 2.35, 0, artakGroup);
+// Glowing Cyan/Emerald Visor Line
+we(new bn(0.45, 0.08, 0.2), pe("#10b981", !0), 0, 2.4, 0.35, artakGroup);
+// Glowing Runic Fingers & Hands
+De(0.12, pe("#34d399", !0), -0.65, 1.4, 0.4, artakGroup);
+De(0.12, pe("#34d399", !0), 0.65, 1.4, 0.4, artakGroup);
+// Artak Floating Data Halo
+we(new Pe(0.65, 0.05, 16, 24), pe("#10b981", !0), 0, 2.85, 0, artakGroup).rotation.x = Math.PI / 2;
 
-// 8. Planet of Anjeeran Engineers (-38, 0, 28) & Magnetic Asteroid Platform
+Ai("coders", "آرتاک · معمار کدهای هستی", new D(38, 0, -26.5), codersPost, () => openCodersDialogue("intro"));
+
+// 8. Planet of Anjeeran Engineers (-38, 0, 28) - Vast Realm (Radius 36) & 3D Character Mehraspand
 const anjeeranPost = new jt();
 anjeeranPost.position.set(-38, 0, 28);
 Me.add(anjeeranPost);
 
-// Circular Magnetic Platform
-we(new Jn(16, 16, 0.5, 32), pe("#2d1804"), 0, -0.25, 0, anjeeranPost);
-we(new Pe(15.2, 0.14, 16, 48), pe("#f59e0b", !0), 0, 0.03, 0, anjeeranPost).rotation.x = Math.PI / 2;
+// Massive Circular Magnetic Asteroid Ground Realm
+we(new Jn(36, 36, 0.7, 32), pe("#221203"), 0, -0.35, 0, anjeeranPost);
+we(new Pe(34.8, 0.18, 16, 64), pe("#f59e0b", !0), 0, 0.05, 0, anjeeranPost).rotation.x = Math.PI / 2;
+we(new Pe(18.5, 0.12, 16, 48), pe("#fbbf24", !0), 0, 0.06, 0, anjeeranPost).rotation.x = Math.PI / 2;
 
 const figBodyMat = pe("#d97706");
 const figCoreMat = pe("#fbbf24", !0);
 const magneticRingMat = pe("#60a5fa", !0);
 
-// Inverted Levitating Fig Structure
+// Grand Inverted Levitating Fig Citadel
 const figCore = new jt();
-figCore.position.set(0, 3.5, 0);
+figCore.position.set(0, 5.5, -4);
 anjeeranPost.add(figCore);
 
-const invCone = we(new Gr(2.8, 4.2, 12), figBodyMat, 0, 0, 0, figCore);
-invCone.rotation.x = Math.PI; // Inverted Fig!
-
-De(2.2, figBodyMat, 0, 1.8, 0, figCore);
-De(0.85, figCoreMat, 0, 0, 0, figCore);
+const invCone = we(new Gr(4.2, 6.5, 16), figBodyMat, 0, 0, 0, figCore);
+invCone.rotation.x = Math.PI; // Inverted Fig geometry!
+De(3.2, figBodyMat, 0, 2.8, 0, figCore);
+De(1.4, figCoreMat, 0, 0, 0, figCore);
 
 // Levitating Magnetic Anti-Gravity Rings around the Fig
-const figRing1 = we(new Pe(3.6, 0.1, 16, 32), magneticRingMat, 0, -0.6, 0, figCore);
+const figRing1 = we(new Pe(5.6, 0.16, 16, 48), magneticRingMat, 0, -1.2, 0, figCore);
 figRing1.rotation.x = Math.PI / 6;
-const figRing2 = we(new Pe(4.2, 0.08, 16, 32), magneticRingMat, 0, 0.8, 0, figCore);
+const figRing2 = we(new Pe(6.4, 0.12, 16, 48), magneticRingMat, 0, 1.4, 0, figCore);
 figRing2.rotation.x = -Math.PI / 8;
 
-Ai("anjeeran", "سیارهٔ انجیران · مهراسپند", anjeeranPost.position, anjeeranPost, () => openAnjeeranDialogue("intro"));
+// 3D Physical Character: Mehraspand (مهراسپند، کهن‌معمار انجیران، کالبد انجیر معلق با حلقه‌های نوری)
+const mehraspandGroup = new jt();
+mehraspandGroup.position.set(0, 2.4, 2);
+anjeeranPost.add(mehraspandGroup);
+
+// Mehraspand Levitating Body (Mini inverted fig entity)
+const mBody = we(new Gr(0.65, 1.2, 12), pe("#b45309"), 0, 0, 0, mehraspandGroup);
+mBody.rotation.x = Math.PI;
+De(0.55, pe("#d97706"), 0, 0.5, 0, mehraspandGroup);
+De(0.28, pe("#fbbf24", !0), 0, 0.1, 0, mehraspandGroup);
+// Mehraspand Magnetic Gyro Rings
+we(new Pe(0.95, 0.05, 16, 24), pe("#60a5fa", !0), 0, 0, 0, mehraspandGroup).rotation.x = Math.PI / 4;
+we(new Pe(1.15, 0.04, 16, 24), pe("#fbbf24", !0), 0, 0.3, 0, mehraspandGroup).rotation.y = Math.PI / 3;
+
+Ai("anjeeran", "مهراسپند · کهن‌معمار انجیران", new D(-38, 0, 30), anjeeranPost, () => openAnjeeranDialogue("intro"));
+
+// =======================================================================
+// 8.5 PHYSICAL COSMIC STARGATE PORTAL IN TWO-HORNS WORLD (0, 0, 16)
+// دروازهٔ ستارگان برای عبور مستقیم و فیزیکی به سیاره‌ها
+// =======================================================================
+const cosmicStargate = new jt();
+cosmicStargate.position.set(0, 0, 16);
+Me.add(cosmicStargate);
+
+// Grand Stargate Portal Arch
+we(new Jn(4.2, 4.6, 0.8, 32), pe("#1e293b"), 0, 0.4, 0, cosmicStargate);
+we(new Pe(4.8, 0.22, 16, 64), pe("#38bdf8", !0), 0, 4.5, 0, cosmicStargate);
+we(new Pe(3.8, 0.16, 16, 48), pe("#c084fc", !0), 0, 4.5, 0, cosmicStargate);
+// Shimmering Event Horizon Surface
+const gateHorizon = we(new Vr(3.6, 32), new cr({
+  color: "#38bdf8",
+  transparent: true,
+  opacity: 0.55,
+  side: 2,
+  depthWrite: false
+}), 0, 4.5, 0, cosmicStargate);
+
+// Two Ancient Stargate Pillar Beacons
+[-4.8, 4.8].forEach((gx) => {
+  en(0.3, 6.5, pe("#0f172a"), gx, 3.25, 0, cosmicStargate);
+  De(0.65, pe("#38bdf8", !0), gx, 6.8, 0, cosmicStargate);
+  we(new Pe(0.85, 0.08, 12, 24), pe("#c084fc", !0), gx, 4.2, 0, cosmicStargate).rotation.x = Math.PI / 2;
+});
+
+Ai("stargate", "دروازهٔ کیهانی بین سیارات · استارگیت", new D(0, 0, 16), cosmicStargate, () => openGalaxyMap());
 
 // 9. Sacred Bond Flame in Heart Sanctuary (0, 0, -29)
 const bondFlameGroup = new jt();
@@ -5783,11 +5896,41 @@ te("district-action").onclick=Dn;for(const[i,t]of Object.entries(Kt)){if(i==="ga
 let _playerVelocity = new D();
 let _companionVelocity = new D();
 
+// Stargate HUD Banner element
+let _stargatePromptEl = null;
+
 const _origLoopFunc = z_;
 function enhancedCosmicLoop() {
   _origLoopFunc();
   if (typeof cosmicAnimationTick === "function") {
     cosmicAnimationTick();
+  }
+
+  // Stargate Proximity & Dynamic Travel Detection (Pos: 0, 0, 16)
+  if (re) {
+    const distToGate = Math.hypot(re.position.x - 0, re.position.z - 16);
+    if (!_stargatePromptEl) {
+      _stargatePromptEl = document.createElement("div");
+      _stargatePromptEl.className = "stargate-hud-prompt";
+      _stargatePromptEl.innerHTML = "🌀 <span>دروازهٔ کیهانی فعال است · ورود به کهکشان و سفر به سیارات</span>";
+      _stargatePromptEl.onclick = () => openGalaxyMap();
+      document.body.appendChild(_stargatePromptEl);
+    }
+    if (distToGate < 4.8) {
+      _stargatePromptEl.classList.add("visible");
+    } else {
+      _stargatePromptEl.classList.remove("visible");
+    }
+
+    // Mehraspand and Artak character breathing animation
+    const tSec = performance.now() * 0.002;
+    if (typeof mehraspandGroup !== "undefined" && mehraspandGroup) {
+      mehraspandGroup.position.y = 2.4 + Math.sin(tSec * 2) * 0.25;
+      mehraspandGroup.rotation.y += 0.01;
+    }
+    if (typeof artakGroup !== "undefined" && artakGroup) {
+      artakGroup.rotation.y = Math.sin(tSec * 1.5) * 0.15;
+    }
   }
   
   // Natural tilt and banking based on movement direction
@@ -5806,5 +5949,5 @@ function enhancedCosmicLoop() {
     }
   }
 }
-Re.setAnimationLoop(enhancedCosmicLoop);!tt.collected.length&&!tt.invention&&ln("به باغ خوش آمدی","<p>فرشته برای دیدن گوراستاخ، فرمانروای دوشاخ‌ها، به این دنیا آمده است. امروز با هم نور باغ را برمی‌گردانید.</p><p>برای کاشت، روی خاک باغچه بزن یا «باغ ما» را باز کن؛ گل را انتخاب کن و جای خالی را بزن. برای سفر، نقشه و درگاه‌ها آماده‌اند.</p><p>برای ماجرای باغ خاموش، سه ماده را پیدا کن و در کارگاه یک اختراع بساز.</p>",'<button id="start-adventure" class="primary">دیدار با گوراستاخ</button>',"angel");const yl=document.getElementById("start-adventure");yl&&(yl.onclick=()=>{ur(),xi("gor")});
+Re.setAnimationLoop(enhancedCosmicLoop);// Auto popup disabled for free movement: !tt.collected.length&&!tt.invention&&ln("به باغ خوش آمدی","<p>فرشته برای دیدن گوراستاخ، فرمانروای دوشاخ‌ها، به این دنیا آمده است. امروز با هم نور باغ را برمی‌گردانید.</p><p>برای کاشت، روی خاک باغچه بزن یا «باغ ما» را باز کن؛ گل را انتخاب کن و جای خالی را بزن. برای سفر، نقشه و درگاه‌ها آماده‌اند.</p><p>برای ماجرای باغ خاموش، سه ماده را پیدا کن و در کارگاه یک اختراع بساز.</p>",'<button id="start-adventure" class="primary">دیدار با گوراستاخ</button>',"angel");const yl=document.getElementById("start-adventure");yl&&(yl.onclick=()=>{ur(),xi("gor")});
 </script></body></html>
