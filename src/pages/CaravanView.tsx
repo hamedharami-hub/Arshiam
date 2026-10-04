@@ -384,7 +384,7 @@ export default function CaravanView() {
       <div className="flex-1 w-full h-full relative bg-black">
         <iframe
           ref={iframeRef}
-          src="/caravan/index.html"
+          src={`/caravan/index.html?v=${Date.now()}`}
           className="w-full h-full border-0 block"
           title="کاروان رؤیاها · ریشه‌های نور"
           allow="autoplay; fullscreen"
