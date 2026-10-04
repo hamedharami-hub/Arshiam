@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "cd frontend && yarn install",
+  "buildCommand": "cd frontend && yarn vite build",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    {
+      "source": "/((?!api/|assets/|openapi\\.json|agent-openapi\\.json|version\\.json|sw\\.js|manifest\\.webmanifest).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
