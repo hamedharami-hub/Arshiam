@@ -324,6 +324,21 @@ export default function CaravanView() {
             <span>⎊ انجیران</span>
           </Button>
 
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              iframeRef.current?.contentWindow?.postMessage({ type: "ARSHNAZ_OPEN_NEXUS" }, "*");
+              toast.info("👁️ کانون همگرایی کیهانی چشم بزرگ", {
+                description: "اتحاد ۴ قدرت (فرشته، گوراستاخ، کدنویس‌ها، انجیران) در برابر انرژی تاریک."
+              });
+            }}
+            className="h-7 text-xs bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border-sky-500/30 gap-1"
+            title="کانون همگرایی کیهانی و چشم بزرگ"
+          >
+            <span>👁️ چشم بزرگ</span>
+          </Button>
+
           {/* Cloud Sync Button */}
           <Button
             size="sm"
