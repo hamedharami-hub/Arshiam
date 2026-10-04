@@ -284,6 +284,7 @@ const App = () => {
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/auth/callback" element={<AuthCallback />} />
                     {/* Root shortcut aliases */}
+                    <Route path="/caravan" element={<CaravanView />} />
                     <Route path="/today" element={<Navigate to="/app/today" replace />} />
                     <Route path="/inbox" element={<Navigate to="/app/inbox" replace />} />
                     <Route path="/garden" element={<Navigate to="/app/garden" replace />} />
