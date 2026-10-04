@@ -1,0 +1,305 @@
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
+import { Button } from "@/components/ui/button";
+import { AutoTextarea } from "@/components/ui/auto-textarea";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { Plus, Trash2, Save, GitBranch, Clock, Flag, FolderInput, X } from "lucide-react";
+import { toast } from "sonner";
+import type { Task, TaskOutcome, OutcomeAction } from "@/lib/taskTypes";
+import { PRIORITY_META, PRIORITY_SELECTABLE, type Priority } from "@/lib/priority";
+import { listTaskOutcomes, saveTaskOutcome, deleteTaskOutcome } from "@/lib/taskOutcomes";
+
+export function TaskOutcomeSheet({
+  task,
+  open,
+  onOpenChange,
+  folders = [],
+}: {
+  task: Task;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  folders?: { id: string; name: string }[];
+}) {
+  const { i18n } = useTranslation();
+  const isEn = (i18n.language || "fa").startsWith("en");
+  const T = useCallback((fa: string, en: string) => (isEn ? en : fa), [isEn]);
+  const { prefersDialog } = useDeviceFormFactor();
+
+  const [outcomes, setOutcomes] = useState<TaskOutcome[]>([]);
+  const [removedIds, setRemovedIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    listTaskOutcomes(task.id)
+      .then(setOutcomes)
+      .catch((e: unknown) => toast.error(T("خطا در بارگذاری شاخه‌ها", "Failed to load branches") + ": " + (e instanceof Error ? e.message : String(e))))
+      .finally(() => setLoading(false));
+    setRemovedIds([]);
+  }, [open, task.id, T]);
+
+  const addOutcome = () => {
+    setOutcomes((prev) => [
+      ...prev,
+      {
+        id: "",
+        task_id: task.id,
+        label: "",
+        color: null,
+        icon: null,
+        position: prev.length,
+        actions: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as TaskOutcome,
+    ]);
+  };
+
+  const addPresets = () => {
+    const presets = [
+      { label: T("انجام شد", "It happened"), color: "hsl(142 70% 40%)", icon: "✅" },
+      { label: T("انجام نشد", "It did not happen"), color: "hsl(0 72% 51%)", icon: "❌" },
+      { label: T("یک اتفاق دیگر افتاد", "Something else happened"), color: "hsl(38 92% 50%)", icon: "🔀" },
+    ];
+    setOutcomes((prev) => [
+      ...prev,
+      ...presets.map((p, i) => ({
+        id: "",
+        task_id: task.id,
+        label: p.label,
+        color: p.color,
+        icon: p.icon,
+        position: prev.length + i,
+        actions: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })) as TaskOutcome[],
+    ]);
+  };
+
+  const removeOutcome = (idx: number) => {
+    setOutcomes((prev) => {
+      const target = prev[idx];
+      if (target?.id) setRemovedIds((ids) => [...ids, target.id]);
+      const next = prev.filter((_, i) => i !== idx);
+      return next.map((o, i) => ({ ...o, position: i }));
+    });
+  };
+
+  const updateOutcome = (idx: number, patch: Partial<TaskOutcome>) => {
+    setOutcomes((prev) => prev.map((o, i) => (i === idx ? { ...o, ...patch } : o)));
+  };
+
+  const addAction = (idx: number) => {
+    const newAction: OutcomeAction = {
+      title: "",
+      description: "",
+      priority: "none",
+      folder_id: null,
+      due_offset_hours: null,
+    };
+    setOutcomes((prev) =>
+      prev.map((o, i) => (i === idx ? { ...o, actions: [...o.actions, newAction] } : o))
+    );
+  };
+
+  const removeAction = (outcomeIdx: number, actionIdx: number) => {
+    setOutcomes((prev) =>
+      prev.map((o, i) =>
+        i === outcomeIdx ? { ...o, actions: o.actions.filter((_, ai) => ai !== actionIdx) } : o
+      )
+    );
+  };
+
+  const updateAction = (outcomeIdx: number, actionIdx: number, patch: Partial<OutcomeAction>) => {
+    setOutcomes((prev) =>
+      prev.map((o, i) =>
+        i === outcomeIdx
+          ? {
+              ...o,
+              actions: o.actions.map((a, ai) => (ai === actionIdx ? { ...a, ...patch } : a)),
+            }
+          : o
+      )
+    );
+  };
+
+  const save = async () => {
+    if (outcomes.length && outcomes.every((o) => !o.label.trim())) {
+      toast.error(T("برای هر شاخه یک عنوان بنویس", "Give each branch a title"));
+      return;
+    }
+    setSaving(true);
+    try {
+      for (let i = 0; i < outcomes.length; i++) {
+        const o = outcomes[i];
+        if (!o?.label?.trim()) continue;
+        await saveTaskOutcome({
+          id: o.id || undefined,
+          task_id: task.id,
+          label: o.label.trim(),
+          color: o.color,
+          icon: o.icon,
+          position: i,
+          actions: (o.actions || []).filter((a) => a?.title?.trim()).map((a) => ({
+            ...a,
+            title: a.title.trim(),
+            due_offset_hours: a.due_offset_hours ? Number(a.due_offset_hours) : null,
+          })),
+        });
+      }
+      for (const id of removedIds) {
+        await deleteTaskOutcome(id);
+      }
+      toast.success(T("ذخیره شد", "Saved"));
+      onOpenChange(false);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(T("خطا در ذخیره شاخه‌ها", "Failed to save branches") + ": " + msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const bodyContent = (
+    <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+      {loading && <p className="text-sm text-muted-foreground">{T("در حال بارگذاری…", "Loading…")}</p>}
+
+      {outcomes.map((outcome, oi) => (
+        <Card key={oi} className="p-3 space-y-3">
+          <div className="flex items-start gap-2">
+            <AutoTextarea
+              value={outcome.label}
+              onChange={(e) => updateOutcome(oi, { label: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  (e.currentTarget as HTMLTextAreaElement).blur();
+                }
+              }}
+              placeholder={T("مثلاً: موفق، لغو شد، موکول شد…", "e.g. Success, Cancelled, Rescheduled…")}
+              dir="auto"
+              rows={1}
+              minHeight={36}
+              maxHeight={80}
+              className="text-sm font-medium py-1.5 flex-1"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:bg-destructive/10"
+              onClick={() => removeOutcome(oi)}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <div className="space-y-2 ps-2 border-s-2 border-primary/20">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{T("کارهای پس‌آیند (Next Actions)", "Follow-up tasks")}</span>
+              <button
+                type="button"
+                onClick={() => addAction(oi)}
+                className="flex items-center gap-1 text-primary hover:underline text-xs"
+              >
+                <Plus className="w-3 h-3" />
+                {T("افزودن تسک", "Add task")}
+              </button>
+            </div>
+
+            {(outcome.actions || []).map((action, ai) => (
+              <div key={ai} className="flex items-center gap-2 bg-muted/40 p-2 rounded-lg text-xs">
+                <Input
+                  value={action.title}
+                  onChange={(e) => updateAction(oi, ai, { title: e.target.value })}
+                  placeholder={T("عنوان تسک بعدی…", "Follow-up task title…")}
+                  className="h-7 text-xs flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                  onClick={() => removeAction(oi, ai)}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      ))}
+
+      {!loading && outcomes.length === 0 && (
+        <div className="rounded-xl border border-dashed p-4 text-center space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {T(
+              "برای این تسک شاخه بساز: «اگر این اتفاق افتاد، این کارها را انجام بده».",
+              "Add branches: “if this happens, then do these tasks”.",
+            )}
+          </p>
+          <Button type="button" size="sm" variant="secondary" onClick={addPresets} className="gap-1">
+            <Plus className="w-4 h-4" />
+            {T("افزودن سه شاخه پیش‌فرض", "Add 3 default branches")}
+          </Button>
+        </div>
+      )}
+
+      <Button type="button" variant="outline" onClick={addOutcome} className="w-full gap-1">
+        <Plus className="w-4 h-4" />
+        {T("افزودن حالت جدید", "Add new outcome")}
+      </Button>
+    </div>
+  );
+
+  if (prefersDialog) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          dir={isEn ? "ltr" : "rtl"}
+          className="w-full max-w-lg max-h-[75vh] p-0 flex flex-col overflow-hidden rounded-2xl"
+        >
+          <DialogHeader className="px-4 py-3 border-b flex-row items-center justify-between space-y-0">
+            <DialogTitle className="text-base flex items-center gap-2">
+              <GitBranch className="w-4 h-4" />
+              {T("سناریوهای وابسته", "Conditional outcomes")}
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              {T("تنظیم سناریوهای وابسته به تسک", "Configure conditional task outcomes")}
+            </DialogDescription>
+            <Button size="sm" onClick={save} disabled={saving} className="gap-1 me-6">
+              {saving ? <span className="animate-spin">↻</span> : <Save className="w-4 h-4" />}
+              {T("ذخیره", "Save")}
+            </Button>
+          </DialogHeader>
+          {bodyContent}
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="h-[90vh] p-0 flex flex-col rounded-t-2xl" dir={isEn ? "ltr" : "rtl"}>
+        <SheetHeader className="px-4 py-3 border-b flex-row items-center justify-between space-y-0">
+          <SheetTitle className="text-base flex items-center gap-2">
+            <GitBranch className="w-4 h-4" />
+            {T("سناریوهای وابسته", "Conditional outcomes")}
+          </SheetTitle>
+          <Button size="sm" onClick={save} disabled={saving} className="gap-1">
+            {saving ? <span className="animate-spin">↻</span> : <Save className="w-4 h-4" />}
+            {T("ذخیره", "Save")}
+          </Button>
+        </SheetHeader>
+        {bodyContent}
+      </SheetContent>
+    </Sheet>
+  );
+}

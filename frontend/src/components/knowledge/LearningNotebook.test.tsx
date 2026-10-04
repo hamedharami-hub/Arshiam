@@ -1,0 +1,41 @@
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { createRef } from 'react';
+import { MemoryRouter } from 'react-router-dom';
+import { describe, expect, it, vi } from 'vitest';
+import { LearningNotebook } from './LearningNotebook';
+import { saveLearningRecord } from '@/lib/learningWorkspaceService';
+import type { KnowledgeDocument } from '@/lib/knowledgeTypes';
+const pending = vi.hoisted(() => ({ change: null as null | ((html: string) => void), cache: new Map() }));
+vi.mock('@/hooks/useBilingual', () => ({ useBilingual: () => ({ isEn: true, T: (_fa: string, en: string) => en }) }));
+vi.mock('@/lib/offlineDb', () => ({ CACHE_STORE: 'cache', getDB: async () => ({ get: async (_store: string, key: string) => pending.cache.get(key), put: async (_store: string, value: unknown, key: string) => pending.cache.set(key, value), delete: async (_store: string, key: string) => pending.cache.delete(key) }) }));
+vi.mock('@/lib/learningWorkspaceService', () => ({ saveLearningRecord: vi.fn() }));
+vi.mock('./LearningReviewPreview', () => ({ LearningReviewPreview: () => null }));
+vi.mock('@/components/RichEditor', () => ({ RichEditor: (props: { controlledHtml: string; onChange: (html: string) => void }) => { pending.change = props.onChange; return <textarea aria-label="Note body" value={props.controlledHtml} onChange={e => props.onChange(e.target.value)} />; } }));
+const doc = { id: 'revision-race', user_id: 'owner', title: 'Lesson', content_html: '<p>Source</p>', content_en: '<p>Source</p>', folder_id: null, tags: [], created_at: '', updated_at: '' } as KnowledgeDocument;
+describe('lesson notebook save race', () => {
+  it('retains buffered edits during first save and uses the accepted revision for the next save', async () => {
+    let finish!: (value: { document: KnowledgeDocument; persistence: 'synced' }) => void;
+    vi.mocked(saveLearningRecord).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    vi.mocked(saveLearningRecord).mockResolvedValueOnce({ document: doc, persistence: 'synced' });
+    render(<MemoryRouter><LearningNotebook document={doc} userId="owner" language="en" containerRef={createRef<HTMLDivElement>()} onGenerateReview={() => {}} /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: 'Notes & questions' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    await waitFor(() => expect(screen.getByLabelText('Title')).toBeEnabled());
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Saved note' } });
+    fireEvent.change(await screen.findByLabelText('Note body'), { target: { value: '<p>First snapshot</p>' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm and save' }));
+    await waitFor(() => expect(saveLearningRecord).toHaveBeenCalledTimes(1));
+    const first = vi.mocked(saveLearningRecord).mock.calls[0][3];
+    expect(vi.mocked(saveLearningRecord).mock.calls[0][4]).toBe('');
+    // A buffered editor/upload callback arrives after the saved snapshot.
+    act(() => pending.change?.('<p>Buffered edit retained</p>'));
+    await act(async () => finish({ document: doc, persistence: 'synced' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Confirm and save' })).toBeEnabled());
+    expect(screen.getByLabelText('Note body')).toHaveValue('<p>Buffered edit retained</p>');
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm and save' }));
+    await waitFor(() => expect(saveLearningRecord).toHaveBeenCalledTimes(2));
+    const second = vi.mocked(saveLearningRecord).mock.calls[1];
+    expect(second[3]).toMatchObject({ id: first.id, html: '<p>Buffered edit retained</p>' });
+    expect(second[4]).toBe(first.updated_at);
+  });
+});

@@ -1,0 +1,33 @@
+import { describe, expect, it } from "vitest";
+import { parseTaskDueDate, taskDueTimestamp, getLocalDateString, formatTaskDueDateDisplay } from "./taskDate";
+
+describe("task date parsing", () => {
+  it("treats date-only values as local calendar dates", () => {
+    const parsed = parseTaskDueDate("2026-09-17");
+    expect(parsed).not.toBeNull();
+    expect(parsed?.getFullYear()).toBe(2026);
+    expect(parsed?.getMonth()).toBe(8);
+    expect(parsed?.getDate()).toBe(17);
+  });
+
+  it("returns infinity for missing or invalid dates", () => {
+    expect(taskDueTimestamp(null)).toBe(Number.POSITIVE_INFINITY);
+    expect(taskDueTimestamp("not-a-date")).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it("formats local dates to YYYY-MM-DD correctly without UTC shift", () => {
+    const d = new Date(2026, 8, 20, 2, 30, 0); // Sept 20, 2026 at 2:30 AM local
+    expect(getLocalDateString(d)).toBe("2026-09-20");
+  });
+
+  it("formats task due date for display correctly", () => {
+    expect(formatTaskDueDateDisplay(null)).toBe("");
+    expect(formatTaskDueDateDisplay("")).toBe("");
+    const formattedDateOnly = formatTaskDueDateDisplay("2026-09-17", true);
+    expect(formattedDateOnly).toContain("Sep");
+    const formattedWithTime = formatTaskDueDateDisplay("2026-09-17T14:30:00", true);
+    expect(formattedWithTime).toMatch(/0?2:30\s?PM/);
+    // The picker's "no time" marker (23:59) shows the day only.
+    expect(formatTaskDueDateDisplay("2026-09-17T23:59:00", true)).not.toMatch(/11:59/);
+  });
+});

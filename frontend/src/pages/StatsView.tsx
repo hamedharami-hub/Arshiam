@@ -1,0 +1,329 @@
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
+import { useEffect, useMemo, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { firebaseStore } from "@/lib/firebaseStore";
+import { useAuth } from "@/hooks/useAuth";
+import { useBilingual } from "@/hooks/useBilingual";
+import { format, startOfDay, subDays, isSameDay, isWithinInterval } from "date-fns";
+import { getCalendarSystem, formatDate, toPersianDigits, jalaliDayOfWeek, WEEKDAY_SHORT_FA, type CalendarSystem } from "@/lib/jalali";
+import { isTaskOverdue } from "@/lib/taskPlanning";
+import { getTimeSettings } from "@/lib/timeHorizon";
+import type { Task } from "@/lib/taskTypes";
+import {
+  Bar,
+  Line,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ComposedChart,
+} from "recharts";
+import { CheckCircle2, Clock, Flame, AlertCircle, Target, TrendingUp } from "lucide-react";
+
+type TaskRow = Pick<Task, "id" | "title" | "completed" | "completed_at" | "due_date" | "priority"> & Partial<Task>;
+type PomRow = { duration_minutes: number; started_at: string };
+type HabitLogRow = { habit_id: string; log_date: string; habits: { name: string; target_per_week: number; frequency: "daily" | "weekly" } | null };
+
+type Period = "today" | "week" | "month";
+
+export default function StatsView() {
+  const { user } = useAuth();
+  const { T, isEn } = useBilingual();
+  const [system] = useState<CalendarSystem>(getCalendarSystem());
+  const [period, setPeriod] = useState<Period>("week");
+  const [tasks, setTasks] = useState<TaskRow[]>([]);
+  const [pomSessions, setPomSessions] = useState<PomRow[]>([]);
+  const [habitLogs, setHabitLogs] = useState<HabitLogRow[]>([]);
+
+  const todayStart = useMemo(() => startOfDay(new Date()), []);
+  const weekStart = useMemo(() => startOfDay(subDays(new Date(), 6)), []);
+  const monthStart = useMemo(() => startOfDay(subDays(new Date(), 29)), []);
+
+  const periodStart = period === "today" ? todayStart : period === "week" ? weekStart : monthStart;
+
+  useEffect(() => {
+    if (!user) return;
+    const start = startOfDay(subDays(new Date(), 29));
+    const end = new Date();
+    const isoStart = start.toISOString();
+    const isoEnd = end.toISOString();
+
+    firebaseStore.from("tasks")
+      .select("id,title,completed,completed_at,due_date,priority,status,due_at,horizon,period_start,period_end,is_exact,bucket_kind,bucket_anchor,bucket_calendar,planning_horizon,planning_start,planning_end")
+      .eq("user_id", user.id)
+      .then(({ data }) => {
+        const rows = (data as TaskRow[] | null) || [];
+        const filtered = rows.filter((t) => {
+          if (t.completed) {
+            if (!t.completed_at) return false;
+            const d = new Date(t.completed_at);
+            return d >= start && d <= end;
+          }
+          return isTaskOverdue(t, getTimeSettings());
+        });
+        setTasks(filtered);
+      });
+
+    firebaseStore.from("pomodoro_sessions")
+      .select("duration_minutes,started_at")
+      .eq("user_id", user.id)
+      .eq("completed", true)
+      .gte("started_at", isoStart)
+      .lte("started_at", isoEnd)
+      .order("started_at", { ascending: true })
+      .then(({ data }) => setPomSessions((data as PomRow[] | null) || []));
+
+    firebaseStore.from("habit_logs")
+      .select("habit_id, log_date, habits(name, target_per_week, frequency)")
+      .eq("user_id", user.id)
+      .gte("log_date", format(start, "yyyy-MM-dd"))
+      .lte("log_date", format(end, "yyyy-MM-dd"))
+      .order("log_date", { ascending: true })
+      .then(({ data }) => setHabitLogs((data as HabitLogRow[] | null) || []));
+  }, [user, todayStart]);
+
+  const periodEnd = useMemo(() => new Date(), []);
+
+  const completedTasks = useMemo(() =>
+    tasks.filter((t) => t.completed && t.completed_at && isWithinInterval(new Date(t.completed_at), { start: periodStart, end: periodEnd })),
+  [tasks, periodStart, periodEnd]);
+
+  const overdueTasks = useMemo(() =>
+    tasks.filter((t) => isTaskOverdue(t, getTimeSettings())),
+  [tasks, todayStart]);
+
+  const focusMinutes = useMemo(() =>
+    pomSessions
+      .filter((s) => isWithinInterval(new Date(s.started_at), { start: periodStart, end: periodEnd }))
+      .reduce((sum, s) => sum + (s.duration_minutes || 0), 0),
+  [pomSessions, periodStart, periodEnd]);
+
+  const habitStats = useMemo(() => {
+    const byHabit = new Map<string, { name: string; target: number; frequency: "daily" | "weekly"; days: Set<string> }>();
+    habitLogs.forEach((l) => {
+      const h = l.habits;
+      if (!h) return;
+      if (!byHabit.has(l.habit_id)) {
+        byHabit.set(l.habit_id, { name: h.name, target: h.target_per_week || 7, frequency: h.frequency, days: new Set() });
+      }
+      byHabit.get(l.habit_id)!.days.add(l.log_date);
+    });
+
+    const start = periodStart;
+    const expectedDays = period === "today" ? 1 : period === "week" ? 7 : 30;
+
+    return Array.from(byHabit.entries()).map(([id, h]) => {
+      const logsInPeriod = Array.from(h.days).filter((d) => {
+        const date = new Date(d);
+        return date >= start && date <= periodEnd;
+      }).length;
+      const targetDays = h.frequency === "daily" ? expectedDays : Math.min(expectedDays / 7, 4) * (h.target || 1);
+      const rate = targetDays > 0 ? Math.min(100, Math.round((logsInPeriod / targetDays) * 100)) : 0;
+      return { id, name: h.name, logs: logsInPeriod, target: Math.round(targetDays), rate };
+    }).sort((a, b) => b.rate - a.rate);
+  }, [habitLogs, period, periodStart, periodEnd]);
+
+  const chartData = useMemo(() => {
+    const days = period === "today"
+      ? [startOfDay(new Date())]
+      : Array.from({ length: period === "week" ? 7 : 30 }, (_, i) => startOfDay(subDays(new Date(), (period === "week" ? 7 : 30) - 1 - i)));
+
+    return days.map((d) => {
+      const taskCount = tasks.filter((t) => t.completed && t.completed_at && isSameDay(new Date(t.completed_at), d)).length;
+      const minutes = pomSessions
+        .filter((s) => isSameDay(new Date(s.started_at), d))
+        .reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+      const weekday = system === "jalali" ? WEEKDAY_SHORT_FA[jalaliDayOfWeek(d)] : format(d, "EEE")[0];
+      const dayNum = system === "jalali" ? formatDate(d, "d", "jalali") : format(d, "d");
+      return { label: `${weekday} ${dayNum}`, tasks: taskCount, minutes, date: d };
+    });
+  }, [tasks, pomSessions, period, system]);
+
+  const bestHabit = habitStats[0];
+
+  return (
+    <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--narrow space-y-6 pb-safe-bottom page-enter">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <HeaderTitlePortal title={T("آمار و خلاصه", "Stats & Summary")} />
+          <p className="text-xs md:text-sm text-muted-foreground mt-1">
+            {system === "jalali" ? formatDate(new Date(), "d MMMM yyyy", "jalali") : format(new Date(), "MMMM d, yyyy")}
+          </p>
+        </div>
+        <div className="flex rounded-lg bg-muted p-0.5">
+          {(["today", "week", "month"] as Period[]).map((p) => (
+            <Button
+              key={p}
+              type="button"
+              size="sm"
+              variant={period === p ? "secondary" : "ghost"}
+              className="text-xs h-8"
+              onClick={() => setPeriod(p)}
+            >
+              {p === "today"
+                ? T("امروز", "Today")
+                : p === "week"
+                ? (isEn ? "7 Days" : "۷ روز")
+                : (isEn ? "30 Days" : "۳۰ روز")}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 stagger-children">
+        <SummaryCard
+          icon={CheckCircle2}
+          label={T("تسک انجام‌شده", "Completed Tasks")}
+          value={isEn ? String(completedTasks.length) : toPersianDigits(completedTasks.length)}
+          tone="bg-success/15 text-success"
+        />
+        <SummaryCard
+          icon={Clock}
+          label={T("دقیقه تمرکز", "Focus Minutes")}
+          value={isEn ? String(focusMinutes) : toPersianDigits(focusMinutes)}
+          tone="bg-warning/15 text-warning"
+        />
+        <SummaryCard
+          icon={Flame}
+          label={T("عادت موفق", "Best Habit")}
+          value={bestHabit ? (isEn ? `${bestHabit.rate}%` : toPersianDigits(bestHabit.rate) + "%") : "—"}
+          tone="bg-primary/15 text-primary"
+        />
+        <SummaryCard
+          icon={AlertCircle}
+          label={T("تسک عقب‌افتاده", "Overdue Tasks")}
+          value={isEn ? String(overdueTasks.length) : toPersianDigits(overdueTasks.length)}
+          tone="bg-destructive/15 text-destructive"
+        />
+      </div>
+
+      <Card className="animate-fade-in-up" style={{ animationDelay: "80ms" }}>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Target className="w-4 h-4 text-primary" /> {T("فعالیت روزانه", "Daily Activity")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-48 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis yAxisId="left" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: "1rem",
+                    background: "hsl(var(--popover) / 0.95)",
+                    backdropFilter: "blur(12px)",
+                    border: "1px solid hsl(var(--border))",
+                    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
+                    fontSize: "12px",
+                    direction: isEn ? "ltr" : "rtl",
+                  }}
+                  formatter={(value: number, name: string) => [
+                    name === "minutes"
+                      ? (isEn ? `${value} min` : `${toPersianDigits(value)} دقیقه`)
+                      : (isEn ? String(value) : toPersianDigits(value)),
+                    name === "minutes" ? T("تمرکز", "Focus") : T("تسک", "Tasks"),
+                  ]}
+                  labelFormatter={(label: string) => label}
+                />
+                <Bar yAxisId="left" dataKey="tasks" radius={[6, 6, 0, 0]} fill="hsl(var(--primary) / 0.75)" />
+                <Line yAxisId="right" type="monotone" dataKey="minutes" stroke="hsl(var(--warning))" strokeWidth={2.5} dot={{ r: 3, fill: "hsl(var(--warning))" }} activeDot={{ r: 5 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      {habitStats.length > 0 && (
+        <Card className="animate-fade-in-up" style={{ animationDelay: "140ms" }}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Flame className="w-4 h-4 text-primary" /> {T("پیشرفت عادت‌ها", "Habit Progress")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+          {(() => {
+            const COLORS = [
+              "bg-success",
+              "bg-primary",
+              "bg-warning",
+              "bg-priority-low",
+              "bg-destructive/70",
+              "bg-priority-medium",
+            ];
+            return habitStats.map((h, i) => (
+              <div key={h.id} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium truncate flex-1">{h.name}</span>
+                  <span className="text-muted-foreground tabular-nums">
+                    {isEn
+                      ? `${h.logs}/${h.target} • ${h.rate}%`
+                      : `${toPersianDigits(h.logs)}/${toPersianDigits(h.target)} • ${toPersianDigits(h.rate)}%`}
+                  </span>
+                </div>
+                <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${COLORS[i % COLORS.length]} rounded-full transition-all duration-700`}
+                    style={{ width: `${Math.min(100, h.rate)}%` }}
+                  />
+                </div>
+              </div>
+            ));
+          })()}
+          </CardContent>
+        </Card>
+      )}
+
+      {completedTasks.length > 0 && (
+        <Card className="animate-fade-in-up" style={{ animationDelay: "200ms" }}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-primary" /> {T("آخرین تسک‌های انجام‌شده", "Recently Completed Tasks")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="divide-y">
+            {completedTasks.slice(-5).reverse().map((t) => (
+              <div key={t.id} className="py-2 flex items-center justify-between text-sm">
+                <span className="truncate flex-1">{t.title}</span>
+                <span className="text-[10px] text-muted-foreground tabular-nums">
+                  {t.completed_at ? (system === "jalali" ? formatDate(new Date(t.completed_at), "d MMM", "jalali") : format(new Date(t.completed_at), "d MMM")) : "—"}
+                </span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function SummaryCard({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: typeof CheckCircle2;
+  label: string;
+  value: string;
+  tone: string;
+}) {
+  return (
+    <div className="group rounded-2xl border border-border/50 bg-card p-4 shadow-2xs card-hover animate-fade-in-up">
+      <div className="flex items-center gap-3">
+        <div className={`grid place-items-center h-9 w-9 rounded-xl ${tone} shrink-0 shadow-xs transition-transform group-hover:scale-105`}>
+          <Icon className="w-4 h-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] font-medium text-muted-foreground truncate">{label}</div>
+          <div className="text-xl md:text-2xl font-bold tabular-nums text-foreground mt-0.5">{value}</div>
+        </div>
+      </div>
+    </div>
+  );
+}

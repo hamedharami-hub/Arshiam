@@ -1,0 +1,75 @@
+import { useEffect, useRef } from "react";
+import { App as CapApp } from "@capacitor/app";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useSidebar } from "@/components/ui/sidebar";
+import { toast } from "sonner";
+
+export default function AndroidBackButton() {
+  const { openMobile, setOpenMobile } = useSidebar();
+  const { pathname, search } = useLocation();
+  const navigate = useNavigate();
+  const lastBack = useRef(0);
+  useEffect(() => {
+    let disposed = false;
+    const handle = CapApp.addListener("backButton", () => {
+      if (disposed) return;
+      if (document.querySelector('[role="alertdialog"],[role="menu"]')) {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        return;
+      }
+      if (openMobile) { setOpenMobile(false); return; }
+
+      // Allow TaskDetail (drawer, embedded, or page) to handle back action:
+      // subtask -> parent task, closing inner sheets, or closing drawer
+      const taskEvent = new CustomEvent("arshnaz:request-task-close", { cancelable: true });
+      const taskHandled = !window.dispatchEvent(taskEvent);
+      if (taskHandled) return;
+
+      if (document.querySelector('[role="dialog"]:not([data-sidebar])')) {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        return;
+      }
+      if (pathname.startsWith("/app/tasks/")) {
+        const sp = new URLSearchParams(search);
+        const isFromWidget =
+          sp.get("fromWidget") === "1" ||
+          sp.get("fromWidget") === "true" ||
+          sp.get("from") === "widget" ||
+          sp.get("source") === "widget";
+        const fromTaskId = sp.get("from");
+        if (fromTaskId && fromTaskId !== "widget") {
+          const widgetSuffix = isFromWidget ? "?fromWidget=1" : "";
+          navigate(`/app/tasks/${encodeURIComponent(fromTaskId)}${widgetSuffix}`, { replace: true });
+          return;
+        }
+        if (isFromWidget) {
+          const now = Date.now();
+          if (lastBack.current && now - lastBack.current < 2000) { void CapApp.exitApp(); return; }
+          lastBack.current = now;
+          toast("برای خروج یک‌بار دیگر برگشت را بزن", { duration: 1800 });
+          return;
+        }
+        if (window.history.state?.idx > 0) navigate(-1);
+        else navigate("/app/today", { replace: true });
+        return;
+      }
+      if (pathname === "/auth" || pathname === "/") {
+        const now = Date.now();
+        if (lastBack.current && now - lastBack.current < 2000) { void CapApp.exitApp(); return; }
+        lastBack.current = now;
+        toast("برای خروج یک‌بار دیگر برگشت را بزن", { duration: 1800 });
+        return;
+      }
+      if (pathname !== "/app/today") {
+        if (window.history.state?.idx > 0) navigate(-1); else navigate("/app/today", { replace: true });
+        return;
+      }
+      const now = Date.now();
+      if (lastBack.current && now - lastBack.current < 2000) { void CapApp.exitApp(); return; }
+      lastBack.current = now;
+      toast("برای خروج یک‌بار دیگر برگشت را بزن", { duration: 1800 });
+    });
+    return () => { disposed = true; void handle.then(h => h.remove()).catch(() => {}); };
+  }, [pathname, search, navigate, openMobile, setOpenMobile]);
+  return null;
+}
