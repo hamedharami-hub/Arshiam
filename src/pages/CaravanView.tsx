@@ -281,6 +281,22 @@ export default function CaravanView() {
             <span>تبدیل ۱۰ انرژی خورشید</span>
           </Button>
 
+          {/* Go to Shadow Syndicate Outpost Button */}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              iframeRef.current?.contentWindow?.postMessage({ type: "ARSHNAZ_GO_SHADOW" }, "*");
+              toast.info("🗝️ هدایت به مخفی‌گاه سوداگران سایه", {
+                description: "برای قمار گوهرهای نور و خرید بذرهای ممنوعه آماده شوید."
+              });
+            }}
+            className="h-7 text-xs bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border-purple-500/30 gap-1"
+            title="مخفی‌گاه و بازار سیاه سوداگران سایه"
+          >
+            <span>🗝️ سوداگر سایه</span>
+          </Button>
+
           {/* Cloud Sync Button */}
           <Button
             size="sm"

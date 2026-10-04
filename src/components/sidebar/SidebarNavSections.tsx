@@ -61,6 +61,7 @@ export const EN_LABELS: Record<string, string> = {
   "صندوق ورودی": "Inbox",
   "ویجت‌ها": "Widgets",
   "باغ رشد": "Garden",
+  "کاروان رؤیاها (3D)": "Dream Caravan (3D)",
   "افراد": "Contacts",
   "کتابخانه دانش": "Knowledge Base",
   "استودیوی مطالعه تعاملی": "Interactive Study Studio",
@@ -77,6 +78,7 @@ export const EN_LABELS: Record<string, string> = {
 
 export const FA_LABELS: Record<string, string> = {
   "Inbox": "صندوق ورودی",
+  "Dream Caravan (3D)": "کاروان رؤیاها (3D)",
   "Pomodoro": "پومودورو",
   "Smart Lists": "لیست‌های هوشمند",
   "Contacts": "افراد",
@@ -123,6 +125,7 @@ export const SECTIONS: Section[] = [
     items: [
       { url: "/app/life-architect", icon: Compass, label: "معمار زندگی" },
       { url: "/app/garden", icon: Sprout, label: "باغ رشد" },
+      { url: "/app/caravan", icon: Sparkles, label: "کاروان رؤیاها (3D)" },
       { url: "/app/notes", icon: FileText, label: "نوت‌ها" },
       {
         icon: BookOpen,
