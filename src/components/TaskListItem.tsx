@@ -253,8 +253,9 @@ const TaskListItemComponent = ({
                 >
                   <Pin className={`w-3 h-3 ${t.pinned ? "fill-primary" : ""}`} />
                 </button>
-                <div
-                  className="flex-1 min-w-0 cursor-pointer select-none"
+                <button
+                  type="button"
+                  className="flex-1 min-w-0 cursor-pointer select-none text-start rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                   onClick={() => {
                     if (isPathAllowed("/app/checkin") && (t.title.startsWith("چک‌این روزانه") || t.title.startsWith("Daily Check-in"))) { navigate("/app/checkin"); return; }
                     onSelectTask(t);
@@ -270,11 +271,11 @@ const TaskListItemComponent = ({
                     </span>
                   )}
                   <BidiText
-                    as="p"
+                    as="span"
                     text={t.title}
-                    className={`${layout === "compact" ? "text-sm" : "text-[15px]"} font-medium leading-tight break-words ${t.completed ? "line-through text-muted-foreground" : t.status === "wont_do" ? "text-sky-600" : "text-foreground/90"}`}
+                    className={`block ${layout === "compact" ? "text-sm" : "text-[15px]"} font-medium leading-tight break-words ${t.completed ? "line-through text-muted-foreground" : t.status === "wont_do" ? "text-sky-600" : "text-foreground/90"}`}
                   />
-                </div>
+                </button>
                 {isScheduledLeitnerReview && !t.completed ? (
                   <button
                     type="button"

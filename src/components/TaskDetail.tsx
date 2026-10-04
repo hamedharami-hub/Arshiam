@@ -1693,7 +1693,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         </div>
       ) : mode === "drawer" && isMobile ? (
         <Drawer open={true} onOpenChange={(v) => !v && requestClose()} snapPoints={[0.5, 1]} activeSnapPoint={snap} setActiveSnapPoint={setSnap} shouldScaleBackground={false} dismissible>
-          <DrawerContent className={`h-screen max-h-screen flex flex-col !mt-0 ${snap === 1 ? "!m-0 !rounded-none" : "min-h-[55vh]"}`} aria-describedby="task-drawer-desc">
+          <DrawerContent data-no-swipe-nav className={`h-screen max-h-screen flex flex-col !mt-0 ${snap === 1 ? "!m-0 !rounded-none" : "min-h-[55vh]"}`} aria-describedby="task-drawer-desc">
             <DrawerHeader className="sr-only">
               <DrawerTitle>{t.title || T("تسک", "Task")}</DrawerTitle>
             </DrawerHeader>

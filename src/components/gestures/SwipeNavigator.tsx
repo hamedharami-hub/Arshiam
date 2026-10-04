@@ -37,6 +37,12 @@ export default function SwipeNavigator() {
       if (el?.closest("input, textarea, select, [data-no-swipe-nav], [data-radix-scroll-area-viewport]")) {
         tracking = false; return;
       }
+      // An open task drawer/dialog/menu owns the gesture surface (e.g. the mobile
+      // task detail sheet): swiping inside it must never change the day scope
+      // underneath. Kept in parity with AndroidGestures' overlay guard.
+      if (document.querySelector('[role="dialog"]:not([data-sidebar]),[role="alertdialog"],[role="menu"],[data-vaul-drawer]')) {
+        tracking = false; return;
+      }
       startX = t.clientX;
       startY = t.clientY;
       tracking = true;

@@ -1,7 +1,7 @@
 import { TaskGroupHeader } from "@/components/tasks/TaskGroupHeader";
 import React from "react";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
-import { parseTaskDueDate, taskDueTimestamp, taskWorkDate } from "@/lib/taskDate";
+import { parseTaskDueDate, taskDueTimestamp, taskWorkDate, getLocalDateString } from "@/lib/taskDate";
 import { getTaskPlanning, isTaskOverdue, isTaskMissedWorkDay } from "@/lib/taskPlanning";
 import { getTimeSettings } from "@/lib/timeHorizon";
 import { PRIORITY_META } from "@/lib/priority";
@@ -21,13 +21,19 @@ export function buildGroupedTasks(
   const todayEnd = endOfDay(now).getTime();
   const tomorrowEnd = endOfDay(addDays(now, 1)).getTime();
   const settings = getTimeSettings();
-  const dateForGrouping = (task: Task) => {
-    const dates = [taskWorkDate(task), task.work_date === undefined ? null : task.due_date]
+  const todayISOStr = getLocalDateString(now);
+  const exactDatesFor = (task: Task) =>
+    [taskWorkDate(task), task.work_date === undefined ? null : task.due_date]
       .filter((date): date is string => !!date)
       .sort((a, b) => taskDueTimestamp(a) - taskDueTimestamp(b));
+  const dateForGrouping = (task: Task) => {
+    const dates = exactDatesFor(task);
     if (dates.length) return dates[0];
+    // Fuzzy schedules (a week plan or a day/week/part-of-day bucket) still need
+    // a grouping date so the row is never silently dropped from the list.
     const plan = getTaskPlanning(task, settings);
-    return plan?.horizon === "day" ? plan.start : null;
+    if (plan) return plan.start;
+    return task.bucket_anchor || null;
   };
   const sorted = [...topLevel].sort((a, b) => {
     const da = taskDueTimestamp(dateForGrouping(a));
@@ -40,23 +46,28 @@ export function buildGroupedTasks(
   const groups = new Map<string, TaskGroup>();
   for (const task of sorted) {
     const dueValue = dateForGrouping(task);
-    if (!dueValue) continue;
+    const hasExactDate = exactDatesFor(task).length > 0;
+    const plan = hasExactDate ? null : getTaskPlanning(task, settings);
+    const currentWeekPlan = Boolean(plan && plan.horizon === "week" && plan.start <= todayISOStr && plan.end >= todayISOStr);
     const due = taskDueTimestamp(dueValue);
     let key: string;
     let label: string;
     if (isTaskOverdue(task, settings, now)) {
       key = "overdue";
       label = T("عقب‌افتاده", "Overdue");
-    } else if (due < todayStart || isTaskMissedWorkDay(task, settings, now)) {
+    } else if (isTaskMissedWorkDay(task, settings, now) || (hasExactDate && due < todayStart)) {
       key = "missed";
       label = T("از برنامه عقب‌مانده", "Missed work day");
-    } else if (due <= todayEnd) {
+    } else if (currentWeekPlan) {
+      key = "week-plan";
+      label = T("این هفته", "This week");
+    } else if (dueValue && due >= todayStart && due <= todayEnd) {
       key = "today";
       label = T("امروز", "Today");
-    } else if (due <= tomorrowEnd) {
+    } else if (dueValue && due > todayEnd && due <= tomorrowEnd) {
       key = "tomorrow";
       label = T("فردا", "Tomorrow");
-    } else {
+    } else if (dueValue) {
       const d = parseTaskDueDate(dueValue)!;
       key = format(d, "yyyy-MM-dd");
       label = d.toLocaleDateString(isEn ? "en-US" : "fa-IR", {
@@ -64,6 +75,10 @@ export function buildGroupedTasks(
         month: "short",
         day: "numeric",
       });
+    } else {
+      // Safety net: a scoped task without any date signal must still render.
+      key = "undated";
+      label = T("بدون تاریخ", "No date");
     }
     if (!groups.has(key)) groups.set(key, { key, label, tasks: [] });
     groups.get(key)!.tasks.push(task);
@@ -74,8 +89,9 @@ export function buildGroupedTasks(
   if (groups.has("overdue")) orderedKeys.push("overdue");
   if (groups.has("missed")) orderedKeys.push("missed");
   if (groups.has("tomorrow")) orderedKeys.push("tomorrow");
+  if (groups.has("week-plan")) orderedKeys.push("week-plan");
   [...groups.keys()]
-    .filter((k) => !["overdue", "missed", "today", "tomorrow"].includes(k))
+    .filter((k) => !["overdue", "missed", "today", "tomorrow", "week-plan"].includes(k))
     .sort()
     .forEach((k) => orderedKeys.push(k));
   return orderedKeys.map((k) => groups.get(k)!);

@@ -266,6 +266,7 @@ describe("recurringTaskService", () => {
         title: "Weekly Review",
         completed: true,
         status: "done",
+        priority: "none",
         recurrence: "weekly",
         due_date: "2026-09-30",
       };
@@ -277,6 +278,7 @@ describe("recurringTaskService", () => {
         title: "DailyStretch",
         completed: true,
         status: "done",
+        priority: "none",
         parent_id: "parent-rec-2",
         recurrence: "daily",
         due_date: "2026-09-30",

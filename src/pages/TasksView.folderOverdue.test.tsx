@@ -4,8 +4,9 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import TasksView from "./TasksView";
 import { isTaskOverdue } from "@/lib/taskPlanning";
 import { getTimeSettings } from "@/lib/timeHorizon";
+import type { Task } from "@/lib/taskTypes";
 
-const allTasks = [
+const allTasks: Partial<Task>[] = [
   { id: "task-overdue", title: "Overdue folder task", completed: false, status: "todo", priority: "none", parent_id: null, folder_id: "folder-1", due_date: "2020-01-01" },
   { id: "task-upcoming", title: "Upcoming folder task", completed: false, status: "todo", priority: "none", parent_id: null, folder_id: "folder-1", due_date: "2099-01-01" },
   { id: "task-done", title: "Done folder task", completed: true, status: "done", priority: "none", parent_id: null, folder_id: "folder-1", due_date: "2020-01-01" },

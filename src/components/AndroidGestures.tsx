@@ -35,7 +35,7 @@ export default function AndroidGestures() {
         return;
       if (
         document.querySelector(
-          '[role="dialog"]:not([data-sidebar]),[role="alertdialog"],[role="menu"]',
+          '[role="dialog"]:not([data-sidebar]),[role="alertdialog"],[role="menu"],[data-vaul-drawer]',
         )
       )
         return;

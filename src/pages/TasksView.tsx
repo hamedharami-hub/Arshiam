@@ -529,6 +529,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       // Show overdue plus next 7 days, PLUS this week's bucket tasks!
       const e = endOfDay(addDays(new Date(), 7)).getTime();
       const lastDay = getLocalDateString(addDays(new Date(), 7));
+      const todayDate = getLocalDateString();
       const timeSettings = getTimeSettings();
       const isDueNext7 = (t: Task) => {
         if (isTaskOverdue(t, timeSettings) || isTaskMissedWorkDay(t, timeSettings)) return true;
@@ -537,6 +538,9 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         if (t.work_date !== undefined && t.due_date && taskDueTimestamp(t.due_date) <= e) return true;
         const plan = getTaskPlanning(t, timeSettings);
         if (plan?.horizon === "day" && plan.start <= lastDay) return true;
+        // A fuzzy week plan overlapping the window counts as "next 7 days",
+        // in parity with the legacy week-bucket branch below.
+        if (plan?.horizon === "week" && plan.start <= lastDay && plan.end >= todayDate) return true;
         if (t.bucket_kind) {
           const match = doesTaskMatchBucketScope(t, { scopeKind: "week", hierarchical: true });
           if (match.matches) return true;

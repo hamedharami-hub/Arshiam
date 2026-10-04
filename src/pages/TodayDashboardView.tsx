@@ -45,12 +45,6 @@ import {
 import { toast } from "sonner";
 import { StreakCard } from "@/components/StreakCard";
 import { NavLink } from "@/components/NavLink";
-import {
-  DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, TouchSensor,
-  closestCenter, useSensor, useSensors,
-} from "@/components/TaskDnDHelpers";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Card } from "@/components/ui/card";
 
 export default function TodayDashboardView() {
   const { user } = useAuth();
@@ -68,7 +62,6 @@ export default function TodayDashboardView() {
   const [pomoTask, setPomoTask] = useState<Task | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [activeDragId, setActiveDragId] = useState<string | null>(null);
 
   const [splitView, setSplitView] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
@@ -141,11 +134,6 @@ export default function TodayDashboardView() {
       return next;
     });
   };
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
-  );
 
   // 1. Fetch task data
   const {
@@ -449,22 +437,6 @@ export default function TodayDashboardView() {
     });
   }, [childrenMap, allTasks, user?.id, setAllTasks, T]);
 
-  const onDragEnd = useCallback((event: DragEndEvent) => {
-    setActiveDragId(null);
-  }, []);
-
-  const sortableItems = useMemo(() => {
-    return [
-      ...activeTodayTasks.map((t) => t.id),
-      ...activeTodayStudyTasks.map((t) => t.id),
-      ...(showCompleted ? completedTodayTasks.map((t) => t.id) : []),
-      ...(showCompleted ? completedTodayStudyTasks.map((t) => t.id) : []),
-      ...overdueTasks.map((t) => t.id),
-      ...overdueStudyTasks.map((t) => t.id),
-      ...missedTasks.map((t) => t.id),
-    ];
-  }, [activeTodayTasks, activeTodayStudyTasks, completedTodayTasks, completedTodayStudyTasks, overdueTasks, overdueStudyTasks, missedTasks, showCompleted]);
-
   const todayJalali = formatDate(new Date(), "EEEE، d MMMM yyyy", "jalali");
   const todayGregorian = formatDate(new Date(), "EEEE, MMMM d, yyyy", "gregorian");
 
@@ -621,15 +593,7 @@ export default function TodayDashboardView() {
           </div>
 
           {/* ۳. لیست تسک‌ها با خط زمان و ریتم فشرده هفتگی */}
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={(e: DragStartEvent) => setActiveDragId(String(e.active.id))}
-            onDragEnd={onDragEnd}
-            onDragCancel={() => setActiveDragId(null)}
-          >
-            <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2">
+          <div className="space-y-2">
                 {activeTodayTasks.length > 0 && (
                   <div className="space-y-1" data-testid="today-active-tasks">
                     {activeTodayTasks.map((task) => renderTaskItem(task))}
@@ -701,19 +665,7 @@ export default function TodayDashboardView() {
                     </p>
                   </div>
                 )}
-              </div>
-            </SortableContext>
-
-            <DragOverlay>
-              {activeDragId ? (
-                <Card className="p-3 shadow-lg opacity-90">
-                  <p className="text-sm font-medium">
-                    {allTasks.find((x) => x.id === activeDragId)?.title || "..."}
-                  </p>
-                </Card>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
+          </div>
         </section>
       </div>
 
