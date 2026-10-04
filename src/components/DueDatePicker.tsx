@@ -39,6 +39,7 @@ export function DueDatePicker({
   onRecurrenceChange,
   label,
   compact = false,
+  dateControls = true,
 }: {
   value: string | null;
   onChange: (iso: string | null) => void;
@@ -50,6 +51,8 @@ export function DueDatePicker({
   onRecurrenceChange?: (rule: RecurrenceRule | null) => void;
   label?: string;
   compact?: boolean;
+  /** false = render only the reminder section (used inside the compact schedule rows). */
+  dateControls?: boolean;
 }) {
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
@@ -229,83 +232,87 @@ export function DueDatePicker({
 
   return (
     <div className="space-y-2.5">
-      {label && (
-        <label className="text-xs text-muted-foreground flex items-center justify-between gap-1">
-          <span className="flex items-center gap-1">
-            <Calendar className="w-3 h-3" /> {labelText}
-          </span>
-          {jalaliPreview && (
-            <span className="text-[11px] font-medium text-primary">
-              {jalaliPreview}
-            </span>
+      {dateControls && (
+        <>
+          {label && (
+            <label className="text-xs text-muted-foreground flex items-center justify-between gap-1">
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3 h-3" /> {labelText}
+              </span>
+              {jalaliPreview && (
+                <span className="text-[11px] font-medium text-primary">
+                  {jalaliPreview}
+                </span>
+              )}
+            </label>
           )}
-        </label>
+
+          {/* Quick chips + date input */}
+          <div className="grid grid-cols-3 items-center gap-1.5">
+            <Button
+              type="button" size="sm"
+              variant={isToday(datePart) ? "default" : "outline"}
+              onClick={() => setQuick(0)} className="h-9 min-w-0 text-xs px-2"
+            >{T("امروز", "Today")}</Button>
+            <Button
+              type="button" size="sm"
+              variant={isTomorrow(datePart) ? "default" : "outline"}
+              onClick={() => setQuick(1)} className="h-9 min-w-0 text-xs px-2"
+            >{T("فردا", "Tomorrow")}</Button>
+            <Button
+              type="button" size="sm" variant={showCal ? "secondary" : "outline"}
+              onClick={() => setShowCal((v) => !v)} className="h-9 min-w-0 justify-center gap-1.5 text-xs px-2"
+              data-testid="due-date-calendar-toggle"
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span className="truncate">{datePart ? formatDate(new Date(`${datePart}T12:00:00`), "d MMM", isEn ? "gregorian" : undefined) : T("انتخاب", "Choose")}</span>
+            </Button>
+          </div>
+
+          {value && (
+            <Button type="button" size="sm" variant="ghost" onClick={clear} className="h-7 w-full text-[11px] text-muted-foreground" title={T("حذف تاریخ و یادآور", "Clear date and reminder")} data-testid="due-date-clear">
+              <X className="me-1 h-3 w-3" /> {T("پاک کردن تاریخ", "Clear date")}
+            </Button>
+          )}
+
+          {showCal && (
+            <InlineDatePicker
+              value={datePart}
+              isEn={isEn}
+              onSelect={(ymd) => { setDatePart(ymd); emitDate(ymd, timePart, includeTime); }}
+            />
+          )}
+
+          {!label && jalaliPreview && (
+            <div className="text-[11px] font-medium text-primary text-end">
+              {jalaliPreview}
+            </div>
+          )}
+
+          {/* Time toggle + time input */}
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={includeTime}
+              onCheckedChange={(v) => {
+                setIncludeTime(v);
+                if (datePart) emitDate(datePart, timePart || "09:00", v);
+              }}
+              id="due-time-toggle"
+            />
+            <label htmlFor="due-time-toggle" className="text-[11px] text-muted-foreground flex items-center gap-1 cursor-pointer flex-shrink-0">
+              <Clock className="w-3 h-3" /> {T("ساعت", "Time")}
+            </label>
+            {includeTime && (
+              <Input
+                type="time"
+                value={timePart || "09:00"}
+                onChange={(e) => { setTimePart(e.target.value); emitDate(datePart, e.target.value, true); }}
+                className="h-8 flex-1 text-xs"
+              />
+            )}
+          </div>
+        </>
       )}
-
-      {/* Quick chips + date input */}
-      <div className="grid grid-cols-3 items-center gap-1.5">
-        <Button
-          type="button" size="sm"
-          variant={isToday(datePart) ? "default" : "outline"}
-          onClick={() => setQuick(0)} className="h-9 min-w-0 text-xs px-2"
-        >{T("امروز", "Today")}</Button>
-        <Button
-          type="button" size="sm"
-          variant={isTomorrow(datePart) ? "default" : "outline"}
-          onClick={() => setQuick(1)} className="h-9 min-w-0 text-xs px-2"
-        >{T("فردا", "Tomorrow")}</Button>
-        <Button
-          type="button" size="sm" variant={showCal ? "secondary" : "outline"}
-          onClick={() => setShowCal((v) => !v)} className="h-9 min-w-0 justify-center gap-1.5 text-xs px-2"
-          data-testid="due-date-calendar-toggle"
-        >
-          <Calendar className="w-3.5 h-3.5" />
-          <span className="truncate">{datePart ? formatDate(new Date(`${datePart}T12:00:00`), "d MMM", isEn ? "gregorian" : undefined) : T("انتخاب", "Choose")}</span>
-        </Button>
-      </div>
-
-      {value && (
-        <Button type="button" size="sm" variant="ghost" onClick={clear} className="h-7 w-full text-[11px] text-muted-foreground" title={T("حذف تاریخ و یادآور", "Clear date and reminder")} data-testid="due-date-clear">
-          <X className="me-1 h-3 w-3" /> {T("پاک کردن تاریخ", "Clear date")}
-        </Button>
-      )}
-
-      {showCal && (
-        <InlineDatePicker
-          value={datePart}
-          isEn={isEn}
-          onSelect={(ymd) => { setDatePart(ymd); emitDate(ymd, timePart, includeTime); }}
-        />
-      )}
-
-      {!label && jalaliPreview && (
-        <div className="text-[11px] font-medium text-primary text-end">
-          {jalaliPreview}
-        </div>
-      )}
-
-      {/* Time toggle + time input */}
-      <div className="flex items-center gap-2">
-        <Switch
-          checked={includeTime}
-          onCheckedChange={(v) => {
-            setIncludeTime(v);
-            if (datePart) emitDate(datePart, timePart || "09:00", v);
-          }}
-          id="due-time-toggle"
-        />
-        <label htmlFor="due-time-toggle" className="text-[11px] text-muted-foreground flex items-center gap-1 cursor-pointer flex-shrink-0">
-          <Clock className="w-3 h-3" /> {T("ساعت", "Time")}
-        </label>
-        {includeTime && (
-          <Input
-            type="time"
-            value={timePart || "09:00"}
-            onChange={(e) => { setTimePart(e.target.value); emitDate(datePart, e.target.value, true); }}
-            className="h-8 flex-1 text-xs"
-          />
-        )}
-      </div>
 
       {onRecurrenceChange && (
         <div className="border-t border-border/50 pt-2">

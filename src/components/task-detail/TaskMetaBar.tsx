@@ -232,12 +232,12 @@ export function TaskMetaBar(props: TaskMetaBarProps) {
     </div>
   );
 
-  // Picking a date, deadline, part-of-day or time-block slot completes the
-  // intent, so the inline panel closes right after it — exactly like picking
-  // a tag. Reminder/repeat/estimate edits keep it open.
+  // Picking a day, deadline, part-of-day, a date-based plan step or a repeat
+  // rule completes the intent, so the inline panel closes right after it —
+  // exactly like picking a tag. Reminder / block / estimate edits keep it open.
   const schedulePanelSave = (patch: Partial<Task>) => {
     void save(patch);
-    if (["work_date", "due_date", "bucket_kind"].some((key) => Object.prototype.hasOwnProperty.call(patch, key))) {
+    if (["work_date", "due_date", "bucket_kind", "recurrence_rule"].some((key) => Object.prototype.hasOwnProperty.call(patch, key))) {
       setPanel(null);
     }
   };

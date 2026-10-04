@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { TaskPlanningBody } from "./TaskPlanningPicker";
+import { getLocalDateString } from "@/lib/taskDate";
+import { currentPeriod, getTimeSettings } from "@/lib/timeHorizon";
 import type { Task } from "@/lib/taskTypes";
 
 vi.mock("react-i18next", () => ({
@@ -10,29 +12,50 @@ vi.mock("react-i18next", () => ({
 
 const base = { id: "t1", user_id: "u1", title: "x", completed: false, status: "todo", priority: "none" } as Task;
 
-describe("TaskPlanningBody compact picker", () => {
-  it("chooses the next week from the compact chip row and closes", () => {
+describe("TaskPlanningBody — tag-style quick list", () => {
+  it("offers the common periods as one uniform list", () => {
+    render(<TaskPlanningBody task={base} onPatch={vi.fn()} onDone={vi.fn()} />);
+    for (const key of ["today", "tomorrow", "week", "next-week", "month", "next-month"]) {
+      expect(screen.getByTestId(`planning-quick-${key}`)).toBeInTheDocument();
+    }
+    expect(screen.getByTestId("planning-custom-toggle")).toBeInTheDocument();
+    expect(screen.queryByTestId("planning-custom-body")).toBeNull();
+  });
+
+  it("saves a quick pick and closes", () => {
     const onPatch = vi.fn();
     const onDone = vi.fn();
     render(<TaskPlanningBody task={base} onPatch={onPatch} onDone={onDone} />);
-    expect(screen.getByTestId("task-planning-body")).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId("planning-period-1"));
-    expect(onPatch).toHaveBeenCalledTimes(1);
-    expect(onPatch.mock.calls[0][0]).toEqual(expect.objectContaining({ planning_horizon: "week" }));
+    fireEvent.click(screen.getByTestId("planning-quick-today"));
+    expect(onPatch).toHaveBeenCalledWith(expect.objectContaining({ planning_horizon: "day", planning_start: getLocalDateString() }));
     expect(onDone).toHaveBeenCalled();
   });
 
-  it("clears planning from the compact body", () => {
-    const planned = { ...base, planning_horizon: "day", planning_start: "2026-04-10", planning_end: "2026-04-10" } as Task;
+  it("highlights the row matching the task's plan", () => {
+    const week = currentPeriod("week", getTimeSettings());
+    const planned = { ...base, planning_horizon: "week", planning_start: week.start, planning_end: week.end } as Task;
+    render(<TaskPlanningBody task={planned} onPatch={vi.fn()} onDone={vi.fn()} />);
+    expect(screen.getByTestId("planning-quick-week")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("planning-quick-today")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("folds out a custom period picker on demand", () => {
+    const onPatch = vi.fn();
+    const onDone = vi.fn();
+    render(<TaskPlanningBody task={base} onPatch={onPatch} onDone={onDone} />);
+    fireEvent.click(screen.getByTestId("planning-custom-toggle"));
+    expect(screen.getByTestId("planning-custom-body")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("planning-horizon-month"));
+    fireEvent.click(screen.getByTestId("planning-apply-date"));
+    expect(onPatch).toHaveBeenCalledWith(expect.objectContaining({ planning_horizon: "month" }));
+    expect(onDone).toHaveBeenCalled();
+  });
+
+  it("clears planning from the list", () => {
+    const planned = { ...base, planning_horizon: "week", planning_start: "2026-04-04", planning_end: "2026-04-10" } as Task;
     const onPatch = vi.fn();
     render(<TaskPlanningBody task={planned} onPatch={onPatch} onDone={vi.fn()} />);
     fireEvent.click(screen.getByTestId("planning-clear"));
     expect(onPatch).toHaveBeenCalledWith(expect.objectContaining({ planning_horizon: null }));
-  });
-
-  it("switches horizons without losing the chip row", () => {
-    render(<TaskPlanningBody task={base} onPatch={vi.fn()} onDone={vi.fn()} />);
-    fireEvent.click(screen.getByTestId("planning-horizon-day"));
-    expect(screen.getByTestId("planning-period-1")).toBeInTheDocument();
   });
 });

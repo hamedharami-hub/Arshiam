@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarRange } from "lucide-react";
+import { CalendarDays, CalendarRange, Check, ChevronDown, MoreHorizontal, X } from "lucide-react";
 import { ALL_HORIZONS, currentPeriod, fromLocalISO, getTimeSettings, horizonLabel, nextPeriod, periodFor, periodLabel, type Horizon, type Period } from "@/lib/timeHorizon";
 import { getTaskPlanning, planningPatch, planningUnitNumber, planningOffset } from "@/lib/taskPlanning";
 import { toPersianDigits } from "@/lib/persianDigits";
@@ -32,43 +32,66 @@ export function TaskPlanningBody({ task, onPatch, onDone }: { task: Task; onPatc
   const { lang, fa } = usePlanningLang();
   const settings = getTimeSettings();
   const plan = getTaskPlanning(task, settings);
-  const [horizon, setHorizon] = useState<Horizon>(plan?.horizon || "week");
+  const num = (s: string | number) => (fa ? toPersianDigits(s) : String(s));
+  const [customOpen, setCustomOpen] = useState(false);
+  const [horizon, setHorizon] = useState<Horizon>(plan?.horizon && plan.horizon !== "day" ? plan.horizon : "week");
   const [anchor, setAnchor] = useState(plan?.start || currentPeriod("week", settings).start);
   const selectedAnchor = /^\d{4}-\d{2}-\d{2}$/.test(anchor) ? anchor : currentPeriod("day", settings).start;
   const choose = (period: Period | null) => { onPatch(planningPatch(period, settings)); onDone?.(); };
-  const num = (s: string | number) => (fa ? toPersianDigits(s) : String(s));
-  let option = currentPeriod(horizon, settings);
-  const offsets = Array.from({ length: horizon === "month" ? 25 : horizon === "week" ? 13 : 9 }, (_, index) => {
-    const value = option; option = nextPeriod(option, settings); return { value, index };
-  });
+
+  const today = currentPeriod("day", settings);
+  const thisWeek = currentPeriod("week", settings);
+  const thisMonth = currentPeriod("month", settings);
+  const rows: Array<{ key: string; icon: any; label: string; period: Period }> = [
+    { key: "today", icon: CalendarDays, label: fa ? "امروز" : "Today", period: today },
+    { key: "tomorrow", icon: CalendarDays, label: fa ? "فردا" : "Tomorrow", period: nextPeriod(today, settings) },
+    { key: "week", icon: CalendarRange, label: fa ? "این هفته" : "This week", period: thisWeek },
+    { key: "next-week", icon: CalendarRange, label: fa ? "هفتهٔ بعد" : "Next week", period: nextPeriod(thisWeek, settings) },
+    { key: "month", icon: CalendarRange, label: fa ? "این ماه" : "This month", period: thisMonth },
+    { key: "next-month", icon: CalendarRange, label: fa ? "ماه بعد" : "Next month", period: nextPeriod(thisMonth, settings) },
+  ];
   return (
-    <div className="flex min-h-0 flex-col gap-2" dir={fa ? "rtl" : "ltr"} onClick={e => e.stopPropagation()} data-testid="task-planning-body">
-      <div className="grid grid-cols-5 gap-1 rounded-lg bg-muted/60 p-0.5" role="tablist" aria-label={fa ? "بازهٔ برنامه‌ریزی" : "Planning period"}>
-        {ALL_HORIZONS.map(h => <Button key={h} type="button" role="tab" aria-selected={horizon === h} size="sm" variant={horizon === h ? "secondary" : "ghost"} className="h-7 min-w-0 px-1 text-xs font-medium" onClick={() => setHorizon(h)} data-testid={`planning-horizon-${h}`}>{horizonLabel(h, lang)}</Button>)}
-      </div>
-      {/* One scrollable chip row instead of a tall grid — compact by design. */}
-      <div className="flex gap-1 overflow-x-auto no-scrollbar pb-0.5" role="listbox" aria-label={fa ? "دوره‌ها" : "Periods"}>
-        {offsets.map(({ value, index }) => {
-          const selected = plan?.horizon === value.horizon && plan?.start === value.start;
-          return (
-            <button key={value.start} type="button" role="option" aria-selected={selected}
-              title={periodLabel(value, settings, lang)} onClick={() => choose(value)} data-testid={`planning-period-${index}`}
-              className={`h-8 shrink-0 rounded-lg border px-2.5 text-xs transition ${selected ? "border-primary/60 bg-primary/10 font-semibold text-primary" : "border-border/60 bg-card text-foreground/80 hover:bg-muted"}`}>
-              {index === 0 ? (fa ? "این دوره" : "This") : index === 1 ? (fa ? "بعدی" : "Next") : `+${num(index)}`}
-            </button>
-          );
-        })}
-      </div>
-      <div className="flex items-center gap-1.5">
-        <input type="date" value={anchor} onChange={e => setAnchor(e.target.value)}
-          className="h-8 min-w-0 flex-1 rounded-md border border-border/60 bg-background px-2 text-xs text-foreground"
-          aria-label={fa ? "تاریخی داخل بازه" : "A date within the period"} />
-        <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 px-2.5 text-xs" disabled={!anchor}
-          onClick={() => choose(periodFor(horizon, fromLocalISO(selectedAnchor), settings))} data-testid="planning-apply-date">
-          {fa ? "اعمال" : "Apply"}
-        </Button>
-      </div>
-      {plan && <button type="button" className="h-7 self-start rounded-md px-2 text-xs text-destructive transition hover:bg-destructive/10" onClick={() => choose(null)} data-testid="planning-clear">{fa ? "حذف برنامه‌ریزی" : "Clear planning"}</button>}
+    <div className="space-y-0.5" dir={fa ? "rtl" : "ltr"} onClick={e => e.stopPropagation()} data-testid="task-planning-body">
+      {rows.map(({ key, icon: Icon, label, period }) => {
+        const active = !!plan && plan.horizon === period.horizon && plan.start === period.start && plan.end === period.end;
+        return (
+          <button key={key} type="button" aria-pressed={active} onClick={() => choose(period)} data-testid={`planning-quick-${key}`}
+            className={`flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 text-xs transition ${active ? "bg-primary/10" : "hover:bg-muted/60"}`}>
+            <Icon className={`h-4 w-4 shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} />
+            <span className="min-w-0 flex-1 truncate text-start font-medium text-foreground/90">{label}</span>
+            <span className="min-w-0 max-w-[45%] truncate text-[10px] text-muted-foreground">{num(periodLabel(period, settings, lang))}</span>
+            {active && <Check className="h-4 w-4 shrink-0 text-primary" />}
+          </button>
+        );
+      })}
+      <button type="button" aria-expanded={customOpen} onClick={() => setCustomOpen(v => !v)} data-testid="planning-custom-toggle"
+        className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 text-xs transition hover:bg-muted/60">
+        <MoreHorizontal className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <span className="flex-1 text-start font-medium text-foreground/90">{fa ? "دورهٔ دلخواه…" : "Custom period…"}</span>
+        <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${customOpen ? "rotate-180" : ""}`} />
+      </button>
+      {customOpen && (
+        <div className="space-y-1.5 rounded-lg bg-muted/40 p-1.5" data-testid="planning-custom-body">
+          <div className="grid grid-cols-5 gap-1" role="tablist" aria-label={fa ? "بازهٔ برنامه‌ریزی" : "Planning period"}>
+            {ALL_HORIZONS.map(h => <Button key={h} type="button" role="tab" aria-selected={horizon === h} size="sm" variant={horizon === h ? "secondary" : "ghost"} className="h-7 min-w-0 px-1 text-xs font-medium" onClick={() => setHorizon(h)} data-testid={`planning-horizon-${h}`}>{horizonLabel(h, lang)}</Button>)}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <input type="date" value={anchor} onChange={e => setAnchor(e.target.value)}
+              className="h-8 min-w-0 flex-1 rounded-md border border-border/60 bg-background px-2 text-xs text-foreground"
+              aria-label={fa ? "تاریخی داخل بازه" : "A date within the period"} />
+            <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 px-2.5 text-xs" disabled={!anchor}
+              onClick={() => choose(periodFor(horizon, fromLocalISO(selectedAnchor), settings))} data-testid="planning-apply-date">
+              {fa ? "اعمال" : "Apply"}
+            </Button>
+          </div>
+        </div>
+      )}
+      {plan && (
+        <button type="button" onClick={() => choose(null)} data-testid="planning-clear"
+          className="flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-xs text-destructive transition hover:bg-destructive/10">
+          <X className="h-3.5 w-3.5 shrink-0" /> {fa ? "حذف برنامه‌ریزی" : "Clear planning"}
+        </button>
+      )}
     </div>
   );
 }
