@@ -24,6 +24,7 @@ export function prepareAction(input,owner,action,payload={}) {
  default:throw new Error('عملیات ناشناخته است.');
  }
  if(state.essence<cost[0])throw new Error('گوهر نور کافی نیست.');
+ if(state.essence-cost[0]>100000)throw new Error('ظرفیت گوهر نور پر است؛ منابع برداشت نشدند.');
  state.essence-=cost[0];state.soulBond=Math.min(100,state.soulBond+bond);state.powerAngel=Math.min(100,state.powerAngel+Math.round(bond*.4));state.powerGor=Math.min(100,state.powerGor+Math.round(bond*.6));
  return {state,delta:{sunEnergy:-cost[1],waterDrops:-cost[2],focusBlossoms:-cost[3],totalHarvests:action==='restore-reward'?1:0}};
 }

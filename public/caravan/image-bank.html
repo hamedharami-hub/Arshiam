@@ -1,0 +1,197 @@
+<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>بانک تصاویر فرشته و گوراستاخ</title><style>
+*{box-sizing:border-box}body{margin:0;background:#f6f1e9;color:#352e35;font:15px/1.8 Tahoma,sans-serif}main{max-width:1150px;margin:auto;padding:24px}h1{font-size:24px}h2{font-size:19px}p{max-width:900px}a{color:#735530}button,a.action{min-height:44px;padding:10px 16px;border-radius:12px;border:1px solid #dacbad;background:#fff9ee;color:#54402b;cursor:pointer}nav{display:flex;gap:10px;flex-wrap:wrap}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}figure{margin:0;background:#fffaf4;border:1px solid #e0d7c9;border-radius:16px;padding:8px}figcaption{font-size:12px;text-align:center}.sprite{aspect-ratio:1;background-size:400% 200%;background-repeat:no-repeat;background-color:#ecede6;border-radius:12px}.sheet{display:block;width:100%;height:auto;background:#e9ece5;border-radius:12px}.notice{padding:16px;border-radius:16px;background:#eee0bb}.assets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:20px}@media(max-width:600px){main{padding:14px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.assets{grid-template-columns:1fr}h1{font-size:20px}}
+</style></head><body><main><h1>بانک تصاویر فرشته و گوراستاخ</h1><nav><a class="action" href="./index.html">بازگشت به بازی</a><a class="action" href="./art/image-bank.json" download>دانلود فهرست و قرارداد تصاویر</a></nav><p>چهار جهت اصلی از تصاویر قبلی حفظ شده‌اند. چهار نمای مورب تازه با همان تصویر مرجع ساخته شده‌اند. ترتیب نمایش: جلو، جلو راست، راست، عقب راست، عقب، عقب چپ، چپ و جلو چپ.</p><p class="notice">نمای مورب تازه برای بازبینی شماست؛ شباهت کاملِ تصویر تولیدشده تضمین‌شده نیست. این‌ها قاب‌های جهت هستند؛ انیمیشن قدم‌زدن چندقابی نیستند. رنگ‌ها و لباس‌های ناقص در فهرست مشخص شده‌اند.</p><h2>فرشته · موی مشکی و لباس اولیه</h2><section id="angel" class="grid"></section><h2>گوراستاخ · موی سفید و لباس اولیه</h2><section id="gor" class="grid"></section><h2>تصاویر اصلی و حالت‌های قبلی</h2><section id="assets" class="assets"></section><p id="status" role="status"></p></main><script id="bank-manifest" type="application/json">{
+  "schemaVersion": 1,
+  "date": "2026-10-05",
+  "assets": [
+    {
+      "id": "avatar",
+      "path": "assets/avatar_icon_512x512.png",
+      "category": "reference",
+      "title": "آیکون قدیمی برنامه",
+      "sha256": "d95649c27a21fe45a04d8d5bf36d121853e98197805916b37e787dc4fb0bf346",
+      "width": 512,
+      "height": 512,
+      "origin": "existing_repository",
+      "visualInspection": true
+    },
+    {
+      "id": "cardinal-brown",
+      "path": "assets/caravan_world_asset_1.png",
+      "category": "sprites",
+      "title": "فرشته مشکی / گوراستاخ قهوه‌ای؛ چهار جهت",
+      "sha256": "f07fcef37714f1ff8c4f44f56b53368cce4d0219b6f3e79178bb840205a3e9b8",
+      "width": 1774,
+      "height": 887,
+      "origin": "existing_repository",
+      "visualInspection": true
+    },
+    {
+      "id": "cardinal-default",
+      "path": "assets/caravan_world_asset_2.png",
+      "category": "sprites",
+      "title": "فرشته مشکی / گوراستاخ سفید؛ چهار جهت",
+      "sha256": "30d36702da44b369a800e88ed8fcf5ce6e8a374e40207ffb0d7d3780382338a6",
+      "width": 1774,
+      "height": 887,
+      "origin": "existing_repository",
+      "visualInspection": true
+    },
+    {
+      "id": "angel-adult",
+      "path": "assets/face_reference_1_1312x1199.png",
+      "category": "reference",
+      "title": "فرشته بزرگسال با موی قهوه‌ای؛ تصویر ورود",
+      "sha256": "7d29dbb50eb105e2ab53b09cf7cb5436e9c037fab487a125cabdfd0d7a45e5dd",
+      "width": 1312,
+      "height": 1199,
+      "origin": "existing_repository",
+      "visualInspection": true
+    },
+    {
+      "id": "angel-blonde-poses",
+      "path": "assets/face_reference_2_1254x1254.png",
+      "category": "decorative",
+      "title": "فرشته طلایی؛ چهار حالت تزئینی، نه چهار جهت",
+      "sha256": "eb03422fe8f7a7c48a2e7672f74560215b9796db82561165278732e5fea68743",
+      "width": 1254,
+      "height": 1254,
+      "origin": "existing_repository",
+      "visualInspection": true
+    },
+    {
+      "id": "angel-brown-poses",
+      "path": "assets/face_reference_3_1254x1254.png",
+      "category": "decorative",
+      "title": "فرشته قهوه‌ای؛ چهار حالت تزئینی، نه گوراستاخ",
+      "sha256": "9774e3b26f1abf9872d6e9d10abb1764c33f9377930380be09a6b21e62a8d6c1",
+      "width": 1254,
+      "height": 1254,
+      "origin": "existing_repository",
+      "visualInspection": true
+    },
+    {
+      "id": "angel-black-poses",
+      "path": "assets/face_reference_4_1254x1254.png",
+      "category": "decorative",
+      "title": "فرشته مشکی؛ چهار حالت تزئینی، نه گوراستاخ",
+      "sha256": "a72cf2766d94e9750ed9d63ad781c4f576b692e143c3515575e7c6d9b9d7698d",
+      "width": 1254,
+      "height": 1254,
+      "origin": "existing_repository",
+      "visualInspection": true
+    },
+    {
+      "id": "gorastakh-adult-turnaround",
+      "path": "assets/scene_reference_5_1536x1024.png",
+      "category": "reference",
+      "title": "گوراستاخ بزرگسال: هشت نما و سه نمای نزدیک؛ همان چهرهٔ مرجع قبلی",
+      "sha256": "597e331bcec1ee8c8a2e8b706383e9b26a4792d1452cfd2cd34485ff79fcb574",
+      "width": 1536,
+      "height": 1024,
+      "origin": "existing_repository",
+      "visualInspection": true
+    },
+    {
+      "id": "diagonal-default",
+      "path": "art/diag-classic-default.png",
+      "category": "sprites",
+      "title": "نمای مورب تازه: فرشته مشکی / گوراستاخ سفید",
+      "sha256": "bc0078ee8e06109cf375d5ad1680f46ff48089aea597811ee613e0fb50e1b955",
+      "width": 1774,
+      "height": 887,
+      "origin": "generated_from_approved_cardinal",
+      "visualInspection": true,
+      "userApproval": "pending",
+      "reference": "assets/caravan_world_asset_2.png"
+    }
+  ],
+  "runtimeDefault": {
+    "angel": {
+      "hair": "black",
+      "outfit": "classic",
+      "cardinal": "cardinal-default",
+      "diagonal": "diagonal-default",
+      "row": 0,
+      "cardinalColumns": [
+        "front",
+        "right",
+        "back",
+        "left"
+      ]
+    },
+    "gorastakh": {
+      "hair": "white",
+      "outfit": "classic",
+      "cardinal": "cardinal-default",
+      "diagonal": "diagonal-default",
+      "row": 1,
+      "cardinalColumns": [
+        "front",
+        "left",
+        "back",
+        "right"
+      ]
+    }
+  },
+  "atlas": {
+    "columns": 4,
+    "rows": 2,
+    "diagonalColumns": [
+      "front-right",
+      "back-right",
+      "back-left",
+      "front-left"
+    ],
+    "crossFadeMs": 160,
+    "walkCycleFramesPerDirection": 1
+  },
+  "variants": {
+    "completeEightDirections": [
+      "angel:black:classic",
+      "gorastakh:white:classic"
+    ],
+    "cardinalOnly": [
+      "gorastakh:brown:classic"
+    ],
+    "missing": [
+      "gorastakh:black:classic",
+      "angel:brown:classic",
+      "angel:white:classic",
+      "traveler outfits",
+      "celestial outfits",
+      "24-card travel album"
+    ]
+  },
+  "audit": {
+    "uniquePNGs": 19,
+    "duplicateLocations": 3,
+    "remoteArshiamBranchesSearched": 20,
+    "gameRepositoryHEAD": "05d6609fb83f5c51009c02d402dd9672d7695b86",
+    "historicalCloudFilesAccessible": false,
+    "notes": "Original images are preserved byte-for-byte. Decorative poses are not directional sprites. Gold-haired decorative angel is not a white-haired runtime variant.",
+    "embeddedHTML": {
+      "filesSearched": 6,
+      "imageReferences": 8,
+      "uniqueImages": 1,
+      "alreadyPresentAs": "assets/caravan_world_asset_2.png"
+    },
+    "excludedNonCharacterAssets": [
+      "character_detail_538x507.png (Python logo)",
+      "six plant illustrations",
+      "four app mockups"
+    ]
+  }
+}
+</script><script>
+const manifest=JSON.parse(document.getElementById("bank-manifest").textContent);
+const names=['جلو','جلو راست','راست','عقب راست','عقب','عقب چپ','چپ','جلو چپ'];
+for(const [id,angel,row] of [['angel',true,0],['gor',false,1]])for(let sector=0;sector<8;sector++){
+ const cardinalNames=['front',null,'right',null,'back',null,'left',null],actor=manifest.runtimeDefault[angel?'angel':'gorastakh'];
+ const frame={diagonal:sector%2===1,column:sector%2===1?(sector-1)/2:actor.cardinalColumns.indexOf(cardinalNames[sector])};
+ const figure=document.createElement('figure'),preview=document.createElement('div'),caption=document.createElement('figcaption');preview.className='sprite';preview.setAttribute('role','img');preview.setAttribute('aria-label',names[sector]);
+ preview.style.backgroundImage=`url(${frame.diagonal?'./art/diag-classic-default.png':'./assets/caravan_world_asset_2.png'})`;preview.style.backgroundPosition=`${frame.column*100/3}% ${row*100}%`;caption.textContent=names[sector]+(frame.diagonal?' · تازه':' · اصلی');figure.append(preview,caption);document.getElementById(id).append(figure);
+}
+for(const asset of manifest.assets){const figure=document.createElement('figure'),image=document.createElement('img'),caption=document.createElement('figcaption'),link=document.createElement('a');image.src='./'+asset.path;image.alt=asset.title;image.className='sheet';image.loading='lazy';caption.textContent=asset.title;link.href=image.src;link.download=asset.path.split('/').pop();link.textContent='دانلود اصل تصویر';figure.append(image,caption,link);document.getElementById('assets').append(figure);}
+document.getElementById('status').textContent='دو شخصیت پیش‌فرض: هرکدام ۸ جهت. گوراستاخ قهوه‌ای: فعلاً ۴ جهت. لباس‌های تازه و آلبوم ۲۴ کارت هنوز کامل نشده‌اند.';
+</script></body></html>

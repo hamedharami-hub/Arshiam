@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-05",
+  "assets": [
+    {
+      "id": "avatar",
+      "path": "assets/avatar_icon_512x512.png",
+      "category": "reference",
+      "title": "آیکون قدیمی برنامه",
+      "sha256": "d95649c27a21fe45a04d8d5bf36d121853e98197805916b37e787dc4fb0bf346",
+      "width": 512,
+      "height": 512,
+      "origin": "existing_repository",
+      "visualInspection": true
+    },
+    {
+      "id": "cardinal-brown",
+      "path": "assets/caravan_world_asset_1.png",
+      "category": "sprites",
+      "title": "فرشته مشکی / گوراستاخ قهوه‌ای؛ چهار جهت",
+      "sha256": "f07fcef37714f1ff8c4f44f56b53368cce4d0219b6f3e79178bb840205a3e9b8",
+      "width": 1774,
+      "height": 887,
+      "origin": "existing_repository",
+      "visualInspection": true
+    },
+    {
+      "id": "cardinal-default",
+      "path": "assets/caravan_world_asset_2.png",
+      "category": "sprites",
+      "title": "فرشته مشکی / گوراستاخ سفید؛ چهار جهت",
+      "sha256": "30d36702da44b369a800e88ed8fcf5ce6e8a374e40207ffb0d7d3780382338a6",
+      "width": 1774,
+      "height": 887,
+      "origin": "existing_repository",
+      "visualInspection": true
+    },
+    {
+      "id": "angel-adult",
+      "path": "assets/face_reference_1_1312x1199.png",
+      "category": "reference",
+      "title": "فرشته بزرگسال با موی قهوه‌ای؛ تصویر ورود",
+      "sha256": "7d29dbb50eb105e2ab53b09cf7cb5436e9c037fab487a125cabdfd0d7a45e5dd",
+      "width": 1312,
+      "height": 1199,
+      "origin": "existing_repository",
+      "visualInspection": true
+    },
+    {
+      "id": "angel-blonde-poses",
+      "path": "assets/face_reference_2_1254x1254.png",
+      "category": "decorative",
+      "title": "فرشته طلایی؛ چهار حالت تزئینی، نه چهار جهت",
+      "sha256": "eb03422fe8f7a7c48a2e7672f74560215b9796db82561165278732e5fea68743",
+      "width": 1254,
+      "height": 1254,
+      "origin": "existing_repository",
+      "visualInspection": true
+    },
+    {
+      "id": "angel-brown-poses",
+      "path": "assets/face_reference_3_1254x1254.png",
+      "category": "decorative",
+      "title": "فرشته قهوه‌ای؛ چهار حالت تزئینی، نه گوراستاخ",
+      "sha256": "9774e3b26f1abf9872d6e9d10abb1764c33f9377930380be09a6b21e62a8d6c1",
+      "width": 1254,
+      "height": 1254,
+      "origin": "existing_repository",
+      "visualInspection": true
+    },
+    {
+      "id": "angel-black-poses",
+      "path": "assets/face_reference_4_1254x1254.png",
+      "category": "decorative",
+      "title": "فرشته مشکی؛ چهار حالت تزئینی، نه گوراستاخ",
+      "sha256": "a72cf2766d94e9750ed9d63ad781c4f576b692e143c3515575e7c6d9b9d7698d",
+      "width": 1254,
+      "height": 1254,
+      "origin": "existing_repository",
+      "visualInspection": true
+    },
+    {
+      "id": "gorastakh-adult-turnaround",
+      "path": "assets/scene_reference_5_1536x1024.png",
+      "category": "reference",
+      "title": "گوراستاخ بزرگسال: هشت نما و سه نمای نزدیک؛ همان چهرهٔ مرجع قبلی",
+      "sha256": "597e331bcec1ee8c8a2e8b706383e9b26a4792d1452cfd2cd34485ff79fcb574",
+      "width": 1536,
+      "height": 1024,
+      "origin": "existing_repository",
+      "visualInspection": true
+    },
+    {
+      "id": "diagonal-default",
+      "path": "art/diag-classic-default.png",
+      "category": "sprites",
+      "title": "نمای مورب تازه: فرشته مشکی / گوراستاخ سفید",
+      "sha256": "bc0078ee8e06109cf375d5ad1680f46ff48089aea597811ee613e0fb50e1b955",
+      "width": 1774,
+      "height": 887,
+      "origin": "generated_from_approved_cardinal",
+      "visualInspection": true,
+      "userApproval": "pending",
+      "reference": "assets/caravan_world_asset_2.png"
+    }
+  ],
+  "runtimeDefault": {
+    "angel": {
+      "hair": "black",
+      "outfit": "classic",
+      "cardinal": "cardinal-default",
+      "diagonal": "diagonal-default",
+      "row": 0,
+      "cardinalColumns": [
+        "front",
+        "right",
+        "back",
+        "left"
+      ]
+    },
+    "gorastakh": {
+      "hair": "white",
+      "outfit": "classic",
+      "cardinal": "cardinal-default",
+      "diagonal": "diagonal-default",
+      "row": 1,
+      "cardinalColumns": [
+        "front",
+        "left",
+        "back",
+        "right"
+      ]
+    }
+  },
+  "atlas": {
+    "columns": 4,
+    "rows": 2,
+    "diagonalColumns": [
+      "front-right",
+      "back-right",
+      "back-left",
+      "front-left"
+    ],
+    "crossFadeMs": 160,
+    "walkCycleFramesPerDirection": 1
+  },
+  "variants": {
+    "completeEightDirections": [
+      "angel:black:classic",
+      "gorastakh:white:classic"
+    ],
+    "cardinalOnly": [
+      "gorastakh:brown:classic"
+    ],
+    "missing": [
+      "gorastakh:black:classic",
+      "angel:brown:classic",
+      "angel:white:classic",
+      "traveler outfits",
+      "celestial outfits",
+      "24-card travel album"
+    ]
+  },
+  "audit": {
+    "uniquePNGs": 19,
+    "duplicateLocations": 3,
+    "remoteArshiamBranchesSearched": 20,
+    "gameRepositoryHEAD": "05d6609fb83f5c51009c02d402dd9672d7695b86",
+    "historicalCloudFilesAccessible": false,
+    "notes": "Original images are preserved byte-for-byte. Decorative poses are not directional sprites. Gold-haired decorative angel is not a white-haired runtime variant.",
+    "embeddedHTML": {
+      "filesSearched": 6,
+      "imageReferences": 8,
+      "uniqueImages": 1,
+      "alreadyPresentAs": "assets/caravan_world_asset_2.png"
+    },
+    "excludedNonCharacterAssets": [
+      "character_detail_538x507.png (Python logo)",
+      "six plant illustrations",
+      "four app mockups"
+    ]
+  }
+}
