@@ -16,211 +16,108 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { getGardenState, saveGardenState, type GardenState } from "@/lib/garden";
-import { db, doc, setDoc, getDoc, serverTimestamp } from "@/lib/firebase";
+import { getGardenState, type GardenState } from "@/lib/garden";
+import {normalizeState,storageKey,trustedMessage,type CaravanState} from '../../public/caravan/state.js';
+import {caravanAccount} from '@/lib/caravanAccount';
+import {CaravanConflictError,loadCaravanCloud,saveCaravanCloud} from '@/lib/caravanCloud';
 
 export default function CaravanView() {
-  const { user } = useAuth();
-  const [garden, setGarden] = useState<GardenState>(getGardenState);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [syncingCloud, setSyncingCloud] = useState(false);
-  const [lastCloudSync, setLastCloudSync] = useState<string | null>(null);
-  const [caravanEssence, setCaravanEssence] = useState<number>(0);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Sync garden state from Arshnaz events
-  useEffect(() => {
-    const onGardenUpdate = (e: Event) => {
-      const updated = (e as CustomEvent<GardenState>).detail || getGardenState();
-      setGarden(updated);
-    };
-    window.addEventListener("arshnaz-garden-updated", onGardenUpdate);
-    return () => window.removeEventListener("arshnaz-garden-updated", onGardenUpdate);
-  }, []);
-
-  // Listen to postMessage events from the 3D Caravan game
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (!event.data || typeof event.data !== "object") return;
-      const { type, data } = event.data;
-
-      if (type === "CARAVAN_READY") {
-        sendStateToGame();
-      } else if (type === "CARAVAN_STATE_UPDATE") {
-        if (typeof data?.essence === "number") {
-          setCaravanEssence(data.essence);
-        }
-      } else if (type === "CARAVAN_REQUEST_SYNC_CLOUD") {
-        handleSaveToCloud(data);
-      } else if (type === "CARAVAN_MILESTONE_RESTORED") {
-        // Award bonus water drops in Arshnaz when user restores the Silent Garden!
-        const current = getGardenState();
-        const updated = {
-          ...current,
-          waterDrops: current.waterDrops + 50,
-          sunEnergy: current.sunEnergy + 25,
-          totalHarvests: current.totalHarvests + 1,
-        };
-        saveGardenState(updated);
-        toast.success("✨ پاداش احیای باغ خاموش در کاروان!", {
-          description: "+۵۰ قطره آب و +۲۵ انرژی خورشید به باغچهٔ ارشناز شما افزوده شد.",
-          duration: 5000,
-        });
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, [user]);
-
-  // Send current Arshnaz points and user profile to Caravan game iframe
-  const sendStateToGame = useCallback(() => {
-    if (!iframeRef.current?.contentWindow) return;
-    const currentGarden = getGardenState();
-    iframeRef.current.contentWindow.postMessage({
-      type: "ARSHNAZ_SYNC_STATE",
-      data: {
-        userId: user?.uid || null,
-        userName: user?.displayName || user?.email || "مسافر کاروان",
-        waterDrops: currentGarden.waterDrops,
-        sunEnergy: currentGarden.sunEnergy,
-        focusBlossoms: currentGarden.focusBlossoms || 0,
-        gardenLevel: currentGarden.gardenLevel || 1,
-        activePlant: currentGarden.activePlant?.name || null,
-      }
-    }, "*");
-  }, [user]);
-
-  // Handle converting 10 Arshnaz Sun Energy into 10 Caravan Light Essence
-  const handleConvertSunToEssence = () => {
-    const current = getGardenState();
-    if (current.sunEnergy < 10) {
-      toast.error("انرژی خورشید کافی نیست", {
-        description: "حداقل به ۱۰ واحد انرژی خورشید نیاز دارید. با انجام تسک‌ها انرژی کسب کنید!",
-      });
-      return;
-    }
-
-    const updated = {
-      ...current,
-      sunEnergy: current.sunEnergy - 10,
-    };
-    saveGardenState(updated);
-    setGarden(updated);
-
-    // Send converted essence to the game iframe
-    if (iframeRef.current?.contentWindow) {
-      iframeRef.current.contentWindow.postMessage({
-        type: "ARSHNAZ_AWARD_ESSENCE",
-        amount: 10,
-        reason: "تبدیل انرژی خورشید ارشناز",
-      }, "*");
-    }
-
-    toast.success("✦ تبدیل موفق امتیاز ارشناز!", {
-      description: "۱۰ واحد انرژی خورشید ارشناز به ۱۰ گوهر نور در کاروان تبدیل شد.",
+  const {user}=useAuth();
+  const owner=user?.id||'guest';
+  const ownerRef=useRef(owner);ownerRef.current=owner;
+  const [garden,setGarden]=useState<GardenState>(getGardenState);
+  const [isFullscreen,setIsFullscreen]=useState(false);
+  const [syncingCloud,setSyncingCloud]=useState(false);
+  const [lastCloudSync,setLastCloudSync]=useState<string|null>(null);
+  const [caravanEssence,setCaravanEssence]=useState(0);
+  const [gameReady,setGameReady]=useState(false);
+  const [bridgeError,setBridgeError]=useState('');
+  const [conflict,setConflict]=useState<{owner:string;revision:number}|null>(null);
+  const iframeRef=useRef<HTMLIFrameElement>(null);
+  const containerRef=useRef<HTMLDivElement>(null);
+  const handlersRef=useRef<(msg:Record<string,unknown>)=>void>(()=>{});
+  const pendingRpc=useRef(new Map<string,{owner:string;resolve:(state:CaravanState)=>void;reject:(error:Error)=>void}>());
+  const cloudBase=useRef<{owner:string;revision:number|null}>({owner,revision:null});
+  const cloudBusy=useRef(false);
+  const send=useCallback((msg:Record<string,unknown>)=>iframeRef.current?.contentWindow?.postMessage({...msg,bridgeVersion:1,ownerId:ownerRef.current},location.origin),[]);
+  const sendStateToGame=useCallback(()=>send({type:'ARSHNAZ_SYNC_STATE',data:{...getGardenState(),userName:user?.displayName||'مسافر کاروان'}}),[send,user?.displayName]);
+  useEffect(()=>{
+    const onUpdate=()=>{setGarden(getGardenState());sendStateToGame();};
+    window.addEventListener('arshnaz-garden-updated',onUpdate);
+    return()=>window.removeEventListener('arshnaz-garden-updated',onUpdate);
+  },[sendStateToGame]);
+  useEffect(()=>{
+    setGameReady(false);setBridgeError('');setConflict(null);setLastCloudSync(null);cloudBase.current={owner,revision:null};
+    for(const p of pendingRpc.current.values())p.reject(new Error('حساب تغییر کرد.'));pendingRpc.current.clear();
+    sendStateToGame();
+    const timeout=setTimeout(()=>setBridgeError('اگر بازی آماده نشده است، صفحه را دوباره باز کن.'),15000);
+    return()=>clearTimeout(timeout);
+  },[owner,sendStateToGame]);
+  useEffect(()=>{
+    const listener=(event:MessageEvent)=>{if(trustedMessage(event,iframeRef.current?.contentWindow,location.origin))handlersRef.current(event.data);};
+    const fullscreen=()=>setIsFullscreen(document.fullscreenElement===containerRef.current);
+    window.addEventListener('message',listener);document.addEventListener('fullscreenchange',fullscreen);
+    const requests=pendingRpc.current;
+    return()=>{window.removeEventListener('message',listener);document.removeEventListener('fullscreenchange',fullscreen);for(const p of requests.values())p.reject(new Error('بازی بسته شد.'));requests.clear();};
+  },[]);
+  function rpc(type:string,data?:unknown):Promise<CaravanState>{
+    const requestId=crypto.randomUUID(),captured=ownerRef.current;
+    return new Promise((resolve,reject)=>{
+      const timer=setTimeout(()=>{pendingRpc.current.delete(requestId);reject(new Error('بازی پاسخ نداد؛ عملیات تأیید نشده است.'));},10000);
+      pendingRpc.current.set(requestId,{owner:captured,resolve:s=>{clearTimeout(timer);resolve(s);},reject:e=>{clearTimeout(timer);reject(e);}});
+      send({type,requestId,data});
     });
+  }
+  function requireCloud(){if(!user?.id||user.app_metadata?.provider==='guest')throw new Error('ابتدا وارد حساب ارشناز شوید.');if(!gameReady)throw new Error('بازی هنوز آماده نیست.');if(!navigator.onLine)throw new Error('آفلاین هستید؛ پیشرفت محلی محفوظ است.');if(caravanAccount(owner).pending())throw new Error('ابتدا انتقال نیمه‌تمام باید تکمیل شود.');}
+  const handleSaveToCloud=async(expectedRevision?:number)=>{
+    if(cloudBusy.current)return;
+    const captured=owner;
+    try{
+      requireCloud();cloudBusy.current=true;setSyncingCloud(true);
+      const snapshot=await rpc('ARSHNAZ_REQUEST_SNAPSHOT');
+      if(ownerRef.current!==captured)return;
+      const base=expectedRevision??(cloudBase.current.owner===captured?cloudBase.current.revision:null);
+      const revision=await saveCaravanCloud(captured,snapshot,base);
+      if(ownerRef.current!==captured)return;
+      cloudBase.current={owner:captured,revision};setConflict(null);setLastCloudSync(new Date().toLocaleTimeString('fa-IR'));toast.success('پیشرفت در فایربیس ذخیره شد.');
+    }catch(error){
+      if(ownerRef.current!==captured)return;
+      if(error instanceof CaravanConflictError){setConflict({owner:captured,revision:error.revision});toast.info(error.message);}else toast.error(error instanceof Error?error.message:'ذخیره انجام نشد.');
+    }finally{cloudBusy.current=false;setSyncingCloud(false);}
   };
-
-  // Handle saving caravan state to Firebase Firestore
-  const handleSaveToCloud = async (overrideData?: any) => {
-    if (!user?.uid) {
-      toast.error("ابتدا وارد حساب ارشناز شوید", {
-        description: "برای همگام‌سازی ابری فایربیس، لطفاً وارد حساب کاربری خود شوید.",
-      });
-      return;
-    }
-
-    setSyncingCloud(true);
-    try {
-      // Get game state from localStorage or overrideData
-      let caravanRaw = overrideData;
-      if (!caravanRaw) {
-        const raw = localStorage.getItem("caravan_personal_world_v1");
-        if (raw) caravanRaw = JSON.parse(raw);
-      }
-
-      if (caravanRaw) {
-        const saveDocRef = doc(db, "users", user.uid, "caravan_profile", "save_v1");
-        await setDoc(saveDocRef, {
-          ...caravanRaw,
-          userId: user.uid,
-          updatedAt: serverTimestamp(),
-          clientUpdatedAt: new Date().toISOString(),
-          arshnazGardenLevel: garden.gardenLevel,
-        }, { merge: true });
-
-        const nowStr = new Date().toLocaleTimeString("fa-IR");
-        setLastCloudSync(nowStr);
-        toast.success("☁️ ذخیرهٔ ابری فایربیس با موفقیت ثبت شد", {
-          description: `اطلاعات و دنیای سه‌بعدی شما در ساعت ${nowStr} در فایربیس ذخیره شد.`,
-        });
-
-        // Notify iframe
-        iframeRef.current?.contentWindow?.postMessage({
-          type: "ARSHNAZ_CLOUD_SAVED",
-          time: nowStr,
-        }, "*");
-      }
-    } catch (err: any) {
-      console.error("Firebase caravan save failed:", err);
-      toast.error("خطا در همگام‌سازی با فایربیس", {
-        description: err?.message || "اتصال اینترنت را بررسی کنید.",
-      });
-    } finally {
-      setSyncingCloud(false);
-    }
+  const handleRestoreFromCloud=async()=>{
+    if(cloudBusy.current)return;
+    const captured=owner;
+    try{
+      requireCloud();cloudBusy.current=true;setSyncingCloud(true);
+      const result=await loadCaravanCloud(captured);
+      if(ownerRef.current!==captured)return;
+      await rpc('ARSHNAZ_RESTORE_SNAPSHOT',result.state);
+      if(ownerRef.current!==captured)return;
+      cloudBase.current={owner:captured,revision:result.revision};setConflict(null);setLastCloudSync(new Date().toLocaleTimeString('fa-IR'));toast.success('پیشرفت از فایربیس بازیابی شد.');
+    }catch(error){if(ownerRef.current===captured)toast.error(error instanceof Error?error.message:'بازیابی انجام نشد.');}
+    finally{cloudBusy.current=false;setSyncingCloud(false);}
   };
-
-  // Handle restoring caravan state from Firebase Firestore
-  const handleRestoreFromCloud = async () => {
-    if (!user?.uid) {
-      toast.error("ابتدا وارد حساب شوید");
-      return;
-    }
-
-    setSyncingCloud(true);
-    try {
-      const saveDocRef = doc(db, "users", user.uid, "caravan_profile", "save_v1");
-      const snap = await getDoc(saveDocRef);
-      if (!snap.exists()) {
-        toast.info("هنوز ذخیرهٔ ابری در فایربیس یافت نشد", {
-          description: "دکمهٔ «ذخیره در ابر» را بزنید تا پیشرفت شما ذخیره شود.",
-        });
-        return;
-      }
-
-      const cloudData = snap.data();
-      localStorage.setItem("caravan_personal_world_v1", JSON.stringify(cloudData));
-
-      // Reload or notify game
-      if (iframeRef.current?.contentWindow) {
-        iframeRef.current.contentWindow.postMessage({
-          type: "ARSHNAZ_CLOUD_LOADED",
-          data: cloudData,
-        }, "*");
-      }
-
-      toast.success("📥 پیشرفت بازی از فایربیس بازگردانی شد!");
-    } catch (err: any) {
-      console.error("Firebase restore failed:", err);
-      toast.error("خطا در بازیابی از فایربیس");
-    } finally {
-      setSyncingCloud(false);
-    }
+  handlersRef.current=msg=>{
+    if(msg.type==='CARAVAN_READY'){sendStateToGame();return;}
+    if(msg.ownerId!==ownerRef.current)return;
+    const data=msg.data as Record<string,unknown>|undefined;
+    if(msg.type==='CARAVAN_SYNCED' && data?.ready){
+      try{caravanAccount(owner).replay();const raw=localStorage.getItem(storageKey(owner));if(raw)send({type:'ARSHNAZ_RECOVER_STATE',data:normalizeState(JSON.parse(raw),owner)});setGameReady(true);setBridgeError('');}
+      catch(error){setGameReady(false);setBridgeError(error instanceof Error?error.message:'ارتباط آماده نشد.');}
+    }else if(msg.type==='CARAVAN_STATE_UPDATE'&&typeof data?.essence==='number'){setCaravanEssence(data.essence);}
+    else if(msg.type==='CARAVAN_TRANSFER_REQUEST'){
+      if(typeof msg.requestId!=='string'||typeof msg.action!=='string')return;
+      try{if(!gameReady)throw new Error('ارتباط آماده نیست.');const state=caravanAccount(owner).transfer(msg.requestId,msg.action,(msg.payload||{}) as Record<string,unknown>);send({type:'ARSHNAZ_TRANSFER_RESULT',requestId:msg.requestId,data:state});setGarden(getGardenState());setCaravanEssence(state.essence);}
+      catch(error){send({type:'ARSHNAZ_TRANSFER_RESULT',requestId:msg.requestId,error:error instanceof Error?error.message:'عملیات انجام نشد.'});}
+    }else if(msg.type==='CARAVAN_RPC_RESULT'){
+      const request=pendingRpc.current.get(msg.requestId as string);if(!request||request.owner!==ownerRef.current)return;pendingRpc.current.delete(msg.requestId as string);
+      try{if(msg.error)throw new Error(String(msg.error));request.resolve(normalizeState(msg.data,owner));}catch(error){request.reject(error instanceof Error?error:new Error('پاسخ معتبر نیست.'));}
+    }else if(msg.type==='CARAVAN_REQUEST_SYNC_CLOUD'){void handleSaveToCloud();}
+    else if(msg.type==='CARAVAN_REQUEST_RESTORE_CLOUD'){void handleRestoreFromCloud();}
   };
-
-  const toggleFullscreen = () => {
-    if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen?.().catch(() => {});
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen?.().catch(() => {});
-      setIsFullscreen(false);
-    }
-  };
+  const handleConvertSunToEssence=()=>{if(gameReady)send({type:'ARSHNAZ_RUN_ACTION',action:'convert-sun'});};
+  const toggleFullscreen=async()=>{try{if(document.fullscreenElement===containerRef.current)await document.exitFullscreen();else await containerRef.current?.requestFullscreen();}catch{toast.error('تمام‌صفحه در این مرورگر فعال نشد.');}};
 
   return (
     <div 
@@ -273,7 +170,7 @@ export default function CaravanView() {
             size="sm"
             variant="outline"
             onClick={handleConvertSunToEssence}
-            disabled={garden.sunEnergy < 10}
+            disabled={!gameReady || garden.sunEnergy < 10}
             className="h-7 text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/30 gap-1"
             title="تبدیل ۱۰ انرژی خورشید به ۱۰ گوهر نور در کاروان"
           >
@@ -286,7 +183,7 @@ export default function CaravanView() {
             size="sm"
             variant="outline"
             onClick={() => {
-              iframeRef.current?.contentWindow?.postMessage({ type: "ARSHNAZ_OPEN_GALAXY" }, "*");
+              send({type: "ARSHNAZ_OPEN_GALAXY"});
             }}
             className="h-7 text-xs bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border-indigo-500/30 gap-1"
             title="نقشه کهکشان و سیارات"
@@ -298,7 +195,7 @@ export default function CaravanView() {
             size="sm"
             variant="outline"
             onClick={() => {
-              iframeRef.current?.contentWindow?.postMessage({ type: "ARSHNAZ_GO_CODERS" }, "*");
+              send({type: "ARSHNAZ_GO_CODERS"});
               toast.info("💻 پرواز به سوی سیارهٔ کدنویس‌ها", {
                 description: "کالبدهای تیره و انگشتان نور در حال کامپایل واقعیت هستند."
               });
@@ -313,7 +210,7 @@ export default function CaravanView() {
             size="sm"
             variant="outline"
             onClick={() => {
-              iframeRef.current?.contentWindow?.postMessage({ type: "ARSHNAZ_GO_ANJEERAN" }, "*");
+              send({type: "ARSHNAZ_GO_ANJEERAN"});
               toast.info("⎊ پرواز به سوی سیارهٔ انجیران", {
                 description: "مهندسان معلق در حال ساخت قطعات سازهٔ چشم بزرگ هستند."
               });
@@ -328,7 +225,7 @@ export default function CaravanView() {
             size="sm"
             variant="outline"
             onClick={() => {
-              iframeRef.current?.contentWindow?.postMessage({ type: "ARSHNAZ_OPEN_NEXUS" }, "*");
+              send({type: "ARSHNAZ_OPEN_NEXUS"});
               toast.info("👁️ کانون همگرایی کیهانی چشم بزرگ", {
                 description: "اتحاد ۴ قدرت (فرشته، گوراستاخ، کدنویس‌ها، انجیران) در برابر انرژی تاریک."
               });
@@ -344,7 +241,7 @@ export default function CaravanView() {
             size="sm"
             variant="outline"
             onClick={() => handleSaveToCloud()}
-            disabled={syncingCloud || !user}
+            disabled={!gameReady || syncingCloud || !user}
             className="h-7 text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30 gap-1"
             title={user ? "ذخیره در سرور ابری فایربیس ارشناز" : "ابتدا وارد حساب شوید"}
           >
@@ -380,11 +277,16 @@ export default function CaravanView() {
         </div>
       </div>
 
+      {!gameReady && <p role="status" className="px-4 py-2 text-xs text-amber-300">{bridgeError || 'در حال آماده‌سازی بازی…'}</p>}
+      {conflict && conflict.owner===owner && <div role="status" className="px-4 py-2 text-xs">ذخیرهٔ ابری دیگری وجود دارد؛ پیشرفت محلی حفظ شده است.
+        <Button disabled={syncingCloud} onClick={()=>void handleRestoreFromCloud()}>بازیابی نسخهٔ ابری</Button>
+        <Button disabled={syncingCloud} onClick={()=>void handleSaveToCloud(conflict.revision)}>جایگزینی با نسخهٔ محلی</Button>
+      </div>}
       {/* Main 3D Game Canvas Iframe */}
       <div className="flex-1 w-full h-full relative bg-black">
         <iframe
           ref={iframeRef}
-          src={`/caravan/index.html?v=${Date.now()}`}
+          src="/caravan/index.html?v=reliability-2"
           className="w-full h-full border-0 block"
           title="کاروان رؤیاها · ریشه‌های نور"
           allow="autoplay; fullscreen"

@@ -62,6 +62,7 @@ export interface GardenState {
   soundEnabled: boolean;
   timeOfDayMode: "auto" | TimeOfDay;
   lastCheckinRewardDate?: string;
+  caravanAppliedTransfers?: string[];
 }
 
 export const PLANT_SPECIES: Record<PlantType, PlantMetadata> = {
@@ -250,6 +251,8 @@ export function recordPomodoroFocusSession(minutes: number, eventId?: string): {
 
   return { dropsAwarded, newBlossoms };
 }
+
+export function getGardenOwnerId() { return currentGardenUserId || "guest"; }
 
 function gardenKey() {
   return currentGardenUserId ? `${GARDEN_STORAGE_KEY}_${currentGardenUserId}` : GARDEN_STORAGE_KEY;
