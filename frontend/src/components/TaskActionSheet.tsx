@@ -112,16 +112,21 @@ export default function TaskActionSheet({
   };
 
   const startWork = async () => {
-    if (!canEdit || task.completed || task.status !== "todo") return;
-    if (shouldWarnWipStart(wipEnabled, wipCount, wipLimit, task)) {
-      toast.warning(T(
-        `هم‌اکنون ${wipCount} کار در حال انجام است؛ این کار هم بدون محدودیت شروع می‌شود.`,
-        `${wipCount} tasks are already in progress. This task can still be started.`
-      ));
+    if (!canEdit || busy || task.completed || task.status !== "todo") return;
+    setBusy(true);
+    try {
+      if (shouldWarnWipStart(wipEnabled, wipCount, wipLimit, task)) {
+        toast.warning(T(
+          `هم‌اکنون ${wipCount} کار در حال انجام است؛ این کار هم بدون محدودیت شروع می‌شود.`,
+          `${wipCount} tasks are already in progress. This task can still be started.`
+        ));
+      }
+      const status = await applyPatch({ status: "in_progress", completed: false }, "started", { status: "in_progress" });
+      reportSave(status, isEn, T("کار شروع شد", "Work started"));
+      if (status !== "failed") close();
+    } finally {
+      setBusy(false);
     }
-    const status = await applyPatch({ status: "in_progress", completed: false }, "started", { status: "in_progress" });
-    reportSave(status, isEn, T("کار شروع شد", "Work started"));
-    if (status !== "failed") close();
   };
 
   const close = () => {

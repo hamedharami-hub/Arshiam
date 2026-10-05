@@ -180,6 +180,22 @@ describe("TaskActionSheet Responsive Behavior", () => {
     expect(feedback.warning).toHaveBeenCalledTimes(1);
   });
 
+  it("prevents duplicate start writes while the first request is pending", async () => {
+    localStorage.setItem("arshnaz_nav_mode", "windows");
+    let resolvePatch!: (status: "saved") => void;
+    const onPatch = vi.fn(() => new Promise<"saved">(resolve => { resolvePatch = resolve; }));
+    render(<TaskActionSheet {...defaultProps} onPatch={onPatch} onSetWipEnabled={planningMocks.setWipEnabled} />);
+
+    const getStartButton = () => screen.getByText(/شروع کار|Start work/i).closest("button")!;
+    fireEvent.click(getStartButton());
+    await waitFor(() => expect(getStartButton()).toBeDisabled());
+    fireEvent.click(getStartButton());
+    expect(onPatch).toHaveBeenCalledTimes(1);
+
+    resolvePatch("saved");
+    await waitFor(() => expect(defaultProps.onOpenChange).toHaveBeenCalledWith(false));
+  });
+
   it("keeps the WIP setting opt-in in the existing More menu", () => {
     localStorage.setItem("arshnaz_nav_mode", "windows");
     render(<TaskActionSheet {...defaultProps} onSetWipEnabled={planningMocks.setWipEnabled} onSetWipLimit={planningMocks.setWipLimit} />);
