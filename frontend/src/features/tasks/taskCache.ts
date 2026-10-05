@@ -1,4 +1,5 @@
 import type { Task } from "@/lib/taskTypes";
+import { normalizeTaskPriority } from "@/lib/priority";
 
 export const TASK_CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -59,9 +60,13 @@ export function isTaskCacheFresh(cachedAt: number | undefined, now = Date.now())
 }
 
 export function extractTasksFromCache(value: unknown): Task[] {
-  if (Array.isArray(value)) return value.filter(Boolean) as Task[];
+  if (Array.isArray(value)) return value.filter(Boolean).map(normalizeCachedTask) as Task[];
   if (value && typeof value === "object" && Array.isArray((value as any).tasks)) {
-    return (value as any).tasks.filter(Boolean) as Task[];
+    return (value as any).tasks.filter(Boolean).map(normalizeCachedTask) as Task[];
   }
   return [];
+}
+
+function normalizeCachedTask(task: any): Task {
+  return { ...task, priority: normalizeTaskPriority(task?.priority) } as Task;
 }

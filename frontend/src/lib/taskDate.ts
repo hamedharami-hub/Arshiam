@@ -46,19 +46,20 @@ export function getLocalDateString(date: Date = new Date(), timeZone?: string): 
   return `${year}-${month}-${day}`;
 }
 
-export function formatTaskDueDateDisplay(value: string | null | undefined, isEn = false): string {
-  return formatDueLabel(value, null, isEn ? "en" : "fa") || "";
+export function formatTaskDueDateDisplay(value: string | null | undefined, isEn = false, scheduleVersion?: number | null): string {
+  return formatDueLabel(value, null, isEn ? "en" : "fa", scheduleVersion) || "";
 }
 
 /**
  * True once the task's remaining date/time has passed.
  * Date-only values are overdue after that day ends; values with a clock time are overdue at that time.
- * (A legacy 23:59 stamp is treated as an all-day marker.)
+ * Only legacy, non-v2 23:59 values can be treated as an all-day marker.
  */
-export function isScheduleOverdue(value: string | null | undefined, now: Date = new Date()): boolean {
+export function isScheduleOverdue(value: string | null | undefined, now: Date = new Date(), scheduleVersion?: number | null): boolean {
   const d = parseTaskDueDate(value);
   if (!d || !value) return false;
-  const allDay = !value.includes("T") || (d.getHours() === 23 && d.getMinutes() === 59);
+  const legacyLastMinuteMarker = scheduleVersion !== 2 && d.getHours() === 23 && d.getMinutes() === 59;
+  const allDay = !value.includes("T") || legacyLastMinuteMarker;
   if (allDay) return d.getTime() < new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   return d.getTime() < now.getTime();
 }

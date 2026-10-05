@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,15 @@ import remarkGfm from "remark-gfm";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTranslation } from "react-i18next";
 import { compactTasksForAI } from "@/lib/taskSchedule";
+import { normalizeTaskPriority } from "@/lib/priority";
+import { persistTask } from "@/lib/firestoreDataService";
+import { parseNaturalDate } from "@/lib/nlDate";
+
+type SuggestedTask = { id: string; title: string; description?: string };
+
+function newTaskId() {
+  return `task_ai_${globalThis.crypto?.randomUUID?.() || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`}`;
+}
 
 export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const { user } = useAuth();
@@ -27,29 +36,39 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
   const [tab, setTab] = useState("create");
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState<{ title: string; description?: string }[]>([]);
+  const [suggestions, setSuggestions] = useState<SuggestedTask[]>([]);
   const [picked, setPicked] = useState<Record<number, boolean>>({});
   const [chat, setChat] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [aiLang, setAiLang] = useState<AILanguage>(getAILanguage());
   const [lastResultMeta, setLastResultMeta] = useState<{ provider?: string; model?: string } | null>(null);
+  const createIntentRef = useRef<{ input: string; id: string } | null>(null);
 
   const createTaskFromNL = async () => {
     if (!input.trim() || !user) return;
+    const submittedText = input.trim();
+    if (createIntentRef.current?.input !== submittedText) {
+      createIntentRef.current = { input: submittedText, id: newTaskId() };
+    }
     setLoading(true);
     try {
-      const r = await callAI("parse_task", input, undefined, undefined, aiLang);
+      const r = await callAI("parse_task", submittedText, undefined, undefined, aiLang);
       if (r.provider && r.model) setLastResultMeta({ provider: r.provider, model: r.model });
       if (!r.data?.title) throw new Error("نتوانست تسک بسازد");
-      const { error } = await firebaseStore.from("tasks").insert({
+      const result = await persistTask(user.id, {
+        id: createIntentRef.current.id,
         user_id: user.id,
         title: r.data.title,
         description: r.data.description || null,
-        priority: r.data.priority || "none",
-        due_date: r.data.due_date || null,
+        priority: normalizeTaskPriority(r.data.priority),
+        // Use only a day/clock the user actually wrote; the model cannot invent one.
+        work_date: parseNaturalDate(submittedText).dueDate || null,
+        completed: false,
+        status: "todo",
       });
-      if (error) throw error;
-      toast.success("تسک ساخته شد ✨");
+      if (result === "failed") throw new Error(isEn ? "Task could not be saved" : "ذخیره تسک انجام نشد");
+      toast.success(result === "queued" ? (isEn ? "Task queued to sync" : "تسک برای همگام‌سازی صف شد") : "تسک ساخته شد ✨");
+      createIntentRef.current = null;
       setInput("");
     } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
@@ -79,7 +98,10 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
     try {
       const r = await callAI("suggest", input, undefined, undefined, aiLang);
       if (r.provider && r.model) setLastResultMeta({ provider: r.provider, model: r.model });
-      if (r.data?.items) setSuggestions(r.data.items);
+      if (Array.isArray(r.data?.items)) setSuggestions(r.data.items.map((suggestion: Omit<SuggestedTask, "id">) => ({
+        ...suggestion,
+        id: newTaskId(),
+      })));
     } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
   };
@@ -88,10 +110,14 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
     if (!user) return;
     const sel = suggestions.filter((_, i) => picked[i]);
     if (!sel.length) return toast.error("چیزی انتخاب نشده");
-    const rows = sel.map((s) => ({ user_id: user.id, title: s.title, description: s.description || null }));
-    const { error } = await firebaseStore.from("tasks").insert(rows);
-    if (error) toast.error(error.message);
-    else { toast.success(`${sel.length} تسک اضافه شد`); setSuggestions([]); setPicked({}); setInput(""); }
+    const results = await Promise.all(sel.map((s) => persistTask(user.id, {
+      id: s.id, user_id: user.id, title: s.title, description: s.description || null,
+      priority: "none", completed: false, status: "todo",
+    })));
+    const failed = results.filter((result) => result === "failed").length;
+    if (failed) toast.error(isEn ? `${failed} task(s) could not be saved` : `ذخیرهٔ ${failed} تسک انجام نشد`);
+    else toast.success(results.some((result) => result === "queued") ? (isEn ? `${sel.length} tasks queued to sync` : `${sel.length} تسک برای همگام‌سازی صف شد`) : `${sel.length} تسک اضافه شد`);
+    if (!failed) { setSuggestions([]); setPicked({}); setInput(""); }
   };
 
   const sendChat = async () => {
@@ -164,7 +190,7 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
           {suggestions.length > 0 && (
             <div className="space-y-2 mt-4">
               {suggestions.map((s, i) => (
-                <Card key={i} className="p-3 flex gap-3 items-start cursor-pointer hover:bg-accent/30"
+                <Card key={s.id} className="p-3 flex gap-3 items-start cursor-pointer hover:bg-accent/30"
                   onClick={() => setPicked((p) => ({ ...p, [i]: !p[i] }))}>
                   <Checkbox checked={picked[i] || false} className="mt-0.5" />
                   <div className="flex-1 min-w-0">
@@ -226,4 +252,3 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
     </Sheet>
   );
 }
-

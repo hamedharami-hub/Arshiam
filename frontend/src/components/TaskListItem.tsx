@@ -20,7 +20,7 @@ import { formatTaskDueDateDisplay, getLocalDateString, taskWorkDate, workDatePat
 import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
 import { playCompletionFeedback } from "@/lib/completionFeedback";
 import type { Task } from "@/lib/taskTypes";
-import { PRIORITY_META } from "@/lib/priority";
+import { normalizeTaskPriority, PRIORITY_META } from "@/lib/priority";
 import { isTaskOverdue } from "@/lib/taskPlanning";
 import { getTimeSettings } from "@/lib/timeHorizon";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -130,7 +130,7 @@ const TaskListItemComponent = ({
   const studyNavigation = getStudyTaskNavigation(t);
   const isNextTask = todayNextTaskId === t.id;
   const isImportantToday = todayImportantTaskIds.includes(t.id);
-  const priorityMeta = PRIORITY_META[t.priority] ?? PRIORITY_META.none;
+  const priorityMeta = PRIORITY_META[normalizeTaskPriority(t.priority)];
   // Today/Next-7 group overdue rows under a header, so only ungrouped lists need a row-level pill.
   const overdue = useMemo(
     () => (showOverdueBadge ? isTaskOverdue(t, getTimeSettings()) : false),

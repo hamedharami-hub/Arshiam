@@ -26,6 +26,13 @@ describe("horizon filters", () => {
     expect(out.map((x) => x.id)).toEqual(["z", "x", "y"]);
   });
 
+  it("filters and sorts legacy API priority aliases using current priority ranks", () => {
+    const legacyHigh = t("legacy-high", { priority: "p1" as any });
+    const legacyNone = t("legacy-none", { priority: "p4" as any });
+    expect(applyFilter([legacyHigh, legacyNone], { ...EMPTY_FILTER, priorities: ["high"] }, new Map()).map((task) => task.id)).toEqual(["legacy-high"]);
+    expect(sortTasks([legacyNone, legacyHigh], "priority").map((task) => task.id)).toEqual(["legacy-high", "legacy-none"]);
+  });
+
   it("filters by completion status (active, completed, all)", () => {
     const tasks = [t("t1", { completed: false }), t("t2", { completed: true })];
     const tags = new Map();

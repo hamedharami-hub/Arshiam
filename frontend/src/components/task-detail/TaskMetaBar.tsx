@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Folder as FolderIcon, Tag as TagIcon, Ban, Plus, Check, Pin, CalendarDays, CalendarRange, Target, Flag, X, Inbox } from "lucide-react";
 import { PriorityFlag } from "@/components/PriorityFlag";
-import { PRIORITY_META, PRIORITY_ORDER, type Priority } from "@/lib/priority";
+import { normalizeTaskPriority, PRIORITY_META, PRIORITY_ORDER, type Priority } from "@/lib/priority";
 import { TIME_HORIZONS, type GoalKanban } from "@/lib/kanbanGoals";
 import type { Task } from "@/lib/taskTypes";
 import { TaskScheduleBody } from "./TaskSchedulingSheet";
@@ -90,7 +90,7 @@ export function TaskMetaBar(props: TaskMetaBarProps) {
   } = props;
   const panelRef = useRef<HTMLDivElement>(null);
   const selectedTags = tags.filter((tg) => taskTagIds.includes(tg.id));
-  const priorityMeta = PRIORITY_META[t.priority] || PRIORITY_META.none;
+  const priorityMeta = PRIORITY_META[normalizeTaskPriority(t.priority)];
   const toggle = (p: TaskMetaPanel) => setPanel(panel === p ? null : p);
 
   // Escape closes the open panel first (captured before dialogs/drawers see it).

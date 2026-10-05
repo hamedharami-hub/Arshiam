@@ -1,4 +1,14 @@
 export type Priority = "none" | "low" | "medium" | "high" | "urgent";
+const LEGACY_PRIORITY: Record<string, Priority> = { p1: "high", p2: "medium", p3: "low", p4: "none" };
+
+/** Read-only compatibility for records written by the old p1…p4 API schema. */
+export function normalizeTaskPriority(value: unknown): Priority {
+  if (typeof value !== "string") return "none";
+  const normalized = LEGACY_PRIORITY[value] || value;
+  return normalized === "low" || normalized === "medium" || normalized === "high" || normalized === "urgent" || normalized === "none"
+    ? normalized
+    : "none";
+}
 
 export const PRIORITY_META: Record<Priority, {
   label: string;

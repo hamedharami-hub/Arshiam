@@ -1,4 +1,4 @@
-import { scheduleWrite, taskDateOf, taskDayOf } from "./taskSchedule.js";
+import { InvalidTaskPriorityError, InvalidTaskScheduleError, normalizeTaskPriority, normalizeTaskScheduleInput, normalizeTimeZone, scheduleWrite, stripRemovedTaskTimeFields, taskDateOf, taskDayOf } from "./taskSchedule.js";
 import { randomBytes, createHash } from "node:crypto";
 import {
   adminDb,
@@ -82,11 +82,13 @@ async function getCollectionDocs(grant: AssistantGrant, collectionName: string):
         ? testStore.folders
         : testStore.notes;
 
-    return Array.from(storeMap.values()).filter((item) => item.user_id === grant.userId);
+    const rows = Array.from(storeMap.values()).filter((item) => item.user_id === grant.userId);
+    return collectionName === "tasks" ? rows.map(stripRemovedTaskTimeFields) : rows;
   }
 
   const snapshot = await adminDb().collection(`users/${grant.userId}/${collectionName}`).get();
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const rows = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return collectionName === "tasks" ? rows.map(stripRemovedTaskTimeFields) : rows;
 }
 
 async function getDocById(grant: AssistantGrant, collectionName: string, id: string): Promise<any | null> {
@@ -100,11 +102,13 @@ async function getDocById(grant: AssistantGrant, collectionName: string, id: str
 
     const item = storeMap.get(id);
     if (!item || item.user_id !== grant.userId) return null;
-    return item;
+    return collectionName === "tasks" ? stripRemovedTaskTimeFields(item) : item;
   }
 
   const doc = await adminDb().doc(`users/${grant.userId}/${collectionName}/${id}`).get();
-  return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  if (!doc.exists) return null;
+  const item = { id: doc.id, ...doc.data() };
+  return collectionName === "tasks" ? stripRemovedTaskTimeFields(item) : item;
 }
 
 async function saveDoc(
@@ -125,17 +129,19 @@ async function saveDoc(
     const existing = storeMap.get(id);
     const finalDoc = isUpdate ? { ...existing, ...data, id, user_id: grant.userId } : { ...data, id, user_id: grant.userId };
     storeMap.set(id, finalDoc);
-    return finalDoc;
+    return collectionName === "tasks" ? stripRemovedTaskTimeFields(finalDoc) : finalDoc;
   }
 
   const ref = adminDb().doc(`users/${grant.userId}/${collectionName}/${id}`);
   if (isUpdate) {
     await ref.update(data);
     const updated = await ref.get();
-    return { id, ...updated.data() };
+    const result = { id, ...updated.data() };
+    return collectionName === "tasks" ? stripRemovedTaskTimeFields(result) : result;
   } else {
     await ref.set(data);
-    return { id, ...data };
+    const result = { id, ...data };
+    return collectionName === "tasks" ? stripRemovedTaskTimeFields(result) : result;
   }
 }
 
@@ -170,6 +176,10 @@ function paginateList(items: any[], page = 1, pageSize = 50) {
 
 async function handleGetTasks(grant: AssistantGrant, query: any, res: any) {
   const allTasks = await getCollectionDocs(grant, "tasks");
+  const userTimeZone = query.time_zone === undefined ? undefined : normalizeTimeZone(query.time_zone);
+  if (query.time_zone !== undefined && !userTimeZone) {
+    return sendError(res, 400, "VALIDATION_ERROR", "Invalid IANA 'time_zone' query parameter.");
+  }
 
   let filtered = allTasks;
 
@@ -177,7 +187,8 @@ async function handleGetTasks(grant: AssistantGrant, query: any, res: any) {
     filtered = filtered.filter((t) => t.status === query.status);
   }
   if (query.priority) {
-    filtered = filtered.filter((t) => t.priority === query.priority);
+    const requestedPriority = normalizeTaskPriority(query.priority);
+    filtered = filtered.filter((t) => normalizeTaskPriority(t.priority) === requestedPriority);
   }
   if (query.completed !== undefined) {
     const isCompleted = query.completed === "true" || query.completed === true;
@@ -187,13 +198,13 @@ async function handleGetTasks(grant: AssistantGrant, query: any, res: any) {
     filtered = filtered.filter((t) => t.folder_id === query.folder_id);
   }
   if (query.due_date) {
-    filtered = filtered.filter((t) => (taskDayOf(t) || "").startsWith(query.due_date));
+    filtered = filtered.filter((t) => (taskDayOf(t, userTimeZone) || "").startsWith(query.due_date));
   }
   if (query.from_date) {
-    filtered = filtered.filter((t) => { const day = taskDayOf(t); return day !== null && day >= query.from_date; });
+    filtered = filtered.filter((t) => { const day = taskDayOf(t, userTimeZone); return day !== null && day >= query.from_date; });
   }
   if (query.to_date) {
-    filtered = filtered.filter((t) => { const day = taskDayOf(t); return day !== null && day <= query.to_date; });
+    filtered = filtered.filter((t) => { const day = taskDayOf(t, userTimeZone); return day !== null && day <= query.to_date; });
   }
   if (query.search) {
     const q = String(query.search).toLowerCase();
@@ -245,10 +256,10 @@ async function handleCreateTask(grant: AssistantGrant, body: any, req: any, res:
     user_id: grant.userId,
     title: body.title.trim(),
     description: typeof body.description === "string" ? body.description.trim() : null,
-    priority: body.priority || "p4",
+    priority: normalizeTaskPriority(body.priority),
     status: body.status || (isCompleted ? "done" : "todo"),
     completed: isCompleted,
-    ...scheduleWrite(body.work_date || body.due_date || null, body.schedule_timezone),
+    ...(normalizeTaskScheduleInput(body, body.schedule_timezone) || scheduleWrite(null)),
     folder_id: body.folder_id || null,
     pinned: Boolean(body.pinned),
     recurrence: body.recurrence || "none",
@@ -297,9 +308,10 @@ async function handlePatchTask(grant: AssistantGrant, taskId: string, body: any,
       patch[field] = body[field];
     }
   }
+  if (body.priority !== undefined) patch.priority = normalizeTaskPriority(body.priority);
   // One schedule: a new day/instant replaces any earlier schedule (legacy `due_date` accepted).
-  const dateInput = body.work_date !== undefined ? body.work_date : body.due_date;
-  if (dateInput !== undefined) Object.assign(patch, scheduleWrite(dateInput, body.schedule_timezone || existing.schedule_timezone));
+  const schedule = normalizeTaskScheduleInput(body, existing.schedule_timezone);
+  if (schedule) Object.assign(patch, schedule);
 
   if (typeof patch.title === "string") {
     patch.title = patch.title.trim();
@@ -729,11 +741,16 @@ async function handleCreateCalendarEvent(grant: AssistantGrant, body: any, req: 
   const endAt = typeof body?.end_at === "string" ? body.end_at : null;
 
   if (!title) return sendError(res, 400, "VALIDATION_ERROR", "Event title is required.");
-  if (!startAt || isNaN(Date.parse(startAt))) {
+  if (!startAt || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})$/i.test(startAt) || isNaN(Date.parse(startAt))) {
     return sendError(res, 400, "VALIDATION_ERROR", "Valid 'start_at' timestamp in ISO 8601 is required.");
   }
+  if (endAt && (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})$/i.test(endAt) || isNaN(Date.parse(endAt)) || Date.parse(endAt) <= Date.parse(startAt))) {
+    return sendError(res, 400, "VALIDATION_ERROR", "Optional 'end_at' must be a valid instant after 'start_at'.");
+  }
 
-  const effectiveEndAt = endAt || new Date(Date.parse(startAt) + 30 * 60000).toISOString();
+  // `end_at` is an optional, request-only conflict interval. With no explicit end,
+  // this API checks only for another task at the same instant; nothing is stored.
+  const effectiveEndAt = endAt || startAt;
 
   // Conflict detection
   const checkConflict = body.check_conflict !== false;
@@ -774,10 +791,10 @@ async function handleCreateCalendarEvent(grant: AssistantGrant, body: any, req: 
     title,
     description: body.description || null,
     // One schedule: the event is a task at an explicit time (no time block / end time is stored).
-    ...scheduleWrite(startAt, body.schedule_timezone),
+    ...normalizeTaskScheduleInput({ work_date: startAt, schedule_timezone: body.schedule_timezone })!,
     completed: false,
     status: "todo",
-    priority: body.priority || "p3",
+    priority: normalizeTaskPriority(body.priority),
     folder_id: body.folder_id || null,
     created_at: now,
     updated_at: now,
@@ -804,10 +821,14 @@ async function handlePatchCalendarEvent(grant: AssistantGrant, eventId: string, 
 
   const newAt = typeof body.work_date === "string" ? body.work_date : typeof body.start_at === "string" ? body.start_at : null;
   const startAt = newAt || taskDateOf(existing);
-  const endAt = startAt && !/^\d{4}-\d{2}-\d{2}$/.test(startAt) ? new Date(Date.parse(startAt) + 30 * 60000).toISOString() : startAt;
+  const endAt = typeof body.end_at === "string" ? body.end_at : startAt;
+
+  if (body.end_at !== undefined && (!newAt || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})$/i.test(body.end_at) || isNaN(Date.parse(body.end_at)) || Date.parse(body.end_at) <= Date.parse(startAt || ""))) {
+    return sendError(res, 400, "VALIDATION_ERROR", "Optional 'end_at' requires a new start instant and must be later than it.");
+  }
 
   if (newAt) {
-    if (newAt && isNaN(Date.parse(newAt))) {
+    if (newAt && (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})$/i.test(newAt) || isNaN(Date.parse(newAt)))) {
       return sendError(res, 400, "VALIDATION_ERROR", "Valid 'start_at' / 'work_date' in ISO 8601 is required.");
     }
     if (body.check_conflict !== false) {
@@ -835,7 +856,7 @@ async function handlePatchCalendarEvent(grant: AssistantGrant, eventId: string, 
   const patch: Record<string, any> = {};
   if (body.title !== undefined) patch.title = String(body.title).trim();
   if (body.description !== undefined) patch.description = body.description;
-  if (newAt) Object.assign(patch, scheduleWrite(newAt, body.schedule_timezone || existing.schedule_timezone));
+  if (newAt) Object.assign(patch, normalizeTaskScheduleInput({ work_date: newAt, schedule_timezone: body.schedule_timezone }, existing.schedule_timezone)!);
   else if (body.work_date === null) Object.assign(patch, scheduleWrite(null));
   if (body.status !== undefined) patch.status = body.status;
   if (body.completed !== undefined) patch.completed = Boolean(body.completed);
@@ -968,14 +989,14 @@ export async function handleAgentRequest(req: any, res: any): Promise<void> {
       if (segments.length === 1 && method === "GET") {
         const grant = await authenticateAssistant(req, res, "tasks:read");
         if (!grant) return;
-        return handleGetTasks(grant, req.query || {}, res);
+        return await handleGetTasks(grant, req.query || {}, res);
       }
       // POST /api/v1/agent/tasks
       if (segments.length === 1 && method === "POST") {
         const grant = await authenticateAssistant(req, res, "tasks:write");
         if (!grant) return;
         const body = await parseBody(req);
-        return handleCreateTask(grant, body, req, res);
+        return await handleCreateTask(grant, body, req, res);
       }
       // GET /api/v1/agent/tasks/:id
       if (segments.length === 2 && method === "GET") {
@@ -988,7 +1009,7 @@ export async function handleAgentRequest(req: any, res: any): Promise<void> {
         const grant = await authenticateAssistant(req, res, "tasks:write");
         if (!grant) return;
         const body = await parseBody(req);
-        return handlePatchTask(grant, segments[1], body, res);
+        return await handlePatchTask(grant, segments[1], body, res);
       }
       // POST /api/v1/agent/tasks/:id/complete
       if (segments.length === 3 && segments[2] === "complete" && method === "POST") {
@@ -1087,19 +1108,21 @@ export async function handleAgentRequest(req: any, res: any): Promise<void> {
         const grant = await authenticateAssistant(req, res, "calendar:write");
         if (!grant) return;
         const body = await parseBody(req);
-        return handleCreateCalendarEvent(grant, body, req, res);
+        return await handleCreateCalendarEvent(grant, body, req, res);
       }
       // PATCH /api/v1/agent/calendar/events/:id
       if (segments.length === 3 && method === "PATCH") {
         const grant = await authenticateAssistant(req, res, "calendar:write");
         if (!grant) return;
         const body = await parseBody(req);
-        return handlePatchCalendarEvent(grant, segments[2], body, res);
+        return await handlePatchCalendarEvent(grant, segments[2], body, res);
       }
     }
 
     return sendError(res, 404, "NOT_FOUND", `Endpoint not found: ${method} ${pathname}`);
   } catch (error: any) {
+    if (error instanceof InvalidTaskPriorityError) return sendError(res, 400, "VALIDATION_ERROR", error.message);
+    if (error instanceof InvalidTaskScheduleError) return sendError(res, 400, "VALIDATION_ERROR", error.message);
     if (error instanceof AssistantConfigurationError) return sendError(res, 503, "SERVICE_NOT_CONFIGURED", error.message);
     console.error("[AgentApi] Internal server error", error);
     return sendError(res, 500, "INTERNAL_ERROR", error?.message || "An unexpected error occurred.");

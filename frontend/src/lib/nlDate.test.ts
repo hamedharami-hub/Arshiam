@@ -26,16 +26,19 @@ describe("parseNaturalDate", () => {
 
   it("parses پس‌فردا", () => {
     const r = parse("پس‌فردا جلسه");
-    const d = new Date(r.dueDate!);
-    expect(d.getDate()).toBe(17);
+    expect(r.dueDate).toBe("2026-07-17");
     expect(r.cleanedTitle).toBe("جلسه");
   });
 
-  it("parses امروز with default 9am", () => {
+  it("keeps a day-only phrase date-only instead of inventing a 9am time", () => {
     const r = parse("امروز تماس");
-    const d = new Date(r.dueDate!);
-    expect(d.getDate()).toBe(15);
-    expect(d.getHours()).toBe(9);
+    expect(r.dueDate).toBe("2026-07-15");
+  });
+
+  it("treats tonight as a day hint without inventing an 8pm time", () => {
+    const r = parse("finish reading tonight");
+    expect(r.dueDate).toBe("2026-07-15");
+    expect(r.cleanedTitle).toBe("finish reading");
   });
 
   it("handles Persian afternoon meridiem", () => {
@@ -55,16 +58,23 @@ describe("parseNaturalDate", () => {
 
   it("parses 'in 3 days'", () => {
     const r = parse("submit report in 3 days");
-    const d = new Date(r.dueDate!);
-    expect(d.getDate()).toBe(18);
+    expect(r.dueDate).toBe("2026-07-18");
+  });
+
+  it("does not turn a broad next-week phrase into a guessed calendar day", () => {
+    const r = parse("submit report next week");
+    expect(r.dueDate).toBeNull();
+    expect(r.cleanedTitle).toBe("submit report next week");
+  });
+
+  it("does not turn a repeating weekday into a one-off scheduled day", () => {
+    expect(parse("Every Monday review the report")).toMatchObject({ dueDate: null, cleanedTitle: "Every Monday review the report" });
+    expect(parse("هر دوشنبه گزارش را مرور کن")).toMatchObject({ dueDate: null, cleanedTitle: "هر دوشنبه گزارش را مرور کن" });
   });
 
   it("parses next weekday (friday) as upcoming occurrence", () => {
     const r = parse("جمعه ورزش");
-    const d = new Date(r.dueDate!);
-    // From Wed 7/15, upcoming Friday is 7/17.
-    expect(d.getDay()).toBe(5);
-    expect(d.getDate()).toBe(17);
+    expect(r.dueDate).toBe("2026-07-17");
   });
 
   it("time-only in the past rolls to tomorrow", () => {

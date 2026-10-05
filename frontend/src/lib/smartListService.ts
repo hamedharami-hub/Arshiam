@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Task } from "@/lib/taskTypes";
-import { PRIORITY_META } from "@/lib/priority";
+import { normalizeTaskPriority, PRIORITY_META } from "@/lib/priority";
 import { taskDueTimestamp, taskWorkDate } from "@/lib/taskDate";
 import { startOfDay, endOfDay, addDays } from "date-fns";
 import { isTaskOverdue } from "@/lib/taskPlanning";
@@ -355,7 +355,7 @@ export function cmpForSortLevel(lvl: SortLevel): (a: Task, b: Task) => number {
         break;
       }
       case "priority":
-        res = (PRIORITY_META[a.priority]?.rank ?? 3) - (PRIORITY_META[b.priority]?.rank ?? 3);
+        res = PRIORITY_META[normalizeTaskPriority(a.priority)].rank - PRIORITY_META[normalizeTaskPriority(b.priority)].rank;
         break;
       case "created":
         res =
@@ -411,7 +411,7 @@ export function filterAndSortTasks(
 
   // 3. Priorities filter
   if (filters.priorities && filters.priorities.length > 0) {
-    list = list.filter((t) => filters.priorities.includes(t.priority as string));
+    list = list.filter((t) => filters.priorities.includes(normalizeTaskPriority(t.priority)));
   }
 
   // 4. Tags filter

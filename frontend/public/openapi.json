@@ -81,7 +81,7 @@
             "description": "Filter by priority level",
             "schema": {
               "type": "string",
-              "enum": ["p1", "p2", "p3", "p4", "high", "medium", "low", "none"]
+              "enum": ["none", "low", "medium", "high", "urgent", "p1", "p2", "p3", "p4"]
             }
           },
           {
@@ -91,7 +91,7 @@
             "description": "Filter by task status",
             "schema": {
               "type": "string",
-              "enum": ["todo", "in_progress", "done", "wont_do"]
+              "enum": ["todo", "in_progress", "waiting", "done", "wont_do"]
             }
           },
           {
@@ -200,9 +200,10 @@
     "/api/tasks/today": {
       "get": {
         "summary": "Get today's tasks",
-        "description": "Fetches all tasks due today for the authenticated user, as well as overdue incomplete tasks. Essential for AI daily schedule summaries.",
+        "description": "Fetches tasks for the authenticated user's local calendar day and overdue incomplete tasks. A valid IANA time_zone is required; it is display context only, never an authorization value.",
         "operationId": "getTodayTasks",
         "tags": ["Tasks"],
+        "parameters": [{"name": "time_zone", "in": "query", "required": true, "schema": {"type": "string", "example": "Australia/Sydney"}, "description": "IANA time zone used to determine today's local date and the local day of scheduled instants."}],
         "responses": {
           "200": {
             "description": "Today's tasks retrieved successfully",
@@ -697,20 +698,15 @@
             "type": "boolean",
             "description": "True if task is completed"
           },
-          "priority": {
-            "type": "string",
-            "enum": ["p1", "p2", "p3", "p4", "high", "medium", "low", "none"],
-            "description": "Task priority level"
-          },
-          "status": {
-            "type": "string",
-            "enum": ["todo", "in_progress", "done", "wont_do"],
-            "description": "Current status of the task"
-          },
-          "due_date": {
-            "type": ["string", "null"],
-            "description": "Due date in YYYY-MM-DD or ISO 8601 format"
-          },
+          "priority": {"type": "string","enum": ["none","low","medium","high","urgent","p1","p2","p3","p4"],"description": "Current priority; legacy p1–p4 aliases map to high, medium, low, and none."},
+          "status": {"type": "string","enum": ["todo","in_progress","waiting","done","wont_do"],"description": "Current status of the task"},
+          "work_date": {"type": ["string","null"],"description": "The one task schedule: YYYY-MM-DD calendar day or an explicit-offset ISO 8601 datetime. Null clears the complete schedule."},
+          "schedule_v": {"type": "integer","enum": [2],"description": "Task schedule model version."},
+          "schedule_timezone": {"type": ["string","null"],"description": "Optional IANA zone for local-day interpretation of an explicit instant."},
+          "planning_horizon": {"type": ["string","null"],"enum": ["day","week","month","quarter","year",null],"description": "Optional planning level; a period requires both start and end."},
+          "planning_start": {"type": ["string","null"],"format": "date"},
+          "planning_end": {"type": ["string","null"],"format": "date"},
+          "planning_calendar": {"type": ["string","null"],"enum": ["jalali","gregorian",null]},
           "folder_id": {
             "type": ["string", "null"],
             "description": "Folder identifier if assigned to a folder"
@@ -718,18 +714,6 @@
           "pinned": {
             "type": "boolean",
             "description": "Whether task is pinned at top"
-          },
-          "start_at": {
-            "type": ["string", "null"],
-            "description": "Scheduled start time (ISO 8601)"
-          },
-          "end_at": {
-            "type": ["string", "null"],
-            "description": "Scheduled end time (ISO 8601)"
-          },
-          "estimated_minutes": {
-            "type": ["integer", "null"],
-            "description": "Estimated duration in minutes"
           },
           "created_at": {
             "type": "string",
@@ -753,21 +737,16 @@
             "type": ["string", "null"],
             "description": "Optional detailed notes or description"
           },
-          "priority": {
-            "type": "string",
-            "enum": ["p1", "p2", "p3", "p4", "high", "medium", "low", "none"],
-            "default": "p4",
-            "description": "Task priority"
-          },
-          "due_date": {
-            "type": ["string", "null"],
-            "description": "Due date in YYYY-MM-DD or ISO 8601 format"
-          },
-          "status": {
-            "type": "string",
-            "enum": ["todo", "in_progress", "done", "wont_do"],
-            "default": "todo"
-          },
+          "priority": {"type": "string","enum": ["none","low","medium","high","urgent","p1","p2","p3","p4"],"description": "Current priority; legacy p1–p4 aliases map to high, medium, low, and none."},
+          "status": {"type": "string","enum": ["todo","in_progress","waiting","done","wont_do"],"description": "Current status of the task"},
+          "work_date": {"type": ["string","null"],"description": "The one task schedule: YYYY-MM-DD calendar day or an explicit-offset ISO 8601 datetime. Null clears the complete schedule."},
+          "schedule_v": {"type": "integer","enum": [2],"description": "Task schedule model version."},
+          "schedule_timezone": {"type": ["string","null"],"description": "Optional IANA zone for local-day interpretation of an explicit instant."},
+          "planning_horizon": {"type": ["string","null"],"enum": ["day","week","month","quarter","year",null],"description": "Optional planning level; a period requires both start and end."},
+          "planning_start": {"type": ["string","null"],"format": "date"},
+          "planning_end": {"type": ["string","null"],"format": "date"},
+          "planning_calendar": {"type": ["string","null"],"enum": ["jalali","gregorian",null]},
+          "due_date": {"type": ["string","null"],"deprecated": true,"description": "Deprecated compatibility alias for work_date; do not send both."},
           "folder_id": {
             "type": ["string", "null"],
             "description": "Optional folder ID"
@@ -775,18 +754,6 @@
           "pinned": {
             "type": "boolean",
             "default": false
-          },
-          "start_at": {
-            "type": ["string", "null"],
-            "description": "Scheduled start time (ISO 8601)"
-          },
-          "end_at": {
-            "type": ["string", "null"],
-            "description": "Scheduled end time (ISO 8601)"
-          },
-          "estimated_minutes": {
-            "type": ["integer", "null"],
-            "description": "Estimated duration in minutes"
           }
         }
       },
@@ -805,33 +772,22 @@
             "type": "boolean",
             "description": "Set true to complete, false to uncomplete"
           },
-          "priority": {
-            "type": "string",
-            "enum": ["p1", "p2", "p3", "p4", "high", "medium", "low", "none"]
-          },
-          "status": {
-            "type": "string",
-            "enum": ["todo", "in_progress", "done", "wont_do"]
-          },
-          "due_date": {
-            "type": ["string", "null"],
-            "description": "Updated due date in YYYY-MM-DD or ISO 8601 format"
-          },
+          "priority": {"type": "string","enum": ["none","low","medium","high","urgent","p1","p2","p3","p4"],"description": "Current priority; legacy p1–p4 aliases map to high, medium, low, and none."},
+          "status": {"type": "string","enum": ["todo","in_progress","waiting","done","wont_do"],"description": "Current status of the task"},
+          "work_date": {"type": ["string","null"],"description": "The one task schedule: YYYY-MM-DD calendar day or an explicit-offset ISO 8601 datetime. Null clears the complete schedule."},
+          "schedule_v": {"type": "integer","enum": [2],"description": "Task schedule model version."},
+          "schedule_timezone": {"type": ["string","null"],"description": "Optional IANA zone for local-day interpretation of an explicit instant."},
+          "planning_horizon": {"type": ["string","null"],"enum": ["day","week","month","quarter","year",null],"description": "Optional planning level; a period requires both start and end."},
+          "planning_start": {"type": ["string","null"],"format": "date"},
+          "planning_end": {"type": ["string","null"],"format": "date"},
+          "planning_calendar": {"type": ["string","null"],"enum": ["jalali","gregorian",null]},
+          "due_date": {"type": ["string","null"],"deprecated": true,"description": "Deprecated compatibility alias for work_date; do not send both."},
           "folder_id": {
             "type": ["string", "null"],
             "description": "Updated folder ID"
           },
           "pinned": {
             "type": "boolean"
-          },
-          "start_at": {
-            "type": ["string", "null"]
-          },
-          "end_at": {
-            "type": ["string", "null"]
-          },
-          "estimated_minutes": {
-            "type": ["integer", "null"]
           }
         }
       },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { withTaskCacheMutationLock } from "./taskCache";
+import { extractTasksFromCache, withTaskCacheMutationLock } from "./taskCache";
 
 describe("withTaskCacheMutationLock", () => {
   it("serializes cache mutations for one user without blocking another user", async () => {
@@ -33,5 +33,14 @@ describe("withTaskCacheMutationLock", () => {
 
     await expect(withTaskCacheMutationLock("user-c", () => "next mutation"))
       .resolves.toBe("next mutation");
+  });
+});
+
+describe("task cache priority compatibility", () => {
+  it("normalizes legacy priority codes while extracting cached task rows", () => {
+    expect(extractTasksFromCache([
+      { id: "a", priority: "p1" }, { id: "b", priority: "p2" },
+      { id: "c", priority: "p3" }, { id: "d", priority: "p4" },
+    ]).map((task) => task.priority)).toEqual(["high", "medium", "low", "none"]);
   });
 });

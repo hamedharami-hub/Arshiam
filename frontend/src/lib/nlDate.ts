@@ -1,10 +1,10 @@
 // Lightweight natural-language date parser for the quick-add box.
 // Understands common Persian and English phrases like "فردا ساعت ۵",
-// "پس‌فردا", "next monday", "in 3 days at 9am" and returns a due date
+// "پس‌فردا", "next monday", "in 3 days at 9am" and returns a task date
 // plus the title with the recognised words stripped out.
 
 export type ParsedDate = {
-  /** ISO string for the detected due date, or null if none found. */
+  /** Local YYYY-MM-DD when only a day is named, or an ISO instant when an exact time is explicit. */
   dueDate: string | null;
   /** The input title with recognised date/time words removed. */
   cleanedTitle: string;
@@ -19,6 +19,13 @@ const FA_DIGITS: Record<string, string> = {
 
 function normalizeDigits(s: string): string {
   return s.replace(/[۰-۹٠-٩]/g, (d) => FA_DIGITS[d] ?? d);
+}
+
+const REPEATING_TASK_TEXT = /\b(?:every|each)\s+(?:(?:\d+|two|three|four|five)\s+)?(?:days?|weeks?|months?|years?|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?)\b|\b(?:daily|weekly|monthly|yearly|annually)\b|روزانه|هفتگی|ماهانه|سالانه|هر\s+(?:\d+\s*)?(?:روز|هفته|ماه|سال|دوشنبه|سه\u200cشنبه|چهارشنبه|پنج\u200cشنبه|جمعه|شنبه|یکشنبه)/i;
+
+/** Whether task text explicitly describes a repeating cadence instead of a one-off date. */
+export function hasExplicitRecurrenceText(value: string): boolean {
+  return REPEATING_TASK_TEXT.test(normalizeDigits(value));
 }
 
 // JS getDay(): 0=Sunday … 6=Saturday
@@ -49,6 +56,9 @@ function nextWeekday(from: Date, target: number, forceNext: boolean): Date {
 export function parseNaturalDate(rawTitle: string, now: Date = new Date()): ParsedDate {
   const original = rawTitle;
   let working = normalizeDigits(rawTitle);
+  // A weekday inside a repeating instruction ("every Monday") is not a
+  // one-off due date. Leave recurrence to its own explicit field.
+  if (hasExplicitRecurrenceText(working)) return { dueDate: null, cleanedTitle: original.trim() };
   let date: Date | null = null;
   let hasTime = false;
   let hours = 9;
@@ -70,7 +80,6 @@ export function parseNaturalDate(rawTitle: string, now: Date = new Date()): Pars
     strip(/فردا/g); strip(/\btomorrow\b/gi);
   } else if (/امروز/.test(working) || /\btoday\b/i.test(working) || /\btonight\b/i.test(working)) {
     date = new Date(base);
-    if (/\btonight\b/i.test(working)) { hasTime = true; hours = 20; }
     strip(/امروز/g); strip(/\btoday\b/gi); strip(/\btonight\b/gi);
   }
 
@@ -87,10 +96,18 @@ export function parseNaturalDate(rawTitle: string, now: Date = new Date()): Pars
     }
   }
 
-  // --- "هفته بعد/دیگه" / "next week" ---
-  if (!date && (/هفته\s*(بعد|دیگه|دیگر|آینده)/.test(working) || /next week/i.test(working))) {
-    date = new Date(base); date.setDate(date.getDate() + 7);
-    strip(/هفته\s*(بعد|دیگه|دیگر|آینده)/g); strip(/next week/gi);
+  // Explicit ISO calendar day. Preserve it as a day-only schedule unless the
+  // user separately supplied a clock time below.
+  if (!date) {
+    const isoDay = working.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+    if (isoDay) {
+      const year = Number(isoDay[1]); const month = Number(isoDay[2]); const day = Number(isoDay[3]);
+      const candidate = new Date(year, month - 1, day);
+      if (candidate.getFullYear() === year && candidate.getMonth() === month - 1 && candidate.getDate() === day) {
+        date = candidate;
+        strip(/\b\d{4}-\d{2}-\d{2}\b/g);
+      }
+    }
   }
 
   // --- Weekday names (optionally prefixed with next/بعد) ---
@@ -153,9 +170,12 @@ export function parseNaturalDate(rawTitle: string, now: Date = new Date()): Pars
     return { dueDate: null, cleanedTitle: original.trim() };
   }
 
-  date.setHours(hasTime ? hours : 9, hasTime ? minutes : 0, 0, 0);
-
   const cleaned = working.replace(/\s{2,}/g, " ").replace(/\s+([،,.])/g, "$1").trim();
+  if (!hasTime) {
+    const day = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    return { dueDate: day, cleanedTitle: cleaned.length > 0 ? cleaned : original.trim() };
+  }
+  date.setHours(hours, minutes, 0, 0);
   return {
     dueDate: date.toISOString(),
     cleanedTitle: cleaned.length > 0 ? cleaned : original.trim(),

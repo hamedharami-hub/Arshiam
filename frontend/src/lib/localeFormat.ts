@@ -51,10 +51,10 @@ export function formatTime(date: Date, lang: Lang = appLang()): string {
   return date.toLocaleTimeString(dateLocale(lang), { hour: "2-digit", minute: "2-digit", hour12: lang === "en" ? undefined : false });
 }
 
-/** A due date carries a real time unless it is date-only or the picker's "no time" marker (23:59). */
-export function dueHasTime(value: string | null | undefined, date: Date): boolean {
+/** V2 23:59 is an explicit instant; only legacy values may use it as an all-day marker. */
+export function dueHasTime(value: string | null | undefined, date: Date, scheduleVersion?: number | null): boolean {
   if (!value || !value.includes("T")) return false;
-  return !(date.getHours() === 23 && date.getMinutes() === 59);
+  return scheduleVersion === 2 || !(date.getHours() === 23 && date.getMinutes() === 59);
 }
 
 function parseDue(value: string): Date | null {
@@ -65,13 +65,13 @@ function parseDue(value: string): Date | null {
 }
 
 /** e.g. "فردا ۱۰:۰۰", "۷ مهر", "Tomorrow 10:00 AM", "Oct 7". Falls back to the reminder time. */
-export function formatDueLabel(dateIso: string | null | undefined, reminderIso?: string | null, lang: Lang = appLang()): string | null {
+export function formatDueLabel(dateIso: string | null | undefined, reminderIso?: string | null, lang: Lang = appLang(), scheduleVersion?: number | null): string | null {
   const value = dateIso || reminderIso;
   if (!value) return null;
   const base = parseDue(value);
   if (!base) return null;
   const day = relativeDayLabel(base, lang) ?? formatShortDate(base, lang);
-  if (dateIso && dueHasTime(dateIso, base)) return `${day} ${formatTime(base, lang)}`;
+  if (dateIso && dueHasTime(dateIso, base, scheduleVersion)) return `${day} ${formatTime(base, lang)}`;
   if (reminderIso) {
     const r = new Date(reminderIso);
     if (!Number.isNaN(r.getTime())) return `${day} ${formatTime(r, lang)}`;

@@ -1,4 +1,4 @@
-import { scheduleWrite, taskDateOf, taskDayOf } from "./taskSchedule.js";
+import { localDayOf, normalizeTaskPriority, normalizeTaskScheduleInput, normalizeTimeZone, scheduleWrite, stripRemovedTaskTimeFields, taskDateOf, taskDayOf } from "./taskSchedule.js";
 import firebaseConfig from "../../frontend/firebase-applet-config.json" with { type: "json" };
 import type { AuthUser } from "./auth.js";
 
@@ -102,7 +102,11 @@ export function decodeFirestoreFields(
  */
 export function parseFirestoreDoc(doc: any): any {
   if (!doc) return null;
-  const decoded = decodeFirestoreFields(doc.fields || {});
+  const decoded = stripRemovedTaskTimeFields(decodeFirestoreFields(doc.fields || {}));
+  if (decoded.priority !== undefined) {
+    try { decoded.priority = normalizeTaskPriority(decoded.priority); }
+    catch { decoded.priority = "none"; }
+  }
   const idFromPath = doc.name ? doc.name.split("/").pop() : "";
   return {
     id: decoded.id || idFromPath,
@@ -252,13 +256,12 @@ export async function createUserTask(
     title: taskInput.title,
     description: taskInput.description || null,
     completed: Boolean(taskInput.completed),
-    priority: taskInput.priority || "p4",
+    priority: normalizeTaskPriority(taskInput.priority),
     status:
       taskInput.status || (taskInput.completed ? "done" : "todo"),
-    // One schedule (schedule v2): the task's day or instant lives in work_date.
-    // `due_date` is still accepted from older API callers but stored as the task date.
-    // Time block / estimated duration are no longer part of the task model.
-    ...scheduleWrite(taskInput.work_date || taskInput.due_date || null, taskInput.schedule_timezone),
+    // One schedule (schedule v2): the task's day/instant or planning period.
+    // `due_date` is accepted only as a deprecated input alias.
+    ...(normalizeTaskScheduleInput(taskInput, taskInput.schedule_timezone) || scheduleWrite(null)),
     folder_id: taskInput.folder_id || null,
     pinned: Boolean(taskInput.pinned),
     created_at: now,
@@ -300,10 +303,23 @@ export async function updateUserTask(
   }
 
   const now = new Date().toISOString();
-  const fieldsToUpdate: Record<string, any> = {
-    ...updates,
-    updated_at: now,
-  };
+  const removedTaskSchedulingFields = new Set([
+    "start_at", "end_at", "estimated_minutes", "time_of_day", "part_of_day", "deadline",
+  ]);
+  const fieldsToUpdate: Record<string, any> = {};
+  for (const [key, value] of Object.entries(updates)) {
+    if (!removedTaskSchedulingFields.has(key)) fieldsToUpdate[key] = value;
+  }
+  for (const key of [
+    "work_date", "due_date", "due_at", "is_exact", "horizon", "period_start", "period_end",
+    "bucket_kind", "bucket_anchor", "bucket_calendar", "schedule_v", "schedule_timezone",
+    "planning_horizon", "planning_start", "planning_end", "planning_calendar",
+  ]) delete fieldsToUpdate[key];
+
+  const schedule = normalizeTaskScheduleInput(updates, existing.schedule_timezone);
+  if (schedule) Object.assign(fieldsToUpdate, schedule);
+  if (Object.prototype.hasOwnProperty.call(updates, "priority")) fieldsToUpdate.priority = normalizeTaskPriority(updates.priority);
+  fieldsToUpdate.updated_at = now;
 
   // Keep completed and status synchronized
   if (updates.completed !== undefined && updates.status === undefined) {
@@ -376,7 +392,7 @@ export async function deleteUserTask(
 /**
  * Returns tasks scheduled for today and overdue incomplete tasks
  */
-export async function getTodayTasks(user: AuthUser): Promise<{
+export async function getTodayTasks(user: AuthUser, userTimeZone: string, now = new Date()): Promise<{
   today: any[];
   overdue: any[];
   summary: {
@@ -385,15 +401,18 @@ export async function getTodayTasks(user: AuthUser): Promise<{
     completedCount: number;
   };
 }> {
+  const timeZone = normalizeTimeZone(userTimeZone);
+  if (!timeZone) throw new Error("A valid IANA time zone is required to calculate today's tasks.");
   const allTasks = await listUserTasks(user, { limit: 100 });
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDayOf(now, timeZone);
+  if (!todayStr) throw new Error("Could not calculate the current local date.");
 
   const todayTasks: any[] = [];
   const overdueTasks: any[] = [];
 
   for (const t of allTasks) {
-    if (!taskDayOf(t)) continue;
-    const taskDueDate = taskDayOf(t)!;
+    const taskDueDate = taskDayOf(t, timeZone);
+    if (!taskDueDate) continue;
     if (taskDueDate === todayStr) {
       todayTasks.push(t);
     } else if (taskDueDate < todayStr && !t.completed) {

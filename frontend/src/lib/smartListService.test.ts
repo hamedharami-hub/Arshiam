@@ -180,4 +180,15 @@ describe("smartListService", () => {
 
     expect(sorted.map((t) => t.id)).toEqual(["t3", "t2", "t1"]);
   });
+
+  it("filters and sorts legacy p1 priority as high", () => {
+    const tasks = [mockTask("legacy", { priority: "p1" as any }), mockTask("urgent", { priority: "urgent" })];
+    const filtered = filterAndSortTasks(tasks, {
+      ...DEFAULT_FILTERS,
+      priorities: ["high"],
+      sort_primary: { key: "priority", dir: "asc" },
+      sort_secondary: { key: "title", dir: "asc" },
+    });
+    expect(filtered.map((task) => task.id)).toEqual(["legacy"]);
+  });
 });

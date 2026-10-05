@@ -212,6 +212,15 @@
               "type": "integer",
               "minimum": 1
             }
+          },
+          {
+            "name": "time_zone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "IANA zone used to interpret local calendar days for due_date/from_date/to_date filters."
           }
         ]
       },
@@ -275,27 +284,31 @@
                   "priority": {
                     "type": "string",
                     "enum": [
+                      "none",
+                      "low",
+                      "medium",
+                      "high",
+                      "urgent",
                       "p1",
                       "p2",
                       "p3",
                       "p4"
-                    ]
+                    ],
+                    "description": "Current priority. Legacy p1–p4 inputs are accepted as aliases (p1=high, p2=medium, p3=low, p4=none).",
+                    "nullable": false
                   },
                   "status": {
                     "type": "string",
                     "enum": [
                       "todo",
                       "in_progress",
+                      "waiting",
                       "done",
                       "wont_do"
                     ]
                   },
                   "completed": {
                     "type": "boolean"
-                  },
-                  "due_date": {
-                    "type": "string",
-                    "nullable": true
                   },
                   "folder_id": {
                     "type": "string",
@@ -304,20 +317,54 @@
                   "pinned": {
                     "type": "boolean"
                   },
-                  "start_at": {
-                    "type": "string",
-                    "nullable": true
-                  },
-                  "end_at": {
-                    "type": "string",
-                    "nullable": true
-                  },
-                  "estimated_minutes": {
-                    "type": "number",
-                    "nullable": true
-                  },
                   "recurrence": {
                     "type": "string"
+                  },
+                  "work_date": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "The one task schedule: calendar day or explicit-offset ISO 8601 datetime. Null clears the whole schedule."
+                  },
+                  "schedule_timezone": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "Optional IANA zone for local-day interpretation of an explicit instant."
+                  },
+                  "planning_horizon": {
+                    "type": "string",
+                    "nullable": true,
+                    "enum": [
+                      "day",
+                      "week",
+                      "month",
+                      "quarter",
+                      "year"
+                    ],
+                    "description": "Planning period level; supply together with planning_start and planning_end."
+                  },
+                  "planning_start": {
+                    "type": "string",
+                    "format": "date",
+                    "nullable": true
+                  },
+                  "planning_end": {
+                    "type": "string",
+                    "format": "date",
+                    "nullable": true
+                  },
+                  "planning_calendar": {
+                    "type": "string",
+                    "nullable": true,
+                    "enum": [
+                      "jalali",
+                      "gregorian"
+                    ]
+                  },
+                  "due_date": {
+                    "type": "string",
+                    "nullable": true,
+                    "deprecated": true,
+                    "description": "Deprecated alias for work_date; do not send both."
                   }
                 },
                 "required": [
@@ -438,27 +485,31 @@
                   "priority": {
                     "type": "string",
                     "enum": [
+                      "none",
+                      "low",
+                      "medium",
+                      "high",
+                      "urgent",
                       "p1",
                       "p2",
                       "p3",
                       "p4"
-                    ]
+                    ],
+                    "description": "Current priority. Legacy p1–p4 inputs are accepted as aliases (p1=high, p2=medium, p3=low, p4=none).",
+                    "nullable": false
                   },
                   "status": {
                     "type": "string",
                     "enum": [
                       "todo",
                       "in_progress",
+                      "waiting",
                       "done",
                       "wont_do"
                     ]
                   },
                   "completed": {
                     "type": "boolean"
-                  },
-                  "due_date": {
-                    "type": "string",
-                    "nullable": true
                   },
                   "folder_id": {
                     "type": "string",
@@ -467,20 +518,54 @@
                   "pinned": {
                     "type": "boolean"
                   },
-                  "start_at": {
-                    "type": "string",
-                    "nullable": true
-                  },
-                  "end_at": {
-                    "type": "string",
-                    "nullable": true
-                  },
-                  "estimated_minutes": {
-                    "type": "number",
-                    "nullable": true
-                  },
                   "recurrence": {
                     "type": "string"
+                  },
+                  "work_date": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "The one task schedule: calendar day or explicit-offset ISO 8601 datetime. Null clears the whole schedule."
+                  },
+                  "schedule_timezone": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "Optional IANA zone for local-day interpretation of an explicit instant."
+                  },
+                  "planning_horizon": {
+                    "type": "string",
+                    "nullable": true,
+                    "enum": [
+                      "day",
+                      "week",
+                      "month",
+                      "quarter",
+                      "year"
+                    ],
+                    "description": "Planning period level; supply together with planning_start and planning_end."
+                  },
+                  "planning_start": {
+                    "type": "string",
+                    "format": "date",
+                    "nullable": true
+                  },
+                  "planning_end": {
+                    "type": "string",
+                    "format": "date",
+                    "nullable": true
+                  },
+                  "planning_calendar": {
+                    "type": "string",
+                    "nullable": true,
+                    "enum": [
+                      "jalali",
+                      "gregorian"
+                    ]
+                  },
+                  "due_date": {
+                    "type": "string",
+                    "nullable": true,
+                    "deprecated": true,
+                    "description": "Deprecated alias for work_date; do not send both."
                   }
                 },
                 "additionalProperties": false
@@ -1398,10 +1483,24 @@
                   },
                   "end_at": {
                     "type": "string",
-                    "format": "date-time"
+                    "format": "date-time",
+                    "description": "Optional request-only conflict interval end. Never stored. If omitted, only the exact start instant is checked."
                   },
                   "priority": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                      "none",
+                      "low",
+                      "medium",
+                      "high",
+                      "urgent",
+                      "p1",
+                      "p2",
+                      "p3",
+                      "p4"
+                    ],
+                    "description": "Current priority. Legacy p1–p4 inputs are accepted as aliases (p1=high, p2=medium, p3=low, p4=none).",
+                    "nullable": false
                   },
                   "folder_id": {
                     "type": "string",
@@ -1420,12 +1519,16 @@
                   },
                   "status": {
                     "type": "string"
+                  },
+                  "schedule_timezone": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "Optional IANA zone for interpreting the local calendar day of the stored start instant."
                   }
                 },
                 "required": [
                   "title",
-                  "start_at",
-                  "end_at"
+                  "start_at"
                 ],
                 "additionalProperties": false
               }
@@ -1500,7 +1603,8 @@
                   },
                   "end_at": {
                     "type": "string",
-                    "format": "date-time"
+                    "format": "date-time",
+                    "description": "Optional request-only conflict interval end for a supplied new start. Never stored; no default duration."
                   },
                   "check_conflict": {
                     "type": "boolean",
@@ -1515,6 +1619,16 @@
                   },
                   "status": {
                     "type": "string"
+                  },
+                  "work_date": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "New explicit task instant; alias for start_at."
+                  },
+                  "schedule_timezone": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "Optional IANA zone for interpreting the local calendar day of the stored start instant."
                   }
                 },
                 "additionalProperties": false

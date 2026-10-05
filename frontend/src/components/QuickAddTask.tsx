@@ -1,4 +1,4 @@
-import { workDatePatch } from "@/lib/taskDate";
+import { formatTaskDueDateDisplay, workDatePatch } from "@/lib/taskDate";
 import { planningPatch } from "@/lib/taskPlanning";
 import type { Period } from "@/lib/timeHorizon";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -446,10 +446,11 @@ export function QuickAddTask({
     );
   };
 
-  const formatDueLabel = (iso: string | null) => {
+  const formatDueLabel = (iso: string | null, scheduleVersion = 2) => {
     if (!iso) return T("تاریخ", "Date");
     const d = parseTaskDueDate(iso);
     if (!d) return T("تاریخ", "Date");
+    if (iso.includes("T")) return formatTaskDueDateDisplay(iso, isEn, scheduleVersion);
     if (isDateToday(d)) return T("امروز", "Today");
     if (isDateTomorrow(d)) return T("فردا", "Tomorrow");
     return d.toLocaleDateString(isEn ? "en-US" : "fa-IR", { month: "short", day: "numeric" });
@@ -633,7 +634,7 @@ export function QuickAddTask({
                     title={T("تنظیم تاریخ و زمان", "Set date and time")}
                   >
                     <CalendarIcon className="w-3.5 h-3.5" />
-                    <span>{formatDueLabel(finalDue)}</span>
+                    <span>{formatDueLabel(finalDue, 2)}</span>
                   </button>
                 </SheetTrigger>
                 <SheetContent side="bottom" className="max-h-[88dvh] space-y-3 overflow-y-auto rounded-t-3xl p-5 pt-9 sm:mx-auto sm:max-w-2xl">

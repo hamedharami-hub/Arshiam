@@ -366,7 +366,7 @@ export function offlineAssistant(
     const domain = detectDomain(title);
     const data = {
       title,
-      due_date: parsed.dueDate || null,
+      work_date: parsed.dueDate || null,
       priority,
       category: domain !== "general" ? domain : undefined,
       source: "offline-deterministic",
@@ -386,7 +386,12 @@ export function offlineAssistant(
     const data = {
       priority,
       reason,
-      due_date: parsed.dueDate || null,
+      work_date: parsed.dueDate || null,
+      schedule_reason: parsed.dueDate ? (fa ? "این روز از متن تسک تشخیص داده شد." : "This day was detected in the task text.") : undefined,
+      small_step: generateSmartSubtasks(parsed.cleanedTitle || raw, fa)[0]
+        .replace(/\s*\(\d+\s*(?:minutes?|mins?|m)\)\s*$/i, "")
+        .replace(/\b\d+[- ]minute timer\b/gi, fa ? "تایمر کوتاه" : "a short timer")
+        .replace(/تایمر\s*\d+\s*دقیقه‌ای/g, "تایمر کوتاه"),
       category: domain !== "general" ? domain : undefined,
       source: "offline-deterministic",
     };
@@ -492,5 +497,4 @@ export function offlineAssistant(
     text: responseText,
   };
 }
-
 

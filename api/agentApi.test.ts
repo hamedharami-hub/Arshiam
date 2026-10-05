@@ -162,6 +162,42 @@ describe("AI Agent Personal Access Token & Isolation", () => {
     expect(listBody.data).toHaveLength(0);
   });
 
+  it("rejects invalid priority before create and filters legacy p1 tasks as high", async () => {
+    const { secret } = await createGrant(
+      "priority-user",
+      "Priority Agent",
+      ["tasks:read", "tasks:write"],
+      new Date(Date.now() + 86400000).toISOString(),
+    );
+    const { req: createReq, res: createRes } = createMockReqRes({
+      method: "POST",
+      url: "/api/v1/agent/tasks",
+      token: secret,
+      body: { title: "Bad priority", priority: "p5" },
+    });
+    await handleAgentRequest(createReq, createRes);
+    expect(createRes.statusCode).toBe(400);
+    expect(JSON.parse(createRes.body).error.code).toBe("VALIDATION_ERROR");
+    expect(testStore.tasks.size).toBe(0);
+
+    testStore.tasks.set("legacy-p1", {
+      id: "legacy-p1", user_id: "priority-user", title: "Legacy high priority",
+      priority: "p1", status: "todo", completed: false,
+      start_at: "2026-10-05T09:00:00Z", end_at: "2026-10-05T10:00:00Z",
+    });
+    const { req: listReq, res: listRes } = createMockReqRes({
+      url: "/api/v1/agent/tasks",
+      token: secret,
+      query: { priority: "high" },
+    });
+    await handleAgentRequest(listReq, listRes);
+    expect(listRes.statusCode).toBe(200);
+    const filtered = JSON.parse(listRes.body).data;
+    expect(filtered.map((task: any) => task.id)).toEqual(["legacy-p1"]);
+    expect(filtered[0]).not.toHaveProperty("start_at");
+    expect(filtered[0]).not.toHaveProperty("end_at");
+  });
+
   it("enforces scope authorization: read-only token cannot write tasks", async () => {
     const { secret: readOnlyToken } = await createGrant(
       "user_alpha",
@@ -248,7 +284,7 @@ describe("AI Agent API Endpoints (/api/v1/agent/*)", () => {
     const createdTask = JSON.parse(createRes.body).data;
     expect(createdTask.id).toBeDefined();
     expect(createdTask.title).toBe("Review Financial Report");
-    expect(createdTask.priority).toBe("p1");
+    expect(createdTask.priority).toBe("high");
 
     // Get Single Task
     const { req: getReq, res: getRes } = createMockReqRes({
@@ -268,7 +304,7 @@ describe("AI Agent API Endpoints (/api/v1/agent/*)", () => {
     });
     await handleAgentRequest(patchReq, patchRes);
     expect(patchRes.statusCode).toBe(200);
-    expect(JSON.parse(patchRes.body).data.priority).toBe("p2");
+    expect(JSON.parse(patchRes.body).data.priority).toBe("medium");
 
     // Complete Task
     const { req: completeReq, res: completeRes } = createMockReqRes({
@@ -458,6 +494,33 @@ describe("AI Agent API Endpoints (/api/v1/agent/*)", () => {
     expect(dayRes.statusCode).toBe(200);
     const daySchedule = JSON.parse(dayRes.body);
     expect(daySchedule.data.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("treats end_at as an optional request-only conflict interval and stores no duration fields", async () => {
+    testStore.tasks.set("existing-exact", {
+      id: "existing-exact", user_id: userId, title: "Existing exact instant",
+      work_date: "2026-10-06T10:15:00.000Z", schedule_v: 2, status: "todo", completed: false,
+    });
+
+    const { req: createReq, res: createRes } = createMockReqRes({
+      method: "POST", url: "/api/v1/agent/calendar/events", token,
+      body: { title: "No implicit half hour", start_at: "2026-10-06T10:00:00.000Z" },
+    });
+    await handleAgentRequest(createReq, createRes);
+    expect(createRes.statusCode).toBe(201);
+    const created = JSON.parse(createRes.body).data;
+    expect(created).toMatchObject({ work_date: "2026-10-06T10:00:00.000Z", schedule_v: 2 });
+    expect(created).not.toHaveProperty("end_at");
+    expect(created).not.toHaveProperty("start_at");
+    expect(created).not.toHaveProperty("estimated_minutes");
+
+    const { req: exactConflictReq, res: exactConflictRes } = createMockReqRes({
+      method: "POST", url: "/api/v1/agent/calendar/events", token,
+      body: { title: "Same instant", start_at: "2026-10-06T10:15:00.000Z" },
+    });
+    await handleAgentRequest(exactConflictReq, exactConflictRes);
+    expect(exactConflictRes.statusCode).toBe(409);
+    expect(JSON.parse(exactConflictRes.body).error.code).toBe("TIME_CONFLICT");
   });
 
   it("6. Idempotency Key prevents duplicate creation", async () => {

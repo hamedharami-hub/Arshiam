@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseTaskDueDate, taskDueTimestamp, getLocalDateString, formatTaskDueDateDisplay } from "./taskDate";
+import { isScheduleOverdue, parseTaskDueDate, taskDueTimestamp, getLocalDateString, formatTaskDueDateDisplay } from "./taskDate";
 
 describe("task date parsing", () => {
   it("treats date-only values as local calendar dates", () => {
@@ -29,5 +29,15 @@ describe("task date parsing", () => {
     expect(formattedWithTime).toMatch(/0?2:30\s?PM/);
     // The picker's "no time" marker (23:59) shows the day only.
     expect(formatTaskDueDateDisplay("2026-09-17T23:59:00", true)).not.toMatch(/11:59/);
+    expect(formatTaskDueDateDisplay("2026-09-17T23:59:00", true, 2)).toMatch(/11:59/);
+  });
+
+  it("treats explicit v2 23:59 as a real instant and keeps the legacy day marker isolated", () => {
+    const at = new Date(2026, 8, 17, 23, 59, 0);
+    const value = at.toISOString();
+    expect(isScheduleOverdue(value, new Date(2026, 8, 17, 23, 58), 2)).toBe(false);
+    expect(isScheduleOverdue(value, new Date(2026, 8, 18, 0, 1), 2)).toBe(true);
+    expect(isScheduleOverdue(value, new Date(2026, 8, 17, 23, 58))).toBe(false);
+    expect(isScheduleOverdue(value, new Date(2026, 8, 18, 0, 1))).toBe(true);
   });
 });

@@ -1,6 +1,7 @@
 import { authenticateRequest } from "../_lib/auth.js";
 import { createUserTask, listUserTasks } from "../_lib/firestore.js";
 import { handleCors, parseBody, sendError, sendJson } from "../_lib/response.js";
+import { InvalidTaskPriorityError, InvalidTaskScheduleError, normalizeTaskPriority } from "../_lib/taskSchedule.js";
 
 function parseQueryParams(req: any): Record<string, any> {
   if (req.query && typeof req.query === "object") {
@@ -46,7 +47,7 @@ export default async function handler(req: any, res: any) {
 
       const tasks = await listUserTasks(user, {
         completed,
-        priority: query.priority ? String(query.priority) : undefined,
+        priority: query.priority ? normalizeTaskPriority(String(query.priority)) : undefined,
         status: query.status ? String(query.status) : undefined,
         folder_id: query.folder_id ? String(query.folder_id) : undefined,
         search: query.search ? String(query.search) : undefined,
@@ -89,6 +90,14 @@ export default async function handler(req: any, res: any) {
     }
   } catch (error: any) {
     console.error("[API /api/tasks error]:", error);
+    if (error instanceof InvalidTaskScheduleError) {
+      sendError(res, 400, "VALIDATION_ERROR", error.message);
+      return;
+    }
+    if (error instanceof InvalidTaskPriorityError) {
+      sendError(res, 400, "VALIDATION_ERROR", error.message);
+      return;
+    }
     sendError(
       res,
       500,

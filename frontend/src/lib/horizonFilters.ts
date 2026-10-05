@@ -1,5 +1,5 @@
 import type { Priority } from "@/lib/priority";
-import { PRIORITY_META } from "@/lib/priority";
+import { normalizeTaskPriority, PRIORITY_META } from "@/lib/priority";
 import type { Task } from "@/lib/taskTypes";
 import type { Horizon } from "@/lib/timeHorizon";
 import type { GoalKanban } from "@/lib/kanbanGoals";
@@ -110,7 +110,7 @@ export function applyFilter(
     if (searchLower && !t.title.toLowerCase().includes(searchLower)) return false;
 
     // Priorities
-    if (f.priorities?.length && !f.priorities.includes(t.priority || "none")) return false;
+    if (f.priorities?.length && !f.priorities.includes(normalizeTaskPriority(t.priority))) return false;
 
     // Folders
     if (f.folderIds?.length) {
@@ -138,7 +138,7 @@ export function applyFilter(
   });
 }
 
-const rank = (p?: Priority) => PRIORITY_META[p || "none"]?.rank ?? 99;
+const rank = (p?: Priority) => PRIORITY_META[normalizeTaskPriority(p)]?.rank ?? 99;
 const timeKey = (t: Task) => taskWorkDate(t) || t.period_start || "9999";
 
 export function sortTasks(tasks: Task[], sort: SortKey): Task[] {

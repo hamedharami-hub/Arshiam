@@ -13,7 +13,7 @@ export function getTaskPlanning(task: Partial<Task>, settings: TimeSettings): Pe
 /** Overdue = the task's own date (and time, when set) has already passed. */
 export function isTaskOverdue(task: Partial<Task>, _settings: TimeSettings, now = new Date()): boolean {
   if (task.completed || task.status === "done" || task.status === "wont_do") return false;
-  return isScheduleOverdue(taskWorkDate(task), now);
+  return isScheduleOverdue(taskWorkDate(task), now, task.schedule_v);
 }
 
 /** A daily plan whose day has passed (a soft state, separate from the task's own date being overdue). */

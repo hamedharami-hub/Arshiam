@@ -67,6 +67,8 @@ export type Task = {
   prerequisite_ids?: string[];
   /** Optional context for a manually waiting task. */
   waiting_reason?: string | null;
+  /** Optional if-then implementation intention proposed and accepted by the user. */
+  implementation_intention?: { if: string; then: string } | null;
   /** Optional user-defined evidence that a planning goal is complete; separate from progress %. */
   finish_criterion?: string | null;
   // Time horizon v2 (see src/lib/timeHorizon.ts)

@@ -34,7 +34,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { VoiceInput } from "@/lib/voiceInput";
-import { PRIORITY_META, PRIORITY_ORDER, type Priority } from "@/lib/priority";
+import { normalizeTaskPriority, PRIORITY_META, PRIORITY_ORDER, type Priority } from "@/lib/priority";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -815,7 +815,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     return d.toLocaleDateString(isEn ? "en-US" : "fa-IR", { month: "short", day: "numeric" });
   };
 
-  const priorityMeta = PRIORITY_META[t.priority];
+  const priorityMeta = PRIORITY_META[normalizeTaskPriority(t.priority)];
   const recLabel = t.recurrence_rule ? describeRule(t.recurrence_rule, isEn) : null;
   const scheduleLabel = (() => {
     const lang = isEn ? "en" : "fa";
@@ -1712,6 +1712,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           open={aiOpen}
           onOpenChange={setAiOpen}
           onMetaApplied={refreshTask}
+          onApplyPatch={save}
         />
       )}
 

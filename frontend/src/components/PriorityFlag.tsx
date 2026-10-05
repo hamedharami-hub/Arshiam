@@ -1,13 +1,13 @@
 import { useTranslation } from "react-i18next";
 import { Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PRIORITY_META, type Priority } from "@/lib/priority";
+import { normalizeTaskPriority, PRIORITY_META, type Priority } from "@/lib/priority";
 
 export type FlagPriority = Priority;
 
 /** Narrows any stored or user-provided string to a real priority key (unknown values fall back to "none"). */
 export function normalizePriority(priority: string | null | undefined): FlagPriority {
-  return priority && priority in PRIORITY_META ? (priority as FlagPriority) : "none";
+  return normalizeTaskPriority(priority);
 }
 
 const LABEL_KEY: Record<FlagPriority, string> = {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,30 +17,73 @@ import { AILangToggle } from "@/components/AILangToggle";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { PRIORITY_META, type Priority } from "@/lib/priority";
+import { normalizeTaskPriority, PRIORITY_META, type Priority } from "@/lib/priority";
 import { describeRule, type RecurrenceRule } from "@/lib/recurrence";
-import { parseTaskDueDate, taskWorkDate, workDatePatch } from "@/lib/taskDate";
-import { compactTasksForAI } from "@/lib/taskSchedule";
+import { formatTaskDueDateDisplay, taskWorkDate, workDatePatch } from "@/lib/taskDate";
+import { compactTasksForAI, readSchedule, scheduleFromDateValue, scheduleLabel as getScheduleLabel } from "@/lib/taskSchedule";
+import { getTimeSettings } from "@/lib/timeHorizon";
+import { hasExplicitRecurrenceText, parseNaturalDate } from "@/lib/nlDate";
+import { persistTask, type TaskPersistenceStatus } from "@/lib/firestoreDataService";
+import type { Task } from "@/lib/taskTypes";
 
 type TaskLite = {
   id: string; title: string; description?: string | null;
-  priority: Priority; due_date: string | null; recurrence_rule?: RecurrenceRule | null;
+  priority: Priority; due_date?: string | null; work_date?: string | null; schedule_v?: number | null;
+  recurrence_rule?: RecurrenceRule | null; planning_horizon?: Task["planning_horizon"];
+  planning_start?: string | null; planning_end?: string | null; planning_calendar?: Task["planning_calendar"];
+};
+type MetadataProposal = {
+  title?: string;
+  small_step?: string;
+  if_then?: { if: string; then: string };
+  priority?: Priority;
+  work_date?: string | null;
+  recurrence_rule?: RecurrenceRule;
+  reason?: string;
+  schedule_reason?: string;
 };
 
 type ClarifyQ = { question: string; options: string[] };
 
+const WEEKDAYS = new Set(["MO", "TU", "WE", "TH", "FR", "SA", "SU"]);
+function explicitRecurrenceRule(text: string, value: unknown): RecurrenceRule | undefined {
+  if (!hasExplicitRecurrenceText(text) || !value || typeof value !== "object") return undefined;
+  const rule = value as Record<string, unknown>;
+  if (!["daily", "weekly", "monthly", "yearly"].includes(String(rule.freq))) return undefined;
+  if (!Number.isInteger(rule.interval) || (rule.interval as number) < 1 || (rule.interval as number) > 365) return undefined;
+  if (rule.byweekday !== undefined && (!Array.isArray(rule.byweekday) || rule.byweekday.length < 1 || rule.byweekday.length > 7 ||
+    rule.byweekday.some((day) => typeof day !== "string" || !WEEKDAYS.has(day)) || new Set(rule.byweekday).size !== rule.byweekday.length)) return undefined;
+  if (rule.byhour !== undefined && (!Number.isInteger(rule.byhour) || (rule.byhour as number) < 0 || (rule.byhour as number) > 23)) return undefined;
+  if (rule.byminute !== undefined && (!Number.isInteger(rule.byminute) || (rule.byminute as number) < 0 || (rule.byminute as number) > 59)) return undefined;
+  if (rule.byminute !== undefined && rule.byhour === undefined) return undefined;
+  return {
+    freq: rule.freq as RecurrenceRule["freq"],
+    interval: rule.interval as number,
+    ...(rule.byweekday ? { byweekday: rule.byweekday as RecurrenceRule["byweekday"] } : {}),
+    ...(rule.byhour !== undefined ? { byhour: rule.byhour as number } : {}),
+    ...(rule.byminute !== undefined ? { byminute: rule.byminute as number } : {}),
+  };
+}
+
+function newSuggestedTaskId() {
+  return `task_ai_${globalThis.crypto?.randomUUID?.() || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`}`;
+}
+
 export function TaskAIPanel({
-  task, open, onOpenChange, onMetaApplied,
+  task, open, onOpenChange, onMetaApplied, onApplyPatch,
 }: {
   task: TaskLite;
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onMetaApplied?: () => void;
+  onApplyPatch: (patch: Partial<Task>) => Promise<TaskPersistenceStatus>;
 }) {
   const { user } = useAuth();
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
+  const scheduleBeforeLabel = getScheduleLabel(readSchedule(task as Partial<Task>), getTimeSettings(), isEn ? "en" : "fa")
+    || T("بدون برنامه", "Unscheduled");
   const [tab, setTab] = useState("subtasks");
   const [globalCtx, setGlobalCtx] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -49,11 +92,14 @@ export function TaskAIPanel({
   // Subtasks
   const [subSugs, setSubSugs] = useState<string[]>([]);
   const [subPicked, setSubPicked] = useState<Record<number, boolean>>({});
+  const subtaskIdsRef = useRef<string[]>([]);
   const [questions, setQuestions] = useState<ClarifyQ[]>([]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
 
   // Metadata
-  const [meta, setMeta] = useState<{ priority?: Priority; due_date?: string; recurrence_rule?: RecurrenceRule; reason?: string } | null>(null);
+  const [meta, setMeta] = useState<MetadataProposal | null>(null);
+  const [applying, setApplying] = useState(false);
+  const smallStepIdRef = useRef<string | null>(null);
 
   // Chat
   const [chat, setChat] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
@@ -63,6 +109,8 @@ export function TaskAIPanel({
     if (!open) {
       setSubSugs([]); setSubPicked({}); setQuestions([]); setAnswers({});
       setMeta(null); setChat([]); setChatInput("");
+      subtaskIdsRef.current = [];
+      smallStepIdRef.current = null;
     }
   }, [open]);
 
@@ -92,9 +140,12 @@ export function TaskAIPanel({
       if (d?.mode === "questions" && d.questions?.length) {
         setQuestions(d.questions);
         setSubSugs([]); setSubPicked({});
+        subtaskIdsRef.current = [];
       } else {
-        setSubSugs(d?.subtasks || []);
-        setSubPicked(Object.fromEntries((d?.subtasks || []).map((_: any, i: number) => [i, true])));
+        const suggestions: string[] = Array.isArray(d?.subtasks) ? d.subtasks : [];
+        subtaskIdsRef.current = suggestions.map(() => newSuggestedTaskId());
+        setSubSugs(suggestions);
+        setSubPicked(Object.fromEntries(suggestions.map((_: string, i: number) => [i, true])));
         setQuestions([]);
       }
     } catch (e: any) { toast.error(e.message); }
@@ -107,20 +158,26 @@ export function TaskAIPanel({
   };
 
   const addPickedSubtasks = async () => {
-    if (!user) return;
-    const picked = subSugs.filter((_, i) => subPicked[i]);
+    if (!user || applying) return;
+    const picked = subSugs.map((title, index) => ({ title, index })).filter(({ index }) => subPicked[index]);
     if (!picked.length) return toast.error(T("چیزی انتخاب نشده", "Nothing selected"));
     // Create child tasks (each subtask is a real task with parent_id)
-    const rows = picked.map((title) => ({
-      user_id: user.id, title, parent_id: task.id, priority: "none" as Priority,
-    }));
-    const { error } = await firebaseStore.from("tasks").insert(rows);
-    if (error) toast.error(error.message);
-    else {
-      toast.success(T(`${picked.length} زیرتسک اضافه شد ✨`, `${picked.length} subtasks added ✨`));
+    setApplying(true);
+    try {
+      const results = await Promise.all(picked.map(({ title, index }) => persistTask(user.id, {
+        // Keep one ID per proposal row so a partial failure can be retried safely.
+        id: subtaskIdsRef.current[index] || (subtaskIdsRef.current[index] = newSuggestedTaskId()),
+        user_id: user.id, title, parent_id: task.id, priority: "none", status: "todo", completed: false,
+      })));
+      if (results.some((result) => result === "failed")) throw new Error(T("برخی زیرتسک‌ها ذخیره نشدند", "Some subtasks could not be saved"));
+      toast.success(results.some((result) => result === "queued")
+        ? T(`${picked.length} زیرتسک برای همگام‌سازی صف شد`, `${picked.length} subtasks queued to sync`)
+        : T(`${picked.length} زیرتسک اضافه شد ✨`, `${picked.length} subtasks added ✨`));
       setSubSugs([]); setSubPicked({});
+      subtaskIdsRef.current = [];
       onMetaApplied?.();
-    }
+    } catch (error: any) { toast.error(error?.message || T("ذخیره نشد", "Could not save")); }
+    finally { setApplying(false); }
   };
 
   // ====== Metadata ======
@@ -130,20 +187,80 @@ export function TaskAIPanel({
       const ctx = await buildContext();
       const r = await callAI("task_metadata_suggest",
         `Title: ${task.title}\nDescription: ${task.description || ""}`, ctx, undefined, aiLang);
-      setMeta(r.data || null);
+      const data = r.data || {};
+      const intent = data.if_then && typeof data.if_then.if === "string" && typeof data.if_then.then === "string"
+        ? { if: data.if_then.if.trim(), then: data.if_then.then.trim() }
+        : undefined;
+      const taskText = `${task.title} ${task.description || ""}`;
+      const explicitWorkDate = hasExplicitRecurrenceText(taskText) ? null : parseNaturalDate(taskText).dueDate;
+      const modelWorkDate = typeof data.work_date === "string" ? data.work_date : typeof data.due_date === "string" ? data.due_date : null;
+      const matchingModelDate = explicitWorkDate && modelWorkDate && (
+        explicitWorkDate === modelWorkDate || (explicitWorkDate.includes("T") && !Number.isNaN(Date.parse(modelWorkDate)) &&
+          Date.parse(explicitWorkDate) === Date.parse(modelWorkDate))
+      );
+      setMeta({
+        title: typeof data.title === "string" ? data.title.trim() : undefined,
+        small_step: typeof data.small_step === "string" ? data.small_step.trim() : undefined,
+        if_then: intent,
+        priority: data.priority ? normalizeTaskPriority(data.priority) : undefined,
+        // A proposal can only set a schedule parsed from an explicit day or clock
+        // in the task text. AI context alone cannot invent a calendar day.
+        work_date: explicitWorkDate && (!modelWorkDate || matchingModelDate) ? explicitWorkDate : undefined,
+        // Only accept a well-formed recurrence proposal when the user's own task text
+        // explicitly says it repeats. Otherwise the current recurrence remains untouched.
+        recurrence_rule: explicitRecurrenceRule(taskText, data.recurrence_rule),
+        reason: typeof data.reason === "string" ? data.reason : undefined,
+        schedule_reason: typeof data.schedule_reason === "string" ? data.schedule_reason : undefined,
+      });
+      smallStepIdRef.current = typeof data.small_step === "string" && data.small_step.trim()
+        ? newSuggestedTaskId()
+        : null;
     } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
   };
 
   const applyMeta = async () => {
-    if (!meta) return;
-    const patch: any = {};
+    if (!meta || applying) return;
+    const patch: Partial<Task> = {};
+    const title = meta.title?.trim();
+    if (title && title !== task.title) patch.title = title;
     if (meta.priority) patch.priority = meta.priority;
-    if (meta.due_date) Object.assign(patch, workDatePatch(task, meta.due_date));
+    if (meta.work_date) {
+      // `meta.work_date` is the immutable, text-validated schedule snapshot shown
+      // to the user. Do not re-resolve relative words like “tomorrow” at apply time.
+      if (scheduleFromDateValue(meta.work_date).kind !== "none") Object.assign(patch, workDatePatch(task, meta.work_date));
+    }
     if (meta.recurrence_rule) patch.recurrence_rule = meta.recurrence_rule;
-    const { error } = await firebaseStore.from("tasks").update(patch).eq("id", task.id);
-    if (error) toast.error(error.message);
-    else { toast.success(T("اعمال شد ✨", "Applied ✨")); onMetaApplied?.(); setMeta(null); }
+    if (meta.if_then?.if && meta.if_then.then) patch.implementation_intention = meta.if_then;
+    if (!Object.keys(patch).length) return toast.error(T("پیشنهاد قابل اعمالی وجود ندارد", "There are no applicable suggestions"));
+    setApplying(true);
+    try {
+      const result = await onApplyPatch(patch);
+      if (result === "failed") throw new Error(T("ذخیره انجام نشد", "The changes were not saved"));
+      toast.success(result === "queued" ? T("برای همگام‌سازی صف شد", "Queued to sync") : T("اعمال شد ✨", "Applied ✨"));
+      onMetaApplied?.();
+      setMeta(null);
+    } catch (error: any) {
+      toast.error(error?.message || T("ذخیره انجام نشد", "The changes were not saved"));
+    } finally { setApplying(false); }
+  };
+
+  const addSuggestedStep = async () => {
+    if (!user || !meta?.small_step?.trim() || applying) return;
+    setApplying(true);
+    try {
+      const id = smallStepIdRef.current || (smallStepIdRef.current = newSuggestedTaskId());
+      const result = await persistTask(user.id, {
+        id, user_id: user.id, title: meta.small_step.trim(), description: null,
+        parent_id: task.id, priority: "none", status: "todo", completed: false,
+      });
+      if (result === "failed") throw new Error(T("زیرتسک ذخیره نشد", "The subtask was not saved"));
+      toast.success(result === "queued" ? T("زیرتسک برای همگام‌سازی صف شد", "Subtask queued to sync") : T("گام بعدی اضافه شد", "Next step added"));
+      onMetaApplied?.();
+      smallStepIdRef.current = null;
+      setMeta((current) => current ? { ...current, small_step: undefined } : null);
+    } catch (error: any) { toast.error(error?.message || T("ذخیره نشد", "Could not save")); }
+    finally { setApplying(false); }
   };
 
   // ====== Note generation ======
@@ -263,31 +380,42 @@ export function TaskAIPanel({
 
           {/* Meta */}
           <TabsContent value="meta" className="space-y-3 mt-4">
-            <p className="text-sm text-muted-foreground">{T("AI بر اساس تسک، اولویت/زمان/تکرار پیشنهاد می‌ده.", "AI suggests priority, due date, and recurrence based on the task.")}</p>
+            <p className="text-sm text-muted-foreground">{T("AI عنوان روشن‌تر، گام بعدی، اولویت و برنامهٔ پیشنهادی را آماده می‌کند. هیچ تغییری تا انتخاب شما ذخیره نمی‌شود.", "AI drafts a clearer title, next step, priority, and schedule. Nothing is saved until you choose an action.")}</p>
             <Button onClick={suggestMeta} disabled={loading} className="w-full gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
               {T("پیشنهاد بگیر", "Suggest")}
             </Button>
             {meta && (
               <Card className="p-3 space-y-2">
+                {meta.title && meta.title !== task.title && (
+                  <div className="text-sm"><span className="text-muted-foreground">{T("عنوان پیشنهادی:", "Suggested title:")}</span> {meta.title}</div>
+                )}
                 {meta.priority && (
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-muted-foreground">{T("اولویت:", "Priority:")}</span>
-                    <span className={PRIORITY_META[meta.priority].textClass}>
-                      {PRIORITY_META[meta.priority].emoji} {T(PRIORITY_META[meta.priority].label, PRIORITY_META[meta.priority].labelEn)}
+                    <span className={PRIORITY_META[normalizeTaskPriority(meta.priority)].textClass}>
+                      {PRIORITY_META[normalizeTaskPriority(meta.priority)].emoji} {T(PRIORITY_META[normalizeTaskPriority(meta.priority)].label, PRIORITY_META[normalizeTaskPriority(meta.priority)].labelEn)}
                     </span>
                   </div>
                 )}
-                {meta.due_date && (
-                  <div className="text-sm"><span className="text-muted-foreground">{T("زمان:", "When:")}</span> {parseTaskDueDate(meta.due_date)?.toLocaleString(isEn ? "en-US" : "fa-IR") || meta.due_date}</div>
+                {meta.work_date && (
+                  <div className="text-sm space-y-1">
+                    <div><span className="text-muted-foreground">{T("اثر روی برنامه:", "Schedule change:")}</span> {scheduleBeforeLabel} → {formatTaskDueDateDisplay(meta.work_date, isEn, 2) || meta.work_date}</div>
+                    {meta.schedule_reason && <p className="text-xs text-muted-foreground">{meta.schedule_reason}</p>}
+                  </div>
                 )}
+                {meta.small_step && <div className="text-sm"><span className="text-muted-foreground">{T("گام کوچک بعدی:", "Next small step:")}</span> {meta.small_step}</div>}
+                {meta.if_then && <div className="text-sm"><span className="text-muted-foreground">{T("اگر–آنگاه:", "If–then:")}</span> {T("اگر", "If")} {meta.if_then.if}، {T("آنگاه", "then")} {meta.if_then.then}</div>}
                 {meta.recurrence_rule && (
                   <div className="text-sm"><span className="text-muted-foreground">{T("تکرار:", "Repeat:")}</span> {describeRule(meta.recurrence_rule, isEn)}</div>
                 )}
                 {meta.reason && <p className="text-xs text-muted-foreground italic">💡 {meta.reason}</p>}
-                <Button onClick={applyMeta} className="w-full gap-2" size="sm">
-                  <Check className="w-4 h-4" /> {T("اعمال کن", "Apply")}
-                </Button>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <Button onClick={applyMeta} disabled={applying} className="gap-2" size="sm">
+                    {applying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} {T("اعمال پیشنهادها", "Apply suggestions")}
+                  </Button>
+                  {meta.small_step && <Button onClick={addSuggestedStep} disabled={applying || !user} variant="outline" size="sm">{T("افزودن گام به‌عنوان زیرتسک", "Add step as subtask")}</Button>}
+                </div>
               </Card>
             )}
           </TabsContent>
