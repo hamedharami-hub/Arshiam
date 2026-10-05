@@ -60,6 +60,38 @@ describe("TaskListItem subtasks progress rendering", () => {
     expect(html).toContain("1/1");
   });
 
+  it("shows waiting state and its optional reason without marking the task done", () => {
+    const html = renderToString(
+      <TaskListItem
+        t={{ ...parentTask, status: "waiting", waiting_reason: "Waiting for review" }}
+        subs={[]}
+        open={false}
+        onToggleExpand={vi.fn()}
+        onSelectTask={vi.fn()}
+        onToggleTask={vi.fn()}
+        onActionTask={vi.fn()}
+        onDeleteTask={vi.fn()}
+        onPatchTask={vi.fn()}
+        onMoveTask={vi.fn()}
+        isSelected={false}
+        splitView={false}
+        layout="compact"
+        isEn={true}
+        T={(_fa, en) => en}
+        navigate={vi.fn()}
+        outcomeByTaskId={{}}
+        outcomeById={{}}
+        childrenMap={{}}
+        expanded={{}}
+        getProgress={() => ({ done: 0, total: 0 })}
+        taskMap={new Map()}
+      />,
+    );
+    expect(html).toContain("Waiting");
+    expect(html).toContain("Waiting for review");
+    expect(html).not.toContain("line-through");
+  });
+
   it("renders when both progress prop and getProgress return undefined without crashing", () => {
     const html = renderToString(
       <TaskListItem

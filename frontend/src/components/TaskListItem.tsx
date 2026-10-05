@@ -276,6 +276,11 @@ const TaskListItemComponent = ({
                       <X className="w-2.5 h-2.5" />
                     </span>
                   )}
+                  {t.status === "waiting" && (
+                    <span title={t.waiting_reason || T("در انتظار", "Waiting")} className="inline-flex items-center justify-center rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300 ms-1 shrink-0" data-testid={`task-waiting-badge-${t.id}`}>
+                      {T("منتظر", "Waiting")}
+                    </span>
+                  )}
                   <BidiText
                     as="span"
                     text={t.title}

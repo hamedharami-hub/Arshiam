@@ -2,6 +2,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PlanningBoard } from "./PlanningBoard";
 import type { Task } from "@/lib/taskTypes";
+import { planPatch } from "@/lib/planCascade";
+import { currentPeriod } from "@/lib/timeHorizon";
 
 const mocks = vi.hoisted(() => ({
   persistTask: vi.fn(),
@@ -104,5 +106,45 @@ describe("PlanningBoard quick add", () => {
     fireEvent.click(screen.getByTestId("planning-schedule-migration-dismiss-old-2"));
     expect(screen.queryByTestId("planning-schedule-migration-open")).not.toBeInTheDocument();
     expect(onOpen).toHaveBeenCalledOnce();
+  });
+
+  it("keeps review decisions separate: unplan clears only schedule, waiting and won't-do keep the task and goal link", async () => {
+    const period = currentPeriod("week", settings);
+    const work: Task = { id: "review-work", title: "Write a draft", priority: "none", completed: false, status: "todo", plan_parent_id: "goal", ...planPatch(period, settings) } as Task;
+    const onUpdate = vi.fn().mockResolvedValue("saved");
+    localStorage.setItem("arsh_planning_level_v2", "week");
+    render(<PlanningBoard tasks={[work]} settings={settings} fa={false} onToggle={vi.fn()} onUpdate={onUpdate} onOpen={vi.fn()} />);
+    fireEvent.click(screen.getByTestId("planning-review-open"));
+
+    fireEvent.click(screen.getByTestId("planning-review-continue-review-work"));
+    await waitFor(() => expect(onUpdate).toHaveBeenLastCalledWith(work.id, { status: "in_progress", completed: false, waiting_reason: null }));
+    fireEvent.change(screen.getByTestId("planning-review-waiting-reason-review-work"), { target: { value: "Needs approval" } });
+    fireEvent.click(screen.getByTestId("planning-review-waiting-review-work"));
+    await waitFor(() => expect(onUpdate).toHaveBeenLastCalledWith(work.id, { status: "waiting", completed: false, waiting_reason: "Needs approval" }));
+    fireEvent.click(screen.getByTestId("planning-review-setaside-review-work"));
+    await waitFor(() => expect(onUpdate).toHaveBeenLastCalledWith(work.id, { status: "wont_do", completed: false }));
+    fireEvent.click(screen.getByTestId("planning-review-drop-review-work"));
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(4));
+    const [, unplanPatch] = onUpdate.mock.calls[onUpdate.mock.calls.length - 1];
+    expect(unplanPatch.work_date).toBeNull();
+    expect(unplanPatch.planning_horizon).toBeNull();
+    expect(unplanPatch).not.toHaveProperty("plan_parent_id");
+    expect(work.plan_parent_id).toBe("goal");
+    expect(onUpdate.mock.calls.every(([id]) => id === work.id)).toBe(true);
+  });
+
+  it("moves a review item to a selected period without detaching it from its goal", async () => {
+    const period = currentPeriod("week", settings);
+    const work: Task = { id: "review-move", title: "Move this", priority: "none", completed: false, status: "todo", plan_parent_id: "goal", ...planPatch(period, settings) } as Task;
+    const onUpdate = vi.fn().mockResolvedValue("saved");
+    localStorage.setItem("arsh_planning_level_v2", "week");
+    render(<PlanningBoard tasks={[work]} settings={settings} fa={false} onToggle={vi.fn()} onUpdate={onUpdate} onOpen={vi.fn()} />);
+    fireEvent.click(screen.getByTestId("planning-review-open"));
+    fireEvent.click(screen.getByTestId("planning-review-move-review-move"));
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledOnce());
+    const [id, movePatch] = onUpdate.mock.calls[0];
+    expect(id).toBe(work.id);
+    expect(movePatch.planning_horizon).toBe("week");
+    expect(movePatch).not.toHaveProperty("plan_parent_id");
   });
 });

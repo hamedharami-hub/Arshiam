@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useAuth } from "@/hooks/useAuth";
 import type { Task } from "@/lib/taskTypes";
 import { fromLocalISO, getTimeSettings, periodLabel, todayISO, type Period, type TimeSettings } from "@/lib/timeHorizon";
+import { childLevel, defaultChildPeriod, periodsWithin } from "@/lib/planCascade";
 import { isClosed, isDone } from "@/lib/planCascade";
 import { nextPlanPeriod, periodText } from "@/lib/taskSchedule";
 import { reviewFor, savePlanReview, savePlanReviewDraft, type PlanReview, type PlanReviewItem, type ReviewSnapshot } from "@/lib/planReviewService";
@@ -13,6 +14,7 @@ import { LEVEL_NAME, frac } from "./planningTheme";
 import { ProgressLine } from "./PlanItemCard";
 import type { TaskPersistenceStatus } from "@/lib/firestoreDataService";
 import { clearTaskCreateIntent, getTaskCreateIntent, type TaskCreateIntent } from "@/lib/taskCreateIntent";
+import { PeriodPicker } from "./PeriodPicker";
 
 /** Which period deserves a review now: the last day of this one, or the first 3 days after an unreviewed one. */
 export function reviewDue(reviews: Record<string, PlanReview>, enabled: boolean, current: Period, previous: Period, hasPrevItems: boolean, now = new Date(), calendar = getTimeSettings().calendar): Period | null {
@@ -29,12 +31,19 @@ type Props = {
   reviews: Record<string, PlanReview>;
   onMove: (t: Task, p: Period) => Promise<TaskPersistenceStatus>; onDrop: (t: Task) => Promise<TaskPersistenceStatus>; onComplete: (t: Task) => unknown;
   onAdd: (title: string, p: Period, intentId: string) => Promise<TaskPersistenceStatus>;
+  onContinue?: (t: Task) => Promise<TaskPersistenceStatus>;
+  onWaiting?: (t: Task, reason?: string) => Promise<TaskPersistenceStatus>;
   onSetAside?: (t: Task) => Promise<TaskPersistenceStatus>;
 };
 
 const item = (t: Task, status: PlanReviewItem["status"]): PlanReviewItem => ({ id: t.id, title: t.title || "", status });
 
-export function PeriodReviewDialog({ period, items, settings, fa, onClose, onMove, onDrop, onComplete, onAdd, onSetAside, reviews }: Props) {
+function firstContainedChildPeriod(period: Period, horizon: NonNullable<ReturnType<typeof childLevel>>, settings: TimeSettings): Period {
+  return periodsWithin(horizon, period, settings).find((candidate) => candidate.start >= period.start && candidate.end <= period.end)
+    || defaultChildPeriod(period, horizon, settings);
+}
+
+export function PeriodReviewDialog({ period, items, settings, fa, onClose, onMove, onDrop, onComplete, onAdd, onContinue, onWaiting, onSetAside, reviews }: Props) {
   const { user } = useAuth();
   const saved = period ? reviewFor(reviews, period, settings.calendar) : null;
   const [note, setNote] = useState(saved?.note || "");
@@ -45,11 +54,16 @@ export function PeriodReviewDialog({ period, items, settings, fa, onClose, onMov
   const createIntent = useRef<TaskCreateIntent | null>(null);
   const finishIntent = useRef<{ id: string; note: string; snapshot: ReviewSnapshot | null; reviewedAt: string } | null>(null);
   const [reviewStatus, setReviewStatus] = useState<"pending" | "error" | "conflict" | null>(null);
+  const [moveTarget, setMoveTarget] = useState<Period | null>(period ? nextPlanPeriod(period, settings) : null);
+  const finer = period ? childLevel(period.horizon, settings) : null;
+  const [shrinkTarget, setShrinkTarget] = useState<Period | null>(period && finer ? firstContainedChildPeriod(period, finer, settings) : null);
+  const [waitingReasons, setWaitingReasons] = useState<Record<string, string>>({});
   // Cloud data may arrive after the dialog opened: adopt it only while the user has not typed.
   useEffect(() => { if (!dirty.current) setNote(saved?.note || ""); }, [saved?.note]);
   if (!period) return null;
   const lang = fa ? "fa" : "en";
   const next = nextPlanPeriod(period, settings);
+  const shrinkLevel = childLevel(period.horizon, settings);
   const done = items.filter(isDone);
   const open = items.filter((t) => !isClosed(t));
   const setAside = items.filter((t) => t.status === "wont_do");
@@ -160,6 +174,16 @@ export function PeriodReviewDialog({ period, items, settings, fa, onClose, onMov
 
         <section className="space-y-1.5">
           <h4 className="text-xs font-semibold text-muted-foreground">{fa ? "۲. ماند — برای هرکدام تصمیم بگیر" : "2. Left — decide on each"}</h4>
+          {!historical && shownOpen.length > 0 && <div className="grid gap-2 sm:grid-cols-2" data-testid="planning-review-targets">
+            {moveTarget && <div className="min-w-0 rounded-xl border border-border/60 px-2 py-1 text-xs text-muted-foreground">
+              <span>{fa ? "انتقال به دورهٔ انتخابی" : "Move to selected period"}</span>
+              <PeriodPicker key={`move:${moveTarget.horizon}:${moveTarget.start}`} period={moveTarget} settings={settings} fa={fa} onPick={setMoveTarget} />
+            </div>}
+            {shrinkLevel && shrinkTarget && <div className="min-w-0 rounded-xl border border-border/60 px-2 py-1 text-xs text-muted-foreground">
+              <span>{fa ? "کوچک‌کردن به دورهٔ ریزتر" : "Shrink to a finer period"}</span>
+              <PeriodPicker key={`shrink:${shrinkTarget.horizon}:${shrinkTarget.start}`} period={shrinkTarget} settings={settings} fa={fa} onPick={setShrinkTarget} isAllowed={(candidate) => candidate.start >= period.start && candidate.end <= period.end} />
+            </div>}
+          </div>}
           {shownOpen.length === 0 ? <p className="text-xs text-muted-foreground">{fa ? "چیزی نماند. عالی!" : "Nothing left. Great!"}</p> : (
             <ul className="space-y-1.5">
               {shownOpen.map((record) => {
@@ -168,7 +192,13 @@ export function PeriodReviewDialog({ period, items, settings, fa, onClose, onMov
                 <li key={record.id} className="rounded-xl border border-border/70 p-2" data-testid={`planning-review-open-${record.id}`}>
                   <p className="truncate text-sm">{record.title}</p>
                   {!historical && t && <div className="mt-1.5 flex flex-wrap gap-1">
-                    <button type="button" disabled={busy} className={`${btn} bg-primary/10 font-medium text-primary hover:bg-primary/15 disabled:opacity-50`} onClick={() => void runTaskUpdate(() => onMove(t, next))} data-testid={`planning-review-move-${t.id}`}>{fa ? `به ${periodText(next, settings, "fa")}` : `To ${periodText(next, settings, "en")}`}</button>
+                    {onContinue && <button type="button" disabled={busy} className={`${btn} bg-primary/10 font-medium text-primary hover:bg-primary/15 disabled:opacity-50`} onClick={() => void runTaskUpdate(() => onContinue(t))} data-testid={`planning-review-continue-${t.id}`}>{fa ? "ادامهٔ کار" : "Continue work"}</button>}
+                    {shrinkLevel && shrinkTarget && <button type="button" disabled={busy} className={`${btn} hover:bg-muted disabled:opacity-50`} onClick={() => void runTaskUpdate(() => onMove(t, shrinkTarget))} data-testid={`planning-review-shrink-${t.id}`}>{fa ? `کوچک‌تر · ${periodText(shrinkTarget, settings, "fa")}` : `Shrink · ${periodText(shrinkTarget, settings, "en")}`}</button>}
+                    {moveTarget && <button type="button" disabled={busy} className={`${btn} hover:bg-muted disabled:opacity-50`} onClick={() => void runTaskUpdate(() => onMove(t, moveTarget))} data-testid={`planning-review-move-${t.id}`}>{fa ? `انتقال · ${periodText(moveTarget, settings, "fa")}` : `Move · ${periodText(moveTarget, settings, "en")}`}</button>}
+                    {onWaiting && <>
+                      <input value={waitingReasons[t.id] || ""} onChange={(event) => setWaitingReasons((current) => ({ ...current, [t.id]: event.target.value }))} placeholder={fa ? "علت انتظار (اختیاری)" : "Waiting reason (optional)"} className="h-8 min-w-28 flex-1 rounded-full border bg-background px-2.5 text-[11px] outline-none focus:ring-2 focus:ring-primary/30" data-testid={`planning-review-waiting-reason-${t.id}`} />
+                      <button type="button" disabled={busy} className={`${btn} hover:bg-muted disabled:opacity-50`} onClick={() => void runTaskUpdate(() => onWaiting(t, waitingReasons[t.id]))} data-testid={`planning-review-waiting-${t.id}`}>{fa ? "منتظر" : "Waiting"}</button>
+                    </>}
                     <button type="button" disabled={busy} className={`${btn} hover:bg-muted disabled:opacity-50`} onClick={() => onComplete(t)} data-testid={`planning-review-done-${t.id}`}>{fa ? "انجام شده بود" : "It's done"}</button>
                     <button type="button" disabled={busy} className={`${btn} text-muted-foreground hover:bg-muted disabled:opacity-50`} onClick={() => void runTaskUpdate(() => onDrop(t))} data-testid={`planning-review-drop-${t.id}`}>{fa ? "حذف از برنامه" : "Remove from plan"}</button>
                     {onSetAside && <button type="button" disabled={busy} className={`${btn} text-muted-foreground hover:bg-muted disabled:opacity-50`} onClick={() => void runTaskUpdate(() => onSetAside(t))} data-testid={`planning-review-setaside-${t.id}`}>{fa ? "کنار بگذار" : "Set aside"}</button>}

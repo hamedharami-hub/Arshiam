@@ -56,4 +56,24 @@ describe("PlanItemCard child creation", () => {
     expect(screen.getByTestId("plan-item-child-input-parent-1")).toBeEnabled();
     expect(onAddChild).toHaveBeenCalledTimes(1);
   });
+
+  it("edits an optional finish criterion independently from child progress and prevents double writes", async () => {
+    let finishSave!: (status: "saved") => void;
+    const onSetFinishCriterion = vi.fn(() => new Promise<"saved">((resolve) => { finishSave = resolve; }));
+    render(<PlanItemCard
+      task={task} kids={new Map()} byId={new Map()} settings={settings} fa={false}
+      onSetFinishCriterion={onSetFinishCriterion} onToggle={vi.fn()} onOpen={vi.fn()} onMoveNext={vi.fn().mockResolvedValue("saved")} onUnplan={vi.fn().mockResolvedValue("saved")}
+    />);
+    fireEvent.keyDown(screen.getByTestId("plan-item-menu-parent-1"), { key: "Enter" });
+    fireEvent.click(screen.getByTestId("plan-item-finish-criterion-edit-parent-1"));
+    fireEvent.change(screen.getByTestId("plan-item-finish-criterion-input-parent-1"), { target: { value: "A usable outline exists" } });
+    const save = screen.getByTestId("plan-item-finish-criterion-save-parent-1");
+    fireEvent.click(save);
+    fireEvent.click(save);
+    expect(onSetFinishCriterion).toHaveBeenCalledTimes(1);
+    expect(onSetFinishCriterion).toHaveBeenCalledWith(task, "A usable outline exists");
+    expect(screen.queryByTestId("plan-item-progress-parent-1")).not.toBeInTheDocument();
+    finishSave("saved");
+    await waitFor(() => expect(screen.queryByTestId("plan-item-finish-criterion-input-parent-1")).not.toBeInTheDocument());
+  });
 });

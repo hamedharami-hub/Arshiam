@@ -34,17 +34,23 @@ export function getTaskProgress(
   let total = 0;
   const visited = new Set<string>();
 
-  const visit = (id: string) => {
+  const visit = (id: string, self: Task | null = null, isRoot = false) => {
     if (visited.has(id)) return;
     visited.add(id);
-    for (const child of childrenMap[id] || []) {
-      total += 1;
-      if (child.completed) done += 1;
-      visit(child.id);
+    const activeChildren = (childrenMap[id] || []).filter((child) => child.status !== "wont_do");
+    const unseenChildren = activeChildren.filter((child) => !visited.has(child.id));
+    if (!unseenChildren.length) {
+      if (!isRoot && self && self.status !== "wont_do") {
+        total += 1;
+        if (self.completed || self.status === "done") done += 1;
+      }
+      return;
     }
+    // A parent with descendants is a grouping row, not an additional unit of work.
+    for (const child of unseenChildren) visit(child.id, child);
   };
 
-  visit(taskId);
+  visit(taskId, null, true);
   return { done, total };
 }
 

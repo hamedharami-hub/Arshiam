@@ -35,6 +35,7 @@ describe("TaskDetailBottomRail Add Menu", () => {
     parentOpen: false,
     setParentOpen: vi.fn(),
     parentCandidates: [],
+    isParentLinkValid: () => true,
     showSubtasks: false,
     setShowSubtasks: vi.fn(),
     showSteps: false,

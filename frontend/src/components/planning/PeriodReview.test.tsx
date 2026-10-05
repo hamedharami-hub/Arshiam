@@ -18,6 +18,7 @@ const settings = { calendar: "gregorian" as const, weekStart: "mon" as const, se
 const props = (overrides: Partial<React.ComponentProps<typeof PeriodReviewDialog>> = {}) => ({
   period, items: [], settings, fa: false, onClose: vi.fn(), reviews: {},
   onMove: vi.fn().mockResolvedValue("saved"), onDrop: vi.fn().mockResolvedValue("saved"),
+  onContinue: vi.fn().mockResolvedValue("saved"), onWaiting: vi.fn().mockResolvedValue("saved"), onSetAside: vi.fn().mockResolvedValue("saved"),
   onComplete: vi.fn(), onAdd: vi.fn().mockResolvedValue("saved"),
   ...overrides,
 });
@@ -125,5 +126,35 @@ describe("PeriodReviewDialog persistence feedback", () => {
 
     expect(onAdd.mock.calls[1][2]).toBe(intentId);
     await waitFor(() => expect(screen.getByTestId("planning-review-next-input")).toHaveValue(""));
+  });
+
+  it("offers continue, shrink, selected-period move, waiting, unplan, and won't-do without deleting the task", async () => {
+    const work = { id: "work", title: "Write a draft", priority: "none", completed: false, status: "todo", plan_parent_id: "goal" } as Task;
+    const onMove = vi.fn().mockResolvedValue("saved");
+    const reviewProps = props({ items: [work], onMove });
+    render(<PeriodReviewDialog {...reviewProps} />);
+
+    fireEvent.click(screen.getByTestId("planning-review-continue-work"));
+    await waitFor(() => expect(reviewProps.onContinue).toHaveBeenCalledWith(work));
+
+    fireEvent.click(screen.getByTestId("planning-review-shrink-work"));
+    await waitFor(() => expect(onMove).toHaveBeenCalledTimes(1));
+    expect(onMove.mock.calls[0][1].horizon).toBe("day");
+    expect(onMove.mock.calls[0][1].start >= period.start).toBe(true);
+    expect(onMove.mock.calls[0][1].end <= period.end).toBe(true);
+
+    fireEvent.click(screen.getByTestId("planning-review-move-work"));
+    await waitFor(() => expect(onMove).toHaveBeenCalledTimes(2));
+    expect(onMove.mock.calls[1][1].horizon).toBe("week");
+
+    fireEvent.change(screen.getByTestId("planning-review-waiting-reason-work"), { target: { value: "Waiting on approval" } });
+    fireEvent.click(screen.getByTestId("planning-review-waiting-work"));
+    await waitFor(() => expect(reviewProps.onWaiting).toHaveBeenCalledWith(work, "Waiting on approval"));
+
+    fireEvent.click(screen.getByTestId("planning-review-drop-work"));
+    await waitFor(() => expect(reviewProps.onDrop).toHaveBeenCalledWith(work));
+    fireEvent.click(screen.getByTestId("planning-review-setaside-work"));
+    await waitFor(() => expect(reviewProps.onSetAside).toHaveBeenCalledWith(work));
+    expect(work.plan_parent_id).toBe("goal");
   });
 });

@@ -26,7 +26,7 @@ function shortLabel(p: Period, s: TimeSettings, fa: boolean): string {
 }
 
 /** Mobile-friendly picker: shows the sibling periods inside the parent period, with parent navigation. */
-export function PeriodPicker({ period, settings, fa, onPick }: { period: Period; settings: TimeSettings; fa: boolean; onPick: (p: Period) => void }) {
+export function PeriodPicker({ period, settings, fa, onPick, isAllowed }: { period: Period; settings: TimeSettings; fa: boolean; onPick: (p: Period) => void; isAllowed?: (p: Period) => boolean }) {
   const [open, setOpen] = useState(false);
   const parentKind = PARENT_OF[period.horizon];
   const [frame, setFrame] = useState<Period>(() => parentKind === "decade" ? period : periodFor(parentKind, fromLocalISO(period.start), settings));
@@ -58,9 +58,10 @@ export function PeriodPicker({ period, settings, fa, onPick }: { period: Period;
           {options.map((p) => {
             const active = p.start === period.start;
             const isNow = today >= p.start && today <= p.end;
+            const allowed = isAllowed?.(p) ?? true;
             return (
-              <button key={p.start} type="button" onClick={() => { onPick(p); setOpen(false); }} data-testid={`planning-pick-${p.start}`}
-                className={cn("rounded-lg px-2 py-2 text-sm transition-colors duration-150", active ? "bg-primary text-primary-foreground" : "hover:bg-muted", isNow && !active && "ring-1 ring-primary/50 font-semibold")}>
+              <button key={p.start} type="button" disabled={!allowed} onClick={() => { onPick(p); setOpen(false); }} data-testid={`planning-pick-${p.start}`}
+                className={cn("rounded-lg px-2 py-2 text-sm transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-35", active ? "bg-primary text-primary-foreground" : "hover:bg-muted", isNow && !active && "ring-1 ring-primary/50 font-semibold")}>
                 {shortLabel(p, settings, fa)}
               </button>
             );

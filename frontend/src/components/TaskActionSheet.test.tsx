@@ -8,6 +8,7 @@ const planningMocks = vi.hoisted(() => ({
   setNextTask: vi.fn(), clearNextTaskIf: vi.fn(), toggleImportant: vi.fn(), setWipEnabled: vi.fn(), setWipLimit: vi.fn(),
   data: { nextTaskId: null, nextTaskDate: null, importantByDay: {}, wipEnabled: false, wipLimit: 3 },
 }));
+const relationMocks = vi.hoisted(() => ({ fetchTasks: vi.fn(), hasServerAuthoritativeTasks: vi.fn() }));
 
 vi.mock("sonner", () => ({ toast: feedback }));
 
@@ -19,6 +20,12 @@ vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({
     user: { id: "user-123", email: "test@example.com" },
   }),
+}));
+
+vi.mock("@/features/tasks/taskService", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/features/tasks/taskService")>(),
+  fetchTasks: relationMocks.fetchTasks,
+  hasServerAuthoritativeTasks: relationMocks.hasServerAuthoritativeTasks,
 }));
 
 vi.mock("@/hooks/useTodayPlanning", () => ({
@@ -96,6 +103,8 @@ describe("TaskActionSheet Responsive Behavior", () => {
     planningMocks.data.nextTaskId = null;
     planningMocks.data.wipEnabled = false;
     planningMocks.data.wipLimit = 3;
+    relationMocks.fetchTasks.mockReset().mockResolvedValue([]);
+    relationMocks.hasServerAuthoritativeTasks.mockReset().mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -236,5 +245,61 @@ describe("TaskActionSheet Responsive Behavior", () => {
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
     expect(feedback.info).toHaveBeenCalledOnce();
     expect(feedback.success).not.toHaveBeenCalled();
+  });
+
+  it("saves optional waiting reason once and does not alter schedule", async () => {
+    localStorage.setItem("arshnaz_nav_mode", "windows");
+    const future = { ...dummyTask, work_date: "2099-10-08", schedule_v: 2 };
+    let resolvePatch!: (status: "saved") => void;
+    const onPatch = vi.fn(() => new Promise<"saved">((resolve) => { resolvePatch = resolve; }));
+    render(<TaskActionSheet {...defaultProps} task={future} onPatch={onPatch} />);
+    fireEvent.click(screen.getByText(/بیشتر|More/i));
+    fireEvent.click(screen.getByText(/انتظار و پیش‌نیازها|Waiting & prerequisites/i));
+    fireEvent.change(await screen.findByTestId("task-waiting-reason"), { target: { value: "Waiting on a review" } });
+    const markWaiting = screen.getByTestId("task-mark-waiting");
+    fireEvent.click(markWaiting);
+    await waitFor(() => expect(markWaiting).toBeDisabled());
+    fireEvent.click(markWaiting);
+    expect(onPatch).toHaveBeenCalledTimes(1);
+    expect(onPatch).toHaveBeenCalledWith({ status: "waiting", completed: false, waiting_reason: "Waiting on a review" });
+    expect(future.work_date).toBe("2099-10-08");
+    resolvePatch("saved");
+    await waitFor(() => expect(defaultProps.onOpenChange).toHaveBeenCalledWith(false));
+  });
+
+  it("allows valid prerequisites and blocks recurring and cyclic candidates", async () => {
+    localStorage.setItem("arshnaz_nav_mode", "windows");
+    const current = { ...dummyTask, prerequisite_ids: [] };
+    relationMocks.fetchTasks.mockResolvedValueOnce([
+      current,
+      { ...dummyTask, id: "prep", title: "Prepare base", prerequisite_ids: [] },
+      { ...dummyTask, id: "cycle", title: "Would make a cycle", prerequisite_ids: [current.id] },
+      { ...dummyTask, id: "repeat", title: "Recurring task", recurrence: "weekly" },
+    ]);
+    const onPatch = vi.fn().mockResolvedValue("saved");
+    render(<TaskActionSheet {...defaultProps} task={current} onPatch={onPatch} />);
+    fireEvent.click(screen.getByText(/بیشتر|More/i));
+    fireEvent.click(screen.getByText(/انتظار و پیش‌نیازها|Waiting & prerequisites/i));
+    await screen.findByText("Prepare base");
+    expect(screen.getByText("Would make a cycle").closest("label")?.querySelector("input")).toBeDisabled();
+    expect(screen.getByText("Recurring task").closest("label")?.querySelector("input")).toBeDisabled();
+    fireEvent.click(screen.getByText("Prepare base").closest("label")!.querySelector("input")!);
+    fireEvent.click(screen.getByTestId("task-save-prerequisites"));
+    await waitFor(() => expect(onPatch).toHaveBeenCalledWith({ prerequisite_ids: ["prep"] }));
+  });
+
+  it("does not turn an offline cached task list into missing prerequisites or clear links", async () => {
+    localStorage.setItem("arshnaz_nav_mode", "windows");
+    const current = { ...dummyTask, prerequisite_ids: ["prerequisite-not-in-cache"] };
+    relationMocks.fetchTasks.mockResolvedValueOnce([current]);
+    relationMocks.hasServerAuthoritativeTasks.mockReturnValue(false);
+    const onPatch = vi.fn().mockResolvedValue("saved");
+    render(<TaskActionSheet {...defaultProps} task={current} onPatch={onPatch} />);
+    fireEvent.click(screen.getByText(/بیشتر|More/i));
+    fireEvent.click(screen.getByText(/انتظار و پیش‌نیازها|Waiting & prerequisites/i));
+    expect(await screen.findByTestId("task-prerequisite-readiness")).toHaveTextContent(/فهرست کامل تسک‌ها در دسترس نیست|complete task list is unavailable/);
+    expect(screen.queryByText(/Missing prerequisite/)).not.toBeInTheDocument();
+    expect(screen.getByTestId("task-save-prerequisites")).toBeDisabled();
+    expect(onPatch).not.toHaveBeenCalled();
   });
 });

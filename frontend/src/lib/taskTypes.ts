@@ -1,7 +1,7 @@
 import type { Priority } from "@/lib/priority";
 import type { RecurrenceRule } from "@/lib/recurrence";
 
-export type TaskStatus = "todo" | "in_progress" | "done" | "wont_do";
+export type TaskStatus = "todo" | "in_progress" | "waiting" | "done" | "wont_do";
 
 export type ReminderMode = "once" | "until_ack" | "count";
 export type ReminderImportance = "normal" | "important";
@@ -63,6 +63,12 @@ export type Task = {
   planning_calendar?: "jalali" | "gregorian" | null;
   /** Cascade link to an item one or more planning levels higher (year → quarter → month → week → day). */
   plan_parent_id?: string | null;
+  /** Prerequisite task IDs; independent from subtask and planning-goal relationships. */
+  prerequisite_ids?: string[];
+  /** Optional context for a manually waiting task. */
+  waiting_reason?: string | null;
+  /** Optional user-defined evidence that a planning goal is complete; separate from progress %. */
+  finish_criterion?: string | null;
   // Time horizon v2 (see src/lib/timeHorizon.ts)
   horizon?: "day" | "week" | "month" | "quarter" | "year" | null;
   period_start?: string | null;

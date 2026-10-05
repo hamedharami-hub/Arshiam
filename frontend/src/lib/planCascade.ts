@@ -49,14 +49,28 @@ export function childrenMap(tasks: Task[]): Map<string, Task[]> {
 }
 
 export type Progress = { done: number; total: number; ratio: number };
-/** Leaves count by completion; a parent is the average of its children, so a ticked day moves the year. */
+/** Count eligible leaf actions once; a checked grouping goal never completes its open descendants. */
 export function progressOf(t: Task, kids: Map<string, Task[]>, seen = new Set<string>()): Progress {
-  const list = (kids.get(t.id) || []).filter((c) => c.status !== "wont_do" && !seen.has(c.id));
-  if (!list.length) return { done: isDone(t) ? 1 : 0, total: 0, ratio: isDone(t) ? 1 : 0 };
-  seen.add(t.id);
-  const ratios = list.map((c) => progressOf(c, kids, seen).ratio);
-  const ratio = isDone(t) ? 1 : ratios.reduce((a, b) => a + b, 0) / list.length;
-  return { done: ratios.filter((r) => r >= 1).length, total: list.length, ratio };
+  let done = 0;
+  let total = 0;
+  const visit = (task: Task) => {
+    if (seen.has(task.id) || task.status === "wont_do") return;
+    seen.add(task.id);
+    const children = kids.get(task.id) || [];
+    const eligible = children.filter((child) => child.status !== "wont_do" && !seen.has(child.id));
+    if (eligible.length) {
+      eligible.forEach(visit);
+      return;
+    }
+    // The root itself is not another action when it has descendants; when a
+    // caller asks about a standalone item, count that item as its own leaf.
+    if (task.id !== t.id || !(kids.get(t.id) || []).some((child) => child.status !== "wont_do")) {
+      total += 1;
+      if (isDone(task)) done += 1;
+    }
+  };
+  visit(t);
+  return { done, total, ratio: total ? done / total : (isDone(t) ? 1 : 0) };
 }
 
 /**

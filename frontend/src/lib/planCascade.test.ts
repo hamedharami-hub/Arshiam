@@ -39,7 +39,7 @@ describe("planCascade", () => {
     const w2 = t("w2", planPatch(week, s, "m1"));
     const kids = childrenMap([year, m1, m2, w1, w2]);
     expect(progressOf(m1, kids)).toMatchObject({ done: 1, total: 2, ratio: 0.5 });
-    expect(progressOf(year, kids)).toMatchObject({ done: 1, total: 2, ratio: 0.75 });
+    expect(progressOf(year, kids)).toMatchObject({ done: 2, total: 3, ratio: 2 / 3 });
   });
 
   it("lists open items of earlier periods once and leaves the unplanned tray clean", () => {

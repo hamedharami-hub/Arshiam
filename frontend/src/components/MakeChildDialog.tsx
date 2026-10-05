@@ -7,6 +7,7 @@ import { CornerUpLeft, Search } from "lucide-react";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { toast } from "sonner";
 import type { Task } from "@/lib/taskTypes";
+import { validateTaskParentLink } from "@/lib/taskRelations";
 
 export function MakeChildDialog({
   open, onOpenChange, task, allTasks, onDone,
@@ -36,11 +37,16 @@ export function MakeChildDialog({
     const term = q.trim().toLowerCase();
     return allTasks
       .filter(t => !forbidden.has(t.id))
+      .filter(t => validateTaskParentLink(allTasks, task.id, t.id, "parent_id").valid)
       .filter(t => !term || (t.title || "").toLowerCase().includes(term))
       .slice(0, 80);
   }, [allTasks, forbidden, q]);
 
   const apply = async (newParentId: string | null) => {
+    if (!validateTaskParentLink(allTasks, task.id, newParentId, "parent_id").valid) {
+      toast.error("این پیوند زیرتسک باعث چرخه می‌شود.");
+      return;
+    }
     const { error } = await firebaseStore.from("tasks").update({ parent_id: newParentId }).eq("id", task.id);
     if (error) return toast.error(error.message);
     toast.success(newParentId ? "زیرتسک شد" : "به ریشه منتقل شد");

@@ -30,6 +30,7 @@ import { applyTaskScheduleMigration, previewTaskScheduleMigration, type Migratio
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format as gFormat } from "date-fns";
 import { format as jFormat } from "date-fns-jalali";
+import { validateTaskParentLink } from "@/lib/taskRelations";
 
 const LEVEL_KEY = "arsh_planning_level_v2";
 const FA_WEEKDAY = ["ی", "د", "س", "چ", "پ", "ج", "ش"];
@@ -172,6 +173,10 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
 
   const create = async (title: string, p: Period, parent?: Task, extra?: Partial<Task>, intentId = newId()): Promise<TaskPersistenceStatus> => {
     if (!user?.id || !title.trim()) return "failed";
+    if (parent && !validateTaskParentLink(live, intentId, parent.id, "plan_parent_id").valid) {
+      toast.error(fa ? "ارتباط هدف نامعتبر است؛ این تسک به هدف پیوند نخورد." : "Invalid planning-goal link; the task was not attached.");
+      return "failed";
+    }
     const now = new Date().toISOString();
     const task = {
       id: intentId, user_id: user.id, title: title.trim(), priority: "none", completed: false, status: "todo",
@@ -192,6 +197,10 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
     return status;
   };
   const plan = async (t: Task, p: Period | null, parentId?: string | null, success?: string): Promise<TaskPersistenceStatus> => {
+    if (parentId !== undefined && !validateTaskParentLink(live, t.id, parentId, "plan_parent_id").valid) {
+      toast.error(fa ? "این پیوند هدف باعث چرخه می‌شود و ذخیره نشد." : "This planning-goal link would create a cycle and was not saved.");
+      return "failed";
+    }
     haptic("light");
     let status: TaskPersistenceStatus;
     try { status = toSaveStatus(await onUpdate(t.id, planPatch(p, settings, parentId))); }
@@ -242,6 +251,27 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
     }
   };
   const complete = (t: Task) => { if (!isClosed(t)) void onToggle(t); };
+  const continueTask = async (t: Task): Promise<TaskPersistenceStatus> => {
+    let status: TaskPersistenceStatus;
+    try { status = toSaveStatus(await onUpdate(t.id, { status: "in_progress", completed: false, waiting_reason: null })); }
+    catch { status = "failed"; }
+    reportSave(status, fa, fa ? "ادامهٔ کار ثبت شد" : "Work continued");
+    return status;
+  };
+  const markWaiting = async (t: Task, reason?: string): Promise<TaskPersistenceStatus> => {
+    let status: TaskPersistenceStatus;
+    try { status = toSaveStatus(await onUpdate(t.id, { status: "waiting", completed: false, waiting_reason: reason?.trim() || null })); }
+    catch { status = "failed"; }
+    reportSave(status, fa, fa ? "در انتظار ثبت شد" : "Marked waiting");
+    return status;
+  };
+  const setAside = async (t: Task): Promise<TaskPersistenceStatus> => {
+    let status: TaskPersistenceStatus;
+    try { status = toSaveStatus(await onUpdate(t.id, { status: "wont_do", completed: false })); }
+    catch { status = "failed"; }
+    reportSave(status, fa, fa ? "کنار گذاشته شد" : "Set aside");
+    return status;
+  };
 
   const onTouchEnd = (e: React.TouchEvent) => {
     const start = touch.current; touch.current = null;
@@ -308,7 +338,7 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
             </div>
           )}
           <CarryOverCard tasks={carried} settings={settings} fa={fa} onMoveHere={(t) => plan(t, period, undefined, fa ? `به «${targetName}» آمد` : `Moved to ${targetName}`)} onComplete={complete}
-            onDrop={(t) => plan(t, null, null)} onMoveAll={() => void moveAll(carried)} busy={busy} />
+            onDrop={(t) => plan(t, null)} onMoveAll={() => void moveAll(carried)} busy={busy} />
           <form className="flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); void submitDraft(); }}>
             <input value={draft} onChange={(e) => setDraft(e.target.value)} data-testid="planning-quick-add"
               placeholder={fa ? `افزودن به ${targetName}…` : `Add to ${targetName}…`}
@@ -324,7 +354,11 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
             <div className="space-y-2" data-testid="planning-items">
               {rows.map((t) => (
                 <PlanItemCard key={t.id} task={t} kids={kids} byId={byId} settings={settings} fa={fa} childLevelName={down} valueLabel={valueLabel(t)}
-                onToggle={(x) => void onToggle(x)} onOpen={onOpen} onMoveNext={moveNext} onUnplan={(x) => plan(x, null, null, fa ? "از برنامه برداشته شد" : "Removed from the plan")}
+                onToggle={(x) => void onToggle(x)} onOpen={onOpen} onMoveNext={moveNext} onUnplan={(x) => plan(x, null, undefined, fa ? "از برنامه برداشته شد" : "Removed from the plan")}
+                  onSetFinishCriterion={async (x, criterion) => {
+                    try { return toSaveStatus(await onUpdate(x.id, { finish_criterion: criterion })); }
+                    catch { return "failed"; }
+                  }}
                   onAddChild={down ? (parent, title, intentId) => create(title, defaultChildPeriod(planOf(parent, settings) || period, down, settings), parent, undefined, intentId) : undefined} />
               ))}
             </div>
@@ -332,8 +366,8 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
           {lv === "week" && <WeekDays period={period} tasks={live} settings={settings} fa={fa} onPick={(d) => { setLevelState("day"); localStorage.setItem(LEVEL_KEY, "day"); setAnchor(d); }} />}
         </div>
         <PeriodReviewDialog key={reviewP ? `${user?.id}:${reviewP.horizon}:${reviewP.start}:${reviewP.end}:${settings.calendar}` : "none"} period={reviewP} items={reviewItems} settings={settings} fa={fa} onClose={() => setReviewP(null)} reviews={reviews}
-          onMove={(t, p) => plan(t, p, undefined, fa ? "منتقل شد" : "Moved")} onDrop={(t) => plan(t, null, null)} onComplete={complete} onAdd={(title, p, intentId) => create(title, p, undefined, undefined, intentId)}
-          onSetAside={async (t) => { let st: TaskPersistenceStatus; try { st = toSaveStatus(await onUpdate(t.id, { status: "wont_do", completed: false })); } catch { st = "failed"; } reportSave(st, fa, fa ? "کنار گذاشته شد" : "Set aside"); return st; }} />
+          onMove={(t, p) => plan(t, p, undefined, fa ? "منتقل شد" : "Moved")} onDrop={(t) => plan(t, null)} onComplete={complete} onAdd={(title, p, intentId) => create(title, p, undefined, undefined, intentId)}
+          onContinue={continueTask} onWaiting={markWaiting} onSetAside={setAside} />
         <Dialog open={migrationOpen} onOpenChange={setMigrationOpen}>
           <DialogContent className="max-h-[82vh] max-w-xl overflow-y-auto rounded-3xl" dir={fa ? "rtl" : "ltr"} data-testid="planning-schedule-migration-dialog">
             <DialogHeader className="space-y-1 text-start">
@@ -401,14 +435,15 @@ function WeekDays({ period, tasks, settings, fa, onPick }: { period: Period; tas
         {weekDays(period).map((d) => {
           const day = periodFor("day", fromLocalISO(d), settings);
           const list = itemsInPeriod(tasks, day, settings);
-          const done = list.filter(isClosed).length;
+          const counted = list.filter((task) => task.status !== "wont_do");
+          const done = counted.filter(isDone).length;
           const date = fromLocalISO(d);
           return (
             <button key={d} type="button" onClick={() => onPick(d)} data-testid={`planning-week-day-${d}`}
               className={cn("flex flex-col items-center gap-0.5 rounded-xl py-2 text-xs transition-colors duration-150 hover:bg-muted", d === today && "bg-rose-500/10 ring-1 ring-rose-500/40")}>
               <span className="text-[10px] text-muted-foreground">{fa ? FA_WEEKDAY[date.getDay()] : gFormat(date, "EEEEE")}</span>
               <span className="text-sm font-semibold">{jal ? toPersianDigits(jFormat(date, "d")) : gFormat(date, "d")}</span>
-              <span className="text-[10px] tabular-nums text-muted-foreground">{list.length ? frac(done, list.length, fa) : "·"}</span>
+              <span className="text-[10px] tabular-nums text-muted-foreground">{counted.length ? frac(done, counted.length, fa) : "·"}</span>
             </button>
           );
         })}

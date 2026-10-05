@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -29,13 +29,15 @@ import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyServi
 import { getCurrentTaskLocation, taskLocationErrorMessage } from "@/lib/taskLocation";
 import { duplicateTaskCascade } from "@/lib/taskDuplicateService";
 import { getLocalDateString } from "@/lib/taskDate";
+import { fetchTasks, hasServerAuthoritativeTasks } from "@/features/tasks/taskService";
+import { isRecurringPrerequisite, prerequisiteReadiness, validatePrerequisiteLink } from "@/lib/taskRelations";
 import { isTaskEligibleForNext, isTaskImportantForDay, isTaskScheduledInFuture, shouldWarnWipStart } from "@/lib/todayPlanning";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type View = "main" | "more" | "activities" | "subtask" | "location";
+type View = "main" | "more" | "activities" | "subtask" | "location" | "dependencies";
 
 interface Props {
   task: Task | null;
@@ -80,10 +82,46 @@ export default function TaskActionSheet({
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const [location, setLocation] = useState(task?.location || "");
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
   const [locating, setLocating] = useState(false);
   const [confirmFutureNext, setConfirmFutureNext] = useState(false);
   const [wipLimitDraft, setWipLimitDraft] = useState(String(wipLimit));
+  const [knownTasks, setKnownTasks] = useState<Task[]>([]);
+  const [relationshipsLoaded, setRelationshipsLoaded] = useState(false);
+  const [relationshipsError, setRelationshipsError] = useState(false);
+  const [waitingReason, setWaitingReason] = useState(task?.waiting_reason || "");
+  const [selectedPrerequisites, setSelectedPrerequisites] = useState<string[]>(task?.prerequisite_ids || []);
+  const relationshipsDirty = useRef(false);
   useEffect(() => setWipLimitDraft(String(wipLimit)), [wipLimit]);
+  useEffect(() => {
+    relationshipsDirty.current = false;
+    setWaitingReason(task?.waiting_reason || "");
+    setSelectedPrerequisites(task?.prerequisite_ids || []);
+  }, [task?.id]);
+  useEffect(() => {
+    if (relationshipsDirty.current) return;
+    setWaitingReason(task?.waiting_reason || "");
+    setSelectedPrerequisites(task?.prerequisite_ids || []);
+  }, [task?.id, task?.waiting_reason, task?.prerequisite_ids]);
+  useEffect(() => {
+    if (view !== "dependencies" || !user?.id) return;
+    const uid = user.id;
+    let active = true;
+    setRelationshipsLoaded(false);
+    setRelationshipsError(false);
+    setKnownTasks([]);
+    void fetchTasks(uid).then((rows) => {
+      if (active) {
+        setKnownTasks(rows);
+        setRelationshipsLoaded(true);
+        // An offline/cache snapshot cannot prove that a referenced ID was deleted.
+        setRelationshipsError(!hasServerAuthoritativeTasks(uid));
+      }
+    }).catch(() => {
+      if (active) { setKnownTasks([]); setRelationshipsLoaded(true); setRelationshipsError(true); }
+    });
+    return () => { active = false; };
+  }, [view, user?.id]);
 
   const fallbackIsOwner = !!user && !!task && user.id === task.user_id;
   const isOwner = propIsOwner ?? fallbackIsOwner;
@@ -97,6 +135,7 @@ export default function TaskActionSheet({
   const isImportantToday = isTaskImportantForDay(planning.data, task.id, today);
   const eligibleForNext = isTaskEligibleForNext(task);
   const isFuture = isTaskScheduledInFuture(task, today);
+  const dependencyState = useMemo(() => task ? prerequisiteReadiness(task, knownTasks) : "none", [task, knownTasks]);
 
   const chooseAsNext = () => {
     if (!eligibleForNext) return;
@@ -297,6 +336,39 @@ export default function TaskActionSheet({
     close();
   };
 
+  const saveWaitingState = async (waiting: boolean) => {
+    if (busyRef.current) return;
+    const patch: Partial<Task> = waiting
+      ? { status: "waiting", completed: false, waiting_reason: waitingReason.trim() || null }
+      : { status: "todo", completed: false, waiting_reason: null };
+    busyRef.current = true;
+    setBusy(true);
+    let status: TaskPersistenceStatus;
+    try { status = await applyPatch(patch, waiting ? "waiting" : "reopened", patch as Record<string, unknown>); }
+    catch { status = "failed"; }
+    finally { busyRef.current = false; setBusy(false); }
+    reportSave(status, isEn, waiting ? T("در انتظار ثبت شد", "Marked as waiting") : T("کار ادامه پیدا می‌کند", "Task resumed"));
+    if (status !== "failed") { relationshipsDirty.current = false; close(); }
+  };
+
+  const savePrerequisites = async () => {
+    if (busyRef.current || !relationshipsLoaded || relationshipsError) return;
+    const ids = [...new Set(selectedPrerequisites)];
+    const invalid = ids.find((id) => !validatePrerequisiteLink(knownTasks, task.id, id).valid);
+    if (invalid) {
+      toast.error(T("یکی از پیش‌نیازها دیگر معتبر نیست؛ آن را بردار یا مورد را بازبینی کن.", "A prerequisite is no longer valid. Remove it or review the task."));
+      return;
+    }
+    busyRef.current = true;
+    setBusy(true);
+    let status: TaskPersistenceStatus;
+    try { status = await applyPatch({ prerequisite_ids: ids }, "prerequisites_updated", { prerequisite_ids: ids }); }
+    catch { status = "failed"; }
+    finally { busyRef.current = false; setBusy(false); }
+    reportSave(status, isEn, T("پیش‌نیازها ذخیره شد", "Prerequisites saved"));
+    if (status !== "failed") { relationshipsDirty.current = false; close(); }
+  };
+
   const copyLink = async () => {
     try {
       const url = `${window.location.origin}/app/tasks/${task.id}`;
@@ -336,6 +408,7 @@ export default function TaskActionSheet({
       <div className="space-y-0.5">
         {hideDuplicates ? (
           <>
+            <Row icon={CircleDot} label={T("انتظار و پیش‌نیازها", "Waiting & prerequisites")} onClick={() => setView("dependencies")} disabled={!canEdit} />
             <Row icon={StickyNote} label={T("تبدیل به یادداشت", "Convert to Note")} onClick={convertToNote} disabled={!canEdit || busy} />
             <Row icon={CopyPlus} label={T("تکثیر تسک", "Duplicate Task")} onClick={() => duplicate(false)} disabled={!canEdit || busy} />
             <Row icon={Save} label={T("تکثیر و باز کردن", "Duplicate & Open")} onClick={() => duplicate(true)} disabled={!canEdit || busy} />
@@ -374,6 +447,7 @@ export default function TaskActionSheet({
             <Row icon={Timer} label={T("پومودورو", "Pomodoro")} onClick={() => { onPomodoro?.(); close(); }} />
             <Row icon={FolderInput} label={T("انتقال", "Move")} onClick={() => { onMove(); close(); }} disabled={!canEdit} />
             <Row icon={ListTree} label={T("افزودن زیرتسک", "Add Subtask")} onClick={() => setView("subtask")} disabled={!canEdit} />
+            <Row icon={CircleDot} label={T("انتظار و پیش‌نیازها", "Waiting & prerequisites")} onClick={() => setView("dependencies")} disabled={!canEdit} />
             <Row icon={Network} label={T("لینک به تسک والد", "Link Parent Task")} onClick={() => { onMakeChild(); close(); }} disabled={!canEdit} />
             <Row icon={StickyNote} label={T("تبدیل به نوت", "Convert to Note")} onClick={convertToNote} disabled={!canEdit || busy} />
             <Row icon={Paperclip} label={T("ضمیمه", "Attachment")} onClick={() => { onEdit(); close(); }} disabled={!canEdit} />
@@ -440,6 +514,7 @@ export default function TaskActionSheet({
             <Row icon={CopyPlus} label={T("تکثیر", "Duplicate")} onClick={() => duplicate(false)} disabled={!canEdit || busy} />
             <Row icon={Save} label={T("ذخیره و جدید", "Save & New")} onClick={() => duplicate(true)} disabled={!canEdit || busy} />
             <Row icon={Pencil} label={T("ویرایش کامل", "Full Edit")} onClick={() => { onEdit(); close(); }} />
+            <Row icon={CircleDot} label={T("انتظار و پیش‌نیازها", "Waiting & prerequisites")} onClick={() => setView("dependencies")} disabled={!canEdit} />
             {onSetWipEnabled && (
               <div className="px-2 py-2.5 rounded-xl" data-testid="today-wip-settings">
                 <button
@@ -523,6 +598,46 @@ export default function TaskActionSheet({
             <Button onClick={saveLocation} className="w-full">
               {T("ذخیره موقعیت", "Save Location")}
             </Button>
+          </div>
+        );
+      case "dependencies":
+        return (
+          <div className="animate-fade-in space-y-3" data-testid="task-dependencies-panel">
+            {header(T("انتظار و پیش‌نیازها", "Waiting & prerequisites"), backToMain)}
+            <div className="space-y-2 rounded-xl bg-muted/40 p-3">
+              <label className="block text-xs font-medium" htmlFor="task-waiting-reason">{T("علت انتظار (اختیاری)", "Waiting reason (optional)")}</label>
+              <Textarea id="task-waiting-reason" value={waitingReason} onChange={(event) => { relationshipsDirty.current = true; setWaitingReason(event.target.value); }} rows={2} placeholder={T("منتظر چه چیزی هستی؟", "What are you waiting for?")} data-testid="task-waiting-reason" />
+              <div className="flex gap-2">
+                <Button type="button" className="flex-1" disabled={!canEdit || busy} onClick={() => void saveWaitingState(true)} data-testid="task-mark-waiting">{T("منتظر بماند", "Mark waiting")}</Button>
+                {task.status === "waiting" && <Button type="button" variant="outline" className="flex-1" disabled={!canEdit || busy} onClick={() => void saveWaitingState(false)} data-testid="task-resume-waiting">{T("ادامهٔ کار", "Resume work")}</Button>}
+              </div>
+            </div>
+            <section className="space-y-2" aria-label={T("پیش‌نیازها", "Prerequisites")}>
+              <p className="text-xs font-medium">{T("پیش‌نیازها", "Prerequisites")}</p>
+              <p className="text-[11px] leading-5 text-muted-foreground" data-testid="task-prerequisite-readiness">
+                {!relationshipsLoaded ? T("در حال بارگیری تسک‌ها…", "Loading tasks…") : relationshipsError ? T("فهرست کامل تسک‌ها در دسترس نیست؛ پیش‌نیازها تغییر نکرده‌اند.", "The complete task list is unavailable; prerequisites were not changed.") : dependencyState === "ready" ? T("همهٔ پیش‌نیازها انجام شده‌اند؛ این تسک خودکار شروع یا زمان‌بندی نمی‌شود.", "All prerequisites are done. This task will not start or schedule itself.") : dependencyState === "blocked" ? T("هنوز دست‌کم یک پیش‌نیاز باز است.", "At least one prerequisite is still open.") : dependencyState === "needs_decision" ? T("پیش‌نیاز حذف‌شده، کنارگذاشته‌شده یا تکرارشونده نیاز به تصمیم تو دارد.", "A deleted, set-aside, or recurring prerequisite needs your decision.") : T("پیش‌نیازی ثبت نشده است.", "No prerequisites are linked.")}
+              </p>
+              {!relationshipsError && selectedPrerequisites.filter((id) => !knownTasks.some((candidate) => candidate.id === id)).map((id) => (
+                <label key={id} className="flex items-center gap-2 rounded-lg border border-amber-500/30 px-2 py-1.5 text-xs">
+                  <input type="checkbox" checked onChange={() => { relationshipsDirty.current = true; setSelectedPrerequisites((current) => current.filter((item) => item !== id)); }} />
+                  <span className="flex-1">{T("پیش‌نیاز پیدا نشد", "Missing prerequisite")} · {id}</span>
+                </label>
+              ))}
+              {relationshipsLoaded && !relationshipsError && knownTasks.filter((candidate) => candidate.id !== task.id).map((candidate) => {
+                const selected = selectedPrerequisites.includes(candidate.id);
+                const validation = validatePrerequisiteLink(knownTasks, task.id, candidate.id);
+                const disabled = !selected && !validation.valid;
+                return (
+                  <label key={candidate.id} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs ${disabled ? "opacity-50" : "hover:bg-muted/60"}`}>
+                    <input type="checkbox" checked={selected} disabled={!selected && disabled} onChange={() => { relationshipsDirty.current = true; setSelectedPrerequisites((current) => selected ? current.filter((id) => id !== candidate.id) : [...current, candidate.id]); }} />
+                    <span className="min-w-0 flex-1 truncate">{candidate.title}</span>
+                    {isRecurringPrerequisite(candidate) && <span className="text-muted-foreground">{T("تکراری؛ نیازمند شناسهٔ وقوع", "Recurring; occurrence ID required")}</span>}
+                    {!isRecurringPrerequisite(candidate) && !validation.valid && !selected && <span className="text-muted-foreground">{T("چرخه ایجاد می‌کند", "Would create a cycle")}</span>}
+                  </label>
+                );
+              })}
+              {relationshipsLoaded && <Button type="button" variant="outline" className="w-full" disabled={!canEdit || busy || relationshipsError} onClick={() => void savePrerequisites()} data-testid="task-save-prerequisites">{T("ذخیرهٔ پیش‌نیازها", "Save prerequisites")}</Button>}
+            </section>
           </div>
         );
       default:

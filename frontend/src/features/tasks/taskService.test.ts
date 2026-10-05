@@ -153,6 +153,27 @@ describe("taskService cascade deletion persistence", () => {
     expect(mocks.cacheSet).toHaveBeenCalledTimes(3);
   });
 
+  it("deletes only parent_id descendants; goal and dependent action remain for an explicit missing-prerequisite decision", async () => {
+    const goal = task("goal");
+    const action = { ...task("action"), plan_parent_id: "goal" };
+    const dependent = { ...task("dependent"), prerequisite_ids: ["action"] };
+    const tasks = [goal, action, dependent];
+    taskMemoryCache.set("task-owner", tasks);
+    mocks.cache.set("tasks:all:task-owner", tasks);
+
+    const result = await deleteTaskCascade("task-owner", "action", tasks);
+
+    expect(result).toEqual({ success: true, deletedIds: ["action"] });
+    expect(taskMemoryCache.get("task-owner")).toEqual([goal, dependent]);
+    expect(mocks.enqueueOps).toHaveBeenCalledWith(expect.arrayContaining([
+      { ownerId: "task-owner", table: "tasks", op: "delete", match: { id: "action" } },
+    ]));
+    expect(mocks.enqueueOps.mock.calls[0][0]).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ table: "tasks", op: "delete", match: { id: "goal" } }),
+    ]));
+    expect(dependent.prerequisite_ids).toEqual(["action"]);
+  });
+
   it("projects only queued task changes owned by the active account", async () => {
     mocks.getPendingOps.mockResolvedValue([
       { ownerId: "task-owner", table: "tasks", op: "upsert", payload: task("local"), match: { id: "local" } },

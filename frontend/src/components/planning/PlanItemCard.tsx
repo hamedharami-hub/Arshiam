@@ -3,8 +3,8 @@ import { ArrowUpRight, Check, ChevronDown, CornerDownLeft, MoreHorizontal, Plus 
 import { cn } from "@/lib/utils";
 import type { Task } from "@/lib/taskTypes";
 import type { Horizon, Period, TimeSettings } from "@/lib/timeHorizon";
-import { horizonLabel, periodLabel } from "@/lib/timeHorizon";
-import { isClosed, planOf, progressOf } from "@/lib/planCascade";
+import { horizonLabel } from "@/lib/timeHorizon";
+import { isDone, planOf, progressOf } from "@/lib/planCascade";
 import { toSaveStatus } from "@/lib/saveFeedback";
 import { clearTaskCreateIntent, getTaskCreateIntent, type TaskCreateIntent } from "@/lib/taskCreateIntent";
 import type { TaskPersistenceStatus } from "@/lib/firestoreDataService";
@@ -12,6 +12,9 @@ import { readSchedule, scheduleLabel } from "@/lib/taskSchedule";
 import { toPersianDigits } from "@/lib/jalali";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { LEVEL_NAME, LEVEL_THEME, frac } from "./planningTheme";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { reportSave } from "@/lib/saveFeedback";
 
 export type PlanItemActions = {
   onToggle: (t: Task) => void;
@@ -19,6 +22,7 @@ export type PlanItemActions = {
   onAddChild?: (parent: Task, title: string, intentId: string) => Promise<TaskPersistenceStatus>;
   onMoveNext: (t: Task) => Promise<TaskPersistenceStatus>;
   onUnplan: (t: Task) => Promise<TaskPersistenceStatus>;
+  onSetFinishCriterion?: (t: Task, criterion: string | null) => Promise<TaskPersistenceStatus>;
 };
 
 type Props = PlanItemActions & {
@@ -58,15 +62,29 @@ export function PlanItemCard({ task, kids, byId, settings, fa, childLevelName, v
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
+  const [criterionOpen, setCriterionOpen] = useState(false);
+  const [criterionDraft, setCriterionDraft] = useState(task.finish_criterion || "");
   const plan = planOf(task, settings);
   const level: Horizon = plan?.horizon || "week";
   const children = kids.get(task.id) || [];
   const prog = progressOf(task, kids);
   const parent = task.plan_parent_id ? byId.get(task.plan_parent_id) : undefined;
-  const done = isClosed(task);
+  const done = isDone(task);
+  const scheduleText = scheduleLabel(readSchedule(task, settings), settings, fa ? "fa" : "en");
+  const statusText = task.status === "wont_do"
+    ? (fa ? "کنار گذاشته" : "Won't do")
+    : task.status === "waiting"
+      ? (fa ? "منتظر" : "Waiting")
+      : done
+        ? (fa ? "انجام‌شده" : "Done")
+        : task.status === "in_progress"
+          ? (fa ? "در حال انجام" : "In progress")
+          : (fa ? `در برنامه · ${scheduleText}` : `In plan · ${scheduleText}`);
   const num = (n: number) => (fa ? toPersianDigits(n) : String(n));
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  const criterionSavingRef = useRef(false);
+  const [criterionSaving, setCriterionSaving] = useState(false);
   const createIntent = useRef<TaskCreateIntent | null>(null);
   const submit = async () => {
     const title = draft.trim();
@@ -83,6 +101,17 @@ export function PlanItemCard({ task, kids, byId, settings, fa, childLevelName, v
     setDraft((current) => current.trim() === title ? "" : current);
     setAdding(false); setOpen(true);
   };
+  const saveCriterion = async () => {
+    if (!a.onSetFinishCriterion || criterionSavingRef.current) return;
+    criterionSavingRef.current = true;
+    setCriterionSaving(true);
+    let status: TaskPersistenceStatus;
+    try { status = toSaveStatus(await a.onSetFinishCriterion(task, criterionDraft.trim() || null)); }
+    catch { status = "failed"; }
+    finally { criterionSavingRef.current = false; setCriterionSaving(false); }
+    reportSave(status, fa, fa ? "معیار پایان ذخیره شد" : "Finish criterion saved");
+    if (status !== "failed") setCriterionOpen(false);
+  };
 
   return (
     <article className={cn("group rounded-xl border border-border/70 border-s-4 bg-card px-3 py-2.5 shadow-sm transition-shadow duration-200 hover:shadow-md", LEVEL_THEME[level].edge)} data-testid={`plan-item-${task.id}`}>
@@ -90,6 +119,8 @@ export function PlanItemCard({ task, kids, byId, settings, fa, childLevelName, v
         <CheckDot done={done} level={level} onClick={() => a.onToggle(task)} testId={`plan-item-toggle-${task.id}`} />
         <button type="button" className="min-w-0 flex-1 text-start" onClick={() => a.onOpen(task)} data-testid={`plan-item-open-${task.id}`}>
           <p className={cn("text-sm font-medium leading-6 break-words", done && "text-muted-foreground line-through")}>{task.title || (fa ? "بدون عنوان" : "Untitled")}</p>
+          <span className={cn("mt-0.5 inline-flex max-w-full truncate rounded-full px-2 py-0.5 text-[10px]", task.status === "waiting" ? "bg-amber-500/10 text-amber-700 dark:text-amber-300" : task.status === "wont_do" ? "bg-muted text-muted-foreground" : done ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-muted/70 text-muted-foreground")} data-testid={`plan-item-status-${task.id}`}>{statusText}{task.status !== "todo" && ` · ${scheduleText}`}</span>
+          {task.finish_criterion && <p className="mt-1 break-words text-[11px] leading-4 text-muted-foreground" data-testid={`plan-item-finish-criterion-${task.id}`}>{fa ? "معیار پایان:" : "Finish when:"} {task.finish_criterion}</p>}
           {(parent || valueLabel) && (
             <div className="mt-1 flex flex-wrap gap-1">
               {parent && <ParentChip parent={parent} settings={settings} fa={fa} />}
@@ -116,6 +147,7 @@ export function PlanItemCard({ task, kids, byId, settings, fa, childLevelName, v
               </DropdownMenuItem>
             )}
             <DropdownMenuItem onSelect={() => a.onMoveNext(task)} data-testid={`plan-item-move-next-${task.id}`}>{fa ? "انتقال به دورهٔ بعد" : "Move to next period"}</DropdownMenuItem>
+            {a.onSetFinishCriterion && <DropdownMenuItem onSelect={() => { setCriterionDraft(task.finish_criterion || ""); setCriterionOpen(true); }} data-testid={`plan-item-finish-criterion-edit-${task.id}`}>{fa ? "معیار اختیاریِ پایان…" : "Optional finish criterion…"}</DropdownMenuItem>}
             <DropdownMenuItem onSelect={() => a.onOpen(task)}>{fa ? "جزئیات تسک" : "Task details"}</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => a.onUnplan(task)} className="text-destructive" data-testid={`plan-item-unplan-${task.id}`}>{fa ? "برداشتن از برنامه" : "Remove from plan"}</DropdownMenuItem>
@@ -124,7 +156,7 @@ export function PlanItemCard({ task, kids, byId, settings, fa, childLevelName, v
       </div>
 
       {children.length > 0 && (
-        <div className="mt-2 flex items-center gap-2 ps-8">
+        <div className="mt-2 flex items-center gap-2 ps-8" data-testid={`plan-item-progress-${task.id}`}>
           <ProgressLine ratio={prog.ratio} level={level} />
           <span className="text-[11px] tabular-nums text-muted-foreground">{num(Math.round(prog.ratio * 100))}٪</span>
         </div>
@@ -136,8 +168,8 @@ export function PlanItemCard({ task, kids, byId, settings, fa, childLevelName, v
             const cp = planOf(c, settings);
             return (
               <li key={c.id} className="flex items-center gap-2 text-sm">
-                <CheckDot done={isClosed(c)} level={cp?.horizon || "day"} onClick={() => a.onToggle(c)} testId={`plan-child-toggle-${c.id}`} />
-                <button type="button" onClick={() => a.onOpen(c)} className={cn("min-w-0 flex-1 truncate text-start", isClosed(c) && "text-muted-foreground line-through")}>{c.title}</button>
+                <CheckDot done={isDone(c)} level={cp?.horizon || "day"} onClick={() => a.onToggle(c)} testId={`plan-child-toggle-${c.id}`} />
+                <button type="button" onClick={() => a.onOpen(c)} className={cn("min-w-0 flex-1 truncate text-start", isDone(c) && "text-muted-foreground line-through")}>{c.title}</button>
                 {cp && <span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[10px]", LEVEL_THEME[cp.horizon].chip)}>{scheduleLabel(readSchedule(c, settings), settings, fa ? "fa" : "en")}</span>}
               </li>
             );
@@ -152,6 +184,19 @@ export function PlanItemCard({ task, kids, byId, settings, fa, childLevelName, v
           <button type="submit" disabled={saving} className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground disabled:opacity-50" aria-label={fa ? "افزودن" : "Add"}><CornerDownLeft className="h-4 w-4" /></button>
         </form>
       )}
+      <Dialog open={criterionOpen} onOpenChange={setCriterionOpen}>
+        <DialogContent dir={fa ? "rtl" : "ltr"} className="max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>{fa ? "معیار اختیاریِ پایان هدف" : "Optional goal finish criterion"}</DialogTitle>
+            <DialogDescription>{fa ? "این متن جدا از درصد زیرکارهاست و فقط با قضاوت تو مشخص می‌کند هدف چه زمانی کامل است." : "This is separate from subtask progress. It records your judgment of when the goal is complete."}</DialogDescription>
+          </DialogHeader>
+          <textarea value={criterionDraft} onChange={(event) => setCriterionDraft(event.target.value)} rows={3} className="w-full resize-none rounded-xl border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" data-testid={`plan-item-finish-criterion-input-${task.id}`} />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setCriterionOpen(false)}>{fa ? "انصراف" : "Cancel"}</Button>
+            <Button type="button" disabled={criterionSaving} onClick={() => void saveCriterion()} data-testid={`plan-item-finish-criterion-save-${task.id}`}>{criterionSaving ? (fa ? "در حال ذخیره…" : "Saving…") : (fa ? "ذخیره" : "Save")}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </article>
   );
 }

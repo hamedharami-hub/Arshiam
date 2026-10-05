@@ -101,6 +101,7 @@ export interface TaskDetailBottomRailProps {
   parentOpen: boolean;
   setParentOpen: (open: boolean) => void;
   parentCandidates: Array<{ id: string; title: string; parent_id?: string | null }>;
+  isParentLinkValid: (parentId: string | null) => boolean;
   showSubtasks: boolean;
   setShowSubtasks: React.Dispatch<React.SetStateAction<boolean>>;
   showSteps: boolean;
@@ -137,6 +138,7 @@ export function TaskDetailBottomRail({
   parentOpen,
   setParentOpen,
   parentCandidates,
+  isParentLinkValid,
   showSubtasks,
   setShowSubtasks,
   showSteps,
@@ -278,7 +280,7 @@ export function TaskDetailBottomRail({
             <DialogTitle className="text-sm">{T("تسک والد", "Parent task")}</DialogTitle>
           </DialogHeader>
           <button
-            disabled={!isOwner || t.parent_id === null}
+            disabled={!isOwner || t.parent_id === null || !isParentLinkValid(null)}
             onClick={() => { save({ parent_id: null }); setParentOpen(false); }}
             className={`w-full text-start px-2.5 h-9 rounded-md text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${t.parent_id === null ? "bg-accent" : ""}`}
           >
@@ -287,7 +289,7 @@ export function TaskDetailBottomRail({
           {parentCandidates.map((c) => (
             <button
               key={c.id}
-              disabled={!canEdit || c.id === t.parent_id}
+              disabled={!canEdit || c.id === t.parent_id || !isParentLinkValid(c.id)}
               onClick={() => { save({ parent_id: c.id }); setParentOpen(false); }}
               className={`w-full text-start px-2.5 h-9 rounded-md text-sm hover:bg-accent truncate disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${t.parent_id === c.id ? "bg-accent" : ""}`}
               dir="auto"

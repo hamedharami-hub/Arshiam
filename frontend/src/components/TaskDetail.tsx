@@ -93,6 +93,7 @@ import type { Task, TaskNote, ConfirmState } from "@/lib/taskTypes";
 import { clearTaskDraft, taskPatch, writeTaskDraft } from "@/lib/taskDraft";
 import { getCurrentTaskLocation, taskLocationErrorMessage } from "@/lib/taskLocation";
 import { extractTasksFromCache } from "@/features/tasks/taskCache";
+import { validateTaskParentLink } from "@/lib/taskRelations";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -375,15 +376,10 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
   const parentCandidates = useMemo(() => {
     const id = t.id;
-    const byId: Record<string, typeof allTasks[number]> = {};
-    allTasks.forEach((x) => { byId[x.id] = x; });
-    const descendants = new Set<string>();
-    const collect = (root: string) => {
-      allTasks.filter((x) => x.parent_id === root).forEach((x) => { descendants.add(x.id); collect(x.id); });
-    };
-    collect(id);
-    return allTasks.filter((x) => x.id !== id && !descendants.has(x.id));
+    return allTasks.filter((x) => validateTaskParentLink(allTasks, id, x.id, "parent_id").valid);
   }, [allTasks, t.id]);
+  const isParentLinkValid = useCallback((parentId: string | null) =>
+    validateTaskParentLink(allTasks, t.id, parentId, "parent_id").valid, [allTasks, t.id]);
 
   const folderName = (id: string | null): string => {
     if (!id) return T("بدون فولدر", "No folder");
@@ -490,6 +486,10 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     if (!canEdit) return "failed";
     if (!force && !Object.keys(patch).length) return "saved";
     const current = latestTaskRef.current;
+    if (patch.parent_id !== undefined && !validateTaskParentLink(allTasks, current.id, patch.parent_id, "parent_id").valid) {
+      toast.error(isEn ? "This subtask link would create a cycle and was not saved." : "این پیوند زیرتسک باعث چرخه می‌شود و ذخیره نشد.");
+      return "failed";
+    }
     const next = { ...current, ...patch };
     latestTaskRef.current = next;
     setT(next);
@@ -534,7 +534,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       setSaveState("error");
       throw e;
     }
-  }, [canEdit, onChanged, user]);
+  }, [allTasks, canEdit, isEn, onChanged, user]);
 
   const pendingPatch = taskPatch(t, savedTaskRef.current);
   const hasPendingChanges = Object.keys(pendingPatch).length > 0;
@@ -1330,6 +1330,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       parentOpen={parentOpen}
       setParentOpen={setParentOpen}
       parentCandidates={parentCandidates}
+      isParentLinkValid={isParentLinkValid}
       showSubtasks={showSubtasks}
       setShowSubtasks={setShowSubtasks}
       showSteps={showSteps}
