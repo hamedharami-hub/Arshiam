@@ -82,6 +82,14 @@ describe("schedule migration dry run and compare-and-set", () => {
     expect(outsidePlan.issues).toContain("outside_period");
   });
 
+  it("does not downgrade a task with an unsupported future schedule version", () => {
+    const future = legacyTask("future", { schedule_v: 3, work_date: "2026-03-10" } as Partial<Task>);
+    const [plan] = previewTaskScheduleMigration("u1", [future]);
+    expect(plan.state).toBe("invalid");
+    expect(plan.issues).toContain("unsupported_schedule_version");
+    expect(plan.patch).toBeNull();
+  });
+
   it("fails closed for malformed values and disagreeing active plan sources", () => {
     const malformed = legacyTask("malformed", { work_date: "not-a-date" } as Partial<Task>);
     const [malformedPlan] = previewTaskScheduleMigration("u1", [malformed]);

@@ -12,7 +12,7 @@ import { LEGACY_SCHEDULE_FIELDS, legacySchedule, scheduleMigrationPatch, SCHEDUL
 const MIGRATION_VERSION = 1;
 const TRACKED_FIELDS = [...new Set<string>(["schedule_v", ...LEGACY_SCHEDULE_FIELDS, "schedule_legacy", "updated_at", "calendar"])];
 type FieldBackup = Record<string, { present: boolean; value?: unknown }>;
-export type MigrationIssue = "conflicting_exact_values" | "conflicting_period_values" | "ambiguous_legacy_time" | "ambiguous_due_at_flag" | "outside_period" | "unknown_timezone" | "invalid_timezone" | "invalid_calendar" | "invalid_schedule_value";
+export type MigrationIssue = "conflicting_exact_values" | "conflicting_period_values" | "ambiguous_legacy_time" | "ambiguous_due_at_flag" | "outside_period" | "unknown_timezone" | "invalid_timezone" | "invalid_calendar" | "invalid_schedule_value" | "unsupported_schedule_version";
 export type ScheduleMigrationPlan = {
   uid: string; taskId: string; sourceVersion: unknown; fingerprint: string;
   state: "ready" | "conflict" | "invalid" | "already_v2" | "no_legacy";
@@ -71,6 +71,9 @@ function previewOne(uid: string, task: Task): ScheduleMigrationPlan {
   const backupId = `${encodeURIComponent(taskId).replaceAll("%", "_")}_${hash(fingerprint)}`;
   if (task.schedule_v === SCHEDULE_VERSION) return { ...common, backupId, state: "already_v2", issues: [], proposed: null, patch: null };
   if (!taskId) return { ...common, backupId, state: "invalid", issues: [], proposed: null, patch: null };
+  if (task.schedule_v != null) {
+    return { ...common, backupId, state: "invalid", issues: ["unsupported_schedule_version"], proposed: null, patch: null };
+  }
   const hasLegacy = LEGACY_SCHEDULE_FIELDS.some((field) => hasOwn(task, field));
   if (!hasLegacy) return { ...common, backupId, state: "no_legacy", issues: [], proposed: null, patch: null };
 

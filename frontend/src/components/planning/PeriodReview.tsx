@@ -43,7 +43,7 @@ export function PeriodReviewDialog({ period, items, settings, fa, onClose, onMov
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const createIntent = useRef<TaskCreateIntent | null>(null);
-  const finishIntent = useRef<{ id: string; note: string; snapshot: ReviewSnapshot; reviewedAt: string } | null>(null);
+  const finishIntent = useRef<{ id: string; note: string; snapshot: ReviewSnapshot | null; reviewedAt: string } | null>(null);
   const [reviewStatus, setReviewStatus] = useState<"pending" | "error" | "conflict" | null>(null);
   // Cloud data may arrive after the dialog opened: adopt it only while the user has not typed.
   useEffect(() => { if (!dirty.current) setNote(saved?.note || ""); }, [saved?.note]);
@@ -68,11 +68,16 @@ export function PeriodReviewDialog({ period, items, settings, fa, onClose, onMov
     setBusy(true);
     let intent = finishIntent.current;
     if (!intent || intent.note !== note) {
-      const snapshot = {
-        done: done.map((t) => item(t, "done")),
-        open: open.map((t) => item(t, "open")),
-        set_aside: setAside.map((t) => item(t, "set_aside")),
-      };
+      // Correcting a historical note must preserve the snapshot from that review.
+      // Legacy records without a snapshot stay explicitly unknown; current tasks
+      // must never be presented as if they were the historical list.
+      const snapshot = historical
+        ? saved?.snapshot || null
+        : {
+          done: done.map((t) => item(t, "done")),
+          open: open.map((t) => item(t, "open")),
+          set_aside: setAside.map((t) => item(t, "set_aside")),
+        };
       let intentId: string;
       try { intentId = crypto.randomUUID(); } catch { intentId = `review_${Date.now()}_${Math.random().toString(36).slice(2)}`; }
       intent = { id: intentId, note, snapshot, reviewedAt: new Date().toISOString() };

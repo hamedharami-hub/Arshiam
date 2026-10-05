@@ -73,11 +73,15 @@ describe("PeriodReviewDialog persistence feedback", () => {
     expect(screen.queryByTestId("planning-review-move-still-open")).not.toBeInTheDocument();
   });
 
-  it("stores dirty notes locally and submits a snapshot when corrected", async () => {
+  it("stores dirty notes and keeps the original snapshot when a historical note is corrected", async () => {
     mocks.savePlanReview.mockResolvedValue("saved");
     const saved = {
       id: "week_2026-09-28_2026-10-04_gregorian", horizon: "week" as const, start: period.start, end: period.end,
-      note: "Prior", reviewed_at: "t1", revision: 1, snapshot: { done: [], open: [], set_aside: [] },
+      note: "Prior", reviewed_at: "t1", revision: 1, snapshot: {
+        done: [{ id: "done-before", title: "Done before move", status: "done" as const }],
+        open: [{ id: "open-before", title: "Open before move", status: "open" as const }],
+        set_aside: [],
+      },
     };
     const reviewProps = props({ reviews: { [saved.id]: saved }, items: [{ id: "open-1", title: "Work", status: "todo" } as Task] });
     render(<PeriodReviewDialog {...reviewProps} />);
@@ -86,8 +90,21 @@ describe("PeriodReviewDialog persistence feedback", () => {
     fireEvent.click(screen.getByTestId("planning-review-finish"));
     await waitFor(() => expect(reviewProps.onClose).toHaveBeenCalledOnce());
     expect(mocks.savePlanReview).toHaveBeenCalledOnce();
-    expect(mocks.savePlanReview.mock.calls[0][2]).toMatchObject({ note: "Corrected", snapshot: { open: [{ id: "open-1", title: "Work", status: "open" }] } });
+    expect(mocks.savePlanReview.mock.calls[0][2]).toMatchObject({ note: "Corrected", snapshot: saved.snapshot });
     expect(mocks.savePlanReview.mock.calls[0][3]).toMatchObject({ revision: 1, note: "Prior" });
+  });
+
+  it("does not invent a snapshot when correcting a legacy review that has none", async () => {
+    mocks.savePlanReview.mockResolvedValueOnce("saved");
+    const saved = {
+      id: "week_2026-09-28_2026-10-04_gregorian", horizon: "week" as const, start: period.start, end: period.end,
+      note: "Old note", reviewed_at: "t1", revision: 1, snapshot: null,
+    };
+    render(<PeriodReviewDialog {...props({ reviews: { [saved.id]: saved }, items: [{ id: "now", title: "Current task", status: "todo" } as Task] })} />);
+    fireEvent.change(screen.getByTestId("planning-review-note"), { target: { value: "Corrected note" } });
+    fireEvent.click(screen.getByTestId("planning-review-finish"));
+    await waitFor(() => expect(mocks.savePlanReview).toHaveBeenCalledOnce());
+    expect(mocks.savePlanReview.mock.calls[0][2]).toMatchObject({ note: "Corrected note", snapshot: null });
   });
 
   it("preserves a next-period draft after a thrown add and retries with the same intent", async () => {

@@ -123,6 +123,7 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
       invalid_timezone: "منطقهٔ زمانی ذخیره‌شده معتبر نیست.",
       invalid_calendar: "تقویم ذخیره‌شده معتبر نیست.",
       invalid_schedule_value: "یکی از فیلدهای تاریخ یا بازه مقدار نامعتبر دارد.",
+      unsupported_schedule_version: "نسخهٔ مدل زمان‌بندی پشتیبانی نمی‌شود.",
     };
     const enText: Record<MigrationIssue, string> = {
       conflicting_exact_values: "Legacy day/time values disagree.",
@@ -134,6 +135,7 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
       invalid_timezone: "The stored time zone is invalid.",
       invalid_calendar: "The stored calendar is invalid.",
       invalid_schedule_value: "A legacy date or range field is malformed.",
+      unsupported_schedule_version: "This schedule version is not supported for migration.",
     };
     return (fa ? faText : enText)[issue];
   };

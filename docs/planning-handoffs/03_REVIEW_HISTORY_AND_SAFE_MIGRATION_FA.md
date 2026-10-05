@@ -35,12 +35,14 @@ mirror محلی فقط پس از موفقیت transaction به‌روزرسان�
 
 ## آزمون و بررسی
 
-- `cd frontend && npx vitest run src/lib/planReviewService.test.ts src/lib/taskScheduleMigration.test.ts src/lib/taskSchedule.test.ts src/components/planning/PeriodReview.test.tsx src/components/planning/PlanningBoard.test.tsx` — موفق؛ ۵ فایل و ۴۰ تست.
+- `cd frontend && npx vitest run src/lib/planReviewService.test.ts src/lib/taskScheduleMigration.test.ts src/lib/taskSchedule.test.ts src/components/planning/PeriodReview.test.tsx src/components/planning/PlanningBoard.test.tsx` — پس از بازبینی مستقل موفق؛ ۵ فایل و ۴۲ تست.
 - `cd frontend && npm run typecheck` — موفق.
 - `git diff --check` — موفق.
 - UI فقط dry-run می‌گیرد و apply را پس از کلیک و برای یک ready در هر بار صدا می‌زند؛ هیچ batch خودکار یا اتصال به login/subscription وجود ندارد.
 - مرورگر/مقایسهٔ بصری اجرا نشد؛ ظاهر به‌جز متن وضعیت ضروری و محتوای گزارش تاریخی دست‌نخورده است.
 - هیچ migration روی حساب واقعی اجرا نشد.
+
+بازبینی مستقل بعد از commit `549890c` دو مورد را اصلاح کرد: ویرایش یادداشت یک مرور تاریخی snapshot همان نسخه را حفظ می‌کند (و برای رکورد بدون snapshot، تاریخچه جعل نمی‌شود)؛ migration نسخهٔ زمان‌بندی ناشناخته را به v2 downgrade نمی‌کند. پس از این اصلاحات همان مجموعه ۵ فایل با ۴۲ تست موفق، typecheck و `git diff --check` دوباره اجرا شدند.
 
 ## محدودیت باقی‌مانده
 
