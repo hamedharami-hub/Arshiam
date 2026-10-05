@@ -9,6 +9,7 @@ import {
   getDoc,
   getDocs,
   onSnapshot,
+  runTransaction,
 } from "./firebase";
 import { cacheGet, cacheSet, enqueueOp, getPendingOps } from "./offlineQueue";
 import {
@@ -211,6 +212,31 @@ export function subscribeTasks(
 
 export type TaskPersistenceStatus = "saved" | "queued" | "failed";
 
+class ConcurrentEditError extends Error {
+  constructor() { super("The cloud record changed since this device last read it."); }
+}
+
+async function writeWithRevision(
+  ref: ReturnType<typeof doc>,
+  data: Record<string, unknown>,
+  expected: string | undefined,
+  wasKnownLocal: boolean,
+): Promise<void> {
+  await runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(ref);
+    if (snapshot.exists()) {
+      const remote = snapshot.data();
+      const remoteRevision = remote?.updated_at ?? remote?.updatedAt;
+      if (!expected || typeof remoteRevision !== "string" || remoteRevision !== expected) {
+        throw new ConcurrentEditError();
+      }
+    } else if (wasKnownLocal) {
+      throw new ConcurrentEditError();
+    }
+    transaction.set(ref, data, { merge: true });
+  });
+}
+
 function sameTaskValue(left: unknown, right: unknown): boolean {
   if (Object.is(left, right)) return true;
   try {
@@ -333,10 +359,15 @@ export async function persistTask(
   };
   try {
     const taskRef = doc(db, "users", userId, "tasks", task.id);
-    await setDoc(taskRef, dataToSave, { merge: true });
+    await writeWithRevision(taskRef, dataToSave, previousTask?.updated_at ?? (previousTask as any)?.updatedAt, !!previousTask);
     celebrateAcceptedChange();
     return "saved";
   } catch (err) {
+    if (err instanceof ConcurrentEditError) {
+      await rollbackOptimisticTaskWrite(userId, task.id, dataToSave, previousTask, previousIndex);
+      console.warn("[FirestoreData] task save rejected because the cloud revision changed:", task.id);
+      return "failed";
+    }
     console.warn("[FirestoreData] task write deferred to offline outbox:", err);
     let queued = false;
     try {
@@ -347,6 +378,7 @@ export async function persistTask(
           op: "upsert",
           payload: dataToSave,
           match: { id: task.id },
+          expectedRevision: previousTask?.updated_at,
         });
         if (!queued) return;
 
@@ -401,7 +433,7 @@ export async function deleteTask(userId: string, taskId: string): Promise<boolea
     let queued = false;
     try {
       await withTaskCacheMutationLock(userId, async () => {
-        queued = await enqueueOp({ ownerId: userId, table: "tasks", op: "delete", match: { id: taskId } });
+        queued = await enqueueOp({ ownerId: userId, table: "tasks", op: "delete", match: { id: taskId }, expectedRevision: previousTask?.updated_at });
         if (!queued) return;
         const latest = extractTasksFromCache(await cacheGet<unknown>(CACHE_KEYS.tasks(userId)));
         await cacheSet(
@@ -576,15 +608,18 @@ export function subscribeNotes(
     return () => {};
   }
 
+  let active = true;
+  let snapshotVersion = 0;
   cacheGet<NoteItem[]>(CACHE_KEYS.notes(userId)).then((cached) => {
-    if (cached && Array.isArray(cached)) onUpdate(cached);
+    if (active && snapshotVersion === 0 && Array.isArray(cached)) onUpdate(cached);
   });
 
   try {
     const notesCol = collection(db, "users", userId, "notes");
     const unsub = onSnapshot(
       notesCol,
-      (snap) => {
+      async (snap) => {
+        const version = ++snapshotVersion;
         const items: NoteItem[] = [];
         snap.forEach((d) => {
           items.push({ id: d.id, ...(d.data() as any) });
@@ -593,17 +628,24 @@ export function subscribeNotes(
           if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
           return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
         });
-        cacheSet(CACHE_KEYS.notes(userId), items);
-        onUpdate(items);
+        const [cached, pending] = await Promise.all([
+          cacheGet<NoteItem[]>(CACHE_KEYS.notes(userId)), getPendingOps("notes"),
+        ]);
+        if (!active || version !== snapshotVersion) return;
+        const merged = reconcileRemoteRowsWithPending(items, Array.isArray(cached) ? cached : [], pending, "notes", userId);
+        await cacheSet(CACHE_KEYS.notes(userId), merged);
+        if (active && version === snapshotVersion) onUpdate(merged);
       },
       async (err) => {
+        const version = ++snapshotVersion;
         console.warn("[FirestoreData] subscribeNotes notice:", err?.message);
         const cached = await cacheGet<NoteItem[]>(CACHE_KEYS.notes(userId));
-        if (cached) onUpdate(cached);
+        if (active && version === snapshotVersion && cached) onUpdate(cached);
       }
     );
-    return unsub;
+    return () => { active = false; unsub(); };
   } catch {
+    active = false;
     return () => {};
   }
 }
@@ -694,9 +736,14 @@ export async function persistNote(userId: string, note: Partial<NoteItem> & { id
   // 2. Persist to Firestore
   try {
     const noteRef = doc(db, "users", userId, "notes", note.id);
-    await setDoc(noteRef, dataToSave, { merge: true });
+    await writeWithRevision(noteRef, dataToSave, previousNote?.updated_at ?? (previousNote as any)?.updatedAt, !!previousNote);
     return "synced";
   } catch (err) {
+    if (err instanceof ConcurrentEditError) {
+      if (cacheUpdated && cacheSnapshotRead) await rollbackOptimisticNoteWrite(userId, note.id, dataToSave, previousNote);
+      console.warn("[FirestoreData] note save rejected because the cloud revision changed:", note.id);
+      return "failed";
+    }
     console.warn("[FirestoreData] upsertNote remote save failed, falling back to offline queue:", err);
     try {
       const { enqueueOp } = await import("@/lib/offlineQueue");
@@ -706,6 +753,7 @@ export async function persistNote(userId: string, note: Partial<NoteItem> & { id
         op: "upsert",
         payload: dataToSave,
         match: { id: note.id },
+        expectedRevision: previousNote?.updated_at,
       });
       if (!ok && cacheUpdated && cacheSnapshotRead) await rollbackOptimisticNoteWrite(userId, note.id, dataToSave, previousNote);
       return ok ? "queued" : "failed";
@@ -718,6 +766,10 @@ export async function persistNote(userId: string, note: Partial<NoteItem> & { id
 
 export async function deleteNote(userId: string, noteId: string): Promise<boolean> {
   if (!userId || !noteId) return false;
+  const cachedBeforeDelete = await cacheGet<NoteItem[]>(CACHE_KEYS.notes(userId)).catch(() => undefined);
+  const expectedRevision = Array.isArray(cachedBeforeDelete)
+    ? cachedBeforeDelete.find((note) => note.id === noteId)?.updated_at
+    : undefined;
   try {
     const noteRef = doc(db, "users", userId, "notes", noteId);
     await deleteDoc(noteRef);
@@ -735,6 +787,7 @@ export async function deleteNote(userId: string, noteId: string): Promise<boolea
         table: "notes",
         op: "delete",
         match: { id: noteId },
+        expectedRevision,
       });
       return ok;
     } catch {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { canReplayForOwner, clearQueue, enqueueOp, enqueueOps, flushQueue, getQueue, type QueuedOp } from "./offlineQueue";
+import { canReplayForOwner, clearQueue, clearUserLocalData, enqueueOp, enqueueOps, flushQueue, getQueue, type QueuedOp } from "./offlineQueue";
 import * as offlineDb from "./offlineDb";
 import { firebaseStore } from "./firebaseStore";
 
@@ -19,6 +19,7 @@ vi.mock("@/lib/firestoreSync", () => ({
   saveEntityToFirestore: vi.fn().mockResolvedValue(true),
   saveEntityToFirestoreWithOutcome: vi.fn().mockResolvedValue("saved"),
   deleteEntityFromFirestore: vi.fn().mockResolvedValue(true),
+  replayQueuedEntityWithOutcome: vi.fn().mockResolvedValue("saved"),
 }));
 
 describe("offline outbox ownership", () => {
@@ -75,6 +76,33 @@ describe("offline outbox persistence", () => {
       expect.objectContaining({ ownerId: "account-a", table: "knowledge_documents", op: "insert" }),
     ]));
     expect(getDbSpy).toHaveBeenCalled();
+  });
+
+  it("clears only the deleted account's queued operations and scoped cache keys", async () => {
+    await enqueueOp({ ownerId: "account-a", table: "tasks", op: "upsert", payload: { id: "a", user_id: "account-a" } });
+    await enqueueOp({ ownerId: "account-b", table: "tasks", op: "upsert", payload: { id: "b", user_id: "account-b" } });
+    await offlineDb.cacheSet("tasks:all:account-a", [{ id: "a" }]);
+    await offlineDb.cacheSet("tasks:all:account-b", [{ id: "b" }]);
+    localStorage.setItem("pomodoro_today_count_v2:account-a", "1");
+    localStorage.setItem("pomodoro_today_count_v2:account-b", "2");
+
+    await expect(clearUserLocalData("account-a")).resolves.toBe(true);
+
+    expect(await getQueue()).toEqual(expect.arrayContaining([expect.objectContaining({ ownerId: "account-b" })]));
+    expect(await getQueue()).not.toEqual(expect.arrayContaining([expect.objectContaining({ ownerId: "account-a" })]));
+    await expect(offlineDb.cacheGet("tasks:all:account-a")).resolves.toBeUndefined();
+    await expect(offlineDb.cacheGet("tasks:all:account-b")).resolves.toEqual([{ id: "b" }]);
+    expect(localStorage.getItem("pomodoro_today_count_v2:account-a")).toBeNull();
+    expect(localStorage.getItem("pomodoro_today_count_v2:account-b")).toBe("2");
+  });
+
+  it("reports incomplete local cleanup when a legacy queue item has no safe account owner", async () => {
+    localStorage.setItem("arshnaz_offline_outbox_fallback", JSON.stringify([
+      { id: 900, table: "tasks", op: "upsert", payload: { id: "unowned" }, createdAt: 1, attempts: 0 },
+    ]));
+
+    await expect(clearUserLocalData("account-a")).resolves.toBe(false);
+    expect(await getQueue()).toEqual(expect.arrayContaining([expect.objectContaining({ id: 900 })]));
   });
 
   it("does not assign the signed-in owner to a queue write with conflicting explicit identities", async () => {
@@ -145,8 +173,8 @@ describe("offline outbox persistence", () => {
   });
 
   it("replays interactive study sessions through the owner-scoped Firestore adapter", async () => {
-    const { saveEntityToFirestoreWithOutcome } = await import("./firestoreSync");
-    vi.mocked(saveEntityToFirestoreWithOutcome).mockResolvedValue("saved");
+    const { replayQueuedEntityWithOutcome } = await import("./firestoreSync");
+    vi.mocked(replayQueuedEntityWithOutcome).mockResolvedValue("saved");
     const session = { id: "session-1", user_id: "account-a", document_id: "doc-1" };
     const accepted = await enqueueOp({
       ownerId: "account-a",
@@ -159,15 +187,15 @@ describe("offline outbox persistence", () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
 
     expect(await flushQueue()).toEqual({ ok: 1, failed: 0 });
-    expect(saveEntityToFirestoreWithOutcome).toHaveBeenCalledWith(
-      "account-a", "interactive_study_sessions", "session-1", session, true,
+    expect(replayQueuedEntityWithOutcome).toHaveBeenCalledWith(
+      "account-a", "interactive_study_sessions", "session-1", expect.objectContaining({ op: "upsert", payload: session }),
     );
     expect(firebaseStore.from).not.toHaveBeenCalled();
   });
 
   it("replays queued Socratic sessions through their private Firestore collection", async () => {
-    const { saveEntityToFirestoreWithOutcome } = await import("./firestoreSync");
-    vi.mocked(saveEntityToFirestoreWithOutcome).mockClear().mockResolvedValue("saved");
+    const { replayQueuedEntityWithOutcome } = await import("./firestoreSync");
+    vi.mocked(replayQueuedEntityWithOutcome).mockClear().mockResolvedValue("saved");
     const session = { id: "current", user_id: "account-a", messages: [] };
     await enqueueOp({
       ownerId: "account-a",
@@ -179,8 +207,8 @@ describe("offline outbox persistence", () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
 
     expect(await flushQueue()).toEqual({ ok: 1, failed: 0 });
-    expect(saveEntityToFirestoreWithOutcome).toHaveBeenCalledWith(
-      "account-a", "socratic_sessions", "current", session, true,
+    expect(replayQueuedEntityWithOutcome).toHaveBeenCalledWith(
+      "account-a", "socratic_sessions", "current", expect.objectContaining({ op: "upsert", payload: session }),
     );
     expect(firebaseStore.from).not.toHaveBeenCalled();
   });
@@ -262,9 +290,22 @@ describe("offline outbox persistence", () => {
     expect(firebaseStore.from).not.toHaveBeenCalled();
   });
 
+  it("retains a queued task delete when the transaction sees a newer cloud revision", async () => {
+    const { replayQueuedEntityWithOutcome } = await import("./firestoreSync");
+    vi.mocked(replayQueuedEntityWithOutcome).mockResolvedValueOnce("stale");
+    await enqueueOp({ ownerId: "account-a", table: "tasks", op: "delete", match: { id: "task-newer" }, expectedRevision: "2026-09-25T10:00:00.000Z" });
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+
+    expect(await flushQueue()).toEqual({ ok: 0, failed: 1 });
+    expect(await getQueue()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ table: "tasks", match: { id: "task-newer" }, expectedRevision: "2026-09-25T10:00:00.000Z", conflictReason: "remote-newer" }),
+    ]));
+    expect(await flushQueue()).toEqual({ ok: 0, failed: 0 });
+  });
+
   it("preserves the Firestore quota error and allows an explicit retry before the backoff expires", async () => {
-    const { saveEntityToFirestoreWithOutcome } = await import("./firestoreSync");
-    vi.mocked(saveEntityToFirestoreWithOutcome).mockReset().mockRejectedValueOnce(new Error("RESOURCE_EXHAUSTED: Free daily read units per project"))
+    const { replayQueuedEntityWithOutcome } = await import("./firestoreSync");
+    vi.mocked(replayQueuedEntityWithOutcome).mockReset().mockRejectedValueOnce(new Error("RESOURCE_EXHAUSTED: Free daily read units per project"))
       .mockResolvedValueOnce("saved");
     await enqueueOp({
       ownerId: "account-a", table: "tasks", op: "update",

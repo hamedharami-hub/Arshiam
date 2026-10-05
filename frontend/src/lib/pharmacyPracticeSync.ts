@@ -127,15 +127,16 @@ export function mergePracticeRecords(local: PharmacyPracticeRecords, remote: rea
 }
 
 export async function pullPracticeRecords(userId: string): Promise<PharmacyPracticeRecords> {
-  const local = readPracticeRecords(userId);
-  if (!isOnline()) return local;
+  if (!isOnline()) return readPracticeRecords(userId);
   const snapshot = await getDocs(collection(db, "users", userId, PHARMACY_PRACTICE_COLLECTION));
   const remote: PharmacyPracticeRecord[] = [];
   snapshot.forEach((item) => {
     const record = toRecord({ ...item.data(), id: item.id });
     if (record) remote.push(record);
   });
-  const { records, changed } = mergePracticeRecords(local, remote);
+  // A save may have updated the cache while Firestore was loading. Merge against
+  // the latest local revision so a slow pull cannot discard that edit.
+  const { records, changed } = mergePracticeRecords(readPracticeRecords(userId), remote);
   if (changed && !writePracticeRecords(userId, records)) throw new Error("Device storage is unavailable.");
   return records;
 }

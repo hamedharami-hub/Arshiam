@@ -22,6 +22,8 @@ export type QueuedOp = {
   lastError?: string;
   /** A newer cloud revision exists; retain this for explicit retry only. */
   conflictReason?: "remote-newer";
+  /** Revision observed before a delete; absent legacy deletes must fail closed. */
+  expectedRevision?: string;
 };
 
 import { getDB, STORE, CACHE_STORE, cacheGet, cacheSet } from "./offlineDb";
@@ -179,6 +181,57 @@ export async function clearQueue() {
   notifyChange();
 }
 
+function localKeyBelongsToUser(key: string, userId: string): boolean {
+  const escaped = userId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:^|[.:_-])${escaped}(?:$|[.:_-])`).test(key);
+}
+
+/** Clear one account's device data without deleting another account's offline work. */
+export async function clearUserLocalData(userId: string): Promise<boolean> {
+  if (!userId) return false;
+  let cleared = true;
+  try {
+    const db = await getDB();
+    if (db) {
+      const transaction = db.transaction([STORE, CACHE_STORE], "readwrite");
+      const [queued, cacheKeys] = await Promise.all([
+        transaction.objectStore(STORE).getAll(),
+        transaction.objectStore(CACHE_STORE).getAllKeys(),
+      ]);
+      for (const item of queued as QueuedOp[]) {
+        if (canReplayForOwner(item, userId) && item.id !== undefined) transaction.objectStore(STORE).delete(item.id);
+        else if (!getQueuedOpOwnerId(item)) cleared = false;
+      }
+      for (const key of cacheKeys) {
+        if (typeof key === "string" && localKeyBelongsToUser(key, userId)) transaction.objectStore(CACHE_STORE).delete(key);
+      }
+      await transaction.done;
+    }
+  } catch (error) {
+    cleared = false;
+    console.warn("[offlineQueue] Could not clear account's IndexedDB data:", error);
+  }
+  for (const [id, item] of memoryOutbox) if (canReplayForOwner(item, userId)) memoryOutbox.delete(id);
+  try {
+    const fallback = loadLocalStorageOutbox();
+    const remaining = fallback.filter((item) => !canReplayForOwner(item, userId));
+    if (remaining.some((item) => !getQueuedOpOwnerId(item))) cleared = false;
+    if (remaining.length !== fallback.length && !saveLocalStorageOutbox(remaining)) cleared = false;
+    const { memoryCache } = await import("./offlineDb");
+    for (const key of memoryCache.keys()) if (localKeyBelongsToUser(key, userId)) memoryCache.delete(key);
+  } catch { cleared = false; }
+  try {
+    for (let index = localStorage.length - 1; index >= 0; index--) {
+      const key = localStorage.key(index);
+      if (!key || key === LS_OUTBOX_KEY) continue;
+      if (localKeyBelongsToUser(key, userId)) localStorage.removeItem(key);
+    }
+    if (localStorage.getItem("arshnaz_garden_user") === userId) localStorage.removeItem("arshnaz_garden_user");
+  } catch { cleared = false; }
+  notifyChange();
+  return cleared;
+}
+
 const listeners = new Set<() => void>();
 export function onQueueChange(cb: () => void) {
   listeners.add(cb);
@@ -195,6 +248,7 @@ function sameQueuedOp(left: QueuedOp, right: QueuedOp): boolean {
   return left.id === right.id && left.createdAt === right.createdAt &&
     left.table === right.table && left.op === right.op &&
     left.ownerId === right.ownerId &&
+    left.expectedRevision === right.expectedRevision &&
     JSON.stringify(left.payload) === JSON.stringify(right.payload) &&
     JSON.stringify(left.match) === JSON.stringify(right.match);
 }
@@ -255,6 +309,11 @@ async function replayWithLegacyStore(item: QueuedOp): Promise<boolean> {
 
 type ReplayOutcome = "saved" | "stale" | "failed";
 
+const revisionProtectedCollections = new Set([
+  "tasks", "notes", "habits", "folders", "tags", "contacts", "task_contacts",
+  "interactive_study_sessions", "socratic_sessions", "pharmacy_practice",
+]);
+
 async function replayItem(item: QueuedOp, userId: string): Promise<ReplayOutcome> {
   let firestoreAttempted = false;
   let firestoreOutcome: ReplayOutcome = "failed";
@@ -278,9 +337,15 @@ async function replayItem(item: QueuedOp, userId: string): Promise<ReplayOutcome
     ];
     if (!firestoreAttempted && userId && firestoreTables.includes(item.table)) {
       firestoreAttempted = true;
-      const { saveEntityToFirestoreWithOutcome, deleteEntityFromFirestore } = await import("./firestoreSync");
+      const { saveEntityToFirestoreWithOutcome, deleteEntityFromFirestore, replayQueuedEntityWithOutcome } = await import("./firestoreSync");
+      const payload = (item.payload || {}) as Record<string, any>;
+      const docId = (item.op === "delete" ? item.match?.id : payload.id || item.match?.id) as string | undefined;
+      if (revisionProtectedCollections.has(item.table) && docId) {
+        return replayQueuedEntityWithOutcome(userId, item.table as any, docId, {
+          op: item.op, payload, createdAt: item.createdAt, expectedRevision: item.expectedRevision,
+        });
+      }
       if (item.op === "delete") {
-        const docId = item.match?.id as string;
         if (!docId) {
           // Deletes matched by other fields (e.g. task_id) go through the query adapter; deletes carry no revision to protect.
           return await replayWithLegacyStore(item) ? "saved" : "failed";
@@ -290,8 +355,6 @@ async function replayItem(item: QueuedOp, userId: string): Promise<ReplayOutcome
         }
         firestoreOutcome = "saved";
       } else {
-        const payload = (item.payload || {}) as Record<string, any>;
-        const docId = (payload.id || item.match?.id) as string;
         if (!docId) throw new Error(`Queued ${item.op} for ${item.table} has no document id`);
         firestoreOutcome = await saveEntityToFirestoreWithOutcome(userId, item.table as any, docId, payload, true);
       }

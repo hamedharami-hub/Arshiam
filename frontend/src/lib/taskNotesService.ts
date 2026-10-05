@@ -42,6 +42,7 @@ async function persistNoteOrQueue(
   userId: string,
   operation: "insert" | "update" | "delete",
   note: TaskNote,
+  expectedRevision?: string,
 ): Promise<void> {
   let synced = false;
   if (isOnline()) {
@@ -61,6 +62,8 @@ async function persistNoteOrQueue(
     op: operation,
     ...(operation === "delete" ? {} : { payload: note }),
     match: { id: note.id },
+    ...(operation === "delete" ? { expectedRevision: note.updated_at }
+      : operation === "update" ? { expectedRevision } : {}),
   });
   if (!queued) {
     throw new Error("Could not safely save this note: sync queue storage is unavailable. Your previous data was restored.");
@@ -242,7 +245,7 @@ export async function updateTaskNote(
 
     // 2. Persist to Firestore or durable outbox. Roll back if neither accepts it.
     try {
-      await persistNoteOrQueue(userId, "update", updated);
+      await persistNoteOrQueue(userId, "update", updated, existing?.updated_at);
     } catch (error) {
       await cacheSet(taskKey, currentTaskNotes);
       await cacheSet(allKey, allNotes);

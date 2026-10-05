@@ -39,11 +39,16 @@ export function isOnline(): boolean {
   return true;
 }
 
+function rowRevision(row: Contact | TaskContact | undefined): string | undefined {
+  return row?.updated_at ?? (row && "updatedAt" in row ? row.updatedAt : undefined);
+}
+
 async function persistContactRowOrQueue(
   userId: string,
   table: "contacts" | "task_contacts",
   operation: "insert" | "update" | "delete",
   row: Contact | TaskContact,
+  expectedRevision?: string,
 ): Promise<void> {
   let synced = false;
   if (isOnline()) {
@@ -63,6 +68,7 @@ async function persistContactRowOrQueue(
     op: operation,
     ...(operation === "delete" ? {} : { payload: row }),
     match: { id: row.id },
+    ...(operation === "insert" ? {} : { expectedRevision: expectedRevision ?? (operation === "delete" ? rowRevision(row) : undefined) }),
   });
   if (!queued) {
     throw new Error("Could not safely save this contact change: sync queue storage is unavailable. Your previous data was restored.");
@@ -291,7 +297,7 @@ export async function updateContact(
   await cacheSet(cacheKey, nextList);
 
   try {
-    await persistContactRowOrQueue(userId, "contacts", "update", updated);
+    await persistContactRowOrQueue(userId, "contacts", "update", updated, current.updated_at);
   } catch (error) {
     await cacheSet(cacheKey, all);
     throw error;
@@ -314,12 +320,13 @@ export async function deleteContact(contactId: string, userId: string): Promise<
   const remainingRelations = currentRelations.filter((tc) => tc.contact_id !== contactId);
   const removedRelations = currentRelations.filter((tc) => tc.contact_id === contactId);
   const deleteOperations = [
-    { ownerId: userId, table: "contacts", op: "delete" as const, match: { id: contactId } },
+    { ownerId: userId, table: "contacts", op: "delete" as const, match: { id: contactId }, expectedRevision: rowRevision(currentContacts.find((contact) => contact.id === contactId)) },
     ...removedRelations.map((relation) => ({
       ownerId: userId,
       table: "task_contacts",
       op: "delete" as const,
       match: { id: relation.id },
+      expectedRevision: rowRevision(relation),
     })),
   ];
   const updateLocalCaches = async () => {
@@ -453,13 +460,14 @@ export async function linkTaskContact(
       const updatedRel: TaskContact = {
         ...duplicate,
         role_or_context: roleOrContext.trim() || undefined,
+        updated_at: new Date().toISOString(),
       };
       const cacheKey = getTaskContactsCacheKey(userId);
       const updatedList = existingRelations.map((r) => (r.id === duplicate.id ? updatedRel : r));
       await cacheSet(cacheKey, updatedList);
 
       try {
-        await persistContactRowOrQueue(userId, "task_contacts", "update", updatedRel);
+        await persistContactRowOrQueue(userId, "task_contacts", "update", updatedRel, rowRevision(duplicate));
       } catch (error) {
         await cacheSet(cacheKey, existingRelations);
         throw error;
@@ -476,6 +484,7 @@ export async function linkTaskContact(
     contact_id: contactId,
     role_or_context: roleOrContext?.trim() || undefined,
     created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   };
 
   // Optimistic cache update

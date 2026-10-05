@@ -143,23 +143,30 @@ export async function listUserTasks(
     limit?: number;
   }
 ): Promise<any[]> {
-  const url = `${BASE_FIRESTORE_URL}/users/${encodeURIComponent(
-    user.userId
-  )}/tasks?pageSize=100`;
-  const res = await fetch(url, {
-    method: "GET",
-    headers: getHeaders(user),
-  });
-
-  if (!res.ok) {
-    if (res.status === 404) return [];
-    const errText = await res.text();
-    console.error("[Firestore] listUserTasks failed:", res.status, errText);
-    throw new Error(`Firestore query error: ${res.statusText}`);
-  }
-
-  const data: any = await res.json();
-  let tasks = (data.documents || []).map(parseFirestoreDoc);
+  const baseUrl = `${BASE_FIRESTORE_URL}/users/${encodeURIComponent(user.userId)}/tasks`;
+  const documents: any[] = [];
+  const seenTokens = new Set<string>();
+  let pageToken: string | undefined;
+  do {
+    const url = new URL(baseUrl);
+    url.searchParams.set("pageSize", "100");
+    if (pageToken) url.searchParams.set("pageToken", pageToken);
+    const res = await fetch(url.toString(), { method: "GET", headers: getHeaders(user) });
+    if (!res.ok) {
+      if (res.status === 404 && documents.length === 0) return [];
+      const errText = await res.text();
+      console.error("[Firestore] listUserTasks failed:", res.status, errText);
+      throw new Error(`Firestore query error: ${res.statusText}`);
+    }
+    const data: any = await res.json();
+    documents.push(...(data.documents || []));
+    pageToken = data.nextPageToken || undefined;
+    if (pageToken) {
+      if (seenTokens.has(pageToken)) throw new Error("Firestore returned a repeated page token.");
+      seenTokens.add(pageToken);
+    }
+  } while (pageToken);
+  let tasks = documents.map(parseFirestoreDoc);
 
   // Filter completed
   if (options?.completed !== undefined) {
@@ -303,11 +310,20 @@ export async function updateUserTask(
   }
 
   const now = new Date().toISOString();
+  const editableFields = new Set([
+    "title", "description", "completed", "priority", "status", "folder_id", "pinned",
+    "work_date", "due_date", "due_at", "is_exact", "horizon", "period_start", "period_end",
+    "bucket_kind", "bucket_anchor", "bucket_calendar", "schedule_v", "schedule_timezone",
+    "planning_horizon", "planning_start", "planning_end", "planning_calendar",
+  ]);
   const removedTaskSchedulingFields = new Set([
     "start_at", "end_at", "estimated_minutes", "time_of_day", "part_of_day", "deadline",
   ]);
   const fieldsToUpdate: Record<string, any> = {};
   for (const [key, value] of Object.entries(updates)) {
+    if (!editableFields.has(key) && !removedTaskSchedulingFields.has(key)) {
+      throw new InvalidTaskPatchError(`Field '${key}' is not editable.`);
+    }
     if (!removedTaskSchedulingFields.has(key)) fieldsToUpdate[key] = value;
   }
   for (const key of [
@@ -362,6 +378,10 @@ export async function updateUserTask(
   return parseFirestoreDoc(doc);
 }
 
+export class InvalidTaskPatchError extends Error {
+  constructor(message: string) { super(message); this.name = "InvalidTaskPatchError"; }
+}
+
 /**
  * Deletes a task from /users/{userId}/tasks/{taskId}
  */
@@ -403,7 +423,7 @@ export async function getTodayTasks(user: AuthUser, userTimeZone: string, now = 
 }> {
   const timeZone = normalizeTimeZone(userTimeZone);
   if (!timeZone) throw new Error("A valid IANA time zone is required to calculate today's tasks.");
-  const allTasks = await listUserTasks(user, { limit: 100 });
+  const allTasks = await listUserTasks(user, { limit: Number.MAX_SAFE_INTEGER });
   const todayStr = localDayOf(now, timeZone);
   if (!todayStr) throw new Error("Could not calculate the current local date.");
 

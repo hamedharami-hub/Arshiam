@@ -253,6 +253,20 @@ describe("AI Agent API Endpoints (/api/v1/agent/*)", () => {
     testStore.enabled = false;
   });
 
+  it("accepts granular create and update task grants", async () => {
+    const expires = new Date(Date.now() + 86400000).toISOString();
+    const { secret: createToken } = await createGrant(userId, "Creator", ["tasks:create"], expires);
+    const create = createMockReqRes({ method: "POST", url: "/api/v1/agent/tasks", token: createToken, body: { title: "Granular" } });
+    await handleAgentRequest(create.req, create.res);
+    expect(create.res.statusCode).toBe(201);
+    const taskId = JSON.parse(create.res.body).data.id;
+    const { secret: updateToken } = await createGrant(userId, "Updater", ["tasks:update"], expires);
+    const update = createMockReqRes({ method: "PATCH", url: `/api/v1/agent/tasks/${taskId}`, token: updateToken, body: { completed: true } });
+    await handleAgentRequest(update.req, update.res);
+    expect(update.res.statusCode).toBe(200);
+    expect(JSON.parse(update.res.body).data.status).toBe("done");
+  });
+
   it("1. GET /api/v1/agent/me returns agent metadata", async () => {
     const { req, res } = createMockReqRes({
       url: "/api/v1/agent/me",
@@ -537,6 +551,10 @@ describe("AI Agent API Endpoints (/api/v1/agent/*)", () => {
     expect(res1.statusCode).toBe(201);
     const firstId = JSON.parse(res1.body).data.id;
 
+    // A new function instance has no process-local cache, while Firestore keeps
+    // the idempotency record. The test store models that persistent record.
+    resetIdempotencyCache();
+
     // Resend same idempotency key
     const { req: req2, res: res2 } = createMockReqRes({
       method: "POST",
@@ -551,6 +569,14 @@ describe("AI Agent API Endpoints (/api/v1/agent/*)", () => {
 
     // Identical task ID returned, no duplicate in database
     expect(secondId).toBe(firstId);
+    expect(Array.from(testStore.tasks.values())).toHaveLength(1);
+
+    const different = createMockReqRes({
+      method: "POST", url: "/api/v1/agent/tasks", token,
+      headers: { "idempotency-key": key }, body: { title: "Different task" },
+    });
+    await handleAgentRequest(different.req, different.res);
+    expect(different.res.statusCode).toBe(409);
     expect(Array.from(testStore.tasks.values())).toHaveLength(1);
   });
 

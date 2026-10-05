@@ -5,29 +5,34 @@ import { loadSettings } from "@/lib/reminders";
 
 const Index = () => {
   const { user, loading } = useAuth();
-  const [target, setTarget] = useState<string | null>(null);
+  const [target, setTarget] = useState<{ uid: string; path: string } | null>(null);
 
   useEffect(() => {
     if (loading) return;
-    if (!user) { setTarget("/auth"); return; }
+    if (!user) { setTarget(null); return; }
+    let cancelled = false;
     (async () => {
       try {
         const s = await loadSettings(user.id);
+        if (cancelled) return;
         const lastPath = localStorage.getItem("last_route");
         if (s?.default_landing === "today") {
-          setTarget("/app/today");
+          setTarget({ uid: user.id, path: "/app/today" });
         } else if (s?.default_landing === "last" && lastPath && lastPath.startsWith("/app/")) {
-          setTarget(lastPath);
+          setTarget({ uid: user.id, path: lastPath });
         } else {
-          setTarget("/app/today");
+          setTarget({ uid: user.id, path: "/app/today" });
         }
       } catch {
-        setTarget("/app/today");
+        if (!cancelled) setTarget({ uid: user.id, path: "/app/today" });
       }
     })();
-  }, [user, loading]);
+    return () => { cancelled = true; };
+  }, [user?.id, loading]);
 
-  if (!target) return null;
-  return <Navigate to={target} replace />;
+  if (loading) return null;
+  if (!user) return <Navigate to="/auth" replace />;
+  if (!target || target.uid !== user.id) return null;
+  return <Navigate to={target.path} replace />;
 };
 export default Index;

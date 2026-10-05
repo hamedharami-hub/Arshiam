@@ -3,6 +3,7 @@ import {
   deleteUserTask,
   getUserTaskById,
   updateUserTask,
+  InvalidTaskPatchError,
 } from "../_lib/firestore.js";
 import { handleCors, parseBody, sendError, sendJson } from "../_lib/response.js";
 import { InvalidTaskPriorityError, InvalidTaskScheduleError } from "../_lib/taskSchedule.js";
@@ -98,6 +99,10 @@ export default async function handler(req: any, res: any) {
     }
   } catch (error: any) {
     console.error(`[API /api/tasks/${taskId} error]:`, error);
+    if (error instanceof InvalidTaskPatchError) {
+      sendError(res, 400, "VALIDATION_ERROR", error.message);
+      return;
+    }
     if (error instanceof InvalidTaskScheduleError) {
       sendError(res, 400, "VALIDATION_ERROR", error.message);
       return;

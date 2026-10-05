@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, act } from "@testing-library/react";
 import { usePwaUpdateToast, PWA_UPDATE_TOAST_ID } from "./App";
 import { toast } from "sonner";
+import { LANGUAGE_STORAGE_KEY } from "./i18n";
 
 vi.mock("sonner", () => ({
   toast: vi.fn(),
@@ -49,7 +50,7 @@ describe("usePwaUpdateToast idempotence", () => {
   });
 
   it("handles English locale correctly with the same fixed toast id", () => {
-    localStorage.setItem("i18nextLng", "en-US");
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, "en-US");
     render(<TestToastConsumer />);
 
     act(() => {
@@ -66,6 +67,16 @@ describe("usePwaUpdateToast idempotence", () => {
         }),
       })
     );
+  });
+
+  it("uses the current app language over a stale legacy i18next key", () => {
+    localStorage.setItem("i18nextLng", "en-US");
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, "fa");
+    render(<TestToastConsumer />);
+
+    act(() => window.dispatchEvent(new CustomEvent("pwa-update-available")));
+
+    expect(toast).toHaveBeenCalledWith("نسخه‌ی جدید برنامه آماده است", expect.any(Object));
   });
 
   it("invokes window.__applyPwaUpdate if defined, or reloads window on action click", () => {

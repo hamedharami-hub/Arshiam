@@ -47,9 +47,16 @@ export default function CalendarView() {
 
   // Load user cycle settings & active profile
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setActiveCycleProfileId(null);
+      setCycleProfile(null);
+      setCycleLogs([]);
+      return;
+    }
+    let active = true;
     firebaseStore.from("user_settings").select("active_cycle_profile_id, cycle_overlay_enabled").eq("user_id", user.id).maybeSingle()
       .then(async ({ data: s }) => {
+        if (!active) return;
         const enabled = s?.cycle_overlay_enabled !== false;
         setCycleOverlayEnabled(enabled);
         const pid = s?.active_cycle_profile_id;
@@ -59,6 +66,7 @@ export default function CalendarView() {
             firebaseStore.from("cycle_profiles").select("*").eq("id", pid).maybeSingle(),
             firebaseStore.from("cycle_logs").select("*").eq("profile_id", pid).order("log_date", { ascending: false }),
           ]);
+          if (!active) return;
           setCycleProfile((p as CycleProfile) || null);
           setCycleLogs((logs as CycleLog[]) || []);
         } else {
@@ -66,13 +74,19 @@ export default function CalendarView() {
           setCycleLogs([]);
         }
       });
+    return () => { active = false; };
   }, [user]);
 
   const persistSystem = (s: CalendarSystem) => { setCalendarSystem(s); setSystem(s); };
 
   // Fetch range based on view
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setTasks([]);
+      setHolidays([]);
+      return;
+    }
+    let active = true;
     let start: Date, end: Date;
     const ts = { ...getTimeSettings(), calendar: system };
     if (view === "month") { const mp = periodFor("month", date, ts); start = subDays(fromLocalISO(mp.start), 7); end = addDays(fromLocalISO(mp.end), 7); end.setHours(23, 59, 59, 999); }
@@ -102,10 +116,23 @@ export default function CalendarView() {
             matching.push({ ...t, due_date: calendarDate });
           }
         }
-        setTasks(matching);
+        if (active) setTasks(matching);
       });
-    getHolidaysForRange(subDays(start, 40), addDays(end, 40), occasionSets).then(setHolidays).catch(() => setHolidays([]));
+    getHolidaysForRange(subDays(start, 40), addDays(end, 40), occasionSets)
+      .then(value => { if (active) setHolidays(value); })
+      .catch(() => { if (active) setHolidays([]); });
+    return () => { active = false; };
   }, [user, date, view, refreshKey, system, occasionSets]);
+
+  useEffect(() => {
+    const refreshTasks = () => setRefreshKey(key => key + 1);
+    window.addEventListener("tasks-changed", refreshTasks);
+    window.addEventListener("firebase-store-changed", refreshTasks);
+    return () => {
+      window.removeEventListener("tasks-changed", refreshTasks);
+      window.removeEventListener("firebase-store-changed", refreshTasks);
+    };
+  }, []);
 
   useEffect(() => {
     const on = () => { setSets(getOccasionSets()); setRefreshKey((k) => k + 1); };

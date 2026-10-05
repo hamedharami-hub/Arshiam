@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Calendar, CalendarDays, CalendarRange, Check, Pencil, X } from "lucide-react";
 import { currentPeriod, fromLocalISO, getTimeSettings, nextPeriod, periodLabel, type Period } from "@/lib/timeHorizon";
@@ -51,6 +51,10 @@ export function TaskPlanningBody({ task, onPatch, onDone, onPickDay }: {
   const [customOpen, setCustomOpen] = useState(false);
   const [rangeStart, setRangeStart] = useState<string | null>(plan?.start || null);
   const [rangeEnd, setRangeEnd] = useState<string | null>(plan?.end || null);
+  useEffect(() => {
+    setRangeStart(plan?.start || null);
+    setRangeEnd(plan?.end || null);
+  }, [task.id, plan?.start, plan?.end]);
   const choose = (period: Period | null) => {
     if (period && period.horizon === "day" && period.start === period.end && onPickDay) { onPickDay(period.start); return; }
     onPatch(planningPatch(period, settings)); onDone?.();

@@ -22,6 +22,7 @@ from holidays_au import router as holidays_router  # noqa: E402
 from weather import router as weather_router  # noqa: E402
 from google_integration import router as google_router  # noqa: E402
 from modules import router as modules_router, seed_master_code  # noqa: E402
+from account_data import router as account_router  # noqa: E402
 from storage import init_storage  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -42,6 +43,7 @@ api_router.include_router(holidays_router)
 api_router.include_router(weather_router)
 api_router.include_router(google_router)
 api_router.include_router(modules_router)
+api_router.include_router(account_router)
 app.include_router(api_router)
 
 app.add_middleware(

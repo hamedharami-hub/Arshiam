@@ -58,7 +58,17 @@ export async function createAssistantTask(grant: AssistantGrant, input: any) {
   const batch = adminDb().batch();
   batch.create(collection(grant).doc(id), task);
   batch.create(adminDb().collection(`users/${grant.userId}/assistant_audit`).doc(), auditData(grant, "create", id));
-  await batch.commit();
+  try {
+    await batch.commit();
+  } catch (error) {
+    // A concurrent request with the same external reference may have created the
+    // deterministic ID after the initial read. Return that task on this one race.
+    if (externalRef) {
+      const existing = await collection(grant).doc(id).get();
+      if (existing.exists) return stripRemovedTaskTimeFields({ id, ...existing.data(), alreadyExists: true });
+    }
+    throw error;
+  }
   return task;
 }
 
@@ -75,6 +85,17 @@ export async function updateAssistantTask(grant: AssistantGrant, id: string, inp
   if (typeof patch.title === "string") patch.title = patch.title.trim();
   if (input?.priority !== undefined) patch.priority = normalizeTaskPriority(input.priority);
   if (patch.title === "") throw new Error("Task title cannot be empty.");
+  if (patch.completed !== undefined && patch.status === undefined) {
+    if (typeof patch.completed !== "boolean") throw new Error("completed must be a boolean.");
+    patch.status = patch.completed ? "done" : "todo";
+  } else if (patch.status !== undefined && patch.completed === undefined) {
+    if (typeof patch.status !== "string") throw new Error("status must be a string.");
+    patch.completed = patch.status === "done";
+  } else if (patch.status !== undefined && patch.completed !== undefined) {
+    if (typeof patch.completed !== "boolean" || typeof patch.status !== "string" || patch.completed !== (patch.status === "done")) {
+      throw new Error("completed and status disagree.");
+    }
+  }
   if (Object.keys(patch).length === 0) throw new Error("No editable fields supplied.");
   patch.updated_at = new Date().toISOString();
   const batch = adminDb().batch();

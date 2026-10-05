@@ -227,7 +227,7 @@
       "post": {
         "operationId": "createTask",
         "summary": "Create task",
-        "description": "Requires tasks:write. Access is limited to the account associated with the token.",
+        "description": "Requires tasks:create or tasks:write. Access is limited to the account associated with the token.",
         "responses": {
           "200": {
             "$ref": "#/components/responses/Status200"
@@ -264,7 +264,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "Unique for each intended creation; reuse only on retries of the same request."
+            "description": "Unique for each intended task creation; retries with the same payload return the original task for 24 hours across server instances. Reusing a key with a different payload returns 409."
           }
         ],
         "requestBody": {
@@ -427,7 +427,7 @@
       "patch": {
         "operationId": "updateTask",
         "summary": "Update task",
-        "description": "Requires tasks:write. Access is limited to the account associated with the token.",
+        "description": "Requires tasks:update or tasks:write. Access is limited to the account associated with the token.",
         "responses": {
           "200": {
             "$ref": "#/components/responses/Status200"
@@ -1138,7 +1138,7 @@
       "post": {
         "operationId": "completeTask",
         "summary": "Complete task",
-        "description": "Requires tasks:write. Access is limited to the account associated with the token.",
+        "description": "Requires tasks:update or tasks:write. Access is limited to the account associated with the token.",
         "responses": {
           "200": {
             "$ref": "#/components/responses/Status200"
@@ -1186,7 +1186,7 @@
       "post": {
         "operationId": "reopenTask",
         "summary": "Reopen task",
-        "description": "Requires tasks:write. Access is limited to the account associated with the token.",
+        "description": "Requires tasks:update or tasks:write. Access is limited to the account associated with the token.",
         "responses": {
           "200": {
             "$ref": "#/components/responses/Status200"

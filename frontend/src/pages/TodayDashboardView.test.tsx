@@ -426,6 +426,21 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
     expect(screen.getByTestId("overdue-tasks")).not.toHaveTextContent("Overdue lesson");
     expect(screen.getByTestId("overdue-study")).toHaveTextContent("Overdue lesson");
   });
+
+  it("shows past planned periods with overdue tasks after today's tasks", () => {
+    const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    const pastDay = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
+    mockTasks = [
+      { id: "today", user_id: "user-123", title: "Today's task", completed: false, status: "todo", priority: "none", schedule_v: 2, work_date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`, folder_id: null, parent_id: null },
+      { id: "past-day", user_id: "user-123", title: "Past dated task", completed: false, status: "todo", priority: "none", schedule_v: 2, work_date: pastDay, folder_id: null, parent_id: null },
+      { id: "past-period", user_id: "user-123", title: "Past planned task", completed: false, status: "todo", priority: "none", schedule_v: 2, planning_horizon: "week", planning_start: pastDay, planning_end: pastDay, folder_id: null, parent_id: null },
+    ];
+    render(<MemoryRouter><TodayDashboardView /></MemoryRouter>);
+    expect(screen.getByTestId("overdue-tasks")).toHaveTextContent("Past dated task");
+    expect(screen.getByTestId("overdue-tasks")).toHaveTextContent("Past planned task");
+    expect(screen.queryByTestId("missed-work-tasks")).not.toBeInTheDocument();
+    expect(screen.getByTestId("today-active-tasks").compareDocumentPosition(screen.getByTestId("overdue-tasks")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });
 
 

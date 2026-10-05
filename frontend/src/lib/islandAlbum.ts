@@ -39,6 +39,22 @@ export async function listAlbum(): Promise<AlbumEntry[]> {
   return rows.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
+export async function clearAlbumForUser(ownerId: string): Promise<boolean> {
+  if (!ownerId) return false;
+  const d = await db();
+  if (!d) return true;
+  try {
+    const entries = await d.getAllFromIndex(STORE, "byUser", ownerId);
+    const tx = d.transaction(STORE, "readwrite");
+    await Promise.all(entries.map((entry) => tx.store.delete(entry.id)));
+    await tx.done;
+    return true;
+  } catch (error) {
+    console.warn("[islandAlbum] Could not clear account snapshots:", error);
+    return false;
+  }
+}
+
 export async function addToAlbum(entry: Omit<AlbumEntry, "id" | "createdAt">): Promise<AlbumEntry | null> {
   const d = await db();
   if (!d) return null;

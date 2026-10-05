@@ -37,6 +37,52 @@ function saveIdempotency(cacheKey: string, status: number, body: any) {
   idempotencyCache.set(cacheKey, { body, status, timestamp: Date.now() });
 }
 
+function canonicalJson(value: any): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().filter((key) => value[key] !== undefined && key !== "idempotency_key")
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+async function createTaskIdempotently(grant: AssistantGrant, key: string, requestBody: any, taskData: any) {
+  const identity = createHash("sha256").update(`task_create\0${grant.id}\0${key}`).digest("hex");
+  const requestHash = createHash("sha256").update(canonicalJson(requestBody)).digest("hex");
+  const recordId = `${grant.userId}:${identity}`;
+  const response = { data: stripRemovedTaskTimeFields(taskData), meta: { action: "created", timestamp: taskData.created_at } };
+  const expiresAt = Date.now() + 86400000;
+  if (testStore.enabled) {
+    const previous = testStore.idempotency.get(recordId);
+    if (previous && previous.expiresAt > Date.now()) {
+      return previous.requestHash === requestHash ? { status: 201, body: previous.response } : { status: 409, body: null };
+    }
+    testStore.tasks.set(taskData.id, taskData);
+    testStore.audit.push({ grantId: grant.id, userId: grant.userId, action: "tasks:create", entityId: taskData.id, safeSummary: taskData.title, timestamp: taskData.created_at });
+    testStore.idempotency.set(recordId, { requestHash, response, expiresAt });
+    return { status: 201, body: response };
+  }
+
+  const db = adminDb();
+  const recordRef = db.doc(`users/${grant.userId}/assistant_idempotency/${identity}`);
+  return db.runTransaction(async (transaction) => {
+    const previous = await transaction.get(recordRef);
+    const record = previous.data();
+    if (record && record.expiresAt > Date.now()) {
+      return record.requestHash === requestHash
+        ? { status: 201, body: record.response }
+        : { status: 409, body: null };
+    }
+    transaction.create(db.doc(`users/${grant.userId}/tasks/${taskData.id}`), taskData);
+    transaction.set(recordRef, { requestHash, response, expiresAt });
+    transaction.create(db.collection(`users/${grant.userId}/assistant_audit`).doc(), {
+      grantId: grant.id, userId: grant.userId, action: "tasks:create", entityId: taskData.id,
+      safeSummary: taskData.title, timestamp: taskData.created_at,
+    });
+    return { status: 201, body: response };
+  });
+}
+
 export function resetIdempotencyCache() {
   idempotencyCache.clear();
 }
@@ -241,10 +287,8 @@ async function handleCreateTask(grant: AssistantGrant, body: any, req: any, res:
   }
 
   const idempotencyKey = getIdempotencyKey(req, body);
-  if (idempotencyKey) {
-    const cacheKey = `task_create_${grant.userId}_${idempotencyKey}`;
-    const cached = checkIdempotency(cacheKey);
-    if (cached) return sendJson(res, cached.status, cached.body);
+  if (idempotencyKey && idempotencyKey.length > 2048) {
+    return sendError(res, 400, "VALIDATION_ERROR", "Idempotency key is too long.");
   }
 
   const now = new Date().toISOString();
@@ -267,6 +311,12 @@ async function handleCreateTask(grant: AssistantGrant, body: any, req: any, res:
     updated_at: now,
   };
 
+  if (idempotencyKey) {
+    const result = await createTaskIdempotently(grant, idempotencyKey, body, taskData);
+    if (result.status === 409) return sendError(res, 409, "IDEMPOTENCY_CONFLICT", "The idempotency key was already used with different task input.");
+    return sendJson(res, result.status, result.body);
+  }
+
   const created = await saveDoc(grant, "tasks", id, taskData, false);
   await auditLog(grant, "tasks:create", id, taskData.title);
 
@@ -277,10 +327,6 @@ async function handleCreateTask(grant: AssistantGrant, body: any, req: any, res:
       timestamp: now,
     },
   };
-
-  if (idempotencyKey) {
-    saveIdempotency(`task_create_${grant.userId}_${idempotencyKey}`, 201, responseBody);
-  }
 
   return sendJson(res, 201, responseBody);
 }
@@ -993,7 +1039,7 @@ export async function handleAgentRequest(req: any, res: any): Promise<void> {
       }
       // POST /api/v1/agent/tasks
       if (segments.length === 1 && method === "POST") {
-        const grant = await authenticateAssistant(req, res, "tasks:write");
+        const grant = await authenticateAssistant(req, res, "tasks:create");
         if (!grant) return;
         const body = await parseBody(req);
         return await handleCreateTask(grant, body, req, res);
@@ -1006,20 +1052,20 @@ export async function handleAgentRequest(req: any, res: any): Promise<void> {
       }
       // PATCH /api/v1/agent/tasks/:id
       if (segments.length === 2 && method === "PATCH") {
-        const grant = await authenticateAssistant(req, res, "tasks:write");
+        const grant = await authenticateAssistant(req, res, "tasks:update");
         if (!grant) return;
         const body = await parseBody(req);
         return await handlePatchTask(grant, segments[1], body, res);
       }
       // POST /api/v1/agent/tasks/:id/complete
       if (segments.length === 3 && segments[2] === "complete" && method === "POST") {
-        const grant = await authenticateAssistant(req, res, "tasks:write");
+        const grant = await authenticateAssistant(req, res, "tasks:update");
         if (!grant) return;
         return handleCompleteTask(grant, segments[1], res);
       }
       // POST /api/v1/agent/tasks/:id/reopen
       if (segments.length === 3 && segments[2] === "reopen" && method === "POST") {
-        const grant = await authenticateAssistant(req, res, "tasks:write");
+        const grant = await authenticateAssistant(req, res, "tasks:update");
         if (!grant) return;
         return handleReopenTask(grant, segments[1], res);
       }

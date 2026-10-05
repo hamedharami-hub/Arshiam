@@ -263,8 +263,11 @@ export default function TodayDashboardView() {
       });
   }, [todayPersonalTasks]);
 
-  const isDueOverdue = useCallback((t: Task) => isTaskOverdue(t, getTimeSettings()), []);
-  const isMissed = useCallback((t: Task) => !isTaskOverdue(t, getTimeSettings()) && isTaskMissedWorkDay(t, getTimeSettings()), []);
+  const isDueOverdue = useCallback((t: Task) => {
+    void currentDayKey;
+    const settings = getTimeSettings();
+    return isTaskOverdue(t, settings) || isTaskMissedWorkDay(t, settings);
+  }, [currentDayKey]);
 
   const overdueTasks = useMemo(() => filterAndSortTasks(
     allTasks.filter((task) => isStandaloneTaskForScope(task, isDueOverdue, taskMap) && !getStudyTaskNavigation(task).isStudyTask),
@@ -275,11 +278,6 @@ export default function TodayDashboardView() {
     allTasks.filter((task) => isStandaloneTaskForScope(task, isDueOverdue, taskMap) && getStudyTaskNavigation(task).isStudyTask),
     { ...DEFAULT_FILTERS, ...todaySort, show_completed: true }, {}, [],
   ), [allTasks, isDueOverdue, taskMap, todaySort]);
-
-  const missedTasks = useMemo(() => filterAndSortTasks(
-    allTasks.filter(task => isStandaloneTaskForScope(task, isMissed, taskMap)),
-    { ...DEFAULT_FILTERS, ...todaySort, show_completed: true }, {}, [],
-  ), [allTasks, isMissed, taskMap, todaySort]);
 
   const totalCount = todayTasks.length;
   const completedCount = completedTodayTasks.length + completedTodayStudyTasks.length;
@@ -524,7 +522,7 @@ export default function TodayDashboardView() {
     />
   );
 
-  const isEmpty = totalCount === 0 && overdueTasks.length === 0 && overdueStudyTasks.length === 0 && missedTasks.length === 0;
+  const isEmpty = totalCount === 0 && overdueTasks.length === 0 && overdueStudyTasks.length === 0;
 
   return (
     <div
@@ -691,7 +689,7 @@ export default function TodayDashboardView() {
                   </div>
                 )}
 
-                {/* تسک‌های به‌تعویق‌افتاده، حتماً بعد و پایین تسک‌های امروز */}
+                {/* کارهای دارای روز یا بازهٔ گذشته، پس از همهٔ کارهای امروز */}
                 {overdueTasks.length > 0 && (
                   <section data-testid="overdue-tasks" className="space-y-1 pt-3">
                     <TaskGroupHeader label={T("عقب‌افتاده", "Overdue")} count={overdueTasks.length} tone="overdue" testid="task-group-overdue" />
@@ -709,13 +707,6 @@ export default function TodayDashboardView() {
                     </div>
                   </section>
                 )}
-                {missedTasks.length > 0 && (
-                  <section data-testid="missed-work-tasks" className="space-y-1 pt-3">
-                    <TaskGroupHeader label={T("از برنامه عقب‌مانده", "Missed work day")} count={missedTasks.length} tone="accent" />
-                    <div className="space-y-1">{missedTasks.map(task => renderTaskItem(task))}</div>
-                  </section>
-                )}
-
                 {/* حالت خالی */}
                 {isEmpty && (
                   <div className="py-12 text-center text-muted-foreground space-y-2">

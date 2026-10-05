@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "react-i18next";
 
 type BIPEvent = Event & {
   prompt: () => Promise<void>;
@@ -10,6 +11,8 @@ type BIPEvent = Event & {
 const DISMISS_KEY = "pwa_install_dismissed_v1";
 
 export default function InstallPrompt() {
+  const { i18n } = useTranslation();
+  const isEn = i18n.language?.startsWith("en") ?? false;
   const [evt, setEvt] = useState<BIPEvent | null>(null);
   const [visible, setVisible] = useState(false);
   const [iosHint, setIosHint] = useState(false);
@@ -54,11 +57,11 @@ export default function InstallPrompt() {
           <Download className="h-5 w-5 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium">نصب ARSHNAZ روی دستگاه</p>
+          <p className="text-sm font-medium">{isEn ? "Install ARSHNAZ on your device" : "نصب ARSHNAZ روی دستگاه"}</p>
           <p className="mt-1 text-xs text-muted-foreground">
             {iosHint
-              ? "روی دکمه Share در سافاری بزنید و «Add to Home Screen» را انتخاب کنید."
-              : "آفلاین کار می‌کند + با نگه‌داشتن آیکون، میانبر «امروز / Check-in / Pomodoro / SOS» داری."}
+              ? (isEn ? "Tap Share in Safari, then choose Add to Home Screen." : "روی دکمه Share در سافاری بزنید و «Add to Home Screen» را انتخاب کنید.")
+              : (isEn ? "Works offline. Long-press the icon for Today, Check-in, Pomodoro, and SOS shortcuts." : "آفلاین کار می‌کند + با نگه‌داشتن آیکون، میانبر «امروز / Check-in / Pomodoro / SOS» داری.")}
           </p>
           {!iosHint && (
             <div className="mt-3 flex gap-2">
@@ -71,16 +74,16 @@ export default function InstallPrompt() {
                   dismiss();
                 }}
               >
-                نصب
+                {isEn ? "Install" : "نصب"}
               </Button>
               <Button size="sm" variant="ghost" onClick={dismiss}>
-                بعداً
+                {isEn ? "Later" : "بعداً"}
               </Button>
             </div>
           )}
         </div>
-        <button onClick={dismiss} className="text-muted-foreground hover:text-foreground">
-          <X className="h-4 w-4" />
+        <button type="button" onClick={dismiss} aria-label={isEn ? "Dismiss install prompt" : "بستن پیشنهاد نصب"} className="text-muted-foreground hover:text-foreground">
+          <X className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
     </div>

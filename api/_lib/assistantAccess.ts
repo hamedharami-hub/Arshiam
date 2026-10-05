@@ -34,6 +34,7 @@ export const testStore = {
   enabled: false,
   grants: new Map<string, AssistantGrant>(),
   tokenIndex: new Map<string, { grantId: string; userId: string }>(),
+  idempotency: new Map<string, { requestHash: string; response: any; expiresAt: number }>(),
   tasks: new Map<string, any>(),
   folders: new Map<string, any>(),
   notes: new Map<string, any>(),
@@ -41,6 +42,7 @@ export const testStore = {
   reset() {
     this.grants.clear();
     this.tokenIndex.clear();
+    this.idempotency.clear();
     this.tasks.clear();
     this.folders.clear();
     this.notes.clear();

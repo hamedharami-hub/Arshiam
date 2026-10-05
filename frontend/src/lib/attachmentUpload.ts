@@ -229,6 +229,23 @@ export async function listQueued(taskId: string): Promise<QueuedAttachment[]> {
   return auth.currentUser?.uid === uid ? items.filter((item) => item.ownerId === uid) : [];
 }
 
+export async function clearQueuedAttachmentsForUser(userId: string): Promise<boolean> {
+  if (!userId) return false;
+  try {
+    const database = await queueDb();
+    const transaction = database.transaction("queue", "readwrite");
+    const items = await transaction.store.getAll();
+    await Promise.all((items as QueuedAttachment[])
+      .filter((item) => item.ownerId === userId)
+      .map((item) => transaction.store.delete(item.id)));
+    await transaction.done;
+    return true;
+  } catch (error) {
+    console.warn("[attachmentUpload] Could not clear account's pending attachment uploads:", error);
+    return false;
+  }
+}
+
 export async function removeQueued(id: string, taskId: string): Promise<void> {
   const uid = requireOwnerId();
   const database = await queueDb();

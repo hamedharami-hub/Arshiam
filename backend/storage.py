@@ -46,3 +46,7 @@ def put_object(path: str, data: bytes, content_type: str) -> dict:
 def get_object(path: str) -> tuple[bytes, str]:
     resp = _call("GET", path, timeout=90)
     return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
+
+
+def delete_object(path: str) -> None:
+    _call("DELETE", path, timeout=90)

@@ -16,8 +16,14 @@ import { parseTaskDueDate, taskDueTimestamp, taskWorkDate } from "@/lib/taskDate
 import type { Task } from "@/lib/taskTypes";
 
 type SessionRow = { duration_minutes: number; task_id: string | null; ended_at: string | null; tasks?: { title: string } | null };
-type WeekRow = { duration_minutes: number; started_at: string };
+type WeekRow = { duration_minutes: number; ended_at: string };
 type TaskOption = { id: string; title: string; due_date: string | null };
+
+export function sessionMinutesForCompletionDay(sessions: WeekRow[], day: Date): number {
+  return sessions
+    .filter((session) => isSameDay(new Date(session.ended_at), day))
+    .reduce((sum, session) => sum + (session.duration_minutes || 0), 0);
+}
 
 export default function PomodoroView() {
   const { user } = useAuth();
@@ -37,15 +43,15 @@ export default function PomodoroView() {
       .select("duration_minutes, task_id, ended_at, tasks(title)")
       .eq("user_id", user.id)
       .eq("completed", true)
-      .gte("started_at", start.toISOString())
+      .gte("ended_at", start.toISOString())
       .order("ended_at", { ascending: false })
       .then(({ data }) => setToday((data as SessionRow[] | null) || []));
     firebaseStore.from("pomodoro_sessions")
-      .select("duration_minutes, started_at")
+      .select("duration_minutes, ended_at")
       .eq("user_id", user.id)
       .eq("completed", true)
-      .gte("started_at", weekStart.toISOString())
-      .order("started_at", { ascending: true })
+      .gte("ended_at", weekStart.toISOString())
+      .order("ended_at", { ascending: true })
       .then(({ data }) => setWeekSessions((data as WeekRow[] | null) || []));
     firebaseStore.from("tasks")
       .select("*")
@@ -65,9 +71,7 @@ export default function PomodoroView() {
     const days: { label: string; minutes: number; date: Date }[] = [];
     for (let i = 6; i >= 0; i--) {
       const d = startOfDay(subDays(new Date(), i));
-      const minutes = weekSessions
-        .filter((s) => isSameDay(new Date(s.started_at), d))
-        .reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+      const minutes = sessionMinutesForCompletionDay(weekSessions, d);
       const weekday = system === "jalali" ? WEEKDAY_SHORT_FA[jalaliDayOfWeek(d)] : format(d, "EEE")[0];
       const dayNum = system === "jalali" ? formatDate(d, "d", "jalali") : format(d, "d");
       days.push({ label: `${weekday} ${dayNum}`, minutes, date: d });

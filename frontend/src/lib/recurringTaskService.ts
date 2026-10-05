@@ -1,14 +1,15 @@
 import { addDays, addMonths, addYears, format } from "date-fns";
 import { firebaseStore } from "./firebaseStore";
-import { persistTask } from "./firestoreDataService";
+import { db, doc } from "./firebase";
+import { runTransaction } from "firebase/firestore";
 import { showMascotMoment } from "./mascot";
 import { getCachedTasks } from "@/features/tasks/taskService";
-import { buildTaskChildrenMap, collectTaskDescendantIds } from "@/features/tasks/taskTree";
+import { buildTaskChildrenMap } from "@/features/tasks/taskTree";
 import { nextOccurrence, type RecurrenceRule } from "./recurrence";
 import { parseTaskDueDate, getLocalDateString } from "./taskDate";
 import { logTaskActivity } from "./taskActivity";
 import type { Task } from "./taskTypes";
-import { isCustomRange, readSchedule, schedulePatch, scheduleWorkDate, type TaskSchedule } from "./taskSchedule";
+import { isCustomRange, normalizeTaskWrite, readSchedule, schedulePatch, scheduleWorkDate, type TaskSchedule } from "./taskSchedule";
 import { addDaysLocal, fromLocalISO, getTimeSettings, periodFor, toLocalISO, type Period, type TimeSettings } from "./timeHorizon";
 
 /**
@@ -211,9 +212,9 @@ export async function advanceRecurringTask(
     taskPatch.is_exact = false;
   }
 
-  // 1. Advance and reset all subtasks under this recurring task
-  let subtaskCount = 0;
-  let targetTaskIds = [task.id];
+  // Prepare the descendants owned by this occurrence. A recurring child owns
+  // its entire subtree, so the parent's cadence must stop at that boundary.
+  const subtaskPatches: (Partial<Task> & { id: string })[] = [];
   try {
     let allTasks = options?.allKnownTasks || (await getCachedTasks(userId));
     if (!allTasks || allTasks.length === 0) {
@@ -222,15 +223,18 @@ export async function advanceRecurringTask(
     }
 
     const childrenMap = buildTaskChildrenMap(allTasks || []);
-    const descendantIds = collectTaskDescendantIds(task.id, childrenMap).filter((id) => id !== task.id);
-    targetTaskIds = [task.id, ...descendantIds];
-
-    const subtasks = (allTasks || []).filter((t) => descendantIds.includes(t.id));
-    // Subtasks that carry their own recurrence manage their own cadence: resetting
-    // or shifting them here would corrupt their schedule when the parent advances.
-    const plainSubtasks = subtasks.filter((sub) => !isRecurringTask(sub));
-    subtaskCount = plainSubtasks.length;
-
+    const plainSubtasks: Task[] = [];
+    const visited = new Set([task.id]);
+    const collectOwned = (parentId: string) => {
+      for (const child of childrenMap[parentId] || []) {
+        if (visited.has(child.id)) continue;
+        visited.add(child.id);
+        if (isRecurringTask(child)) continue;
+        plainSubtasks.push(child);
+        collectOwned(child.id);
+      }
+    };
+    collectOwned(task.id);
     for (const sub of plainSubtasks) {
       const subPatch: Partial<Task> & { id: string } = {
         id: sub.id,
@@ -255,36 +259,54 @@ export async function advanceRecurringTask(
         Object.assign(subPatch, schedulePatch(shifted, settings));
       }
 
-      await persistTask(userId, subPatch, { quietCompanion: true }).catch((e) =>
-        console.warn("[RecurringTaskService] Failed to reset subtask:", sub.id, e)
-      );
+      subtaskPatches.push(subPatch);
     }
   } catch (err) {
-    console.warn("[RecurringTaskService] Subtask reset error:", err);
+    return { success: false, error: err };
   }
 
-  // 2. Reset checklist step lists for parent task and subtasks
+  // A Firestore transaction commits the parent, its owned descendants and
+  // checklist steps together. Transactions fail while offline; do not queue
+  // independent task writes, which could replay as a partial occurrence.
   try {
-    const { data: stepLists } = await firebaseStore
+    const taskPatches = [taskPatch, ...subtaskPatches].map(patch => normalizeTaskWrite(patch));
+    const { data: stepLists, error: listError } = await firebaseStore
       .from("task_step_lists" as any)
       .select("id")
-      .in("task_id", targetTaskIds);
-    if (Array.isArray(stepLists) && stepLists.length > 0) {
-      const listIds = stepLists.map((l: any) => l.id);
-      await firebaseStore
+      .in("task_id", taskPatches.map(patch => patch.id));
+    if (listError) throw listError;
+    const listIds = Array.isArray(stepLists) ? stepLists.map((list: { id: string }) => list.id) : [];
+    let stepIds: string[] = [];
+    if (listIds.length) {
+      const { data: steps, error: stepError } = await firebaseStore
         .from("task_steps" as any)
-        .update({ completed: false } as any)
+        .select("id")
         .in("list_id", listIds);
+      if (stepError) throw stepError;
+      stepIds = Array.isArray(steps) ? steps.map((step: { id: string }) => step.id) : [];
     }
-  } catch (stepErr) {
-    console.warn("[RecurringTaskService] Step reset error:", stepErr);
+    if (taskPatches.length + stepIds.length > 500) throw new Error("Recurring task exceeds Firestore transaction write limit");
+
+    await runTransaction(db, async transaction => {
+      const taskRefs = taskPatches.map(patch => doc(db, "users", userId, "tasks", patch.id));
+      const stepRefs = stepIds.map(id => doc(db, "users", userId, "task_steps", id));
+      // Complete every read before the first write, as Firestore transactions require.
+      const snapshots = await Promise.all([...taskRefs, ...stepRefs].map(ref => transaction.get(ref)));
+      if (snapshots.some(snapshot => !snapshot.exists())) throw new Error("Recurring task changed before it could be advanced");
+      const currentParent = snapshots[0].data() as Partial<Task> | undefined;
+      if (currentParent && JSON.stringify(readSchedule(currentParent, settings)) !== JSON.stringify(schedule)) {
+        throw new Error("Recurring task schedule changed before it could be advanced");
+      }
+      taskPatches.forEach((patch, index) => {
+        const fields = Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined));
+        transaction.update(taskRefs[index], { ...fields, user_id: userId });
+      });
+      stepRefs.forEach(ref => transaction.update(ref, { completed: false }));
+    });
+  } catch (error) {
+    return { success: false, error };
   }
 
-  // 3. Persist the main task
-  const status = await persistTask(userId, taskPatch, { quietCompanion: true });
-  if (status === "failed") {
-    return { success: false, error: new Error("Could not persist advanced recurring task") };
-  }
   showMascotMoment("celebrate");
 
   // 4. Log activity
@@ -304,6 +326,6 @@ export async function advanceRecurringTask(
     nextDate,
     formattedNextDate,
     patch: taskPatch,
-    updatedSubtaskCount: subtaskCount,
+    updatedSubtaskCount: subtaskPatches.length,
   };
 }

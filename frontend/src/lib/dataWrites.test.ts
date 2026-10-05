@@ -36,6 +36,13 @@ vi.mock("./firebase", () => {
     deleteDoc: vi.fn(async (docPath: string) => {
       store.delete(docPath);
     }),
+    runTransaction: vi.fn(async (_db: unknown, update: (transaction: any) => Promise<unknown>) => update({
+      get: async (docPath: string) => ({ exists: () => store.has(docPath), data: () => store.get(docPath) }),
+      set: (docPath: string, data: any, options?: { merge?: boolean }) => {
+        const existing = store.get(docPath) || {};
+        store.set(docPath, options?.merge ? { ...existing, ...data } : data);
+      },
+    })),
     onSnapshot: vi.fn(() => () => {}),
     __mockStore: store,
   };

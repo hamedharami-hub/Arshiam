@@ -75,6 +75,52 @@ export interface SyncStats {
  */
 export type FirestoreSaveOutcome = "saved" | "stale" | "failed";
 
+/** Recheck a queued mutation against the server in the same transaction that writes it. */
+export async function replayQueuedEntityWithOutcome(
+  userId: string,
+  collectionName: SupportedFirestoreCollection,
+  docId: string,
+  mutation: { op: "insert" | "update" | "upsert" | "delete"; payload?: Record<string, unknown>; createdAt: number; expectedRevision?: string },
+): Promise<FirestoreSaveOutcome> {
+  if (!userId || !docId || auth.currentUser?.uid !== userId) return "failed";
+  const ref = doc(db, "users", userId, collectionName, docId);
+  try {
+    const outcome = await runTransaction(db, async (tx) => {
+      const snapshot = await tx.get(ref);
+      if (auth.currentUser?.uid !== userId) return "failed";
+      if (mutation.op === "delete") {
+        if (!snapshot.exists()) return "saved";
+        const remote = snapshot.data();
+        const remoteRevision = remote.updated_at ?? remote.updatedAt;
+        // Exact base revision is required: client clocks cannot order two devices' edits safely.
+        if (typeof mutation.expectedRevision !== "string" ||
+          typeof remoteRevision !== "string" || remoteRevision !== mutation.expectedRevision) return "stale";
+        tx.delete(ref);
+        return "saved";
+      }
+
+      if (!mutation.payload || (mutation.op === "update" && !snapshot.exists())) return "stale";
+      if (snapshot.exists()) {
+        const remote = snapshot.data();
+        const remoteRevision = remote.updated_at ?? remote.updatedAt;
+        // A queued edit is based on one specific cloud version, regardless of clock order.
+        if (typeof mutation.expectedRevision !== "string" ||
+          typeof remoteRevision !== "string" || remoteRevision !== mutation.expectedRevision) return "stale";
+      }
+      tx.set(ref, {
+        ...stripUndefinedDeep(mutation.payload), id: docId, userId,
+        updatedAt: new Date().toISOString(), _firestoreSyncAt: Date.now(),
+      }, { merge: true });
+      return "saved";
+    });
+    if (outcome === "saved") trackWrite(1, collectionName);
+    return outcome;
+  } catch (error) {
+    if (isQuotaError(error)) markQuotaExhausted();
+    throw error;
+  }
+}
+
 const conflictReviewCollections = new Set<SupportedFirestoreCollection>([
   "tasks", "notes", "habits", "folders", "tags", "contacts", "task_contacts",
   "knowledge_folders", "knowledge_documents", "knowledge_import_manifests",
@@ -310,9 +356,8 @@ export async function backupAllToFirestore(
     // 1. Gather tasks from all potential sources
     let tasksToSync: Task[] = [...localTasks];
     if (!tasksToSync.length) {
-      const cached = (await cacheGet<unknown>(`tasks:all:${user.id}`)) ??
-                     (await cacheGet<unknown>("tasks")) ??
-                     (await cacheGet<unknown>("offline_tasks"));
+      // Unscoped legacy caches can belong to a different account on this device.
+      const cached = await cacheGet<unknown>(`tasks:all:${user.id}`);
       const extracted = extractTasksFromCache(cached);
       if (extracted.length) {
         tasksToSync = extracted;
@@ -359,19 +404,9 @@ export async function backupAllToFirestore(
     // 2. Gather notes from all potential sources
     let notesToSync: any[] = [...localNotes];
     if (!notesToSync.length) {
-      const cachedNotes = (await cacheGet<any[]>(`notes:all:${user.id}`)) ||
-                          (await cacheGet<any[]>("notes")) ||
-                          (await cacheGet<any[]>("offline_notes"));
+      const cachedNotes = await cacheGet<any[]>(`notes:all:${user.id}`);
       if (Array.isArray(cachedNotes) && cachedNotes.length) {
         notesToSync = cachedNotes;
-      } else {
-        try {
-          const raw = localStorage.getItem("arshnaz_notes") || localStorage.getItem("notes");
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length) notesToSync = parsed;
-          }
-        } catch {}
       }
     }
 

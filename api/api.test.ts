@@ -319,6 +319,29 @@ describe("Firestore Encoding & User Isolation (_lib/firestore.ts)", () => {
     }
   });
 
+  it("counts today's tasks after the first Firestore page", async () => {
+    const originalFetch = global.fetch;
+    const day = "2026-10-05";
+    const page = (start: number, count: number) => Array.from({ length: count }, (_, offset) => ({
+      name: `projects/p/databases/d/documents/users/u1/tasks/t${start + offset}`,
+      fields: encodeFirestoreFields({ title: `Task ${start + offset}`, work_date: day, schedule_v: 2, completed: false }),
+    }));
+    const calls: string[] = [];
+    global.fetch = vi.fn().mockImplementation(async (url: string) => {
+      calls.push(url);
+      return { ok: true, json: async () => calls.length === 1
+        ? { documents: page(0, 100), nextPageToken: "next-page" }
+        : { documents: page(100, 1) } };
+    }) as any;
+    try {
+      const result = await getTodayTasks({ userId: "u1" }, "UTC", new Date("2026-10-05T12:00:00Z"));
+      expect(result.summary.totalToday).toBe(101);
+      expect(calls[1]).toContain("pageToken=next-page");
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
   it("calculates today and overdue task metrics accurately", async () => {
     const originalFetch = global.fetch;
     const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;

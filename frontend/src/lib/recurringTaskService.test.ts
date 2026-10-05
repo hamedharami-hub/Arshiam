@@ -10,13 +10,24 @@ import type { Task } from "./taskTypes";
 import { nextOccurrence } from "./recurrence";
 import { getLocalDateString } from "./taskDate";
 
-const mockPersistTask = vi.fn();
 const mockGetCachedTasks = vi.fn();
 const mockLogTaskActivity = vi.fn();
 const mockFrom = vi.fn();
+const committedWrites: { path: string; patch: Record<string, unknown> }[] = [];
+let failCommit = false;
 
-vi.mock("./firestoreDataService", () => ({
-  persistTask: (...args: any[]) => mockPersistTask(...args),
+vi.mock("firebase/firestore", async importOriginal => ({
+  ...await importOriginal<typeof import("firebase/firestore")>(),
+  runTransaction: async (_db: unknown, body: (tx: unknown) => Promise<unknown>) => {
+    const staged: typeof committedWrites = [];
+    const result = await body({
+      get: async () => ({ exists: () => true, data: () => undefined }),
+      update: (ref: { path: string }, patch: Record<string, unknown>) => staged.push({ path: ref.path, patch }),
+    });
+    if (failCommit) throw new Error("Injected transaction commit failure");
+    committedWrites.push(...staged);
+    return result;
+  },
 }));
 
 vi.mock("@/features/tasks/taskService", () => ({
@@ -36,7 +47,8 @@ vi.mock("./firebaseStore", () => ({
 describe("recurringTaskService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPersistTask.mockResolvedValue("saved");
+    committedWrites.length = 0;
+    failCommit = false;
     mockGetCachedTasks.mockResolvedValue([]);
     mockLogTaskActivity.mockResolvedValue(undefined);
     mockFrom.mockReturnValue({
@@ -223,37 +235,14 @@ describe("recurringTaskService", () => {
       expect(res.patch?.description).toBe("- [ ] Prepare notes\n- [ ] Check blocker");
 
       // Verify subtasks were reset (both subtasks are plain tasks without recurrence)
-      expect(mockPersistTask).toHaveBeenCalledWith(
-        "user-1",
-        expect.objectContaining({
-          id: "sub-1",
-          completed: false,
-          status: "todo",
-          work_date: "2026-10-01", due_date: null, schedule_v: 2,
-        }),
-        { quietCompanion: true },
-      );
-      expect(mockPersistTask).toHaveBeenCalledWith(
-        "user-1",
-        expect.objectContaining({
-          id: "sub-2",
-          completed: false,
-          status: "todo",
-        }),
-        { quietCompanion: true },
-      );
-
-      // Verify parent was persisted
-      expect(mockPersistTask).toHaveBeenCalledWith(
-        "user-1",
-        expect.objectContaining({
-          id: "parent-rec-1",
-          completed: false,
-          status: "todo",
-          work_date: "2026-10-01",
-        }),
-        { quietCompanion: true },
-      );
+      expect(committedWrites.find(write => write.path.endsWith("/sub-1"))?.patch).toMatchObject({
+        completed: false, status: "todo", work_date: "2026-10-01", due_date: null, schedule_v: 2,
+      });
+      expect(committedWrites.find(write => write.path.endsWith("/sub-2"))?.patch).toMatchObject({ completed: false, status: "todo" });
+      expect(committedWrites.find(write => write.path.endsWith("/parent-rec-1"))?.patch).toMatchObject({
+        completed: false, status: "todo", work_date: "2026-10-01",
+      });
+      for (const write of committedWrites) expect(Object.values(write.patch)).not.toContain(undefined);
     });
 
     it("does not reset a recurring subtask to tomorrow (nested recurrence advances itself)", async () => {
@@ -291,11 +280,36 @@ describe("recurringTaskService", () => {
       // The recurring subtask is intentionally left alone: completing the parent
       // tomorrow should not duplicate or shift the subtask's own daily cadence.
       expect(res.updatedSubtaskCount).toBe(0);
-      expect(mockPersistTask).not.toHaveBeenCalledWith(
-        "user-1",
-        expect.objectContaining({ id: "sub-rec-1" }),
-        expect.anything(),
-      );
+      expect(committedWrites.map(write => write.path.split("/").pop())).toEqual(["parent-rec-2"]);
+    });
+
+    it("leaves parent, descendants and checklists untouched when the atomic commit fails", async () => {
+      const parent = { id: "parent", user_id: "user-1", title: "Parent", recurrence: "daily", due_date: "2026-10-02" } as Task;
+      const child = { id: "child", user_id: "user-1", title: "Child", parent_id: "parent", completed: true, status: "done" } as Task;
+      failCommit = true;
+      const result = await advanceRecurringTask("user-1", parent, { now: new Date(2026, 9, 2, 12), allKnownTasks: [parent, child] });
+      expect(result.success).toBe(false);
+      expect(committedWrites).toEqual([]);
+      expect(mockLogTaskActivity).not.toHaveBeenCalled();
+    });
+
+    it("fails safely when checklist lookup fails before the transaction", async () => {
+      const parent = { id: "parent", user_id: "user-1", title: "Parent", recurrence: "daily", due_date: "2026-10-02" } as Task;
+      const child = { id: "child", user_id: "user-1", title: "Child", parent_id: "parent", completed: true, status: "done" } as Task;
+      mockFrom.mockReturnValue({ select: () => ({ in: async () => ({ data: null, error: new Error("lookup failed") }) }) });
+      const result = await advanceRecurringTask("user-1", parent, { now: new Date(2026, 9, 2, 12), allKnownTasks: [parent, child] });
+      expect(result.success).toBe(false);
+      expect(committedWrites).toEqual([]);
+    });
+
+    it("does not reset plain grandchildren owned by a recurring child", async () => {
+      const parent = { id: "parent", user_id: "user-1", title: "Parent", recurrence: "daily", due_date: "2026-10-02" } as Task;
+      const recurringChild = { id: "recurring-child", user_id: "user-1", title: "Recurring child", parent_id: "parent", recurrence: "weekly" } as Task;
+      const grandchild = { id: "grandchild", user_id: "user-1", title: "Grandchild", parent_id: "recurring-child", completed: true, status: "done" } as Task;
+      const result = await advanceRecurringTask("user-1", parent, { now: new Date(2026, 9, 2, 12), allKnownTasks: [parent, recurringChild, grandchild] });
+      expect(result.success).toBe(true);
+      expect(result.updatedSubtaskCount).toBe(0);
+      expect(committedWrites.map(write => write.path.split("/").pop())).toEqual(["parent"]);
     });
 
     it("resets checklist step lists when advancing", async () => {
@@ -312,10 +326,6 @@ describe("recurringTaskService", () => {
         due_date: "2026-09-30",
       };
 
-      const mockUpdate = vi.fn().mockReturnValue({
-        in: vi.fn().mockResolvedValue({ error: null }),
-      });
-
       mockFrom.mockImplementation((table: string) => {
         if (table === "task_step_lists") {
           return {
@@ -328,7 +338,7 @@ describe("recurringTaskService", () => {
         }
         if (table === "task_steps") {
           return {
-            update: mockUpdate,
+            select: vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue({ data: [{ id: "step-1" }] }) }),
           };
         }
         return {
@@ -340,8 +350,7 @@ describe("recurringTaskService", () => {
       const res = await advanceRecurringTask("user-1", task, { now });
       expect(res.success).toBe(true);
 
-      // Check task_steps were updated with completed: false
-      expect(mockUpdate).toHaveBeenCalledWith({ completed: false });
+      expect(committedWrites.find(write => write.path.endsWith("/task_steps/step-1"))?.patch).toEqual({ completed: false });
     });
   });
 });

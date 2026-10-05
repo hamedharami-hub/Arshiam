@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getDocMock, setDocMock } = vi.hoisted(() => ({
+const { getDocMock, setDocMock, runTransactionMock } = vi.hoisted(() => ({
   getDocMock: vi.fn(),
   setDocMock: vi.fn(),
+  runTransactionMock: vi.fn(),
 }));
 
 vi.mock("./firebase", () => ({
@@ -21,6 +22,7 @@ vi.mock("./firebase", () => ({
 vi.mock("firebase/firestore", async (importOriginal) => ({
   ...(await importOriginal<typeof import("firebase/firestore")>()),
   getDocFromCache: getDocMock,
+  runTransaction: runTransactionMock,
 }));
 
 vi.mock("./firebaseStore", () => ({
@@ -37,7 +39,7 @@ vi.mock("./firebaseStore", () => ({
 }));
 vi.mock("./offlineDb", () => ({ cacheGet: vi.fn(), cacheSet: vi.fn() }));
 vi.mock("@/features/tasks/taskCache", () => ({
-  extractTasksFromCache: vi.fn(() => []),
+  extractTasksFromCache: vi.fn((value: unknown) => Array.isArray(value) ? value : []),
   createTaskCacheEnvelope: vi.fn((tasks) => tasks),
 }));
 
@@ -46,8 +48,10 @@ import {
   getFirestoreConflictSnapshot,
   saveEntityToFirestore,
   saveEntityToFirestoreWithOutcome,
+  replayQueuedEntityWithOutcome,
 } from "./firestoreSync";
 import { firebaseStore } from "./firebaseStore";
+import { cacheGet } from "./offlineDb";
 
 describe("Firestore stale-write protection", () => {
   afterEach(() => vi.clearAllMocks());
@@ -204,8 +208,88 @@ describe("Firestore stale-write protection", () => {
   });
 });
 
+describe("queued Firestore revisions", () => {
+  afterEach(() => vi.clearAllMocks());
+
+  it("rejects an older queued task using the server revision inside a transaction", async () => {
+    const set = vi.fn();
+    runTransactionMock.mockImplementation((_db, callback) => callback({
+      get: async () => ({ exists: () => true, data: () => ({ updated_at: "2026-09-25T12:00:00.000Z" }) }),
+      set, delete: vi.fn(),
+    }));
+    const result = await replayQueuedEntityWithOutcome("user-sync-test", "tasks", "task-1", {
+      op: "upsert", payload: { id: "task-1", updated_at: "2030-09-25T11:00:00.000Z" }, createdAt: Date.parse("2030-09-25T11:00:00.000Z"), expectedRevision: "2026-09-25T10:00:00.000Z",
+    });
+    expect(result).toBe("stale");
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it("does not delete a task whose observed revision changed, even with skewed device clocks", async () => {
+    const remove = vi.fn();
+    runTransactionMock.mockImplementation((_db, callback) => callback({
+      get: async () => ({ exists: () => true, data: () => ({ updated_at: "2026-09-25T12:00:00.000Z" }) }),
+      set: vi.fn(), delete: remove,
+    }));
+    const result = await replayQueuedEntityWithOutcome("user-sync-test", "tasks", "task-1", {
+      op: "delete", createdAt: Date.parse("2030-09-25T11:00:00.000Z"), expectedRevision: "2026-09-25T10:00:00.000Z",
+    });
+    expect(result).toBe("stale");
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it("retains a legacy queued delete without a recorded base revision", async () => {
+    const remove = vi.fn();
+    runTransactionMock.mockImplementation((_db, callback) => callback({
+      get: async () => ({ exists: () => true, data: () => ({ updated_at: "2026-09-25T10:00:00.000Z" }) }),
+      set: vi.fn(), delete: remove,
+    }));
+    expect(await replayQueuedEntityWithOutcome("user-sync-test", "notes", "note-1", {
+      op: "delete", createdAt: Date.parse("2030-09-25T11:00:00.000Z"),
+    })).toBe("stale");
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it("deletes only when the cloud revision exactly matches the recorded base", async () => {
+    const remove = vi.fn();
+    runTransactionMock.mockImplementation((_db, callback) => callback({
+      get: async () => ({ exists: () => true, data: () => ({ updated_at: "2026-09-25T10:00:00.000Z" }) }),
+      set: vi.fn(), delete: remove,
+    }));
+    expect(await replayQueuedEntityWithOutcome("user-sync-test", "tasks", "task-1", {
+      op: "delete", createdAt: Date.parse("2020-09-25T11:00:00.000Z"), expectedRevision: "2026-09-25T10:00:00.000Z",
+    })).toBe("saved");
+    expect(remove).toHaveBeenCalledOnce();
+  });
+
+  it("commits a current queued edit and keeps the same-account owner", async () => {
+    const set = vi.fn();
+    runTransactionMock.mockImplementation((_db, callback) => callback({
+      get: async () => ({ exists: () => true, data: () => ({ updated_at: "2026-09-25T10:00:00.000Z" }) }),
+      set, delete: vi.fn(),
+    }));
+    const result = await replayQueuedEntityWithOutcome("user-sync-test", "tasks", "task-1", {
+      op: "upsert", payload: { id: "task-1", user_id: "user-sync-test", updated_at: "2020-09-25T11:00:00.000Z" }, createdAt: Date.parse("2020-09-25T11:00:00.000Z"), expectedRevision: "2026-09-25T10:00:00.000Z",
+    });
+    expect(result).toBe("saved");
+    expect(set).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ userId: "user-sync-test" }), { merge: true });
+  });
+
+  it("keeps a legacy queued edit without a base revision for review", async () => {
+    const set = vi.fn();
+    runTransactionMock.mockImplementation((_db, callback) => callback({
+      get: async () => ({ exists: () => true, data: () => ({ updated_at: "2026-09-25T10:00:00.000Z" }) }),
+      set, delete: vi.fn(),
+    }));
+    expect(await replayQueuedEntityWithOutcome("user-sync-test", "tasks", "task-1", {
+      op: "upsert", payload: { id: "task-1", updated_at: "2030-09-25T11:00:00.000Z" }, createdAt: 1,
+    })).toBe("stale");
+    expect(set).not.toHaveBeenCalled();
+  });
+});
+
 describe("Firestore backup accuracy", () => {
   beforeEach(() => {
+    vi.mocked(cacheGet).mockReset();
     getDocMock.mockResolvedValue({ exists: () => false, data: () => undefined });
     setDocMock.mockResolvedValue(undefined);
   });
@@ -323,5 +407,24 @@ describe("Firestore backup accuracy", () => {
     expect(result.stats.lastSyncedAt).toBeNull();
     expect(result.message).toContain("تسک‌های موجود از منبع ابری قابل بررسی نبودند");
     expect(setDocMock).not.toHaveBeenCalled();
+  });
+
+  it("does not import another account's unscoped legacy task or note caches", async () => {
+    vi.mocked(cacheGet).mockImplementation(async (key) => {
+      if (key === "tasks" || key === "offline_tasks") return [{ id: "task-a", user_id: "account-a", title: "Private A" }];
+      if (key === "notes" || key === "offline_notes") return [{ id: "note-a", user_id: "account-a", title: "Private A" }];
+      return undefined;
+    });
+    localStorage.setItem("arshnaz_notes", JSON.stringify([{ id: "legacy-note-a", user_id: "account-a" }]));
+
+    try {
+      const result = await backupAllToFirestore({ id: "account-b" }, [], []);
+      expect(result.success).toBe(true);
+      expect(result.stats).toMatchObject({ tasksCount: 0, notesCount: 0 });
+      expect(vi.mocked(cacheGet).mock.calls.map(([key]) => key)).not.toEqual(expect.arrayContaining(["tasks", "offline_tasks", "notes", "offline_notes"]));
+      expect(setDocMock).toHaveBeenCalledTimes(1); // Sync receipt only.
+    } finally {
+      localStorage.removeItem("arshnaz_notes");
+    }
   });
 });

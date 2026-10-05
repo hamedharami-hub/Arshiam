@@ -126,10 +126,10 @@ describe("taskService cascade deletion persistence", () => {
 
     expect(result).toEqual({ success: false, deletedIds: [] });
     expect(mocks.enqueueOps).toHaveBeenCalledWith([
-      { ownerId: "task-owner", table: "tasks", op: "delete", match: { id: "root" } },
+      { ownerId: "task-owner", table: "tasks", op: "delete", match: { id: "root" }, expectedRevision: undefined },
       { ownerId: "task-owner", table: "task_tags", op: "delete", match: { task_id: "root" } },
       { ownerId: "task-owner", table: "task_knowledge_links", op: "delete", match: { task_id: "root" } },
-      { ownerId: "task-owner", table: "tasks", op: "delete", match: { id: "child" } },
+      { ownerId: "task-owner", table: "tasks", op: "delete", match: { id: "child" }, expectedRevision: undefined },
       { ownerId: "task-owner", table: "task_tags", op: "delete", match: { task_id: "child" } },
       { ownerId: "task-owner", table: "task_knowledge_links", op: "delete", match: { task_id: "child" } },
     ]);
@@ -153,6 +153,16 @@ describe("taskService cascade deletion persistence", () => {
     expect(mocks.cacheSet).toHaveBeenCalledTimes(3);
   });
 
+  it("carries each task's observed revision into a queued cascade delete", async () => {
+    const versioned = [{ ...task("root"), updated_at: "2026-09-25T10:00:00.000Z" },
+      { ...task("child", "root"), updated_at: "2026-09-25T11:00:00.000Z" }];
+    await deleteTaskCascade("task-owner", "root", versioned);
+    expect(mocks.enqueueOps).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({ table: "tasks", match: { id: "root" }, expectedRevision: versioned[0].updated_at }),
+      expect.objectContaining({ table: "tasks", match: { id: "child" }, expectedRevision: versioned[1].updated_at }),
+    ]));
+  });
+
   it("deletes only parent_id descendants; goal and dependent action remain for an explicit missing-prerequisite decision", async () => {
     const goal = task("goal");
     const action = { ...task("action"), plan_parent_id: "goal" };
@@ -166,7 +176,7 @@ describe("taskService cascade deletion persistence", () => {
     expect(result).toEqual({ success: true, deletedIds: ["action"] });
     expect(taskMemoryCache.get("task-owner")).toEqual([goal, dependent]);
     expect(mocks.enqueueOps).toHaveBeenCalledWith(expect.arrayContaining([
-      { ownerId: "task-owner", table: "tasks", op: "delete", match: { id: "action" } },
+      { ownerId: "task-owner", table: "tasks", op: "delete", match: { id: "action" }, expectedRevision: undefined },
     ]));
     expect(mocks.enqueueOps.mock.calls[0][0]).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ table: "tasks", op: "delete", match: { id: "goal" } }),
@@ -281,6 +291,30 @@ describe("taskService cascade deletion persistence", () => {
 });
 
 describe("fetchTasks cache completeness", () => {
+  it("does not persist an older response after a newer fetch has finished", async () => {
+    const owner = "overlapping-fetch-owner";
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+    mocks.getPendingOps.mockResolvedValue([]);
+    let resolveOlder!: (value: any) => void;
+    vi.mocked(getDocs)
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveOlder = resolve; }))
+      .mockResolvedValueOnce({ metadata: { fromCache: false }, docs: [
+        { id: "new", data: () => task("new") },
+      ] } as any);
+
+    const older = fetchTasks(owner);
+    const newer = fetchTasks(owner);
+    expect((await newer).map((item) => item.id)).toEqual(["new"]);
+    resolveOlder({ metadata: { fromCache: false }, docs: [
+      { id: "old", data: () => task("old") },
+    ] });
+    await older;
+
+    expect((await getCachedTasks(owner)).map((item) => item.id)).toEqual(["new"]);
+    expect(mocks.syncAndroidWidget).toHaveBeenCalledTimes(1);
+    expect(mocks.syncAndroidWidget).toHaveBeenCalledWith([task("new")], owner);
+  });
+
   it("preserves known tasks for an offline partial fetch and accepts an empty server list", async () => {
     const owner = "offline-fetch-owner";
     mocks.cache.set(`tasks:all:${owner}`, [task("known")]);

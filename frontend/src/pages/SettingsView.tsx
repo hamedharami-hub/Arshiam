@@ -24,6 +24,9 @@ import { getAILanguage, type AILanguage } from "@/lib/ai";
 import { loadAISettings, type AIPerOpSettings } from "@/lib/aiSettings";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { logoutUser } from "@/lib/authService";
+import { arshAuthHeader } from "@/lib/arshApi";
+import { accountDeletionUrl } from "@/lib/accountDeletionUrl";
+import { clearUserLocalData } from "@/lib/offlineQueue";
 import { useAuth } from "@/hooks/useAuth";
 import { loadSettings, saveSettings, ensureNotificationPermission, type UserSettings } from "@/lib/reminders";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -671,19 +674,33 @@ export default function SettingsView() {
     if (!user) return;
     setDeleting(true);
     try {
-      const tables = [
-        "task_tags", "note_tags", "subtasks", "habit_logs", "folder_columns",
-        "tasks", "notes", "habits", "folders", "tags", "pomodoro_sessions",
-        "daily_checkins", "thought_records", "abc_records",
-        "assessment_responses", "assessment_results", "mh_profile",
-      ];
-      for (const tbl of tables) {
-        await fromTable(tbl).delete().eq("user_id", user.id);
+      const headers = await arshAuthHeader();
+      const response = await fetch(accountDeletionUrl(), { method: "DELETE", headers });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        const code = body?.error?.code;
+        if (code === "RECENT_LOGIN_REQUIRED") {
+          throw new Error(isEn ? "For security, sign out and sign in again, then retry deletion." : "برای امنیت، یک‌بار خارج شو و دوباره وارد شو، سپس حذف را تکرار کن.");
+        }
+        throw new Error(isEn
+          ? "Account deletion was incomplete. Your account remains available; sign in and retry."
+          : "حذف حساب کامل نشد. حساب هنوز در دسترس است؛ وارد شو و دوباره تلاش کن.");
       }
-      await logoutUser();
-      try { await firebaseStore.auth.signOut(); } catch {}
-      localStorage.clear();
-      toast.success(isEn ? "All data deleted" : "همه داده‌ها حذف شد");
+      // Server has deleted owned Storage, the full Firestore tree, then Firebase Auth.
+      // Clear only this account's local records; another signed-in profile may
+      // have pending work on a shared device.
+      const localDataCleared = await clearUserLocalData(user.id);
+      const [attachmentQueueCleared, albumCleared] = await Promise.all([
+        import("@/lib/attachmentUpload").then(({ clearQueuedAttachmentsForUser }) => clearQueuedAttachmentsForUser(user.id)).catch(() => false),
+        import("@/lib/islandAlbum").then(({ clearAlbumForUser }) => clearAlbumForUser(user.id)).catch(() => false),
+      ]);
+      try { await logoutUser(); } catch {}
+      const localCleanupSucceeded = localDataCleared && attachmentQueueCleared && albumCleared;
+      toast.success(isEn ? "All account data deleted" : "همهٔ داده‌های حساب حذف شد", {
+        description: localCleanupSucceeded ? undefined : isEn
+          ? "The account was deleted, but some data on this device could not be cleared. Clear this browser's site data before sharing the device."
+          : "حساب حذف شد، اما پاک‌سازی بخشی از داده‌های همین دستگاه کامل نشد. پیش از واگذاری دستگاه، داده‌های سایت را پاک کن.",
+      });
       window.location.href = "/auth";
     } catch (e) {
       toast.error((e instanceof Error ? e.message : String(e)) || (isEn ? "Delete error" : "خطا در حذف"));

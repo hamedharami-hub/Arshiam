@@ -14,15 +14,16 @@ import { toast } from "sonner";
 import { ThemeProvider } from "next-themes";
 import { getStoredTheme, getBaseTheme } from "@/lib/theme";
 import { nativeRoute } from "@/lib/nativeRoutes";
+import { LANGUAGE_STORAGE_KEY } from "@/i18n";
 
 export const PWA_UPDATE_TOAST_ID = "pwa-update-available";
 
 export function usePwaUpdateToast() {
   useEffect(() => {
     const onUpdate = () => {
-      // Detect language from i18next or localStorage for the toast
+      // Use the same language preference key as the app language selector.
       let lang = document.documentElement.lang || "fa";
-      try { lang = localStorage.getItem("i18nextLng") || lang; } catch { /* ignore */ }
+      try { lang = localStorage.getItem(LANGUAGE_STORAGE_KEY) || lang; } catch { /* ignore */ }
       const isEn = lang.startsWith("en");
       toast(isEn ? "A new version is ready" : "نسخه‌ی جدید برنامه آماده است", {
         id: PWA_UPDATE_TOAST_ID,

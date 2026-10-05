@@ -72,6 +72,8 @@ export interface TaskContact {
   contact_id: string;
   role_or_context?: string;
   created_at: string;
+  updated_at?: string;
+  updatedAt?: string;
 }
 
 export interface TaskContactWithDetails extends TaskContact {

@@ -49,12 +49,6 @@ export function hasServerAuthoritativeTasks(userId: string): boolean {
   return serverAuthoritativeUsers.has(userId);
 }
 
-function persistTaskCache(userId: string, tasks: Task[]): Promise<void> {
-  return withTaskCacheMutationLock(userId, () =>
-    cacheSet(taskCacheKey(userId), createTaskCacheEnvelope(tasks))
-  );
-}
-
 function sortTasks(tasks: Task[]): Task[] {
   if (!Array.isArray(tasks)) return [];
   return tasks.filter(Boolean).map((task) => ({ ...task, priority: normalizeTaskPriority(task.priority) })).sort((a, b) => {
@@ -111,8 +105,13 @@ export async function fetchTasks(userId: string): Promise<Task[]> {
       : rawTasks;
     const merged = await applyPendingTaskOperations(base, userId);
     const tasks = sortTasks(merged);
-    setTaskCache(userId, tasks);
-    await persistTaskCache(userId, tasks);
+    const accepted = await withTaskCacheMutationLock(userId, async () => {
+      if (taskFetchVersions.get(userId) !== fetchVersion) return false;
+      setTaskCache(userId, tasks);
+      await cacheSet(taskCacheKey(userId), createTaskCacheEnvelope(tasks));
+      return true;
+    });
+    if (!accepted) return getCachedTasks(userId);
     void syncAndroidWidget(tasks, userId).catch(() => {});
     return tasks;
   } catch (error) {
@@ -179,9 +178,10 @@ export async function deleteTaskCascade(
   const childrenMap = buildTaskChildrenMap(tasks || []);
   const descendantIds = collectTaskDescendantIds(rootTaskId, childrenMap);
   const idsToDelete = Array.from(new Set([rootTaskId, ...descendantIds]));
+  const taskById = new Map((tasks || []).map((item) => [item.id, item]));
 
   const deleteOperations = idsToDelete.flatMap((id) => [
-    { ownerId: userId, table: "tasks", op: "delete" as const, match: { id } },
+    { ownerId: userId, table: "tasks", op: "delete" as const, match: { id }, expectedRevision: taskById.get(id)?.updated_at },
     { ownerId: userId, table: "task_tags", op: "delete" as const, match: { task_id: id } },
     { ownerId: userId, table: "task_knowledge_links", op: "delete" as const, match: { task_id: id } },
   ]);

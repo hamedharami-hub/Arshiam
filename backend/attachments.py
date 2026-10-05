@@ -21,7 +21,7 @@ from starlette.concurrency import run_in_threadpool
 from auth import current_user_id
 from db import BaseDocument, db
 from signing import sign, verify
-from storage import APP_NAME, StorageError, get_object, put_object
+from storage import APP_NAME, StorageError, delete_object, get_object, put_object
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/attachments", tags=["attachments"])
@@ -195,6 +195,34 @@ async def get_file(attachment_id: str, exp: int = Query(...), sig: str = Query(.
             "Cache-Control": "private, max-age=3600",
         },
     )
+
+
+async def delete_all_attachments_for_user(uid: str) -> int:
+    """Delete legacy FastAPI attachment objects owned by an account."""
+    # Include old soft-deleted rows too: pre-existing delete requests did not
+    # remove the underlying object, so account deletion must clean those up.
+    cursor = db.attachments.find({"owner_id": uid})
+    deleted = 0
+    async for raw in cursor:
+        attachment = Attachment.from_mongo(raw)
+        try:
+            await run_in_threadpool(delete_object, attachment.storage_path)
+        except StorageError as exc:
+            # An unfinished upload may have a metadata row but no object.
+            if exc.status != 404:
+                logger.error("legacy attachment delete failed for %s: %s", attachment.id, exc)
+                raise HTTPException(status_code=502, detail="Could not delete all stored attachments")
+        result = await db.attachments.update_one(
+            {"_id": _oid(attachment.id), "owner_id": uid, "status": {"$ne": "deleted"}},
+            {"$set": {"status": "deleted", "deleted_at": _now()}},
+        )
+        deleted += result.modified_count
+    return deleted
+
+
+@router.delete("/delete-all")
+async def delete_all_attachments(uid: str = Depends(current_user_id)):
+    return {"ok": True, "deleted": await delete_all_attachments_for_user(uid)}
 
 
 @router.delete("/{attachment_id}")

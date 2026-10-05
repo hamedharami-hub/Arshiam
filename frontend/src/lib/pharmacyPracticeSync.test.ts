@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   online: true,
   saveOutcome: "saved" as "saved" | "stale" | "failed",
   remoteDocs: [] as Array<Record<string, unknown>>,
+  docsGate: null as Promise<void> | null,
   enqueueOp: vi.fn(async () => true),
   save: vi.fn(),
 }));
@@ -11,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("./firebase", () => ({
   db: {},
   collection: vi.fn(() => ({})),
-  getDocs: vi.fn(async () => ({ forEach: (cb: (doc: { id: string; data: () => Record<string, unknown> }) => void) => mocks.remoteDocs.forEach((item) => cb({ id: String(item.id), data: () => item })) })),
+  getDocs: vi.fn(async () => { await mocks.docsGate; return { forEach: (cb: (doc: { id: string; data: () => Record<string, unknown> }) => void) => mocks.remoteDocs.forEach((item) => cb({ id: String(item.id), data: () => item })) }; }),
 }));
 vi.mock("./firestoreSync", () => ({ saveEntityToFirestoreWithOutcome: (...args: unknown[]) => { mocks.save(...args); return Promise.resolve(mocks.saveOutcome); } }));
 vi.mock("./knowledgeService", () => ({ isOnline: () => mocks.online }));
@@ -35,6 +36,7 @@ describe("pharmacy practice sync", () => {
     mocks.online = true;
     mocks.saveOutcome = "saved";
     mocks.remoteDocs = [];
+    mocks.docsGate = null;
     mocks.enqueueOp.mockClear().mockResolvedValue(true);
     mocks.save.mockClear();
   });
@@ -93,6 +95,16 @@ describe("pharmacy practice sync", () => {
 
     const older = { ...records[id], updated_at: "2025-01-01T00:00:00.000Z" };
     expect(mergePracticeRecords(records, [older]).changed).toBe(false);
+  });
+
+  it("keeps a local edit saved while a slow cloud pull is in flight", async () => {
+    let release!: () => void;
+    mocks.docsGate = new Promise<void>((resolve) => { release = resolve; });
+    const pulling = pullPracticeRecords("a");
+    await savePracticeRecord("a", "starred_phrase", "new", phrase("New phrase"));
+    release();
+    await pulling;
+    expect(selectStarredPhrases(readPracticeRecords("a")).map((item) => item.textEn)).toEqual(["New phrase"]);
   });
 
   it("reports remote-newer when Firestore rejects a stale write", async () => {

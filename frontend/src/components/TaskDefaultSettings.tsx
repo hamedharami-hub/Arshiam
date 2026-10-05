@@ -42,11 +42,6 @@ const ADD_OPTS: { key: NonNullable<TaskDefaults["default_add_to"]>; fa: string; 
   { key: "bottom", fa: "پایین لیست", en: "Bottom of list" },
 ];
 
-const OVERDUE_OPTS: { key: NonNullable<TaskDefaults["overdue_position"]>; fa: string; en: string }[] = [
-  { key: "top", fa: "بالای لیست", en: "Top of list" },
-  { key: "bottom", fa: "پایین لیست", en: "Bottom of list" },
-];
-
 const DEFAULT_VALUE: Required<TaskDefaults> = {
   default_date: "none",
   default_reminder: "none",
@@ -54,7 +49,6 @@ const DEFAULT_VALUE: Required<TaskDefaults> = {
   default_tag_id: null,
   default_folder_id: null,
   default_add_to: "top",
-  overdue_position: "top",
 };
 
 interface Props {
@@ -182,14 +176,6 @@ export function TaskDefaultSettings({ value, onChange }: Props) {
         </Select>
       </Row>
 
-      <Row label={T("محل نمایش تسک‌های عقب‌افتاده", "Overdue Section shows at")}>
-        <Select value={value.overdue_position || "top"} onValueChange={(v) => patch({ overdue_position: v as TaskDefaults["overdue_position"] })}>
-          <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {OVERDUE_OPTS.map((o) => <SelectItem key={o.key} value={o.key} className="text-xs">{T(o.fa, o.en)}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </Row>
     </Card>
   );
 }

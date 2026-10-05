@@ -217,7 +217,6 @@ export type TaskDefaults = {
   default_tag_id?: string | null;
   default_folder_id?: string | null;
   default_add_to?: "top" | "bottom";
-  overdue_position?: "top" | "bottom";
 };
 
 export type UserSettings = {

@@ -205,6 +205,26 @@ describe("taskNotesService", () => {
     expect(notes.some((n) => n.id === offlineNote.id)).toBe(true);
   });
 
+  it("records the note's base revision when a delete is queued", async () => {
+    const note = await createTaskNote(userId, taskId, { title: "Offline delete", content: "Body" });
+    vi.mocked(deleteEntityFromFirestore).mockResolvedValueOnce(false);
+    await deleteTaskNote(userId, note.id, taskId);
+    const pending = await getPendingOps("notes");
+    expect(pending).toEqual(expect.arrayContaining([
+      expect.objectContaining({ op: "delete", match: { id: note.id }, expectedRevision: note.updated_at }),
+    ]));
+  });
+
+  it("records the previous note revision when an edit is queued", async () => {
+    const note = await createTaskNote(userId, taskId, { title: "Before edit", content: "Body" });
+    vi.mocked(saveEntityToFirestore).mockResolvedValueOnce(false);
+    await updateTaskNote(userId, note.id, taskId, { title: "After edit" });
+    const pending = await getPendingOps("notes");
+    expect(pending).toEqual(expect.arrayContaining([
+      expect.objectContaining({ op: "update", match: { id: note.id }, expectedRevision: note.updated_at }),
+    ]));
+  });
+
   it("overlays a queued edit on an older remote note instead of showing stale content", async () => {
     const remote = {
       id: "note-stale-edit",

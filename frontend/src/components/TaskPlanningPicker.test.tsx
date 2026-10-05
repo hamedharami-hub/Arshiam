@@ -68,4 +68,15 @@ describe("TaskPlanningBody — icon-led period picker", () => {
     fireEvent.click(screen.getByTestId("planning-clear"));
     expect(onPatch).toHaveBeenCalledWith(expect.objectContaining({ planning_horizon: null }));
   });
+
+  it("refreshes a custom-range draft when the task schedule changes", () => {
+    const onPatch = vi.fn();
+    const { rerender } = render(<TaskPlanningBody task={base} onPatch={onPatch} />);
+    fireEvent.click(screen.getByTestId("planning-custom-toggle"));
+    fireEvent.click(screen.getByTestId("range-pick-a"));
+    const updated = { ...base, schedule_v: 2, planning_horizon: "week", planning_start: "2026-06-01", planning_end: "2026-06-07" } as Task;
+    rerender(<TaskPlanningBody task={updated} onPatch={onPatch} />);
+    fireEvent.click(screen.getByTestId("planning-apply-range"));
+    expect(onPatch).toHaveBeenCalledWith(expect.objectContaining({ planning_start: "2026-06-01", planning_end: "2026-06-07" }));
+  });
 });

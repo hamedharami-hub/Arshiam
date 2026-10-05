@@ -28,7 +28,19 @@ type Props = {
 
 type Mode = "work" | "short" | "long";
 const PREF_KEY = "pomodoro_prefs_v1";
-const COUNT_KEY = "pomodoro_today_count_v1";
+const COUNT_KEY = (userId: string | null) => `pomodoro_today_count_v2:${userId || "guest"}`;
+const SESSION_KEY = (userId: string | null) => `pomodoro_session_v1:${userId || "guest"}`;
+type PersistedSession = { userId: string | null; mode: Mode; endAt: number | null; remaining: number; startedAt: number | null; taskId: string | null };
+export function loadSession(userId: string | null): PersistedSession | null {
+  try {
+    const session = JSON.parse(localStorage.getItem(SESSION_KEY(userId)) || "null") as PersistedSession | null;
+    if (!session || session.userId !== userId || !["work", "short", "long"].includes(session.mode) ||
+        !Number.isFinite(session.remaining) || session.remaining < 0 ||
+        (session.endAt !== null && (!Number.isFinite(session.endAt) || session.endAt <= 0)) ||
+        (session.startedAt !== null && !Number.isFinite(session.startedAt))) return null;
+    return session;
+  } catch { return null; }
+}
 type Prefs = {
   minutes: number; shortBreak: number; longBreak: number; longEvery: number;
   autoStart: boolean; bell: EndBellId; ambient: string; ambientVol: number;
@@ -39,11 +51,11 @@ function loadPrefs(): Prefs {
   try { return { ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem(PREF_KEY) || "{}") }; } catch { return DEFAULT_PREFS; }
 }
 const todayKey = () => todayISO();
-function loadCount(): number {
-  try { const v = JSON.parse(localStorage.getItem(COUNT_KEY) || "{}"); return v.date === todayKey() ? Number(v.count) || 0 : 0; } catch { return 0; }
+export function loadCount(userId: string | null): number {
+  try { const v = JSON.parse(localStorage.getItem(COUNT_KEY(userId)) || "{}"); return v.date === todayKey() ? Number(v.count) || 0 : 0; } catch { return 0; }
 }
-function saveCount(count: number) {
-  try { localStorage.setItem(COUNT_KEY, JSON.stringify({ date: todayKey(), count })); } catch { /* ignore */ }
+function saveCount(userId: string | null, count: number) {
+  try { localStorage.setItem(COUNT_KEY(userId), JSON.stringify({ date: todayKey(), count })); } catch { /* ignore */ }
 }
 
 export default function PomodoroTimer({ taskId = null, defaultMinutes, compact = false, onSessionComplete }: Props) {
@@ -53,17 +65,41 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
   const T = (fa: string, en: string) => (isEn ? en : fa);
   const num = (n: number) => (isEn ? String(n) : toPersianDigits(n));
   const [prefs, setPrefs] = useState<Prefs>(() => ({ ...loadPrefs(), ...(defaultMinutes ? { minutes: defaultMinutes } : {}) }));
-  const [mode, setMode] = useState<Mode>("work");
-  const [endAt, setEndAt] = useState<number | null>(null);
-  const [remaining, setRemaining] = useState(prefs.minutes * 60);
-  const [doneToday, setDoneToday] = useState(loadCount);
+  const userId = user?.id ?? null;
+  const [initialSession] = useState(() => loadSession(userId));
+  const [hydratedUserId, setHydratedUserId] = useState(userId);
+  const [mode, setMode] = useState<Mode>(initialSession?.mode ?? "work");
+  const [endAt, setEndAt] = useState<number | null>(initialSession?.endAt ?? null);
+  const [remaining, setRemaining] = useState(initialSession?.remaining ?? prefs.minutes * 60);
+  const [doneToday, setDoneToday] = useState(() => loadCount(userId));
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const startedAtRef = useRef<number | null>(null);
+  const startedAtRef = useRef<number | null>(initialSession?.startedAt ?? null);
+  const sessionTaskIdRef = useRef<string | null>(initialSession?.taskId ?? null);
   const finishingRef = useRef(false);
   const running = endAt !== null;
 
   const lengthOf = useCallback((m: Mode) => (m === "work" ? prefs.minutes : m === "short" ? prefs.shortBreak : prefs.longBreak) * 60, [prefs]);
   const total = lengthOf(mode);
+
+  useEffect(() => {
+    if (hydratedUserId === userId) return;
+    const restored = loadSession(userId);
+    setMode(restored?.mode ?? "work");
+    setRemaining(restored?.remaining ?? prefs.minutes * 60);
+    setEndAt(restored?.endAt ?? null);
+    startedAtRef.current = restored?.startedAt ?? null;
+    sessionTaskIdRef.current = restored?.taskId ?? null;
+    setDoneToday(loadCount(userId));
+    setHydratedUserId(userId);
+  }, [userId, hydratedUserId, prefs.minutes]);
+
+  useEffect(() => {
+    if (hydratedUserId !== userId) return;
+    try {
+      if (endAt === null && startedAtRef.current === null) localStorage.removeItem(SESSION_KEY(userId));
+      else localStorage.setItem(SESSION_KEY(userId), JSON.stringify({ userId, mode, endAt, remaining, startedAt: startedAtRef.current, taskId: sessionTaskIdRef.current } satisfies PersistedSession));
+    } catch { /* Timer remains usable when storage is unavailable. */ }
+  }, [userId, hydratedUserId, mode, endAt, remaining]);
 
   useEffect(() => { try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch { /* ignore */ } }, [prefs]);
 
@@ -81,10 +117,12 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
     const len = lengthOf(m);
     setRemaining(len);
     startedAtRef.current = autoStart ? Date.now() : null;
+    sessionTaskIdRef.current = autoStart && m === "work" ? taskId : null;
     setEndAt(autoStart ? Date.now() + len * 1000 : null);
   };
 
   const finishSession = async () => {
+    if (hydratedUserId !== userId) return;
     if (finishingRef.current) return;
     finishingRef.current = true;
     setEndAt(null);
@@ -93,24 +131,27 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
     haptic("success");
     if (mode === "work") {
       const dur = Math.round(total / 60);
+      const sessionEndedAt = Date.now();
+      const sessionStartedAt = startedAtRef.current || sessionEndedAt - dur * 60000;
+      const sessionTaskId = sessionTaskIdRef.current;
       const count = doneToday + 1;
       setDoneToday(count);
-      saveCount(count);
+      saveCount(userId, count);
       recordPomodoroFocusSession(dur);
-      onSessionComplete?.();
       const next: Mode = count % prefs.longEvery === 0 ? "long" : "short";
       toast.success(T(`${num(dur)} دقیقه تمرکز ثبت شد — وقت استراحت`, `${dur} min focus logged — time for a break`));
       switchMode(next, prefs.autoStart);
       if (user) {
-        void firebaseStore.from("pomodoro_sessions").insert({
+        await firebaseStore.from("pomodoro_sessions").insert({
           user_id: user.id,
-          task_id: taskId || null,
+          task_id: sessionTaskId,
           duration_minutes: dur,
           completed: true,
-          started_at: new Date(startedAtRef.current || Date.now() - dur * 60000).toISOString(),
-          ended_at: new Date().toISOString(),
+          started_at: new Date(sessionStartedAt).toISOString(),
+          ended_at: new Date(sessionEndedAt).toISOString(),
         });
       }
+      onSessionComplete?.();
     } else {
       toast.success(T("استراحت تمام شد. آماده‌ای؟", "Break finished. Ready?"));
       switchMode("work", prefs.autoStart);
@@ -120,7 +161,7 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
 
   // Timestamp-based ticking: accurate even when the tab/phone sleeps.
   useEffect(() => {
-    if (!endAt) return;
+    if (!endAt || hydratedUserId !== userId) return;
     const tick = () => {
       const left = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
       setRemaining(left);
@@ -131,7 +172,7 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
     document.addEventListener("visibilitychange", tick);
     return () => { clearInterval(id); document.removeEventListener("visibilitychange", tick); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [endAt]);
+  }, [endAt, hydratedUserId, userId]);
 
   // Show the countdown in the browser tab while running.
   useEffect(() => {
@@ -146,11 +187,13 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
 
   const toggle = () => {
     if (running) {
+      setRemaining(Math.max(0, Math.ceil((endAt - Date.now()) / 1000)));
       setEndAt(null);
       return;
     }
     const left = remaining > 0 ? remaining : total;
     if (!startedAtRef.current) startedAtRef.current = Date.now();
+    if (mode === "work" && !sessionTaskIdRef.current) sessionTaskIdRef.current = taskId;
     setRemaining(left);
     setEndAt(Date.now() + left * 1000);
   };
@@ -159,6 +202,7 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
     setEndAt(null);
     setRemaining(total);
     startedAtRef.current = null;
+    sessionTaskIdRef.current = null;
   };
 
   const skip = () => {

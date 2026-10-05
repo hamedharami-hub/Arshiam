@@ -372,10 +372,19 @@ describe("contactService & task_contacts relations", () => {
     await deleteContact(contact.id, userId);
 
     expect(offlineQueue.enqueueOps).toHaveBeenCalledWith([
-      { ownerId: userId, table: "contacts", op: "delete", match: { id: contact.id } },
-      { ownerId: userId, table: "task_contacts", op: "delete", match: { id: relation.id } },
+      { ownerId: userId, table: "contacts", op: "delete", match: { id: contact.id }, expectedRevision: contact.updated_at },
+      { ownerId: userId, table: "task_contacts", op: "delete", match: { id: relation.id }, expectedRevision: relation.updated_at },
     ]);
     expect(await getContact(contact.id, userId)).toBeNull();
     expect(await getTaskContacts("task-retry-delete", userId)).toEqual([]);
+  });
+
+  it("queues an offline contact edit with the version it was based on", async () => {
+    const contact = await createContact(userId, { display_name: "Before edit" });
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
+    await updateContact(contact.id, userId, { display_name: "After edit" });
+    expect(await getPendingOps("contacts")).toEqual(expect.arrayContaining([
+      expect.objectContaining({ op: "update", expectedRevision: contact.updated_at }),
+    ]));
   });
 });

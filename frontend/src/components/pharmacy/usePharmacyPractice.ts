@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   pullPracticeRecords,
@@ -18,46 +18,56 @@ export type PharmacySyncState = "idle" | "syncing" | "synced" | "offline" | "err
 export function usePharmacyPractice() {
   const { user } = useAuth();
   const userId = user?.id ?? null;
-  const [records, setRecords] = useState<PharmacyPracticeRecords>(() => readPracticeRecords(userId));
+  const [snapshot, setSnapshot] = useState<{ userId: string | null; records: PharmacyPracticeRecords }>(() => ({ userId, records: readPracticeRecords(userId) }));
+  const currentUserId = useRef(userId);
+  currentUserId.current = userId;
   const [syncState, setSyncState] = useState<PharmacySyncState>("idle");
 
-  const pull = useCallback(async () => {
-    if (!userId) return;
-    if (typeof navigator !== "undefined" && navigator.onLine === false) {
-      setSyncState("offline");
-      return;
-    }
-    setSyncState("syncing");
-    try {
-      setRecords(await pullPracticeRecords(userId));
-      setSyncState("synced");
-    } catch {
-      setSyncState("error");
-    }
-  }, [userId]);
-
   useEffect(() => {
-    setRecords(readPracticeRecords(userId));
+    let active = true;
+    let request = 0;
+    setSnapshot({ userId, records: readPracticeRecords(userId) });
+    setSyncState("idle");
+    const pull = async () => {
+      if (!userId) return;
+      const currentRequest = ++request;
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        setSyncState("offline");
+        return;
+      }
+      setSyncState("syncing");
+      try {
+        await pullPracticeRecords(userId);
+        if (active && currentUserId.current === userId && currentRequest === request) {
+          setSnapshot({ userId, records: readPracticeRecords(userId) });
+          setSyncState("synced");
+        }
+      } catch {
+        if (active && currentUserId.current === userId && currentRequest === request) setSyncState("error");
+      }
+    };
     void pull();
     const handleOnline = () => { void pull(); };
-    const handleOffline = () => setSyncState("offline");
+    const handleOffline = () => { request++; setSyncState("offline"); };
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
     return () => {
+      active = false;
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-  }, [pull, userId]);
+  }, [userId]);
 
   const save = useCallback(async <K extends PharmacyPracticeKind>(kind: K, key: string, data: Parameters<typeof savePracticeRecord<K>>[3]): Promise<PharmacyPracticeSaveResult> => {
     const pending = savePracticeRecord(userId, kind, key, data);
     // The local write happens synchronously before the first await inside savePracticeRecord.
-    setRecords(readPracticeRecords(userId));
+    if (currentUserId.current === userId) setSnapshot({ userId, records: readPracticeRecords(userId) });
     const result = await pending;
-    setRecords(readPracticeRecords(userId));
+    if (currentUserId.current === userId) setSnapshot({ userId, records: readPracticeRecords(userId) });
     return result;
   }, [userId]);
 
+  const records = snapshot.userId === userId ? snapshot.records : readPracticeRecords(userId);
   const starred = useMemo(() => selectStarredPhrases(records), [records]);
   const letters = useMemo(() => selectReferralLetters(records), [records]);
   const progress = useMemo(() => selectScenarioProgress(records), [records]);
