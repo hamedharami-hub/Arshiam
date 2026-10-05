@@ -78,6 +78,8 @@ import { logTaskActivity } from "@/lib/taskActivity";
 import { describeRule } from "@/lib/recurrence";
 import { addDays } from "date-fns";
 import { getLocalDateString, parseTaskDueDate, taskWorkDate, workDatePatch } from "@/lib/taskDate";
+import { readSchedule, scheduleLabel as scheduleLabelOf } from "@/lib/taskSchedule";
+import { getTimeSettings } from "@/lib/timeHorizon";
 import { addTaskToAndroidCalendar } from "@/lib/androidNative";
 
 import { Switch } from "@/components/ui/switch";
@@ -147,7 +149,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
   // The subtask editor is always visible: a task's hierarchy must never be hidden
   // behind a secondary rail control, including while the app is offline.
-  const isScheduled = !!taskWorkDate(t) || !!t.reminder_at || !!t.recurrence_rule;
+  const isScheduled = readSchedule(t).kind !== "none" || !!t.reminder_at || !!t.recurrence_rule;
   const [showSubtasks, setShowSubtasks] = useState(true);
   const [showSteps, setShowSteps] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
@@ -666,7 +668,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         const res = await deleteTaskCascade(user.id, t.id, allTasks);
         if (!res.success) {
           toast.error(T("حذف روی این دستگاه ذخیره نشد", "Delete could not be saved on this device"));
-          return;
+          return false;
         }
         onClose();
         onChanged();
@@ -814,7 +816,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const recLabel = t.recurrence_rule ? describeRule(t.recurrence_rule, isEn) : null;
   const scheduleLabel = (() => {
     const lang = isEn ? "en" : "fa";
-    const due = formatDueLabel(taskWorkDate(t), t.reminder_at, lang);
+    const due = scheduleLabelOf(readSchedule(t), getTimeSettings(), lang);
     if (due) return recLabel ? `${due} · ${recLabel}` : due;
     if (t.recurrence_rule) return recLabel;
     return null;

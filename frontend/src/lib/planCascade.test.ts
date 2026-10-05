@@ -17,16 +17,17 @@ describe("planCascade", () => {
     expect(parentLevel("year", s)).toBeNull();
   });
 
-  it("planning does not turn into a due period", () => {
+  it("a planned week is a period, never a day or an exact time", () => {
     const planned = t("a", planPatch(week, s));
-    expect(getTaskTime(planned, s)).toBeNull();
+    expect(getTaskTime(planned, s)).toMatchObject({ horizon: "week", is_exact: false, due_at: null });
     expect(planOf(planned, s)).toEqual(week);
   });
 
-  it("finds items of a period and treats due dates as day items", () => {
+  it("finds items of a period: finer items roll up, coarser ones never roll down", () => {
     const due = t("due", { due_date: "2026-06-10" });
     const tasks = [t("w", planPatch(week, s)), t("m", planPatch(month, s)), due];
-    expect(itemsInPeriod(tasks, week, s).map((x) => x.id)).toEqual(["w"]);
+    expect(itemsInPeriod(tasks, week, s).map((x) => x.id)).toEqual(["w", "due"]);
+    expect(itemsInPeriod(tasks, month, s).map((x) => x.id)).toEqual(["w", "m", "due"]);
     expect(itemsInPeriod(tasks, periodFor("day", now, s), s).map((x) => x.id)).toEqual(["due"]);
   });
 

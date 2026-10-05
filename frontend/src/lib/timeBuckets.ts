@@ -3,6 +3,7 @@
 // fuzzy time window (today, this week, this month, this quarter, this year)
 // without committing to a specific clock time.
 
+import { readSchedule } from "@/lib/taskSchedule";
 import {
   startOfWeek as gStartOfWeek,
   startOfMonth as gStartOfMonth,
@@ -258,9 +259,10 @@ export function doesTaskMatchBucketScope(
   const scopeRange = bucketRange(options.scopeKind, cal, anchor);
 
   // A. Check exact due date
-  const scheduled = task.work_date === undefined ? task.due_date : task.work_date;
-  if (scheduled) {
-    const taskDateStr = scheduled.slice(0, 10);
+  const sch = readSchedule(task);
+  if (sch.kind === "day" || sch.kind === "datetime") {
+    // Local calendar day (never the UTC prefix of an ISO instant).
+    const taskDateStr = sch.date;
     if (taskDateStr >= scopeRange.start && taskDateStr <= scopeRange.end) {
       return {
         matches: true,

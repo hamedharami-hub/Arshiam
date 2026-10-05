@@ -1,7 +1,10 @@
 import { createHash, randomBytes } from "node:crypto";
 import { adminDb, type AssistantGrant } from "./assistantAccess.js";
+import { scheduleWrite } from "./taskSchedule.js";
 
-const allowedFields = ["title", "description", "priority", "status", "completed", "due_date", "folder_id", "pinned", "start_at", "end_at", "estimated_minutes"] as const;
+// One schedule per task: `work_date` (day or instant). `due_date` is still accepted from older callers and
+// stored as work_date. Time block (start_at/end_at/estimated_minutes) is no longer part of the model.
+const allowedFields = ["title", "description", "priority", "status", "completed", "folder_id", "pinned"] as const;
 const writeFields = new Set<string>(allowedFields);
 
 export function assistantTaskCollectionPath(grant: AssistantGrant) {
@@ -47,9 +50,9 @@ export async function createAssistantTask(grant: AssistantGrant, input: any) {
   const task: Record<string, unknown> = {
     id, user_id: grant.userId, title: input.title.trim(), description: input.description || null,
     completed: Boolean(input.completed), priority: input.priority || "p4",
-    status: input.status || (input.completed ? "done" : "todo"), due_date: input.due_date || null,
-    folder_id: input.folder_id || null, pinned: Boolean(input.pinned), start_at: input.start_at || null,
-    end_at: input.end_at || null, estimated_minutes: input.estimated_minutes ?? null,
+    status: input.status || (input.completed ? "done" : "todo"),
+    ...scheduleWrite(input.work_date || input.due_date || null),
+    folder_id: input.folder_id || null, pinned: Boolean(input.pinned),
     created_at: now, updated_at: now, ...(externalRef ? { external_ref: externalRef } : {}),
   };
   const batch = adminDb().batch();
@@ -67,6 +70,8 @@ export async function updateAssistantTask(grant: AssistantGrant, id: string, inp
   for (const [key, value] of Object.entries(input || {})) {
     if (writeFields.has(key)) patch[key] = value;
   }
+  const dateInput = input?.work_date !== undefined ? input.work_date : input?.due_date;
+  if (dateInput !== undefined) Object.assign(patch, scheduleWrite(typeof dateInput === "string" ? dateInput : null));
   if (typeof patch.title === "string") patch.title = patch.title.trim();
   if (patch.title === "") throw new Error("Task title cannot be empty.");
   if (Object.keys(patch).length === 0) throw new Error("No editable fields supplied.");

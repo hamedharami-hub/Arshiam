@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { History, Inbox, Plus } from "lucide-react";
 import type { Task } from "@/lib/taskTypes";
-import { periodLabel, type TimeSettings } from "@/lib/timeHorizon";
-import { getTaskPlanning, isTaskOverdue } from "@/lib/taskPlanning";
+import type { TimeSettings } from "@/lib/timeHorizon";
+import { isTaskOverdue } from "@/lib/taskPlanning";
+import { readSchedule, scheduleLabel } from "@/lib/taskSchedule";
 import { toPersianDigits } from "@/lib/jalali";
 
 const num = (n: number, fa: boolean) => (fa ? toPersianDigits(n) : String(n));
@@ -39,9 +40,9 @@ export function UnplannedTray({ tasks, fa, targetName, onAssign, onOpen }: { tas
   );
 }
 
-export function CarryOverCard({ tasks, settings, fa, onMoveHere, onComplete, onDrop, onMoveAll }: {
+export function CarryOverCard({ tasks, settings, fa, onMoveHere, onComplete, onDrop, onMoveAll, busy }: {
   tasks: Task[]; settings: TimeSettings; fa: boolean;
-  onMoveHere: (t: Task) => void; onComplete: (t: Task) => void; onDrop: (t: Task) => void; onMoveAll: () => void;
+  onMoveHere: (t: Task) => void; onComplete: (t: Task) => void; onDrop: (t: Task) => void; onMoveAll: () => void; busy?: boolean;
 }) {
   if (!tasks.length) return null;
   return (
@@ -49,23 +50,23 @@ export function CarryOverCard({ tasks, settings, fa, onMoveHere, onComplete, onD
       <header className="mb-2 flex items-center gap-2">
         <History className="h-4 w-4 text-amber-600" />
         <h3 className="flex-1 text-sm font-semibold">{fa ? "از دوره‌های قبل مانده" : "Left from earlier periods"} <span className="text-xs font-normal text-muted-foreground">({num(tasks.length, fa)})</span></h3>
-        {tasks.length > 1 && <button type="button" onClick={onMoveAll} className="h-8 rounded-full border border-amber-500/40 px-3 text-xs hover:bg-amber-500/10" data-testid="planning-carryover-move-all">{fa ? "انتقال همه" : "Move all"}</button>}
+        {tasks.length > 1 && <button type="button" disabled={busy} onClick={onMoveAll} className="h-8 rounded-full border border-amber-500/40 px-3 text-xs hover:bg-amber-500/10" data-testid="planning-carryover-move-all">{fa ? "انتقال همه" : "Move all"}</button>}
       </header>
       <ul className="space-y-2">
         {tasks.map((t) => {
-          const p = getTaskPlanning(t, settings);
+          const label = scheduleLabel(readSchedule(t, settings), settings, fa ? "fa" : "en");
           const overdue = isTaskOverdue(t, settings);
           return (
             <li key={t.id} className="rounded-lg bg-background/70 p-2" data-testid={`planning-carryover-item-${t.id}`}>
               <div className="flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate text-sm">{t.title}</span>
-                {p && <span className="shrink-0 text-[11px] text-muted-foreground">{periodLabel(p, settings, fa ? "fa" : "en")}</span>}
+                {label && <span className="shrink-0 text-[11px] text-muted-foreground" data-testid={`planning-carryover-when-${t.id}`}>{label}</span>}
                 {overdue && <span className="shrink-0 rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-medium text-rose-600 dark:text-rose-400" data-testid={`planning-carryover-overdue-${t.id}`}>{fa ? "عقب‌افتاده" : "Overdue"}</span>}
               </div>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 <button type="button" onClick={() => onMoveHere(t)} className="h-8 rounded-full bg-primary/10 px-3 text-xs font-medium text-primary hover:bg-primary/15" data-testid={`planning-carryover-move-${t.id}`}>{fa ? "انتقال به این دوره" : "Move here"}</button>
                 <button type="button" onClick={() => onComplete(t)} className="h-8 rounded-full px-3 text-xs hover:bg-muted" data-testid={`planning-carryover-done-${t.id}`}>{fa ? "تکمیل" : "Complete"}</button>
-                <button type="button" onClick={() => onDrop(t)} className="h-8 rounded-full px-3 text-xs text-muted-foreground hover:bg-muted" data-testid={`planning-carryover-drop-${t.id}`}>{fa ? "رها کردن" : "Let go"}</button>
+                <button type="button" onClick={() => onDrop(t)} className="h-8 rounded-full px-3 text-xs text-muted-foreground hover:bg-muted" data-testid={`planning-carryover-drop-${t.id}`}>{fa ? "حذف از برنامه" : "Remove from plan"}</button>
               </div>
             </li>
           );

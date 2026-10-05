@@ -2,21 +2,12 @@ import { differenceInCalendarMonths as gregorianMonths, getMonth as gregorianMon
 import { differenceInCalendarMonths as jalaliMonths, getMonth as jalaliMonth } from "date-fns-jalali";
 import type { Task } from "./taskTypes";
 import { isScheduleOverdue, taskWorkDate } from "./taskDate";
-import { ALL_HORIZONS, addDaysLocal, fromLocalISO, getTaskTime, periodFor, todayISO, type Horizon, type Period, type TimeSettings } from "./timeHorizon";
+import { ALL_HORIZONS, addDaysLocal, fromLocalISO, periodFor, todayISO, type Horizon, type Period, type TimeSettings } from "./timeHorizon";
+import { periodPatch, readSchedule, schedulePeriod } from "./taskSchedule";
 
-/** Planning is independent of the task's date; old fuzzy buckets remain readable. */
+/** The plan period of the task's single schedule (a dated task occupies its own day). */
 export function getTaskPlanning(task: Partial<Task>, settings: TimeSettings): Period | null {
-  if (task.planning_horizon !== undefined) {
-    return task.planning_horizon && task.planning_start && task.planning_end
-      ? { horizon: task.planning_horizon, start: task.planning_start, end: task.planning_end } : null;
-  }
-  if (task.bucket_kind && ALL_HORIZONS.includes(task.bucket_kind as Horizon) && task.bucket_anchor) {
-    return periodFor(task.bucket_kind as Horizon, fromLocalISO(task.bucket_anchor), { ...settings, calendar: task.bucket_calendar || settings.calendar });
-  }
-  if (task.horizon && !task.is_exact && task.period_start && task.period_end) {
-    return { horizon: task.horizon, start: task.period_start, end: task.period_end };
-  }
-  return null;
+  return schedulePeriod(readSchedule(task, settings));
 }
 
 /** Overdue = the task's own date (and time, when set) has already passed. */
@@ -28,16 +19,12 @@ export function isTaskOverdue(task: Partial<Task>, _settings: TimeSettings, now 
 /** A daily plan whose day has passed (a soft state, separate from the task's own date being overdue). */
 export function isTaskMissedWorkDay(task: Partial<Task>, settings: TimeSettings, now = new Date()): boolean {
   if (task.completed || task.status === "done" || task.status === "wont_do") return false;
-  const plan = getTaskPlanning(task, settings);
-  return plan?.horizon === "day" && plan.end < todayISO(now);
+  const sch = readSchedule(task, settings);
+  return sch.kind === "period" && sch.period.end < todayISO(now);
 }
+/** Store a period (or a single day) as the task's only schedule; null clears it. */
 export function planningPatch(period: Period | null, settings: TimeSettings): Partial<Task> {
-  return {
-    planning_horizon: period?.horizon || null, planning_start: period?.start || null, planning_end: period?.end || null,
-    planning_calendar: period ? settings.calendar : null,
-    // Planning never doubles as a due period: drop the legacy mirror that made planned tasks look overdue.
-    bucket_kind: null, bucket_anchor: null, bucket_calendar: null,
-  };
+  return periodPatch(period, settings);
 }
 const rank = (h: Horizon) => ALL_HORIZONS.indexOf(h);
 const overlaps = (a: Period, b: Period) => a.start <= b.end && a.end >= b.start;

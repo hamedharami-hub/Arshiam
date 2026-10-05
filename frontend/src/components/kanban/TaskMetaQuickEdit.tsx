@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { workDatePatch } from "@/lib/taskDate";
 import { Calendar, Check, Flag } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -64,7 +65,7 @@ export function TaskMetaQuickEdit({
           <button
             type="button"
             className={`inline-flex h-6 items-center gap-1 rounded px-1.5 text-[11px] hover:bg-muted ${dueDate ? "text-muted-foreground" : "text-muted-foreground/60"}`}
-            aria-label={T("تاریخ سررسید", "Due date")}
+            aria-label={T("تاریخ", "Date")}
             data-testid={`task-date-trigger-${taskId}`}
           >
             <Calendar className="h-3 w-3" />
@@ -72,7 +73,7 @@ export function TaskMetaQuickEdit({
           </button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-80 p-3" dir={isEn ? "ltr" : "rtl"} data-testid={`task-date-popover-${taskId}`}>
-          <DueDatePicker value={dueDate || null} onChange={(iso) => onChange({ due_date: iso })} compact />
+          <DueDatePicker value={dueDate || null} onChange={(iso) => onChange(workDatePatch({}, iso))} compact />
         </PopoverContent>
       </Popover>
     </div>

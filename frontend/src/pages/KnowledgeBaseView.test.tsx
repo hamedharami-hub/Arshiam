@@ -268,7 +268,7 @@ describe("KnowledgeBaseView (/app/knowledge) Page Verification", { timeout: 1500
     );
 
     expect(await screen.findByText("Folder A")).toBeInTheDocument();
-    expect(screen.getAllByText("Folder B").length).toBeGreaterThanOrEqual(1);
+    expect((await screen.findAllByText("Folder B")).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("اسناد بدون فولدر یا با فولدر ناموجود")).toBeInTheDocument();
     expect(screen.getAllByText("Orphan lesson").length).toBeGreaterThanOrEqual(2);
   });

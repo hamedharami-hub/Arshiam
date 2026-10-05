@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Folder as FolderIcon, Tag as TagIcon, Ban, Plus, Check, Pin, CalendarDays, CalendarRange, Target, Flag, X, Inbox } from "lucide-react";
 import { PriorityFlag } from "@/components/PriorityFlag";
-import { TaskPlanningBody, useTaskPlanningLabel } from "@/components/TaskPlanningPicker";
 import { PRIORITY_META, PRIORITY_ORDER, type Priority } from "@/lib/priority";
 import { TIME_HORIZONS, type GoalKanban } from "@/lib/kanbanGoals";
 import type { Task } from "@/lib/taskTypes";
@@ -92,7 +91,6 @@ export function TaskMetaBar(props: TaskMetaBarProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const selectedTags = tags.filter((tg) => taskTagIds.includes(tg.id));
   const priorityMeta = PRIORITY_META[t.priority] || PRIORITY_META.none;
-  const planLabel = useTaskPlanningLabel(t);
   const toggle = (p: TaskMetaPanel) => setPanel(panel === p ? null : p);
 
   // Escape closes the open panel first (captured before dialogs/drawers see it).
@@ -117,7 +115,7 @@ export function TaskMetaBar(props: TaskMetaBarProps) {
     folder: T("پوشه", "Folder"),
     goal: T("هدف", "Goal"),
     schedule: T("زمان", "When"),
-    plan: T("برنامه‌ریزی", "Planning"),
+    plan: T("زمان", "When"),
     priority: T("اولویت", "Priority"),
     tags: T("برچسب", "Tags"),
   };
@@ -240,7 +238,7 @@ export function TaskMetaBar(props: TaskMetaBarProps) {
     : panel === "goal" ? goalPanel
     : panel === "priority" ? priorityPanel
     : panel === "tags" ? tagsPanel
-    : panel === "plan" ? <TaskPlanningBody key={t.id} task={t} onPatch={(patch) => void save(patch)} onDone={() => setPanel(null)} />
+    : panel === "plan" ? <TaskScheduleBody t={t} canEdit={canEdit} save={schedulePanelSave} postpone={postponeAndClose} T={T} isEn={isEn} onDone={() => setPanel(null)} />
     : panel === "schedule" ? <TaskScheduleBody t={t} canEdit={canEdit} save={schedulePanelSave} postpone={postponeAndClose} T={T} isEn={isEn} onDone={() => setPanel(null)} />
     : null;
 
@@ -249,8 +247,6 @@ export function TaskMetaBar(props: TaskMetaBarProps) {
       <div className="-mx-0.5 flex items-center gap-0.5 overflow-x-auto no-scrollbar" role="toolbar" aria-label={T("ویژگی‌های تسک", "Task properties")}>
         <MetaTile icon={CalendarDays} label={T("زمان", "When")} value={scheduleLabel} active={isScheduled} open={panel === "schedule"}
           activeClassName="!text-primary" disabled={!canEdit} aria-expanded={panel === "schedule"} onClick={() => toggle("schedule")} data-testid="task-meta-schedule" />
-        <MetaTile icon={CalendarRange} label={T("برنامه‌ریزی", "Planning")} value={planLabel} active={!!planLabel} open={panel === "plan"}
-          disabled={!canEdit} aria-expanded={panel === "plan"} onClick={() => toggle("plan")} data-testid="task-meta-plan" />
         <MetaTile leading={<PriorityFlag priority={t.priority} />} label={T("اولویت", "Priority")}
           value={t.priority !== "none" ? T(priorityMeta.label, priorityMeta.labelEn) : null} active={t.priority !== "none"} open={panel === "priority"}
           className={t.priority === "none" ? "[&_svg]:opacity-60" : ""}

@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Brain, ChevronDown, ChevronUp } from "lucide-react";
 import { computeCognitiveLoad, loadStatus, CATEGORY_LABELS } from "@/lib/cognitiveLoad";
 import { Button } from "@/components/ui/button";
-import { getLocalDateString, parseTaskDueDate, taskWorkDate } from "@/lib/taskDate";
+import { getLocalDateString } from "@/lib/taskDate";
+import { isTodayCommitment } from "@/lib/taskSchedule";
 
 export default function CognitiveLoadCard() {
   const { user } = useAuth();
@@ -16,22 +17,17 @@ export default function CognitiveLoadCard() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-      const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+      const now = new Date();
       const todayDate = getLocalDateString(new Date());
 
       const [tasks, checkin] = await Promise.all([
-        firebaseStore.from("tasks").select("id,title,description,priority,folder_id,quadrant,due_date,completed")
+        firebaseStore.from("tasks").select("*")
           .eq("user_id", user.id).eq("completed", false),
         firebaseStore.from("daily_checkins").select("sleep_hours,sleep_quality,stress").eq("user_id", user.id).eq("checkin_date", todayDate).maybeSingle(),
       ]);
 
-      const todayTasks = (tasks.data || []).filter((t) => {
-        if (!taskWorkDate(t)) return true;
-        const dt = parseTaskDueDate(taskWorkDate(t));
-        if (!dt) return false;
-        return dt >= todayStart && dt <= todayEnd;
-      });
+      // Only tasks actually committed to today (shared selector) — not undated, future or month-only plans.
+      const todayTasks = (tasks.data || []).filter((t) => isTodayCommitment(t, now));
 
       setData(computeCognitiveLoad({
         tasks: todayTasks,

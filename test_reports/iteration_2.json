@@ -98,7 +98,7 @@
   "should_main_agent_test_itself": false,
   
   "testing_environment": {
-    "preview_url": "https://arshiam-dev-1.preview.emergentagent.com",
+    "preview_url": "https://arshiam-staging.preview.emergentagent.com",
     "test_credentials": "emergent.qa.arshnaz@example.com / QaTest#2026pass",
     "viewports_tested": ["390x844 mobile", "1920x800 desktop"],
     "browser": "Playwright Chromium",

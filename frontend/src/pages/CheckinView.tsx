@@ -279,8 +279,10 @@ export default function CheckinView() {
           const cachedRaw = await cacheGet<unknown>(`tasks:all:${user!.id}`);
           const cachedTasks = extractTasksFromCache(cachedRaw);
           const { computeCognitiveLoad } = await import("@/lib/cognitiveLoad");
+          const { isTodayCommitment } = await import("@/lib/taskSchedule");
+          const now = new Date();
           const r = computeCognitiveLoad({
-            tasks: cachedTasks.filter((t) => !t.completed),
+            tasks: cachedTasks.filter((t) => isTodayCommitment(t, now)),
             sleepHours: todayDoc?.sleep_hours ?? null,
             sleepQuality: todayDoc?.sleep_quality ?? null,
             stress: todayDoc?.stress ?? null,
@@ -584,7 +586,7 @@ export default function CheckinView() {
           {isEvening && todayLoad != null && todayLoad >= 12 ? (
             <div className="border-s-4 border-amber-500 bg-amber-500/5 rounded-xl p-3.5 space-y-3">
               <div className="text-sm font-semibold flex items-center gap-2 text-amber-700 dark:text-amber-300">
-                🌙 {isEn ? `Evening Reflection — Today's cognitive load was ${todayLoad}` : `تأمل شبانه — بار شناختی امروز ${todayLoad} بود`}
+                🌙 {isEn ? `Evening Reflection — estimated load of today's tasks: ${todayLoad} (rough guide)` : `تأمل شبانه — برآورد تقریبی بار کارهای امروز: ${todayLoad}`}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">{T("سخت‌ترین بخش امروز چه بود؟", "What was the hardest part of today?")}</Label>

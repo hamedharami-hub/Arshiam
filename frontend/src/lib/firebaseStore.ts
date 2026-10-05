@@ -14,6 +14,7 @@ import {
   updateDoc,
   where as fsWhere,
 } from "@/lib/firebase";
+import { normalizeTaskWrite } from "@/lib/taskSchedule";
 import { deleteObject, getDownloadURL, getStorage, ref, uploadBytes } from "firebase/storage";
 import type { QueryConstraint } from "firebase/firestore";
 import { writeCycleRecord } from "./cyclePersistence";
@@ -262,7 +263,7 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
         const row = {
           created_at: raw.created_at || now,
           updated_at: raw.updated_at || now,
-          ...raw,
+          ...(this.table === "tasks" ? normalizeTaskWrite(raw) : raw),
           id,
           user_id: raw.user_id || userId,
         };
@@ -290,7 +291,7 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
         && this.table !== "cycle_profiles" && this.table !== "cycle_logs") {
         try {
           const docRef = doc(db, "users", userId, this.table, idFilter.value);
-          const updatedRow = { ...patch, id: idFilter.value, user_id: userId, updated_at: patch.updated_at || new Date().toISOString() };
+          const updatedRow = { ...(this.table === "tasks" ? normalizeTaskWrite(patch) : patch), id: idFilter.value, user_id: userId, updated_at: patch.updated_at || new Date().toISOString() };
           await updateDoc(docRef, updatedRow);
           trackWrite(1, this.table);
           if (typeof window !== "undefined") window.dispatchEvent(new Event("firebase-store-changed"));
@@ -301,7 +302,8 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
       }
       const result = await this.rows();
       if (result.error || !result.data) return result;
-      return this.write(result.data.map((row) => ({ ...row, ...patch })), true);
+      const safePatch = this.table === "tasks" ? normalizeTaskWrite(patch) : patch;
+      return this.write(result.data.map((row) => ({ ...row, ...safePatch })), true);
     });
   }
   delete() {

@@ -40,7 +40,7 @@ import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { TaskDeleteConfirmDialog } from "@/components/tasks/TaskDeleteConfirmDialog";
 import { toast } from "sonner";
 import { PRIORITY_META } from "@/lib/priority";
 import { FolderKanban } from "@/components/FolderKanban";
@@ -354,6 +354,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     if (Object.prototype.hasOwnProperty.call(patch, "priority")) visualPatch.priority = patch.priority;
     if (Object.prototype.hasOwnProperty.call(patch, "due_date")) visualPatch.due_date = patch.due_date;
     if (Object.prototype.hasOwnProperty.call(patch, "work_date")) visualPatch.work_date = patch.work_date;
+    // The single schedule travels as one unit, so the row never shows half of an old and half of a new plan.
+    for (const key of ["schedule_v", "planning_horizon", "planning_start", "planning_end", "planning_calendar", "due_at", "is_exact", "horizon", "period_start", "period_end", "bucket_kind", "bucket_anchor", "bucket_calendar"] as const) {
+      if (Object.prototype.hasOwnProperty.call(patch, key)) (visualPatch as Record<string, unknown>)[key] = patch[key];
+    }
     if (owner && Object.keys(visualPatch).length) {
       setVisualPatches(prev => ({ ...prev, [id]: { ...prev[id], ...visualPatch } }));
     }
@@ -1283,45 +1287,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
         </div>
 
-      <AlertDialog open={!!confirm} onOpenChange={(v) => !v && setConfirm(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirm?.kind === "task"
-                ? confirm.childCount && confirm.childCount > 0
-                  ? T(`حذف این تسک و ${confirm.childCount} زیرتسک؟`, `Delete this task and ${confirm.childCount} subtasks?`)
-                  : T("حذف تسک؟", "Delete task?")
-                : confirm?.kind === "note"
-                ? T("حذف نوت؟", "Delete note?")
-                : T("حذف زیرتسک؟", "Delete subtask?")}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirm?.childCount && confirm.childCount > 0
-                ? T(
-                    `آیا مطمئنی می‌خوای «${confirm?.title || T("این تسک", "this task")}» و ${confirm.childCount} زیرتسک آن را حذف کنی؟`,
-                    `Are you sure you want to delete "${confirm?.title || T("this task", "this task")}" and its ${confirm.childCount} subtasks?`
-                  )
-                : T(
-                    `آیا مطمئنی می‌خوای «${confirm?.title || T("این مورد", "this item")}» را حذف کنی؟`,
-                    `Are you sure you want to delete "${confirm?.title || T("this item", "this item")}"?`
-                  )}
-              <span className="block mt-2 text-xs">{T("این عمل قابل بازگشت نیست.", "This action cannot be undone.")}</span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{T("انصراف", "Cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                if (confirm) await confirm.onConfirm();
-                setConfirm(null);
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {T("حذف", "Delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <TaskDeleteConfirmDialog confirm={confirm} setConfirm={setConfirm} T={T} />
 
       {moveTask && (
         <MoveToDialog

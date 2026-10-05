@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Ban, Bell, BellOff, CalendarArrowDown, CalendarOff, Check, Clock, Repeat, SlidersHorizontal, Sun, Sunrise, X,
+  Ban, Bell, BellOff, Check, Clock, Repeat, SlidersHorizontal, X,
 } from "lucide-react";
 import { DueDatePicker } from "@/components/DueDatePicker";
 import { RecurrenceEditor } from "@/components/RecurrenceEditor";
 import { InlineDatePicker } from "@/components/InlineDatePicker";
 import { TimeWheel } from "@/components/TimeWheel";
 import { IconTip } from "./IconTip";
+import { TaskPlanningBody } from "@/components/TaskPlanningPicker";
 import { toPersianDigits } from "@/lib/persianDigits";
 import type { Task } from "@/lib/taskTypes";
 import { parseTaskDueDate, taskWorkDate, workDatePatch, getLocalDateString } from "@/lib/taskDate";
@@ -80,13 +81,6 @@ export function TaskScheduleBody({ t, canEdit, save, T, isEn, onDone }: TaskSche
     ? `${String(parsed.getHours()).padStart(2, "0")}:${String(parsed.getMinutes()).padStart(2, "0")}`
     : null;
 
-  const dayKey = (offset: number) => {
-    const n = new Date();
-    return getLocalDateString(new Date(n.getFullYear(), n.getMonth(), n.getDate() + offset));
-  };
-  const todayKey = dayKey(0);
-  const tomorrowKey = dayKey(1);
-  const nextWeekKey = dayKey(7);
 
   const compose = (ymd: string, hhmm: string | null) => {
     if (!hhmm) return ymd;
@@ -94,11 +88,11 @@ export function TaskScheduleBody({ t, canEdit, save, T, isEn, onDone }: TaskSche
     const [h, min] = hhmm.split(":").map(Number);
     return new Date(y, m - 1, d, h, min).toISOString();
   };
+  // Choosing a day keeps the panel open so a time can follow; the check button closes it.
   const pickDay = (ymd: string | null) => {
     if (!canEdit) return;
     save(workDatePatch(t, ymd ? compose(ymd, timePart) : null));
     if (!ymd) setSub(null);
-    onDone?.();
   };
   const timeSaver = useRef<number | null>(null);
   useEffect(() => () => { if (timeSaver.current) window.clearTimeout(timeSaver.current); }, []);
@@ -135,24 +129,10 @@ export function TaskScheduleBody({ t, canEdit, save, T, isEn, onDone }: TaskSche
   })();
   const showReminder = !!timePart || reminderOn;
 
-  const quick: Array<{ key: string; label: string; Icon: any; active: boolean; onClick: () => void }> = [
-    { key: "today", label: T("امروز", "Today"), Icon: Sun, active: workDay === todayKey, onClick: () => pickDay(todayKey) },
-    { key: "tomorrow", label: T("فردا", "Tomorrow"), Icon: Sunrise, active: workDay === tomorrowKey, onClick: () => pickDay(tomorrowKey) },
-    { key: "next-week", label: T("هفتهٔ بعد", "Next week"), Icon: CalendarArrowDown, active: workDay === nextWeekKey, onClick: () => pickDay(nextWeekKey) },
-    { key: "none", label: T("بدون تاریخ", "No date"), Icon: CalendarOff, active: !workDay, onClick: () => pickDay(null) },
-  ];
-
   return (
     <div dir={isEn ? "ltr" : "rtl"} className="space-y-2.5" data-testid="task-schedule-body">
-      {/* Quick days — icons only, label on hover / long-press */}
-      <div className="grid grid-cols-4 gap-1.5" role="group" aria-label={T("روز", "Day")}>
-        {quick.map(({ key, label, Icon, active, onClick }) => (
-          <IconTip key={key} label={label} active={active} pressed={active} disabled={!canEdit} onClick={onClick}
-            testid={`schedule-quick-${key}`} className="h-11 w-full">
-            <Icon className="h-5 w-5" strokeWidth={1.6} />
-          </IconTip>
-        ))}
-      </div>
+      {/* One schedule: quick days and periods, a custom range, and clearing */}
+      {canEdit && <TaskPlanningBody task={t} onPatch={(patch) => { save(patch); setSub(null); }} onPickDay={(ymd) => pickDay(ymd)} />}
 
       {/* Month calendar, always visible */}
       <div className="rounded-xl border border-border/60 p-1.5">

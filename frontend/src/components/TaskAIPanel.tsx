@@ -20,6 +20,7 @@ import remarkGfm from "remark-gfm";
 import { PRIORITY_META, type Priority } from "@/lib/priority";
 import { describeRule, type RecurrenceRule } from "@/lib/recurrence";
 import { parseTaskDueDate, taskWorkDate } from "@/lib/taskDate";
+import { compactTasksForAI } from "@/lib/taskSchedule";
 
 type TaskLite = {
   id: string; title: string; description?: string | null;
@@ -69,10 +70,10 @@ export function TaskAIPanel({
     let ctx = `Current task:\nTitle: ${task.title}\nDescription: ${task.description || "(none)"}\nPriority: ${task.priority}\nDate: ${taskWorkDate(task) || "(none)"}\nRecurrence: ${describeRule(task.recurrence_rule || null, true)}`;
     if (globalCtx && user) {
       const [{ data: tasks }, { data: notes }] = await Promise.all([
-        firebaseStore.from("tasks").select("title,priority,due_date,completed").limit(40),
+        firebaseStore.from("tasks").select("*").limit(40),
         firebaseStore.from("notes").select("title").limit(20),
       ]);
-      ctx += `\n\nAll tasks: ${JSON.stringify(tasks || [])}`;
+      ctx += `\n\nAll tasks: ${JSON.stringify(compactTasksForAI(tasks || []))}`;
       ctx += `\nAll notes: ${JSON.stringify(notes || [])}`;
     }
     return ctx;
@@ -262,7 +263,7 @@ export function TaskAIPanel({
 
           {/* Meta */}
           <TabsContent value="meta" className="space-y-3 mt-4">
-            <p className="text-sm text-muted-foreground">{T("AI بر اساس تسک، اولویت/ددلاین/تکرار پیشنهاد می‌ده.", "AI suggests priority, due date, and recurrence based on the task.")}</p>
+            <p className="text-sm text-muted-foreground">{T("AI بر اساس تسک، اولویت/زمان/تکرار پیشنهاد می‌ده.", "AI suggests priority, due date, and recurrence based on the task.")}</p>
             <Button onClick={suggestMeta} disabled={loading} className="w-full gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
               {T("پیشنهاد بگیر", "Suggest")}
@@ -278,7 +279,7 @@ export function TaskAIPanel({
                   </div>
                 )}
                 {meta.due_date && (
-                  <div className="text-sm"><span className="text-muted-foreground">{T("سررسید:", "Due:")}</span> {parseTaskDueDate(meta.due_date)?.toLocaleString(isEn ? "en-US" : "fa-IR") || meta.due_date}</div>
+                  <div className="text-sm"><span className="text-muted-foreground">{T("زمان:", "When:")}</span> {parseTaskDueDate(meta.due_date)?.toLocaleString(isEn ? "en-US" : "fa-IR") || meta.due_date}</div>
                 )}
                 {meta.recurrence_rule && (
                   <div className="text-sm"><span className="text-muted-foreground">{T("تکرار:", "Repeat:")}</span> {describeRule(meta.recurrence_rule, isEn)}</div>

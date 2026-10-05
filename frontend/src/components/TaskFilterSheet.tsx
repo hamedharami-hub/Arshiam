@@ -529,7 +529,7 @@ export function TaskFilterSheet({
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
               <Clock className="w-3.5 h-3.5 text-indigo-500" />
-              <span>محدوده زمانی سررسید (Due Date Windows)</span>
+              <span>محدودهٔ تاریخ (Date windows)</span>
             </span>
             {(filters.due_windows?.length || 0) > 0 && (
               <button

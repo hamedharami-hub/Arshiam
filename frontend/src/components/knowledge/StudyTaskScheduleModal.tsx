@@ -399,7 +399,7 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs">
               <span className="font-semibold text-foreground">
-                {T("زمان‌بندی سررسید", "Due Date & Time")}
+                {T("زمان مرور", "Review date & time")}
               </span>
               <div className="flex items-center gap-1">
                 <button

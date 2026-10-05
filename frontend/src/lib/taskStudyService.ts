@@ -1,4 +1,5 @@
 import { persistTask, upsertTask } from "@/lib/firestoreDataService";
+import { workDatePatch } from "@/lib/taskDate";
 import { isPathAllowed } from "@/lib/appModules";
 import { getCachedTasks } from "@/features/tasks/taskService";
 import { db, doc, getDoc } from "@/lib/firebase";
@@ -91,7 +92,7 @@ export async function rescheduleLeitnerStudyTaskAfterSession(
 
     const status = await persistTask(userId, {
       id: taskId,
-      due_date: nextReviewAt,
+      ...workDatePatch(task, nextReviewAt),
       completed: false,
       status: "todo",
       completed_at: null,

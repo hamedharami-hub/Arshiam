@@ -56,14 +56,14 @@ describe("QuickAddTask component", () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
   });
 
-  it("queues planning and an exact date and time together without changing the folder", async () => {
+  it("an exact date and time replaces the view's period (one schedule) without changing the folder", async () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
     render(<MemoryRouter><QuickAddTask placeholder="+ Planned task" defaults={{ folder_id: "folder-1", work_date: "2026-06-10T10:00:00.000Z", planning: { horizon: "month", start: "2026-05-01", end: "2026-05-31" } }} /></MemoryRouter>);
     fireEvent.click(screen.getByText("+ Planned task"));
     fireEvent.change(screen.getByPlaceholderText("+ Planned task"), { target: { value: "Keep both times" } });
     fireEvent.click(screen.getByTitle("Add task (Enter)"));
     await waitFor(() => expect(enqueueOps).toHaveBeenCalled());
-    expect(vi.mocked(enqueueOps).mock.calls[0][0][0].payload).toEqual(expect.objectContaining({ folder_id: "folder-1", work_date: "2026-06-10T10:00:00.000Z", planning_horizon: "month", planning_start: "2026-05-01", planning_end: "2026-05-31" }));
+    expect(vi.mocked(enqueueOps).mock.calls[0][0][0].payload).toEqual(expect.objectContaining({ folder_id: "folder-1", work_date: "2026-06-10T10:00:00.000Z", planning_horizon: null, planning_start: null, schedule_v: 2 }));
   });
   it("retains folder, column status, priority, tags and bucket period when adding offline", async () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
@@ -73,7 +73,7 @@ describe("QuickAddTask component", () => {
     fireEvent.click(screen.getByTitle("Add task (Enter)"));
     await waitFor(() => expect(enqueueOps).toHaveBeenCalled());
     const operations = vi.mocked(enqueueOps).mock.calls[0][0];
-    expect(operations[0].payload).toEqual(expect.objectContaining({ folder_id: "folder-1", kanban_column_id: "goal-1", status: "in_progress", priority: "high", horizon: "week", period_start: "2026-10-03", period_end: "2026-10-09" }));
+    expect(operations[0].payload).toEqual(expect.objectContaining({ folder_id: "folder-1", kanban_column_id: "goal-1", status: "in_progress", priority: "high", planning_horizon: "week", planning_start: "2026-10-03", planning_end: "2026-10-09", work_date: null }));
     expect(operations[1].payload).toEqual([expect.objectContaining({ tag_id: "tag-1" })]);
   });
 

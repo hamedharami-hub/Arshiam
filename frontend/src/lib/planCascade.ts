@@ -1,8 +1,8 @@
 // Cascading planning: year → quarter → month → week → day, linked by plan_parent_id.
 import type { Task } from "./taskTypes";
 import { getTaskPlanning, planningPatch } from "./taskPlanning";
-import { taskWorkDate, parseTaskDueDate, getLocalDateString } from "./taskDate";
-import { addDaysLocal, fromLocalISO, getTaskTime, nextPeriod, periodFor, toLocalISO, type Horizon, type Period, type TimeSettings } from "./timeHorizon";
+import { readSchedule, scheduleInView, schedulePeriod } from "./taskSchedule";
+import { addDaysLocal, fromLocalISO, nextPeriod, periodFor, toLocalISO, type Horizon, type Period, type TimeSettings } from "./timeHorizon";
 
 export const LEVELS_TOP_DOWN: Horizon[] = ["year", "quarter", "month", "week", "day"];
 
@@ -19,26 +19,27 @@ export function childLevel(h: Horizon, s: TimeSettings): Horizon | null {
 }
 
 export const isClosed = (t: Partial<Task>) => !!t.completed || t.status === "done" || t.status === "wont_do";
+/** Actually finished (a set-aside "won't do" task is closed but never counts as done). */
+export const isDone = (t: Partial<Task>) => t.status !== "wont_do" && (!!t.completed || t.status === "done");
 
-/** Planned period, falling back to the day of an exact due date. */
+/** The plan period of the task's single schedule (a dated task occupies its day). */
 export function planOf(t: Partial<Task>, s: TimeSettings): Period | null {
-  const p = getTaskPlanning(t, s);
-  if (p) return p;
-  if (t.work_date !== undefined) {
-    const day = parseTaskDueDate(taskWorkDate(t));
-    return day ? { horizon: "day", start: getLocalDateString(day), end: getLocalDateString(day) } : null;
-  }
-  const tf = getTaskTime(t, s);
-  if (!tf) return null;
-  if (tf.is_exact && tf.due_at) { const day = toLocalISO(new Date(tf.due_at)); return { horizon: "day", start: day, end: day }; }
-  return { horizon: tf.horizon, start: tf.period_start, end: tf.period_end };
+  return schedulePeriod(readSchedule(t, s));
 }
 
+/**
+ * Tasks shown in a plan view: same or finer level whose schedule overlaps the view (both ends inclusive).
+ * A day task is also in its week and month; a custom range is in every week it touches; a month plan
+ * without a day is never in a day view. Each task appears once.
+ */
 export function itemsInPeriod(tasks: Task[], period: Period, s: TimeSettings): Task[] {
-  return tasks.filter((t) => {
-    const p = planOf(t, s);
-    return !!p && p.horizon === period.horizon && p.start >= period.start && p.start <= period.end;
-  });
+  return tasks.filter((t) => scheduleInView(readSchedule(t, s), period));
+}
+
+/** Top-level rows of a view: a task whose plan-parent is in the same view is shown nested, not twice. */
+export function topLevelItems(items: Task[]): Task[] {
+  const ids = new Set(items.map((t) => t.id));
+  return items.filter((t) => !(t.plan_parent_id && ids.has(t.plan_parent_id)));
 }
 
 export function childrenMap(tasks: Task[]): Map<string, Task[]> {
@@ -51,24 +52,28 @@ export type Progress = { done: number; total: number; ratio: number };
 /** Leaves count by completion; a parent is the average of its children, so a ticked day moves the year. */
 export function progressOf(t: Task, kids: Map<string, Task[]>, seen = new Set<string>()): Progress {
   const list = (kids.get(t.id) || []).filter((c) => c.status !== "wont_do" && !seen.has(c.id));
-  if (!list.length) return { done: isClosed(t) ? 1 : 0, total: 0, ratio: isClosed(t) ? 1 : 0 };
+  if (!list.length) return { done: isDone(t) ? 1 : 0, total: 0, ratio: isDone(t) ? 1 : 0 };
   seen.add(t.id);
   const ratios = list.map((c) => progressOf(c, kids, seen).ratio);
-  const ratio = isClosed(t) ? 1 : ratios.reduce((a, b) => a + b, 0) / list.length;
+  const ratio = isDone(t) ? 1 : ratios.reduce((a, b) => a + b, 0) / list.length;
   return { done: ratios.filter((r) => r >= 1).length, total: list.length, ratio };
 }
 
-/** Planned items of earlier periods at this level that are still open (shown once, above the current period). */
+/**
+ * Open items left behind before this view (same or finer level, schedule fully before the view starts).
+ * Covers days, times and periods alike; nothing is moved automatically — the user decides.
+ */
 export function carryOver(tasks: Task[], current: Period, s: TimeSettings): Task[] {
+  const rank = (h: Horizon) => LEVELS_TOP_DOWN.length - 1 - LEVELS_TOP_DOWN.indexOf(h);
   return tasks.filter((t) => {
     if (isClosed(t)) return false;
-    const p = getTaskPlanning(t, s);
-    return !!p && p.horizon === current.horizon && p.end < current.start;
+    const p = planOf(t, s);
+    return !!p && rank(p.horizon) <= rank(current.horizon) && p.end < current.start;
   });
 }
 
 export function unplanned(tasks: Task[], s: TimeSettings): Task[] {
-  return tasks.filter((t) => !t.parent_id && !isClosed(t) && !t.plan_parent_id && !planOf(t, s));
+  return tasks.filter((t) => !t.parent_id && !isClosed(t) && !t.plan_parent_id && readSchedule(t, s).kind === "none");
 }
 
 /** Every period of `h` whose start lies inside `range`. */

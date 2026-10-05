@@ -5,15 +5,17 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { haptic } from "@/lib/haptics";
 import { toPersianDigits } from "@/lib/jalali";
-import { upsertTask } from "@/lib/firestoreDataService";
+import { persistTask, type TaskPersistenceStatus } from "@/lib/firestoreDataService";
+import { reportSave, toSaveStatus } from "@/lib/saveFeedback";
+import { nextPlanPeriod, scheduleLabel, readSchedule } from "@/lib/taskSchedule";
 import type { Task } from "@/lib/taskTypes";
 import {
   addDaysLocal, currentPeriod, fromLocalISO, nextPeriod, periodFor, periodLabel, prevPeriod, todayISO,
   type Horizon, type Period, type TimeSettings,
 } from "@/lib/timeHorizon";
 import {
-  carryOver, childLevel, childrenMap, defaultChildPeriod, isClosed, itemsInPeriod, levelsFor, parentLevel,
-  planOf, planPatch, progressOf, unplanned, weekDays,
+  carryOver, childLevel, childrenMap, defaultChildPeriod, isClosed, isDone, itemsInPeriod, levelsFor, parentLevel,
+  planOf, planPatch, progressOf, topLevelItems, unplanned, weekDays,
 } from "@/lib/planCascade";
 import { LEVEL_NAME, LEVEL_PURPOSE, LEVEL_THEME, NOW_LABEL, frac } from "./planningTheme";
 import { PlanItemCard, ProgressLine } from "./PlanItemCard";
@@ -21,7 +23,8 @@ import { PeriodPicker } from "./PeriodPicker";
 import { UpperLevelPanel } from "./UpperLevelPanel";
 import { CarryOverCard, UnplannedTray } from "./PlanningTrays";
 import { PeriodReviewDialog, reviewDue } from "./PeriodReview";
-import { ValuesGoalsPanel, domainOf, useMindGoals } from "./ValuesGoalsPanel";
+import { ValuesGoalsPanel, domainOf, useMindGoalsState } from "./ValuesGoalsPanel";
+import { usePlanReviews } from "@/lib/planReviewService";
 import { format as gFormat } from "date-fns";
 import { format as jFormat } from "date-fns-jalali";
 
@@ -62,10 +65,13 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
   const kids = useMemo(() => childrenMap(live), [live]);
   const order = (list: Task[]) => [...list].sort((a, b) => Number(isClosed(a)) - Number(isClosed(b)) || String(a.created_at || "").localeCompare(String(b.created_at || "")));
   const items = useMemo(() => order(itemsInPeriod(live, period, settings)), [live, period, settings]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rows = useMemo(() => topLevelItems(items), [items]);
+  const counted = useMemo(() => items.filter((t) => t.status !== "wont_do"), [items]);
   const carried = useMemo(() => (isCurrent ? carryOver(live, period, settings) : []), [live, period, settings, isCurrent]);
-  const upperItems = useMemo(() => (parentPeriod ? order(itemsInPeriod(live, parentPeriod, settings)) : []), [live, parentPeriod?.start, settings]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The upper column shows the bigger goals of the parent level only (finer items already live in this view).
+  const upperItems = useMemo(() => (parentPeriod && up ? order(itemsInPeriod(live, parentPeriod, settings).filter((t) => planOf(t, settings)?.horizon === up)) : []), [live, parentPeriod?.start, up, settings]); // eslint-disable-line react-hooks/exhaustive-deps
   const loose = useMemo(() => unplanned(live, settings), [live, settings]);
-  const goals = useMindGoals();
+  const { goals, status: goalsStatus } = useMindGoalsState();
   const goalById = useMemo(() => new Map(goals.map((g) => [g.id, g])), [goals]);
   const valueLabel = (t: Task) => {
     if (t.source_type !== "values_goal") return undefined;
@@ -73,14 +79,14 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
     return d ? `${d.icon} ${fa ? d.label : d.label_en}` : (fa ? "ارزش‌ها و اهداف" : "Values & Goals");
   };
   const [reviewP, setReviewP] = useState<Period | null>(null);
-  const [reviewTick, setReviewTick] = useState(0);
-  useEffect(() => { const on = () => setReviewTick((n) => n + 1); window.addEventListener("arsh:plan-reviewed", on); return () => window.removeEventListener("arsh:plan-reviewed", on); }, []);
+  const { reviews, loaded: reviewsLoaded } = usePlanReviews(user?.id);
   const prevP = prevPeriod(period, settings);
-  const due = useMemo(() => (isCurrent ? reviewDue(user?.id, period, prevP, itemsInPeriod(live, prevP, settings).length > 0) : null), [isCurrent, user?.id, period, live, settings, reviewTick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const due = useMemo(() => (isCurrent ? reviewDue(reviews, !!user?.id && reviewsLoaded, period, prevP, itemsInPeriod(live, prevP, settings).length > 0) : null), [isCurrent, user?.id, reviewsLoaded, period, live, settings, reviews]); // eslint-disable-line react-hooks/exhaustive-deps
   const reviewItems = useMemo(() => (reviewP ? itemsInPeriod(live, reviewP, settings) : []), [reviewP, live, settings]);
 
-  const ratio = items.length ? items.reduce((s, t) => s + progressOf(t, kids).ratio, 0) / items.length : 0;
-  const doneCount = items.filter(isClosed).length;
+  const ratio = counted.length ? counted.filter(isDone).length / counted.length : 0;
+  const doneCount = counted.filter(isDone).length;
+  const [busy, setBusy] = useState(false);
   const num = (n: number) => (fa ? toPersianDigits(n) : String(n));
   const nowName = NOW_LABEL[lv][lang];
   const targetName = isCurrent ? nowName : periodLabel(period, settings, lang);
@@ -92,8 +98,8 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
   };
   const go = (dir: 1 | -1) => { setAnchor((dir === 1 ? nextPeriod(period, settings) : prevPeriod(period, settings)).start); haptic("light"); };
 
-  const create = async (title: string, p: Period, parent?: Task, extra?: Partial<Task>) => {
-    if (!user?.id || !title.trim()) return;
+  const create = async (title: string, p: Period, parent?: Task, extra?: Partial<Task>): Promise<TaskPersistenceStatus> => {
+    if (!user?.id || !title.trim()) return "failed";
     const now = new Date().toISOString();
     const task = {
       id: newId(), user_id: user.id, title: title.trim(), priority: "none", completed: false, status: "todo",
@@ -102,15 +108,44 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
       ...planPatch(p, settings, parent ? parent.id : null),
       ...extra,
     } as Task;
-    const ok = await upsertTask(user.id, task);
-    if (!ok) { toast.error(fa ? "ذخیره نشد؛ دوباره تلاش کن" : "Not saved, please retry"); return; }
+    const status = await persistTask(user.id, task);
+    const where = readSchedule(task, settings);
+    reportSave(status, fa, fa ? `به «${scheduleLabel(where, settings, lang)}» اضافه شد` : `Added to ${scheduleLabel(where, settings, lang)}`);
+    if (status === "failed") return status;
     window.dispatchEvent(new Event("tasks-changed"));
     onCreated?.();
     haptic("light");
-    toast.success(fa ? `به «${periodLabel(p, settings, lang)}» اضافه شد` : `Added to ${periodLabel(p, settings, lang)}`);
+    return status;
   };
-  const plan = (t: Task, p: Period | null, parentId?: string | null) => { void onUpdate(t.id, planPatch(p, settings, parentId)); haptic("light"); };
-  const moveNext = (t: Task) => { const p = planOf(t, settings) || period; plan(t, nextPeriod(p, settings)); toast.success(fa ? "به دورهٔ بعد رفت" : "Moved to next period"); };
+  const plan = async (t: Task, p: Period | null, parentId?: string | null, success?: string): Promise<TaskPersistenceStatus> => {
+    haptic("light");
+    const status = toSaveStatus(await onUpdate(t.id, planPatch(p, settings, parentId)));
+    reportSave(status, fa, success);
+    return status;
+  };
+  /** Next period of the same kind; a custom range keeps its length and starts the day after it ends. */
+  const moveNext = (t: Task) => { const p = planOf(t, settings) || period; void plan(t, nextPlanPeriod(p, settings), undefined, fa ? "به دورهٔ بعد رفت" : "Moved to next period"); };
+  const moveAll = async (list: Task[]) => {
+    if (busy) return;
+    setBusy(true);
+    const results: TaskPersistenceStatus[] = [];
+    for (const t of list) results.push(toSaveStatus(await onUpdate(t.id, planPatch(period, settings))));
+    setBusy(false);
+    const failed = results.filter((r) => r === "failed").length;
+    const queued = results.filter((r) => r === "queued").length;
+    if (failed) toast.error(fa ? `${toPersianDigits(failed)} مورد ذخیره نشد` : `${failed} item(s) not saved`);
+    else if (queued) reportSave("queued", fa);
+    else toast.success(fa ? `${toPersianDigits(results.length)} مورد به «${targetName}» آمد` : `${results.length} item(s) moved to ${targetName}`);
+  };
+  const submitDraft = async () => {
+    const title = draft.trim();
+    if (!title || busy) return;
+    setBusy(true);
+    const status = await create(title, period);
+    setBusy(false);
+    // Keep the text when the save failed so nothing typed is lost.
+    if (status !== "failed") setDraft((cur) => (cur.trim() === title ? "" : cur));
+  };
   const complete = (t: Task) => { if (!isClosed(t)) void onToggle(t); };
 
   const onTouchEnd = (e: React.TouchEvent) => {
@@ -152,7 +187,7 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
           <p className="min-w-0 flex-1 text-xs leading-5 text-muted-foreground" data-testid="planning-purpose">{LEVEL_PURPOSE[lv][lang]}</p>
           <div className="flex w-36 shrink-0 items-center gap-2" title={fa ? "پیشرفت این دوره" : "Progress of this period"}>
             <ProgressLine ratio={ratio} level={lv} />
-            <span className="whitespace-nowrap text-[11px] tabular-nums text-muted-foreground" data-testid="planning-progress-text">{frac(doneCount, items.length, fa)}</span>
+            <span className="whitespace-nowrap text-[11px] tabular-nums text-muted-foreground" data-testid="planning-progress-text">{frac(doneCount, counted.length, fa)}</span>
           </div>
         </div>
         <div className="flex gap-1 lg:hidden" role="tablist">
@@ -174,46 +209,47 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
               <button type="button" onClick={() => setReviewP(due)} className="h-8 shrink-0 rounded-full bg-foreground px-3 text-xs font-medium text-background" data-testid="planning-review-start">{fa ? "شروع مرور" : "Start"}</button>
             </div>
           )}
-          <CarryOverCard tasks={carried} settings={settings} fa={fa} onMoveHere={(t) => plan(t, period)} onComplete={complete}
-            onDrop={(t) => plan(t, null, null)} onMoveAll={() => carried.forEach((t) => plan(t, period))} />
-          <form className="flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); void create(draft, period); setDraft(""); }}>
+          <CarryOverCard tasks={carried} settings={settings} fa={fa} onMoveHere={(t) => void plan(t, period, undefined, fa ? `به «${targetName}» آمد` : `Moved to ${targetName}`)} onComplete={complete}
+            onDrop={(t) => void plan(t, null, null)} onMoveAll={() => void moveAll(carried)} busy={busy} />
+          <form className="flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); void submitDraft(); }}>
             <input value={draft} onChange={(e) => setDraft(e.target.value)} data-testid="planning-quick-add"
               placeholder={fa ? `افزودن به ${targetName}…` : `Add to ${targetName}…`}
               className="h-11 min-w-0 flex-1 rounded-xl border border-border bg-card px-4 text-sm outline-none transition-shadow focus:ring-2 focus:ring-primary/30" />
-            <button type="submit" disabled={!draft.trim()} className="grid h-11 w-11 place-items-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40" aria-label={fa ? "افزودن" : "Add"} data-testid="planning-quick-add-submit"><CornerDownLeft className="h-4 w-4" /></button>
+            <button type="submit" disabled={!draft.trim() || busy} className="grid h-11 w-11 place-items-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40" aria-label={fa ? "افزودن" : "Add"} data-testid="planning-quick-add-submit"><CornerDownLeft className="h-4 w-4" /></button>
           </form>
-          {items.length === 0 ? (
+          {rows.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm leading-7 text-muted-foreground" data-testid="planning-empty">
               {fa ? `برای ${targetName} هنوز چیزی برنامه‌ریزی نشده.` : `Nothing planned for ${targetName} yet.`}
               {up && <span className="block text-xs">{fa ? `از ستون «از ${LEVEL_NAME[up].fa}» یک هدف بیاور، یا بالا یک مورد تازه بنویس.` : `Pull a goal from the ${LEVEL_NAME[up].en.toLowerCase()} column, or type a new item above.`}</span>}
             </div>
           ) : (
             <div className="space-y-2" data-testid="planning-items">
-              {items.map((t) => (
+              {rows.map((t) => (
                 <PlanItemCard key={t.id} task={t} kids={kids} byId={byId} settings={settings} fa={fa} childLevelName={down} valueLabel={valueLabel(t)}
-                  onToggle={(x) => void onToggle(x)} onOpen={onOpen} onMoveNext={moveNext} onUnplan={(x) => plan(x, null, null)}
-                  onAddChild={down ? (parent, title) => void create(title, defaultChildPeriod(planOf(parent, settings) || period, down, settings), parent) : undefined} />
+                  onToggle={(x) => void onToggle(x)} onOpen={onOpen} onMoveNext={moveNext} onUnplan={(x) => void plan(x, null, null, fa ? "از برنامه برداشته شد" : "Removed from the plan")}
+                  onAddChild={down ? (parent, title) => create(title, defaultChildPeriod(planOf(parent, settings) || period, down, settings), parent) : undefined} />
               ))}
             </div>
           )}
           {lv === "week" && <WeekDays period={period} tasks={live} settings={settings} fa={fa} onPick={(d) => { setLevelState("day"); localStorage.setItem(LEVEL_KEY, "day"); setAnchor(d); }} />}
         </div>
-        <PeriodReviewDialog key={reviewP ? `${reviewP.horizon}:${reviewP.start}` : "none"} period={reviewP} items={reviewItems} settings={settings} fa={fa} onClose={() => setReviewP(null)}
-          onMove={(t, p) => plan(t, p)} onDrop={(t) => plan(t, null, null)} onComplete={complete} onAdd={(title, p) => void create(title, p)} />
+        <PeriodReviewDialog key={reviewP ? `${reviewP.horizon}:${reviewP.start}` : "none"} period={reviewP} items={reviewItems} settings={settings} fa={fa} onClose={() => setReviewP(null)} reviews={reviews}
+          onMove={(t, p) => plan(t, p, undefined, fa ? "منتقل شد" : "Moved")} onDrop={(t) => plan(t, null, null)} onComplete={complete} onAdd={(title, p) => create(title, p)}
+          onSetAside={async (t) => { const st = toSaveStatus(await onUpdate(t.id, { status: "wont_do", completed: false })); reportSave(st, fa, fa ? "کنار گذاشته شد" : "Set aside"); return st; }} />
         <aside className={cn("space-y-3", pane === "main" && "hidden lg:block")}>
           {up && parentPeriod && (
             <div className={cn(pane === "unplanned" && "hidden lg:block")}>
               <UpperLevelPanel parentPeriod={parentPeriod} items={upperItems} kids={kids} current={period} settings={settings} fa={fa} onOpen={onOpen}
-                onPull={(parent, title) => void create(title, period, parent)} onMoveHere={(t) => plan(t, period)} />
+                onPull={(parent, title) => void create(title, period, parent)} onMoveHere={(t) => void plan(t, period)} />
             </div>
           )}
           {lv === "year" && (
             <div className={cn(pane === "unplanned" && "hidden lg:block")}>
-              <ValuesGoalsPanel goals={goals} tasks={live} fa={fa} onAdd={(g) => void create(g.text, period, undefined, { source_type: "values_goal", source_id: g.id })} />
+              <ValuesGoalsPanel goals={goals} status={goalsStatus} tasks={live} fa={fa} onAdd={(g) => void create(g.text, period, undefined, { source_type: "values_goal", source_id: g.id })} />
             </div>
           )}
           <div className={cn(pane === "upper" && "hidden lg:block")}>
-            <UnplannedTray tasks={loose} fa={fa} targetName={targetName} onOpen={onOpen} onAssign={(t) => { plan(t, period); toast.success(fa ? `به «${targetName}» اضافه شد` : `Added to ${targetName}`); }} />
+            <UnplannedTray tasks={loose} fa={fa} targetName={targetName} onOpen={onOpen} onAssign={(t) => void plan(t, period, undefined, fa ? `به «${targetName}» اضافه شد` : `Added to ${targetName}`)} />
           </div>
         </aside>
       </div>

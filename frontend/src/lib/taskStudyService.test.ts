@@ -1,3 +1,4 @@
+import { workDatePatch } from "./taskDate";
 import { beforeEach, describe, it, expect, vi } from "vitest";
 import {
   createStudyTask,
@@ -260,7 +261,7 @@ describe("taskStudyService", () => {
     expect(mocks.doc).toHaveBeenCalledWith(mocks.db, "users", "u123", "tasks", "task-7");
     expect(mocks.persistTask).toHaveBeenCalledWith("u123", {
       id: "task-7",
-      due_date: nextReviewAt,
+      ...workDatePatch({}, nextReviewAt),
       completed: false,
       status: "todo",
       completed_at: null,
@@ -347,7 +348,7 @@ describe("taskStudyService", () => {
     expect(mocks.getDoc).not.toHaveBeenCalled();
     expect(mocks.persistTask).toHaveBeenCalledWith("u123", expect.objectContaining({
       id: "task-7",
-      due_date: "2026-09-28T09:00:00.000Z",
+      work_date: "2026-09-28T09:00:00.000Z",
     }));
     expect(result).toMatchObject({ ok: true, status: "queued" });
     vi.unstubAllGlobals();

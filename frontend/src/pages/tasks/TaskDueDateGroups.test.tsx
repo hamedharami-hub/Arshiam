@@ -24,7 +24,8 @@ describe("buildGroupedTasks (Next 7 Days list grouping)", () => {
   it("groups dates into overdue / missed plan / today / tomorrow / dated", () => {
     const list = [
       task("overdue", { due_date: day(-2) }),
-      task("missed", { planning_horizon: "day", planning_start: day(-1), planning_end: day(-1) }),
+      task("missed", { planning_horizon: "week", planning_start: day(-12), planning_end: day(-6) }),
+      task("old-day-plan", { planning_horizon: "day", planning_start: day(-1), planning_end: day(-1) }),
       task("today", { due_date: day(0) }),
       task("tomorrow", { due_date: day(1) }),
       task("later", { due_date: day(4) }),
@@ -32,6 +33,8 @@ describe("buildGroupedTasks (Next 7 Days list grouping)", () => {
     const groups = buildGroupedTasks(list, "next7", false, T);
     expect(groupKeyOf(groups, "overdue")).toBe("overdue");
     expect(groupKeyOf(groups, "missed")).toBe("missed");
+    // a passed day is a passed day: overdue, whichever old field stored it
+    expect(groupKeyOf(groups, "old-day-plan")).toBe("overdue");
     expect(groupKeyOf(groups, "today")).toBe("today");
     expect(groupKeyOf(groups, "tomorrow")).toBe("tomorrow");
     expect(groupKeyOf(groups, "later")).toBe(day(4));
@@ -47,12 +50,11 @@ describe("buildGroupedTasks (Next 7 Days list grouping)", () => {
     expect(groupKeyOf(groups, "week-bucket")).toBe("week-plan");
   });
 
-  it("keeps an older week bucket visible without dressing it as missed or this-week", () => {
+  it("keeps an older week bucket visible as a missed plan (never as this week)", () => {
     const list = [task("old-week", { bucket_kind: "week", bucket_anchor: day(-9), bucket_calendar: "gregorian" })];
     const groups = buildGroupedTasks(list, "next7", false, T);
     const key = groupKeyOf(groups, "old-week");
     expect(key).toBeTruthy();
-    expect(key).not.toBe("missed");
     expect(key).not.toBe("week-plan");
   });
 

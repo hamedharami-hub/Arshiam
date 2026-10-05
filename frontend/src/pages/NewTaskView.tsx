@@ -1,3 +1,4 @@
+import { workDatePatch } from "@/lib/taskDate";
 import { planningPatch } from "@/lib/taskPlanning";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -101,10 +102,11 @@ export default function NewTaskView() {
       folder_id: parentId ? null : folderId,
       kanban_column_id: kanbanColumnId || null,
       parent_id: parentId,
-      work_date: dueDate,
-      due_date: null,
-      ...timeDefaults,
-      ...planningDefaults,
+      // One schedule: an explicit day/time wins; otherwise the view's period (if any).
+      ...(dueDate ? workDatePatch({}, dueDate)
+        : Object.keys(planningDefaults).length ? planningDefaults
+        : Object.keys(timeDefaults).length ? timeDefaults
+        : workDatePatch({}, null)),
       priority: params.get("priority") && params.get("priority") in PRIORITY_META ? params.get("priority") as Priority : "none",
       completed: isCompleted,
       status: statusParam,

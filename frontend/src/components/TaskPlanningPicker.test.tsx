@@ -35,7 +35,7 @@ describe("TaskPlanningBody — icon-led period picker", () => {
     const onDone = vi.fn();
     render(<TaskPlanningBody task={base} onPatch={onPatch} onDone={onDone} />);
     fireEvent.click(screen.getByTestId("planning-quick-today"));
-    expect(onPatch).toHaveBeenCalledWith(expect.objectContaining({ planning_horizon: "day", planning_start: getLocalDateString() }));
+    expect(onPatch).toHaveBeenCalledWith(expect.objectContaining({ work_date: getLocalDateString(), planning_horizon: null, schedule_v: 2 }));
     expect(onDone).toHaveBeenCalled();
   });
 

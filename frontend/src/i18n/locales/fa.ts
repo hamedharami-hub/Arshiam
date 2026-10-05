@@ -244,7 +244,7 @@ export default {
     completed: "انجام‌شده",
     noTasks: "تسکی نیست",
     priority: "اولویت",
-    dueDate: "سررسید",
+    dueDate: "تاریخ",
     description: "توضیحات",
     addTask: "افزودن تسک",
     addPlaceholder: "چه کاری باید انجام شود؟",

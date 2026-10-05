@@ -1,5 +1,6 @@
 import { auth, db, doc } from "@/lib/firebase";
 import { runTransaction } from "firebase/firestore";
+import { normalizeTaskWrite } from "@/lib/taskSchedule";
 
 type DraftTask = { id: string; title: string; description: string | null; priority: string; due_date: string | null };
 type Draft = { tasks: DraftTask[]; saved: string[]; createdAt: string };
@@ -46,7 +47,7 @@ export async function saveImageTaskBatch(input: {
         const snapshot = await transaction.get(reference);
         assertAccount();
         if (snapshot.exists()) return false;
-        transaction.set(reference, { ...task, user_id: userId, parent_id: taskId,
+        transaction.set(reference, { ...normalizeTaskWrite(task), user_id: userId, parent_id: taskId,
           created_at: draft.createdAt, updated_at: draft.createdAt, completed: false });
         return true;
       });

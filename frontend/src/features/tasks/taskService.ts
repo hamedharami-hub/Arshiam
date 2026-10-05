@@ -107,7 +107,7 @@ export async function fetchTasks(userId: string): Promise<Task[]> {
   // Only if direct fetch threw an error (e.g. offline or permission), fall back to cached tasks merged with pending ops
   const cachedTasks = await getCachedTasks(userId);
   const withPending = await applyPendingTaskOperations(cachedTasks, userId);
-  void syncAndroidWidget(withPending, userId).catch(() => {});
+  void Promise.resolve(syncAndroidWidget(withPending, userId)).catch(() => {});
   return withPending;
 }
 
@@ -132,6 +132,9 @@ export function subscribeToTasks(userId: string, onUpdate: (tasks: Task[]) => vo
       if (!tasks || !isActive || snapshotVersion !== newestSnapshot) return;
       void syncAndroidWidget(tasks, userId).catch(() => {});
       onUpdate(tasks);
+      void import("@/lib/taskScheduleMigration")
+        .then(({ migrateTaskSchedules }) => migrateTaskSchedules(userId, tasks))
+        .catch((error) => console.warn("[TaskService] Schedule migration skipped:", error));
     }).catch((error) => {
       console.warn("[TaskService] Could not reconcile a task snapshot:", error);
     });

@@ -6,7 +6,7 @@ import { TaskDetail } from "./TaskDetail";
 import { Button } from "./ui/button";
 import { useResizableSplit } from "@/hooks/useResizableSplit";
 import type { ConfirmState } from "@/lib/taskTypes";
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "./ui/alert-dialog";
+import { TaskDeleteConfirmDialog } from "./tasks/TaskDeleteConfirmDialog";
 
 type Props = Omit<ComponentProps<typeof TaskDetail>, "task" | "mode" | "setConfirm"> & {
   task: ComponentProps<typeof TaskDetail>["task"] | null;
@@ -47,6 +47,6 @@ export function TaskSplitScreen({ task, children, setConfirm, ...detail }: Props
       <div className="w-full min-w-0 flex-1" dir={en ? "ltr" : "rtl"}>{children}</div>
     </div>
     {!active && task && <TaskDetail key={task.id} {...detail} task={task} mode="drawer" setConfirm={setConfirm || updateConfirm} />}
-    {!setConfirm && <AlertDialog open={!!confirm} onOpenChange={open => !open && updateConfirm(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{en ? "Delete task?" : "حذف تسک؟"}</AlertDialogTitle><AlertDialogDescription>{confirm?.title}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{en ? "Cancel" : "انصراف"}</AlertDialogCancel><AlertDialogAction onClick={async () => { await confirm?.onConfirm(); updateConfirm(null); }}>{en ? "Delete" : "حذف"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>}
+    {!setConfirm && <TaskDeleteConfirmDialog confirm={confirm} setConfirm={updateConfirm} T={(fa, enText) => (en ? enText : fa)} />}
   </>;
 }

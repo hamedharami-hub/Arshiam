@@ -19,6 +19,7 @@ import {
 import type { Task } from "./taskTypes";
 
 import { taskWorkDate } from "@/lib/taskDate";
+import { normalizeTaskWrite } from "@/lib/taskSchedule";
 export interface FolderItem {
   id: string;
   user_id?: string;
@@ -283,7 +284,7 @@ export async function persistTask(
 ): Promise<TaskPersistenceStatus> {
   if (!userId || !task.id) return "failed";
   const dataToSave = {
-    ...task,
+    ...normalizeTaskWrite(task),
     user_id: userId,
     updated_at: new Date().toISOString(),
   };
@@ -1140,7 +1141,8 @@ export interface MindGoalItem {
   user_id?: string;
   domain: string;
   text: string;
-  horizon: "today" | "week" | "month" | "year";
+  /** Goal level. `quarter` = season. Absent when the goal has no level (never silently turned into a month). */
+  horizon?: "today" | "week" | "month" | "quarter" | "year";
   created_at: string;
   [key: string]: any;
 }
@@ -1193,17 +1195,25 @@ export async function saveMindValues(userId: string, values: Record<string, any>
   }
 }
 
+export type MindGoalsMeta = { source: "cache" | "server"; error?: boolean };
+/**
+ * Live goals of one user. An empty server result is a real "no goals" and clears the cache too.
+ * A late cache read never overwrites fresher server data; errors are reported, not shown as "empty".
+ */
 export function subscribeMindGoals(
   userId: string,
-  onUpdate: (goals: MindGoalItem[]) => void
+  onUpdate: (goals: MindGoalItem[], meta: MindGoalsMeta) => void,
+  onError?: (error: unknown) => void,
 ): () => void {
   if (!userId) {
-    onUpdate([]);
+    onUpdate([], { source: "server" });
     return () => {};
   }
+  let active = true;
+  let fromServer = false;
 
   cacheGet<MindGoalItem[]>(CACHE_KEYS.mindGoals(userId)).then((cached) => {
-    if (cached && Array.isArray(cached)) onUpdate(cached);
+    if (active && !fromServer && cached && Array.isArray(cached)) onUpdate(cached, { source: "cache" });
   });
 
   try {
@@ -1211,22 +1221,25 @@ export function subscribeMindGoals(
     const unsub = onSnapshot(
       colRef,
       (snap) => {
+        if (!active) return;
         const items: MindGoalItem[] = [];
         snap.forEach((d) => {
           items.push({ id: d.id, ...(d.data() as any) });
         });
         items.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+        if (!snap.metadata.fromCache) fromServer = true;
         cacheSet(CACHE_KEYS.mindGoals(userId), items);
-        onUpdate(items);
+        onUpdate(items, { source: snap.metadata.fromCache ? "cache" : "server" });
       },
-      async () => {
-        const cached = await cacheGet<MindGoalItem[]>(CACHE_KEYS.mindGoals(userId));
-        if (cached) onUpdate(cached);
+      (error) => {
+        if (!active) return;
+        onError?.(error);
       }
     );
-    return unsub;
-  } catch {
-    return () => {};
+    return () => { active = false; unsub(); };
+  } catch (error) {
+    onError?.(error);
+    return () => { active = false; };
   }
 }
 

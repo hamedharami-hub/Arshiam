@@ -1,0 +1,55 @@
+{
+  "summary": "Completed Phase 1 schedule testing for ARSHNAZ. Tested login, page loads, acceptance scenario (partial), carry-over functionality, date labels, and responsive design. Backend health check passed. Most core functionality working correctly.",
+  "backend_issues": {
+    "critical_bugs": [],
+    "flaky_endpoints": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "TaskSchedulingSheet / Task Detail",
+        "issue": "Planning quick buttons ([data-testid='planning-quick-week'], [data-testid='planning-quick-tomorrow']) not found when task detail is opened from Inbox view. The TaskPlanningBody component may not be rendering or may require scrolling to be visible.",
+        "selector": "[data-testid='planning-quick-week'], [data-testid='planning-quick-tomorrow']",
+        "fix_priority": "HIGH",
+        "reproduction": "1. Login, 2. Go to Inbox, 3. Create task, 4. Click task to open detail, 5. Planning quick buttons not visible"
+      },
+      {
+        "component": "Authentication / Session",
+        "issue": "Session not persisting across page navigations in test environment. When navigating to /app/planning directly, redirects to login page even after successful authentication.",
+        "fix_priority": "MEDIUM",
+        "note": "This may be a test environment issue with Firebase auth persistence, not necessarily a production bug"
+      },
+      {
+        "component": "Language Switching",
+        "issue": "Could not verify Farsi RTL switching functionality. Language switcher may not be easily accessible from main app views.",
+        "fix_priority": "LOW",
+        "note": "RTL was not detected in tests, but this may be due to session issues"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Login with language switching (English)",
+    "All pages (/app/today, /app/planning, /app/inbox, /app/review) load without errors at 390px viewport",
+    "All pages load without errors at 1920px viewport",
+    "No horizontal overflow at 390px, 1920px, or 360px viewports",
+    "Task creation via quick add (textarea with placeholder 'Add task to Inbox')",
+    "Task appears exactly once in Planning view",
+    "Human-readable date labels: 'Today', 'Tomorrow', 'This week', 'Thu, Oct 1' (no cryptic 'D' or 'W+1' labels)",
+    "No removed features (Time block, Part of day, Deadline) found in active UI",
+    "Plan tab 'Left from earlier periods' carry-over section displays correctly with 'Move here', 'Complete', 'Remove from plan' buttons",
+    "Backend health endpoint GET /api/arsh/health returns {ok: true}",
+    "Task with 'This week' schedule does not appear in Today view (correct behavior)",
+    "Existing QA tasks visible with proper scheduling: 'QA task one' (Today with repeat icon), 'QA task two' (Thu, Oct 1 - Overdue)"
+  ],
+  "test_report_links": [],
+  "action_item_for_main_agent": "1. Investigate why planning quick buttons are not visible in task detail when opened from Inbox. Check if TaskPlanningBody is rendering correctly in TaskSchedulingSheet.tsx. 2. Verify that the unified schedule picker (TaskPlanningPicker + TaskSchedulingSheet) is properly integrated in all task detail views. 3. Test the complete acceptance scenario manually: create task -> set to 'This week' -> change to 'Tomorrow' -> set time 15:00 -> verify single appearance in Plan. 4. Verify Farsi language switching and RTL rendering work correctly in production environment.",
+  "updated_files": [],
+  "success_percentage": {
+    "backend": "100% (1/1 health check passed)",
+    "frontend": "75% (12/16 tests passed, 4 issues found)"
+  },
+  "should_call_test_agent_after_fix": "true",
+  "should_main_agent_test_itself": "false"
+}

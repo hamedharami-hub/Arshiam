@@ -8,6 +8,8 @@ import { nextOccurrence, type RecurrenceRule } from "./recurrence";
 import { parseTaskDueDate, getLocalDateString } from "./taskDate";
 import { logTaskActivity } from "./taskActivity";
 import type { Task } from "./taskTypes";
+import { isCustomRange, readSchedule, schedulePatch, scheduleWorkDate, type TaskSchedule } from "./taskSchedule";
+import { addDaysLocal, fromLocalISO, getTimeSettings, periodFor, toLocalISO, type Period, type TimeSettings } from "./timeHorizon";
 
 /**
  * Checks whether a task is configured as recurring.
@@ -106,6 +108,19 @@ export type AdvanceRecurringTaskResult = {
  * 6. Resets markdown / HTML checkboxes in task and subtask descriptions.
  * 7. Preserves all notes, files, attachments, and tags with the advanced task.
  */
+function shiftPeriodByDays(p: Period, days: number, settings: TimeSettings): Period {
+  const start = addDaysLocal(fromLocalISO(p.start), days);
+  if (!isCustomRange(p, settings)) return periodFor(p.horizon, start, settings);
+  return { horizon: p.horizon, start: toLocalISO(start), end: toLocalISO(addDaysLocal(fromLocalISO(p.end), days)) };
+}
+
+/** Next occurrence in the same precision: a period stays a period, a day a day, a time a time. */
+function nextSchedule(current: TaskSchedule, nextDate: Date, nextValue: string, isAllDay: boolean, days: number, settings: TimeSettings): TaskSchedule {
+  if (current.kind === "period") return { kind: "period", period: shiftPeriodByDays(current.period, days, settings) };
+  if (isAllDay) return { kind: "day", date: getLocalDateString(nextDate) };
+  return { kind: "datetime", date: getLocalDateString(nextDate), at: nextValue };
+}
+
 export async function advanceRecurringTask(
   userId: string,
   task: Task,
@@ -124,14 +139,12 @@ export async function advanceRecurringTask(
   }
 
   const now = options?.now || new Date();
-  const savedDue = parseTaskDueDate(task.work_date === undefined ? task.due_date : task.work_date);
-  const occurrenceDate = task.work_date === undefined ? task.due_date : task.work_date;
+  const settings = getTimeSettings();
+  const schedule = readSchedule(task, settings);
+  const occurrenceDate = scheduleWorkDate(schedule);
+  const savedDue = schedule.kind === "period" ? fromLocalISO(schedule.period.start) : parseTaskDueDate(occurrenceDate);
   const hasRepeatHour = typeof rule.byhour === "number";
-  const legacyAllDay = !!savedDue && savedDue.getHours() === 23 && savedDue.getMinutes() === 59;
-  const isAllDay = !hasRepeatHour && (
-    /^\d{4}-\d{2}-\d{2}$/.test(occurrenceDate || "") || legacyAllDay ||
-    (!savedDue && !task.due_at)
-  );
+  const isAllDay = !hasRepeatHour && schedule.kind !== "datetime";
   const anchor = savedDue || now;
   const baseDate = isAllDay
     ? new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate())
@@ -159,9 +172,8 @@ export async function advanceRecurringTask(
     completed: false,
     status: "todo",
     completed_at: null,
-    work_date: nextDueDateStr,
-    // A legacy schedule moves into work_date; any other stored due_date is an ignored legacy value.
-    ...(task.work_date === undefined ? { due_date: null } : {}),
+    // The next occurrence keeps the same kind of schedule (period, day or exact time).
+    ...schedulePatch(nextSchedule(schedule, nextDate, nextDueDateStr, isAllDay, calendarDaysShift, settings), settings),
     reminder_at: nextReminderIso,
     ...(task.reminder_plan?.enabled && nextReminderIso ? { reminder_plan: {
       ...task.reminder_plan,
@@ -229,13 +241,18 @@ export async function advanceRecurringTask(
         updated_at: new Date().toISOString(),
       };
 
-      if (sub.due_date) {
-        const subDue = parseTaskDueDate(sub.due_date);
-        if (subDue) {
-          const newSubDue = new Date(subDue.getTime() + deltaMs);
-          const subIsDateOnly = !sub.due_date.includes("T") && /^\d{4}-\d{2}-\d{2}$/.test(sub.due_date);
-          subPatch.due_date = subIsDateOnly ? getLocalDateString(newSubDue) : newSubDue.toISOString();
+      const subSchedule = readSchedule(sub, settings);
+      if (subSchedule.kind !== "none") {
+        let shifted: TaskSchedule = subSchedule;
+        if (subSchedule.kind === "datetime") {
+          const at = new Date(new Date(subSchedule.at).getTime() + deltaMs);
+          shifted = { kind: "datetime", date: getLocalDateString(at), at: at.toISOString() };
+        } else if (subSchedule.kind === "day") {
+          shifted = { kind: "day", date: toLocalISO(addDaysLocal(fromLocalISO(subSchedule.date), calendarDaysShift)) };
+        } else {
+          shifted = { kind: "period", period: shiftPeriodByDays(subSchedule.period, calendarDaysShift, settings) };
         }
+        Object.assign(subPatch, schedulePatch(shifted, settings));
       }
 
       await persistTask(userId, subPatch, { quietCompanion: true }).catch((e) =>
@@ -273,7 +290,7 @@ export async function advanceRecurringTask(
   // 4. Log activity
   await logTaskActivity(task.id, userId, "recurrence_advanced", {
     next_due: nextDueDateStr,
-    previous_due: task.due_date,
+    previous_due: occurrenceDate ?? (schedule.kind === "period" ? `${schedule.period.start}..${schedule.period.end}` : null),
   }).catch(() => {});
 
   // 5. Notify UI

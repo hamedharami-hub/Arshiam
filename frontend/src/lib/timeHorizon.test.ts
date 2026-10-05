@@ -91,9 +91,9 @@ describe("overdue + postpone", () => {
     const r = postponeFields({ horizon: "week", period_start: old.start, period_end: old.end, is_exact: false }, G_SAT, now)!;
     expect(r).toMatchObject({ period_start: "2026-06-06", period_end: "2026-06-12", postpone_count: 1 });
   });
-  it("timePatch mirrors legacy fields so older screens keep working", () => {
+  it("timePatch stores one schedule and clears every legacy field", () => {
     const p = timePatch({ horizon: "week", period_start: "2026-06-06", period_end: "2026-06-12", due_at: null, is_exact: false, postpone_count: 0 }, G_SAT);
-    expect(p).toMatchObject({ bucket_kind: "week", bucket_anchor: "2026-06-06", due_date: null });
+    expect(p).toMatchObject({ schedule_v: 2, planning_horizon: "week", planning_start: "2026-06-06", work_date: null, bucket_kind: null, due_date: null, horizon: null });
     expect(getTaskTime(p, G_SAT)).toMatchObject({ horizon: "week", period_start: "2026-06-06" });
   });
   it("reads legacy bucket and due_date tasks", () => {

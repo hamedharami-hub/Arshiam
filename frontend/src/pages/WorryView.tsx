@@ -525,7 +525,7 @@ export default function WorryView() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="font-semibold text-sm">{T("مهلت انجام", "Due Date")}</Label>
+              <Label className="font-semibold text-sm">{T("تاریخ انجام", "Date")}</Label>
               <div className="flex gap-2">
                 <Button
                   type="button"

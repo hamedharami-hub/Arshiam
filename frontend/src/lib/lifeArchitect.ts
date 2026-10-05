@@ -1,7 +1,20 @@
 import { firebaseStore } from "@/lib/firebaseStore";
 import { callAI } from "@/lib/ai";
 import { generateUUID, type GoalKanban, type TimeHorizon, type GoalPriority } from "@/lib/kanbanGoals";
-import { saveMindValues, upsertMindGoal } from "@/lib/firestoreDataService";
+import { saveMindValues, upsertMindGoal, type MindGoalItem } from "@/lib/firestoreDataService";
+import { dayPatch } from "@/lib/taskSchedule";
+import { toLocalISO } from "@/lib/timeHorizon";
+
+/** Explicit, lossless mapping from a Life Architect goal level to a Mind goal level. */
+export function mindGoalHorizon(h: string | null | undefined): MindGoalItem["horizon"] | null {
+  switch (h) {
+    case "yearly": return "year";
+    case "quarterly": return "quarter";
+    case "monthly": return "month";
+    case "weekly": return "week";
+    default: return null;
+  }
+}
 
 export type RoleArchetype =
   | "freelancer"
@@ -324,7 +337,7 @@ export interface LifeBlueprint {
   goals: PlannedGoal[];
   habits: PlannedHabit[];
   tasks: PlannedTask[];
-  recommendedWorkflow: "kanban" | "list" | "time-blocking";
+  recommendedWorkflow: "kanban" | "list";
 }
 
 export interface SystemAuditResult {
@@ -867,7 +880,7 @@ export function generateDeterministicBlueprint(answers: UserAnswers): LifeBluepr
     goals,
     habits,
     tasks,
-    recommendedWorkflow: role === "freelancer" || role === "creator" ? "kanban" : role === "student" ? "time-blocking" : "list",
+    recommendedWorkflow: role === "freelancer" || role === "creator" ? "kanban" : "list",
   };
 }
 
@@ -1135,7 +1148,7 @@ export async function deployLifeBlueprint(
         user_id: userId,
         domain: g.folderId,
         text: g.title,
-        horizon: "month",
+        ...(mindGoalHorizon(g.timeHorizon) ? { horizon: mindGoalHorizon(g.timeHorizon)! } : {}),
         created_at: new Date().toISOString(),
       });
     } catch {}
@@ -1184,7 +1197,7 @@ export async function deployLifeBlueprint(
       description: t.description || "",
       folder_id: realFolderId,
       priority: t.priority || "medium",
-      due_date: due.toISOString(),
+      ...dayPatch(toLocalISO(due)),
     });
     if (!error) tasksCount++;
   }

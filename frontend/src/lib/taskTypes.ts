@@ -70,6 +70,16 @@ export type Task = {
   due_at?: string | null;
   is_exact?: boolean | null;
   postpone_count?: number | null;
+  /** 2 = the task stores exactly one schedule in work_date | planning_* (see src/lib/taskSchedule.ts). */
+  schedule_v?: number | null;
+  /** Backup of the pre-v2 schedule fields, written once by the migration. Never read as a schedule. */
+  schedule_legacy?: { version: number; migrated_at: string; fields: Record<string, unknown>; conflict?: string } | null;
+  start_at?: string | null;
+  end_at?: string | null;
+  estimated_minutes?: number | null;
+  time_of_day?: string | null;
+  part_of_day?: string | null;
+  deadline?: string | null;
   completed_at?: string | null;
   created_at?: string;
   updated_at?: string;
@@ -145,7 +155,8 @@ export type ConfirmState =
       kind: "task" | "note" | "subtask-row";
       id: string;
       title: string;
-      onConfirm: () => Promise<void>;
+      /** Resolve false when the delete failed so the dialog stays open. */
+      onConfirm: () => Promise<void | boolean>;
       childCount?: number;
     }
   | null;

@@ -5,6 +5,7 @@ import { fireNotification, hasNotificationPermission } from "@/lib/notify";
 import { cancelNotification, scheduleNotificationAt } from "@/lib/notify";
 import type { Task, ReminderPlan, ReminderMode, ReminderImportance, ReminderPlanStatus } from "@/lib/taskTypes";
 import { getStoredTheme } from "@/lib/theme";
+import { toLocalISO } from "@/lib/timeHorizon";
 import { isAndroid, nativeExperience } from "./nativeExperience";
 export { ensureNotificationPermission } from "@/lib/notify";
 export type { ReminderPlan, ReminderMode, ReminderImportance, ReminderPlanStatus };
@@ -345,7 +346,7 @@ export async function ensureDailyTasks(userId: string, s: UserSettings) {
   const today = todayKey();
   if (localStorage.getItem(LAST_TASK_KEY) === today) return;
 
-  const dueIso = new Date().toISOString();
+  const dueIso = toLocalISO(new Date()); // today as a calendar day, no fabricated time
   const items: { title: string; description: string }[] = [];
   if (s.checkin_reminder_enabled && s.show_daily_checkin !== false) items.push({
     title: "چک‌این روزانه 📝",

@@ -1,3 +1,4 @@
+import { workDatePatch } from "@/lib/taskDate";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -177,8 +178,7 @@ export default function QuickCaptureDialog() {
           user_id: currentUserId,
           title: finalTitle,
           description: null,
-          work_date: finalDue,
-          due_date: null,
+          ...workDatePatch({}, finalDue ?? null),
           recurrence_rule: recurrence,
           recurrence: recurrence && recurrence.freq !== "yearly" ? recurrence.freq : "none" as const,
           priority: finalPriority,

@@ -145,7 +145,7 @@ describe("smartListService", () => {
       mockTask("t-overdue", { due_date: past, completed: false }),
       mockTask("t-today", { due_date: today }),
       mockTask("t-nodate", { due_date: null }),
-      mockTask("t-week-bucket", { horizon: "week" }),
+      mockTask("t-week-bucket", { planning_horizon: "week", planning_start: "2026-06-13", planning_end: "2026-06-19" }),
     ];
 
     // Filter overdue

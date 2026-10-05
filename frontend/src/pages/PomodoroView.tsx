@@ -12,7 +12,8 @@ import { subDays, startOfDay, format, isSameDay } from "date-fns";
 import { getCalendarSystem, jalaliDayOfWeek, WEEKDAY_SHORT_FA, formatDate } from "@/lib/jalali";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { awardWaterDrops } from "@/lib/garden";
-import { parseTaskDueDate, taskWorkDate } from "@/lib/taskDate";
+import { parseTaskDueDate, taskDueTimestamp, taskWorkDate } from "@/lib/taskDate";
+import type { Task } from "@/lib/taskTypes";
 
 type SessionRow = { duration_minutes: number; task_id: string | null; ended_at: string | null; tasks?: { title: string } | null };
 type WeekRow = { duration_minutes: number; started_at: string };
@@ -47,12 +48,15 @@ export default function PomodoroView() {
       .order("started_at", { ascending: true })
       .then(({ data }) => setWeekSessions((data as WeekRow[] | null) || []));
     firebaseStore.from("tasks")
-      .select("id,title,due_date")
+      .select("*")
       .eq("user_id", user.id)
       .eq("completed", false)
-      .order("due_date", { ascending: true })
-      .limit(50)
-      .then(({ data }) => setTasks((data as TaskOption[] | null) || []));
+      .then(({ data }) => {
+        // Order by the task's single schedule (undated last), never by the legacy due_date field.
+        const rows = ((data as Partial<Task>[] | null) || []).filter((t): t is Partial<Task> & { id: string; title: string } => Boolean(t?.id));
+        const when = (t: Partial<Task>) => { const v = taskWorkDate(t); return v ? taskDueTimestamp(v) : Infinity; };
+        setTasks(rows.sort((a, b) => when(a) - when(b)).slice(0, 50).map((t) => ({ id: t.id, title: t.title, due_date: taskWorkDate(t) })));
+      });
   }, [user, refreshTick]);
 
   const totalMin = today.reduce((s, r) => s + (r.duration_minutes || 0), 0);
@@ -108,8 +112,8 @@ export default function PomodoroView() {
           {selectedTask && (
             <p className="text-[10px] text-muted-foreground">
               {selectedTaskDueDate
-                ? `${T("سررسید:", "Due:")} ${system === "jalali" ? formatDate(selectedTaskDueDate, "d MMM", "jalali") : format(selectedTaskDueDate, "d MMM")}`
-                : T("بدون سررسید", "No due date")}
+                ? `${T("تاریخ:", "Date:")} ${system === "jalali" ? formatDate(selectedTaskDueDate, "d MMM", "jalali") : format(selectedTaskDueDate, "d MMM")}`
+                : T("بدون تاریخ", "No date")}
             </p>
           )}
         </div>

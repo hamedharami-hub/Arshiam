@@ -30,11 +30,12 @@ const dayKey = (offset: number) => {
 const scheduled = (iso: string) => ({ ...base, work_date: iso }) as Task;
 
 describe("TaskScheduleBody — icon-led When panel", () => {
-  it("shows quick day icons, the calendar, and only time and repeat rows", () => {
+  it("one picker: quick days and periods, the calendar, then time and repeat rows", () => {
     render(<TaskScheduleBody t={base} canEdit save={vi.fn()} T={T} isEn={false} />);
-    for (const key of ["today", "tomorrow", "next-week", "none"]) {
-      expect(screen.getByTestId(`schedule-quick-${key}`)).toBeInTheDocument();
+    for (const key of ["today", "tomorrow", "week", "next-week", "month", "next-month"]) {
+      expect(screen.getByTestId(`planning-quick-${key}`)).toBeInTheDocument();
     }
+    expect(screen.getByTestId("planning-custom-toggle")).toBeInTheDocument();
     expect(screen.getByTestId("inline-calendar-pick")).toBeInTheDocument();
     expect(screen.getByTestId("schedule-time")).toBeDisabled();
     expect(screen.getByTestId("schedule-repeat")).toBeInTheDocument();
@@ -43,44 +44,50 @@ describe("TaskScheduleBody — icon-led When panel", () => {
 
   it("has no Time block, Part of day or Deadline controls", () => {
     render(<TaskScheduleBody t={base} canEdit save={vi.fn()} T={T} isEn={false} />);
-    for (const id of ["schedule-deadline", "schedule-bucket", "schedule-block", "schedule-estimate", "schedule-pick-date"]) {
+    for (const id of ["schedule-deadline", "schedule-bucket", "schedule-block", "schedule-estimate", "schedule-pick-date", "task-meta-plan"]) {
       expect(screen.queryByTestId(id)).toBeNull();
     }
   });
 
-  it("picking Today saves the date and closes the panel", () => {
+  it("picking Today saves the day and keeps the panel open for an optional time", () => {
     const save = vi.fn();
     const onDone = vi.fn();
     render(<TaskScheduleBody t={base} canEdit save={save} T={T} isEn={false} onDone={onDone} />);
-    fireEvent.click(screen.getByTestId("schedule-quick-today"));
-    expect(save).toHaveBeenCalledWith(expect.objectContaining({ work_date: dayKey(0) }));
-    expect(onDone).toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("planning-quick-today"));
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ work_date: dayKey(0), planning_horizon: null, schedule_v: 2 }));
+    expect(onDone).not.toHaveBeenCalled();
   });
 
-  it("Tomorrow, Next week and No date set the matching day", () => {
+  it("a more precise choice replaces the period: this week → tomorrow keeps the time and drops the week", () => {
     const save = vi.fn();
-    render(<TaskScheduleBody t={scheduled(dayKey(0))} canEdit save={save} T={T} isEn={false} />);
-    fireEvent.click(screen.getByTestId("schedule-quick-tomorrow"));
-    expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ work_date: dayKey(1) }));
-    fireEvent.click(screen.getByTestId("schedule-quick-next-week"));
-    expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ work_date: dayKey(7) }));
-    fireEvent.click(screen.getByTestId("schedule-quick-none"));
-    expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ work_date: null }));
+    const timed = { ...base, work_date: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), 15, 0).toISOString() } as Task;
+    render(<TaskScheduleBody t={timed} canEdit save={save} T={T} isEn={false} />);
+    fireEvent.click(screen.getByTestId("planning-quick-tomorrow"));
+    const patch = save.mock.calls.at(-1)![0];
+    expect(new Date(patch.work_date).getHours()).toBe(15);
+    expect(patch.planning_horizon).toBeNull();
+    fireEvent.click(screen.getByTestId("planning-quick-week"));
+    expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ work_date: null, planning_horizon: "week" }));
+  });
+
+  it("clearing removes the whole schedule", () => {
+    const save = vi.fn();
+    render(<TaskScheduleBody t={scheduled(dayKey(1))} canEdit save={save} T={T} isEn={false} />);
+    fireEvent.click(screen.getByTestId("planning-clear"));
+    expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ work_date: null, planning_horizon: null, schedule_v: 2 }));
   });
 
   it("highlights the selected quick day", () => {
     render(<TaskScheduleBody t={scheduled(dayKey(1))} canEdit save={vi.fn()} T={T} isEn={false} />);
-    expect(screen.getByTestId("schedule-quick-tomorrow")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByTestId("schedule-quick-today")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByTestId("planning-quick-tomorrow")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("planning-quick-today")).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("a day picked on the calendar saves it and closes", () => {
+  it("a day picked on the calendar saves it", () => {
     const save = vi.fn();
-    const onDone = vi.fn();
-    render(<TaskScheduleBody t={base} canEdit save={save} T={T} isEn={false} onDone={onDone} />);
+    render(<TaskScheduleBody t={base} canEdit save={save} T={T} isEn={false} />);
     fireEvent.click(screen.getByTestId("inline-calendar-pick"));
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ work_date: "2026-05-01" }));
-    expect(onDone).toHaveBeenCalled();
   });
 
   it("time: opening seeds 09:00, the wheel changes it, x clears it, and the panel stays open", () => {
@@ -143,7 +150,7 @@ describe("TaskScheduleBody — icon-led When panel", () => {
   it("is read-only when the user cannot edit", () => {
     const save = vi.fn();
     render(<TaskScheduleBody t={base} canEdit={false} save={save} T={T} isEn={false} />);
-    expect(screen.getByTestId("schedule-quick-today")).toBeDisabled();
+    expect(screen.queryByTestId("planning-quick-today")).toBeNull();
     expect(screen.getByTestId("schedule-repeat")).toBeDisabled();
     fireEvent.click(screen.getByTestId("inline-calendar-pick"));
     expect(save).not.toHaveBeenCalled();

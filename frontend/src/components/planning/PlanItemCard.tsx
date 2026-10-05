@@ -5,6 +5,8 @@ import type { Task } from "@/lib/taskTypes";
 import type { Horizon, Period, TimeSettings } from "@/lib/timeHorizon";
 import { horizonLabel, periodLabel } from "@/lib/timeHorizon";
 import { isClosed, planOf, progressOf } from "@/lib/planCascade";
+import { toSaveStatus } from "@/lib/saveFeedback";
+import { readSchedule, scheduleLabel } from "@/lib/taskSchedule";
 import { toPersianDigits } from "@/lib/jalali";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { LEVEL_NAME, LEVEL_THEME, frac } from "./planningTheme";
@@ -12,7 +14,7 @@ import { LEVEL_NAME, LEVEL_THEME, frac } from "./planningTheme";
 export type PlanItemActions = {
   onToggle: (t: Task) => void;
   onOpen: (t: Task) => void;
-  onAddChild?: (parent: Task, title: string) => void;
+  onAddChild?: (parent: Task, title: string) => unknown;
   onMoveNext: (t: Task) => void;
   onUnplan: (t: Task) => void;
 };
@@ -61,7 +63,16 @@ export function PlanItemCard({ task, kids, byId, settings, fa, childLevelName, v
   const parent = task.plan_parent_id ? byId.get(task.plan_parent_id) : undefined;
   const done = isClosed(task);
   const num = (n: number) => (fa ? toPersianDigits(n) : String(n));
-  const submit = () => { if (draft.trim() && a.onAddChild) a.onAddChild(task, draft.trim()); setDraft(""); setAdding(false); setOpen(true); };
+  const [saving, setSaving] = useState(false);
+  const submit = async () => {
+    const title = draft.trim();
+    if (!title || !a.onAddChild || saving) return;
+    setSaving(true);
+    const status = toSaveStatus(await a.onAddChild(task, title));
+    setSaving(false);
+    if (status === "failed") return; // keep the typed step
+    setDraft(""); setAdding(false); setOpen(true);
+  };
 
   return (
     <article className={cn("group rounded-xl border border-border/70 border-s-4 bg-card px-3 py-2.5 shadow-sm transition-shadow duration-200 hover:shadow-md", LEVEL_THEME[level].edge)} data-testid={`plan-item-${task.id}`}>
@@ -117,7 +128,7 @@ export function PlanItemCard({ task, kids, byId, settings, fa, childLevelName, v
               <li key={c.id} className="flex items-center gap-2 text-sm">
                 <CheckDot done={isClosed(c)} level={cp?.horizon || "day"} onClick={() => a.onToggle(c)} testId={`plan-child-toggle-${c.id}`} />
                 <button type="button" onClick={() => a.onOpen(c)} className={cn("min-w-0 flex-1 truncate text-start", isClosed(c) && "text-muted-foreground line-through")}>{c.title}</button>
-                {cp && <span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[10px]", LEVEL_THEME[cp.horizon].chip)}>{periodLabel(cp as Period, settings, fa ? "fa" : "en")}</span>}
+                {cp && <span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[10px]", LEVEL_THEME[cp.horizon].chip)}>{scheduleLabel(readSchedule(c, settings), settings, fa ? "fa" : "en")}</span>}
               </li>
             );
           })}
@@ -125,10 +136,10 @@ export function PlanItemCard({ task, kids, byId, settings, fa, childLevelName, v
       )}
 
       {adding && (
-        <form className="mt-2 flex items-center gap-2 ps-8" onSubmit={(e) => { e.preventDefault(); submit(); }}>
+        <form className="mt-2 flex items-center gap-2 ps-8" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
           <input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={() => !draft && setAdding(false)}
             placeholder={fa ? "گام کوچک‌تر…" : "Smaller step…"} className="h-9 min-w-0 flex-1 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" data-testid={`plan-item-child-input-${task.id}`} />
-          <button type="submit" className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground" aria-label={fa ? "افزودن" : "Add"}><CornerDownLeft className="h-4 w-4" /></button>
+          <button type="submit" disabled={saving} className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground disabled:opacity-50" aria-label={fa ? "افزودن" : "Add"}><CornerDownLeft className="h-4 w-4" /></button>
         </form>
       )}
     </article>

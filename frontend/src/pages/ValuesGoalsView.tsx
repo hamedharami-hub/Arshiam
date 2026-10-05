@@ -52,7 +52,7 @@ interface Goal {
   id: string;
   domain: string;
   text: string;
-  horizon: "today" | "week" | "month" | "year";
+  horizon?: "today" | "week" | "month" | "quarter" | "year";
   created_at: string;
 }
 
@@ -63,6 +63,7 @@ const HORIZONS = {
   today: { label: "امروز", label_en: "Today", days: 0 },
   week: { label: "این هفته", label_en: "This Week", days: 7 },
   month: { label: "این ماه", label_en: "This Month", days: 30 },
+  quarter: { label: "این فصل", label_en: "This Season", days: 90 },
   year: { label: "امسال", label_en: "This Year", days: 365 },
 };
 
@@ -82,11 +83,10 @@ export default function ValuesGoalsView() {
   });
 
   useEffect(() => {
-    if (!user) {
-      setState({});
-      setGoals([]);
-      return;
-    }
+    // Never keep the previous account's values/goals on screen.
+    setState({});
+    setGoals([]);
+    if (!user) return;
 
     // 1. Load from local cache
     try {
@@ -107,8 +107,9 @@ export default function ValuesGoalsView() {
     });
 
     // 3. Subscribe to Firestore Goals
-    const unsubGoals = subscribeMindGoals(user.id, (cloudGoals) => {
-      if (cloudGoals && cloudGoals.length > 0) {
+    const unsubGoals = subscribeMindGoals(user.id, (cloudGoals, meta) => {
+      // An empty server answer is real: clear the screen and the local copy as well.
+      if (meta.source === "server" || cloudGoals.length > 0) {
         setGoals(cloudGoals as Goal[]);
         try {
           localStorage.setItem(GOALS_STORAGE(user.id), JSON.stringify(cloudGoals));
@@ -471,7 +472,7 @@ export default function ValuesGoalsView() {
           <div className="space-y-2 divide-y divide-border/40">
             {goals.map((g) => {
               const dom = DOMAINS.find((d) => d.key === g.domain);
-              const hor = HORIZONS[g.horizon];
+              const hor = g.horizon ? HORIZONS[g.horizon] : undefined;
               return (
                 <div
                   key={g.id}

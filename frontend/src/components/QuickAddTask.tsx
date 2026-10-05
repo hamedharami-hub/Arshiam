@@ -1,3 +1,4 @@
+import { workDatePatch } from "@/lib/taskDate";
 import { planningPatch } from "@/lib/taskPlanning";
 import type { Period } from "@/lib/timeHorizon";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -195,7 +196,6 @@ export function QuickAddTask({
       user_id: user.id,
       title: finalTitle,
       folder_id: finalFolderId,
-      work_date: finalDue,
       recurrence_rule: recurrence,
       recurrence: recurrence && recurrence.freq !== "yearly" ? recurrence.freq : "none" as const,
       parent_id: defaults.parent_id ?? null,
@@ -204,10 +204,11 @@ export function QuickAddTask({
       status: defaults.status ?? "todo" as const,
       completed_at: defaults.status === "done" ? new Date().toISOString() : null,
       kanban_column_id: defaults.kanban_column_id ?? null,
-      ...(defaults.planning ? planningPatch(defaults.planning, getTimeSettings()) : {}),
-      ...(defaults.time ? timePatch(finalDue?.includes("T") && parseTaskDueDate(finalDue)
-        ? fieldsForExact(parseTaskDueDate(finalDue)!, "day", getTimeSettings()) : defaults.time, getTimeSettings()) : {}),
-      due_date: null,
+      // One schedule: a chosen day/time wins over the view's default period.
+      ...(finalDue ? workDatePatch({}, finalDue)
+        : defaults.planning ? planningPatch(defaults.planning, getTimeSettings())
+        : defaults.time ? timePatch(defaults.time, getTimeSettings())
+        : workDatePatch({}, null)),
       reminder_plan: reminder.plan,
       reminder_at: reminder.at,
       created_at: new Date().toISOString(),

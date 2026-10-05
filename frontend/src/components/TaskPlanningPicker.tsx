@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Calendar, CalendarDays, CalendarRange, Check, Pencil, X } from "lucide-react";
 import { currentPeriod, fromLocalISO, getTimeSettings, nextPeriod, periodLabel, type Period } from "@/lib/timeHorizon";
-import { getTaskPlanning, planningPatch, planningUnitNumber, planningOffset } from "@/lib/taskPlanning";
+import { getTaskPlanning, planningPatch } from "@/lib/taskPlanning";
+import { readSchedule, scheduleLabel } from "@/lib/taskSchedule";
 import { toPersianDigits } from "@/lib/persianDigits";
 import type { Task } from "@/lib/taskTypes";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "./ui/sheet";
@@ -15,17 +16,10 @@ function usePlanningLang() {
   return { lang, fa: lang === "fa" };
 }
 
-/** Short human label for a task's planning period, or null when not planned. */
+/** Clear label of the task's single schedule ("Tomorrow · 15:00", "This week", "10 Jun – 10 Jul"), or null. */
 export function useTaskPlanningLabel(task: Task): string | null {
-  const { lang, fa } = usePlanningLang();
-  const settings = getTimeSettings();
-  const plan = getTaskPlanning(task, settings);
-  if (!plan) return null;
-  const unit = planningUnitNumber(plan, settings);
-  const offset = planningOffset(plan, settings);
-  const code = plan.horizon === "day" ? "D" : plan.horizon === "week" ? "W" : plan.horizon === "month" ? "M" : plan.horizon === "quarter" ? "Q" : "Y";
-  const raw = `${code}${offset > 0 ? `+${offset}` : ""}${unit && plan.horizon !== "day" ? `·${unit}` : ""}`;
-  return fa ? toPersianDigits(raw) : raw;
+  const { lang } = usePlanningLang();
+  return scheduleLabel(readSchedule(task), getTimeSettings(), lang);
 }
 
 /** Short date for a day period, in the user's calendar (Jalali or Gregorian). */
@@ -45,7 +39,11 @@ function rangeText(period: Period, settings: ReturnType<typeof getTimeSettings>,
 }
 
 /** The planning chooser — icon-led period tiles, plus a custom range. Usable inline or inside a sheet. */
-export function TaskPlanningBody({ task, onPatch, onDone }: { task: Task; onPatch: (patch: Partial<Task>) => void; onDone?: () => void }) {
+export function TaskPlanningBody({ task, onPatch, onDone, onPickDay }: {
+  task: Task; onPatch: (patch: Partial<Task>) => void; onDone?: () => void;
+  /** When set, a single-day choice goes through the caller (so an existing time can be kept). */
+  onPickDay?: (ymd: string) => void;
+}) {
   const { lang, fa } = usePlanningLang();
   const settings = getTimeSettings();
   const plan = getTaskPlanning(task, settings);
@@ -53,7 +51,10 @@ export function TaskPlanningBody({ task, onPatch, onDone }: { task: Task; onPatc
   const [customOpen, setCustomOpen] = useState(false);
   const [rangeStart, setRangeStart] = useState<string | null>(plan?.start || null);
   const [rangeEnd, setRangeEnd] = useState<string | null>(plan?.end || null);
-  const choose = (period: Period | null) => { onPatch(planningPatch(period, settings)); onDone?.(); };
+  const choose = (period: Period | null) => {
+    if (period && period.horizon === "day" && period.start === period.end && onPickDay) { onPickDay(period.start); return; }
+    onPatch(planningPatch(period, settings)); onDone?.();
+  };
 
   const pickRangeDay = (ymd: string) => {
     if (!rangeStart || rangeEnd) { setRangeStart(ymd); setRangeEnd(null); return; }
@@ -118,7 +119,7 @@ export function TaskPlanningBody({ task, onPatch, onDone }: { task: Task; onPatc
       )}
       {plan && (
         <div className="flex justify-end">
-          <IconTip label={fa ? "حذف برنامه‌ریزی" : "Clear planning"} onClick={() => choose(null)} testid="planning-clear" className="h-8 w-8">
+          <IconTip label={fa ? "پاک‌کردن زمان‌بندی" : "Clear schedule"} onClick={() => choose(null)} testid="planning-clear" className="h-8 w-8">
             <X className="h-4 w-4" />
           </IconTip>
         </div>
@@ -141,7 +142,7 @@ export function TaskPlanningPicker({ task, onPatch, disabled = false, hideWhenEm
       </button>
     </SheetTrigger>
     <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto rounded-t-3xl p-5 pt-9 sm:mx-auto sm:max-w-2xl" dir={fa ? "rtl" : "ltr"} onClick={e => e.stopPropagation()}>
-      <SheetTitle className="mb-4">{fa ? "بازهٔ برنامه‌ریزی" : "Planning period"}</SheetTitle>
+      <SheetTitle className="mb-4">{fa ? "زمان" : "When"}</SheetTitle>
       {open && <TaskPlanningBody task={task} onPatch={onPatch} onDone={() => setOpen(false)} />}
     </SheetContent>
   </Sheet>;

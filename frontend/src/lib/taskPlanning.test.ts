@@ -9,19 +9,22 @@ const task = (id: string, h?: "week" | "month" | "year", date = now, parent_id: 
 const books = [task("book", "year"), task("book1", "month", now, "book"), task("book2", "month", new Date(2026, 10, 3), "book"), task("chapter1", "week", now, "book1"), task("chapter2", "week", new Date(2026, 4, 9), "book1"), task("unplanned")];
 const projection = (h: "week" | "month" | "year", rows = books) => buildPlanningProjection(rows, periodFor(h, now, settings), settings, now);
 describe("independent task planning", () => {
-  it("preserves the exact date and reminders when assigning or clearing planning", () => {
+  it("one schedule: a period replaces the date and clearing removes both, reminders untouched", () => {
     const source = { ...task("both"), due_date: "2026-05-19T10:30:00Z", due_at: "2026-05-19T10:30:00Z", reminder_at: "2026-05-19T10:15:00Z" };
     const planned = { ...source, ...planningPatch(periodFor("month", now, settings), settings) };
     const cleared = { ...planned, ...planningPatch(null, settings) };
-    expect(planned.due_date).toBe(source.due_date); expect(cleared.due_date).toBe(source.due_date);
-    expect(cleared.due_at).toBe(source.due_at); expect(cleared.reminder_at).toBe(source.reminder_at);
+    expect(getTaskPlanning(planned, settings)?.horizon).toBe("month");
+    expect(taskWorkDate(planned)).toBeNull();
     expect(getTaskPlanning(cleared, settings)).toBeNull();
+    expect(taskWorkDate(cleared)).toBeNull();
+    expect(cleared.reminder_at).toBe(source.reminder_at);
   });
   it("reads legacy fuzzy buckets and preserves explicit clears over legacy fields", () => {
-    const legacy = { ...task("legacy"), ...fieldsForPeriod(periodFor("month", now, settings)) };
+    const legacy = { ...task("legacy"), ...{ horizon: "month" as const, period_start: periodFor("month", now, settings).start, period_end: periodFor("month", now, settings).end, is_exact: false } };
     expect(getTaskPlanning(legacy, settings)?.horizon).toBe("month");
     expect(getTaskPlanning({ ...legacy, planning_horizon: null }, settings)).toBeNull();
-    expect(getTaskPlanning({ ...task("exact"), due_date: now.toISOString(), horizon: "day", is_exact: true }, settings)).toBeNull();
+    // an exact legacy date is its own day, not a month plan
+    expect(getTaskPlanning({ ...task("exact"), due_date: new Date(2026, 4, 3, 15).toISOString(), horizon: "day", is_exact: true }, settings)).toEqual({ horizon: "day", start: "2026-05-03", end: "2026-05-03" });
   });
   it("judges overdue from the remaining date and time", () => {
     const today = new Date(2026, 4, 3, 18);
@@ -46,16 +49,16 @@ describe("independent task planning", () => {
     expect(isTaskOverdue({ ...scheduled, work_date: null, due_date: "2026-05-02" }, settings, today)).toBe(false);
     expect(taskWorkDate({ ...task("legacy"), due_date: "2026-05-03" })).toBe("2026-05-03");
     expect(workDatePatch({ due_date: "2026-05-02T09:00:00Z", due_at: "2026-05-02T09:00:00Z" }, "2026-05-03"))
-      .toEqual({ work_date: "2026-05-03", due_date: null, due_at: null, is_exact: false });
+      .toMatchObject({ schedule_v: 2, work_date: "2026-05-03", due_date: null, due_at: null, planning_horizon: null });
   });
-  it("marks expired daily plans missed without treating them as overdue", () => {
+  it("a passed day is overdue; a passed period without a day is only missed", () => {
     const today = new Date(2026, 4, 3, 12);
     const oldDay = { ...task("old-day"), ...planningPatch(periodFor("day", new Date(2026, 4, 2), settings), settings) };
     const oldWeek = { ...task("old-week"), ...planningPatch(periodFor("week", new Date(2026, 3, 25), settings), settings) };
     const currentDay = { ...task("current-day"), ...planningPatch(periodFor("day", today, settings), settings) };
-    expect(isTaskOverdue(oldDay, settings, today)).toBe(false);
-    expect(isTaskMissedWorkDay(oldDay, settings, today)).toBe(true);
+    expect(isTaskOverdue(oldDay, settings, today)).toBe(true);
     expect(isTaskOverdue(oldWeek, settings, today)).toBe(false);
+    expect(isTaskMissedWorkDay(oldWeek, settings, today)).toBe(true);
     expect(isTaskOverdue(currentDay, settings, today)).toBe(false);
   });
   it("shows the annual book and its future monthly child, but not the current monthly branch", () => {

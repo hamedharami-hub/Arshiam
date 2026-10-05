@@ -1,4 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { TaskDeleteConfirmDialog } from "@/components/tasks/TaskDeleteConfirmDialog";
+import { reportSave } from "@/lib/saveFeedback";
 import { Settings2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
@@ -31,15 +35,25 @@ export default function PlanningView() {
   const { isEn } = useBilingual();
   const fa = !isEn;
   const [settings, refresh] = useTimeSettings();
-  const { tasks, loading, updateTask, toggleDone } = useHorizonData(user?.id, settings);
+  const { tasks, loading, saveTask, toggleDone } = useHorizonData(user?.id, settings);
+  const navigate = useNavigate();
   const [selected, setSelected] = useState<Task | null>(null);
-  const [, setConfirm] = useState<ConfirmState>(null);
+  const [confirm, setConfirm] = useState<ConfirmState>(null);
+  const T = (faText: string, en: string) => (fa ? faText : en);
 
   useEffect(() => {
     if (selected) setSelected(tasks.find((t) => t.id === selected.id) || null);
   }, [tasks]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const toggle = useCallback((t: Task) => { if (!t.completed) playCompletionFeedback(); return toggleDone(t); }, [toggleDone]);
+  const toggle = useCallback(async (t: Task) => {
+    if (!t.completed) playCompletionFeedback();
+    const result = await toggleDone(t);
+    if (result.kind === "study") navigate(result.navUrl);
+    else if (result.kind === "advanced") toast.success(fa ? `نوبت بعدی: ${result.nextLabel} 🔁` : `Next occurrence: ${result.nextLabel} 🔁`);
+    else if (result.kind === "queued") reportSave("queued", fa);
+    else if (result.kind === "failed") reportSave("failed", fa);
+    return result;
+  }, [toggleDone, navigate, fa]);
 
   return (
     <TaskSplitScreen task={selected} onClose={() => setSelected(null)} onChanged={() => {}} setConfirm={setConfirm} allowDelete>
@@ -60,9 +74,10 @@ export default function PlanningView() {
         {loading ? (
           <div className="space-y-2">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-14 rounded-xl" />)}</div>
         ) : (
-          <PlanningBoard tasks={tasks} settings={settings} fa={fa} onToggle={toggle} onUpdate={updateTask} onOpen={setSelected} />
+          <PlanningBoard tasks={tasks} settings={settings} fa={fa} onToggle={toggle} onUpdate={saveTask} onOpen={setSelected} />
         )}
       </div>
+      <TaskDeleteConfirmDialog confirm={confirm} setConfirm={setConfirm} T={T} />
     </TaskSplitScreen>
   );
 }

@@ -1,19 +1,15 @@
 import { formatDueLabel } from "./localeFormat";
 import type { Task } from "./taskTypes";
+import { readSchedule, schedulePatch, scheduleFromDateValue, scheduleWorkDate } from "./taskSchedule";
 
-/** The task's date (and optional time). Legacy tasks stored it in due_date; any due_date next to a work_date is an ignored legacy deadline. */
+/** The task's day (YYYY-MM-DD) or instant, read from the single schedule. Null for "no schedule" and for a period plan. */
 export function taskWorkDate(task: Partial<Task>): string | null {
-  return task.work_date === undefined ? task.due_date || task.due_at || null : task.work_date;
+  return scheduleWorkDate(readSchedule(task));
 }
 
-/** Set the task's date; a legacy schedule is moved into work_date and its old due marker is cleared. */
-export function workDatePatch(task: Partial<Task>, work_date: string | null): Partial<Task> {
-  if (task.work_date !== undefined) return { work_date };
-  return {
-    work_date,
-    due_date: null,
-    ...(task.due_at && task.due_at === task.due_date ? { due_at: null, is_exact: false } : {}),
-  };
+/** Set the task's day/instant. Replaces any earlier schedule (a period plan included) — one task, one schedule. */
+export function workDatePatch(_task: Partial<Task>, work_date: string | null): Partial<Task> {
+  return schedulePatch(scheduleFromDateValue(work_date));
 }
 
 /** Parse task dates consistently in the user's local timezone.

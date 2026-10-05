@@ -57,7 +57,7 @@ export function DueDatePicker({
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
-  const labelText = label || T("سررسید", "Due date");
+  const labelText = label || T("تاریخ", "Date");
   const [datePart, setDatePart] = useState<string>("");
   const [timePart, setTimePart] = useState<string>("");
   const [includeTime, setIncludeTime] = useState<boolean>(false);

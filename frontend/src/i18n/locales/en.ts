@@ -244,7 +244,7 @@ export default {
     completed: "Completed",
     noTasks: "No tasks",
     priority: "Priority",
-    dueDate: "Due date",
+    dueDate: "Date",
     description: "Description",
     addTask: "Add task",
     addPlaceholder: "What needs doing?",

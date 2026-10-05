@@ -5,21 +5,44 @@ import { useAuth } from "@/hooks/useAuth";
 import { subscribeMindGoals, type MindGoalItem } from "@/lib/firestoreDataService";
 import { VALUE_DOMAINS } from "@/lib/valueDomains";
 import type { Task } from "@/lib/taskTypes";
+import { getTimeSettings, periodFor, type TimeSettings } from "@/lib/timeHorizon";
+import { readSchedule, schedulePeriod } from "@/lib/taskSchedule";
 
 export const domainOf = (key?: string | null) => VALUE_DOMAINS.find((d) => d.key === key);
 
 /** Goals from Values & Goals, ready to become this year's plan items. */
-export function useMindGoals(): MindGoalItem[] {
+export type GoalsState = { goals: MindGoalItem[]; status: "loading" | "ready" | "error" };
+
+/** Live goals of the signed-in account. Empty server data empties the list; loading/error are distinct from empty. */
+export function useMindGoalsState(): GoalsState {
   const { user } = useAuth();
-  const [goals, setGoals] = useState<MindGoalItem[]>(() => {
-    try { return user ? JSON.parse(localStorage.getItem(`mind_goals_${user.id}`) || "[]") : []; } catch { return []; }
-  });
-  useEffect(() => (user ? subscribeMindGoals(user.id, (g) => { if (g.length) setGoals(g); }) : undefined), [user]);
-  return goals;
+  const uid = user?.id;
+  const [state, setState] = useState<GoalsState & { uid?: string }>({ goals: [], status: "loading" });
+  useEffect(() => {
+    setState({ goals: [], status: "loading", uid });
+    if (!uid) return;
+    return subscribeMindGoals(uid,
+      (goals, meta) => setState((cur) => (cur.uid !== uid ? cur : { uid, goals, status: meta.source === "server" || goals.length || (typeof navigator !== "undefined" && !navigator.onLine) ? "ready" : cur.status })),
+      () => setState((cur) => (cur.uid !== uid ? cur : { ...cur, status: cur.goals.length ? "ready" : "error" })));
+  }, [uid]);
+  return state.uid === uid ? state : { goals: [], status: "loading" };
+}
+export function useMindGoals(): MindGoalItem[] {
+  return useMindGoalsState().goals;
 }
 
-export function ValuesGoalsPanel({ goals, tasks, fa, onAdd }: { goals: MindGoalItem[]; tasks: Task[]; fa: boolean; onAdd: (g: MindGoalItem) => void }) {
-  const linked = useMemo(() => new Set(tasks.filter((t) => t.source_type === "values_goal").map((t) => t.source_id)), [tasks]);
+/** A goal is "in the plan" only through a live, scheduled task of this period or later (not set aside, not an old year). */
+export function plannedGoalIds(tasks: Task[], settings: TimeSettings = getTimeSettings(), now = new Date()): Set<string | null | undefined> {
+  const yearStart = periodFor("year", now, settings).start;
+  return new Set(tasks.filter((t) => {
+    if (t.source_type !== "values_goal" || !t.source_id || t.status === "wont_do") return false;
+    const p = schedulePeriod(readSchedule(t, settings));
+    return !!p && p.end >= yearStart;
+  }).map((t) => t.source_id));
+}
+
+export function ValuesGoalsPanel({ goals, tasks, fa, onAdd, status = "ready" }: { goals: MindGoalItem[]; tasks: Task[]; fa: boolean; onAdd: (g: MindGoalItem) => void; status?: GoalsState["status"] }) {
+  const linked = useMemo(() => plannedGoalIds(tasks), [tasks]);
   const sorted = [...goals].sort((a, b) => Number(b.horizon === "year") - Number(a.horizon === "year"));
   return (
     <section className="surface-card p-3" data-testid="planning-values-panel">
@@ -28,7 +51,11 @@ export function ValuesGoalsPanel({ goals, tasks, fa, onAdd }: { goals: MindGoalI
         <h3 className="flex-1 text-sm font-semibold">{fa ? "از ارزش‌ها و اهداف" : "From Values & Goals"}</h3>
         <Link to="/app/values" className="text-[11px] text-primary hover:underline" data-testid="planning-values-open">{fa ? "ویرایش" : "Edit"}</Link>
       </header>
-      {sorted.length === 0 ? (
+      {status === "loading" && sorted.length === 0 ? (
+        <p className="py-2 text-xs text-muted-foreground" data-testid="planning-values-loading">{fa ? "در حال بارگذاری…" : "Loading…"}</p>
+      ) : status === "error" && sorted.length === 0 ? (
+        <p className="py-2 text-xs text-destructive" data-testid="planning-values-error">{fa ? "اهداف بارگذاری نشد؛ اتصال را بررسی کن." : "Could not load goals; check your connection."}</p>
+      ) : sorted.length === 0 ? (
         <p className="py-2 text-xs leading-6 text-muted-foreground">
           {fa ? "هنوز هدفی در «ارزش‌ها و اهداف» ننوشته‌ای. هدف‌های سالانه‌ات را آنجا بنویس تا اینجا برای برنامهٔ امسال پیشنهاد شوند." : "No goals in Values & Goals yet. Write your yearly goals there and they will be suggested here."}
         </p>

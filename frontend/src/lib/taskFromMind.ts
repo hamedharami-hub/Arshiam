@@ -3,6 +3,7 @@
 
 import { upsertTask } from "@/lib/firestoreDataService";
 import type { Task } from "@/lib/taskTypes";
+import { addDaysLocal, toLocalISO } from "@/lib/timeHorizon";
 
 export type MindSourceType = "cbt_thought" | "abc_model" | "worry_tree" | "values_goal";
 
@@ -20,11 +21,8 @@ export interface CreateTaskFromMindOptions {
 export async function createTaskFromMind(opts: CreateTaskFromMindOptions): Promise<{ ok: boolean; error?: string; task?: Task }> {
   let due: string | null = null;
   if (opts.due_in_days !== undefined && opts.due_in_days !== null) {
-    if (opts.due_in_days === 0) {
-      due = new Date().toISOString();
-    } else {
-      due = new Date(Date.now() + opts.due_in_days * 86400000).toISOString();
-    }
+    // A calendar day only — never a fabricated clock time (the user did not pick one).
+    due = toLocalISO(addDaysLocal(new Date(), opts.due_in_days));
   }
 
   const taskId = opts.id || `task_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;

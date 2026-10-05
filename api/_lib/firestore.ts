@@ -1,3 +1,4 @@
+import { taskDateOf, taskDayOf } from "./taskSchedule.js";
 import firebaseConfig from "../../frontend/firebase-applet-config.json" with { type: "json" };
 import type { AuthUser } from "./auth.js";
 
@@ -191,8 +192,8 @@ export async function listUserTasks(
   // Sort: pinned first, then due_date ascending, then created_at desc
   tasks.sort((a: any, b: any) => {
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-    const dateA = a.due_date || "9999-12-31";
-    const dateB = b.due_date || "9999-12-31";
+    const dateA = taskDateOf(a) || "9999-12-31";
+    const dateB = taskDateOf(b) || "9999-12-31";
     if (dateA !== dateB) return dateA.localeCompare(dateB);
     return (
       new Date(b.created_at || 0).getTime() -
@@ -254,15 +255,16 @@ export async function createUserTask(
     priority: taskInput.priority || "p4",
     status:
       taskInput.status || (taskInput.completed ? "done" : "todo"),
-    due_date: taskInput.due_date || null,
+    // One schedule (schedule v2): the task's day or instant lives in work_date.
+    // `due_date` is still accepted from older API callers but stored as the task date.
+    // Time block / estimated duration are no longer part of the task model.
+    schedule_v: 2,
+    work_date: taskInput.work_date || taskInput.due_date || null,
+    planning_horizon: null,
+    planning_start: null,
+    planning_end: null,
     folder_id: taskInput.folder_id || null,
     pinned: Boolean(taskInput.pinned),
-    start_at: taskInput.start_at || null,
-    end_at: taskInput.end_at || null,
-    estimated_minutes:
-      taskInput.estimated_minutes !== undefined
-        ? taskInput.estimated_minutes
-        : null,
     created_at: now,
     updated_at: now,
   };
@@ -394,8 +396,8 @@ export async function getTodayTasks(user: AuthUser): Promise<{
   const overdueTasks: any[] = [];
 
   for (const t of allTasks) {
-    if (!t.due_date) continue;
-    const taskDueDate = t.due_date.slice(0, 10);
+    if (!taskDayOf(t)) continue;
+    const taskDueDate = taskDayOf(t)!;
     if (taskDueDate === todayStr) {
       todayTasks.push(t);
     } else if (taskDueDate < todayStr && !t.completed) {

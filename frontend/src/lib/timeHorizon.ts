@@ -11,7 +11,7 @@ import * as g from "date-fns";
 import * as j from "date-fns-jalali";
 import { getCalendarSystem, type CalendarSystem } from "@/lib/jalali";
 import type { Task } from "@/lib/taskTypes";
-import { taskWorkDate } from "@/lib/taskDate";
+import { nextPlanPeriod, readSchedule, schedulePatch, type TaskSchedule } from "@/lib/taskSchedule";
 
 export type Horizon = "day" | "week" | "month" | "quarter" | "year";
 export const ALL_HORIZONS: Horizon[] = ["day", "week", "month", "quarter", "year"];
@@ -131,46 +131,15 @@ export function periodContains(p: Pick<Period, "start" | "end">, iso: string): b
 }
 
 // ---------------- task <-> time fields ----------------
-const LEGACY_TO_HORIZON: Record<string, Horizon> = {
-  day: "day",
-  week: "week", month: "month", quarter: "quarter", year: "year",
-};
-
-function hasClockTime(iso: string): boolean {
-  if (!iso.includes("T")) return false;
-  const d = new Date(iso);
-  return !(d.getHours() === 0 && d.getMinutes() === 0);
-}
-
-/** Reads the v2 fields, falling back to legacy bucket_* / due_date written by older screens. */
+/** Horizon view of the task's single schedule (src/lib/taskSchedule.ts). */
 export function getTaskTime(task: Partial<Task>, s: TimeSettings): TimeFields | null {
   const postpone_count = task.postpone_count || 0;
-  const legacyH = task.bucket_kind ? LEGACY_TO_HORIZON[task.bucket_kind] : undefined;
-  const v2Consistent = task.horizon && task.period_start && task.period_end && (
-    task.is_exact
-      ? !task.due_date || task.due_date === task.due_at
-      : !legacyH || (legacyH === task.horizon && task.bucket_anchor === task.period_start)
-  );
-  if (v2Consistent) {
-    return {
-      horizon: task.horizon!, period_start: task.period_start!, period_end: task.period_end!,
-      due_at: task.due_at || null, is_exact: !!task.is_exact, postpone_count,
-    };
+  const sch = readSchedule(task, s);
+  if (sch.kind === "none") return null;
+  if (sch.kind === "period") {
+    return { horizon: sch.period.horizon, period_start: sch.period.start, period_end: sch.period.end, due_at: null, is_exact: false, postpone_count };
   }
-  if (legacyH && task.bucket_anchor) {
-    const cal = (task.bucket_calendar as CalendarSystem) || s.calendar;
-    const p = periodFor(legacyH, fromLocalISO(task.bucket_anchor), { ...s, calendar: cal });
-    return { horizon: legacyH, period_start: p.start, period_end: p.end, due_at: null, is_exact: false, postpone_count };
-  }
-  const scheduled = taskWorkDate(task);
-  if (scheduled) {
-    const d = scheduled.includes("T") ? new Date(scheduled) : fromLocalISO(scheduled);
-    if (Number.isNaN(d.getTime())) return null;
-    const iso = toLocalISO(d);
-    const exact = hasClockTime(scheduled);
-    return { horizon: "day", period_start: iso, period_end: iso, due_at: exact ? d.toISOString() : null, is_exact: exact, postpone_count };
-  }
-  return null;
+  return { horizon: "day", period_start: sch.date, period_end: sch.date, due_at: sch.kind === "datetime" ? sch.at : null, is_exact: sch.kind === "datetime", postpone_count };
 }
 
 function isClosed(task: Partial<Task>): boolean {
@@ -185,19 +154,14 @@ export function isOverdue(task: Partial<Task>, s: TimeSettings, now: Date = new 
   return tf.period_end < todayISO(now);
 }
 
-/** Fields to persist (v2 + legacy mirror so older screens keep working). */
+/** Fields to persist: exactly one schedule (an instant, a day, or a period). */
 export function timePatch(tf: TimeFields, s: TimeSettings): Partial<Task> {
-  return {
-    horizon: tf.horizon,
-    period_start: tf.period_start,
-    period_end: tf.period_end,
-    due_at: tf.due_at,
-    is_exact: tf.is_exact,
-    postpone_count: tf.postpone_count,
-    ...(tf.is_exact && tf.due_at
-      ? { due_date: tf.due_at, bucket_kind: null, bucket_anchor: null, bucket_calendar: null }
-      : { due_date: null, bucket_kind: tf.horizon, bucket_anchor: tf.period_start, bucket_calendar: s.calendar }),
-  };
+  const sch: TaskSchedule = tf.is_exact && tf.due_at
+    ? { kind: "datetime", date: toLocalISO(new Date(tf.due_at)), at: new Date(tf.due_at).toISOString() }
+    : tf.horizon === "day"
+      ? { kind: "day", date: tf.period_start }
+      : { kind: "period", period: { horizon: tf.horizon, start: tf.period_start, end: tf.period_end } };
+  return { ...schedulePatch(sch, s), postpone_count: tf.postpone_count };
 }
 
 export function fieldsForPeriod(p: Period, postpone_count = 0): TimeFields {
@@ -232,7 +196,7 @@ export function postponeFields(task: Partial<Task>, s: TimeSettings, now: Date =
     for (let i = 0; i < 500 && d.getTime() < now.getTime(); i++) d = shiftExact(d, tf.horizon, s);
     return fieldsForExact(d, tf.horizon, s, count);
   }
-  let next = nextPeriod({ horizon: tf.horizon, start: tf.period_start, end: tf.period_end }, s);
+  let next = nextPlanPeriod({ horizon: tf.horizon, start: tf.period_start, end: tf.period_end }, s);
   if (next.end < todayISO(now)) next = periodFor(tf.horizon, now, s);
   return fieldsForPeriod(next, count);
 }
@@ -274,6 +238,7 @@ export function periodLabel(p: Period, s: TimeSettings, lang: "fa" | "en", now: 
   if (p.horizon === "day") {
     if (p.start === today) return lang === "fa" ? "امروز" : "Today";
     if (p.start === toLocalISO(addDaysLocal(now, 1))) return lang === "fa" ? "فردا" : "Tomorrow";
+    if (p.start === toLocalISO(addDaysLocal(now, -1))) return lang === "fa" ? "دیروز" : "Yesterday";
     return f(a, jal ? "EEEE d MMMM" : "EEE d MMM");
   }
   if (p.horizon === "week") return `${f(a, "d MMM")} – ${f(b, "d MMM")}`;

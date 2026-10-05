@@ -81,7 +81,8 @@ describe("timeBuckets", () => {
       calendar: "gregorian",
     });
     expect(resWeek.matches).toBe(true);
-    expect(resWeek.matchReason).toBe("nested_bucket");
+    // a one-day bucket is now the task's day, so it matches as a dated task
+    expect(["nested_bucket", "exact_due_date"]).toContain(resWeek.matchReason);
 
     // 2. Weekly task belongs inside Month
     const weekAnchor = currentAnchor("week", "gregorian");

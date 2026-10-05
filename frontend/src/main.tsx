@@ -102,9 +102,13 @@ if (isInIframe || isNativeCapacitor) {
         updateSW(true);
       };
 
-      // Reload smoothly when new service worker takes control
+      // Reload smoothly when a NEW service worker replaces an older one. On the very first
+      // install (no previous controller) clientsClaim also fires controllerchange; reloading
+      // then would throw away whatever the user just opened or typed (e.g. an open task).
       let refreshing = false;
+      let hadController = Boolean(navigator.serviceWorker.controller);
       navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (!hadController) { hadController = true; return; }
         if (refreshing) return;
         refreshing = true;
         window.location.reload();

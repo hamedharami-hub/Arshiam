@@ -229,7 +229,7 @@ describe("recurringTaskService", () => {
           id: "sub-1",
           completed: false,
           status: "todo",
-          due_date: "2026-10-01",
+          work_date: "2026-10-01", due_date: null, schedule_v: 2,
         }),
         { quietCompanion: true },
       );

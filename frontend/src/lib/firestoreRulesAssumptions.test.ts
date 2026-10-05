@@ -3,7 +3,8 @@ import fs from "fs";
 import path from "path";
 
 describe("Firestore Security Rules and Multi-Tenant Isolation Assumptions", () => {
-  const rulesPath = path.resolve(process.cwd(), "firestore.rules");
+  const rulesPath = [path.resolve(process.cwd(), "firestore.rules"), path.resolve(process.cwd(), "..", "firestore.rules")]
+    .find((candidate) => fs.existsSync(candidate)) ?? path.resolve(process.cwd(), "firestore.rules");
   const rulesContent = fs.readFileSync(rulesPath, "utf8");
 
   describe("1. firestore.rules structural integrity", () => {

@@ -1,4 +1,4 @@
-import { TaskPlanningPicker } from "./TaskPlanningPicker";
+import { useTaskPlanningLabel } from "./TaskPlanningPicker";
 import { TaskScheduleSheet } from "./TaskScheduleSheet";
 import React, { memo, useMemo } from "react";
 import { isPathAllowed } from "@/lib/appModules";
@@ -131,6 +131,7 @@ const TaskListItemComponent = ({
     [showOverdueBadge, t],
   );
   const isScheduledLeitnerReview = isLeitnerStudyTask(t);
+  const whenLabel = useTaskPlanningLabel(t);
   const parentTask = parent || (t.parent_id ? taskMap?.get(t.parent_id) : null);
   const effectiveProgress = progress ?? (typeof getProgress === "function" ? getProgress(t.id) : undefined) ?? { done: 0, total: subs?.length || 0 };
   const visibleSubs = showCompletedTasks ? subs : subs.filter((subtask) => !subtask.completed);
@@ -395,17 +396,16 @@ const TaskListItemComponent = ({
                   </span>
                 )}
 
-                <TaskPlanningPicker task={t} onPatch={patch => onPatchTask(t.id, patch)} hideWhenEmpty />
-
                 <TaskScheduleSheet task={t} onPatch={patch => onPatchTask(t.id, patch)}>
                   <button
                     type="button"
                     onClick={e => e.stopPropagation()}
-                    className={`text-[10px] gap-1 px-2 h-5 font-medium inline-flex items-center rounded-full border transition ${taskWorkDate(t) ? "bg-secondary/80 text-secondary-foreground hover:bg-secondary" : "border-dashed text-muted-foreground/70 hover:bg-muted/40"}`}
+                    data-testid={`task-schedule-chip-${t.id}`}
+                    className={`text-[10px] gap-1 px-2 h-5 font-medium inline-flex items-center rounded-full border transition ${whenLabel ? "bg-secondary/80 text-secondary-foreground hover:bg-secondary" : "border-dashed text-muted-foreground/70 hover:bg-muted/40"}`}
                     title={T("روز، ساعت و تکرار", "Day, time and repeat")}
                   >
                     <Calendar className="h-3 w-3" />
-                    {taskWorkDate(t) ? <bdi dir="ltr">{formatTaskDueDateDisplay(taskWorkDate(t), isEn)}</bdi> : <span>{T("روز", "Day")}</span>}
+                    {whenLabel ? <bdi>{whenLabel}</bdi> : <span>{T("زمان", "When")}</span>}
                     {(t.recurrence_rule || (t.recurrence && t.recurrence !== "none")) && <Repeat className="h-3 w-3 text-violet-600" aria-label={T("تکراری", "Repeats")} />}
                   </button>
                 </TaskScheduleSheet>

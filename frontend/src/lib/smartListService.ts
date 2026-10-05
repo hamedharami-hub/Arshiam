@@ -5,6 +5,15 @@ import { taskDueTimestamp, taskWorkDate } from "@/lib/taskDate";
 import { startOfDay, endOfDay, addDays } from "date-fns";
 import { isTaskOverdue } from "@/lib/taskPlanning";
 import { getTimeSettings } from "@/lib/timeHorizon";
+import { readSchedule } from "@/lib/taskSchedule";
+
+/** The horizon of the task's single schedule (day for a day/time, the plan level for a period). */
+function scheduleHorizon(t: Partial<Task>): string | null {
+  const sch = readSchedule(t);
+  if (sch.kind === "day" || sch.kind === "datetime") return "day";
+  if (sch.kind === "period") return sch.period.horizon;
+  return null;
+}
 import type { GoalKanban } from "@/lib/kanbanGoals";
 
 export type SortKey = "due" | "priority" | "created" | "title" | "time_bucket" | "goal";
@@ -203,7 +212,7 @@ export function useSmartListProfiles(): [SmartListProfile[], (next: SmartListPro
 export const SORT_KEYS: SortKey[] = ["due", "priority", "created", "title", "time_bucket", "goal"];
 
 export const SORT_LABELS: Record<SortKey, { fa: string; en: string }> = {
-  due: { fa: "سررسید", en: "Due Date" },
+  due: { fa: "تاریخ", en: "Date" },
   priority: { fa: "اهمیت و اولویت", en: "Priority" },
   created: { fa: "تاریخ ساخت", en: "Created Date" },
   title: { fa: "عنوان الفبایی", en: "Title" },
@@ -226,8 +235,8 @@ export const DUE_WINDOW_OPTIONS: { id: DueWindow; fa: string; en: string; icon: 
   { id: "tomorrow", fa: "فردا", en: "Tomorrow", icon: "🌅" },
   { id: "this_week", fa: "این هفته", en: "This Week", icon: "📆" },
   { id: "next_7_days", fa: "۷ روز آینده", en: "Next 7 Days", icon: "🔮" },
-  { id: "has_date", fa: "دارای سررسید", en: "Has Date", icon: "🗓️" },
-  { id: "no_date", fa: "بدون سررسید", en: "No Due Date", icon: "⏳" },
+  { id: "has_date", fa: "دارای تاریخ", en: "Has Date", icon: "🗓️" },
+  { id: "no_date", fa: "بدون تاریخ", en: "No Date", icon: "⏳" },
 ];
 
 export function doesTaskMatchTimeFilters(
@@ -247,7 +256,7 @@ export function doesTaskMatchTimeFilters(
 
   // 1. Time Horizon filter (day, week, month, quarter, year, none)
   if (timeHorizons && timeHorizons.length > 0) {
-    const taskHorizon = t.planning_horizon || t.horizon || t.bucket_kind || null;
+    const taskHorizon = scheduleHorizon(t);
     let horizonMatched = false;
     for (const h of timeHorizons) {
       if (h === "none" && !taskHorizon) {
@@ -358,8 +367,8 @@ export function cmpForSortLevel(lvl: SortLevel): (a: Task, b: Task) => number {
         break;
       case "time_bucket": {
         const order: Record<string, number> = { day: 1, week: 2, month: 3, quarter: 4, year: 5 };
-        const aH = a.horizon || a.bucket_kind || "";
-        const bH = b.horizon || b.bucket_kind || "";
+        const aH = scheduleHorizon(a) || "";
+        const bH = scheduleHorizon(b) || "";
         const aVal = order[aH] ?? 99;
         const bVal = order[bH] ?? 99;
         res = aVal - bVal;

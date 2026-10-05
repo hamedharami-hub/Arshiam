@@ -17,6 +17,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTranslation } from "react-i18next";
+import { compactTasksForAI } from "@/lib/taskSchedule";
 
 export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const { user } = useAuth();
@@ -101,8 +102,8 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
     setLoading(true);
     try {
       // Build minimal context
-      const { data: tasks } = await firebaseStore.from("tasks").select("title,priority,due_date,completed").limit(20);
-      const ctx = `Recent tasks: ${JSON.stringify(tasks || [])}`;
+      const { data: tasks } = await firebaseStore.from("tasks").select("*").limit(20);
+      const ctx = `Recent tasks: ${JSON.stringify(compactTasksForAI(tasks || []))}`;
       const r = await callAI("chat", [...chat, newMsg], ctx, undefined, aiLang);
       if (r.provider && r.model) setLastResultMeta({ provider: r.provider, model: r.model });
       setChat((c) => [...c, { role: "assistant", content: r.text }]);

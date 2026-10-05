@@ -421,8 +421,9 @@ describe("AI Agent API Endpoints (/api/v1/agent/*)", () => {
       token,
       body: {
         title: "Conflicting Client Call",
-        start_at: "2026-10-05T09:15:00Z",
-        end_at: "2026-10-05T09:45:00Z",
+        // One schedule per task: a conflict is another task timed inside this window (no time blocks).
+        start_at: "2026-10-05T08:45:00Z",
+        end_at: "2026-10-05T09:30:00Z",
       },
     });
     await handleAgentRequest(conflictReq, conflictRes);
@@ -438,8 +439,9 @@ describe("AI Agent API Endpoints (/api/v1/agent/*)", () => {
       token,
       body: {
         title: "Conflicting Client Call",
-        start_at: "2026-10-05T09:15:00Z",
-        end_at: "2026-10-05T09:45:00Z",
+        // One schedule per task: a conflict is another task timed inside this window (no time blocks).
+        start_at: "2026-10-05T08:45:00Z",
+        end_at: "2026-10-05T09:30:00Z",
         force: true,
       },
     });

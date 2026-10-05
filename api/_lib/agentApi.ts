@@ -1,3 +1,4 @@
+import { scheduleWrite, taskDateOf, taskDayOf } from "./taskSchedule.js";
 import { randomBytes, createHash } from "node:crypto";
 import {
   adminDb,
@@ -186,13 +187,13 @@ async function handleGetTasks(grant: AssistantGrant, query: any, res: any) {
     filtered = filtered.filter((t) => t.folder_id === query.folder_id);
   }
   if (query.due_date) {
-    filtered = filtered.filter((t) => t.due_date && t.due_date.startsWith(query.due_date));
+    filtered = filtered.filter((t) => (taskDayOf(t) || "").startsWith(query.due_date));
   }
   if (query.from_date) {
-    filtered = filtered.filter((t) => (t.due_date || t.start_at || "") >= query.from_date);
+    filtered = filtered.filter((t) => (taskDateOf(t) || "") >= query.from_date);
   }
   if (query.to_date) {
-    filtered = filtered.filter((t) => (t.due_date || t.end_at || "") <= query.to_date);
+    filtered = filtered.filter((t) => (taskDayOf(t) || "") <= query.to_date);
   }
   if (query.search) {
     const q = String(query.search).toLowerCase();
@@ -247,12 +248,9 @@ async function handleCreateTask(grant: AssistantGrant, body: any, req: any, res:
     priority: body.priority || "p4",
     status: body.status || (isCompleted ? "done" : "todo"),
     completed: isCompleted,
-    due_date: body.due_date || null,
+    ...scheduleWrite(body.work_date || body.due_date || null),
     folder_id: body.folder_id || null,
     pinned: Boolean(body.pinned),
-    start_at: body.start_at || null,
-    end_at: body.end_at || null,
-    estimated_minutes: typeof body.estimated_minutes === "number" ? body.estimated_minutes : null,
     recurrence: body.recurrence || "none",
     created_at: now,
     updated_at: now,
@@ -288,12 +286,8 @@ async function handlePatchTask(grant: AssistantGrant, taskId: string, body: any,
     "priority",
     "status",
     "completed",
-    "due_date",
     "folder_id",
     "pinned",
-    "start_at",
-    "end_at",
-    "estimated_minutes",
     "recurrence",
   ];
 
@@ -303,6 +297,9 @@ async function handlePatchTask(grant: AssistantGrant, taskId: string, body: any,
       patch[field] = body[field];
     }
   }
+  // One schedule: a new day/instant replaces any earlier schedule (legacy `due_date` accepted).
+  const dateInput = body.work_date !== undefined ? body.work_date : body.due_date;
+  if (dateInput !== undefined) Object.assign(patch, scheduleWrite(dateInput));
 
   if (typeof patch.title === "string") {
     patch.title = patch.title.trim();
@@ -619,13 +616,15 @@ async function handlePatchMemory(grant: AssistantGrant, memoryId: string, body: 
 // Schedule & Calendar Handlers (برنامه‌ریزی و تقویم)
 // -------------------------------------------------------------
 
-function hasTimeOverlap(startA: string, endA: string, startB: string, endB: string): boolean {
-  const aStart = Date.parse(startA);
-  const aEnd = Date.parse(endA || startA);
-  const bStart = Date.parse(startB);
-  const bEnd = Date.parse(endB || startB);
-
-  return aStart < bEnd && bStart < aEnd;
+/** A task with an explicit time (not a whole day) inside [start, end). */
+function isTimedAt(t: any, start: string, end: string): boolean {
+  const v = taskDateOf(t);
+  if (!v || /^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const at = Date.parse(v);
+  if (Number.isNaN(at)) return false;
+  const a = Date.parse(start);
+  const b = Date.parse(end || start);
+  return at >= a && (b > a ? at < b : at === a);
 }
 
 async function handleGetSchedule(grant: AssistantGrant, type: "day" | "week" | "month", query: any, res: any) {
@@ -660,8 +659,7 @@ async function handleGetSchedule(grant: AssistantGrant, type: "day" | "week" | "
 
   const matching = tasks.filter((t) => {
     let tTime: number | null = null;
-    if (t.start_at) tTime = Date.parse(t.start_at);
-    else if (t.due_date) tTime = Date.parse(t.due_date);
+    if (taskDateOf(t)) tTime = Date.parse(taskDateOf(t)!);
 
     if (tTime && !isNaN(tTime)) {
       return tTime >= startTime && tTime <= endTime;
@@ -670,8 +668,8 @@ async function handleGetSchedule(grant: AssistantGrant, type: "day" | "week" | "
   });
 
   matching.sort((a, b) => {
-    const timeA = Date.parse(a.start_at || a.due_date || "") || 0;
-    const timeB = Date.parse(b.start_at || b.due_date || "") || 0;
+    const timeA = Date.parse(taskDateOf(a) || "") || 0;
+    const timeB = Date.parse(taskDateOf(b) || "") || 0;
     return timeA - timeB;
   });
 
@@ -702,16 +700,16 @@ async function handleGetCalendarEvents(grant: AssistantGrant, query: any, res: a
 
   const tasks = await getCollectionDocs(grant, "tasks");
   const events = tasks.filter((t) => {
-    const eventStart = t.start_at ? Date.parse(t.start_at) : (t.due_date ? Date.parse(t.due_date) : null);
-    const eventEnd = t.end_at ? Date.parse(t.end_at) : eventStart;
+    const eventStart = taskDateOf(t) ? Date.parse(taskDateOf(t)!) : null;
+    const eventEnd = eventStart;
 
     if (!eventStart) return false;
     return (eventStart >= startTime && eventStart <= endTime) || (eventEnd && eventEnd >= startTime && eventEnd <= endTime);
   });
 
   events.sort((a, b) => {
-    const timeA = Date.parse(a.start_at || a.due_date || "") || 0;
-    const timeB = Date.parse(b.start_at || b.due_date || "") || 0;
+    const timeA = Date.parse(taskDateOf(a) || "") || 0;
+    const timeB = Date.parse(taskDateOf(b) || "") || 0;
     return timeA - timeB;
   });
 
@@ -741,10 +739,7 @@ async function handleCreateCalendarEvent(grant: AssistantGrant, body: any, req: 
   const checkConflict = body.check_conflict !== false;
   if (checkConflict) {
     const tasks = await getCollectionDocs(grant, "tasks");
-    const conflicting = tasks.filter((t) => {
-      if (!t.start_at) return false;
-      return hasTimeOverlap(startAt, effectiveEndAt, t.start_at, t.end_at || t.start_at);
-    });
+    const conflicting = tasks.filter((t) => isTimedAt(t, startAt, effectiveEndAt));
 
     if (conflicting.length > 0 && !body.force) {
       return sendJson(res, 409, {
@@ -755,8 +750,7 @@ async function handleCreateCalendarEvent(grant: AssistantGrant, body: any, req: 
             conflicting_events: conflicting.map((c) => ({
               id: c.id,
               title: c.title,
-              start_at: c.start_at,
-              end_at: c.end_at,
+              work_date: taskDateOf(c),
             })),
           },
         },
@@ -779,9 +773,8 @@ async function handleCreateCalendarEvent(grant: AssistantGrant, body: any, req: 
     user_id: grant.userId,
     title,
     description: body.description || null,
-    start_at: startAt,
-    end_at: effectiveEndAt,
-    due_date: startAt.slice(0, 10),
+    // One schedule: the event is a task at an explicit time (no time block / end time is stored).
+    ...scheduleWrite(startAt),
     completed: false,
     status: "todo",
     priority: body.priority || "p3",
@@ -809,16 +802,17 @@ async function handlePatchCalendarEvent(grant: AssistantGrant, eventId: string, 
   const existing = await getDocById(grant, "tasks", eventId);
   if (!existing) return sendError(res, 404, "NOT_FOUND", "Event not found.");
 
-  const startAt = body.start_at || existing.start_at;
-  const endAt = body.end_at || existing.end_at;
+  const newAt = typeof body.work_date === "string" ? body.work_date : typeof body.start_at === "string" ? body.start_at : null;
+  const startAt = newAt || taskDateOf(existing);
+  const endAt = startAt && !/^\d{4}-\d{2}-\d{2}$/.test(startAt) ? new Date(Date.parse(startAt) + 30 * 60000).toISOString() : startAt;
 
-  if (body.start_at || body.end_at) {
+  if (newAt) {
+    if (newAt && isNaN(Date.parse(newAt))) {
+      return sendError(res, 400, "VALIDATION_ERROR", "Valid 'start_at' / 'work_date' in ISO 8601 is required.");
+    }
     if (body.check_conflict !== false) {
       const tasks = await getCollectionDocs(grant, "tasks");
-      const conflicting = tasks.filter((t) => {
-        if (t.id === eventId || !t.start_at) return false;
-        return hasTimeOverlap(startAt, endAt, t.start_at, t.end_at || t.start_at);
-      });
+      const conflicting = tasks.filter((t) => t.id !== eventId && isTimedAt(t, startAt!, endAt!));
 
       if (conflicting.length > 0 && !body.force) {
         return sendJson(res, 409, {
@@ -829,8 +823,7 @@ async function handlePatchCalendarEvent(grant: AssistantGrant, eventId: string, 
               conflicting_events: conflicting.map((c) => ({
                 id: c.id,
                 title: c.title,
-                start_at: c.start_at,
-                end_at: c.end_at,
+                work_date: taskDateOf(c),
               })),
             },
           },
@@ -842,8 +835,8 @@ async function handlePatchCalendarEvent(grant: AssistantGrant, eventId: string, 
   const patch: Record<string, any> = {};
   if (body.title !== undefined) patch.title = String(body.title).trim();
   if (body.description !== undefined) patch.description = body.description;
-  if (body.start_at !== undefined) patch.start_at = body.start_at;
-  if (body.end_at !== undefined) patch.end_at = body.end_at;
+  if (newAt) Object.assign(patch, scheduleWrite(newAt));
+  else if (body.work_date === null) Object.assign(patch, scheduleWrite(null));
   if (body.status !== undefined) patch.status = body.status;
   if (body.completed !== undefined) patch.completed = Boolean(body.completed);
 

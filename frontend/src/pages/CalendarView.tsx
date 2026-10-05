@@ -1,4 +1,5 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
+import { taskWorkDate } from "@/lib/taskDate";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, subDays } from "date-fns";
@@ -89,7 +90,7 @@ export default function CalendarView() {
         for (const t of (data || []) as any[]) {
           if (!t.id || seenIds.has(t.id)) continue;
           let inRange = false;
-          const calendarDate = t.work_date === undefined ? t.due_date : t.work_date;
+          const calendarDate = taskWorkDate(t);
           if (calendarDate) {
             const d = parseTaskDueDate(calendarDate);
             if (d && d.getTime() >= startTime && d.getTime() <= endTime) {
