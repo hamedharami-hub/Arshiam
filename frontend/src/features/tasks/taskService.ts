@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { liveRows } from "@/lib/firestoreLive";
+import { hasServerSnapshot, liveRows } from "@/lib/firestoreLive";
 import { firebaseStore } from "@/lib/firebaseStore";
 import {
   cacheGet,
@@ -28,6 +28,8 @@ import { getTaskKnowledgeCacheKey } from "@/lib/taskKnowledgeService";
 const TASKS_CACHE_PREFIX = "tasks:all:";
 const taskCache = new Map<string, Task[]>();
 const taskCacheTimestamps = new Map<string, number>();
+const serverAuthoritativeUsers = new Set<string>();
+const taskFetchVersions = new Map<string, number>();
 
 export const taskCacheKey = (userId: string) => `${TASKS_CACHE_PREFIX}${userId}`;
 export const taskMemoryCache = taskCache;
@@ -39,6 +41,11 @@ function setTaskCache(userId: string, tasks: Task[], cachedAt = Date.now()): voi
 
 export function isTaskCacheFreshForUser(userId: string): boolean {
   return isTaskCacheFresh(taskCacheTimestamps.get(userId));
+}
+
+/** True only after task rows were read from the live API or a non-cache Firestore snapshot. */
+export function hasServerAuthoritativeTasks(userId: string): boolean {
+  return serverAuthoritativeUsers.has(userId);
 }
 
 function persistTaskCache(userId: string, tasks: Task[]): Promise<void> {
@@ -82,9 +89,16 @@ export async function applyPendingTaskOperations(base: Task[], userId: string): 
 }
 
 export async function fetchTasks(userId: string): Promise<Task[]> {
+  const fetchVersion = (taskFetchVersions.get(userId) || 0) + 1;
+  taskFetchVersions.set(userId, fetchVersion);
+  serverAuthoritativeUsers.delete(userId);
   try {
     const live = await liveRows(userId, "tasks");
     const snapshot = live ? null : await getDocs(collection(db, "users", userId, "tasks"));
+    const isOnline = typeof navigator === "undefined" || navigator.onLine;
+    if (taskFetchVersions.get(userId) === fetchVersion && isOnline && ((live && hasServerSnapshot(userId, "tasks")) || (snapshot && !snapshot.metadata.fromCache))) {
+      serverAuthoritativeUsers.add(userId);
+    }
     // A successful snapshot query (even if empty) is authoritative.
     const rawTasks = (live as Task[] | null) ?? snapshot!.docs.map((item) => ({
       id: item.id,
@@ -101,6 +115,7 @@ export async function fetchTasks(userId: string): Promise<Task[]> {
     void syncAndroidWidget(tasks, userId).catch(() => {});
     return tasks;
   } catch (error) {
+    if (taskFetchVersions.get(userId) === fetchVersion) serverAuthoritativeUsers.delete(userId);
     console.warn("[TaskService] Firestore fetch warning:", error);
   }
 

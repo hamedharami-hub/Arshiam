@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type SetStateAction } from "react";
 import { firebaseStore } from "@/lib/firebaseStore";
+import { hasServerSnapshot } from "@/lib/firestoreLive";
 import type { Task } from "@/lib/taskTypes";
 import {
   applyPendingTaskOperations,
   fetchTasks,
   getCachedTasks,
+  hasServerAuthoritativeTasks,
   isTaskCacheFreshForUser,
   subscribeToTasks,
   taskMemoryCache,
@@ -21,12 +23,22 @@ type UseTasksDataOptions = {
 
 export function useTasksData({ user, scope, scopeId }: UseTasksDataOptions) {
   const userId = user?.id;
-  const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const [taskState, setTaskState] = useState<{ userId: string | undefined; tasks: Task[] }>({ userId, tasks: [] });
+  const allTasks = taskState.userId === userId ? taskState.tasks : [];
+  const setAllTasks = useCallback((update: SetStateAction<Task[]>) => {
+    setTaskState(current => {
+      const currentTasks = current.userId === userId ? current.tasks : [];
+      const tasks = typeof update === "function" ? update(currentTasks) : update;
+      return { userId, tasks };
+    });
+  }, [userId]);
   const [taskTagsMap, setTaskTagsMap] = useState<Record<string, string[]>>({});
   const [outcomeById, setOutcomeById] = useState<Record<string, OutcomeMeta>>({});
   const [outcomeByTaskId, setOutcomeByTaskId] = useState<Record<string, string>>({});
   const [folderName, setFolderName] = useState("");
   const [tagName, setTagName] = useState("");
+  const [readyOwner, setReadyOwner] = useState<string | null>(null);
+  const [authoritativeOwner, setAuthoritativeOwner] = useState<string | null>(null);
   const lastLoadRef = useRef(0);
   const inflightRef = useRef<Promise<void> | null>(null);
   const revision = useRef(0);
@@ -41,9 +53,17 @@ export function useTasksData({ user, scope, scopeId }: UseTasksDataOptions) {
     if (inflightRef.current) return inflightRef.current;
     lastLoadRef.current = now;
     const version = revision.current;
+    if (owner.current === userId) {
+      setReadyOwner(null);
+      setAuthoritativeOwner(null);
+    }
     const request = (async () => {
       const tasks = await fetchTasks(userId);
-      if (owner.current === userId && revision.current === version) setAllTasks(tasks);
+      if (owner.current === userId && revision.current === version) {
+        setAllTasks(tasks);
+        setReadyOwner(userId);
+        setAuthoritativeOwner(hasServerAuthoritativeTasks(userId) ? userId : null);
+      }
     })();
     inflightRef.current = request;
     try {
@@ -56,6 +76,8 @@ export function useTasksData({ user, scope, scopeId }: UseTasksDataOptions) {
   const load = useCallback(async () => {
     if (!userId) return;
     const version = revision.current;
+    setReadyOwner(null);
+    setAuthoritativeOwner(null);
     let base = await getCachedTasks(userId);
     base = await applyPendingTaskOperations(base, userId);
     if (owner.current !== userId) return;
@@ -64,6 +86,10 @@ export function useTasksData({ user, scope, scopeId }: UseTasksDataOptions) {
       setAllTasks(base);
     }
     await fetchAll(!isTaskCacheFreshForUser(userId));
+    if (owner.current === userId && revision.current === version) {
+      setReadyOwner(userId);
+      setAuthoritativeOwner(hasServerAuthoritativeTasks(userId) ? userId : null);
+    }
 
     if (typeof navigator !== "undefined" && navigator.onLine) {
       if (scope === "folder" && scopeId) {
@@ -111,6 +137,9 @@ export function useTasksData({ user, scope, scopeId }: UseTasksDataOptions) {
       revision.current++;
       taskMemoryCache.set(userId, tasks);
       setAllTasks(tasks);
+      setReadyOwner(userId);
+      const serverConfirmed = (typeof navigator === "undefined" || navigator.onLine) && hasServerSnapshot(userId, "tasks");
+      setAuthoritativeOwner(serverConfirmed ? userId : null);
     });
     return () => {
       if (pending != null) window.clearTimeout(pending);
@@ -163,6 +192,8 @@ export function useTasksData({ user, scope, scopeId }: UseTasksDataOptions) {
 
   return {
     allTasks,
+    isReady: !!userId && readyOwner === userId,
+    isServerAuthoritative: !!userId && authoritativeOwner === userId,
     setAllTasks,
     taskTagsMap,
     outcomeById,

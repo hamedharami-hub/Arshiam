@@ -3,7 +3,7 @@ import { TaskScheduleSheet } from "./TaskScheduleSheet";
 import React, { memo, useMemo } from "react";
 import { isPathAllowed } from "@/lib/appModules";
 import {
-  CornerDownRight, ChevronDown, ChevronRight, Pin, X, Ban,
+  CornerDownRight, ChevronDown, ChevronRight, Pin, X, Ban, CircleDot, Flag,
   GripVertical, Calendar, Repeat, GitBranch, Check, Trash2, Clock, FolderInput, Brain,
   Network, BookOpen, FolderTree, ExternalLink, Layers,
   Sunrise, Sun, Sunset, Moon, CalendarRange, AlertTriangle,
@@ -88,6 +88,8 @@ export interface TaskListItemProps {
   showCompletedTasks?: boolean;
   /** Shows an inline "Overdue" pill; used by lists that do not group rows by due date. */
   showOverdueBadge?: boolean;
+  todayNextTaskId?: string | null;
+  todayImportantTaskIds?: string[];
   externalDragHandle?: Record<string, any>;
 }
 
@@ -121,9 +123,13 @@ const TaskListItemComponent = ({
   allowDrag = false,
   showCompletedTasks = true,
   showOverdueBadge = false,
+  todayNextTaskId,
+  todayImportantTaskIds = [],
   externalDragHandle,
 }: TaskListItemProps) => {
   const studyNavigation = getStudyTaskNavigation(t);
+  const isNextTask = todayNextTaskId === t.id;
+  const isImportantToday = todayImportantTaskIds.includes(t.id);
   const priorityMeta = PRIORITY_META[t.priority] ?? PRIORITY_META.none;
   // Today/Next-7 group overdue rows under a header, so only ungrouped lists need a row-level pill.
   const overdue = useMemo(
@@ -326,6 +332,16 @@ const TaskListItemComponent = ({
                     <Ban className="w-2.5 h-2.5" /> {T("اجتنابی", "Avoidance")}
                   </span>
                 )}
+                {isNextTask && (
+                  <span data-testid={`today-next-task-${t.id}`} className="inline-flex items-center gap-0.5 text-[9px] px-1.5 h-4 rounded bg-primary/10 text-primary border border-primary/25">
+                    <CircleDot className="w-2.5 h-2.5" /> {T("کار بعدی من", "My next task")}
+                  </span>
+                )}
+                {isImportantToday && (
+                  <span data-testid={`today-important-task-${t.id}`} className="inline-flex items-center gap-0.5 text-[9px] px-1.5 h-4 rounded bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/25">
+                    <Flag className="w-2.5 h-2.5" /> {T("مهم امروز", "Important today")}
+                  </span>
+                )}
                 {(() => {
                   const studyInfo = studyNavigation;
                   if (studyInfo.isStudyTask) {
@@ -497,6 +513,8 @@ const TaskListItemComponent = ({
                     allowDrag={externalDragHandle ? false : allowDrag}
                     showCompletedTasks={showCompletedTasks}
                     showOverdueBadge={showOverdueBadge}
+                    todayNextTaskId={todayNextTaskId}
+                    todayImportantTaskIds={todayImportantTaskIds}
                   />
                 ))}
               </SortableContext>

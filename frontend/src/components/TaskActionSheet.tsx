@@ -1,4 +1,4 @@
-import { useState, type ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -14,6 +14,7 @@ import ShareDialog from "@/components/ShareDialog";
 import { TaskActivities } from "@/components/TaskActivities";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useTodayPlanning } from "@/hooks/useTodayPlanning";
 import { useShareAccess } from "@/hooks/useShareAccess";
 import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { logTaskActivity } from "@/lib/taskActivity";
@@ -21,12 +22,18 @@ import { isFeatureEnabled } from "@/lib/capabilities";
 import {
   Check, Trash2, FolderInput, Network, Pencil, Copy, Share2,
   Sparkles, CopyPlus, Pin, PinOff, Timer, ListTree, Paperclip,
-  Tag as TagIcon, MoreHorizontal, MapPin, X,
+  Tag as TagIcon, MoreHorizontal, MapPin, X, Flag, CircleDot,
   ArrowRight, Loader2, Save, StickyNote, History, BookOpen,
 } from "lucide-react";
 import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
 import { getCurrentTaskLocation, taskLocationErrorMessage } from "@/lib/taskLocation";
 import { duplicateTaskCascade } from "@/lib/taskDuplicateService";
+import { getLocalDateString } from "@/lib/taskDate";
+import { isTaskEligibleForNext, isTaskImportantForDay, isTaskScheduledInFuture, shouldWarnWipStart } from "@/lib/todayPlanning";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type View = "main" | "more" | "activities" | "subtask" | "location";
 
@@ -47,16 +54,24 @@ interface Props {
   isOwner?: boolean;
   canComment?: boolean;
   hideDuplicates?: boolean;
+  wipEnabled?: boolean;
+  wipLimit?: number;
+  wipCount?: number;
+  onSetWipEnabled?: (enabled: boolean) => void;
+  onSetWipLimit?: (limit: number) => void;
 }
 
 export default function TaskActionSheet({
   task, open, onOpenChange, onComplete, onDelete, onMove, onMakeChild, onEdit, onPin, onPomodoro, onPatch, onRefresh,
   canEdit: propCanEdit, isOwner: propIsOwner, canComment: propCanComment,
   hideDuplicates = false,
+  wipEnabled = false, wipLimit = 3, wipCount = 0, onSetWipEnabled, onSetWipLimit,
 }: Props) {
   const { i18n } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const today = getLocalDateString();
+  const planning = useTodayPlanning(user?.id, today);
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
   const { prefersDialog } = useDeviceFormFactor();
@@ -66,6 +81,9 @@ export default function TaskActionSheet({
   const [location, setLocation] = useState(task?.location || "");
   const [busy, setBusy] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [confirmFutureNext, setConfirmFutureNext] = useState(false);
+  const [wipLimitDraft, setWipLimitDraft] = useState(String(wipLimit));
+  useEffect(() => setWipLimitDraft(String(wipLimit)), [wipLimit]);
 
   const fallbackIsOwner = !!user && !!task && user.id === task.user_id;
   const isOwner = propIsOwner ?? fallbackIsOwner;
@@ -75,6 +93,36 @@ export default function TaskActionSheet({
 
   const isScheduledLeitnerReview = isLeitnerStudyTask(task);
   const studyNavigation = getStudyTaskNavigation(task);
+  const isNextTask = planning.nextTaskId === task.id;
+  const isImportantToday = isTaskImportantForDay(planning.data, task.id, today);
+  const eligibleForNext = isTaskEligibleForNext(task);
+  const isFuture = isTaskScheduledInFuture(task, today);
+
+  const chooseAsNext = () => {
+    if (!eligibleForNext) return;
+    if (isNextTask) {
+      planning.clearNextTaskIf(task.id);
+      return;
+    }
+    if (isFuture) {
+      setConfirmFutureNext(true);
+      return;
+    }
+    planning.setNextTask(task.id);
+  };
+
+  const startWork = async () => {
+    if (!canEdit || task.completed || task.status !== "todo") return;
+    if (shouldWarnWipStart(wipEnabled, wipCount, wipLimit, task)) {
+      toast.warning(T(
+        `هم‌اکنون ${wipCount} کار در حال انجام است؛ این کار هم بدون محدودیت شروع می‌شود.`,
+        `${wipCount} tasks are already in progress. This task can still be started.`
+      ));
+    }
+    const status = await applyPatch({ status: "in_progress", completed: false }, "started", { status: "in_progress" });
+    reportSave(status, isEn, T("کار شروع شد", "Work started"));
+    if (status !== "failed") close();
+  };
 
   const close = () => {
     setView("main");
@@ -297,6 +345,25 @@ export default function TaskActionSheet({
             ) : (
               <Row icon={Check} label={task.completed ? T("بازگشایی تکمیل", "Reopen") : T("تکمیل", "Done")} onClick={() => { onComplete(); close(); }} disabled={!canComment} />
             )}
+            {eligibleForNext && (
+              <Row
+                icon={CircleDot}
+                label={isNextTask ? T("برداشتن از کار بعدی من", "Clear my next task") : T("انتخاب به‌عنوان کار بعدی من", "Set as my next task")}
+                onClick={chooseAsNext}
+                disabled={!canEdit}
+              />
+            )}
+            {eligibleForNext && !isFuture && (
+              <Row
+                icon={Flag}
+                label={isImportantToday ? T("برداشتن نشان مهم امروز", "Unmark important today") : T("مهم امروز", "Important today")}
+                onClick={() => planning.toggleImportant(task.id)}
+                disabled={!canEdit}
+              />
+            )}
+            {onSetWipEnabled && !task.completed && task.status === "todo" && !isScheduledLeitnerReview && (
+              <Row icon={Timer} label={T("شروع کار", "Start work")} onClick={startWork} disabled={!canEdit || busy} />
+            )}
             <Row icon={Pencil} label={T("ویرایش / باز کردن", "Edit / Open")} onClick={() => { onEdit(); close(); }} />
             <Row icon={Sparkles} label="AI" onClick={() => { navigate(`/app/tasks/${task.id}?ai=1`); close(); }} disabled={!canEdit} />
             <Row icon={Timer} label={T("پومودورو", "Pomodoro")} onClick={() => { onPomodoro?.(); close(); }} />
@@ -368,6 +435,42 @@ export default function TaskActionSheet({
             <Row icon={CopyPlus} label={T("تکثیر", "Duplicate")} onClick={() => duplicate(false)} disabled={!canEdit || busy} />
             <Row icon={Save} label={T("ذخیره و جدید", "Save & New")} onClick={() => duplicate(true)} disabled={!canEdit || busy} />
             <Row icon={Pencil} label={T("ویرایش کامل", "Full Edit")} onClick={() => { onEdit(); close(); }} />
+            {onSetWipEnabled && (
+              <div className="px-2 py-2.5 rounded-xl" data-testid="today-wip-settings">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={wipEnabled}
+                  data-testid="today-wip-toggle"
+                  onClick={() => onSetWipEnabled(!wipEnabled)}
+                  className="w-full flex items-center gap-3 text-start"
+                >
+                  <Timer className="w-4 h-4 shrink-0" />
+                  <span className="flex-1 text-sm">{T("هشدار تعداد کارهای در حال انجام", "Work-in-progress warning")}</span>
+                  <span className={`text-xs ${wipEnabled ? "text-primary" : "text-muted-foreground"}`}>{wipEnabled ? T("روشن", "On") : T("خاموش", "Off")}</span>
+                </button>
+                {wipEnabled && onSetWipLimit && (
+                  <label className="mt-2 flex items-center gap-3 text-sm text-muted-foreground">
+                    <span className="flex-1">{T("حد پیشنهادی", "Suggested limit")}</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={99}
+                      value={wipLimitDraft}
+                      aria-label={T("حد کارهای در حال انجام", "Work-in-progress limit")}
+                      data-testid="today-wip-limit"
+                      onChange={event => setWipLimitDraft(event.target.value)}
+                      onBlur={() => {
+                        const parsed = Number(wipLimitDraft);
+                        if (Number.isSafeInteger(parsed) && parsed >= 1) onSetWipLimit(parsed);
+                        else setWipLimitDraft(String(wipLimit));
+                      }}
+                      className="w-16 rounded-md border border-input bg-background px-2 py-1 text-center text-foreground"
+                    />
+                  </label>
+                )}
+              </div>
+            )}
           </div>
         );
       case "location":
@@ -449,6 +552,23 @@ export default function TaskActionSheet({
           </SheetContent>
         </Sheet>
       )}
+
+      <AlertDialog open={confirmFutureNext} onOpenChange={setConfirmFutureNext}>
+        <AlertDialogContent dir={isEn ? "ltr" : "rtl"}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{T("این کار برای آینده برنامه‌ریزی شده است", "This task is planned for the future")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {T("آن را به‌عنوان کار بعدی امروز انتخاب می‌کنی؟ تاریخ برنامه‌ریزی‌شدهٔ تسک تغییر نمی‌کند.", "Choose it as your next task for today? Its planned date will stay unchanged.")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{T("انصراف", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { planning.setNextTask(task.id); setConfirmFutureNext(false); }}>
+              {T("انتخاب بدون تغییر تاریخ", "Choose without changing date")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {isFeatureEnabled("sharing") && shareOpen && (
         <ShareDialog

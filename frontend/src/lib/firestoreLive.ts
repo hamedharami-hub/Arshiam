@@ -28,13 +28,13 @@ function open(uid: string, table: string): Entry {
     collection(db, "users", uid, table),
     (snap) => {
       gotSnapshot = true;
+      entry.synced = !snap.metadata.fromCache;
       for (const change of snap.docChanges()) {
         if (change.type === "removed") entry.rows.delete(change.doc.id);
         else entry.rows.set(change.doc.id, { id: change.doc.id, ...change.doc.data() });
       }
       if (!snap.metadata.fromCache) {
         trackRead(Math.max(1, snap.docChanges().length), table);
-        entry.synced = true;
         settle(true);
         clearTimeout(fallback);
       } else if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -66,4 +66,10 @@ export function liveDoc(uid: string, table: string, id: string): Row | null | un
   const entry = registry.get(`${uid}/${table}`);
   if (!entry || entry.failed || !entry.synced) return undefined;
   return entry.rows.get(id) ?? null;
+}
+
+/** Whether the shared listener has received a server-backed snapshot for this collection. */
+export function hasServerSnapshot(uid: string, table: string): boolean {
+  const entry = registry.get(`${uid}/${table}`);
+  return !!entry && !entry.failed && entry.synced;
 }

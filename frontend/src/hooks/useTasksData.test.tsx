@@ -9,11 +9,13 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/features/tasks/taskService", () => ({
   getCachedTasks: mocks.cached,
   fetchTasks: mocks.fetch,
+  hasServerAuthoritativeTasks: () => false,
   applyPendingTaskOperations: async (tasks: Task[]) => tasks,
   isTaskCacheFreshForUser: () => true,
   taskMemoryCache: new Map(),
   subscribeToTasks: (_owner: string, receive: (tasks: Task[]) => void) => { mocks.receive = receive; return () => {}; },
 }));
+vi.mock("@/lib/firestoreLive", () => ({ hasServerSnapshot: () => false }));
 vi.mock("@/lib/firebaseStore", () => ({
   firebaseStore: { from: () => ({ select: () => ({
     then: (callback: (result: {data: unknown[]}) => void) => Promise.resolve(callback({ data: [] })),
@@ -37,5 +39,18 @@ describe("useTasksData snapshot races", () => {
     act(() => mocks.receive?.([task("live"), task("new")]));
     await act(async () => resolveFetch([task("old")]));
     expect(result.current.allTasks.map(task => task.id)).toEqual(["live", "new"]);
+  });
+
+  it("does not expose the previous account's task rows while loading another uid", async () => {
+    mocks.cached.mockImplementation(async (uid: string) => [task(`${uid}-task`)]);
+    mocks.fetch.mockImplementation(async (uid: string) => [task(`${uid}-task`)]);
+    const { result, rerender } = renderHook(({ uid }) => useTasksData({ user: { id: uid }, scope: "today" }), {
+      initialProps: { uid: "account-a" },
+    });
+    await waitFor(() => expect(result.current.allTasks.map(item => item.id)).toEqual(["account-a-task"]));
+
+    rerender({ uid: "account-b" });
+    expect(result.current.allTasks).toEqual([]);
+    await waitFor(() => expect(result.current.allTasks.map(item => item.id)).toEqual(["account-b-task"]));
   });
 });

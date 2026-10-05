@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { endOfDay, startOfDay } from "date-fns";
 import {
-  ChevronDown, ChevronRight, CheckSquare, Columns2,
+  ChevronDown, ChevronRight, CheckSquare, Columns2, CircleDot, X,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasksData } from "@/hooks/useTasksData";
@@ -47,6 +47,8 @@ import {
 import { toast } from "sonner";
 import { StreakCard } from "@/components/StreakCard";
 import { NavLink } from "@/components/NavLink";
+import { useTodayPlanning } from "@/hooks/useTodayPlanning";
+import { countActiveWip, shouldClearInvalidNextTask } from "@/lib/todayPlanning";
 
 export default function TodayDashboardView() {
   const { user } = useAuth();
@@ -142,12 +144,26 @@ export default function TodayDashboardView() {
   const {
     allTasks,
     setAllTasks,
+    isReady: tasksReady,
+    isServerAuthoritative: tasksAuthoritative,
     outcomeById,
     outcomeByTaskId,
     load,
   } = useTasksData({ user, scope: "today" });
 
   const [currentDayKey, setCurrentDayKey] = useState(() => getLocalDateString());
+  const todayPlanning = useTodayPlanning(user?.id, currentDayKey);
+  const selectedNextTask = todayPlanning.nextTaskId ? allTasks.find(task => task.id === todayPlanning.nextTaskId) || null : null;
+  const nextTaskIdRef = useRef<string | null>(todayPlanning.nextTaskId);
+  nextTaskIdRef.current = todayPlanning.nextTaskId;
+  const wipCount = useMemo(() => countActiveWip(allTasks), [allTasks]);
+  const pendingInvalidations = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (!tasksReady || !shouldClearInvalidNextTask(todayPlanning.nextTaskId, allTasks, tasksAuthoritative)
+      || (todayPlanning.nextTaskId && pendingInvalidations.current.has(todayPlanning.nextTaskId))) return;
+    todayPlanning.clearNextTaskIf(todayPlanning.nextTaskId);
+  }, [tasksReady, tasksAuthoritative, allTasks, todayPlanning.nextTaskId, todayPlanning.clearNextTaskIf]);
   useEffect(() => {
     const checkDay = () => {
       const nowKey = getLocalDateString();
@@ -332,6 +348,7 @@ export default function TodayDashboardView() {
       const res = await advanceRecurringTask(user.id, task, { allKnownTasks: allTasks });
       if (res.success && res.patch) {
         setAllTasks((prev) => prev.map((t) => (t.id === task.id ? ({ ...t, ...res.patch } as Task) : t)));
+        if (todayPlanning.nextTaskId === task.id) todayPlanning.clearNextTaskIf(task.id);
         toast.success(
           T(
             `نمونه بعدی به ${res.formattedNextDate} منتقل شد 🔁`,
@@ -348,6 +365,8 @@ export default function TodayDashboardView() {
     const nextStatus: TaskStatus = nextCompleted ? "done" : "todo";
     const nextCompletedAt = nextCompleted ? new Date().toISOString() : null;
     const patch = { completed: nextCompleted, status: nextStatus, completed_at: nextCompletedAt };
+    const invalidatesNext = nextCompleted && todayPlanning.nextTaskId === task.id;
+    if (invalidatesNext) pendingInvalidations.current.add(task.id);
 
     setAllTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, ...patch } : t)));
     try {
@@ -359,11 +378,14 @@ export default function TodayDashboardView() {
         if (error) throw new Error(error.message);
       }
       window.dispatchEvent(new Event("tasks-changed"));
+      if (invalidatesNext) todayPlanning.clearNextTaskIf(task.id);
     } catch (err) {
       setAllTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)));
       toast.error(err instanceof Error ? err.message : T("بروزرسانی تسک با خطا مواجه شد", "Could not update task"));
+    } finally {
+      if (invalidatesNext) pendingInvalidations.current.delete(task.id);
     }
-  }, [T, user?.id, setAllTasks, navigate]);
+  }, [T, user?.id, setAllTasks, navigate, allTasks, todayPlanning.nextTaskId, todayPlanning.clearNextTaskIf]);
 
   useEffect(() => {
     const taskId = searchParams.get("completeTaskId");
@@ -388,6 +410,9 @@ export default function TodayDashboardView() {
     const prevTask = allTasks.find((t) => t.id === id);
     if (!prevTask) return "failed";
     const next = { ...prevTask, ...patch };
+    const invalidating = (patch.completed === true || ["done", "wont_do", "waiting"].includes(String(patch.status)))
+      && todayPlanning.nextTaskId === id;
+    if (invalidating) pendingInvalidations.current.add(id);
     const ownerId = user?.id ?? null;
     const entityId = `${ownerId || "guest"}\u0000${id}`;
     const version = beginTaskPatch(patchJournal.current, entityId, prevTask, patch);
@@ -411,21 +436,28 @@ export default function TodayDashboardView() {
     const resolution = resolveTaskPatch(patchJournal.current, entityId, version, status !== "failed");
     setAllTasks((prev) => prev.map((item) => item.id === id ? applyPatchResolution(item, resolution) : item));
     if (status === "failed") toast.error(message || T("ذخیره تغییرات ناموفق بود", "Could not save task changes"));
-    else window.dispatchEvent(new Event("tasks-changed"));
+    else {
+      window.dispatchEvent(new Event("tasks-changed"));
+      if (invalidating) todayPlanning.clearNextTaskIf(id);
+    }
+    if (invalidating) pendingInvalidations.current.delete(id);
     return status;
-  }, [T, user?.id, allTasks, setAllTasks]);
+  }, [T, user?.id, allTasks, setAllTasks, todayPlanning.nextTaskId, todayPlanning.clearNextTaskIf]);
 
   const askDeleteTask = useCallback((task: Task) => {
     const descendants = collectTaskDescendantIds(task.id, childrenMap);
     const childCount = descendants.length;
     const idsToRemove = new Set([task.id, ...descendants]);
-
     setConfirm({
       kind: "task",
       id: task.id,
       title: task.title,
       childCount,
       onConfirm: async () => {
+        const invalidatedNextTaskId = nextTaskIdRef.current && idsToRemove.has(nextTaskIdRef.current)
+          ? nextTaskIdRef.current
+          : null;
+        if (invalidatedNextTaskId) pendingInvalidations.current.add(invalidatedNextTaskId);
         const previousTasks = allTasks;
         setAllTasks((prev) => prev.filter((t) => !idsToRemove.has(t.id)));
         try {
@@ -437,6 +469,7 @@ export default function TodayDashboardView() {
             if (error) throw new Error(error.message);
           }
           window.dispatchEvent(new Event("tasks-changed"));
+          if (invalidatedNextTaskId) todayPlanning.clearNextTaskIf(invalidatedNextTaskId);
           toast.success(
             childCount > 0
               ? T(`تسک و ${childCount} زیرتسک آن حذف شدند`, `Task and its ${childCount} subtasks deleted`)
@@ -445,10 +478,12 @@ export default function TodayDashboardView() {
         } catch (err) {
           setAllTasks(previousTasks);
           toast.error(err instanceof Error ? err.message : T("حذف تسک با خطا مواجه شد", "Could not delete task"));
+        } finally {
+          if (invalidatedNextTaskId) pendingInvalidations.current.delete(invalidatedNextTaskId);
         }
       },
     });
-  }, [childrenMap, allTasks, user?.id, setAllTasks, T]);
+  }, [childrenMap, allTasks, user?.id, setAllTasks, T, todayPlanning.nextTaskId, todayPlanning.clearNextTaskIf]);
 
   const todayJalali = formatDate(new Date(), "EEEE، d MMMM yyyy", "jalali");
   const todayGregorian = formatDate(new Date(), "EEEE, MMMM d, yyyy", "gregorian");
@@ -484,6 +519,8 @@ export default function TodayDashboardView() {
       taskMap={taskMap}
       allowDrag={false}
       showCompletedTasks={showCompleted}
+      todayNextTaskId={todayPlanning.nextTaskId}
+      todayImportantTaskIds={todayPlanning.data.importantByDay[currentDayKey] || []}
     />
   );
 
@@ -505,6 +542,16 @@ export default function TodayDashboardView() {
 
       <HeaderActionsPortal>
         <div className="flex items-center gap-2 shrink-0">
+          {selectedNextTask && (
+            <div data-testid="today-next-selection" className="flex items-center gap-1 rounded-full border border-primary/25 bg-primary/5 px-2 py-1 text-[10px] sm:text-xs text-primary max-w-[150px] sm:max-w-[210px]">
+              <CircleDot className="w-3 h-3 shrink-0" />
+              <span className="hidden sm:inline shrink-0">{T("بعدی:", "Next:")}</span>
+              <span className="truncate">{selectedNextTask.title}</span>
+              <button type="button" aria-label={T("پاک‌کردن کار بعدی", "Clear next task")} onClick={() => todayPlanning.setNextTask(null)} className="shrink-0 rounded-full hover:bg-primary/10">
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
           <NavLink to="/app/stats" className="hidden sm:block" activeClassName="" data-testid="today-streak-link">
             <StreakCard compact />
           </NavLink>
@@ -713,6 +760,11 @@ export default function TodayDashboardView() {
         onPomodoro={() => actionTask && setPomoTask(actionTask)}
         onEdit={() => actionTask && handleSelectTask(actionTask)}
         onRefresh={load}
+        wipEnabled={todayPlanning.data.wipEnabled}
+        wipLimit={todayPlanning.data.wipLimit}
+        wipCount={wipCount}
+        onSetWipEnabled={todayPlanning.setWipEnabled}
+        onSetWipLimit={todayPlanning.setWipLimit}
       />
 
       {/* پومودورو شیت */}

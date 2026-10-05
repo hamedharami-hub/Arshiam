@@ -3,7 +3,11 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import TaskActionSheet from "./TaskActionSheet";
 import type { Task } from "@/lib/taskTypes";
 
-const feedback = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }));
+const feedback = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }));
+const planningMocks = vi.hoisted(() => ({
+  setNextTask: vi.fn(), clearNextTaskIf: vi.fn(), toggleImportant: vi.fn(), setWipEnabled: vi.fn(), setWipLimit: vi.fn(),
+  data: { nextTaskId: null, nextTaskDate: null, importantByDay: {}, wipEnabled: false, wipLimit: 3 },
+}));
 
 vi.mock("sonner", () => ({ toast: feedback }));
 
@@ -14,6 +18,19 @@ vi.mock("react-router-dom", () => ({
 vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({
     user: { id: "user-123", email: "test@example.com" },
+  }),
+}));
+
+vi.mock("@/hooks/useTodayPlanning", () => ({
+  useTodayPlanning: () => ({
+    data: planningMocks.data,
+    nextTaskId: planningMocks.data.nextTaskId,
+    isImportant: () => false,
+    setNextTask: planningMocks.setNextTask,
+    clearNextTaskIf: planningMocks.clearNextTaskIf,
+    toggleImportant: planningMocks.toggleImportant,
+    setWipEnabled: planningMocks.setWipEnabled,
+    setWipLimit: planningMocks.setWipLimit,
   }),
 }));
 
@@ -70,6 +87,15 @@ describe("TaskActionSheet Responsive Behavior", () => {
     feedback.success.mockReset();
     feedback.error.mockReset();
     feedback.info.mockReset();
+    feedback.warning.mockReset();
+    planningMocks.setNextTask.mockReset();
+    planningMocks.clearNextTaskIf.mockReset();
+    planningMocks.toggleImportant.mockReset();
+    planningMocks.setWipEnabled.mockReset();
+    planningMocks.setWipLimit.mockReset();
+    planningMocks.data.nextTaskId = null;
+    planningMocks.data.wipEnabled = false;
+    planningMocks.data.wipLimit = 3;
   });
 
   afterEach(() => {
@@ -128,6 +154,47 @@ describe("TaskActionSheet Responsive Behavior", () => {
     fireEvent.click(screen.getByText(/بیشتر|More/i));
     expect(screen.queryByText(/Save as Template|تمپلیت/i)).not.toBeInTheDocument();
     expect(screen.getByText(/تکثیر|Duplicate/i)).toBeInTheDocument();
+  });
+
+  it("requires explicit confirmation for a future next-task choice without changing its schedule", async () => {
+    localStorage.setItem("arshnaz_nav_mode", "windows");
+    const futureTask = { ...dummyTask, schedule_v: 2, work_date: "2099-10-08" };
+    render(<TaskActionSheet {...defaultProps} task={futureTask} />);
+
+    fireEvent.click(screen.getByText(/انتخاب به‌عنوان کار بعدی من|Set as my next task/i));
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(screen.getByText(/تاریخ برنامه‌ریزی‌شدهٔ تسک تغییر نمی‌کند|planned date will stay unchanged/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/انتخاب بدون تغییر تاریخ|Choose without changing date/i));
+
+    expect(planningMocks.setNextTask).toHaveBeenCalledWith(futureTask.id);
+    expect(futureTask.work_date).toBe("2099-10-08");
+  });
+
+  it("keeps WIP as a soft warning and still starts work", async () => {
+    localStorage.setItem("arshnaz_nav_mode", "windows");
+    const onPatch = vi.fn().mockResolvedValue("saved");
+    render(<TaskActionSheet {...defaultProps} onPatch={onPatch} wipEnabled wipLimit={3} wipCount={3} onSetWipEnabled={planningMocks.setWipEnabled} />);
+
+    fireEvent.click(screen.getByText(/شروع کار|Start work/i));
+    await waitFor(() => expect(onPatch).toHaveBeenCalledWith({ status: "in_progress", completed: false }));
+    expect(feedback.warning).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the WIP setting opt-in in the existing More menu", () => {
+    localStorage.setItem("arshnaz_nav_mode", "windows");
+    render(<TaskActionSheet {...defaultProps} onSetWipEnabled={planningMocks.setWipEnabled} onSetWipLimit={planningMocks.setWipLimit} />);
+    fireEvent.click(screen.getByText(/بیشتر|More/i));
+    const toggle = screen.getByRole("switch");
+    expect(toggle).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(toggle);
+    expect(planningMocks.setWipEnabled).toHaveBeenCalledWith(true);
+  });
+
+  it("allows an optional important-today mark through the task action menu", () => {
+    localStorage.setItem("arshnaz_nav_mode", "windows");
+    render(<TaskActionSheet {...defaultProps} />);
+    fireEvent.click(screen.getByText(/مهم امروز|Important today/i));
+    expect(planningMocks.toggleImportant).toHaveBeenCalledWith(dummyTask.id);
   });
 
   it("keeps the action sheet open and avoids success feedback when a patch returns no status", async () => {

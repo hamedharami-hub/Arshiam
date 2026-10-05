@@ -18,11 +18,16 @@ export function bindCloudState(
   opts: {
     read: () => CloudSnapshot | null;
     apply: (data: unknown, updatedAt: number, local: CloudSnapshot | null) => void;
+    /** Rebase explicit local edits over cloud state before uploading. Return null if none apply. */
+    reconcilePending?: (remote: CloudSnapshot, local: CloudSnapshot) => CloudSnapshot | null;
+    /** Called once a valid server document or our own write acknowledges initial cloud state. */
+    onCloudInitialized?: (remote: CloudSnapshot) => void;
   },
 ): CloudBinding {
   const ref = doc(db, "users", userId, "app_state", name);
   const hadLocalAtBind = opts.read() !== null;
   let ready = false;
+  let cloudInitialized = false;
   let pendingPush = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let stopped = false;
@@ -40,8 +45,15 @@ export function bindCloudState(
 
   const push = () => {
     if (!ready) { pendingPush = true; return; }
+    if (!cloudInitialized) pendingPush = true;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => void flush(), 1200);
+  };
+
+  const markCloudInitialized = (remote: CloudSnapshot) => {
+    if (cloudInitialized) return;
+    cloudInitialized = true;
+    opts.onCloudInitialized?.(remote);
   };
 
   const unsubscribe = onSnapshot(
@@ -60,14 +72,36 @@ export function bindCloudState(
       let data: unknown = null;
       try { data = remote.json ? JSON.parse(remote.json) : null; } catch { data = null; }
       if (data === null) return;
+      const remoteSnapshot = { updatedAt: remoteAt, data };
+      if (pendingPush && local && remoteAt >= local.updatedAt && remote.json === JSON.stringify(local.data)) {
+        if (timer) { clearTimeout(timer); timer = null; }
+        opts.apply(data, remoteAt, local);
+        pendingPush = false;
+        markCloudInitialized(remoteSnapshot);
+        return;
+      }
+      if (pendingPush && local && opts.reconcilePending) {
+        const rebased = opts.reconcilePending(remoteSnapshot, local);
+        if (rebased) {
+          opts.apply(rebased.data, rebased.updatedAt, local);
+          pendingPush = false;
+          markCloudInitialized(remoteSnapshot);
+          push();
+          return;
+        }
+      }
+      // Binders without a rebase policy keep the original timestamp-based
+      // adoption rule. Callers with field-aware pending edits reconcile above.
       const adoptRemote = !local || (first && !hadLocalAtBind) || remoteAt > local.updatedAt;
       if (adoptRemote) {
+        if (timer) { clearTimeout(timer); timer = null; }
         opts.apply(data, remoteAt, local);
         pendingPush = false;
       } else if (local.updatedAt > remoteAt || pendingPush) {
         pendingPush = false;
         push();
       }
+      markCloudInitialized(remoteSnapshot);
     },
     (err) => {
       ready = true;

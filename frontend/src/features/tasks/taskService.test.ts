@@ -67,6 +67,7 @@ import {
   deleteTaskCascade,
   getCachedTasks,
   fetchTasks,
+  hasServerAuthoritativeTasks,
   subscribeToTasks,
   taskMemoryCache,
 } from "./taskService";
@@ -265,7 +266,14 @@ describe("fetchTasks cache completeness", () => {
     mocks.getPendingOps.mockResolvedValue([]);
     vi.mocked(getDocs).mockResolvedValueOnce({ metadata: { fromCache: true }, docs: [] } as any);
     expect((await fetchTasks(owner)).map(task => task.id)).toEqual(["known"]);
+    expect(hasServerAuthoritativeTasks(owner)).toBe(false);
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
     vi.mocked(getDocs).mockResolvedValueOnce({ metadata: { fromCache: false }, docs: [] } as any);
     expect(await fetchTasks(owner)).toEqual([]);
+    expect(hasServerAuthoritativeTasks(owner)).toBe(true);
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    vi.mocked(getDocs).mockRejectedValueOnce(new Error("offline"));
+    await fetchTasks(owner);
+    expect(hasServerAuthoritativeTasks(owner)).toBe(false);
   });
 });
