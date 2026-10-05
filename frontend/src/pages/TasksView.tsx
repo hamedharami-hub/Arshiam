@@ -19,7 +19,9 @@ import {
   removeTask,
   saveTask,
 } from "@/features/tasks/taskService";
-import { persistTask } from "@/lib/firestoreDataService";
+import { persistTask, type TaskPersistenceStatus } from "@/lib/firestoreDataService";
+import { applyPatchResolution, beginTaskPatch, createTaskPatchJournal, resolveTaskPatch } from "@/lib/taskPatchJournal";
+import { toSaveStatus } from "@/lib/saveFeedback";
 import {
   buildTaskChildrenMap,
   collectTaskDescendantIds,
@@ -138,6 +140,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   // A slower cache refresh or Firestore snapshot must not repaint a just-edited
   // badge with its previous value while the user remains on this list.
   const [visualPatches, setVisualPatches] = useState<Record<string, Partial<Task>>>({});
+  const patchJournal = useRef(createTaskPatchJournal());
+  const activeUserId = useRef<string | null>(user?.id ?? null);
+  activeUserId.current = user?.id ?? null;
+  useEffect(() => { setVisualPatches({}); }, [user?.id]);
   const GRACE_MS = 5000;
   const effectiveAllTasks = useMemo(() => {
     const now = Date.now();
@@ -347,9 +353,12 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   }, [currentDayKey, load]);
 
   // Patch a task field optimistically + persist
-  const patchTask = useCallback(async (id: string, patch: Partial<Task>) => {
+  const patchTask = useCallback(async (id: string, patch: Partial<Task>): Promise<TaskPersistenceStatus> => {
+    const ownerId = user?.id ?? null;
     const target = effectiveAllTasks.find(t => t.id === id);
-    const owner = target ? target.user_id === user?.id : true;
+    const owner = target ? target.user_id === ownerId : true;
+    const entityId = `${ownerId || "guest"}\u0000${id}`;
+    const version = beginTaskPatch(patchJournal.current, entityId, target || ({ id } as Task), patch);
     const visualPatch: Partial<Task> = {};
     if (Object.prototype.hasOwnProperty.call(patch, "priority")) visualPatch.priority = patch.priority;
     if (Object.prototype.hasOwnProperty.call(patch, "due_date")) visualPatch.due_date = patch.due_date;
@@ -361,52 +370,51 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     if (owner && Object.keys(visualPatch).length) {
       setVisualPatches(prev => ({ ...prev, [id]: { ...prev[id], ...visualPatch } }));
     }
-    const clearFailedVisualPatch = () => {
-      if (!Object.keys(visualPatch).length) return;
-      setVisualPatches(prev => {
-        const current = prev[id];
-        if (!current) return prev;
-        const nextPatch = { ...current };
-        for (const key of Object.keys(visualPatch) as Array<keyof Task>) {
-          if (Object.is(nextPatch[key], visualPatch[key])) delete nextPatch[key];
+    if (owner) setAllTasks(prev => prev.map(x => x.id === id ? { ...x, ...patch } as Task : x));
+
+    let status: TaskPersistenceStatus = "failed";
+    let errorMessage: string | null = null;
+    try {
+      if (ownerId) {
+        status = toSaveStatus(await persistTask(ownerId, { id, ...patch }));
+      } else if (typeof navigator !== "undefined" && !navigator.onLine) {
+        status = await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id } }) ? "queued" : "failed";
+      } else {
+        const { error } = await firebaseStore.from("tasks").update(patch as any).eq("id", id);
+        if (error) { status = "failed"; errorMessage = error.message; }
+        else status = "saved";
+      }
+    } catch (error) {
+      status = "failed";
+      errorMessage = error instanceof Error ? error.message : null;
+    }
+
+    const resolution = resolveTaskPatch(patchJournal.current, entityId, version, status !== "failed");
+    if (activeUserId.current === ownerId) {
+      setAllTasks(prev => prev.map(task => task.id === id ? applyPatchResolution(task, resolution) : task));
+      const visualKeys = Object.keys(visualPatch);
+      if (visualKeys.length) setVisualPatches(prev => {
+        const nextPatch: Partial<Task> = { ...prev[id] };
+        for (const key of visualKeys) {
+          if (Object.prototype.hasOwnProperty.call(resolution.values, key)) {
+            (nextPatch as Record<string, unknown>)[key] = resolution.values[key];
+          } else if (resolution.removed.includes(key)) {
+            delete (nextPatch as Record<string, unknown>)[key];
+          }
         }
         const next = { ...prev };
         if (Object.keys(nextPatch).length) next[id] = nextPatch;
         else delete next[id];
         return next;
       });
-    };
-    if (owner) setAllTasks(prev => prev.map(x => x.id === id ? { ...x, ...patch } as Task : x));
+    }
 
-    if (user?.id) {
-      const status = await persistTask(user.id, { id, ...patch });
-      if (status === "failed") {
-        clearFailedVisualPatch();
-        if (owner && target) setAllTasks(prev => prev.map(x => x.id === id ? target : x));
-        toast.error(T("ذخیره تغییرات ناموفق بود", "Could not save task changes"));
-        return;
-      }
-      if (status === "queued") {
-        toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
-      }
+    if (status === "failed") toast.error(errorMessage || T("ذخیره تغییرات ناموفق بود", "Could not save task changes"));
+    else {
+      if (status === "queued") toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
       window.dispatchEvent(new Event("tasks-changed"));
-      return;
     }
-
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id } });
-      toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
-      return;
-    }
-
-    const { error } = await firebaseStore.from("tasks").update(patch as any).eq("id", id);
-    if (error) {
-      clearFailedVisualPatch();
-      toast.error(error.message);
-      if (owner && target) setAllTasks(prev => prev.map(x => x.id === id ? target : x));
-      return;
-    }
-    if (!owner && !error) setAllTasks(prev => prev.map(x => x.id === id ? { ...x, ...patch } as Task : x));
+    return status;
   }, [effectiveAllTasks, user?.id, setAllTasks, T]);
 
   const sensors = useSensors(

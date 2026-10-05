@@ -37,7 +37,7 @@ vi.mock("./offlineQueue", async (importOriginal) => ({
   enqueueOp: mocks.enqueueOp,
 }));
 
-import { deleteTask, persistTask, subscribeTasks, upsertNote, persistNote, subscribeFolders, subscribeTags } from "./firestoreDataService";
+import { deleteTask, persistTask, subscribeTasks, upsertNote, persistNote, subscribeFolders, subscribeTags, subscribeMindValues } from "./firestoreDataService";
 
 const cacheKey = "tasks:all:user-1";
 const baseTask = {
@@ -292,5 +292,63 @@ describe("pending taxonomy subscriptions", () => {
     receive({ forEach: () => {} });
     await vi.waitFor(() => expect(update).toHaveBeenCalledWith([cached]));
     unsubscribe();
+  });
+});
+
+describe("mind values cache and subscription", () => {
+  beforeEach(() => {
+    mocks.cache.clear();
+    mocks.cacheGet.mockImplementation(async (key: string) => mocks.cache.get(key));
+    mocks.cacheSet.mockImplementation(async (key: string, value: unknown) => { mocks.cache.set(key, value); });
+    mocks.onSnapshot.mockReset();
+    mocks.doc.mockClear();
+  });
+
+  it("treats a missing server document as an empty values record and clears stale cache", async () => {
+    const valuesKey = "mindValues:all:user-1";
+    mocks.cache.set(valuesKey, { stale: { value: "old account state" } });
+    let receive!: (snapshot: any) => void;
+    mocks.onSnapshot.mockImplementationOnce((_ref, next) => { receive = next; return vi.fn(); });
+    const updates: Array<{ values: Record<string, unknown>; source: string }> = [];
+
+    subscribeMindValues("user-1", (values, meta) => updates.push({ values, source: meta.source }));
+    receive({ exists: () => false, data: () => undefined, metadata: { fromCache: false } });
+    await Promise.resolve();
+
+    expect(updates).toEqual([{ values: {}, source: "server" }]);
+    expect(mocks.cache.get(valuesKey)).toEqual({});
+  });
+
+  it("does not let a delayed cache read overwrite a server answer", async () => {
+    let resolveCache!: (value: unknown) => void;
+    mocks.cacheGet.mockImplementationOnce(() => new Promise((resolve) => { resolveCache = resolve; }));
+    let receive!: (snapshot: any) => void;
+    mocks.onSnapshot.mockImplementationOnce((_ref, next) => { receive = next; return vi.fn(); });
+    const updates: Record<string, unknown>[] = [];
+
+    subscribeMindValues("user-1", (values) => updates.push(values));
+    receive({ exists: () => true, data: () => ({ values: { fresh: { value: "server" } } }), metadata: { fromCache: false } });
+    resolveCache({ stale: { value: "cache" } });
+    await Promise.resolve();
+
+    expect(updates).toEqual([{ fresh: { value: "server" } }]);
+  });
+
+  it("ignores queued cache and snapshot callbacks after unsubscribe", async () => {
+    let resolveCache!: (value: unknown) => void;
+    mocks.cacheGet.mockImplementationOnce(() => new Promise((resolve) => { resolveCache = resolve; }));
+    let receive!: (snapshot: any) => void;
+    const stop = vi.fn();
+    mocks.onSnapshot.mockImplementationOnce((_ref, next) => { receive = next; return stop; });
+    const update = vi.fn();
+
+    const unsubscribe = subscribeMindValues("user-1", update);
+    unsubscribe();
+    resolveCache({ stale: true });
+    receive({ exists: () => true, data: () => ({ values: { tooLate: true } }), metadata: { fromCache: false } });
+    await Promise.resolve();
+
+    expect(update).not.toHaveBeenCalled();
+    expect(stop).toHaveBeenCalledOnce();
   });
 });

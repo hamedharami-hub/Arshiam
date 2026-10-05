@@ -8,6 +8,8 @@ import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import type { Task } from "@/lib/taskTypes";
+import type { TaskPersistenceStatus } from "@/lib/firestoreDataService";
+import { reportSave, toSaveStatus } from "@/lib/saveFeedback";
 import ShareDialog from "@/components/ShareDialog";
 import { TaskActivities } from "@/components/TaskActivities";
 import { firebaseStore } from "@/lib/firebaseStore";
@@ -37,9 +39,9 @@ interface Props {
   onMove: () => void;
   onMakeChild: () => void;
   onEdit: () => void;
-  onPin?: () => void;
+  onPin?: () => Promise<TaskPersistenceStatus>;
   onPomodoro?: () => void;
-  onPatch?: (patch: Partial<Task>) => Promise<void> | void;
+  onPatch?: (patch: Partial<Task>) => Promise<TaskPersistenceStatus>;
   onRefresh?: () => void;
   canEdit?: boolean;
   isOwner?: boolean;
@@ -81,18 +83,24 @@ export default function TaskActionSheet({
 
   const backToMain = () => setView("main");
 
-  const applyPatch = async (patch: Partial<Task>, activityAction?: string, activityPayload?: Record<string, unknown>) => {
-    if (!canEdit) { toast(T("دسترسی ویرایش ندارید", "No edit permission")); return; }
-    if (onPatch) {
-      await onPatch(patch);
-    } else {
-      const { error } = await firebaseStore.from("tasks").update(patch as never).eq("id", task.id);
-      if (error) { toast.error(error.message); return; }
-    }
+  const applyPatch = async (patch: Partial<Task>, activityAction?: string, activityPayload?: Record<string, unknown>): Promise<TaskPersistenceStatus> => {
+    if (!canEdit) { toast(T("دسترسی ویرایش ندارید", "No edit permission")); return "failed"; }
+    let status: TaskPersistenceStatus;
+    try {
+      if (onPatch) status = toSaveStatus(await onPatch(patch));
+      else {
+        const { error } = await firebaseStore.from("tasks").update(patch as never).eq("id", task.id);
+        if (error) throw new Error(error.message);
+        status = "saved";
+      }
+    } catch { status = "failed"; }
+    if (status === "failed") return status;
     if (activityAction && user) {
-      await logTaskActivity(task.id, user.id, activityAction, activityPayload || patch);
+      try { await logTaskActivity(task.id, user.id, activityAction, activityPayload || patch); }
+      catch (error) { console.warn("Task activity after save failed:", error); }
     }
-    onRefresh?.();
+    try { onRefresh?.(); } catch (error) { console.warn("Task refresh after save failed:", error); }
+    return status;
   };
 
   const Tile = ({ icon: Icon, label, onClick, color, disabled }: {
@@ -145,14 +153,18 @@ export default function TaskActionSheet({
   const setWontDo = async () => {
     if (!canEdit) return;
     const next = task.status === "wont_do" ? "todo" : "wont_do";
-    await applyPatch({ status: next, completed: false }, next === "wont_do" ? "wont_do" : "reopened", { status: next });
-    toast.success(next === "wont_do" ? T("علامت‌گذاری شد: انجام نمی‌شود", "Marked won't do") : T("بازگشایی شد", "Reopened"));
+    const status = await applyPatch({ status: next, completed: false }, next === "wont_do" ? "wont_do" : "reopened", { status: next });
+    reportSave(status, isEn, next === "wont_do" ? T("علامت‌گذاری شد: انجام نمی‌شود", "Marked won't do") : T("بازگشایی شد", "Reopened"));
+    if (status === "failed") return;
     close();
   };
 
   const handlePin = async () => {
-    if (onPin) onPin();
-    else await applyPatch({ pinned: !task.pinned }, "pinned", { pinned: !task.pinned });
+    let status: TaskPersistenceStatus;
+    try { status = onPin ? toSaveStatus(await onPin()) : await applyPatch({ pinned: !task.pinned }, "pinned", { pinned: !task.pinned }); }
+    catch { status = "failed"; }
+    reportSave(status, isEn);
+    if (status === "failed") return;
     close();
   };
 
@@ -226,8 +238,9 @@ export default function TaskActionSheet({
 
   const saveLocation = async () => {
     if (!canEdit) return;
-    await applyPatch({ location: location.trim() || null }, "location_set", { location: location.trim() || null });
-    toast.success(T("موقعیت ثبت شد", "Location saved"));
+    const status = await applyPatch({ location: location.trim() || null }, "location_set", { location: location.trim() || null });
+    reportSave(status, isEn, T("موقعیت ثبت شد", "Location saved"));
+    if (status === "failed") return;
     close();
   };
 

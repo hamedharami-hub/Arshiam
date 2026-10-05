@@ -13,13 +13,14 @@ import { Button } from "@/components/ui/button";
 import { Save } from "lucide-react";
 import { toast } from "sonner";
 import { clearTaskDraft } from "@/lib/taskDraft";
+import type { TaskPersistenceStatus } from "@/lib/firestoreDataService";
 
 export interface TaskCloseDialogProps {
   taskId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onClose: () => void;
-  savePendingChanges: () => Promise<void>;
+  savePendingChanges: () => Promise<TaskPersistenceStatus>;
   T: (fa: string, en: string) => string;
 }
 
@@ -59,7 +60,8 @@ export function TaskCloseDialog({
             onClick={async (event) => {
               event.preventDefault();
               try {
-                await savePendingChanges();
+                const status = await savePendingChanges();
+                if (status === "failed") throw new Error("Task save failed");
                 onOpenChange(false);
                 onClose();
               } catch {

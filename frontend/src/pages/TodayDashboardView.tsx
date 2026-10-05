@@ -4,7 +4,7 @@ import { planOf } from "@/lib/planCascade";
 import { isTaskOverdue, isTaskMissedWorkDay } from "@/lib/taskPlanning";
 import { getTimeSettings, todayISO } from "@/lib/timeHorizon";
 import { filterAndSortTasks, DEFAULT_FILTERS } from "@/lib/smartListService";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { endOfDay, startOfDay } from "date-fns";
 import {
@@ -19,7 +19,9 @@ import { formatDate, toPersianDigits } from "@/lib/jalali";
 import { PRIORITY_META } from "@/lib/priority";
 import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
 import type { Task, TaskStatus, ConfirmState } from "@/lib/taskTypes";
-import { persistTask } from "@/lib/firestoreDataService";
+import { persistTask, type TaskPersistenceStatus } from "@/lib/firestoreDataService";
+import { toSaveStatus } from "@/lib/saveFeedback";
+import { applyPatchResolution, beginTaskPatch, createTaskPatchJournal, resolveTaskPatch } from "@/lib/taskPatchJournal";
 import { awardTaskWatering } from "@/lib/garden";
 import { isRecurringTask, advanceRecurringTask } from "@/lib/recurringTaskService";
 import { playCompletionFeedback } from "@/lib/completionFeedback";
@@ -62,6 +64,7 @@ export default function TodayDashboardView() {
   const [pomoTask, setPomoTask] = useState<Task | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const patchJournal = useRef(createTaskPatchJournal());
 
   const [splitView, setSplitView] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
@@ -381,25 +384,35 @@ export default function TodayDashboardView() {
     }
   }, [allTasks, handleToggleTask, navigate, searchParams, setSearchParams]);
 
-  const handlePatchTask = useCallback(async (id: string, patch: Partial<Task>) => {
+  const handlePatchTask = useCallback(async (id: string, patch: Partial<Task>): Promise<TaskPersistenceStatus> => {
     const prevTask = allTasks.find((t) => t.id === id);
-    if (!prevTask) return;
+    if (!prevTask) return "failed";
     const next = { ...prevTask, ...patch };
+    const ownerId = user?.id ?? null;
+    const entityId = `${ownerId || "guest"}\u0000${id}`;
+    const version = beginTaskPatch(patchJournal.current, entityId, prevTask, patch);
 
     setAllTasks((prev) => prev.map((item) => (item.id === id ? next : item)));
+    let status: TaskPersistenceStatus = "failed";
+    let message: string | null = null;
     try {
-      if (user?.id) {
-        const res = await persistTask(user.id, { id, ...patch });
-        if (res === "failed") throw new Error(T("ذخیره تغییرات ناموفق بود", "Could not save task changes"));
+      if (ownerId) {
+        status = toSaveStatus(await persistTask(ownerId, { id, ...patch }));
+        if (status === "failed") message = T("ذخیره تغییرات ناموفق بود", "Could not save task changes");
       } else {
         const { error } = await firebaseStore.from("tasks").update(patch as any).eq("id", id);
-        if (error) throw new Error(error.message);
+        if (error) { status = "failed"; message = error.message; }
+        else status = "saved";
       }
-      window.dispatchEvent(new Event("tasks-changed"));
     } catch (error) {
-      setAllTasks((prev) => prev.map((item) => (item.id === id ? prevTask : item)));
-      toast.error(error instanceof Error ? error.message : T("ذخیره تغییرات ناموفق بود", "Could not save task changes"));
+      status = "failed";
+      message = error instanceof Error ? error.message : T("ذخیره تغییرات ناموفق بود", "Could not save task changes");
     }
+    const resolution = resolveTaskPatch(patchJournal.current, entityId, version, status !== "failed");
+    setAllTasks((prev) => prev.map((item) => item.id === id ? applyPatchResolution(item, resolution) : item));
+    if (status === "failed") toast.error(message || T("ذخیره تغییرات ناموفق بود", "Could not save task changes"));
+    else window.dispatchEvent(new Event("tasks-changed"));
+    return status;
   }, [T, user?.id, allTasks, setAllTasks]);
 
   const askDeleteTask = useCallback((task: Task) => {

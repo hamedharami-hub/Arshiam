@@ -69,12 +69,20 @@ const HORIZONS = {
 
 export default function ValuesGoalsView() {
   const { user } = useAuth();
+  const uid = user?.id ?? null;
   const navigate = useNavigate();
   const { T, isEn } = useBilingual();
   const BackIcon = isEn ? ArrowLeft : ArrowRight;
 
-  const [state, setState] = useState<Record<string, DomainState>>({});
-  const [goals, setGoals] = useState<Goal[]>([]);
+  const [valuesEntry, setValuesEntry] = useState<{ uid: string | null; values: Record<string, DomainState> }>({ uid: null, values: {} });
+  const [goalsEntry, setGoalsEntry] = useState<{ uid: string | null; goals: Goal[] }>({ uid: null, goals: [] });
+  const state = valuesEntry.uid === uid ? valuesEntry.values : {};
+  const goals = goalsEntry.uid === uid ? goalsEntry.goals : [];
+  const setState = (values: Record<string, DomainState>) => setValuesEntry({ uid, values });
+  const setGoals = (next: Goal[]) => setGoalsEntry({ uid, goals: next });
+  const [loadState, setLoadState] = useState<{ uid: string | null; values: "loading" | "ready" | "error"; goals: "loading" | "ready" | "error" }>({ uid: null, values: "loading", goals: "loading" });
+  const loadValuesState = loadState.uid === uid ? loadState.values : "loading";
+  const loadGoalsState = loadState.uid === uid ? loadState.goals : "loading";
   const [editingDomain, setEditingDomain] = useState<string | null>(null);
   const [newGoal, setNewGoal] = useState({
     domain: DOMAINS[0].key,
@@ -84,44 +92,51 @@ export default function ValuesGoalsView() {
 
   useEffect(() => {
     // Never keep the previous account's values/goals on screen.
-    setState({});
-    setGoals([]);
-    if (!user) return;
+    const ownerId = user?.id ?? null;
+    setValuesEntry({ uid: ownerId, values: {} });
+    setGoalsEntry({ uid: ownerId, goals: [] });
+    setLoadState({ uid: ownerId, values: ownerId ? "loading" : "ready", goals: ownerId ? "loading" : "ready" });
+    if (!ownerId) return;
 
     // 1. Load from local cache
     try {
-      const raw = localStorage.getItem(STORAGE(user.id));
-      if (raw) setState(JSON.parse(raw));
-      const g = localStorage.getItem(GOALS_STORAGE(user.id));
-      if (g) setGoals(JSON.parse(g));
+      const raw = localStorage.getItem(STORAGE(ownerId));
+      if (raw) {
+        const cachedValues = JSON.parse(raw);
+        if (cachedValues && typeof cachedValues === "object" && !Array.isArray(cachedValues)) setValuesEntry({ uid: ownerId, values: cachedValues });
+      }
+    } catch {}
+    try {
+      const raw = localStorage.getItem(GOALS_STORAGE(ownerId));
+      if (raw) {
+        const cachedGoals = JSON.parse(raw);
+        if (Array.isArray(cachedGoals)) setGoalsEntry({ uid: ownerId, goals: cachedGoals });
+      }
     } catch {}
 
     // 2. Subscribe to Firestore Values
-    const unsubValues = subscribeMindValues(user.id, (cloudValues) => {
-      if (cloudValues && Object.keys(cloudValues).length > 0) {
-        setState(cloudValues);
-        try {
-          localStorage.setItem(STORAGE(user.id), JSON.stringify(cloudValues));
-        } catch {}
-      }
-    });
+    const unsubValues = subscribeMindValues(ownerId, (cloudValues, meta) => {
+      setValuesEntry({ uid: ownerId, values: cloudValues as Record<string, DomainState> });
+      try { localStorage.setItem(STORAGE(ownerId), JSON.stringify(cloudValues)); } catch {}
+      if (meta.source === "server") setLoadState((current) => current.uid === ownerId ? { ...current, values: "ready" } : current);
+      else if (meta.error) setLoadState((current) => current.uid === ownerId ? { ...current, values: "error" } : current);
+    }, () => setLoadState((current) => current.uid === ownerId ? { ...current, values: "error" } : current));
 
     // 3. Subscribe to Firestore Goals
-    const unsubGoals = subscribeMindGoals(user.id, (cloudGoals, meta) => {
+    const unsubGoals = subscribeMindGoals(ownerId, (cloudGoals, meta) => {
       // An empty server answer is real: clear the screen and the local copy as well.
+      setGoalsEntry({ uid: ownerId, goals: cloudGoals as Goal[] });
+      try { localStorage.setItem(GOALS_STORAGE(ownerId), JSON.stringify(cloudGoals)); } catch {}
       if (meta.source === "server" || cloudGoals.length > 0) {
-        setGoals(cloudGoals as Goal[]);
-        try {
-          localStorage.setItem(GOALS_STORAGE(user.id), JSON.stringify(cloudGoals));
-        } catch {}
+        setLoadState((current) => current.uid === ownerId ? { ...current, goals: "ready" } : current);
       }
-    });
+    }, () => setLoadState((current) => current.uid === ownerId ? { ...current, goals: "error" } : current));
 
     return () => {
       unsubValues();
       unsubGoals();
     };
-  }, [user]);
+  }, [user?.id]);
 
   function persist(next: Record<string, DomainState>) {
     setState(next);
@@ -278,6 +293,9 @@ export default function ValuesGoalsView() {
         <h2 className="text-lg font-bold">
           {T("۱۰ حوزه زندگی برای شفاف‌سازی ارزش‌ها", "10 Life Domains")}
         </h2>
+        {loadValuesState === "loading" && <p className="text-xs text-muted-foreground" role="status" data-testid="values-loading">{T("در حال همگام‌سازی ارزش‌ها…", "Syncing values…")}</p>}
+        {loadValuesState === "error" && <p className="text-xs text-destructive" role="status" data-testid="values-load-error">{T("همگام‌سازی ارزش‌ها انجام نشد؛ دادهٔ ذخیره‌شده حفظ شده است.", "Values could not sync; saved data is still available.")}</p>}
+        {loadValuesState === "ready" && Object.keys(state).length === 0 && <p className="text-xs text-muted-foreground" data-testid="values-empty">{T("هنوز ارزشی ثبت نشده است.", "No values saved yet.")}</p>}
 
         <div className="grid gap-3 sm:grid-cols-2">
           {DOMAINS.map((d) => {
@@ -470,6 +488,9 @@ export default function ValuesGoalsView() {
           </div>
 
           <div className="space-y-2 divide-y divide-border/40">
+            {loadGoalsState === "loading" && goals.length === 0 && <p className="py-2 text-xs text-muted-foreground" role="status" data-testid="values-goals-loading">{T("در حال بارگذاری هدف‌ها…", "Loading goals…")}</p>}
+            {loadGoalsState === "error" && goals.length === 0 && <p className="py-2 text-xs text-destructive" role="status" data-testid="values-goals-error">{T("هدف‌ها بارگذاری نشدند؛ اتصال را بررسی کن.", "Goals could not load; check your connection.")}</p>}
+            {loadGoalsState === "ready" && goals.length === 0 && <p className="py-2 text-xs text-muted-foreground" data-testid="values-goals-empty">{T("هنوز هدفی ثبت نشده است.", "No goals saved yet.")}</p>}
             {goals.map((g) => {
               const dom = DOMAINS.find((d) => d.key === g.domain);
               const hor = g.horizon ? HORIZONS[g.horizon] : undefined;

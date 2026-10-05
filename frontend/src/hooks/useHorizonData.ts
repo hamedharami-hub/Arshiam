@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { firebaseStore } from "@/lib/firebaseStore";
 import {
   persistTask, subscribeFolders, subscribeTags, upsertFolder, upsertTag, upsertTask,
@@ -11,6 +11,8 @@ import { persistTaskTagChange } from "@/lib/taskTagService";
 import type { Task } from "@/lib/taskTypes";
 import type { Priority } from "@/lib/priority";
 import { timePatch, type TimeFields, type TimeSettings } from "@/lib/timeHorizon";
+import { applyPatchResolution, beginTaskPatch, createTaskPatchJournal, resolveTaskPatch } from "@/lib/taskPatchJournal";
+import { toSaveStatus } from "@/lib/saveFeedback";
 
 const newId = () => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `t_${Date.now()}_${Math.random().toString(36).slice(2)}`);
 
@@ -30,6 +32,9 @@ export function useHorizonData(userId: string | undefined, settings: TimeSetting
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [tags, setTags] = useState<TagItem[]>([]);
   const [taskTags, setTaskTags] = useState<Map<string, Set<string>>>(new Map());
+  const activeUserId = useRef(userId);
+  activeUserId.current = userId;
+  const patchJournal = useRef(createTaskPatchJournal());
 
   useEffect(() => {
     // Never show the previous account's tasks while the next one loads.
@@ -56,13 +61,21 @@ export function useHorizonData(userId: string | undefined, settings: TimeSetting
   /** Optimistic update that reports the real result and rolls back when the save failed. */
   const saveTask = useCallback(async (id: string, patch: Partial<Task>): Promise<TaskPersistenceStatus> => {
     if (!userId) return "failed";
-    let before: Task | undefined;
-    setTasks((prev) => prev.map((t) => { if (t.id !== id) return t; before = t; return { ...t, ...patch }; }));
-    const status = await persistTask(userId, { id, ...patch });
-    if (status === "failed" && before) { const prev = before; setTasks((list) => list.map((t) => (t.id === id ? prev : t))); }
+    const ownerId = userId;
+    const entityId = `${ownerId}\u0000${id}`;
+    const before = tasks.find((task) => task.id === id) || ({ id } as Task);
+    const version = beginTaskPatch(patchJournal.current, entityId, before, patch);
+    setTasks((prev) => prev.map((t) => t.id === id ? { ...t, ...patch } : t));
+    let status: TaskPersistenceStatus;
+    try { status = toSaveStatus(await persistTask(ownerId, { id, ...patch })); }
+    catch { status = "failed"; }
+    const resolution = resolveTaskPatch(patchJournal.current, entityId, version, status !== "failed");
+    if (activeUserId.current === ownerId) {
+      setTasks((list) => list.map((task) => task.id === id ? applyPatchResolution(task, resolution) : task));
+    }
     return status;
-  }, [userId]);
-  const updateTask = useCallback(async (id: string, patch: Partial<Task>) => (await saveTask(id, patch)) !== "failed", [saveTask]);
+  }, [tasks, userId]);
+  const updateTask = useCallback((id: string, patch: Partial<Task>) => saveTask(id, patch), [saveTask]);
 
   const setTime = useCallback((id: string, tf: TimeFields) => updateTask(id, timePatch(tf, settings)), [updateTask, settings]);
 

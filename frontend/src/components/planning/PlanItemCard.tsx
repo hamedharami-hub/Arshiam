@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowUpRight, Check, ChevronDown, CornerDownLeft, MoreHorizontal, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Task } from "@/lib/taskTypes";
@@ -6,6 +6,8 @@ import type { Horizon, Period, TimeSettings } from "@/lib/timeHorizon";
 import { horizonLabel, periodLabel } from "@/lib/timeHorizon";
 import { isClosed, planOf, progressOf } from "@/lib/planCascade";
 import { toSaveStatus } from "@/lib/saveFeedback";
+import { clearTaskCreateIntent, getTaskCreateIntent, type TaskCreateIntent } from "@/lib/taskCreateIntent";
+import type { TaskPersistenceStatus } from "@/lib/firestoreDataService";
 import { readSchedule, scheduleLabel } from "@/lib/taskSchedule";
 import { toPersianDigits } from "@/lib/jalali";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -14,9 +16,9 @@ import { LEVEL_NAME, LEVEL_THEME, frac } from "./planningTheme";
 export type PlanItemActions = {
   onToggle: (t: Task) => void;
   onOpen: (t: Task) => void;
-  onAddChild?: (parent: Task, title: string) => unknown;
-  onMoveNext: (t: Task) => void;
-  onUnplan: (t: Task) => void;
+  onAddChild?: (parent: Task, title: string, intentId: string) => Promise<TaskPersistenceStatus>;
+  onMoveNext: (t: Task) => Promise<TaskPersistenceStatus>;
+  onUnplan: (t: Task) => Promise<TaskPersistenceStatus>;
 };
 
 type Props = PlanItemActions & {
@@ -64,14 +66,22 @@ export function PlanItemCard({ task, kids, byId, settings, fa, childLevelName, v
   const done = isClosed(task);
   const num = (n: number) => (fa ? toPersianDigits(n) : String(n));
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const createIntent = useRef<TaskCreateIntent | null>(null);
   const submit = async () => {
     const title = draft.trim();
-    if (!title || !a.onAddChild || saving) return;
+    if (!title || !a.onAddChild || savingRef.current) return;
+    const intent = getTaskCreateIntent(createIntent, `child:${task.id}:${title}`);
+    savingRef.current = true;
     setSaving(true);
-    const status = toSaveStatus(await a.onAddChild(task, title));
-    setSaving(false);
+    let status: TaskPersistenceStatus;
+    try { status = toSaveStatus(await a.onAddChild(task, title, intent.id)); }
+    catch { status = "failed"; }
+    finally { savingRef.current = false; setSaving(false); }
     if (status === "failed") return; // keep the typed step
-    setDraft(""); setAdding(false); setOpen(true);
+    clearTaskCreateIntent(createIntent, intent);
+    setDraft((current) => current.trim() === title ? "" : current);
+    setAdding(false); setOpen(true);
   };
 
   return (
@@ -137,7 +147,7 @@ export function PlanItemCard({ task, kids, byId, settings, fa, childLevelName, v
 
       {adding && (
         <form className="mt-2 flex items-center gap-2 ps-8" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
-          <input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={() => !draft && setAdding(false)}
+          <input autoFocus value={draft} disabled={saving} onChange={(e) => setDraft(e.target.value)} onBlur={() => !draft && setAdding(false)}
             placeholder={fa ? "گام کوچک‌تر…" : "Smaller step…"} className="h-9 min-w-0 flex-1 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" data-testid={`plan-item-child-input-${task.id}`} />
           <button type="submit" disabled={saving} className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground disabled:opacity-50" aria-label={fa ? "افزودن" : "Add"}><CornerDownLeft className="h-4 w-4" /></button>
         </form>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, Compass, Plus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -7,6 +7,9 @@ import { VALUE_DOMAINS } from "@/lib/valueDomains";
 import type { Task } from "@/lib/taskTypes";
 import { getTimeSettings, periodFor, type TimeSettings } from "@/lib/timeHorizon";
 import { readSchedule, schedulePeriod } from "@/lib/taskSchedule";
+import { toSaveStatus } from "@/lib/saveFeedback";
+import { getTaskCreateIntent, type TaskCreateIntent } from "@/lib/taskCreateIntent";
+import type { TaskPersistenceStatus } from "@/lib/firestoreDataService";
 
 export const domainOf = (key?: string | null) => VALUE_DOMAINS.find((d) => d.key === key);
 
@@ -41,8 +44,31 @@ export function plannedGoalIds(tasks: Task[], settings: TimeSettings = getTimeSe
   }).map((t) => t.source_id));
 }
 
-export function ValuesGoalsPanel({ goals, tasks, fa, onAdd, status = "ready" }: { goals: MindGoalItem[]; tasks: Task[]; fa: boolean; onAdd: (g: MindGoalItem) => void; status?: GoalsState["status"] }) {
+export function ValuesGoalsPanel({ goals, tasks, fa, onAdd, status = "ready" }: { goals: MindGoalItem[]; tasks: Task[]; fa: boolean; onAdd: (g: MindGoalItem, intentId: string) => Promise<TaskPersistenceStatus>; status?: GoalsState["status"] }) {
   const linked = useMemo(() => plannedGoalIds(tasks), [tasks]);
+  const [adding, setAdding] = useState<Set<string>>(() => new Set());
+  const addingRef = useRef(new Set<string>());
+  const createIntents = useRef(new Map<string, TaskCreateIntent>());
+  const addGoal = async (goal: MindGoalItem) => {
+    if (addingRef.current.has(goal.id) || linked.has(goal.id)) return;
+    addingRef.current.add(goal.id);
+    setAdding(new Set(addingRef.current));
+    let intent = createIntents.current.get(goal.id);
+    if (!intent) {
+      const ref = { current: null as TaskCreateIntent | null };
+      intent = getTaskCreateIntent(ref, `value-goal:${goal.id}`);
+      createIntents.current.set(goal.id, intent);
+    }
+    try {
+      const result = toSaveStatus(await onAdd(goal, intent.id));
+      if (result !== "failed") createIntents.current.delete(goal.id);
+    } catch {
+      // Keep the same intent id for a safe retry after a thrown save.
+    } finally {
+      addingRef.current.delete(goal.id);
+      setAdding(new Set(addingRef.current));
+    }
+  };
   const sorted = [...goals].sort((a, b) => Number(b.horizon === "year") - Number(a.horizon === "year"));
   return (
     <section className="surface-card p-3" data-testid="planning-values-panel">
@@ -74,7 +100,7 @@ export function ValuesGoalsPanel({ goals, tasks, fa, onAdd, status = "ready" }: 
                 {done ? (
                   <span className="inline-flex shrink-0 items-center gap-0.5 text-[11px] text-emerald-600"><Check className="h-3.5 w-3.5" />{fa ? "در برنامه" : "Planned"}</span>
                 ) : (
-                  <button type="button" onClick={() => onAdd(g)} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2.5 text-xs font-medium text-primary hover:bg-primary/15" data-testid={`planning-value-add-${g.id}`}>
+                  <button type="button" disabled={adding.has(g.id)} onClick={() => void addGoal(g)} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2.5 text-xs font-medium text-primary hover:bg-primary/15 disabled:opacity-50" data-testid={`planning-value-add-${g.id}`}>
                     <Plus className="h-3.5 w-3.5" />{fa ? "به امسال" : "This year"}
                   </button>
                 )}

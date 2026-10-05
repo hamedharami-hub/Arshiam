@@ -11,6 +11,8 @@ import { reportSave, toSaveStatus } from "@/lib/saveFeedback";
 import { toPersianDigits } from "@/lib/jalali";
 import { LEVEL_NAME, frac } from "./planningTheme";
 import { ProgressLine } from "./PlanItemCard";
+import type { TaskPersistenceStatus } from "@/lib/firestoreDataService";
+import { clearTaskCreateIntent, getTaskCreateIntent, type TaskCreateIntent } from "@/lib/taskCreateIntent";
 
 /** Which period deserves a review now: the last day of this one, or the first 3 days after an unreviewed one. */
 export function reviewDue(reviews: Record<string, PlanReview>, enabled: boolean, current: Period, previous: Period, hasPrevItems: boolean, now = new Date()): Period | null {
@@ -25,8 +27,9 @@ export function reviewDue(reviews: Record<string, PlanReview>, enabled: boolean,
 type Props = {
   period: Period | null; items: Task[]; settings: TimeSettings; fa: boolean; onClose: () => void;
   reviews: Record<string, PlanReview>;
-  onMove: (t: Task, p: Period) => unknown; onDrop: (t: Task) => unknown; onComplete: (t: Task) => unknown; onAdd: (title: string, p: Period) => unknown;
-  onSetAside?: (t: Task) => unknown;
+  onMove: (t: Task, p: Period) => Promise<TaskPersistenceStatus>; onDrop: (t: Task) => Promise<TaskPersistenceStatus>; onComplete: (t: Task) => unknown;
+  onAdd: (title: string, p: Period, intentId: string) => Promise<TaskPersistenceStatus>;
+  onSetAside?: (t: Task) => Promise<TaskPersistenceStatus>;
 };
 
 const item = (t: Task, status: PlanReviewItem["status"]): PlanReviewItem => ({ id: t.id, title: t.title || "", status });
@@ -38,6 +41,8 @@ export function PeriodReviewDialog({ period, items, settings, fa, onClose, onMov
   const dirty = useRef(false);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const createIntent = useRef<TaskCreateIntent | null>(null);
   // Cloud data may arrive after the dialog opened: adopt it only while the user has not typed.
   useEffect(() => { if (!dirty.current) setNote(saved?.note || ""); }, [saved?.note]);
   if (!period) return null;
@@ -48,18 +53,45 @@ export function PeriodReviewDialog({ period, items, settings, fa, onClose, onMov
   const open = items.filter((t) => !isClosed(t));
   const counted = done.length + open.length;
   const finish = async () => {
-    if (!user || busy) return;
+    if (!user || busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
-    const status = await savePlanReview(user.id, period, {
-      note, reviewed_at: new Date().toISOString(),
-      snapshot: { done: done.map((t) => item(t, "done")), open: open.map((t) => item(t, "open")), set_aside: setAside.map((t) => item(t, "set_aside")) },
-    }, saved);
-    setBusy(false);
+    let status: TaskPersistenceStatus;
+    try {
+      status = toSaveStatus(await savePlanReview(user.id, period, {
+        note, reviewed_at: new Date().toISOString(),
+        snapshot: { done: done.map((t) => item(t, "done")), open: open.map((t) => item(t, "open")), set_aside: setAside.map((t) => item(t, "set_aside")) },
+      }, saved));
+    } catch { status = "failed"; }
+    finally { busyRef.current = false; setBusy(false); }
     reportSave(status, fa, fa ? "مرور ذخیره شد" : "Review saved");
     if (status === "failed") return; // keep the dialog and the note
     dirty.current = false;
     window.dispatchEvent(new Event("arsh:plan-reviewed"));
     onClose();
+  };
+  const addNext = async () => {
+    const title = draft.trim();
+    if (!title || busyRef.current) return;
+    const intent = getTaskCreateIntent(createIntent, `review:${user?.id || ""}:${period.horizon}:${period.start}:${period.end}:${title}`);
+    busyRef.current = true;
+    setBusy(true);
+    let status: TaskPersistenceStatus;
+    try { status = toSaveStatus(await onAdd(title, next, intent.id)); }
+    catch { status = "failed"; }
+    finally { busyRef.current = false; setBusy(false); }
+    if (status !== "failed") {
+      clearTaskCreateIntent(createIntent, intent);
+      setDraft((current) => current.trim() === title ? "" : current);
+    }
+  };
+  const runTaskUpdate = async (action: () => Promise<TaskPersistenceStatus>) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    try { await action(); }
+    catch { /* The callback reports its failure; still release the review controls. */ }
+    finally { busyRef.current = false; setBusy(false); }
   };
   const past = saved?.reviewed_at && saved.snapshot ? saved.snapshot : null;
   const btn = "h-8 rounded-full px-2.5 text-[11px] transition-colors duration-150";
@@ -99,10 +131,10 @@ export function PeriodReviewDialog({ period, items, settings, fa, onClose, onMov
                 <li key={t.id} className="rounded-xl border border-border/70 p-2" data-testid={`planning-review-open-${t.id}`}>
                   <p className="truncate text-sm">{t.title}</p>
                   <div className="mt-1.5 flex flex-wrap gap-1">
-                    <button type="button" className={`${btn} bg-primary/10 font-medium text-primary hover:bg-primary/15`} onClick={() => onMove(t, next)} data-testid={`planning-review-move-${t.id}`}>{fa ? `به ${periodText(next, settings, "fa")}` : `To ${periodText(next, settings, "en")}`}</button>
-                    <button type="button" className={`${btn} hover:bg-muted`} onClick={() => onComplete(t)} data-testid={`planning-review-done-${t.id}`}>{fa ? "انجام شده بود" : "It's done"}</button>
-                    <button type="button" className={`${btn} text-muted-foreground hover:bg-muted`} onClick={() => onDrop(t)} data-testid={`planning-review-drop-${t.id}`}>{fa ? "حذف از برنامه" : "Remove from plan"}</button>
-                    {onSetAside && <button type="button" className={`${btn} text-muted-foreground hover:bg-muted`} onClick={() => onSetAside(t)} data-testid={`planning-review-setaside-${t.id}`}>{fa ? "کنار بگذار" : "Set aside"}</button>}
+                    <button type="button" disabled={busy} className={`${btn} bg-primary/10 font-medium text-primary hover:bg-primary/15 disabled:opacity-50`} onClick={() => void runTaskUpdate(() => onMove(t, next))} data-testid={`planning-review-move-${t.id}`}>{fa ? `به ${periodText(next, settings, "fa")}` : `To ${periodText(next, settings, "en")}`}</button>
+                    <button type="button" disabled={busy} className={`${btn} hover:bg-muted disabled:opacity-50`} onClick={() => onComplete(t)} data-testid={`planning-review-done-${t.id}`}>{fa ? "انجام شده بود" : "It's done"}</button>
+                    <button type="button" disabled={busy} className={`${btn} text-muted-foreground hover:bg-muted disabled:opacity-50`} onClick={() => void runTaskUpdate(() => onDrop(t))} data-testid={`planning-review-drop-${t.id}`}>{fa ? "حذف از برنامه" : "Remove from plan"}</button>
+                    {onSetAside && <button type="button" disabled={busy} className={`${btn} text-muted-foreground hover:bg-muted disabled:opacity-50`} onClick={() => void runTaskUpdate(() => onSetAside(t))} data-testid={`planning-review-setaside-${t.id}`}>{fa ? "کنار بگذار" : "Set aside"}</button>}
                   </div>
                 </li>
               ))}
@@ -112,17 +144,9 @@ export function PeriodReviewDialog({ period, items, settings, fa, onClose, onMov
 
         <section className="space-y-1.5">
           <h4 className="text-xs font-semibold text-muted-foreground">{fa ? `۳. مهم‌ترین کارهای ${periodLabel(next, settings, lang)}` : `3. Key items for ${periodLabel(next, settings, lang)}`}</h4>
-          <form className="flex gap-2" onSubmit={async (e) => {
-            e.preventDefault();
-            const title = draft.trim();
-            if (!title || busy) return;
-            setBusy(true);
-            const status = toSaveStatus(await onAdd(title, next));
-            setBusy(false);
-            if (status !== "failed") setDraft((cur) => (cur.trim() === title ? "" : cur));
-          }}>
+          <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void addNext(); }}>
             <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={fa ? "یک کار مهم بنویس و Enter بزن" : "Type a key item and press Enter"} className="h-10 min-w-0 flex-1 rounded-xl border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" data-testid="planning-review-next-input" />
-            <button type="submit" className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground" aria-label={fa ? "افزودن" : "Add"}><CornerDownLeft className="h-4 w-4" /></button>
+            <button type="submit" disabled={busy} className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground disabled:opacity-50" aria-label={fa ? "افزودن" : "Add"}><CornerDownLeft className="h-4 w-4" /></button>
           </form>
         </section>
 

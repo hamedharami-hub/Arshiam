@@ -1153,38 +1153,56 @@ export interface MindGoalItem {
   [key: string]: any;
 }
 
+export type MindValuesMeta = { source: "cache" | "server"; error?: boolean };
+
 export function subscribeMindValues(
   userId: string,
-  onUpdate: (values: Record<string, any>) => void
+  onUpdate: (values: Record<string, any>, meta: MindValuesMeta) => void,
+  onError?: (error: unknown) => void,
 ): () => void {
   if (!userId) {
-    onUpdate({});
+    onUpdate({}, { source: "server" });
     return () => {};
   }
 
+  let active = true;
+  let snapshotSeen = false;
+  let serverSeen = false;
+
   cacheGet<Record<string, any>>(CACHE_KEYS.mindValues(userId)).then((cached) => {
-    if (cached) onUpdate(cached);
-  });
+    if (active && !snapshotSeen && !serverSeen && cached && typeof cached === "object" && !Array.isArray(cached)) {
+      onUpdate(cached, { source: "cache" });
+    }
+  }).catch(() => {});
 
   try {
     const docRef = doc(db, "users", userId, "mind_settings", "values");
     const unsub = onSnapshot(
       docRef,
       (snap) => {
-        if (snap.exists()) {
-          const data = snap.data()?.values || {};
-          cacheSet(CACHE_KEYS.mindValues(userId), data);
-          onUpdate(data);
-        }
+        if (!active) return;
+        snapshotSeen = true;
+        const raw = snap.exists() ? snap.data()?.values : null;
+        const data = raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, any> : {};
+        const source = snap.metadata?.fromCache ? "cache" : "server";
+        if (source === "server") serverSeen = true;
+        void cacheSet(CACHE_KEYS.mindValues(userId), data).catch(() => {});
+        onUpdate(data, { source });
       },
-      async () => {
-        const cached = await cacheGet<Record<string, any>>(CACHE_KEYS.mindValues(userId));
-        if (cached) onUpdate(cached);
+      async (error: unknown) => {
+        if (!active) return;
+        onError?.(error);
+        if (serverSeen) return;
+        try {
+          const cached = await cacheGet<Record<string, any>>(CACHE_KEYS.mindValues(userId));
+          if (active && cached && typeof cached === "object" && !Array.isArray(cached)) onUpdate(cached, { source: "cache", error: true });
+        } catch {}
       }
     );
-    return unsub;
-  } catch {
-    return () => {};
+    return () => { active = false; unsub(); };
+  } catch (error) {
+    onError?.(error);
+    return () => { active = false; };
   }
 }
 

@@ -15,14 +15,16 @@ type Stage = { key: string; icon: typeof Heart; title: string; hint: string; cou
 export function LifeSystemMap({ userId, isEn }: { userId: string; isEn: boolean }) {
   const T = (fa: string, en: string) => (isEn ? en : fa);
   const num = (n: number) => (isEn ? String(n) : toPersianDigits(n));
-  const [values, setValues] = useState<Record<string, unknown>>({});
+  const [valuesEntry, setValuesEntry] = useState<{ userId: string; values: Record<string, unknown> }>({ userId, values: {} });
+  const values = valuesEntry.userId === userId ? valuesEntry.values : {};
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [habits, setHabits] = useState<HabitItem[]>([]);
 
   useEffect(() => {
+    setValuesEntry({ userId, values: {} });
     const offs = [
-      subscribeMindValues(userId, setValues),
+      subscribeMindValues(userId, (next) => setValuesEntry((current) => current.userId === userId ? { userId, values: next } : current)),
       subscribeFolders(userId, setFolders),
       subscribeTasks(userId, setTasks),
       subscribeHabits(userId, setHabits),

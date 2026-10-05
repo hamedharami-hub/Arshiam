@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { History, Inbox, Plus } from "lucide-react";
 import type { Task } from "@/lib/taskTypes";
+import type { TaskPersistenceStatus } from "@/lib/firestoreDataService";
 import type { TimeSettings } from "@/lib/timeHorizon";
 import { isTaskOverdue } from "@/lib/taskPlanning";
 import { readSchedule, scheduleLabel } from "@/lib/taskSchedule";
@@ -8,7 +9,7 @@ import { toPersianDigits } from "@/lib/jalali";
 
 const num = (n: number, fa: boolean) => (fa ? toPersianDigits(n) : String(n));
 
-export function UnplannedTray({ tasks, fa, targetName, onAssign, onOpen }: { tasks: Task[]; fa: boolean; targetName: string; onAssign: (t: Task) => void; onOpen: (t: Task) => void }) {
+export function UnplannedTray({ tasks, fa, targetName, onAssign, onOpen }: { tasks: Task[]; fa: boolean; targetName: string; onAssign: (t: Task) => Promise<TaskPersistenceStatus>; onOpen: (t: Task) => void }) {
   const [limit, setLimit] = useState(8);
   return (
     <section className="surface-card p-3" data-testid="planning-unplanned-tray">
@@ -42,7 +43,7 @@ export function UnplannedTray({ tasks, fa, targetName, onAssign, onOpen }: { tas
 
 export function CarryOverCard({ tasks, settings, fa, onMoveHere, onComplete, onDrop, onMoveAll, busy }: {
   tasks: Task[]; settings: TimeSettings; fa: boolean;
-  onMoveHere: (t: Task) => void; onComplete: (t: Task) => void; onDrop: (t: Task) => void; onMoveAll: () => void; busy?: boolean;
+  onMoveHere: (t: Task) => Promise<TaskPersistenceStatus>; onComplete: (t: Task) => void; onDrop: (t: Task) => Promise<TaskPersistenceStatus>; onMoveAll: () => void; busy?: boolean;
 }) {
   if (!tasks.length) return null;
   return (

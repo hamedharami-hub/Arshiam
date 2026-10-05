@@ -85,7 +85,8 @@ import { addTaskToAndroidCalendar } from "@/lib/androidNative";
 import { Switch } from "@/components/ui/switch";
 import { pushUndo } from "@/lib/undoStack";
 import { enqueueOp, cacheGet, cacheSet } from "@/lib/offlineQueue";
-import { subscribeFolders, subscribeTags, persistTask } from "@/lib/firestoreDataService";
+import { subscribeFolders, subscribeTags, persistTask, type TaskPersistenceStatus } from "@/lib/firestoreDataService";
+import { toSaveStatus } from "@/lib/saveFeedback";
 import { deleteTaskCascade } from "@/features/tasks/taskService";
 import { buildTaskChildrenMap, collectTaskDescendantIds } from "@/features/tasks/taskTree";
 import type { Task, TaskNote, ConfirmState } from "@/lib/taskTypes";
@@ -103,7 +104,7 @@ const AUTOSAVE_DELAY_MS = 1200;
 
 export type TaskDetailHandle = {
   /** Flushes the current editor state before a parent route is allowed to leave. */
-  savePendingChanges: (force?: boolean) => Promise<void>;
+  savePendingChanges: (force?: boolean) => Promise<TaskPersistenceStatus>;
   hasPendingChanges: () => boolean;
   getCurrentTask: () => Task;
   requestClose: () => void;
@@ -485,9 +486,9 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     }
   };
 
-  const save = useCallback(async (patch: Partial<Task>, force = false) => {
-    if (!canEdit) return;
-    if (!force && !Object.keys(patch).length) return;
+  const save = useCallback(async (patch: Partial<Task>, force = false): Promise<TaskPersistenceStatus> => {
+    if (!canEdit) return "failed";
+    if (!force && !Object.keys(patch).length) return "saved";
     const current = latestTaskRef.current;
     const next = { ...current, ...patch };
     latestTaskRef.current = next;
@@ -511,10 +512,10 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       try {
         // Autosave sends only the changed fields (merge write), so edits made on
         // another device to other fields are not overwritten by this editor.
-        const result = await persistTask(user.id, { id: current.id, ...patch });
+        const result = toSaveStatus(await persistTask(user.id, { id: current.id, ...patch }));
         if (result === "failed") throw new Error("Task could not be saved on this device");
         finish(result);
-        return;
+        return result;
       } catch (error) {
         setSaveState("error");
         throw error;
@@ -528,6 +529,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       const queued = await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: current.id } });
       if (!queued) throw new Error("Task could not be queued on this device");
       finish("queued");
+      return "queued";
     } catch (e) {
       setSaveState("error");
       throw e;
@@ -541,8 +543,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = null;
     const patch = taskPatch(latestTaskRef.current, savedTaskRef.current);
-    if (!force && !Object.keys(patch).length) return;
-    await save(patch, force);
+    if (!force && !Object.keys(patch).length) return "saved" as const;
+    return save(patch, force);
   }, [save]);
 
   useEffect(() => {
@@ -589,8 +591,9 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     } else {
       try {
         setSaveBusy(true);
-        await savePendingChanges(true);
-        toast.success(T("تغییرات ذخیره شد", "Changes saved"));
+        const status = await savePendingChanges(true);
+        if (status === "saved") toast.success(T("تغییرات ذخیره شد", "Changes saved"));
+        else if (status === "queued") toast.info(T("روی این دستگاه ذخیره شد و با اتصال همگام می‌شود", "Saved on this device and will sync when online"));
       } catch {
         // error already handled in savePendingChanges
       } finally {
@@ -925,7 +928,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             setT(next);
             writeTaskDraft(next);
           }}
-          onSave={(v) => save({ description: v })}
+          onSave={async (v) => { await save({ description: v }); }}
           readOnly={!canEdit}
         />
       </div>

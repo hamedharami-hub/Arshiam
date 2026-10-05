@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import TaskActionSheet from "./TaskActionSheet";
 import type { Task } from "@/lib/taskTypes";
+
+const feedback = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }));
+
+vi.mock("sonner", () => ({ toast: feedback }));
 
 vi.mock("react-router-dom", () => ({
   useNavigate: () => vi.fn(),
@@ -63,6 +67,9 @@ describe("TaskActionSheet Responsive Behavior", () => {
 
   beforeEach(() => {
     localStorage.clear();
+    feedback.success.mockReset();
+    feedback.error.mockReset();
+    feedback.info.mockReset();
   });
 
   afterEach(() => {
@@ -121,5 +128,30 @@ describe("TaskActionSheet Responsive Behavior", () => {
     fireEvent.click(screen.getByText(/بیشتر|More/i));
     expect(screen.queryByText(/Save as Template|تمپلیت/i)).not.toBeInTheDocument();
     expect(screen.getByText(/تکثیر|Duplicate/i)).toBeInTheDocument();
+  });
+
+  it("keeps the action sheet open and avoids success feedback when a patch returns no status", async () => {
+    const onOpenChange = vi.fn();
+    const onPatch = vi.fn().mockResolvedValue(undefined);
+    render(<TaskActionSheet {...defaultProps} onOpenChange={onOpenChange} onPatch={onPatch as any} />);
+
+    fireEvent.click(screen.getByText(/انجام نمی‌شود|Won't Do/i));
+
+    await waitFor(() => expect(onPatch).toHaveBeenCalledWith({ status: "wont_do", completed: false }));
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+    expect(feedback.success).not.toHaveBeenCalled();
+    expect(feedback.error).toHaveBeenCalledOnce();
+  });
+
+  it("reports queued action patches as local sync work instead of cloud success", async () => {
+    const onOpenChange = vi.fn();
+    const onPatch = vi.fn().mockResolvedValue("queued" as const);
+    render(<TaskActionSheet {...defaultProps} onOpenChange={onOpenChange} onPatch={onPatch} />);
+
+    fireEvent.click(screen.getByText(/انجام نمی‌شود|Won't Do/i));
+
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    expect(feedback.info).toHaveBeenCalledOnce();
+    expect(feedback.success).not.toHaveBeenCalled();
   });
 });
