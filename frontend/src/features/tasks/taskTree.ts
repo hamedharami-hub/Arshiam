@@ -37,10 +37,13 @@ export function getTaskProgress(
   const visit = (id: string, self: Task | null = null, isRoot = false) => {
     if (visited.has(id)) return;
     visited.add(id);
-    const activeChildren = (childrenMap[id] || []).filter((child) => child.status !== "wont_do");
+    const allChildren = childrenMap[id] || [];
+    const activeChildren = allChildren.filter((child) => child.status !== "wont_do");
     const unseenChildren = activeChildren.filter((child) => !visited.has(child.id));
     if (!unseenChildren.length) {
-      if (!isRoot && self && self.status !== "wont_do") {
+      // A parent with descendants remains a grouping row even when every
+      // child was set aside or malformed data closes a cycle.
+      if (!isRoot && self && self.status !== "wont_do" && allChildren.length === 0) {
         total += 1;
         if (self.completed || self.status === "done") done += 1;
       }

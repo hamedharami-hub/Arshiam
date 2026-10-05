@@ -62,15 +62,16 @@ export function progressOf(t: Task, kids: Map<string, Task[]>, seen = new Set<st
       eligible.forEach(visit);
       return;
     }
-    // The root itself is not another action when it has descendants; when a
-    // caller asks about a standalone item, count that item as its own leaf.
-    if (task.id !== t.id || !(kids.get(t.id) || []).some((child) => child.status !== "wont_do")) {
+    // The root itself is not another action when it has descendants, even if
+    // all of those descendants were set aside. Only a standalone item counts
+    // as its own leaf.
+    if (task.id !== t.id || !(kids.get(t.id) || []).length) {
       total += 1;
       if (isDone(task)) done += 1;
     }
   };
   visit(t);
-  return { done, total, ratio: total ? done / total : (isDone(t) ? 1 : 0) };
+  return { done, total, ratio: total ? done / total : 0 };
 }
 
 /**

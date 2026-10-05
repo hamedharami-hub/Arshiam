@@ -58,7 +58,7 @@ describe("task tree utilities", () => {
   it("does not loop forever when malformed data contains a cycle", () => {
     const map = buildTaskChildrenMap([task("a", "b"), task("b", "a")]);
     expect(collectTaskDescendantIds("a", map)).toEqual(["a", "b"]);
-    expect(getTaskProgress("a", map)).toEqual({ done: 0, total: 1 });
+    expect(getTaskProgress("a", map)).toEqual({ done: 0, total: 0 });
   });
 
   it("does not let a checked parent hide open descendants or count set-aside leaves", () => {
@@ -69,6 +69,14 @@ describe("task tree utilities", () => {
     const asideLeaf = { ...task("aside-leaf", "root"), status: "wont_do" as const };
     const map = buildTaskChildrenMap([root, branch, doneLeaf, openLeaf, asideLeaf]);
     expect(getTaskProgress("root", map)).toEqual({ done: 1, total: 2 });
+  });
+
+  it("does not treat a completed parent with only set-aside descendants as a leaf", () => {
+    const root = { ...task("root"), completed: true, status: "done" as const };
+    const branch = { ...task("branch", "root"), completed: true, status: "done" as const };
+    const asideLeaf = { ...task("aside-leaf", "branch"), status: "wont_do" as const };
+    const map = buildTaskChildrenMap([root, branch, asideLeaf]);
+    expect(getTaskProgress("root", map)).toEqual({ done: 0, total: 0 });
   });
 
   describe("isStandaloneTaskForScope", () => {

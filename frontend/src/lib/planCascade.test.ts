@@ -42,6 +42,13 @@ describe("planCascade", () => {
     expect(progressOf(year, kids)).toMatchObject({ done: 2, total: 3, ratio: 2 / 3 });
   });
 
+  it("does not count a completed parent or set-aside children as completed progress", () => {
+    const goal = t("goal", { ...planPatch(periodFor("month", now, s), s), completed: true, status: "done" });
+    const aside = t("aside", { ...planPatch(week, s, "goal"), status: "wont_do" });
+    const kids = childrenMap([goal, aside]);
+    expect(progressOf(goal, kids)).toEqual({ done: 0, total: 0, ratio: 0 });
+  });
+
   it("lists open items of earlier periods once and leaves the unplanned tray clean", () => {
     const old = t("old", planPatch(prevPeriod(week, s), s));
     const doneOld = t("doneOld", { ...planPatch(prevPeriod(week, s), s), completed: true });
