@@ -22,6 +22,8 @@
 
 وقتی کاربر از Today یک تسک todo را شروع می‌کند و تعداد به حد رسیده، هشدار نرم نشان داده می‌شود ولی تغییر وضعیت انجام می‌شود. نماهای دیگر شمارنده یا تنظیم WIP را به این action نمی‌دهند و پیش‌فرضشان هشدار ندارد.
 
+شروع کار تا پایان ذخیره موقتاً غیرفعال می‌شود تا کلیک تکراری دو write نسازد؛ این guard و تست آن در commit `38cca6d` اضافه شد.
+
 ## پاک‌سازی انتخاب نامعتبر و محدودیت cache
 
 پس از تکمیل یا حذف موفق تسک انتخاب‌شده، انتخاب پاک می‌شود؛ حذف parent، انتخاب descendant حذف‌شده را هم پاک می‌کند. تغییر موفق به `done`، `wont_do` یا `waiting` نیز selection را پاک می‌کند. شکست ذخیره/حذف، انتخاب را نگه می‌دارد. بازگشایی تسک به‌تنهایی آن را خودکار انتخاب نمی‌کند.
@@ -38,7 +40,7 @@
 
 ## بررسی‌ها
 
-- `cd frontend && npx vitest run src/lib/cloudStateSync.test.ts src/lib/todayPlanning.test.ts src/hooks/useTodayPlanning.test.tsx src/components/TaskActionSheet.test.tsx src/pages/TodayDashboardView.test.tsx src/features/tasks/taskService.test.ts src/hooks/useTasksData.test.tsx` — موفق؛ ۷ فایل و ۴۸ تست.
+- `cd frontend && npx vitest run src/lib/cloudStateSync.test.ts src/lib/todayPlanning.test.ts src/hooks/useTodayPlanning.test.tsx src/components/TaskActionSheet.test.tsx src/pages/TodayDashboardView.test.tsx src/features/tasks/taskService.test.ts src/hooks/useTasksData.test.tsx` — بازبینی مستقل پس از guard شروع کار موفق؛ ۷ فایل و ۴۹ تست.
 - `cd frontend && npm run typecheck` — موفق.
 - `git diff --check` — موفق.
 - `npm run qa:layout` — ۱۰ سناریو موفق: هشت حالت RTL/LTR در 1280×800 با sidebar چپ/راست و expanded/collapsed؛ RTL با sidebar راست در 1440×900 و 2048×1152. هم‌پوشانی task row یا sidebar ثبت نشد. این harness چیدمان صفحهٔ Today را می‌سنجد؛ action sheet به‌طور جداگانه در تست کامپوننت بررسی شد و screenshot مرورگری مستقل از خود sheet نگرفته شد.
