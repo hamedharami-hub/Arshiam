@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   success: vi.fn(),
   info: vi.fn(),
   error: vi.fn(),
+  migrationPreview: vi.fn(),
+  migrationApply: vi.fn(),
 }));
 
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: "user-1" } }) }));
@@ -24,6 +26,10 @@ vi.mock("@/lib/firestoreDataService", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/firestoreDataService")>(),
   persistTask: mocks.persistTask,
 }));
+vi.mock("@/lib/taskScheduleMigration", () => ({
+  previewTaskScheduleMigration: mocks.migrationPreview,
+  applyTaskScheduleMigration: mocks.migrationApply,
+}));
 vi.mock("sonner", () => ({ toast: { success: mocks.success, info: mocks.info, error: mocks.error } }));
 
 const settings = { calendar: "gregorian" as const, weekStart: "mon" as const, seasonsEnabled: false };
@@ -36,6 +42,8 @@ describe("PlanningBoard quick add", () => {
     mocks.success.mockReset();
     mocks.info.mockReset();
     mocks.error.mockReset();
+    mocks.migrationPreview.mockReset().mockReturnValue([]);
+    mocks.migrationApply.mockReset();
   });
 
   it("keeps a failed draft, prevents double submit, and reuses the same task id for a queued retry", async () => {
@@ -58,5 +66,43 @@ describe("PlanningBoard quick add", () => {
     await waitFor(() => expect(screen.getByTestId("planning-quick-add")).toHaveValue(""));
     expect(mocks.info).toHaveBeenCalledOnce();
     expect(mocks.success).not.toHaveBeenCalled();
+  });
+
+  it("shows a scoped dry-run and applies only the ready task after an explicit click", async () => {
+    const legacy: Task = { id: "old-1", title: "Old task", due_date: "2026-03-10" } as Task;
+    const plan = { uid: "user-1", taskId: legacy.id, sourceVersion: null, fingerprint: "fp", state: "ready", issues: [], proposed: { kind: "day", date: "2026-03-10" }, backup: {}, backupId: "backup", patch: {}, updatedAt: null };
+    mocks.migrationPreview.mockReturnValue([plan]);
+    mocks.migrationApply.mockResolvedValue("saved");
+    const onCreated = vi.fn();
+    const onOpen = vi.fn();
+    render(<PlanningBoard tasks={[legacy]} settings={settings} fa={false} onToggle={vi.fn()} onUpdate={vi.fn().mockResolvedValue("saved")} onOpen={onOpen} onCreated={onCreated} />);
+
+    fireEvent.click(screen.getByTestId("planning-schedule-migration-open"));
+    expect(screen.getByTestId("planning-schedule-migration-dialog")).toHaveTextContent("Scoped to tasks loaded in this planning view");
+    expect(screen.getAllByText("Old task")).not.toHaveLength(0);
+    fireEvent.click(screen.getByTestId("planning-schedule-migration-apply-old-1"));
+    await waitFor(() => expect(mocks.migrationApply).toHaveBeenCalledOnce());
+    expect(mocks.migrationApply).toHaveBeenCalledWith(plan);
+    expect(onCreated).toHaveBeenCalledOnce();
+    expect(mocks.success).toHaveBeenCalledWith("Task schedule updated");
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("keeps ambiguous entries blocked and offers open or dismiss actions", () => {
+    const ambiguous: Task = { id: "old-2", title: "Ambiguous task", due_date: "2026-03-10" } as Task;
+    const plan = { uid: "user-1", taskId: ambiguous.id, sourceVersion: null, fingerprint: "fp", state: "conflict", issues: ["unknown_timezone"], proposed: null, backup: {}, backupId: "backup", patch: null, updatedAt: null };
+    mocks.migrationPreview.mockReturnValue([plan]);
+    const onOpen = vi.fn();
+    render(<PlanningBoard tasks={[ambiguous]} settings={settings} fa={false} onToggle={vi.fn()} onUpdate={vi.fn().mockResolvedValue("saved")} onOpen={onOpen} />);
+    fireEvent.click(screen.getByTestId("planning-schedule-migration-open"));
+    expect(screen.getByText("The time zone for this instant is unknown.")).toBeInTheDocument();
+    expect(screen.queryByTestId("planning-schedule-migration-apply-old-2")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("planning-schedule-migration-open-task-old-2"));
+    expect(onOpen).toHaveBeenCalledWith(ambiguous);
+    expect(screen.queryByTestId("planning-schedule-migration-dialog")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("planning-schedule-migration-open"));
+    fireEvent.click(screen.getByTestId("planning-schedule-migration-dismiss-old-2"));
+    expect(screen.queryByTestId("planning-schedule-migration-open")).not.toBeInTheDocument();
+    expect(onOpen).toHaveBeenCalledOnce();
   });
 });

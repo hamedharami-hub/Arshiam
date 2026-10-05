@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PeriodReviewDialog } from "./PeriodReview";
+import type { Task } from "@/lib/taskTypes";
 
 const mocks = vi.hoisted(() => ({ savePlanReview: vi.fn(), toastError: vi.fn(), toastInfo: vi.fn(), toastSuccess: vi.fn() }));
 
@@ -29,7 +30,7 @@ describe("PeriodReviewDialog persistence feedback", () => {
     mocks.toastSuccess.mockReset();
   });
 
-  it("keeps the review note open on failed save and closes only after a queued save", async () => {
+  it("keeps the review open after failed or queued save until a confirmed commit", async () => {
     mocks.savePlanReview.mockResolvedValueOnce("failed").mockResolvedValueOnce("queued");
     const reviewProps = props();
     render(<PeriodReviewDialog {...reviewProps} />);
@@ -44,9 +45,49 @@ describe("PeriodReviewDialog persistence feedback", () => {
     expect(mocks.toastError).toHaveBeenCalledOnce();
 
     fireEvent.click(screen.getByTestId("planning-review-finish"));
-    await waitFor(() => expect(reviewProps.onClose).toHaveBeenCalledOnce());
+    await waitFor(() => expect(screen.getByTestId("planning-review-sync-status")).toHaveTextContent("kept on this device"));
+    expect(reviewProps.onClose).not.toHaveBeenCalled();
     expect(mocks.toastInfo).toHaveBeenCalledOnce();
     expect(mocks.toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it("renders historical report and progress only from the frozen snapshot", () => {
+    const saved = {
+      id: "week_2026-09-28_2026-10-04_gregorian", horizon: "week" as const, start: period.start, end: period.end,
+      note: "Then", reviewed_at: "2026-10-04T20:00:00Z", revision: 2,
+      snapshot: {
+        done: [{ id: "moved", title: "Done at review", status: "done" as const }],
+        open: [{ id: "still-open", title: "Open at review", status: "open" as const }],
+        set_aside: [{ id: "aside", title: "Set aside at review", status: "set_aside" as const }],
+      },
+    };
+    render(<PeriodReviewDialog {...props({ reviews: { [saved.id]: saved }, items: [
+      { id: "moved", title: "Moved after review", completed: false, status: "todo" } as Task,
+      { id: "new", title: "Added after review", completed: false, status: "todo" } as Task,
+    ] })} />);
+    expect(screen.getByText("Done at review")).toBeInTheDocument();
+    expect(screen.getByText("Open at review")).toBeInTheDocument();
+    expect(screen.getByText("Set aside at review")).toBeInTheDocument();
+    expect(screen.queryByText("Moved after review")).not.toBeInTheDocument();
+    expect(screen.queryByText("Added after review")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("planning-review-move-still-open")).not.toBeInTheDocument();
+  });
+
+  it("stores dirty notes locally and submits a snapshot when corrected", async () => {
+    mocks.savePlanReview.mockResolvedValue("saved");
+    const saved = {
+      id: "week_2026-09-28_2026-10-04_gregorian", horizon: "week" as const, start: period.start, end: period.end,
+      note: "Prior", reviewed_at: "t1", revision: 1, snapshot: { done: [], open: [], set_aside: [] },
+    };
+    const reviewProps = props({ reviews: { [saved.id]: saved }, items: [{ id: "open-1", title: "Work", status: "todo" } as Task] });
+    render(<PeriodReviewDialog {...reviewProps} />);
+    fireEvent.change(screen.getByTestId("planning-review-note"), { target: { value: "Corrected" } });
+    expect(localStorage.getItem("arsh_plan_review_drafts_v1:user-1")).toContain("Corrected");
+    fireEvent.click(screen.getByTestId("planning-review-finish"));
+    await waitFor(() => expect(reviewProps.onClose).toHaveBeenCalledOnce());
+    expect(mocks.savePlanReview).toHaveBeenCalledOnce();
+    expect(mocks.savePlanReview.mock.calls[0][2]).toMatchObject({ note: "Corrected", snapshot: { open: [{ id: "open-1", title: "Work", status: "open" }] } });
+    expect(mocks.savePlanReview.mock.calls[0][3]).toMatchObject({ revision: 1, note: "Prior" });
   });
 
   it("preserves a next-period draft after a thrown add and retries with the same intent", async () => {
