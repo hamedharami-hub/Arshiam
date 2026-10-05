@@ -413,7 +413,7 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
           )}
           {lv === "year" && (
             <div className={cn(pane === "unplanned" && "hidden lg:block")}>
-              <ValuesGoalsPanel goals={goals} status={goalsStatus} tasks={live} fa={fa} onAdd={(g, intentId) => create(g.text, period, undefined, { source_type: "values_goal", source_id: g.id }, intentId)} />
+              <ValuesGoalsPanel goals={goals} status={goalsStatus} tasks={live} year={period} settings={settings} fa={fa} onAdd={(g, intentId) => create(g.text, period, undefined, { source_type: "values_goal", source_id: g.id }, intentId)} />
             </div>
           )}
           <div className={cn(pane === "upper" && "hidden lg:block")}>

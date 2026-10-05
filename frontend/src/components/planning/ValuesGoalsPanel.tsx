@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { subscribeMindGoals, type MindGoalItem } from "@/lib/firestoreDataService";
 import { VALUE_DOMAINS } from "@/lib/valueDomains";
 import type { Task } from "@/lib/taskTypes";
-import { getTimeSettings, periodFor, type TimeSettings } from "@/lib/timeHorizon";
+import type { Period, TimeSettings } from "@/lib/timeHorizon";
 import { readSchedule, schedulePeriod } from "@/lib/taskSchedule";
 import { isClosed } from "@/lib/planCascade";
 import { toSaveStatus } from "@/lib/saveFeedback";
@@ -35,9 +35,8 @@ export function useMindGoals(): MindGoalItem[] {
   return useMindGoalsState().goals;
 }
 
-/** A goal is "in the plan" only through an open task scheduled within the current year. */
-export function plannedGoalIds(tasks: Task[], settings: TimeSettings = getTimeSettings(), now = new Date()): Set<string | null | undefined> {
-  const year = periodFor("year", now, settings);
+/** A goal is "in the plan" only through an open task scheduled within the selected year. */
+export function plannedGoalIds(tasks: Task[], year: Period, settings: TimeSettings): Set<string | null | undefined> {
   return new Set(tasks.filter((t) => {
     if (t.source_type !== "values_goal" || !t.source_id || isClosed(t)) return false;
     const p = schedulePeriod(readSchedule(t, settings));
@@ -45,8 +44,8 @@ export function plannedGoalIds(tasks: Task[], settings: TimeSettings = getTimeSe
   }).map((t) => t.source_id));
 }
 
-export function ValuesGoalsPanel({ goals, tasks, fa, onAdd, status = "ready" }: { goals: MindGoalItem[]; tasks: Task[]; fa: boolean; onAdd: (g: MindGoalItem, intentId: string) => Promise<TaskPersistenceStatus>; status?: GoalsState["status"] }) {
-  const linked = useMemo(() => plannedGoalIds(tasks), [tasks]);
+export function ValuesGoalsPanel({ goals, tasks, year, settings, fa, onAdd, status = "ready" }: { goals: MindGoalItem[]; tasks: Task[]; year: Period; settings: TimeSettings; fa: boolean; onAdd: (g: MindGoalItem, intentId: string) => Promise<TaskPersistenceStatus>; status?: GoalsState["status"] }) {
+  const linked = useMemo(() => plannedGoalIds(tasks, year, settings), [tasks, year, settings]);
   const [adding, setAdding] = useState<Set<string>>(() => new Set());
   const addingRef = useRef(new Set<string>());
   const createIntents = useRef(new Map<string, TaskCreateIntent>());
