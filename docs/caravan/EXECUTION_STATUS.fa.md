@@ -35,3 +35,9 @@
 ## قرارداد پیام و ذخیره
 
 bridgeVersion=1، ownerId و type در هر پیام؛ requestId برای transfer و snapshot/restore. طرف گیرنده event.source و event.origin را بررسی می‌کند. کلید بازی dream-caravan:save:v2:<owner> و journal با dream-caravan:transfers:v1:<owner> است. path ابری users/<owner>/caravan_profile/save_v1 حفظ شده، با state و revision در سند. ذخیرهٔ عمومی قدیمی خودکار به یک حساب نسبت داده نمی‌شود.
+
+## انتشار اصلاحات آماده
+
+Commit اجرایی fc09bfd با native Git به origin/fix/caravan-reliability-and-eight-directions ارسال شد. main و arshnaz تغییر نکردند. ساخت PR با gh رد شد: POST https://api.github.com/graphql → Forbidden؛ این خطا مربوط به دسترسی API است، نه شکست push. PR ساخته نشده و سایت منتشر نشده است. لینک ساخت PR: https://github.com/hamedharami-hub/Arshiam/compare/arshnaz...fix/caravan-reliability-and-eight-directions
+
+تنظیمات نصب و شروع برای محیط ذخیره شد؛ برای فعال‌سازی در وظایف بعدی، تنظیمات محیط باید توسط کاربر Save/Publish شود. نصب npm با cache زیر /tmp و گزینهٔ مستند ONNXRUNTIME_NODE_INSTALL=skip انجام می‌شود؛ دانلود GPU اختیاری برای کار مرورگر لازم نیست. بازگردانی فایل‌های محیط قبلی به محیط تازه تأیید نشده است.
