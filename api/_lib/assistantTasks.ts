@@ -51,7 +51,7 @@ export async function createAssistantTask(grant: AssistantGrant, input: any) {
     id, user_id: grant.userId, title: input.title.trim(), description: input.description || null,
     completed: Boolean(input.completed), priority: input.priority || "p4",
     status: input.status || (input.completed ? "done" : "todo"),
-    ...scheduleWrite(input.work_date || input.due_date || null),
+    ...scheduleWrite(input.work_date || input.due_date || null, input.schedule_timezone),
     folder_id: input.folder_id || null, pinned: Boolean(input.pinned),
     created_at: now, updated_at: now, ...(externalRef ? { external_ref: externalRef } : {}),
   };
@@ -71,7 +71,7 @@ export async function updateAssistantTask(grant: AssistantGrant, id: string, inp
     if (writeFields.has(key)) patch[key] = value;
   }
   const dateInput = input?.work_date !== undefined ? input.work_date : input?.due_date;
-  if (dateInput !== undefined) Object.assign(patch, scheduleWrite(typeof dateInput === "string" ? dateInput : null));
+  if (dateInput !== undefined) Object.assign(patch, scheduleWrite(typeof dateInput === "string" ? dateInput : null, input.schedule_timezone || snapshot.data()?.schedule_timezone));
   if (typeof patch.title === "string") patch.title = patch.title.trim();
   if (patch.title === "") throw new Error("Task title cannot be empty.");
   if (Object.keys(patch).length === 0) throw new Error("No editable fields supplied.");

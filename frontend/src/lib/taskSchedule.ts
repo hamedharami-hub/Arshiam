@@ -35,6 +35,7 @@ export const LEGACY_SCHEDULE_FIELDS = [
   "due_date", "due_at", "is_exact", "horizon", "period_start", "period_end",
   "bucket_kind", "bucket_anchor", "bucket_calendar",
   "planning_horizon", "planning_start", "planning_end", "planning_calendar", "work_date",
+  "schedule_timezone",
   // removed features: time block, part of day, deadline
   "start_at", "end_at", "estimated_minutes", "time_of_day", "part_of_day", "deadline",
 ] as const;
@@ -42,15 +43,16 @@ const REMOVED_FEATURE_FIELDS = ["start_at", "end_at", "estimated_minutes", "time
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const isHorizon = (h: unknown): h is Horizon => typeof h === "string" && (ALL_HORIZONS as string[]).includes(h);
+const validDay = (value: unknown): value is string => typeof value === "string" && DATE_ONLY.test(value) && toLocalISO(fromLocalISO(value)) === value;
 
-/** Parse a stored day or instant. Midnight and the old 23:59 all-day stamp mean "a day without a time". */
-export function scheduleFromDateValue(value: string | null | undefined): TaskSchedule {
+/** New writes preserve every explicit instant. Legacy all-day inference is opt-in. */
+export function scheduleFromDateValue(value: string | null | undefined, legacyAllDay = false): TaskSchedule {
   if (!value) return NO_SCHEDULE;
   if (DATE_ONLY.test(value)) return { kind: "day", date: value };
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return NO_SCHEDULE;
   const date = toLocalISO(d);
-  const allDay = (d.getHours() === 0 && d.getMinutes() === 0) || (d.getHours() === 23 && d.getMinutes() === 59);
+  const allDay = legacyAllDay && ((d.getHours() === 0 && d.getMinutes() === 0) || (d.getHours() === 23 && d.getMinutes() === 59));
   return allDay ? { kind: "day", date } : { kind: "datetime", date, at: d.toISOString() };
 }
 
@@ -63,9 +65,9 @@ export type LegacyResolution = { schedule: TaskSchedule; conflict: string | null
 /** Read a not-yet-migrated task. The more precise value wins; a disagreeing broad plan is only reported. */
 export function legacySchedule(task: Partial<Task>, s: TimeSettings = getTimeSettings()): LegacyResolution {
   let precise: TaskSchedule | null = null;
-  if (task.work_date !== undefined) precise = scheduleFromDateValue(task.work_date);
-  else if (task.due_date) precise = scheduleFromDateValue(task.due_date);
+  if (task.work_date !== undefined) precise = scheduleFromDateValue(task.work_date, task.is_exact !== true);
   else if (task.is_exact && task.due_at) precise = scheduleFromDateValue(task.due_at);
+  else if (task.due_date) precise = scheduleFromDateValue(task.due_date, task.is_exact !== true);
   if (precise?.kind === "none") precise = null;
 
   let period: Period | null = null;
@@ -108,13 +110,14 @@ export function readSchedule(task: Partial<Task> | null | undefined, s: TimeSett
 export function schedulePatch(schedule: TaskSchedule, s: TimeSettings = getTimeSettings()): Partial<Task> {
   const base: Partial<Task> = {
     schedule_v: SCHEDULE_VERSION,
+    schedule_timezone: null,
     work_date: null,
     planning_horizon: null, planning_start: null, planning_end: null, planning_calendar: null,
     due_date: null, due_at: null, is_exact: null, horizon: null, period_start: null, period_end: null,
     bucket_kind: null, bucket_anchor: null, bucket_calendar: null,
   };
   if (schedule.kind === "day") return { ...base, work_date: schedule.date };
-  if (schedule.kind === "datetime") return { ...base, work_date: schedule.at };
+  if (schedule.kind === "datetime") return { ...base, work_date: schedule.at, schedule_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
   if (schedule.kind === "period") {
     if (schedule.period.horizon === "day") return { ...base, work_date: schedule.period.start };
     return {
@@ -321,11 +324,29 @@ export function normalizeTaskWrite<T extends Record<string, unknown>>(row: T, s:
   if (!row || typeof row !== "object") return row;
   const out: Record<string, unknown> = { ...row };
   for (const f of REMOVED_FEATURE_FIELDS) if (out[f] !== undefined && out[f] !== null) delete out[f];
-  const speaksV2 = out.schedule_v !== undefined || out.work_date !== undefined || out.planning_horizon !== undefined;
-  if (!speaksV2 && out.due_date !== undefined) {
-    const due = out.due_date as string | null;
-    delete out.due_date;
-    Object.assign(out, schedulePatch(scheduleFromDateValue(due), s));
+  const hasDate = out.work_date !== undefined;
+  const hasPeriod = out.planning_horizon !== undefined;
+  if (hasDate && out.work_date && hasPeriod && out.planning_horizon) throw new Error("Conflicting task schedules: choose a date or a period");
+  let canonical: TaskSchedule | undefined;
+  if (hasPeriod && out.planning_horizon) {
+    if (!isHorizon(out.planning_horizon) || !validDay(out.planning_start) || !validDay(out.planning_end) || out.planning_start > out.planning_end) {
+      throw new Error("A period requires a valid horizon, start and end");
+    }
+    canonical = periodSchedule({ horizon: out.planning_horizon, start: out.planning_start, end: out.planning_end });
+  } else if (hasDate) canonical = scheduleFromDateValue(out.work_date as string | null);
+  else if (hasPeriod) canonical = NO_SCHEDULE;
+  else if (out.schedule_v !== SCHEDULE_VERSION && out.due_date !== undefined) canonical = scheduleFromDateValue(out.due_date as string | null);
+  const dateInput = hasDate ? out.work_date : !hasPeriod && out.schedule_v !== SCHEDULE_VERSION ? out.due_date : undefined;
+  if (dateInput !== undefined && dateInput !== null && (typeof dateInput !== "string" || !dateInput || (DATE_ONLY.test(dateInput) ? !validDay(dateInput) : Number.isNaN(new Date(dateInput).getTime())))) {
+    throw new Error("Invalid task date");
+  }
+  if (canonical) {
+    const timezone = out.schedule_timezone;
+    const calendar = out.planning_calendar;
+    Object.assign(out, schedulePatch(canonical, s));
+    if (canonical.kind === "datetime" && typeof timezone === "string") out.schedule_timezone = timezone;
+    else if (canonical.kind === "datetime" && (timezone === null || row.schedule_v === SCHEDULE_VERSION)) out.schedule_timezone = null;
+    if (canonical.kind === "period" && (calendar === "jalali" || calendar === "gregorian")) out.planning_calendar = calendar;
   }
   return out as T;
 }

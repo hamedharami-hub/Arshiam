@@ -1,0 +1,12 @@
+
+> arshnaz-frontend@0.0.0 test
+> vitest run src/lib/taskSchedulePhaseZero.test.ts src/lib/taskSchedule.test.ts src/lib/taskScheduleAdapters.test.ts src/lib/taskScheduleMigration.test.ts src/lib/recurringTaskService.test.ts src/features/tasks/taskService.test.ts src/lib/taskDate.test.ts
+
+
+ RUN  v4.1.11 /workspace/Arshiam-implementation-review/frontend
+
+
+ Test Files  7 passed (7)
+      Tests  68 passed (68)
+   Start at  17:07:36
+   Duration  11.25s (transform 1.31s, setup 449ms, import 17.08s, tests 279ms, environment 2.74s)

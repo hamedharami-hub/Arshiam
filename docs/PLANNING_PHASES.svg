@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="330" viewBox="0 0 1100 330">
+  <rect width="1100" height="330" fill="#f8fafc"/>
+  <style>text{font-family:Arial,sans-serif;fill:#172554;text-anchor:middle}.title{font-size:24px}.label{font-size:19px}.small{font-size:15px}</style>
+  <text x="550" y="43" class="title" direction="rtl">مسیر اجرای اصلاحات — حفظ طراحی در تمام مراحل</text>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#64748b"/></marker></defs>
+  <g fill="#ffffff" stroke="#cbd5e1" stroke-width="2">
+    <rect x="820" y="90" width="235" height="125" rx="16" fill="#dbeafe" stroke="#2563eb"/>
+    <rect x="560" y="90" width="235" height="125" rx="16"/>
+    <rect x="300" y="90" width="235" height="125" rx="16"/>
+    <rect x="40" y="90" width="235" height="125" rx="16"/>
+  </g>
+  <g class="label"><text x="937" y="122">Sol 6.1</text><text x="677" y="122">Luna 6 / Max</text><text x="417" y="122">Luna 6 / Max</text><text x="157" y="122">Sol 6.1</text></g>
+  <g class="small" direction="rtl">
+    <text x="937" y="154">مرحلهٔ صفر: هسته و قرارداد</text><text x="937" y="184">ساعت، منطقهٔ زمانی، داده</text>
+    <text x="677" y="154">بسته‌های ۱ تا ۳</text><text x="677" y="184">انتخابگر، ذخیره، مرور</text>
+    <text x="417" y="154">بسته‌های ۴ تا ۶</text><text x="417" y="184">اقدام، انتظار، AI و آزمون</text>
+    <text x="157" y="154">بازبینی مستقل نهایی</text><text x="157" y="184">رفتار، داده و ظاهر</text>
+  </g>
+  <g stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"><path d="M816 151 H800"/><path d="M556 151 H540"/><path d="M296 151 H280"/></g>
+  <rect x="820" y="239" width="235" height="42" rx="12" fill="#2563eb"/>
+  <text x="937" y="266" class="small" direction="rtl" style="fill:white">توقف پس از مرحلهٔ صفر</text>
+  <text x="420" y="270" class="small" direction="rtl">مراحل Luna و بازبینی نهایی هنوز اجرا نشده‌اند</text>
+</svg>

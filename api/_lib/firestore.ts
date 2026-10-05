@@ -1,4 +1,4 @@
-import { taskDateOf, taskDayOf } from "./taskSchedule.js";
+import { scheduleWrite, taskDateOf, taskDayOf } from "./taskSchedule.js";
 import firebaseConfig from "../../frontend/firebase-applet-config.json" with { type: "json" };
 import type { AuthUser } from "./auth.js";
 
@@ -258,11 +258,7 @@ export async function createUserTask(
     // One schedule (schedule v2): the task's day or instant lives in work_date.
     // `due_date` is still accepted from older API callers but stored as the task date.
     // Time block / estimated duration are no longer part of the task model.
-    schedule_v: 2,
-    work_date: taskInput.work_date || taskInput.due_date || null,
-    planning_horizon: null,
-    planning_start: null,
-    planning_end: null,
+    ...scheduleWrite(taskInput.work_date || taskInput.due_date || null, taskInput.schedule_timezone),
     folder_id: taskInput.folder_id || null,
     pinned: Boolean(taskInput.pinned),
     created_at: now,

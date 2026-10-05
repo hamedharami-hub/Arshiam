@@ -72,6 +72,8 @@ export type Task = {
   postpone_count?: number | null;
   /** 2 = the task stores exactly one schedule in work_date | planning_* (see src/lib/taskSchedule.ts). */
   schedule_v?: number | null;
+  /** IANA zone at explicit datetime selection; absent legacy zones are not guessed by the API. */
+  schedule_timezone?: string | null;
   /** Backup of the pre-v2 schedule fields, written once by the migration. Never read as a schedule. */
   schedule_legacy?: { version: number; migrated_at: string; fields: Record<string, unknown>; conflict?: string } | null;
   start_at?: string | null;

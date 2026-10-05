@@ -190,10 +190,10 @@ async function handleGetTasks(grant: AssistantGrant, query: any, res: any) {
     filtered = filtered.filter((t) => (taskDayOf(t) || "").startsWith(query.due_date));
   }
   if (query.from_date) {
-    filtered = filtered.filter((t) => (taskDateOf(t) || "") >= query.from_date);
+    filtered = filtered.filter((t) => { const day = taskDayOf(t); return day !== null && day >= query.from_date; });
   }
   if (query.to_date) {
-    filtered = filtered.filter((t) => (taskDayOf(t) || "") <= query.to_date);
+    filtered = filtered.filter((t) => { const day = taskDayOf(t); return day !== null && day <= query.to_date; });
   }
   if (query.search) {
     const q = String(query.search).toLowerCase();
@@ -248,7 +248,7 @@ async function handleCreateTask(grant: AssistantGrant, body: any, req: any, res:
     priority: body.priority || "p4",
     status: body.status || (isCompleted ? "done" : "todo"),
     completed: isCompleted,
-    ...scheduleWrite(body.work_date || body.due_date || null),
+    ...scheduleWrite(body.work_date || body.due_date || null, body.schedule_timezone),
     folder_id: body.folder_id || null,
     pinned: Boolean(body.pinned),
     recurrence: body.recurrence || "none",
@@ -299,7 +299,7 @@ async function handlePatchTask(grant: AssistantGrant, taskId: string, body: any,
   }
   // One schedule: a new day/instant replaces any earlier schedule (legacy `due_date` accepted).
   const dateInput = body.work_date !== undefined ? body.work_date : body.due_date;
-  if (dateInput !== undefined) Object.assign(patch, scheduleWrite(dateInput));
+  if (dateInput !== undefined) Object.assign(patch, scheduleWrite(dateInput, body.schedule_timezone || existing.schedule_timezone));
 
   if (typeof patch.title === "string") {
     patch.title = patch.title.trim();
@@ -774,7 +774,7 @@ async function handleCreateCalendarEvent(grant: AssistantGrant, body: any, req: 
     title,
     description: body.description || null,
     // One schedule: the event is a task at an explicit time (no time block / end time is stored).
-    ...scheduleWrite(startAt),
+    ...scheduleWrite(startAt, body.schedule_timezone),
     completed: false,
     status: "todo",
     priority: body.priority || "p3",
@@ -835,7 +835,7 @@ async function handlePatchCalendarEvent(grant: AssistantGrant, eventId: string, 
   const patch: Record<string, any> = {};
   if (body.title !== undefined) patch.title = String(body.title).trim();
   if (body.description !== undefined) patch.description = body.description;
-  if (newAt) Object.assign(patch, scheduleWrite(newAt));
+  if (newAt) Object.assign(patch, scheduleWrite(newAt, body.schedule_timezone || existing.schedule_timezone));
   else if (body.work_date === null) Object.assign(patch, scheduleWrite(null));
   if (body.status !== undefined) patch.status = body.status;
   if (body.completed !== undefined) patch.completed = Boolean(body.completed);

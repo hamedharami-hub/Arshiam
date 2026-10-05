@@ -1,0 +1,30 @@
+
+> arshnaz-frontend@0.0.0 test
+> vitest run api/agentApi.test.ts api/agentSchema.test.ts api/api.test.ts
+
+
+ RUN  v4.1.11 /workspace/Arshiam-implementation-review/frontend
+
+ ❯ api/agentSchema.test.ts (0 test)
+ ❯ api/agentApi.test.ts (0 test)
+ ❯ api/api.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  api/agentApi.test.ts [ api/agentApi.test.ts ]
+Error: Cannot find module '/@fs/workspace/Arshiam-implementation-review/api/agentApi.test.ts'
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  api/agentSchema.test.ts [ api/agentSchema.test.ts ]
+Error: Cannot find module '/@fs/workspace/Arshiam-implementation-review/api/agentSchema.test.ts'
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  api/api.test.ts [ api/api.test.ts ]
+Error: Cannot find module '/@fs/workspace/Arshiam-implementation-review/api/api.test.ts'
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  3 failed (3)
+      Tests  no tests
+   Start at  06:06:38
+   Duration  1.21s (transform 60ms, setup 217ms, import 0ms, tests 0ms, environment 1.00s)

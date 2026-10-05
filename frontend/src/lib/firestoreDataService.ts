@@ -283,8 +283,14 @@ export async function persistTask(
   options: { quietCompanion?: boolean } = {},
 ): Promise<TaskPersistenceStatus> {
   if (!userId || !task.id) return "failed";
+  let normalizedTask: typeof task;
+  try { normalizedTask = normalizeTaskWrite(task); }
+  catch (error) {
+    console.warn("[FirestoreData] Invalid task schedule:", error);
+    return "failed";
+  }
   const dataToSave = {
-    ...normalizeTaskWrite(task),
+    ...normalizedTask,
     user_id: userId,
     updated_at: new Date().toISOString(),
   };

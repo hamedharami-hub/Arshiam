@@ -132,9 +132,8 @@ export function subscribeToTasks(userId: string, onUpdate: (tasks: Task[]) => vo
       if (!tasks || !isActive || snapshotVersion !== newestSnapshot) return;
       void syncAndroidWidget(tasks, userId).catch(() => {});
       onUpdate(tasks);
-      void import("@/lib/taskScheduleMigration")
-        .then(({ migrateTaskSchedules }) => migrateTaskSchedules(userId, tasks))
-        .catch((error) => console.warn("[TaskService] Schedule migration skipped:", error));
+      // Migration writes are deliberately not triggered by subscriptions.
+      // Enable only through the reviewed dry-run/conflict/CAS flow (phase 3).
     }).catch((error) => {
       console.warn("[TaskService] Could not reconcile a task snapshot:", error);
     });

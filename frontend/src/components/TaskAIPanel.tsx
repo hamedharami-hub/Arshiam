@@ -19,7 +19,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { PRIORITY_META, type Priority } from "@/lib/priority";
 import { describeRule, type RecurrenceRule } from "@/lib/recurrence";
-import { parseTaskDueDate, taskWorkDate } from "@/lib/taskDate";
+import { parseTaskDueDate, taskWorkDate, workDatePatch } from "@/lib/taskDate";
 import { compactTasksForAI } from "@/lib/taskSchedule";
 
 type TaskLite = {
@@ -139,7 +139,7 @@ export function TaskAIPanel({
     if (!meta) return;
     const patch: any = {};
     if (meta.priority) patch.priority = meta.priority;
-    if (meta.due_date) patch.work_date = meta.due_date;
+    if (meta.due_date) Object.assign(patch, workDatePatch(task, meta.due_date));
     if (meta.recurrence_rule) patch.recurrence_rule = meta.recurrence_rule;
     const { error } = await firebaseStore.from("tasks").update(patch).eq("id", task.id);
     if (error) toast.error(error.message);
