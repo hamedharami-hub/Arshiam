@@ -39,7 +39,23 @@
 
   <!-- Inline critical styles for the initial shell so FCP fires before the JS bundle parses -->
   <style>
-    html, body { margin: 0; padding: 0; background-color: #0F172A; color: #e2e8f0; font-family: Vazirmatn, system-ui, -apple-system, sans-serif; }
+    @font-face {
+      font-family: Vazirmatn;
+      src: url('/fonts/Vazirmatn-Regular.woff2') format('woff2');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: Vazirmatn;
+      src: url('/fonts/Vazirmatn-Bold.woff2') format('woff2');
+      font-weight: 700;
+      font-style: normal;
+      font-display: swap;
+    }
+    html, body { margin: 0; padding: 0; background-color: #0F172A; color: #e2e8f0; font-family: Vazirmatn, "IRANSansX", Tahoma, system-ui, -apple-system, sans-serif; }
+    button, input, select, textarea { font-family: inherit; }
+    [dir="rtl"], [dir="rtl"] * { letter-spacing: normal; }
     #root { min-height: 100vh; }
     .app-boot { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
     .app-boot__spinner { width: 32px; height: 32px; border-radius: 50%; border: 3px solid rgba(226,232,240,0.2); border-top-color: #ec4899; animation: app-boot-spin 0.8s linear infinite; }

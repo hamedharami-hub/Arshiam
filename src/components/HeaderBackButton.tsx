@@ -30,10 +30,10 @@ export default function HeaderBackButton() {
       size="icon"
       onClick={onClick}
       aria-label="بازگشت"
-      className="h-8 w-8"
+      className="h-8 w-8 shrink-0"
     >
-      {/* RTL: arrow pointing right means "back" */}
-      <ArrowRight className="w-5 h-5" />
+      {/* RTL: arrow pointing right means "back", LTR: arrow pointing left */}
+      <ArrowRight className="w-5 h-5 rtl:rotate-0 ltr:rotate-180" />
     </Button>
   );
 }

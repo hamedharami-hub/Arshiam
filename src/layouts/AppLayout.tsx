@@ -121,7 +121,7 @@ export default function AppLayout() {
               style={{ paddingTop: "env(safe-area-inset-top)", minHeight: "calc(3rem + env(safe-area-inset-top))" }}
             >
               <div className="flex items-center gap-1.5 min-w-0">
-                <SidebarTrigger />
+                <SidebarTrigger className="h-8 w-8 shrink-0" />
                 <HeaderBackButton />
                 <div id="app-header-title" className="min-w-0 flex items-center" />
               </div>
@@ -136,7 +136,7 @@ export default function AppLayout() {
                   className="hidden sm:flex items-center gap-2 h-8 px-3 rounded-md border bg-background/50 text-muted-foreground text-xs hover:bg-accent transition flex-1 max-w-xs"
                 >
                   <Search className="w-3.5 h-3.5" />
-                  <span className="flex-1 text-start">جستجو در تسک‌ها و نوت‌ها...</span>
+                  <span className="flex-1 text-start truncate">جستجو در تسک‌ها و نوت‌ها...</span>
                   <kbd className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-mono ltr">
                     {typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent || "") ? "⌘K" : "Ctrl+K"}
                   </kbd>

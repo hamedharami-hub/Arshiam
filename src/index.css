@@ -283,6 +283,12 @@
     -webkit-font-smoothing: antialiased;
     font-family: "Vazirmatn", "IRANSansX", "Tahoma", system-ui, -apple-system, sans-serif;
   }
+  /* Persian cursive typography: never allow letter-spacing to detach cursive ligatures in RTL */
+  [dir="rtl"],
+  [dir="rtl"] *:not([dir="ltr"]):not([dir="ltr"] *),
+  html[dir="rtl"] *:not([dir="ltr"]):not([dir="ltr"] *) {
+    letter-spacing: normal !important;
+  }
   /* Mixed Persian/English digits and inline LTR fragments */
   .ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
   .rtl { direction: rtl; unicode-bidi: isolate; }
@@ -621,7 +627,7 @@ button, [role="button"], a { touch-action: manipulation; }
 }
 [data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="group-label"] {
   font-size: 0.7rem;
-  letter-spacing: 0.04em;
+  letter-spacing: normal;
   opacity: 0.7;
   padding-inline: 0.75rem;
   margin-bottom: 0.35rem;
@@ -1108,7 +1114,7 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
   color: hsl(var(--foreground));
   font-weight: 700;
   font-size: 0.85em;
-  letter-spacing: 0.02em;
+  letter-spacing: normal;
 }
 
 .knowledge-html-content tr:nth-child(even) td {

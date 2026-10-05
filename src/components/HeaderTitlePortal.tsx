@@ -26,7 +26,7 @@ export function HeaderTitlePortal({
             <BidiText
               as="h1"
               text={title || ""}
-              className="text-base sm:text-lg font-bold truncate max-w-[45vw]"
+              className="text-base sm:text-lg font-bold truncate min-w-0 max-w-[55vw]"
             />
           )}
         </div>
@@ -41,10 +41,10 @@ export function HeaderTitlePortal({
         <BidiText
           as="h1"
           text={title || ""}
-          className="text-base sm:text-lg font-bold truncate shrink-0"
+          className="text-base sm:text-lg font-bold truncate min-w-0 max-w-[55vw] sm:max-w-md shrink"
         />
         {subtitle && (
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="hidden sm:flex items-center gap-2 min-w-0">
             <span className="text-muted-foreground/30 font-light select-none">·</span>
             <div className="text-xs sm:text-sm font-semibold text-foreground/80 truncate">
               {subtitle}

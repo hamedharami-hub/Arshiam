@@ -10,11 +10,13 @@ export function BidiText({
   as: Tag = "span",
   className,
   parseMarkdown = true,
+  style,
 }: {
   text?: string | null;
   as?: keyof JSX.IntrinsicElements;
   className?: string;
   parseMarkdown?: boolean;
+  style?: React.CSSProperties;
 }) {
   const content = text ?? "";
   const nodes = parseMarkdown ? parseInlineMarkdown(content) : content;
@@ -23,7 +25,7 @@ export function BidiText({
     <Tag
       dir="auto"
       className={className}
-      style={{ unicodeBidi: "plaintext" }}
+      style={{ unicodeBidi: "isolate", ...style }}
     >
       {nodes}
     </Tag>

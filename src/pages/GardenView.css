@@ -1,7 +1,7 @@
 .garden-page{--garden-green:#245a3d;--garden-ink:#20352a;--garden-line:#e4e9dd;--garden-surface:#fffefb;max-width:1500px;min-height:100vh;margin:0 auto;padding:28px clamp(16px,3vw,44px) 96px;color:var(--garden-ink);background:#f7f9f2}
 .garden-page h1,.garden-page h2,.garden-page h3,.garden-page p{margin:0}
 .garden-header{display:flex;justify-content:space-between;align-items:center;gap:24px;margin-bottom:26px}
-.garden-header h1{font-size:clamp(29px,3vw,42px);font-weight:850;letter-spacing:-.035em;line-height:1.25}
+.garden-header h1{font-size:clamp(29px,3vw,42px);font-weight:850;letter-spacing:normal;line-height:1.25}
 .garden-header p{margin-top:5px;color:#78857a;font-size:14px}
 .garden-header-tools{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
 .garden-resource{display:flex;align-items:center;gap:9px;padding:8px 13px;border:1px solid var(--garden-line);border-radius:15px;background:var(--garden-surface);min-width:104px;box-shadow:0 4px 18px #3044280b}
