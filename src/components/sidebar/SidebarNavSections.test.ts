@@ -33,6 +33,7 @@ describe("Knowledge navigation hierarchy", () => {
       "/app/review/pharmacy",
       "/app/knowledge",
       "/app/interactive-study",
+      "/app/education",
     ]);
   });
 
@@ -41,6 +42,7 @@ describe("Knowledge navigation hierarchy", () => {
     expect(urls).toContain("/app/knowledge");
     expect(urls).toContain("/app/review/pharmacy");
     expect(urls).toContain("/app/interactive-study");
+    expect(urls).toContain("/app/education");
     expect(urls).toContain("/app/pharmacy");
     expect(urls).toContain("/app/pharmacy-products");
     expect(urls).toContain("/app/pharmacy-scenario-practice");

@@ -98,6 +98,7 @@ const PharmacyFredPracticeView = lazy(() => import("./pages/PharmacyFredPractice
 const PharmacyCypView = lazy(() => import("./pages/PharmacyCypView"));
 const InteractiveStudyView = lazy(() => import("./pages/InteractiveStudyView"));
 const ReviewView = lazy(() => import("./pages/ReviewView"));
+const EducationRedirect = lazy(() => import("./pages/EducationRedirect"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -296,6 +297,7 @@ const App = () => {
                     <Route path="/contacts" element={<Navigate to="/app/contacts" replace />} />
                     <Route path="/knowledge" element={<Navigate to="/app/knowledge" replace />} />
                     <Route path="/interactive-study" element={<Navigate to="/app/interactive-study" replace />} />
+                    <Route path="/education" element={<EducationRedirect />} />
                     <Route path="/review" element={<Navigate to="/app/review" replace />} />
                     <Route path="/settings" element={<Navigate to="/app/settings" replace />} />
                     <Route path="/life-architect" element={<Navigate to="/app/life-architect" replace />} />
@@ -340,6 +342,7 @@ const App = () => {
                       <Route path="pharmacy-fred-practice" element={<PharmacyFredPracticeView />} />
                       <Route path="pharmacy-cyp" element={<PharmacyCypView />} />
                       <Route path="interactive-study" element={<InteractiveStudyView />} />
+                      <Route path="education" element={<EducationRedirect />} />
                       <Route path="review" element={<ReviewView />} />
                       <Route path="review/:folder" element={<ReviewView />} />
                       <Route path="stats" element={<StatsView />} />

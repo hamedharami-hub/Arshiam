@@ -151,4 +151,21 @@ describe("ReviewView scoped Leitner task navigation", () => {
     expect(screen.getByTestId("review-search")).toHaveTextContent("tab=mindmap");
     expect(screen.getByTestId("knowledge-mind-map").parentElement).not.toHaveClass("hidden");
   });
+
+  it("renders a direct link to Arshnaz Learning Academy with target _blank", () => {
+    render(
+      <MemoryRouter initialEntries={["/app/review"]}>
+        <Routes>
+          <Route path="/app/review" element={<ReviewView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const academyLink = screen.getByTestId("review-education-link");
+    expect(academyLink).toBeInTheDocument();
+    expect(academyLink).toHaveAttribute("target", "_blank");
+    expect(academyLink).toHaveAttribute("rel", "noopener noreferrer");
+    expect(academyLink).toHaveAttribute("href", expect.stringContaining("https://arshnaz-learning.vercel.app"));
+    expect(academyLink).toHaveTextContent("آکادمی ارشناز");
+  });
 });

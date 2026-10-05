@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Layers, Languages, Network } from "lucide-react";
+import { Layers, Languages, Network, GraduationCap } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
 import { LeitnerDeckView } from "@/components/review/LeitnerDeckView";
@@ -169,6 +169,17 @@ export const ReviewView: React.FC = () => {
               {isEn ? f.en : f.fa}
             </button>
           ))}
+          <a
+            href={import.meta.env.VITE_EDUCATION_URL || "https://arshnaz-learning.vercel.app"}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="review-education-link"
+            className="shrink-0 h-8 px-3 rounded-full border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold inline-flex items-center gap-1.5 transition ml-auto"
+            title={isEn ? "Open Arshnaz Learning Academy (432 lessons synced with Leitner)" : "ورود به آکادمی ارشناز (۴۳۲ درس همگام با لایتنر)"}
+          >
+            <GraduationCap className="w-3.5 h-3.5" />
+            <span>{isEn ? "Learning Academy" : "آکادمی ارشناز"}</span>
+          </a>
         </div>
         <ReviewInsights userId={userId} isEn={isEn} scopeRootFolderId={scopeRootFolderId} />
       </div>

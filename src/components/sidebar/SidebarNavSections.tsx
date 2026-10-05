@@ -5,7 +5,7 @@ import {
   Target, Timer, Calendar, ChevronDown, Sparkles, LayoutGrid,
   TrendingUp, Activity, MessageCircleQuestion, Zap, ShieldAlert, BookOpen, Sun,
   ListTodo, BrainCircuit, GripVertical, User, Shield, Pill,
-  BarChart3, Sprout, Wind, Compass, Users, Gamepad2, PackageSearch, ClipboardCheck, Keyboard, FlaskConical,
+  BarChart3, Sprout, Wind, Compass, Users, Gamepad2, PackageSearch, ClipboardCheck, Keyboard, FlaskConical, GraduationCap,
 } from "lucide-react";
 import {
   SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -69,6 +69,7 @@ export const EN_LABELS: Record<string, string> = {
   "تمرین سناریوهای دارویی": "Pharmacy Scenario Practice",
   "تمرین نسخه FRED": "FRED Practice",
   "ماتریس CYP و تداخل": "CYP Matrix & Interactions",
+  "آکادمی ارشناز": "Arshnaz Academy",
   "دانش": "Knowledge",
   "فارماسی": "Pharmacy",
   "مرور": "Review",
@@ -83,6 +84,7 @@ export const FA_LABELS: Record<string, string> = {
   "Smart Lists": "لیست‌های هوشمند",
   "Contacts": "افراد",
   "Knowledge Base": "کتابخانه دانش",
+  "Arshnaz Academy": "آکادمی ارشناز",
   "Review (SR)": "مرور (SR)",
   "Pharmacy Products": "فهرست محصولات دارویی",
   "Pharmacy Scenario Practice": "تمرین سناریوهای دارویی",
@@ -145,6 +147,7 @@ export const SECTIONS: Section[] = [
           { url: "/app/review/pharmacy", icon: BrainCircuit, label: "مرور" },
           { url: "/app/knowledge", icon: BookOpen, label: "کتابخانه دانش" },
           { url: "/app/interactive-study", icon: Gamepad2, label: "استودیوی مطالعه تعاملی" },
+          { url: "/app/education", icon: GraduationCap, label: "آکادمی ارشناز" },
         ],
       },
       { url: "/app/cycle", icon: Calendar, label: "سیکل پریود" },
