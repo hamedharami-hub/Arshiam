@@ -7,6 +7,7 @@ import { VALUE_DOMAINS } from "@/lib/valueDomains";
 import type { Task } from "@/lib/taskTypes";
 import { getTimeSettings, periodFor, type TimeSettings } from "@/lib/timeHorizon";
 import { readSchedule, schedulePeriod } from "@/lib/taskSchedule";
+import { isClosed } from "@/lib/planCascade";
 import { toSaveStatus } from "@/lib/saveFeedback";
 import { getTaskCreateIntent, type TaskCreateIntent } from "@/lib/taskCreateIntent";
 import type { TaskPersistenceStatus } from "@/lib/firestoreDataService";
@@ -34,13 +35,13 @@ export function useMindGoals(): MindGoalItem[] {
   return useMindGoalsState().goals;
 }
 
-/** A goal is "in the plan" only through a live, scheduled task of this period or later (not set aside, not an old year). */
+/** A goal is "in the plan" only through an open task scheduled within the current year. */
 export function plannedGoalIds(tasks: Task[], settings: TimeSettings = getTimeSettings(), now = new Date()): Set<string | null | undefined> {
-  const yearStart = periodFor("year", now, settings).start;
+  const year = periodFor("year", now, settings);
   return new Set(tasks.filter((t) => {
-    if (t.source_type !== "values_goal" || !t.source_id || t.status === "wont_do") return false;
+    if (t.source_type !== "values_goal" || !t.source_id || isClosed(t)) return false;
     const p = schedulePeriod(readSchedule(t, settings));
-    return !!p && p.end >= yearStart;
+    return !!p && p.start <= year.end && p.end >= year.start;
   }).map((t) => t.source_id));
 }
 

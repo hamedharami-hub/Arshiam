@@ -148,7 +148,9 @@ describe("plan views and review", () => {
     const setAside = t("b", { source_type: "values_goal", source_id: "g2", status: "wont_do", ...planningPatch(periodFor("year", now, G), G) });
     const cleared = t("c", { source_type: "values_goal", source_id: "g3", ...schedulePatch({ kind: "none" }, G) });
     const lastYear = t("d", { source_type: "values_goal", source_id: "g4", ...planningPatch(periodFor("year", new Date(2025, 5, 1), G), G) });
-    const ids = plannedGoalIds([live, setAside, cleared, lastYear], G, now);
+    const nextYear = t("e", { source_type: "values_goal", source_id: "g5", ...planningPatch(periodFor("year", new Date(2027, 5, 1), G), G) });
+    const done = t("f", { source_type: "values_goal", source_id: "g6", status: "done", completed: true, ...planningPatch(periodFor("year", now, G), G) });
+    const ids = plannedGoalIds([live, setAside, cleared, lastYear, nextYear, done], G, now);
     expect([...ids]).toEqual(["g1"]);
   });
 });
