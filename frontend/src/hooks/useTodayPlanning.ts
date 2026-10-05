@@ -22,7 +22,7 @@ export function useTodayPlanning(uid: string | undefined, day: string) {
   }, [uid]);
 
   // A uid change takes effect during render, before the subscription effect runs.
-  const data: TodayPlanningData = ownerSnapshot?.uid === uid
+  const data: TodayPlanningData = ownerSnapshot !== null && ownerSnapshot.uid === uid
     ? ownerSnapshot.snapshot.data
     : { nextTaskId: null, nextTaskDate: null, importantByDay: {}, wipEnabled: false, wipLimit: 3 };
 
