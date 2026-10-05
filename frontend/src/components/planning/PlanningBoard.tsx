@@ -329,7 +329,7 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className={cn("space-y-3", pane !== "main" && "hidden lg:block")} onTouchStart={(e) => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }} onTouchEnd={onTouchEnd} data-testid="planning-main">
+        <div className={cn("min-w-0 space-y-3", pane !== "main" && "hidden lg:block")} onTouchStart={(e) => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }} onTouchEnd={onTouchEnd} data-testid="planning-main">
           {due && (
             <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-gradient-to-l from-amber-500/10 to-transparent p-3" data-testid="planning-review-banner">
               <Sparkles className="h-4 w-4 shrink-0 text-amber-500" />
