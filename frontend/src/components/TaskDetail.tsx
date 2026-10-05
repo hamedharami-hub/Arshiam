@@ -1617,7 +1617,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           onMove={() => setFolderOpen(true)}
           onMakeChild={() => setParentOpen(true)}
           onEdit={() => document.querySelector<HTMLTextAreaElement>("[data-task-title]")?.focus()}
-          onPin={() => void save({ pinned: !t.pinned })}
+          onPin={() => save({ pinned: !t.pinned })}
           onPomodoro={() => setFocusOpen(true)}
           onPatch={(patch) => save(patch)}
           onRefresh={refreshTask}
