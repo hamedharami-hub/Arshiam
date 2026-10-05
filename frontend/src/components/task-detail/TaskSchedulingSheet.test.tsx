@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { TaskScheduleBody } from "./TaskSchedulingSheet";
 import { getLocalDateString } from "@/lib/taskDate";
 import type { Task } from "@/lib/taskTypes";
@@ -16,10 +16,20 @@ vi.mock("@/components/InlineDatePicker", () => ({
   ),
 }));
 vi.mock("@/components/TimeWheel", () => ({
-  TimeWheel: ({ onChange }: { onChange: (v: string) => void }) => (
-    <button type="button" data-testid="time-wheel-pick" onClick={() => onChange("08:30")}>wheel</button>
+  TimeWheel: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
+    <div>
+      <span data-testid="time-wheel-value">{value}</span>
+      <button type="button" data-testid="time-wheel-pick" onClick={() => onChange("08:30")}>wheel</button>
+      <button type="button" data-testid="time-wheel-midnight" onClick={() => onChange("00:00")}>midnight</button>
+      <button type="button" data-testid="time-wheel-last-minute" onClick={() => onChange("23:59")}>last minute</button>
+    </div>
   ),
 }));
+
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 const base = { id: "t1", user_id: "u1", title: "x", completed: false, status: "todo", priority: "none" } as Task;
 const T = (fa: string, _en: string) => fa;
@@ -90,20 +100,146 @@ describe("TaskScheduleBody — icon-led When panel", () => {
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ work_date: "2026-05-01" }));
   });
 
-  it("time: opening seeds 09:00, the wheel changes it, x clears it, and the panel stays open", () => {
+  it("opening time keeps 09:00 as a draft; only a wheel selection writes", () => {
+    vi.useFakeTimers();
     const save = vi.fn();
     const onDone = vi.fn();
     const { rerender } = render(<TaskScheduleBody t={scheduled("2026-05-01")} canEdit save={save} T={T} isEn={false} onDone={onDone} />);
     fireEvent.click(screen.getByTestId("schedule-time"));
-    const seeded = save.mock.calls[0][0].work_date as string;
-    expect(new Date(seeded).getHours()).toBe(9);
+    expect(save).not.toHaveBeenCalled();
     expect(screen.getByTestId("schedule-time-body")).toBeInTheDocument();
+    expect(screen.getByTestId("time-wheel-value")).toHaveTextContent("09:00");
+    fireEvent.click(screen.getByTestId("time-wheel-pick"));
+    expect(save).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(120));
+    const selected = save.mock.calls[0][0].work_date as string;
+    expect(new Date(selected).getHours()).toBe(8);
+    expect(new Date(selected).getMinutes()).toBe(30);
 
-    const timed = scheduled(new Date(2026, 4, 1, 9, 0).toISOString());
+    const timed = { ...scheduled(selected), schedule_v: 2 } as Task;
     rerender(<TaskScheduleBody t={timed} canEdit save={save} T={T} isEn={false} onDone={onDone} />);
     fireEvent.click(screen.getByTestId("schedule-time-clear"));
     expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ work_date: "2026-05-01" }));
     expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it.each(["00:00", "23:59"] as const)("preserves explicitly selected %s as an exact datetime", (hhmm) => {
+    vi.useFakeTimers();
+    const save = vi.fn();
+    const { rerender } = render(<TaskScheduleBody t={scheduled("2026-05-01")} canEdit save={save} T={T} isEn />);
+    fireEvent.click(screen.getByTestId("schedule-time"));
+    fireEvent.click(screen.getByTestId(hhmm === "00:00" ? "time-wheel-midnight" : "time-wheel-last-minute"));
+    act(() => vi.advanceTimersByTime(120));
+
+    const patch = save.mock.calls.at(-1)![0] as Partial<Task>;
+    expect(patch.schedule_v).toBe(2);
+    expect(typeof patch.work_date).toBe("string");
+    expect(new Date(patch.work_date!).getHours()).toBe(Number(hhmm.slice(0, 2)));
+    expect(new Date(patch.work_date!).getMinutes()).toBe(Number(hhmm.slice(3)));
+
+    rerender(<TaskScheduleBody t={{ ...base, ...patch } as Task} canEdit save={save} T={T} isEn />);
+    expect(screen.getByTestId("schedule-time")).toHaveTextContent(hhmm);
+  });
+
+  it("a pending wheel write cannot undo clearing the whole schedule", () => {
+    vi.useFakeTimers();
+    const save = vi.fn();
+    render(<TaskScheduleBody t={scheduled("2026-05-01")} canEdit save={save} T={T} isEn={false} />);
+    fireEvent.click(screen.getByTestId("schedule-time"));
+    fireEvent.click(screen.getByTestId("time-wheel-pick"));
+    fireEvent.click(screen.getByTestId("planning-clear"));
+    act(() => vi.advanceTimersByTime(120));
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ work_date: null, planning_horizon: null }));
+  });
+
+  it("a pending wheel write cannot replace a selected period", () => {
+    vi.useFakeTimers();
+    const save = vi.fn();
+    render(<TaskScheduleBody t={scheduled("2026-05-01")} canEdit save={save} T={T} isEn={false} />);
+    fireEvent.click(screen.getByTestId("schedule-time"));
+    fireEvent.click(screen.getByTestId("time-wheel-pick"));
+    fireEvent.click(screen.getByTestId("planning-quick-week"));
+    act(() => vi.advanceTimersByTime(120));
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ work_date: null, planning_horizon: "week" }));
+  });
+
+  it("a pending wheel write cannot replace a newly selected day", () => {
+    vi.useFakeTimers();
+    const save = vi.fn();
+    render(<TaskScheduleBody t={scheduled("2026-05-02")} canEdit save={save} T={T} isEn={false} />);
+    fireEvent.click(screen.getByTestId("schedule-time"));
+    fireEvent.click(screen.getByTestId("time-wheel-pick"));
+    fireEvent.click(screen.getByTestId("planning-quick-tomorrow"));
+    act(() => vi.advanceTimersByTime(120));
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ work_date: dayKey(1) }));
+  });
+
+  it("clearing the time cancels a wheel write that has not settled", () => {
+    vi.useFakeTimers();
+    const save = vi.fn();
+    render(<TaskScheduleBody t={scheduled(new Date(2026, 4, 1, 9, 30).toISOString())} canEdit save={save} T={T} isEn={false} />);
+    fireEvent.click(screen.getByTestId("schedule-time"));
+    fireEvent.click(screen.getByTestId("time-wheel-pick"));
+    fireEvent.click(screen.getByTestId("schedule-time-clear"));
+    act(() => vi.advanceTimersByTime(120));
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ work_date: "2026-05-01" }));
+  });
+
+  it("changing tasks cancels a pending wheel write for the old task", () => {
+    vi.useFakeTimers();
+    const save = vi.fn();
+    const { rerender } = render(<TaskScheduleBody t={scheduled("2026-05-01")} canEdit save={save} T={T} isEn={false} />);
+    fireEvent.click(screen.getByTestId("schedule-time"));
+    fireEvent.click(screen.getByTestId("time-wheel-pick"));
+    rerender(<TaskScheduleBody t={{ ...scheduled("2026-05-01"), id: "t2" } as Task} canEdit save={save} T={T} isEn={false} />);
+    act(() => vi.advanceTimersByTime(120));
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("a newer clock on the same task and day supersedes a pending wheel write", () => {
+    vi.useFakeTimers();
+    const save = vi.fn();
+    const first = { ...scheduled(new Date(2026, 4, 1, 9, 30).toISOString()), schedule_v: 2 } as Task;
+    const newer = { ...first, work_date: new Date(2026, 4, 1, 18, 0).toISOString() };
+    const { rerender } = render(<TaskScheduleBody t={first} canEdit save={save} T={T} isEn={false} />);
+    fireEvent.click(screen.getByTestId("schedule-time"));
+    fireEvent.click(screen.getByTestId("time-wheel-pick"));
+    rerender(<TaskScheduleBody t={newer} canEdit save={save} T={T} isEn={false} />);
+    act(() => vi.advanceTimersByTime(120));
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("unmounting cancels a pending wheel write", () => {
+    vi.useFakeTimers();
+    const save = vi.fn();
+    const { unmount } = render(<TaskScheduleBody t={scheduled("2026-05-01")} canEdit save={save} T={T} isEn={false} />);
+    fireEvent.click(screen.getByTestId("schedule-time"));
+    fireEvent.click(screen.getByTestId("time-wheel-pick"));
+    unmount();
+    act(() => vi.advanceTimersByTime(120));
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("Done flushes a valid pending wheel choice before closing", () => {
+    vi.useFakeTimers();
+    const save = vi.fn();
+    const onDone = vi.fn();
+    render(<TaskScheduleBody t={scheduled("2026-05-01")} canEdit save={save} T={T} isEn={false} onDone={onDone} />);
+    fireEvent.click(screen.getByTestId("schedule-time"));
+    fireEvent.click(screen.getByTestId("time-wheel-pick"));
+    expect(save).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("schedule-done"));
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(new Date(save.mock.calls[0][0].work_date).getHours()).toBe(8);
+    expect(new Date(save.mock.calls[0][0].work_date).getMinutes()).toBe(30);
+    expect(onDone).toHaveBeenCalledOnce();
+    act(() => vi.advanceTimersByTime(120));
+    expect(save).toHaveBeenCalledTimes(1);
   });
 
   it("reminder row only appears once a time is set", () => {

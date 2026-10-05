@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Ban, Bell, BellOff, Check, Clock, Repeat, SlidersHorizontal, X,
 } from "lucide-react";
@@ -10,8 +10,9 @@ import { IconTip } from "./IconTip";
 import { TaskPlanningBody } from "@/components/TaskPlanningPicker";
 import { toPersianDigits } from "@/lib/persianDigits";
 import type { Task } from "@/lib/taskTypes";
-import { parseTaskDueDate, taskWorkDate, workDatePatch, getLocalDateString } from "@/lib/taskDate";
+import { taskWorkDate, workDatePatch } from "@/lib/taskDate";
 import { describeRule, type RecurrenceRule } from "@/lib/recurrence";
+import { readSchedule } from "@/lib/taskSchedule";
 
 export interface TaskScheduleBodyProps {
   t: Task;
@@ -72,13 +73,12 @@ export function TaskScheduleBody({ t, canEdit, save, T, isEn, onDone }: TaskSche
   const fa = !isEn;
   const num = (s: string) => (fa ? toPersianDigits(s) : s);
 
+  const schedule = readSchedule(t);
   const workDate = taskWorkDate(t);
-  const parsed = parseTaskDueDate(workDate);
-  const allDayStamp = !!parsed && parsed.getHours() === 23 && parsed.getMinutes() === 59;
-  const hasClock = !!workDate && workDate.includes("T") && !allDayStamp;
-  const workDay = parsed ? getLocalDateString(parsed) : null;
-  const timePart = hasClock && parsed
-    ? `${String(parsed.getHours()).padStart(2, "0")}:${String(parsed.getMinutes()).padStart(2, "0")}`
+  const workDay = schedule.kind === "day" || schedule.kind === "datetime" ? schedule.date : null;
+  const clockDate = schedule.kind === "datetime" ? new Date(schedule.at) : null;
+  const timePart = clockDate && !Number.isNaN(clockDate.getTime())
+    ? `${String(clockDate.getHours()).padStart(2, "0")}:${String(clockDate.getMinutes()).padStart(2, "0")}`
     : null;
 
 
@@ -88,24 +88,75 @@ export function TaskScheduleBody({ t, canEdit, save, T, isEn, onDone }: TaskSche
     const [h, min] = hhmm.split(":").map(Number);
     return new Date(y, m - 1, d, h, min).toISOString();
   };
+  const timeSaver = useRef<number | null>(null);
+  const timeIntent = useRef(0);
+  const pendingTime = useRef<{ intent: number; taskId: string; day: string; workDate: string | null; hhmm: string } | null>(null);
+  const currentTarget = useRef({ taskId: t.id, workDay, workDate, canEdit });
+  currentTarget.current = { taskId: t.id, workDay, workDate, canEdit };
+  const currentTask = useRef(t);
+  currentTask.current = t;
+  const saveRef = useRef(save);
+  saveRef.current = save;
+  const cancelPendingTime = useCallback(() => {
+    timeIntent.current += 1;
+    pendingTime.current = null;
+    if (timeSaver.current !== null) {
+      window.clearTimeout(timeSaver.current);
+      timeSaver.current = null;
+    }
+  }, []);
+  useEffect(() => cancelPendingTime, [cancelPendingTime, t.id, workDay, workDate, canEdit]);
+
   // Choosing a day keeps the panel open so a time can follow; the check button closes it.
   const pickDay = (ymd: string | null) => {
     if (!canEdit) return;
+    cancelPendingTime();
     save(workDatePatch(t, ymd ? compose(ymd, timePart) : null));
     if (!ymd) setSub(null);
   };
-  const timeSaver = useRef<number | null>(null);
-  useEffect(() => () => { if (timeSaver.current) window.clearTimeout(timeSaver.current); }, []);
-  const applyTime = (hhmm: string) => {
-    if (!workDay || !canEdit) return;
-    save(workDatePatch(t, compose(workDay, hhmm)));
+  const applyTime = (day: string, hhmm: string) => {
+    if (!currentTarget.current.canEdit || !day) return;
+    saveRef.current(workDatePatch(currentTask.current, compose(day, hhmm)));
   };
-  const clearTime = () => { if (workDay) save(workDatePatch(t, workDay)); setSub((cur) => (cur === "time" ? null : cur)); };
+  const flushPendingTime = () => {
+    const pending = pendingTime.current;
+    if (!pending) return;
+    const target = currentTarget.current;
+    const isCurrent = pending.intent === timeIntent.current
+      && target.taskId === pending.taskId
+      && target.workDay === pending.day
+      && target.workDate === pending.workDate
+      && target.canEdit;
+    cancelPendingTime();
+    if (isCurrent) applyTime(pending.day, pending.hhmm);
+  };
+  const queueTime = (hhmm: string) => {
+    if (!workDay || !canEdit) return;
+    cancelPendingTime();
+    const intent = timeIntent.current;
+    const taskId = t.id;
+    const day = workDay;
+    const scheduledValue = workDate;
+    pendingTime.current = { intent, taskId, day, workDate: scheduledValue, hhmm };
+    timeSaver.current = window.setTimeout(() => {
+      timeSaver.current = null;
+      const target = currentTarget.current;
+      const pending = pendingTime.current;
+      if (!pending || pending.intent !== intent || intent !== timeIntent.current
+        || target.taskId !== taskId || target.workDay !== day || target.workDate !== scheduledValue || !target.canEdit) return;
+      pendingTime.current = null;
+      applyTime(day, hhmm);
+    }, 120);
+  };
+  const clearTime = () => {
+    cancelPendingTime();
+    if (workDay) save(workDatePatch(t, workDay));
+    setSub((cur) => (cur === "time" ? null : cur));
+  };
   const openTime = () => {
     if (!workDay || !canEdit) return;
     if (sub === "time") { setSub(null); return; }
     setSub("time");
-    if (!timePart) applyTime("09:00");
   };
 
   const rule = t.recurrence_rule || null;
@@ -132,7 +183,7 @@ export function TaskScheduleBody({ t, canEdit, save, T, isEn, onDone }: TaskSche
   return (
     <div dir={isEn ? "ltr" : "rtl"} className="space-y-2.5" data-testid="task-schedule-body">
       {/* One schedule: quick days and periods, a custom range, and clearing */}
-      {canEdit && <TaskPlanningBody task={t} onPatch={(patch) => { save(patch); setSub(null); }} onPickDay={(ymd) => pickDay(ymd)} />}
+      {canEdit && <TaskPlanningBody task={t} onPatch={(patch) => { cancelPendingTime(); save(patch); setSub(null); }} onPickDay={(ymd) => pickDay(ymd)} />}
 
       {/* Month calendar, always visible */}
       <div className="rounded-xl border border-border/60 p-1.5">
@@ -148,10 +199,7 @@ export function TaskScheduleBody({ t, canEdit, save, T, isEn, onDone }: TaskSche
           testid="schedule-time" clearTestid="schedule-time-clear" />
         {sub === "time" && workDay && (
           <div className="rounded-xl bg-muted/40 py-2" data-testid="schedule-time-body">
-            <TimeWheel value={timePart || "09:00"} fa={fa} onChange={(hhmm) => {
-              if (timeSaver.current) window.clearTimeout(timeSaver.current);
-              timeSaver.current = window.setTimeout(() => applyTime(hhmm), 120);
-            }} />
+            <TimeWheel value={timePart || "09:00"} fa={fa} onChange={queueTime} />
           </div>
         )}
 
@@ -206,7 +254,7 @@ export function TaskScheduleBody({ t, canEdit, save, T, isEn, onDone }: TaskSche
 
       {/* Finish */}
       <div className="flex justify-end">
-        <IconTip label={T("تأیید", "Done")} onClick={() => onDone?.()} testid="schedule-done" className="h-9 w-12 when-icon-btn--solid">
+        <IconTip label={T("تأیید", "Done")} onClick={() => { flushPendingTime(); onDone?.(); }} testid="schedule-done" className="h-9 w-12 when-icon-btn--solid">
           <Check className="h-5 w-5" strokeWidth={2} />
         </IconTip>
       </div>
