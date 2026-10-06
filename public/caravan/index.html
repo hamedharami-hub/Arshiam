@@ -5338,15 +5338,18 @@ void main() {
 
 
 // =========================================================================
-// سیارهٔ کروی واقعی دوشاخ‌ها (Two-Horns Spherical Planet World Engine)
-// ۵ شخصیت بومی دوشاخ با لباس سپید + درخت بزرگ زندگی + قصر باستانی دوشاخ‌ها
+// موتور سه‌بعدی واقعی سیاره کروی دوشاخ‌ها (True 3D Spherical Planet & Kinematic Engine)
+// ۱. کاراکترهای سه‌بعدی حجمی فرشته (با بال‌های متحرک) و گوراستاخ (با دوشاخ عاجی و زرین)
+// ۲. ۵ روح بومی سپیدپوش و نورانی دوشاخ با چهره‌های محو و اثیری
+// ۳. دوربین سوم‌شخص مدارگرد ۳۶۰ درجه (Third-Person Follow Orbit Camera)
+// ۴. هدایت هماهنگ با زاویه دید دوربین (Camera-Relative Steering)
 // =========================================================================
 
 // تنظیمات رندرر، نورپردازی چشم‌نواز و ضدخیرگی
 try {
   Re.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   Re.toneMapping = 2000; // ACESFilmicToneMapping
-  Re.toneMappingExposure = 1.02; // نور ملایم، آرامش‌بخش و بدون سوزش چشم
+  Re.toneMappingExposure = 1.05;
   Re.shadowMap.enabled = true;
   Re.shadowMap.type = 2; // PCFSoftShadowMap
   Re.shadowMap.autoUpdate = true;
@@ -5357,20 +5360,20 @@ try {
   }
 } catch(e) {}
 
-// تنظیم جوّ و آسمان آرام روز دوشاخ‌ها
+// تنظیم آسمان و مه‌آلودگی فیروزه‌ای لطیف دوشاخ‌ها
 Me.background = new kt("#c4e5dc");
-Me.fog = new Xs("#c4e5dc", 45, 120);
+Me.fog = new Xs("#c4e5dc", 40, 110);
 
-// مخفی کردن زمین قبلی در صورت وجود
+// مخفی کردن زمین تخت قبلی
 if (typeof yi !== "undefined" && yi && yi.ground) {
   yi.ground.visible = false;
 }
 
-// شعاع کرهٔ سیاره دوشاخ‌ها
+// شعاع و مرکز هندسی سیاره کروی دوشاخ‌ها
 const PLANET_RADIUS = 32.0;
 const PLANET_CENTER = new D(0, -PLANET_RADIUS, 0);
 
-// ساخت مش سیاره کروی دوشاخ‌ها با پستی و بلندی ملایم و رنگ زمردین
+// ساخت مش سیاره کروی دوشاخ‌ها با پستی و بلندی ارگانیک و چمن زمردین
 const planetGeo = new kr(PLANET_RADIUS, 64, 48);
 const posArr = planetGeo.attributes.position.array;
 for (let i = 0; i < posArr.length; i += 3) {
@@ -5378,7 +5381,6 @@ for (let i = 0; i < posArr.length; i += 3) {
   const vy = posArr[i + 1];
   const vz = posArr[i + 2];
   const d = Math.hypot(vx, vy, vz);
-  // نویز ملایم برای تپه‌ماهورهای طبیعی سیاره
   const noise = Math.sin(vx * 0.25) * Math.cos(vz * 0.25) * 0.45 + Math.sin(vy * 0.3) * 0.3;
   const newR = PLANET_RADIUS + noise;
   posArr[i] = (vx / d) * newR;
@@ -5398,26 +5400,277 @@ planetMesh.position.copy(PLANET_CENTER);
 planetMesh.receiveShadow = true;
 Me.add(planetMesh);
 
-// تابع کمکی محاسبه موقعیت روی سطح کره به ازای مختصات محلی (x, z)
+// تابع تبدیل مختصات محلی (x, z) به ارتفاع متناظر روی سطح کره
 function getSphereSurfacePosition(x, z, altitudeOffset = 0) {
   const d = Math.hypot(x, z);
-  const maxD = PLANET_RADIUS * 0.95;
+  const maxD = PLANET_RADIUS * 0.94;
   const clampedD = Math.min(d, maxD);
   const factor = d > 0 ? clampedD / d : 1;
   const px = x * factor;
   const pz = z * factor;
   const py = Math.sqrt(Math.max(0, PLANET_RADIUS * PLANET_RADIUS - px * px - pz * pz));
-  // تبدیل به مختصات فضای جهان با توجه به مرکز سیاره
   const worldY = (py - PLANET_RADIUS) + altitudeOffset;
   return new D(px, worldY, pz);
 }
 
-// ۵ شخصیت بومی دوشاخ با لباس سپید (Two-Horns Folk in White Robes)
-// ۱. نورا (دختربچه سپیدپوش)
-// ۲. بانو هیراد (بانوی کهن‌زاد دوشاخ با وقار و پیراهن سپید)
-// ۳. پیر فرزانه رادمان (دانای کهنسال در ردای بلند سپید)
-// ۴. کیان (نگهبان صخره‌ها با ردای رزمی سپید)
-// ۵. سپهر (باغبان پیوند با شال و جامه سپید)
+// =========================================================================
+// گام ۱: مدل‌سازی سه‌بعدی حجمی فرشته و گوراستاخ (True 3D Geometric Characters)
+// جایگزینی کامل اسپریت‌های دوبعدی بیل‌بورد با مدل‌های حجمی مش متحرک
+// =========================================================================
+
+function build3DAngelModel(parent) {
+  while (parent.children.length > 0) parent.remove(parent.children[0]);
+
+  const root = new jt();
+  root.name = "angel_root";
+  parent.add(root);
+
+  const silkDressMat = new Ki({
+    color: "#ffffff",
+    emissive: "#e0f2fe",
+    emissiveIntensity: 0.24,
+    roughness: 0.35,
+    metalness: 0.05
+  });
+  const goldTrimMat = new Ki({
+    color: "#fde047",
+    emissive: "#ca8a04",
+    emissiveIntensity: 0.35,
+    roughness: 0.3,
+    metalness: 0.4
+  });
+  const skinMat = new Ki({
+    color: "#fcfbf9",
+    emissive: "#f0f9ff",
+    emissiveIntensity: 0.14,
+    roughness: 0.65
+  });
+  const hairMat = new Ki({
+    color: "#ffffff",
+    emissive: "#f8fafc",
+    emissiveIntensity: 0.22,
+    roughness: 0.5
+  });
+  const wingMat = new Ki({
+    color: "#ffffff",
+    emissive: "#bae6fd",
+    emissiveIntensity: 0.38,
+    roughness: 0.22,
+    metalness: 0.05,
+    transparent: true,
+    opacity: 0.92
+  });
+
+  const bodyGroup = new jt();
+  root.add(bodyGroup);
+
+  // ۱. پیراهن حریر سپید و دامن مواج
+  we(new Jn(0.22, 0.55, 1.25, 24), silkDressMat, 0, 0.62, 0, bodyGroup);
+  // کمربند و شال زرین
+  we(new Pe(0.24, 0.035, 12, 24), goldTrimMat, 0, 1.22, 0, bodyGroup).rotation.x = Math.PI / 2;
+  // سینه و بالاتنه لطیف
+  we(new Jn(0.18, 0.23, 0.52, 20), silkDressMat, 0, 1.48, 0, bodyGroup);
+
+  // ۲. سر و چهره اثیری محو فرشته
+  const head = we(new kr(0.22, 20, 16), skinMat, 0, 1.86, 0, bodyGroup);
+  head.scale.set(1.0, 1.06, 0.95);
+
+  // چشم‌های ملایم و درخشان فیروزه‌ای
+  const eyeMat = pe("#38bdf8", true);
+  we(new kr(0.024, 8, 8), eyeMat, -0.07, 1.88, 0.18, bodyGroup);
+  we(new kr(0.024, 8, 8), eyeMat, 0.07, 1.88, 0.18, bodyGroup);
+
+  // ۳. موهای سپید ابریشمی
+  we(new kr(0.24, 16, 14), hairMat, 0, 1.92, -0.04, bodyGroup);
+  const hairBack = we(new Jn(0.17, 0.08, 0.85, 16), hairMat, 0, 1.45, -0.16, bodyGroup);
+  hairBack.rotation.x = -0.18;
+  const hairL = we(new Jn(0.04, 0.02, 0.55, 10), hairMat, -0.16, 1.6, 0.08, bodyGroup);
+  hairL.rotation.z = 0.15;
+  const hairR = we(new Jn(0.04, 0.02, 0.55, 10), hairMat, 0.16, 1.6, 0.08, bodyGroup);
+  hairR.rotation.z = -0.15;
+
+  // ۴. هاله زرین شناور بالای سر
+  const halo = we(new Pe(0.26, 0.025, 12, 32), goldTrimMat, 0, 2.2, -0.02, bodyGroup);
+  halo.rotation.x = 0.22;
+
+  // ۵. دست‌های ملایم و نیلوفر/فانوس نور در دست راست
+  const armL = we(new Jn(0.045, 0.035, 0.5, 10), silkDressMat, -0.27, 1.35, 0.05, bodyGroup);
+  armL.rotation.z = 0.45;
+  const armR = we(new Jn(0.045, 0.035, 0.46, 10), silkDressMat, 0.25, 1.38, 0.15, bodyGroup);
+  armR.rotation.z = -0.4;
+  armR.rotation.x = 0.5;
+  const lightOrb = De(0.09, pe("#fef08a", true), 0.36, 1.35, 0.3, bodyGroup);
+
+  // ۶. بال‌های سه‌بعدی مفصل‌دار پروانه‌ای/فرشته‌ای
+  const wingLGroup = new jt();
+  wingLGroup.position.set(-0.16, 1.5, -0.12);
+  bodyGroup.add(wingLGroup);
+
+  const wingRGroup = new jt();
+  wingRGroup.position.set(0.16, 1.5, -0.12);
+  bodyGroup.add(wingRGroup);
+
+  // پرهای بال چپ
+  const featherL1 = we(new Jn(0.025, 0.15, 0.95, 12), wingMat, -0.35, 0.38, -0.12, wingLGroup);
+  featherL1.rotation.z = 0.85;
+  featherL1.rotation.y = 0.2;
+  const featherL2 = we(new Jn(0.02, 0.13, 0.75, 12), wingMat, -0.42, 0.08, -0.08, wingLGroup);
+  featherL2.rotation.z = 1.15;
+  const featherL3 = we(new Jn(0.018, 0.1, 0.55, 10), wingMat, -0.32, -0.18, -0.05, wingLGroup);
+  featherL3.rotation.z = 1.45;
+
+  // پرهای بال راست
+  const featherR1 = we(new Jn(0.025, 0.15, 0.95, 12), wingMat, 0.35, 0.38, -0.12, wingRGroup);
+  featherR1.rotation.z = -0.85;
+  featherR1.rotation.y = -0.2;
+  const featherR2 = we(new Jn(0.02, 0.13, 0.75, 12), wingMat, 0.42, 0.08, -0.08, wingRGroup);
+  featherR2.rotation.z = -1.15;
+  const featherR3 = we(new Jn(0.018, 0.1, 0.55, 10), wingMat, 0.32, -0.18, -0.05, wingRGroup);
+  featherR3.rotation.z = -1.45;
+
+  // ۷. سایه گرد زیر پای فرشته روی زمین
+  const shadowMesh = we(new Vr(0.65, 32), new cr({
+    color: "#183b3d",
+    transparent: true,
+    opacity: 0.28,
+    depthWrite: false
+  }), 0, 0.03, 0, root);
+  shadowMesh.rotation.x = -Math.PI / 2;
+
+  parent.userData.bodyMesh = bodyGroup;
+  parent.userData.wingL = wingLGroup;
+  parent.userData.wingR = wingRGroup;
+  parent.userData.halo = halo;
+  parent.userData.lightOrb = lightOrb;
+  parent.userData.is3D = true;
+}
+
+function build3DGorastakhModel(parent) {
+  while (parent.children.length > 0) parent.remove(parent.children[0]);
+
+  const root = new jt();
+  root.name = "gorastakh_root";
+  parent.add(root);
+
+  const robeMat = new Ki({
+    color: "#f8fafc",
+    emissive: "#f1f5f9",
+    emissiveIntensity: 0.18,
+    roughness: 0.45,
+    metalness: 0.05
+  });
+  const goldRoyalMat = new Ki({
+    color: "#eab308",
+    emissive: "#a16207",
+    emissiveIntensity: 0.35,
+    roughness: 0.28,
+    metalness: 0.45
+  });
+  const skinMat = new Ki({
+    color: "#fcfbf9",
+    emissive: "#f8fafc",
+    emissiveIntensity: 0.12,
+    roughness: 0.65
+  });
+  const hairMat = new Ki({
+    color: "#ffffff",
+    emissive: "#e2e8f0",
+    emissiveIntensity: 0.18,
+    roughness: 0.5
+  });
+  const hornsMat = new Ki({
+    color: "#fef9c3",
+    emissive: "#ca8a04",
+    emissiveIntensity: 0.28,
+    roughness: 0.25,
+    metalness: 0.32
+  });
+
+  const bodyGroup = new jt();
+  root.add(bodyGroup);
+
+  // ۱. ردای درباری بلند سپید و حاشیه‌های زرین
+  we(new Jn(0.3, 0.6, 1.45, 24), robeMat, 0, 0.72, 0, bodyGroup);
+  // کمربند زرین احترام
+  we(new Pe(0.32, 0.045, 12, 24), goldRoyalMat, 0, 1.38, 0, bodyGroup).rotation.x = Math.PI / 2;
+  // سینه فراخ و باوقار
+  we(new Jn(0.26, 0.31, 0.7, 20), robeMat, 0, 1.72, 0, bodyGroup);
+  // شال و طوق ملوکانه روی شانه‌ها
+  we(new Pe(0.36, 0.06, 12, 24), goldRoyalMat, 0, 1.95, -0.02, bodyGroup).rotation.x = Math.PI / 2;
+
+  // ۲. سر و چهره اثیری فرهمند دوشاخ
+  const head = we(new kr(0.24, 20, 16), skinMat, 0, 2.2, 0, bodyGroup);
+  head.scale.set(1.0, 1.08, 0.96);
+
+  // چشمان زرین کهربایی
+  const eyeMat = pe("#eab308", true);
+  we(new kr(0.026, 8, 8), eyeMat, -0.075, 2.22, 0.2, bodyGroup);
+  we(new kr(0.026, 8, 8), eyeMat, 0.075, 2.22, 0.2, bodyGroup);
+
+  // ۳. موهای سپید آبشاری تا شانه
+  we(new kr(0.26, 16, 14), hairMat, 0, 2.26, -0.05, bodyGroup);
+  const hairBack = we(new Jn(0.2, 0.1, 1.05, 16), hairMat, 0, 1.75, -0.18, bodyGroup);
+  hairBack.rotation.x = -0.15;
+
+  // ۴. دوشاخ باابهت و کشیده گوراستاخ (The Iconic Two Horns)
+  const hornLGroup = new jt();
+  hornLGroup.position.set(-0.15, 2.42, 0.05);
+  bodyGroup.add(hornLGroup);
+  const hornLSeg1 = we(new Jn(0.045, 0.065, 0.45, 14), hornsMat, -0.1, 0.2, 0, hornLGroup);
+  hornLSeg1.rotation.z = -0.45;
+  const hornLSeg2 = we(new Jn(0.02, 0.045, 0.5, 14), hornsMat, -0.26, 0.55, -0.05, hornLGroup);
+  hornLSeg2.rotation.z = -0.75;
+  hornLSeg2.rotation.x = -0.22;
+
+  const hornRGroup = new jt();
+  hornRGroup.position.set(0.15, 2.42, 0.05);
+  bodyGroup.add(hornRGroup);
+  const hornRSeg1 = we(new Jn(0.045, 0.065, 0.45, 14), hornsMat, 0.1, 0.2, 0, hornRGroup);
+  hornRSeg1.rotation.z = 0.45;
+  const hornRSeg2 = we(new Jn(0.02, 0.045, 0.5, 14), hornsMat, 0.26, 0.55, -0.05, hornRGroup);
+  hornRSeg2.rotation.z = 0.75;
+  hornRSeg2.rotation.x = -0.22;
+
+  // حلقه‌های طلاکوب روی شاخ‌ها
+  we(new Pe(0.07, 0.015, 8, 16), goldRoyalMat, -0.17, 2.62, 0.05, bodyGroup).rotation.z = -0.55;
+  we(new Pe(0.07, 0.015, 8, 16), goldRoyalMat, 0.17, 2.62, 0.05, bodyGroup).rotation.z = 0.55;
+
+  // ۵. دست‌های باوقار در ردای سپید
+  const armL = we(new Jn(0.06, 0.045, 0.62, 12), robeMat, -0.36, 1.68, 0, bodyGroup);
+  armL.rotation.z = 0.35;
+  const armR = we(new Jn(0.06, 0.045, 0.62, 12), robeMat, 0.36, 1.68, 0, bodyGroup);
+  armR.rotation.z = -0.35;
+
+  // ۶. سایه روی زمین
+  const shadowMesh = we(new Vr(0.7, 32), new cr({
+    color: "#183b3d",
+    transparent: true,
+    opacity: 0.3,
+    depthWrite: false
+  }), 0, 0.03, 0, root);
+  shadowMesh.rotation.x = -Math.PI / 2;
+
+  parent.userData.bodyMesh = bodyGroup;
+  parent.userData.is3D = true;
+}
+
+// ساخت مش‌های سه‌بعدی برای کاراکتر اصلی فرشته و همراه گوراستاخ
+if (typeof re !== "undefined" && re) {
+  build3DAngelModel(re);
+}
+if (typeof ke !== "undefined" && ke) {
+  build3DGorastakhModel(ke);
+}
+
+// خنثی‌سازی تغییر آفست تکسچر اسپریت‌های دوبعدی منسوخ
+window.Ml = function() {};
+Ml = function() {};
+
+// =========================================================================
+// ۵ شخصیت بومی دوشاخ با شمایل ارواح سپیدپوش و نورانی (Ethereal White Beings)
+// ۱. نورا (شکوفهٔ پاک) ۲. بانو هیراد (بانوی کهن‌زاد) ۳. رادمان (پیر فرزانه)
+// ۴. کیان (نگهبان صخره‌ها) ۵. سپهر (باغبان ریشه‌ها)
+// =========================================================================
 
 const nativeNPCs = [];
 
@@ -5426,92 +5679,110 @@ function createNativeTwoHornNPC(config) {
   const surfPos = getSphereSurfacePosition(config.x, config.z, 0);
   npcGroup.position.copy(surfPos);
   
-  // تراز با نرمال سطح کره
   const upVec = surfPos.clone().sub(PLANET_CENTER).normalize();
   npcGroup.quaternion.setFromUnitVectors(new D(0, 1, 0), upVec);
   
-  const whiteRobeMat = pe("#faf9f6");
-  const goldAccentMat = pe("#e6c875");
-  const skinMat = pe("#edd5be");
-  const silverHornsMat = pe("#f0f4f8");
+  // متریال‌های اثیری، سپید گچی درخشان و غیرانسانی لطیف
+  const spiritSkinMat = new Ki({
+    color: "#fcfbf9",
+    emissive: "#f0f4f8",
+    emissiveIntensity: 0.16,
+    roughness: 0.55
+  });
+  const spiritWhiteRobeMat = new Ki({
+    color: "#ffffff",
+    emissive: "#e2e8f0",
+    emissiveIntensity: 0.18,
+    roughness: 0.4
+  });
+  const goldAccentMat = new Ki({
+    color: "#fde047",
+    emissive: "#ca8a04",
+    emissiveIntensity: 0.35,
+    roughness: 0.3,
+    metalness: 0.35
+  });
+  const spiritHornsMat = new Ki({
+    color: "#fef9c3",
+    emissive: "#eab308",
+    emissiveIntensity: 0.25,
+    roughness: 0.25,
+    metalness: 0.3
+  });
+  const spiritHairMat = new Ki({
+    color: "#ffffff",
+    emissive: "#f1f5f9",
+    emissiveIntensity: 0.2,
+    roughness: 0.5
+  });
 
-  // قامت کاراکتر متناسب با نقش
   const scale = config.scale || 1.0;
   const charBody = new jt();
   charBody.scale.set(scale, scale, scale);
   npcGroup.add(charBody);
 
   if (config.type === "girl") {
-    // نورا: جثه کودک، لباس سپید ظریف و گلچین نور
-    we(new Gr(0.38, 1.1, 16), whiteRobeMat, 0, 0.55, 0, charBody);
-    we(new kr(0.28, 16, 12), skinMat, 0, 1.25, 0, charBody);
-    // دو شاخ کوچک نقره‌ای
-    const hornL = en(0.04, 0.35, silverHornsMat, -0.15, 1.5, 0, charBody);
+    // نورا: کودک سپیدپوش نورانی
+    we(new Gr(0.38, 1.1, 16), spiritWhiteRobeMat, 0, 0.55, 0, charBody);
+    we(new kr(0.28, 16, 12), spiritSkinMat, 0, 1.25, 0, charBody);
+    we(new kr(0.28, 14, 10), spiritHairMat, 0, 1.3, -0.04, charBody);
+    const hornL = en(0.04, 0.35, spiritHornsMat, -0.15, 1.5, 0, charBody);
     hornL.rotation.z = -0.3;
-    const hornR = en(0.04, 0.35, silverHornsMat, 0.15, 1.5, 0, charBody);
+    const hornR = en(0.04, 0.35, spiritHornsMat, 0.15, 1.5, 0, charBody);
     hornR.rotation.z = 0.3;
-    // فانوس کوچک دست نورا
     De(0.12, pe("#ffecb3", true), 0.35, 0.6, 0.2, charBody);
   } else if (config.type === "woman") {
-    // بانو هیراد: قامت کشیده، پیراهن بلند سپید و شال سیمین
-    we(new Jn(0.25, 0.55, 1.9, 20), whiteRobeMat, 0, 0.95, 0, charBody);
-    we(new kr(0.32, 16, 12), skinMat, 0, 2.05, 0, charBody);
-    // شاخ‌های هلالی باوقار
-    const hornL = we(new Pe(0.35, 0.05, 8, 20, Math.PI), silverHornsMat, -0.22, 2.32, 0, charBody);
+    // بانو هیراد: بانوی کهن‌زاد با ردای بلند دنباله‌دار و وقار سیمین
+    we(new Jn(0.25, 0.55, 1.9, 20), spiritWhiteRobeMat, 0, 0.95, 0, charBody);
+    we(new kr(0.32, 16, 12), spiritSkinMat, 0, 2.05, 0, charBody);
+    we(new Jn(0.22, 0.12, 1.1, 16), spiritHairMat, 0, 1.6, -0.18, charBody);
+    const hornL = we(new Pe(0.35, 0.05, 8, 20, Math.PI), spiritHornsMat, -0.22, 2.32, 0, charBody);
     hornL.rotation.z = -0.4;
-    const hornR = we(new Pe(0.35, 0.05, 8, 20, Math.PI), silverHornsMat, 0.22, 2.32, 0, charBody);
+    const hornR = we(new Pe(0.35, 0.05, 8, 20, Math.PI), spiritHornsMat, 0.22, 2.32, 0, charBody);
     hornR.rotation.z = 0.4;
-    // شال سیمین ابریشمی
     we(new Pe(0.55, 0.06, 12, 24), pe("#e2e8f0"), 0, 1.8, 0, charBody).rotation.x = Math.PI / 2;
   } else if (config.type === "elder") {
-    // رادمان: پیر فرزانه، ردای بلند سپید و شاخ‌های خردمندانه
-    we(new Jn(0.3, 0.6, 2.1, 20), whiteRobeMat, 0, 1.05, 0, charBody);
-    we(new kr(0.35, 16, 12), pe("#e5cfb8"), 0, 2.25, 0, charBody);
-    // ریش سپید بلند
-    we(new Gr(0.2, 0.5, 12), pe("#ffffff"), 0, 1.9, 0.2, charBody).rotation.x = 0.2;
-    // دو شاخ باستانی پهن
+    // پیر فرزانه رادمان: دانای الواح کهن در ردای بلند سپید
+    we(new Jn(0.3, 0.6, 2.1, 20), spiritWhiteRobeMat, 0, 1.05, 0, charBody);
+    we(new kr(0.35, 16, 12), spiritSkinMat, 0, 2.25, 0, charBody);
+    we(new Gr(0.2, 0.5, 12), spiritHairMat, 0, 1.9, 0.2, charBody).rotation.x = 0.2;
+    we(new Jn(0.24, 0.15, 1.2, 16), spiritHairMat, 0, 1.7, -0.2, charBody);
     const hornL = en(0.06, 0.65, goldAccentMat, -0.28, 2.6, 0, charBody);
     hornL.rotation.z = -0.45;
     const hornR = en(0.06, 0.65, goldAccentMat, 0.28, 2.6, 0, charBody);
     hornR.rotation.z = 0.45;
-    // کتاب/لوح سنگی در دست
     we(new bn(0.4, 0.5, 0.1), pe("#dcd7cb"), -0.4, 1.2, 0.25, charBody);
   } else if (config.type === "guard") {
-    // کیان: نگهبان تنومند، ردای سپید سلحشوری و کمربند زرین
-    we(new Jn(0.45, 0.6, 2.2, 20), whiteRobeMat, 0, 1.1, 0, charBody);
-    we(new kr(0.38, 16, 12), skinMat, 0, 2.35, 0, charBody);
-    // شاخ‌های تیز و استوار
-    const hornL = en(0.07, 0.7, silverHornsMat, -0.25, 2.75, 0, charBody);
+    // کیان: پاسدار سلحشور با ردای سپید و نیزه نور
+    we(new Jn(0.45, 0.6, 2.2, 20), spiritWhiteRobeMat, 0, 1.1, 0, charBody);
+    we(new kr(0.38, 16, 12), spiritSkinMat, 0, 2.35, 0, charBody);
+    we(new kr(0.36, 14, 10), spiritHairMat, 0, 2.4, -0.06, charBody);
+    const hornL = en(0.07, 0.7, spiritHornsMat, -0.25, 2.75, 0, charBody);
     hornL.rotation.z = -0.25;
-    const hornR = en(0.07, 0.7, silverHornsMat, 0.25, 2.75, 0, charBody);
+    const hornR = en(0.07, 0.7, spiritHornsMat, 0.25, 2.75, 0, charBody);
     hornR.rotation.z = 0.25;
-    // کمربند زرین احترام
     we(new Pe(0.62, 0.08, 12, 24), goldAccentMat, 0, 1.25, 0, charBody).rotation.x = Math.PI / 2;
-    // نیزه با نشان نور
     en(0.04, 3.2, pe("#94a3b8"), 0.65, 1.6, 0.1, charBody);
     De(0.18, pe("#fef08a", true), 0.65, 3.2, 0.1, charBody);
   } else if (config.type === "gardener") {
-    // سپهر: باغبان با مهر، جامه سپید باغبانی و شاخ‌های جوانه‌زده
-    we(new Jn(0.35, 0.55, 1.95, 20), whiteRobeMat, 0, 0.98, 0, charBody);
-    we(new kr(0.34, 16, 12), skinMat, 0, 2.1, 0, charBody);
-    // شاخ‌های مزین به پیچک سبز
-    const hornL = en(0.05, 0.5, silverHornsMat, -0.2, 2.45, 0, charBody);
+    // سپهر: باغبان پیوند با شاخ‌های جوانه‌زده
+    we(new Jn(0.35, 0.55, 1.95, 20), spiritWhiteRobeMat, 0, 0.98, 0, charBody);
+    we(new kr(0.34, 16, 12), spiritSkinMat, 0, 2.1, 0, charBody);
+    we(new kr(0.34, 14, 10), spiritHairMat, 0, 2.15, -0.05, charBody);
+    const hornL = en(0.05, 0.5, spiritHornsMat, -0.2, 2.45, 0, charBody);
     hornL.rotation.z = -0.35;
-    const hornR = en(0.05, 0.5, silverHornsMat, 0.2, 2.45, 0, charBody);
+    const hornR = en(0.05, 0.5, spiritHornsMat, 0.2, 2.45, 0, charBody);
     hornR.rotation.z = 0.35;
     De(0.08, pe("#86efac", true), -0.25, 2.7, 0, charBody);
     De(0.08, pe("#86efac", true), 0.25, 2.7, 0, charBody);
-    // کوزه یا سبد جوانه در دست
     we(new Jn(0.2, 0.3, 0.5, 16), pe("#b45309"), 0.45, 0.85, 0.2, charBody);
   }
 
-  // سایه ملایم زیر پای کاراکتر
   const shadowMesh = we(new Vr(0.6 * scale, 24), new cr({color: "#183b3d", transparent: true, opacity: 0.25, depthWrite: false}), 0, 0.03, 0, npcGroup);
   shadowMesh.rotation.x = -Math.PI / 2;
 
   Me.add(npcGroup);
   
-  // ثبت در لیست کاراکترهای بومی برای تعامل اختیاری و کلیکی
   nativeNPCs.push({
     id: config.id,
     name: config.name,
@@ -5524,7 +5795,6 @@ function createNativeTwoHornNPC(config) {
   });
 }
 
-// ساخت ۵ کاراکتر دوشاخ در نقاط مختلف سیاره
 createNativeTwoHornNPC({
   id: "noura",
   name: "نورا (کودک دوشاخ)",
@@ -5621,13 +5891,10 @@ createNativeTwoHornNPC({
 });
 
 // =========================================================================
-// نمادهای شاخص و باابهت سیاره (Landmarks of Planet Two-Horns)
-// ۱. درخت عظیم و اساطیری زندگی (The Grand Tree of Life)
-// ۲. قصر باستانی و طاق‌های مرمری دوشاخ‌ها (Ancient White Palace)
-// ۳. صخره‌های تراش‌خورده و باطراوت (Majestic Sculpted Rocks)
+// نمادهای شاخص سیاره: درخت زندگی + قصر باستانی + صخره‌های باطراوت
 // =========================================================================
 
-// ۱. درخت زندگی در موقعیت (0, -14)
+// درخت بزرگ زندگی در (0, -14)
 const treeGroup = new jt();
 const treePos = getSphereSurfacePosition(0, -14, 0);
 treeGroup.position.copy(treePos);
@@ -5635,31 +5902,25 @@ const treeUp = treePos.clone().sub(PLANET_CENTER).normalize();
 treeGroup.quaternion.setFromUnitVectors(new D(0, 1, 0), treeUp);
 Me.add(treeGroup);
 
-// تنه عظیم و تاب‌خورده درخت
 const trunkMat = pe("#5c4632");
 const leavesMat = new Ki({color: "#2e7d5a", roughness: 0.65, flatShading: false});
 const glowLeavesMat = pe("#86efac", true);
 
 we(new Jn(1.4, 2.8, 8.5, 16), trunkMat, 0, 4.25, 0, treeGroup);
-// شاخه‌های انحنادار
 for (let b = 0; b < 6; b++) {
   const ang = (b / 6) * Math.PI * 2;
   const branch = we(new Jn(0.4, 0.8, 4.5, 12), trunkMat, Math.cos(ang) * 1.5, 7.5, Math.sin(ang) * 1.5, treeGroup);
   branch.rotation.z = Math.cos(ang) * 0.45;
   branch.rotation.x = Math.sin(ang) * 0.45;
-  
-  // توده‌های برگ‌های زمردین
   const leafCluster = we(new kr(2.4, 16, 12), leavesMat, Math.cos(ang) * 3.5, 9.8, Math.sin(ang) * 3.5, treeGroup);
   leafCluster.scale.set(1.4, 0.85, 1.4);
-  // جوانه‌های درخشان ملایم میان برگ‌ها
   De(0.35, glowLeavesMat, Math.cos(ang) * 3.2, 9.5, Math.sin(ang) * 3.2, treeGroup);
 }
-// تاج اصلی درخت
 const crown = we(new kr(4.2, 24, 18), leavesMat, 0, 11.5, 0, treeGroup);
 crown.scale.set(1.5, 0.8, 1.5);
 De(0.8, pe("#fef08a", true), 0, 11.2, 0, treeGroup);
 
-// ۲. بارگاه و قصر باستانی سپید دوشاخ‌ها در موقعیت (-12, -4)
+// قصر باستانی سپید دوشاخ‌ها در (-12, -4)
 const palaceGroup = new jt();
 const palacePos = getSphereSurfacePosition(-12, -4, 0);
 palaceGroup.position.copy(palacePos);
@@ -5670,20 +5931,17 @@ Me.add(palaceGroup);
 const marbleMat = pe("#faf8f2");
 const marbleGoldMat = pe("#e6c875");
 
-// صفین ستون‌های مرمری سپید
 for (let col = -3; col <= 3; col += 2) {
   en(0.32, 4.8, marbleMat, col * 1.6, 2.4, -2.5, palaceGroup);
   en(0.32, 4.8, marbleMat, col * 1.6, 2.4, 2.5, palaceGroup);
   De(0.45, marbleGoldMat, col * 1.6, 4.9, -2.5, palaceGroup);
   De(0.45, marbleGoldMat, col * 1.6, 4.9, 2.5, palaceGroup);
 }
-// طاق و سقف قصر
 we(new bn(11.5, 0.6, 6.5), marbleMat, 0, 5.2, 0, palaceGroup);
 we(new Gr(6.2, 2.2, 4), pe("#e2e8f0"), 0, 6.5, 0, palaceGroup).rotation.y = Math.PI / 4;
-// تاج دوشاخ نمادین بالای قصر
 we(new Pe(1.8, 0.18, 12, 32, Math.PI), marbleGoldMat, 0, 7.8, 0, palaceGroup);
 
-// ۳. صخره‌های باستانی و شکوهمند تراش‌خورده در پیرامون سیاره
+// صخره‌های باستانی پیرامون سیاره
 const rocksMat = pe("#7a827d");
 for (let r = 0; r < 8; r++) {
   const rAng = (r / 8) * Math.PI * 2 + 0.3;
@@ -5694,8 +5952,6 @@ for (let r = 0; r < 8; r++) {
   const rockG = new jt();
   rockG.position.copy(rockPos);
   rockG.quaternion.setFromUnitVectors(new D(0, 1, 0), rockUp);
-  
-  // اشکال سنگی ارگانیک
   const rMesh1 = we(new bn(2.2 + (r % 3) * 0.8, 3.5 + (r % 4) * 0.9, 2.0), rocksMat, 0, 1.6, 0, rockG);
   rMesh1.rotation.y = r * 0.7;
   rMesh1.rotation.x = 0.15;
@@ -5703,14 +5959,13 @@ for (let r = 0; r < 8; r++) {
   Me.add(rockG);
 }
 
-// دکمه تعامل شناور تمیز (فقط در نزدیکی سوژه و کاملاً اختیاری بدون ایجاد متن ناخواسته)
+// دکمه تعامل شناور تمیز و اختیاری
 let activeInteractSubject = null;
 let interactBadgeEl = null;
 
 function updateCleanInteraction() {
   if (!re) return;
   
-  // بررسی فاصله با ۵ کاراکتر دوشاخ
   let closest = null;
   let minD = 3.8;
   
@@ -5722,7 +5977,6 @@ function updateCleanInteraction() {
     }
   }
 
-  // بررسی فاصله با درخت زندگی
   const dTree = Math.hypot(re.position.x - treePos.x, re.position.z - treePos.z);
   if (dTree < 5.5 && dTree < minD) {
     closest = {
@@ -5741,7 +5995,6 @@ function updateCleanInteraction() {
 
   activeInteractSubject = closest;
 
-  // مدیریت المان دکمه شناور روی صفحه
   if (!interactBadgeEl) {
     interactBadgeEl = document.createElement("button");
     interactBadgeEl.className = "glass";
@@ -5762,36 +6015,291 @@ function updateCleanInteraction() {
   }
 }
 
-// حلقه انیمیشن نهایی و حرکات طبیعی
-function sphericalWorldGameLoop() {
-  z_(); // حلقه پایه برای مدیریت کلیدها و ورودی‌ها
+// =========================================================================
+// گام ۲: سیستم دوربین سوم‌شخص مدارگرد ۳۶۰ درجه (Third-Person Follow Orbit Camera)
+// =========================================================================
 
-  // تراز ارتفاع کاراکتر و همراه با سطح منحنی کره
-  if (re) {
-    const surfPos = getSphereSurfacePosition(re.position.x, re.position.z, wr ? 2.5 : 0.05);
-    re.position.y = Cs.lerp(re.position.y, surfPos.y, 0.2);
+const orbitCam = {
+  yaw: 0.0,       // چرخش افقی دور کاراکتر (رادیان)
+  pitch: 0.38,    // زاویه عمودی زاویه دید (~22 درجه)
+  distance: 7.5,  // فاصله پیش‌فرض از کاراکتر
+  minDist: 3.5,
+  maxDist: 14.5,
+  minPitch: 0.08, // ~5 درجه (بالاتر از افق زمین)
+  maxPitch: 1.35, // ~77 درجه (دید از بالای سر)
+  lookOffset: new D(0, 1.4, 0),
+  targetPos: new D(2, 0.5, 7),
+  isDragging: false,
+  dragStartX: 0,
+  dragStartY: 0,
+  startYaw: 0,
+  startPitch: 0,
+  pinchDist: 0
+};
 
-    if (ke) {
-      const compSurf = getSphereSurfacePosition(ke.position.x, ke.position.z, wr ? 2.0 : 0.05);
-      ke.position.y = Cs.lerp(ke.position.y, compSurf.y, 0.2);
-    }
+// رویدادهای ماوس دسکتاپ
+window.addEventListener("mousedown", (e) => {
+  if (e.target.closest("button, .dialog, nav, header, #markers, input, a")) return;
+  orbitCam.isDragging = true;
+  orbitCam.dragStartX = e.clientX;
+  orbitCam.dragStartY = e.clientY;
+  orbitCam.startYaw = orbitCam.yaw;
+  orbitCam.startPitch = orbitCam.pitch;
+});
+
+window.addEventListener("mousemove", (e) => {
+  if (!orbitCam.isDragging) return;
+  const dx = e.clientX - orbitCam.dragStartX;
+  const dy = e.clientY - orbitCam.dragStartY;
+  const sens = 0.0055;
+  orbitCam.yaw = orbitCam.startYaw - dx * sens;
+  orbitCam.pitch = Math.max(orbitCam.minPitch, Math.min(orbitCam.maxPitch, orbitCam.startPitch + dy * sens));
+});
+
+window.addEventListener("mouseup", () => {
+  orbitCam.isDragging = false;
+});
+
+// زوم با اسکرول ماوس
+window.addEventListener("wheel", (e) => {
+  if (e.target.closest(".dialog, nav, header")) return;
+  orbitCam.distance = Math.max(orbitCam.minDist, Math.min(orbitCam.maxDist, orbitCam.distance + e.deltaY * 0.005));
+}, { passive: true });
+
+// رویدادهای لمسی موبایل و تبلت
+window.addEventListener("touchstart", (e) => {
+  if (e.target.closest("button, .dialog, nav, header, #markers, input, a")) return;
+  if (e.touches.length === 1) {
+    orbitCam.isDragging = true;
+    orbitCam.dragStartX = e.touches[0].clientX;
+    orbitCam.dragStartY = e.touches[0].clientY;
+    orbitCam.startYaw = orbitCam.yaw;
+    orbitCam.startPitch = orbitCam.pitch;
+  } else if (e.touches.length === 2) {
+    orbitCam.pinchDist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
   }
+}, { passive: true });
 
-  // انیمیشن تنفس و تعظیم احترام ۵ کاراکتر دوشاخ
-  const t = performance.now() * 0.002;
-  for (const npc of nativeNPCs) {
-    if (npc.charBody) {
-      npc.charBody.position.y = Math.sin(t * 1.8 + npc.pos.x) * 0.04;
-    }
+window.addEventListener("touchmove", (e) => {
+  if (e.touches.length === 1 && orbitCam.isDragging) {
+    const dx = e.touches[0].clientX - orbitCam.dragStartX;
+    const dy = e.touches[0].clientY - orbitCam.dragStartY;
+    const sens = 0.0065;
+    orbitCam.yaw = orbitCam.startYaw - dx * sens;
+    orbitCam.pitch = Math.max(orbitCam.minPitch, Math.min(orbitCam.maxPitch, orbitCam.startPitch + dy * sens));
+  } else if (e.touches.length === 2 && orbitCam.pinchDist > 0) {
+    const newDist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    const diff = orbitCam.pinchDist - newDist;
+    orbitCam.distance = Math.max(orbitCam.minDist, Math.min(orbitCam.maxDist, orbitCam.distance + diff * 0.02));
+    orbitCam.pinchDist = newDist;
   }
+}, { passive: true });
 
-  // بررسی وضعیت تعامل تمیز و بدون شلوغی
-  updateCleanInteraction();
+window.addEventListener("touchend", () => {
+  orbitCam.isDragging = false;
+  orbitCam.pinchDist = 0;
+});
+
+function updateThirdPersonCamera(dt) {
+  if (!re) return;
+
+  const desiredTarget = re.position.clone().add(orbitCam.lookOffset);
+  orbitCam.targetPos.lerp(desiredTarget, 1 - Math.exp(-dt * 9.0));
+
+  const cosP = Math.cos(orbitCam.pitch);
+  const sinP = Math.sin(orbitCam.pitch);
+  const sinY = Math.sin(orbitCam.yaw);
+  const cosY = Math.cos(orbitCam.yaw);
+
+  const cx = orbitCam.targetPos.x + orbitCam.distance * sinY * cosP;
+  const cy = orbitCam.targetPos.y + orbitCam.distance * sinP;
+  const cz = orbitCam.targetPos.z + orbitCam.distance * cosY * cosP;
+
+  qe.position.set(cx, cy, cz);
+  qe.lookAt(orbitCam.targetPos);
 }
 
-Re.setAnimationLoop(sphericalWorldGameLoop);
+// کلیدهای کیبورد برای حرکت
+window.addEventListener("keydown", (e) => {
+  if (!Ee.hidden) {
+    if (e.key === "Escape") ur();
+    return;
+  }
+  const k = e.key.toLowerCase();
+  if (["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d"].includes(k)) {
+    e.preventDefault();
+    Le.add(k);
+    Fe = null;
+    jn = null;
+  }
+  if (k === "e" && activeInteractSubject && typeof activeInteractSubject.dialogue === "function") {
+    activeInteractSubject.dialogue();
+  }
+});
 
-// بستن پیام‌های ناخواسته اولیه برای اطمینان از پاکی کامل صحنه
+window.addEventListener("keyup", (e) => {
+  Le.delete(e.key.toLowerCase());
+});
+
+window.addEventListener("blur", () => {
+  Le.clear();
+});
+
+// ریسایز پنجره
+function handleResize() {
+  Re.setSize(innerWidth, innerHeight);
+  qe.aspect = innerWidth / innerHeight;
+  qe.updateProjectionMatrix();
+}
+window.addEventListener("resize", handleResize);
+handleResize();
+
+// =========================================================================
+// حلقه اصلی گیم‌پلی و حرکت سه‌بعدی روان (Master Game Loop & Kinematics)
+// =========================================================================
+
+let lastTimeMs = performance.now();
+
+function threeDWorldMasterLoop() {
+  const nowMs = performance.now();
+  const dt = Math.min(0.06, (nowMs - lastTimeMs) * 0.001);
+  lastTimeMs = nowMs;
+
+  // ۱. خواندن ورودی‌های کاربر
+  let inputForward = 0;
+  let inputRight = 0;
+
+  if (Le.has("w") || Le.has("arrowup")) inputForward += 1;
+  if (Le.has("s") || Le.has("arrowdown")) inputForward -= 1;
+  if (Le.has("a") || Le.has("arrowleft")) inputRight -= 1;
+  if (Le.has("d") || Le.has("arrowright")) inputRight += 1;
+
+  // محاسبه بردارهای جهت دوربین روی صفحه افقی (Camera-Relative)
+  const camForward = new D(
+    orbitCam.targetPos.x - qe.position.x,
+    0,
+    orbitCam.targetPos.z - qe.position.z
+  ).normalize();
+  const camRight = new D(-camForward.z, 0, camForward.x).normalize();
+
+  const moveDir = new D();
+  if (inputForward !== 0 || inputRight !== 0) {
+    moveDir.addScaledVector(camForward, inputForward);
+    moveDir.addScaledVector(camRight, inputRight);
+    moveDir.normalize();
+  } else if (Fe) {
+    moveDir.copy(Fe).sub(re.position);
+    moveDir.y = 0;
+    if (moveDir.length() < 0.25) {
+      Fe = null;
+      moveDir.set(0, 0, 0);
+      const cb = jn;
+      jn = null;
+      cb?.action?.();
+    } else {
+      moveDir.normalize();
+    }
+  }
+
+  // ۲. جابجایی و چرخش سه‌بعدی فرشته
+  const isMoving = moveDir.lengthSq() > 0.001;
+  if (isMoving && Ee.hidden) {
+    const flightSpeed = 5.4;
+    re.position.addScaledVector(moveDir, flightSpeed * dt);
+
+    const targetYaw = Math.atan2(moveDir.x, moveDir.z);
+    let diff = targetYaw - re.rotation.y;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    re.rotation.y += diff * Math.min(1, dt * 10.0);
+  }
+
+  // محدودسازی در مرز دایره‌ای سیاره
+  const distFromCenter = Math.hypot(re.position.x, re.position.z);
+  const maxPlanetRadius = PLANET_RADIUS * 0.88;
+  if (distFromCenter > maxPlanetRadius) {
+    re.position.x = (re.position.x / distFromCenter) * maxPlanetRadius;
+    re.position.z = (re.position.z / distFromCenter) * maxPlanetRadius;
+  }
+
+  // پرواز و شناوری ملایم فرشته روی سیاره (~۰.۵ متر بالاتر از سطح با نوسان ملایم)
+  if (re) {
+    const surfPos = getSphereSurfacePosition(re.position.x, re.position.z, 0.48);
+    const hoverFloat = Math.sin(nowMs * 0.0035) * 0.09;
+    re.position.y = Cs.lerp(re.position.y, surfPos.y + hoverFloat, 0.22);
+  }
+
+  // ۳. انیمیشن بال‌زدن سه‌بعدی فرشته
+  if (re && re.userData && re.userData.wingL && re.userData.wingR) {
+    const flapSpeed = isMoving ? 8.5 : 4.2;
+    const flapAmp = isMoving ? 0.45 : 0.22;
+    const flap = Math.sin(nowMs * 0.001 * flapSpeed) * flapAmp;
+    re.userData.wingL.rotation.y = flap + 0.18;
+    re.userData.wingR.rotation.y = -flap - 0.18;
+    re.userData.wingL.rotation.z = Math.cos(nowMs * 0.001 * flapSpeed) * 0.12;
+    re.userData.wingR.rotation.z = -Math.cos(nowMs * 0.001 * flapSpeed) * 0.12;
+  }
+
+  // چرخش هاله نورانی فرشته
+  if (re && re.userData && re.userData.halo) {
+    re.userData.halo.rotation.y += dt * 1.2;
+  }
+
+  // تمایل ملایم به طرفین حین چرخش (Banking)
+  if (re && re.userData && re.userData.bodyMesh) {
+    const rollTarget = isMoving ? Math.sin(nowMs * 0.005) * 0.05 : 0;
+    re.userData.bodyMesh.rotation.z = Cs.lerp(re.userData.bodyMesh.rotation.z, rollTarget, 0.15);
+  }
+
+  // ۴. تعقیب هوشمند و چرخش گوراستاخ (Companion follow)
+  if (ke && re) {
+    const toAngel = re.position.clone().sub(ke.position);
+    toAngel.y = 0;
+    const companionDist = toAngel.length();
+    if (companionDist > 2.2) {
+      const compSpeed = Math.min(companionDist - 1.8, 4.8 * dt);
+      ke.position.addScaledVector(toAngel.normalize(), compSpeed);
+      
+      const gorTargetAngle = Math.atan2(toAngel.x, toAngel.z);
+      let gDiff = gorTargetAngle - ke.rotation.y;
+      while (gDiff < -Math.PI) gDiff += Math.PI * 2;
+      while (gDiff > Math.PI) gDiff -= Math.PI * 2;
+      ke.rotation.y += gDiff * Math.min(1, dt * 8.0);
+    }
+    
+    const gorSurf = getSphereSurfacePosition(ke.position.x, ke.position.z, 0.05);
+    const gorBob = Math.sin(nowMs * 0.0025 + 1.0) * 0.03;
+    ke.position.y = Cs.lerp(ke.position.y, gorSurf.y + gorBob, 0.2);
+  }
+
+  // ۵. انیمیشن تنفس ۵ کاراکتر دوشاخ بومی
+  const tSec = nowMs * 0.002;
+  for (const npc of nativeNPCs) {
+    if (npc.charBody) {
+      npc.charBody.position.y = Math.sin(tSec * 1.8 + npc.pos.x) * 0.04;
+    }
+  }
+
+  // ۶. بررسی تعامل تمیز و بدون شلوغی
+  updateCleanInteraction();
+
+  // ۷. بروزرسانی دوربین سوم‌شخص مدارگرد ۳۶۰ درجه
+  updateThirdPersonCamera(dt);
+
+  // ۸. رندر صحنه با وب‌جی‌ال
+  Re.render(Me, qe);
+}
+
+// ثبت حلقه اصلی رندرینگ
+Re.setAnimationLoop(threeDWorldMasterLoop);
+
+// بستن پیام‌های ناخواسته اولیه برای شفافیت کامل
 ur();
 
 </script></body></html>
