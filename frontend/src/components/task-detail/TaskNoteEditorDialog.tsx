@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
@@ -32,7 +32,11 @@ interface Props {
   onDeleted: (noteId: string) => void;
 }
 
-export function TaskNoteEditorDialog({
+export function TaskNoteEditorDialog(props: Props) {
+  return <TaskNoteEditorContent key={`${props.userId}:${props.taskId}:${props.note?.id ?? "none"}`} {...props} />;
+}
+
+function TaskNoteEditorContent({
   open,
   onOpenChange,
   userId,
@@ -50,6 +54,7 @@ export function TaskNoteEditorDialog({
   const [title, setTitle] = useState(() => note?.title || "");
   const [content, setContent] = useState(() => note?.content || "");
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const highlights = content.split("\n").flatMap((line) => {
     const found: string[] = [];
@@ -61,19 +66,28 @@ export function TaskNoteEditorDialog({
     return found;
   });
 
+  const operation = useRef(0);
+  const dirty = useRef(false);
+  const wasOpen = useRef(false);
+  const identity = useRef("");
+  identity.current = `${userId}:${taskId}:${note?.id ?? ""}:${open}`;
   useEffect(() => {
-    if (note) {
-      const nextTitle = note.title || "";
-      const nextContent = note.content || "";
-      setTitle((prev) => (prev !== nextTitle ? nextTitle : prev));
-      setContent((prev) => (prev !== nextContent ? nextContent : prev));
+    if (open && note && (!wasOpen.current || !dirty.current)) {
+      dirty.current = false;
+      setTitle(note.title || "");
+      setContent(note.content || "");
+      setConfirmDelete(false);
+      setSaving(false);
     }
-  }, [note, open]);
+    if (wasOpen.current !== open) operation.current++;
+    wasOpen.current = open;
+  }, [open, note]);
+  useEffect(() => () => { operation.current++; }, []);
 
   if (!note) return null;
 
   const handleSave = async () => {
-    if (!canEdit || saving) return;
+    if (!canEdit || saving || uploading) return;
     const trimmedTitle = title.trim();
     const trimmedContent = content.trim();
 
@@ -82,32 +96,41 @@ export function TaskNoteEditorDialog({
       return;
     }
 
+    const sequence = ++operation.current;
+    const target = identity.current;
     setSaving(true);
     try {
       const updated = await updateTaskNote(userId, note.id, taskId, {
         title: trimmedTitle || trimmedContent.slice(0, 40) || T("یادداشت", "Note"),
         content: trimmedContent,
       });
+      if (operation.current !== sequence || identity.current !== target) return;
       toast.success(T("نوت ذخیره شد", "Note saved"));
       onSaved(updated);
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : T("خطا در ذخیره نوت", "Error saving note"));
+      if (operation.current === sequence && identity.current === target) toast.error(err instanceof Error ? err.message : T("خطا در ذخیره نوت", "Error saving note"));
     } finally {
-      setSaving(false);
+      if (operation.current === sequence && identity.current === target) setSaving(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!canEdit) return;
+    if (!canEdit || saving || uploading) return;
+    const sequence = ++operation.current;
+    const target = identity.current;
+    setSaving(true);
     try {
       await deleteTaskNote(userId, note.id, taskId);
+      if (operation.current !== sequence || identity.current !== target) return;
       toast.success(T("نوت حذف شد", "Note deleted"));
       onDeleted(note.id);
       setConfirmDelete(false);
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : T("خطا در حذف نوت", "Error deleting note"));
+      if (operation.current === sequence && identity.current === target) toast.error(err instanceof Error ? err.message : T("خطا در حذف نوت", "Error deleting note"));
+    } finally {
+      if (operation.current === sequence && identity.current === target) setSaving(false);
     }
   };
 
@@ -119,7 +142,7 @@ export function TaskNoteEditorDialog({
         </label>
         <Input
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => { dirty.current = true; setTitle(e.target.value); }}
           disabled={!canEdit || saving}
           placeholder={T("عنوان نوت...", "Note title...")}
           className="h-9 text-sm font-medium"
@@ -134,7 +157,7 @@ export function TaskNoteEditorDialog({
           </label>
         </div>
         <p className="mb-2 text-[11px] text-muted-foreground">{T("متن را انتخاب کن تا ابزار AI ظاهر شود؛ از نوار ویرایش برای عکس و فایل استفاده کن.", "Select text for AI actions; use the editor toolbar for images and files.")}</p>
-        <NoteEditorTabs noteId={`task-note-${note.id}`} markdown={content} onChange={(md) => setContent(md)} readOnly={!canEdit || saving} />
+        <NoteEditorTabs noteId={`task-note-${note.id}`} markdown={content} onChange={(md) => { dirty.current = true; setContent(md); }} readOnly={!canEdit || saving} onBusyChange={setUploading} />
         {highlights.length > 0 && <details className="mt-3 rounded-xl border bg-muted/20 p-2.5 text-xs">
           <summary className="cursor-pointer font-medium">{T("نکات برجسته و تیترها", "Highlights and headings")} ({highlights.length})</summary>
           <ul className="mt-2 space-y-1 ps-3 border-s"><>{highlights.map((item, index) => <li key={`${item}-${index}`} className="break-words">{item}</li>)}</></ul>
@@ -147,6 +170,7 @@ export function TaskNoteEditorDialog({
             type="button"
             variant="ghost"
             size="sm"
+            disabled={saving || uploading}
             onClick={() => setConfirmDelete(true)}
             className="text-destructive hover:bg-destructive/10 gap-1.5 h-8 px-2.5 text-xs"
           >
@@ -162,6 +186,7 @@ export function TaskNoteEditorDialog({
             type="button"
             variant="outline"
             size="sm"
+            disabled={saving || uploading}
             onClick={() => onOpenChange(false)}
             className="h-8 text-xs"
           >
@@ -173,7 +198,7 @@ export function TaskNoteEditorDialog({
               type="button"
               size="sm"
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || uploading}
               className="gap-1.5 h-8 text-xs font-semibold"
             >
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
@@ -188,7 +213,7 @@ export function TaskNoteEditorDialog({
   return (
     <>
       {prefersDialog ? (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={next => { if (!saving && !uploading) onOpenChange(next); }}>
           <DialogContent
             dir={isEn ? "ltr" : "rtl"}
             className="w-full max-w-3xl max-h-[90vh] flex flex-col p-4 sm:p-5 overflow-hidden rounded-2xl"
@@ -207,7 +232,7 @@ export function TaskNoteEditorDialog({
           </DialogContent>
         </Dialog>
       ) : (
-        <Sheet open={open} onOpenChange={onOpenChange}>
+        <Sheet open={open} onOpenChange={next => { if (!saving && !uploading) onOpenChange(next); }}>
           <SheetContent
             side="bottom"
             dir={isEn ? "ltr" : "rtl"}

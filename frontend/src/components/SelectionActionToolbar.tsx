@@ -60,63 +60,56 @@ function getSelectionRect(): { rect: DOMRect; container: Element } | null {
   return null;
 }
 
-function getSelectedText(): string {
-  const sel = window.getSelection();
-  if (sel && !sel.isCollapsed) return sel.toString();
-  const ae = document.activeElement as HTMLTextAreaElement | HTMLInputElement | null;
-  if (ae && (ae.tagName === "TEXTAREA" || ae.tagName === "INPUT")) {
-    const s = ae.selectionStart ?? 0;
-    const e = ae.selectionEnd ?? 0;
-    return (ae.value || "").slice(s, e);
-  }
-  return "";
-}
+type SelectionTarget = { field: HTMLTextAreaElement | HTMLInputElement; start: number; end: number; text: string } | { range: Range; text: string };
 
-function replaceSelectedText(newText: string) {
-  const ae = document.activeElement as HTMLTextAreaElement | HTMLInputElement | null;
-  if (ae && (ae.tagName === "TEXTAREA" || ae.tagName === "INPUT")) {
-    const s = ae.selectionStart ?? 0;
-    const e = ae.selectionEnd ?? 0;
-    const v = ae.value || "";
-    const next = v.slice(0, s) + newText + v.slice(e);
-    // Use setter so React picks up the change
-    const proto = ae.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-    const setter = Object.getOwnPropertyDescriptor(proto, "value")!.set!;
-    setter.call(ae, next);
-    ae.dispatchEvent(new Event("input", { bubbles: true }));
-    ae.setSelectionRange(s, s + newText.length);
-    return true;
+function captureSelection(): SelectionTarget | null {
+  const active = document.activeElement as HTMLTextAreaElement | HTMLInputElement | null;
+  if (active && (active.tagName === "TEXTAREA" || active.tagName === "INPUT")) {
+    const start = active.selectionStart ?? 0;
+    const end = active.selectionEnd ?? 0;
+    if (end > start) return { field: active, start, end, text: active.value.slice(start, end) };
   }
-  // contenteditable
-  const sel = window.getSelection();
-  if (sel && sel.rangeCount > 0) {
-    document.execCommand("insertText", false, newText);
-    return true;
-  }
-  return false;
-}
-
-function wrapSelection(prefix: string, suffix = prefix) {
-  const ae = document.activeElement as HTMLTextAreaElement | HTMLInputElement | null;
-  if (ae && (ae.tagName === "TEXTAREA" || ae.tagName === "INPUT")) {
-    const text = getSelectedText();
-    if (!text) return;
-    replaceSelectedText(prefix + text + suffix);
-    return;
-  }
-  // Rich editors own their selection menu. Native editables need real formatting.
   const selection = window.getSelection();
-  const element = selection?.anchorNode?.parentElement;
-  if (!element?.closest('[contenteditable="true"]')) return;
-  const command = prefix === "**" ? "bold" : prefix === "*" ? "italic" : "underline";
-  document.execCommand(command, false);
+  if (selection && !selection.isCollapsed && selection.rangeCount) return { range: selection.getRangeAt(0).cloneRange(), text: selection.toString() };
+  return null;
+}
+
+function replaceSelectedText(target: SelectionTarget, newText: string): boolean {
+  if ("field" in target) {
+    const { field, start, end, text } = target;
+    if (!field.isConnected || field.disabled || field.readOnly || field.value.slice(start, end) !== text) return false;
+    const next = field.value.slice(0, start) + newText + field.value.slice(end);
+    const proto = field.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(proto, "value")?.set?.call(field, next);
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    field.dispatchEvent(new Event("change", { bubbles: true }));
+    field.focus({ preventScroll: true });
+    field.setSelectionRange(start, start + newText.length);
+    return true;
+  }
+  const element = target.range.commonAncestorContainer.nodeType === 1 ? target.range.commonAncestorContainer as Element : target.range.commonAncestorContainer.parentElement;
+  if (!element?.isConnected || !element.closest('[contenteditable="true"]') || target.range.toString() !== target.text) return false;
+  const selection = window.getSelection();
+  selection?.removeAllRanges(); selection?.addRange(target.range);
+  return document.execCommand("insertText", false, newText);
+}
+
+function wrapSelection(target: SelectionTarget, prefix: string, suffix = prefix) {
+  if ("field" in target) return replaceSelectedText(target, prefix + target.text + suffix);
+  const element = target.range.commonAncestorContainer.parentElement;
+  if (!element?.isConnected || !element.closest('[contenteditable="true"]')) return false;
+  const selection = window.getSelection();
+  selection?.removeAllRanges(); selection?.addRange(target.range);
+  return document.execCommand(prefix === "**" ? "bold" : prefix === "*" ? "italic" : "underline", false);
 }
 
 export function SelectionActionToolbar() {
   const [pos, setPos] = useState<Pos | null>(null);
   const [canFormat, setCanFormat] = useState(false);
   const [busy, setBusy] = useState(false);
-  const lastSelRef = useRef<string>("");
+  const targetRef = useRef<SelectionTarget | null>(null);
+  const [portal, setPortal] = useState<Element>(document.body);
+  const busyRef = useRef(false);
 
   useEffect(() => {
     let raf = 0;
@@ -126,14 +119,15 @@ export function SelectionActionToolbar() {
         const info = getSelectionRect();
         if (!info) {
           setPos(null);
-          lastSelRef.current = "";
+          if (!busyRef.current) targetRef.current = null;
           return;
         }
         const active = document.activeElement as HTMLTextAreaElement | null;
         const anchor = window.getSelection()?.anchorNode?.parentElement;
         setCanFormat(Boolean(anchor?.closest('[contenteditable="true"]')) || Boolean(active?.tagName === "TEXTAREA" && !active.readOnly && !active.disabled));
         const r = info.rect;
-        lastSelRef.current = getSelectedText();
+        targetRef.current = captureSelection();
+        setPortal(info.container.closest('[role="dialog"]') ?? document.body);
         const top = Math.max(8, r.top - 52);
         const left = Math.min(window.innerWidth - 148, Math.max(148, r.left + r.width / 2));
         setPos({ top, left, width: r.width });
@@ -153,7 +147,7 @@ export function SelectionActionToolbar() {
   if (!pos) return null;
 
   const doCopy = async () => {
-    const text = getSelectedText();
+    const text = targetRef.current?.text ?? "";
     if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
@@ -162,7 +156,7 @@ export function SelectionActionToolbar() {
   };
 
   const doShare = async () => {
-    const text = getSelectedText();
+    const text = targetRef.current?.text ?? "";
     if (!text) return;
     try {
       if ((navigator as any).share) {
@@ -175,8 +169,10 @@ export function SelectionActionToolbar() {
   };
 
   const runAI = async (action: string) => {
-    const text = lastSelRef.current || getSelectedText();
-    if (!text.trim()) return;
+    const target = targetRef.current;
+    const text = target?.text ?? "";
+    if (!target || !text.trim() || busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     const tid = toast.loading("AI is thinking...");
     try {
@@ -187,26 +183,28 @@ export function SelectionActionToolbar() {
         // Just show the explanation, don't replace
         toast.success("AI", { id: tid, description: out.slice(0, 400), duration: 8000 });
       } else {
-        replaceSelectedText(out);
+        if (!replaceSelectedText(target, out)) throw new Error("Selected text changed; select it again");
         toast.success("Applied ✨", { id: tid });
       }
     } catch (e: any) {
       toast.error(e.message || "AI error", { id: tid });
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
 
+  const modalRect = portal !== document.body ? portal.getBoundingClientRect() : null;
   return createPortal(
     <div
-      style={{ top: pos.top, left: pos.left, transform: "translateX(-50%)" }}
+      style={{ position: modalRect ? "absolute" : "fixed", top: pos.top - (modalRect?.top ?? 0) + (modalRect ? portal.scrollTop : 0), left: pos.left - (modalRect?.left ?? 0) + (modalRect ? portal.scrollLeft : 0), transform: "translateX(-50%)" }}
       className="fixed z-[2147483646] flex items-center gap-1 rounded-md border bg-popover shadow-md px-1.5 py-1 animate-in fade-in slide-in-from-bottom-2"
       onMouseDown={(e) => e.preventDefault()}
       onTouchStart={(e) => e.stopPropagation()}
     >
-      {canFormat && <><button className="h-8 w-8 grid place-items-center rounded-md hover:bg-accent" title="Bold" onClick={() => wrapSelection("**")}><Bold className="w-4 h-4" /></button>
-      <button className="h-8 w-8 grid place-items-center rounded-md hover:bg-accent" title="Italic" onClick={() => wrapSelection("*")}><Italic className="w-4 h-4" /></button>
-      <button className="h-8 w-8 grid place-items-center rounded-md hover:bg-accent" title="Underline" onClick={() => wrapSelection("<u>", "</u>")}><Underline className="w-4 h-4" /></button>
+      {canFormat && <><button className="h-8 w-8 grid place-items-center rounded-md hover:bg-accent" title="Bold" onClick={() => { if (targetRef.current) wrapSelection(targetRef.current, "**"); }}><Bold className="w-4 h-4" /></button>
+      <button className="h-8 w-8 grid place-items-center rounded-md hover:bg-accent" title="Italic" onClick={() => { if (targetRef.current) wrapSelection(targetRef.current, "*"); }}><Italic className="w-4 h-4" /></button>
+      <button className="h-8 w-8 grid place-items-center rounded-md hover:bg-accent" title="Underline" onClick={() => { if (targetRef.current) wrapSelection(targetRef.current, "<u>", "</u>"); }}><Underline className="w-4 h-4" /></button>
       <div className="w-px h-5 bg-border mx-0.5" /></>}
       <button className="h-8 w-8 grid place-items-center rounded-md hover:bg-accent" title="Copy" onClick={doCopy}><Copy className="w-4 h-4" /></button>
       <button className="h-8 w-8 grid place-items-center rounded-md hover:bg-accent" title="Share" onClick={doShare}><Share2 className="w-4 h-4" /></button>
@@ -229,6 +227,6 @@ export function SelectionActionToolbar() {
         </DropdownMenuContent>
       </DropdownMenu>
     </div>,
-    document.body
+    portal
   );
 }

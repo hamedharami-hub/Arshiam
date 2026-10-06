@@ -18,11 +18,12 @@ beforeEach(() => {
 describe("inline cloud attachment editor", () => {
   it("inserts a file with an escaped filename and reports metadata after upload", async () => {
     mocks.upload.mockResolvedValue(media);
-    const uploaded = vi.fn(); const ref = createRef<RichEditorHandle>();
-    render(<RichEditor ref={ref} initialHtml="<p>A memory</p>" attachmentScopeId="entry-1" onAttachmentUploaded={uploaded} showVoiceButton={false} />);
+    const uploaded = vi.fn(); const busy = vi.fn(); const ref = createRef<RichEditorHandle>();
+    render(<RichEditor ref={ref} initialHtml="<p>A memory</p>" attachmentScopeId="entry-1" onAttachmentUploaded={uploaded} onBusyChange={busy} showVoiceButton={false} />);
     await waitFor(() => expect(ref.current?.getHtml()).toContain("A memory"));
     fireEvent.change(screen.getByLabelText("Choose an attachment to insert in the text"), { target: { files: [new File(["file"], "file.pdf", { type: "application/pdf" })] } });
     await waitFor(() => expect(uploaded).toHaveBeenCalledWith(media));
+    expect(busy.mock.calls).toEqual([[true], [false]]);
     expect(ref.current?.getHtml()).toContain("&lt;img");
     expect(document.querySelector('.tiptap img[src="x"]')).toBeNull();
     expect(document.querySelector('.tiptap a')).toHaveAttribute("href", media.url);

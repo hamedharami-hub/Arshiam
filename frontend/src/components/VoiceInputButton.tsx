@@ -20,6 +20,7 @@ function loadVoiceLang(fallback: VoiceLang): VoiceLang {
 type VoiceInputButtonProps = {
   onTranscript: (text: string) => void;
   onInterim?: (text: string) => void;
+  onListeningChange?: (listening: boolean) => void;
   continuous?: boolean;
   disabled?: boolean;
   className?: string;
@@ -34,6 +35,7 @@ type VoiceInputButtonProps = {
 export function VoiceInputButton({
   onTranscript,
   onInterim,
+  onListeningChange,
   continuous = false,
   disabled = false,
   className = "",
@@ -46,7 +48,7 @@ export function VoiceInputButton({
   const [listening, setListening] = useState(false);
   const voiceRef = useRef<VoiceInput | null>(null);
   const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const callbacksRef = useRef({ onTranscript, onInterim });
+  const callbacksRef = useRef({ onTranscript, onInterim, onListeningChange, disabled });
 
   // Default to Persian; the app is primarily Persian and browsers default to en-US otherwise.
   const [lang, setLang] = useState<VoiceLang>(() =>
@@ -54,17 +56,20 @@ export function VoiceInputButton({
   );
 
   useEffect(() => {
-    callbacksRef.current = { onTranscript, onInterim };
-  }, [onTranscript, onInterim]);
+    callbacksRef.current = { onTranscript, onInterim, onListeningChange, disabled };
+  }, [onTranscript, onInterim, onListeningChange, disabled]);
 
   useEffect(() => {
+    let active = true;
     const voice = new VoiceInput({
       onTranscript: (text) => {
+        if (!active || callbacksRef.current.disabled) return;
         haptic("success");
         callbacksRef.current.onTranscript(text);
       },
-      onInterim: (text) => callbacksRef.current.onInterim?.(text),
+      onInterim: (text) => { if (active) callbacksRef.current.onInterim?.(text); },
       onError: (error) => {
+        if (!active) return;
         console.warn("Voice input error:", error);
         const messages: Record<string, string> = {
           "Microphone permission denied": T("اجازهٔ میکروفون داده نشده است", "Microphone permission was denied"),
@@ -77,6 +82,8 @@ export function VoiceInputButton({
         toast.error(messages[error] || T("دریافت صوت ناموفق بود؛ دوباره تلاش کنید", "Voice input failed; please try again"));
       },
       onListeningChange: (isListening) => {
+        if (!active) return;
+        callbacksRef.current.onListeningChange?.(isListening);
         setListening(isListening);
         haptic(isListening ? "medium" : "light");
       },
@@ -84,14 +91,20 @@ export function VoiceInputButton({
     });
     voiceRef.current = voice;
     return () => {
+      active = false;
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       voice.stop();
     };
   }, [continuous, T]);
 
+  useEffect(() => {
+    if (disabled) voiceRef.current?.stop();
+  }, [disabled]);
+
   const handleClick = () => {
     haptic("light");
-    voiceRef.current?.toggle(lang);
+    try { voiceRef.current?.toggle(lang); }
+    catch { toast.error(T("میکروفون مشغول است؛ دوباره تلاش کنید", "Microphone is busy; please try again")); }
   };
 
   const switchLang = () => {

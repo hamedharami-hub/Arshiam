@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import type { Task, TaskNote } from "@/lib/taskTypes";
 
 // Mock dependencies
@@ -21,10 +21,14 @@ vi.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
 }));
 
+vi.mock("@/lib/firestoreDataService", async importOriginal => ({
+  ...await importOriginal<typeof import("@/lib/firestoreDataService")>(),
+  subscribeFolders: () => () => {}, subscribeTags: () => () => {},
+}));
 const mockTaskNotes: TaskNote[] = [];
 
 vi.mock("@/lib/taskNotesService", () => ({
-  getTaskNotes: vi.fn().mockImplementation(() => Promise.resolve([...mockTaskNotes])),
+  getTaskNotes: vi.fn().mockImplementation((taskId, userId) => Promise.resolve(mockTaskNotes.filter(note => note.task_id === taskId && note.user_id === userId))),
   createTaskNote: vi.fn().mockImplementation((userId, taskId, data) => {
     const created: TaskNote = {
       id: `note-${Date.now()}`,
@@ -268,4 +272,25 @@ describe("TaskDetail Notes integration", { timeout: 15000 }, () => {
     // The main task detail remains open and visible!
     expect(screen.getByText("Project launch meeting")).toBeInTheDocument();
   });
+  it("clears the old note and open editor when switching tasks", async () => {
+    mockTaskNotes.push({ id: "old", user_id: testUser.id, task_id: dummyTask.id, title: "Private old task note", content: "Private" });
+    const props = { mode: "modal" as const, onClose: vi.fn(), onChanged: vi.fn(), setConfirm: vi.fn() };
+    const view = render(<TaskDetail task={dummyTask} {...props} />);
+    fireEvent.click(await screen.findByText("Private old task note"));
+    expect(screen.getByTestId("mock-note-editor")).toBeInTheDocument();
+    view.rerender(<TaskDetail task={{ ...dummyTask, id: "second-task", title: "Second task" }} {...props} />);
+    await waitFor(() => expect(getTaskNotes).toHaveBeenCalledWith("second-task", testUser.id));
+    expect(screen.queryByText("Private old task note")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("mock-note-editor")).not.toBeInTheDocument();
+  });
+  it("discards a note-list response after its task was closed", async () => {
+    let finish!: (notes: TaskNote[]) => void;
+    vi.mocked(getTaskNotes).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const props = { mode: "modal" as const, onClose: vi.fn(), onChanged: vi.fn(), setConfirm: vi.fn() };
+    const view = render(<TaskDetail task={dummyTask} {...props} />);
+    view.rerender(<TaskDetail task={{ ...dummyTask, id: "second-task", title: "Second task" }} {...props} />);
+    await act(async () => finish([{ id: "late", user_id: testUser.id, task_id: dummyTask.id, title: "Late old task note", content: "Private" }]));
+    expect(screen.queryByText("Late old task note")).not.toBeInTheDocument();
+  });
+
 });

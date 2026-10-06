@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { TaskNoteEditorDialog } from "./TaskNoteEditorDialog";
+import { updateTaskNote } from "@/lib/taskNotesService";
 import type { TaskNote } from "@/lib/taskTypes";
 
 vi.mock("react-i18next", () => ({
@@ -82,4 +83,24 @@ describe("TaskNoteEditorDialog", () => {
       expect(onSaved).toHaveBeenCalled();
     });
   });
+  it("preserves unsaved text when the subscribed note is refreshed", () => {
+    const props = { open: true, onOpenChange: vi.fn(), userId: "user-123", taskId: "task-123", note: dummyNote, canEdit: true, onSaved: vi.fn(), onDeleted: vi.fn() };
+    const view = render(<TaskNoteEditorDialog {...props} />);
+    fireEvent.change(screen.getByLabelText("Note content editor"), { target: { value: "Unsaved local content" } });
+    view.rerender(<TaskNoteEditorDialog {...props} note={{ ...dummyNote, content: "Remote refresh" }} />);
+    expect(screen.getByLabelText("Note content editor")).toHaveValue("Unsaved local content");
+  });
+  it("does not close or update a newly opened note after an old save resolves", async () => {
+    let finish!: (note: TaskNote) => void;
+    vi.mocked(updateTaskNote).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const props = { open: true, onOpenChange: vi.fn(), userId: "user-123", taskId: "task-123", note: dummyNote, canEdit: true, onSaved: vi.fn(), onDeleted: vi.fn() };
+    const view = render(<TaskNoteEditorDialog {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "Save Note" }));
+    view.rerender(<TaskNoteEditorDialog {...props} note={{ ...dummyNote, id: "second", title: "Second Note" }} />);
+    await act(async () => finish(dummyNote));
+    expect(props.onSaved).not.toHaveBeenCalled();
+    expect(props.onOpenChange).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue("Second Note")).toBeInTheDocument();
+  });
+
 });

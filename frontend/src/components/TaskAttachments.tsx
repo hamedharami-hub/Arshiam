@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { auth } from "@/lib/firebase";
+import { createTaskNote } from "@/lib/taskNotesService";
+import { descriptionNoteId } from "@/lib/taskDescriptionConversion";
 import { saveImageTaskBatch } from "@/lib/imageTaskBatch";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -83,15 +85,16 @@ function TaskAttachmentsContent({ taskId, onCountChange }: { taskId: string; onC
   useEffect(() => { alive.current = true; return () => { alive.current = false; loadSequence.current++; }; }, []);
   const load = useCallback(async () => {
     const sequence = ++loadSequence.current;
-    let failed = false;
+    let remoteFailed = false;
+    let legacyFailed = false;
     const [remote, legacy] = await Promise.all([
-      listAttachments(taskId).catch(() => { failed = true; return []; }),
+      listAttachments(taskId).catch(() => { remoteFailed = true; return []; }),
       firebaseStore.from("task_attachments").select("*").eq("task_id", taskId).order("created_at", { ascending: false })
-        .then((result) => { if (result.error) { failed = true; return []; } return (result.data || []) as any[]; })
-        .catch(() => { failed = true; return [] as any[]; }),
+        .then((result) => { if (result.error) { legacyFailed = true; return []; } return (result.data || []) as any[]; })
+        .catch(() => { legacyFailed = true; return [] as any[]; }),
     ]);
     if (!alive.current || sequence !== loadSequence.current) return;
-    setLoadError(failed);
+    setLoadError(remoteFailed || legacyFailed);
     const merged: Item[] = [
       ...remote.map(toItem),
       ...legacy.map((a) => ({
@@ -100,12 +103,13 @@ function TaskAttachmentsContent({ taskId, onCountChange }: { taskId: string; onC
         legacy: { storage_path: a.storage_path },
       })),
     ];
-    setItems(merged);
+    setItems(previous => [...merged, ...previous.filter(item => item.legacy ? legacyFailed : remoteFailed)]);
   }, [taskId]);
 
   const refreshQueued = useCallback(async () => {
-    setQueued(await listQueued(taskId).catch(() => []));
-  }, [taskId]);
+    const result = await listQueued(taskId).catch(() => null);
+    if (alive.current && result) setQueued(result.filter(item => !item.ownerId || item.ownerId === user?.id));
+  }, [taskId, user?.id]);
 
   useEffect(() => { onCountChange?.(items.length); }, [items.length, onCountChange]);
 
@@ -151,6 +155,7 @@ function TaskAttachmentsContent({ taskId, onCountChange }: { taskId: string; onC
       await removeQueued(localId, taskId);
       if (!alive.current) return;
       setUploads((prev) => prev.filter((u) => u.localId !== localId));
+      loadSequence.current++;
       const item = toItem(att);
       setItems((prev) => [item, ...prev.filter((current) => current.id !== item.id)]);
       if (item.kind === "image") setPendingImage(item);
@@ -196,6 +201,7 @@ function TaskAttachmentsContent({ taskId, onCountChange }: { taskId: string; onC
       await deleteAttachment(a.id);
     }
     if (alive.current) {
+      loadSequence.current++;
       setItems((list) => list.filter((item) => item.id !== a.id));
       toast.success(T("پیوست حذف شد", "Attachment deleted"));
     }
@@ -251,17 +257,22 @@ function TaskAttachmentsContent({ taskId, onCountChange }: { taskId: string; onC
         const modeMap = { extract: "image_extract", summarize: "image_summarize", research: "image_research" } as const;
         const titles = { extract: "متن استخراج‌شده از تصویر", summarize: "خلاصه/بسط تصویر", research: "یادداشت پژوهشی" } as const;
         const res = await callAI(modeMap[action] as any, { imageUrl: pendingImage.url, text: "Process this image as instructed." });
+        if (!alive.current || auth.currentUser?.uid !== user.id) return;
         const content = res.text || "";
         if (!content.trim()) { toast.error(T("نتیجه‌ای دریافت نشد", "No result came back")); return; }
-        const { error } = await firebaseStore.from("notes").insert({ user_id: user.id, task_id: taskId, title: titles[action], content });
-        if (error) { toast.error(error.message); return; }
+        const id = await descriptionNoteId(user.id, taskId, action, pendingImage.id);
+        if (!alive.current || auth.currentUser?.uid !== user.id) return;
+        const data = { id, title: titles[action], content };
+        await createTaskNote(user.id, taskId, data);
+        if (!alive.current || auth.currentUser?.uid !== user.id) return;
+        window.dispatchEvent(new Event(`arshnaz:task-notes-refresh:${taskId}`));
         toast.success(T("نوت ساخته شد", "Note created"));
       }
-      setPendingImage(null);
+      if (alive.current) setPendingImage(null);
     } catch (e: any) {
-      toast.error(e?.message || T("پردازش انجام نشد", "Processing failed"));
+      if (alive.current) toast.error(e?.message || T("پردازش انجام نشد", "Processing failed"));
     } finally {
-      setProcessing(null);
+      if (alive.current) setProcessing(null);
     }
   };
 

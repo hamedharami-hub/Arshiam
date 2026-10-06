@@ -58,6 +58,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   showVoiceButton?: boolean;
   attachmentScopeId?: string;
   onAttachmentUploaded?: (media: UploadedMedia) => void;
+  onBusyChange?: (busy: boolean) => void;
 }>(function RichEditor({
   initialHtml = "",
   controlledHtml,
@@ -68,18 +69,24 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   showVoiceButton = true,
   attachmentScopeId = "",
   onAttachmentUploaded,
+  onBusyChange,
 }, ref) {
   const { T } = useBilingual();
   const placeholder = placeholderProp ?? T("شروع به نوشتن کن…", "Start writing…");
   const { user } = useAuth();
   const attachmentIdentity = useRef(""); attachmentIdentity.current = `${user?.id ?? ""}:${attachmentScopeId}`;
   const onUploadedRef = useRef(onAttachmentUploaded); onUploadedRef.current = onAttachmentUploaded;
+  const busyCallback = useRef(onBusyChange); busyCallback.current = onBusyChange;
+  const uploadCount = useRef(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingKind, setPendingKind] = useState<"image" | "audio" | "video" | "file">("file");
   const [aiBusy, setAiBusy] = useState(false);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [toolbarOnScreen, setToolbarOnScreen] = useState(true);
+
+  const linkBookmark = useRef<import("@tiptap/pm/state").SelectionBookmark | null>(null);
+  const voiceBookmark = useRef<import("@tiptap/pm/state").SelectionBookmark | null>(null);
 
   const editor = useEditor({
     editable: !readOnly,
@@ -96,6 +103,10 @@ export const RichEditor = forwardRef<RichEditorHandle, {
       Placeholder.configure({ placeholder }),
     ],
     content: initialHtml || (initialMarkdown ? markdownToHtml(initialMarkdown) : ""),
+    onTransaction: ({ transaction }) => {
+      if (linkBookmark.current) linkBookmark.current = linkBookmark.current.map(transaction.mapping);
+      if (voiceBookmark.current) voiceBookmark.current = voiceBookmark.current.map(transaction.mapping);
+    },
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
       onChange?.(html, htmlToMarkdown(html));
@@ -179,6 +190,8 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   const insertFile = async (file: File) => {
     if (!user || !editor || readOnly) return toast.error(T("ابتدا وارد حساب شوید", "Sign in first"));
     const target = attachmentIdentity.current;
+    uploadCount.current++;
+    busyCallback.current?.(true);
     let position = editor.state.selection.from;
     const mapPosition = ({ transaction }: { transaction: import("@tiptap/pm/state").Transaction }) => { position = transaction.mapping.map(position, 1); };
     editor.on("transaction", mapPosition);
@@ -190,8 +203,18 @@ export const RichEditor = forwardRef<RichEditorHandle, {
       insertMedia(media); onUploadedRef.current?.(media);
       toast.success(T("در متن اضافه شد", "Added to the text"), { id: tid });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : T("بارگذاری ناموفق بود", "Upload failed"), { id: tid });
-    } finally { editor.off("transaction", mapPosition); if (fileRef.current) fileRef.current.value = ""; }
+      if (editor.isDestroyed || attachmentIdentity.current !== target) { toast.dismiss(tid); return; }
+      toast.error(error instanceof Error ? error.message : T("بارگذاری ناموفق بود", "Upload failed"), {
+        id: tid, action: { label: T("تلاش دوباره", "Retry"), onClick: () => {
+          if (!editor.isDestroyed && attachmentIdentity.current === target) void insertFile(file);
+        } },
+      });
+    } finally {
+      editor.off("transaction", mapPosition);
+      uploadCount.current--;
+      if (!editor.isDestroyed && attachmentIdentity.current === target) busyCallback.current?.(uploadCount.current > 0);
+      if (fileRef.current) fileRef.current.value = "";
+    }
   };
 
   const onPickFile = (kind: "image" | "audio" | "video" | "file") => {
@@ -208,11 +231,16 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   const addLink = () => {
     if (!editor) return;
     const { from, to } = editor.state.selection;
+    linkBookmark.current = editor.state.selection.getBookmark();
     setLinkSelection(editor.state.doc.textBetween(from, to, " "));
     setLinkOpen(true);
   };
   const submitLink = (url: string, text: string) => {
-    if (!editor || editor.isDestroyed) return;
+    if (!editor || editor.isDestroyed || readOnly) return;
+    if (linkBookmark.current) {
+      editor.commands.setTextSelection(linkBookmark.current.resolve(editor.state.doc));
+      linkBookmark.current = null;
+    }
     if (editor.state.selection.empty) {
       editor.chain().focus().insertContent({ type: "text", text: text || url, marks: [{ type: "link", attrs: { href: url } }] }).run();
     } else {
@@ -221,21 +249,29 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   };
 
   const runAI = async (action: string) => {
-    if (!editor) return;
+    if (!editor || readOnly) return;
+    const target = attachmentIdentity.current;
+    let bookmark = editor.state.selection.getBookmark();
+    const mapSelection = ({ transaction }: { transaction: import("@tiptap/pm/state").Transaction }) => { bookmark = bookmark.map(transaction.mapping); };
     const { from, to } = editor.state.selection;
     const selected = editor.state.doc.textBetween(from, to, "\n");
     if (!selected.trim()) return toast.error(T("اول متنی را انتخاب کن", "Select some text first"));
     setAiBusy(true);
+    editor.on("transaction", mapSelection);
     try {
       const r = await callAI("inline_edit", selected, undefined, action, getAILanguage());
       const newText = (r.text || "").trim();
+      if (editor.isDestroyed || attachmentIdentity.current !== target) return;
+      const selection = bookmark.resolve(editor.state.doc);
+      if (editor.state.doc.textBetween(selection.from, selection.to, "\n") !== selected) throw new Error(T("متن انتخاب‌شده تغییر کرده؛ دوباره انتخاب کنید", "Selected text changed; please select it again"));
       if (!newText) throw new Error(T("نتیجه خالی بود", "Empty result"));
-      editor.chain().focus().deleteRange({ from, to }).insertContent(markdownToHtml(newText)).run();
+      editor.chain().focus().deleteRange({ from: selection.from, to: selection.to }).insertContent(markdownToHtml(newText)).run();
       toast.success(T("اعمال شد", "Applied"));
     } catch (e: any) {
-      toast.error(e.message);
+      if (!editor.isDestroyed && attachmentIdentity.current === target) toast.error(e.message);
     } finally {
-      setAiBusy(false);
+      editor.off("transaction", mapSelection);
+      if (!editor.isDestroyed && attachmentIdentity.current === target) setAiBusy(false);
     }
   };
 
@@ -258,12 +294,12 @@ export const RichEditor = forwardRef<RichEditorHandle, {
 
       <div ref={sentinelRef} aria-hidden className="h-px" />
 
-      {!readOnly && <div ref={toolbarRef} data-testid="rich-editor-toolbar" role="toolbar" aria-label={T("قالب‌بندی متن", "Text formatting")} className="flex items-center gap-0.5 border-b p-1 sticky top-0 bg-background z-10 overflow-x-auto">
+      {!readOnly && <div ref={toolbarRef} data-testid="rich-editor-toolbar" role="toolbar" aria-label={T("قالب‌بندی متن", "Text formatting")} onMouseDown={event => event.preventDefault()} className="flex items-center gap-0.5 border-b p-1 sticky top-0 bg-background z-10 overflow-x-auto">
         <Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" aria-label="Undo" onClick={() => editor.chain().focus().undo().run()}><Undo2 className="w-4 h-4" /></Button>
         <Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" aria-label="Redo" onClick={() => editor.chain().focus().redo().run()}><Redo2 className="w-4 h-4" /></Button>
         {([ ["bold", Bold], ["italic", Italic], ["underline", UnderlineIcon] ] as const).map(([mark, Icon]) => <Toggle key={mark} size="sm" className="shrink-0 h-8 w-8 px-0" data-mark={mark} aria-label={mark === "bold" ? T("پررنگ", "Bold") : mark === "italic" ? T("مورب", "Italic") : mark === "underline" ? T("زیرخط", "Underline") : T("هایلایت", "Highlight")} pressed={editor.isActive(mark)} onPressedChange={() => editor.chain().focus().toggleMark(mark).run()}><Icon className="w-4 h-4" /></Toggle>)}
         <DropdownMenu><DropdownMenuTrigger asChild><Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" aria-label={T("قالب‌بندی بیشتر", "More formatting")} data-testid="editor-more-tools"><Wrench className="w-4 h-4" /></Button></DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="max-h-[60dvh] overflow-y-auto">
+          <DropdownMenuContent onCloseAutoFocus={event => event.preventDefault()} align="end" className="max-h-[60dvh] overflow-y-auto">
             {[1, 2, 3].map(level => <DropdownMenuItem key={level} onClick={() => editor.chain().focus().toggleHeading({ level: level as 1 | 2 | 3 }).run()}>{T("عنوان", "Heading")} {level}</DropdownMenuItem>)}
             <DropdownMenuItem onClick={() => editor.chain().focus().setParagraph().run()}>{T("متن معمولی", "Paragraph")}</DropdownMenuItem>
             <DropdownMenuItem onClick={() => editor.chain().focus().toggleStrike().run()}>{T("خط‌خورده", "Strikethrough")}</DropdownMenuItem>
@@ -277,21 +313,26 @@ export const RichEditor = forwardRef<RichEditorHandle, {
           </DropdownMenuContent>
         </DropdownMenu>
         <DropdownMenu><DropdownMenuTrigger asChild><Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" aria-label={T("درج پیوست", "Insert attachment")}><Paperclip className="w-4 h-4" /></Button></DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent onCloseAutoFocus={event => event.preventDefault()} align="end">
             {(["image", "audio", "video", "file"] as const).map(kind => <DropdownMenuItem key={kind} onClick={() => onPickFile(kind)}>{kind === "image" ? T("تصویر", "Image") : kind === "audio" ? T("صدا", "Audio") : kind === "video" ? T("ویدیو", "Video") : T("فایل", "File")}</DropdownMenuItem>)}
             <DropdownMenuItem onClick={addLink}>{T("لینک", "Link")}</DropdownMenuItem>
             <DropdownMenuItem onClick={() => editor.chain().focus().setHorizontalRule().run()}>{T("خط افقی", "Divider")}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        {showVoiceButton && <VoiceInputButton continuous onTranscript={text => editor.chain().focus().insertContent(text + " ").run()} size="sm" className="h-8 px-2 shrink-0" />}
+        {showVoiceButton && <VoiceInputButton continuous onListeningChange={listening => { if (listening) voiceBookmark.current = editor.state.selection.getBookmark(); }} onTranscript={text => {
+          if (editor.isDestroyed || readOnly) return;
+          if (voiceBookmark.current) editor.commands.setTextSelection(voiceBookmark.current.resolve(editor.state.doc));
+          editor.chain().focus().insertContent({ type: "text", text: text.trim() + " " }).run();
+          voiceBookmark.current = editor.state.selection.getBookmark();
+        }} size="sm" className="h-8 px-2 shrink-0" />}
       </div>}
 
-      {!readOnly && <BubbleMenu editor={editor} updateDelay={100}>
+      {!readOnly && <BubbleMenu editor={editor} updateDelay={100} className="z-20">
         <div role="toolbar" aria-label={T("قالب‌بندی انتخاب", "Selection formatting")} className="flex items-center gap-0.5 rounded-md border bg-popover p-1 shadow-md" onMouseDown={event => event.preventDefault()}>
           {([ ["bold", Bold], ["italic", Italic], ["underline", UnderlineIcon], ["highlight", Highlighter] ] as const).map(([mark, Icon]) => <Toggle key={mark} size="sm" className="h-8 w-8 px-0" data-mark={mark} aria-label={mark === "bold" ? T("پررنگ", "Bold") : mark === "italic" ? T("مورب", "Italic") : mark === "underline" ? T("زیرخط", "Underline") : T("هایلایت", "Highlight")} pressed={editor.isActive(mark)} onPressedChange={() => editor.chain().focus().toggleMark(mark).run()}><Icon className="w-4 h-4" /></Toggle>)}
           <Button size="sm" variant="ghost" className="h-8 w-8 p-0" aria-label={T("لینک", "Link")} onClick={addLink}><LinkIcon className="w-4 h-4" /></Button>
           <DropdownMenu><DropdownMenuTrigger asChild><Button size="sm" variant="ghost" className="h-8 px-2" disabled={aiBusy} aria-label="AI">{aiBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}</Button></DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="max-h-80 overflow-y-auto">{AI_ACTIONS.map(action => <DropdownMenuItem key={action.key} onClick={() => runAI(action.key)}>{action.label}</DropdownMenuItem>)}</DropdownMenuContent>
+            <DropdownMenuContent onCloseAutoFocus={event => event.preventDefault()} align="start" className="max-h-80 overflow-y-auto">{AI_ACTIONS.map(action => <DropdownMenuItem key={action.key} onClick={() => runAI(action.key)}>{action.label}</DropdownMenuItem>)}</DropdownMenuContent>
           </DropdownMenu>
         </div>
       </BubbleMenu>}

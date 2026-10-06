@@ -19,21 +19,21 @@ import { VoiceInputButton } from "@/components/VoiceInputButton";
  * - Inline: AutoTextarea while editing; renders markdown preview when blurred (if content).
  * - Fullscreen button opens a Sheet with the full NoteEditorTabs (visual/markdown/preview).
  */
-export function TaskDescriptionEditor({
-  taskId,
-  value,
-  onChange,
-  onSave,
-  onConvertToNote,
-  readOnly = false,
-}: {
+type DescriptionEditorProps = {
   taskId: string;
   value: string;
   onChange: (v: string) => void;
   onSave: (v: string) => void | Promise<void>;
   onConvertToNote?: () => void | Promise<void>;
   readOnly?: boolean;
-}) {
+};
+
+export function TaskDescriptionEditor(props: DescriptionEditorProps) {
+  const { user } = useAuth();
+  return <TaskDescriptionEditorContent key={`${user?.id ?? "signed-out"}:${props.taskId}`} {...props} />;
+}
+
+function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConvertToNote, readOnly = false }: DescriptionEditorProps) {
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
@@ -50,15 +50,23 @@ export function TaskDescriptionEditor({
   const { user } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
+  const alive = useRef(true);
+  const converting = useRef(false);
+  const [saving, setSaving] = useState(false);
+  const [editorUploading, setEditorUploading] = useState(false);
+  const saveLock = useRef(false);
+  const selection = useRef({ from: 0, to: 0 });
+  const mountedOwner = useRef(user?.id);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
   useEffect(() => { latestValue.current = value; }, [value]);
 
-  const appendToDescription = (snippet: string) => {
+  const appendToDescription = async (snippet: string) => {
     const base = (latestValue.current || "").trimEnd();
     const next = base ? `${base}\n\n${snippet}` : snippet;
     latestValue.current = next;
     onChange(next);
-    void onSave(next);
+    await onSave(next);
   };
 
   const uploadFile = async (file: File) => {
@@ -67,18 +75,41 @@ export function TaskDescriptionEditor({
     const tid = toast.loading(T(`در حال بارگذاری ${file.name}…`, `Uploading ${file.name}…`));
     try {
       const media = await uploadMediaFull(file, user.id);
+      if (!alive.current || mountedOwner.current !== user.id) { toast.dismiss(tid); return; }
       const label = media.name.replace(/[\[\]]/g, "");
-      appendToDescription(media.kind === "image" ? `![${label}](${media.url})` : `[${label}](${media.url})`);
+      await appendToDescription(media.kind === "image" ? `![${label}](${media.url})` : `[${label}](${media.url})`);
       toast.success(T("پیوست اضافه شد", "Attachment added"), { id: tid });
     } catch (error) {
+      if (!alive.current) { toast.dismiss(tid); return; }
       toast.error(error instanceof Error ? error.message : T("بارگذاری ناموفق بود", "Upload failed"), {
         id: tid,
-        action: { label: T("تلاش دوباره", "Retry"), onClick: () => void uploadFile(file) },
+        action: { label: T("تلاش دوباره", "Retry"), onClick: () => { if (alive.current) void uploadFile(file); } },
       });
     } finally {
-      setUploading(false);
+      if (alive.current) setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
     }
+  };
+
+  const saveAdvanced = async () => {
+    if (saveLock.current || readOnly || editorUploading) return;
+    saveLock.current = true;
+    setSaving(true);
+    try {
+      await onSave(draft);
+      if (!alive.current) return;
+      onChange(draft);
+      setFull(false);
+    } catch (error) {
+      if (alive.current) toast.error(error instanceof Error ? error.message : T("ذخیره انجام نشد؛ متن محفوظ است", "Save failed; your draft is retained"));
+    } finally { saveLock.current = false; if (alive.current) setSaving(false); }
+  };
+
+  const convertToNote = async () => {
+    if (!onConvertToNote || converting.current || readOnly || uploading) return;
+    converting.current = true;
+    try { await onConvertToNote(); }
+    finally { converting.current = false; }
   };
 
   const showPreview = !editing && Boolean(value?.trim());
@@ -97,7 +128,7 @@ export function TaskDescriptionEditor({
           role={readOnly ? undefined : "button"} tabIndex={readOnly ? undefined : 0} dir="auto"
           onClick={(e) => { if (readOnly || (e.target as HTMLElement).closest("a")) return; startEditing(); }}
           onKeyDown={(e) => { if (!readOnly && e.key === "Enter") startEditing(); }}
-          className="prose-note w-full cursor-text px-1 pb-2 text-[14px] leading-relaxed [&_img]:max-h-72 [&_img]:rounded-lg"
+          className="prose-note w-full cursor-text px-1 pb-2 text-[14px] leading-relaxed [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg"
           data-testid="task-description-preview"
         >
           <NoteMarkdown>{value}</NoteMarkdown>
@@ -110,7 +141,8 @@ export function TaskDescriptionEditor({
         value={value || ""}
         disabled={readOnly}
         onFocus={() => !readOnly && setEditing(true)}
-        onChange={(e) => onChange(e.target.value)}
+        onSelect={e => { selection.current = { from: e.currentTarget.selectionStart, to: e.currentTarget.selectionEnd }; }}
+        onChange={(e) => { latestValue.current = e.target.value; onChange(e.target.value); }}
         onBlur={(event) => {
           const latest = event.currentTarget.value;
           latestValue.current = latest;
@@ -133,9 +165,15 @@ export function TaskDescriptionEditor({
           <VoiceInputButton
             continuous
             onTranscript={(text) => {
-              const next = (value || "").trimEnd() + " " + text;
+              if (!alive.current || readOnly) return;
+              const current = latestValue.current || "";
+              const { from, to } = selection.current;
+              const insert = text.trim() + " ";
+              const next = current.slice(0, from) + insert + current.slice(to);
+              selection.current = { from: from + insert.length, to: from + insert.length };
+              latestValue.current = next;
               onChange(next);
-              onSave(next);
+              void Promise.resolve(onSave(next)).catch(error => toast.error(error instanceof Error ? error.message : T("ذخیره انجام نشد", "Save failed")));
             }}
             size="sm"
             className="h-8 w-8 rounded-md text-muted-foreground hover:text-foreground"
@@ -148,7 +186,7 @@ export function TaskDescriptionEditor({
             <LinkIcon className="h-4 w-4" />
           </button>
           {hasContent && onConvertToNote && (
-            <button type="button" onClick={() => void onConvertToNote()} className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" title={T("تبدیل به نوت", "Move to note")} aria-label={T("تبدیل به نوت", "Move to note")}>
+            <button type="button" onClick={() => void convertToNote()} className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" title={T("تبدیل به نوت", "Move to note")} aria-label={T("تبدیل به نوت", "Move to note")}>
               <FileText className="h-4 w-4" />
             </button>
           )}
@@ -167,10 +205,10 @@ export function TaskDescriptionEditor({
         </div>
       )}
 
-      <LinkDialog open={linkOpen} onOpenChange={setLinkOpen} onSubmit={(url, text) => appendToDescription(`[${text || url}](${url})`)} />
+      <LinkDialog open={linkOpen} onOpenChange={setLinkOpen} onSubmit={(url, text) => { void appendToDescription(`[${text || url}](${url})`).catch(error => toast.error(error instanceof Error ? error.message : T("ذخیره انجام نشد", "Save failed"))); }} />
       {full && (
         prefersDialog ? (
-          <Dialog open={full} onOpenChange={setFull}>
+          <Dialog open={full} onOpenChange={next => { if (!saveLock.current && !editorUploading) setFull(next); }}>
             <DialogContent
               dir={isEn ? "ltr" : "rtl"}
               className="w-full max-w-2xl max-h-[75vh] p-0 flex flex-col overflow-hidden rounded-2xl"
@@ -182,7 +220,8 @@ export function TaskDescriptionEditor({
                 </DialogDescription>
                 <Button
                   size="sm"
-                  onClick={() => { onChange(draft); onSave(draft); setFull(false); }}
+                  disabled={saving || editorUploading}
+                  onClick={() => void saveAdvanced()}
                   className="gap-1 me-6"
                 >
                   <Check className="w-4 h-4" />
@@ -194,18 +233,21 @@ export function TaskDescriptionEditor({
                   noteId={`task-desc-${taskId}`}
                   markdown={draft}
                   onChange={(md) => setDraft(md)}
+                  readOnly={saving}
+                  onBusyChange={setEditorUploading}
                 />
               </div>
             </DialogContent>
           </Dialog>
         ) : (
-          <Sheet open={full} onOpenChange={setFull}>
+          <Sheet open={full} onOpenChange={next => { if (!saveLock.current && !editorUploading) setFull(next); }}>
             <SheetContent side="bottom" className="h-[95vh] p-0 flex flex-col" dir={isEn ? "ltr" : "rtl"}>
               <SheetHeader className="px-4 py-3 border-b flex-row items-center justify-between space-y-0">
                 <SheetTitle className="text-base">{T("توضیحات تسک", "Task description")}</SheetTitle>
                 <Button
                   size="sm"
-                  onClick={() => { onChange(draft); onSave(draft); setFull(false); }}
+                  disabled={saving || editorUploading}
+                  onClick={() => void saveAdvanced()}
                   className="gap-1"
                 >
                   <Check className="w-4 h-4" />
@@ -217,6 +259,8 @@ export function TaskDescriptionEditor({
                   noteId={`task-desc-${taskId}`}
                   markdown={draft}
                   onChange={(md) => setDraft(md)}
+                  readOnly={saving}
+                  onBusyChange={setEditorUploading}
                 />
               </div>
             </SheetContent>

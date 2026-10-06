@@ -5,6 +5,7 @@ import { markdownToHtml } from "@/lib/markdown";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { Loader2 } from "lucide-react";
 import { NoteMarkdown } from "@/components/NoteMarkdown";
+import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
 
 const RichEditor = lazy(() =>
@@ -23,6 +24,7 @@ export function NoteEditorTabs({
   mode,
   onModeChange,
   hideTabsList = false,
+  onBusyChange,
 }: {
   noteId: string;
   markdown: string;
@@ -31,23 +33,28 @@ export function NoteEditorTabs({
   mode?: "visual" | "markdown" | "preview";
   onModeChange?: (mode: "visual" | "markdown" | "preview") => void;
   hideTabsList?: boolean;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const { T } = useBilingual();
+  const { user } = useAuth();
+  const [mediaBusy, setMediaBusy] = useState(false);
+  const handleBusy = (busy: boolean) => { setMediaBusy(busy); onBusyChange?.(busy); };
   const [internalTab, setInternalTab] = useState<"visual" | "markdown" | "preview">("visual");
   const currentTab = mode ?? internalTab;
   const handleTabChange = (val: string) => {
+    if (mediaBusy) return;
     const next = val as "visual" | "markdown" | "preview";
     if (onModeChange) onModeChange(next);
     else setInternalTab(next);
   };
 
   return (
-    <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
+    <Tabs key={`${user?.id ?? "signed-out"}:${noteId}`} value={currentTab} onValueChange={handleTabChange} className="w-full">
       {!hideTabsList && (
         <TabsList className="h-9 p-0.5 bg-muted/60 border border-border/40">
-          <TabsTrigger value="visual" className="h-8 px-3 text-xs">{T("ویرایش", "Edit")}</TabsTrigger>
-          <TabsTrigger value="markdown" className="h-8 px-3 text-xs">{T("مارک‌داون", "Markdown")}</TabsTrigger>
-          <TabsTrigger value="preview" className="h-8 px-3 text-xs">{T("پیش‌نمایش", "Preview")}</TabsTrigger>
+          <TabsTrigger disabled={mediaBusy} value="visual" className="h-8 px-3 text-xs">{T("ویرایش", "Edit")}</TabsTrigger>
+          <TabsTrigger disabled={mediaBusy} value="markdown" className="h-8 px-3 text-xs">{T("مارک‌داون", "Markdown")}</TabsTrigger>
+          <TabsTrigger disabled={mediaBusy} value="preview" className="h-8 px-3 text-xs">{T("پیش‌نمایش", "Preview")}</TabsTrigger>
         </TabsList>
       )}
 
@@ -61,10 +68,12 @@ export function NoteEditorTabs({
           }
         >
           <RichEditor
-            key={noteId}
+            key={`${user?.id ?? "signed-out"}:${noteId}`}
+            attachmentScopeId={noteId}
             initialMarkdown={markdown}
             onChange={(html, md) => onChange(md, html)}
             readOnly={readOnly}
+            onBusyChange={handleBusy}
           />
         </Suspense>
       </TabsContent>

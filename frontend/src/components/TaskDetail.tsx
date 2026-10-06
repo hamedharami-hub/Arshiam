@@ -50,6 +50,7 @@ import { isRecurringTask, advanceRecurringTask } from "@/lib/recurringTaskServic
 import { awardTaskWatering } from "@/lib/garden";
 import { playCompletionFeedback } from "@/lib/completionFeedback";
 import { TaskAttachments } from "@/components/TaskAttachments";
+import { moveDescriptionToNote } from "@/lib/taskDescriptionConversion";
 import { TaskDescriptionEditor } from "@/components/TaskDescriptionEditor";
 import TaskActionSheet from "@/components/TaskActionSheet";
 import PomodoroSheet from "@/components/PomodoroSheet";
@@ -189,6 +190,24 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const savedTaskRef = useRef(task);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const conversionRef = useRef<string | null>(null);
+  const [convertingDescription, setConvertingDescription] = useState(false);
+  const noteEditorIdentity = useRef("");
+  noteEditorIdentity.current = `${user?.id ?? ""}:${task.id}`;
+  useEffect(() => {
+    const identity = `${user?.id ?? ""}:${task.id}`;
+    noteEditorIdentity.current = identity;
+    conversionRef.current = null;
+    setConvertingDescription(false);
+    setTaskNotes([]);
+    setEditingNote(null);
+    setShowNotes(false);
+    setIsAddingNote(false);
+    setNewNoteTitle("");
+    setNewNoteContent("");
+    setNoteSaving(false);
+    return () => { if (noteEditorIdentity.current === identity) noteEditorIdentity.current = ""; };
+  }, [user?.id, task.id]);
 
   // Add menu & Contacts modal states
   const [addLocationOpen, setAddLocationOpen] = useState(false);
@@ -251,6 +270,22 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     };
   }, []);
 
+  useEffect(() => {
+    if (!user?.id) return;
+    let active = true;
+    let sequence = 0;
+    const refresh = async () => {
+      const current = ++sequence;
+      const notes = await getTaskNotes(task.id, user.id).catch(() => null);
+      if (!active || current !== sequence || !notes) return;
+      setTaskNotes(notes);
+      if (notes.length) setShowNotes(true);
+    };
+    const event = `arshnaz:task-notes-refresh:${task.id}`;
+    window.addEventListener(event, refresh);
+    return () => { active = false; window.removeEventListener(event, refresh); };
+  }, [task.id, user?.id]);
+
   // Auto-reveal sections that already have data so user doesn't need to tap rail icons
   useEffect(() => {
     let cancelled = false;
@@ -272,7 +307,11 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       setTaskNotes((prev) => {
         const map = new Map<string, TaskNote>();
         for (const n of loadedNotes) map.set(n.id, n);
-        for (const p of prev) map.set(p.id, p);
+        for (const p of prev) {
+          if (p.task_id !== task.id || p.user_id !== user?.id) continue;
+          const loaded = map.get(p.id);
+          if (!loaded || (p.updated_at || p.created_at || "") >= (loaded.updated_at || loaded.created_at || "")) map.set(p.id, p);
+        }
         return Array.from(map.values()).sort(
           (a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime()
         );
@@ -739,25 +778,28 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       toast.error(T("عنوان یا متن نوت نباید خالی باشد", "Title or content cannot be empty"));
       return;
     }
+    const identity = noteEditorIdentity.current;
     setNoteSaving(true);
     try {
       const created = await createTaskNote(user.id, t.id, {
         title: trimmedTitle || trimmedContent.slice(0, 40) || T("یادداشت", "Note"),
         content: trimmedContent,
       });
+      if (noteEditorIdentity.current !== identity) return;
       setTaskNotes(prev => [created, ...prev.filter(n => n.id !== created.id)]);
       toast.success(T("نوت اضافه شد", "Note added"));
       handleCancelNewNote();
       setShowNotes(true);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : T("خطا در ایجاد نوت", "Error creating note"));
+      if (noteEditorIdentity.current === identity) toast.error(err instanceof Error ? err.message : T("خطا در ایجاد نوت", "Error creating note"));
     } finally {
-      setNoteSaving(false);
+      if (noteEditorIdentity.current === identity) setNoteSaving(false);
     }
   };
 
   const askDelNote = (n: TaskNote) => {
     if (!user || !canEdit) return;
+    const identity = noteEditorIdentity.current;
     setConfirm({
       kind: "note",
       id: n.id,
@@ -766,18 +808,20 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         try {
           const existingNote = taskNotes.find(x => x.id === n.id) || n;
           await deleteTaskNote(user.id, n.id, t.id);
+          if (noteEditorIdentity.current !== identity) return;
           setTaskNotes(prev => prev.filter(x => x.id !== n.id));
           toast.success(T("نوت حذف شد", "Note deleted"));
           pushUndo({
             label: T(`نوت «${existingNote.title || "بدون عنوان"}» حذف شد`, `Note "${existingNote.title || "Untitled"}" deleted`),
             undo: async () => {
-              await firebaseStore.from("notes").insert(existingNote as any);
+              const { error } = await firebaseStore.from("notes").insert(existingNote as any);
+              if (error) throw error;
               const list = await getTaskNotes(t.id, user.id);
-              setTaskNotes(list);
+              if (noteEditorIdentity.current === identity) setTaskNotes(list);
             },
           });
         } catch (err) {
-          toast.error(err instanceof Error ? err.message : T("خطا در حذف نوت", "Error deleting note"));
+          if (noteEditorIdentity.current === identity) toast.error(err instanceof Error ? err.message : T("خطا در حذف نوت", "Error deleting note"));
         }
       },
     });
@@ -910,16 +954,42 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           taskId={t.id}
           value={t.description || ""}
           onConvertToNote={async () => {
-            if (!user?.id || !canEdit || !t.description?.trim()) return;
+            const current = latestTaskRef.current;
+            if (!user?.id || !canEdit || !current.description?.trim() || conversionRef.current) return;
+            const identity = noteEditorIdentity.current;
+            const source = current.description;
+            conversionRef.current = identity;
+            setConvertingDescription(true);
             try {
-              const created = await createTaskNote(user.id, t.id, { title: t.title, content: t.description });
-              setTaskNotes((previous) => [created, ...previous]);
-              await save({ description: "" });
-              setT((previous) => ({ ...previous, description: "" }));
+              const moved = await moveDescriptionToNote({
+                userId: user.id, taskId: current.id, title: current.title, content: source,
+                isCurrent: () => noteEditorIdentity.current === identity && latestTaskRef.current.id === current.id,
+                create: data => createTaskNote(user.id, current.id, data),
+                onCreated: created => setTaskNotes(previous => [created, ...previous.filter(note => note.id !== created.id)]),
+                clear: async () => {
+                  // A network refresh can arrive while the note is being saved. Preserve changed source.
+                  if (latestTaskRef.current.description !== source) throw new Error(T("متن تغییر کرده؛ یادداشت ساخته شد و متن جدید حفظ شد", "Description changed; the note was created and the new text was kept"));
+                  try {
+                    const status = await save({ description: "" });
+                    if (status === "failed") throw new Error(T("پاک‌کردن متن ذخیره نشد", "Clearing the description was not saved"));
+                  } catch (error) {
+                    if (noteEditorIdentity.current === identity && latestTaskRef.current.description === "") {
+                      const restored = { ...latestTaskRef.current, description: source };
+                      latestTaskRef.current = restored;
+                      setT(restored);
+                      writeTaskDraft(restored);
+                    }
+                    throw error;
+                  }
+                },
+              });
+              if (!moved) return;
               setShowNotes(true);
               toast.success(T("متن به نوت‌های پیوست منتقل شد", "Description moved to attached notes"));
             } catch (error) {
-              toast.error(error instanceof Error ? error.message : T("تبدیل به نوت انجام نشد", "Could not move to note"));
+              if (noteEditorIdentity.current === identity) toast.error(error instanceof Error ? error.message : T("تبدیل به نوت انجام نشد", "Could not move to note"));
+            } finally {
+              if (conversionRef.current === identity) { conversionRef.current = null; setConvertingDescription(false); }
             }
           }}
           onChange={(v) => {
@@ -929,7 +999,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
             writeTaskDraft(next);
           }}
           onSave={async (v) => { await save({ description: v }); }}
-          readOnly={!canEdit}
+          readOnly={!canEdit || convertingDescription}
         />
       </div>
     </section>
