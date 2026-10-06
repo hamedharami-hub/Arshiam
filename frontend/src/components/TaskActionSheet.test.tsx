@@ -126,6 +126,17 @@ describe("TaskActionSheet Responsive Behavior", () => {
     expect(dialogElement.className).not.toContain("rounded-t-2xl");
   });
 
+  it("opens from an initially absent task without changing hook order and keeps focus action available", () => {
+    localStorage.setItem("arshnaz_nav_mode", "windows");
+    const startFocus = vi.fn();
+    const { rerender } = render(<TaskActionSheet {...defaultProps} task={null} open={false} onPomodoro={startFocus} />);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    rerender(<TaskActionSheet {...defaultProps} onPomodoro={startFocus} />);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/پومودورو|Pomodoro/i));
+    expect(startFocus).toHaveBeenCalledTimes(1);
+  });
+
   it("renders inside a bounded Dialog on Foldable", () => {
     localStorage.setItem("arshnaz_nav_mode", "foldable");
 

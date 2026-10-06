@@ -106,6 +106,11 @@ export default function SwipeableRow({
   const tracking = useRef(false);
   const decided = useRef<"h" | "v" | null>(null);
   const activeIndex = useRef(-1);
+  const distance = useRef(0);
+  const suppressClick = useRef(false);
+  const suppressUntil = useRef(0);
+  const resetTimer = useRef<number | null>(null);
+  useEffect(() => () => { if (resetTimer.current !== null) window.clearTimeout(resetTimer.current); }, []);
 
   useEffect(() => {
     if (wrapRef.current) widthRef.current = wrapRef.current.clientWidth;
@@ -123,7 +128,10 @@ export default function SwipeableRow({
 
   const onTouchStart = (e: TouchEvent) => {
     const target = e.target as HTMLElement | null;
-    if (target?.closest?.("[data-drag-handle], [data-no-swipe]")) return;
+    tracking.current = false;
+    if (target?.closest?.("[data-drag-handle], [data-no-swipe], input, textarea, select, [contenteditable='true'], [role='checkbox']")) return;
+    if (target?.closest("button") && !target.closest("[data-task-row-open]")) return;
+    if (window.getSelection()?.toString() || e.touches.length !== 1) return;
     const t = e.touches[0];
     if (!t) return;
     if (wrapRef.current) widthRef.current = wrapRef.current.clientWidth;
@@ -132,6 +140,8 @@ export default function SwipeableRow({
     tracking.current = true;
     decided.current = null;
     activeIndex.current = -1;
+    distance.current = 0;
+    suppressClick.current = false;
     setAnimating(false);
     setCommitSide("none");
   };
@@ -139,6 +149,7 @@ export default function SwipeableRow({
   const onTouchMove = (e: TouchEvent) => {
     if (!tracking.current) return;
     const t = e.touches[0];
+    if (!t || e.touches.length !== 1) { reset(); return; }
     const ddx = t.clientX - startX.current;
     const ddy = t.clientY - startY.current;
     if (decided.current === null) {
@@ -146,11 +157,14 @@ export default function SwipeableRow({
       decided.current = Math.abs(ddx) > Math.abs(ddy) ? "h" : "v";
     }
     if (decided.current !== "h") return;
+    suppressClick.current = true;
+    suppressUntil.current = Date.now() + 500;
 
     const actions = ddx > 0 ? rightActions : leftActions;
     const maxActions = actions.length;
     const maxDx = Math.max(0, maxActions * segmentWidth);
     const clamped = Math.max(-maxDx, Math.min(maxDx, ddx));
+    distance.current = clamped;
     setDx(clamped);
 
     const side: "right" | "left" = clamped > 0 ? "right" : "left";
@@ -163,8 +177,8 @@ export default function SwipeableRow({
 
     const w = widthRef.current || 320;
     const fullPx = w * fullRatio;
-    if (commitSide === "none" && pos >= fullPx) {
-      const fullAction = getActions(side).find((a) => a.fullSwipe) || getActions(side)[0];
+    if (commitSide === "none" && Math.abs(ddx) >= fullPx) {
+      const fullAction = getActions(side).find((a) => a.fullSwipe);
       if (fullAction) {
         setCommitSide(side);
         haptic(side === "right" ? "success" : "warning");
@@ -172,7 +186,7 @@ export default function SwipeableRow({
         tracking.current = false;
         setAnimating(true);
         setDx(side === "right" ? w : -w);
-        window.setTimeout(() => {
+        resetTimer.current = window.setTimeout(() => {
           setAnimating(true);
           setDx(0);
           setCommitSide("none");
@@ -196,12 +210,12 @@ export default function SwipeableRow({
       return;
     }
     e.preventDefault();
-    const pos = Math.abs(dx);
+    const pos = Math.abs(distance.current);
     if (pos < MIN_COMMIT) {
       reset();
       return;
     }
-    const side: "right" | "left" = dx > 0 ? "right" : "left";
+    const side: "right" | "left" = distance.current > 0 ? "right" : "left";
     const idx = activeAction(side, pos);
     const actions = getActions(side);
     if (idx >= 0 && actions[idx]) {
@@ -226,7 +240,7 @@ export default function SwipeableRow({
   return (
     <div ref={wrapRef} data-no-swipe-nav className="relative overflow-hidden rounded-lg" style={{ touchAction: "pan-y" }}>
       {showRight && (
-        <div className="absolute inset-y-0 start-0 flex flex-row overflow-hidden" style={{ width: pos }} aria-hidden>
+        <div className="absolute inset-y-0 left-0 flex flex-row overflow-hidden" style={{ width: pos }} aria-hidden>
           {rightActions.map((a, i) => {
             const w = segmentWidthFor(i, "right");
             if (w <= 0) return null;
@@ -246,7 +260,7 @@ export default function SwipeableRow({
         </div>
       )}
       {showLeft && (
-        <div className="absolute inset-y-0 end-0 flex flex-row-reverse overflow-hidden" style={{ width: pos }} aria-hidden>
+        <div className="absolute inset-y-0 right-0 flex flex-row-reverse overflow-hidden" style={{ width: pos }} aria-hidden>
           {leftActions.map((a, i) => {
             const w = segmentWidthFor(i, "left");
             if (w <= 0) return null;
@@ -270,6 +284,7 @@ export default function SwipeableRow({
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
+        onClickCapture={event => { if (suppressClick.current && Date.now() <= suppressUntil.current) { event.preventDefault(); event.stopPropagation(); suppressClick.current = false; } }}
         onTouchCancel={(e) => { e.preventDefault(); reset(); }}
         style={{
           transform: `translate3d(${dx}px,0,0)`,

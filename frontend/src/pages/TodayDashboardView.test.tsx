@@ -1,10 +1,18 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import type { Task } from "@/lib/taskTypes";
+import { getLocalDateString } from "@/lib/taskDate";
 
 const mockSetAllTasks = vi.fn();
 let mockTasks: Task[] = [];
+const actions = vi.hoisted(() => ({ persist: vi.fn(), advance: vi.fn() }));
+vi.mock("@/lib/firestoreDataService", async original => ({
+  ...await original<typeof import("@/lib/firestoreDataService")>(), persistTask: actions.persist,
+}));
+vi.mock("@/lib/recurringTaskService", async original => ({
+  ...await original<typeof import("@/lib/recurringTaskService")>(), advanceRecurringTask: actions.advance,
+}));
 
 vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({ user: { id: "user-123" } }),
@@ -65,6 +73,32 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    actions.persist.mockReset().mockResolvedValue("saved");
+    actions.advance.mockReset().mockResolvedValue({ success: false, error: new Error("offline transaction") });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("keeps a recurring task open when atomic advancement fails", async () => {
+    mockTasks = [{ id: "failed-repeat", user_id: "user-123", title: "Recurring task", completed: false, status: "todo", priority: "none", schedule_v: 2,
+      work_date: getLocalDateString(), recurrence: "daily" } as Task];
+    render(<MemoryRouter><TodayDashboardView /></MemoryRouter>);
+    fireEvent.click(screen.getByRole("checkbox"));
+    await waitFor(() => expect(actions.advance).toHaveBeenCalledTimes(1));
+    expect(actions.persist).not.toHaveBeenCalled();
+    expect(mockSetAllTasks).not.toHaveBeenCalled();
+  });
+
+  it("moves an exact-time task to overdue as the clock passes while the page stays open", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2030, 2, 4, 12, 0));
+    mockTasks = [{ id: "clock-task", user_id: "user-123", title: "Clock task", completed: false, status: "todo", priority: "none", schedule_v: 2,
+      work_date: new Date(2030, 2, 4, 12, 1).toISOString() } as Task];
+    const { container } = render(<MemoryRouter><TodayDashboardView /></MemoryRouter>);
+    expect(screen.queryByText("Overdue")).toBeNull();
+    await act(async () => { vi.advanceTimersByTime(120000); });
+    expect(screen.getByText("Overdue")).toBeInTheDocument();
+    expect(screen.getByText("Clock task")).toBeInTheDocument();
+    expect(container.querySelectorAll(".swipe-row")).toHaveLength(1);
   });
 
   it("renders completed tasks by default and lets the completed control hide and restore them", () => {

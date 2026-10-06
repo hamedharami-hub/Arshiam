@@ -15,6 +15,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { PRIORITY_META, PRIORITY_ORDER, type Priority } from "@/lib/priority";
 import type { TaskDefaults } from "@/lib/reminders";
 import { RotateCcw } from "lucide-react";
+import { TaskSwipeSettings } from "./TaskSwipeSettings";
+import { DEFAULT_TASK_SWIPES, setTaskSwipeSettings } from "@/lib/taskSwipeSettings";
 
 type OnChange = (v: TaskDefaults) => void;
 
@@ -79,7 +81,10 @@ export function TaskDefaultSettings({ value, onChange }: Props) {
     onChange({ ...value, ...next });
   };
 
-  const reset = () => onChange({ ...DEFAULT_VALUE });
+  const reset = () => {
+    onChange({ ...DEFAULT_VALUE });
+    setTaskSwipeSettings(user?.id, { ...DEFAULT_TASK_SWIPES });
+  };
 
   const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
     <div className="flex items-center justify-between gap-3 py-2 border-b last:border-0 border-border/40">
@@ -176,6 +181,7 @@ export function TaskDefaultSettings({ value, onChange }: Props) {
         </Select>
       </Row>
 
+      <TaskSwipeSettings />
     </Card>
   );
 }

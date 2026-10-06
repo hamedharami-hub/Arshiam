@@ -1,6 +1,6 @@
 import { useTaskPlanningLabel } from "./TaskPlanningPicker";
 import { TaskScheduleSheet } from "./TaskScheduleSheet";
-import React, { memo, useMemo } from "react";
+import React, { memo, useMemo, useRef } from "react";
 import { isPathAllowed } from "@/lib/appModules";
 import {
   CornerDownRight, ChevronDown, ChevronRight, Pin, X, Ban, CircleDot, Flag,
@@ -14,9 +14,10 @@ import { BidiText } from "@/components/BidiText";
 import { SortableTaskRow } from "@/components/TaskDnDHelpers";
 import SwipeableRow, { type SwipeAction } from "@/components/gestures/SwipeableRow";
 import { useLongPress } from "@/lib/useLongPress";
+import { useTaskSwipeSettings, type TaskSwipeAction } from "@/lib/taskSwipeSettings";
 import { addDays } from "date-fns";
 import { formatDate } from "@/lib/jalali";
-import { formatTaskDueDateDisplay, getLocalDateString, taskWorkDate, workDatePatch } from "@/lib/taskDate";
+import { formatTaskDueDateDisplay, getLocalDateString, taskWorkDate, workDatePatch, moveTaskDayPatch } from "@/lib/taskDate";
 import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
 import { playCompletionFeedback } from "@/lib/completionFeedback";
 import type { Task } from "@/lib/taskTypes";
@@ -70,6 +71,7 @@ export interface TaskListItemProps {
   onActionTask: (t: Task) => void;
   onDeleteTask?: (t: Task) => void;
   onPatchTask: (id: string, patch: Partial<Task>) => void;
+  onSwipeTask?: (task: Task, action: TaskSwipeAction) => void | Promise<unknown>;
   onMoveTask?: (t: Task) => void;
   userId?: string;
   isSelected: boolean;
@@ -107,6 +109,7 @@ const TaskListItemComponent = ({
   onDeleteTask,
   onPatchTask,
   onMoveTask,
+  onSwipeTask,
   userId,
   isSelected,
   splitView,
@@ -142,10 +145,46 @@ const TaskListItemComponent = ({
   const effectiveProgress = progress ?? (typeof getProgress === "function" ? getProgress(t.id) : undefined) ?? { done: 0, total: subs?.length || 0 };
   const visibleSubs = showCompletedTasks ? subs : subs.filter((subtask) => !subtask.completed);
   const STEP = 18; // px per nesting level
-  const lp = useLongPress({ onLongPress: () => onActionTask(t) });
+  const lp = useLongPress({ onLongPress: () => onActionTask(t), ignoreButtons: true });
+  const swipeSettings = useTaskSwipeSettings(userId);
+  const swipeBusy = useRef(false);
+  const swipeActions = (action: TaskSwipeAction): SwipeAction[] => {
+    if (action === "none" || (action === "complete" && isScheduledLeitnerReview && !t.completed)) return [];
+    const labels = {
+      complete: t.completed ? T("بازگشایی", "Reopen") : T("تکمیل", "Complete"),
+      today: T("امروز", "Today"), tomorrow: T("فردا", "Tomorrow"), menu: T("گزینه‌های کار", "Task actions"),
+    };
+    return [{
+      id: action, label: labels[action], icon: action === "complete" ? Check : action === "menu" ? CircleDot : Calendar,
+      baseClass: action === "complete" ? "bg-emerald-500/80" : "bg-primary/70",
+      activeClass: action === "complete" ? "bg-emerald-700" : "bg-primary", textClass: "text-white", fullSwipe: true,
+      onActivate: () => {
+        if (swipeBusy.current) return;
+        swipeBusy.current = true;
+        void (async () => {
+          try {
+            if (onSwipeTask) await onSwipeTask(t, action);
+            else if (action === "complete") await onToggleTask(t);
+            else if (action === "menu") onActionTask(t);
+            else await onPatchTask(t.id, moveTaskDayPatch(t, getLocalDateString(addDays(new Date(), action === "tomorrow" ? 1 : 0))));
+          } finally { swipeBusy.current = false; }
+        })();
+      },
+    }];
+  };
 
   return (
-    <div className="relative swipe-row" style={{ paddingInlineStart: depth * STEP }} {...lp.handlers}>
+    <div className="relative swipe-row" style={{ paddingInlineStart: depth * STEP }} {...lp.handlers}
+      onClickCapture={event => { if (lp.didFire()) { event.preventDefault(); event.stopPropagation(); } }}
+      onContextMenu={event => {
+        if ((event.target as HTMLElement).closest("input, textarea, [contenteditable='true']")) return;
+        event.preventDefault(); event.stopPropagation(); onActionTask(t);
+      }}
+      onKeyDown={event => {
+        if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return;
+        if ((event.target as HTMLElement).closest("input, textarea, [contenteditable='true']")) return;
+        event.preventDefault(); event.stopPropagation(); onActionTask(t);
+      }}>
       {/* Vertical guide lines for each ancestor level */}
       {Array.from({ length: depth }).map((_, i) => (
         <span
@@ -166,49 +205,9 @@ const TaskListItemComponent = ({
       <TaskRowContainer id={t.id} disabled={!allowDrag} externalDragHandle={externalDragHandle}>
         {(dragHandle) => (
           <SwipeableRow
-            disabled={t.user_id !== userId}
-            rightActions={isScheduledLeitnerReview && !t.completed ? [] : [
-              {
-                id: "complete",
-                label: t.completed ? T("بازگشایی", "Reopen") : T("تکمیل", "Complete"),
-                icon: Check,
-                baseClass: "bg-emerald-500/80",
-                activeClass: "bg-emerald-700",
-                textClass: "text-white",
-                fullSwipe: true,
-                onActivate: () => onToggleTask(t),
-              },
-            ] as SwipeAction[]}
-            leftActions={[
-              {
-                id: "delete",
-                label: T("حذف", "Delete"),
-                icon: Trash2,
-                baseClass: "bg-destructive/80",
-                activeClass: "bg-red-700",
-                textClass: "text-white",
-                fullSwipe: false,
-                onActivate: () => onDeleteTask?.(t),
-              },
-              {
-                id: "tomorrow",
-                label: T("فردا", "Tomorrow"),
-                icon: Clock,
-                baseClass: "bg-amber-500/80",
-                activeClass: "bg-amber-700",
-                textClass: "text-white",
-                onActivate: () => onPatchTask(t.id, workDatePatch(t, getLocalDateString(addDays(new Date(), 1)))),
-              },
-              {
-                id: "move",
-                label: T("انتقال", "Move"),
-                icon: FolderInput,
-                baseClass: "bg-slate-500/80",
-                activeClass: "bg-slate-700",
-                textClass: "text-white",
-                onActivate: () => onMoveTask?.(t),
-              },
-            ].filter((action) => action.id === "delete" ? !!onDeleteTask : action.id === "move" ? !!onMoveTask : true) as SwipeAction[]}
+            disabled={t.user_id !== userId || (swipeSettings.left === "none" && swipeSettings.right === "none")}
+            rightActions={swipeActions(swipeSettings.right)}
+            leftActions={swipeActions(swipeSettings.left)}
           >
             <Card className={`rounded-xl ${layout === "compact" ? "p-1.5" : "p-2 sm:p-2.5"} ${t.is_avoidance ? "bg-amber-500/[0.04] border-amber-500/30" : ""} ${depth > 0 ? "bg-muted/20" : "bg-card"} hover:bg-accent/40 transition-colors ${isSelected && splitView ? "border-primary bg-accent" : ""}`}>
               {/* Standalone subtask chip when rendered at top-level (depth === 0) */}
@@ -261,6 +260,7 @@ const TaskListItemComponent = ({
                 </button>
                 <button
                   type="button"
+                  data-task-row-open
                   className="flex-1 min-w-0 cursor-pointer select-none text-start rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                   onClick={() => {
                     if (isPathAllowed("/app/checkin") && (t.title.startsWith("چک‌این روزانه") || t.title.startsWith("Daily Check-in"))) { navigate("/app/checkin"); return; }
@@ -489,6 +489,7 @@ const TaskListItemComponent = ({
                 {group.tasks.map((s) => (
                   <TaskListItem
                     key={s.id}
+                    onSwipeTask={onSwipeTask}
                     t={s}
                     depth={depth + 1}
                     subs={childrenMap[s.id] || []}

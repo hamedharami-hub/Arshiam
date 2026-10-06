@@ -39,6 +39,18 @@ describe("TaskPlanningBody — icon-led period picker", () => {
     expect(onDone).toHaveBeenCalled();
   });
 
+  it("keeps an explicitly chosen clock when moving to tomorrow", () => {
+    const onPatch = vi.fn();
+    const at = new Date(2026, 4, 12, 16, 35).toISOString();
+    render(<TaskPlanningBody task={{ ...base, schedule_v: 2, work_date: at }} onPatch={onPatch} />);
+    fireEvent.click(screen.getByTestId("planning-quick-tomorrow"));
+    const moved = new Date(onPatch.mock.calls[0][0].work_date);
+    expect(moved.getHours()).toBe(16);
+    expect(moved.getMinutes()).toBe(35);
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+    expect(getLocalDateString(moved)).toBe(getLocalDateString(tomorrow));
+  });
+
   it("highlights the period matching the task's plan", () => {
     const week = currentPeriod("week", getTimeSettings());
     const planned = { ...base, planning_horizon: "week", planning_start: week.start, planning_end: week.end } as Task;

@@ -8,7 +8,7 @@ import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import type { Task } from "@/lib/taskTypes";
-import type { TaskPersistenceStatus } from "@/lib/firestoreDataService";
+import { persistTask, type TaskPersistenceStatus } from "@/lib/firestoreDataService";
 import { reportSave, toSaveStatus } from "@/lib/saveFeedback";
 import ShareDialog from "@/components/ShareDialog";
 import { TaskActivities } from "@/components/TaskActivities";
@@ -83,6 +83,15 @@ export default function TaskActionSheet({
   const [location, setLocation] = useState(task?.location || "");
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
+  const scopeKey = `${user?.id || "guest"}\u0000${task?.id || ""}`;
+  const activeScope = useRef(scopeKey);
+  activeScope.current = scopeKey;
+  const composingSubtask = useRef(false);
+  useEffect(() => {
+    setSubtaskTitle(""); setView("main"); setLocation(task?.location || "");
+    composingSubtask.current = false;
+    busyRef.current = false; setBusy(false);
+  }, [scopeKey]);
   const [locating, setLocating] = useState(false);
   const [confirmFutureNext, setConfirmFutureNext] = useState(false);
   const [wipLimitDraft, setWipLimitDraft] = useState(String(wipLimit));
@@ -127,6 +136,7 @@ export default function TaskActionSheet({
   const isOwner = propIsOwner ?? fallbackIsOwner;
   const canEdit = propCanEdit ?? isOwner;
   const canComment = propCanComment ?? canEdit;
+  const dependencyState = useMemo(() => task ? prerequisiteReadiness(task, knownTasks) : "none", [task, knownTasks]);
   if (!task) return null;
 
   const isScheduledLeitnerReview = isLeitnerStudyTask(task);
@@ -135,7 +145,6 @@ export default function TaskActionSheet({
   const isImportantToday = isTaskImportantForDay(planning.data, task.id, today);
   const eligibleForNext = isTaskEligibleForNext(task);
   const isFuture = isTaskScheduledInFuture(task, today);
-  const dependencyState = useMemo(() => task ? prerequisiteReadiness(task, knownTasks) : "none", [task, knownTasks]);
 
   const chooseAsNext = () => {
     if (!eligibleForNext) return;
@@ -261,27 +270,35 @@ export default function TaskActionSheet({
   };
 
   const addSubtask = async () => {
-    if (!user || !subtaskTitle.trim()) return;
+    if (!user || !canEdit || busyRef.current || !subtaskTitle.trim()) return;
+    const submittedScope = scopeKey;
+    const title = subtaskTitle.trim();
+    busyRef.current = true;
     setBusy(true);
     try {
-      const { error } = await firebaseStore.from("tasks").insert({
+      const status = await persistTask(user.id, {
+        id: crypto.randomUUID(),
         user_id: user.id,
         parent_id: task.id,
-        title: subtaskTitle.trim(),
+        title,
         priority: "none",
         completed: false,
         status: "todo",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       });
-      if (error) throw error;
-      await logTaskActivity(task.id, user.id, "updated", { subtask_added: subtaskTitle.trim() });
+      if (status === "failed") throw new Error(T("خطا در ایجاد زیرکار", "Could not create subtask"));
+      if (activeScope.current !== submittedScope) return;
+      await logTaskActivity(task.id, user.id, "updated", { subtask_added: title }).catch(() => {});
+      if (activeScope.current !== submittedScope) return;
       setSubtaskTitle("");
       onRefresh?.();
       onEdit();
       close();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : T("خطا", "Error"));
+      if (activeScope.current === submittedScope) toast.error(e instanceof Error ? e.message : T("خطا", "Error"));
     } finally {
-      setBusy(false);
+      if (activeScope.current === submittedScope) { busyRef.current = false; setBusy(false); }
     }
   };
 
@@ -478,11 +495,13 @@ export default function TaskActionSheet({
             <AutoTextarea
               value={subtaskTitle}
               onChange={(e) => setSubtaskTitle(e.target.value)}
+              onCompositionStart={() => { composingSubtask.current = true; }}
+              onCompositionEnd={() => { composingSubtask.current = false; }}
               placeholder={T("عنوان زیرتسک...", "Subtask title...")}
               dir="auto"
               autoFocus
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
+                if (e.key === "Enter" && !e.shiftKey && !composingSubtask.current && !e.nativeEvent.isComposing && e.keyCode !== 229) {
                   e.preventDefault();
                   addSubtask();
                 }

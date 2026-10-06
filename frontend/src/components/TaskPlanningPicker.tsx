@@ -6,6 +6,8 @@ import { getTaskPlanning, planningPatch } from "@/lib/taskPlanning";
 import { readSchedule, scheduleLabel } from "@/lib/taskSchedule";
 import { toPersianDigits } from "@/lib/persianDigits";
 import type { Task } from "@/lib/taskTypes";
+import { moveTaskDayPatch } from "@/lib/taskDate";
+import { TaskScheduleBody } from "./task-detail/TaskSchedulingSheet";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "./ui/sheet";
 import { InlineDatePicker } from "./InlineDatePicker";
 import { IconTip } from "./task-detail/IconTip";
@@ -56,7 +58,10 @@ export function TaskPlanningBody({ task, onPatch, onDone, onPickDay }: {
     setRangeEnd(plan?.end || null);
   }, [task.id, plan?.start, plan?.end]);
   const choose = (period: Period | null) => {
-    if (period && period.horizon === "day" && period.start === period.end && onPickDay) { onPickDay(period.start); return; }
+    if (period && period.horizon === "day" && period.start === period.end) {
+      if (onPickDay) { onPickDay(period.start); return; }
+      onPatch(moveTaskDayPatch(task, period.start)); onDone?.(); return;
+    }
     onPatch(planningPatch(period, settings)); onDone?.();
   };
 
@@ -147,7 +152,7 @@ export function TaskPlanningPicker({ task, onPatch, disabled = false, hideWhenEm
     </SheetTrigger>
     <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto rounded-t-3xl p-5 pt-9 sm:mx-auto sm:max-w-2xl" dir={fa ? "rtl" : "ltr"} onClick={e => e.stopPropagation()}>
       <SheetTitle className="mb-4">{fa ? "زمان" : "When"}</SheetTitle>
-      {open && <TaskPlanningBody task={task} onPatch={onPatch} onDone={() => setOpen(false)} />}
+      {open && <TaskScheduleBody t={task} canEdit={!disabled} save={onPatch} T={(faText, enText) => fa ? faText : enText} isEn={!fa} onDone={() => setOpen(false)} />}
     </SheetContent>
   </Sheet>;
 }

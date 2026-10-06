@@ -6,7 +6,7 @@ import { getTimeSettings, todayISO } from "@/lib/timeHorizon";
 import { filterAndSortTasks, DEFAULT_FILTERS } from "@/lib/smartListService";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { endOfDay, startOfDay } from "date-fns";
+import { addDays, endOfDay, startOfDay } from "date-fns";
 import {
   ChevronDown, ChevronRight, CheckSquare, Columns2, CircleDot, X,
 } from "lucide-react";
@@ -26,7 +26,10 @@ import { awardTaskWatering } from "@/lib/garden";
 import { isRecurringTask, advanceRecurringTask } from "@/lib/recurringTaskService";
 import { playCompletionFeedback } from "@/lib/completionFeedback";
 import { deleteTaskCascade } from "@/features/tasks/taskService";
-import { taskDueTimestamp, getLocalDateString, taskWorkDate } from "@/lib/taskDate";
+import { taskDueTimestamp, getLocalDateString, taskWorkDate, moveTaskDayPatch } from "@/lib/taskDate";
+import { readSchedule, schedulePatch } from "@/lib/taskSchedule";
+import type { TaskSwipeAction } from "@/lib/taskSwipeSettings";
+import { pushUndo } from "@/lib/undoStack";
 import { buildTaskChildrenMap, collectTaskDescendantIds, getTaskProgress, isStandaloneTaskForScope } from "@/features/tasks/taskTree";
 import { setShowCompletedTasks, useShowCompletedTasks } from "@/lib/completedTaskVisibility";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
@@ -67,6 +70,8 @@ export default function TodayDashboardView() {
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const patchJournal = useRef(createTaskPatchJournal());
+  const activeUserId = useRef(user?.id);
+  activeUserId.current = user?.id;
 
   const [splitView, setSplitView] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
@@ -152,6 +157,7 @@ export default function TodayDashboardView() {
   } = useTasksData({ user, scope: "today" });
 
   const [currentDayKey, setCurrentDayKey] = useState(() => getLocalDateString());
+  const [clockRevision, setClockRevision] = useState(0);
   const todayPlanning = useTodayPlanning(user?.id, currentDayKey);
   const selectedNextTask = todayPlanning.nextTaskId ? allTasks.find(task => task.id === todayPlanning.nextTaskId) || null : null;
   const nextTaskIdRef = useRef<string | null>(todayPlanning.nextTaskId);
@@ -166,6 +172,7 @@ export default function TodayDashboardView() {
   }, [tasksReady, tasksAuthoritative, allTasks, todayPlanning.nextTaskId, todayPlanning.clearNextTaskIf]);
   useEffect(() => {
     const checkDay = () => {
+      setClockRevision(value => value + 1);
       const nowKey = getLocalDateString();
       if (nowKey !== currentDayKey) {
         setCurrentDayKey(nowKey);
@@ -181,21 +188,23 @@ export default function TodayDashboardView() {
     const now = new Date();
     const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1).getTime() - now.getTime();
     const timer = setTimeout(checkDay, Math.max(1000, msUntilMidnight));
+    const clockTimer = window.setInterval(checkDay, 60000);
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("focus", onFocus);
       clearTimeout(timer);
+      window.clearInterval(clockTimer);
     };
   }, [currentDayKey, load]);
 
   const startOfToday = useMemo(() => {
     void currentDayKey;
     return startOfDay(new Date()).getTime();
-  }, [currentDayKey]);
+  }, [currentDayKey, clockRevision]);
   const endOfToday = useMemo(() => {
     void currentDayKey;
     return endOfDay(new Date()).getTime();
-  }, [currentDayKey]);
+  }, [currentDayKey, clockRevision]);
 
   const taskMap = useMemo(() => new Map(allTasks.map((t) => [t.id, t])), [allTasks]);
   const childrenMap = useMemo(() => buildTaskChildrenMap(allTasks), [allTasks]);
@@ -214,7 +223,7 @@ export default function TodayDashboardView() {
       const timestamp = taskDueTimestamp(date);
       return timestamp >= startOfToday && timestamp <= endOfToday;
     });
-  }, [startOfToday, endOfToday]);
+  }, [startOfToday, endOfToday, clockRevision]);
 
   // Today's tasks (due between startOfToday and endOfToday)
   const todayTasks = useMemo(() => {
@@ -267,7 +276,7 @@ export default function TodayDashboardView() {
     void currentDayKey;
     const settings = getTimeSettings();
     return isTaskOverdue(t, settings) || isTaskMissedWorkDay(t, settings);
-  }, [currentDayKey]);
+  }, [currentDayKey, clockRevision]);
 
   const overdueTasks = useMemo(() => filterAndSortTasks(
     allTasks.filter((task) => isStandaloneTaskForScope(task, isDueOverdue, taskMap) && !getStudyTaskNavigation(task).isStudyTask),
@@ -355,6 +364,8 @@ export default function TodayDashboardView() {
         );
         return;
       }
+      toast.error(T("نمونهٔ بعدی ذخیره نشد؛ کار انجام‌شده نشد. دوباره تلاش کنید.", "The next occurrence could not be saved. The task remains open; please retry."));
+      return;
     }
     if (nextCompleted) {
       playCompletionFeedback();
@@ -371,12 +382,27 @@ export default function TodayDashboardView() {
       if (user?.id) {
         const res = await persistTask(user.id, { id: task.id, ...patch });
         if (res === "failed") throw new Error(T("بروزرسانی تسک ناموفق بود", "Could not update task"));
+        if (res === "queued") toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
       } else {
         const { error } = await firebaseStore.from("tasks").update(patch as any).eq("id", task.id);
         if (error) throw new Error(error.message);
       }
       window.dispatchEvent(new Event("tasks-changed"));
       if (invalidatesNext) todayPlanning.clearNextTaskIf(task.id);
+      if (user?.id) {
+        const ownerId = user.id;
+        pushUndo({
+          label: nextCompleted ? T(`کار «${task.title}» انجام شد`, `Completed "${task.title}"`) : T(`کار «${task.title}» باز شد`, `Reopened "${task.title}"`),
+          undo: async () => {
+            if (activeUserId.current !== ownerId) throw new Error(T("برای بازگردانی وارد همان حساب شوید", "Sign in to the same account to undo"));
+            const inverse = { completed: task.completed, status: task.status, completed_at: task.completed_at || null };
+            const result = await persistTask(ownerId, { id: task.id, ...inverse });
+            if (result === "failed") throw new Error(T("بازگردانی ذخیره نشد", "Could not save undo"));
+            if (activeUserId.current === ownerId) setAllTasks(previous => previous.map(row => row.id === task.id ? { ...row, ...inverse } : row));
+            window.dispatchEvent(new Event("tasks-changed"));
+          },
+        });
+      }
     } catch (err) {
       setAllTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)));
       toast.error(err instanceof Error ? err.message : T("بروزرسانی تسک با خطا مواجه شد", "Could not update task"));
@@ -442,6 +468,24 @@ export default function TodayDashboardView() {
     return status;
   }, [T, user?.id, allTasks, setAllTasks, todayPlanning.nextTaskId, todayPlanning.clearNextTaskIf]);
 
+  const handleSwipeTask = async (task: Task, action: TaskSwipeAction) => {
+    if (task.user_id !== user?.id || action === "none") return;
+    if (action === "menu") { setActionTask(task); return; }
+    if (action === "complete") { await handleToggleTask(task); return; }
+    const ownerId = user.id;
+    const inverse = schedulePatch(readSchedule(task));
+    const result = await handlePatchTask(task.id, moveTaskDayPatch(task, getLocalDateString(addDays(new Date(), action === "tomorrow" ? 1 : 0))));
+    if (result === "failed") return;
+    pushUndo({
+      label: action === "today" ? T("کار به امروز منتقل شد", "Task scheduled for today") : T("کار به فردا منتقل شد", "Task scheduled for tomorrow"),
+      undo: async () => {
+        if (activeUserId.current !== ownerId) throw new Error(T("برای بازگردانی وارد همان حساب شوید", "Sign in to the same account to undo"));
+        const status = await handlePatchTask(task.id, inverse);
+        if (status === "failed") throw new Error(T("بازگردانی ذخیره نشد", "Could not save undo"));
+      },
+    });
+  };
+
   const askDeleteTask = useCallback((task: Task) => {
     const descendants = collectTaskDescendantIds(task.id, childrenMap);
     const childCount = descendants.length;
@@ -501,6 +545,7 @@ export default function TodayDashboardView() {
       onActionTask={setActionTask}
       onDeleteTask={askDeleteTask}
       onPatchTask={handlePatchTask}
+      onSwipeTask={handleSwipeTask}
       onMoveTask={setMoveTask}
       userId={user?.id}
       isSelected={selectedTask?.id === t.id}

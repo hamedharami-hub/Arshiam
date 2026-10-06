@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isScheduleOverdue, parseTaskDueDate, taskDueTimestamp, getLocalDateString, formatTaskDueDateDisplay } from "./taskDate";
+import { isScheduleOverdue, parseTaskDueDate, taskDueTimestamp, getLocalDateString, formatTaskDueDateDisplay, moveTaskDayPatch } from "./taskDate";
 
 describe("task date parsing", () => {
   it("treats date-only values as local calendar dates", () => {
@@ -8,6 +8,16 @@ describe("task date parsing", () => {
     expect(parsed?.getFullYear()).toBe(2026);
     expect(parsed?.getMonth()).toBe(8);
     expect(parsed?.getDate()).toBe(17);
+  });
+
+  it("moves an explicit late-night time to another day without inventing time for daily plans", () => {
+    const current = new Date(2026, 8, 17, 23, 59).toISOString();
+    const moved = moveTaskDayPatch({ schedule_v: 2, work_date: current }, "2026-09-19");
+    const date = new Date(moved.work_date!);
+    expect(getLocalDateString(date)).toBe("2026-09-19");
+    expect(date.getHours()).toBe(23);
+    expect(date.getMinutes()).toBe(59);
+    expect(moveTaskDayPatch({ schedule_v: 2, work_date: "2026-09-17" }, "2026-09-19").work_date).toBe("2026-09-19");
   });
 
   it("returns infinity for missing or invalid dates", () => {

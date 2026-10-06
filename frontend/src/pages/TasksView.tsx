@@ -47,7 +47,9 @@ import { toast } from "sonner";
 import { PRIORITY_META } from "@/lib/priority";
 import { FolderKanban } from "@/components/FolderKanban";
 import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
-import { parseTaskDueDate, taskDueTimestamp, getLocalDateString, taskWorkDate, workDatePatch } from "@/lib/taskDate";
+import { parseTaskDueDate, taskDueTimestamp, getLocalDateString, taskWorkDate, workDatePatch, moveTaskDayPatch } from "@/lib/taskDate";
+import type { TaskSwipeAction } from "@/lib/taskSwipeSettings";
+import { readSchedule, schedulePatch } from "@/lib/taskSchedule";
 import { pushUndo } from "@/lib/undoStack";
 import { pushDeleted } from "@/lib/recentlyDeleted";
 import { enqueueOp, cacheGet } from "@/lib/offlineQueue";
@@ -328,8 +330,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   }, [prefsId, user?.id]);
 
   const [currentDayKey, setCurrentDayKey] = useState(() => getLocalDateString());
+  const [clockRevision, setClockRevision] = useState(0);
   useEffect(() => {
     const checkDay = () => {
+      setClockRevision(value => value + 1);
       const nowKey = getLocalDateString();
       if (nowKey !== currentDayKey) {
         setCurrentDayKey(nowKey);
@@ -345,10 +349,12 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const now = new Date();
     const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1).getTime() - now.getTime();
     const timer = setTimeout(checkDay, Math.max(1000, msUntilMidnight));
+    const clockTimer = window.setInterval(checkDay, 60000);
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("focus", onFocus);
       clearTimeout(timer);
+      window.clearInterval(clockTimer);
     };
   }, [currentDayKey, load]);
 
@@ -583,7 +589,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     }
 
     return list;
-  }, [effectiveAllTasks, scope, params.id, filters, taskTagsMap, graceMap, taskMap, currentDayKey, showCompletedTasks, goals, searchParams]);
+  }, [effectiveAllTasks, scope, params.id, filters, taskTagsMap, graceMap, taskMap, currentDayKey, clockRevision, showCompletedTasks, goals, searchParams]);
 
   const [goalTint, setGoalTint] = useState<string | null>(null);
   const isFolder = scope === "folder" && !!params.id;
@@ -605,7 +611,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   }, [folderPrefs.sortOrder, isFolder, topLevel]);
 
   // Date-based grouping for Today/Next7 to mimic TickTick (Overdue, Today, Tomorrow, ...)
-  const groupedTasks = useMemo(() => buildGroupedTasks(topLevel, scope, isEn, T), [topLevel, scope, isEn, T]);
+  const groupedTasks = useMemo(() => buildGroupedTasks(topLevel, scope, isEn, T), [topLevel, scope, isEn, T, clockRevision]);
 
   const completeTaskCore = async (t: Task, outcome: TaskOutcome | null, isOwner: boolean) => {
     const patch = { completed: true, status: "done" as const, completed_at: new Date().toISOString() };
@@ -633,7 +639,17 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
       }
       window.dispatchEvent(new Event("tasks-changed"));
-      await logTaskActivity(t.id, user.id, "completed", { ...patch, outcome_id: outcome?.id } as Record<string, unknown>);
+      await logTaskActivity(t.id, user.id, "completed", { ...patch, outcome_id: outcome?.id } as Record<string, unknown>).catch(() => {});
+      const ownerId = user.id;
+      pushUndo({
+        label: T(`کار «${t.title}» انجام شد`, `Completed "${t.title}"`),
+        undo: async () => {
+          if (activeUserId.current !== ownerId) throw new Error(T("برای بازگردانی وارد همان حساب شوید", "Sign in to the same account to undo"));
+          const result = await patchTask(t.id, { completed: t.completed, status: t.status, completed_at: t.completed_at || null });
+          if (result === "failed") throw new Error(T("بازگردانی ذخیره نشد", "Could not save undo"));
+          setGraceMap(prev => { const next = { ...prev }; delete next[t.id]; return next; });
+        },
+      });
       return;
     }
 
@@ -688,7 +704,16 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
       }
       window.dispatchEvent(new Event("tasks-changed"));
-      await logTaskActivity(t.id, user.id, "reopened", patch as Record<string, unknown>);
+      await logTaskActivity(t.id, user.id, "reopened", patch as Record<string, unknown>).catch(() => {});
+      const ownerId = user.id;
+      pushUndo({
+        label: T(`کار «${t.title}» باز شد`, `Reopened "${t.title}"`),
+        undo: async () => {
+          if (activeUserId.current !== ownerId) throw new Error(T("برای بازگردانی وارد همان حساب شوید", "Sign in to the same account to undo"));
+          const result = await patchTask(t.id, { completed: t.completed, status: t.status, completed_at: t.completed_at || null });
+          if (result === "failed") throw new Error(T("بازگردانی ذخیره نشد", "Could not save undo"));
+        },
+      });
       return;
     }
 
@@ -731,6 +756,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         );
         return;
       }
+      toast.error(T("نمونهٔ بعدی ذخیره نشد؛ کار انجام‌شده نشد. دوباره تلاش کنید.", "The next occurrence could not be saved. The task remains open; please retry."));
+      return;
     }
 
     try {
@@ -746,6 +773,25 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     }
 
     await completeTask(t);
+  };
+
+  const swipeTask = async (task: Task, action: TaskSwipeAction) => {
+    if (task.user_id !== user?.id || action === "none") return;
+    if (action === "menu") { setActionTask(task); return; }
+    if (action === "complete") { await toggleTask(task); return; }
+    const ownerId = user.id;
+    const inverse = schedulePatch(readSchedule(task));
+    const patch = moveTaskDayPatch(task, getLocalDateString(addDays(new Date(), action === "tomorrow" ? 1 : 0)));
+    const result = await patchTask(task.id, patch);
+    if (result === "failed") return;
+    pushUndo({
+      label: action === "today" ? T("کار به امروز منتقل شد", "Task scheduled for today") : T("کار به فردا منتقل شد", "Task scheduled for tomorrow"),
+      undo: async () => {
+        if (activeUserId.current !== ownerId) throw new Error(T("برای بازگردانی وارد همان حساب شوید", "Sign in to the same account to undo"));
+        const status = await patchTask(task.id, inverse);
+        if (status === "failed") throw new Error(T("بازگردانی ذخیره نشد", "Could not save undo"));
+      },
+    });
   };
 
   useEffect(() => {
@@ -976,6 +1022,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       onActionTask={setActionTask}
       onDeleteTask={askDeleteTask}
       onPatchTask={patchTask}
+      onSwipeTask={swipeTask}
       onMoveTask={setMoveTask}
       userId={user?.id}
       isSelected={selectedTask?.id === t.id}

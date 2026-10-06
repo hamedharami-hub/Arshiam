@@ -46,13 +46,32 @@ export function TaskSubtasksInline({
   const { T, isEn } = useBilingual();
   const showCompletedTasks = useShowCompletedTasks();
   const [subs, setSubs] = useState<Sub[]>(initialSubs || []);
+  const currentRows = useRef(subs);
+  currentRows.current = subs;
   const [newTitle, setNewTitle] = useState("");
+  const [adding, setAdding] = useState(false);
+  const addInFlight = useRef(false);
+  const scopeKey = `${user?.id || "guest"}\u0000${taskId}`;
+  const activeScope = useRef(scopeKey);
+  activeScope.current = scopeKey;
+  const loadGeneration = useRef(0);
+  const composition = useRef(false);
 
   const editingRef = useRef<Set<string>>(new Set());
   const pendingTitles = useRef<Record<string, string>>({});
   const writeTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   // Guard against stale background Firestore snapshots or un-synced parent initialSubs reverting checks
   const recentTogglesRef = useRef<Map<string, { completed: boolean; time: number }>>(new Map());
+  const recentAddsRef = useRef<Map<string, { row: Sub; time: number }>>(new Map());
+  const withRecentAdds = (rows: Sub[]) => {
+    const ids = new Set(rows.map(row => row.id));
+    const result = [...rows];
+    for (const [id, entry] of recentAddsRef.current) {
+      if (Date.now() - entry.time >= 15000) recentAddsRef.current.delete(id);
+      else if (!ids.has(id)) result.push(currentRows.current.find(row => row.id === id) || entry.row);
+    }
+    return result;
+  };
 
   const flushPendingTitle = useCallback(async (id: string) => {
     if (writeTimers.current[id]) {
@@ -61,11 +80,33 @@ export function TaskSubtasksInline({
     }
     const title = pendingTitles.current[id];
     if (title !== undefined && user) {
-      delete pendingTitles.current[id];
-      await persistTask(user.id, { id, title });
+      const status = await persistTask(user.id, { id, title });
+      if (activeScope.current !== scopeKey) return;
+      if (status === "failed") {
+        toast.error(T("خطا در ذخیره عنوان زیرتسک", "Failed to save subtask title"));
+        return;
+      }
+      if (pendingTitles.current[id] === title) {
+        delete pendingTitles.current[id];
+        editingRef.current.delete(id);
+      }
       window.dispatchEvent(new Event("tasks-changed"));
     }
-  }, [user]);
+  }, [user?.id, taskId]);
+
+  useEffect(() => {
+    setSubs(initialSubs || []);
+    setNewTitle("");
+    setAdding(false);
+    addInFlight.current = false;
+    composition.current = false;
+    editingRef.current.clear();
+    pendingTitles.current = {};
+    writeTimers.current = {};
+    recentTogglesRef.current.clear();
+    recentAddsRef.current.clear();
+    loadGeneration.current += 1;
+  }, [scopeKey]);
 
   useEffect(() => {
     return () => {
@@ -78,12 +119,12 @@ export function TaskSubtasksInline({
       });
       Object.values(writeTimers.current).forEach(clearTimeout);
     };
-  }, [user]);
+  }, [user?.id, taskId]);
 
   useEffect(() => {
-    if (initialSubs && initialSubs.length > 0) {
+    if (initialSubs) {
       setSubs((prev) => {
-        if (prev.length === 0) return initialSubs;
+        if (prev.length === 0) return withRecentAdds(initialSubs);
         const prevMap = new Map(prev.map((p) => [p.id, p]));
         const merged = initialSubs.map((row) => {
           let title = row.title;
@@ -97,7 +138,7 @@ export function TaskSubtasksInline({
           }
           return { ...row, title, completed };
         });
-        return merged;
+        return withRecentAdds(merged);
       });
     }
   }, [initialSubs]);
@@ -118,13 +159,15 @@ export function TaskSubtasksInline({
         }
         return { ...row, title, completed };
       });
-      return merged;
+      return withRecentAdds(merged);
     });
   }, []);
 
   const load = useCallback(async () => {
     if (!user) return;
+    const generation = ++loadGeneration.current;
     const cachedRaw = await cacheGet<unknown>(`tasks:all:${user.id}`);
+    if (activeScope.current !== scopeKey || generation !== loadGeneration.current) return;
     const cached = extractTasksFromCache(cachedRaw);
     if (cached) {
       const childRows = cached
@@ -139,7 +182,7 @@ export function TaskSubtasksInline({
         }));
       replaceRows(childRows);
     }
-  }, [taskId, user, replaceRows]);
+  }, [taskId, user?.id, replaceRows, scopeKey]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -150,15 +193,19 @@ export function TaskSubtasksInline({
     return () => {
       window.removeEventListener("tasks-changed", onTasksChanged);
     };
-  }, [user, load]);
+  }, [user?.id, load]);
 
   const add = async () => {
-    if (readOnly) return;
+    if (readOnly || addInFlight.current) return;
     const title = newTitle.trim();
     if (!title || !user) return;
+    const submittedValue = newTitle;
+    const submittedScope = scopeKey;
+    addInFlight.current = true;
+    setAdding(true);
 
     const newId = crypto.randomUUID();
-    const position = subs.length;
+    const position = subs.reduce((max, row) => Math.max(max, row.position ?? 0), -1) + 1;
     const newSubTask: Task = {
       id: newId,
       user_id: user.id,
@@ -172,27 +219,35 @@ export function TaskSubtasksInline({
       updated_at: new Date().toISOString(),
     };
 
-    const nextSubs = [...subs, { id: newId, title, completed: false, position }];
-    setSubs(nextSubs);
-    onSubtasksChange?.(nextSubs);
-    setNewTitle("");
-
-    const status = await persistTask(user.id, newSubTask);
-    if (status === "failed") {
-      const reverted = subs.filter((x) => x.id !== newId);
-      setSubs(reverted);
-      onSubtasksChange?.(reverted);
-      toast.error(T("خطا در ایجاد زیرتسک", "Failed to create subtask"));
-      return;
+    try {
+      const status = await persistTask(user.id, newSubTask);
+      if (activeScope.current !== submittedScope) return;
+      if (status === "failed") {
+        toast.error(T("خطا در ایجاد زیرتسک", "Failed to create subtask"));
+        return;
+      }
+      loadGeneration.current += 1;
+      recentAddsRef.current.set(newId, { row: { ...newSubTask, position }, time: Date.now() });
+      const nextSubs = currentRows.current.some(row => row.id === newId) ? currentRows.current : [...currentRows.current, { ...newSubTask, position }];
+      setSubs(nextSubs);
+      onSubtasksChange?.(nextSubs);
+      setNewTitle(current => current === submittedValue ? "" : current);
+      window.dispatchEvent(new Event("tasks-changed"));
+    } catch {
+      if (activeScope.current === submittedScope) toast.error(T("خطا در ایجاد زیرتسک", "Failed to create subtask"));
+    } finally {
+      if (activeScope.current === submittedScope) {
+        addInFlight.current = false;
+        setAdding(false);
+      }
     }
-    window.dispatchEvent(new Event("tasks-changed"));
   };
 
   const toggle = async (s: Sub) => {
     if (readOnly || !user) return;
     const next = !s.completed;
     const prevSubs = subs;
-    const nextSubs = subs.map((x) => (x.id === s.id ? { ...x, completed: next } : x));
+    const nextSubs = subs.map((x) => (x.id === s.id ? { ...x, completed: next, status: next ? "done" as const : "todo" as const } : x));
     setSubs(nextSubs);
     onSubtasksChange?.(nextSubs);
 
@@ -242,19 +297,24 @@ export function TaskSubtasksInline({
     if (writeTimers.current[id]) clearTimeout(writeTimers.current[id]);
     writeTimers.current[id] = setTimeout(async () => {
       delete writeTimers.current[id];
-      delete pendingTitles.current[id];
       const status = await persistTask(user.id, { id, title });
+      if (activeScope.current !== scopeKey) return;
       if (status === "failed") {
         toast.error(T("خطا در ذخیره عنوان زیرتسک", "Failed to save subtask title"));
+        return;
+      }
+      if (pendingTitles.current[id] === title) {
+        delete pendingTitles.current[id];
+        editingRef.current.delete(id);
       }
       window.dispatchEvent(new Event("tasks-changed"));
-      setTimeout(() => editingRef.current.delete(id), 800);
     }, 500);
   };
 
   const remove = async (id: string) => {
     if (readOnly || !user) return;
     const prevSubs = subs;
+    recentAddsRef.current.delete(id);
     const nextSubs = subs.filter((x) => x.id !== id);
     setSubs(nextSubs);
     onSubtasksChange?.(nextSubs);
@@ -371,8 +431,10 @@ export function TaskSubtasksInline({
         <AutoTextarea
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
+          onCompositionStart={() => { composition.current = true; }}
+          onCompositionEnd={() => { composition.current = false; }}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            if (e.key === "Enter" && !e.shiftKey && !composition.current && !e.nativeEvent.isComposing && e.keyCode !== 229) {
               e.preventDefault();
               add();
             }
@@ -385,7 +447,7 @@ export function TaskSubtasksInline({
           minHeight={28}
           maxHeight={120}
         />
-        <Button size="icon" variant="ghost" onClick={add} disabled={readOnly} className="h-7 w-7">
+        <Button size="icon" variant="ghost" onClick={add} disabled={readOnly || adding} className="h-7 w-7" aria-label={T("افزودن زیرکار", "Add subtask")}>
           <Plus className="w-3 h-3" />
         </Button>
       </div>
