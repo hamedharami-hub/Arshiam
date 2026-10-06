@@ -3,7 +3,7 @@ import { TaskScheduleSheet } from "./TaskScheduleSheet";
 import React, { memo, useMemo, useRef } from "react";
 import { isPathAllowed } from "@/lib/appModules";
 import {
-  CornerDownRight, ChevronDown, ChevronRight, Pin, X, Ban, CircleDot, Flag,
+  CornerDownRight, ChevronDown, ChevronRight, Pin, Ban, CircleDot, Flag,
   GripVertical, Calendar, Repeat, GitBranch, Check, Trash2, Clock, FolderInput, Brain,
   Network, BookOpen, FolderTree, ExternalLink, Layers,
   Sunrise, Sun, Sunset, Moon, CalendarRange, AlertTriangle,
@@ -280,8 +280,13 @@ const TaskListItemComponent = ({
                   }}
                 >
                   {t.status === "wont_do" && (
-                    <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-sky-500/10 text-sky-600 ms-1 shrink-0">
-                      <X className="w-2.5 h-2.5" />
+                    <span
+                      className="inline-flex items-center justify-center w-4 h-4 rounded bg-muted text-muted-foreground ms-1 shrink-0"
+                      title={T("این کار نباید انجام شود", "This task should not be done")}
+                      aria-label={T("این کار نباید انجام شود", "This task should not be done")}
+                      data-testid={`task-wont-do-flag-${t.id}`}
+                    >
+                      <Flag className="w-2.5 h-2.5 fill-current" />
                     </span>
                   )}
                   {t.status === "waiting" && (
@@ -292,7 +297,7 @@ const TaskListItemComponent = ({
                   <BidiText
                     as="span"
                     text={t.title}
-                    className={`block ${layout === "compact" ? "text-sm" : "text-[15px]"} font-medium leading-tight break-words ${t.completed ? "line-through text-muted-foreground" : t.status === "wont_do" ? "text-sky-600" : "text-foreground/90"}`}
+                    className={`block ${layout === "compact" ? "text-sm" : "text-[15px]"} font-medium leading-tight break-words ${t.completed ? "line-through text-muted-foreground" : t.status === "wont_do" ? "text-muted-foreground" : "text-foreground/90"}`}
                   />
                 </button>
                 {isScheduledLeitnerReview && !t.completed ? (

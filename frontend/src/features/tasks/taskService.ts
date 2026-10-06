@@ -128,7 +128,11 @@ export async function fetchTasks(userId: string): Promise<Task[]> {
   return withPending;
 }
 
-export function subscribeToTasks(userId: string, onUpdate: (tasks: Task[]) => void): () => void {
+export function subscribeToTasks(
+  userId: string,
+  onUpdate: (tasks: Task[]) => void,
+  onInitialError?: (error: Error) => void,
+): () => void {
   let newestSnapshot = 0;
   let isActive = true;
   const unsubscribe = subscribeFirestoreTasks(userId, (snapshotTasks) => {
@@ -154,7 +158,7 @@ export function subscribeToTasks(userId: string, onUpdate: (tasks: Task[]) => vo
     }).catch((error) => {
       console.warn("[TaskService] Could not reconcile a task snapshot:", error);
     });
-  });
+  }, onInitialError);
   return () => {
     isActive = false;
     newestSnapshot += 1;

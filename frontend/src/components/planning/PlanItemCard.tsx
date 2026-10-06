@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ArrowUpRight, Check, ChevronDown, CornerDownLeft, MoreHorizontal, Plus } from "lucide-react";
+import { ArrowUpRight, CalendarDays, Check, ChevronDown, CornerDownLeft, Flag, MoreHorizontal, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Task } from "@/lib/taskTypes";
 import type { Horizon, Period, TimeSettings } from "@/lib/timeHorizon";
@@ -15,6 +15,8 @@ import { LEVEL_NAME, LEVEL_THEME, frac } from "./planningTheme";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { reportSave } from "@/lib/saveFeedback";
+import { normalizeTaskPriority, PRIORITY_META } from "@/lib/priority";
+import { useLongPress } from "@/lib/useLongPress";
 
 export type PlanItemActions = {
   onToggle: (t: Task) => void;
@@ -30,11 +32,12 @@ type Props = PlanItemActions & {
   settings: TimeSettings; fa: boolean; childLevelName?: Horizon | null; valueLabel?: string;
 };
 
-export const CheckDot = ({ done, level, onClick, testId }: { done: boolean; level: Horizon; onClick: () => void; testId: string }) => (
+export const CheckDot = ({ done, level, priority, onClick, testId, label }: { done: boolean; level: Horizon; priority?: string | null; onClick: () => void; testId: string; label?: string }) => (
   <button type="button" onClick={(e) => { e.stopPropagation(); onClick(); }} data-testid={testId} aria-pressed={done}
-    className={cn("grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition-colors duration-150",
-      done ? `${LEVEL_THEME[level].bar} border-transparent text-white` : "border-muted-foreground/40 hover:border-foreground/60")}>
-    {done && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+    aria-label={label} data-state={done ? "checked" : "unchecked"} data-plan-level={level}
+    className={cn("mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border-2 transition-transform duration-200 active:scale-75",
+      PRIORITY_META[normalizeTaskPriority(priority)].checkboxClass)}>
+    {done && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
   </button>
 );
 
@@ -58,8 +61,112 @@ export function ParentChip({ parent, settings, fa }: { parent: Task; settings: T
   );
 }
 
+function PlanChildRow({
+  task,
+  period,
+  settings,
+  fa,
+  onToggle,
+  onOpen,
+  onMoveNext,
+  onUnplan,
+}: {
+  task: Task;
+  period: Period | null;
+  settings: TimeSettings;
+  fa: boolean;
+  onToggle: (task: Task) => void;
+  onOpen: (task: Task) => void;
+  onMoveNext: (task: Task) => Promise<TaskPersistenceStatus>;
+  onUnplan: (task: Task) => Promise<TaskPersistenceStatus>;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const done = isDone(task);
+  const level = period?.horizon || "day";
+  const longPress = useLongPress({ onLongPress: () => setMenuOpen(true), ignoreButtons: true });
+
+  return (
+    <li
+      className="rounded-lg bg-muted/20 px-1.5 py-1"
+      data-plan-child-row
+      {...longPress.handlers}
+      onClickCapture={(event) => {
+        if (longPress.didFire()) { event.preventDefault(); event.stopPropagation(); }
+      }}
+      onContextMenu={(event) => {
+        const target = event.target as HTMLElement;
+        if (target.closest("input, textarea, [contenteditable='true']")) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setMenuOpen(true);
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setMenuOpen(true);
+      }}
+    >
+      <div className="flex items-center gap-1.5">
+        <CheckDot
+          done={done}
+          level={level}
+          priority={task.priority}
+          onClick={() => onToggle(task)}
+          testId={`plan-child-toggle-${task.id}`}
+          label={fa ? (done ? "بازکردن تسک" : "تکمیل تسک") : (done ? "Reopen task" : "Complete task")}
+        />
+        <button
+          type="button"
+          data-task-row-open
+          onClick={() => onOpen(task)}
+          className={cn("min-w-0 flex-1 truncate text-start text-sm font-medium", done && "text-muted-foreground line-through", task.status === "wont_do" && !done && "text-muted-foreground")}
+        >
+          {task.status === "wont_do" && <Flag className="me-1 inline h-2.5 w-2.5 fill-current text-muted-foreground" />}
+          {task.title}
+        </button>
+        {period && <span className={cn("inline-flex h-5 max-w-[45%] shrink-0 items-center gap-1 truncate rounded-full border border-border/50 px-1.5 text-[10px] text-muted-foreground", LEVEL_THEME[period.horizon].chip)}>
+          <CalendarDays className="h-3 w-3 shrink-0" />
+          <bdi className="truncate">{scheduleLabel(readSchedule(task, settings), settings, fa ? "fa" : "en")}</bdi>
+        </span>}
+        <DropdownMenu modal={false} open={menuOpen} onOpenChange={setMenuOpen}>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted"
+              aria-label={fa ? `گزینه‌های ${task.title || "زیرهدف"}` : `Actions for ${task.title || "child goal"}`}
+              data-testid={`plan-child-menu-${task.id}`}
+              data-no-longpress
+            >
+              <MoreHorizontal className="h-3.5 w-3.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onSelect={() => onToggle(task)} data-testid={`plan-child-toggle-action-${task.id}`}>
+              <Check className="me-2 h-4 w-4" />{fa ? (done ? "بازکردن تسک" : "تکمیل تسک") : (done ? "Reopen task" : "Complete task")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onOpen(task)} data-testid={`plan-child-open-${task.id}`}>
+              {fa ? "جزئیات تسک" : "Task details"}
+            </DropdownMenuItem>
+            {period && <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => { void onMoveNext(task); }} data-testid={`plan-child-move-next-${task.id}`}>
+                {fa ? "انتقال به دورهٔ بعد" : "Move to next period"}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => { void onUnplan(task); }} className="text-destructive" data-testid={`plan-child-unplan-${task.id}`}>
+                {fa ? "برداشتن از برنامه" : "Remove from plan"}
+              </DropdownMenuItem>
+            </>}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </li>
+  );
+}
+
 export function PlanItemCard({ task, kids, byId, settings, fa, childLevelName, valueLabel, ...a }: Props) {
   const [open, setOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
   const [criterionOpen, setCriterionOpen] = useState(false);
@@ -79,13 +186,21 @@ export function PlanItemCard({ task, kids, byId, settings, fa, childLevelName, v
         ? (fa ? "انجام‌شده" : "Done")
         : task.status === "in_progress"
           ? (fa ? "در حال انجام" : "In progress")
-          : (fa ? `در برنامه · ${scheduleText}` : `In plan · ${scheduleText}`);
+          : null;
+  const statusClass = task.status === "waiting"
+    ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20"
+    : task.status === "wont_do"
+      ? "bg-muted text-muted-foreground border-border/70"
+      : done
+        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
+        : "bg-primary/10 text-primary border-primary/20";
   const num = (n: number) => (fa ? toPersianDigits(n) : String(n));
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const criterionSavingRef = useRef(false);
   const [criterionSaving, setCriterionSaving] = useState(false);
   const createIntent = useRef<TaskCreateIntent | null>(null);
+  const longPress = useLongPress({ onLongPress: () => setMenuOpen(true), ignoreButtons: true });
   const submit = async () => {
     const title = draft.trim();
     if (!title || !a.onAddChild || savingRef.current) return;
@@ -114,29 +229,37 @@ export function PlanItemCard({ task, kids, byId, settings, fa, childLevelName, v
   };
 
   return (
-    <article className={cn("group rounded-xl border border-border/70 border-s-4 bg-card px-3 py-2.5 shadow-sm transition-shadow duration-200 hover:shadow-md", LEVEL_THEME[level].edge)} data-testid={`plan-item-${task.id}`}>
-      <div className="flex items-start gap-2.5">
-        <CheckDot done={done} level={level} onClick={() => a.onToggle(task)} testId={`plan-item-toggle-${task.id}`} />
-        <button type="button" className="min-w-0 flex-1 text-start" onClick={() => a.onOpen(task)} data-testid={`plan-item-open-${task.id}`}>
-          <p className={cn("text-sm font-medium leading-6 break-words", done && "text-muted-foreground line-through")}>{task.title || (fa ? "بدون عنوان" : "Untitled")}</p>
-          <span className={cn("mt-0.5 inline-flex max-w-full truncate rounded-full px-2 py-0.5 text-[10px]", task.status === "waiting" ? "bg-amber-500/10 text-amber-700 dark:text-amber-300" : task.status === "wont_do" ? "bg-muted text-muted-foreground" : done ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-muted/70 text-muted-foreground")} data-testid={`plan-item-status-${task.id}`}>{statusText}{task.status !== "todo" && ` · ${scheduleText}`}</span>
-          {task.finish_criterion && <p className="mt-1 break-words text-[11px] leading-4 text-muted-foreground" data-testid={`plan-item-finish-criterion-${task.id}`}>{fa ? "معیار پایان:" : "Finish when:"} {task.finish_criterion}</p>}
-          {(parent || valueLabel) && (
-            <div className="mt-1 flex flex-wrap gap-1">
-              {parent && <ParentChip parent={parent} settings={settings} fa={fa} />}
-              {valueLabel && <span className="inline-flex max-w-full items-center gap-1 truncate rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-800 dark:text-amber-300" data-testid={`plan-value-chip-${task.id}`}>{valueLabel}</span>}
-            </div>
-          )}
+    <article
+      className={cn("group rounded-xl border border-border/70 border-s-4 bg-card p-1.5 shadow-sm transition-colors duration-150 hover:bg-accent/40", LEVEL_THEME[level].edge)}
+      data-testid={`plan-item-${task.id}`}
+      data-no-swipe-nav
+      {...longPress.handlers}
+      onClickCapture={(event) => {
+        if (longPress.didFire()) { event.preventDefault(); event.stopPropagation(); }
+      }}
+      onContextMenu={(event) => {
+        const target = event.target as HTMLElement;
+        if (target.closest("input, textarea, [contenteditable='true'], [data-plan-child-row]")) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setMenuOpen(true);
+      }}
+    >
+      <div className="flex items-start gap-1.5">
+        <CheckDot done={done} level={level} priority={task.priority} onClick={() => a.onToggle(task)} testId={`plan-item-toggle-${task.id}`} label={fa ? (done ? "بازکردن تسک" : "تکمیل تسک") : (done ? "Reopen task" : "Complete task")} />
+        <button type="button" data-task-row-open className="min-w-0 flex-1 cursor-pointer select-none text-start rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" onClick={() => a.onOpen(task)} data-testid={`plan-item-open-${task.id}`}>
+          {task.status === "wont_do" && <span className="me-1 inline-grid h-4 w-4 place-items-center rounded bg-muted text-muted-foreground align-middle" title={fa ? "این کار نباید انجام شود" : "This task should not be done"}><Flag className="h-2.5 w-2.5 fill-current" /></span>}
+          <span className={cn("block text-sm font-medium leading-tight break-words", done && "text-muted-foreground line-through", task.status === "wont_do" && !done && "text-muted-foreground")}>{task.title || (fa ? "بدون عنوان" : "Untitled")}</span>
         </button>
         {children.length > 0 && (
-          <button type="button" onClick={() => setOpen(!open)} className="flex h-8 items-center gap-1 rounded-full px-2 text-xs text-muted-foreground hover:bg-muted" data-testid={`plan-item-expand-${task.id}`} aria-expanded={open}>
+          <button type="button" onClick={() => setOpen(!open)} className="flex h-8 shrink-0 items-center gap-1 rounded-md px-1.5 text-[10px] tabular-nums text-muted-foreground hover:bg-muted" data-testid={`plan-item-expand-${task.id}`} aria-expanded={open} aria-label={fa ? "نمایش یا بستن هدف‌های فرزند" : "Expand or collapse child goals"} data-no-longpress>
             {frac(prog.done, prog.total, fa)}
             <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", open && "rotate-180")} />
           </button>
         )}
-        <DropdownMenu modal={false}>
+        <DropdownMenu modal={false} open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger asChild>
-            <button type="button" className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground hover:bg-muted" aria-label={fa ? "گزینه‌ها" : "Options"} data-testid={`plan-item-menu-${task.id}`}>
+            <button type="button" className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted" aria-label={fa ? "گزینه‌ها" : "Options"} data-testid={`plan-item-menu-${task.id}`} data-no-longpress>
               <MoreHorizontal className="h-4 w-4" />
             </button>
           </DropdownMenuTrigger>
@@ -155,30 +278,40 @@ export function PlanItemCard({ task, kids, byId, settings, fa, childLevelName, v
         </DropdownMenu>
       </div>
 
+      <div className="ms-5 mt-1 flex min-h-5 flex-wrap items-center gap-1.5" dir={fa ? "rtl" : "ltr"}>
+        <span className="inline-flex h-5 max-w-full items-center gap-1 rounded-full border border-border/60 bg-secondary/70 px-2 text-[10px] font-medium text-secondary-foreground" title={fa ? "دورهٔ برنامه‌ریزی" : "Planning period"}>
+          <CalendarDays className="h-3 w-3 shrink-0" />
+          <bdi className="truncate">{scheduleText}</bdi>
+        </span>
+        {statusText && <span className={cn("inline-flex h-5 items-center gap-1 rounded-full border px-1.5 text-[10px] font-medium", statusClass)} data-testid={`plan-item-status-${task.id}`}>
+          {task.status === "wont_do" && <Flag className="h-2.5 w-2.5 fill-current" />}
+          {statusText}
+        </span>}
+        {parent && <ParentChip parent={parent} settings={settings} fa={fa} />}
+        {valueLabel && <span className="inline-flex h-5 max-w-full items-center gap-1 truncate rounded-full border border-amber-500/20 bg-amber-500/10 px-2 text-[10px] text-amber-800 dark:text-amber-300" data-testid={`plan-value-chip-${task.id}`}>{valueLabel}</span>}
+      </div>
+
       {children.length > 0 && (
-        <div className="mt-2 flex items-center gap-2 ps-8" data-testid={`plan-item-progress-${task.id}`}>
+        <div className="ms-5 mt-1.5 flex items-center gap-2" data-testid={`plan-item-progress-${task.id}`}>
           <ProgressLine ratio={prog.ratio} level={level} />
-          <span className="text-[11px] tabular-nums text-muted-foreground">{num(Math.round(prog.ratio * 100))}٪</span>
+          <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">{num(Math.round(prog.ratio * 100))}٪</span>
         </div>
       )}
+      {task.finish_criterion && <p className="ms-5 mt-1 break-words text-[11px] leading-4 text-muted-foreground" data-testid={`plan-item-finish-criterion-${task.id}`}>{fa ? "معیار پایان:" : "Finish when:"} {task.finish_criterion}</p>}
 
       {open && children.length > 0 && (
-        <ul className="mt-2 space-y-1 border-s border-dashed border-border ps-3 ms-8" data-testid={`plan-item-children-${task.id}`}>
+        <ul className="ms-5 mt-2 space-y-1 border-s border-dashed border-border ps-3" data-testid={`plan-item-children-${task.id}`}>
           {children.map((c) => {
             const cp = planOf(c, settings);
             return (
-              <li key={c.id} className="flex items-center gap-2 text-sm">
-                <CheckDot done={isDone(c)} level={cp?.horizon || "day"} onClick={() => a.onToggle(c)} testId={`plan-child-toggle-${c.id}`} />
-                <button type="button" onClick={() => a.onOpen(c)} className={cn("min-w-0 flex-1 truncate text-start", isDone(c) && "text-muted-foreground line-through")}>{c.title}</button>
-                {cp && <span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[10px]", LEVEL_THEME[cp.horizon].chip)}>{scheduleLabel(readSchedule(c, settings), settings, fa ? "fa" : "en")}</span>}
-              </li>
+              <PlanChildRow key={c.id} task={c} period={cp} settings={settings} fa={fa} onToggle={a.onToggle} onOpen={a.onOpen} onMoveNext={a.onMoveNext} onUnplan={a.onUnplan} />
             );
           })}
         </ul>
       )}
 
       {adding && (
-        <form className="mt-2 flex items-center gap-2 ps-8" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+        <form className="ms-5 mt-2 flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
           <input autoFocus value={draft} disabled={saving} onChange={(e) => setDraft(e.target.value)} onBlur={() => !draft && setAdding(false)}
             placeholder={fa ? "گام کوچک‌تر…" : "Smaller step…"} className="h-9 min-w-0 flex-1 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" data-testid={`plan-item-child-input-${task.id}`} />
           <button type="submit" disabled={saving} className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground disabled:opacity-50" aria-label={fa ? "افزودن" : "Add"}><CornerDownLeft className="h-4 w-4" /></button>

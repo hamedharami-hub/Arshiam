@@ -180,7 +180,13 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
           snapshot = await getDocs(colRef);
         }
       } catch (queryErr) {
-        // Fallback: If composite index missing or query incompatible, gracefully fallback to client filtering
+        // Only an invalid/index-blocked query may safely fall back to client filtering.
+        // A network, permission, or quota error must not trigger a second read of the
+        // entire collection; that both hides the original failure and can multiply reads.
+        const code = (queryErr as { code?: unknown } | null)?.code;
+        if (code !== "failed-precondition" && code !== "invalid-argument" && code !== "unimplemented") {
+          throw queryErr;
+        }
         snapshot = await getDocs(colRef);
         hasClientOnlyFilter = true;
       }

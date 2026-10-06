@@ -8,6 +8,7 @@ import Youtube from "@tiptap/extension-youtube";
 import Placeholder from "@tiptap/extension-placeholder";
 import Highlight from "@tiptap/extension-highlight";
 import TextAlign from "@tiptap/extension-text-align";
+import Underline from "@tiptap/extension-underline";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import Typography from "@tiptap/extension-typography";
@@ -44,6 +45,7 @@ const AI_ACTIONS = [
 export type RichEditorHandle = {
   getHtml: () => string;
   getMarkdown: () => string;
+  focus: () => void;
   insertText: (text: string) => void;
   insertAttachment: (media: Pick<UploadedMedia, "url" | "name" | "kind">) => void;
 };
@@ -59,6 +61,11 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   attachmentScopeId?: string;
   onAttachmentUploaded?: (media: UploadedMedia) => void;
   onBusyChange?: (busy: boolean) => void;
+  compact?: boolean;
+  compactExpanded?: boolean;
+  showToolbar?: boolean;
+  editorAriaLabel?: string;
+  autoFocus?: boolean;
 }>(function RichEditor({
   initialHtml = "",
   controlledHtml,
@@ -70,6 +77,11 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   attachmentScopeId = "",
   onAttachmentUploaded,
   onBusyChange,
+  compact = false,
+  compactExpanded = false,
+  showToolbar = true,
+  editorAriaLabel,
+  autoFocus = false,
 }, ref) {
   const { T } = useBilingual();
   const placeholder = placeholderProp ?? T("شروع به نوشتن کن…", "Start writing…");
@@ -92,7 +104,8 @@ export const RichEditor = forwardRef<RichEditorHandle, {
     editable: !readOnly,
     shouldRerenderOnTransaction: true,
     extensions: [
-      StarterKit.configure({ heading: { levels: [1, 2, 3] }, link: { openOnClick: false, autolink: true } }),
+      StarterKit.configure({ heading: { levels: [1, 2, 3] }, link: { openOnClick: false, autolink: true }, underline: false }),
+      Underline,
       Highlight.configure({ multicolor: false }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Image.configure({ inline: false, allowBase64: false }),
@@ -113,7 +126,11 @@ export const RichEditor = forwardRef<RichEditorHandle, {
     },
     editorProps: {
       attributes: {
-        class: "prose-note focus:outline-none min-h-[50vh] px-1",
+        dir: "auto",
+        class: compact
+          ? `prose-note focus:outline-none ${compactExpanded ? "min-h-[260px]" : "min-h-[72px]"} px-1`
+          : "prose-note focus:outline-none min-h-[50vh] px-1",
+        ...(editorAriaLabel ? { "aria-label": editorAriaLabel, role: "textbox", "aria-multiline": "true" } : {}),
       },
       handleDrop: (_view, event, _slice, moved) => {
         if (readOnly) { event.preventDefault(); return true; }
@@ -135,18 +152,25 @@ export const RichEditor = forwardRef<RichEditorHandle, {
     },
   });
 
+  useEffect(() => {
+    if (autoFocus && editor && !readOnly && !editor.isDestroyed) editor.commands.focus();
+  }, [autoFocus, editor, readOnly]);
+
   const insertMedia = useCallback((media: Pick<UploadedMedia, "url" | "name" | "kind">) => {
     if (!editor || editor.isDestroyed || readOnly) return;
     if (media.kind === "image") editor.chain().focus().setImage({ src: media.url, alt: media.name, title: media.name }).run();
-    else editor.chain().focus().insertContent({ type: "paragraph", content: [
-      { type: "text", text: "📎 " },
-      { type: "text", text: media.name, marks: [{ type: "link", attrs: { href: media.url, target: "_blank", rel: "noopener noreferrer" } }] },
-    ] }).run();
+    else {
+      const linkText = media.kind === "audio" || media.kind === "video" ? media.kind : media.name;
+      const link = { type: "text", text: linkText, marks: [{ type: "link", attrs: { href: media.url, target: "_blank", rel: "noopener noreferrer" } }] };
+      const content = media.kind === "audio" || media.kind === "video" ? [link] : [{ type: "text", text: "📎 " }, link];
+      editor.chain().focus().insertContent({ type: "paragraph", content }).run();
+    }
   }, [editor, readOnly]);
 
   useImperativeHandle(ref, () => ({
     getHtml: () => editor?.getHTML() ?? "",
     getMarkdown: () => editor ? htmlToMarkdown(editor.getHTML()) : "",
+    focus: () => { if (editor && !readOnly) editor.chain().focus().run(); },
     insertText: (text: string) => {
       if (!editor || readOnly || !text.trim()) return;
       editor.chain().focus().insertContent({ type: "text", text: text.trim() + " " }).run();
@@ -275,14 +299,12 @@ export const RichEditor = forwardRef<RichEditorHandle, {
     }
   };
 
-  if (!editor) return <div className="min-h-[50vh] animate-pulse bg-muted/30 rounded" />;
+  if (!editor) return <div className={`${compact ? compactExpanded ? "min-h-[260px]" : "min-h-[72px]" : "min-h-[50vh]"} animate-pulse rounded bg-muted/30`} />;
 
   return (
     <div
-      className="bg-background overflow-hidden relative w-full rich-editor-surface"
+      className={`${compact ? "bg-transparent overflow-visible" : "bg-background overflow-hidden"} relative w-full rich-editor-surface`}
       data-rich-selection
-      onContextMenu={(e) => e.preventDefault()}
-      style={{ WebkitTouchCallout: "none" } as any}
     >
       <input
         ref={fileRef} type="file" className="hidden" aria-label={T("انتخاب پیوست برای درج در متن", "Choose an attachment to insert in the text")}
@@ -294,7 +316,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
 
       <div ref={sentinelRef} aria-hidden className="h-px" />
 
-      {!readOnly && <div ref={toolbarRef} data-testid="rich-editor-toolbar" role="toolbar" aria-label={T("قالب‌بندی متن", "Text formatting")} onMouseDown={event => event.preventDefault()} className="flex items-center gap-0.5 border-b p-1 sticky top-0 bg-background z-10 overflow-x-auto">
+      {!readOnly && showToolbar && <div ref={toolbarRef} data-testid="rich-editor-toolbar" role="toolbar" aria-label={T("قالب‌بندی متن", "Text formatting")} onMouseDown={event => event.preventDefault()} className="flex items-center gap-0.5 border-b p-1 sticky top-0 bg-background z-10 overflow-x-auto">
         <Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" aria-label="Undo" onClick={() => editor.chain().focus().undo().run()}><Undo2 className="w-4 h-4" /></Button>
         <Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" aria-label="Redo" onClick={() => editor.chain().focus().redo().run()}><Redo2 className="w-4 h-4" /></Button>
         {([ ["bold", Bold], ["italic", Italic], ["underline", UnderlineIcon] ] as const).map(([mark, Icon]) => <Toggle key={mark} size="sm" className="shrink-0 h-8 w-8 px-0" data-mark={mark} aria-label={mark === "bold" ? T("پررنگ", "Bold") : mark === "italic" ? T("مورب", "Italic") : mark === "underline" ? T("زیرخط", "Underline") : T("هایلایت", "Highlight")} pressed={editor.isActive(mark)} onPressedChange={() => editor.chain().focus().toggleMark(mark).run()}><Icon className="w-4 h-4" /></Toggle>)}
@@ -343,7 +365,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
       <LinkDialog open={linkOpen} onOpenChange={setLinkOpen} initialText={linkSelection} askText={!linkSelection} onSubmit={submitLink} />
 
       {/* Floating "show toolbar" FAB when toolbar is scrolled out */}
-      {!readOnly && !toolbarOnScreen && (
+      {!readOnly && showToolbar && !toolbarOnScreen && (
         <button
           type="button"
           onClick={scrollToToolbar}

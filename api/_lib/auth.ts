@@ -40,16 +40,16 @@ export function extractBearerToken(req: any): string | null {
     req.headers?.Authorization ||
     req.headers?.["x-access-token"];
 
-  if (!authHeader || typeof authHeader !== "string") {
+  if (!authHeader || typeof authHeader !== "string" || authHeader.length > 8192) {
     return null;
   }
 
   const parts = authHeader.trim().split(/\s+/);
   if (parts.length === 2 && /^bearer$/i.test(parts[0])) {
-    return parts[1];
+    return parts[1].length <= 8192 ? parts[1] : null;
   }
   // Allow raw token if passed directly
-  if (parts.length === 1 && parts[0].length > 20) {
+  if (parts.length === 1 && parts[0].length > 20 && parts[0].length <= 8192) {
     return parts[0];
   }
   return null;

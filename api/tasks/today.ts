@@ -38,7 +38,7 @@ export default async function handler(req: any, res: any) {
       res,
       500,
       "INTERNAL_ERROR",
-      error?.message || "An unexpected error occurred while fetching today's tasks."
+      "An unexpected error occurred while fetching today's tasks."
     );
   }
 }

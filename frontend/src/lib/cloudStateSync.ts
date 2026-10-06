@@ -8,6 +8,13 @@ export interface CloudBinding {
   stop: () => void;
 }
 
+function isPermanentCloudError(error: unknown): boolean {
+  const code = error && typeof error === "object" && "code" in error
+    ? String((error as { code?: unknown }).code || "")
+    : "";
+  return ["permission-denied", "unauthenticated", "invalid-argument", "failed-precondition", "not-found"].includes(code);
+}
+
 /**
  * Mirrors one localStorage-backed JSON blob to users/{uid}/app_state/{name}.
  * Last writer wins by `updatedAt`; a device with no local copy adopts the cloud copy first.
@@ -42,10 +49,15 @@ export function bindCloudState(
     if (!local || stopped) return;
     let adopted: CloudSnapshot | null = null;
     let rebased: CloudSnapshot | null = null;
+    let wrote = false;
     try {
       // Version-aware write: read the cloud revision in the same transaction that
       // writes, so the check cannot be invalidated by a concurrent remote write.
       await runTransaction(db, async (transaction) => {
+        // Firestore may retry the callback; keep the outcome tied to its final run.
+        adopted = null;
+        rebased = null;
+        wrote = false;
         const snap = await transaction.get(ref);
         if (snap.exists()) {
           const remote = snap.data() as { updatedAt?: number; json?: string };
@@ -73,10 +85,17 @@ export function bindCloudState(
           }
         }
         transaction.set(ref, { updatedAt: local.updatedAt, json: JSON.stringify(local.data) });
+        wrote = true;
       });
     } catch (e) {
       console.warn(`[cloudState] could not upload ${name}`, e);
       if (stopped) return;
+      // Keep the local snapshot for a later explicit edit or account sync, but
+      // do not retry authorization/schema failures forever in the background.
+      if (isPermanentCloudError(e)) {
+        retryDelay = 0;
+        return;
+      }
       // Firestore cannot queue a rejected transaction the way a plain `setDoc` was
       // queued, so retry with backoff instead of dropping this offline edit.
       retryDelay = retryDelay ? Math.min(retryDelay * 2, 60_000) : 4_000;
@@ -94,6 +113,13 @@ export function bindCloudState(
       console.warn(`[cloudState] ${name}: cloud copy is newer; adopting it instead of overwriting`);
       opts.apply(adopted.data, adopted.updatedAt, local);
       pendingPush = false;
+      return;
+    }
+    if (wrote) {
+      // The transaction itself acknowledges the local write even if the initial
+      // snapshot listener has already failed and cannot deliver an echo snapshot.
+      pendingPush = false;
+      markCloudInitialized(local);
     }
   };
 
@@ -160,6 +186,13 @@ export function bindCloudState(
     (err) => {
       ready = true;
       console.warn(`[cloudState] listen failed for ${name}`, err);
+      const permanent = isPermanentCloudError(err);
+      // A listener can terminate before the first snapshot. Preserve local work
+      // and push it through the transaction path when the error may be transient.
+      if (pendingPush || opts.read()) {
+        pendingPush = true;
+        if (!permanent) push();
+      }
     },
   );
 

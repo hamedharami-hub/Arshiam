@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { isPathAllowed, useModules } from "@/lib/appModules";
 import {
-  CalendarDays, FolderTree, Tag, Folder as FolderIcon,
+  CalendarDays, FolderTree, Tag,
   LogOut, Settings, PanelLeft, PanelRight, Plus,
 } from "lucide-react";
 import {
@@ -50,7 +50,7 @@ import {
   SortableBlock,
   SidebarSectionCollapsible,
 } from "./sidebar/SidebarNavSections";
-import { Folder, SidebarFoldersList } from "./sidebar/SidebarFoldersList";
+import { Folder, FolderMarker, SidebarFoldersList } from "./sidebar/SidebarFoldersList";
 import { TagT, SidebarTagsList } from "./sidebar/SidebarTagsList";
 
 
@@ -171,7 +171,7 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
 
   const createFolder = async () => {
     if (!newFolder.trim() || !user) return;
-    const folder: Folder = { id: generateId(), name: newFolder, user_id: user.id, parent_id: null, color: "" };
+    const folder: Folder = { id: generateId(), name: newFolder, user_id: user.id, parent_id: null, color: "", emoji: null };
     setFolders(prev => [...prev, folder]);
     await cacheSet(FOLDERS_KEY, [...folders, folder]);
 
@@ -441,10 +441,7 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
                                       activeClassName="bg-primary/10 text-primary font-bold"
                                       onClick={closeOnMobile}
                                     >
-                                      <FolderIcon
-                                        className="w-4 h-4 shrink-0"
-                                        style={{ color: f.color || "hsl(var(--primary))" }}
-                                      />
+                                      <FolderMarker folder={f} />
                                       <span className="truncate flex-1 text-start font-medium">{f.name}</span>
                                     </NavLink>
                                   ))
@@ -622,6 +619,15 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
         onOpenChange={(v) => !v && setSheetFolder(null)}
         onDelete={() => sheetFolder && setDelFolder(sheetFolder)}
         onAIChat={() => sheetFolder && setAiFolder(sheetFolder)}
+        onChanged={(patch) => {
+          if (!sheetFolder || !patch) return;
+          setSheetFolder((current) => current?.id === sheetFolder.id ? { ...current, ...patch } : current);
+          setFolders((current) => {
+            const next = current.map((folder) => folder.id === sheetFolder.id ? { ...folder, ...patch } : folder);
+            void cacheSet(FOLDERS_KEY, next);
+            return next;
+          });
+        }}
       />
       <SidebarItemSheet
         item={sheetTag}

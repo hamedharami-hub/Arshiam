@@ -63,7 +63,7 @@ import {
   saveKanbanGoals,
   getUserOwnGoals,
   isAutoDefaultGoal,
-  getGoalById,
+  filterGoalsForView,
   generateUUID,
 } from "@/lib/kanbanGoals";
 import { cacheGet } from "@/lib/offlineQueue";
@@ -220,6 +220,11 @@ export default function KanbanView() {
     return ownGoals.filter((g) => !isAutoDefaultGoal(g) || used.has(g.id));
   }, [ownGoals, allTasks]);
 
+  const visibleGoals = useMemo(
+    () => filterGoalsForView(goals, viewMode, timeFilter, priorityFilter),
+    [goals, viewMode, timeFilter, priorityFilter],
+  );
+
   const belongsToGoal = useCallback(
     (t: Task, g: OwnedGoal) =>
       t.kanban_column_id === g.id ||
@@ -228,8 +233,8 @@ export default function KanbanView() {
   );
 
   const activeGoal: OwnedGoal | null = useMemo(
-    () => (selectedGoalId && (getGoalById(goals, selectedGoalId) as OwnedGoal | undefined)) || goals[0] || null,
-    [goals, selectedGoalId],
+    () => visibleGoals.find((goal) => goal.id === selectedGoalId) || visibleGoals[0] || null,
+    [visibleGoals, selectedGoalId],
   );
   const activeGoalId = activeGoal?.id || null;
 
@@ -512,8 +517,8 @@ export default function KanbanView() {
       {/* 2. SINGLE-TIER GOAL TABS */}
       <div className="overflow-x-auto no-scrollbar">
         <MultiTierTabs
-          goals={goals}
-          selectedGoalId={selectedGoalId}
+          goals={visibleGoals}
+          selectedGoalId={activeGoalId}
           viewMode={viewMode}
           selectedTimeFilter={timeFilter}
           selectedPriorityFilter={priorityFilter}

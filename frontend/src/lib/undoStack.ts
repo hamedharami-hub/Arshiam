@@ -1,6 +1,7 @@
 // Lightweight global undo/redo stack for destructive actions.
-// Items are kept only in memory; capacity = 20.
-// Each entry has: a label, an `undo` (re-create what was deleted) and optional `redo` (re-perform the action).
+// Items are kept only in memory; capacity = 20. Related saves can opt into a
+// short merge window so autosaving text edits keeps one undo point.
+// Each entry has: a label, an `undo` and optional `redo`.
 
 import { toast } from "sonner";
 
@@ -8,11 +9,16 @@ export type UndoEntry = {
   label: string;
   undo: () => Promise<void> | void;
   redo?: () => Promise<void> | void;
+  /** Optional payload for actions whose merge closure needs to track the latest autosaved value. */
+  mergeData?: unknown;
+  onMerge?: (latestMergeData: unknown) => void;
 };
 
+type StoredUndoEntry = UndoEntry & { mergeKey?: string; updatedAt?: number };
+
 const CAP = 20;
-const undoStack: UndoEntry[] = [];
-const redoStack: UndoEntry[] = [];
+const undoStack: StoredUndoEntry[] = [];
+const redoStack: StoredUndoEntry[] = [];
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
@@ -23,12 +29,34 @@ export function subscribeUndo(l: Listener) {
   return () => listeners.delete(l);
 }
 
-export function pushUndo(entry: UndoEntry, opts: { showToast?: boolean } = {}) {
-  undoStack.push(entry);
+export function pushUndo(entry: UndoEntry, opts: { showToast?: boolean; mergeKey?: string; mergeWindowMs?: number } = {}) {
+  const now = Date.now();
+  const previous = undoStack[undoStack.length - 1];
+  const shouldMerge = Boolean(
+    opts.mergeKey &&
+    previous?.mergeKey === opts.mergeKey &&
+    previous.updatedAt != null &&
+    now - previous.updatedAt <= (opts.mergeWindowMs ?? 8000),
+  );
+
+  if (shouldMerge && previous) {
+    // Keep the first undo snapshot but replace redo with the latest committed value.
+    previous.onMerge?.(entry.mergeData);
+    undoStack[undoStack.length - 1] = {
+      ...entry,
+      undo: previous.undo,
+      onMerge: previous.onMerge,
+      mergeData: previous.mergeData,
+      mergeKey: opts.mergeKey,
+      updatedAt: now,
+    };
+  } else {
+    undoStack.push({ ...entry, mergeKey: opts.mergeKey, updatedAt: now });
+  }
   if (undoStack.length > CAP) undoStack.shift();
   redoStack.length = 0;
   notify();
-  if (opts.showToast !== false) {
+  if (opts.showToast !== false && !shouldMerge) {
     toast(entry.label, {
       duration: 8000,
       action: {

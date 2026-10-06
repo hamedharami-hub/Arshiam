@@ -7,6 +7,9 @@ import type { Task, ReminderPlan, ReminderMode, ReminderImportance, ReminderPlan
 import { getStoredTheme } from "@/lib/theme";
 import { toLocalISO } from "@/lib/timeHorizon";
 import { isAndroid, nativeExperience } from "./nativeExperience";
+import { auth, db } from "@/lib/firebase";
+import { collection, doc, getDocFromServer, getDocsFromServer, limit, query, setDoc, where } from "firebase/firestore";
+import { normalizeTaskWrite } from "@/lib/taskSchedule";
 export { ensureNotificationPermission } from "@/lib/notify";
 export type { ReminderPlan, ReminderMode, ReminderImportance, ReminderPlanStatus };
 
@@ -241,6 +244,7 @@ export type UserSettings = {
 
 const LAST_NOTIFY_KEY = "reminder_last_fired_v1"; // {sleep:"YYYY-MM-DD", checkin:"YYYY-MM-DD"}
 const LAST_TASK_KEY = "reminder_last_task_v1"; // "YYYY-MM-DD"
+const AUTO_DAILY_CHECKIN_ID = "system_auto_daily_checkin_v1";
 
 function todayKey(): string {
   const now = new Date();
@@ -344,43 +348,76 @@ export async function ensureDailyTasks(userId: string, s: UserSettings) {
   if (!s.auto_create_daily_tasks) return;
   const today = todayKey();
   if (localStorage.getItem(LAST_TASK_KEY) === today) return;
+  if (!userId || auth.currentUser?.uid !== userId) return;
 
   const dueIso = toLocalISO(new Date()); // today as a calendar day, no fabricated time
-  const items: { title: string; description: string }[] = [];
-  if (s.checkin_reminder_enabled && s.show_daily_checkin !== false) items.push({
+  const item = s.checkin_reminder_enabled && s.show_daily_checkin !== false ? {
     title: "چک‌این روزانه 📝",
     description: "خلق، انرژی، تمرکز، استرس را ثبت کن. روی این تسک بزن تا مستقیم به صفحه چک‌این بری.",
-  });
+  } : null;
 
-  if (items.length === 0) {
+  if (!item) {
     localStorage.setItem(LAST_TASK_KEY, today);
     return;
   }
 
-  // Avoid duplicates: check for tasks today with these titles
-  const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
-  const { data: existing } = await firebaseStore
-    .from("tasks")
-    .select("title")
-    .eq("user_id", userId)
-    .gte("created_at", startOfDay.toISOString());
-  const existingTitles = new Set((existing || []).map((t: any) => t.title));
+  try {
+    const taskRef = doc(db, "users", userId, "tasks", AUTO_DAILY_CHECKIN_ID);
+    const existingStableTask = await getDocFromServer(taskRef);
+    if (existingStableTask.exists()) {
+      localStorage.setItem(LAST_TASK_KEY, today);
+      return;
+    }
 
-  const toInsert = items
-    .filter((i) => !existingTitles.has(i.title))
-    .map((i) => ({
+    // Older app versions made a random-ID copy every day while also marking it
+    // recurring. Adopt that existing series instead of starting another one.
+    // Read only a small title-matched page; if Firestore cannot verify the read,
+    // leave the day unmarked and retry later instead of creating a duplicate.
+    const previousTasks = await getDocsFromServer(query(
+      collection(db, "users", userId, "tasks"),
+      where("title", "==", item.title),
+      limit(20),
+    ));
+    const oldDailyTaskExists = previousTasks.docs.some((snapshot) => {
+      const row = snapshot.data();
+      return row.auto_daily_key === "checkin"
+        || row.recurrence === "daily"
+        || Boolean(row.recurrence_rule?.freq);
+    });
+    if (oldDailyTaskExists) {
+      localStorage.setItem(LAST_TASK_KEY, today);
+      return;
+    }
+
+    if (auth.currentUser?.uid !== userId) return;
+    const now = new Date().toISOString();
+    const task = normalizeTaskWrite({
+      id: AUTO_DAILY_CHECKIN_ID,
       user_id: userId,
-      title: i.title,
-      description: i.description,
-      due_date: dueIso,
-      priority: "medium" as const,
-      recurrence: "daily" as const,
-    }));
+      auto_daily_key: "checkin",
+      title: item.title,
+      description: item.description,
+      work_date: dueIso,
+      schedule_v: 2,
+      recurrence: "daily",
+      recurrence_rule: null,
+      priority: "medium",
+      completed: false,
+      status: "todo",
+      folder_id: null,
+      pinned: false,
+      created_at: now,
+      updated_at: now,
+    });
 
-  if (toInsert.length > 0) {
-    await firebaseStore.from("tasks").insert(toInsert);
+    // A stable document ID makes the first creation idempotent across devices.
+    // `setDoc` is Firestore's offline-persisted write path; it cannot produce a
+    // second record if two app instances start this routine together.
+    await setDoc(taskRef, task, { merge: true });
+    localStorage.setItem(LAST_TASK_KEY, today);
+  } catch (error) {
+    console.warn("[Reminders] Could not verify or create the daily check-in task; it will be retried:", error);
   }
-  localStorage.setItem(LAST_TASK_KEY, today);
 }
 
 const SETTINGS_CACHE_KEY = (userId: string) => `settings:${userId}`;

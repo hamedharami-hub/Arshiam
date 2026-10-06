@@ -1,5 +1,5 @@
 import { ASSISTANT_SCOPES, AssistantConfigurationError, authenticateOwner, createGrant, listGrants, type AssistantScope } from "../_lib/assistantAccess.js";
-import { handleCors, parseBody, sendError, sendJson } from "../_lib/response.js";
+import { handleCors, parseBody, sendError, sendJson, sendRequestBodyError } from "../_lib/response.js";
 
 export default async function handler(req: any, res: any) {
   if (handleCors(req, res)) return;
@@ -24,6 +24,7 @@ export default async function handler(req: any, res: any) {
     res.setHeader("Cache-Control", "no-store");
     return sendJson(res, 201, { success: true, data: grant, token: secret });
   } catch (error) {
+    if (sendRequestBodyError(res, error)) return;
     if (error instanceof AssistantConfigurationError) return sendError(res, 503, "SERVICE_NOT_CONFIGURED", error.message);
     console.error("Assistant access request failed", error);
     return sendError(res, 500, "INTERNAL_ERROR", "Assistant access is unavailable.");

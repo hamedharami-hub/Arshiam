@@ -1,7 +1,7 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
-import { Pencil, Trash2, Sparkles, FolderPlus, Copy, Palette, Share2 } from "lucide-react";
+import { Pencil, Trash2, Sparkles, FolderPlus, Copy, Palette, Share2, Folder as FolderIcon } from "lucide-react";
 import { useState, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ import { useShareAccess } from "@/hooks/useShareAccess";
 import { useAuth } from "@/hooks/useAuth";
 import { isFeatureEnabled } from "@/lib/capabilities";
 
-type Item = { id: string; user_id?: string; name: string; color?: string };
+type Item = { id: string; user_id?: string; name: string; color?: string; emoji?: string | null };
 type Kind = "folder" | "tag";
 
 interface Props {
@@ -23,10 +23,11 @@ interface Props {
   onDelete: () => void;
   onAIChat?: () => void;
   onAddSubfolder?: () => void;
-  onChanged?: () => void;
+  onChanged?: (patch?: Pick<Partial<Item>, "color" | "emoji">) => void;
 }
 
 const COLORS = ["#94a3b8", "#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6", "#a855f7", "#ec4899"];
+const FOLDER_EMOJIS = ["📁", "📂", "💼", "🏠", "🏢", "🎯", "📚", "💡", "🧠", "🎨", "🛠️", "💻", "💰", "❤️", "🌱", "✈️", "🏃", "🛒", "🎵", "📦", "🔖", "⭐", "🌙", "☀️"];
 
 export default function SidebarItemSheet({ item, kind, onOpenChange, onDelete, onAIChat, onAddSubfolder, onChanged }: Props) {
   const { i18n } = useTranslation();
@@ -41,6 +42,7 @@ export default function SidebarItemSheet({ item, kind, onOpenChange, onDelete, o
   const { prefersDialog } = useDeviceFormFactor();
   if (!item) return null;
   const table = kind === "folder" ? "folders" : "tags";
+  const customColorValue = /^#[\da-f]{6}$/i.test(item.color || "") ? item.color! : "#94a3b8";
 
   const Item = ({ icon: Icon, label, onClick, danger, disabled }: {
     icon: ComponentType<{ className?: string }>;
@@ -74,7 +76,15 @@ export default function SidebarItemSheet({ item, kind, onOpenChange, onDelete, o
     if (!owns) { toast(T("فقط صاحب می‌تواند رنگ را تغییر دهد", "Only the owner can change color")); return; }
     const { error } = await firebaseStore.from(table).update({ color: c }).eq("id", item.id);
     if (error) toast.error(error.message);
-    else { onChanged?.(); }
+    else { onChanged?.({ color: c }); }
+  };
+
+  const setEmoji = async (emoji: string | null) => {
+    if (kind !== "folder") return;
+    if (!owns) { toast(T("فقط صاحب می‌تواند نشانه را تغییر دهد", "Only the owner can change the marker")); return; }
+    const { error } = await firebaseStore.from("folders").update({ emoji }).eq("id", item.id);
+    if (error) toast.error(error.message);
+    else { onChanged?.({ emoji }); }
   };
 
   const bodyContent = renaming ? (
@@ -110,8 +120,53 @@ export default function SidebarItemSheet({ item, kind, onOpenChange, onDelete, o
               className={`w-7 h-7 rounded-full ring-2 ring-transparent transition ${owns ? "hover:ring-primary active:scale-90" : "opacity-40 cursor-not-allowed"}`}
               style={{ backgroundColor: c, borderColor: item.color === c ? "white" : "transparent" }} />
           ))}
+          {kind === "folder" && (
+            <label className={`flex h-8 items-center gap-2 rounded-full border border-border px-2 text-xs text-muted-foreground ${owns ? "cursor-pointer hover:bg-accent" : "cursor-not-allowed opacity-40"}`}>
+              <input
+                type="color"
+                value={customColorValue}
+                disabled={!owns}
+                onChange={(event) => void setColor(event.target.value)}
+                aria-label={T("انتخاب رنگ دلخواه", "Choose a custom color")}
+                className="h-5 w-5 cursor-pointer rounded-full border-0 bg-transparent p-0 disabled:cursor-not-allowed"
+              />
+              <span>{T("دلخواه", "Custom")}</span>
+            </label>
+          )}
         </div>
       </div>
+      {kind === "folder" && (
+        <div className="px-3 py-3 rounded-lg">
+          <div className="flex items-center gap-2 mb-2 text-sm text-muted-foreground">
+            <FolderIcon className="w-4 h-4" /> {T("نشانهٔ فولدر", "Folder marker")}
+          </div>
+          <div className="grid grid-cols-6 gap-1.5">
+            <button
+              type="button"
+              onClick={() => void setEmoji(null)}
+              disabled={!owns}
+              aria-label={T("نشانهٔ پیش‌فرض", "Default folder icon")}
+              aria-pressed={!item.emoji}
+              className={`grid h-9 place-items-center rounded-lg border text-muted-foreground transition hover:bg-accent disabled:opacity-40 ${!item.emoji ? "border-primary bg-primary/10 ring-1 ring-primary/30" : "border-border"}`}
+            >
+              <FolderIcon className="h-4 w-4" style={{ color: item.color || undefined }} />
+            </button>
+            {FOLDER_EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => void setEmoji(emoji)}
+                disabled={!owns}
+                aria-label={`${T("انتخاب نشانهٔ", "Select marker")} ${emoji}`}
+                aria-pressed={item.emoji === emoji}
+                className={`grid h-9 place-items-center rounded-lg border text-lg transition hover:bg-accent disabled:opacity-40 ${item.emoji === emoji ? "border-primary bg-primary/10 ring-1 ring-primary/30" : "border-border"}`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <Item icon={Trash2} label={T("حذف", "Delete")} danger disabled={!owns} onClick={() => { onOpenChange(false); onDelete(); }} />
     </div>
   );
@@ -123,7 +178,7 @@ export default function SidebarItemSheet({ item, kind, onOpenChange, onDelete, o
         <DialogContent className="max-w-md max-h-[75vh] flex flex-col overflow-hidden p-6">
           <DialogHeader>
             <DialogTitle className="text-start text-base truncate flex items-center gap-2">
-              <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: item.color || "#94a3b8" }} />
+              {kind === "folder" && item.emoji ? <span className="text-base">{item.emoji}</span> : <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: item.color || "#94a3b8" }} />}
               {item.name}
             </DialogTitle>
             <DialogDescription className="sr-only">
@@ -140,7 +195,7 @@ export default function SidebarItemSheet({ item, kind, onOpenChange, onDelete, o
         <SheetContent side="bottom" className="rounded-t-2xl pb-6">
           <SheetHeader>
             <SheetTitle className="text-start text-base truncate flex items-center gap-2">
-              <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: item.color || "#94a3b8" }} />
+              {kind === "folder" && item.emoji ? <span className="text-base">{item.emoji}</span> : <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: item.color || "#94a3b8" }} />}
               {item.name}
             </SheetTitle>
           </SheetHeader>

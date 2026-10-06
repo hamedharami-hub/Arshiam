@@ -91,7 +91,6 @@ export function DesktopFloatingDock({
             tab={tab}
             isActive={tab.match(currentPath)}
             mode="desktop"
-            dir={dir}
           />
         ))}
       </div>

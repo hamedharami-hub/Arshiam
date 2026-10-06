@@ -1,7 +1,7 @@
 import { InvalidTaskInputError } from "../_lib/taskInput.js";
 import { authenticateRequest } from "../_lib/auth.js";
 import { createUserTask, listUserTasks } from "../_lib/firestore.js";
-import { handleCors, parseBody, sendError, sendJson } from "../_lib/response.js";
+import { handleCors, parseBody, sendError, sendJson, sendRequestBodyError } from "../_lib/response.js";
 import { InvalidTaskPriorityError, InvalidTaskScheduleError, normalizeTaskPriority } from "../_lib/taskSchedule.js";
 
 function parseQueryParams(req: any): Record<string, any> {
@@ -90,6 +90,7 @@ export default async function handler(req: any, res: any) {
       return;
     }
   } catch (error: any) {
+    if (sendRequestBodyError(res, error)) return;
     if (error instanceof InvalidTaskInputError) return sendError(res, 400, "VALIDATION_ERROR", error.message);
     console.error("[API /api/tasks error]:", error);
     if (error instanceof InvalidTaskScheduleError) {
@@ -104,7 +105,7 @@ export default async function handler(req: any, res: any) {
       res,
       500,
       "INTERNAL_ERROR",
-      error?.message || "An unexpected error occurred while processing tasks."
+      "An unexpected error occurred while processing tasks."
     );
   }
 }

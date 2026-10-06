@@ -57,7 +57,7 @@ import {
   type GoalPriority,
   getKanbanGoals,
   saveKanbanGoals,
-  getGoalById,
+  filterGoalsForView,
   generateUUID,
   isValidUUID,
   TIME_HORIZONS,
@@ -220,16 +220,20 @@ export function FolderKanban({
   }, [user, folderId]);
 
   // Identify Active Goal
-  const activeGoal = useMemo(() => {
-    if (!selectedGoalId) return goals[0] || null;
-    return getGoalById(goals, selectedGoalId) || goals[0] || null;
-  }, [goals, selectedGoalId]);
+  const visibleGoals = useMemo(
+    () => filterGoalsForView(goals, viewMode, timeFilter, priorityFilter),
+    [goals, viewMode, timeFilter, priorityFilter],
+  );
+  const activeGoal = useMemo(
+    () => visibleGoals.find((goal) => goal.id === selectedGoalId) || visibleGoals[0] || null,
+    [visibleGoals, selectedGoalId],
+  );
   useEffect(() => {
     onGoalColorChange?.(activeGoal?.color || null);
     return () => onGoalColorChange?.(null);
   }, [activeGoal?.color, onGoalColorChange]);
 
-  const activeGoalId = activeGoal?.id || goals[0]?.id || null;
+  const activeGoalId = activeGoal?.id || null;
 
   // Task Counts per Goal (for badge indicators)
   const taskCountsByGoal = useMemo(() => {
@@ -244,7 +248,7 @@ export function FolderKanban({
 
   // Filtered tasks for current active goal in this folder
   const currentGoalTasks = useMemo(() => {
-    if (!activeGoalId) return allTasks;
+    if (!activeGoalId) return [];
     const isFirstGoal = activeGoalId === goals[0]?.id;
     return allTasks.filter((t) => {
       if (t.kanban_column_id === activeGoalId) return true;
@@ -476,8 +480,8 @@ export function FolderKanban({
       {/* 2. SINGLE-TIER GOAL TABS */}
       <div className="overflow-x-auto no-scrollbar">
         <MultiTierTabs
-          goals={goals}
-          selectedGoalId={selectedGoalId}
+          goals={visibleGoals}
+          selectedGoalId={activeGoalId}
           viewMode={viewMode}
           selectedTimeFilter={timeFilter}
           selectedPriorityFilter={priorityFilter}

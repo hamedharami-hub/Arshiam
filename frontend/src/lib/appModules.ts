@@ -30,6 +30,7 @@ const EMPTY: ModulesState = { ready: false, unlocked: [], installed: [], isAdmin
 let state: ModulesState = EMPTY;
 let cacheKey: string | null = null;
 const listeners = new Set<() => void>();
+let retiredCleanupRetry: { uid: string; handler: () => void } | null = null;
 
 function emit(next: ModulesState) {
   state = next;
@@ -49,6 +50,57 @@ export function getModulesState() {
 
 export function useModules(): ModulesState {
   return useSyncExternalStore((l) => { listeners.add(l); return () => listeners.delete(l); }, () => state, () => state);
+}
+
+async function cleanRetiredModuleData(uid: string): Promise<boolean> {
+  const { retireOwnedModuleData } = await import("@/lib/offlineQueue");
+  const queued = await retireOwnedModuleData(uid);
+  const { auth } = await import("@/lib/firebase");
+  if (auth.currentUser?.uid !== uid) throw new Error("The active account does not own retired-module cleanup.");
+  const { purgeRetiredModuleCloudData } = await import("@/lib/retiredModuleCloudPurge");
+  const cloud = await purgeRetiredModuleCloudData(uid);
+  if (queued.incomplete) console.warn("[appModules] Retired-module queue cleanup is incomplete; ambiguous items were preserved.");
+  return !queued.incomplete && !cloud.incomplete;
+}
+
+function clearRetiredModuleCleanupRetry(uid: string): void {
+  if (retiredCleanupRetry?.uid !== uid) return;
+  if (typeof window !== "undefined") window.removeEventListener("online", retiredCleanupRetry.handler);
+  retiredCleanupRetry = null;
+}
+
+function startRetiredModuleCloudPurge(uid: string, queueIncomplete: boolean): void {
+  void import("@/lib/firebase").then(({ auth }) => {
+    if (cacheKey !== `arshnaz:modules:${uid}` || auth.currentUser?.uid !== uid) return null;
+    return import("@/lib/retiredModuleCloudPurge").then(({ purgeRetiredModuleCloudData }) => purgeRetiredModuleCloudData(uid));
+  }).then((result) => {
+    if (!result || cacheKey !== `arshnaz:modules:${uid}`) return;
+    if (result.incomplete || queueIncomplete) scheduleRetiredModuleCleanupRetry(uid);
+    else clearRetiredModuleCleanupRetry(uid);
+  }).catch((error) => {
+    if (cacheKey !== `arshnaz:modules:${uid}`) return;
+    console.warn("[appModules] Retired-module cloud purge could not be verified.", error);
+    scheduleRetiredModuleCleanupRetry(uid);
+  });
+}
+
+function scheduleRetiredModuleCleanupRetry(uid: string): void {
+  if (typeof window === "undefined") return;
+  if (retiredCleanupRetry?.uid === uid) return;
+  if (retiredCleanupRetry) window.removeEventListener("online", retiredCleanupRetry.handler);
+
+  const handler = () => {
+    if (retiredCleanupRetry?.handler === handler) retiredCleanupRetry = null;
+    void cleanRetiredModuleData(uid).then((complete) => {
+      if (complete) clearRetiredModuleCleanupRetry(uid);
+      else scheduleRetiredModuleCleanupRetry(uid);
+    }).catch((error) => {
+      console.warn("[appModules] Retired-module cleanup retry failed.", error);
+      scheduleRetiredModuleCleanupRetry(uid);
+    });
+  };
+  retiredCleanupRetry = { uid, handler };
+  window.addEventListener("online", handler, { once: true });
 }
 
 function pathOwners(path: string): ModuleId[] {
@@ -76,18 +128,30 @@ function fromServer(r: ServerState): Partial<ModulesState> {
 
 /** Called on sign-in / sign-out. Uses the per-account cache first so hidden sections never flash. */
 export async function syncModulesForUser(uid: string | null): Promise<void> {
-  if (!uid) { cacheKey = null; emit(EMPTY); return; }
+  if (!uid) {
+    cacheKey = null;
+    if (typeof window !== "undefined" && retiredCleanupRetry) window.removeEventListener("online", retiredCleanupRetry.handler);
+    retiredCleanupRetry = null;
+    emit(EMPTY);
+    return;
+  }
+  if (typeof window !== "undefined" && retiredCleanupRetry?.uid !== uid && retiredCleanupRetry) {
+    window.removeEventListener("online", retiredCleanupRetry.handler);
+    retiredCleanupRetry = null;
+  }
   const userCacheKey = `arshnaz:modules:${uid}`;
   cacheKey = userCacheKey;
   emit(EMPTY);
   clearRetiredModuleStorage(uid);
   try {
     const { retireOwnedModuleData } = await import("@/lib/offlineQueue");
-    const cleanup = await retireOwnedModuleData(uid);
-    if (cleanup.incomplete) console.warn("[appModules] Retired-module queue cleanup is incomplete; ambiguous items were preserved.");
+    const queued = await retireOwnedModuleData(uid);
+    if (queued.incomplete) console.warn("[appModules] Retired-module queue cleanup is incomplete; ambiguous items were preserved.");
+    if (cacheKey === userCacheKey) startRetiredModuleCloudPurge(uid, queued.incomplete);
   } catch (error) {
-    // Keep ambiguous queue entries for the recovery UI; never assign them to a different UID.
-    console.warn("[appModules] Retired-module queue cleanup could not be verified.", error);
+    // Keep ambiguous queue entries and retry cleanup when connectivity returns.
+    console.warn("[appModules] Retired-module cleanup could not be verified.", error);
+    scheduleRetiredModuleCleanupRetry(uid);
   }
   if (cacheKey !== userCacheKey) return;
   let cached: ModulesState | null = null;

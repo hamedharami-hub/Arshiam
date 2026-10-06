@@ -38,6 +38,18 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
+      // Retired modules must not repopulate user data on an older client.
+      // Keep owner reads for migration diagnostics and owner deletes for the
+      // bounded cleanup flow; all client create/update operations are blocked.
+      match /pharmacy_practice/{docId=**} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if false;
+      }
+      match /leitner_reviews/{docId=**} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if false;
+      }
+
       // Permanent, non-sensitive deletion markers fence both old clients and concurrent batches.
       match /cycle_profile_tombstones/{profileId} {
         allow read: if isOwner(userId);
@@ -75,6 +87,8 @@ service cloud.firestore {
             'assistant_grants',
             'assistant_audit',
             'assistant_trash',
+            'pharmacy_practice',
+            'leitner_reviews',
             'cycle_profiles',
             'cycle_logs',
             'cycle_profile_tombstones',

@@ -32,7 +32,7 @@ import {
   Pin,
   RotateCcw,
   Search,
-  Columns3,
+  Blocks,
 } from "lucide-react";
 import {
   DndContext,
@@ -89,7 +89,7 @@ const QUICK_LINK_ICONS: Record<string, any> = {
   "/app/widgets": LayoutGrid,
   "/app/buckets": Clock,
   "/app/planning": Clock,
-  "/app/kanban": Columns3,
+  "/app/tools": Blocks,
   "/app/smart": Filter,
   "/app/pomodoro": Timer,
   "/app/stats": BarChart3,

@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
 import { formatDate } from "@/lib/jalali";
 import { EmptyState } from "@/components/EmptyState";
-import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, Ban, Pin, Clock, FolderInput, Check, X, GitBranch, MoreVertical, Zap, Columns2, CheckSquare, CheckCircle2 } from "lucide-react";
+import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, Ban, Pin, Clock, FolderInput, Check, X, GitBranch, MoreVertical, Zap, Columns2, CheckSquare, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
 import { MoveToDialog } from "@/components/MoveToDialog";
 import { FolderDeleteDialog } from "@/components/FolderDeleteDialog";
 import { useNavigate } from "react-router-dom";
@@ -133,12 +133,16 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     outcomeByTaskId,
     folderName,
     tagName,
+    isReady,
+    hasLoadError,
+    loadErrorMessage,
     load,
   } = useTasksData({ user, scope, scopeId: params.id });
   // Soft-completed / soft-deleted tasks are kept visible for a short grace period
   // so users see the strikethrough before the item disappears.
   const [graceTasks, setGraceTasks] = useState<Record<string, Task & { _graceUntil: number }>>({});
   const [graceMap, setGraceMap] = useState<Record<string, number>>({});
+  const graceTimersRef = useRef<Record<string, number>>({});
   // A slower cache refresh or Firestore snapshot must not repaint a just-edited
   // badge with its previous value while the user remains on this list.
   const [visualPatches, setVisualPatches] = useState<Record<string, Partial<Task>>>({});
@@ -155,6 +159,28 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const base = activeGhosts.length ? [...allTasks, ...activeGhosts] : allTasks;
     return applyVisualTaskPatches(base, visualPatches);
   }, [allTasks, graceTasks, graceMap, visualPatches]);
+  const currentTasksRef = useRef<Task[]>(effectiveAllTasks);
+  currentTasksRef.current = effectiveAllTasks;
+  const keepCompletedTaskVisible = (taskId: string) => {
+    const previousTimer = graceTimersRef.current[taskId];
+    if (previousTimer !== undefined) window.clearTimeout(previousTimer);
+    const until = Date.now() + GRACE_MS;
+    setGraceMap((prev) => ({ ...prev, [taskId]: until }));
+    graceTimersRef.current[taskId] = window.setTimeout(() => {
+      setGraceMap((prev) => { const next = { ...prev }; delete next[taskId]; return next; });
+      delete graceTimersRef.current[taskId];
+    }, GRACE_MS);
+  };
+  const clearCompletedTaskGrace = (taskId: string) => {
+    const timer = graceTimersRef.current[taskId];
+    if (timer !== undefined) window.clearTimeout(timer);
+    delete graceTimersRef.current[taskId];
+    setGraceMap((prev) => { const next = { ...prev }; delete next[taskId]; return next; });
+  };
+  useEffect(() => () => {
+    Object.values(graceTimersRef.current).forEach((timer) => window.clearTimeout(timer));
+    graceTimersRef.current = {};
+  }, []);
   useEffect(() => {
     void syncAndroidWidget(allTasks, user?.id).catch(() => {});
     void Promise.all(allTasks
@@ -423,6 +449,55 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     return status;
   }, [effectiveAllTasks, user?.id, setAllTasks, T]);
 
+  const applyOwnedTaskUndoPatch = async (task: Task, ownerId: string, patch: Partial<Task>) => {
+    if (task.user_id !== ownerId || activeUserId.current !== ownerId) {
+      throw new Error(T("برای بازگردانی وارد همان حساب مالک کار شوید", "Sign in to the task owner's account to undo this change"));
+    }
+    const currentTask = currentTasksRef.current.find((item) => item.id === task.id);
+    if (!currentTask || currentTask.user_id !== ownerId) {
+      throw new Error(T("این کار دیگر در حساب مالک پیدا نشد", "This task is no longer available in its owner's account"));
+    }
+    const status = await patchTask(task.id, patch);
+    if (status === "failed") throw new Error(T("ذخیرهٔ بازگردانی ناموفق بود", "Could not save the undo change"));
+  };
+
+  const taskStatePatch = (task: Task): Pick<Task, "completed" | "status" | "completed_at"> => ({
+    completed: Boolean(task.completed),
+    status: task.status || "todo",
+    completed_at: task.completed_at ?? null,
+  });
+
+  const patchTaskStateWithUndo = async (task: Task, patch: Partial<Task>): Promise<TaskPersistenceStatus> => {
+    const hasStateField = ["completed", "status", "completed_at"].some((key) => Object.prototype.hasOwnProperty.call(patch, key));
+    if (!hasStateField) return patchTask(task.id, patch);
+
+    const ownerId = task.user_id;
+    const currentTask = currentTasksRef.current.find((item) => item.id === task.id) || task;
+    const before: Partial<Task> = {
+      ...taskStatePatch(currentTask),
+      waiting_reason: currentTask.waiting_reason ?? null,
+    };
+    const after: Partial<Task> = { ...before, ...patch };
+    const result = await patchTask(task.id, patch);
+    if (result === "failed" || !ownerId || ownerId !== user?.id || activeUserId.current !== ownerId || task.user_id !== ownerId) return result;
+
+    const label = patch.status === "wont_do"
+      ? T(`کار «${task.title}» کنار گذاشته شد`, `Set aside "${task.title}"`)
+      : patch.status === "waiting"
+        ? T(`کار «${task.title}» منتظر ماند`, `Marked "${task.title}" as waiting`)
+        : patch.status === "in_progress"
+          ? T(`کار «${task.title}» شروع شد`, `Started "${task.title}"`)
+          : after.completed
+            ? T(`کار «${task.title}» انجام شد`, `Completed "${task.title}"`)
+            : T(`وضعیت کار «${task.title}» تغییر کرد`, `Changed status of "${task.title}"`);
+    pushUndo({
+      label,
+      undo: () => applyOwnedTaskUndoPatch(task, ownerId, before),
+      redo: () => applyOwnedTaskUndoPatch(task, ownerId, after),
+    });
+    return result;
+  };
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
@@ -622,16 +697,13 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     }
 
     // Keep the completed task visible (with strikethrough) for a few seconds
-    const until = Date.now() + GRACE_MS;
-    setGraceMap(prev => ({ ...prev, [t.id]: until }));
-    window.setTimeout(() => {
-      setGraceMap(prev => { const n = { ...prev }; delete n[t.id]; return n; });
-    }, GRACE_MS);
+    keepCompletedTaskVisible(t.id);
 
     if (user?.id) {
       const status = await persistTask(user.id, { id: t.id, ...patch });
       if (status === "failed") {
         if (isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? t : x));
+        clearCompletedTaskGrace(t.id);
         toast.error(T("تکمیل تسک با خطا مواجه شد", "Could not complete task"));
         return;
       }
@@ -641,15 +713,21 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       window.dispatchEvent(new Event("tasks-changed"));
       await logTaskActivity(t.id, user.id, "completed", { ...patch, outcome_id: outcome?.id } as Record<string, unknown>).catch(() => {});
       const ownerId = user.id;
-      pushUndo({
-        label: T(`کار «${t.title}» انجام شد`, `Completed "${t.title}"`),
-        undo: async () => {
-          if (activeUserId.current !== ownerId) throw new Error(T("برای بازگردانی وارد همان حساب شوید", "Sign in to the same account to undo"));
-          const result = await patchTask(t.id, { completed: t.completed, status: t.status, completed_at: t.completed_at || null });
-          if (result === "failed") throw new Error(T("بازگردانی ذخیره نشد", "Could not save undo"));
-          setGraceMap(prev => { const next = { ...prev }; delete next[t.id]; return next; });
-        },
-      });
+      if (isOwner && !t.completed && activeUserId.current === ownerId) {
+        const before = taskStatePatch(t);
+        const after = taskStatePatch({ ...t, ...patch } as Task);
+        pushUndo({
+          label: T(`کار «${t.title}» انجام شد`, `Completed "${t.title}"`),
+          undo: async () => {
+            await applyOwnedTaskUndoPatch(t, ownerId, before);
+            clearCompletedTaskGrace(t.id);
+          },
+          redo: async () => {
+            await applyOwnedTaskUndoPatch(t, ownerId, after);
+            keepCompletedTaskVisible(t.id);
+          },
+        });
+      }
       return;
     }
 
@@ -690,13 +768,14 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const patch = { completed: false, status: "todo" as const, completed_at: null as string | null };
     if (isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } as Task : x));
     // Cancel any pending grace for this task
-    setGraceMap(prev => { const n = { ...prev }; delete n[t.id]; return n; });
+    clearCompletedTaskGrace(t.id);
     setGraceTasks(prev => { const n = { ...prev }; delete n[t.id]; return n; });
 
     if (user?.id) {
       const status = await persistTask(user.id, { id: t.id, ...patch });
       if (status === "failed") {
         if (isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? t : x));
+        keepCompletedTaskVisible(t.id);
         toast.error(T("بازگشایی تسک با خطا مواجه شد", "Could not reopen task"));
         return;
       }
@@ -706,14 +785,21 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       window.dispatchEvent(new Event("tasks-changed"));
       await logTaskActivity(t.id, user.id, "reopened", patch as Record<string, unknown>).catch(() => {});
       const ownerId = user.id;
-      pushUndo({
-        label: T(`کار «${t.title}» باز شد`, `Reopened "${t.title}"`),
-        undo: async () => {
-          if (activeUserId.current !== ownerId) throw new Error(T("برای بازگردانی وارد همان حساب شوید", "Sign in to the same account to undo"));
-          const result = await patchTask(t.id, { completed: t.completed, status: t.status, completed_at: t.completed_at || null });
-          if (result === "failed") throw new Error(T("بازگردانی ذخیره نشد", "Could not save undo"));
-        },
-      });
+      if (isOwner && activeUserId.current === ownerId) {
+        const before = taskStatePatch(t);
+        const after = taskStatePatch({ ...t, ...patch } as Task);
+        pushUndo({
+          label: T(`کار «${t.title}» باز شد`, `Reopened "${t.title}"`),
+          undo: async () => {
+            await applyOwnedTaskUndoPatch(t, ownerId, before);
+            keepCompletedTaskVisible(t.id);
+          },
+          redo: async () => {
+            await applyOwnedTaskUndoPatch(t, ownerId, after);
+            clearCompletedTaskGrace(t.id);
+          },
+        });
+      }
       return;
     }
 
@@ -783,14 +869,11 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const inverse = schedulePatch(readSchedule(task));
     const patch = moveTaskDayPatch(task, getLocalDateString(addDays(new Date(), action === "tomorrow" ? 1 : 0)));
     const result = await patchTask(task.id, patch);
-    if (result === "failed") return;
+    if (result === "failed" || activeUserId.current !== ownerId) return;
     pushUndo({
       label: action === "today" ? T("کار به امروز منتقل شد", "Task scheduled for today") : T("کار به فردا منتقل شد", "Task scheduled for tomorrow"),
-      undo: async () => {
-        if (activeUserId.current !== ownerId) throw new Error(T("برای بازگردانی وارد همان حساب شوید", "Sign in to the same account to undo"));
-        const status = await patchTask(task.id, inverse);
-        if (status === "failed") throw new Error(T("بازگردانی ذخیره نشد", "Could not save undo"));
-      },
+      undo: () => applyOwnedTaskUndoPatch(task, ownerId, inverse),
+      redo: () => applyOwnedTaskUndoPatch(task, ownerId, patch),
     });
   };
 
@@ -1142,7 +1225,18 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
             onDragCancel={() => setActiveDragId(null)}
           >
             <div className="space-y-1 mt-1">
-              {isEmpty && (
+              {isEmpty && hasLoadError ? (
+                <div role="status" className="my-3 flex flex-col items-center gap-3 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-8 text-center">
+                  <p className="max-w-md text-sm text-muted-foreground">{loadErrorMessage}</p>
+                  <Button type="button" variant="outline" size="sm" onClick={() => void load()}>
+                    <RefreshCw className="me-2 h-4 w-4" />{T("دوباره تلاش کن", "Try again")}
+                  </Button>
+                </div>
+              ) : isEmpty && !isReady ? (
+                <div aria-busy="true" className="my-3 flex min-h-28 items-center justify-center gap-2 rounded-xl border border-border/60 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />{T("در حال بارگذاری کارها…", "Loading tasks…")}
+                </div>
+              ) : isEmpty && (
                 <EmptyState
                   icon={CheckSquare}
                   title={
@@ -1403,7 +1497,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         onDelete={() => actionTask && askDeleteTask(actionTask)}
         onMove={() => actionTask && setMoveTask(actionTask)}
         onMakeChild={() => actionTask && setMakeChildOf(actionTask)}
-        onPatch={(patch) => actionTask && patchTask(actionTask.id, patch)}
+        onPatch={(patch) => actionTask ? patchTaskStateWithUndo(actionTask, patch) : Promise.resolve("failed")}
         onPomodoro={() => actionTask && setPomoTask(actionTask)}
         onEdit={() => actionTask && setSelectedTask(actionTask)}
         onRefresh={load}

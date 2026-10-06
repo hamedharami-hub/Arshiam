@@ -56,13 +56,14 @@ interface TaskDetailTopBarProps {
   onBack?: () => void;
   onClose?: () => void;
   save: React.ReactNode;
-  more: React.ReactNode;
+  /** Kept optional for older callers; task actions now live in the bottom rail. */
+  more?: React.ReactNode;
   extra?: React.ReactNode;
 }
 
-// One row: [back] folder › goal … save ⋯ ✕
+// One row: [back] folder › goal … save ✕
 export function TaskDetailTopBar({
-  T, isEn, canEdit, folderLabel, folderColor, hasFolder, goalLabel, onFolder, onGoal, folderActive, goalActive, onBack, onClose, save, more, extra,
+  T, isEn, canEdit, folderLabel, folderColor, hasFolder, goalLabel, onFolder, onGoal, folderActive, goalActive, onBack, onClose, save, extra,
 }: TaskDetailTopBarProps) {
   const crumb = (active?: boolean) => `inline-flex h-7 min-w-0 items-center gap-1.5 rounded-md px-1.5 text-[13px] transition-colors disabled:hover:bg-transparent ${active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"}`;
   return (
@@ -88,7 +89,6 @@ export function TaskDetailTopBar({
       <div className="flex shrink-0 items-center">
         {extra}
         {save}
-        {more}
         {onClose && (
           <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" onClick={onClose} title={T("بستن", "Close")} aria-label={T("بستن", "Close")} data-testid="task-detail-close">
             <X className="h-4 w-4" />

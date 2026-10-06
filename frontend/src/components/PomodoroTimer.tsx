@@ -15,6 +15,7 @@ import { toPersianDigits } from "@/lib/persianDigits";
 import { useFocusSession } from "@/hooks/useFocusSession";
 import { DEFAULT_PREFS, getFocusState, updateFocusPrefs, switchFocusMode, toggleFocus, resetFocus, skipFocus, finishFocus, type Prefs, type Mode } from "@/lib/focusSession";
 import { previewFocusSound } from "@/lib/focusAudio";
+import { requestFocusNotificationPermission } from "@/lib/focusNotifications";
 
 type Props = {
   taskId?: string | null;
@@ -47,7 +48,10 @@ export default function PomodoroTimer({ taskId = null, taskTitle = "", defaultMi
   useEffect(() => { if (defaultMinutes && !getFocusState().session.startedAt) updateFocusPrefs({ minutes: defaultMinutes }); }, [defaultMinutes]);
   const setPrefs = (fn: (p: Prefs) => Prefs) => updateFocusPrefs(fn(prefs));
   const switchMode = (m: Mode) => switchFocusMode(m);
-  const toggle = () => toggleFocus(taskId, taskTitle);
+  const toggle = async () => {
+    if (!running) await requestFocusNotificationPermission();
+    toggleFocus(taskId, taskTitle);
+  };
   const reset = resetFocus;
   const skip = skipFocus;
   const setWorkMinutes = (v: number) => updateFocusPrefs({ minutes: v });
@@ -147,6 +151,7 @@ export default function PomodoroTimer({ taskId = null, taskTitle = "", defaultMi
         {session?.startedAt && (
           <Button variant="ghost" size="sm" onClick={() => finishFocus(false)} data-testid="pomodoro-finish">{T("پایان و ثبت زمان", "Finish and save time")}</Button>
         )}
+        {session?.startedAt && <p className="max-w-xs text-center text-[10px] leading-5 text-muted-foreground">{T("در نسخهٔ اندروید و با اجازهٔ اعلان، زمان باقی‌مانده در نوار اعلان دیده می‌شود. اعلان پایان در نسخه‌هایی که اعلان محلی را پشتیبانی کنند زمان‌بندی می‌شود؛ مرورگر ممکن است اجرای پس‌زمینه را متوقف کند.", "With notification permission, Android shows the remaining time in its notification shade. An end alert is scheduled where native local notifications are supported; browsers may suspend background execution.")}</p>}
         {focus?.storageError && session?.startedAt && <Button size="sm" variant="outline" onClick={() => finishFocus(remaining === 0)}>{T("تلاش دوباره برای ذخیره", "Retry saving")}</Button>}
         {(focus?.pending || focus?.storageError) ? <p role="status" className="text-xs text-muted-foreground">{focus.storageError ? T("ذخیرهٔ محلی در دسترس نیست؛ جلسه را باز نگه دارید.", "Local storage unavailable; keep this session open.") : T("جلسه در انتظار همگام‌سازی", "Session awaiting sync")}</p> : null}
         <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground" data-testid="pomodoro-sessions">

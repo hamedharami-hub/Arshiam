@@ -1,6 +1,13 @@
-import React from "react";
-import { Trash2, RotateCcw } from "lucide-react";
+import { Check, ChevronDown, ListFilter, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   type SmartListProfile,
   type TaskFilters,
@@ -23,7 +30,7 @@ export function SmartListProfileBar({
   className = "",
   isEn = false,
 }: SmartListProfileBarProps) {
-  const [profiles, setProfiles] = useSmartListProfiles();
+  const [profiles] = useSmartListProfiles();
 
   // Helper to determine if current filters match a profile
   const isProfileActive = (p: SmartListProfile): boolean => {
@@ -47,13 +54,18 @@ export function SmartListProfileBar({
       (pf.due_windows?.length || 0) === (filters.due_windows?.length || 0) &&
       (pf.due_windows || []).every((w) => filters.due_windows?.includes(w));
 
+    const sameSort = (a: typeof DEFAULT_FILTERS.sort_primary, b: typeof DEFAULT_FILTERS.sort_primary) =>
+      a.key === b.key && a.dir === b.dir;
+
     return (
       sameFolders &&
       sameTags &&
       sameGoals &&
       samePriorities &&
       sameHorizons &&
-      sameDueWindows
+      sameDueWindows &&
+      sameSort(pf.sort_primary || DEFAULT_FILTERS.sort_primary, filters.sort_primary || DEFAULT_FILTERS.sort_primary) &&
+      sameSort(pf.sort_secondary || DEFAULT_FILTERS.sort_secondary, filters.sort_secondary || DEFAULT_FILTERS.sort_secondary)
     );
   };
 
@@ -67,16 +79,6 @@ export function SmartListProfileBar({
       isEn
         ? `Applied "${p.nameEn || p.name}"`
         : `پروفایل «${p.name}» فعال شد`
-    );
-  };
-
-  const handleDeleteProfile = (e: React.MouseEvent, p: SmartListProfile) => {
-    e.stopPropagation();
-    if (p.isPreset) return;
-    const next = profiles.filter((x) => x.id !== p.id);
-    setProfiles(next);
-    toast.info(
-      isEn ? `Profile "${p.name}" deleted` : `پروفایل «${p.name}» حذف شد`
     );
   };
 
@@ -97,52 +99,62 @@ export function SmartListProfileBar({
     (filters.time_horizons?.length || 0) +
     (filters.due_windows?.length || 0);
 
+  const activeProfile = profiles.find(isProfileActive);
+  const activeNameSource = activeProfile
+    ? (isEn ? activeProfile.nameEn || activeProfile.name : activeProfile.name)
+    : (isEn ? "Custom filters" : "فیلترهای دلخواه");
+  const activeName = activeProfile?.icon && activeNameSource.startsWith(activeProfile.icon)
+    ? activeNameSource.slice(activeProfile.icon.length).trim()
+    : activeNameSource;
+
   return (
     <div
-      className={`flex min-w-0 max-w-full items-center gap-1 ${className}`}
+      className={`flex min-w-0 max-w-full items-center gap-1.5 ${className}`}
       data-testid="smart-list-profile-bar"
     >
-      <div className="flex min-w-0 items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth">
-        {profiles.map((p) => {
-          const active = isProfileActive(p);
-          const rawName = isEn ? p.nameEn || p.name : p.name;
-          const displayName = p.icon && rawName.startsWith(p.icon) ? rawName.slice(p.icon.length).trim() : rawName;
-          return (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => handleSelectProfile(p)}
-              aria-pressed={active}
-              className={`group inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs transition-colors ${
-                active
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-background text-muted-foreground ring-1 ring-inset ring-border hover:text-foreground"
-              }`}
-              title={displayName}
-              data-testid={`smart-profile-${p.id}`}
-            >
-              {p.icon && <span className="text-[11px] leading-none">{p.icon}</span>}
-              <span className="whitespace-nowrap">{displayName}</span>
-              {!p.isPreset && (
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => handleDeleteProfile(e, p)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      handleDeleteProfile(e as any, p);
-                    }
-                  }}
-                  className="rounded p-0.5 opacity-60 hover:opacity-100"
-                  title={isEn ? "Delete profile" : "حذف پروفایل"}
-                >
-                  <Trash2 className="w-2.5 h-2.5" />
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant={activeProfile ? "secondary" : "outline"}
+            className="h-9 w-36 min-w-0 max-w-full justify-start gap-2 rounded-xl px-3 text-xs sm:w-44"
+            aria-label={isEn ? `Choose smart list. Current: ${activeName}` : `انتخاب فهرست هوشمند. فهرست فعلی: ${activeName}`}
+            data-testid="smart-list-selector"
+          >
+            {activeProfile?.icon ? <span className="shrink-0 text-sm">{activeProfile.icon}</span> : <ListFilter className="h-4 w-4 shrink-0 text-primary" />}
+            <span className="min-w-0 truncate text-start">{activeName}</span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="max-h-[60vh] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto p-1.5">
+          <DropdownMenuLabel className="px-2 text-[11px] text-muted-foreground">
+            {isEn ? "Saved smart lists" : "فهرست‌های هوشمند ذخیره‌شده"}
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {profiles.length === 0 ? (
+            <div className="px-2 py-4 text-center text-xs text-muted-foreground">
+              {isEn ? "No saved lists yet" : "هنوز فهرستی ذخیره نشده"}
+            </div>
+          ) : profiles.map((p) => {
+            const active = isProfileActive(p);
+            const rawName = isEn ? p.nameEn || p.name : p.name;
+            const displayName = p.icon && rawName.startsWith(p.icon) ? rawName.slice(p.icon.length).trim() : rawName;
+            return (
+              <DropdownMenuItem
+                key={p.id}
+                onSelect={() => handleSelectProfile(p)}
+                aria-current={active ? "true" : undefined}
+                className="min-h-10 gap-2 rounded-lg text-xs"
+                data-testid={`smart-profile-${p.id}`}
+              >
+                <span className="shrink-0 text-sm">{p.icon || "📋"}</span>
+                <span className="min-w-0 flex-1 truncate">{displayName}</span>
+                {active && <Check className="h-4 w-4 shrink-0 text-primary" />}
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
       {activeCount > 0 && (
         <Button
           variant="ghost"

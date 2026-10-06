@@ -46,6 +46,21 @@ export const GOAL_PRIORITIES: { id: GoalPriority; labelFa: string; labelEn: stri
   { id: "none", labelFa: "بدون اولویت", labelEn: "No priority", color: "#64748b", badge: "⚪" },
 ];
 
+export function filterGoalsForView<T extends GoalKanban>(
+  goals: T[],
+  viewMode: "hierarchy" | "time" | "priority",
+  selectedTimeFilter: TimeHorizon | "all",
+  selectedPriorityFilter: GoalPriority | "all",
+): T[] {
+  if (viewMode === "time" && selectedTimeFilter !== "all") {
+    return goals.filter((goal) => goal.timeHorizon === selectedTimeFilter);
+  }
+  if (viewMode === "priority" && selectedPriorityFilter !== "all") {
+    return goals.filter((goal) => goal.priority === selectedPriorityFilter);
+  }
+  return goals;
+}
+
 const GOALS_STORAGE_KEY = "arshnaz_kanban_goals_v3";
 
 // Legacy sample goals; kept only so they can be recognised and hidden.
@@ -301,6 +316,6 @@ export function getGoalPath(goals: GoalKanban[], goalId: string): GoalKanban[] {
   return path;
 }
 
-export function getAllKanbanGoals(folders?: Array<{ id: string; name?: string }>, userId?: string): GoalKanban[] {
+export function getAllKanbanGoals(folders?: Array<{ id: string; name?: string }>, userId?: string): OwnedGoal[] {
   return getUserOwnGoals(folders || [], userId).filter((g) => !isAutoDefaultGoal(g));
 }

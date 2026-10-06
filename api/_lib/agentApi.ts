@@ -8,7 +8,7 @@ import {
   testStore,
   type AssistantGrant,
 } from "./assistantAccess.js";
-import { handleCors, parseBody, sendError, sendJson } from "./response.js";
+import { handleCors, parseBody, sendError, sendJson, sendRequestBodyError } from "./response.js";
 import { checkRateLimit } from "./rateLimiter.js";
 
 // In-memory idempotency cache (key -> response payload)
@@ -1164,11 +1164,12 @@ export async function handleAgentRequest(req: any, res: any): Promise<void> {
 
     return sendError(res, 404, "NOT_FOUND", `Endpoint not found: ${method} ${pathname}`);
   } catch (error: any) {
+    if (sendRequestBodyError(res, error)) return;
     if (error instanceof InvalidTaskInputError) return sendError(res, 400, "VALIDATION_ERROR", error.message);
     if (error instanceof InvalidTaskPriorityError) return sendError(res, 400, "VALIDATION_ERROR", error.message);
     if (error instanceof InvalidTaskScheduleError) return sendError(res, 400, "VALIDATION_ERROR", error.message);
     if (error instanceof AssistantConfigurationError) return sendError(res, 503, "SERVICE_NOT_CONFIGURED", error.message);
     console.error("[AgentApi] Internal server error", error);
-    return sendError(res, 500, "INTERNAL_ERROR", error?.message || "An unexpected error occurred.");
+    return sendError(res, 500, "INTERNAL_ERROR", "An unexpected error occurred.");
   }
 }

@@ -45,6 +45,16 @@ export const nativeExperience = registerPlugin<{
   cancelReminder(options: { taskId: string }): Promise<{ cancelled: boolean }>;
   snoozeReminder(options: { taskId: string; minutes: number }): Promise<{ snoozed: boolean }>;
   testNotification(): Promise<{ sent: boolean }>;
+  syncPomodoroNotification(options: {
+    active: boolean;
+    running: boolean;
+    completed: boolean;
+    sessionId: string;
+    title: string;
+    mode: "work" | "short" | "long";
+    endAt: number;
+    remainingSeconds: number;
+  }): Promise<{ updated: boolean }>;
   openNotificationSettings(): Promise<void>;
   openExactSettings(): Promise<void>;
   openBatterySettings(): Promise<void>;

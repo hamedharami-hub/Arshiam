@@ -169,7 +169,10 @@ export function bucketLabel(
   // Quarter bucket
   if (kind === "quarter") {
     if (calendar === "jalali") {
-      const q = Math.floor(d.getMonth() / 3);
+      // `getMonth()` is Gregorian even when the displayed calendar is Jalali.
+      // Derive the season from the Jalali month instead (1–3, 4–6, 7–9, 10–12).
+      const jalaliMonth = Number(jFormat(d, "M"));
+      const q = Math.floor((jalaliMonth - 1) / 3);
       const seasons = ["بهار", "تابستان", "پاییز", "زمستان"];
       const yr = toPersianDigits(jFormat(d, "yyyy"));
       return `${seasons[q]} ${yr}`;
@@ -227,6 +230,10 @@ export function doesTaskMatchBucketScope(
   task: {
     due_date?: string | null;
     work_date?: string | null;
+    schedule_v?: number | null;
+    planning_horizon?: BucketKind | null;
+    planning_start?: string | null;
+    planning_end?: string | null;
     bucket_kind?: BucketKind | null;
     bucket_calendar?: CalendarSystem | null;
     bucket_anchor?: string | null;
@@ -252,6 +259,15 @@ export function doesTaskMatchBucketScope(
         };
       }
     }
+    const schedule = readSchedule(task);
+    if (schedule.kind === "period" && targetKinds.includes(schedule.period.horizon)
+      && schedule.period.start === anchor) {
+      return {
+        matches: true,
+        matchReason: "direct_bucket",
+        displayBadge: kindLabel(schedule.period.horizon),
+      };
+    }
     return { matches: false, matchReason: "none" };
   }
 
@@ -268,6 +284,23 @@ export function doesTaskMatchBucketScope(
         matches: true,
         matchReason: "exact_due_date",
         displayBadge: undefined,
+      };
+    }
+  }
+
+  // Canonical schedule-v2 plans use planning_horizon/start/end rather than the
+  // retired bucket_kind fields. Include their ranges in the same hierarchical
+  // time-bucket selector so week/month/season plans do not disappear.
+  if (sch.kind === "period") {
+    const taskKind = sch.period.horizon;
+    const taskLevel = BUCKET_LEVEL[taskKind];
+    const scopeLevel = BUCKET_LEVEL[options.scopeKind];
+    const overlaps = sch.period.start <= scopeRange.end && sch.period.end >= scopeRange.start;
+    if (taskLevel <= scopeLevel && overlaps) {
+      return {
+        matches: true,
+        matchReason: taskKind === options.scopeKind ? "direct_bucket" : "nested_bucket",
+        displayBadge: kindLabel(taskKind),
       };
     }
   }

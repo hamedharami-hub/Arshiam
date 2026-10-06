@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type SetStateAction } from "react";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { hasServerSnapshot } from "@/lib/firestoreLive";
+import i18n from "@/i18n";
 import type { Task } from "@/lib/taskTypes";
 import {
   applyPendingTaskOperations,
@@ -39,6 +40,7 @@ export function useTasksData({ user, scope, scopeId }: UseTasksDataOptions) {
   const [tagName, setTagName] = useState("");
   const [readyOwner, setReadyOwner] = useState<string | null>(null);
   const [authoritativeOwner, setAuthoritativeOwner] = useState<string | null>(null);
+  const [loadErrorOwner, setLoadErrorOwner] = useState<string | null>(null);
   const lastLoadRef = useRef(0);
   const inflightRef = useRef<Promise<void> | null>(null);
   const revision = useRef(0);
@@ -56,6 +58,7 @@ export function useTasksData({ user, scope, scopeId }: UseTasksDataOptions) {
     if (owner.current === userId) {
       setReadyOwner(null);
       setAuthoritativeOwner(null);
+      setLoadErrorOwner(null);
     }
     const request = (async () => {
       const tasks = await fetchTasks(userId);
@@ -78,6 +81,7 @@ export function useTasksData({ user, scope, scopeId }: UseTasksDataOptions) {
     const version = revision.current;
     setReadyOwner(null);
     setAuthoritativeOwner(null);
+    setLoadErrorOwner(null);
     let base = await getCachedTasks(userId);
     base = await applyPendingTaskOperations(base, userId);
     if (owner.current !== userId) return;
@@ -138,8 +142,12 @@ export function useTasksData({ user, scope, scopeId }: UseTasksDataOptions) {
       taskMemoryCache.set(userId, tasks);
       setAllTasks(tasks);
       setReadyOwner(userId);
+      setLoadErrorOwner(null);
       const serverConfirmed = (typeof navigator === "undefined" || navigator.onLine) && hasServerSnapshot(userId, "tasks");
       setAuthoritativeOwner(serverConfirmed ? userId : null);
+    }, () => {
+      if (owner.current !== userId) return;
+      setLoadErrorOwner(userId);
     });
     return () => {
       if (pending != null) window.clearTimeout(pending);
@@ -190,10 +198,19 @@ export function useTasksData({ user, scope, scopeId }: UseTasksDataOptions) {
     });
   }, [allTasks, userId]);
 
+  const hasLoadError = !!userId && loadErrorOwner === userId;
+  const loadErrorMessage = hasLoadError
+    ? (i18n.language || "fa").startsWith("en")
+      ? "Tasks could not be loaded. Check your connection and try again."
+      : "بارگذاری کارها انجام نشد. اتصال اینترنت را بررسی کن و دوباره تلاش کن."
+    : null;
+
   return {
     allTasks,
     isReady: !!userId && readyOwner === userId,
     isServerAuthoritative: !!userId && authoritativeOwner === userId,
+    hasLoadError,
+    loadErrorMessage,
     setAllTasks,
     taskTagsMap,
     outcomeById,

@@ -7,5 +7,6 @@ public class AndroidRescheduleReceiver extends BroadcastReceiver {
             &&!Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)&&!"android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED".equals(action))return;
         NativeReminders.reconcile(c,true);
         ArshnazWidgetProvider.redraw(c);
+        PomodoroFocusNotification.restoreAfterBoot(c);
     }
 }

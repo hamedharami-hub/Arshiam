@@ -34,7 +34,7 @@ export const SIDEBAR_QUICK_LINK_OPTIONS: SidebarQuickLink[] = [
   { url: "/app/next7", labelFa: "۷ روز آینده", labelEn: "Next 7 Days", group: "do" },
   { url: "/app/calendar", labelFa: "تقویم", labelEn: "Calendar", group: "do" },
   { url: "/app/widgets", labelFa: "ویجت‌ها", labelEn: "Widgets", group: "do" },
-  { url: "/app/kanban", labelFa: "کانبان", labelEn: "Kanban", group: "do" },
+  { url: "/app/tools", labelFa: "مخزن کد", labelEn: "Code Vault", group: "do" },
   { url: "/app/smart", labelFa: "لیست‌های هوشمند", labelEn: "Smart Lists", group: "do" },
   { url: "/app/pomodoro", labelFa: "پومودورو", labelEn: "Pomodoro", group: "do" },
   { url: "/app/stats", labelFa: "آمار و خلاصه", labelEn: "Stats & Summary", group: "do" },

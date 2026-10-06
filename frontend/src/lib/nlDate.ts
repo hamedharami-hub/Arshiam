@@ -21,7 +21,14 @@ function normalizeDigits(s: string): string {
   return s.replace(/[۰-۹٠-٩]/g, (d) => FA_DIGITS[d] ?? d);
 }
 
-const REPEATING_TASK_TEXT = /\b(?:every|each)\s+(?:(?:\d+|two|three|four|five)\s+)?(?:days?|weeks?|months?|years?|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?)\b|\b(?:daily|weekly|monthly|yearly|annually)\b|روزانه|هفتگی|ماهانه|سالانه|هر\s+(?:\d+\s*)?(?:روز|هفته|ماه|سال|دوشنبه|سه\u200cشنبه|چهارشنبه|پنج\u200cشنبه|جمعه|شنبه|یکشنبه)/i;
+const PERSIAN_NUMBER_WORDS = ["یک", "یه", "دو", "سه", "چهار", "پنج", "شش", "شیش", "هفت", "هشت", "نه", "ده"];
+const ENGLISH_NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+const PERSIAN_NUMBER_VALUES: Record<string, number> = {
+  "یک": 1, "یه": 1, "دو": 2, "سه": 3, "چهار": 4, "پنج": 5,
+  "شش": 6, "شیش": 6, "هفت": 7, "هشت": 8, "نه": 9, "ده": 10,
+};
+const NUMBER_WORD_PATTERN = PERSIAN_NUMBER_WORDS.join("|");
+const REPEATING_TASK_TEXT = /\b(?:every|each)\s+(?:(?:\d+|two|three|four|five)\s+)?(?:days?|weeks?|months?|years?|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?)\b|\b(?:daily|weekly|monthly|yearly|annually)\b|روزانه|هفتگی|ماهانه|سالانه|هر\s+(?:(?:\d+|یک|یه|دو|سه|چهار|پنج|شش|شیش|هفت|هشت|نه|ده)\s*)?(?:روز|هفته|ماه|سال|دوشنبه|سه\u200cشنبه|چهارشنبه|پنج\u200cشنبه|جمعه|شنبه|یکشنبه)/i;
 
 /** Whether task text explicitly describes a repeating cadence instead of a one-off date. */
 export function hasExplicitRecurrenceText(value: string): boolean {
@@ -85,14 +92,17 @@ export function parseNaturalDate(rawTitle: string, now: Date = new Date()): Pars
 
   // --- "X روز دیگه/بعد" / "in X days" ---
   if (!date) {
-    const faDays = working.match(/(\d+)\s*روز\s*(دیگه|دیگر|بعد)/);
-    const enDays = working.match(/in\s+(\d+)\s+days?/i);
+    const faDays = working.match(new RegExp(`(${NUMBER_WORD_PATTERN}|\\d+)\\s*روز\\s*(دیگه|دیگر|بعد)`));
+    const enDays = working.match(/in\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+days?/i);
     if (faDays) {
-      date = new Date(base); date.setDate(date.getDate() + parseInt(faDays[1], 10));
-      strip(/(\d+)\s*روز\s*(دیگه|دیگر|بعد)/g);
+      const days = PERSIAN_NUMBER_VALUES[faDays[1]] ?? Number(faDays[1]);
+      date = new Date(base); date.setDate(date.getDate() + days);
+      strip(new RegExp(`(${NUMBER_WORD_PATTERN}|\\d+)\\s*روز\\s*(دیگه|دیگر|بعد)`, "g"));
     } else if (enDays) {
-      date = new Date(base); date.setDate(date.getDate() + parseInt(enDays[1], 10));
-      strip(/in\s+(\d+)\s+days?/gi);
+      const token = enDays[1].toLowerCase();
+      const days = ENGLISH_NUMBER_WORDS[token] ?? Number(token);
+      date = new Date(base); date.setDate(date.getDate() + days);
+      strip(/in\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+days?/gi);
     }
   }
 
@@ -137,20 +147,28 @@ export function parseNaturalDate(rawTitle: string, now: Date = new Date()): Pars
     || working.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
 
   if (faTime) {
-    hasTime = true;
     hours = parseInt(faTime[1], 10);
     minutes = faTime[2] ? parseInt(faTime[2], 10) : 0;
+    if (!Number.isInteger(hours) || !Number.isInteger(minutes) || minutes > 59 || hours > 23
+      || ((isPm || isAm) && (hours < 1 || hours > 12))) {
+      return { dueDate: null, cleanedTitle: original.trim() };
+    }
     if (isPm && hours < 12) hours += 12;
     if (isAm && hours === 12) hours = 0;
+    hasTime = true;
     strip(/ساعت\s*(\d{1,2})(?:[:٫](\d{1,2}))?/g);
     strip(/(عصر|بعدازظهر|بعد از ظهر|شب|صبح|بامداد)/g);
   } else if (enTime) {
-    hasTime = true;
     hours = parseInt(enTime[1], 10);
     minutes = enTime[2] ? parseInt(enTime[2], 10) : 0;
     const mer = (enTime[3] || "").toLowerCase();
+    if (!Number.isInteger(hours) || !Number.isInteger(minutes) || minutes > 59 || hours > 23
+      || (mer && (hours < 1 || hours > 12))) {
+      return { dueDate: null, cleanedTitle: original.trim() };
+    }
     if (mer === "pm" && hours < 12) hours += 12;
     if (mer === "am" && hours === 12) hours = 0;
+    hasTime = true;
     strip(/\bat\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/gi);
     strip(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/gi);
   } else if (working.match(/ظهر|noon/)) {

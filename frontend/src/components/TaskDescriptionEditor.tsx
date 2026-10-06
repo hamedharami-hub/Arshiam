@@ -1,23 +1,25 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NoteMarkdown } from "@/components/NoteMarkdown";
-import { Maximize2, Minimize2, Check, Pencil, FileText, ImagePlus, Link as LinkIcon, Loader2 } from "lucide-react";
+import { Maximize2, Minimize2, Check, Pencil, FileText, ImagePlus, Link as LinkIcon, Loader2, Mic, Square } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { uploadMediaFull } from "@/lib/uploadMedia";
 import { LinkDialog } from "@/components/LinkDialog";
-import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { NoteEditorTabs } from "@/components/NoteEditorTabs";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
+import type { RichEditorHandle } from "@/components/RichEditor";
+
+const RichEditor = lazy(() => import("@/components/RichEditor").then((module) => ({ default: module.RichEditor })));
 
 /**
  * Task description editor with markdown support.
- * - Inline: AutoTextarea while editing; renders markdown preview when blurred (if content).
- * - Fullscreen button opens a Sheet with the full NoteEditorTabs (visual/markdown/preview).
+ * - Inline editing uses the same rich-text format as the preview, so only the selected text changes.
+ * - The expanded editor keeps the full NoteEditorTabs (visual/markdown/preview).
  */
 type DescriptionEditorProps = {
   taskId: string;
@@ -42,30 +44,66 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
   const [editing, setEditing] = useState(false);
   const [full, setFull] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [inlineEditorGeneration, setInlineEditorGeneration] = useState(0);
   const [draft, setDraft] = useState(value);
   const latestValue = useRef(value);
   const fileRef = useRef<HTMLInputElement>(null);
-  const areaRef = useRef<HTMLTextAreaElement>(null);
-  const startEditing = () => { setEditing(true); requestAnimationFrame(() => areaRef.current?.focus()); };
+  const inlineEditorRef = useRef<RichEditorHandle | null>(null);
+  const startEditing = () => { setEditing(true); requestAnimationFrame(() => inlineEditorRef.current?.focus()); };
   const { user } = useAuth();
   const [uploading, setUploading] = useState(false);
+  const [startingRecording, setStartingRecording] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [linkOpen, setLinkOpen] = useState(false);
   const alive = useRef(true);
   const converting = useRef(false);
   const [saving, setSaving] = useState(false);
   const [editorUploading, setEditorUploading] = useState(false);
   const saveLock = useRef(false);
-  const selection = useRef({ from: 0, to: 0 });
   const mountedOwner = useRef(user?.id);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recorderStreamRef = useRef<MediaStream | null>(null);
+  const recorderChunksRef = useRef<Blob[]>([]);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
-  useEffect(() => { latestValue.current = value; }, [value]);
+  useEffect(() => {
+    if (!recording) return;
+    const timer = window.setInterval(() => setRecordingSeconds((seconds) => {
+      const next = seconds + 1;
+      if (next >= 600) {
+        const recorder = recorderRef.current;
+        if (recorder && recorder.state !== "inactive") {
+          toast.info(isEn ? "Audio recording stops after ten minutes" : "ضبط صدا پس از ده دقیقه متوقف می‌شود");
+          window.setTimeout(() => { if (recorder.state !== "inactive") recorder.stop(); }, 0);
+        }
+      }
+      return next;
+    }), 1000);
+    return () => window.clearInterval(timer);
+  }, [recording, isEn]);
+
+  useEffect(() => () => {
+    const recorder = recorderRef.current;
+    if (recorder) {
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      if (recorder.state !== "inactive") recorder.stop();
+    }
+    recorderStreamRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
+
+  useEffect(() => {
+    latestValue.current = value;
+    if (!full) setDraft(value);
+  }, [value, full]);
 
   const appendToDescription = async (snippet: string) => {
-    const base = (latestValue.current || "").trimEnd();
+    const base = (inlineEditorRef.current?.getMarkdown() ?? latestValue.current ?? "").trimEnd();
     const next = base ? `${base}\n\n${snippet}` : snippet;
     latestValue.current = next;
     onChange(next);
+    setInlineEditorGeneration((generation) => generation + 1);
     await onSave(next);
   };
 
@@ -76,8 +114,17 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
     try {
       const media = await uploadMediaFull(file, user.id);
       if (!alive.current || mountedOwner.current !== user.id) { toast.dismiss(tid); return; }
-      const label = media.name.replace(/[\[\]]/g, "");
-      await appendToDescription(media.kind === "image" ? `![${label}](${media.url})` : `[${label}](${media.url})`);
+      const editor = inlineEditorRef.current;
+      if (editor) {
+        editor.insertAttachment(media);
+        const next = editor.getMarkdown();
+        latestValue.current = next;
+        onChange(next);
+        await onSave(next);
+      } else {
+        const label = media.name.replace(/[\[\]]/g, "");
+        await appendToDescription(media.kind === "image" ? `![${label}](${media.url})` : `[${label}](${media.url})`);
+      }
       toast.success(T("پیوست اضافه شد", "Attachment added"), { id: tid });
     } catch (error) {
       if (!alive.current) { toast.dismiss(tid); return; }
@@ -91,6 +138,68 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
     }
   };
 
+  const startAudioRecording = async () => {
+    if (startingRecording || recording || uploading) return;
+    if (!user?.id || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      toast.error(T("ضبط صدا در این دستگاه پشتیبانی نمی‌شود", "Audio recording is not supported on this device"));
+      return;
+    }
+    const ownerId = user.id;
+    let stream: MediaStream | null = null;
+    setStartingRecording(true);
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!alive.current || mountedOwner.current !== ownerId) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      const preferredType = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm"].find((type) => MediaRecorder.isTypeSupported?.(type));
+      const recorder = new MediaRecorder(stream, preferredType ? { mimeType: preferredType } : undefined);
+      recorderRef.current = recorder;
+      recorderStreamRef.current = stream;
+      recorderChunksRef.current = [];
+      recorder.ondataavailable = (event) => { if (event.data.size) recorderChunksRef.current.push(event.data); };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((track) => track.stop());
+        if (recorderStreamRef.current === stream) recorderStreamRef.current = null;
+        if (recorderRef.current === recorder) recorderRef.current = null;
+        if (!alive.current || mountedOwner.current !== ownerId) return;
+        const mime = (recorder.mimeType || "audio/webm").split(";")[0].toLowerCase();
+        const blob = new Blob(recorderChunksRef.current, { type: mime });
+        recorderChunksRef.current = [];
+        setRecording(false);
+        if (!blob.size) {
+          toast.error(T("صدایی ضبط نشد؛ دوباره تلاش کن", "No audio was captured; try again"));
+          return;
+        }
+        const extension = mime.includes("mp4") ? "m4a" : "webm";
+        void uploadFile(new File([blob], `task-voice-${Date.now()}.${extension}`, { type: mime }));
+      };
+      recorder.start();
+      setRecordingSeconds(0);
+      setRecording(true);
+    } catch (error) {
+      const recorder = recorderRef.current;
+      if (recorder) {
+        recorder.ondataavailable = null;
+        recorder.onstop = null;
+        if (recorder.state !== "inactive") recorder.stop();
+      }
+      stream?.getTracks().forEach((track) => track.stop());
+      if (recorderStreamRef.current === stream) recorderStreamRef.current = null;
+      recorderRef.current = null;
+      setRecording(false);
+      toast.error(error instanceof Error ? error.message : T("دسترسی به میکروفون ممکن نشد", "Microphone access was denied"));
+    } finally {
+      if (alive.current) setStartingRecording(false);
+    }
+  };
+
+  const stopAudioRecording = () => {
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+  };
+
   const saveAdvanced = async () => {
     if (saveLock.current || readOnly || editorUploading) return;
     saveLock.current = true;
@@ -98,7 +207,9 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
     try {
       await onSave(draft);
       if (!alive.current) return;
+      latestValue.current = draft;
       onChange(draft);
+      setInlineEditorGeneration((generation) => generation + 1);
       setFull(false);
     } catch (error) {
       if (alive.current) toast.error(error instanceof Error ? error.message : T("ذخیره انجام نشد؛ متن محفوظ است", "Save failed; your draft is retained"));
@@ -116,6 +227,22 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
 
   const hasContent = (value || "").trim().length > 0;
 
+  const finishEditing = async () => {
+    if (readOnly || saving) return;
+    const current = inlineEditorRef.current?.getMarkdown() ?? latestValue.current ?? "";
+    latestValue.current = current;
+    setSaving(true);
+    try {
+      await onSave(current);
+      onChange(current);
+      setEditing(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : T("ذخیره انجام نشد؛ متن محفوظ است", "Save failed; your text is retained"));
+    } finally {
+      if (alive.current) setSaving(false);
+    }
+  };
+
   return (
     <div className="group/desc relative flex w-full min-w-0 flex-col px-1" data-testid="task-description">
       <input
@@ -126,7 +253,11 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
       {showPreview && (
         <div
           role={readOnly ? undefined : "button"} tabIndex={readOnly ? undefined : 0} dir="auto"
-          onClick={(e) => { if (readOnly || (e.target as HTMLElement).closest("a")) return; startEditing(); }}
+          onClick={(e) => {
+            const selection = window.getSelection();
+            if (readOnly || (e.target as HTMLElement).closest("a") || (selection && !selection.isCollapsed)) return;
+            startEditing();
+          }}
           onKeyDown={(e) => { if (!readOnly && e.key === "Enter") startEditing(); }}
           className="prose-note w-full cursor-text px-1 pb-2 text-[14px] leading-relaxed [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg"
           data-testid="task-description-preview"
@@ -134,28 +265,31 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
           <NoteMarkdown>{value}</NoteMarkdown>
         </div>
       )}
-      <AutoTextarea
-        ref={areaRef}
-        placeholder={T("توضیحات، یادداشت یا لینک…", "Description, notes or links…")}
-        aria-label={T("توضیحات", "Description")}
-        value={value || ""}
-        disabled={readOnly}
-        onFocus={() => !readOnly && setEditing(true)}
-        onSelect={e => { selection.current = { from: e.currentTarget.selectionStart, to: e.currentTarget.selectionEnd }; }}
-        onChange={(e) => { latestValue.current = e.target.value; onChange(e.target.value); }}
-        onBlur={(event) => {
-          const latest = event.currentTarget.value;
-          latestValue.current = latest;
-          setEditing(false);
-          void onSave(latest);
-        }}
-        minHeight={expanded ? 260 : 72}
-        maxHeight={expanded ? 900 : 520}
-        dir="auto"
-        style={{ unicodeBidi: "plaintext" }}
-        className={`${showPreview ? "hidden" : ""} w-full flex-1 border-none bg-transparent px-1 pt-0 text-[14px] leading-relaxed text-foreground/90 placeholder:text-muted-foreground/60 focus-visible:ring-0`}
-      />
-      {/* Tools appear only while the field is focused; mousedown keeps focus in the textarea. */}
+      {!showPreview && (
+        <Suspense fallback={<div className="min-h-[72px] animate-pulse rounded-lg bg-muted/20" />}>
+          <div onFocusCapture={() => !readOnly && setEditing(true)} onClickCapture={() => !readOnly && setEditing(true)}>
+            <RichEditor
+              key={`task-description-inline:${taskId}:${inlineEditorGeneration}`}
+              ref={inlineEditorRef}
+              attachmentScopeId={`task-description-inline:${taskId}`}
+              initialMarkdown={value || ""}
+              onChange={(_html, markdown) => {
+                latestValue.current = markdown;
+                onChange(markdown);
+              }}
+              placeholder={T("توضیحات، یادداشت یا لینک…", "Description, notes or links…")}
+              editorAriaLabel={T("توضیحات", "Description")}
+              readOnly={readOnly}
+              showVoiceButton={false}
+              showToolbar={false}
+              autoFocus={editing}
+              compact
+              compactExpanded={expanded}
+            />
+          </div>
+        </Suspense>
+      )}
+      {/* Tools appear while editing; mousedown keeps the rich-text selection in place. */}
       {!readOnly && (
         <div
           className={`${editing ? "flex" : "hidden"} items-center justify-end gap-0.5 pt-1`}
@@ -166,14 +300,16 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
             continuous
             onTranscript={(text) => {
               if (!alive.current || readOnly) return;
-              const current = latestValue.current || "";
-              const { from, to } = selection.current;
-              const insert = text.trim() + " ";
-              const next = current.slice(0, from) + insert + current.slice(to);
-              selection.current = { from: from + insert.length, to: from + insert.length };
-              latestValue.current = next;
-              onChange(next);
-              void Promise.resolve(onSave(next)).catch(error => toast.error(error instanceof Error ? error.message : T("ذخیره انجام نشد", "Save failed")));
+              const editor = inlineEditorRef.current;
+              if (editor) {
+                editor.insertText(text);
+                const next = editor.getMarkdown();
+                latestValue.current = next;
+                onChange(next);
+                void Promise.resolve(onSave(next)).catch(error => toast.error(error instanceof Error ? error.message : T("ذخیره انجام نشد", "Save failed")));
+              } else {
+                void appendToDescription(text).catch(error => toast.error(error instanceof Error ? error.message : T("ذخیره انجام نشد", "Save failed")));
+              }
             }}
             size="sm"
             className="h-8 w-8 rounded-md text-muted-foreground hover:text-foreground"
@@ -182,6 +318,18 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
           <button type="button" disabled={uploading} onClick={() => fileRef.current?.click()} className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" title={T("پیوست تصویر یا فایل", "Attach image or file")} aria-label={T("پیوست تصویر یا فایل", "Attach image or file")} data-testid="task-description-attach">
             {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
           </button>
+          <button
+            type="button"
+            disabled={uploading || startingRecording}
+            onClick={() => recording ? stopAudioRecording() : void startAudioRecording()}
+            className={`grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50 ${recording ? "text-destructive animate-pulse" : ""}`}
+            title={recording ? T("توقف ضبط صدا", "Stop audio recording") : T("ضبط صدا", "Record audio")}
+            aria-label={recording ? T("توقف ضبط صدا", "Stop audio recording") : T("ضبط صدا", "Record audio")}
+            data-testid="task-description-record-audio"
+          >
+            {startingRecording ? <Loader2 className="h-4 w-4 animate-spin" /> : recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          </button>
+          {recording && <span className="inline-flex items-center text-[11px] tabular-nums text-destructive" aria-live="polite">{Math.floor(recordingSeconds / 60)}:{String(recordingSeconds % 60).padStart(2, "0")}</span>}
           <button type="button" onClick={() => setLinkOpen(true)} className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" title={T("افزودن لینک", "Add link")} aria-label={T("افزودن لینک", "Add link")} data-testid="task-description-add-link">
             <LinkIcon className="h-4 w-4" />
           </button>
@@ -190,8 +338,18 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
               <FileText className="h-4 w-4" />
             </button>
           )}
-          <button type="button" onClick={() => { setDraft(value || ""); setFull(true); }} className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" title={T("ویرایشگر پیشرفته", "Advanced editor")} aria-label={T("ویرایشگر پیشرفته", "Advanced editor")}>
+          <button type="button" onClick={() => { setDraft(inlineEditorRef.current?.getMarkdown() ?? value ?? ""); setFull(true); }} className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" title={T("ویرایشگر پیشرفته", "Advanced editor")} aria-label={T("ویرایشگر پیشرفته", "Advanced editor")}>
             <Pencil className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => void finishEditing()}
+            disabled={saving || uploading || editorUploading}
+            className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+            title={T("پایان ویرایش", "Finish editing")}
+            aria-label={T("پایان ویرایش", "Finish editing")}
+          >
+            <Check className="h-4 w-4" />
           </button>
           <button
             type="button"

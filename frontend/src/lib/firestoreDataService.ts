@@ -27,6 +27,7 @@ export interface FolderItem {
   name: string;
   parent_id: string | null;
   color: string;
+  emoji?: string | null;
   position?: number;
 }
 
@@ -135,7 +136,8 @@ const CACHE_KEYS = {
 
 export function subscribeTasks(
   userId: string,
-  onUpdate: (tasks: Task[]) => void
+  onUpdate: (tasks: Task[]) => void,
+  onInitialError?: (error: Error) => void,
 ): () => void {
   if (!userId) {
     onUpdate([]);
@@ -147,7 +149,7 @@ export function subscribeTasks(
   let knownTasks: Task[] = [];
 
   // 1. Immediately provide cached tasks if available
-  cacheGet<unknown>(CACHE_KEYS.tasks(userId)).then((cached) => {
+  cacheGet<unknown>(CACHE_KEYS.tasks(userId)).catch(() => undefined).then((cached) => {
     const tasks = extractTasksFromCache(cached);
     if (active && !hasReceivedSnapshot && tasks.length) {
       const merged = new Map(tasks.map(task => [task.id, task]));
@@ -197,15 +199,36 @@ export function subscribeTasks(
       async (err) => {
         console.warn("[FirestoreData] subscribeTasks notice:", err?.message);
         if (!active || hasReceivedSnapshot) return;
-        const cached = await cacheGet<unknown>(CACHE_KEYS.tasks(userId));
+        const cached = await cacheGet<unknown>(CACHE_KEYS.tasks(userId)).catch(() => undefined);
         const tasks = extractTasksFromCache(cached);
-        // Always answer once so screens leave their loading state (e.g. when the daily quota is exhausted).
-        if (active) onUpdate(tasks.length ? tasks : knownTasks);
+        if (!active) return;
+        if (tasks.length) {
+          const merged = new Map(tasks.map(task => [task.id, task]));
+          knownTasks.forEach(task => merged.set(task.id, task));
+          knownTasks = [...merged.values()];
+          onUpdate(knownTasks);
+          return;
+        }
+        if (knownTasks.length) {
+          onUpdate(knownTasks);
+          return;
+        }
+        onInitialError?.(err instanceof Error ? err : new Error("Task data could not be loaded."));
       }
     );
     return () => { active = false; unsub(); };
   } catch (err) {
     console.warn("[FirestoreData] Failed to subscribe to tasks:", err);
+    const initialError = err instanceof Error ? err : new Error("Task data could not be loaded.");
+    void cacheGet<unknown>(CACHE_KEYS.tasks(userId)).catch(() => undefined).then((cached) => {
+      if (!active || hasReceivedSnapshot) return;
+      const tasks = extractTasksFromCache(cached);
+      if (tasks.length) {
+        knownTasks = tasks;
+        onUpdate(tasks);
+      } else if (knownTasks.length) onUpdate(knownTasks);
+      else onInitialError?.(initialError);
+    });
     return () => { active = false; };
   }
 }
@@ -331,7 +354,7 @@ async function rollbackOptimisticTaskWrite(
 export async function persistTask(
   userId: string,
   task: Partial<Task> & { id: string },
-  options: { quietCompanion?: boolean } = {},
+  options: { quietCompanion?: boolean; expectedValues?: Partial<Task> } = {},
 ): Promise<TaskPersistenceStatus> {
   if (!userId || !task.id) return "failed";
   let normalizedTask: typeof task;
@@ -349,6 +372,7 @@ export async function persistTask(
   // 1. Update local cache optimistically first so task is never lost
   let previousTask: Task | undefined;
   let previousIndex = -1;
+  let expectedValuesMismatch = false;
   try {
     await withTaskCacheMutationLock(userId, async () => {
       const cachedRaw = await cacheGet<unknown>(CACHE_KEYS.tasks(userId));
@@ -356,6 +380,14 @@ export async function persistTask(
       const index = cached.findIndex((t) => t.id === task.id);
       previousIndex = index;
       previousTask = index >= 0 ? cached[index] : undefined;
+      if (options.expectedValues && (!previousTask || !Object.entries(options.expectedValues).every(([key, expected]) => {
+        const actual = (previousTask as unknown as Record<string, unknown>)[key];
+        try { return JSON.stringify(actual ?? null) === JSON.stringify(expected ?? null); }
+        catch { return Object.is(actual, expected); }
+      }))) {
+        expectedValuesMismatch = true;
+        return;
+      }
       let next: Task[];
       if (index >= 0) {
         next = [...cached];
@@ -367,7 +399,12 @@ export async function persistTask(
     });
   } catch (cacheErr) {
     console.warn("[FirestoreData] upsertTask cache warning:", cacheErr);
+    if (options.expectedValues) expectedValuesMismatch = true;
   }
+
+  // Undo/redo may pass a field-level precondition so a stale snapshot cannot
+  // overwrite a later local edit. Cloud revision checks below cover remote races.
+  if (expectedValuesMismatch) return "failed";
 
   // 2. Persist to Firestore
   const celebrateAcceptedChange = () => {

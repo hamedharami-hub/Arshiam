@@ -41,7 +41,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { RecurrenceEditor } from "@/components/RecurrenceEditor";
 import { TaskAIPanel } from "@/components/TaskAIPanel";
 import { TaskNoteEditorDialog } from "@/components/task-detail/TaskNoteEditorDialog";
-import { getTaskNotes, createTaskNote, deleteTaskNote } from "@/lib/taskNotesService";
+import { getTaskNotes, createTaskNote, updateTaskNote, deleteTaskNote } from "@/lib/taskNotesService";
 import { TaskStepLists } from "@/components/TaskStepLists";
 import { persistTaskTagChange } from "@/lib/taskTagService";
 import { TaskSubtasksInline } from "@/components/TaskSubtasksInline";
@@ -65,7 +65,6 @@ import { TaskDetailBottomRail } from "@/components/task-detail/TaskDetailBottomR
 import { TaskCloseDialog } from "@/components/task-detail/TaskCloseDialog";
 import { SaveStatusButton, TaskDetailTopBar } from "@/components/task-detail/TaskDetailTopBar";
 import { toPersianDigits } from "@/lib/persianDigits";
-import { TaskDetailActionsMenu } from "@/components/task-detail/TaskDetailActionsMenu";
 import { TaskRelatedContacts } from "@/components/task-detail/TaskRelatedContacts";
 import { ContactPickerModal } from "@/components/contacts/ContactPickerModal";
 import { ContactEditorDialog } from "@/components/contacts/ContactEditorDialog";
@@ -104,6 +103,50 @@ import {
 // TickTick-style autosave: short debounce after the last edit.
 const AUTOSAVE_DELAY_MS = 1200;
 
+type TaskUndoSnapshot = Partial<Task>;
+
+const TASK_UNDO_IGNORED_FIELDS = new Set<keyof Task>(["id", "user_id", "created_at", "updated_at", "_graceUntil"]);
+
+function cloneUndoValue(value: unknown): unknown {
+  const normalized = value ?? null;
+  if (normalized === null || typeof normalized !== "object") return normalized;
+  try { return JSON.parse(JSON.stringify(normalized)); }
+  catch { return normalized; }
+}
+
+function sameUndoValue(left: unknown, right: unknown): boolean {
+  try { return JSON.stringify(left ?? null) === JSON.stringify(right ?? null); }
+  catch { return Object.is(left, right); }
+}
+
+function captureTaskUndoSnapshots(patch: Partial<Task>, saved: Task) {
+  const before: TaskUndoSnapshot = {};
+  const after: TaskUndoSnapshot = {};
+  const fields: Array<keyof Task> = [];
+  for (const [rawKey, rawAfter] of Object.entries(patch)) {
+    const key = rawKey as keyof Task;
+    if (TASK_UNDO_IGNORED_FIELDS.has(key)) continue;
+    const rawBefore = saved[key];
+    if (sameUndoValue(rawBefore, rawAfter)) continue;
+    (before as unknown as Record<string, unknown>)[key] = cloneUndoValue(rawBefore);
+    (after as unknown as Record<string, unknown>)[key] = cloneUndoValue(rawAfter);
+    fields.push(key);
+  }
+  return { before, after, fields };
+}
+
+type TaskNoteSnapshot = Partial<Pick<TaskNote, "title" | "content">>;
+
+function noteSnapshot(note: TaskNote, fields: Array<keyof TaskNoteSnapshot> = ["title", "content"]): TaskNoteSnapshot {
+  const snapshot: TaskNoteSnapshot = {};
+  for (const field of fields) snapshot[field] = note[field] ?? "";
+  return snapshot;
+}
+
+function noteSnapshotMatches(note: TaskNote, snapshot: TaskNoteSnapshot): boolean {
+  return Object.entries(snapshot).every(([key, value]) => note[key as "title" | "content"] === value);
+}
+
 export type TaskDetailHandle = {
   /** Flushes the current editor state before a parent route is allowed to leave. */
   savePendingChanges: (force?: boolean) => Promise<TaskPersistenceStatus>;
@@ -140,9 +183,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [taskNotes, setTaskNotes] = useState<TaskNote[]>([]);
   const [editingNote, setEditingNote] = useState<TaskNote | null>(null);
   const [isAddingNote, setIsAddingNote] = useState(false);
-  const [newNoteTitle, setNewNoteTitle] = useState("");
-  const [newNoteContent, setNewNoteContent] = useState("");
-  const [noteSaving, setNoteSaving] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [snap, setSnap] = useState<number | string>(0.5);
   const [folders, setFolders] = useState<{ id: string; name: string; parent_id: string | null; color: string | null }[]>([]);
@@ -150,10 +190,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const [taskTagIds, setTaskTagIds] = useState<string[]>([]);
   const pendingTagChangesRef = useRef(new Set<string>());
 
-  // The subtask editor is always visible: a task's hierarchy must never be hidden
-  // behind a secondary rail control, including while the app is offline.
   const isScheduled = readSchedule(t).kind !== "none" || !!t.reminder_at || !!t.recurrence_rule;
-  const [showSubtasks, setShowSubtasks] = useState(true);
+  const [showSubtasks, setShowSubtasks] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
@@ -203,9 +241,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     setEditingNote(null);
     setShowNotes(false);
     setIsAddingNote(false);
-    setNewNoteTitle("");
-    setNewNoteContent("");
-    setNoteSaving(false);
     return () => { if (noteEditorIdentity.current === identity) noteEditorIdentity.current = ""; };
   }, [user?.id, task.id]);
 
@@ -233,7 +268,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       }
     } catch { /* corrupted drafts are ignored */ }
     setT(restored);
-    setShowSubtasks(true);
+    setShowSubtasks(false);
     latestTaskRef.current = restored;
     savedTaskRef.current = task;
     setSaveState(Object.keys(taskPatch(restored, task)).length ? "dirty" : "saved");
@@ -346,7 +381,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
       if (subs.length > 0) {
         setLoadedSubtasks(subs);
-        setShowSubtasks(true);
         const done = subs.filter((s) => s.completed).length;
         setSubtaskProgress({ completed: done, total: subs.length });
       }
@@ -355,11 +389,9 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
       const stepCount = stepListsRes.count || 0;
       setStepListCount(stepCount);
-      if (stepCount > 0) setShowSteps(true);
 
       const attCount = attachRes.count || 0;
       setAttachmentCount(attCount);
-      if (attCount > 0) setShowAttachments(true);
 
       const outCount = outcomesRes.count || 0;
       setOutcomeCount(outCount);
@@ -462,13 +494,16 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     if (!user || !canEdit) return;
     if (pendingTagChangesRef.current.has(tagId)) return;
     pendingTagChangesRef.current.add(tagId);
+    const userId = user.id;
+    const taskId = t.id;
+    const identity = noteEditorIdentity.current;
     const action = taskTagIds.includes(tagId) ? "remove" : "add";
     setTaskTagIds((current) => action === "remove"
       ? current.filter((id) => id !== tagId)
       : current.includes(tagId) ? current : [...current, tagId]);
 
     try {
-      const result = await persistTaskTagChange(user.id, t.id, tagId, action);
+      const result = await persistTaskTagChange(userId, taskId, tagId, action);
       if (result === "failed") {
         setTaskTagIds((current) => action === "remove"
           ? current.includes(tagId) ? current : [...current, tagId]
@@ -476,6 +511,22 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         toast.error(T("تغییر تگ ذخیره نشد؛ نمایش به حالت قبلی برگشت", "Tag change was not saved; reverted to its previous state"));
       } else if (result === "queued") {
         toast.info(T("تغییر تگ روی این دستگاه ذخیره شد و بعداً همگام می‌شود", "Tag change saved on this device and will sync later"));
+      }
+      if (result !== "failed") {
+        const applyTagAction = async (nextAction: "add" | "remove") => {
+          const reverseResult = await persistTaskTagChange(userId, taskId, tagId, nextAction);
+          if (reverseResult === "failed") throw new Error(T("تغییر تگ بازگردانی نشد؛ دوباره تلاش کن", "Tag change could not be restored; try again"));
+          if (noteEditorIdentity.current === identity) {
+            setTaskTagIds((current) => nextAction === "add"
+              ? current.includes(tagId) ? current : [...current, tagId]
+              : current.filter((id) => id !== tagId));
+          }
+        };
+        pushUndo({
+          label: action === "add" ? T("برچسب اضافه شد", "Tag added") : T("برچسب برداشته شد", "Tag removed"),
+          undo: () => applyTagAction(action === "add" ? "remove" : "add"),
+          redo: () => applyTagAction(action),
+        });
       }
     } finally {
       pendingTagChangesRef.current.delete(tagId);
@@ -525,6 +576,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     if (!canEdit) return "failed";
     if (!force && !Object.keys(patch).length) return "saved";
     const current = latestTaskRef.current;
+    const previousSavedTask = savedTaskRef.current;
+    const { before: undoBefore, after: undoAfter, fields: undoFields } = captureTaskUndoSnapshots(patch, previousSavedTask);
     if (patch.parent_id !== undefined && !validateTaskParentLink(allTasks, current.id, patch.parent_id, "parent_id").valid) {
       toast.error(isEn ? "This subtask link would create a cycle and was not saved." : "این پیوند زیرتسک باعث چرخه می‌شود و ذخیره نشد.");
       return "failed";
@@ -534,10 +587,46 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     setT(next);
     setSaveState("saving");
 
+    const applyTaskSnapshot = async (snapshot: TaskUndoSnapshot, expected: TaskUndoSnapshot) => {
+      if (!user?.id) throw new Error(isEn ? "Sign in to restore this text" : "برای بازگردانی باید وارد حساب شوید");
+      const status = toSaveStatus(await persistTask(user.id, { id: current.id, ...snapshot }, { expectedValues: expected }));
+      if (status === "failed") throw new Error(isEn ? "Restore could not be saved; try again" : "بازگردانی ذخیره نشد؛ دوباره تلاش کن");
+
+      if (latestTaskRef.current.id === current.id) {
+        const restored = { ...latestTaskRef.current, ...snapshot };
+        latestTaskRef.current = restored;
+        setT(restored);
+        savedTaskRef.current = { ...savedTaskRef.current, ...snapshot };
+        if (!Object.keys(taskPatch(latestTaskRef.current, savedTaskRef.current)).length) clearTaskDraft(current.id);
+        else writeTaskDraft(restored);
+        setSaveState(status);
+        try { void Promise.resolve(onChanged()).catch((error) => console.warn("Task refresh after text restore failed:", error)); }
+        catch (error) { console.warn("Task refresh after text restore failed:", error); }
+      }
+    };
+
     const finish = (state: "saved" | "queued") => {
       savedTaskRef.current = { ...savedTaskRef.current, ...patch };
       if (!Object.keys(taskPatch(latestTaskRef.current, savedTaskRef.current)).length) clearTaskDraft(current.id);
       setSaveState(state);
+      const isLatestUndoChange = latestTaskRef.current.id === current.id && undoFields.every((field) => sameUndoValue(latestTaskRef.current[field], undoAfter[field]));
+      if (user?.id && undoFields.length > 0 && isLatestUndoChange) {
+        const orderedFields = undoFields.slice().sort((left, right) => String(left).localeCompare(String(right)));
+        const fieldKey = orderedFields.map(String).join(":");
+        const hasTitle = undoFields.includes("title");
+        const hasDescription = undoFields.includes("description");
+        const fieldLabel = isEn
+          ? hasTitle && hasDescription && undoFields.length === 2 ? "task title and description" : hasTitle && undoFields.length === 1 ? "task title" : hasDescription && undoFields.length === 1 ? "task description" : "task changes"
+          : hasTitle && hasDescription && undoFields.length === 2 ? "عنوان و شرح تسک" : hasTitle && undoFields.length === 1 ? "عنوان تسک" : hasDescription && undoFields.length === 1 ? "شرح تسک" : "تغییرات تسک";
+        const mergeState = { latest: undoAfter };
+        pushUndo({
+          label: isEn ? `Recorded ${fieldLabel} change` : `تغییر ${fieldLabel} ثبت شد`,
+          undo: () => applyTaskSnapshot(undoBefore, mergeState.latest),
+          redo: () => applyTaskSnapshot(mergeState.latest, undoBefore),
+          mergeData: undoAfter,
+          onMerge: (latest) => { mergeState.latest = latest as TaskUndoSnapshot; },
+        }, { mergeKey: `task:${user.id}:${current.id}:${fieldKey}`, mergeWindowMs: 10000 });
+      }
       // Refreshing a parent list is helpful, but must never turn a successful
       // persistence operation into a visible save failure.
       try { void Promise.resolve(onChanged()).catch((error) => console.warn("Task refresh after save failed:", error)); }
@@ -651,7 +740,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     if (parentOpen) { setParentOpen(false); return; }
     if (tagOpen) { setTagOpen(false); return; }
     if (editingNote) { setEditingNote(null); return; }
-    if (isAddingNote) { setIsAddingNote(false); setNewNoteTitle(""); setNewNoteContent(""); return; }
+    if (isAddingNote) { setIsAddingNote(false); return; }
 
     if (hasPendingChanges || saveState === "saving" || saveState === "error") {
       requestClose();
@@ -764,37 +853,85 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     if (reviewUrl) navigate(reviewUrl);
   };
 
-  const handleCancelNewNote = () => {
-    setIsAddingNote(false);
-    setNewNoteTitle("");
-    setNewNoteContent("");
+  const updateNoteListIfCurrent = (identity: string, updated: TaskNote) => {
+    if (noteEditorIdentity.current !== identity) return;
+    setTaskNotes((previous) => [updated, ...previous.filter((note) => note.id !== updated.id)]);
   };
 
-  const handleSaveNewNote = async () => {
-    if (!user || !canEdit || noteSaving) return;
-    const trimmedTitle = newNoteTitle.trim();
-    const trimmedContent = newNoteContent.trim();
-    if (!trimmedTitle && !trimmedContent) {
-      toast.error(T("عنوان یا متن نوت نباید خالی باشد", "Title or content cannot be empty"));
-      return;
+  const removeNoteFromListIfCurrent = (identity: string, noteId: string) => {
+    if (noteEditorIdentity.current !== identity) return;
+    setTaskNotes((previous) => previous.filter((note) => note.id !== noteId));
+  };
+
+  const applyNoteSnapshot = async (
+    identity: string,
+    userId: string,
+    taskId: string,
+    noteId: string,
+    snapshot: TaskNoteSnapshot,
+    expected: TaskNoteSnapshot,
+  ) => {
+    const currentNotes = await getTaskNotes(taskId, userId);
+    const currentNote = currentNotes.find((note) => note.id === noteId);
+    if (!currentNote || !noteSnapshotMatches(currentNote, expected)) {
+      throw new Error(T("این یادداشت بعد از تغییر ذخیره‌شده عوض شده است؛ برای جلوگیری از حذف تغییر تازه، دوباره بارگذاری‌اش کن.", "This note changed after the saved edit. Reload it to avoid overwriting newer content."));
     }
+    const updated = await updateTaskNote(userId, noteId, taskId, snapshot, expected);
+    updateNoteListIfCurrent(identity, updated);
+  };
+
+  const deleteCreatedNoteIfUnchanged = async (
+    identity: string,
+    userId: string,
+    taskId: string,
+    noteId: string,
+    expected: TaskNoteSnapshot,
+  ) => {
+    const currentNotes = await getTaskNotes(taskId, userId);
+    const currentNote = currentNotes.find((note) => note.id === noteId);
+    if (!currentNote) return;
+    if (!noteSnapshotMatches(currentNote, expected)) {
+      throw new Error(T("این یادداشت بعد از ساخته‌شدن تغییر کرده است و برای حفظ متن تازه حذف نشد.", "This note changed after creation and was kept to preserve the newer content."));
+    }
+    await deleteTaskNote(userId, noteId, taskId, expected);
+    removeNoteFromListIfCurrent(identity, noteId);
+  };
+
+  const addNoteCreateUndo = (created: TaskNote) => {
+    if (!user?.id) return;
+    const userId = user.id;
+    const taskId = t.id;
     const identity = noteEditorIdentity.current;
-    setNoteSaving(true);
-    try {
-      const created = await createTaskNote(user.id, t.id, {
-        title: trimmedTitle || trimmedContent.slice(0, 40) || T("یادداشت", "Note"),
-        content: trimmedContent,
-      });
-      if (noteEditorIdentity.current !== identity) return;
-      setTaskNotes(prev => [created, ...prev.filter(n => n.id !== created.id)]);
-      toast.success(T("نوت اضافه شد", "Note added"));
-      handleCancelNewNote();
-      setShowNotes(true);
-    } catch (err) {
-      if (noteEditorIdentity.current === identity) toast.error(err instanceof Error ? err.message : T("خطا در ایجاد نوت", "Error creating note"));
-    } finally {
-      if (noteEditorIdentity.current === identity) setNoteSaving(false);
-    }
+    const snapshot = noteSnapshot(created);
+    pushUndo({
+      label: T(`نوت «${created.title || "بدون عنوان"}» اضافه شد`, `Note "${created.title || "Untitled"}" created`),
+      undo: () => deleteCreatedNoteIfUnchanged(identity, userId, taskId, created.id, snapshot),
+      redo: async () => {
+        const restored = await createTaskNote(userId, taskId, {
+          id: created.id,
+          title: created.title,
+          content: created.content,
+          created_at: created.created_at,
+        });
+        updateNoteListIfCurrent(identity, restored);
+      },
+    });
+  };
+
+  const addNoteEditUndo = (before: TaskNote, after: TaskNote) => {
+    if (!user?.id) return;
+    const changedFields = (["title", "content"] as const).filter((field) => before[field] !== after[field]);
+    if (!changedFields.length) return;
+    const userId = user.id;
+    const taskId = t.id;
+    const identity = noteEditorIdentity.current;
+    const beforeSnapshot = noteSnapshot(before, [...changedFields]);
+    const afterSnapshot = noteSnapshot(after, [...changedFields]);
+    pushUndo({
+      label: T(`نوت «${after.title || "بدون عنوان"}» ویرایش شد`, `Note "${after.title || "Untitled"}" edited`),
+      undo: () => applyNoteSnapshot(identity, userId, taskId, after.id, beforeSnapshot, afterSnapshot),
+      redo: () => applyNoteSnapshot(identity, userId, taskId, after.id, afterSnapshot, beforeSnapshot),
+    });
   };
 
   const askDelNote = (n: TaskNote) => {
@@ -814,10 +951,17 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           pushUndo({
             label: T(`نوت «${existingNote.title || "بدون عنوان"}» حذف شد`, `Note "${existingNote.title || "Untitled"}" deleted`),
             undo: async () => {
-              const { error } = await firebaseStore.from("notes").insert(existingNote as any);
-              if (error) throw error;
-              const list = await getTaskNotes(t.id, user.id);
-              if (noteEditorIdentity.current === identity) setTaskNotes(list);
+              const restored = await createTaskNote(user.id, t.id, {
+                id: existingNote.id,
+                title: existingNote.title,
+                content: existingNote.content,
+                created_at: existingNote.created_at,
+              });
+              updateNoteListIfCurrent(identity, restored);
+            },
+            redo: async () => {
+              await deleteTaskNote(user.id, n.id, t.id, noteSnapshot(existingNote));
+              removeNoteFromListIfCurrent(identity, n.id);
             },
           });
         } catch (err) {
@@ -949,7 +1093,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
   const descriptionSection = (
     <section className="mx-1">
-      <div data-rich-selection onContextMenu={(e) => e.preventDefault()} style={{ WebkitTouchCallout: "none" } as any}>
+      <div data-rich-selection>
         <TaskDescriptionEditor
           taskId={t.id}
           value={t.description || ""}
@@ -1256,56 +1400,10 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         </TaskSection>
       )}
 
-      {(showNotes || taskNotes.length > 0 || isAddingNote) && (
+      {(showNotes || taskNotes.length > 0) && (
         <TaskSection testid="task-notes-section" icon={FileText} title={T("نوت‌ها", "Notes")} count={taskNotes.length}
           actions={<TaskSectionAction icon={Plus} disabled={!canEdit} onClick={() => { setShowNotes(true); setIsAddingNote(true); }} data-testid="task-notes-new">{T("نوت تازه", "New note")}</TaskSectionAction>}
-          onClose={taskNotes.length === 0 && !isAddingNote ? () => setShowNotes(false) : undefined} closeLabel={T("بستن نوت‌ها", "Hide notes")}>
-          {/* Compact in-panel note creation form */}
-          {isAddingNote && (
-            <div className="mb-2 space-y-2 rounded-lg bg-muted/40 p-2.5 animate-in fade-in duration-150">
-              <Input
-                placeholder={T("عنوان نوت (اختیاری)...", "Note title (optional)...")}
-                value={newNoteTitle}
-                onChange={(e) => setNewNoteTitle(e.target.value)}
-                disabled={noteSaving}
-                className="h-8 text-xs sm:text-sm bg-background/80"
-                dir="auto"
-                autoFocus
-              />
-              <AutoTextarea
-                placeholder={T("متن نوت را بنویسید...", "Write note content...")}
-                value={newNoteContent}
-                onChange={(e) => setNewNoteContent(e.target.value)}
-                disabled={noteSaving}
-                className="text-xs sm:text-sm bg-background/80 min-h-[64px] rounded-lg p-2"
-                dir="auto"
-                minHeight={64}
-                maxHeight={160}
-              />
-              <div className="flex items-center justify-end gap-2 pt-0.5">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={noteSaving}
-                  onClick={handleCancelNewNote}
-                  className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  {T("انصراف", "Cancel")}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={noteSaving}
-                  onClick={() => void handleSaveNewNote()}
-                  className="h-7 px-3 text-xs gap-1 font-semibold"
-                >
-                  {noteSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                  <span>{T("ذخیره نوت", "Save Note")}</span>
-                </Button>
-              </div>
-            </div>
-          )}
+          onClose={taskNotes.length === 0 ? () => setShowNotes(false) : undefined} closeLabel={T("بستن نوت‌ها", "Hide notes")}>
 
           {/* Notes Cards List */}
           <div className="-mx-1 space-y-0.5">
@@ -1411,6 +1509,13 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       setAiOpen={setAiOpen}
       setFocusOpen={setFocusOpen}
       setActionMenuOpen={setActionMenuOpen}
+      isActiveLeitnerReview={isLeitnerStudyTask(t) && !t.completed}
+      onOpenLeitnerReview={getStudyTaskNavigation(t).navUrl ? openLinkedReview : undefined}
+      onToggleCompletion={toggleCompletion}
+      onCopyTaskLink={() => void copyTaskLink()}
+      onDuplicateTask={() => void duplicateTask()}
+      onAddToCalendar={() => void addToAndroidCalendar()}
+      onOpenFullPage={mode !== "page" ? () => navigate(`/app/tasks/${t.id}`) : undefined}
       deleteTask={deleteTask}
       save={save}
       T={T}
@@ -1629,19 +1734,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     }
   };
 
-  const moreActionsDropdown = (
-    <TaskDetailActionsMenu
-      task={t}
-      canEdit={canEdit}
-      T={T}
-      onToggleCompletion={toggleCompletion}
-      onCopyTaskLink={() => void copyTaskLink()}
-      onDuplicateTask={() => void duplicateTask()}
-      onAddToCalendar={() => void addToAndroidCalendar()}
-      onOpenFullPage={mode !== "page" ? () => navigate(`/app/tasks/${t.id}`) : undefined}
-    />
-  );
-
   const saveButton = (
     <SaveStatusButton
       state={saveState}
@@ -1668,7 +1760,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       onBack={onBack || hasBackHistory || mode === "page" ? handleBackClick : undefined}
       onClose={opts.onClose}
       save={saveButton}
-      more={moreActionsDropdown}
       extra={opts.extra}
     />
   );
@@ -1916,23 +2007,31 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           />
 
           {/* Task Note Editor Dialog / Sheet */}
-          {editingNote && (
+          {(editingNote || isAddingNote) && (
             <TaskNoteEditorDialog
-              open={!!editingNote}
+              open={!!editingNote || isAddingNote}
               onOpenChange={(open) => {
-                if (!open) setEditingNote(null);
+                if (!open) { setEditingNote(null); setIsAddingNote(false); }
               }}
               userId={user.id}
               taskId={t.id}
               note={editingNote}
               canEdit={canEdit}
               onSaved={(updated) => {
-                setTaskNotes((prev) => prev.map((n) => (n.id === updated.id ? updated : n)));
+                if (editingNote) addNoteEditUndo(editingNote, updated);
+                setTaskNotes((prev) => [updated, ...prev.filter((n) => n.id !== updated.id)]);
                 setEditingNote(null);
+                setIsAddingNote(false);
               }}
               onDeleted={(noteId) => {
                 setTaskNotes((prev) => prev.filter((n) => n.id !== noteId));
                 setEditingNote(null);
+              }}
+              onCreated={(created) => {
+                addNoteCreateUndo(created);
+                setTaskNotes((prev) => [created, ...prev.filter((n) => n.id !== created.id)]);
+                setIsAddingNote(false);
+                setShowNotes(true);
               }}
             />
           )}

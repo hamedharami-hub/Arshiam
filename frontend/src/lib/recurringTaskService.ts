@@ -270,6 +270,7 @@ export async function advanceRecurringTask(
   // A Firestore transaction commits the parent, its owned descendants and
   // checklist steps together. Transactions fail while offline; do not queue
   // independent task writes, which could replay as a partial occurrence.
+  let updatedSubtaskCount = 0;
   try {
     const taskPatches = [taskPatch, ...subtaskPatches].map(patch => normalizeTaskWrite(patch));
     const { data: stepLists, error: listError } = await firebaseStore
@@ -290,20 +291,28 @@ export async function advanceRecurringTask(
     if (taskPatches.length + stepIds.length > 500) throw new Error("Recurring task exceeds Firestore transaction write limit");
 
     await runTransaction(db, async transaction => {
+      updatedSubtaskCount = 0;
       const taskRefs = taskPatches.map(patch => doc(db, "users", userId, "tasks", patch.id));
       const stepRefs = stepIds.map(id => doc(db, "users", userId, "task_steps", id));
       // Complete every read before the first write, as Firestore transactions require.
       const snapshots = await Promise.all([...taskRefs, ...stepRefs].map(ref => transaction.get(ref)));
-      if (snapshots.some(snapshot => !snapshot.exists())) throw new Error("Recurring task changed before it could be advanced");
+      // The recurring parent is the transaction's required record. A descendant
+      // can have been deleted on another device after the local tree was read;
+      // that must not prevent advancing the still-existing parent occurrence.
+      if (!snapshots[0]?.exists()) throw new Error("Recurring task changed before it could be advanced");
       const currentParent = snapshots[0].data() as Partial<Task> | undefined;
       if (currentParent && JSON.stringify(readSchedule(currentParent, settings)) !== JSON.stringify(schedule)) {
         throw new Error("Recurring task schedule changed before it could be advanced");
       }
       taskPatches.forEach((patch, index) => {
+        if (!snapshots[index]?.exists()) return;
         const fields = Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined));
         transaction.update(taskRefs[index], { ...fields, user_id: userId });
+        if (index > 0) updatedSubtaskCount += 1;
       });
-      stepRefs.forEach(ref => transaction.update(ref, { completed: false }));
+      stepRefs.forEach((ref, index) => {
+        if (snapshots[taskRefs.length + index]?.exists()) transaction.update(ref, { completed: false });
+      });
     });
   } catch (error) {
     return { success: false, error };
@@ -328,6 +337,6 @@ export async function advanceRecurringTask(
     nextDate,
     formattedNextDate,
     patch: taskPatch,
-    updatedSubtaskCount: subtaskPatches.length,
+    updatedSubtaskCount,
   };
 }

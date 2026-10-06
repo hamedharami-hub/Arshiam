@@ -163,7 +163,7 @@ export async function getTaskNotes(taskId: string, userId: string): Promise<Task
 export async function createTaskNote(
   userId: string,
   taskId: string,
-  data: { id?: string; title?: string; content?: string }
+  data: { id?: string; title?: string; content?: string; created_at?: string }
 ): Promise<TaskNote> {
   if (!userId || !taskId) {
     throw new Error("userId and taskId are required");
@@ -183,7 +183,7 @@ export async function createTaskNote(
     task_id: taskId,
     title: rawTitle || rawContent.slice(0, 40) || "یادداشت",
     content: rawContent,
-    created_at: now,
+    created_at: data.created_at || now,
     updated_at: now,
   };
 
@@ -239,7 +239,8 @@ export async function updateTaskNote(
   userId: string,
   noteId: string,
   taskId: string,
-  patch: Partial<Omit<TaskNote, "id" | "user_id" | "task_id" | "created_at">>
+  patch: Partial<Omit<TaskNote, "id" | "user_id" | "task_id" | "created_at">>,
+  expectedCurrent?: Partial<Pick<TaskNote, "title" | "content">>,
 ): Promise<TaskNote> {
   if (!userId || !noteId || !taskId) {
     throw new Error("userId, noteId, and taskId are required");
@@ -250,6 +251,11 @@ export async function updateTaskNote(
   return runSynchronized(getUserMutationQueueKey(userId), async () => {
     const currentTaskNotes = (await cacheGet<TaskNote[]>(taskKey)) || [];
     const existing = currentTaskNotes.find((n) => n.id === noteId);
+    if (expectedCurrent && (!existing || !Object.entries(expectedCurrent).every(([key, expected]) => {
+      return existing[key as "title" | "content"] === expected;
+    }))) {
+      throw new Error("This note changed after the snapshot. Reload it before trying again.");
+    }
 
     const now = new Date().toISOString();
     const updated: TaskNote = {
@@ -287,7 +293,8 @@ export async function updateTaskNote(
 export async function deleteTaskNote(
   userId: string,
   noteId: string,
-  taskId: string
+  taskId: string,
+  expectedCurrent?: Partial<Pick<TaskNote, "title" | "content">>,
 ): Promise<boolean> {
   if (!userId || !noteId || !taskId) return false;
 
@@ -296,6 +303,12 @@ export async function deleteTaskNote(
   return runSynchronized(getUserMutationQueueKey(userId), async () => {
     // 1. Optimistic cache updates
     const currentTaskNotes = (await cacheGet<TaskNote[]>(taskKey)) || [];
+    const currentNote = currentTaskNotes.find((note) => note.id === noteId);
+    if (expectedCurrent && (!currentNote || !Object.entries(expectedCurrent).every(([key, expected]) => {
+      return currentNote[key as "title" | "content"] === expected;
+    }))) {
+      throw new Error("This note changed after the snapshot. Reload it before trying again.");
+    }
     await cacheSet(taskKey, currentTaskNotes.filter((n) => n.id !== noteId));
 
     const allKey = getAllNotesCacheKey(userId);
@@ -303,7 +316,7 @@ export async function deleteTaskNote(
     await cacheSet(allKey, allNotes.filter((n) => n.id !== noteId));
 
     // 2. Persist delete to Firestore or durable outbox; restore caches on failure.
-    const noteToDelete = currentTaskNotes.find((note) => note.id === noteId) || {
+    const noteToDelete = currentNote || {
       id: noteId,
       user_id: userId,
       task_id: taskId,

@@ -12,7 +12,6 @@ interface BottomTabItemProps {
   tab: BottomTabItemConfig;
   isActive: boolean;
   mode?: "mobile" | "desktop";
-  dir?: "rtl" | "ltr";
   className?: string;
 }
 
@@ -20,7 +19,6 @@ export function BottomTabItem({
   tab,
   isActive,
   mode = "mobile",
-  dir = "rtl",
   className = "",
 }: BottomTabItemProps) {
   const navigate = useNavigate();
@@ -93,7 +91,7 @@ export function BottomTabItem({
       onClick={handleClick}
       aria-label={label}
       aria-current={isActive ? "page" : undefined}
-      className={`group relative h-full flex-1 flex flex-col items-center justify-center pt-1.5 pb-1 select-none active:scale-95 transition-transform duration-150 min-w-0 ${className}`}
+      className={`group relative h-full flex-1 flex items-center justify-center select-none active:scale-95 transition-transform duration-150 min-w-0 ${className}`}
     >
       {/* Material 3 Capsule Active Indicator (64px x 32px) */}
       <div
@@ -117,17 +115,6 @@ export function BottomTabItem({
         ) : null}
       </div>
 
-      {/* Material 3 Label */}
-      <span
-        dir={dir}
-        className={`tracking-tight truncate max-w-full px-1 transition-all duration-200 text-[11px] leading-tight mt-1 ${
-          isActive
-            ? "font-semibold text-primary dark:text-primary"
-            : "font-medium text-muted-foreground/75 group-hover:text-foreground"
-        }`}
-      >
-        {label}
-      </span>
     </button>
   );
 }

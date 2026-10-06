@@ -6,7 +6,7 @@ import {
   updateUserTask,
   InvalidTaskPatchError,
 } from "../_lib/firestore.js";
-import { handleCors, parseBody, sendError, sendJson } from "../_lib/response.js";
+import { handleCors, parseBody, sendError, sendJson, sendRequestBodyError } from "../_lib/response.js";
 import { InvalidTaskPriorityError, InvalidTaskScheduleError } from "../_lib/taskSchedule.js";
 
 function extractTaskId(req: any): string | null {
@@ -99,6 +99,7 @@ export default async function handler(req: any, res: any) {
       return;
     }
   } catch (error: any) {
+    if (sendRequestBodyError(res, error)) return;
     if (error instanceof InvalidTaskInputError) return sendError(res, 400, "VALIDATION_ERROR", error.message);
     console.error(`[API /api/tasks/${taskId} error]:`, error);
     if (error instanceof InvalidTaskPatchError) {
@@ -117,7 +118,7 @@ export default async function handler(req: any, res: any) {
       res,
       500,
       "INTERNAL_ERROR",
-      error?.message || "An unexpected error occurred while processing the task."
+      "An unexpected error occurred while processing the task."
     );
   }
 }

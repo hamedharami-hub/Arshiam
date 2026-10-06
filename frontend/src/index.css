@@ -55,8 +55,8 @@
     --sidebar-border: 35 12% 86%;
     --sidebar-ring: var(--primary);
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), color-mix(in srgb, hsl(var(--primary)) 78%, #000));
-    --bottom-bar-height: 4.85rem;
-    --bottom-bar-gap: 0.35rem;
+    --bottom-bar-height: 3.85rem;
+    --bottom-bar-gap: 0.9rem;
     --gradient-mesh: none;
     --shadow-soft: none;
     --shadow-elegant: none;
@@ -102,16 +102,18 @@
   .dark.theme-oled {
     --background: 0 0% 0%;
     --card: 0 0% 0%;
+    --foreground: 0 0% 96%;
     --popover: 0 0% 5%;
-    --secondary: 0 0% 10%;
-    --muted: 0 0% 9%;
-    --accent: 0 0% 12%;
-    --muted-foreground: 0 0% 64%;
-    --border: 0 0% 26%;
-    --input: 0 0% 30%;
+    --secondary: 0 0% 12%;
+    --muted: 0 0% 11%;
+    --accent: 0 0% 15%;
+    --muted-foreground: 0 0% 72%;
+    --border: 0 0% 31%;
+    --input: 0 0% 34%;
     --sidebar-background: 0 0% 0%;
-    --sidebar-accent: 0 0% 11%;
-    --sidebar-border: 0 0% 24%;
+    --sidebar-foreground: 0 0% 94%;
+    --sidebar-accent: 0 0% 13%;
+    --sidebar-border: 0 0% 29%;
   }
 
   /* ===== Accent palette (6 calm colours) ===== */
@@ -1713,7 +1715,7 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
    Paper redesign v2 — neutralise legacy decoration (gradients, blur, glow,
    bouncy motion) globally so older screens inherit the calm look.
    ========================================================================== */
-[class*="backdrop-blur"] { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+[class*="backdrop-blur"]:not([data-bottom-bar="true"]) { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 [class*="bg-gradient-to-"] { background-image: none !important; }
 [class*="bg-gradient-to-"][class*="text-white"],
 [class*="bg-gradient-to-"][class*="text-primary-foreground"] { background-color: hsl(var(--primary)) !important; }

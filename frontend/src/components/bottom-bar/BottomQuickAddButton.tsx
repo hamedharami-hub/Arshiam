@@ -77,7 +77,7 @@ export function BottomQuickAddButton({ mode = "mobile", className = "" }: Bottom
   // Mobile mode: Sleek, perfectly aligned primary action button
   return (
     <>
-      <div className="h-full flex-1 flex flex-col items-center justify-center pt-1.5 pb-1 select-none min-w-0">
+      <div className="h-full flex-1 flex items-center justify-center select-none min-w-0">
         <button
           type="button"
           onClick={handleQuickAdd}
@@ -88,9 +88,6 @@ export function BottomQuickAddButton({ mode = "mobile", className = "" }: Bottom
         >
           <Plus className="w-5 h-5 stroke-[2.5] text-primary-foreground transition-transform duration-200 group-hover:rotate-90" />
         </button>
-        <span className="tracking-tight truncate max-w-full px-1 text-[11px] font-semibold text-primary mt-1 leading-tight select-none">
-          {label}
-        </span>
       </div>
 
       <MobileSpeedDialMenu

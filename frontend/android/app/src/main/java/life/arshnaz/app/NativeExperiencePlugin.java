@@ -111,6 +111,23 @@ public class NativeExperiencePlugin extends Plugin {
         }
     }
 
+    @PluginMethod public void syncPomodoroNotification(PluginCall call) {
+        try {
+            boolean active = call.getBoolean("active", false);
+            boolean running = call.getBoolean("running", false);
+            boolean completed = call.getBoolean("completed", false);
+            String sessionId = call.getString("sessionId", "");
+            String title = call.getString("title", "");
+            String mode = call.getString("mode", "work");
+            long endAt = call.getLong("endAt", 0L);
+            long remainingSeconds = call.getLong("remainingSeconds", 0L);
+            PomodoroFocusNotification.sync(getContext(), active, running, completed, sessionId, title, mode, endAt, remainingSeconds);
+            call.resolve(new JSObject().put("updated", true));
+        } catch (Exception e) {
+            call.reject("Could not update focus notification", e);
+        }
+    }
+
     @PluginMethod public void appInfo(PluginCall call) {
         try {
             android.content.pm.PackageInfo info = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0);

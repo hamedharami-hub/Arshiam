@@ -23,8 +23,31 @@ export type Folder = {
   description?: string | null;
   parent_id: string | null;
   color: string;
+  emoji?: string | null;
   position?: number;
 };
+
+export function FolderMarker({ folder, className = "" }: { folder: Folder; className?: string }) {
+  if (!folder.emoji) {
+    return (
+      <FolderIcon
+        className={`h-4 w-4 shrink-0 ${className}`}
+        style={{ color: folder.color || "hsl(var(--primary))" }}
+      />
+    );
+  }
+
+  return (
+    <span className={`relative inline-flex h-4 w-4 shrink-0 items-center justify-center text-sm leading-none ${className}`}>
+      <span aria-hidden="true">{folder.emoji}</span>
+      <span
+        aria-hidden="true"
+        className="absolute -bottom-0.5 -end-0.5 h-1.5 w-1.5 rounded-full border border-sidebar"
+        style={{ backgroundColor: folder.color || "hsl(var(--primary))" }}
+      />
+    </span>
+  );
+}
 
 export function FolderRow({
   folder: f,
@@ -108,10 +131,7 @@ export function FolderRow({
             className="flex h-full items-center gap-2 flex-1 w-full min-w-0 text-[13px] text-sidebar-foreground/90"
             activeClassName="text-foreground font-medium [&_svg]:!text-primary"
           >
-            <FolderIcon
-              className="w-4 h-4 shrink-0 text-muted-foreground"
-              style={f.color ? { color: f.color } : undefined}
-            />
+            <FolderMarker folder={f} />
             {!collapsed && (
               <span className="min-w-0 flex-1 truncate text-start">
                 <bdi>{f.name}</bdi>
@@ -243,10 +263,7 @@ export function SidebarFoldersList({
                           activeClassName="bg-primary/10 text-primary font-bold"
                           onClick={closeOnMobile}
                         >
-                          <FolderIcon
-                            className="w-4 h-4 shrink-0"
-                            style={{ color: f.color || "hsl(var(--primary))" }}
-                          />
+                          <FolderMarker folder={f} />
                           <span className="truncate flex-1 text-start font-medium">{f.name}</span>
                         </NavLink>
                       ))

@@ -22,6 +22,11 @@ import {
   MapPin,
   Users,
   BookOpen,
+  Circle,
+  CheckCircle2,
+  Copy,
+  CalendarDays,
+  ExternalLink,
 } from "lucide-react";
 import type { Task } from "@/lib/taskTypes";
 
@@ -75,12 +80,11 @@ export function RailButton({
       aria-label={label}
       aria-pressed={active || undefined}
       data-testid={dataTestId}
-      className={`relative inline-flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-md px-2.5 text-xs transition-colors disabled:opacity-50 disabled:cursor-default ${
+      className={`relative inline-flex h-10 w-10 shrink-0 items-center justify-center gap-1 rounded-md p-0 text-xs transition-colors disabled:opacity-50 disabled:cursor-default ${
         active ? "text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
       } ${className || ""}`}
     >
       <Icon className="h-[18px] w-[18px]" />
-      <span className="hidden sm:inline">{label}</span>
       {badge != null && badge !== 0 && <span className="tabular-nums text-[11px]">{badge}</span>}
     </button>
   );
@@ -112,6 +116,13 @@ export interface TaskDetailBottomRailProps {
   setAiOpen: (open: boolean) => void;
   setFocusOpen: (open: boolean) => void;
   setActionMenuOpen: (open: boolean) => void;
+  isActiveLeitnerReview?: boolean;
+  onOpenLeitnerReview?: () => void;
+  onToggleCompletion?: () => void;
+  onCopyTaskLink?: () => void;
+  onDuplicateTask?: () => void;
+  onAddToCalendar?: () => void;
+  onOpenFullPage?: () => void;
   deleteTask: () => void;
   save: (patch: Partial<Task>) => void;
   T: (fa: string, en: string) => string;
@@ -149,6 +160,13 @@ export function TaskDetailBottomRail({
   setAiOpen,
   setFocusOpen,
   setActionMenuOpen,
+  isActiveLeitnerReview,
+  onOpenLeitnerReview,
+  onToggleCompletion,
+  onCopyTaskLink,
+  onDuplicateTask,
+  onAddToCalendar,
+  onOpenFullPage,
   deleteTask,
   save,
   T,
@@ -228,6 +246,37 @@ export function TaskDetailBottomRail({
           </PopoverTrigger>
           <PopoverContent className="w-60 p-1" align="end" side="top" data-testid="task-bottom-rail-more-menu">
             <div role="menu" aria-label={T("بیشتر", "More")}>
+              {isActiveLeitnerReview ? (
+                <button type="button" role="menuitem" disabled={!onOpenLeitnerReview} onClick={run(onOpenLeitnerReview)} className={menuItem}>
+                  <BookOpen className="w-4 h-4 text-muted-foreground shrink-0" /><span>{T("شروع مرور لایتنر", "Open Leitner review")}</span>
+                </button>
+              ) : onToggleCompletion && (
+                <button type="button" role="menuitem" disabled={!canEdit} onClick={run(onToggleCompletion)} className={menuItem}>
+                  {t.completed ? <Circle className="w-4 h-4 text-muted-foreground shrink-0" /> : <CheckCircle2 className="w-4 h-4 text-muted-foreground shrink-0" />}
+                  <span>{t.completed ? T("بازگشایی تسک", "Reopen task") : T("تکمیل تسک", "Complete task")}</span>
+                </button>
+              )}
+              {onCopyTaskLink && (
+                <button type="button" role="menuitem" onClick={run(onCopyTaskLink)} className={menuItem}>
+                  <LinkIcon className="w-4 h-4 text-muted-foreground shrink-0" /><span>{T("کپی لینک تسک", "Copy task link")}</span>
+                </button>
+              )}
+              {onDuplicateTask && (
+                <button type="button" role="menuitem" disabled={!canEdit} onClick={run(onDuplicateTask)} className={menuItem}>
+                  <Copy className="w-4 h-4 text-muted-foreground shrink-0" /><span>{T("تکثیر تسک", "Duplicate task")}</span>
+                </button>
+              )}
+              {onAddToCalendar && (
+                <button type="button" role="menuitem" onClick={run(onAddToCalendar)} className={menuItem}>
+                  <CalendarDays className="w-4 h-4 text-muted-foreground shrink-0" /><span>{T("افزودن به تقویم Android", "Add to Android Calendar")}</span>
+                </button>
+              )}
+              {onOpenFullPage && (
+                <button type="button" role="menuitem" onClick={run(onOpenFullPage)} className={menuItem}>
+                  <ExternalLink className="w-4 h-4 text-muted-foreground shrink-0" /><span>{T("باز کردن در صفحهٔ کامل", "Open full page")}</span>
+                </button>
+              )}
+              {(isActiveLeitnerReview || onToggleCompletion || onCopyTaskLink || onDuplicateTask || onAddToCalendar || onOpenFullPage) && <div className="my-1 border-t border-border" />}
               <button type="button" role="menuitem" disabled={!canEdit} onClick={run(() => setAiOpen(true))} className={menuItem}>
                 <Sparkles className="w-4 h-4 text-muted-foreground shrink-0" /><span>{T("دستیار هوش مصنوعی", "AI assistant")}</span>
               </button>

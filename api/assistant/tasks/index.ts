@@ -1,7 +1,7 @@
 import { InvalidTaskInputError } from "../../_lib/taskInput.js";
 import { authenticateAssistant } from "../../_lib/assistantAccess.js";
 import { createAssistantTask, listAssistantTasks } from "../../_lib/assistantTasks.js";
-import { handleCors, parseBody, sendError, sendJson } from "../../_lib/response.js";
+import { handleCors, parseBody, sendError, sendJson, sendRequestBodyError } from "../../_lib/response.js";
 import { InvalidTaskPriorityError, InvalidTaskScheduleError } from "../../_lib/taskSchedule.js";
 
 export default async function handler(req: any, res: any) {
@@ -24,6 +24,7 @@ export default async function handler(req: any, res: any) {
     const task = await createAssistantTask(grant, body);
     return sendJson(res, task.alreadyExists ? 200 : 201, { success: true, data: task });
   } catch (error) {
+    if (sendRequestBodyError(res, error)) return;
     if (error instanceof InvalidTaskInputError) return sendError(res, 400, "VALIDATION_ERROR", error.message);
     console.error("Assistant task request failed", error);
     if (error instanceof InvalidTaskScheduleError) return sendError(res, 400, "VALIDATION_ERROR", error.message);

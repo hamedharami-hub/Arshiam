@@ -38,21 +38,23 @@ export function LifeSystemMap({ userId, isEn }: { userId: string; isEn: boolean 
   const pct = openTasks.length ? Math.round((done / openTasks.length) * 100) : 0;
   const linked = openTasks.filter((t) => t.kanban_column_id && goals.some((g) => g.id === t.kanban_column_id)).length;
   const orphanGoals = goals.filter((g) => !openTasks.some((t) => t.kanban_column_id === g.id)).length;
+  const goalFolderId = goals.find((goal) => goal.folderId)?.folderId || folders[0]?.id;
+  const folderGoalsPath = goalFolderId ? `/app/folder/${encodeURIComponent(goalFolderId)}` : "/app/planning";
   const Arrow = isEn ? ArrowRight : ArrowLeft;
 
   const stages: Stage[] = [
     { key: "values", icon: Heart, title: T("ارزش‌ها", "Values"), hint: T("چرا؟", "Why"), count: Object.keys(values).length, to: "/app/values", accent: "text-rose-500 bg-rose-500/10" },
-    { key: "goals", icon: Target, title: T("اهداف", "Goals"), hint: T("چه؟", "What"), count: goals.length, to: "/app/kanban", accent: "text-amber-600 bg-amber-500/10" },
-    { key: "plans", icon: FolderKanban, title: T("برنامه‌ها", "Plans"), hint: T("کجا؟", "Where"), count: folders.length, to: "/app/kanban", accent: "text-sky-600 bg-sky-500/10" },
+    { key: "goals", icon: Target, title: T("اهداف", "Goals"), hint: T("چه؟", "What"), count: goals.length, to: folderGoalsPath, accent: "text-amber-600 bg-amber-500/10" },
+    { key: "plans", icon: FolderKanban, title: T("برنامه‌ها", "Plans"), hint: T("کجا؟", "Where"), count: folders.length, to: folders[0] ? `/app/folder/${encodeURIComponent(folders[0].id)}` : "/app/planning", accent: "text-sky-600 bg-sky-500/10" },
     { key: "actions", icon: ListChecks, title: T("تسک و عادت", "Tasks & habits"), hint: T("چگونه؟", "How"), count: openTasks.length + habits.length, to: "/app/today", accent: "text-emerald-600 bg-emerald-500/10" },
   ];
 
   const nextStep = !stages[0].count
     ? { text: T("هنوز ارزشی ثبت نشده؛ از ارزش‌هایت شروع کن.", "No values yet — start from what matters to you."), to: "/app/values" }
     : !goals.length
-      ? { text: T("هدفی نداری؛ یک هدف بساز تا به ارزش‌هایت وصل شود.", "No goals yet — create one to connect to your values."), to: "/app/kanban" }
+      ? { text: T("هدفی نداری؛ یک هدف بساز تا به ارزش‌هایت وصل شود.", "No goals yet — create one to connect to your values."), to: folderGoalsPath }
       : orphanGoals > 0
-        ? { text: T(`${num(orphanGoals)} هدف هنوز تسکی ندارد؛ برایش اولین قدم را بنویس.`, `${orphanGoals} goal(s) have no tasks — add a first step.`), to: "/app/kanban" }
+        ? { text: T(`${num(orphanGoals)} هدف هنوز تسکی ندارد؛ برایش اولین قدم را بنویس.`, `${orphanGoals} goal(s) have no tasks — add a first step.`), to: folderGoalsPath }
         : null;
 
   return (

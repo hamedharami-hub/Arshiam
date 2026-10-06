@@ -33,7 +33,7 @@ export function MobileBottomBar({
     <button
       key="bottom-bar-menu-toggle"
       type="button"
-      className="group relative h-full flex-1 flex flex-col items-center justify-center pt-1.5 pb-1 select-none active:scale-95 transition-transform duration-150 min-w-0"
+      className="group relative h-full flex-1 flex items-center justify-center select-none active:scale-95 transition-transform duration-150 min-w-0"
       aria-label={t("nav.menu", "منو")}
       onClick={() => {
         haptic("light");
@@ -57,17 +57,6 @@ export function MobileBottomBar({
         />
       </div>
 
-      {/* Material 3 Label */}
-      <span
-        dir={dir}
-        className={`tracking-tight truncate max-w-full px-1 transition-all duration-200 text-[11px] leading-tight mt-1 ${
-          openMobile
-            ? "font-semibold text-primary dark:text-primary"
-            : "font-medium text-muted-foreground/75 group-hover:text-foreground"
-        }`}
-      >
-        {t("nav.menu", "منو")}
-      </span>
     </button>
   );
 
@@ -79,7 +68,6 @@ export function MobileBottomBar({
       tab={effectiveTabs[0]}
       isActive={effectiveTabs[0].match(currentPath)}
       mode="mobile"
-      dir={dir}
     />
   ) : null;
 
@@ -89,7 +77,6 @@ export function MobileBottomBar({
       tab={effectiveTabs[1]}
       isActive={effectiveTabs[1].match(currentPath)}
       mode="mobile"
-      dir={dir}
     />
   ) : null;
 
@@ -99,7 +86,6 @@ export function MobileBottomBar({
       tab={effectiveTabs[2]}
       isActive={effectiveTabs[2].match(currentPath)}
       mode="mobile"
-      dir={dir}
     />
   ) : null;
 
@@ -108,14 +94,16 @@ export function MobileBottomBar({
       dir={dir}
       data-bottom-bar="true"
       data-sidebar-side={sidebarPosition}
-      className="fixed z-40 transition-all duration-300 ease-out select-none inset-x-0 bottom-0 h-[var(--bottom-bar-height)] bg-background dark:bg-card border-t border-border/70 dark:border-white/15 flex items-stretch shadow-[0_-4px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.5)]"
+      className="fixed z-40 transition-all duration-300 ease-out select-none inset-x-3 h-[var(--bottom-bar-height)] rounded-[1.35rem] border border-border/70 bg-background/80 dark:bg-card/75 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/70 dark:supports-[backdrop-filter]:bg-card/65 flex items-stretch shadow-[0_8px_32px_rgba(0,0,0,0.14)] dark:shadow-[0_10px_38px_rgba(0,0,0,0.65)]"
       style={{
-        paddingBottom: "max(env(safe-area-inset-bottom, 0px), 8px)",
+        bottom: "max(env(safe-area-inset-bottom, 0px), 0.625rem)",
+        left: "max(env(safe-area-inset-left, 0px), 0.75rem)",
+        right: "max(env(safe-area-inset-right, 0px), 0.75rem)",
+        paddingInline: "0.45rem",
       }}
       aria-label={t("nav.bottomBar", "ناوبری پایین صفحه")}
     >
-      {/* Subtle modern top hairline glow */}
-      <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-primary/25 to-transparent pointer-events-none" />
+      <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-foreground/10" />
 
       {/* 5 Symmetric, Balanced Slots: [Menu] [Tab 1] [Center +] [Tab 2] [Tab 3] */}
       {menuButton}

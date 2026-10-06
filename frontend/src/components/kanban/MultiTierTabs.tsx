@@ -8,6 +8,7 @@ import {
   type GoalPriority,
   TIME_HORIZONS,
   GOAL_PRIORITIES,
+  filterGoalsForView,
 } from "@/lib/kanbanGoals";
 
 interface MultiTierTabsProps {
@@ -44,16 +45,7 @@ export default function MultiTierTabs({
   const isEn = (i18n.language || "fa").startsWith("en");
   void onDoubleTapGoal; void onEditGoal;
 
-  const filteredGoals =
-    viewMode === "time"
-      ? selectedTimeFilter === "all"
-        ? goals
-        : goals.filter((g) => g.timeHorizon === selectedTimeFilter)
-      : viewMode === "priority"
-        ? selectedPriorityFilter === "all"
-          ? goals
-          : goals.filter((g) => g.priority === selectedPriorityFilter)
-        : goals;
+  const filteredGoals = filterGoalsForView(goals, viewMode, selectedTimeFilter, selectedPriorityFilter);
 
   return (
     <div className="space-y-2 select-none">

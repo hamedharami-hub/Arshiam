@@ -64,7 +64,6 @@ const PomodoroView = lazy(() => import("./pages/PomodoroView"));
 const CalendarView = lazy(() => import("./pages/CalendarView"));
 const StatsView = lazy(() => import("./pages/StatsView"));
 const SettingsView = lazy(() => import("./pages/SettingsView"));
-const KanbanView = lazy(() => import("./pages/KanbanView"));
 const PlanningView = lazy(() => import("./pages/PlanningView"));
 
 const SelfKnowledgeView = lazy(() => import("./pages/SelfKnowledgeView"));
@@ -98,6 +97,7 @@ const SharedWithMeView = lazy(() => import("./pages/SharedWithMeView"));
 const ShareTargetView = lazy(() => import("./pages/ShareTargetView"));
 const ArticleRewriteView = lazy(() => import("./pages/ArticleRewriteView"));
 const WidgetsView = lazy(() => import("./pages/WidgetsView"));
+const MiniAppsView = lazy(() => import("./pages/MiniAppsView"));
 const ContactsView = lazy(() => import("./pages/ContactsView"));
 const KnowledgeBaseView = lazy(() => import("./pages/KnowledgeBaseView"));
 const InteractiveStudyView = lazy(() => import("./pages/InteractiveStudyView"));
@@ -352,7 +352,7 @@ const App = () => {
                       <Route path="interactive-study" element={<InteractiveStudyView />} />
                       <Route path="continue" element={<ContinueLearningView />} />
                       <Route path="stats" element={<StatsView />} />
-                      <Route path="kanban" element={<KanbanView />} />
+                      <Route path="kanban" element={<Navigate to="/app/today" replace />} />
                       <Route path="planning" element={<PlanningView />} />
                       <Route path="buckets" element={<Navigate to="/app/planning" replace />} />
 
@@ -392,6 +392,7 @@ const App = () => {
                       <Route path="rewrite-article" element={<ArticleRewriteView />} />
                       <Route path="tasks/:id" element={<TaskDetailView />} />
                       <Route path="widgets" element={<WidgetsView />} />
+                      <Route path="tools" element={<MiniAppsView />} />
                       <Route path="widget/:id" element={<WidgetsView />} />
                     </Route>
                     <Route path="*" element={<NotFound />} />

@@ -5,7 +5,7 @@ import {
   Target, Timer, Calendar, ChevronDown, Sparkles, LayoutGrid,
   TrendingUp, Activity, Heart, HeartPulse, ShieldAlert, BookOpen, Sun,
   ListTodo, BrainCircuit, GripVertical, User, Shield,
-  BarChart3, Sprout, Wind, Compass, Users, Gamepad2, Columns3, Hourglass, PlayCircle,
+  BarChart3, Sprout, Wind, Compass, Users, Gamepad2, Hourglass, PlayCircle, Blocks,
 } from "lucide-react";
 import { toPersianDigits } from "@/lib/persianDigits";
 import {
@@ -70,6 +70,7 @@ export const EN_LABELS: Record<string, string> = {
   "معمار زندگی": "Life Architect",
   "صندوق ورودی": "Inbox",
   "ویجت‌ها": "Widgets",
+  "مخزن کد": "Code Vault",
   "باغ رشد": "Garden",
   "افراد": "Contacts",
   "کتابخانه دانش": "Knowledge Base",
@@ -121,7 +122,7 @@ export const SECTIONS: Section[] = [
       { url: "/app/diary", icon: BookOpen, label: "خاطرات روزانه" },
       { url: "/app/contacts", icon: Users, label: "افراد" },
       { url: "/app/widgets", icon: LayoutGrid, label: "ویجت‌ها" },
-      { url: "/app/kanban", icon: Columns3, label: "کانبان" },
+      { url: "/app/tools", icon: Blocks, label: "مخزن کد" },
       { url: "/app/pomodoro", icon: Timer, label: "Pomodoro" },
       { url: "/app/stats", icon: BarChart3, label: "آمار و خلاصه" },
     ],

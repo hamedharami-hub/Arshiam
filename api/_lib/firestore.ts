@@ -130,6 +130,36 @@ export function getHeaders(user: AuthUser): Record<string, string> {
   return headers;
 }
 
+/** Query a single equality-filtered field at Firestore instead of downloading every task. */
+async function queryUserTasksByField(user: AuthUser, field: string, value: unknown): Promise<any[]> {
+  const parentUrl = `${BASE_FIRESTORE_URL}/users/${encodeURIComponent(user.userId)}`;
+  const response = await fetch(`${parentUrl}:runQuery`, {
+    method: "POST",
+    headers: getHeaders(user),
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId: "tasks" }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: field },
+            op: "EQUAL",
+            value: encodeValue(value),
+          },
+        },
+      },
+    }),
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    console.error("[Firestore] filtered task query failed:", response.status, detail);
+    // Do not fall back to a full collection read after a failed filtered request.
+    throw new Error("Firestore filtered task query failed.");
+  }
+  const rows: any = await response.json();
+  if (!Array.isArray(rows)) throw new Error("Firestore returned an invalid filtered task response.");
+  return rows.flatMap((row: any) => row?.document ? [parseFirestoreDoc(row.document)] : []);
+}
+
 /**
  * Lists tasks for the authenticated user with optional filters
  */
@@ -144,30 +174,46 @@ export async function listUserTasks(
     limit?: number;
   }
 ): Promise<any[]> {
-  const baseUrl = `${BASE_FIRESTORE_URL}/users/${encodeURIComponent(user.userId)}/tasks`;
-  const documents: any[] = [];
-  const seenTokens = new Set<string>();
-  let pageToken: string | undefined;
-  do {
-    const url = new URL(baseUrl);
-    url.searchParams.set("pageSize", "100");
-    if (pageToken) url.searchParams.set("pageToken", pageToken);
-    const res = await fetch(url.toString(), { method: "GET", headers: getHeaders(user) });
-    if (!res.ok) {
-      if (res.status === 404 && documents.length === 0) return [];
-      const errText = await res.text();
-      console.error("[Firestore] listUserTasks failed:", res.status, errText);
-      throw new Error(`Firestore query error: ${res.statusText}`);
-    }
-    const data: any = await res.json();
-    documents.push(...(data.documents || []));
-    pageToken = data.nextPageToken || undefined;
-    if (pageToken) {
-      if (seenTokens.has(pageToken)) throw new Error("Firestore returned a repeated page token.");
-      seenTokens.add(pageToken);
-    }
-  } while (pageToken);
-  let tasks = documents.map(parseFirestoreDoc);
+  // Apply one indexed equality predicate on the server where it preserves the
+  // legacy result semantics. `completed=false` and priority are left local:
+  // older records may omit `completed`, and priority aliases need normalization.
+  const serverFilter = options?.folder_id
+    ? { field: "folder_id", value: options.folder_id }
+    : options?.status
+      ? { field: "status", value: options.status }
+      : options?.completed === true
+        ? { field: "completed", value: true }
+        : null;
+
+  let tasks: any[];
+  if (serverFilter) {
+    tasks = await queryUserTasksByField(user, serverFilter.field, serverFilter.value);
+  } else {
+    const baseUrl = `${BASE_FIRESTORE_URL}/users/${encodeURIComponent(user.userId)}/tasks`;
+    const documents: any[] = [];
+    const seenTokens = new Set<string>();
+    let pageToken: string | undefined;
+    do {
+      const url = new URL(baseUrl);
+      url.searchParams.set("pageSize", "100");
+      if (pageToken) url.searchParams.set("pageToken", pageToken);
+      const res = await fetch(url.toString(), { method: "GET", headers: getHeaders(user) });
+      if (!res.ok) {
+        if (res.status === 404 && documents.length === 0) return [];
+        const errText = await res.text();
+        console.error("[Firestore] listUserTasks failed:", res.status, errText);
+        throw new Error("Firestore task list query failed.");
+      }
+      const data: any = await res.json();
+      documents.push(...(data.documents || []));
+      pageToken = data.nextPageToken || undefined;
+      if (pageToken) {
+        if (seenTokens.has(pageToken)) throw new Error("Firestore returned a repeated page token.");
+        seenTokens.add(pageToken);
+      }
+    } while (pageToken);
+    tasks = documents.map(parseFirestoreDoc);
+  }
 
   // Filter completed
   if (options?.completed !== undefined) {

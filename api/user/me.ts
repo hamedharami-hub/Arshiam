@@ -27,7 +27,7 @@ export default async function handler(req: any, res: any) {
       res,
       500,
       "INTERNAL_ERROR",
-      error?.message || "An unexpected error occurred."
+      "An unexpected error occurred."
     );
   }
 }

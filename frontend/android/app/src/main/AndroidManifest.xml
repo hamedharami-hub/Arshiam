@@ -66,6 +66,9 @@
                 <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED"/>
             </intent-filter>
         </receiver>
+        <receiver android:name=".PomodoroFocusReceiver" android:exported="false">
+            <intent-filter><action android:name="life.arshnaz.app.pomodoro.FOCUS_FINISH"/></intent-filter>
+        </receiver>
         <service android:name=".QuickTaskTileService" android:label="ARSHNAZ · New Task" android:icon="@drawable/ic_stat_tasks" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE"/></intent-filter>
         </service>
