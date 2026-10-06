@@ -91,25 +91,26 @@ export function BottomTabItem({
       onClick={handleClick}
       aria-label={label}
       aria-current={isActive ? "page" : undefined}
-      className={`group relative h-full flex-1 flex items-center justify-center select-none active:scale-95 transition-transform duration-150 min-w-0 ${className}`}
+      className={`group/tab relative z-10 h-full flex-1 flex items-center justify-center select-none active:scale-[0.94] transition-transform duration-200 ease-out min-w-0 ${className}`}
     >
-      {/* Material 3 Capsule Active Indicator (64px x 32px) */}
+      {/* Material 3 Capsule Active Indicator (68px x 36px) */}
       <div
-        className={`relative flex items-center justify-center h-8 w-16 rounded-full transition-all duration-300 ease-out ${
+        className={`relative flex items-center justify-center h-9 w-[4.25rem] rounded-full transition-all duration-300 ease-out ${
           isActive
-            ? "bg-primary/15 dark:bg-primary/25 text-primary scale-100"
-            : "text-muted-foreground/75 hover:text-foreground group-hover:bg-muted/35"
+            ? "bg-primary/15 dark:bg-primary/25 text-primary scale-100 ring-1 ring-primary/20 shadow-[0_3px_14px_hsl(var(--primary)/0.14),inset_0_1px_0_hsl(var(--primary-foreground)/0.18)]"
+            : "text-muted-foreground/75 group-hover/tab:text-foreground group-hover/tab:bg-muted/45 group-hover/tab:scale-[1.04]"
         }`}
       >
         <Icon
-          className={`w-5 h-5 transition-all duration-200 ${
+          className={`w-[1.3rem] h-[1.3rem] transition-all duration-300 ease-out ${
             isActive
-              ? "scale-105 stroke-[2.2] text-primary"
-              : "stroke-[1.8] group-hover:scale-105"
+              ? "scale-110 stroke-[2.25] text-primary drop-shadow-[0_1px_4px_hsl(var(--primary)/0.35)]"
+              : "stroke-[1.8] group-hover/tab:scale-110 group-hover/tab:-translate-y-px"
           }`}
         />
+        {isActive && <span aria-hidden="true" className="absolute bottom-1 h-0.5 w-2 rounded-full bg-primary/75 shadow-[0_0_7px_hsl(var(--primary)/0.8)]" />}
         {tab.badge ? (
-          <span className="absolute -top-1 -right-0.5 px-1 rounded-full text-[9px] font-bold bg-primary text-primary-foreground min-w-3.5 h-3.5 flex items-center justify-center shadow-xs">
+          <span className="absolute -top-0.5 -right-0.5 px-1 rounded-full text-[9px] font-bold bg-primary text-primary-foreground min-w-3.5 h-3.5 flex items-center justify-center shadow-[0_2px_7px_hsl(var(--primary)/0.35)] ring-2 ring-background">
             {tab.badge}
           </span>
         ) : null}

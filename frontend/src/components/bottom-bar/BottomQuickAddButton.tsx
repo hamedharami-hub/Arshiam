@@ -77,16 +77,18 @@ export function BottomQuickAddButton({ mode = "mobile", className = "" }: Bottom
   // Mobile mode: Sleek, perfectly aligned primary action button
   return (
     <>
-      <div className="h-full flex-1 flex items-center justify-center select-none min-w-0">
+      <div className="relative z-10 h-full flex-1 flex items-center justify-center select-none min-w-0">
         <button
           type="button"
           onClick={handleQuickAdd}
           {...longPressProps}
           aria-label={label}
           title={label}
-          className={`group relative flex items-center justify-center h-8 w-14 rounded-full bg-primary text-primary-foreground shadow-sm shadow-primary/30 active:scale-95 hover:scale-105 transition-all duration-200 border border-primary/40 select-none ${className}`}
+          className={`group/add relative flex items-center justify-center h-10 w-[4rem] max-w-full overflow-hidden rounded-full bg-primary text-primary-foreground shadow-[0_5px_15px_hsl(var(--primary)/0.32),inset_0_1px_0_hsl(var(--primary-foreground)/0.32)] active:scale-[0.96] hover:scale-[1.03] hover:shadow-[0_7px_20px_hsl(var(--primary)/0.42),inset_0_1px_0_hsl(var(--primary-foreground)/0.4)] transition-all duration-200 ease-out border border-primary/45 ring-1 ring-primary/15 select-none ${className}`}
+          style={{ backgroundImage: "linear-gradient(145deg, hsl(var(--primary)), hsl(var(--primary) / 0.86))" }}
         >
-          <Plus className="w-5 h-5 stroke-[2.5] text-primary-foreground transition-transform duration-200 group-hover:rotate-90" />
+          <span aria-hidden="true" className="pointer-events-none absolute inset-x-3 top-px h-1/2 rounded-full bg-primary-foreground/10 blur-[5px]" />
+          <Plus className="relative h-6 w-6 stroke-[2.8] text-primary-foreground drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-transform duration-300 ease-out group-hover/add:rotate-90 group-active/add:scale-90" />
         </button>
       </div>
 

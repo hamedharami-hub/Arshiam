@@ -44,12 +44,12 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
   const [editing, setEditing] = useState(false);
   const [full, setFull] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [inlineEditorGeneration, setInlineEditorGeneration] = useState(0);
   const [draft, setDraft] = useState(value);
   const latestValue = useRef(value);
+  const lastEditorMarkdown = useRef(value);
   const fileRef = useRef<HTMLInputElement>(null);
   const inlineEditorRef = useRef<RichEditorHandle | null>(null);
-  const startEditing = () => { setEditing(true); requestAnimationFrame(() => inlineEditorRef.current?.focus()); };
+  const startEditing = () => setEditing(true);
   const { user } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [startingRecording, setStartingRecording] = useState(false);
@@ -96,14 +96,19 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
   useEffect(() => {
     latestValue.current = value;
     if (!full) setDraft(value);
-  }, [value, full]);
+    if (!editing && !full && value !== lastEditorMarkdown.current) {
+      inlineEditorRef.current?.setMarkdown(value);
+      lastEditorMarkdown.current = value;
+    }
+  }, [value, full, editing]);
 
   const appendToDescription = async (snippet: string) => {
     const base = (inlineEditorRef.current?.getMarkdown() ?? latestValue.current ?? "").trimEnd();
     const next = base ? `${base}\n\n${snippet}` : snippet;
     latestValue.current = next;
+    lastEditorMarkdown.current = next;
+    inlineEditorRef.current?.setMarkdown(next);
     onChange(next);
-    setInlineEditorGeneration((generation) => generation + 1);
     await onSave(next);
   };
 
@@ -119,6 +124,7 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
         editor.insertAttachment(media);
         const next = editor.getMarkdown();
         latestValue.current = next;
+        lastEditorMarkdown.current = next;
         onChange(next);
         await onSave(next);
       } else {
@@ -208,8 +214,9 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
       await onSave(draft);
       if (!alive.current) return;
       latestValue.current = draft;
+      lastEditorMarkdown.current = draft;
+      inlineEditorRef.current?.setMarkdown(draft);
       onChange(draft);
-      setInlineEditorGeneration((generation) => generation + 1);
       setFull(false);
     } catch (error) {
       if (alive.current) toast.error(error instanceof Error ? error.message : T("ذخیره انجام نشد؛ متن محفوظ است", "Save failed; your draft is retained"));
@@ -231,6 +238,7 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
     if (readOnly || saving) return;
     const current = inlineEditorRef.current?.getMarkdown() ?? latestValue.current ?? "";
     latestValue.current = current;
+    lastEditorMarkdown.current = current;
     setSaving(true);
     try {
       await onSave(current);
@@ -265,16 +273,21 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
           <NoteMarkdown>{value}</NoteMarkdown>
         </div>
       )}
-      {!showPreview && (
+      {(!readOnly || !showPreview) && (
         <Suspense fallback={<div className="min-h-[72px] animate-pulse rounded-lg bg-muted/20" />}>
-          <div onFocusCapture={() => !readOnly && setEditing(true)} onClickCapture={() => !readOnly && setEditing(true)}>
+          <div
+            className={showPreview ? "hidden" : undefined}
+            aria-hidden={showPreview || undefined}
+            onFocusCapture={() => !readOnly && setEditing(true)}
+            onClickCapture={() => !readOnly && setEditing(true)}
+          >
             <RichEditor
-              key={`task-description-inline:${taskId}:${inlineEditorGeneration}`}
               ref={inlineEditorRef}
               attachmentScopeId={`task-description-inline:${taskId}`}
               initialMarkdown={value || ""}
               onChange={(_html, markdown) => {
                 latestValue.current = markdown;
+                lastEditorMarkdown.current = markdown;
                 onChange(markdown);
               }}
               placeholder={T("توضیحات، یادداشت یا لینک…", "Description, notes or links…")}
@@ -305,6 +318,7 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
                 editor.insertText(text);
                 const next = editor.getMarkdown();
                 latestValue.current = next;
+                lastEditorMarkdown.current = next;
                 onChange(next);
                 void Promise.resolve(onSave(next)).catch(error => toast.error(error instanceof Error ? error.message : T("ذخیره انجام نشد", "Save failed")));
               } else {

@@ -46,6 +46,7 @@ export type RichEditorHandle = {
   getHtml: () => string;
   getMarkdown: () => string;
   focus: () => void;
+  setMarkdown: (markdown: string) => void;
   insertText: (text: string) => void;
   insertAttachment: (media: Pick<UploadedMedia, "url" | "name" | "kind">) => void;
 };
@@ -171,6 +172,12 @@ export const RichEditor = forwardRef<RichEditorHandle, {
     getHtml: () => editor?.getHTML() ?? "",
     getMarkdown: () => editor ? htmlToMarkdown(editor.getHTML()) : "",
     focus: () => { if (editor && !readOnly) editor.chain().focus().run(); },
+    setMarkdown: (markdown: string) => {
+      if (!editor || editor.isDestroyed || readOnly) return;
+      const current = htmlToMarkdown(editor.getHTML());
+      if (current === markdown) return;
+      editor.commands.setContent(markdownToHtml(markdown), { emitUpdate: false });
+    },
     insertText: (text: string) => {
       if (!editor || readOnly || !text.trim()) return;
       editor.chain().focus().insertContent({ type: "text", text: text.trim() + " " }).run();
