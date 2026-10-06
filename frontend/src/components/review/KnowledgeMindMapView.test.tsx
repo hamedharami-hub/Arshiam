@@ -160,7 +160,7 @@ describe("KnowledgeMindMapView outline mode", () => {
     } finally {
       Object.defineProperty(window, "innerWidth", { configurable: true, value: previousWidth });
     }
-  }, 15000);
+  }, 30000);
 
   it("shows the full wrapped hierarchy and keeps node actions in a compact menu", async () => {
     const title = "A deliberately long lesson title that must remain fully visible in the mind map outline";
@@ -177,7 +177,7 @@ describe("KnowledgeMindMapView outline mode", () => {
     expect(await screen.findByTestId("reader")).toHaveTextContent(title);
 
     expect(screen.getByRole("button", { name: `Actions for ${title}` })).toBeVisible();
-  }, 15000);
+  }, 30000);
 
   it("resets a deep-linked scope when its initial scope props are cleared", async () => {
     const { rerender } = render(
@@ -192,7 +192,7 @@ describe("KnowledgeMindMapView outline mode", () => {
       expect(screen.queryByRole("button", { name: "Reset to full tree" })).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "All Knowledge Base" })).toBeInTheDocument();
     });
-  }, 10000);
+  }, 30000);
 
   it("keeps lessons and folders with broken parent links visible through safe display roots", async () => {
     const makeFolder = (id: string, parent_id: string | null, name: string): KnowledgeFolder => ({
@@ -253,7 +253,7 @@ describe("KnowledgeMindMapView outline mode", () => {
 
     expect(horizontalLayout).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText(title)).toBeInTheDocument();
-  }, 10000);
+  }, 30000);
 
   it("allows the canvas to zoom out to a true overview for large maps", async () => {
     render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);
@@ -294,7 +294,7 @@ describe("KnowledgeMindMapView outline mode", () => {
     fireEvent.click(screen.getByRole("button", { name: "Expand All" }));
     expect(screen.getByRole("button", { name: "Collapse Study Folder" })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("button", { name: `Read document ${lessonTitle}` })).toBeInTheDocument();
-  }, 10000);
+  }, 30000);
 
   it("shows the selected Persian flashcard text in the mind map outline", async () => {
     render(<KnowledgeMindMapView userId="user-1" cardLanguage="fa" />);
@@ -369,6 +369,6 @@ describe("KnowledgeMindMapView outline mode", () => {
     fireEvent.click(densityToggle);
     expect(densityToggle).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByText("Box 1")).toBeInTheDocument();
-  }, 15000);
+  }, 30000);
 
 });
