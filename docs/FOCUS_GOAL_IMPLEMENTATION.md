@@ -10,7 +10,7 @@ Baseline: main f2d9975. Visual timer and modal styles retained; only necessary f
 - Completed rounds use completion deadline/date; early endings save active minutes without increasing completed-round count. Four completed rounds trigger a long break independently of midnight's daily count.
 - Focus choices reduced to off, existing generated rain, existing generated pink noise; existing unrelated sleep catalog preserved. Preview is five seconds; ambience and end-bell volume are separate. These generated sources are not claimed to be higher-quality recordings.
 
-Validation: 13 focus lifecycle tests plus existing timer recovery/statistics tests (16 total) cover pause, early finish, clock jump, duration snapshot, retry-idempotency, recovery, completion date, break cycle, account separation, storage failure, preference validation and cross-tab storage-loop prevention. No real Firebase/device validation performed.
+Validation: 14 focus lifecycle tests plus existing timer recovery/statistics tests (17 total) cover pause, early finish, clock jump, duration snapshot, retry-idempotency, recovery, completion date, break cycle, account separation, storage failure, preference validation and cross-tab storage-loop prevention. No real Firebase/device validation performed.
 
 External limitations:
 - This baseline has Capacitor browser/plugin wrappers but no Android native project/source. A genuine persistent notification with live countdown/actions and locked-device sound requires native foreground-service source/build/device validation; not implementable by labelling the mini controller a notification.

@@ -65,6 +65,13 @@ describe("persistent focus lifecycle", () => {
   it("validates corrupt preferences", () => {
     expect(f.normalizePrefs({ minutes: NaN, longEvery: 0, ambient: "binaural_beta", ambientVol: 900, bellVol: -5 })).toMatchObject({ minutes: 25, longEvery: 2, ambient: "none", ambientVol: 100, bellVol: 0 });
   });
+  it("recovers legacy duration preferences only for an existing owned session", () => {
+    localStorage.setItem("pomodoro_prefs_v1", JSON.stringify({ minutes: 90 }));
+    localStorage.setItem("pomodoro_session_v1:b", JSON.stringify({ userId: "b", mode: "work", endAt: START + 3000000, remaining: 3000, startedAt: START - 2400000, taskId: "b-task" }));
+    mocks.auth.currentUser = { uid: "b" }; f.bindFocusAccount("b");
+    expect(f.getFocusState().session.total).toBe(5400); expect(f.getFocusState().prefs.minutes).toBe(90);
+    mocks.auth.currentUser = { uid: "c" }; f.bindFocusAccount("c"); expect(f.getFocusState().prefs.minutes).toBe(25);
+  });
   it("does not write storage in response to another tab's update", () => {
     f.toggleFocus(); const spy = vi.spyOn(Storage.prototype, "setItem"); f.refreshFocusFromStorage("pomodoro_session_v1:a"); expect(spy).not.toHaveBeenCalled();
   });

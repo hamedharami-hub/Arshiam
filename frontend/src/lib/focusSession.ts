@@ -25,7 +25,15 @@ export function normalizePrefs(input: Partial<Prefs>): Prefs {
   const clamp = (v: unknown, fallback: number, min: number, max: number) => Number.isFinite(v) ? Math.max(min, Math.min(max, Math.round(v as number))) : fallback;
   return { minutes: clamp(input.minutes, 25, 5, 90), shortBreak: clamp(input.shortBreak, 5, 1, 60), longBreak: clamp(input.longBreak, 15, 1, 90), longEvery: clamp(input.longEvery, 4, 2, 6), autoStart: input.autoStart === true, bell: END_BELLS.some(b => b.id === input.bell) ? input.bell! : "bell", bellVol: clamp(input.bellVol, 60, 0, 100), ambient: ["rain", "sleep_pink"].includes(input.ambient || "") ? input.ambient! : "none", ambientVol: clamp(input.ambientVol, 30, 0, 100) };
 }
-function loadPrefs(id: string | null) { return normalizePrefs(read(prefsKey(id)) || (id === null ? read("pomodoro_prefs_v1") : null) || {}); }
+function loadPrefs(id: string | null) {
+  const scoped = read(prefsKey(id));
+  // Existing sessions certify the owner for one-time legacy preference recovery.
+  // Do not apply an unowned prior account's device preferences to a new account.
+  const legacy = id === null || loadSession(id) ? read("pomodoro_prefs_v1") : null;
+  const prefs = normalizePrefs(scoped || legacy || {});
+  if (!scoped && legacy) { try { localStorage.setItem(prefsKey(id), JSON.stringify(prefs)); } catch { /* Recovery stays usable. */ } }
+  return prefs;
+}
 const lengthOf = (mode: Mode, p: Prefs) => (mode === "work" ? p.minutes : mode === "short" ? p.shortBreak : p.longBreak) * 60;
 function idle(userId: string | null, mode: Mode, prefs: Prefs, cycle = 0): PersistedSession { return { userId, mode, endAt: null, remaining: lengthOf(mode, prefs), total: lengthOf(mode, prefs), startedAt: null, taskId: null, cycle }; }
 let state: FocusState = { userId: null, prefs: DEFAULT_PREFS, session: idle(null, "work", DEFAULT_PREFS), doneToday: 0, pending: 0, completedVersion: 0, storageError: false };
