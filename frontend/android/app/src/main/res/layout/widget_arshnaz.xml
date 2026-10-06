@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_background"
+    android:padding="12dp"
+    android:gravity="center">
+
+    <!-- Header with App Logo, Title and Date -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="8dp">
+
+        <ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@mipmap/ic_launcher"
+            android:contentDescription="ARSHNAZ" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="ARSHNAZ"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#ec4899" />
+
+        <TextView
+            android:id="@+id/widget_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Today"
+            android:textSize="11sp"
+            android:textColor="#94a3b8" />
+    </LinearLayout>
+
+    <!-- Central Status Card -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="10dp"
+        android:background="@drawable/widget_card_background"
+        android:layout_marginBottom="8dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="TODAY'S TASKS"
+                android:textSize="11sp"
+                android:textColor="#94a3b8" />
+
+            <TextView
+                android:id="@+id/widget_task_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#f8fafc"
+                android:layout_marginTop="2dp" />
+
+            <TextView
+                android:id="@+id/widget_next_task"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="3"
+                android:text="No active tasks for today"
+                android:textSize="10sp"
+                android:textColor="#cbd5e1"
+                android:layout_marginTop="4dp" />
+        </LinearLayout>
+
+        <ImageView
+            android:layout_width="1dp"
+            android:layout_height="28dp"
+            android:importantForAccessibility="no"
+            android:background="#334155" />
+
+        <LinearLayout
+            android:id="@+id/widget_garden_btn"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="GROWTH"
+                android:textSize="11sp"
+                android:textColor="#38bdf8" />
+
+            <TextView
+                android:id="@+id/widget_garden_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Open Garden"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#a7f3d0"
+                android:layout_marginTop="2dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/widget_sync_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open ARSHNAZ to show your tasks"
+        android:textSize="10sp"
+        android:textColor="#cbd5e1"
+        android:paddingBottom="4dp" />
+
+    <!-- Quick Action Buttons Row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <!-- Add Task Button -->
+        <Button
+            android:id="@+id/widget_add_task"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:text="+ Add task"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#ffffff"
+            android:background="@drawable/widget_button_background"
+            android:stateListAnimator="@null"
+            android:layout_marginEnd="4dp" />
+
+        <!-- Checkin Button -->
+        <Button
+            android:id="@+id/widget_checkin"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:text="Check-in"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#e2e8f0"
+            android:background="@drawable/widget_card_background"
+            android:stateListAnimator="@null"
+            android:layout_marginStart="4dp" />
+
+        <Button
+            android:id="@+id/widget_complete_task"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:text="✓ Complete"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textColor="#a7f3d0"
+            android:background="@drawable/widget_card_background"
+            android:stateListAnimator="@null"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="6dp">
+
+        <Button
+            android:id="@+id/widget_pomodoro"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="1"
+            android:text="Focus"
+            android:textSize="11sp"
+            android:textColor="#fbcfe8"
+            android:background="@drawable/widget_card_background"
+            android:stateListAnimator="@null"
+            android:layout_marginEnd="4dp" />
+
+        <Button
+            android:id="@+id/widget_notes"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="1"
+            android:text="+ Note"
+            android:textSize="11sp"
+            android:textColor="#bae6fd"
+            android:background="@drawable/widget_card_background"
+            android:stateListAnimator="@null"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp" />
+
+        <Button
+            android:id="@+id/widget_refresh"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="1"
+            android:text="Refresh"
+            android:textSize="11sp"
+            android:textColor="#cbd5e1"
+            android:background="@drawable/widget_card_background"
+            android:stateListAnimator="@null"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+</LinearLayout>

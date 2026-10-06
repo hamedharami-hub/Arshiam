@@ -7,14 +7,16 @@ import { BottomTabItemConfig } from "./types";
 import { BottomTabItem } from "./BottomTabItem";
 import { BottomQuickAddButton } from "./BottomQuickAddButton";
 
-interface MobileBottomBarProps {
-  primaryTabs: BottomTabItemConfig[];
-  secondaryTabs: BottomTabItemConfig[];
+export interface MobileBottomBarProps {
+  tabs?: BottomTabItemConfig[];
+  primaryTabs?: BottomTabItemConfig[];
+  secondaryTabs?: BottomTabItemConfig[];
   currentPath: string;
   dir: "rtl" | "ltr";
 }
 
 export function MobileBottomBar({
+  tabs,
   primaryTabs,
   secondaryTabs,
   currentPath,
@@ -40,7 +42,7 @@ export function MobileBottomBar({
     >
       {/* Material 3 Capsule Indicator */}
       <div
-        className={`relative flex items-center justify-center h-8 w-16 rounded-full transition-all duration-300 ease-out ${
+        className={`relative flex items-center justify-center h-8 w-14 rounded-full transition-all duration-300 ease-out ${
           openMobile
             ? "bg-primary/15 dark:bg-primary/25 text-primary scale-100"
             : "text-muted-foreground/75 hover:text-foreground group-hover:bg-muted/35"
@@ -69,32 +71,44 @@ export function MobileBottomBar({
     </button>
   );
 
-  const todayTabs = secondaryTabs.map((tab) => (
-    <BottomTabItem
-      key={tab.key}
-      tab={tab}
-      isActive={tab.match(currentPath)}
-      mode="mobile"
-      dir={dir}
-    />
-  ));
+  const effectiveTabs = tabs || [...(primaryTabs || []), ...(secondaryTabs || [])];
 
-  const generalTabs = primaryTabs.map((tab) => (
+  const tab1 = effectiveTabs[0] ? (
     <BottomTabItem
-      key={tab.key}
-      tab={tab}
-      isActive={tab.match(currentPath)}
+      key={effectiveTabs[0].key}
+      tab={effectiveTabs[0]}
+      isActive={effectiveTabs[0].match(currentPath)}
       mode="mobile"
       dir={dir}
     />
-  ));
+  ) : null;
+
+  const tab2 = effectiveTabs[1] ? (
+    <BottomTabItem
+      key={effectiveTabs[1].key}
+      tab={effectiveTabs[1]}
+      isActive={effectiveTabs[1].match(currentPath)}
+      mode="mobile"
+      dir={dir}
+    />
+  ) : null;
+
+  const tab3 = effectiveTabs[2] ? (
+    <BottomTabItem
+      key={effectiveTabs[2].key}
+      tab={effectiveTabs[2]}
+      isActive={effectiveTabs[2].match(currentPath)}
+      mode="mobile"
+      dir={dir}
+    />
+  ) : null;
 
   return (
     <nav
-      dir="ltr"
+      dir={dir}
       data-bottom-bar="true"
       data-sidebar-side={sidebarPosition}
-      className="fixed z-40 transition-all duration-300 ease-out select-none inset-x-0 bottom-0 h-[var(--bottom-bar-height)] bg-background/85 dark:bg-card/85 backdrop-blur-2xl border-t border-border/25 dark:border-white/10 flex items-stretch shadow-[0_-4px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.4)]"
+      className="fixed z-40 transition-all duration-300 ease-out select-none inset-x-0 bottom-0 h-[var(--bottom-bar-height)] bg-background dark:bg-card border-t border-border/70 dark:border-white/15 flex items-stretch shadow-[0_-4px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.5)]"
       style={{
         paddingBottom: "max(env(safe-area-inset-bottom, 0px), 8px)",
       }}
@@ -103,35 +117,13 @@ export function MobileBottomBar({
       {/* Subtle modern top hairline glow */}
       <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-primary/25 to-transparent pointer-events-none" />
 
-      {isSidebarLeft ? (
-        <>
-          {/* Left zone: Menu (far left) & Today (adjacent to center) */}
-          {menuButton}
-          {todayTabs}
-
-          {/* Elevated center Quick Add action */}
-          <div className="flex-1 flex items-center justify-center">
-            <BottomQuickAddButton mode="mobile" />
-          </div>
-
-          {/* Right zone: Mind, Notes */}
-          {generalTabs}
-        </>
-      ) : (
-        <>
-          {/* Left zone: Mind, Notes */}
-          {generalTabs}
-
-          {/* Elevated center Quick Add action */}
-          <div className="flex-1 flex items-center justify-center">
-            <BottomQuickAddButton mode="mobile" />
-          </div>
-
-          {/* Right zone: Today (adjacent to center) & Menu (far right) */}
-          {todayTabs}
-          {menuButton}
-        </>
-      )}
+      {/* 5 Symmetric, Balanced Slots: [Menu] [Tab 1] [Center +] [Tab 2] [Tab 3] */}
+      {menuButton}
+      {tab1}
+      <BottomQuickAddButton mode="mobile" />
+      {tab2}
+      {tab3}
     </nav>
   );
 }
+export default MobileBottomBar;

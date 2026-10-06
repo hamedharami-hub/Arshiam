@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { TaskListSortSettings } from "@/pages/settings/TaskListSortSettings";
+import { MobileBottomBarSettings } from "@/pages/settings/MobileBottomBarSettings";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { KnowledgeDocumentReader } from "@/components/knowledge/KnowledgeDocumentReader";
 import { KnowledgeSidebarTree } from "@/components/knowledge/KnowledgeSidebarTree";
@@ -45,7 +46,7 @@ function Fixture() {
       <div id="app-header-actions" className="shrink-0" />
     </header>
     {!isSleep && <HeaderTitlePortal title={isSettings ? T("تنظیمات", "Settings") : T("پایگاه دانش", "Knowledge")} />}
-    {isSleep ? <SleepView /> : isEditor ? <main className="p-3 max-w-5xl mx-auto"><RichEditor initialMarkdown="A note with **bold** and <u>underlined text</u>." showVoiceButton={false} onChange={(_html, markdown) => { document.body.dataset.savedMarkdown = markdown; }} /></main> : isSettings ? <main className="p-3 max-w-3xl mx-auto"><TaskListSortSettings /></main> : <>
+    {isSleep ? <SleepView /> : isEditor ? <main className="p-3 max-w-5xl mx-auto"><RichEditor initialMarkdown="A note with **bold** and <u>underlined text</u>." showVoiceButton={false} onChange={(_html, markdown) => { document.body.dataset.savedMarkdown = markdown; }} /></main> : isSettings ? <main className="p-4 max-w-xl mx-auto space-y-6"><MobileBottomBarSettings isEn={isEn} /><TaskListSortSettings /></main> : <>
     <div className="border-b px-3 py-1">
       <TaskDetailTopBar T={T} isEn={isEn} canEdit folderLabel={folders[0].name} hasFolder onFolder={noop} onGoal={noop} goalLabel={null} save={null} more={null} />
     </div>

@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { isPathAllowed, useModules } from "@/lib/appModules";
-import { ListTodo, FileText, Brain, Flame, CalendarDays } from "lucide-react";
+import { ListTodo, FileText, Brain, CalendarDays } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -11,6 +11,11 @@ import { BottomTabItemConfig } from "./bottom-bar/types";
 import { WindowsFluentBar } from "./bottom-bar/WindowsFluentBar";
 import { FoldableAdaptiveBar } from "./bottom-bar/FoldableAdaptiveBar";
 import { MobileBottomBar } from "./bottom-bar/MobileBottomBar";
+import {
+  useMobileBottomTabs,
+  ALL_MOBILE_TAB_OPTIONS,
+  type MobileTabOption,
+} from "@/lib/mobileBottomBarSettings";
 
 export function BottomTabBar() {
   const loc = useLocation();
@@ -54,7 +59,7 @@ export function BottomTabBar() {
             break;
           case "3":
             e.preventDefault();
-            navigate("/app/habits");
+            navigate("/app/calendar");
             break;
           case "4":
             e.preventDefault();
@@ -121,14 +126,14 @@ export function BottomTabBar() {
       match: (p) => p.startsWith("/app/notes"),
     },
     {
-      key: "habits",
-      labelFa: "عادت‌ها",
-      labelEn: "Habits",
-      to: "/app/habits",
-      icon: Flame,
+      key: "calendar",
+      labelFa: "تقویم",
+      labelEn: "Calendar",
+      to: "/app/calendar",
+      icon: CalendarDays,
       shortcutKey: "3",
       shortcutLabel: "Alt+3",
-      match: (p) => p.startsWith("/app/habits"),
+      match: (p) => p.startsWith("/app/calendar"),
     },
     {
       key: "today",
@@ -140,23 +145,16 @@ export function BottomTabBar() {
       shortcutLabel: "Alt+4",
       match: (p) => p === "/app/today" || p === "/app",
     },
-    {
-      key: "calendar",
-      labelFa: "تقویم",
-      labelEn: "Calendar",
-      to: "/app/calendar",
-      icon: CalendarDays,
-      shortcutKey: "5",
-      shortcutLabel: "Alt+5",
-      match: (p) => p.startsWith("/app/calendar"),
-    },
   ], []);
 
-  // For compact phone layout:
-  const modules = useModules();
-  const visibleTabs = useMemo(() => tabs.filter((tab) => isPathAllowed(tab.to, modules)), [tabs, modules]);
-  const mobilePrimaryTabs = useMemo(() => visibleTabs.filter((tab) => tab.key !== "today").slice(0, 2), [visibleTabs]);
-  const mobileSecondaryTabs = useMemo(() => visibleTabs.filter((tab) => tab.key === "today"), [visibleTabs]);
+  // For compact phone layout: reactive user-chosen tabs from settings (default: today, calendar, notes)
+  const selectedTabKeys = useMobileBottomTabs();
+  const mobileCustomTabs = useMemo<BottomTabItemConfig[]>(() => {
+    return selectedTabKeys
+      .map((key) => ALL_MOBILE_TAB_OPTIONS[key])
+      .filter((tab): tab is MobileTabOption => Boolean(tab))
+      .slice(0, 3);
+  }, [selectedTabKeys]);
 
   const isTaskPage =
     loc.pathname.startsWith("/app/new/task") ||
@@ -176,10 +174,9 @@ export function BottomTabBar() {
 
   return (
     <>
-      {/* Regular Mobile Phone Bottom Bar — only on compact single-screen mobile phones */}
+      {/* Regular Mobile Phone Bottom Bar — perfectly symmetric 5-item bar with long-press speed dial */}
       <MobileBottomBar
-        primaryTabs={mobilePrimaryTabs}
-        secondaryTabs={mobileSecondaryTabs}
+        tabs={mobileCustomTabs}
         currentPath={loc.pathname}
         dir={dir}
       />

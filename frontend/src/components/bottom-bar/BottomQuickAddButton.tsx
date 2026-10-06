@@ -1,6 +1,9 @@
+import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { haptic } from "@/lib/haptics";
+import { useLongPress } from "@/lib/useLongPress";
+import { MobileSpeedDialMenu } from "./MobileSpeedDialMenu";
 import {
   Tooltip,
   TooltipContent,
@@ -14,11 +17,35 @@ interface BottomQuickAddButtonProps {
 
 export function BottomQuickAddButton({ mode = "mobile", className = "" }: BottomQuickAddButtonProps) {
   const { t } = useTranslation();
+  const [speedDialOpen, setSpeedDialOpen] = useState(
+    () => typeof window !== "undefined" && window.location.search.includes("speeddial")
+  );
+
+  useEffect(() => {
+    const handleOpen = () => setSpeedDialOpen(true);
+    const handleClose = () => setSpeedDialOpen(false);
+    window.addEventListener("lov:open-speed-dial", handleOpen);
+    window.addEventListener("lov:close-speed-dial", handleClose);
+    return () => {
+      window.removeEventListener("lov:open-speed-dial", handleOpen);
+      window.removeEventListener("lov:close-speed-dial", handleClose);
+    };
+  }, []);
 
   const handleQuickAdd = () => {
     haptic("medium");
     window.dispatchEvent(new Event("lov:open-quick-capture"));
   };
+
+  const handleLongPress = () => {
+    haptic("heavy");
+    setSpeedDialOpen(true);
+  };
+
+  const longPressProps = useLongPress({
+    onLongPress: handleLongPress,
+    delay: 450,
+  });
 
   const label = t("nav.quickAdd", "افزودن سریع");
 
@@ -47,20 +74,29 @@ export function BottomQuickAddButton({ mode = "mobile", className = "" }: Bottom
     );
   }
 
-  // Mobile & Foldable mode: Material 3 Expressive Elevated FAB
+  // Mobile mode: Sleek, perfectly aligned primary action button
   return (
-    <div className="relative flex items-center justify-center -mt-6 min-[600px]:-mt-7">
-      {/* Soft ambient back-glow */}
-      <div className="absolute -inset-1 rounded-[22px] bg-gradient-primary blur-lg opacity-35 dark:opacity-45 pointer-events-none -z-10" />
-      <button
-        type="button"
-        onClick={handleQuickAdd}
-        aria-label={label}
-        className={`group relative h-[3.35rem] w-[3.35rem] min-[600px]:h-[3.6rem] min-[600px]:w-[3.6rem] rounded-[20px] bg-gradient-primary text-primary-foreground shadow-[0_10px_25px_-4px_hsl(var(--primary)/0.4),0_3px_8px_-1px_rgba(0,0,0,0.15)] flex items-center justify-center active:scale-95 hover:scale-105 transition-all duration-200 ring-[4px] ring-background dark:ring-card border border-primary/25 select-none ${className}`}
-      >
-        <Plus className="w-6 h-6 min-[600px]:w-7 min-[600px]:h-7 stroke-[2.5] text-primary-foreground transition-transform duration-300 ease-out group-hover:rotate-90 group-active:rotate-45" />
-        <span className="sr-only">{label}</span>
-      </button>
-    </div>
+    <>
+      <div className="h-full flex-1 flex flex-col items-center justify-center pt-1.5 pb-1 select-none min-w-0">
+        <button
+          type="button"
+          onClick={handleQuickAdd}
+          {...longPressProps}
+          aria-label={label}
+          title={label}
+          className={`group relative flex items-center justify-center h-8 w-14 rounded-full bg-primary text-primary-foreground shadow-sm shadow-primary/30 active:scale-95 hover:scale-105 transition-all duration-200 border border-primary/40 select-none ${className}`}
+        >
+          <Plus className="w-5 h-5 stroke-[2.5] text-primary-foreground transition-transform duration-200 group-hover:rotate-90" />
+        </button>
+        <span className="tracking-tight truncate max-w-full px-1 text-[11px] font-semibold text-primary mt-1 leading-tight select-none">
+          {label}
+        </span>
+      </div>
+
+      <MobileSpeedDialMenu
+        open={speedDialOpen}
+        onClose={() => setSpeedDialOpen(false)}
+      />
+    </>
   );
 }

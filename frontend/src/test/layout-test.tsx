@@ -1,13 +1,16 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import AppLayout from "@/layouts/AppLayout";
 import { CheckSquare, Columns2, MoreVertical, Star, Calendar, Tag, CheckCircle2 } from "lucide-react";
+import i18n from "@/i18n";
 import "../index.css";
+
+void i18n.changeLanguage("fa");
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,6 +41,7 @@ const MOCK_TASKS = Array.from({ length: 25 }, (_, i) => ({
 
 function TodaySplitViewContent() {
   const isRtl = typeof document !== "undefined" ? document.documentElement.dir !== "ltr" : true;
+  const isMobile = typeof window !== "undefined" && (window.innerWidth < 768 || window.location.search.includes("phone"));
 
   return (
     <div
@@ -52,21 +56,23 @@ function TodaySplitViewContent() {
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             {isRtl
-              ? "نمای دوپنله با ۲۵ تسک جهت اعتبارسنجی عدم هم‌پوشانی با سایدبار دسکتاپ"
-              : "Split view with 25 tasks verifying zero overlay with desktop sidebar"}
+              ? "فهرست تسک‌ها و اعتبارسنجی چیدمان ناوبری پایین صفحه در موبایل و سایدبار در دسکتاپ"
+              : "Task list and layout verification for mobile bottom bar & desktop sidebar"}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs bg-muted px-2 py-1 rounded text-muted-foreground font-medium">
             ۲۵ تسک
           </span>
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 text-xs h-8 px-2.5 rounded-lg border border-border/60 bg-secondary/50 font-medium"
-          >
-            <Columns2 className="w-3.5 h-3.5" />
-            <span>{isRtl ? "نمای دوپنله" : "Split View"}</span>
-          </button>
+          {!isMobile && (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 text-xs h-8 px-2.5 rounded-lg border border-border/60 bg-secondary/50 font-medium"
+            >
+              <Columns2 className="w-3.5 h-3.5" />
+              <span>{isRtl ? "نمای دوپنله" : "Split View"}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -76,40 +82,44 @@ function TodaySplitViewContent() {
         dir="ltr"
         className="w-full flex-1 min-h-0 flex flex-row items-stretch gap-3 overflow-hidden"
       >
-        {/* Left panel: Task detail placeholder */}
-        <aside
-          data-testid="task-detail-panel"
-          dir={isRtl ? "rtl" : "ltr"}
-          style={{ width: "45%" }}
-          className="shrink-0 min-w-[280px] h-full overflow-y-auto rounded-2xl border border-dashed border-border/70 bg-card/40 flex flex-col items-center justify-center p-6 text-center text-muted-foreground shadow-sm"
-        >
-          <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3">
-            <CheckSquare className="w-6 h-6" />
-          </div>
-          <p className="text-sm font-semibold text-foreground">
-            {isRtl ? "یک تسک را انتخاب کنید" : "Select a task"}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1 max-w-[260px] leading-5">
-            {isRtl
-              ? "جزئیات و ویرایش در پنل سمت چپ باز می‌شود؛ فهرست کارها در سمت راست باقی می‌ماند."
-              : "Details open in the left panel while the task list remains on the right."}
-          </p>
-        </aside>
+        {/* Left panel: Task detail placeholder (desktop only) */}
+        {!isMobile && (
+          <aside
+            data-testid="task-detail-panel"
+            dir={isRtl ? "rtl" : "ltr"}
+            style={{ width: "45%" }}
+            className="shrink-0 min-w-[280px] h-full overflow-y-auto rounded-2xl border border-dashed border-border/70 bg-card/40 flex flex-col items-center justify-center p-6 text-center text-muted-foreground shadow-sm"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3">
+              <CheckSquare className="w-6 h-6" />
+            </div>
+            <p className="text-sm font-semibold text-foreground">
+              {isRtl ? "یک تسک را انتخاب کنید" : "Select a task"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1 max-w-[260px] leading-5">
+              {isRtl
+                ? "جزئیات و ویرایش در پنل سمت چپ باز می‌شود؛ فهرست کارها در سمت راست باقی می‌ماند."
+                : "Details open in the left panel while the task list remains on the right."}
+            </p>
+          </aside>
+        )}
 
-        {/* Vertical Splitter */}
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          className="w-1.5 shrink-0 h-full flex items-center justify-center cursor-col-resize select-none touch-none"
-        >
-          <div className="w-1 h-12 rounded-full bg-border/80" />
-        </div>
+        {/* Vertical Splitter (desktop only) */}
+        {!isMobile && (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            className="w-1.5 shrink-0 h-full flex items-center justify-center cursor-col-resize select-none touch-none"
+          >
+            <div className="w-1 h-12 rounded-full bg-border/80" />
+          </div>
+        )}
 
         {/* Right panel: Long Task List section */}
         <section
           data-testid="task-list-section"
           dir={isRtl ? "rtl" : "ltr"}
-          className="flex-1 h-full min-w-0 min-h-0 overflow-y-auto overscroll-contain rounded-2xl border border-border/60 bg-card/35 p-3 sm:p-4 shadow-sm space-y-2.5"
+          className="flex-1 h-full min-w-0 min-h-0 overflow-y-auto overscroll-contain rounded-2xl border border-border/60 bg-card/35 p-3 sm:p-4 shadow-sm space-y-2.5 pb-28"
         >
           {MOCK_TASKS.map((t, idx) => (
             <div
@@ -159,18 +169,32 @@ function TodaySplitViewContent() {
 }
 
 function Harness() {
+  const isPhoneParam = typeof window !== "undefined" && window.location.search.includes("phone");
+  const isMobile = (typeof window !== "undefined" && window.innerWidth < 768) || isPhoneParam;
+  
+  if (isMobile) {
+    try {
+      localStorage.setItem("arshnaz_nav_mode", "phone");
+    } catch {}
+  } else {
+    try {
+      localStorage.removeItem("arshnaz_nav_mode");
+    } catch {}
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
         <TooltipProvider>
           <AuthProvider>
-            <BrowserRouter>
+            <MemoryRouter initialEntries={["/app/today"]}>
               <Routes>
-                <Route path="*" element={<AppLayout />}>
+                <Route path="/app/*" element={<AppLayout />}>
+                  <Route path="today" element={<TodaySplitViewContent />} />
                   <Route path="*" element={<TodaySplitViewContent />} />
                 </Route>
               </Routes>
-            </BrowserRouter>
+            </MemoryRouter>
           </AuthProvider>
         </TooltipProvider>
       </ThemeProvider>
@@ -185,4 +209,19 @@ if (rootEl) {
     window.localStorage.setItem("onboarded_v1", "1");
   } catch {}
   createRoot(rootEl).render(<Harness />);
+  setTimeout(() => {
+    const nav = document.querySelector('[data-bottom-bar="true"]');
+    if (!nav) {
+      document.title = 'No bottom bar';
+      return;
+    }
+    const navRect = nav.getBoundingClientRect();
+    const children = Array.from(nav.children).filter(c => c.tagName === 'BUTTON' || (c.tagName === 'DIV' && c.querySelector('button')));
+    const buttonsInfo = children.map(c => {
+      const r = c.getBoundingClientRect();
+      const txt = ((c as HTMLElement).innerText || '').split('\n').filter(Boolean).pop() || '';
+      return `${txt}:[L:${Math.round(r.left)},R:${Math.round(r.right)},W:${Math.round(r.width)}]`;
+    });
+    document.title = `Nav[W:${Math.round(navRect.width)}] => ` + buttonsInfo.join(' | ');
+  }, 1000);
 }

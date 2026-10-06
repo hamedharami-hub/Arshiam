@@ -52,6 +52,7 @@ import { TaskListSortSettings } from "./settings/TaskListSortSettings";
 import { CompletedTasksSettings } from "./settings/CompletedTasksSettings";
 import { CrisisSupportSettings } from "./settings/CrisisSupportSettings";
 import { SidebarQuickLinksSettings } from "./settings/SidebarQuickLinksSettings";
+import { MobileBottomBarSettings } from "./settings/MobileBottomBarSettings";
 import { AISettingsTab } from "./settings/AISettingsTab";
 import { AppearanceSettingsSection } from "./settings/AppearanceSettingsSection";
 import { AssistantAccessSettings } from "./settings/AssistantAccessSettings";
@@ -774,6 +775,7 @@ export default function SettingsView() {
           />
 
           <SidebarQuickLinksSettings isEn={isEn} />
+          <MobileBottomBarSettings isEn={isEn} />
           <CompanionSettings />
         </TabsContent>
 

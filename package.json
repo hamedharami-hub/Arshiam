@@ -3,6 +3,10 @@
   "private": true,
   "type": "module",
   "description": "Root manifest for the Vercel serverless functions in api/. The web app itself lives in frontend/.",
+  "scripts": {
+    "build": "cd frontend && npm run build",
+    "android:build": "build-android-apk.bat"
+  },
   "dependencies": {
     "firebase-admin": "^14.5.0"
   }

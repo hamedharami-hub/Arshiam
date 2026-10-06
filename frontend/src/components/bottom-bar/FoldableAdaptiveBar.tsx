@@ -27,10 +27,10 @@ export function FoldableAdaptiveBar({
 
   const MenuIcon = isSidebarLeft ? PanelLeft : PanelRight;
 
-  // Standard (Right sidebar): Left cluster is Mind, Notes, Habits. Right cluster is Today, Calendar + Menu.
-  // Left sidebar: Left cluster is Menu + Today, Calendar. Right cluster is Mind, Notes, Habits.
-  const generalTabs = useMemo(() => allTabs.slice(0, 3), [allTabs]); // Mind, Notes, Habits
-  const taskTabs = useMemo(() => allTabs.slice(3, 5), [allTabs]); // Today, Calendar
+  // Standard (Right sidebar): Left cluster is general (Mind, Notes). Right cluster is tasks (Today, Calendar) + Menu.
+  // Left sidebar: Left cluster is Menu + tasks (Today, Calendar). Right cluster is general (Mind, Notes).
+  const generalTabs = useMemo(() => allTabs.filter((t) => t.key !== "today" && t.key !== "calendar"), [allTabs]);
+  const taskTabs = useMemo(() => allTabs.filter((t) => t.key === "today" || t.key === "calendar"), [allTabs]);
 
   const leftCluster = isSidebarLeft ? taskTabs : generalTabs;
   const rightCluster = isSidebarLeft ? generalTabs : taskTabs;

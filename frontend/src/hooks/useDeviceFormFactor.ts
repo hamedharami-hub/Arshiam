@@ -94,7 +94,7 @@ function detectFormFactor(): DeviceFormFactorInfo {
   let formFactor: DeviceFormFactor;
   if (isFoldableHardware) {
     formFactor = "foldable";
-  } else if (isWindowsOS || (isDesktopScreen && !isTouch)) {
+  } else if ((isWindowsOS && width >= 700) || (isDesktopScreen && !isTouch)) {
     formFactor = isWindowsOS ? "windows" : "desktop";
   } else if (width >= 800) {
     formFactor = "desktop";

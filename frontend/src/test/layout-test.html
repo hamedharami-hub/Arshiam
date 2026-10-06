@@ -4,6 +4,42 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Layout Verification Harness</title>
+  <style>
+    body.is-phone-fixture {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 390px !important;
+      height: 844px !important;
+      overflow: hidden !important;
+      position: absolute !important;
+      left: 0 !important;
+      top: 0 !important;
+      background-color: hsl(var(--background));
+    }
+    body.is-phone-fixture #root {
+      width: 390px !important;
+      height: 844px !important;
+      overflow: hidden !important;
+      position: absolute !important;
+      left: 0 !important;
+      top: 0 !important;
+      transform: translateZ(0);
+    }
+  </style>
+  <script>
+    if (location.search.includes("phone") || window.innerWidth < 768) {
+      try { localStorage.setItem("arshnaz_nav_mode", "phone"); } catch {}
+      if (document.body) {
+        document.body.classList.add("is-phone-fixture");
+      } else {
+        document.addEventListener("DOMContentLoaded", function() {
+          document.body.classList.add("is-phone-fixture");
+        });
+      }
+    } else {
+      try { localStorage.removeItem("arshnaz_nav_mode"); } catch {}
+    }
+  </script>
 </head>
 <body>
   <div id="root"></div>

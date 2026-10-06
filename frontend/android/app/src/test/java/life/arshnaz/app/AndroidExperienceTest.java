@@ -1,0 +1,290 @@
+package life.arshnaz.app;
+import android.app.*;
+import android.content.*;
+import android.widget.*;
+import android.view.View;
+import org.junit.*;
+import org.junit.runner.RunWith;
+import org.robolectric.*;
+import org.robolectric.annotation.Config;
+import org.json.*;
+import java.time.*;
+import static org.junit.Assert.*;
+
+@RunWith(RobolectricTestRunner.class)
+@Config(sdk={28,35})
+public class AndroidExperienceTest {
+    Context c;
+    @Before public void setup() {
+        c=RuntimeEnvironment.getApplication();
+        AgendaData.prefs(c).edit().clear().commit();
+        AgendaData.options(c).edit().clear().commit();
+        NativeReminders.prefs(c).edit().clear().commit();
+        PomodoroWidgetProvider.prefs(c).edit().clear().commit();
+    }
+    JSONArray tasks() throws Exception {
+        return new JSONArray().put(new JSONObject().put("id","today-task").put("title","Today test")
+            .put("due_date",LocalDate.now().toString()).put("reminder_at",Instant.now().plusSeconds(3600).toString()))
+            .put(new JSONObject().put("id","tomorrow-task").put("title","Tomorrow test").put("due_date",LocalDate.now().plusDays(1).toString()));
+    }
+    void login() throws Exception {AgendaData.prefs(c).edit().putBoolean("sessionReady",true).putString("dataUserId","userA").putString("agendaTasks",tasks().toString()).commit();}
+    @Test public void allRemoteLayoutsInflate() {
+        for(int layout:new int[]{R.layout.widget_agenda,R.layout.widget_compact,R.layout.widget_task_row,R.layout.widget_arshnaz,R.layout.widget_action_hub}) {
+            View view=new RemoteViews(c.getPackageName(),layout).apply(c,new FrameLayout(c));assertNotNull(view);
+        }
+    }
+    @Test public void pomodoroPersistsStartPauseResumeAndFinish() {
+        PomodoroWidgetProvider.reset(c);
+        assertFalse(PomodoroWidgetProvider.state(c).hasStarted);
+        assertEquals("25:00",PomodoroWidgetProvider.format(PomodoroWidgetProvider.state(c).remainingMs));
+        View initial=PomodoroWidgetProvider.views(c,1).apply(c,new FrameLayout(c));
+        assertEquals("Start 25 min",((TextView)initial.findViewById(R.id.hub_primary)).getText().toString());
+        PomodoroWidgetProvider.start(c); assertTrue(PomodoroWidgetProvider.state(c).running);
+        PomodoroWidgetProvider.pause(c); PomodoroWidgetProvider.State paused=PomodoroWidgetProvider.state(c);
+        assertFalse(paused.running); assertTrue(paused.remainingMs > 0 && paused.remainingMs <= PomodoroWidgetProvider.SESSION_MS);
+        PomodoroWidgetProvider.finish(c); assertTrue(PomodoroWidgetProvider.state(c).complete());
+        assertEquals("00:00",PomodoroWidgetProvider.format(PomodoroWidgetProvider.state(c).remainingMs));
+    }
+    @Test public void independentWidgetFiltersAndRowRendering() throws Exception {
+        login();
+        AgendaData.options(c).edit().putString("widget.2.scope","tomorrow").putBoolean("widget.2.light",true).commit();
+        AgendaListService.Factory today=new AgendaListService.Factory(c,1), tomorrow=new AgendaListService.Factory(c,2);
+        today.onCreate(); tomorrow.onCreate();
+        assertEquals(1,today.getCount()); assertEquals(1,tomorrow.getCount());
+        View first=today.getViewAt(0).apply(c,new FrameLayout(c));
+        View second=tomorrow.getViewAt(0).apply(c,new FrameLayout(c));
+        assertEquals("Today test",((TextView)first.findViewById(R.id.row_title)).getText().toString());
+        assertEquals("Tomorrow test",((TextView)second.findViewById(R.id.row_title)).getText().toString());
+        AgendaData.prefs(c).edit().putString("dataUserId","userB").commit();
+        assertNull(today.getViewAt(0)); // A late launcher request cannot show the previous account.
+    }
+    @Test public void widgetCompletionCannotMarkAnActiveLeitnerReviewDone() throws Exception {
+        JSONObject review = new JSONObject().put("id", "review-task").put("title", "Review cards")
+            .put("due_date", LocalDate.now().toString()).put("completed", false).put("status", "todo")
+            .put("source_type", "leitner").put("source_id", "doc-1");
+        AgendaData.prefs(c).edit().putBoolean("sessionReady", true)
+            .putString("agendaTasks", new JSONArray().put(review).toString()).commit();
+
+        assertFalse(AgendaData.setCompleted(c, "review-task", true));
+        assertFalse(AgendaData.task(c, "review-task").optBoolean("completed"));
+        assertTrue(AgendaData.setCompleted(c, "review-task", false));
+    }
+    @Test public void LeitnerWidgetRouteCarriesEncodedTargetAndTask() throws Exception {
+        JSONObject task = new JSONObject().put("id", "review-task").put("source_type", "leitner_folder")
+            .put("source_id", "folder/one & two");
+        android.net.Uri route = android.net.Uri.parse("arshnaz://" + AgendaWidgetProvider.studyReviewRoute(task, "user-1"));
+        assertEquals("review", route.getHost());
+        assertEquals("leitner", route.getQueryParameter("tab"));
+        assertEquals("folder/one & two", route.getQueryParameter("studyFolderId"));
+        assertEquals("review-task", route.getQueryParameter("studyTaskId"));
+        assertEquals("user-1", route.getQueryParameter("owner"));
+    }
+    @Test public void providerBuildsRealCollectionRemoteViews() throws Exception {
+        login();
+        View view=AgendaWidgetProvider.views(c,1).apply(c,new FrameLayout(c));
+        assertEquals("Today",((TextView)view.findViewById(R.id.agenda_title)).getText().toString());
+        assertEquals("1 active",((TextView)view.findViewById(R.id.agenda_count)).getText().toString());
+    }
+    @Test public void notificationIsPrivateAndHasNavigationActions() throws Exception {
+        login();TaskPanel.channel(c);
+        Notification n=TaskPanel.build(c);
+        assertEquals(Notification.VISIBILITY_PRIVATE,n.visibility);assertNotNull(n.publicVersion);
+        assertEquals(4,n.actions.length);
+        assertEquals("Today test",n.extras.getString(Notification.EXTRA_TEXT));
+        new AndroidActionsReceiver().onReceive(c,new Intent().setAction("panelScope"));
+        assertEquals("today",AgendaData.options(c).getString("panelScope","today")); // disabled: ignore
+        AgendaData.options(c).edit().putBoolean("panelEnabled",true).commit();
+        new AndroidActionsReceiver().onReceive(c,new Intent().setAction("panelScope"));
+        assertEquals("tomorrow",AgendaData.options(c).getString("panelScope","today"));
+    }
+    @Test public void nativeAlarmsReconcileSnoozeAndLogout() throws Exception {
+        login();AgendaData.options(c).edit().putBoolean("remindersEnabled",true).commit();
+        NativeReminders.reconcile(c); assertEquals(1,NativeReminders.count(c));
+        assertEquals(1,Shadows.shadowOf(c.getSystemService(AlarmManager.class)).getScheduledAlarms().size());
+        JSONObject before=NativeReminders.ledger(c).getJSONObject("today-task");
+        NativeReminders.deliver(c,"today-task","userA",true);
+        JSONObject snoozed=NativeReminders.ledger(c).getJSONObject("today-task");
+        assertTrue(snoozed.getLong("at")<before.getLong("at"));
+        NativeReminders.reconcile(c); assertEquals(snoozed.getLong("at"),NativeReminders.ledger(c).getJSONObject("today-task").getLong("at"));
+        AgendaData.prefs(c).edit().putBoolean("sessionReady",false).commit();
+        NativeReminders.reconcile(c);assertEquals(0,NativeReminders.count(c));
+        assertEquals(0,Shadows.shadowOf(c.getSystemService(AlarmManager.class)).getScheduledAlarms().size());
+        assertEquals(0,AgendaData.read(c).length());
+    }
+    @Test public void completedAndDeletedRemindersCancel() throws Exception {
+        login();AgendaData.options(c).edit().putBoolean("remindersEnabled",true).commit();
+        NativeReminders.reconcile(c);assertEquals(1,NativeReminders.count(c));
+        JSONArray rows=tasks();rows.getJSONObject(0).put("completed",true);
+        AgendaData.prefs(c).edit().putString("agendaTasks",rows.toString()).commit();
+        NativeReminders.reconcile(c);assertEquals(0,NativeReminders.count(c));
+        AgendaData.prefs(c).edit().putString("agendaTasks","[]").commit();
+        NativeReminders.reconcile(c);assertEquals(0,NativeReminders.count(c));
+    }
+    @Test public void reminderOffersSnoozeCompleteAndOpenActions() throws Exception {
+        Shadows.shadowOf((Application)c).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS);
+        login();AgendaData.options(c).edit().putBoolean("remindersEnabled",true).commit();
+        NativeReminders.reconcile(c);
+        NativeReminders.deliver(c,"today-task","userA",false);
+        int notificationId=NativeReminders.ledger(c).getJSONObject("today-task").getInt("notificationId");
+        Notification delivered=Shadows.shadowOf(c.getSystemService(NotificationManager.class)).getNotification(notificationId);
+        assertNotNull(delivered); assertEquals(3,delivered.actions.length);
+        assertEquals("انجام شد",delivered.actions[1].title);
+    }
+    @Test public void nativeConfigurationSavesOnlyItsWidget() throws Exception {
+        android.appwidget.AppWidgetManager manager=android.appwidget.AppWidgetManager.getInstance(c);
+        android.appwidget.AppWidgetProviderInfo info=new android.appwidget.AppWidgetProviderInfo();
+        info.provider=new ComponentName(c,TomorrowWidgetProvider.class);info.initialLayout=R.layout.widget_agenda;
+        Shadows.shadowOf(manager).addBoundWidget(20,info);
+        WidgetConfigureActivity activity=Robolectric.buildActivity(WidgetConfigureActivity.class,
+            new Intent().putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_ID,20)).setup().get();
+        android.view.ViewGroup root=(android.view.ViewGroup)((ScrollView)((android.view.ViewGroup)activity.findViewById(android.R.id.content)).getChildAt(0)).getChildAt(0);
+        Spinner spinner=null; CheckBox high=null;
+        for(int i=0;i<root.getChildCount();i++) {
+            View child=root.getChildAt(i);
+            if(child instanceof Spinner && spinner==null) spinner=(Spinner)child;
+            if(child instanceof CheckBox && ((CheckBox)child).getText().toString().contains("High priority")) high=(CheckBox)child;
+        }
+        assertNotNull(spinner); assertNotNull(high);
+        assertEquals(1,spinner.getSelectedItemPosition());
+        spinner.setSelection(3);high.setChecked(true);
+        ((Button)root.getChildAt(root.getChildCount()-1)).performClick();
+        assertEquals(Activity.RESULT_OK,Shadows.shadowOf(activity).getResultCode());
+        assertEquals("overdue",AgendaWidgetProvider.scope(c,20));
+        assertEquals("today",AgendaWidgetProvider.scope(c,21));
+        assertTrue(AgendaData.options(c).getBoolean("widget.20.high",false));
+    }
+    @Test public void compactProviderRendersCorrectSummary() throws Exception {
+        login();
+        android.appwidget.AppWidgetManager manager=android.appwidget.AppWidgetManager.getInstance(c);
+        android.appwidget.AppWidgetProviderInfo info=new android.appwidget.AppWidgetProviderInfo();
+        info.provider=new ComponentName(c,CompactWidgetProvider.class);info.initialLayout=R.layout.widget_compact;
+        Shadows.shadowOf(manager).addBoundWidget(30,info);
+        View view=AgendaWidgetProvider.views(c,30).apply(c,new FrameLayout(c));
+        assertEquals("Today test",((TextView)view.findViewById(R.id.agenda_summary)).getText().toString());
+        assertEquals("☐",((Button)view.findViewById(R.id.agenda_compact_done)).getText().toString());
+        AgendaData.prefs(c).edit().putBoolean("sessionReady",false).commit();
+        View cleared=AgendaWidgetProvider.views(c,30).apply(c,new FrameLayout(c));
+        assertEquals("No tasks in this view\nTap here to add one",((TextView)cleared.findViewById(R.id.agenda_summary)).getText().toString());
+        assertEquals(View.INVISIBLE,cleared.findViewById(R.id.agenda_compact_done).getVisibility());
+    }
+    @Test public void widgetCompletionUpdatesTheLocalSnapshotBeforeSync() throws Exception {
+        login();
+        assertTrue(AgendaData.setCompleted(c,"today-task",true));
+        JSONObject changed=AgendaData.task(c,"today-task");
+        assertTrue(changed.optBoolean("completed"));
+        assertEquals("done",changed.optString("status"));
+    }
+    @Test public void widgetHierarchyCanCollapseAndReopenChildren() throws Exception {
+        login();
+        JSONArray rows=tasks();
+        rows.put(new JSONObject().put("id","child-task").put("title","A small step")
+            .put("parent_id","today-task").put("due_date",""));
+        AgendaData.prefs(c).edit().putString("agendaTasks",rows.toString()).commit();
+        AgendaListService.Factory widget=new AgendaListService.Factory(c,1);
+        widget.onCreate();
+        assertEquals(2,widget.getCount());
+        assertEquals("A small step",((TextView)widget.getViewAt(1).apply(c,new FrameLayout(c))
+            .findViewById(R.id.row_title)).getText().toString());
+        assertTrue(((TextView)widget.getViewAt(1).apply(c,new FrameLayout(c))
+            .findViewById(R.id.row_meta)).getText().toString().startsWith("↳ SUBTASK"));
+        AgendaData.options(c).edit().putBoolean("widget.1.collapsed.today-task",true).commit();
+        widget.onDataSetChanged();
+        assertEquals(1,widget.getCount());
+        assertEquals("›",((TextView)widget.getViewAt(0).apply(c,new FrameLayout(c))
+            .findViewById(R.id.row_expand)).getText().toString());
+        AgendaData.options(c).edit().putBoolean("widget.1.collapsed.today-task",false).commit();
+        widget.onDataSetChanged();
+        assertEquals(2,widget.getCount());
+    }
+    @Test public void rebootRestoresSnoozedAlarmWithoutWebView() throws Exception {
+        login();AgendaData.options(c).edit().putBoolean("remindersEnabled",true).commit();
+        NativeReminders.reconcile(c);NativeReminders.deliver(c,"today-task","userA",true);
+        long at=NativeReminders.ledger(c).getJSONObject("today-task").getLong("at");
+        new AndroidRescheduleReceiver().onReceive(c,new Intent(Intent.ACTION_BOOT_COMPLETED));
+        assertEquals(at,Shadows.shadowOf(c.getSystemService(AlarmManager.class)).peekNextScheduledAlarm().triggerAtTime);
+    }
+    @Test public void directBroadcastToggleAppliesTargetCompletedWithoutOpeningActivity() throws Exception {
+        login();
+        assertFalse(AgendaData.task(c, "today-task").optBoolean("completed"));
+        Intent toggle = new Intent().setData(android.net.Uri.parse("arshnaz://widget-action/toggle?taskId=today-task&targetCompleted=1&owner=userA"));
+        new AndroidActionsReceiver().onReceive(c, toggle);
+        assertTrue(AgendaData.task(c, "today-task").optBoolean("completed"));
+        assertNull(Shadows.shadowOf((Application) c).getNextStartedActivity());
+
+        Intent untoggle = new Intent().setData(android.net.Uri.parse("arshnaz://widget-action/toggle?taskId=today-task&targetCompleted=0&owner=userA"));
+        new AndroidActionsReceiver().onReceive(c, untoggle);
+        assertFalse(AgendaData.task(c, "today-task").optBoolean("completed"));
+        assertNull(Shadows.shadowOf((Application) c).getNextStartedActivity());
+    }
+    @Test public void directBroadcastCollapseAppliesTargetCollapsedWithoutOpeningActivity() throws Exception {
+        login();
+        assertFalse(AgendaData.options(c).getBoolean("widget.1.collapsed.today-task", false));
+        Intent collapse = new Intent().setData(android.net.Uri.parse("arshnaz://widget-action/collapse?taskId=today-task&widgetId=1&targetCollapsed=1&owner=userA"));
+        new AndroidActionsReceiver().onReceive(c, collapse);
+        assertTrue(AgendaData.options(c).getBoolean("widget.1.collapsed.today-task", false));
+        assertNull(Shadows.shadowOf((Application) c).getNextStartedActivity());
+
+        Intent uncollapse = new Intent().setData(android.net.Uri.parse("arshnaz://widget-action/collapse?taskId=today-task&widgetId=1&targetCollapsed=0&owner=userA"));
+        new AndroidActionsReceiver().onReceive(c, uncollapse);
+        assertFalse(AgendaData.options(c).getBoolean("widget.1.collapsed.today-task", false));
+        assertNull(Shadows.shadowOf((Application) c).getNextStartedActivity());
+    }
+    @Test public void directBroadcastRejectsOwnerMismatch() throws Exception {
+        login();
+        assertFalse(AgendaData.task(c, "today-task").optBoolean("completed"));
+        Intent toggle = new Intent().setData(android.net.Uri.parse("arshnaz://widget-action/toggle?taskId=today-task&targetCompleted=1&owner=attacker"));
+        new AndroidActionsReceiver().onReceive(c, toggle);
+        assertFalse(AgendaData.task(c, "today-task").optBoolean("completed"));
+    }
+    @Test public void directBroadcastOpenAndMenuLaunchCorrectActivities() throws Exception {
+        login();
+        Intent open = new Intent().setData(android.net.Uri.parse("arshnaz://widget-action/open?taskId=today-task&owner=userA"));
+        new AndroidActionsReceiver().onReceive(c, open);
+        Intent startedOpen = Shadows.shadowOf((Application) c).getNextStartedActivity();
+        assertNotNull(startedOpen);
+        assertEquals(MainActivity.class.getName(), startedOpen.getComponent().getClassName());
+        assertTrue(startedOpen.getDataString().contains("task?taskId=today-task"));
+
+        Intent menu = new Intent().setData(android.net.Uri.parse("arshnaz://widget-action/menu?taskId=today-task&owner=userA"));
+        new AndroidActionsReceiver().onReceive(c, menu);
+        Intent startedMenu = Shadows.shadowOf((Application) c).getNextStartedActivity();
+        assertNotNull(startedMenu);
+        assertEquals(WidgetTaskActionActivity.class.getName(), startedMenu.getComponent().getClassName());
+        assertEquals("menu", startedMenu.getStringExtra("mode"));
+        assertEquals("today-task", startedMenu.getStringExtra("taskId"));
+    }
+    @Test public void taskTitleAndContentAlwaysTriggerDirectOpenEvenWithChildren() throws Exception {
+        login();
+        JSONArray rows = tasks();
+        rows.put(new JSONObject().put("id", "child-task").put("title", "A small step")
+            .put("parent_id", "today-task").put("due_date", ""));
+        AgendaData.prefs(c).edit().putString("agendaTasks", rows.toString()).commit();
+        AgendaListService.Factory widget = new AgendaListService.Factory(c, 1);
+        widget.onCreate();
+        RemoteViews rowViews = widget.getViewAt(0);
+        assertNotNull(rowViews);
+        View applied = rowViews.apply(c, new FrameLayout(c));
+        assertNotNull(applied.findViewById(R.id.row_content));
+        assertNotNull(applied.findViewById(R.id.row_title));
+        assertNotNull(applied.findViewById(R.id.row_expand));
+        assertEquals(View.VISIBLE, applied.findViewById(R.id.row_expand).getVisibility());
+    }
+
+    @Test public void consecutiveBroadcastOpensDoNotRetainStaleTask() throws Exception {
+        login();
+        // Tap Task 1
+        Intent open1 = new Intent().setData(android.net.Uri.parse("arshnaz://widget-action/open?taskId=task-1&owner=userA"));
+        new AndroidActionsReceiver().onReceive(c, open1);
+        Intent started1 = Shadows.shadowOf((Application) c).getNextStartedActivity();
+        assertNotNull(started1);
+        assertTrue(started1.getDataString().contains("task?taskId=task-1"));
+
+        // Tap Task 2
+        Intent open2 = new Intent().setData(android.net.Uri.parse("arshnaz://widget-action/open?taskId=task-2&owner=userA"));
+        new AndroidActionsReceiver().onReceive(c, open2);
+        Intent started2 = Shadows.shadowOf((Application) c).getNextStartedActivity();
+        assertNotNull(started2);
+        assertTrue(started2.getDataString().contains("task?taskId=task-2"));
+        assertFalse(started2.getDataString().contains("task?taskId=task-1"));
+    }
+}
