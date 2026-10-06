@@ -33,24 +33,25 @@ function tone(freq: number, dur: number, type: OscillatorType = "sine", gain = 0
   osc.stop(t0 + dur + 0.05);
 }
 
-export function playEndBell(id: EndBellId) {
-  if (id === "none") return;
+export function playEndBell(id: EndBellId, volumePct = 100) {
+  if (id === "none" || volumePct <= 0) return;
+  const volume = Math.max(0, Math.min(1, volumePct / 100));
   try {
     if (id === "bell") {
-      tone(880, 1.4, "sine", 0.35);
-      tone(1320, 1.0, "sine", 0.18, 0.05);
+      tone(880, 1.4, "sine", 0.35 * volume);
+      tone(1320, 1.0, "sine", 0.18 * volume, 0.05);
     } else if (id === "chime") {
-      tone(1046, 0.8, "triangle", 0.25);
-      tone(1318, 0.8, "triangle", 0.2, 0.18);
-      tone(1568, 1.2, "triangle", 0.2, 0.36);
+      tone(1046, 0.8, "triangle", 0.25 * volume);
+      tone(1318, 0.8, "triangle", 0.2 * volume, 0.18);
+      tone(1568, 1.2, "triangle", 0.2 * volume, 0.36);
     } else if (id === "digital") {
-      tone(1200, 0.12, "square", 0.22);
-      tone(1200, 0.12, "square", 0.22, 0.18);
-      tone(1500, 0.18, "square", 0.22, 0.36);
+      tone(1200, 0.12, "square", 0.22 * volume);
+      tone(1200, 0.12, "square", 0.22 * volume, 0.18);
+      tone(1500, 0.18, "square", 0.22 * volume, 0.36);
     } else if (id === "gong") {
-      tone(196, 2.5, "sine", 0.4);
-      tone(294, 2.0, "sine", 0.18, 0.05);
-      tone(98, 2.5, "sine", 0.25, 0.02);
+      tone(196, 2.5, "sine", 0.4 * volume);
+      tone(294, 2.0, "sine", 0.18 * volume, 0.05);
+      tone(98, 2.5, "sine", 0.25 * volume, 0.02);
     }
   } catch (e) {
     /* ignore */

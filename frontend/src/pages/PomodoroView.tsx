@@ -1,21 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
 import { toPersianDigits } from "@/lib/persianDigits";
-import { Clock, ListChecks, TrendingUp, Target } from "lucide-react";
+import { Clock, ListChecks, TrendingUp, Target, Minimize2 } from "lucide-react";
 import PomodoroTimer from "@/components/PomodoroTimer";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { subDays, startOfDay, format, isSameDay } from "date-fns";
 import { getCalendarSystem, jalaliDayOfWeek, WEEKDAY_SHORT_FA, formatDate } from "@/lib/jalali";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { awardWaterDrops } from "@/lib/garden";
+import { useFocusSession } from "@/hooks/useFocusSession";
+import { todayISO } from "@/lib/timeHorizon";
 import { parseTaskDueDate, taskDueTimestamp, taskWorkDate } from "@/lib/taskDate";
 import type { Task } from "@/lib/taskTypes";
 
-type SessionRow = { duration_minutes: number; task_id: string | null; ended_at: string | null; tasks?: { title: string } | null };
+type SessionRow = { completed?: boolean; duration_minutes: number; task_id: string | null; ended_at: string | null; tasks?: { title: string } | null };
 type WeekRow = { duration_minutes: number; ended_at: string };
 type TaskOption = { id: string; title: string; due_date: string | null };
 
@@ -27,44 +30,55 @@ export function sessionMinutesForCompletionDay(sessions: WeekRow[], day: Date): 
 
 export default function PomodoroView() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { T, isEn } = useBilingual();
-  const [today, setToday] = useState<SessionRow[]>([]);
-  const [weekSessions, setWeekSessions] = useState<WeekRow[]>([]);
-  const [tasks, setTasks] = useState<TaskOption[]>([]);
+  const [storedToday, setToday] = useState<SessionRow[]>([]);
+  const [storedWeekSessions, setWeekSessions] = useState<WeekRow[]>([]);
+  const [storedTasks, setTasks] = useState<TaskOption[]>([]);
+  const [dataOwner, setDataOwner] = useState<string | null>(null);
+  const today = dataOwner === user?.id ? storedToday : [];
+  const weekSessions = dataOwner === user?.id ? storedWeekSessions : [];
+  const tasks = dataOwner === user?.id ? storedTasks : [];
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
   const system = getCalendarSystem();
+  const focus = useFocusSession();
+  const [day, setDay] = useState(todayISO);
+  useEffect(() => { const update = () => setDay(todayISO()); const id = window.setInterval(update, 30000); document.addEventListener("visibilitychange", update); return () => { clearInterval(id); document.removeEventListener("visibilitychange", update); }; }, []);
 
   useEffect(() => {
+    let active = true;
+    setDataOwner(user?.id || null); setToday([]); setWeekSessions([]); setTasks([]);
     if (!user) return;
     const start = new Date(); start.setHours(0, 0, 0, 0);
     const weekStart = startOfDay(subDays(new Date(), 6));
     firebaseStore.from("pomodoro_sessions")
-      .select("duration_minutes, task_id, ended_at, tasks(title)")
+      .select("duration_minutes, task_id, ended_at, completed, tasks(title)")
       .eq("user_id", user.id)
-      .eq("completed", true)
       .gte("ended_at", start.toISOString())
       .order("ended_at", { ascending: false })
-      .then(({ data }) => setToday((data as SessionRow[] | null) || []));
+      .then(({ data }) => { if (active) setToday((data as SessionRow[] | null) || []); });
     firebaseStore.from("pomodoro_sessions")
       .select("duration_minutes, ended_at")
       .eq("user_id", user.id)
-      .eq("completed", true)
       .gte("ended_at", weekStart.toISOString())
       .order("ended_at", { ascending: true })
-      .then(({ data }) => setWeekSessions((data as WeekRow[] | null) || []));
+      .then(({ data }) => { if (active) setWeekSessions((data as WeekRow[] | null) || []); });
     firebaseStore.from("tasks")
       .select("*")
       .eq("user_id", user.id)
       .eq("completed", false)
       .then(({ data }) => {
+        if (!active) return;
         // Order by the task's single schedule (undated last), never by the legacy due_date field.
         const rows = ((data as Partial<Task>[] | null) || []).filter((t): t is Partial<Task> & { id: string; title: string } => Boolean(t?.id));
         const when = (t: Partial<Task>) => { const v = taskWorkDate(t); return v ? taskDueTimestamp(v) : Infinity; };
-        setTasks(rows.sort((a, b) => when(a) - when(b)).slice(0, 50).map((t) => ({ id: t.id, title: t.title, due_date: taskWorkDate(t) })));
+        setTasks(rows.sort((a, b) => when(a) - when(b)).map((t) => ({ id: t.id, title: t.title, due_date: taskWorkDate(t) })));
       });
-  }, [user, refreshTick]);
+    return () => { active = false; };
+  }, [user?.id, refreshTick, focus?.completedVersion, day]);
 
+  useEffect(() => { setSelectedTaskId(focus?.session.startedAt ? focus.session.taskId : null); }, [user?.id, focus?.session.id]);
   const totalMin = today.reduce((s, r) => s + (r.duration_minutes || 0), 0);
 
   const weekData = useMemo(() => {
@@ -97,10 +111,13 @@ export default function PomodoroView() {
       <HeaderTitlePortal title={T("پومودورو", "Pomodoro")} />
       <Card className="p-4 sm:p-6 space-y-5">
         <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
           <label className="text-xs text-muted-foreground flex items-center gap-1.5">
             <Target className="w-3 h-3" /> {T("تسک فعلی", "Current Task")}
           </label>
-          <Select value={selectedTaskId || "none"} onValueChange={(v) => setSelectedTaskId(v === "none" ? null : v)}>
+          {focus?.session.startedAt && <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => navigate("/app/today")} aria-label={T("کوچک‌کردن تمرکز", "Minimize focus")} data-testid="pomodoro-minimize"><Minimize2 className="h-3.5 w-3.5" /></Button>}
+          </div>
+          <Select disabled={Boolean(focus?.session.startedAt)} value={selectedTaskId || "none"} onValueChange={(v) => setSelectedTaskId(v === "none" ? null : v)}>
             <SelectTrigger className="h-9 text-xs" data-testid="pomodoro-task-select">
               <SelectValue placeholder={T("انتخاب تسک برای تمرکز", "Select a task to focus on")} />
             </SelectTrigger>
@@ -123,6 +140,7 @@ export default function PomodoroView() {
         </div>
         <PomodoroTimer
           taskId={selectedTaskId}
+          taskTitle={selectedTask?.title || ""}
           onSessionComplete={() => {
             setRefreshTick((t) => t + 1);
           }}
@@ -141,7 +159,7 @@ export default function PomodoroView() {
           </div>
           <div className="rounded-lg bg-muted/50 p-3">
             <div className="flex items-center gap-1 text-[11px] text-muted-foreground"><ListChecks className="w-3 h-3" /> {T("جلسهٔ کامل", "Sessions")}</div>
-            <div className="mt-1 text-2xl font-bold tabular-nums" data-testid="pomodoro-today-sessions">{isEn ? today.length : toPersianDigits(today.length)}</div>
+            <div className="mt-1 text-2xl font-bold tabular-nums" data-testid="pomodoro-today-sessions">{isEn ? today.filter(s => s.completed !== false).length : toPersianDigits(today.filter(s => s.completed !== false).length)}</div>
           </div>
         </div>
 

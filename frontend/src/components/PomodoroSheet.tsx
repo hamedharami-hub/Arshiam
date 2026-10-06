@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
@@ -26,25 +26,30 @@ export default function PomodoroSheet({ task, open, onOpenChange }: Props) {
   const { user } = useAuth();
   const { prefersDialog } = useDeviceFormFactor();
   const system = getCalendarSystem();
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [storedSessions, setSessions] = useState<Session[]>([]);
+  const [loadedKey, setLoadedKey] = useState("");
+  const currentKey = `${user?.id || ""}:${task?.id || ""}`;
+  const sessions = loadedKey === currentKey ? storedSessions : [];
+  const requestId = useRef(0);
+  useEffect(() => { requestId.current += 1; setSessions([]); return () => { requestId.current += 1; }; }, [user?.id, task?.id, open]);
 
   const load = useCallback(async () => {
-    if (!user || !task) return;
+    if (!user || !task || !open) return;
+    const request = ++requestId.current;
     const { data } = await firebaseStore
       .from("pomodoro_sessions")
       .select("id,duration_minutes,started_at,ended_at,completed")
       .eq("user_id", user.id)
       .eq("task_id", task.id)
-      .eq("completed", true)
       .order("started_at", { ascending: false });
-    setSessions((data || []) as Session[]);
-  }, [user, task]);
+    if (requestId.current === request) { setLoadedKey(`${user.id}:${task.id}`); setSessions((data || []) as Session[]); }
+  }, [user?.id, task?.id, open]);
 
   useEffect(() => {
     if (open) load();
   }, [open, load]);
 
-  const count = sessions.length;
+  const count = sessions.filter(s => s.completed).length;
   const total = sessions.reduce((s, r) => s + (r.duration_minutes || 0), 0);
 
   const bodyContent = (
@@ -56,7 +61,7 @@ export default function PomodoroSheet({ task, open, onOpenChange }: Props) {
         </p>
       </div>
       <div className="flex-1 overflow-y-auto min-h-0">
-        <PomodoroTimer taskId={task?.id || null} compact onSessionComplete={load} />
+        <PomodoroTimer taskId={task?.id || null} taskTitle={task?.title || ""} compact onSessionComplete={load} />
         {sessions.length > 0 && (
           <div className="mt-5 space-y-2">
             <h4 className="text-xs font-medium text-muted-foreground flex items-center gap-1">
