@@ -24,6 +24,7 @@ describe("assistant access isolation", () => {
   it("rejects revoked and expired grants", () => {
     expect(grantAllows("alice", { ...grant, revokedAt: "2026-09-23T12:00:00Z" }, "tasks:read", now)).toBe(false);
     expect(grantAllows("alice", { ...grant, expiresAt: "2026-09-23T00:00:00Z" }, "tasks:read", now)).toBe(false);
+    expect(grantAllows("alice", { ...grant, expiresAt: "not-a-date" }, "tasks:read", now)).toBe(false);
   });
 
   it("does not let browser clients rewrite grants or assistant audit records", () => {

@@ -1,3 +1,4 @@
+import { InvalidTaskInputError } from "../_lib/taskInput.js";
 import { authenticateRequest } from "../_lib/auth.js";
 import {
   deleteUserTask,
@@ -98,6 +99,7 @@ export default async function handler(req: any, res: any) {
       return;
     }
   } catch (error: any) {
+    if (error instanceof InvalidTaskInputError) return sendError(res, 400, "VALIDATION_ERROR", error.message);
     console.error(`[API /api/tasks/${taskId} error]:`, error);
     if (error instanceof InvalidTaskPatchError) {
       sendError(res, 400, "VALIDATION_ERROR", error.message);

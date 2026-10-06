@@ -1,3 +1,4 @@
+import { taskCompletionWrite, validateTaskInput } from "./taskInput.js";
 import { localDayOf, normalizeTaskPriority, normalizeTaskScheduleInput, normalizeTimeZone, scheduleWrite, stripRemovedTaskTimeFields, taskDateOf, taskDayOf } from "./taskSchedule.js";
 import firebaseConfig from "../../frontend/firebase-applet-config.json" with { type: "json" };
 import type { AuthUser } from "./auth.js";
@@ -252,6 +253,7 @@ export async function createUserTask(
   user: AuthUser,
   taskInput: any
 ): Promise<any> {
+  const completion = taskCompletionWrite(taskInput, true);
   const taskId =
     taskInput.id ||
     `task_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -262,10 +264,8 @@ export async function createUserTask(
     user_id: user.userId,
     title: taskInput.title,
     description: taskInput.description || null,
-    completed: Boolean(taskInput.completed),
+    ...completion,
     priority: normalizeTaskPriority(taskInput.priority),
-    status:
-      taskInput.status || (taskInput.completed ? "done" : "todo"),
     // One schedule (schedule v2): the task's day/instant or planning period.
     // `due_date` is accepted only as a deprecated input alias.
     ...(normalizeTaskScheduleInput(taskInput, taskInput.schedule_timezone) || scheduleWrite(null)),
@@ -304,6 +304,7 @@ export async function updateUserTask(
   taskId: string,
   updates: Record<string, any>
 ): Promise<any | null> {
+  validateTaskInput(updates);
   const existing = await getUserTaskById(user, taskId);
   if (!existing) {
     return null;
@@ -337,12 +338,7 @@ export async function updateUserTask(
   if (Object.prototype.hasOwnProperty.call(updates, "priority")) fieldsToUpdate.priority = normalizeTaskPriority(updates.priority);
   fieldsToUpdate.updated_at = now;
 
-  // Keep completed and status synchronized
-  if (updates.completed !== undefined && updates.status === undefined) {
-    fieldsToUpdate.status = updates.completed ? "done" : "todo";
-  } else if (updates.status !== undefined && updates.completed === undefined) {
-    fieldsToUpdate.completed = updates.status === "done";
-  }
+  Object.assign(fieldsToUpdate, taskCompletionWrite(updates));
 
   // Prevent modifying immutable identifiers
   delete fieldsToUpdate.user_id;

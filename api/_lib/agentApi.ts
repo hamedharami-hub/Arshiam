@@ -1,3 +1,4 @@
+import { InvalidTaskInputError, taskCompletionWrite, validateTaskInput } from "./taskInput.js";
 import { InvalidTaskPriorityError, InvalidTaskScheduleError, normalizeTaskPriority, normalizeTaskScheduleInput, normalizeTimeZone, scheduleWrite, stripRemovedTaskTimeFields, taskDateOf, taskDayOf } from "./taskSchedule.js";
 import { randomBytes, createHash } from "node:crypto";
 import {
@@ -293,7 +294,7 @@ async function handleCreateTask(grant: AssistantGrant, body: any, req: any, res:
 
   const now = new Date().toISOString();
   const id = `task_${Date.now()}_${randomBytes(8).toString("hex")}`;
-  const isCompleted = Boolean(body.completed || body.status === "done");
+  const completion = taskCompletionWrite(body, true);
 
   const taskData: any = {
     id,
@@ -301,8 +302,7 @@ async function handleCreateTask(grant: AssistantGrant, body: any, req: any, res:
     title: body.title.trim(),
     description: typeof body.description === "string" ? body.description.trim() : null,
     priority: normalizeTaskPriority(body.priority),
-    status: body.status || (isCompleted ? "done" : "todo"),
-    completed: isCompleted,
+    ...completion,
     ...(normalizeTaskScheduleInput(body, body.schedule_timezone) || scheduleWrite(null)),
     folder_id: body.folder_id || null,
     pinned: Boolean(body.pinned),
@@ -332,6 +332,7 @@ async function handleCreateTask(grant: AssistantGrant, body: any, req: any, res:
 }
 
 async function handlePatchTask(grant: AssistantGrant, taskId: string, body: any, res: any) {
+  validateTaskInput(body);
   const existing = await getDocById(grant, "tasks", taskId);
   if (!existing) {
     return sendError(res, 404, "NOT_FOUND", "Task not found.");
@@ -366,11 +367,7 @@ async function handlePatchTask(grant: AssistantGrant, taskId: string, body: any,
     }
   }
 
-  if (patch.completed !== undefined && patch.status === undefined) {
-    patch.status = patch.completed ? "done" : "todo";
-  } else if (patch.status !== undefined && patch.completed === undefined) {
-    patch.completed = patch.status === "done";
-  }
+  Object.assign(patch, taskCompletionWrite(body));
 
   if (Object.keys(patch).length === 0) {
     return sendError(res, 400, "VALIDATION_ERROR", "No valid editable fields provided.");
@@ -1167,6 +1164,7 @@ export async function handleAgentRequest(req: any, res: any): Promise<void> {
 
     return sendError(res, 404, "NOT_FOUND", `Endpoint not found: ${method} ${pathname}`);
   } catch (error: any) {
+    if (error instanceof InvalidTaskInputError) return sendError(res, 400, "VALIDATION_ERROR", error.message);
     if (error instanceof InvalidTaskPriorityError) return sendError(res, 400, "VALIDATION_ERROR", error.message);
     if (error instanceof InvalidTaskScheduleError) return sendError(res, 400, "VALIDATION_ERROR", error.message);
     if (error instanceof AssistantConfigurationError) return sendError(res, 503, "SERVICE_NOT_CONFIGURED", error.message);

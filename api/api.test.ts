@@ -593,6 +593,30 @@ describe("API Route Handlers", () => {
     }
   });
 
+  it("rejects invalid task completion before REST creation or PATCH", async () => {
+    const originalFetch = global.fetch;
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init: any = {}) => {
+      if (url.includes("accounts:lookup")) return { ok: true, json: async () => ({ users: [{ localId: "uid_test" }] }) };
+      if (init.method === "GET") return { ok: true, json: async () => ({ name: "projects/p/databases/d/documents/users/uid_test/tasks/task-one", fields: encodeFirestoreFields({ id: "task-one", completed: false, status: "todo" }) }) };
+      return { ok: false, status: 500 };
+    });
+    global.fetch = fetchMock as any;
+    try {
+      for (const invalid of [{ completed: "false" }, { completed: true, status: "todo" }, { completed: false, status: "done" }]) {
+        const req = { headers: { authorization: "Bearer valid_token_1234567890" }, body: { title: "Invalid", ...invalid }, query: { id: "task-one" } };
+        const created = createMockRes();
+        await tasksIndexHandler({ ...req, method: "POST" }, created);
+        expect(created.statusCode).toBe(400);
+        const patched = createMockRes();
+        await taskDetailHandler({ ...req, method: "PATCH" }, patched);
+        expect(patched.statusCode).toBe(400);
+      }
+      expect(fetchMock.mock.calls.some((call: any[]) => call[1]?.method === "PATCH" || (call[1]?.method === "POST" && !String(call[0]).includes("accounts:lookup")))).toBe(false);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
   it("GET /api/tasks/{id} returns 404 for non-existent or other user task", async () => {
     const originalFetch = global.fetch;
     global.fetch = vi.fn().mockImplementation(async (url: string) => {

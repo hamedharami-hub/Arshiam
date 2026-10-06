@@ -1,3 +1,4 @@
+import { InvalidTaskInputError, taskCompletionWrite, validateTaskInput } from "./taskInput.js";
 import { createHash, randomBytes } from "node:crypto";
 import { adminDb, type AssistantGrant } from "./assistantAccess.js";
 import { normalizeTaskPriority, normalizeTaskScheduleInput, scheduleWrite, stripRemovedTaskTimeFields } from "./taskSchedule.js";
@@ -37,8 +38,9 @@ export async function getAssistantTask(grant: AssistantGrant, id: string) {
 }
 
 export async function createAssistantTask(grant: AssistantGrant, input: any) {
+  const completion = taskCompletionWrite(input, true);
   const externalRef = typeof input.external_ref === "string" ? input.external_ref.trim() : "";
-  if (externalRef.length > 2048) throw new Error("External reference is too long.");
+  if (externalRef.length > 2048) throw new InvalidTaskInputError("External reference is too long.");
   const id = externalRef
     ? `task_ai_${createHash("sha256").update(`${grant.userId}\0${externalRef}`).digest("hex").slice(0, 32)}`
     : `task_${Date.now()}_${randomBytes(8).toString("hex")}`;
@@ -49,8 +51,7 @@ export async function createAssistantTask(grant: AssistantGrant, input: any) {
   const now = new Date().toISOString();
   const task: Record<string, unknown> = {
     id, user_id: grant.userId, title: input.title.trim(), description: input.description || null,
-    completed: Boolean(input.completed), priority: normalizeTaskPriority(input.priority),
-    status: input.status || (input.completed ? "done" : "todo"),
+    ...completion, priority: normalizeTaskPriority(input.priority),
     ...(normalizeTaskScheduleInput(input, input.schedule_timezone) || scheduleWrite(null)),
     folder_id: input.folder_id || null, pinned: Boolean(input.pinned),
     created_at: now, updated_at: now, ...(externalRef ? { external_ref: externalRef } : {}),
@@ -73,6 +74,7 @@ export async function createAssistantTask(grant: AssistantGrant, input: any) {
 }
 
 export async function updateAssistantTask(grant: AssistantGrant, id: string, input: any) {
+  validateTaskInput(input);
   const ref = collection(grant).doc(id);
   const snapshot = await ref.get();
   if (!snapshot.exists) return null;
@@ -84,19 +86,8 @@ export async function updateAssistantTask(grant: AssistantGrant, id: string, inp
   if (schedule) Object.assign(patch, schedule);
   if (typeof patch.title === "string") patch.title = patch.title.trim();
   if (input?.priority !== undefined) patch.priority = normalizeTaskPriority(input.priority);
-  if (patch.title === "") throw new Error("Task title cannot be empty.");
-  if (patch.completed !== undefined && patch.status === undefined) {
-    if (typeof patch.completed !== "boolean") throw new Error("completed must be a boolean.");
-    patch.status = patch.completed ? "done" : "todo";
-  } else if (patch.status !== undefined && patch.completed === undefined) {
-    if (typeof patch.status !== "string") throw new Error("status must be a string.");
-    patch.completed = patch.status === "done";
-  } else if (patch.status !== undefined && patch.completed !== undefined) {
-    if (typeof patch.completed !== "boolean" || typeof patch.status !== "string" || patch.completed !== (patch.status === "done")) {
-      throw new Error("completed and status disagree.");
-    }
-  }
-  if (Object.keys(patch).length === 0) throw new Error("No editable fields supplied.");
+  Object.assign(patch, taskCompletionWrite(input));
+  if (Object.keys(patch).length === 0) throw new InvalidTaskInputError("No editable fields supplied.");
   patch.updated_at = new Date().toISOString();
   const batch = adminDb().batch();
   batch.update(ref, patch);

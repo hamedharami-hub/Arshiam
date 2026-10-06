@@ -36,20 +36,30 @@ export default async function handler(req: any, res: any) {
     return sendError(res, 401, "UNAUTHORIZED", "Invalid or expired account session.");
   }
 
-  let stage = "storage";
+  const configuredApi = (process.env.ARSH_API_BASE_URL || process.env.VITE_ARSH_API_URL || "").trim().replace(/\/$/, "");
+  try {
+    const target = new URL(configuredApi);
+    if (target.protocol !== "https:" || target.username || target.password || target.search || target.hash) throw new Error("Invalid URL");
+  } catch {
+    // Diagnose a missing or unsafe companion API before deleting any resource.
+    return sendError(res, 503, "SERVICE_NOT_CONFIGURED", "Configure ARSH_API_BASE_URL with the HTTPS address of the account-data service.");
+  }
+
+  let stage = "legacy-attachments";
   try {
     const app = getApps()[0];
     const bucket = getStorage(app).bucket((firebaseConfig as { storageBucket: string }).storageBucket);
     await deleteAccountResources(uid, {
       deleteLegacyAttachments: async (ownerUid) => {
-        const configuredApi = (process.env.ARSH_API_BASE_URL || process.env.VITE_ARSH_API_URL || "").trim().replace(/\/$/, "");
-        if (!configuredApi) throw new Error("Legacy attachment API is not configured (ARSH_API_BASE_URL).");
         stage = "legacy-attachments";
         const response = await fetch(`${configuredApi}/api/arsh/account/data`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(20_000),
         });
         if (!response.ok) throw new Error(`Legacy attachment deletion failed (${response.status}) for ${ownerUid}`);
+        const result = await response.json();
+        if (result?.ok !== true) throw new Error("Legacy attachment service did not confirm account-data deletion.");
       },
       deleteStoragePrefix: async (prefix) => {
         stage = "storage";
@@ -62,6 +72,19 @@ export default async function handler(req: any, res: any) {
       deleteUserTree: async (ownerUid) => {
         stage = "firestore";
         await db.recursiveDelete(db.doc(`users/${ownerUid}`));
+      },
+      deleteAssistantTokenIndexes: async (ownerUid) => {
+        stage = "assistant-token-index";
+        const owned = db.collection("assistant_token_index").where("userId", "==", ownerUid);
+        // Small bounded batches handle accounts with more than 500 grants and
+        // make a partially completed cleanup safe to retry.
+        while (true) {
+          const snapshot = await owned.limit(400).get();
+          if (snapshot.empty) break;
+          const batch = db.batch();
+          for (const doc of snapshot.docs) batch.delete(doc.ref);
+          await batch.commit();
+        }
       },
       deleteAuthUser: async (ownerUid) => {
         stage = "auth";

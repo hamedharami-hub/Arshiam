@@ -104,14 +104,19 @@ export interface AssistantGrant {
   revokedAt: string | null;
 }
 
+function grantIsActive(indexUserId: string, grant: AssistantGrant | undefined, now = Date.now()): grant is AssistantGrant {
+  if (!grant || grant.userId !== indexUserId || grant.revokedAt) return false;
+  const expiry = Date.parse(grant.expiresAt);
+  return Number.isFinite(expiry) && expiry > now && Array.isArray(grant.scopes);
+}
+
 export function grantAllows(
   indexUserId: string,
   grant: AssistantGrant | undefined,
   scope: AssistantScope,
   now = Date.now()
 ) {
-  if (!grant || grant.userId !== indexUserId || grant.revokedAt) return false;
-  if (Date.parse(grant.expiresAt) <= now) return false;
+  if (!grantIsActive(indexUserId, grant, now)) return false;
 
   if (grant.scopes.includes(scope)) return true;
 
@@ -245,7 +250,7 @@ export async function authenticateAssistant(
       return null;
     }
     const grant = testStore.grants.get(indexed.grantId);
-    if (!grant || grant.userId !== indexed.userId || grant.revokedAt || Date.parse(grant.expiresAt) <= Date.now()) {
+    if (!grantIsActive(indexed.userId, grant)) {
       sendError(res, 401, "UNAUTHORIZED", "Assistant access has expired or been revoked.");
       return null;
     }
@@ -266,7 +271,7 @@ export async function authenticateAssistant(
   const { userId, grantId } = index.data()!;
   const grantDoc = await db.doc(`users/${userId}/assistant_grants/${grantId}`).get();
   const grant = grantDoc.data() as AssistantGrant | undefined;
-  if (!grant || grant.userId !== userId || grant.revokedAt || Date.parse(grant.expiresAt) <= Date.now()) {
+  if (!grantIsActive(userId, grant)) {
     sendError(res, 401, "UNAUTHORIZED", "Assistant access has expired or been revoked.");
     return null;
   }

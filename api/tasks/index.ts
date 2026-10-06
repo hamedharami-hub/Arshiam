@@ -1,3 +1,4 @@
+import { InvalidTaskInputError } from "../_lib/taskInput.js";
 import { authenticateRequest } from "../_lib/auth.js";
 import { createUserTask, listUserTasks } from "../_lib/firestore.js";
 import { handleCors, parseBody, sendError, sendJson } from "../_lib/response.js";
@@ -89,6 +90,7 @@ export default async function handler(req: any, res: any) {
       return;
     }
   } catch (error: any) {
+    if (error instanceof InvalidTaskInputError) return sendError(res, 400, "VALIDATION_ERROR", error.message);
     console.error("[API /api/tasks error]:", error);
     if (error instanceof InvalidTaskScheduleError) {
       sendError(res, 400, "VALIDATION_ERROR", error.message);

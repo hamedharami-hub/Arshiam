@@ -127,6 +127,34 @@ describe("AI Agent Personal Access Token & Isolation", () => {
     expect(res2.statusCode).toBe(401);
   });
 
+  it("rejects conflicting and nonboolean task states without creating or updating data", async () => {
+    const { secret } = await createGrant("owner", "Task writer", ["tasks:write"], new Date(Date.now() + 86400000).toISOString());
+    for (const invalid of [{ completed: true, status: "todo" }, { completed: false, status: "done" }, { completed: "false" }]) {
+      const { req, res } = createMockReqRes({ method: "POST", url: "/api/v1/agent/tasks", token: secret, body: { title: "Invalid", ...invalid } });
+      await handleAgentRequest(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(JSON.parse(res.body).error.code).toBe("VALIDATION_ERROR");
+      expect(testStore.tasks.size).toBe(0);
+    }
+    testStore.tasks.set("task-one", { id: "task-one", user_id: "owner", title: "Original", completed: false, status: "todo" });
+    const { req, res } = createMockReqRes({ method: "PATCH", url: "/api/v1/agent/tasks/task-one", token: secret, body: { completed: true, status: "waiting" } });
+    await handleAgentRequest(req, res);
+    expect(res.statusCode).toBe(400);
+    expect(testStore.tasks.get("task-one")).toMatchObject({ completed: false, status: "todo" });
+  });
+
+  it("normalizes status-only completion on creation and rejects malformed expiry even without a requested scope", async () => {
+    const { grant, secret } = await createGrant("owner", "Task writer", ["tasks:write"], new Date(Date.now() + 86400000).toISOString());
+    const { req, res } = createMockReqRes({ method: "POST", url: "/api/v1/agent/tasks", token: secret, body: { title: "Already finished", status: "done" } });
+    await handleAgentRequest(req, res);
+    expect(res.statusCode).toBe(201);
+    expect(JSON.parse(res.body).data).toMatchObject({ completed: true, status: "done" });
+    grant.expiresAt = "invalid";
+    const invalid = createMockReqRes({ url: "/api/v1/agent/me", token: secret });
+    expect(await authenticateAssistant(invalid.req, invalid.res)).toBeNull();
+    expect(invalid.res.statusCode).toBe(401);
+  });
+
   it("strictly enforces account isolation: Token of User A cannot access or mutate User B", async () => {
     // Create token for User A
     const { secret: tokenA } = await createGrant(
