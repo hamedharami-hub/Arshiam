@@ -63,7 +63,11 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
   private wantsCount = false;
   private headOnly = false;
 
-  constructor(private readonly table: string) {}
+  constructor(private readonly table: string, private readonly ownerId = currentUserId()) {}
+
+  private activeOwnerId() {
+    return this.ownerId && currentUserId() === this.ownerId ? this.ownerId : null;
+  }
 
   select(_columns = "*", options?: { count?: "exact"; head?: boolean }): this {
     this.wantsCount = options?.count === "exact";
@@ -96,10 +100,11 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
   }
 
   private async rows(): Promise<Result<Row[]>> {
-    const userId = currentUserId();
+    const userId = this.activeOwnerId();
     if (!userId) return { data: null, error: new Error("برای دسترسی به داده وارد شوید") };
 
     const live = await liveRows(userId, this.table).catch(() => null);
+    if (this.activeOwnerId() !== userId) return { data: null, error: new Error("Account changed while reading.") };
     if (live) return this.shape(live.filter((row) => matches(row, this.filters)));
 
     // Fast path: direct document lookup when filtering by ID
@@ -108,6 +113,7 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
       try {
         const docRef = doc(db, "users", userId, this.table, idFilter.value);
         const docSnap = await getDoc(docRef);
+        if (this.activeOwnerId() !== userId) throw new Error("Account changed while reading.");
         trackRead(1, this.table);
         if (!docSnap.exists()) {
           return { data: [], error: null, count: this.wantsCount ? 0 : null };
@@ -179,6 +185,7 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
         hasClientOnlyFilter = true;
       }
 
+      if (this.activeOwnerId() !== userId) throw new Error("Account changed while reading.");
       if (!snapshot.metadata?.fromCache) trackRead(Math.max(1, snapshot.docs.length), this.table);
       const rows = snapshot.docs.map((item) => ({ id: item.id, ...item.data() })) as Row[];
       return this.shape(rows.filter((row) => matches(row, this.filters)));
@@ -229,7 +236,7 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
     return new FirestoreMutation<Row[]>(this, () => this.write(input, true, options?.onConflict));
   }
   private async write(input: Row | Row[], _merge: boolean, onConflict?: string): Promise<Result<Row[]>> {
-    const userId = currentUserId();
+    const userId = this.activeOwnerId();
     if (!userId) return { data: null, error: new Error("برای ذخیره وارد شوید") };
     try {
       const saved: Row[] = [];
@@ -284,7 +291,7 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
   }
   update(patch: Row) {
     return new FirestoreMutation<Row[]>(this, async () => {
-      const userId = currentUserId();
+      const userId = this.activeOwnerId();
       if (!userId) return { data: null, error: new Error("برای ذخیره وارد شوید") };
       const idFilter = this.filters.find((f) => f.field === "id" && f.operator === "eq");
       if (idFilter && typeof idFilter.value === "string" && this.filters.length === 1
@@ -308,7 +315,7 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
   }
   delete() {
     return new FirestoreMutation<Row[]>(this, async () => {
-      const userId = currentUserId();
+      const userId = this.activeOwnerId();
       if (!userId) return { data: null, error: new Error("برای حذف وارد شوید") };
       const idFilter = this.filters.find((f) => f.field === "id" && f.operator === "eq");
       if (idFilter && typeof idFilter.value === "string" && this.filters.length === 1) {
@@ -402,7 +409,7 @@ function mediaBucket(name: string) {
 }
 
 export const firebaseStore = {
-  from: <T = Row>(table: string) => new FirestoreQuery<T[]>(table),
+  from: <T = Row>(table: string, ownerId?: string) => new FirestoreQuery<T[]>(table, ownerId),
   rpc: (name: string, _args?: Row) => Promise.resolve(disabled(name)),
   functions: { invoke: (name: string, _body?: unknown) => Promise.resolve(disabled(name)) },
   storage: { from: (name: string) => mediaBucket(name) },

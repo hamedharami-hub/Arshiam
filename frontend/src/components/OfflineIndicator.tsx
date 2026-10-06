@@ -52,12 +52,20 @@ export default function OfflineIndicator() {
   }, []);
 
   useEffect(() => {
+    setReviewOpen(false);
+    setReviewItems([]);
+    setIssuesOpen(false);
+    setJustSynced(false);
+  }, [user?.id]);
+
+  useEffect(() => {
     if (!justSynced) return;
     const t = setTimeout(() => setJustSynced(false), 3000);
     return () => clearTimeout(t);
   }, [justSynced]);
 
-  const pending = queue.length;
+  const ownedQueue = queue.filter(item => canReplayForOwner(item, user?.id));
+  const pending = ownedQueue.length + queue.filter(item => !getQueuedOpOwnerId(item)).length;
   const conflicts = queue.filter((item) => item.conflictReason && canReplayForOwner(item, user?.id));
   const unattributedItems = queue.filter((item) => !getQueuedOpOwnerId(item));
   const failedItems = queue.filter((item) => item.lastError && !item.conflictReason && canReplayForOwner(item, user?.id));
@@ -67,7 +75,7 @@ export default function OfflineIndicator() {
   const pendingText = isEn ? String(pending) : toPersianDigits(pending);
 
   // The bar re-appears only when the set of problems changes after the user dismissed it.
-  const signature = online ? `${pending}:${failedItems.length}:${conflicts.length}:${unattributedItems.length}` : "offline";
+  const signature = online ? `${user?.id || "signed-out"}:${pending}:${failedItems.length}:${conflicts.length}:${unattributedItems.length}` : "offline";
 
   const dismiss = () => {
     setDismissed(signature);
@@ -85,7 +93,7 @@ export default function OfflineIndicator() {
       }
       const next = await getQueue();
       setQueue(next);
-      if (next.length === 0) setJustSynced(true);
+      if (!next.some(item => canReplayForOwner(item, user?.id) || !getQueuedOpOwnerId(item))) setJustSynced(true);
     } finally {
       setSyncing(false);
     }
@@ -197,6 +205,7 @@ export default function OfflineIndicator() {
         open={issuesOpen}
         onOpenChange={setIssuesOpen}
         items={issueItems}
+        ownerId={user?.id || ""}
         isEn={isEn}
         syncing={syncing}
         onRetry={sync}

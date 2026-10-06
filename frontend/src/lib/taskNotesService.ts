@@ -1,6 +1,6 @@
 import { firebaseStore } from "./firebaseStore";
 import { cacheGet, cacheSet, enqueueOp, getPendingOps } from "./offlineQueue";
-import { saveEntityToFirestore, deleteEntityFromFirestore } from "./firestoreSync";
+import { getFirestoreConflictSnapshot, replayQueuedEntityWithOutcome } from "./firestoreSync";
 import { reconcileRemoteRowsWithPending } from "./offlineReconcile";
 import type { TaskNote } from "./taskTypes";
 
@@ -44,20 +44,25 @@ async function persistNoteOrQueue(
   note: TaskNote,
   expectedRevision?: string,
 ): Promise<void> {
-  let synced = false;
+  const mutation = {
+    op: operation,
+    ...(operation === "delete" ? {} : { payload: note as unknown as Record<string, unknown> }),
+    createdAt: Date.now(),
+    expectedRevision: operation === "delete" ? note.updated_at : expectedRevision,
+    mutationId: operation === "insert" ? `create-note:${note.id}` : makeId(),
+  };
   if (isOnline()) {
+    let outcome: "saved" | "stale" | "failed" = "failed";
     try {
-      synced = operation === "delete"
-        ? await deleteEntityFromFirestore(userId, "notes", note.id)
-        : await saveEntityToFirestore(userId, "notes", note.id, note);
-    } catch {
-      synced = false;
-    }
+      outcome = await replayQueuedEntityWithOutcome(userId, "notes", note.id, mutation);
+    } catch { /* An unavailable service can use the durable outbox below. */ }
+    if (outcome === "saved") return;
+    if (outcome === "stale") throw new Error("The cloud note changed. Your previous data was restored; reload before editing again.");
   }
-  if (synced) return;
 
   const queued = await enqueueOp({
     ownerId: userId,
+    mutationId: mutation.mutationId,
     table: "notes",
     op: operation,
     ...(operation === "delete" ? {} : { payload: note }),
@@ -158,7 +163,7 @@ export async function getTaskNotes(taskId: string, userId: string): Promise<Task
 export async function createTaskNote(
   userId: string,
   taskId: string,
-  data: { title?: string; content?: string }
+  data: { id?: string; title?: string; content?: string }
 ): Promise<TaskNote> {
   if (!userId || !taskId) {
     throw new Error("userId and taskId are required");
@@ -173,7 +178,7 @@ export async function createTaskNote(
 
   const now = new Date().toISOString();
   const note: TaskNote = {
-    id: makeId(),
+    id: data.id || makeId(),
     user_id: userId,
     task_id: taskId,
     title: rawTitle || rawContent.slice(0, 40) || "یادداشت",
@@ -185,8 +190,27 @@ export async function createTaskNote(
   const taskKey = getTaskNotesCacheKey(userId, taskId);
 
   return runSynchronized(getUserMutationQueueKey(userId), async () => {
-    // 1. Optimistic cache updates
+    // 1. A conversion caller can reuse its stable ID after a partial success.
     const currentTaskNotes = (await cacheGet<TaskNote[]>(taskKey)) || [];
+    if (data.id) {
+      let existing = currentTaskNotes.find(candidate => candidate.id === data.id);
+      if (!existing && isOnline()) {
+        try {
+          const snapshot = await getFirestoreConflictSnapshot(userId, "notes", data.id);
+          if (snapshot.exists) existing = snapshot.data as unknown as TaskNote;
+        } catch { /* The guarded write/outbox still handles an unavailable read. */ }
+      }
+      if (existing) {
+        if (existing.task_id !== taskId || existing.title !== note.title || existing.content !== note.content) {
+          throw new Error("A different note already uses this id.");
+        }
+        await cacheSet(taskKey, [existing, ...currentTaskNotes.filter(candidate => candidate.id !== existing!.id)]);
+        const allKey = getAllNotesCacheKey(userId);
+        const allNotes = (await cacheGet<TaskNote[]>(allKey)) || [];
+        await cacheSet(allKey, [existing, ...allNotes.filter(candidate => candidate.id !== existing!.id)]);
+        return existing;
+      }
+    }
     const updatedTaskNotes = [note, ...currentTaskNotes.filter((n) => n.id !== note.id)];
     await cacheSet(taskKey, updatedTaskNotes);
 

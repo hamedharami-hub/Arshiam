@@ -84,6 +84,15 @@ describe("firebaseStore adapter and query builder", () => {
   });
 
   describe("query creation and .returns<T>() support", () => {
+    it("pins a lazy queued mutation to its original owner across a session switch", async () => {
+      const request = firebaseStore.from("settings", "user_test_123").upsert({ id: "current", theme: "dark" });
+      mockCurrentUser = { uid: "other-account" };
+      const result = await request;
+      expect(result.error).toBeTruthy();
+      expect(mockDocStore.has("users/other-account/settings/current")).toBe(false);
+      expect(mockDocStore.has("users/user_test_123/settings/current")).toBe(false);
+    });
+
     it("creates a FirestoreQuery from firebaseStore.from()", () => {
       const query = firebaseStore.from("tasks");
       expect(query).toBeInstanceOf(FirestoreQuery);

@@ -237,6 +237,20 @@ async function writeWithRevision(
   });
 }
 
+async function deleteWithRevision(
+  ref: ReturnType<typeof doc>,
+  expected: string | undefined,
+): Promise<void> {
+  await runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists()) return;
+    const remote = snapshot.data();
+    const revision = remote?.updated_at ?? remote?.updatedAt;
+    if (!expected || revision !== expected) throw new ConcurrentEditError();
+    transaction.delete(ref);
+  });
+}
+
 function sameTaskValue(left: unknown, right: unknown): boolean {
   if (Object.is(left, right)) return true;
   try {
@@ -378,7 +392,7 @@ export async function persistTask(
           op: "upsert",
           payload: dataToSave,
           match: { id: task.id },
-          expectedRevision: previousTask?.updated_at,
+          expectedRevision: previousTask?.updated_at ?? (previousTask as any)?.updatedAt,
         });
         if (!queued) return;
 
@@ -426,14 +440,18 @@ export async function deleteTask(userId: string, taskId: string): Promise<boolea
   }
   try {
     const taskRef = doc(db, "users", userId, "tasks", taskId);
-    await deleteDoc(taskRef);
+    await deleteWithRevision(taskRef, previousTask?.updated_at ?? (previousTask as any)?.updatedAt);
     return true;
   } catch (err) {
+    if (err instanceof ConcurrentEditError) {
+      await rollbackOptimisticTaskWrite(userId, taskId, null, previousTask, previousIndex);
+      return false;
+    }
     console.warn("[FirestoreData] task delete deferred to offline outbox:", err);
     let queued = false;
     try {
       await withTaskCacheMutationLock(userId, async () => {
-        queued = await enqueueOp({ ownerId: userId, table: "tasks", op: "delete", match: { id: taskId }, expectedRevision: previousTask?.updated_at });
+        queued = await enqueueOp({ ownerId: userId, table: "tasks", op: "delete", match: { id: taskId }, expectedRevision: previousTask?.updated_at ?? (previousTask as any)?.updatedAt });
         if (!queued) return;
         const latest = extractTasksFromCache(await cacheGet<unknown>(CACHE_KEYS.tasks(userId)));
         await cacheSet(
@@ -753,7 +771,7 @@ export async function persistNote(userId: string, note: Partial<NoteItem> & { id
         op: "upsert",
         payload: dataToSave,
         match: { id: note.id },
-        expectedRevision: previousNote?.updated_at,
+        expectedRevision: previousNote?.updated_at ?? (previousNote as any)?.updatedAt,
       });
       if (!ok && cacheUpdated && cacheSnapshotRead) await rollbackOptimisticNoteWrite(userId, note.id, dataToSave, previousNote);
       return ok ? "queued" : "failed";
@@ -768,17 +786,18 @@ export async function deleteNote(userId: string, noteId: string): Promise<boolea
   if (!userId || !noteId) return false;
   const cachedBeforeDelete = await cacheGet<NoteItem[]>(CACHE_KEYS.notes(userId)).catch(() => undefined);
   const expectedRevision = Array.isArray(cachedBeforeDelete)
-    ? cachedBeforeDelete.find((note) => note.id === noteId)?.updated_at
+    ? (cachedBeforeDelete.find((note) => note.id === noteId)?.updated_at ?? (cachedBeforeDelete.find((note) => note.id === noteId) as any)?.updatedAt)
     : undefined;
   try {
     const noteRef = doc(db, "users", userId, "notes", noteId);
-    await deleteDoc(noteRef);
+    await deleteWithRevision(noteRef, expectedRevision);
 
     const cached = (await cacheGet<NoteItem[]>(CACHE_KEYS.notes(userId))) || [];
     const next = cached.filter((n) => n.id !== noteId);
     await cacheSet(CACHE_KEYS.notes(userId), next);
     return true;
   } catch (err) {
+    if (err instanceof ConcurrentEditError) return false;
     console.warn("[FirestoreData] deleteNote error, queuing delete:", err);
     try {
       const { enqueueOp } = await import("@/lib/offlineQueue");
@@ -807,8 +826,11 @@ export function subscribeHabits(
     return () => {};
   }
 
+  let active = true;
+  let snapshotSeen = false;
+
   cacheGet<HabitItem[]>(CACHE_KEYS.habits(userId)).then((cached) => {
-    if (cached && Array.isArray(cached)) onUpdate(cached);
+    if (active && !snapshotSeen && cached && Array.isArray(cached)) onUpdate(cached);
   });
 
   try {
@@ -816,6 +838,8 @@ export function subscribeHabits(
     const unsub = onSnapshot(
       habitsCol,
       (snap) => {
+        if (!active) return;
+        snapshotSeen = true;
         const items: HabitItem[] = [];
         snap.forEach((d) => {
           items.push({ id: d.id, ...(d.data() as any) });
@@ -824,13 +848,14 @@ export function subscribeHabits(
         onUpdate(items);
       },
       async () => {
+        if (!active || snapshotSeen) return;
         const cached = await cacheGet<HabitItem[]>(CACHE_KEYS.habits(userId));
-        if (cached) onUpdate(cached);
+        if (active && !snapshotSeen && cached) onUpdate(cached);
       }
     );
-    return unsub;
+    return () => { active = false; unsub(); };
   } catch {
-    return () => {};
+    return () => { active = false; };
   }
 }
 
@@ -869,8 +894,11 @@ export function subscribeDailyCheckins(
     return () => {};
   }
 
+  let active = true;
+  let snapshotSeen = false;
+
   cacheGet<DailyCheckinItem[]>(CACHE_KEYS.checkins(userId)).then((cached) => {
-    if (cached && Array.isArray(cached)) onUpdate(cached);
+    if (active && !snapshotSeen && cached && Array.isArray(cached)) onUpdate(cached);
   });
 
   try {
@@ -878,6 +906,8 @@ export function subscribeDailyCheckins(
     const unsub = onSnapshot(
       colRef,
       (snap) => {
+        if (!active) return;
+        snapshotSeen = true;
         const items: DailyCheckinItem[] = [];
         snap.forEach((d) => {
           items.push({ id: d.id, ...(d.data() as any) });
@@ -887,13 +917,14 @@ export function subscribeDailyCheckins(
         onUpdate(items);
       },
       async () => {
+        if (!active || snapshotSeen) return;
         const cached = await cacheGet<DailyCheckinItem[]>(CACHE_KEYS.checkins(userId));
-        if (cached) onUpdate(cached);
+        if (active && !snapshotSeen && cached) onUpdate(cached);
       }
     );
-    return unsub;
+    return () => { active = false; unsub(); };
   } catch {
-    return () => {};
+    return () => { active = false; };
   }
 }
 
@@ -937,8 +968,11 @@ export function subscribeThoughtRecords(
     return () => {};
   }
 
+  let active = true;
+  let snapshotSeen = false;
+
   cacheGet<ThoughtRecordItem[]>(CACHE_KEYS.thoughtRecords(userId)).then((cached) => {
-    if (cached && Array.isArray(cached)) onUpdate(cached);
+    if (active && !snapshotSeen && cached && Array.isArray(cached)) onUpdate(cached);
   });
 
   try {
@@ -946,6 +980,8 @@ export function subscribeThoughtRecords(
     const unsub = onSnapshot(
       colRef,
       (snap) => {
+        if (!active) return;
+        snapshotSeen = true;
         const items: ThoughtRecordItem[] = [];
         snap.forEach((d) => {
           items.push({ id: d.id, ...(d.data() as any) });
@@ -955,13 +991,14 @@ export function subscribeThoughtRecords(
         onUpdate(items);
       },
       async () => {
+        if (!active || snapshotSeen) return;
         const cached = await cacheGet<ThoughtRecordItem[]>(CACHE_KEYS.thoughtRecords(userId));
-        if (cached) onUpdate(cached);
+        if (active && !snapshotSeen && cached) onUpdate(cached);
       }
     );
-    return unsub;
+    return () => { active = false; unsub(); };
   } catch {
-    return () => {};
+    return () => { active = false; };
   }
 }
 
@@ -1012,8 +1049,11 @@ export function subscribeAbcRecords(
     return () => {};
   }
 
+  let active = true;
+  let snapshotSeen = false;
+
   cacheGet<AbcRecordItem[]>(CACHE_KEYS.abcRecords(userId)).then((cached) => {
-    if (cached && Array.isArray(cached)) onUpdate(cached);
+    if (active && !snapshotSeen && cached && Array.isArray(cached)) onUpdate(cached);
   });
 
   try {
@@ -1021,6 +1061,8 @@ export function subscribeAbcRecords(
     const unsub = onSnapshot(
       colRef,
       (snap) => {
+        if (!active) return;
+        snapshotSeen = true;
         const items: AbcRecordItem[] = [];
         snap.forEach((d) => {
           items.push({ id: d.id, ...(d.data() as any) });
@@ -1030,13 +1072,14 @@ export function subscribeAbcRecords(
         onUpdate(items);
       },
       async () => {
+        if (!active || snapshotSeen) return;
         const cached = await cacheGet<AbcRecordItem[]>(CACHE_KEYS.abcRecords(userId));
-        if (cached) onUpdate(cached);
+        if (active && !snapshotSeen && cached) onUpdate(cached);
       }
     );
-    return unsub;
+    return () => { active = false; unsub(); };
   } catch {
-    return () => {};
+    return () => { active = false; };
   }
 }
 
@@ -1088,8 +1131,11 @@ export function subscribeAssessmentResults(
     return () => {};
   }
 
+  let active = true;
+  let snapshotSeen = false;
+
   cacheGet<AssessmentResultItem[]>(CACHE_KEYS.assessmentResults(userId, type)).then((cached) => {
-    if (cached && Array.isArray(cached)) onUpdate(cached);
+    if (active && !snapshotSeen && cached && Array.isArray(cached)) onUpdate(cached);
   });
 
   try {
@@ -1097,6 +1143,8 @@ export function subscribeAssessmentResults(
     const unsub = onSnapshot(
       colRef,
       (snap) => {
+        if (!active) return;
+        snapshotSeen = true;
         let items: AssessmentResultItem[] = [];
         snap.forEach((d) => {
           items.push({ id: d.id, ...(d.data() as any) });
@@ -1109,13 +1157,14 @@ export function subscribeAssessmentResults(
         onUpdate(items);
       },
       async () => {
+        if (!active || snapshotSeen) return;
         const cached = await cacheGet<AssessmentResultItem[]>(CACHE_KEYS.assessmentResults(userId, type));
-        if (cached) onUpdate(cached);
+        if (active && !snapshotSeen && cached) onUpdate(cached);
       }
     );
-    return unsub;
+    return () => { active = false; unsub(); };
   } catch {
-    return () => {};
+    return () => { active = false; };
   }
 }
 

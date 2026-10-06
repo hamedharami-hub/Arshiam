@@ -261,6 +261,29 @@ describe("queued Firestore revisions", () => {
     expect(remove).toHaveBeenCalledOnce();
   });
 
+  it("does not recreate an existing record deleted remotely while its edit was offline", async () => {
+    const set = vi.fn();
+    runTransactionMock.mockImplementation((_db, callback) => callback({
+      get: async () => ({ exists: () => false }), set, delete: vi.fn(),
+    }));
+    expect(await replayQueuedEntityWithOutcome("user-sync-test", "notes", "deleted", {
+      op: "upsert", payload: { id: "deleted", content: "Local" }, createdAt: 1, expectedRevision: "known-base",
+    })).toBe("stale");
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it("recognizes an already committed queued mutation after outbox acknowledgement failed", async () => {
+    const set = vi.fn();
+    runTransactionMock.mockImplementation((_db, callback) => callback({
+      get: async () => ({ exists: () => true, data: () => ({ updated_at: "new-revision", _lastQueuedMutationId: "receipt-1" }) }),
+      set, delete: vi.fn(),
+    }));
+    expect(await replayQueuedEntityWithOutcome("user-sync-test", "notes", "saved", {
+      op: "upsert", payload: { id: "saved" }, createdAt: 1, expectedRevision: "old-revision", mutationId: "receipt-1",
+    })).toBe("saved");
+    expect(set).not.toHaveBeenCalled();
+  });
+
   it("commits a current queued edit and keeps the same-account owner", async () => {
     const set = vi.fn();
     runTransactionMock.mockImplementation((_db, callback) => callback({

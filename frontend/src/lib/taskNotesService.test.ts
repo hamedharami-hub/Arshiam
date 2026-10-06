@@ -8,7 +8,7 @@ import {
   getAllNotesCacheKey,
 } from "./taskNotesService";
 import { cacheGet, cacheSet, clearQueue, enqueueOp, getPendingOps } from "./offlineQueue";
-import { saveEntityToFirestore, deleteEntityFromFirestore } from "./firestoreSync";
+import { saveEntityToFirestore, deleteEntityFromFirestore, replayQueuedEntityWithOutcome } from "./firestoreSync";
 import * as offlineQueue from "./offlineQueue";
 
 const mockState = vi.hoisted(() => ({ remoteNotes: [] as Record<string, any>[], remoteError: null as unknown }));
@@ -41,6 +41,13 @@ vi.mock("@/lib/firestoreSync", () => ({
     }
     return true;
   }),
+  getFirestoreConflictSnapshot: vi.fn(async () => ({ exists: false })),
+  replayQueuedEntityWithOutcome: vi.fn(async (userId: string, table: string, id: string, mutation: any) => {
+    const success = mutation.op === "delete"
+      ? await deleteEntityFromFirestore(userId, table as any, id)
+      : await saveEntityToFirestore(userId, table as any, id, mutation.payload);
+    return success ? "saved" : "failed";
+  }),
   deleteEntityFromFirestore: vi.fn(async (_userId: string, table: string, id: string) => {
     if (table === "notes") mockState.remoteNotes = mockState.remoteNotes.filter((note) => note.id !== id);
     return true;
@@ -70,6 +77,25 @@ describe("taskNotesService", () => {
     vi.restoreAllMocks();
     localStorage.clear();
     await clearQueue();
+  });
+
+  it("rejects a newer remote revision without putting an overwrite in the queue", async () => {
+    const original = await createTaskNote(userId, taskId, { title: "Keep", content: "Original" });
+    vi.mocked(replayQueuedEntityWithOutcome).mockResolvedValueOnce("stale");
+    const queueSpy = vi.spyOn(offlineQueue, "enqueueOp");
+    await expect(updateTaskNote(userId, original.id, taskId, { content: "Stale edit" })).rejects.toThrow("cloud note changed");
+    expect(queueSpy).not.toHaveBeenCalled();
+    expect(await getTaskNotes(taskId, userId)).toContainEqual(original);
+  });
+
+  it("reuses a caller-provided conversion id across repeated attempts", async () => {
+    const data = { id: "conversion-fixed", title: "Converted", content: "<p>Saved content</p>" };
+    const first = await createTaskNote(userId, taskId, data);
+    const second = await createTaskNote(userId, taskId, data);
+    expect(second).toEqual(first);
+    expect(await getTaskNotes(taskId, userId)).toHaveLength(1);
+    expect(saveEntityToFirestore).toHaveBeenCalledTimes(1);
+    await expect(createTaskNote(userId, taskId, { ...data, content: "Different" })).rejects.toThrow("different note");
   });
 
   it("1. creates multiple independent notes for a single task", async () => {

@@ -80,7 +80,7 @@ export async function replayQueuedEntityWithOutcome(
   userId: string,
   collectionName: SupportedFirestoreCollection,
   docId: string,
-  mutation: { op: "insert" | "update" | "upsert" | "delete"; payload?: Record<string, unknown>; createdAt: number; expectedRevision?: string },
+  mutation: { op: "insert" | "update" | "upsert" | "delete"; payload?: Record<string, unknown>; createdAt: number; expectedRevision?: string; mutationId?: string },
 ): Promise<FirestoreSaveOutcome> {
   if (!userId || !docId || auth.currentUser?.uid !== userId) return "failed";
   const ref = doc(db, "users", userId, collectionName, docId);
@@ -99,9 +99,10 @@ export async function replayQueuedEntityWithOutcome(
         return "saved";
       }
 
-      if (!mutation.payload || (mutation.op === "update" && !snapshot.exists())) return "stale";
+      if (!mutation.payload || (!snapshot.exists() && (mutation.op === "update" || mutation.expectedRevision !== undefined))) return "stale";
       if (snapshot.exists()) {
         const remote = snapshot.data();
+        if (mutation.mutationId && remote._lastQueuedMutationId === mutation.mutationId) return "saved";
         const remoteRevision = remote.updated_at ?? remote.updatedAt;
         // A queued edit is based on one specific cloud version, regardless of clock order.
         if (typeof mutation.expectedRevision !== "string" ||
@@ -110,6 +111,7 @@ export async function replayQueuedEntityWithOutcome(
       tx.set(ref, {
         ...stripUndefinedDeep(mutation.payload), id: docId, userId,
         updatedAt: new Date().toISOString(), _firestoreSyncAt: Date.now(),
+        ...(mutation.mutationId ? { _lastQueuedMutationId: mutation.mutationId } : {}),
       }, { merge: true });
       return "saved";
     });
@@ -142,6 +144,7 @@ export async function getFirestoreConflictSnapshot(
   }
 
   const snapshot = await getDoc(doc(db, "users", userId, collectionName, docId));
+  if (auth.currentUser?.uid !== userId) throw new Error("Account changed while reading the cloud copy.");
   if (!snapshot.exists()) return { exists: false };
   return { exists: true, data: { ...snapshot.data(), id: snapshot.id } };
 }

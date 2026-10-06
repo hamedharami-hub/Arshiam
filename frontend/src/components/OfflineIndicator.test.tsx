@@ -105,6 +105,22 @@ describe("OfflineIndicator conflict review", () => {
     expect(mocks.flushQueue).not.toHaveBeenCalled();
   });
 
+  it("does not display another signed-in account's pending count", async () => {
+    mocks.getQueue.mockResolvedValue([{ ...conflict, ownerId: "different-account" }]);
+    render(<OfflineIndicator />);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(screen.queryByTestId("sync-status-bar")).not.toBeInTheDocument();
+  });
+
+  it("retains ownerless legacy records instead of offering bulk deletion", async () => {
+    mocks.getQueue.mockResolvedValue([{ ...conflict, ownerId: undefined, conflictReason: undefined, payload: { id: "old-task", title: "Private legacy title" } }]);
+    render(<OfflineIndicator />);
+    fireEvent.click(await screen.findByTestId("sync-status-details"));
+    expect(screen.getByTestId("sync-issues-discard-all")).toBeDisabled();
+    expect(screen.getByTestId("sync-issue-discard-0")).toBeDisabled();
+    expect(screen.queryByText("Private legacy title")).not.toBeInTheDocument();
+  });
+
   it("can be dismissed so a persistent sync failure does not cover the screen", async () => {
     sessionStorage.clear();
     mocks.getQueue.mockResolvedValue([{ ...conflict, conflictReason: undefined, lastError: "permission-denied" }]);

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { canReplayForOwner, clearQueue, clearUserLocalData, enqueueOp, enqueueOps, flushQueue, getQueue, type QueuedOp } from "./offlineQueue";
+import { canReplayForOwner, retireOwnedModuleData, discardQueuedOp, clearQueue, clearUserLocalData, enqueueOp, enqueueOps, flushQueue, getQueue, type QueuedOp } from "./offlineQueue";
 import * as offlineDb from "./offlineDb";
 import { firebaseStore } from "./firebaseStore";
 
@@ -133,6 +133,43 @@ describe("offline outbox persistence", () => {
     ]));
   });
 
+  it("preserves a different account whose UID starts with the deleted UID", async () => {
+    await offlineDb.cacheSet("tasks:all:account-a", [{ id: "private-a" }]);
+    localStorage.setItem("pomodoro_today_count_v2:account-a", "3");
+    await offlineDb.cacheSet("task_notes_account_other_task", [{ id: "private", user_id: "account_other" }]);
+    await clearUserLocalData("account");
+    expect(await offlineDb.cacheGet("tasks:all:account-a")).toEqual([{ id: "private-a" }]);
+    expect(localStorage.getItem("pomodoro_today_count_v2:account-a")).toBe("3");
+    expect(await offlineDb.cacheGet("task_notes_account_other_task")).toEqual([{ id: "private", user_id: "account_other" }]);
+  });
+
+  it("retains ambiguous dynamic underscore keys instead of deleting another owner's preferences", async () => {
+    localStorage.setItem("arshnaz_folder_prefs_v1_folder_account_other", JSON.stringify({ view: "list" }));
+    await expect(clearUserLocalData("other")).resolves.toBe(false);
+    expect(localStorage.getItem("arshnaz_folder_prefs_v1_folder_account_other")).not.toBeNull();
+  });
+
+  it("does not discard unowned or another account's changes through the recovery API", async () => {
+    const unknown = { id: 900, table: "tasks", op: "upsert" as const, payload: { id: "unowned" }, createdAt: 1, attempts: 0 };
+    localStorage.setItem("arshnaz_offline_outbox_fallback", JSON.stringify([unknown]));
+    await expect(discardQueuedOp(unknown)).rejects.toThrow("active account");
+    expect(await getQueue()).toContainEqual(unknown);
+    expect(canReplayForOwner({ ownerId: "account-a", payload: [{ user_id: "account-b" }] }, "account-a")).toBe(false);
+  });
+
+  it("retires only the current owner's old module queue while retaining shared and unidentified data", async () => {
+    await enqueueOp({ ownerId: "account-a", table: "pharmacy_practice", op: "upsert", payload: { id: "old-a" } });
+    await enqueueOp({ ownerId: "account-b", table: "leitner_reviews", op: "upsert", payload: { id: "old-b" } });
+    await enqueueOp({ ownerId: "account-a", table: "leitner_cards", op: "upsert", payload: { id: "shared" } });
+    const held = JSON.parse(localStorage.getItem("arshnaz_offline_outbox_fallback") || "[]");
+    held.push({ id: 999, table: "pharmacy_practice", op: "upsert", payload: { id: "unknown" }, createdAt: 1, attempts: 0 });
+    localStorage.setItem("arshnaz_offline_outbox_fallback", JSON.stringify(held));
+    expect(await retireOwnedModuleData("account-a")).toEqual({ removed: 1, incomplete: true });
+    const remaining = await getQueue();
+    expect(remaining).toHaveLength(3);
+    expect(remaining.map(item => (item.payload as any).id)).toEqual(expect.arrayContaining(["old-b", "shared", "unknown"]));
+  });
+
   it("returns false instead of reporting success when no durable queue can be written", async () => {
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new Error("storage quota exceeded");
@@ -257,7 +294,7 @@ describe("offline outbox persistence", () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
 
     expect(await flushQueue()).toEqual({ ok: 1, failed: 0 });
-    expect(firebaseStore.from).toHaveBeenCalledWith("task_knowledge_links");
+    expect(firebaseStore.from).toHaveBeenCalledWith("task_knowledge_links", "account-a");
     expect(deleteBuilder.eq).toHaveBeenCalledWith("user_id", "account-a");
     expect(deleteQuery.eq).toHaveBeenCalledWith("task_id", "task-removed");
     expect(await getQueue()).toHaveLength(0);

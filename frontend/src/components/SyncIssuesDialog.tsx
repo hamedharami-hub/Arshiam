@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { discardQueuedOp, type QueuedOp } from "@/lib/offlineQueue";
+import { canReplayForOwner, discardQueuedOp, type QueuedOp } from "@/lib/offlineQueue";
 
 const TABLE_LABELS: Record<string, [string, string]> = {
   tasks: ["تسک", "Task"],
@@ -25,23 +25,25 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   items: QueuedOp[];
+  ownerId: string;
   isEn: boolean;
   syncing: boolean;
   onRetry: () => void;
 }
 
-export default function SyncIssuesDialog({ open, onOpenChange, items, isEn, syncing, onRetry }: Props) {
+export default function SyncIssuesDialog({ open, onOpenChange, items, ownerId, isEn, syncing, onRetry }: Props) {
   const T = (fa: string, en: string) => (isEn ? en : fa);
   const [busy, setBusy] = useState(false);
+  const ownedItems = items.filter(item => canReplayForOwner(item, ownerId));
 
   const discard = async (list: QueuedOp[]) => {
     setBusy(true);
     try {
-      for (const item of list) await discardQueuedOp(item);
+      for (const item of list.filter(item => canReplayForOwner(item, ownerId))) await discardQueuedOp(item);
     } finally {
       setBusy(false);
     }
-    if (list.length === items.length) onOpenChange(false);
+    if (list.length === items.length && list.every(item => canReplayForOwner(item, ownerId))) onOpenChange(false);
   };
 
   return (
@@ -64,7 +66,7 @@ export default function SyncIssuesDialog({ open, onOpenChange, items, isEn, sync
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex items-center gap-2 text-sm">
                     <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{T(fa, en)}</span>
-                    <span dir="auto" className="truncate font-medium">{itemLabel(item)}</span>
+                    <span dir="auto" className="truncate font-medium">{canReplayForOwner(item, ownerId) ? itemLabel(item) : T("تغییر قدیمی بدون مالک مشخص؛ محفوظ می‌ماند", "Legacy change with no clear owner; retained")}</span>
                   </div>
                   <p dir="ltr" className="break-words text-start text-[11px] leading-5 text-muted-foreground">
                     {item.lastError || T("مالک این تغییر مشخص نیست", "This change has no clear owner")}
@@ -74,7 +76,7 @@ export default function SyncIssuesDialog({ open, onOpenChange, items, isEn, sync
                   size="icon"
                   variant="ghost"
                   className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                  disabled={busy}
+                  disabled={busy || !canReplayForOwner(item, ownerId)}
                   onClick={() => discard([item])}
                   aria-label={T("حذف از صف", "Remove from queue")}
                   title={T("حذف از صف", "Remove from queue")}
@@ -87,8 +89,8 @@ export default function SyncIssuesDialog({ open, onOpenChange, items, isEn, sync
           })}
         </ul>
         <DialogFooter className="gap-2 sm:justify-between">
-          <Button variant="ghost" className="text-destructive hover:bg-destructive/10" disabled={busy || items.length === 0} onClick={() => discard(items)} data-testid="sync-issues-discard-all">
-            <Trash2 className="h-4 w-4" /> {T("حذف همه از صف", "Remove all")}
+          <Button variant="ghost" className="text-destructive hover:bg-destructive/10" disabled={busy || ownedItems.length === 0} onClick={() => discard(ownedItems)} data-testid="sync-issues-discard-all">
+            <Trash2 className="h-4 w-4" /> {T("حذف تغییرات این حساب از صف", "Remove this account’s changes")}
           </Button>
           <Button onClick={onRetry} disabled={syncing} data-testid="sync-issues-retry">
             <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} /> {T("تلاش دوباره", "Retry")}

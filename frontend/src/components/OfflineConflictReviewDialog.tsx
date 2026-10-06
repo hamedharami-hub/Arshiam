@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { getFirestoreConflictSnapshot } from "@/lib/firestoreSync";
+import { exportQueuedChange } from "@/lib/queueRecovery";
 import { canReplayForOwner, type QueuedOp } from "@/lib/offlineQueue";
 
 type ConflictSnapshot = Awaited<ReturnType<typeof getFirestoreConflictSnapshot>>;
@@ -84,6 +85,8 @@ function ConflictReviewCard({ item, ownerId, isEn }: { item: QueuedOp; ownerId: 
           }).format(new Date(item.createdAt))}
         </span>
       </div>
+
+      <Button size="sm" variant="outline" onClick={() => exportQueuedChange(item)}>{text(isEn, "دریافت نسخهٔ محلی برای بازیابی", "Download local copy for recovery")}</Button>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="min-w-0 space-y-2">

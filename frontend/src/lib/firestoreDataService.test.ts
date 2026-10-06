@@ -17,14 +17,17 @@ const mocks = vi.hoisted(() => {
     doc: vi.fn((_db: unknown, ...segments: string[]) => segments.join("/")),
     runTransaction: vi.fn(async (_db: unknown, update: (transaction: any) => Promise<unknown>) => {
       const writes: Array<{ path: string; data: Record<string, unknown> }> = [];
+      const deletes: string[] = [];
       const result = await update({
         get: async (path: string) => ({ exists: () => remote.has(path), data: () => remote.get(path) }),
         set: (path: string, data: Record<string, unknown>) => { writes.push({ path, data }); },
+        delete: (path: string) => { deletes.push(path); },
       });
       for (const { path, data } of writes) {
         await mocks.setDoc(path, data, { merge: true });
         remote.set(path, { ...(remote.get(path) || {}), ...data });
       }
+      for (const path of deletes) { await mocks.deleteDoc(path); remote.delete(path); }
       return result;
     }),
     onSnapshot: vi.fn(),
@@ -52,7 +55,7 @@ vi.mock("./offlineQueue", async (importOriginal) => ({
   enqueueOp: mocks.enqueueOp,
 }));
 
-import { deleteTask, persistTask, subscribeTasks, subscribeNotes, upsertNote, persistNote, subscribeFolders, subscribeTags, subscribeMindValues } from "./firestoreDataService";
+import { deleteTask, deleteNote, persistTask, subscribeTasks, subscribeNotes, upsertNote, persistNote, subscribeFolders, subscribeTags, subscribeMindValues, subscribeHabits, subscribeDailyCheckins, subscribeThoughtRecords, subscribeAbcRecords, subscribeAssessmentResults } from "./firestoreDataService";
 
 const cacheKey = "tasks:all:user-1";
 const baseTask = {
@@ -108,6 +111,7 @@ describe("subscribeNotes pending updates", () => {
 describe("firestoreDataService task cache rollback", () => {
   beforeEach(() => {
     mocks.cache.clear();
+    mocks.remote.clear();
     mocks.cacheGet.mockImplementation(async (key: string) => mocks.cache.get(key));
     mocks.cacheSet.mockImplementation(async (key: string, value: unknown) => { mocks.cache.set(key, value); });
     mocks.enqueueOp.mockReset().mockResolvedValue(false);
@@ -143,7 +147,7 @@ describe("firestoreDataService task cache rollback", () => {
       op: "upsert",
     }));
 
-    mocks.deleteDoc.mockRejectedValueOnce(new Error("network down"));
+    mocks.runTransaction.mockRejectedValueOnce(new Error("network down"));
     mocks.enqueueOp.mockResolvedValueOnce(true);
     await expect(deleteTask("user-1", "task-delete-queued")).resolves.toBe(true);
     expect(mocks.enqueueOp).toHaveBeenLastCalledWith({
@@ -151,6 +155,7 @@ describe("firestoreDataService task cache rollback", () => {
       table: "tasks",
       op: "delete",
       match: { id: "task-delete-queued" },
+      expectedRevision: undefined,
     });
   });
 
@@ -222,6 +227,25 @@ describe("firestoreDataService task cache rollback", () => {
     expect(extractTasksFromCache(mocks.cache.get(cacheKey))).toEqual([baseTask]);
   });
 
+  it("protects a remotely edited task from an online stale delete and restores the local row", async () => {
+    mocks.cache.set(cacheKey, createTaskCacheEnvelope([baseTask]));
+    mocks.remote.set("users/user-1/tasks/task-1", { ...baseTask, title: "New cloud", updated_at: "2026-09-27" });
+    await expect(deleteTask("user-1", "task-1")).resolves.toBe(false);
+    expect(mocks.deleteDoc).not.toHaveBeenCalled();
+    expect(mocks.enqueueOp).not.toHaveBeenCalled();
+    expect(extractTasksFromCache(mocks.cache.get(cacheKey))).toEqual([baseTask]);
+  });
+
+  it("protects a remotely edited note from an online stale delete", async () => {
+    const note = { id: "note-1", updated_at: "2026-09-26", title: "Local" };
+    mocks.cache.set("notes:all:user-1", [note]);
+    mocks.remote.set("users/user-1/notes/note-1", { ...note, updated_at: "2026-09-27", title: "Cloud" });
+    await expect(deleteNote("user-1", "note-1")).resolves.toBe(false);
+    expect(mocks.deleteDoc).not.toHaveBeenCalled();
+    expect(mocks.enqueueOp).not.toHaveBeenCalled();
+    expect(mocks.cache.get("notes:all:user-1")).toEqual([note]);
+  });
+
   it("rejects a stale task edit without queuing an overwrite of a newer cloud revision", async () => {
     mocks.cache.set(cacheKey, createTaskCacheEnvelope([baseTask]));
     mocks.remote.set("users/user-1/tasks/task-1", { ...baseTask, title: "Other device", updated_at: "2026-09-27T00:00:00.000Z" });
@@ -259,6 +283,7 @@ describe("firestoreDataService task cache rollback", () => {
 
   it("restores a deleted task when the delete cannot be saved or queued", async () => {
     mocks.cache.set(cacheKey, createTaskCacheEnvelope([baseTask]));
+    mocks.remote.set("users/user-1/tasks/task-1", baseTask);
     mocks.deleteDoc.mockRejectedValueOnce(new Error("network down"));
 
     await expect(deleteTask("user-1", "task-1")).resolves.toBe(false);
@@ -374,6 +399,7 @@ describe("pending taxonomy subscriptions", () => {
 describe("mind values cache and subscription", () => {
   beforeEach(() => {
     mocks.cache.clear();
+    mocks.remote.clear();
     mocks.cacheGet.mockImplementation(async (key: string) => mocks.cache.get(key));
     mocks.cacheSet.mockImplementation(async (key: string, value: unknown) => { mocks.cache.set(key, value); });
     mocks.onSnapshot.mockReset();
@@ -425,6 +451,41 @@ describe("mind values cache and subscription", () => {
     await Promise.resolve();
 
     expect(update).not.toHaveBeenCalled();
+    expect(stop).toHaveBeenCalledOnce();
+  });
+});
+
+
+describe("account collection subscription lifetimes", () => {
+  beforeEach(() => {
+    mocks.cache.clear();
+    mocks.onSnapshot.mockReset();
+    mocks.cacheGet.mockReset();
+    mocks.cacheSet.mockReset().mockImplementation(async (key: string, value: unknown) => { mocks.cache.set(key, value); });
+  });
+
+  it.each([
+    ["habits", subscribeHabits],
+    ["daily checkins", subscribeDailyCheckins],
+    ["thought records", subscribeThoughtRecords],
+    ["ABC records", subscribeAbcRecords],
+    ["assessments", (uid: string, update: (items: any[]) => void) => subscribeAssessmentResults(uid, undefined, update)],
+  ] as const)("ignores stale cached %s after a snapshot or account cleanup", async (_name, subscribe) => {
+    let resolveCache!: (value: any[]) => void;
+    mocks.cacheGet.mockImplementationOnce(() => new Promise(resolve => { resolveCache = resolve; }));
+    let receive!: (snapshot: any) => void;
+    const stop = vi.fn();
+    mocks.onSnapshot.mockImplementationOnce((_ref, next) => { receive = next; return stop; });
+    const update = vi.fn();
+    const cleanup = subscribe("user-1", update);
+    receive({ forEach: (visit: (doc: any) => void) => visit({ id: "fresh", data: () => ({ title: "Fresh" }) }) });
+    resolveCache([{ id: "stale" }]);
+    await Promise.resolve();
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith([expect.objectContaining({ id: "fresh" })]);
+    cleanup();
+    receive({ forEach: () => {} });
+    expect(update).toHaveBeenCalledTimes(1);
     expect(stop).toHaveBeenCalledOnce();
   });
 });

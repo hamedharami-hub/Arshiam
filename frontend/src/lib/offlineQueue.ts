@@ -24,6 +24,8 @@ export type QueuedOp = {
   conflictReason?: "remote-newer";
   /** Revision observed before a delete; absent legacy deletes must fail closed. */
   expectedRevision?: string;
+  /** Stable receipt used when cloud commit succeeds but outbox acknowledgement fails. */
+  mutationId?: string;
 };
 
 import { getDB, STORE, CACHE_STORE, cacheGet, cacheSet } from "./offlineDb";
@@ -75,7 +77,7 @@ export async function enqueueOps(ops: EnqueueOpInput[]): Promise<boolean> {
     const ownerId = ownershipConflict
       ? undefined
       : explicitOwnerId || await getAuthenticatedUserId();
-    return { ...op, ownerId, ownershipConflict: ownershipConflict || undefined, createdAt: Date.now(), attempts: 0 };
+    return { ...op, mutationId: op.mutationId || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`), ownerId, ownershipConflict: ownershipConflict || undefined, createdAt: Date.now(), attempts: 0 };
   }));
 
   let queued = false;
@@ -125,10 +127,10 @@ async function getAuthenticatedUserId(): Promise<string | undefined> {
 type QueueOwnershipFields = Pick<QueuedOp, "ownerId" | "payload" | "match" | "ownershipConflict">;
 
 function explicitQueueOwnerClaims(item: QueueOwnershipFields): string[] {
-  const payload = item.payload && typeof item.payload === "object" && !Array.isArray(item.payload)
-    ? item.payload as Record<string, unknown>
-    : undefined;
-  return [item.ownerId, payload?.user_id, payload?.userId, item.match?.user_id]
+  const payloads = Array.isArray(item.payload) ? item.payload : [item.payload];
+  const payloadOwners = payloads.flatMap(payload => payload && typeof payload === "object"
+    ? [(payload as Record<string, unknown>).user_id, (payload as Record<string, unknown>).userId] : []);
+  return [item.ownerId, ...payloadOwners, item.match?.user_id]
     .filter((value): value is string => typeof value === "string" && value.length > 0);
 }
 
@@ -182,8 +184,29 @@ export async function clearQueue() {
 }
 
 function localKeyBelongsToUser(key: string, userId: string): boolean {
-  const escaped = userId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`(?:^|[.:_-])${escaped}(?:$|[.:_-])`).test(key);
+  // Hyphens belong to the account ID; matching an arbitrary separator on
+  // both sides would erase account-a while deleting account.
+  return key === userId || key.endsWith(`:${userId}`) || key.endsWith(`_${userId}`) ||
+    key.startsWith(`task_notes_${userId}_`);
+}
+
+function cacheKeyBelongsToUser(key: string, value: unknown, userId: string): boolean | undefined {
+  if (!localKeyBelongsToUser(key, userId)) return false;
+  const values = Array.isArray(value) ? value : [value];
+  const owners = values.flatMap(entry => entry && typeof entry === "object"
+    ? explicitQueueOwnerClaims({ payload: entry }) : []);
+  // Explicit owners override an ambiguous underscore-delimited legacy key.
+  if (owners.length) return owners.every(owner => owner === userId);
+  if (key.endsWith(`:${userId}`) || key === userId) return true;
+  const fixedPrefixes = [
+    "tasks_", "notes_", "folders_", "tags_", "habits_", "contacts_", "task_contacts_",
+    "firestore_sync_stats_", "arshnaz_mind_garden_v1_", "arshnaz_island_v1_",
+    "arshnaz_page_bg_v1_", "arshnaz_kanban_goals_v3_", "arshnaz_kanban_goals_sync_",
+  ];
+  if (fixedPrefixes.some(prefix => key === `${prefix}${userId}`)) return true;
+  // Dynamic legacy key layouts cannot distinguish IDs containing underscores.
+  // Retain them and report incomplete cleanup rather than guessing ownership.
+  return undefined;
 }
 
 /** Clear one account's device data without deleting another account's offline work. */
@@ -203,7 +226,12 @@ export async function clearUserLocalData(userId: string): Promise<boolean> {
         else if (!getQueuedOpOwnerId(item)) cleared = false;
       }
       for (const key of cacheKeys) {
-        if (typeof key === "string" && localKeyBelongsToUser(key, userId)) transaction.objectStore(CACHE_STORE).delete(key);
+        if (typeof key === "string" && localKeyBelongsToUser(key, userId)) {
+          const value = await transaction.objectStore(CACHE_STORE).get(key);
+          const belongs = cacheKeyBelongsToUser(key, value, userId);
+          if (belongs) transaction.objectStore(CACHE_STORE).delete(key);
+          else if (belongs === undefined) cleared = false;
+        }
       }
       await transaction.done;
     }
@@ -218,18 +246,48 @@ export async function clearUserLocalData(userId: string): Promise<boolean> {
     if (remaining.some((item) => !getQueuedOpOwnerId(item))) cleared = false;
     if (remaining.length !== fallback.length && !saveLocalStorageOutbox(remaining)) cleared = false;
     const { memoryCache } = await import("./offlineDb");
-    for (const key of memoryCache.keys()) if (localKeyBelongsToUser(key, userId)) memoryCache.delete(key);
+    for (const [key, value] of memoryCache) {
+      const belongs = cacheKeyBelongsToUser(key, value, userId);
+      if (belongs) memoryCache.delete(key);
+      else if (belongs === undefined) cleared = false;
+    }
   } catch { cleared = false; }
   try {
     for (let index = localStorage.length - 1; index >= 0; index--) {
       const key = localStorage.key(index);
       if (!key || key === LS_OUTBOX_KEY) continue;
-      if (localKeyBelongsToUser(key, userId)) localStorage.removeItem(key);
+      if (localKeyBelongsToUser(key, userId)) {
+        let value: unknown;
+        try { value = JSON.parse(localStorage.getItem(key) || "null"); } catch { value = null; }
+        const belongs = cacheKeyBelongsToUser(key, value, userId);
+        if (belongs) localStorage.removeItem(key);
+        else if (belongs === undefined) cleared = false;
+      }
     }
     if (localStorage.getItem("arshnaz_garden_user") === userId) localStorage.removeItem("arshnaz_garden_user");
   } catch { cleared = false; }
   notifyChange();
   return cleared;
+}
+
+const retiredModuleTables = new Set(["pharmacy_practice", "leitner_reviews"]);
+
+/** Cleanup is restricted to retired module changes belonging to the active UID. */
+export async function retireOwnedModuleData(userId: string): Promise<{ removed: number; incomplete: boolean }> {
+  if (!userId || await getAuthenticatedUserId() !== userId) throw new Error("The active account must own the cleanup.");
+  const entries = await getQueue();
+  let removed = 0;
+  let incomplete = false;
+  for (const item of entries) {
+    if (!retiredModuleTables.has(item.table)) continue;
+    if (!getQueuedOpOwnerId(item)) { incomplete = true; continue; }
+    if (!canReplayForOwner(item, userId)) continue;
+    try {
+      await discardQueuedOp(item);
+      removed++;
+    } catch { incomplete = true; }
+  }
+  return { removed, incomplete };
 }
 
 const listeners = new Set<() => void>();
@@ -249,6 +307,7 @@ function sameQueuedOp(left: QueuedOp, right: QueuedOp): boolean {
     left.table === right.table && left.op === right.op &&
     left.ownerId === right.ownerId &&
     left.expectedRevision === right.expectedRevision &&
+    left.mutationId === right.mutationId &&
     JSON.stringify(left.payload) === JSON.stringify(right.payload) &&
     JSON.stringify(left.match) === JSON.stringify(right.match);
 }
@@ -283,9 +342,10 @@ function legacyMutationConfirmed(item: QueuedOp, response: unknown): boolean {
   return Array.isArray(data) ? data.length > 0 : data !== null && data !== undefined;
 }
 
-async function replayWithLegacyStore(item: QueuedOp): Promise<boolean> {
+async function replayWithLegacyStore(item: QueuedOp, userId: string): Promise<boolean> {
+  if (await getAuthenticatedUserId() !== userId) return false;
   try {
-    const q = firebaseStore.from(item.table);
+    const q = firebaseStore.from(item.table, userId);
     let response: unknown;
     if (item.op === "insert") {
       response = await q.insert(item.payload as Record<string, unknown>);
@@ -315,6 +375,8 @@ const revisionProtectedCollections = new Set([
 ]);
 
 async function replayItem(item: QueuedOp, userId: string): Promise<ReplayOutcome> {
+  if (await getAuthenticatedUserId() !== userId) return "failed";
+  if (retiredModuleTables.has(item.table)) return "saved";
   let firestoreAttempted = false;
   let firestoreOutcome: ReplayOutcome = "failed";
   try {
@@ -323,7 +385,7 @@ async function replayItem(item: QueuedOp, userId: string): Promise<ReplayOutcome
       typeof taskIdForLinkCleanup === "string" && taskIdForLinkCleanup) {
       firestoreAttempted = true;
       const response = await firebaseStore
-        .from("task_knowledge_links")
+        .from("task_knowledge_links", userId)
         .delete()
         .eq("user_id", userId)
         .eq("task_id", taskIdForLinkCleanup);
@@ -342,13 +404,13 @@ async function replayItem(item: QueuedOp, userId: string): Promise<ReplayOutcome
       const docId = (item.op === "delete" ? item.match?.id : payload.id || item.match?.id) as string | undefined;
       if (revisionProtectedCollections.has(item.table) && docId) {
         return replayQueuedEntityWithOutcome(userId, item.table as any, docId, {
-          op: item.op, payload, createdAt: item.createdAt, expectedRevision: item.expectedRevision,
+          op: item.op, payload, createdAt: item.createdAt, expectedRevision: item.expectedRevision, mutationId: item.mutationId,
         });
       }
       if (item.op === "delete") {
         if (!docId) {
           // Deletes matched by other fields (e.g. task_id) go through the query adapter; deletes carry no revision to protect.
-          return await replayWithLegacyStore(item) ? "saved" : "failed";
+          return await replayWithLegacyStore(item, userId) ? "saved" : "failed";
         }
         if (!await deleteEntityFromFirestore(userId, item.table as any, docId)) {
           throw new Error(`Could not delete ${item.table}/${docId}`);
@@ -368,11 +430,14 @@ async function replayItem(item: QueuedOp, userId: string): Promise<ReplayOutcome
   // bypass a failed write (including a stale-write conflict) via the legacy
   // adapter: it targets the same Firestore documents without conflict checks.
   if (firestoreAttempted) return firestoreOutcome;
-  return await replayWithLegacyStore(item) ? "saved" : "failed";
+  return await replayWithLegacyStore(item, userId) ? "saved" : "failed";
 }
 
 /** Remove one queued change on explicit user request (the local copy stays; the cloud is not changed). */
 export async function discardQueuedOp(item: QueuedOp): Promise<void> {
+  if (!canReplayForOwner(item, await getAuthenticatedUserId())) {
+    throw new Error("This queued change does not belong to the active account.");
+  }
   try {
     const db = await getDB();
     if (db && item.id !== undefined) {
@@ -383,6 +448,9 @@ export async function discardQueuedOp(item: QueuedOp): Promise<void> {
   updateLocalStorageOutbox(item, true);
   if (item.id !== undefined && memoryOutbox.get(item.id) && sameQueuedOp(memoryOutbox.get(item.id)!, item)) {
     memoryOutbox.delete(item.id);
+  }
+  if ((await getQueue()).some(candidate => sameQueuedOp(candidate, item))) {
+    throw new Error("The saved change could not be removed from device storage.");
   }
   notifyChange();
 }
@@ -421,6 +489,7 @@ export async function flushQueue(options: { retryConflicts?: boolean; forceRetry
       // Legacy records with explicit, consistent owner data remain replayable;
       // records without one attributable owner stay intact for manual recovery.
       if (!canReplayForOwner(item, activeOwnerId)) continue;
+      if (await getAuthenticatedUserId() !== activeOwnerId) break;
       try {
         const outcome = await replayItem(item, activeOwnerId);
         if (outcome === "stale") {
