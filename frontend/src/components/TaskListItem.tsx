@@ -26,6 +26,13 @@ import { isTaskOverdue } from "@/lib/taskPlanning";
 import { getTimeSettings } from "@/lib/timeHorizon";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
+/**
+ * Invisible ~10px halo around the small row controls (chevron, pin, checkbox, drag
+ * handle, time chip). It is a pseudo-element, so the icon/chip keeps its current
+ * visual size and the row keeps its current metrics while the target grows to 36-40px.
+ */
+const TAP_HALO = "relative before:absolute before:-inset-2.5 before:content-['']";
+
 export function outcomeMeta(
   task: Task,
   byTaskId: Record<string, string>,
@@ -245,14 +252,15 @@ const TaskListItemComponent = ({
               {/* Row 1: chevron + pin + TITLE (wide) + checkbox (right) */}
               <div dir={isEn ? "ltr" : "rtl"} className="flex items-start gap-1.5">
                 {visibleSubs.length > 0 ? (
-                  <button type="button" aria-label={open ? T("بستن زیرتسک‌ها", "Collapse subtasks") : T("نمایش زیرتسک‌ها", "Expand subtasks")} onClick={(e) => { e.stopPropagation(); onToggleExpand(t.id); }} className="text-muted-foreground hover:text-foreground shrink-0 pt-0.5">
+                  <button type="button" aria-label={open ? T("بستن زیرتسک‌ها", "Collapse subtasks") : T("نمایش زیرتسک‌ها", "Expand subtasks")} onClick={(e) => { e.stopPropagation(); onToggleExpand(t.id); }} className={`${TAP_HALO} text-muted-foreground hover:text-foreground shrink-0 pt-0.5`}>
                     {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                   </button>
                 ) : <span className="w-4 shrink-0" />}
+                {/* Halo is trimmed on the expand-button side so the two neighbours do not swallow each other's target. */}
                 <button
                   onClick={(e) => { e.stopPropagation(); onPatchTask(t.id, { pinned: !t.pinned }); }}
                   disabled={t.user_id !== userId}
-                  className={`shrink-0 inline-flex items-center justify-center w-5 h-5 rounded transition mt-0.5 ${t.pinned ? "text-primary" : "text-muted-foreground/40 hover:text-foreground"} ${t.user_id !== userId ? "opacity-40 cursor-not-allowed" : ""}`}
+                  className={`${TAP_HALO} before:-start-1 shrink-0 inline-flex items-center justify-center w-5 h-5 rounded transition mt-0.5 ${t.pinned ? "text-primary" : "text-muted-foreground/40 hover:text-foreground"} ${t.user_id !== userId ? "opacity-40 cursor-not-allowed" : ""}`}
                   title={t.pinned ? T("حذف پین", "Unpin") : T("پین کردن", "Pin")}
                   data-no-longpress
                 >
@@ -320,7 +328,7 @@ const TaskListItemComponent = ({
                       if (!t.completed) playCompletionFeedback();
                       onToggleTask(t);
                     }}
-                    className={`mt-0.5 h-5 w-5 shrink-0 rounded-md border-2 transition-transform duration-200 active:scale-75 data-[state=checked]:scale-110 ${priorityMeta.checkboxClass}`}
+                    className={`${TAP_HALO} mt-0.5 h-5 w-5 shrink-0 rounded-md border-2 transition-transform duration-200 active:scale-75 data-[state=checked]:scale-110 ${priorityMeta.checkboxClass}`}
                   />
                 )}
               </div>
@@ -328,7 +336,7 @@ const TaskListItemComponent = ({
               {/* Row 2: metadata */}
               <div className="flex items-center gap-1.5 mt-1 ms-5 flex-wrap min-h-[20px]" dir={isEn ? "ltr" : "rtl"}>
                 {allowDrag && (
-                  <button {...dragHandle} data-drag-handle data-no-swipe-nav className="text-muted-foreground/60 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0 h-5 w-5 rounded flex items-center justify-center" aria-label={T("جابجایی", "Drag")} title={T("جابجایی", "Drag")}>
+                  <button {...dragHandle} data-drag-handle data-no-swipe-nav className={`${TAP_HALO} text-muted-foreground/60 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0 h-5 w-5 rounded flex items-center justify-center`} aria-label={T("جابجایی", "Drag")} title={T("جابجایی", "Drag")}>
                     <GripVertical className="w-3 h-3" />
                   </button>
                 )}
@@ -422,7 +430,7 @@ const TaskListItemComponent = ({
                     type="button"
                     onClick={e => e.stopPropagation()}
                     data-testid={`task-schedule-chip-${t.id}`}
-                    className={`text-[10px] gap-1 px-2 h-5 font-medium inline-flex items-center rounded-full border transition ${whenLabel ? "bg-secondary/80 text-secondary-foreground hover:bg-secondary" : "border-dashed text-muted-foreground/70 hover:bg-muted/40"}`}
+                    className={`${TAP_HALO} text-[10px] gap-1 px-2 h-5 font-medium inline-flex items-center rounded-full border transition ${whenLabel ? "bg-secondary/80 text-secondary-foreground hover:bg-secondary" : "border-dashed text-muted-foreground/70 hover:bg-muted/40"}`}
                     title={T("روز، ساعت و تکرار", "Day, time and repeat")}
                   >
                     <Calendar className="h-3 w-3" />

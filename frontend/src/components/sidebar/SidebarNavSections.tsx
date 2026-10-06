@@ -74,6 +74,8 @@ export const EN_LABELS: Record<string, string> = {
   "افراد": "Contacts",
   "کتابخانه دانش": "Knowledge Base",
   "استودیوی مطالعه تعاملی": "Interactive Study Studio",
+  "ادامهٔ یادگیری": "Continue learning",
+  "پشتیبانی بحران (SOS)": "Crisis support (SOS)",
   "فهرست محصولات دارویی": "Pharmacy Products",
   "تمرین سناریوهای دارویی": "Pharmacy Scenario Practice",
   "تمرین نسخه FRED": "FRED Practice",

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -110,6 +110,35 @@ export function TaskMetaBar(props: TaskMetaBarProps) {
   useEffect(() => {
     if (panel) panelRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
   }, [panel]);
+
+  // The strip scrolls horizontally with its scrollbar hidden: fade whichever edge hides a tile,
+  // so the off-screen "Tags"/"Pin" items stay discoverable. Geometry only, so it is direction-agnostic.
+  const metaStripRef = useRef<HTMLDivElement>(null);
+  const [metaStripFade, setMetaStripFade] = useState("");
+  const metaStripFadeRef = useRef("");
+  useEffect(() => {
+    const el = metaStripRef.current;
+    if (!el) return;
+    const measure = () => {
+      const box = el.getBoundingClientRect();
+      const first = el.firstElementChild?.getBoundingClientRect();
+      const last = el.lastElementChild?.getBoundingClientRect();
+      const hiddenAtLeft = [first, last].some((rect) => rect && rect.left < box.left - 1);
+      const hiddenAtRight = [first, last].some((rect) => rect && rect.right > box.right + 1);
+      const next = hiddenAtLeft && hiddenAtRight ? "meta-strip-fade-both" : hiddenAtLeft ? "meta-strip-fade-left" : hiddenAtRight ? "meta-strip-fade-right" : "";
+      if (next === metaStripFadeRef.current) return;
+      metaStripFadeRef.current = next;
+      setMetaStripFade(next);
+    };
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(el);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      observer?.disconnect();
+    };
+  }, []);
 
   const titles: Record<TaskMetaPanel, string> = {
     folder: T("پوشه", "Folder"),
@@ -244,7 +273,7 @@ export function TaskMetaBar(props: TaskMetaBarProps) {
 
   return (
     <div className="w-full px-1 pb-1" data-testid="task-meta-bar">
-      <div className="-mx-0.5 flex items-center gap-0.5 overflow-x-auto no-scrollbar" role="toolbar" aria-label={T("ویژگی‌های تسک", "Task properties")}>
+      <div ref={metaStripRef} className={`-mx-0.5 flex items-center gap-0.5 overflow-x-auto no-scrollbar ${metaStripFade}`} role="toolbar" aria-label={T("ویژگی‌های تسک", "Task properties")}>
         <MetaTile icon={CalendarDays} label={T("زمان", "When")} value={scheduleLabel} active={isScheduled} open={panel === "schedule"}
           activeClassName="!text-primary" disabled={!canEdit} aria-expanded={panel === "schedule"} onClick={() => toggle("schedule")} data-testid="task-meta-schedule" />
         <MetaTile leading={<PriorityFlag priority={t.priority} />} label={T("اولویت", "Priority")}

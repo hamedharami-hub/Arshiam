@@ -86,7 +86,9 @@ export function resetDescriptionCheckboxes(
   // HTML task list checkboxes: data-checked="true" -> data-checked="false"
   updated = updated.replace(/data-checked="true"/g, 'data-checked="false"');
   // HTML input checkbox checked attribute: checked="checked" or checked
-  updated = updated.replace(/<input\s+([^>]*?)checked(?:="[^"]*")?([^>]*?)>/gi, '<input $1$2>');
+  // The `\s` before `checked` is required so that a real attribute is removed;
+  // without it the pattern also ate "data-checked"/"unchecked" fragments.
+  updated = updated.replace(/<input\b([^>]*?)\schecked(?:="[^"]*")?([^>]*?)>/gi, "<input$1$2>");
   return updated;
 }
 

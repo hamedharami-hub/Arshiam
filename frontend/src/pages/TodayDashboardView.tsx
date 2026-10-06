@@ -567,7 +567,10 @@ export default function TodayDashboardView() {
     />
   );
 
-  const isEmpty = totalCount === 0 && overdueTasks.length === 0 && overdueStudyTasks.length === 0;
+  // Never claim "no tasks today" before the first load resolves: tasksReady is
+  // false on every cold start, which used to flash the empty state.
+  const isEmpty =
+    tasksReady && totalCount === 0 && overdueTasks.length === 0 && overdueStudyTasks.length === 0;
 
   return (
     <div

@@ -25,7 +25,7 @@ export const MetaTile = React.forwardRef<HTMLButtonElement, MetaTileProps>(
       data-open={open || undefined}
       aria-label={rest["aria-label"] ?? (value ? `${label}: ${value}` : label)}
       title={title ?? (value ? `${label}: ${value}` : label)}
-      className={`meta-item inline-flex h-7 min-w-0 max-w-[13rem] shrink-0 items-center gap-1.5 rounded-md px-1.5 text-[13px] font-normal leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-default disabled:opacity-60 ${
+      className={`meta-item inline-flex h-9 min-w-0 max-w-[13rem] shrink-0 items-center gap-1.5 rounded-md px-1.5 text-[13px] font-normal leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-default disabled:opacity-60 ${
         open
           ? "bg-muted text-foreground"
           : active

@@ -114,9 +114,6 @@ export function TasksHeader({
                 <DropdownMenuRadioItem value="buckets" className="rounded-lg cursor-pointer">
                   ⏳ {T("تایم‌باکت", "Time buckets")}
                 </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="buckets" className="rounded-lg cursor-pointer">
-                  ⏳ {T("تایم‌باکت", "Time buckets")}
-                </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
 
               <DropdownMenuSeparator />

@@ -216,6 +216,12 @@ class ConcurrentEditError extends Error {
   constructor() { super("The cloud record changed since this device last read it."); }
 }
 
+/**
+ * A write conflicts only when this device's base revision is known *and* the cloud
+ * copy provably carries a different one. Without a base revision (first save from
+ * this device) or without a cloud revision (legacy row), the write rebases onto the
+ * current cloud copy instead of locking the user out of saving forever.
+ */
 async function writeWithRevision(
   ref: ReturnType<typeof doc>,
   data: Record<string, unknown>,
@@ -227,10 +233,11 @@ async function writeWithRevision(
     if (snapshot.exists()) {
       const remote = snapshot.data();
       const remoteRevision = remote?.updated_at ?? remote?.updatedAt;
-      if (!expected || typeof remoteRevision !== "string" || remoteRevision !== expected) {
+      if (typeof expected === "string" && typeof remoteRevision === "string" && remoteRevision !== expected) {
         throw new ConcurrentEditError();
       }
     } else if (wasKnownLocal) {
+      // The row this device edited was removed elsewhere; do not resurrect it.
       throw new ConcurrentEditError();
     }
     transaction.set(ref, data, { merge: true });
@@ -246,7 +253,11 @@ async function deleteWithRevision(
     if (!snapshot.exists()) return;
     const remote = snapshot.data();
     const revision = remote?.updated_at ?? remote?.updatedAt;
-    if (!expected || revision !== expected) throw new ConcurrentEditError();
+    // Same rule as writes: only a known base that differs from the cloud revision
+    // is a conflict. An unknown base must not make deletion impossible.
+    if (typeof expected === "string" && typeof revision === "string" && revision !== expected) {
+      throw new ConcurrentEditError();
+    }
     transaction.delete(ref);
   });
 }

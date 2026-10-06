@@ -112,7 +112,9 @@ export async function fetchTasks(userId: string): Promise<Task[]> {
       return true;
     });
     if (!accepted) return getCachedTasks(userId);
-    void syncAndroidWidget(tasks, userId).catch(() => {});
+    // Widget sync must never be able to fail a completed fetch: Promise.resolve
+    // tolerates a non-promise (or throwing) implementation, matching line below.
+    void Promise.resolve(syncAndroidWidget(tasks, userId)).catch(() => {});
     return tasks;
   } catch (error) {
     if (taskFetchVersions.get(userId) === fetchVersion) serverAuthoritativeUsers.delete(userId);

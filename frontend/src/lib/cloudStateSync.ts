@@ -1,4 +1,4 @@
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { doc, onSnapshot, runTransaction } from "firebase/firestore";
 import { db } from "./firebase";
 
 export type CloudSnapshot = { updatedAt: number; data: unknown };
@@ -11,6 +11,8 @@ export interface CloudBinding {
 /**
  * Mirrors one localStorage-backed JSON blob to users/{uid}/app_state/{name}.
  * Last writer wins by `updatedAt`; a device with no local copy adopts the cloud copy first.
+ * Uploads read the cloud revision inside a transaction first, so a device that was
+ * offline cannot overwrite a cloud copy that another device wrote afterwards.
  */
 export function bindCloudState(
   userId: string,
@@ -31,15 +33,67 @@ export function bindCloudState(
   let pendingPush = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let stopped = false;
+  // Backoff for an upload that could not reach the server (see `flush`).
+  let retryDelay = 0;
 
   const flush = async () => {
     timer = null;
     const local = opts.read();
     if (!local || stopped) return;
+    let adopted: CloudSnapshot | null = null;
+    let rebased: CloudSnapshot | null = null;
     try {
-      await setDoc(ref, { updatedAt: local.updatedAt, json: JSON.stringify(local.data) });
+      // Version-aware write: read the cloud revision in the same transaction that
+      // writes, so the check cannot be invalidated by a concurrent remote write.
+      await runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(ref);
+        if (snap.exists()) {
+          const remote = snap.data() as { updatedAt?: number; json?: string };
+          const remoteAt = Number(remote.updatedAt || 0);
+          if (remoteAt > local.updatedAt) {
+            let remoteData: unknown = null;
+            try { remoteData = remote.json ? JSON.parse(remote.json) : null; } catch { remoteData = null; }
+            // An unreadable newer copy is never overwritten; the local edit stays
+            // pending and the next snapshot decides.
+            if (remoteData === null) return;
+            const remoteSnapshot = { updatedAt: remoteAt, data: remoteData };
+            // Keep this device's explicit edits when the binder can rebase them
+            // over the cloud copy, exactly like the snapshot handler does.
+            const candidate = opts.reconcilePending?.(remoteSnapshot, local);
+            if (candidate && candidate.updatedAt > remoteAt) {
+              rebased = candidate;
+              transaction.set(ref, { updatedAt: candidate.updatedAt, json: JSON.stringify(candidate.data) });
+              return;
+            }
+            // No rebase policy (or nothing pending to rebase): the newer cloud copy
+            // wins. It is adopted through `apply` after the transaction instead of
+            // being silently dropped, so the caller persists and publishes it.
+            adopted = remoteSnapshot;
+            return;
+          }
+        }
+        transaction.set(ref, { updatedAt: local.updatedAt, json: JSON.stringify(local.data) });
+      });
     } catch (e) {
       console.warn(`[cloudState] could not upload ${name}`, e);
+      if (stopped) return;
+      // Firestore cannot queue a rejected transaction the way a plain `setDoc` was
+      // queued, so retry with backoff instead of dropping this offline edit.
+      retryDelay = retryDelay ? Math.min(retryDelay * 2, 60_000) : 4_000;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => void flush(), retryDelay);
+      return;
+    }
+    retryDelay = 0;
+    if (rebased) {
+      opts.apply(rebased.data, rebased.updatedAt, local);
+      pendingPush = false;
+      return;
+    }
+    if (adopted) {
+      console.warn(`[cloudState] ${name}: cloud copy is newer; adopting it instead of overwriting`);
+      opts.apply(adopted.data, adopted.updatedAt, local);
+      pendingPush = false;
     }
   };
 

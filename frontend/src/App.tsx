@@ -115,9 +115,20 @@ const queryClient = new QueryClient({
   },
 });
 
-const RouteFallback = () => (
-  <div className="flex min-h-screen items-center justify-center bg-background" />
-);
+const RouteFallback = () => {
+  const isEn =
+    typeof document !== "undefined" && Boolean(document.documentElement.lang?.startsWith("en"));
+  return (
+    <div
+      className="flex min-h-screen items-center justify-center bg-background"
+      role="status"
+      aria-live="polite"
+    >
+      <span className="h-8 w-8 animate-spin rounded-full border-[3px] border-muted border-t-primary" />
+      <span className="sr-only">{isEn ? "Loading…" : "در حال بارگذاری…"}</span>
+    </div>
+  );
+};
 
 export function CapacitorUrlHandler() {
   const navigate = useNavigate();

@@ -18,6 +18,7 @@ import {
 } from "@/lib/authService";
 import { setGardenUser } from "@/lib/garden";
 import { startIslandCloudSync } from "@/lib/island";
+import { stopLiveListeners } from "@/lib/firestoreLive";
 import { startWidgetSessionSync } from "@/lib/androidWidget";
 
 interface AuthContextType {
@@ -60,6 +61,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     startIslandCloudSync(user?.id ?? null);
     startGoalsCloudSync(user?.id ?? null);
     startUiPrefsCloudSync(user?.id ?? null);
+    // Signed out (or switched account): drop the shared Firestore listeners so the
+    // previous account's rows and quota do not survive on this device.
+    if (!user?.id) stopLiveListeners();
   }, [user?.id]);
 
   useEffect(() => {

@@ -449,6 +449,11 @@ button, [role="button"], a { touch-action: manipulation; }
   scrollbar-width: none !important;
 }
 
+/* Companion to .no-scrollbar: fade the edge that hides tiles, so a scrollable strip says so. */
+.meta-strip-fade-left { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 0.75rem); mask-image: linear-gradient(to right, transparent 0, #000 0.75rem); }
+.meta-strip-fade-right { -webkit-mask-image: linear-gradient(to left, transparent 0, #000 0.75rem); mask-image: linear-gradient(to left, transparent 0, #000 0.75rem); }
+.meta-strip-fade-both { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 0.75rem, #000 calc(100% - 0.75rem), transparent 100%); mask-image: linear-gradient(to right, transparent 0, #000 0.75rem, #000 calc(100% - 0.75rem), transparent 100%); }
+
 /* Mobile drawer: plain list rows, 40px touch targets */
 [data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="menu-button"] {
   min-height: 2.5rem;

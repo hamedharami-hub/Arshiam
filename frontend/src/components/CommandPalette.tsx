@@ -257,7 +257,10 @@ export default function CommandPalette() {
               setOpen(false);
               navigate("/app/inbox");
               setTimeout(() => {
-                window.dispatchEvent(new CustomEvent("arshnaz:quick-add-task"));
+                // QuickCaptureDialog listens for lov:open-quick-capture; the old
+                // "arshnaz:quick-add-task" event had no listener anywhere, so this
+                // command landed the user on Inbox and did nothing else.
+                window.dispatchEvent(new Event("lov:open-quick-capture"));
               }, 100);
             }}
           >

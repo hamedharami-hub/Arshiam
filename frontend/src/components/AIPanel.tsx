@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useTranslation } from "react-i18next";
+import { useBilingual } from "@/hooks/useBilingual";
 import { compactTasksForAI } from "@/lib/taskSchedule";
 import { normalizeTaskPriority } from "@/lib/priority";
 import { persistTask } from "@/lib/firestoreDataService";
@@ -31,8 +31,7 @@ function newTaskId() {
 export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const { user } = useAuth();
   const isMobile = useIsMobile();
-  const { i18n } = useTranslation();
-  const isEn = (i18n.language || "fa").startsWith("en");
+  const { T, isEn } = useBilingual();
   const [tab, setTab] = useState("create");
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -54,7 +53,7 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
     try {
       const r = await callAI("parse_task", submittedText, undefined, undefined, aiLang);
       if (r.provider && r.model) setLastResultMeta({ provider: r.provider, model: r.model });
-      if (!r.data?.title) throw new Error("نتوانست تسک بسازد");
+      if (!r.data?.title) throw new Error(isEn ? "Could not create the task" : "نتوانست تسک بسازد");
       const result = await persistTask(user.id, {
         id: createIntentRef.current.id,
         user_id: user.id,
@@ -67,7 +66,7 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
         status: "todo",
       });
       if (result === "failed") throw new Error(isEn ? "Task could not be saved" : "ذخیره تسک انجام نشد");
-      toast.success(result === "queued" ? (isEn ? "Task queued to sync" : "تسک برای همگام‌سازی صف شد") : "تسک ساخته شد ✨");
+      toast.success(result === "queued" ? (isEn ? "Task queued to sync" : "تسک برای همگام‌سازی صف شد") : (isEn ? "Task created ✨" : "تسک ساخته شد ✨"));
       createIntentRef.current = null;
       setInput("");
     } catch (e: any) { toast.error(e.message); }
@@ -86,7 +85,7 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
         content: r.text,
       });
       if (error) throw error;
-      toast.success("نوت ساخته شد ✨");
+      toast.success(isEn ? "Note created ✨" : "نوت ساخته شد ✨");
       setInput("");
     } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
@@ -109,14 +108,14 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
   const addPickedAsTasks = async () => {
     if (!user) return;
     const sel = suggestions.filter((_, i) => picked[i]);
-    if (!sel.length) return toast.error("چیزی انتخاب نشده");
+    if (!sel.length) return toast.error(isEn ? "Nothing selected" : "چیزی انتخاب نشده");
     const results = await Promise.all(sel.map((s) => persistTask(user.id, {
       id: s.id, user_id: user.id, title: s.title, description: s.description || null,
       priority: "none", completed: false, status: "todo",
     })));
     const failed = results.filter((result) => result === "failed").length;
     if (failed) toast.error(isEn ? `${failed} task(s) could not be saved` : `ذخیرهٔ ${failed} تسک انجام نشد`);
-    else toast.success(results.some((result) => result === "queued") ? (isEn ? `${sel.length} tasks queued to sync` : `${sel.length} تسک برای همگام‌سازی صف شد`) : `${sel.length} تسک اضافه شد`);
+    else toast.success(results.some((result) => result === "queued") ? (isEn ? `${sel.length} tasks queued to sync` : `${sel.length} تسک برای همگام‌سازی صف شد`) : (isEn ? `${sel.length} task(s) added` : `${sel.length} تسک اضافه شد`));
     if (!failed) { setSuggestions([]); setPicked({}); setInput(""); }
   };
 
@@ -140,13 +139,13 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
   const body = (
     <>
       <div className="mt-1 flex items-center justify-between p-2 rounded-lg border bg-accent/20">
-        <span className="text-sm">زبان پاسخ AI</span>
+        <span className="text-sm">{T("زبان پاسخ AI", "AI response language")}</span>
         <AILangToggle value={aiLang} onChange={setAiLang} />
       </div>
 
       {lastResultMeta?.model && (
         <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground px-2.5 py-1 bg-muted/40 rounded-md border border-border/40">
-          <span>{isEn ? "Model used:" : "مدل آخرین پاسخ:"}</span>
+          <span>{T("مدل آخرین پاسخ:", "Model used:")}</span>
           <span className="font-mono font-medium text-foreground">
             {lastResultMeta.provider} / {lastResultMeta.model}
           </span>
@@ -155,36 +154,36 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
 
       <Tabs value={tab} onValueChange={setTab} className="mt-4">
         <TabsList className="grid grid-cols-4">
-          <TabsTrigger value="create">تسک</TabsTrigger>
-          <TabsTrigger value="note">نوت</TabsTrigger>
-          <TabsTrigger value="suggest">پیشنهاد</TabsTrigger>
-          <TabsTrigger value="chat">چت</TabsTrigger>
+          <TabsTrigger value="create">{T("تسک", "Task")}</TabsTrigger>
+          <TabsTrigger value="note">{T("نوت", "Note")}</TabsTrigger>
+          <TabsTrigger value="suggest">{T("پیشنهاد", "Suggest")}</TabsTrigger>
+          <TabsTrigger value="chat">{T("چت", "Chat")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="create" className="space-y-3 mt-4">
-          <p className="text-sm text-muted-foreground">با زبان طبیعی تسک بساز</p>
-          <Textarea placeholder="مثال: فردا ساعت ۱۰ جلسه تیمی، اولویت بالا" value={input}
+          <p className="text-sm text-muted-foreground">{T("با زبان طبیعی تسک بساز", "Create a task in natural language")}</p>
+          <Textarea placeholder={T("مثال: فردا ساعت ۱۰ جلسه تیمی، اولویت بالا", "e.g. Team meeting tomorrow at 10, high priority")} value={input}
             onChange={(e) => setInput(e.target.value)} rows={4} />
           <Button onClick={createTaskFromNL} disabled={loading} className="w-full">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "ساخت تسک"}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : T("ساخت تسک", "Create task")}
           </Button>
         </TabsContent>
 
         <TabsContent value="note" className="space-y-3 mt-4">
-          <p className="text-sm text-muted-foreground">موضوع نوت رو بگو</p>
-          <Textarea placeholder="مثال: راهنمای شروع یوگا برای مبتدی" value={input}
+          <p className="text-sm text-muted-foreground">{T("موضوع نوت رو بگو", "Tell me the note topic")}</p>
+          <Textarea placeholder={T("مثال: راهنمای شروع یوگا برای مبتدی", "e.g. Beginner's guide to starting yoga")} value={input}
             onChange={(e) => setInput(e.target.value)} rows={4} />
           <Button onClick={generateNote} disabled={loading} className="w-full">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "تولید نوت Markdown"}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : T("تولید نوت Markdown", "Generate Markdown note")}
           </Button>
         </TabsContent>
 
         <TabsContent value="suggest" className="space-y-3 mt-4">
-          <p className="text-sm text-muted-foreground">یک موضوع بده، پیشنهاد می‌گیریم</p>
-          <Textarea placeholder="مثال: راه‌اندازی کسب‌وکار آنلاین" value={input}
+          <p className="text-sm text-muted-foreground">{T("یک موضوع بده، پیشنهاد می‌گیریم", "Give a topic and get suggestions")}</p>
+          <Textarea placeholder={T("مثال: راه‌اندازی کسب‌وکار آنلاین", "e.g. Starting an online business")} value={input}
             onChange={(e) => setInput(e.target.value)} rows={3} />
           <Button onClick={getSuggestions} disabled={loading} className="w-full">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "پیشنهاد بگیر"}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : T("پیشنهاد بگیر", "Get suggestions")}
           </Button>
 
           {suggestions.length > 0 && (
@@ -200,17 +199,17 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
                 </Card>
               ))}
               <Button onClick={addPickedAsTasks} className="w-full mt-2" variant="default">
-                افزودن انتخاب‌شده‌ها به تسک‌ها
+                {T("افزودن انتخاب‌شده‌ها به تسک‌ها", "Add selected to tasks")}
               </Button>
             </div>
           )}
         </TabsContent>
 
         <TabsContent value="chat" className="mt-4 flex flex-col h-[55vh]">
-          <div dir="rtl" className="flex-1 overflow-y-auto space-y-2 mb-2">
-            {chat.length === 0 && <p className="text-sm text-muted-foreground text-center mt-8">سؤالی درباره تسک‌هات بپرس</p>}
+          <div dir={isEn ? "ltr" : "rtl"} className="flex-1 overflow-y-auto space-y-2 mb-2">
+            {chat.length === 0 && <p className="text-sm text-muted-foreground text-center mt-8">{T("سؤالی درباره تسک‌هات بپرس", "Ask a question about your tasks")}</p>}
             {chat.map((m, i) => (
-              <div key={i} dir="rtl" className={`p-3 rounded-2xl text-end leading-7 ${m.role === "user" ? "bg-primary/10 ms-8" : "bg-muted me-8"}`}>
+              <div key={i} dir={isEn ? "ltr" : "rtl"} className={`p-3 rounded-2xl text-end leading-7 ${m.role === "user" ? "bg-primary/10 ms-8" : "bg-muted me-8"}`}>
                 <div className="text-xs prose-note">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
                 </div>
@@ -219,8 +218,8 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
             {loading && <Loader2 className="w-4 h-4 animate-spin mx-auto" />}
           </div>
           <div className="flex gap-2">
-            <Input dir="rtl" value={chatInput} onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendChat()} placeholder="بپرس..." />
+            <Input dir={isEn ? "ltr" : "rtl"} value={chatInput} onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && sendChat()} placeholder={T("بپرس...", "Ask...")} />
             <Button size="icon" onClick={sendChat} disabled={loading}><Send className="w-4 h-4" /></Button>
           </div>
         </TabsContent>
@@ -233,7 +232,7 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
       <DrawerContent className="max-h-[85vh]">
         <DrawerHeader className="pb-2">
           <DrawerTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" /> دستیار AI
+            <Sparkles className="w-5 h-5 text-primary" /> {T("دستیار AI", "AI Assistant")}
           </DrawerTitle>
         </DrawerHeader>
         <div className="px-4 pb-4 overflow-y-auto">{body}</div>
@@ -244,7 +243,7 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
       <SheetContent className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" /> دستیار AI
+            <Sparkles className="w-5 h-5 text-primary" /> {T("دستیار AI", "AI Assistant")}
           </SheetTitle>
         </SheetHeader>
         {body}

@@ -159,6 +159,44 @@ describe("TaskListItem subtasks progress rendering", () => {
     expect(html).toContain("1/2");
   });
 
+  it("gives the small row controls a touch halo without changing their visual size", () => {
+    const html = renderToString(
+      <TaskListItem
+        t={{ ...parentTask, due_date: "2026-01-01" }}
+        subs={[subTask]}
+        open={false}
+        onToggleExpand={vi.fn()}
+        onSelectTask={vi.fn()}
+        onToggleTask={vi.fn()}
+        onActionTask={vi.fn()}
+        onDeleteTask={vi.fn()}
+        onPatchTask={vi.fn()}
+        onMoveTask={vi.fn()}
+        isSelected={false}
+        splitView={false}
+        layout="compact"
+        isEn={true}
+        T={(_fa, en) => en}
+        navigate={vi.fn()}
+        outcomeByTaskId={{}}
+        outcomeById={{}}
+        childrenMap={{}}
+        expanded={{}}
+        getProgress={() => ({ done: 0, total: 1 })}
+        taskMap={new Map([["parent-1", parentTask]])}
+        allowDrag
+      />,
+    );
+
+    // chevron + pin + checkbox + drag handle + time chip each carry the invisible halo
+    expect((html.match(/before:-inset-2\.5/g) || []).length).toBe(5);
+    // the pin trims its halo on the neighbour side so the two targets stay usable
+    expect(html).toContain("before:-start-1");
+    // the visual boxes are untouched
+    expect(html).toContain("h-5 w-5");
+    expect(html).toContain("w-4 h-4");
+  });
+
   it("routes active Leitner reviews instead of allowing ordinary completion", () => {
     const html = renderToString(
       <TaskListItem

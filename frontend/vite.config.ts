@@ -149,8 +149,19 @@ export default defineConfig(({ mode }) => {
       workbox: {
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/~oauth/, /^\/api/, /^\/version\.json/, /^\/openapi\.json/],
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        // Precache only the offline app shell (JS/CSS/HTML/fonts + small icons).
+        // The heavy public artwork (garden-*.png, images/angel-*.png, diary-bg/*) used to be
+        // precached too and made the first visit download ~12.8 MB of images; it is now
+        // fetched on demand and kept by the runtimeCaching rules below.
+        // NOTE: pwa-512x512.png / favicon.ico / robots.txt come from `includeAssets` — do not
+        // list them here again or the manifest gets duplicate entries.
+        globPatterns: [
+          "**/*.{js,css,html,svg,woff2}",
+          "favicon.png",
+          "pwa-192x192.png",
+          "apple-touch-icon.png",
+        ],
+        maximumFileSizeToCacheInBytes: 1 * 1024 * 1024,
         clientsClaim: true,
         skipWaiting: true,
         cleanupOutdatedCaches: true,
@@ -161,6 +172,18 @@ export default defineConfig(({ mode }) => {
             options: {
               cacheName: "static-assets",
               expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 7 },
+            },
+          },
+          {
+            // Artwork that is no longer precached: cache on first use, then serve instantly
+            // (garden-*.png, images/angel-*.png, diary-bg/*). Expiration caps disk usage, and
+            // purgeOnQuotaError keeps a big image from failing the whole cache write.
+            urlPattern: ({ url }) => /\.(?:png|jpe?g|webp|avif)$/i.test(url.pathname),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "artwork-images",
+              expiration: { maxEntries: 40, maxAgeSeconds: 60 * 60 * 24 * 30, purgeOnQuotaError: true },
+              cacheableResponse: { statuses: [0, 200] },
             },
           },
         ],
@@ -184,7 +207,7 @@ export default defineConfig(({ mode }) => {
     target: "es2020",
     cssCodeSplit: true,
     sourcemap: false,
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         manualChunks(id) {

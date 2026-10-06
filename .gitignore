@@ -81,6 +81,13 @@ memory/test_credentials.md
 # Mobile development
 android-sdk/
 
+# Build artifacts that must never be tracked (debug/release APK & AAB bundles)
+*.apk
+*.aab
+*.apks
+frontend/android/app/build/
+frontend/android/build/
+
 # overlay black-box crash/user-report dumps — session data, never history
 **/.emergent/recordings/
 .env

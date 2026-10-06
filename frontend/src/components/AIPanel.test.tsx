@@ -40,14 +40,14 @@ describe("AIPanel suggestion retries", () => {
       .mockResolvedValueOnce("saved");
 
     render(<AIPanel open onOpenChange={vi.fn()} />);
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "پیشنهاد" }), { button: 0, ctrlKey: false });
-    fireEvent.change(screen.getByPlaceholderText("مثال: راه‌اندازی کسب‌وکار آنلاین"), { target: { value: "Launch a shop" } });
-    fireEvent.click(screen.getByRole("button", { name: "پیشنهاد بگیر" }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Suggest" }), { button: 0, ctrlKey: false });
+    fireEvent.change(screen.getByPlaceholderText("e.g. Starting an online business"), { target: { value: "Launch a shop" } });
+    fireEvent.click(screen.getByRole("button", { name: "Get suggestions" }));
     await screen.findByText("First suggested task");
     fireEvent.click(screen.getByText("First suggested task"));
     fireEvent.click(screen.getByText("Second suggested task"));
 
-    const add = screen.getByRole("button", { name: "افزودن انتخاب‌شده‌ها به تسک‌ها" });
+    const add = screen.getByRole("button", { name: "Add selected to tasks" });
     fireEvent.click(add);
     await waitFor(() => expect(mocks.persistTask).toHaveBeenCalledTimes(2));
     fireEvent.click(add);

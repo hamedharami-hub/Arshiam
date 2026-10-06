@@ -21,8 +21,8 @@ import { logTaskActivity } from "@/lib/taskActivity";
 import { isFeatureEnabled } from "@/lib/capabilities";
 import {
   Check, Trash2, FolderInput, Network, Pencil, Copy, Share2,
-  Sparkles, CopyPlus, Pin, PinOff, Timer, ListTree, Paperclip,
-  Tag as TagIcon, MoreHorizontal, MapPin, X, Flag, CircleDot,
+  Sparkles, CopyPlus, Pin, PinOff, Timer, ListTree,
+  MoreHorizontal, MapPin, X, Flag, CircleDot,
   ArrowRight, Loader2, Save, StickyNote, History, BookOpen,
 } from "lucide-react";
 import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
@@ -459,16 +459,13 @@ export default function TaskActionSheet({
             {onSetWipEnabled && !task.completed && task.status === "todo" && !isScheduledLeitnerReview && (
               <Row icon={Timer} label={T("شروع کار", "Start work")} onClick={startWork} disabled={!canEdit || busy} />
             )}
-            <Row icon={Pencil} label={T("ویرایش / باز کردن", "Edit / Open")} onClick={() => { onEdit(); close(); }} />
+            <Row icon={Pencil} label={T("ویرایش و جزئیات", "Edit & details")} onClick={() => { onEdit(); close(); }} />
             <Row icon={Sparkles} label="AI" onClick={() => { navigate(`/app/tasks/${task.id}?ai=1`); close(); }} disabled={!canEdit} />
             <Row icon={Timer} label={T("پومودورو", "Pomodoro")} onClick={() => { onPomodoro?.(); close(); }} />
             <Row icon={FolderInput} label={T("انتقال", "Move")} onClick={() => { onMove(); close(); }} disabled={!canEdit} />
             <Row icon={ListTree} label={T("افزودن زیرتسک", "Add Subtask")} onClick={() => setView("subtask")} disabled={!canEdit} />
-            <Row icon={CircleDot} label={T("انتظار و پیش‌نیازها", "Waiting & prerequisites")} onClick={() => setView("dependencies")} disabled={!canEdit} />
             <Row icon={Network} label={T("لینک به تسک والد", "Link Parent Task")} onClick={() => { onMakeChild(); close(); }} disabled={!canEdit} />
             <Row icon={StickyNote} label={T("تبدیل به نوت", "Convert to Note")} onClick={convertToNote} disabled={!canEdit || busy} />
-            <Row icon={Paperclip} label={T("ضمیمه", "Attachment")} onClick={() => { onEdit(); close(); }} disabled={!canEdit} />
-            <Row icon={TagIcon} label={T("تگ", "Tags")} onClick={() => { onEdit(); close(); }} disabled={!isOwner} />
             <Row icon={History} label={T("فعالیت‌ها", "Activities")} onClick={() => setView("activities")} />
             <Row icon={MoreHorizontal} label={T("بیشتر", "More")} onClick={() => setView("more")} />
           </>

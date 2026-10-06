@@ -1,6 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { isPathAllowed, useModules } from "@/lib/appModules";
-import { ListTodo, FileText, Brain, CalendarDays } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -8,8 +7,6 @@ import RecentlyDeletedSheet from "@/components/RecentlyDeletedSheet";
 import { isRTL } from "@/i18n";
 import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { BottomTabItemConfig } from "./bottom-bar/types";
-import { WindowsFluentBar } from "./bottom-bar/WindowsFluentBar";
-import { FoldableAdaptiveBar } from "./bottom-bar/FoldableAdaptiveBar";
 import { MobileBottomBar } from "./bottom-bar/MobileBottomBar";
 import {
   useMobileBottomTabs,
@@ -33,7 +30,7 @@ export function BottomTabBar() {
     return () => window.removeEventListener("lov:open-trash", open);
   }, []);
 
-  // Global Windows / Desktop keyboard shortcuts (Alt+1..5, Alt+N, Alt+M, Alt+D)
+  // Global Windows / Desktop keyboard shortcuts (Alt+1..4, Alt+N, Alt+M, Alt+D)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't intercept when typing in input, textarea, or contentEditable
@@ -65,10 +62,6 @@ export function BottomTabBar() {
             e.preventDefault();
             navigate("/app/today");
             break;
-          case "5":
-            e.preventDefault();
-            navigate("/app/calendar");
-            break;
           case "n":
           case "N":
             e.preventDefault();
@@ -92,62 +85,8 @@ export function BottomTabBar() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [navigate, toggleSidebar]);
 
-  // Tab configurations
-  const tabs = useMemo<BottomTabItemConfig[]>(() => [
-    {
-      key: "mind",
-      labelFa: "ذهن",
-      labelEn: "Mind",
-      to: "/app/mind",
-      icon: Brain,
-      shortcutKey: "1",
-      shortcutLabel: "Alt+1",
-      match: (p) =>
-        p === "/app/mind" ||
-        p.startsWith("/app/checkin") ||
-        p.startsWith("/app/thoughts") ||
-        p.startsWith("/app/abc") ||
-        p.startsWith("/app/worry") ||
-        p.startsWith("/app/values") ||
-        p.startsWith("/app/breathing") ||
-        p.startsWith("/app/calm") ||
-        p.startsWith("/app/sleep") ||
-        p.startsWith("/app/screener") ||
-        p.startsWith("/app/self"),
-    },
-    {
-      key: "notes",
-      labelFa: "یادداشت‌ها",
-      labelEn: "Notes",
-      to: "/app/notes",
-      icon: FileText,
-      shortcutKey: "2",
-      shortcutLabel: "Alt+2",
-      match: (p) => p.startsWith("/app/notes"),
-    },
-    {
-      key: "calendar",
-      labelFa: "تقویم",
-      labelEn: "Calendar",
-      to: "/app/calendar",
-      icon: CalendarDays,
-      shortcutKey: "3",
-      shortcutLabel: "Alt+3",
-      match: (p) => p.startsWith("/app/calendar"),
-    },
-    {
-      key: "today",
-      labelFa: "امروز",
-      labelEn: "Today",
-      to: "/app/today",
-      icon: ListTodo,
-      shortcutKey: "4",
-      shortcutLabel: "Alt+4",
-      match: (p) => p === "/app/today" || p === "/app",
-    },
-  ], []);
-
-  // For compact phone layout: reactive user-chosen tabs from settings (default: today, calendar, notes)
+  // For compact phone layout: reactive user-chosen tabs from settings (default: today, calendar, notes).
+  // The compact bar is the only rendered bar, so this list is the single source of tab config.
   const selectedTabKeys = useMobileBottomTabs();
   const mobileCustomTabs = useMemo<BottomTabItemConfig[]>(() => {
     return selectedTabKeys

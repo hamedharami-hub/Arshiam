@@ -18,7 +18,8 @@ vi.mock("./firebase", () => ({
   serverTimestamp: vi.fn(),
 }));
 
-// The conflict check reads the device copy (persistent cache), never the server.
+// The conflict check prefers the device copy (persistent cache); when neither the
+// live listener nor the cache has the document it re-reads the revision from the server.
 vi.mock("firebase/firestore", async (importOriginal) => ({
   ...(await importOriginal<typeof import("firebase/firestore")>()),
   getDocFromCache: getDocMock,
@@ -111,8 +112,12 @@ describe("Firestore stale-write protection", () => {
     expect(setDocMock).not.toHaveBeenCalled();
   });
 
-  it("writes without a server read when no local copy exists", async () => {
-    getDocMock.mockRejectedValue(new Error("not in cache"));
+  it("re-bases on the server revision when the local cache has no copy", async () => {
+    // The cache read fails (document not cached); the server confirms it does not exist,
+    // so this is a genuine first write and must still go through.
+    getDocMock
+      .mockRejectedValueOnce(new Error("not in cache"))
+      .mockResolvedValueOnce({ exists: () => false, data: () => undefined });
     setDocMock.mockResolvedValue(undefined);
 
     const saved = await saveEntityToFirestore(
@@ -123,7 +128,42 @@ describe("Firestore stale-write protection", () => {
     );
 
     expect(saved).toBe(true);
+    expect(getDocMock).toHaveBeenCalledTimes(2);
     expect(setDocMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects an older write against the server copy when nothing is cached", async () => {
+    getDocMock
+      .mockRejectedValueOnce(new Error("not in cache"))
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ updated_at: "2026-09-24T12:00:00.000Z" }),
+      });
+
+    await expect(saveEntityToFirestoreWithOutcome(
+      "user-sync-test",
+      "knowledge_documents",
+      "doc-uncached",
+      { id: "doc-uncached", updated_at: "2026-09-23T12:00:00.000Z" },
+    )).resolves.toBe("stale");
+
+    expect(setDocMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when neither the cache nor the server can confirm the revision", async () => {
+    // No live listener, no cached copy and an unreadable server revision: refusing the
+    // write keeps the durable outbox free to retry it against a known revision later.
+    getDocMock.mockRejectedValue(new Error("client is offline"));
+    setDocMock.mockResolvedValue(undefined);
+
+    await expect(saveEntityToFirestoreWithOutcome(
+      "user-sync-test",
+      "knowledge_documents",
+      "doc-unverifiable",
+      { id: "doc-unverifiable", updated_at: "2026-09-25T12:00:00.000Z" },
+    )).resolves.toBe("failed");
+
+    expect(setDocMock).not.toHaveBeenCalled();
   });
 
   it("uses application edit timestamps before Firestore sync receipt timestamps", async () => {

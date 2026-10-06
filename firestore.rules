@@ -64,6 +64,10 @@ service cloud.firestore {
       // Matching allow expressions are ORed: a more specific false does not
       // override this grant. Keep server-managed collections out of it,
       // including every nested document beneath those collections.
+      // 'module_access' belongs here too: entitlements are granted only by the
+      // signed module service (api/arsh/modules.ts, which uses the Admin SDK and
+      // bypasses these rules). When the owner could write it, any client could
+      // self-unlock paid modules and reset the redemption throttle.
       match /{subcollection}/{docId=**} {
         allow read, write: if isOwner(userId)
           && !(subcollection in [
@@ -73,7 +77,8 @@ service cloud.firestore {
             'assistant_trash',
             'cycle_profiles',
             'cycle_logs',
-            'cycle_profile_tombstones'
+            'cycle_profile_tombstones',
+            'module_access'
           ]);
       }
     }

@@ -5,7 +5,15 @@ import { db } from "./firebase";
 import { trackRead, isQuotaError, markQuotaExhausted } from "./firestoreUsage";
 
 type Row = Record<string, any>;
-type Entry = { rows: Map<string, Row>; ready: Promise<boolean>; synced: boolean; failed: boolean };
+type Entry = {
+  rows: Map<string, Row>;
+  ready: Promise<boolean>;
+  synced: boolean;
+  failed: boolean;
+  unsubscribe: () => void;
+  settle: (ok: boolean) => void;
+  fallback: ReturnType<typeof setTimeout> | null;
+};
 
 const registry = new Map<string, Entry>();
 // Knowledge/learning data keeps its own loading strategy; server-managed collections are not client-readable.
@@ -19,12 +27,25 @@ function open(uid: string, table: string): Entry {
   const key = `${uid}/${table}`;
   const existing = registry.get(key);
   if (existing && !existing.failed) return existing;
-  let settle: (ok: boolean) => void = () => {};
-  const entry: Entry = { rows: new Map(), ready: new Promise((r) => { settle = r; }), synced: false, failed: false };
+  let settleFn: (ok: boolean) => void = () => {};
+  const entry: Entry = {
+    rows: new Map(),
+    ready: new Promise((r) => { settleFn = r; }),
+    synced: false,
+    failed: false,
+    unsubscribe: () => {},
+    settle: (ok: boolean) => settleFn(ok),
+    fallback: null,
+  };
   registry.set(key, entry);
   let gotSnapshot = false;
-  const fallback = setTimeout(() => settle(gotSnapshot), 6000);
-  onSnapshot(
+  entry.fallback = setTimeout(() => entry.settle(gotSnapshot), 6000);
+  const clearFallback = () => {
+    if (entry.fallback) { clearTimeout(entry.fallback); entry.fallback = null; }
+  };
+  // Keep the unsubscribe handle: without it the listener survives sign-out and
+  // every account switch (leaking listeners, quota and the previous user's rows).
+  entry.unsubscribe = onSnapshot(
     collection(db, "users", uid, table),
     (snap) => {
       gotSnapshot = true;
@@ -35,18 +56,19 @@ function open(uid: string, table: string): Entry {
       }
       if (!snap.metadata.fromCache) {
         trackRead(Math.max(1, snap.docChanges().length), table);
-        settle(true);
-        clearTimeout(fallback);
+        clearFallback();
+        entry.settle(true);
       } else if (typeof navigator !== "undefined" && !navigator.onLine) {
-        settle(true);
+        clearFallback();
+        entry.settle(true);
       }
     },
     (error) => {
       if (isQuotaError(error)) markQuotaExhausted();
       entry.failed = true;
       registry.delete(key);
-      clearTimeout(fallback);
-      settle(gotSnapshot);
+      clearFallback();
+      entry.settle(gotSnapshot);
     },
   );
   return entry;
@@ -72,4 +94,18 @@ export function liveDoc(uid: string, table: string, id: string): Row | null | un
 export function hasServerSnapshot(uid: string, table: string): boolean {
   const entry = registry.get(`${uid}/${table}`);
   return !!entry && !entry.failed && entry.synced;
+}
+
+/**
+ * Tears down every shared listener and releases the cached rows.
+ * Call on sign-out so the next account starts from an empty registry; pending
+ * `liveRows` callers resolve to null and fall back to a direct query.
+ */
+export function stopLiveListeners(): void {
+  for (const entry of registry.values()) {
+    try { entry.unsubscribe(); } catch { /* listener already gone */ }
+    if (entry.fallback) { clearTimeout(entry.fallback); entry.fallback = null; }
+    entry.settle(false);
+  }
+  registry.clear();
 }

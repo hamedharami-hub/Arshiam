@@ -225,17 +225,26 @@ export async function saveEntityToFirestoreWithOutcome(
     }
 
 
-    // Conflict protection: check if remote document is newer than incoming local data
-    // The local copy (shared listener or persistent cache) is the reference; no server read per save.
+    // Conflict protection: check the current cloud revision before writing.
+    // The local copy (shared listener or persistent cache) is the reference; no server
+    // read per save while it can answer.
     try {
       let remoteData: Record<string, any> | null | undefined = liveDoc(userId, collectionName, docId);
       if (remoteData === undefined) {
         try {
           const cached = await getDocFromCache(docRef);
-          remoteData = cached.exists() ? cached.data() : null;
+          // A cache miss is not proof that the document is absent on the server, so
+          // only a cached copy counts as verified here.
+          remoteData = cached.exists() ? cached.data() : undefined;
         } catch {
-          remoteData = null;
+          remoteData = undefined;
         }
+      }
+      if (remoteData === undefined) {
+        // Neither source has the document: re-base on the server revision instead of
+        // writing unverified. A missing server document is a genuine first write.
+        const serverSnapshot = await getDoc(docRef);
+        remoteData = serverSnapshot.exists() ? serverSnapshot.data() : null;
       }
       if (remoteData) {
         // `updated_at` is the application's revision timestamp when available.

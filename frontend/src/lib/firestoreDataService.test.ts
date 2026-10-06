@@ -374,6 +374,33 @@ describe("firestoreDataService task cache rollback", () => {
       payload: expect.objectContaining({ id: "note-queued", user_id: "user-1" }),
     }));
   });
+
+  it("allows a first save when the cloud row exists but this device has no base revision", async () => {
+    mocks.remote.set("users/user-1/tasks/task-1", { ...baseTask, title: "Cloud title" });
+
+    await expect(persistTask("user-1", { id: "task-1", title: "Edit from a fresh device" })).resolves.toBe("saved");
+
+    expect(mocks.enqueueOp).not.toHaveBeenCalled();
+    expect(mocks.remote.get("users/user-1/tasks/task-1")?.title).toBe("Edit from a fresh device");
+  });
+
+  it("rebaselines onto a legacy cloud row that carries no revision timestamp", async () => {
+    const legacy = { id: "task-legacy", user_id: "user-1", title: "Legacy", priority: "medium" as const, completed: false, status: "todo" as const };
+    mocks.cache.set(cacheKey, createTaskCacheEnvelope([legacy]));
+    mocks.remote.set("users/user-1/tasks/task-legacy", legacy);
+
+    await expect(persistTask("user-1", { id: "task-legacy", title: "Legacy updated" })).resolves.toBe("saved");
+
+    expect(mocks.remote.get("users/user-1/tasks/task-legacy")?.title).toBe("Legacy updated");
+  });
+
+  it("allows a delete when this device has no recorded base revision", async () => {
+    mocks.remote.set("users/user-1/notes/note-orphan", { id: "note-orphan", title: "Cloud", updated_at: "2026-01-01T00:00:00.000Z" });
+
+    await expect(deleteNote("user-1", "note-orphan")).resolves.toBe(true);
+
+    expect(mocks.deleteDoc).toHaveBeenCalledWith("users/user-1/notes/note-orphan");
+  });
 });
 
 

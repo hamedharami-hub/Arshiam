@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useBilingual } from "@/hooks/useBilingual";
 import { toast } from "sonner";
 import { getAllKanbanGoals, type GoalKanban } from "@/lib/kanbanGoals";
 import {
@@ -51,6 +52,7 @@ function SortLevelPicker({
   onChange: (v: SortLevel) => void;
   excludeKey?: SortKey;
 }) {
+  const { T, isEn } = useBilingual();
   return (
     <div className="space-y-1.5">
       <div className="text-xs text-muted-foreground font-medium">{label}</div>
@@ -68,7 +70,7 @@ function SortLevelPicker({
                   : "bg-card border-border hover:bg-muted text-foreground"
               }`}
             >
-              {SORT_LABELS[k]?.fa || k}
+              {isEn ? SORT_LABELS[k]?.en || k : SORT_LABELS[k]?.fa || k}
             </button>
           );
         })}
@@ -81,8 +83,8 @@ function SortLevelPicker({
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-muted"
             }`}
-            aria-label="صعودی"
-            title="صعودی"
+            aria-label={T("صعودی", "Ascending")}
+            title={T("صعودی", "Ascending")}
           >
             <ArrowUp className="w-3.5 h-3.5" />
           </button>
@@ -94,8 +96,8 @@ function SortLevelPicker({
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-muted"
             }`}
-            aria-label="نزولی"
-            title="نزولی"
+            aria-label={T("نزولی", "Descending")}
+            title={T("نزولی", "Descending")}
           >
             <ArrowDown className="w-3.5 h-3.5" />
           </button>
@@ -119,6 +121,7 @@ export function TaskFilterSheet({
   trigger?: React.ReactNode;
 }) {
   const { user } = useAuth();
+  const { T, isEn } = useBilingual();
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setOpen = controlledOnOpenChange || setInternalOpen;
@@ -208,13 +211,13 @@ export function TaskFilterSheet({
     const next = [...profiles.filter((p) => p.name !== name), newProfile];
     setProfiles(next);
     setProfileName("");
-    toast.success(`لیست هوشمند «${name}» ذخیره شد`);
+    toast.success(isEn ? `Smart list "${name}" saved` : `لیست هوشمند «${name}» ذخیره شد`);
   };
 
   const deleteProfile = (id: string, name: string) => {
     const next = profiles.filter((p) => p.id !== id);
     setProfiles(next);
-    toast.info(`پروفایل «${name}» حذف شد`);
+    toast.info(isEn ? `Profile "${name}" deleted` : `پروفایل «${name}» حذف شد`);
   };
 
   return (
@@ -228,8 +231,8 @@ export function TaskFilterSheet({
             size="icon"
             className="h-8 w-8 shrink-0 rounded-md relative text-muted-foreground"
             data-testid="tasks-toggle-filter"
-            title="فیلتر و لیست هوشمند"
-            aria-label="فیلتر و لیست هوشمند"
+            title={T("فیلتر و لیست هوشمند", "Filter & smart list")}
+            aria-label={T("فیلتر و لیست هوشمند", "Filter & smart list")}
           >
             <Filter className="w-4 h-4" />
             {activeCount > 0 && (
@@ -244,11 +247,11 @@ export function TaskFilterSheet({
         </SheetTrigger>
       )}
 
-      <SheetContent dir="rtl" className="w-full sm:max-w-lg overflow-y-auto space-y-5 p-4 sm:p-6">
+      <SheetContent dir={isEn ? "ltr" : "rtl"} className="w-full sm:max-w-lg overflow-y-auto space-y-5 p-4 sm:p-6">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2 text-base">
             <Sparkles className="w-4 h-4 text-primary" />
-            <span>تنظیمات و فیلترهای لیست هوشمند</span>
+            <span>{T("تنظیمات و فیلترهای لیست هوشمند", "Smart list settings & filters")}</span>
           </SheetTitle>
         </SheetHeader>
 
@@ -256,10 +259,10 @@ export function TaskFilterSheet({
         <section className="space-y-2.5 p-3 rounded-xl bg-muted/40 border border-border/60">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-foreground">
-              لیست‌های هوشمند ذخیره‌شده
+              {T("لیست‌های هوشمند ذخیره‌شده", "Saved smart lists")}
             </span>
             <span className="text-[10px] text-muted-foreground">
-              کلیک برای بارگذاری سریع
+              {T("کلیک برای بارگذاری سریع", "Click to load quickly")}
             </span>
           </div>
 
@@ -273,7 +276,7 @@ export function TaskFilterSheet({
                   type="button"
                   onClick={() => {
                     onChange(p.filters);
-                    toast.success(`لیست «${p.name}» اعمال شد`);
+                    toast.success(isEn ? `List "${p.name}" applied` : `لیست «${p.name}» اعمال شد`);
                   }}
                   className="text-xs font-medium hover:text-primary flex items-center gap-1.5"
                 >
@@ -285,7 +288,7 @@ export function TaskFilterSheet({
                     type="button"
                     onClick={() => deleteProfile(p.id, p.name)}
                     className="p-1 text-muted-foreground hover:text-destructive rounded transition"
-                    aria-label="حذف پروفایل"
+                    aria-label={T("حذف پروفایل", "Delete profile")}
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
@@ -298,7 +301,7 @@ export function TaskFilterSheet({
             <Input
               value={profileName}
               onChange={(e) => setProfileName(e.target.value)}
-              placeholder="نام لیست هوشمند جدید..."
+              placeholder={T("نام لیست هوشمند جدید...", "New smart list name...")}
               className="h-8 text-xs bg-background"
             />
             <Button
@@ -309,7 +312,7 @@ export function TaskFilterSheet({
               className="h-8 gap-1 shrink-0 text-xs"
             >
               <Save className="w-3.5 h-3.5" />
-              <span>ذخیره این فیلتر</span>
+              <span>{T("ذخیره این فیلتر", "Save this filter")}</span>
             </Button>
           </div>
         </section>
@@ -319,7 +322,7 @@ export function TaskFilterSheet({
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
               <FolderIcon className="w-3.5 h-3.5 text-primary" />
-              <span>فولدرها (یک یا چند فولدر)</span>
+              <span>{T("فولدرها (یک یا چند فولدر)", "Folders (one or more)")}</span>
             </span>
             {(filters.folder_ids?.length || 0) > 0 && (
               <button
@@ -327,7 +330,7 @@ export function TaskFilterSheet({
                 onClick={() => onChange({ ...filters, folder_ids: [] })}
                 className="text-[11px] text-muted-foreground hover:text-primary transition"
               >
-                پاک کردن انتخاب‌ها
+                {T("پاک کردن انتخاب‌ها", "Clear selections")}
               </button>
             )}
           </div>
@@ -341,7 +344,7 @@ export function TaskFilterSheet({
                   : "bg-card border-border hover:bg-muted text-foreground"
               }`}
             >
-              📥 بدون فولدر (اینباکس)
+              {T("📥 بدون فولدر (اینباکس)", "📥 No folder (Inbox)")}
             </button>
             {folders.map((f) => {
               const active = filters.folder_ids?.includes(f.id);
@@ -373,7 +376,7 @@ export function TaskFilterSheet({
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
                 <Target className="w-3.5 h-3.5 text-rose-500" />
-                <span>اهداف کانبان (یک یا چند هدف)</span>
+                <span>{T("اهداف کانبان (یک یا چند هدف)", "Kanban goals (one or more)")}</span>
               </span>
               {(filters.goal_ids?.length || 0) > 0 && (
                 <button
@@ -381,7 +384,7 @@ export function TaskFilterSheet({
                   onClick={() => onChange({ ...filters, goal_ids: [] })}
                   className="text-[11px] text-muted-foreground hover:text-primary transition"
                 >
-                  پاک کردن انتخاب‌ها
+                  {T("پاک کردن انتخاب‌ها", "Clear selections")}
                 </button>
               )}
             </div>
@@ -395,7 +398,7 @@ export function TaskFilterSheet({
                     : "bg-card border-border hover:bg-muted text-foreground"
                 }`}
               >
-                🎯 تمام کارهای دارای هدف
+                {T("🎯 تمام کارهای دارای هدف", "🎯 All tasks with a goal")}
               </button>
               <button
                 type="button"
@@ -406,7 +409,7 @@ export function TaskFilterSheet({
                     : "bg-card border-border hover:bg-muted text-foreground"
                 }`}
               >
-                ⚪ بدون هدف
+                {T("⚪ بدون هدف", "⚪ No goal")}
               </button>
               {goals.map((g) => {
                 const active = filters.goal_ids?.includes(g.id);
@@ -436,7 +439,7 @@ export function TaskFilterSheet({
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
                 <TagIcon className="w-3.5 h-3.5 text-amber-500" />
-                <span>تگ‌ها (یک یا چند تگ)</span>
+                <span>{T("تگ‌ها (یک یا چند تگ)", "Tags (one or more)")}</span>
               </span>
               {(filters.tag_ids?.length || 0) > 0 && (
                 <button
@@ -444,7 +447,7 @@ export function TaskFilterSheet({
                   onClick={() => onChange({ ...filters, tag_ids: [] })}
                   className="text-[11px] text-muted-foreground hover:text-primary transition"
                 >
-                  پاک کردن انتخاب‌ها
+                  {T("پاک کردن انتخاب‌ها", "Clear selections")}
                 </button>
               )}
             </div>
@@ -458,7 +461,7 @@ export function TaskFilterSheet({
                     : "bg-card border-border hover:bg-muted text-foreground"
                 }`}
               >
-                ⚪ بدون تگ
+                {T("⚪ بدون تگ", "⚪ No tag")}
               </button>
               {tags.map((t) => {
                 const active = filters.tag_ids?.includes(t.id);
@@ -490,7 +493,7 @@ export function TaskFilterSheet({
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
               <Calendar className="w-3.5 h-3.5 text-blue-500" />
-              <span>بازه‌های زمانی و تایم‌باکت‌ها (Time Buckets)</span>
+              <span>{T("بازه‌های زمانی و تایم‌باکت‌ها (Time Buckets)", "Time ranges & buckets (Time Buckets)")}</span>
             </span>
             {(filters.time_horizons?.length || 0) > 0 && (
               <button
@@ -498,7 +501,7 @@ export function TaskFilterSheet({
                 onClick={() => onChange({ ...filters, time_horizons: [] })}
                 className="text-[11px] text-muted-foreground hover:text-primary transition"
               >
-                پاک کردن
+                {T("پاک کردن", "Clear")}
               </button>
             )}
           </div>
@@ -517,7 +520,7 @@ export function TaskFilterSheet({
                   }`}
                 >
                   <span>{opt.icon}</span>
-                  <span>{opt.fa}</span>
+                  <span>{isEn ? opt.en : opt.fa}</span>
                 </button>
               );
             })}
@@ -529,7 +532,7 @@ export function TaskFilterSheet({
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
               <Clock className="w-3.5 h-3.5 text-indigo-500" />
-              <span>محدودهٔ تاریخ (Date windows)</span>
+              <span>{T("محدودهٔ تاریخ (Date windows)", "Date range (Date windows)")}</span>
             </span>
             {(filters.due_windows?.length || 0) > 0 && (
               <button
@@ -537,7 +540,7 @@ export function TaskFilterSheet({
                 onClick={() => onChange({ ...filters, due_windows: [] })}
                 className="text-[11px] text-muted-foreground hover:text-primary transition"
               >
-                پاک کردن
+                {T("پاک کردن", "Clear")}
               </button>
             )}
           </div>
@@ -556,7 +559,7 @@ export function TaskFilterSheet({
                   }`}
                 >
                   <span>{opt.icon}</span>
-                  <span>{opt.fa}</span>
+                  <span>{isEn ? opt.en : opt.fa}</span>
                 </button>
               );
             })}
@@ -566,25 +569,25 @@ export function TaskFilterSheet({
         {/* 7. Priorities */}
         <section className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-foreground">فیلتر اولویت و فوریت</span>
+            <span className="text-xs font-semibold text-foreground">{T("فیلتر اولویت و فوریت", "Priority & urgency filter")}</span>
             {(filters.priorities?.length || 0) > 0 && (
               <button
                 type="button"
                 onClick={() => onChange({ ...filters, priorities: [] })}
                 className="text-[11px] text-muted-foreground hover:text-primary transition"
               >
-                پاک کردن
+                {T("پاک کردن", "Clear")}
               </button>
             )}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {[
-              ["urgent", "🔥 فوری (Urgent)"],
-              ["high", "🔴 بالا (High)"],
-              ["medium", "🟡 متوسط (Medium)"],
-              ["low", "🔵 پایین (Low)"],
-              ["none", "⚪ بدون اولویت (None)"],
-            ].map(([v, l]) => {
+              ["urgent", "🔥 فوری (Urgent)", "🔥 Urgent"],
+              ["high", "🔴 بالا (High)", "🔴 High"],
+              ["medium", "🟡 متوسط (Medium)", "🟡 Medium"],
+              ["low", "🔵 پایین (Low)", "🔵 Low"],
+              ["none", "⚪ بدون اولویت (None)", "⚪ No priority"],
+            ].map(([v, fa, en]) => {
               const active = filters.priorities?.includes(v);
               return (
                 <button
@@ -597,7 +600,7 @@ export function TaskFilterSheet({
                       : "bg-card border-border hover:bg-muted text-foreground"
                   }`}
                 >
-                  {l}
+                  {isEn ? en : fa}
                 </button>
               );
             })}
@@ -607,16 +610,16 @@ export function TaskFilterSheet({
         {/* 8. Two-Level Sort */}
         <section className="space-y-3 border border-border/70 rounded-xl p-3 bg-muted/30">
           <div className="text-xs font-semibold text-foreground">
-            مرتب‌سازی دوگانه هوشمند (Sort Levels)
+            {T("مرتب‌سازی دوگانه هوشمند (Sort Levels)", "Smart dual sort (Sort Levels)")}
           </div>
           <SortLevelPicker
-            label="اولویت اول مرتب‌سازی"
+            label={T("اولویت اول مرتب‌سازی", "Primary sort")}
             value={primary}
             onChange={(v) => onChange({ ...filters, sort_primary: v })}
             excludeKey={secondary.key}
           />
           <SortLevelPicker
-            label="اولویت دوم (در صورت تساوی اولویت اول)"
+            label={T("اولویت دوم (در صورت تساوی اولویت اول)", "Secondary sort (when the primary ties)")}
             value={secondary}
             onChange={(v) => onChange({ ...filters, sort_secondary: v })}
             excludeKey={primary.key}
@@ -625,7 +628,7 @@ export function TaskFilterSheet({
 
         {/* 9. Show Completed Tasks */}
         <section className="flex items-center justify-between p-2.5 rounded-xl bg-card border border-border/60">
-          <span className="text-xs font-medium text-foreground">نمایش تسک‌های تکمیل‌شده</span>
+          <span className="text-xs font-medium text-foreground">{T("نمایش تسک‌های تکمیل‌شده", "Show completed tasks")}</span>
           <button
             type="button"
             onClick={() => onChange({ ...filters, show_completed: !filters.show_completed })}
@@ -635,7 +638,7 @@ export function TaskFilterSheet({
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
             }`}
           >
-            {filters.show_completed ? "نمایش روشن" : "مخفی (فقط باز)"}
+            {filters.show_completed ? T("نمایش روشن", "Shown") : T("مخفی (فقط باز)", "Hidden (open only)")}
           </button>
         </section>
 
@@ -648,10 +651,10 @@ export function TaskFilterSheet({
             className="flex-1 gap-1 text-xs"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>ریست به پیش‌فرض</span>
+            <span>{T("ریست به پیش‌فرض", "Reset to default")}</span>
           </Button>
           <Button size="sm" onClick={() => setOpen(false)} className="flex-1 text-xs">
-            اعمال تنظیمات
+            {T("اعمال تنظیمات", "Apply settings")}
           </Button>
         </div>
       </SheetContent>

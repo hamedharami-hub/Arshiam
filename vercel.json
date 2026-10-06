@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "yarn install && cd frontend && yarn install",
-  "buildCommand": "cd frontend && yarn typecheck && yarn vite build",
+  "installCommand": "npm ci && cd frontend && npm ci",
+  "buildCommand": "cd frontend && npm run typecheck && npx vite build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
     { "source": "/api/arsh/modules/me", "destination": "/api/arsh/modules?path=me" },

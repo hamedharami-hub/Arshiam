@@ -176,6 +176,26 @@ describe("TaskActionSheet Responsive Behavior", () => {
     expect(screen.getByText(/تکثیر|Duplicate/i)).toBeInTheDocument();
   });
 
+  it("keeps one edit entry instead of three rows that all open the same screen", () => {
+    localStorage.setItem("arshnaz_nav_mode", "windows");
+    const onEdit = vi.fn();
+    render(<TaskActionSheet {...defaultProps} onEdit={onEdit} />);
+
+    expect(screen.queryByText(/ضمیمه|Attachment/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^تگ$|^Tags$/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText(/ویرایش و جزئیات|Edit & details/i));
+    expect(onEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a single Waiting & prerequisites entry, in the More view", () => {
+    localStorage.setItem("arshnaz_nav_mode", "windows");
+    render(<TaskActionSheet {...defaultProps} />);
+
+    expect(screen.queryByText(/انتظار و پیش‌نیازها|Waiting & prerequisites/i)).toBeNull();
+    fireEvent.click(screen.getByText(/بیشتر|More/i));
+    expect(screen.getAllByText(/انتظار و پیش‌نیازها|Waiting & prerequisites/i)).toHaveLength(1);
+  });
+
   it("requires explicit confirmation for a future next-task choice without changing its schedule", async () => {
     localStorage.setItem("arshnaz_nav_mode", "windows");
     const futureTask = { ...dummyTask, schedule_v: 2, work_date: "2099-10-08" };

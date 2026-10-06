@@ -72,3 +72,39 @@ describe("Task folder selection (inline panel)", () => {
     expect(input.setPanel).toHaveBeenCalledWith(null);
   });
 });
+
+describe("meta strip overflow affordance", () => {
+  const rect = (left: number, right: number) => ({
+    left, right, top: 0, bottom: 36, width: right - left, height: 36, x: left, y: 0, toJSON: () => ({}),
+  }) as DOMRect;
+
+  it("fades only the edge that hides a tile and keeps the tiles touch-sized", () => {
+    render(<TaskMetaBar {...props(true, null)} />);
+    const toolbar = screen.getByRole("toolbar");
+    expect(toolbar.className).not.toContain("meta-strip-fade");
+
+    // jsdom has no layout: hand the strip and its tiles the geometry a narrow screen produces.
+    const tiles = Array.from(toolbar.children) as HTMLElement[];
+    expect(tiles.length).toBeGreaterThan(1);
+    toolbar.getBoundingClientRect = () => rect(0, 300);
+    tiles[0].getBoundingClientRect = () => rect(0, 90);
+    tiles[tiles.length - 1].getBoundingClientRect = () => rect(280, 360);
+    fireEvent.scroll(toolbar);
+
+    expect(toolbar.className).toContain("meta-strip-fade-right");
+    expect(toolbar.className).not.toContain("meta-strip-fade-left");
+    expect(screen.getByTestId("task-meta-pin")).toHaveClass("h-9");
+  });
+
+  it("fades both edges when tiles are hidden on both sides", () => {
+    render(<TaskMetaBar {...props(true, null)} />);
+    const toolbar = screen.getByRole("toolbar");
+    const tiles = Array.from(toolbar.children) as HTMLElement[];
+    toolbar.getBoundingClientRect = () => rect(0, 300);
+    tiles[0].getBoundingClientRect = () => rect(280, 360);
+    tiles[tiles.length - 1].getBoundingClientRect = () => rect(-60, 40);
+    fireEvent.scroll(toolbar);
+
+    expect(toolbar.className).toContain("meta-strip-fade-both");
+  });
+});
