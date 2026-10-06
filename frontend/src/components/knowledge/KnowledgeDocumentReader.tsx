@@ -2,7 +2,7 @@ import { LearningNotebook, type LearningNotebookHandle } from "./LearningNoteboo
 import { captureLearningAnchor, learningVersion, type LearningAnchor } from "@/lib/learningWorkspace";
 import { LearningCardEditor } from "./LearningCardEditor";
 import { KnowledgeAttachments } from "./KnowledgeAttachments";
-import { KnowledgeReaderHeader, type PharmacyHeaderLinks } from "./KnowledgeReaderHeader";
+import { KnowledgeReaderHeader } from "./KnowledgeReaderHeader";
 import { KnowledgeSectionContent } from "./KnowledgeSectionContent";
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
@@ -84,7 +84,6 @@ interface KnowledgeDocumentReaderProps {
   onToggleSidebar?: () => void;
   studyMode?: boolean;
   onToggleStudyMode?: () => void;
-  onOpenReview?: () => void;
   onDocumentUpdated?: (doc: KnowledgeDocument) => void;
   onScheduleStudy?: (doc: KnowledgeDocument) => void;
   /** @deprecated */
@@ -92,11 +91,7 @@ interface KnowledgeDocumentReaderProps {
   /** @deprecated */
   onAddToTask?: (text: string) => void;
   onAiAction?: (text: string) => void;
-  onImportPharmacy?: (force?: boolean) => Promise<void>;
-  isPharmacyImported?: boolean;
-  isImportingPharmacy?: boolean;
   scrollPositionsMap?: Map<string, number>;
-  pharmacyLinks?: PharmacyHeaderLinks;
 }
 
 export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = ({
@@ -113,17 +108,12 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   onToggleSidebar,
   studyMode = false,
   onToggleStudyMode,
-  onOpenReview,
   onDocumentUpdated: notifyDocumentUpdated,
   onScheduleStudy,
   onAddToNote,
   onAddToTask,
   onAiAction,
-  onImportPharmacy,
-  isPharmacyImported = true,
-  isImportingPharmacy = false,
   scrollPositionsMap,
-  pharmacyLinks,
 }) => {
   const { isEn } = useBilingual();
   const [localDocument, setLocalDocument] = useState<KnowledgeDocument | null>(null);
@@ -415,42 +405,6 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
             : "سندی را از درخت فولدرها انتخاب کنید یا صفحهٔ HTML جدیدی بیفزایید تا متن آن در سبک بومی برنامه نمایش داده شود."}
         </p>
 
-        {!isPharmacyImported && onImportPharmacy && (
-          <div className="mt-6 p-5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-primary/10 border border-emerald-500/25 max-w-md text-center space-y-3 shadow-xs animate-in fade-in">
-            <div className="text-2xl">💊</div>
-            <div className="text-xs font-bold text-foreground">
-              {isEn
-                ? "Pharmacy Knowledge & Clinical Modules"
-                : "دایره‌المعارف و آموزش جامع دارویی"}
-            </div>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              {isEn
-                ? "Add the missing pharmacy reference documents and study cards without replacing your work."
-                : "اسناد و کارت‌های داروییِ جاافتاده را بدون بازنویسی کارهای فعلی اضافه کن."}
-            </p>
-            <button
-              type="button"
-              disabled={isImportingPharmacy}
-              onClick={() => onImportPharmacy(false)}
-              className="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold shadow-xs transition disabled:opacity-60 inline-flex items-center gap-2 cursor-pointer"
-            >
-              {isImportingPharmacy ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Sparkles className="w-3.5 h-3.5" />
-              )}
-              <span>
-                {isImportingPharmacy
-                  ? isEn
-                    ? "Importing 97 Lessons..."
-                    : "در حال بارگذاری ۹۷ درس..."
-                  : isEn
-                  ? "Install Pharmacy Knowledge"
-                  : "واردسازی بسته جامع دارویی"}
-              </span>
-            </button>
-          </div>
-        )}
       </div>
     );
   }
@@ -487,7 +441,6 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
         onSchedule={onScheduleStudy ? () => onScheduleStudy(document) : undefined}
         onEdit={() => onEdit(document)}
         onDelete={() => onDelete(document.id)}
-        pharmacyLinks={pharmacyLinks}
       />
 
       {headerCollapsed && !studyMode && (
@@ -847,7 +800,6 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
             documentTitle={document?.title}
             folderId={document?.folder_id}
             userId={userId}
-            onOpenReview={onOpenReview}
           />
         </React.Suspense>
       )}

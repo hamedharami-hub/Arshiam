@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
+import { clearRetiredModuleStorage } from "./retiredModuleStorage";
 
-export type ModuleId = "pharmacy" | "study" | "mind";
+export type ModuleId = "study" | "mind";
 
 const arshFetch = async <T,>(path: string, init?: RequestInit): Promise<T> => (await import("@/lib/arshApi")).arshFetch<T>(path, init);
 
@@ -8,16 +9,10 @@ type ModuleDef = { titleFa: string; titleEn: string; descFa: string; descEn: str
 
 /** Everything that belongs to a hidden module. A path owned by several modules is visible if any is installed. */
 export const APP_MODULES: Record<ModuleId, ModuleDef> = {
-  pharmacy: {
-    titleFa: "فارماسی", titleEn: "Pharmacy",
-    descFa: "خانهٔ فارماسی، محصولات، سناریوها، FRED، CYP و مرور فارماسی", descEn: "Pharmacy home, products, scenarios, FRED, CYP and pharmacy review",
-    paths: ["/app/pharmacy", "/app/pharmacy-products", "/app/pharmacy-scenario-practice", "/app/pharmacy-fred-practice", "/app/pharmacy-cyp", "/app/review", "/app/continue"],
-    prefetch: () => Promise.all([import("@/pages/PharmacyHubView"), import("@/pages/PharmacyProductsView"), import("@/pages/ReviewView")]),
-  },
   study: {
     titleFa: "استودیوی مطالعه", titleEn: "Study studio",
-    descFa: "کتابخانهٔ دانش، مطالعهٔ تعاملی، مایندمپ و مرور درس‌ها", descEn: "Knowledge library, interactive study, mind map and lesson review",
-    paths: ["/app/knowledge", "/app/interactive-study", "/app/review", "/app/continue"],
+    descFa: "کتابخانهٔ دانش، مطالعهٔ تعاملی، مایندمپ", descEn: "Knowledge library, interactive study, mind map",
+    paths: ["/app/knowledge", "/app/interactive-study", "/app/knowledge-mindmap", "/app/continue"],
     prefetch: () => Promise.all([import("@/pages/KnowledgeBaseView"), import("@/pages/InteractiveStudyView")]),
   },
   mind: {
@@ -62,6 +57,8 @@ function pathOwners(path: string): ModuleId[] {
 }
 
 export function isPathAllowed(path: string, s: ModulesState = state): boolean {
+  const clean = path.split(/[?#]/)[0];
+  if (/^\/app\/(?:pharmacy(?:-[^/]*)?|review)(?:\/|$)/.test(clean)) return false;
   const owners = pathOwners(path);
   return owners.length === 0 || owners.some((id) => s.installed.includes(id));
 }
@@ -80,10 +77,11 @@ function fromServer(r: ServerState): Partial<ModulesState> {
 /** Called on sign-in / sign-out. Uses the per-account cache first so hidden sections never flash. */
 export async function syncModulesForUser(uid: string | null): Promise<void> {
   if (!uid) { cacheKey = null; emit(EMPTY); return; }
+  clearRetiredModuleStorage(uid);
   cacheKey = `arshnaz:modules:${uid}`;
   let cached: ModulesState | null = null;
   try { cached = JSON.parse(localStorage.getItem(cacheKey) || "null"); } catch { cached = null; }
-  emit(cached?.ready ? cached : EMPTY);
+  emit(cached?.ready ? { ...cached, ...fromServer({ unlocked: cached.unlocked || [], installed: cached.installed || [], is_admin: cached.isAdmin, is_owner: cached.isOwner }) } : EMPTY);
   try {
     const r = await arshFetch<ServerState>("/api/arsh/modules/me");
     if (cacheKey === `arshnaz:modules:${uid}`) setModulesState(fromServer(r));

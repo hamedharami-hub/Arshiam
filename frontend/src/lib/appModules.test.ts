@@ -7,7 +7,7 @@ afterEach(() => setModulesState({ unlocked: MODULE_IDS, installed: MODULE_IDS })
 describe("app modules gating", () => {
   it("hides every route of a module that is not installed", () => {
     setModulesState({ unlocked: [], installed: [] });
-    for (const path of ["/app/pharmacy", "/app/pharmacy-cyp", "/app/review/pharmacy", "/app/knowledge", "/app/mind", "/app/checkin?x=1", "/app/screener/phq9"]) {
+    for (const path of ["/app/pharmacy", "/app/pharmacy-cyp", "/app/knowledge-mindmap", "/app/knowledge", "/app/mind", "/app/checkin?x=1", "/app/screener/phq9"]) {
       expect(isPathAllowed(path)).toBe(false);
     }
     for (const path of ["/app/today", "/app/crisis", "/app/settings", "/app/self", "/app/pharmacyx"]) {
@@ -15,10 +15,11 @@ describe("app modules gating", () => {
     }
   });
 
-  it("shows a path owned by several modules when any of them is installed", () => {
+  it("enables Knowledge only for its installed module and rejects retired routes", () => {
     setModulesState({ unlocked: ["study"], installed: ["study"] });
-    expect(isPathAllowed("/app/review/pharmacy")).toBe(true);
+    expect(isPathAllowed("/app/knowledge-mindmap")).toBe(true);
     expect(isPathAllowed("/app/pharmacy")).toBe(false);
+    expect(isPathAllowed("/app/review")).toBe(false);
     expect(isPathAllowed("/app/mind")).toBe(false);
   });
 

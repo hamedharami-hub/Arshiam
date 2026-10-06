@@ -2,12 +2,12 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
-// Only nested detail routes (e.g. /app/self/test/x, /app/review/pharmacy) get a back button;
+// Only nested detail routes (e.g. /app/self/test/x) get a back button;
 // top-level destinations are reached from the sidebar / bottom bar.
 function needsBack(pathname: string): boolean {
   const parts = pathname.split("/").filter(Boolean);
   if (parts[0] !== "app" || parts.length < 3) return false;
-  return !["folder", "tag", "review"].includes(parts[1]);
+  return !["folder", "tag"].includes(parts[1]);
 }
 
 export default function HeaderBackButton() {

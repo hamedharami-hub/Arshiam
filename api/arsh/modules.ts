@@ -2,7 +2,7 @@ import { createHmac, randomBytes } from "node:crypto";
 import { adminDb, verifyFirebaseSession } from "../_lib/assistantAccess.js";
 import { extractBearerToken } from "../_lib/auth.js";
 
-const MODULE_IDS = ["pharmacy", "study", "mind"] as const;
+const MODULE_IDS = ["study", "mind"] as const;
 type ModuleId = typeof MODULE_IDS[number];
 type Entry = { code_id: string; installed: boolean; unlocked_at: string; installed_at: string };
 type ModuleDocument = { modules?: Partial<Record<ModuleId, Entry>> };

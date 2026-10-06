@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   getSidebarQuickLinks,
+  normalizeSidebarQuickLinks,
   SIDEBAR_QUICK_LINKS_KEY,
   setSidebarQuickLinks,
   toggleSidebarQuickLink,
@@ -86,13 +87,7 @@ describe("sidebar quick links", () => {
     expect(getSidebarQuickLinks()).toContain("__tags");
   });
 
-  it("offers the Pharmacy product index as an optional, non-default quick link", () => {
-    const urls = ["/app/pharmacy-products", "/app/pharmacy-scenario-practice"];
-    for (const url of urls) {
-      expect(SIDEBAR_QUICK_LINK_OPTIONS.some((option) => option.url === url)).toBe(true);
-      expect(DEFAULT_SIDEBAR_QUICK_LINKS).not.toContain(url);
-      toggleSidebarQuickLink(url, true);
-    }
-    expect(getSidebarQuickLinks()).toEqual(expect.arrayContaining(urls));
+  it("removes retired module quick links from stored preferences", () => {
+    expect(normalizeSidebarQuickLinks(["/app/pharmacy-products", "/app/pharmacy-scenario-practice", "/app/review", "/app/notes"])).toEqual(["/app/today", "/app/notes"]);
   });
 });

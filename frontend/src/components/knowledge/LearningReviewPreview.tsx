@@ -1,7 +1,6 @@
 import { learningQuestionVersion } from "@/lib/learningWorkspace";
 import { getPendingOps } from "@/lib/offlineQueue";
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useBilingual } from '@/hooks/useBilingual';
 import { useLearningDraft } from '@/hooks/useLearningDraft';
 import { Button } from '@/components/ui/button';
@@ -37,7 +36,7 @@ export function LearningReviewPreview({ document, question, userId, onUpdated, o
       expectedRevision.current = linked.updated_at; setLinkedId(receipt.card.id);
       onUpdated?.(result.document);
       if (draft.isCurrent(snapshot)) draft.accept(snapshot, linked.updated_at); else draft.rebaseline(linked.updated_at);
-      setMessage(receipt.persistence === 'queued' || result.persistence === 'queued' ? T('کارت و ارتباط محفوظ‌اند؛ وضعیت همگام‌سازی را در مرور بررسی کنید.', 'Card and link retained. Check sync status in Review.') : T('یک کارت مشترک برای لایتنر و نقشهٔ ذهنی ذخیره شد.', 'One shared card saved for Leitner and Mind Map.'));
+      setMessage(receipt.persistence === 'queued' || result.persistence === 'queued' ? T('کارت و ارتباط محفوظ‌اند؛ وضعیت همگام‌سازی را در برنامه بررسی کنید.', 'Card and link retained. Check sync status in the app.') : T('یک کارت مشترک برای لایتنر و نقشهٔ ذهنی ذخیره شد.', 'One shared card saved for Leitner and Mind Map.'));
     } catch (error) { if (alive.current) setMessage(error instanceof Error ? error.message : T('ذخیره نشد؛ دوباره تلاش کنید.', 'Not saved. Retry.')); }
     finally { if (alive.current) setBusy(false); }
   };
@@ -46,6 +45,6 @@ export function LearningReviewPreview({ document, question, userId, onUpdated, o
     {missing && <Button variant="outline" disabled={busy} onClick={() => { setLinkedId(undefined); setMissing(false); setMessage(T('پیش‌نمایش را بررسی و برای ساخت مجدد تأیید کن.', 'Review the preview and confirm recreation.')); }}>{T('آماده‌سازی ساخت مجدد کارت حذف‌شده', 'Prepare to recreate missing card')}</Button>}
     <div className="flex gap-2"><Button size="sm" variant="ghost" disabled={!draft.canUndo || busy} onClick={draft.undo}>{T('بازگردانی', 'Undo')}</Button><Button size="sm" variant="ghost" disabled={!draft.canRedo || busy} onClick={draft.redo}>{T('انجام دوباره', 'Redo')}</Button></div>
     <fieldset disabled={!draft.ready || busy || Boolean(draft.conflict)} className="space-y-3"><label className="block text-xs">{T('روی کارت', 'Front')}<textarea className="w-full rounded-md border bg-background p-2 text-sm" value={draft.value.front} onChange={event => draft.change(previous => ({ ...previous, front: event.target.value }), true)} /></label><label className="block text-xs">{T('پشت کارت', 'Back')}<textarea className="w-full rounded-md border bg-background p-2 text-sm" value={draft.value.back} onChange={event => draft.change(previous => ({ ...previous, back: event.target.value }), true)} /></label><Button onClick={() => void confirm()}>{linkedId ? T('تأیید ویرایش کارت مشترک', 'Confirm shared card edit') : T('تأیید افزودن به مرور', 'Confirm add to review')}</Button></fieldset>
-    <p role="status" className="text-xs text-muted-foreground">{message || (draft.status === 'saved' ? T('پیش‌نویس در دستگاه محفوظ است.', 'Device draft retained.') : T('پیش‌نویس هنوز در دستگاه تأیید نشده.', 'Device draft not yet confirmed.'))}</p><Button variant="ghost" asChild><Link to={`/app/review?docId=${encodeURIComponent(document.id)}`}>{T('بازکردن مرور', 'Open review')}</Link></Button>
+    <p role="status" className="text-xs text-muted-foreground">{message || (draft.status === 'saved' ? T('پیش‌نویس در دستگاه محفوظ است.', 'Device draft retained.') : T('پیش‌نویس هنوز در دستگاه تأیید نشده.', 'Device draft not yet confirmed.'))}</p>
   </DialogContent></Dialog>;
 }

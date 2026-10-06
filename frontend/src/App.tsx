@@ -100,14 +100,8 @@ const ArticleRewriteView = lazy(() => import("./pages/ArticleRewriteView"));
 const WidgetsView = lazy(() => import("./pages/WidgetsView"));
 const ContactsView = lazy(() => import("./pages/ContactsView"));
 const KnowledgeBaseView = lazy(() => import("./pages/KnowledgeBaseView"));
-const PharmacyProductsView = lazy(() => import("./pages/PharmacyProductsView"));
-const PharmacyHubView = lazy(() => import("./pages/PharmacyHubView"));
-const PharmacyScenarioPracticeView = lazy(() => import("./pages/PharmacyScenarioPracticeView"));
-const PharmacyFredPracticeView = lazy(() => import("./pages/PharmacyFredPracticeView"));
-const PharmacyCypView = lazy(() => import("./pages/PharmacyCypView"));
 const InteractiveStudyView = lazy(() => import("./pages/InteractiveStudyView"));
-const ReviewView = lazy(() => import("./pages/ReviewView"));
-const ReviewRedirect = lazy(() => import("./pages/ReviewRedirect"));
+const KnowledgeMapView = lazy(() => import("./pages/KnowledgeMapView"));
 const ContinueLearningView = lazy(() => import("./pages/ContinueLearningView"));
 
 const queryClient = new QueryClient({
@@ -307,7 +301,6 @@ const App = () => {
                     <Route path="/contacts" element={<Navigate to="/app/contacts" replace />} />
                     <Route path="/knowledge" element={<Navigate to="/app/knowledge" replace />} />
                     <Route path="/interactive-study" element={<Navigate to="/app/interactive-study" replace />} />
-                    <Route path="/review" element={<Navigate to="/app/review" replace />} />
                     <Route path="/settings" element={<Navigate to="/app/settings" replace />} />
                     <Route path="/life-architect" element={<Navigate to="/app/life-architect" replace />} />
                     <Route path="/new-task" element={<Navigate to="/app/new/task" replace />} />
@@ -344,14 +337,8 @@ const App = () => {
                       <Route path="calendar" element={<CalendarView />} />
                       <Route path="contacts" element={<ContactsView />} />
                       <Route path="knowledge" element={<KnowledgeBaseView />} />
-                      <Route path="pharmacy" element={<PharmacyHubView />} />
-                      <Route path="pharmacy-products" element={<PharmacyProductsView />} />
-                      <Route path="pharmacy-scenario-practice" element={<PharmacyScenarioPracticeView />} />
-                      <Route path="pharmacy-fred-practice" element={<PharmacyFredPracticeView />} />
-                      <Route path="pharmacy-cyp" element={<PharmacyCypView />} />
+                      <Route path="knowledge-mindmap" element={<KnowledgeMapView />} />
                       <Route path="interactive-study" element={<InteractiveStudyView />} />
-                      <Route path="review" element={<ReviewView />} />
-                      <Route path="review/:folder" element={<ReviewRedirect />} />
                       <Route path="continue" element={<ContinueLearningView />} />
                       <Route path="stats" element={<StatsView />} />
                       <Route path="kanban" element={<KanbanView />} />

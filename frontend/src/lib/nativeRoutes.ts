@@ -19,16 +19,6 @@ export function nativeRoute(raw: string, currentUid?: string | null): string | n
       const id = url.searchParams.get("taskId");
       return "/app/today" + (id ? "?completeTaskId=" + encodeURIComponent(id) : "");
     }
-    if (route === "review") {
-      const tab = url.searchParams.get("tab");
-      if (tab !== "leitner") return null;
-      const params = new URLSearchParams({ tab });
-      for (const key of ["studyDocId", "studyFolderId", "studyTaskId"] as const) {
-        const value = url.searchParams.get(key);
-        if (value) params.set(key, value);
-      }
-      return "/app/review?" + params.toString();
-    }
     if (route === "sos" || route === "crisis") return "/app/crisis";
     if (route === "google-connected") return "/app/settings?tab=tasks&google=" + encodeURIComponent(url.searchParams.get("result") || "connected");
     return ["today","tomorrow","next7","inbox","notes","checkin","garden","pomodoro","settings","mind","crisis","thoughts","abc","breathing","calm","worry","life-architect","widgets","calendar","kanban","self","stats"].includes(route) ? "/app/" + route : null;

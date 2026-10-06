@@ -1,4 +1,4 @@
-"""Hidden feature modules (e.g. Pharmacy, Study, Mind) unlocked per account with an access code.
+"""Hidden feature modules (e.g. Study, Mind) unlocked per account with an access code.
 
 Codes are stored only as HMAC hashes. A code can unlock all modules ("*") or a list, with optional
 max uses / expiry, and can be revoked (optionally withdrawing what it unlocked).
@@ -20,7 +20,7 @@ from db import db
 
 router = APIRouter(prefix="/modules", tags=["modules"])
 
-MODULE_IDS = ["pharmacy", "study", "mind"]
+MODULE_IDS = ["study", "mind"]
 MAX_FAILED = 5
 FAIL_WINDOW = timedelta(minutes=15)
 _SECRET = os.environ["ARSH_SIGNING_SECRET"].encode()

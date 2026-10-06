@@ -1,9 +1,3 @@
-import PharmacyHubView from "@/pages/PharmacyHubView";
-import PharmacyProductsView from "@/pages/PharmacyProductsView";
-import PharmacyScenarioPracticeView from "@/pages/PharmacyScenarioPracticeView";
-import PharmacyFredPracticeView from "@/pages/PharmacyFredPracticeView";
-import PharmacyCypView from "@/pages/PharmacyCypView";
-import { cacheSet } from "@/lib/offlineQueue";
 import SleepView from "@/pages/SleepView";
 import { RichEditor } from "@/components/RichEditor";
 // Read-only fixture using the production reader, tree and task header components.
@@ -23,8 +17,6 @@ import "../index.css";
 
 const params = new URLSearchParams(location.search);
 const isEn = params.get("lang") === "en";
-const pharmacyViews: Record<string, React.ComponentType> = { pharmacy: PharmacyHubView, products: PharmacyProductsView, scenarios: PharmacyScenarioPracticeView, fred: PharmacyFredPracticeView, cyp: PharmacyCypView };
-const PharmacyPage = pharmacyViews[params.get("view") ?? ""];
 const isSleep = params.get("view") === "sleep";
 const isEditor = params.get("view") === "editor";
 const isSettings = params.get("view") === "settings";
@@ -52,33 +44,23 @@ function Fixture() {
       <div id="app-header-title" className="min-w-0 flex-1" />
       <div id="app-header-actions" className="shrink-0" />
     </header>
-    {!isSleep && !PharmacyPage && <HeaderTitlePortal title={isSettings ? T("تنظیمات", "Settings") : T("پایگاه دانش", "Knowledge")} />}
-    {PharmacyPage ? <div className="min-w-0 lg:ms-60" data-testid="pharmacy-qa"><PharmacyPage /></div> : isSleep ? <SleepView /> : isEditor ? <main className="p-3 max-w-5xl mx-auto"><RichEditor initialMarkdown="A note with **bold** and <u>underlined text</u>." showVoiceButton={false} onChange={(_html, markdown) => { document.body.dataset.savedMarkdown = markdown; }} /></main> : isSettings ? <main className="p-3 max-w-3xl mx-auto"><TaskListSortSettings /></main> : <>
+    {!isSleep && <HeaderTitlePortal title={isSettings ? T("تنظیمات", "Settings") : T("پایگاه دانش", "Knowledge")} />}
+    {isSleep ? <SleepView /> : isEditor ? <main className="p-3 max-w-5xl mx-auto"><RichEditor initialMarkdown="A note with **bold** and <u>underlined text</u>." showVoiceButton={false} onChange={(_html, markdown) => { document.body.dataset.savedMarkdown = markdown; }} /></main> : isSettings ? <main className="p-3 max-w-3xl mx-auto"><TaskListSortSettings /></main> : <>
     <div className="border-b px-3 py-1">
       <TaskDetailTopBar T={T} isEn={isEn} canEdit folderLabel={folders[0].name} hasFolder onFolder={noop} onGoal={noop} goalLabel={null} save={null} more={null} />
     </div>
     <div className="flex h-[calc(100dvh-6rem)] min-h-0 gap-3 p-2 md:p-4">
       <aside className="hidden lg:block w-64 shrink-0">
-        <KnowledgeSidebarTree tree={buildFolderTree(folders, [lesson])} allFolders={folders} documents={[lesson]} selectedDocId={lesson.id} selectedFolderId={null} onSelectDocument={noop} onSelectFolder={noop} onCreateFolder={async () => {}} onDeleteFolder={noop} onCreateDocument={noop} onDeleteDocument={noop} searchQuery="" onSearchChange={noop} isPharmacyImported />
+        <KnowledgeSidebarTree tree={buildFolderTree(folders, [lesson])} allFolders={folders} documents={[lesson]} selectedDocId={lesson.id} selectedFolderId={null} onSelectDocument={noop} onSelectFolder={noop} onCreateFolder={async () => {}} onDeleteFolder={noop} onCreateDocument={noop} onDeleteDocument={noop} searchQuery="" onSearchChange={noop} />
       </aside>
       <div className="flex min-h-0 min-w-0 flex-1">
-        <KnowledgeDocumentReader document={lesson} folder={folders[0]} allDocuments={[lesson]} userId="" onEdit={noop} onDelete={noop} isSidebarCollapsed onToggleSidebar={noop} isPharmacyImported />
+        <KnowledgeDocumentReader document={lesson} folder={folders[0]} allDocuments={[lesson]} userId="" onEdit={noop} onDelete={noop} isSidebarCollapsed onToggleSidebar={noop} />
       </div>
     </div>
     </>}
   </TooltipProvider></BrowserRouter>;
 }
 async function mount() {
-  if (PharmacyPage === PharmacyHubView) {
-    // Synthetic private cache; no account reads or writes are performed by this fixture.
-    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
-    await cacheSet("knowledge_folders:anonymous-kb-user", [
-      { ...folders[0], id: "folder-pharmacy-root", parent_id: null },
-      { ...folders[0], id: "qa-category", parent_id: "folder-pharmacy-root" },
-      { ...folders[0], id: "qa-subcategory", parent_id: "qa-category", name: T("زیرشاخهٔ آموزشی", "Learning subcategory") },
-    ]);
-    await cacheSet("knowledge_documents:anonymous-kb-user", [{ ...lesson, folder_id: "qa-subcategory" }]);
-  }
   createRoot(document.getElementById("root")!).render(<Fixture />);
 }
 void mount();

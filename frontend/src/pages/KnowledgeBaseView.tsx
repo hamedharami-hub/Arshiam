@@ -39,8 +39,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Link, useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
-import type { PharmacyImportStatus } from "@/lib/pharmacyImportService";
-import { PHARMACY_ROOT_FOLDER_ID } from "@/lib/pharmacyConstants";
 
 type KnowledgeDeleteTarget =
   | { type: "folder"; id: string; title: string }
@@ -71,9 +69,6 @@ export const KnowledgeBaseView: React.FC = () => {
     return Array.isArray(stack) ? stack.filter((id): id is string => typeof id === "string") : [];
   }, [locationState]);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const [hasPharmacy, setHasPharmacy] = useState<boolean>(true);
-  const [pharmacyImportStatus, setPharmacyImportStatus] = useState<PharmacyImportStatus | null>(null);
-  const [isImportingPharmacy, setIsImportingPharmacy] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -176,8 +171,6 @@ export const KnowledgeBaseView: React.FC = () => {
       setDocuments(dList);
       // Existing saved lessons are already available from the normal data load.
       // Do not download the multi-megabyte source seed just to render install status.
-      setHasPharmacy(fList.some((folder) => folder.id === PHARMACY_ROOT_FOLDER_ID));
-      setPharmacyImportStatus(null);
     } catch (e) {
       console.error("Error loading knowledge base data", e);
       if (request === loadRequestRef.current) setLoadError(true);
@@ -185,41 +178,6 @@ export const KnowledgeBaseView: React.FC = () => {
       if (request === loadRequestRef.current) setIsLoading(false);
     }
   }, [userId]);
-
-  const handleImportPharmacy = useCallback(async (_force = false) => {
-    setIsImportingPharmacy(true);
-    const toastId = toast.loading(
-      isEn
-        ? "Adding missing pharmacy knowledge without replacing existing work..."
-        : "در حال افزودن مطالب داروییِ جاافتاده، بدون بازنویسی اطلاعات قبلی..."
-    );
-    try {
-      const { importPharmacyKnowledge } = await import("@/lib/pharmacyImportService");
-      const result = await importPharmacyKnowledge(userId, { importCards: true });
-      await loadData();
-      setPharmacyImportStatus(result.status);
-      setHasPharmacy(
-        result.status.foldersMissing === 0 && result.status.docsMissing === 0 && result.status.docsUpgradeable === 0 &&
-        result.status.cardsMissing === 0 && result.status.cardsUpgradeable === 0,
-      );
-      setSelectedFolderId(PHARMACY_ROOT_FOLDER_ID);
-      toast.success(
-        isEn
-          ? `Verified: ${result.docsCount} new lessons, ${result.docsUpdated} safely refreshed lessons, ${result.cardsCount} new cards and ${result.cardsUpdated} safely refreshed cards.`
-          : `بررسی شد: ${result.docsCount} درس جدید، ${result.docsUpdated} درس بدون ویرایش شخصیِ به‌روزشده، ${result.cardsCount} کارت جدید و ${result.cardsUpdated} کارت بدون تغییر شخصیِ به‌روزشده.`,
-        { id: toastId }
-      );
-    } catch (err: any) {
-      console.error("Pharmacy import failed:", err);
-      await loadData();
-      toast.error(
-        err.message || (isEn ? "Failed to import pharmacy knowledge" : "خطا در بارگذاری دایره‌المعارف دارویی"),
-        { id: toastId }
-      );
-    } finally {
-      setIsImportingPharmacy(false);
-    }
-  }, [userId, isEn, loadData]);
 
   useEffect(() => {
     setFolders([]);
@@ -348,19 +306,6 @@ export const KnowledgeBaseView: React.FC = () => {
   const currentDoc = useMemo(() => {
     return documents.find((d) => d.id === selectedDocId) || null;
   }, [documents, selectedDocId]);
-
-  const pharmacyTopicId = useMemo(() => {
-    const parents = new Map(folders.map((folder) => [folder.id, folder.parent_id]));
-    let id: string | null | undefined = currentDoc?.folder_id;
-    let topic: string | null = null;
-    for (let hops = 0; id && hops < 50; hops += 1) {
-      const parent = parents.get(id);
-      if (parent === PHARMACY_ROOT_FOLDER_ID) topic = id;
-      if (id === PHARMACY_ROOT_FOLDER_ID) return topic;
-      id = parent;
-    }
-    return null;
-  }, [folders, currentDoc]);
 
   const linkedDocument = useMemo(() => {
     const linkedDocId = linkedDocumentStack[linkedDocumentStack.length - 1];
@@ -614,10 +559,6 @@ export const KnowledgeBaseView: React.FC = () => {
             selectedTag={selectedTag}
             onSelectTag={setSelectedTag}
             onToggleCollapse={toggleSidebar}
-            onImportPharmacy={handleImportPharmacy}
-            isPharmacyImported={hasPharmacy}
-            pharmacyImportStatus={pharmacyImportStatus}
-            isImportingPharmacy={isImportingPharmacy}
           />
         </div>
 
@@ -659,10 +600,6 @@ export const KnowledgeBaseView: React.FC = () => {
               onSearchChange={setSearchQuery}
               selectedTag={selectedTag}
               onSelectTag={setSelectedTag}
-              onImportPharmacy={handleImportPharmacy}
-              isPharmacyImported={hasPharmacy}
-              pharmacyImportStatus={pharmacyImportStatus}
-              isImportingPharmacy={isImportingPharmacy}
             />
           </SheetContent>
         </Sheet>
@@ -686,11 +623,6 @@ export const KnowledgeBaseView: React.FC = () => {
           ) : (<>
           <KnowledgeDocumentReader
             document={currentDoc}
-            pharmacyLinks={pharmacyTopicId ? {
-              hub: "/app/pharmacy",
-              practice: "/app/pharmacy-scenario-practice",
-              review: `/app/review?domain=pharmacy&topic=${encodeURIComponent(pharmacyTopicId)}`,
-            } : undefined}
             folder={currentFolder}
             allDocuments={documents}
             onSelectDocument={handleOpenLinkedDocument}
@@ -702,14 +634,10 @@ export const KnowledgeBaseView: React.FC = () => {
             onToggleSidebar={toggleSidebar}
             studyMode={studyMode}
             onToggleStudyMode={toggleStudyMode}
-            onOpenReview={() => navigate("/app/review")}
             onDocumentUpdated={(updated) => {
               setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
             }}
             onScheduleStudy={handleScheduleDocStudy}
-            onImportPharmacy={handleImportPharmacy}
-            isPharmacyImported={hasPharmacy}
-            isImportingPharmacy={isImportingPharmacy}
             scrollPositionsMap={documentScrollPositionsRef.current}
           />
           </>)}
@@ -742,14 +670,10 @@ export const KnowledgeBaseView: React.FC = () => {
                 onEdit={handleOpenEditDoc}
                 onDelete={handleDeleteDoc}
                 userId={userId}
-                onOpenReview={() => navigate("/app/review")}
                 onDocumentUpdated={(updated) => {
                   setDocuments((prev) => prev.map((doc) => doc.id === updated.id ? updated : doc));
                 }}
                 onScheduleStudy={handleScheduleDocStudy}
-                onImportPharmacy={handleImportPharmacy}
-                isPharmacyImported={hasPharmacy}
-                isImportingPharmacy={isImportingPharmacy}
                 scrollPositionsMap={documentScrollPositionsRef.current}
               />
             </>

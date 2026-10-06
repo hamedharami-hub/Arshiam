@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { KnowledgeDocument, KnowledgeFolder } from "@/lib/knowledgeTypes";
 import type { LeitnerCard } from "@/lib/leitnerTypes";
-import { getLeitnerCardsForFolderBranch } from "@/lib/leitnerOutline";
 import {
   getKnowledgeMindMapReviewableScopeIds,
   resolveKnowledgeMindMapReviewScope,
@@ -39,10 +38,7 @@ describe("knowledge mind-map Leitner scopes", () => {
     const scopes = getKnowledgeMindMapReviewableScopeIds(cards, folders, documents);
 
     expect([...scopes.documentIds]).toEqual(["doc-linked"]);
-    for (const folder of folders) {
-      const hasCards = getLeitnerCardsForFolderBranch(cards, folders, documents, folder.id).length > 0;
-      expect(scopes.folderIds.has(folder.id)).toBe(hasCards);
-    }
+    expect([...scopes.folderIds].sort()).toEqual(["child", "cycle-a", "cycle-b", "root"]);
     expect(scopes.folderIds.has("child")).toBe(true);
     expect(scopes.folderIds.has("cycle-a")).toBe(true);
     expect(scopes.folderIds.has("cycle-b")).toBe(true);

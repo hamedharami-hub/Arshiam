@@ -224,21 +224,18 @@ function resolveStudyTaskNavigation(task: Partial<Task>): StudyNavigation {
   }
 
   if (type === "leitner" || type === "leitner_folder") {
-    const targetQuery = !id || id === "all"
-      ? ""
-      : type === "leitner_folder"
-        ? `&studyFolderId=${encodeURIComponent(id)}`
-        : `&studyDocId=${encodeURIComponent(id)}`;
-    const taskQuery = task.id ? `&studyTaskId=${encodeURIComponent(task.id)}` : "";
+    // Old review tasks retain their Knowledge source after the review module is retired.
+    const targetQuery = !id || id === "all" ? "" : type === "leitner_folder"
+      ? `?folderId=${encodeURIComponent(id)}` : `?docId=${encodeURIComponent(id)}`;
     return {
       isStudyTask: true,
       isMindMap: false,
-      isKnowledge: false,
-      navUrl: `/app/review?tab=leitner${targetQuery}${taskQuery}`,
-      badgeLabelFa: "مرور لایتنر",
-      badgeLabelEn: "Leitner Review",
-      actionTextFa: "شروع مرور کارت‌های لایتنر",
-      actionTextEn: "Start Leitner Review",
+      isKnowledge: true,
+      navUrl: `/app/knowledge${targetQuery}`,
+      badgeLabelFa: "مطالعه",
+      badgeLabelEn: "Study",
+      actionTextFa: "باز کردن منبع مطالعه",
+      actionTextEn: "Open Study Source",
     };
   }
 
@@ -273,7 +270,7 @@ function resolveStudyTaskNavigation(task: Partial<Task>): StudyNavigation {
       isStudyTask: true,
       isMindMap: true,
       isKnowledge: false,
-      navUrl: `/app/review?tab=mindmap&folderId=${encodeURIComponent(id)}`,
+      navUrl: `/app/knowledge-mindmap?folderId=${encodeURIComponent(id)}`,
       badgeLabelFa: "مرکز نقشه ذهنی",
       badgeLabelEn: "Mind Map Center",
       actionTextFa: "مشاهده در مرکز نقشه ذهنی",
@@ -286,7 +283,7 @@ function resolveStudyTaskNavigation(task: Partial<Task>): StudyNavigation {
       isStudyTask: true,
       isMindMap: true,
       isKnowledge: false,
-      navUrl: `/app/review?tab=mindmap&docId=${encodeURIComponent(id)}`,
+      navUrl: `/app/knowledge-mindmap?docId=${encodeURIComponent(id)}`,
       badgeLabelFa: "مرکز نقشه ذهنی",
       badgeLabelEn: "Mind Map Center",
       actionTextFa: "مشاهده در مرکز نقشه ذهنی",
@@ -299,7 +296,7 @@ function resolveStudyTaskNavigation(task: Partial<Task>): StudyNavigation {
     isStudyTask: true,
     isMindMap: true,
     isKnowledge: false,
-    navUrl: `/app/review?tab=mindmap`,
+    navUrl: `/app/knowledge-mindmap`,
     badgeLabelFa: "نقشه ذهنی",
     badgeLabelEn: "Mind Map",
     actionTextFa: "مرور کامل نقشه ذهنی",

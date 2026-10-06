@@ -4,8 +4,8 @@ import {
   Moon, Inbox, Calendar as CalIcon, CalendarDays, Filter, Tag, FileText,
   Target, Timer, Calendar, ChevronDown, Sparkles, LayoutGrid,
   TrendingUp, Activity, Heart, HeartPulse, ShieldAlert, BookOpen, Sun,
-  ListTodo, BrainCircuit, GripVertical, User, Shield, Pill,
-  BarChart3, Sprout, Wind, Compass, Users, Gamepad2, PackageSearch, ClipboardCheck, Keyboard, FlaskConical, Columns3, Hourglass, PlayCircle,
+  ListTodo, BrainCircuit, GripVertical, User, Shield,
+  BarChart3, Sprout, Wind, Compass, Users, Gamepad2, Columns3, Hourglass, PlayCircle,
 } from "lucide-react";
 import { toPersianDigits } from "@/lib/persianDigits";
 import {
@@ -135,18 +135,6 @@ export const SECTIONS: Section[] = [
         icon: BookOpen,
         label: "دانش",
         children: [
-          {
-            url: "/app/pharmacy",
-            icon: Pill,
-            label: "فارماسی",
-            children: [
-              { url: "/app/pharmacy-products", icon: PackageSearch, label: "فهرست محصولات دارویی" },
-              { url: "/app/pharmacy-scenario-practice", icon: ClipboardCheck, label: "تمرین سناریوهای دارویی" },
-              { url: "/app/pharmacy-fred-practice", icon: Keyboard, label: "تمرین نسخه FRED" },
-              { url: "/app/pharmacy-cyp", icon: FlaskConical, label: "ماتریس CYP و تداخل" },
-            ],
-          },
-          { url: "/app/review", icon: BrainCircuit, label: "مرور" },
           { url: "/app/knowledge", icon: BookOpen, label: "کتابخانه دانش" },
           { url: "/app/interactive-study", icon: Gamepad2, label: "استودیوی مطالعه تعاملی" },
           { url: "/app/continue", icon: PlayCircle, label: "ادامهٔ یادگیری" },

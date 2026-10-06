@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-export type PharmacyHeaderLinks = { hub: string; practice: string; review: string };
 
 type Props = {
   isEn: boolean;
@@ -34,7 +33,6 @@ type Props = {
   onSchedule?: () => void;
   onEdit: () => void;
   onDelete: () => void;
-  pharmacyLinks?: PharmacyHeaderLinks;
 };
 
 const iconBtn = "inline-flex h-11 w-11 md:h-8 md:w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -71,12 +69,6 @@ export function KnowledgeReaderHeader(p: Props) {
 
         <h1 dir={detectDirection(p.title || p.folderName || '')} className="min-w-0 flex-1 truncate text-sm font-semibold md:hidden learning-reader-mobile-title" title={p.title}>{p.title ?? p.folderName}</h1>
         <nav className="hidden md:flex min-w-0 flex-1 items-center gap-1 text-[12px] text-muted-foreground" aria-label={T("مسیر", "Breadcrumb")} data-testid="knowledge-reader-breadcrumb">
-          {p.pharmacyLinks && (
-            <>
-              <Link to={p.pharmacyLinks.hub} className="shrink-0 font-medium text-primary hover:underline">{T("فارماسی", "Pharmacy")}</Link>
-              <span className="shrink-0 opacity-50">/</span>
-            </>
-          )}
           {p.folderName && (
             <span className="flex min-w-0 items-center gap-1">
               <Folder className="h-3.5 w-3.5 shrink-0" />
@@ -160,17 +152,6 @@ export function KnowledgeReaderHeader(p: Props) {
                   <DropdownMenuItem onSelect={p.onSchedule}>
                     <CalendarPlus className="h-4 w-4" />{T("افزودن به تقویم / برنامه مطالعه", "Add to calendar / study plan")}
                   </DropdownMenuItem>
-                )}
-                {p.pharmacyLinks && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild data-testid="pharmacy-strip-practice">
-                      <Link to={p.pharmacyLinks.practice}><ClipboardCheck className="h-4 w-4" />{T("تمرین", "Practice")}</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild data-testid="pharmacy-strip-review">
-                      <Link to={p.pharmacyLinks.review}><GraduationCap className="h-4 w-4" />{T("مرور این موضوع", "Review this topic")}</Link>
-                    </DropdownMenuItem>
-                  </>
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={p.onDelete} title={T("حذف سند", "Delete document")} className="text-destructive focus:text-destructive" data-testid="knowledge-delete">

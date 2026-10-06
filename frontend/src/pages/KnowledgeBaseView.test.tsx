@@ -2,7 +2,6 @@ import { act, render, screen, fireEvent, waitFor } from "@testing-library/react"
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import KnowledgeBaseView from "./KnowledgeBaseView";
-import { getPharmacyImportStatus, importPharmacyKnowledge } from "@/lib/pharmacyImportService";
 import { getKnowledgeFolders, deleteKnowledgeDocument, KnowledgeDocumentDeletionError } from "@/lib/knowledgeService";
 import { toast } from "sonner";
 import type { KnowledgeDocument } from "@/lib/knowledgeTypes";
@@ -25,14 +24,6 @@ vi.mock("@/hooks/useBilingual", () => ({
 
 vi.mock("@/hooks/use-mobile", () => ({
   useIsMobile: () => false,
-}));
-
-vi.mock("@/lib/pharmacyImportService", () => ({
-  getPharmacyImportStatus: vi.fn().mockResolvedValue({
-    foldersTotal: 34, docsTotal: 362, cardsTotal: 35,
-    foldersMissing: 0, docsMissing: 0, docsUpgradeable: 0, cardsMissing: 0, cardsUpgradeable: 0, legacyDetected: false,
-  }),
-  importPharmacyKnowledge: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({
@@ -142,7 +133,7 @@ describe("KnowledgeBaseView (/app/knowledge) Page Verification", { timeout: 1500
       expect(screen.getAllByText("فولدر داروها").length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText("راهنمای فلوکستین").length).toBeGreaterThanOrEqual(1);
     }, { timeout: 10000 });
-    expect(getPharmacyImportStatus).not.toHaveBeenCalled();
+    expect(screen.queryByText("Install Pharmacy Knowledge")).not.toBeInTheDocument();
   });
 
   it("does not remove a lesson or report success when its delete was not confirmed", async () => {
@@ -191,43 +182,6 @@ describe("KnowledgeBaseView (/app/knowledge) Page Verification", { timeout: 1500
       expect(toast.error).toHaveBeenCalledWith("This lesson is linked to 2 tasks. Unlink it from the task first.");
       expect(screen.getAllByText("Fluoxetine Guide").length).toBeGreaterThan(0);
     });
-  });
-
-  it("loads the pharmacy source importer only after the user explicitly installs it", async () => {
-    vi.mocked(importPharmacyKnowledge).mockResolvedValue({
-      foldersCount: 0,
-      docsCount: 0,
-      cardsCount: 0,
-      docsUpdated: 0,
-      cardsUpdated: 0,
-      status: {
-        foldersTotal: 34,
-        docsTotal: 432,
-        cardsTotal: 35,
-        foldersMissing: 0,
-        docsMissing: 0,
-        docsUpgradeable: 0,
-        cardsMissing: 0,
-        cardsUpgradeable: 0,
-        legacyDetected: false,
-      },
-    });
-
-    render(
-      <MemoryRouter initialEntries={["/app/knowledge"]}>
-        <Routes>
-          <Route path="/app/knowledge" element={<KnowledgeBaseView />} />
-        </Routes>
-      </MemoryRouter>,
-    );
-
-    fireEvent.click(await screen.findByRole("button", { name: "نصب" }));
-
-    await waitFor(() => {
-      expect(importPharmacyKnowledge).toHaveBeenCalledWith(mockUser.id, { importCards: true });
-      expect(screen.queryByRole("button", { name: "نصب" })).not.toBeInTheDocument();
-    });
-    expect(getPharmacyImportStatus).not.toHaveBeenCalled();
   });
 
   it("study mode hides the desktop topic column and persists, Escape leaves it", async () => {

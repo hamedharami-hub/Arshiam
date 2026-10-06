@@ -24,16 +24,16 @@ try {
   await fs.mkdir(artifactDir,{recursive:true});
   for (const [width,height] of [[390,844],[853,690],[1440,900]]) {
     if(process.env.QA_WIDTHS && !process.env.QA_WIDTHS.split(",").includes(String(width))) continue;
-    for(const [lang,theme,view] of [['fa','oled','reader'],['en','light','reader'],['fa','dark','settings'],['fa','oled','editor'],['en','light','editor'],['fa','oled','sleep'],['fa','oled','pharmacy'],['en','light','products'],['fa','oled','scenarios'],['en','light','fred'],['fa','oled','fred'],['fa','oled','cyp']]) {
+    for(const [lang,theme,view] of [['fa','oled','reader'],['en','light','reader'],['fa','dark','settings'],['fa','oled','editor'],['en','light','editor'],['fa','oled','sleep']]) {
       if(process.env.QA_VIEWS && !process.env.QA_VIEWS.split(',').includes(view)) continue;
       await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<1000});
       await send('Page.navigate',{url:'about:blank'});
       await new Promise(resolve=>setTimeout(resolve,100));
       const navigation=await send('Page.navigate',{url:`${baseUrl}/src/test/design-audit.html?lang=${lang}&theme=${theme}&view=${view}`});
       if(navigation.errorText) throw new Error(`Navigation failed: ${navigation.errorText}`);
-      const readyExpression = view === 'pharmacy' ? 'Boolean(document.querySelector(".pharmacy-category-nav button"))' : 'Boolean(document.querySelector(".knowledge-reader-shell, main select, .tiptap, [data-testid=sleep-sounds-card], [data-testid=pharmacy-qa] main"))';
+      const readyExpression = 'Boolean(document.querySelector(".knowledge-reader-shell, main select, .tiptap, [data-testid=sleep-sounds-card]"))';
       for(let i=0;i<100;i++) {const ready=await send('Runtime.evaluate',{expression:`document.readyState === "complete" && document.body?.dataset.qaKey === ${JSON.stringify(new URLSearchParams({lang,theme,view}).toString())} && (${readyExpression})`,returnByValue:true});if(ready.result?.value)break;await new Promise(r=>setTimeout(r,300));}
-      const result=await send('Runtime.evaluate',{expression:'JSON.stringify({rendered:!!document.querySelector(".knowledge-reader-shell, main select, .tiptap, [data-testid=sleep-sounds-card], [data-testid=pharmacy-qa] main"),overflow:document.documentElement.scrollWidth>innerWidth,headerTitles:document.querySelectorAll("#app-header-title h1").length,bodyHeight:document.documentElement.scrollHeight})',returnByValue:true});
+      const result=await send('Runtime.evaluate',{expression:'JSON.stringify({rendered:!!document.querySelector(".knowledge-reader-shell, main select, .tiptap, [data-testid=sleep-sounds-card]"),overflow:document.documentElement.scrollWidth>innerWidth,headerTitles:document.querySelectorAll("#app-header-title h1").length,bodyHeight:document.documentElement.scrollHeight})',returnByValue:true});
       const status=JSON.parse(result.result?.value || '{}');
       console.log(width,height,lang,theme,view,status);
       if (!status.rendered || status.overflow || status.headerTitles !== 1) process.exitCode = 1;
@@ -56,12 +56,7 @@ try {
           if(overflow.result?.value) { console.error('FRED module overflow',width,index);process.exitCode=1; }
         }
       }
-      if (view === 'pharmacy') {
-        await send('Runtime.evaluate',{expression:'document.querySelector(".pharmacy-category-nav button").click()'});
-        await new Promise(resolve=>setTimeout(resolve,150));
-        const opened=await send('Runtime.evaluate',{expression:'Boolean(document.querySelector(".pharmacy-category-content .pharmacy-folder"))',returnByValue:true});
-        if(!opened.result?.value) { console.error('Pharmacy category did not open',width);process.exitCode=1; }
-      }
+
       if (view === 'editor') {
         if(width === 390 && lang === 'fa') {
           const compression=await send('Runtime.evaluate',{awaitPromise:true,returnByValue:true,expression:`(async()=>{const {compressImage}=await import('/src/lib/imageCompression.ts');const results=[];for(const [w,h] of [[1200,1800],[128,192]]){const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const context=canvas.getContext('2d');const pixels=context.createImageData(w,h);let seed=123;for(let i=0;i<pixels.data.length;i+=4){seed=(seed*1664525+1013904223)>>>0;pixels.data[i]=seed&255;pixels.data[i+1]=(seed>>>8)&255;pixels.data[i+2]=(seed>>>16)&255;pixels.data[i+3]=255;}context.putImageData(pixels,0,0);const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));const file=new File([blob],'portrait.png',{type:'image/png'});const output=await compressImage(file,{maxDimension:1024});const bitmap=await createImageBitmap(output);results.push({original:file.size,optimized:output.size,width:bitmap.width,height:bitmap.height});bitmap.close();}return results;})()`});

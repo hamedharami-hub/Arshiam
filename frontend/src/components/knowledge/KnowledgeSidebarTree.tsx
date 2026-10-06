@@ -30,7 +30,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PharmacyImportBanner } from "./PharmacyImportBanner";
 
 function countDocumentsInSubtree(node: KnowledgeFolderNode): number {
   return node.document_count + node.children.reduce(
@@ -275,10 +274,6 @@ interface KnowledgeSidebarTreeProps {
   selectedTag?: string | null;
   onSelectTag?: (tag: string | null) => void;
   onToggleCollapse?: () => void;
-  onImportPharmacy?: (force?: boolean) => Promise<void>;
-  isPharmacyImported?: boolean;
-  pharmacyImportStatus?: import("@/lib/pharmacyImportService").PharmacyImportStatus | null;
-  isImportingPharmacy?: boolean;
 }
 
 export const HIGH_YIELD_TAG_FILTERS = [
@@ -317,10 +312,6 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
   selectedTag,
   onSelectTag,
   onToggleCollapse,
-  onImportPharmacy,
-  isPharmacyImported = true,
-  pharmacyImportStatus = null,
-  isImportingPharmacy = false,
 }) => {
   const { isEn } = useBilingual();
   const navigate = useNavigate();
@@ -446,7 +437,7 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
           }}
           onCreateDocument={(fId) => onCreateDocument(fId)}
           onCreateSubfolder={(pId) => handleOpenCreateFolder(pId)}
-          onViewMindMap={(fId) => navigate(`/app/review?tab=mindmap&folderId=${fId}`)}
+          onViewMindMap={(fId) => navigate(`/app/knowledge-mindmap?folderId=${encodeURIComponent(fId)}`)}
           onScheduleStudy={onScheduleFolderStudy}
           onDelete={(fId) => onDeleteFolder(fId)}
         />
@@ -502,7 +493,7 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
           <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => navigate(selectedFolderId ? `/app/review?tab=mindmap&folderId=${selectedFolderId}` : "/app/review?tab=mindmap")}
+              onClick={() => navigate(selectedFolderId ? `/app/knowledge-mindmap?folderId=${encodeURIComponent(selectedFolderId)}` : "/app/knowledge-mindmap")}
               className="p-1.5 rounded-xl hover:bg-secondary text-muted-foreground hover:text-primary transition cursor-pointer border border-border"
               title={isEn ? "Open Mind Map" : "نقشه ذهنی پایگاه دانش"}
             >
@@ -529,42 +520,6 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
               <Plus className="w-3.5 h-3.5" />
               <span>{isEn ? "Doc" : "سند"}</span>
             </button>
-
-            {onImportPharmacy && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="p-1.5 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition cursor-pointer border border-border"
-                    title={isEn ? "More Options" : "گزینه‌های بیشتر"}
-                  >
-                    <MoreVertical className="w-3.5 h-3.5" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="text-xs">
-                  <DropdownMenuItem
-                    onClick={() => onImportPharmacy(false)}
-                    disabled={isImportingPharmacy}
-                    className="cursor-pointer gap-2"
-                  >
-                    {isImportingPharmacy ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-                    ) : (
-                      <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
-                    )}
-                    <span>
-                      {isPharmacyImported
-                        ? isEn
-                          ? "Verify and add missing pharmacy content"
-                          : "بررسی و افزودن مطالب داروییِ جاافتاده"
-                        : isEn
-                        ? "Import missing pharmacy content"
-                        : "افزودن مطالب داروییِ جاافتاده"}
-                    </span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
 
             {onToggleCollapse && (
               <button
@@ -630,14 +585,6 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
           })}
         </div>
 
-        {/* Pharmacy Quick Import Banner */}
-        <PharmacyImportBanner
-          isPharmacyImported={isPharmacyImported}
-          status={pharmacyImportStatus}
-          isImportingPharmacy={isImportingPharmacy}
-          onImportPharmacy={onImportPharmacy}
-          isEn={isEn}
-        />
       </div>
 
       {/* New Folder Inline Form */}

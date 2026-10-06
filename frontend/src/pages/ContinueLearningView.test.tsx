@@ -2,55 +2,50 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import ContinueLearningView from "./ContinueLearningView";
-import { recordLastStudy } from "@/lib/lastStudy";
+import { getLastStudy, recordLastStudy } from "@/lib/lastStudy";
 
-const { cards, docs } = vi.hoisted(() => ({ cards: { fn: vi.fn() }, docs: { fn: vi.fn() } }));
-vi.mock("@/lib/knowledgeService", () => ({ getKnowledgeDocument: (...a: unknown[]) => docs.fn(...a) }));
+const { docs, sync } = vi.hoisted(() => ({ docs: vi.fn(), sync: vi.fn() }));
+vi.mock("@/lib/knowledgeService", () => ({ getKnowledgeDocument: (...a: unknown[]) => docs(...a) }));
+vi.mock("@/lib/lastStudy", async () => ({ ...(await vi.importActual<object>("@/lib/lastStudy")), syncLastStudy: (...args: unknown[]) => sync(...args) }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: null }) }));
 vi.mock("@/hooks/useBilingual", () => ({ useBilingual: () => ({ T: (_fa: string, en: string) => en, isEn: true, lang: "en" }) }));
 vi.mock("@/components/HeaderTitlePortal", () => ({ HeaderTitlePortal: () => null }));
-vi.mock("@/lib/leitnerService", async () => ({ ...(await vi.importActual<object>("@/lib/leitnerService")), getLeitnerCards: (...a: unknown[]) => cards.fn(...a) }));
 const renderPage = () => render(<MemoryRouter><ContinueLearningView /></MemoryRouter>);
-beforeEach(() => { localStorage.clear(); cards.fn.mockReset(); docs.fn.mockReset(); docs.fn.mockResolvedValue({ id: "doc-1" }); });
-
-describe("Continue learning (K01)", () => {
-  it("shows an honest empty state with no decorative stats", async () => {
-    cards.fn.mockResolvedValue([]);
+beforeEach(() => {
+  localStorage.clear(); docs.mockReset(); sync.mockReset();
+  docs.mockResolvedValue({ id: "doc-1" }); sync.mockImplementation((uid: string) => Promise.resolve(getLastStudy(uid)));
+});
+describe("Continue Knowledge learning after old modules retire", () => {
+  it("keeps the library and excludes retired entrypoints in the empty state", async () => {
     renderPage();
     expect(await screen.findByTestId("continue-empty")).toBeInTheDocument();
     expect(screen.queryByTestId("continue-due")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Pharmacy/ })).toBeInTheDocument();
+    expect(screen.queryByTestId("continue-fred")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Library" })).toHaveAttribute("href", "/app/knowledge");
   });
-  it("lists the last study, an in-progress FRED lesson and due reviews", async () => {
-    recordLastStudy("guest", { docId: "doc-1", title: "Doc", titleEn: "Warfarin notes" });
-    localStorage.setItem("arshnaz:fred-progress:v2:guest", JSON.stringify({ label: { status: "learning", stepIndex: 2, attemptId: null, updatedAt: 5 } }));
-    cards.fn.mockResolvedValue([{ id: "c1", user_id: "guest", front: "q", back: "a", box: 1, next_review_at: "2000-01-01T00:00:00.000Z", review_count: 0, lapse_count: 0, created_at: "", updated_at: "" }]);
+  it("preserves the last Knowledge source and ignores retired practice state", async () => {
+    recordLastStudy("guest", { docId: "doc-1", title: "Doc", titleEn: "Study notes" });
+    localStorage.setItem("arshnaz:fred-progress:v2:guest", JSON.stringify({ label: { status: "learning" } }));
     renderPage();
-    expect(await screen.findByText("Warfarin notes")).toHaveAttribute("dir", "auto");
-    expect(screen.getByTestId("continue-fred")).toHaveTextContent("Label: directions and CAL");
-    await waitFor(() => expect(screen.getByTestId("continue-due-count")).toHaveTextContent("1 cards ready to review"));
+    expect(await screen.findByText("Study notes")).toHaveAttribute("dir", "auto");
+    expect(screen.queryByTestId("continue-fred")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("continue-due-count")).not.toBeInTheDocument();
   });
-  it("shows a clear message instead of a dead link when the last page was deleted", async () => {
-    recordLastStudy("guest", { docId: "gone", title: "Gone" });
-    docs.fn.mockResolvedValue(null);
-    cards.fn.mockResolvedValue([]);
+  it("shows a missing source without a dead link", async () => {
+    recordLastStudy("guest", { docId: "gone", title: "Gone" }); docs.mockResolvedValue(null);
     renderPage();
-    expect(await screen.findByTestId("continue-last-missing", undefined, { timeout: 4000 })).toHaveTextContent("no longer exists");
-    await waitFor(() => expect(docs.fn).toHaveBeenCalled());
-    // Let account/local sync replace the LastStudy object with the same document ID.
+    expect(await screen.findByTestId("continue-last-missing")).toHaveTextContent("no longer exists");
     await act(async () => { await Promise.resolve(); });
     expect(screen.queryByRole("link", { name: "Gone" })).not.toBeInTheDocument();
   });
-  it("shows a loading state before data arrives", async () => {
-    cards.fn.mockReturnValue(new Promise(() => undefined));
-    renderPage();
+  it("waits for the shared Knowledge last-study sync", () => {
+    sync.mockReturnValue(new Promise(() => undefined)); renderPage();
     expect(screen.getByTestId("continue-loading")).toBeInTheDocument();
   });
-  it("shows an error with a retry that really reloads", async () => {
-    cards.fn.mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce([]);
-    renderPage();
+  it("retries failed shared Knowledge sync", async () => {
+    sync.mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(null); renderPage();
     fireEvent.click(await screen.findByTestId("continue-retry"));
     await waitFor(() => expect(screen.queryByTestId("continue-error")).not.toBeInTheDocument());
-    expect(cards.fn).toHaveBeenCalledTimes(2);
+    expect(sync).toHaveBeenCalledTimes(2);
   });
 });

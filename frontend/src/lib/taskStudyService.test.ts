@@ -174,22 +174,22 @@ describe("taskStudyService", () => {
     });
     expect(mmNav.isStudyTask).toBe(true);
     expect(mmNav.isMindMap).toBe(true);
-    expect(mmNav.navUrl).toBe("/app/review?tab=mindmap&folderId=fold-2");
+    expect(mmNav.navUrl).toBe("/app/knowledge-mindmap?folderId=fold-2");
 
     const leitnerNav = getStudyTaskNavigation({
       source_type: "leitner",
       source_id: "all",
     });
     expect(leitnerNav.isStudyTask).toBe(true);
-    expect(leitnerNav.navUrl).toBe("/app/review?tab=leitner");
-    expect(leitnerNav.badgeLabelFa).toBe("مرور لایتنر");
+    expect(leitnerNav.navUrl).toBe("/app/knowledge");
+    expect(leitnerNav.badgeLabelFa).toBe("مطالعه");
 
     const scopedLeitnerNav = getStudyTaskNavigation({
       id: "task/42",
       source_type: "leitner",
       source_id: "lesson / 1",
     });
-    expect(scopedLeitnerNav.navUrl).toBe("/app/review?tab=leitner&studyDocId=lesson%20%2F%201&studyTaskId=task%2F42");
+    expect(scopedLeitnerNav.navUrl).toBe("/app/knowledge?docId=lesson%20%2F%201");
 
     const folderLeitnerNav = getStudyTaskNavigation({
       id: "folder-review-task",
@@ -197,7 +197,7 @@ describe("taskStudyService", () => {
       source_id: "folder-cardiology",
     });
     expect(folderLeitnerNav.isStudyTask).toBe(true);
-    expect(folderLeitnerNav.navUrl).toBe("/app/review?tab=leitner&studyFolderId=folder-cardiology&studyTaskId=folder-review-task");
+    expect(folderLeitnerNav.navUrl).toBe("/app/knowledge?folderId=folder-cardiology");
 
     const noneNav = getStudyTaskNavigation({
       source_type: "cbt_thought",
