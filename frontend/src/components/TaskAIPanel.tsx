@@ -326,7 +326,7 @@ export function TaskAIPanel({
           </TabsList>
 
           <TabsContent value="pomodoro" className="mt-4">
-            <PomodoroTimer taskId={task.id} compact />
+            <PomodoroTimer taskId={task.id} taskTitle={task.title} compact />
             <p className="text-[11px] text-muted-foreground text-center mt-3">
               {T("زمان ثبت‌شده زیر این تسک حساب می‌شود.", "Logged time is counted under this task.")}
             </p>

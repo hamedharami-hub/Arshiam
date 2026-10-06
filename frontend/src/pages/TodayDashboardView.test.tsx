@@ -188,7 +188,7 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
     expect(screen.getByText("Overdue Report")).toBeInTheDocument();
   });
 
-  it("opens Leitner review instead of completing it from a widget deep link", async () => {
+  it("opens the retained Knowledge source instead of completing an old review task", async () => {
     mockTasks = [{
       id: "review-task", title: "Review study cards", due_date: new Date().toISOString(),
       completed: false, status: "todo", source_type: "leitner", source_id: "doc-7",
@@ -200,7 +200,7 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
       </MemoryRouter>,
     );
     await waitFor(() => expect(screen.getByTestId("location-probe")).toHaveTextContent(
-      "/app/review?tab=leitner&studyDocId=doc-7&studyTaskId=review-task",
+      "/app/knowledge?docId=doc-7",
     ));
     expect(mockSetAllTasks).not.toHaveBeenCalled();
   });

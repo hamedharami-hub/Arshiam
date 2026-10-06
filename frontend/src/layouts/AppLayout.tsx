@@ -8,6 +8,7 @@ import { useState, type CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Search } from "lucide-react";
 import OfflineIndicator from "@/components/OfflineIndicator";
+import FocusRuntime from "@/components/FocusRuntime";
 import InstallPrompt from "@/components/InstallPrompt";
 import EdgeSwipeHandler from "@/components/EdgeSwipeHandler";
 import EdgePanBack from "@/components/EdgePanBack";
@@ -175,6 +176,7 @@ export default function AppLayout() {
         </div>
         <AIPanel open={aiOpen} onOpenChange={setAiOpen} />
         <OfflineIndicator />
+        <FocusRuntime />
         <InstallPrompt />
         {isAndroid() ? <AndroidGestures /> : <><EdgeSwipeHandler /><EdgePanBack /><SwipeNavigator /></>}
         <ClinicalDisclaimer />

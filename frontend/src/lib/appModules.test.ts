@@ -1,8 +1,19 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { MODULE_IDS, isPathAllowed, setModulesState } from "@/lib/appModules";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+const syncMocks = vi.hoisted(() => {
+  const events: string[] = [];
+  return {
+    events,
+    retire: vi.fn(async (uid: string) => { events.push(`retire:${uid}`); return { removed: 0, incomplete: false }; }),
+    fetch: vi.fn(async () => { events.push("fetch"); return { unlocked: ["study"], installed: ["study"] }; }),
+  };
+});
+vi.mock("@/lib/offlineQueue", () => ({ retireOwnedModuleData: syncMocks.retire }));
+vi.mock("@/lib/arshApi", () => ({ arshFetch: syncMocks.fetch }));
+import { MODULE_IDS, isPathAllowed, setModulesState, syncModulesForUser } from "@/lib/appModules";
 import { getStudyTaskNavigation } from "@/lib/taskStudyService";
 
-afterEach(() => setModulesState({ unlocked: MODULE_IDS, installed: MODULE_IDS }));
+beforeEach(() => { localStorage.clear(); syncMocks.events.length = 0; syncMocks.retire.mockClear(); syncMocks.fetch.mockClear(); });
+afterEach(async () => { await syncModulesForUser(null); setModulesState({ unlocked: MODULE_IDS, installed: MODULE_IDS }); });
 
 describe("app modules gating", () => {
   it("hides every route of a module that is not installed", () => {
@@ -28,5 +39,11 @@ describe("app modules gating", () => {
     expect(getStudyTaskNavigation(task).isStudyTask).toBe(true);
     setModulesState({ unlocked: [], installed: [] });
     expect(getStudyTaskNavigation(task).isStudyTask).toBe(false);
+  });
+
+  it("retires only the signed-in account's old module queue before loading modules", async () => {
+    await syncModulesForUser("owner-a");
+    expect(syncMocks.retire).toHaveBeenCalledWith("owner-a");
+    expect(syncMocks.events).toEqual(["retire:owner-a", "fetch"]);
   });
 });

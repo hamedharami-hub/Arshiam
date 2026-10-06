@@ -77,14 +77,25 @@ function fromServer(r: ServerState): Partial<ModulesState> {
 /** Called on sign-in / sign-out. Uses the per-account cache first so hidden sections never flash. */
 export async function syncModulesForUser(uid: string | null): Promise<void> {
   if (!uid) { cacheKey = null; emit(EMPTY); return; }
+  const userCacheKey = `arshnaz:modules:${uid}`;
+  cacheKey = userCacheKey;
+  emit(EMPTY);
   clearRetiredModuleStorage(uid);
-  cacheKey = `arshnaz:modules:${uid}`;
+  try {
+    const { retireOwnedModuleData } = await import("@/lib/offlineQueue");
+    const cleanup = await retireOwnedModuleData(uid);
+    if (cleanup.incomplete) console.warn("[appModules] Retired-module queue cleanup is incomplete; ambiguous items were preserved.");
+  } catch (error) {
+    // Keep ambiguous queue entries for the recovery UI; never assign them to a different UID.
+    console.warn("[appModules] Retired-module queue cleanup could not be verified.", error);
+  }
+  if (cacheKey !== userCacheKey) return;
   let cached: ModulesState | null = null;
-  try { cached = JSON.parse(localStorage.getItem(cacheKey) || "null"); } catch { cached = null; }
+  try { cached = JSON.parse(localStorage.getItem(userCacheKey) || "null"); } catch { cached = null; }
   emit(cached?.ready ? { ...cached, ...fromServer({ unlocked: cached.unlocked || [], installed: cached.installed || [], is_admin: cached.isAdmin, is_owner: cached.isOwner }) } : EMPTY);
   try {
     const r = await arshFetch<ServerState>("/api/arsh/modules/me");
-    if (cacheKey === `arshnaz:modules:${uid}`) setModulesState(fromServer(r));
+    if (cacheKey === userCacheKey) setModulesState(fromServer(r));
   } catch {
     if (!state.ready) setModulesState({});
   }
