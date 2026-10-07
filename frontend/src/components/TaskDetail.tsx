@@ -102,6 +102,7 @@ import {
 
 // TickTick-style autosave: short debounce after the last edit.
 const AUTOSAVE_DELAY_MS = 1200;
+const TASK_DRAWER_SNAP_POINTS: Array<number | string> = [0.5, 1];
 
 type TaskUndoSnapshot = Partial<Task>;
 
@@ -1817,8 +1818,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           </div>
         </div>
       ) : mode === "drawer" && isMobile ? (
-        <Drawer open={true} onOpenChange={(v) => !v && requestClose()} snapPoints={[0.5, 1]} activeSnapPoint={snap} setActiveSnapPoint={setSnap} shouldScaleBackground={false} dismissible>
-          <DrawerContent data-no-swipe-nav className={`h-screen max-h-screen flex flex-col !mt-0 ${snap === 1 ? "!m-0 !rounded-none" : "min-h-[55vh]"}`} aria-describedby="task-drawer-desc">
+        <Drawer open={true} onOpenChange={(v) => !v && requestClose()} snapPoints={TASK_DRAWER_SNAP_POINTS} activeSnapPoint={snap} setActiveSnapPoint={setSnap} shouldScaleBackground={false} dismissible handleOnly>
+          <DrawerContent interactiveHandle data-no-swipe-nav className={`h-[100dvh] max-h-[100dvh] flex flex-col !mt-0 ${snap === 1 ? "!m-0 !rounded-none" : "min-h-[55vh]"}`} aria-describedby="task-drawer-desc">
             <DrawerHeader className="sr-only">
               <DrawerTitle>{t.title || T("تسک", "Task")}</DrawerTitle>
             </DrawerHeader>

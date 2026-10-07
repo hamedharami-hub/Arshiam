@@ -3,6 +3,7 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { MarkdownMediaLink } from "@/components/MarkdownMediaLink";
+import { normalizeNoteMarkup } from "@/lib/markdown";
 
 const schema = {
   ...defaultSchema,
@@ -22,5 +23,5 @@ const schema = {
 
 /** Render supported note HTML safely alongside Markdown and media links. */
 export function NoteMarkdown({ children }: { children: string }) {
-  return <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw, [rehypeSanitize, schema]]} components={{ a: MarkdownMediaLink }}>{children}</ReactMarkdown>;
+  return <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw, [rehypeSanitize, schema]]} components={{ a: MarkdownMediaLink }}>{normalizeNoteMarkup(children)}</ReactMarkdown>;
 }

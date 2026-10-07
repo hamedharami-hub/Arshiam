@@ -3,6 +3,29 @@ import { marked } from "marked";
 
 const turndown = new TurndownService({ headingStyle: "atx", codeBlockStyle: "fenced" });
 
+const LEGACY_FORMAT_TAGS = new Set([
+  "a", "blockquote", "br", "code", "del", "div", "em", "h1", "h2", "h3", "h4", "h5", "h6",
+  "hr", "i", "img", "li", "mark", "ol", "p", "pre", "s", "span", "strong", "sub", "sup", "table",
+  "tbody", "td", "th", "thead", "tr", "u", "ul",
+]);
+
+/** Recover older notes that saved formatted HTML as escaped text. */
+export function normalizeNoteMarkup(source: string): string {
+  if (!source) return "";
+  // Only decode when a note starts with an escaped block tag. This avoids
+  // turning intentional inline examples such as `&lt;strong&gt;` into markup.
+  if (!/^\s*&lt;\/?(?:p|div|h[1-6]|ul|ol|blockquote|pre|table)\b/i.test(source)) return source;
+
+  return source.replace(/&lt;(\/?)((?:[a-z][a-z0-9-]*))([\s\S]*?)&gt;/gi, (raw, closing: string, name: string, attributes: string) => {
+    const tag = name.toLowerCase();
+    if (!LEGACY_FORMAT_TAGS.has(tag)) return raw;
+    const decodedAttributes = attributes
+      .replace(/&quot;|&#34;|&#x22;/gi, '"')
+      .replace(/&#39;|&#x27;/gi, "'");
+    return `<${closing}${tag}${decodedAttributes}>`;
+  });
+}
+
 // Markdown has no underline/highlight syntax; retain semantic HTML for round trips.
 for (const tag of ["u", "mark"] as const) {
   turndown.addRule(tag, { filter: tag, replacement: (content) => `<${tag}>${content}</${tag}>` });
@@ -53,17 +76,21 @@ export function htmlToMarkdown(html: string): string {
 
 export function markdownToHtml(md: string): string {
   if (!md) return "";
-  let html = marked.parse(md, { async: false }) as string;
+  let html = marked.parse(normalizeNoteMarkup(md), { async: false }) as string;
   // Convert standard markdown task items to TipTap-compatible task items
-  html = html.replace(
-    /<li(?:\s+class="task-list-item")?>\s*(<input[^>]*type="checkbox"[^>]*>)?([\s\S]*?)<\/li>/gi,
-    (match, input, text) => {
-      if (!input && !match.includes("task-list-item")) return match;
-      const isChecked = Boolean(input && input.includes("checked"));
-      const clean = (text || "").trim();
-      return `<li data-type="taskItem" data-checked="${isChecked ? "true" : "false"}"><label><input type="checkbox" ${isChecked ? 'checked="checked"' : ''}><span></span></label><div>${clean}</div></li>`;
-    }
-  );
+  // Already serialized TipTap checklists must pass through unchanged. Rewrapping
+  // their existing labels/items creates invalid nested list markup in old notes.
+  if (!/data-type=["']taskItem["']/i.test(html)) {
+    html = html.replace(
+      /<li(?:\s+class="task-list-item")?>\s*(<input[^>]*type="checkbox"[^>]*>)?([\s\S]*?)<\/li>/gi,
+      (match, input, text) => {
+        if (!input && !match.includes("task-list-item")) return match;
+        const isChecked = Boolean(input && input.includes("checked"));
+        const clean = (text || "").trim();
+        return `<li data-type="taskItem" data-checked="${isChecked ? "true" : "false"}"><label><input type="checkbox" ${isChecked ? 'checked="checked"' : ''}><span></span></label><div>${clean}</div></li>`;
+      }
+    );
+  }
   if (html.includes('data-type="taskItem"')) {
     html = html.replace(/<ul>(\s*<li data-type="taskItem")/gi, '<ul data-type="taskList">$1');
   }
