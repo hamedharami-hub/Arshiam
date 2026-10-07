@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
-import { Plus, Loader2, Calendar as CalendarIcon, Tag, Folder, Check, FileStack, Trash2 } from "lucide-react";
+import { Plus, Loader2, Calendar as CalendarIcon, Tag, Folder, Check, FileStack, Trash2, RotateCcw } from "lucide-react";
 import { PriorityFlag } from "@/components/PriorityFlag";
 import { parseNaturalDate } from "@/lib/nlDate";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { PRIORITY_META, PRIORITY_SELECTABLE, type Priority } from "@/lib/priority";
 import type { ReminderPlan, Task } from "@/lib/taskTypes";
 import type { RecurrenceRule } from "@/lib/recurrence";
-import { listTaskTemplates, buildTaskFromTemplate, saveTaskTemplate, deleteTaskTemplate, type TaskTemplateRecord } from "@/lib/taskTemplates";
+import { listTaskTemplates, buildTaskFromTemplate, buildWorkflowTasksFromTemplate, saveTaskTemplate, deleteTaskTemplate, type TaskTemplateRecord, type WorkflowTaskTemplateItem } from "@/lib/taskTemplates";
 import { uploadMediaFull } from "@/lib/uploadMedia";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { enqueueOp, enqueueOps } from "@/lib/offlineQueue";
@@ -36,6 +36,75 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+
+type WorkflowTaskState = "pending" | "saved" | "queued" | "failed";
+type WorkflowRunTask = WorkflowTaskTemplateItem & {
+  created_at: string;
+  include: boolean;
+  attempted: boolean;
+  state: WorkflowTaskState;
+  error?: string;
+};
+type WorkflowRun = {
+  userId: string;
+  templateId: string;
+  templateTitle: string;
+  tasks: WorkflowRunTask[];
+};
+
+const workflowRunKey = (userId: string) => `quick_add_workflow_run_v1:${userId}`;
+
+function readWorkflowRun(userId: string): WorkflowRun | null {
+  try {
+    const raw = localStorage.getItem(workflowRunKey(userId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<WorkflowRun>;
+    if (parsed.userId !== userId || typeof parsed.templateId !== "string" || typeof parsed.templateTitle !== "string" || !Array.isArray(parsed.tasks)) return null;
+    const tasks = parsed.tasks.slice(0, 100).filter((task): task is WorkflowRunTask => Boolean(
+      task && typeof task === "object" && typeof task.id === "string" && task.id &&
+      typeof task.title === "string" && typeof task.created_at === "string" &&
+      (task.state === "pending" || task.state === "saved" || task.state === "queued" || task.state === "failed")
+    ));
+    if (!tasks.length) return null;
+    return {
+      userId,
+      templateId: parsed.templateId,
+      templateTitle: parsed.templateTitle,
+      tasks: tasks.map(task => ({
+        id: task.id,
+        title: task.title.slice(0, 500),
+        description: typeof task.description === "string" ? task.description.slice(0, 10_000) : null,
+        priority: PRIORITY_SELECTABLE.includes(task.priority) ? task.priority : "none",
+        folder_id: typeof task.folder_id === "string" ? task.folder_id : null,
+        created_at: task.created_at,
+        include: task.include !== false,
+        attempted: task.attempted === true || task.state === "saved" || task.state === "queued" || task.state === "failed",
+        state: task.state,
+        ...(typeof task.error === "string" ? { error: task.error.slice(0, 500) } : {}),
+      })),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function storeWorkflowRun(run: WorkflowRun | null, userId?: string): boolean {
+  const ownerId = run?.userId ?? userId;
+  if (!ownerId) return false;
+  try {
+    const key = workflowRunKey(ownerId);
+    if (!run) {
+      localStorage.removeItem(key);
+      return localStorage.getItem(key) === null;
+    }
+    const value = JSON.stringify(run);
+    localStorage.setItem(key, value);
+    return localStorage.getItem(key) === value;
+  } catch {
+    return false;
+  }
+}
 
 type Defaults = {
   folder_id?: string | null;
@@ -106,10 +175,15 @@ export function QuickAddTask({
   const [templateSaveOpen, setTemplateSaveOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [templateOffsetHours, setTemplateOffsetHours] = useState("");
+  const [templateSaveMode, setTemplateSaveMode] = useState<"single" | "workflow">("single");
+  const [workflowTemplateText, setWorkflowTemplateText] = useState("");
   const [templateSaveId, setTemplateSaveId] = useState("");
   const [templateSaving, setTemplateSaving] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState<TaskTemplateRecord | null>(null);
   const [templateDeleting, setTemplateDeleting] = useState(false);
+  const [workflowRun, setWorkflowRun] = useState<WorkflowRun | null>(null);
+  const [workflowPreviewOpen, setWorkflowPreviewOpen] = useState(false);
+  const [workflowSaving, setWorkflowSaving] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -144,6 +218,8 @@ export function QuickAddTask({
       setTemplateSaveOpen(false);
       setTemplateSaveId("");
       setTemplateToDelete(null);
+      setWorkflowRun(null);
+      setWorkflowPreviewOpen(false);
       return;
     }
     let active = true;
@@ -158,6 +234,14 @@ export function QuickAddTask({
     setTemplateSaveOpen(false);
     setTemplateSaveId("");
     setTemplateToDelete(null);
+    setWorkflowPreviewOpen(false);
+    const savedWorkflowRun = readWorkflowRun(user.id);
+    const savedRunComplete = !!savedWorkflowRun && savedWorkflowRun.tasks.filter(task => task.include).every(task => task.state === "saved" || task.state === "queued");
+    if (savedWorkflowRun && !savedRunComplete) setWorkflowRun(savedWorkflowRun);
+    else {
+      setWorkflowRun(null);
+      storeWorkflowRun(null, user.id);
+    }
     listTaskTemplates(user.id).then((tpls) => {
       if (active) setTemplates(tpls);
     }).catch(() => {});
@@ -400,9 +484,191 @@ export function QuickAddTask({
     setTemplateMenuOpen(false);
   };
 
+  const updateWorkflowRun = (next: WorkflowRun | null) => {
+    setWorkflowRun(next);
+    if (!storeWorkflowRun(next, user?.id)) {
+      toast.error(T("پیش‌نویس گردش‌کار در این دستگاه ذخیره نشد.", "The workflow draft could not be saved on this device."));
+    }
+  };
+
+  const openWorkflowTemplate = (template: TaskTemplateRecord) => {
+    setTemplateMenuOpen(false);
+    if (!user || (template.user_id && template.user_id !== user.id)) return;
+    if (workflowRun) {
+      setWorkflowPreviewOpen(true);
+      toast.info(T("ابتدا گردش‌کار نیمه‌تمام را ادامه بده.", "Resume the unfinished workflow first."));
+      return;
+    }
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error(T("برای شروع گردش‌کار چندتسکی اتصال اینترنت لازم است.", "An internet connection is required to start a multi-task workflow."));
+      return;
+    }
+    const definitions = buildWorkflowTasksFromTemplate(template);
+    if (definitions.length < 2) {
+      applyTemplate(buildTaskFromTemplate(template));
+      return;
+    }
+    const run: WorkflowRun = {
+      userId: user.id,
+      templateId: template.id,
+      templateTitle: template.title,
+      tasks: definitions.map(item => ({
+        ...item,
+        id: generateId(),
+        created_at: new Date().toISOString(),
+        include: true,
+        attempted: false,
+        state: "pending",
+      })),
+    };
+    if (!storeWorkflowRun(run)) {
+      toast.error(T("پیش‌نویس گردش‌کار در این دستگاه ذخیره نشد؛ فضای ذخیره‌سازی را بررسی کن.", "The workflow draft could not be stored on this device. Check local storage and try again."));
+      return;
+    }
+    setWorkflowRun(run);
+    setWorkflowPreviewOpen(true);
+  };
+
+  const closeWorkflowPreview = (open: boolean) => {
+    if (open) {
+      setWorkflowPreviewOpen(true);
+      return;
+    }
+    if (workflowSaving) return;
+    setWorkflowPreviewOpen(false);
+    if (workflowRun?.tasks.every(task => !task.attempted)) {
+      // Before the first write, cancel means discard the preview. Once any write
+      // was attempted, retain IDs and statuses for a safe resume after closing.
+      updateWorkflowRun(null);
+    }
+  };
+
+  const editWorkflowTask = (taskId: string, change: Partial<Pick<WorkflowRunTask, "title" | "include">>) => {
+    if (!workflowRun) return;
+    const next = {
+      ...workflowRun,
+      tasks: workflowRun.tasks.map(task => task.id === taskId && task.state !== "saved" && task.state !== "queued"
+        ? { ...task, ...change, ...(change.title !== undefined ? { title: change.title.slice(0, 500) } : {}) }
+        : task),
+    };
+    updateWorkflowRun(next);
+  };
+
+  const confirmWorkflowRun = async () => {
+    if (!user || !workflowRun || workflowSaving) return;
+    if (activeUserIdRef.current !== user.id) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error(T("اتصال اینترنت قطع است؛ پیش‌نویس حفظ شد و پس از اتصال می‌توانی دوباره تلاش کنی.", "You are offline. The draft is preserved; reconnect before retrying."));
+      return;
+    }
+    const selected = workflowRun.tasks.filter(task => task.include);
+    if (!selected.length) {
+      toast.error(T("حداقل یک کار را برای ساخت انتخاب کن.", "Select at least one task to create."));
+      return;
+    }
+    if (selected.some(task => !task.title.trim())) {
+      toast.error(T("عنوان کارهای انتخاب‌شده را کامل کن.", "Enter a title for each selected task."));
+      return;
+    }
+
+    setWorkflowSaving(true);
+    let current = workflowRun;
+    let storageFailed = false;
+    try {
+      const { persistTask } = await import("@/lib/firestoreDataService");
+      for (const task of selected) {
+        if (activeUserIdRef.current !== user.id) return;
+        if (task.state === "saved" || task.state === "queued") continue;
+        current = {
+          ...current,
+          tasks: current.tasks.map(candidate => candidate.id === task.id ? { ...candidate, attempted: true } : candidate),
+        };
+        setWorkflowRun(current);
+        if (!storeWorkflowRun(current)) {
+          storageFailed = true;
+          current = {
+            ...current,
+            tasks: current.tasks.map(candidate => candidate.id === task.id
+              ? { ...candidate, attempted: false, state: "failed", error: T("وضعیت ادامه ذخیره نشد؛ کار هنوز فرستاده نشده است.", "Progress could not be stored; this task was not sent.") }
+              : candidate),
+          };
+          setWorkflowRun(current);
+          continue;
+        }
+        let state: WorkflowTaskState = "failed";
+        let errorMessage: string | undefined;
+        try {
+          const outcome = await persistTask(user.id, {
+            id: task.id,
+            user_id: user.id,
+            title: task.title.trim(),
+            description: task.description ?? null,
+            priority: task.priority,
+            folder_id: task.folder_id,
+            parent_id: null,
+            status: "todo",
+            completed: false,
+            completed_at: null,
+            created_at: task.created_at,
+            position: current.tasks.findIndex(candidate => candidate.id === task.id),
+            ...workDatePatch({}, null),
+          });
+          state = outcome;
+          if (outcome === "failed") errorMessage = T("ذخیره انجام نشد؛ دوباره تلاش کن.", "Save failed; try again.");
+        } catch (error) {
+          errorMessage = error instanceof Error ? error.message : T("ذخیره انجام نشد؛ دوباره تلاش کن.", "Save failed; try again.");
+        }
+        current = {
+          ...current,
+          tasks: current.tasks.map(candidate => candidate.id === task.id
+            ? { ...candidate, attempted: true, state, ...(errorMessage ? { error: errorMessage } : { error: undefined }) }
+            : candidate),
+        };
+        setWorkflowRun(current);
+        if (!storeWorkflowRun(current)) storageFailed = true;
+      }
+
+      if (activeUserIdRef.current !== user.id) return;
+      const finalSelected = current.tasks.filter(task => task.include);
+      const complete = finalSelected.every(task => task.state === "saved" || task.state === "queued");
+      const failedCount = finalSelected.filter(task => task.state === "failed" || task.state === "pending").length;
+      const queuedCount = finalSelected.filter(task => task.state === "queued").length;
+      if (finalSelected.some(task => task.state === "saved" || task.state === "queued")) {
+        window.dispatchEvent(new Event("tasks-changed"));
+      }
+      if (complete) {
+        storeWorkflowRun(null, user.id);
+        setWorkflowRun(null);
+        setWorkflowPreviewOpen(false);
+        toast.success(queuedCount
+          ? T("کارها ذخیره شدند؛ بخشی در پس‌زمینه همگام می‌شود.", "Tasks were accepted; some will sync in the background.")
+          : T("همهٔ کارهای گردش‌کار ذخیره شدند.", "All workflow tasks were saved."));
+      } else {
+        toast.error(T(`${failedCount} کار ذخیره نشد. موارد موفق تکرار نمی‌شوند؛ دوباره تلاش کن.`, `${failedCount} task(s) failed. Successful tasks will not be repeated; retry the remaining items.`));
+      }
+      if (storageFailed) {
+        toast.error(T("وضعیت ادامهٔ گردش‌کار در دستگاه ذخیره نشد؛ صفحه را نبند و دوباره تلاش کن.", "Workflow progress could not be stored on this device. Keep this page open and retry."));
+      }
+    } finally {
+      setWorkflowSaving(false);
+    }
+  };
+
   const beginSaveTemplate = () => {
     if (!finalTitle.trim()) return;
+    setTemplateSaveMode("single");
+    setWorkflowTemplateText("");
     setTemplateName(finalTitle.trim());
+    setTemplateOffsetHours("");
+    setTemplateSaveId(generateId());
+    setTemplateMenuOpen(false);
+    setTemplateSaveOpen(true);
+  };
+
+  const beginSaveWorkflowTemplate = () => {
+    setTemplateSaveMode("workflow");
+    setWorkflowTemplateText("");
+    setTemplateName("");
     setTemplateOffsetHours("");
     setTemplateSaveId(generateId());
     setTemplateMenuOpen(false);
@@ -412,21 +678,41 @@ export function QuickAddTask({
   const parsedTemplateOffset = templateOffsetHours.trim() === "" ? null : Number(templateOffsetHours);
   const templateOffsetInvalid = parsedTemplateOffset !== null
     && (!Number.isInteger(parsedTemplateOffset) || parsedTemplateOffset < 0 || parsedTemplateOffset > 24 * 365);
+  const workflowTemplateTitles = workflowTemplateText.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  const workflowTemplateTooMany = workflowTemplateTitles.length > 100;
 
   const confirmSaveTemplate = async () => {
-    if (!user || !finalTitle.trim() || templateOffsetInvalid) return;
+    if (!user || !templateName.trim()) return;
+    if (templateSaveMode === "single" && (!finalTitle.trim() || templateOffsetInvalid)) return;
+    if (templateSaveMode === "workflow" && (workflowTemplateTitles.length < 2 || workflowTemplateTooMany)) {
+      toast.error(workflowTemplateTooMany
+        ? T("حداکثر ۱۰۰ کار در هر گردش‌کار می‌توان ذخیره کرد.", "A workflow can contain at most 100 tasks.")
+        : T("برای گردش‌کار دست‌کم دو عنوان در خط‌های جدا وارد کن.", "Enter at least two task titles on separate lines."));
+      return;
+    }
     setTemplateSaving(true);
     try {
+      const isWorkflow = templateSaveMode === "workflow";
       const saved = await saveTaskTemplate(user.id, {
-        title: finalTitle.trim(),
-        priority: finalPriority,
-        folder_id: finalFolderId,
-        recurrence: recurrence && recurrence.freq !== "yearly" ? recurrence.freq : "none",
-        recurrence_rule: recurrence,
+        title: isWorkflow ? templateName.trim() : finalTitle.trim(),
+        priority: isWorkflow ? "none" : finalPriority,
+        folder_id: isWorkflow ? null : finalFolderId,
+        recurrence: isWorkflow ? "none" : recurrence && recurrence.freq !== "yearly" ? recurrence.freq : "none",
+        recurrence_rule: isWorkflow ? null : recurrence,
       }, {
         title: templateName,
-        dueOffsetHours: parsedTemplateOffset,
-        tagIds: finalTagIds,
+        ...(isWorkflow ? {
+          dueOffsetHours: null,
+          workflowTasks: workflowTemplateTitles.map(title => ({
+            id: generateId(),
+            title,
+            priority: finalPriority,
+            folder_id: finalFolderId,
+          })),
+        } : {
+          dueOffsetHours: parsedTemplateOffset,
+          tagIds: finalTagIds,
+        }),
         id: templateSaveId,
       });
       if (!saved) throw new Error(T("قالب ذخیره نشد؛ دوباره تلاش کنید.", "Template was not saved. Please try again."));
@@ -434,6 +720,7 @@ export function QuickAddTask({
       setTemplates(current => [saved, ...current.filter(item => item.id !== saved.id)]);
       setTemplateSaveOpen(false);
       setTemplateSaveId("");
+      setWorkflowTemplateText("");
       toast.success(T("قالب ذخیره شد", "Template saved"));
     } catch (error) {
       if (activeUserIdRef.current === user.id) {
@@ -914,13 +1201,32 @@ export function QuickAddTask({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" side="top" className="w-64 max-h-[min(65dvh,24rem)] overflow-y-auto">
                   <DropdownMenuLabel>{T("قالب‌های ذخیره‌شده", "Saved templates")}</DropdownMenuLabel>
+                  {workflowRun && (
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        setTemplateMenuOpen(false);
+                        setWorkflowPreviewOpen(true);
+                      }}
+                      className="cursor-pointer font-medium"
+                    >
+                      <RotateCcw className="me-2 h-3.5 w-3.5" />
+                      <span className="min-w-0 truncate">{T("ادامهٔ گردش‌کار", "Resume workflow")}: {workflowRun.templateTitle}</span>
+                    </DropdownMenuItem>
+                  )}
                   {templates.length ? templates.map(template => (
                     <DropdownMenuItem
                       key={template.id}
-                      onSelect={() => applyTemplate(buildTaskFromTemplate(template))}
+                      onSelect={() => buildWorkflowTasksFromTemplate(template).length > 1
+                        ? openWorkflowTemplate(template)
+                        : applyTemplate(buildTaskFromTemplate(template))}
                       className="cursor-pointer"
                     >
                       <span className="min-w-0 truncate">{template.title}</span>
+                      {buildWorkflowTasksFromTemplate(template).length > 1 && (
+                        <span className="ms-auto shrink-0 text-[10px] text-muted-foreground">
+                          {buildWorkflowTasksFromTemplate(template).length} {T("کار", "tasks")}
+                        </span>
+                      )}
                     </DropdownMenuItem>
                   )) : (
                     <DropdownMenuItem disabled>{T("هنوز قالبی ذخیره نشده", "No saved templates yet")}</DropdownMenuItem>
@@ -933,6 +1239,14 @@ export function QuickAddTask({
                   >
                     <Plus className="me-2 h-3.5 w-3.5" />
                     {T("ذخیرهٔ این تسک به‌عنوان قالب", "Save this task as a template")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={templateSaving}
+                    onSelect={beginSaveWorkflowTemplate}
+                    className="cursor-pointer"
+                  >
+                    <FileStack className="me-2 h-3.5 w-3.5" />
+                    {T("ذخیرهٔ گردش‌کار چندتسکی", "Save a multi-task workflow")}
                   </DropdownMenuItem>
                   {!!templates.length && (
                     <DropdownMenuSub>
@@ -993,19 +1307,24 @@ export function QuickAddTask({
         open={templateSaveOpen}
         onOpenChange={(open) => {
           setTemplateSaveOpen(open);
-          if (!open && !templateSaving) setTemplateSaveId("");
+          if (!open && !templateSaving) {
+            setTemplateSaveId("");
+            setTemplateSaveMode("single");
+            setWorkflowTemplateText("");
+          }
         }}
       >
         <DialogContent dir={isEn ? "ltr" : "rtl"} className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{T("ذخیرهٔ قالب تسک", "Save task template")}</DialogTitle>
-            <DialogDescription>
-              {T("عنوان، اولویت، فولدر، تکرار و برچسب‌ها ذخیره می‌شوند. زمان‌بندی دقیق و یادآور ذخیره نمی‌شوند.", "The title, priority, folder, recurrence, and tags are saved. Exact scheduling and reminders are not.")}
+            <DialogTitle>{templateSaveMode === "workflow" ? T("ذخیرهٔ گردش‌کار", "Save workflow") : T("ذخیرهٔ قالب تسک", "Save task template")}</DialogTitle>
+            <DialogDescription>{templateSaveMode === "workflow"
+              ? T("برای هر کار یک خط بنویس. زمان‌بندی یا یادآوری به کارها اضافه نمی‌شود.", "Write one task per line. No schedule or reminder is added.")
+              : T("عنوان، اولویت، فولدر، تکرار و برچسب‌ها ذخیره می‌شوند. زمان‌بندی دقیق و یادآور ذخیره نمی‌شوند.", "The title, priority, folder, recurrence, and tags are saved. Exact scheduling and reminders are not.")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <label htmlFor="quick-add-template-name" className="text-sm font-medium">
-              {T("نام قالب", "Template name")}
+              {templateSaveMode === "workflow" ? T("نام گردش‌کار", "Workflow name") : T("نام قالب", "Template name")}
             </label>
             <Input
               id="quick-add-template-name"
@@ -1014,9 +1333,29 @@ export function QuickAddTask({
               maxLength={500}
               autoFocus
             />
-            <div className="space-y-1.5">
-              <label htmlFor="quick-add-template-offset" className="text-sm font-medium">
-                {T("زمان نسبی برحسب ساعت (اختیاری)", "Relative time in hours (optional)")}
+            {templateSaveMode === "workflow" ? (
+              <div className="space-y-1.5">
+                <label htmlFor="quick-add-workflow-tasks" className="text-sm font-medium">
+                  {T("کارها، هرکدام در یک خط", "Tasks, one per line")}
+                </label>
+                <Textarea
+                  id="quick-add-workflow-tasks"
+                  aria-label={T("کارها، هرکدام در یک خط", "Tasks, one per line")}
+                  value={workflowTemplateText}
+                  onChange={event => setWorkflowTemplateText(event.target.value)}
+                  placeholder={T("برنامه‌ریزی کار\nآماده‌کردن وسایل\nمرور نتیجه", "Plan the work\nPrepare materials\nReview the result")}
+                  rows={6}
+                  maxLength={20_000}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {T(`${workflowTemplateTitles.length} کار؛ دست‌کم ۲ و حداکثر ۱۰۰ کار.`, `${workflowTemplateTitles.length} tasks; enter 2 to 100.`)}
+                </p>
+                {workflowTemplateTooMany && <p className="text-xs text-destructive">{T("حداکثر تعداد کارها ۱۰۰ است.", "The maximum is 100 tasks.")}</p>}
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <label htmlFor="quick-add-template-offset" className="text-sm font-medium">
+                  {T("زمان نسبی برحسب ساعت (اختیاری)", "Relative time in hours (optional)")}
               </label>
               <Input
                 id="quick-add-template-offset"
@@ -1034,7 +1373,8 @@ export function QuickAddTask({
                   {T("عدد صحیحی از صفر تا ۸۷۶۰ وارد کنید.", "Enter a whole number from 0 to 8760.")}
                 </p>
               )}
-            </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setTemplateSaveOpen(false)} disabled={templateSaving}>
@@ -1043,9 +1383,77 @@ export function QuickAddTask({
             <Button
               type="button"
               onClick={confirmSaveTemplate}
-              disabled={templateSaving || !templateName.trim() || templateOffsetInvalid}
+              disabled={templateSaving || !templateName.trim() || (templateSaveMode === "single" ? templateOffsetInvalid : workflowTemplateTitles.length < 2 || workflowTemplateTooMany)}
             >
               {templateSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : T("ذخیره", "Save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={workflowPreviewOpen && !!workflowRun} onOpenChange={closeWorkflowPreview}>
+        <DialogContent dir={isEn ? "ltr" : "rtl"} className="sm:max-w-xl max-h-[88dvh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{T("بازبینی گردش‌کار", "Review workflow")}: {workflowRun?.templateTitle}</DialogTitle>
+            <DialogDescription>
+              {T("پیش از تأیید چیزی ذخیره نمی‌شود. هر ردیف را ویرایش یا از این نوبت حذف کن. اگر ذخیره بخشی از کارها شکست بخورد، همان شناسه‌ها حفظ می‌شوند و فقط موارد ناموفق دوباره فرستاده می‌شوند.", "Nothing is saved before confirmation. Edit or skip rows for this use. If some saves fail, their IDs are preserved and only failed rows are retried.")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {workflowRun?.tasks.map((task, index) => {
+              const completed = task.state === "saved" || task.state === "queued";
+              const stateLabel = task.state === "saved" ? T("ذخیره شد", "Saved")
+                : task.state === "queued" ? T("در صف همگام‌سازی", "Queued for sync")
+                  : task.state === "failed" ? T("ناموفق", "Failed") : T("آماده", "Ready");
+              return (
+                <div key={task.id} className="rounded-lg border bg-card p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      aria-label={T(`افزودن کار ${index + 1}`, `Include task ${index + 1}`)}
+                      checked={task.include}
+                      disabled={workflowSaving || completed}
+                      onChange={event => editWorkflowTask(task.id, { include: event.target.checked })}
+                      className="h-4 w-4 rounded border-input accent-primary"
+                    />
+                    <Input
+                      aria-label={T(`عنوان کار ${index + 1}`, `Task ${index + 1} title`)}
+                      value={task.title}
+                      maxLength={500}
+                      disabled={workflowSaving || completed}
+                      onChange={event => editWorkflowTask(task.id, { title: event.target.value })}
+                    />
+                    <span className={`shrink-0 text-[11px] ${task.state === "failed" ? "text-destructive" : "text-muted-foreground"}`}>
+                      {stateLabel}
+                    </span>
+                  </div>
+                  {task.state === "failed" && task.error && (
+                    <p className="ps-6 text-xs text-destructive">{task.error}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {!!workflowRun?.tasks.some(task => task.state === "saved" || task.state === "queued") && (
+            <p className="text-xs text-muted-foreground">
+              {T("کارهای ذخیره‌شده دوباره فرستاده نمی‌شوند. بستن این پنجره، پیش‌نویس و شناسه‌های باقی‌مانده را نگه می‌دارد.", "Saved tasks will not be sent again. Closing this dialog keeps the remaining draft and IDs.")}
+            </p>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => closeWorkflowPreview(false)} disabled={workflowSaving}>
+              {workflowRun?.tasks.some(task => task.attempted)
+                ? T("بستن و نگه‌داشتن پیشرفت", "Close and keep progress")
+                : T("لغو", "Cancel")}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void confirmWorkflowRun()}
+              disabled={workflowSaving || !workflowRun?.tasks.some(task => task.include && (task.state === "pending" || task.state === "failed"))}
+            >
+              {workflowSaving ? <Loader2 className="h-4 w-4 animate-spin" />
+                : workflowRun?.tasks.some(task => task.include && task.state === "failed")
+                  ? T("تلاش دوباره برای ناموفق‌ها", "Retry failed tasks")
+                  : T("ساخت کارهای انتخاب‌شده", "Create selected tasks")}
             </Button>
           </DialogFooter>
         </DialogContent>

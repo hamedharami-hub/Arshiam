@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { QuickAddTask } from "./QuickAddTask";
@@ -10,6 +10,7 @@ const templateMocks = vi.hoisted(() => ({
   list: vi.fn(() => Promise.resolve([] as any[])),
   save: vi.fn((..._args: any[]) => Promise.resolve(null as any)),
   remove: vi.fn(() => Promise.resolve()),
+  persist: vi.fn((_userId: string, _task: any): Promise<"saved" | "queued" | "failed"> => Promise.resolve("saved")),
 }));
 
 vi.mock("@/lib/offlineQueue", () => ({
@@ -45,12 +46,14 @@ vi.mock("@/lib/firebaseStore", () => ({
 vi.mock("@/lib/taskTemplates", () => ({
   listTaskTemplates: templateMocks.list,
   buildTaskFromTemplate: (t: any) => t,
+  buildWorkflowTasksFromTemplate: (t: any) => t.payload?.workflow_tasks || [],
   saveTaskTemplate: templateMocks.save,
   deleteTaskTemplate: templateMocks.remove,
 }));
 
 vi.mock("@/lib/firestoreDataService", () => ({
   upsertTask: vi.fn(() => Promise.resolve(true)),
+  persistTask: templateMocks.persist,
 }));
 
 describe("QuickAddTask component", () => {
@@ -59,6 +62,9 @@ describe("QuickAddTask component", () => {
     templateMocks.list.mockResolvedValue([]);
     templateMocks.save.mockResolvedValue(null as any);
     templateMocks.remove.mockResolvedValue();
+    templateMocks.persist.mockReset();
+    templateMocks.persist.mockResolvedValue("saved" as const);
+    localStorage.clear();
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
   });
 
@@ -213,6 +219,86 @@ describe("QuickAddTask component", () => {
     expect(vi.mocked(enqueueOps).mock.calls[0][0][0].payload).toEqual(expect.objectContaining({
       title: "Weekly review", recurrence_rule: { freq: "weekly", interval: 2 }, recurrence: "weekly",
     }));
+  });
+
+  it("previews workflows without writes, then retries only failed IDs and gives each new use fresh IDs", async () => {
+    templateMocks.list.mockResolvedValue([{
+      id: "workflow-template", user_id: "test-user-1", title: "Prepare launch", priority: "none",
+      payload: { workflow_tasks: [
+        { id: "item-1", title: "Draft plan", priority: "medium", folder_id: null },
+        { id: "item-2", title: "Review plan", priority: "high", folder_id: "folder-1" },
+      ] },
+    }] as any);
+    templateMocks.persist
+      .mockResolvedValueOnce("queued")
+      .mockResolvedValueOnce("failed")
+      .mockResolvedValueOnce("saved")
+      .mockResolvedValueOnce("saved")
+      .mockResolvedValueOnce("saved");
+    const firstRender = render(<MemoryRouter><QuickAddTask placeholder="+ Add task" /></MemoryRouter>);
+
+    fireEvent.click(screen.getByText("+ Add task"));
+    fireEvent.keyDown(screen.getByTitle("Task templates"), { key: "ArrowDown" });
+    fireEvent.click(await screen.findByText("Prepare launch"));
+
+    const titleInput = await screen.findByLabelText("Task 2 title");
+    fireEvent.change(titleInput, { target: { value: "Review the final plan" } });
+    expect(templateMocks.persist).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Create selected tasks" }));
+
+    await waitFor(() => expect(templateMocks.persist).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("Failed")).toBeInTheDocument();
+    const firstUseCalls = templateMocks.persist.mock.calls.slice(0, 2);
+    const firstUseIds = firstUseCalls.map(call => call[1].id);
+    expect(firstUseIds[0]).not.toBe(firstUseIds[1]);
+    expect(firstUseCalls[1][1]).toEqual(expect.objectContaining({ title: "Review the final plan", parent_id: null, status: "todo", completed: false }));
+    const storedRun = JSON.parse(localStorage.getItem("quick_add_workflow_run_v1:test-user-1") || "null");
+    expect(storedRun.tasks.map((task: any) => task.id)).toEqual(firstUseIds);
+    expect(storedRun.tasks.map((task: any) => task.state)).toEqual(["queued", "failed"]);
+
+    // Simulate a reload after partial completion. The draft and IDs are restored,
+    // and a task already accepted by the offline queue is not sent again.
+    firstRender.unmount();
+    render(<MemoryRouter><QuickAddTask placeholder="+ Add task" /></MemoryRouter>);
+    fireEvent.click(screen.getByText("+ Add task"));
+    fireEvent.keyDown(screen.getByTitle("Task templates"), { key: "ArrowDown" });
+    fireEvent.click(await screen.findByText(/Resume workflow/));
+    expect(await screen.findByLabelText("Task 2 title")).toHaveValue("Review the final plan");
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry failed tasks" }));
+    await waitFor(() => expect(templateMocks.persist).toHaveBeenCalledTimes(3));
+    expect(templateMocks.persist.mock.calls[2][1].id).toBe(firstUseIds[1]);
+    expect(templateMocks.persist.mock.calls.slice(0, 2).map(call => call[1].id)).toEqual(firstUseIds);
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    fireEvent.keyDown(screen.getByTitle("Task templates"), { key: "ArrowDown" });
+    fireEvent.click(await screen.findByText("Prepare launch"));
+    fireEvent.click(await screen.findByRole("button", { name: "Create selected tasks" }));
+    await waitFor(() => expect(templateMocks.persist).toHaveBeenCalledTimes(5));
+    const nextUseIds = templateMocks.persist.mock.calls.slice(3, 5).map(call => call[1].id);
+    expect(nextUseIds.every(id => !firstUseIds.includes(id))).toBe(true);
+  });
+
+  it("cancels a workflow preview without writing any task", async () => {
+    templateMocks.list.mockResolvedValueOnce([{
+      id: "workflow-template", user_id: "test-user-1", title: "Prepare launch", priority: "none",
+      payload: { workflow_tasks: [
+        { id: "item-1", title: "Draft plan", priority: "none", folder_id: null },
+        { id: "item-2", title: "Review plan", priority: "none", folder_id: null },
+      ] },
+    }] as any);
+    render(<MemoryRouter><QuickAddTask placeholder="+ Add task" /></MemoryRouter>);
+
+    fireEvent.click(screen.getByText("+ Add task"));
+    fireEvent.keyDown(screen.getByTitle("Task templates"), { key: "ArrowDown" });
+    fireEvent.click(await screen.findByText("Prepare launch"));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/Review workflow/)).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(templateMocks.persist).not.toHaveBeenCalled();
+    expect(localStorage.getItem("quick_add_workflow_run_v1:test-user-1")).toBeNull();
   });
 
   it("collapses when clicking outside with minimal movement (< 10px)", () => {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { buildTaskFromTemplate, createTaskFromTemplate, deleteTaskTemplate, listTaskTemplates, saveTaskTemplate } from "./taskTemplates";
+import { buildTaskFromTemplate, buildWorkflowTasksFromTemplate, createTaskFromTemplate, deleteTaskTemplate, listTaskTemplates, saveTaskTemplate } from "./taskTemplates";
 
 const mocks = vi.hoisted(() => ({ from: vi.fn() }));
 vi.mock("@/lib/firebaseStore", () => ({ firebaseStore: { from: mocks.from } }));
@@ -97,6 +97,37 @@ describe("task templates", () => {
     expect(row).not.toHaveProperty("completed");
     expect(row).not.toHaveProperty("status");
     expect(row).not.toHaveProperty("work_date");
+  });
+
+  it("round-trips workflow items while dropping sample identity and state fields", async () => {
+    const savedRow = {
+      id: "workflow-template-1", user_id: "user-1", title: "Prepare event", priority: "none", folder_id: null,
+      due_offset_hours: null, recurrence: "none", recurrence_rule: null, tag_ids: [],
+      payload: { workflow_tasks: [
+        { id: "definition-1", title: "Book room", priority: "high", folder_id: "folder-1", description: "Call the venue", parent_id: "sample-parent", status: "done", completed: true },
+        { id: "definition-2", title: "Send invitations", priority: "medium", folder_id: null, user_id: "foreign-user", task_id: "sample-task" },
+      ] },
+    };
+    const mutation = { select: vi.fn(() => mutation), single: vi.fn().mockResolvedValue({ data: savedRow, error: null }) };
+    const query = { upsert: vi.fn((_row: unknown, _options: unknown) => mutation) };
+    mocks.from.mockReturnValue(query);
+
+    const saved = await saveTaskTemplate("user-1", { title: "Prepare event", priority: "none" }, {
+      id: "workflow-template-1",
+      workflowTasks: [
+        { id: "definition-1", title: "Book room", priority: "high", folder_id: "folder-1", description: "Call the venue", parent_id: "sample-parent", status: "done" } as any,
+        { id: "definition-2", title: "Send invitations", priority: "medium", folder_id: null, user_id: "foreign-user", task_id: "sample-task" } as any,
+      ],
+    });
+
+    const persisted = query.upsert.mock.calls[0][0] as any;
+    expect(persisted.payload.workflow_tasks).toEqual([
+      { id: "definition-1", title: "Book room", priority: "high", folder_id: "folder-1", description: "Call the venue" },
+      { id: "definition-2", title: "Send invitations", priority: "medium", folder_id: null },
+    ]);
+    expect(persisted).not.toHaveProperty("work_date");
+    expect(saved?.payload?.workflow_tasks).toEqual(persisted.payload.workflow_tasks);
+    expect(buildWorkflowTasksFromTemplate(saved as any)).toEqual(persisted.payload.workflow_tasks);
   });
 
   it("scopes listing to the active owner and drops records with a different owner", async () => {

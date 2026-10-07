@@ -11,9 +11,19 @@ export type TaskTemplateRecord = TaskTemplate & {
   payload?: {
     is_avoidance?: boolean;
     location?: string | null;
+    workflow_tasks?: WorkflowTaskTemplateItem[];
   };
   created_at?: string;
   updated_at?: string;
+};
+
+/** A workflow item stores only reusable task content, never task identity/state. */
+export type WorkflowTaskTemplateItem = {
+  id: string;
+  title: string;
+  description?: string | null;
+  priority: Priority;
+  folder_id: string | null;
 };
 
 export type TaskTemplateSource = Pick<Task, "title" | "priority"> & Partial<Pick<
@@ -26,6 +36,8 @@ export type SaveTaskTemplateOptions = {
   /** Explicit relative offset in hours. `null` means this template has no schedule. */
   dueOffsetHours?: number | null;
   tagIds?: string[];
+  /** Present only for a multi-task workflow saved from the existing Quick Add flow. */
+  workflowTasks?: WorkflowTaskTemplateItem[];
   /** Caller-owned stable id, reused after an uncertain write so retries cannot duplicate the template. */
   id: string;
 };
@@ -85,6 +97,29 @@ function normalizeTemplatePayload(value: unknown): TaskTemplateRecord["payload"]
   const result: NonNullable<TaskTemplateRecord["payload"]> = {};
   if (payload.is_avoidance === true) result.is_avoidance = true;
   if (typeof payload.location === "string" && payload.location.trim()) result.location = payload.location.trim().slice(0, 500);
+  if (Array.isArray(payload.workflow_tasks)) {
+    const workflowTasks: WorkflowTaskTemplateItem[] = [];
+    const seenIds = new Set<string>();
+    for (const rawItem of payload.workflow_tasks.slice(0, 100)) {
+      if (!rawItem || typeof rawItem !== "object" || Array.isArray(rawItem)) continue;
+      const item = rawItem as Record<string, unknown>;
+      const id = normalizeStringId(item.id);
+      const title = typeof item.title === "string" ? item.title.trim().slice(0, 500) : "";
+      if (!id || seenIds.has(id) || !title) continue;
+      seenIds.add(id);
+      const priority = normalizeTaskPriority(item.priority);
+      workflowTasks.push({
+        id,
+        title,
+        priority: validPriorities.has(priority) ? priority : "none",
+        folder_id: normalizeStringId(item.folder_id),
+        ...(typeof item.description === "string" && item.description.trim()
+          ? { description: item.description.slice(0, 10_000) }
+          : {}),
+      });
+    }
+    if (workflowTasks.length) result.workflow_tasks = workflowTasks;
+  }
   return result;
 }
 
@@ -132,7 +167,11 @@ export async function saveTaskTemplate(
     ? task.recurrence
     : recurrenceRule && recurrenceRule.freq !== "yearly" ? recurrenceRule.freq : "none";
   const dueOffsetHours = normalizeDueOffset(options.dueOffsetHours);
-  const safePayload = normalizeTemplatePayload({ is_avoidance: task.is_avoidance, location: task.location });
+  const safePayload = normalizeTemplatePayload({
+    is_avoidance: task.is_avoidance,
+    location: task.location,
+    ...(options.workflowTasks ? { workflow_tasks: options.workflowTasks } : {}),
+  });
   const id = normalizeStringId(options.id);
   if (!id) throw new Error("برای ذخیرهٔ تکرارپذیر قالب، شناسهٔ ثابت لازم است.");
 
@@ -218,6 +257,16 @@ export function buildTaskFromTemplate(
     ...(safeTemplate.payload?.location ? { location: safeTemplate.payload.location } : {}),
     tag_ids: safeTemplate.tag_ids || [],
   };
+}
+
+/** Return validated task definitions for a workflow template. */
+export function buildWorkflowTasksFromTemplate(
+  template: TaskTemplateRecord | TaskTemplate,
+): WorkflowTaskTemplateItem[] {
+  const ownerId = typeof template.user_id === "string" ? template.user_id : "";
+  const normalized = normalizeTemplateRecord(template, ownerId);
+  const payload = normalized?.payload ?? normalizeTemplatePayload(template.payload);
+  return (payload?.workflow_tasks ?? []).map(item => ({ ...item }));
 }
 
 export async function createTaskFromTemplate(
