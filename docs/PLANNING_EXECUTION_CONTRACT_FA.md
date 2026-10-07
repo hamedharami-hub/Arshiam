@@ -6,7 +6,7 @@
 
 - هر تسک فقط یک زمان‌بندی عملیاتی؛ تب Plan باقی می‌ماند و همان داده را می‌خواند.
 - رنگ، فونت، تم، ناوبری، چیدمان کلی و سبک کارت‌ها تغییر نکنند. اصلاح منطق و کنترل‌های ضروری با همان اجزای موجود انجام شود. مرحلهٔ صفر هیچ فایل CSS یا چیدمان را تغییر نمی‌دهد.
-- Time block، Part of day/Time of day و Deadline بازنگردند. ساعت واقعی، یادآور، recurrence و مطالعه مستقل‌اند.
+- Time block و Part of day/Time of day در محصول فعال نشوند. مدل قدیمی `deadline` هم به schedule v2 بازنگردد؛ قابلیت اختیاری `deadline_date` فقط برای مرحلهٔ آینده و طبق §۱۱ تأیید شده است و وارد `work_date/planning_*` یا بسته‌های اجرایی فعلی نمی‌شود. ساعت واقعی، یادآور، recurrence و مطالعه مستقل‌اند.
 - ساختار frontend/، API ریشه، lockfile و Vercel حفظ شوند. هیچ force push یا merge خودکار به main انجام نشود.
 
 ## ۲. مدل عملیاتی و null
@@ -99,3 +99,15 @@ flowchart TD
     F --> G[Luna: ۶ AI و آزمون پذیرش]
     G --> H[Sol 6.1: بازبینی مستقل]
 ```
+
+
+## ۱۱. قابلیت آیندهٔ مصوب — Deadline اختیاری و کم‌مزاحمت
+
+این بند محدودهٔ محصول را برای مرحلهٔ آینده ثبت می‌کند؛ هیچ بستهٔ اجرایی فعلی را شروع یا بازنویسی نمی‌کند. پیاده‌سازی فقط با درخواست اجرایی جداگانه و پس از قبولی E2E هستهٔ زمان‌بندی آغاز می‌شود.
+
+- هر تسک همچنان حداکثر یک زمان‌بندی عملیاتی در `work_date` یا `planning_*` دارد؛ در کنار آن می‌تواند Deadline مستقل و اختیاری داشته باشد. فیلد مرجع جدید `deadline_date` و مقدار آن تاریخ محلی `YYYY-MM-DD` است؛ date-only از جابه‌جایی UTC محافظت می‌کند. نسخهٔ اول برای تسک‌های یک‌باره است و ساعت یا قاعدهٔ Deadline تکرارشونده ندارد.
+- مقدار خالی یعنی Deadline تنظیم نشده. این فیلد اجباری یا حدس‌زدنی نیست. اعلان خودکار ندارد؛ `reminder_at/reminder_plan` مستقل باقی می‌مانند.
+- ظاهر: فقط یک کنترل کوچک در جزئیات تسک؛ بدون صفحه، تب، مسیر ناوبری، کارت داشبورد یا فهرست تازه. در تقویم موجود یک نشان کوچک روی روز Deadline؛ در ردیف تسک، نشان «مهلت نزدیک» فقط تا ۷ روز مانده و «مهلت گذشته» برای تسک باز. همان تسک یک بار شمارش شود؛ اگر زمان‌بندی و Deadline یک روز دارند، نشان‌ها در همان ردیف ترکیب شوند.
+- «مهلت گذشته» تابع Deadline باشد و از دیرکرد `work_date`/planning مستقل محاسبه شود. تغییر schedule مقدار Deadline را عوض نکند؛ تغییر Deadline schedule را عوض نکند؛ دیرکرد باعث جابه‌جایی یا تکمیل خودکار نشود.
+- فیلد قدیمی `deadline` در `REMOVED_FEATURE_FIELDS` retired است؛ آن را فعال یا به‌عنوان نام مرجع استفاده نکن. مقدار قدیمیِ موجود در backup `schedule_legacy` بدون تأیید/مهاجرت صریح به فیلد جدید برنگردد. writerهای frontend و Firebase، readers، Task type، API create/patch، Agent API schema/write paths، جزئیات تسک، نماهای لیست و تقویم، exportهای متاثر و AI باید جداگانه بررسی و هماهنگ شوند. AI فقط تاریخ قطعی‌ای را پیشنهاد/ذخیره کند که کاربر صریحاً به‌عنوان مهلت گفته و تأیید کرده باشد.
+- آزمون‌های پذیرش: schedule دوشنبه + Deadline جمعه؛ تغییر هریک بدون تغییر دیگری؛ عبور از Deadline بدون auto-reschedule؛ complete removes overdue marker; no deadline leaves UI unchanged; same-day item counted once; no notification without an explicit reminder; date-only survives timezone and Jalali/Gregorian display; Persian/English and light/dark UI remain compact.
