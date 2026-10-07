@@ -5,7 +5,12 @@ import { QuickAddTask } from "./QuickAddTask";
 import { enqueueOps } from "@/lib/offlineQueue";
 import { toast } from "sonner";
 
-const { testUser } = vi.hoisted(() => ({ testUser: { id: "test-user-1" } }));
+const templateMocks = vi.hoisted(() => ({
+  testUser: { id: "test-user-1" },
+  list: vi.fn(() => Promise.resolve([] as any[])),
+  save: vi.fn((..._args: any[]) => Promise.resolve(null as any)),
+  remove: vi.fn(() => Promise.resolve()),
+}));
 
 vi.mock("@/lib/offlineQueue", () => ({
   enqueueOp: vi.fn(() => Promise.resolve(true)),
@@ -15,7 +20,7 @@ vi.mock("@/lib/offlineQueue", () => ({
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 vi.mock("@/hooks/useAuth", () => ({
-  useAuth: () => ({ user: testUser }),
+  useAuth: () => ({ user: templateMocks.testUser }),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -38,8 +43,10 @@ vi.mock("@/lib/firebaseStore", () => ({
 }));
 
 vi.mock("@/lib/taskTemplates", () => ({
-  listTaskTemplates: () => Promise.resolve([]),
+  listTaskTemplates: templateMocks.list,
   buildTaskFromTemplate: (t: any) => t,
+  saveTaskTemplate: templateMocks.save,
+  deleteTaskTemplate: templateMocks.remove,
 }));
 
 vi.mock("@/lib/firestoreDataService", () => ({
@@ -49,6 +56,9 @@ vi.mock("@/lib/firestoreDataService", () => ({
 describe("QuickAddTask component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    templateMocks.list.mockResolvedValue([]);
+    templateMocks.save.mockResolvedValue(null as any);
+    templateMocks.remove.mockResolvedValue();
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
   });
 
@@ -153,6 +163,56 @@ describe("QuickAddTask component", () => {
     fireEvent.click(screen.getByText("Cancel"));
     // Collapses back to placeholder
     expect(screen.queryByTitle("Add task (Enter)")).not.toBeInTheDocument();
+  });
+
+  it("saves a Quick Add draft as a reusable template with an explicit relative offset", async () => {
+    const savedTemplate = {
+      id: "stable-template-1", user_id: "test-user-1", title: "Prepare report", priority: "high",
+      folder_id: "folder-1", recurrence: "none", recurrence_rule: null, due_offset_hours: 24, tag_ids: [], payload: {},
+    };
+    templateMocks.save.mockResolvedValueOnce(savedTemplate as any);
+    render(<MemoryRouter><QuickAddTask placeholder="+ Add task" defaults={{ folder_id: "folder-1", priority: "high" }} /></MemoryRouter>);
+
+    fireEvent.click(screen.getByText("+ Add task"));
+    fireEvent.change(screen.getByPlaceholderText("+ Add task"), { target: { value: "Prepare report" } });
+    fireEvent.keyDown(screen.getByTitle("Task templates"), { key: "ArrowDown" });
+    fireEvent.click(screen.getByText("Save this task as a template"));
+    fireEvent.change(screen.getByLabelText("Template name"), { target: { value: "Prepare report" } });
+    fireEvent.change(screen.getByLabelText("Relative time in hours (optional)"), { target: { value: "24" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(templateMocks.save).toHaveBeenCalledTimes(1));
+    expect(templateMocks.save).toHaveBeenCalledWith("test-user-1", expect.objectContaining({
+      title: "Prepare report", priority: "high", folder_id: "folder-1",
+    }), expect.objectContaining({
+      title: "Prepare report", dueOffsetHours: 24, id: expect.any(String),
+    }));
+    expect(templateMocks.save.mock.calls[0][2].id).toBeTruthy();
+    expect(toast.success).toHaveBeenCalledWith("Template saved");
+
+    fireEvent.keyDown(screen.getByTitle("Task templates"), { key: "ArrowDown" });
+    expect(screen.getAllByText("Prepare report")).toHaveLength(2);
+  });
+
+  it("applies a saved template in Quick Add without creating a task until submit", async () => {
+    templateMocks.list.mockResolvedValueOnce([{
+      id: "template-1", user_id: "test-user-1", title: "Weekly review", priority: "medium",
+      folder_id: null, recurrence: "weekly", recurrence_rule: { freq: "weekly", interval: 2 }, tag_ids: [],
+    }] as any);
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    render(<MemoryRouter><QuickAddTask placeholder="+ Add task" /></MemoryRouter>);
+
+    fireEvent.click(screen.getByText("+ Add task"));
+    fireEvent.keyDown(screen.getByTitle("Task templates"), { key: "ArrowDown" });
+    fireEvent.click(await screen.findByText("Weekly review"));
+
+    expect(screen.getByPlaceholderText("+ Add task")).toHaveValue("Weekly review");
+    expect(enqueueOps).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTitle("Add task (Enter)"));
+    await waitFor(() => expect(enqueueOps).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(enqueueOps).mock.calls[0][0][0].payload).toEqual(expect.objectContaining({
+      title: "Weekly review", recurrence_rule: { freq: "weekly", interval: 2 }, recurrence: "weekly",
+    }));
   });
 
   it("collapses when clicking outside with minimal movement (< 10px)", () => {

@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
-import { Plus, Loader2, Calendar as CalendarIcon, Tag, Folder, Check } from "lucide-react";
+import { Plus, Loader2, Calendar as CalendarIcon, Tag, Folder, Check, FileStack, Trash2 } from "lucide-react";
 import { PriorityFlag } from "@/components/PriorityFlag";
 import { parseNaturalDate } from "@/lib/nlDate";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -18,12 +18,24 @@ import { toast } from "sonner";
 import { PRIORITY_META, PRIORITY_SELECTABLE, type Priority } from "@/lib/priority";
 import type { ReminderPlan, Task } from "@/lib/taskTypes";
 import type { RecurrenceRule } from "@/lib/recurrence";
-import { listTaskTemplates, buildTaskFromTemplate } from "@/lib/taskTemplates";
+import { listTaskTemplates, buildTaskFromTemplate, saveTaskTemplate, deleteTaskTemplate, type TaskTemplateRecord } from "@/lib/taskTemplates";
 import { uploadMediaFull } from "@/lib/uploadMedia";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { enqueueOp, enqueueOps } from "@/lib/offlineQueue";
 import { fieldsForExact, getTimeSettings, timePatch, type TimeFields } from "@/lib/timeHorizon";
 import { parseTaskDueDate } from "@/lib/taskDate";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
+  DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
 
 type Defaults = {
   folder_id?: string | null;
@@ -72,6 +84,8 @@ export function QuickAddTask({
   collapsedExtra?: React.ReactNode;
 }) {
   const { user } = useAuth();
+  const activeUserIdRef = useRef<string | null>(user?.id ?? null);
+  activeUserIdRef.current = user?.id ?? null;
   const navigate = useNavigate();
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
@@ -87,9 +101,15 @@ export function QuickAddTask({
   const [tagIds, setTagIds] = useState<string[]>(() => JSON.parse(defaultTagKey));
   const [folders, setFolders] = useState<{ id: string; name: string }[]>([]);
   const [tags, setTags] = useState<{ id: string; name: string; color: string | null }[]>([]);
-  const [templates, setTemplates] = useState<Partial<Task>[]>([]);
-  const [moreOpen, setMoreOpen] = useState(false);
-  const [templateOpen, setTemplateOpen] = useState(false);
+  const [templates, setTemplates] = useState<TaskTemplateRecord[]>([]);
+  const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
+  const [templateSaveOpen, setTemplateSaveOpen] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [templateOffsetHours, setTemplateOffsetHours] = useState("");
+  const [templateSaveId, setTemplateSaveId] = useState("");
+  const [templateSaving, setTemplateSaving] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<TaskTemplateRecord | null>(null);
+  const [templateDeleting, setTemplateDeleting] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -118,12 +138,30 @@ export function QuickAddTask({
   }, [defaultTagKey]);
 
   useEffect(() => {
-    if (!user) return;
-    firebaseStore.from("folders").select("id,name").order("name").then(({ data }) => setFolders((data as any) || []));
-    firebaseStore.from("tags").select("id,name,color").order("name").then(({ data }) => setTags((data as any) || []));
+    if (!user) {
+      setTemplates([]);
+      setTemplateMenuOpen(false);
+      setTemplateSaveOpen(false);
+      setTemplateSaveId("");
+      setTemplateToDelete(null);
+      return;
+    }
+    let active = true;
+    firebaseStore.from("folders").select("id,name").order("name").then(({ data }) => {
+      if (active) setFolders((data as any) || []);
+    });
+    firebaseStore.from("tags").select("id,name,color").order("name").then(({ data }) => {
+      if (active) setTags((data as any) || []);
+    });
+    setTemplates([]);
+    setTemplateMenuOpen(false);
+    setTemplateSaveOpen(false);
+    setTemplateSaveId("");
+    setTemplateToDelete(null);
     listTaskTemplates(user.id).then((tpls) => {
-      setTemplates(tpls.map(t => buildTaskFromTemplate(t)));
+      if (active) setTemplates(tpls);
     }).catch(() => {});
+    return () => { active = false; };
   }, [user]);
 
   // Live natural-language parsing: date, #tag, @folder, !priority.
@@ -352,12 +390,80 @@ export function QuickAddTask({
 
   const applyTemplate = (tpl: Partial<Task>) => {
     if (tpl.title) setTitle(tpl.title);
-    if (tpl.due_date) setDue(tpl.due_date);
+    if (tpl.work_date) setDue(tpl.work_date);
     setRecurrence(tpl.recurrence_rule ?? null);
     if (tpl.priority) setPriority(tpl.priority);
     if (tpl.folder_id) setFolderId(tpl.folder_id);
-    setTemplateOpen(false);
-    setMoreOpen(false);
+    setTagIds(Array.isArray((tpl as Partial<Task> & { tag_ids?: string[] }).tag_ids)
+      ? (tpl as Partial<Task> & { tag_ids?: string[] }).tag_ids!
+      : []);
+    setTemplateMenuOpen(false);
+  };
+
+  const beginSaveTemplate = () => {
+    if (!finalTitle.trim()) return;
+    setTemplateName(finalTitle.trim());
+    setTemplateOffsetHours("");
+    setTemplateSaveId(generateId());
+    setTemplateMenuOpen(false);
+    setTemplateSaveOpen(true);
+  };
+
+  const parsedTemplateOffset = templateOffsetHours.trim() === "" ? null : Number(templateOffsetHours);
+  const templateOffsetInvalid = parsedTemplateOffset !== null
+    && (!Number.isInteger(parsedTemplateOffset) || parsedTemplateOffset < 0 || parsedTemplateOffset > 24 * 365);
+
+  const confirmSaveTemplate = async () => {
+    if (!user || !finalTitle.trim() || templateOffsetInvalid) return;
+    setTemplateSaving(true);
+    try {
+      const saved = await saveTaskTemplate(user.id, {
+        title: finalTitle.trim(),
+        priority: finalPriority,
+        folder_id: finalFolderId,
+        recurrence: recurrence && recurrence.freq !== "yearly" ? recurrence.freq : "none",
+        recurrence_rule: recurrence,
+      }, {
+        title: templateName,
+        dueOffsetHours: parsedTemplateOffset,
+        tagIds: finalTagIds,
+        id: templateSaveId,
+      });
+      if (!saved) throw new Error(T("قالب ذخیره نشد؛ دوباره تلاش کنید.", "Template was not saved. Please try again."));
+      if (activeUserIdRef.current !== user.id) return;
+      setTemplates(current => [saved, ...current.filter(item => item.id !== saved.id)]);
+      setTemplateSaveOpen(false);
+      setTemplateSaveId("");
+      toast.success(T("قالب ذخیره شد", "Template saved"));
+    } catch (error) {
+      if (activeUserIdRef.current === user.id) {
+        toast.error(error instanceof Error ? error.message : T("ذخیرهٔ قالب ناموفق بود", "Could not save template"));
+      }
+    } finally {
+      setTemplateSaving(false);
+    }
+  };
+
+  const confirmDeleteTemplate = async () => {
+    if (!user || !templateToDelete) return;
+    setTemplateDeleting(true);
+    try {
+      if (templateToDelete.user_id && templateToDelete.user_id !== user.id) {
+        setTemplateToDelete(null);
+        return;
+      }
+      await deleteTaskTemplate(user.id, templateToDelete.id);
+      if (activeUserIdRef.current !== user.id) return;
+      setTemplates(current => current.filter(item => item.id !== templateToDelete.id));
+      setTemplateToDelete(null);
+      toast.success(T("قالب حذف شد", "Template deleted"));
+    } catch (error) {
+      if (activeUserIdRef.current === user.id) {
+        toast.error(error instanceof Error ? error.message : T("حذف قالب ناموفق بود", "Could not delete template"));
+      }
+    } finally {
+      setTemplateDeleting(false);
+    }
   };
 
   const convertToNote = async () => {
@@ -792,6 +898,63 @@ export function QuickAddTask({
             {/* Action buttons (Trailing) */}
             <div className="ms-auto flex items-center gap-1.5">
               {chipsTrailing}
+              <DropdownMenu open={templateMenuOpen} onOpenChange={setTemplateMenuOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    title={T("قالب‌های تسک", "Task templates")}
+                    aria-label={T("قالب‌های تسک", "Task templates")}
+                    disabled={busy || templateSaving}
+                    className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer"
+                  >
+                    <FileStack className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" side="top" className="w-64 max-h-[min(65dvh,24rem)] overflow-y-auto">
+                  <DropdownMenuLabel>{T("قالب‌های ذخیره‌شده", "Saved templates")}</DropdownMenuLabel>
+                  {templates.length ? templates.map(template => (
+                    <DropdownMenuItem
+                      key={template.id}
+                      onSelect={() => applyTemplate(buildTaskFromTemplate(template))}
+                      className="cursor-pointer"
+                    >
+                      <span className="min-w-0 truncate">{template.title}</span>
+                    </DropdownMenuItem>
+                  )) : (
+                    <DropdownMenuItem disabled>{T("هنوز قالبی ذخیره نشده", "No saved templates yet")}</DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    disabled={!finalTitle.trim() || templateSaving}
+                    onSelect={beginSaveTemplate}
+                    className="cursor-pointer"
+                  >
+                    <Plus className="me-2 h-3.5 w-3.5" />
+                    {T("ذخیرهٔ این تسک به‌عنوان قالب", "Save this task as a template")}
+                  </DropdownMenuItem>
+                  {!!templates.length && (
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger className="cursor-pointer">
+                        <Trash2 className="me-2 h-3.5 w-3.5" />
+                        {T("حذف قالب", "Delete a template")}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="max-h-60 w-56 overflow-y-auto">
+                        {templates.map(template => (
+                          <DropdownMenuItem
+                            key={`delete-${template.id}`}
+                            onSelect={() => setTemplateToDelete(template)}
+                            className="cursor-pointer"
+                          >
+                            <span className="min-w-0 truncate">{template.title}</span>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 type="button"
                 variant="ghost"
@@ -825,6 +988,85 @@ export function QuickAddTask({
           </div>
         </>
       )}
+
+      <Dialog
+        open={templateSaveOpen}
+        onOpenChange={(open) => {
+          setTemplateSaveOpen(open);
+          if (!open && !templateSaving) setTemplateSaveId("");
+        }}
+      >
+        <DialogContent dir={isEn ? "ltr" : "rtl"} className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{T("ذخیرهٔ قالب تسک", "Save task template")}</DialogTitle>
+            <DialogDescription>
+              {T("عنوان، اولویت، فولدر، تکرار و برچسب‌ها ذخیره می‌شوند. زمان‌بندی دقیق و یادآور ذخیره نمی‌شوند.", "The title, priority, folder, recurrence, and tags are saved. Exact scheduling and reminders are not.")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <label htmlFor="quick-add-template-name" className="text-sm font-medium">
+              {T("نام قالب", "Template name")}
+            </label>
+            <Input
+              id="quick-add-template-name"
+              value={templateName}
+              onChange={event => setTemplateName(event.target.value)}
+              maxLength={500}
+              autoFocus
+            />
+            <div className="space-y-1.5">
+              <label htmlFor="quick-add-template-offset" className="text-sm font-medium">
+                {T("زمان نسبی برحسب ساعت (اختیاری)", "Relative time in hours (optional)")}
+              </label>
+              <Input
+                id="quick-add-template-offset"
+                type="number"
+                min={0}
+                max={24 * 365}
+                step={1}
+                inputMode="numeric"
+                placeholder={T("خالی بماند تا بدون زمان باشد", "Leave blank for no schedule")}
+                value={templateOffsetHours}
+                onChange={event => setTemplateOffsetHours(event.target.value)}
+              />
+              {templateOffsetInvalid && (
+                <p className="text-xs text-destructive">
+                  {T("عدد صحیحی از صفر تا ۸۷۶۰ وارد کنید.", "Enter a whole number from 0 to 8760.")}
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setTemplateSaveOpen(false)} disabled={templateSaving}>
+              {T("لغو", "Cancel")}
+            </Button>
+            <Button
+              type="button"
+              onClick={confirmSaveTemplate}
+              disabled={templateSaving || !templateName.trim() || templateOffsetInvalid}
+            >
+              {templateSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : T("ذخیره", "Save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!templateToDelete} onOpenChange={open => { if (!open && !templateDeleting) setTemplateToDelete(null); }}>
+        <AlertDialogContent dir={isEn ? "ltr" : "rtl"}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{T("حذف قالب؟", "Delete template?")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {T(`قالب «${templateToDelete?.title || ""}» برای این حساب حذف می‌شود.`, `“${templateToDelete?.title || ""}” will be deleted from this account.`)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={templateDeleting}>{T("لغو", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={event => { event.preventDefault(); void confirmDeleteTemplate(); }} disabled={templateDeleting}>
+              {templateDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : T("حذف", "Delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
