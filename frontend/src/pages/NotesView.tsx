@@ -26,7 +26,7 @@ import {
   ChevronDown,
   BookOpen,
   FileCode,
-  Eye, PanelLeftClose, PanelLeftOpen, Minimize2, Inbox,
+  Eye, PanelLeftClose, PanelLeftOpen, Minimize2, Inbox, ListPlus,
 } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
 import ShareDialog from "@/components/ShareDialog";
@@ -38,6 +38,7 @@ import { subscribeNotes, upsertNote, deleteNote as fsDeleteNote } from "@/lib/fi
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
 import {
@@ -74,6 +75,10 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cacheGet, cacheSet, getPendingOps } from "@/lib/offlineQueue";
 import { projectQueuedNotes } from "@/lib/noteQueueProjection";
 import { isFeatureEnabled } from "@/lib/capabilities";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { getNoteTemplates, type NoteTemplate } from "@/lib/noteTemplates";
+import { suggestNoteActionItem } from "@/lib/noteActionItems";
+import { persistNoteActionItem } from "@/lib/noteActionItemService";
 
 type Note = {
   id: string;
@@ -91,6 +96,7 @@ type Note = {
 
 type FolderItem = { id: string; name: string; color?: string };
 type TagItem = { id: string; name: string; color?: string };
+type ActionItemDraft = { id: string; ownerId: string; createdAt: string; title: string; description: string };
 
 export default function NotesView() {
   const { user } = useAuth();
@@ -164,6 +170,10 @@ export default function NotesView() {
   const [snap, setSnap] = useState<number | string>(0.55);
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState<{ html: string; md: string } | null>(null);
+  const [selectedText, setSelectedText] = useState("");
+  const [actionItemDraft, setActionItemDraft] = useState<ActionItemDraft | null>(null);
+  const [creatingActionItem, setCreatingActionItem] = useState(false);
+  const creatingActionItemRef = useRef(false);
   const [confirmDel, setConfirmDel] = useState<Note | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiLang, setAiLang] = useState<AILanguage>(getAILanguage());
@@ -171,6 +181,10 @@ export default function NotesView() {
   const [shareOpen, setShareOpen] = useState(false);
   const [quickTagName, setQuickTagName] = useState("");
   const [editorMode, setEditorMode] = useState<"visual" | "markdown" | "preview">("visual");
+  useEffect(() => {
+    setSelectedText("");
+    setActionItemDraft(null);
+  }, [selected?.id, user?.id]);
   // Folder / tag pickers open inline under the note header (one at a time; Escape closes).
   const [notePanel, setNotePanel] = useState<"folder" | "tags" | null>(null);
   useEffect(() => {
@@ -306,13 +320,14 @@ export default function NotesView() {
     }
   };
 
-  const create = async () => {
+  const create = async (template?: Pick<NoteTemplate, "title" | "content">) => {
     if (!user) return;
+    const initialContent = template?.content || "";
     const note: Note = {
       id: generateId(),
       user_id: user.id,
-      title: T("نوت جدید", "New note"),
-      content: "",
+      title: template?.title || T("نوت جدید", "New note"),
+      content: initialContent,
       pinned: false,
       updated_at: new Date().toISOString(),
       task_id: null,
@@ -321,7 +336,8 @@ export default function NotesView() {
     };
     setNotes((prev) => [note, ...prev]);
     setSelected(note);
-    setDraft({ html: "", md: "" });
+    setDraft({ html: markdownToHtml(initialContent), md: initialContent });
+    setSelectedText("");
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       const queued = await upsertNote(user.id, note);
@@ -345,6 +361,51 @@ export default function NotesView() {
     await cacheSet(NOTES_CACHE_KEY, [note, ...notes.filter((n) => n.id !== note.id)]);
     window.dispatchEvent(new Event("notes-changed"));
     toast.success(T("نوت جدید ایجاد و همگام شد", "New note created and synced"));
+  };
+
+  const openActionItemDraft = () => {
+    if (!user) {
+      toast.error(T("برای ساخت تسک وارد حساب شوید", "Sign in to create a task"));
+      return;
+    }
+    const suggestion = suggestNoteActionItem(selectedText);
+    if (!suggestion) {
+      toast.error(T("ابتدا بخشی از متن را انتخاب کن", "Select some text first"));
+      return;
+    }
+    setActionItemDraft({ id: generateId(), ownerId: user.id, createdAt: new Date().toISOString(), ...suggestion });
+  };
+
+  const createActionItem = async () => {
+    const pendingDraft = actionItemDraft;
+    const ownerId = user?.id;
+    const title = pendingDraft?.title.trim();
+    if (!pendingDraft || !ownerId || ownerId !== pendingDraft.ownerId || !title || creatingActionItemRef.current) return;
+    creatingActionItemRef.current = true;
+    setCreatingActionItem(true);
+    try {
+      const result = await persistNoteActionItem({ ...pendingDraft, title });
+      if (accountRef.current !== pendingDraft.ownerId) return;
+      if (result === "failed") {
+        toast.error(T("تسک ذخیره نشد؛ پیش‌نویس باز می‌ماند تا دوباره تلاش کنی", "Task was not saved. The draft is still open so you can retry."));
+        return;
+      }
+      window.dispatchEvent(new Event("tasks-changed"));
+      setActionItemDraft(null);
+      setSelectedText("");
+      toast[result === "queued" ? "info" : "success"](
+        result === "queued"
+          ? T("تسک در صف همگام‌سازی ذخیره شد", "Task saved and queued to sync")
+          : T("تسک ساخته شد", "Task created"),
+      );
+    } catch {
+      if (accountRef.current === pendingDraft.ownerId) {
+        toast.error(T("تسک ذخیره نشد؛ پیش‌نویس باز می‌ماند تا دوباره تلاش کنی", "Task was not saved. The draft is still open so you can retry."));
+      }
+    } finally {
+      creatingActionItemRef.current = false;
+      setCreatingActionItem(false);
+    }
   };
 
   // Check URL params for quick actions (?new=1, ?folder=xyz, ?tag=xyz)
@@ -740,6 +801,10 @@ export default function NotesView() {
                   <span>{T("اشتراک‌گذاری", "Share")}</span>
                 </DropdownMenuItem>
               )}
+              <DropdownMenuItem onClick={openActionItemDraft} disabled={!user || !selectedText.trim()} className="gap-2">
+                <ListPlus className="w-3.5 h-3.5" />
+                <span>{T("تبدیل متن انتخاب‌شده به تسک", "Turn selected text into a task")}</span>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => setConfirmDel(selected)}
@@ -772,7 +837,7 @@ export default function NotesView() {
         <div className="flex items-center p-0.5 rounded-lg bg-muted/50 border border-border/40 shrink-0">
           <button
             type="button"
-            onClick={() => setEditorMode("visual")}
+            onClick={() => { setSelectedText(""); setEditorMode("visual"); }}
             className={`flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-md transition font-medium ${
               editorMode === "visual"
                 ? "bg-background text-foreground shadow-xs"
@@ -785,7 +850,7 @@ export default function NotesView() {
           </button>
           <button
             type="button"
-            onClick={() => setEditorMode("markdown")}
+            onClick={() => { setSelectedText(""); setEditorMode("markdown"); }}
             className={`flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-md transition font-medium ${
               editorMode === "markdown"
                 ? "bg-background text-foreground shadow-xs"
@@ -798,7 +863,7 @@ export default function NotesView() {
           </button>
           <button
             type="button"
-            onClick={() => setEditorMode("preview")}
+            onClick={() => { setSelectedText(""); setEditorMode("preview"); }}
             className={`flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-md transition font-medium ${
               editorMode === "preview"
                 ? "bg-background text-foreground shadow-xs"
@@ -881,6 +946,7 @@ export default function NotesView() {
         readOnly={!canEdit}
         mode={editorMode}
         onModeChange={setEditorMode}
+        onSelectedTextChange={setSelectedText}
         hideTabsList={true}
       />
     </div>
@@ -904,10 +970,25 @@ export default function NotesView() {
         <div className="p-3 border-b space-y-2.5">
           <div className="flex justify-between items-center">
             <span className="text-xs text-muted-foreground">{T("فهرست نوت‌ها", "Note list")}</span>
-            <Button size="sm" onClick={create} className="gap-1">
-              <Plus className="w-4 h-4" />
-              <span className="text-xs">{T("نوت جدید", "New")}</span>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" className="gap-1">
+                  <Plus className="w-4 h-4" />
+                  <span className="text-xs">{T("نوت جدید", "New")}</span>
+                  <ChevronDown className="w-3 h-3 opacity-70" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem onClick={() => void create()}>
+                  <FileText className="me-2 h-4 w-4" />{T("نوت خالی", "Blank note")}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs text-muted-foreground">{T("شروع با قالب", "Start from a template")}</DropdownMenuLabel>
+                {getNoteTemplates(isEn).map((template) => (
+                  <DropdownMenuItem key={template.id} onClick={() => void create(template)}>{template.title}</DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Search bar */}
@@ -1233,6 +1314,59 @@ export default function NotesView() {
       )}
 
       {/* Delete Confirmation */}
+      <Dialog
+        open={!!actionItemDraft}
+        onOpenChange={(open) => {
+          if (!open && !creatingActionItem) {
+            setActionItemDraft(null);
+            setSelectedText("");
+          }
+        }}
+      >
+        <DialogContent className="w-[calc(100%-1.5rem)] max-w-lg" dir={isEn ? "ltr" : "rtl"}>
+          <DialogHeader>
+            <DialogTitle>{T("پیش‌نویس تسک از نوت", "Task draft from note")}</DialogTitle>
+            <DialogDescription>
+              {T("عنوان و توضیح را بررسی و ویرایش کن. نوت اصلی تغییر نمی‌کند.", "Review and edit the title and details. The original note will not change.")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <label className="block space-y-1.5">
+              <span className="text-xs text-muted-foreground">{T("عنوان", "Title")}</span>
+              <Input
+                value={actionItemDraft?.title || ""}
+                onChange={(event) => setActionItemDraft((current) => current ? { ...current, title: event.target.value } : null)}
+                maxLength={200}
+                autoFocus
+                dir="auto"
+                data-testid="note-action-item-title"
+              />
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-xs text-muted-foreground">{T("توضیحات", "Details")}</span>
+              <Textarea
+                value={actionItemDraft?.description || ""}
+                onChange={(event) => setActionItemDraft((current) => current ? { ...current, description: event.target.value } : null)}
+                maxLength={2000}
+                rows={5}
+                dir="auto"
+                data-testid="note-action-item-description"
+              />
+            </label>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={creatingActionItem} onClick={() => {
+              setActionItemDraft(null);
+              setSelectedText("");
+            }}>{T("لغو", "Cancel")}</Button>
+            <Button type="button" disabled={creatingActionItem || !actionItemDraft?.title.trim()} onClick={() => void createActionItem()} data-testid="note-action-item-create">
+              {creatingActionItem ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <ListPlus className="me-2 h-4 w-4" />}
+              {creatingActionItem ? T("در حال ذخیره", "Saving") : T("ساخت تسک", "Create task")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <AlertDialog open={!!confirmDel} onOpenChange={(v) => !v && setConfirmDel(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

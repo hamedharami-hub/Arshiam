@@ -7,13 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { ArrowRight, ArrowLeft, Loader2, FolderInput, Pin, Tag as TagIcon, Plus, Check, Undo2, Redo2 } from "lucide-react";
+import { ArrowRight, ArrowLeft, Loader2, FolderInput, Pin, Tag as TagIcon, Plus, Check, Undo2, Redo2, FileText, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { useBilingual } from "@/hooks/useBilingual";
 import { persistNote } from "@/lib/firestoreDataService";
 import { useLearningDraft } from "@/hooks/useLearningDraft";
 import { markdownToHtml } from "@/lib/markdown";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { getNoteTemplates } from "@/lib/noteTemplates";
 
 const RichEditor = lazy(() =>
   import("@/components/RichEditor").then((m) => ({ default: m.RichEditor }))
@@ -316,14 +318,32 @@ function NewNoteForm() {
         <div className="pt-2">
           <div className="flex items-center justify-between mb-1">
             <label className="text-xs text-muted-foreground">{T("محتوای نوت", "Note Content")}</label>
-            <VoiceInputButton
-              onTranscript={(text) => {
-                const next = content ? `${content} ${text}` : text;
-                updateDraft({ content: next, html: markdownToHtml(next) });
-              }}
-              className="h-8 w-8"
-              title={isEn ? "Voice input" : "ضبط صوتی"}
-            />
+            <div className="flex items-center gap-1">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="ghost" size="sm" disabled={Boolean(content.trim()) || busy || !draft.ready || Boolean(draft.conflict)} className="h-8 gap-1 px-2 text-xs">
+                    <FileText className="h-3.5 w-3.5" />{T("قالب", "Template")}<ChevronDown className="h-3 w-3 opacity-70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {getNoteTemplates(isEn).map((template) => (
+                    <DropdownMenuItem key={template.id} onClick={() => updateDraft((current) => ({
+                      title: current.title.trim() ? current.title : template.title,
+                      content: template.content,
+                      html: markdownToHtml(template.content),
+                    }), true)}>{template.title}</DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <VoiceInputButton
+                onTranscript={(text) => {
+                  const next = content ? `${content} ${text}` : text;
+                  updateDraft({ content: next, html: markdownToHtml(next) });
+                }}
+                className="h-8 w-8"
+                title={isEn ? "Voice input" : "ضبط صوتی"}
+              />
+            </div>
           </div>
           <Suspense
             fallback={

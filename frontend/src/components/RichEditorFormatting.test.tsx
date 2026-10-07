@@ -19,6 +19,16 @@ beforeEach(() => {
 });
 
 describe("rich formatting selection", () => {
+  it("publishes selected note text and clears it when the selection collapses", async () => {
+    const onSelectedTextChange = vi.fn();
+    render(<RichEditor initialMarkdown="Select these words" showVoiceButton={false} onSelectedTextChange={onSelectedTextChange} />);
+    await waitFor(() => expect(observed.editor).not.toBeNull());
+    act(() => { observed.editor!.commands.setTextSelection({ from: 1, to: 7 }); });
+    expect(onSelectedTextChange).toHaveBeenLastCalledWith("Select");
+    act(() => { observed.editor!.commands.setTextSelection(1); });
+    expect(onSelectedTextChange).toHaveBeenLastCalledWith("");
+  });
+
   it("keeps selected text on toolbar press and persists formatting through markdown", async () => {
     const ref = createRef<RichEditorHandle>();
     const view = render(<RichEditor ref={ref} initialMarkdown="Select these words" showVoiceButton={false} />);

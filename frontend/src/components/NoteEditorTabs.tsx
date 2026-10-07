@@ -25,6 +25,7 @@ export function NoteEditorTabs({
   onModeChange,
   hideTabsList = false,
   onBusyChange,
+  onSelectedTextChange,
 }: {
   noteId: string;
   markdown: string;
@@ -34,6 +35,7 @@ export function NoteEditorTabs({
   onModeChange?: (mode: "visual" | "markdown" | "preview") => void;
   hideTabsList?: boolean;
   onBusyChange?: (busy: boolean) => void;
+  onSelectedTextChange?: (text: string) => void;
 }) {
   const { T } = useBilingual();
   const { user } = useAuth();
@@ -44,6 +46,7 @@ export function NoteEditorTabs({
   const handleTabChange = (val: string) => {
     if (mediaBusy) return;
     const next = val as "visual" | "markdown" | "preview";
+    onSelectedTextChange?.("");
     if (onModeChange) onModeChange(next);
     else setInternalTab(next);
   };
@@ -74,6 +77,7 @@ export function NoteEditorTabs({
             onChange={(html, md) => onChange(md, html)}
             readOnly={readOnly}
             onBusyChange={handleBusy}
+            onSelectedTextChange={onSelectedTextChange}
           />
         </Suspense>
       </TabsContent>
@@ -93,6 +97,10 @@ export function NoteEditorTabs({
         </div>
         <Textarea
           value={markdown}
+          onSelect={(event) => {
+            const target = event.currentTarget;
+            onSelectedTextChange?.(target.value.slice(target.selectionStart, target.selectionEnd).trim());
+          }}
           onChange={(e) => onChange(e.target.value, markdownToHtml(e.target.value))}
           disabled={readOnly}
           className="min-h-[40vh] font-mono text-sm w-full border-0 focus-visible:ring-0 px-0"
@@ -108,7 +116,17 @@ export function NoteEditorTabs({
         </div>
       </TabsContent>
 
-      <TabsContent value="preview" className="mt-1">
+      <TabsContent value="preview" className="mt-1" onMouseUp={(event) => {
+        const selection = window.getSelection();
+        const selected = selection?.toString().trim() || "";
+        const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+        onSelectedTextChange?.(range && event.currentTarget.contains(range.commonAncestorContainer) ? selected : "");
+      }} onTouchEnd={(event) => {
+        const selection = window.getSelection();
+        const selected = selection?.toString().trim() || "";
+        const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+        onSelectedTextChange?.(range && event.currentTarget.contains(range.commonAncestorContainer) ? selected : "");
+      }}>
         <div className="min-h-[50vh]">
           <div className="prose-note max-w-none">
             <NoteMarkdown>

@@ -23,7 +23,7 @@ vi.mock('@/lib/firebaseStore', () => ({ firebaseStore: { from: () => ({ select: 
 vi.mock('sonner', () => ({ toast: { success: mocks.success, info: mocks.info, error: mocks.error } }));
 vi.mock('@/components/HeaderTitlePortal', () => ({ HeaderTitlePortal: () => null }));
 vi.mock('@/components/VoiceInputButton', () => ({ VoiceInputButton: () => null }));
-vi.mock('@/components/RichEditor', () => ({ RichEditor: ({ onChange }: { onChange: (html: string, md: string) => void }) => <textarea aria-label="Body" onChange={e => onChange(e.target.value, e.target.value)} /> }));
+vi.mock('@/components/RichEditor', () => ({ RichEditor: ({ onChange, initialMarkdown, controlledHtml }: { onChange: (html: string, md: string) => void; initialMarkdown?: string; controlledHtml?: string }) => <textarea aria-label="Body" value={controlledHtml ?? initialMarkdown ?? ''} onChange={e => onChange(e.target.value, e.target.value)} /> }));
 beforeEach(() => { vi.clearAllMocks(); mocks.user = { id: 'owner-1' }; });
 function view() { return <MemoryRouter><NewNoteView /></MemoryRouter>; }
 it('keeps failed text on screen and retries with the same record ID', async () => {
@@ -53,4 +53,15 @@ it('does not navigate or report success from an old account save', async () => {
   await act(async () => resolve('synced'));
   expect(mocks.navigate).not.toHaveBeenCalled();
   expect(mocks.success).not.toHaveBeenCalled();
+});
+
+it('offers note templates for empty content and keeps the selected outline editable', async () => {
+  render(view());
+  fireEvent.keyDown(screen.getByRole('button', { name: 'Template' }), { key: 'Enter' });
+  fireEvent.click(await screen.findByRole('menuitem', { name: 'Meeting notes' }));
+  expect((await screen.findByLabelText('Body') as HTMLTextAreaElement).value).toContain('<h2>Agenda</h2>');
+  expect(screen.getByPlaceholderText('Note title...')).toHaveValue('Meeting notes');
+
+  fireEvent.change(screen.getByLabelText('Body'), { target: { value: 'My edited outline' } });
+  expect(screen.getByLabelText('Body')).toHaveValue('My edited outline');
 });

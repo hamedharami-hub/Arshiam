@@ -62,6 +62,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   attachmentScopeId?: string;
   onAttachmentUploaded?: (media: UploadedMedia) => void;
   onBusyChange?: (busy: boolean) => void;
+  onSelectedTextChange?: (text: string) => void;
   compact?: boolean;
   compactExpanded?: boolean;
   showToolbar?: boolean;
@@ -78,6 +79,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   attachmentScopeId = "",
   onAttachmentUploaded,
   onBusyChange,
+  onSelectedTextChange,
   compact = false,
   compactExpanded = false,
   showToolbar = true,
@@ -90,6 +92,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   const attachmentIdentity = useRef(""); attachmentIdentity.current = `${user?.id ?? ""}:${attachmentScopeId}`;
   const onUploadedRef = useRef(onAttachmentUploaded); onUploadedRef.current = onAttachmentUploaded;
   const busyCallback = useRef(onBusyChange); busyCallback.current = onBusyChange;
+  const selectedTextCallback = useRef(onSelectedTextChange); selectedTextCallback.current = onSelectedTextChange;
   const uploadCount = useRef(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingKind, setPendingKind] = useState<"image" | "audio" | "video" | "file">("file");
@@ -124,6 +127,8 @@ export const RichEditor = forwardRef<RichEditorHandle, {
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
       onChange?.(html, htmlToMarkdown(html));
+      const { from, to } = editor.state.selection;
+      selectedTextCallback.current?.(from === to ? "" : editor.state.doc.textBetween(from, to, "\n").trim());
     },
     editorProps: {
       attributes: {
@@ -152,6 +157,18 @@ export const RichEditor = forwardRef<RichEditorHandle, {
       },
     },
   });
+
+  useEffect(() => {
+    if (!editor) return;
+    const publishSelection = () => {
+      if (editor.isDestroyed) return;
+      const { from, to } = editor.state.selection;
+      selectedTextCallback.current?.(from === to ? "" : editor.state.doc.textBetween(from, to, "\n").trim());
+    };
+    editor.on("selectionUpdate", publishSelection);
+    publishSelection();
+    return () => { editor.off("selectionUpdate", publishSelection); };
+  }, [editor]);
 
   useEffect(() => {
     if (autoFocus && editor && !readOnly && !editor.isDestroyed) editor.commands.focus();
