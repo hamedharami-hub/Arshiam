@@ -1,6 +1,22 @@
 /** Date-only deadline helpers. These intentionally avoid Date parsing and UTC conversion. */
 export type DeadlineStatus = "none" | "upcoming" | "overdue";
 
+export type DeadlineTaskLike = {
+  recurrence?: string | null;
+  recurrence_rule?: unknown;
+  completed?: boolean;
+  status?: string | null;
+};
+
+/** The initial deadline feature applies to one-off tasks only. */
+export function supportsTaskDeadline(task: DeadlineTaskLike): boolean {
+  return !task.recurrence_rule && (!task.recurrence || task.recurrence === "none");
+}
+
+export function isTaskClosed(task: DeadlineTaskLike): boolean {
+  return task.completed === true || task.status === "done" || task.status === "wont_do";
+}
+
 export function isValidDeadlineDate(value: unknown): value is string {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const [year, month, day] = value.split("-").map(Number);

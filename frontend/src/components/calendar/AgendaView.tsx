@@ -60,7 +60,7 @@ export default function AgendaView({
                     {toPersianDigits(format(t._d, "HH:mm"))}
                   </span>
                   <span className="flex-1 truncate text-foreground/90">{t.title}</span>
-                  <DeadlineMarker deadlineDate={t.deadline_date} completed={t.completed} status={t.status} />
+                  <DeadlineMarker deadlineDate={t.deadline_date} completed={t.completed} status={t.status} recurrence={t.recurrence} recurrence_rule={t.recurrence_rule} />
                 </button>
               ))}
             </div>

@@ -22,6 +22,7 @@ import type { Task } from "./taskTypes";
 
 import { taskWorkDate } from "@/lib/taskDate";
 import { normalizeTaskWrite } from "@/lib/taskSchedule";
+import { folderScopedWriteAllowed } from "@/lib/folderWriteGuard";
 export interface FolderItem {
   id: string;
   user_id?: string;
@@ -251,9 +252,17 @@ async function writeWithRevision(
   data: Record<string, unknown>,
   expected: string | undefined,
   wasKnownLocal: boolean,
+  relationship?: { userId: string; collection: "tasks" | "notes" },
 ): Promise<void> {
   await runTransaction(db, async transaction => {
     const snapshot = await transaction.get(ref);
+    if (relationship) {
+      if (!await folderScopedWriteAllowed(transaction, relationship.userId, relationship.collection, data, snapshot)) {
+        throw new ConcurrentEditError();
+      }
+    } else if (snapshot.exists() && snapshot.data()?._deleting === true) {
+      throw new ConcurrentEditError();
+    }
     if (snapshot.exists()) {
       const remote = snapshot.data();
       const remoteRevision = remote?.updated_at ?? remote?.updatedAt;
@@ -422,7 +431,7 @@ export async function persistTask(
   };
   try {
     const taskRef = doc(db, "users", userId, "tasks", task.id);
-    await writeWithRevision(taskRef, dataToSave, previousTask?.updated_at ?? (previousTask as any)?.updatedAt, !!previousTask);
+    await writeWithRevision(taskRef, dataToSave, previousTask?.updated_at ?? (previousTask as any)?.updatedAt, !!previousTask, { userId, collection: "tasks" });
     celebrateAcceptedChange();
     return "saved";
   } catch (err) {
@@ -571,7 +580,12 @@ export async function upsertFolder(userId: string, folder: FolderItem): Promise<
   if (!userId || !folder.id) return false;
   try {
     const folderRef = doc(db, "users", userId, "folders", folder.id);
-    await setDoc(folderRef, { ...folder, user_id: userId }, { merge: true });
+    await runTransaction(db, async (transaction) => {
+      const current = await transaction.get(folderRef);
+      const payload = current.exists() ? { ...(current.data() as Record<string, unknown>), ...folder } : folder;
+      if (!await folderScopedWriteAllowed(transaction, userId, "folders", payload as unknown as Record<string, unknown>, current)) throw new ConcurrentEditError();
+      transaction.set(folderRef, { ...folder, user_id: userId }, { merge: true });
+    });
     return true;
   } catch (err) {
     console.warn("[FirestoreData] upsertFolder error:", err);
@@ -803,7 +817,7 @@ export async function persistNote(userId: string, note: Partial<NoteItem> & { id
   // 2. Persist to Firestore
   try {
     const noteRef = doc(db, "users", userId, "notes", note.id);
-    await writeWithRevision(noteRef, dataToSave, previousNote?.updated_at ?? (previousNote as any)?.updatedAt, !!previousNote);
+    await writeWithRevision(noteRef, dataToSave, previousNote?.updated_at ?? (previousNote as any)?.updatedAt, !!previousNote, { userId, collection: "notes" });
     return "synced";
   } catch (err) {
     if (err instanceof ConcurrentEditError) {

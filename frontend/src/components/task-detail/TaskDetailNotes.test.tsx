@@ -90,13 +90,21 @@ vi.mock("@/components/TaskAIPanel", () => ({ TaskAIPanel: () => null }));
 vi.mock("@/components/TaskAttachments", () => ({ TaskAttachments: () => null }));
 vi.mock("@/components/task-detail/TaskRelatedContacts", () => ({ TaskRelatedContacts: () => null }));
 vi.mock("@/components/task-detail/TaskNoteEditorDialog", () => ({
-  TaskNoteEditorDialog: ({ open, note, onOpenChange }: any) =>
+  TaskNoteEditorDialog: ({ open, note, userId, taskId, onOpenChange, onCreated }: any) =>
     open ? (
       <div data-testid="mock-note-editor">
         <div>Edit Task Note</div>
-        <input value={note?.title || ""} readOnly />
-        <textarea value={note?.content || ""} readOnly />
-        <button onClick={() => onOpenChange(false)}>Close Note Editor</button>
+        <input placeholder="Note title..." defaultValue={note?.title || ""} />
+        <textarea placeholder="Write note content..." defaultValue={note?.content || ""} />
+        <button onClick={() => onOpenChange(false)}>Cancel</button>
+        <button onClick={() => {
+          void import("@/lib/taskNotesService").then(({ createTaskNote }) =>
+            createTaskNote(userId, taskId, {
+              title: "Architecture Decision",
+              content: "We decided to keep notes within the same TaskDetail panel.",
+            }).then(onCreated),
+          );
+        }}>Save Note</button>
       </div>
     ) : null,
 }));
@@ -144,8 +152,8 @@ describe("TaskDetail Notes integration", { timeout: 15000 }, () => {
     expect(addNoteOption).toBeInTheDocument();
     fireEvent.click(addNoteOption);
 
-    // Compact in-panel form should now be visible
-    const titleInput = screen.getByPlaceholderText(/Note title \(optional\)\.\.\./i);
+    // The existing task-note dialog should now be visible
+    const titleInput = screen.getByPlaceholderText(/Note title\.\.\./i);
     const contentTextarea = screen.getByPlaceholderText(/Write note content\.\.\./i);
     expect(titleInput).toBeInTheDocument();
     expect(contentTextarea).toBeInTheDocument();
@@ -166,7 +174,7 @@ describe("TaskDetail Notes integration", { timeout: 15000 }, () => {
     expect(mockTaskNotes.length).toBe(0);
   });
 
-  it("2. saves note in-panel, updates note counter, and renders card with preview and actions", async () => {
+  it("2. saves a note from the task editor and renders the returned note", async () => {
     render(
       <TaskDetail
         task={dummyTask}
@@ -184,7 +192,7 @@ describe("TaskDetail Notes integration", { timeout: 15000 }, () => {
     const addNoteOption = screen.getByText("Add Note");
     fireEvent.click(addNoteOption);
 
-    const titleInput = screen.getByPlaceholderText(/Note title \(optional\)\.\.\./i);
+    const titleInput = screen.getByPlaceholderText(/Note title\.\.\./i);
     const contentTextarea = screen.getByPlaceholderText(/Write note content\.\.\./i);
 
     fireEvent.change(titleInput, { target: { value: "Architecture Decision" } });
@@ -262,7 +270,7 @@ describe("TaskDetail Notes integration", { timeout: 15000 }, () => {
     expect(mockNavigate).not.toHaveBeenCalled();
 
     // Close the dialog
-    const closeBtn = screen.getByRole("button", { name: "Close Note Editor" });
+    const closeBtn = screen.getByRole("button", { name: "Cancel" });
     fireEvent.click(closeBtn);
 
     await waitFor(() => {

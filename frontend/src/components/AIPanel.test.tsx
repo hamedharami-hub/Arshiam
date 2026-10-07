@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   success: vi.fn(),
   error: vi.fn(),
   from: vi.fn(),
-  userId: "user-1",
+  userId: "user-1" as string | null,
 }));
 
 vi.mock("@/lib/ai", () => ({ callAI: mocks.callAI, getAILanguage: () => "en" }));
@@ -158,5 +158,13 @@ describe("AIPanel suggestion retries", () => {
     await waitFor(() => expect(screen.queryByTestId("ai-task-drafts")).not.toBeInTheDocument());
     expect(mocks.persistTask).not.toHaveBeenCalled();
     expect(mocks.error).not.toHaveBeenCalled();
+  });
+
+  it("renders safely before authentication resolves", () => {
+    mocks.userId = null;
+    render(<AIPanel open onOpenChange={vi.fn()} />);
+
+    expect(screen.queryByText(/Active context:/)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("ai-inbox-sort-preview")).not.toBeInTheDocument();
   });
 });

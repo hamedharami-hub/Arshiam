@@ -5,7 +5,6 @@ import { getTimeSettings, periodFor, fromLocalISO, toLocalISO, weekStartsOn as w
 import { parseTaskDueDate } from "@/lib/taskDate";
 import { computePhase, type CycleProfile, type CycleLog, PHASE_META } from "@/lib/cycle";
 import type { CalendarTask } from "./CalendarTask";
-import DeadlineMarker from "./DeadlineMarker";
 type WeekStartsOn = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -94,7 +93,6 @@ export default function MonthGrid({
                       <div key={t.id} className="flex items-center gap-1 text-[10px] leading-tight">
                         <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: PRIORITY_COLOR[t.priority] || PRIORITY_COLOR.none }} />
                         <span className="truncate text-foreground/80">{t.title}</span>
-                        <DeadlineMarker deadlineDate={t.deadline_date} completed={t.completed} status={t.status} />
                       </div>
                     ))}
                     {dayTasks.length > 2 && (

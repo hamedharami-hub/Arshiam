@@ -6,15 +6,19 @@ import {
   doc,
   fbSignOut,
   getDoc,
+  getDocFromServer,
   getDocs,
+  getDocsFromServer,
   limit as fsLimit,
   orderBy as fsOrderBy,
   query as fsQuery,
   setDoc,
   updateDoc,
+  runTransaction,
   where as fsWhere,
 } from "@/lib/firebase";
 import { normalizeTaskWrite } from "@/lib/taskSchedule";
+import { folderScopedWriteAllowed } from "@/lib/folderWriteGuard";
 import { deleteObject, getDownloadURL, getStorage, ref, uploadBytes } from "firebase/storage";
 import type { QueryConstraint } from "firebase/firestore";
 import { writeCycleRecord } from "./cyclePersistence";
@@ -22,7 +26,7 @@ import { liveRows } from "./firestoreLive";
 import { trackRead, trackWrite } from "./firestoreUsage";
 
 type Row = Record<string, any>;
-type Result<T = Row[]> = { data: T | null; error: Error | null; count?: number | null };
+type Result<T = Row[]> = { data: T | null; error: Error | null; count?: number | null; fromCache?: boolean };
 type Filter = { field: string; operator: string; value: unknown };
 
 const currentUserId = () => auth.currentUser?.uid || null;
@@ -62,6 +66,7 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
   private one: "single" | "maybe" | null = null;
   private wantsCount = false;
   private headOnly = false;
+  private serverOnly = false;
 
   constructor(private readonly table: string, private readonly ownerId = currentUserId()) {}
 
@@ -69,9 +74,10 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
     return this.ownerId && currentUserId() === this.ownerId ? this.ownerId : null;
   }
 
-  select(_columns = "*", options?: { count?: "exact"; head?: boolean }): this {
+  select(_columns = "*", options?: { count?: "exact"; head?: boolean; source?: "default" | "server" }): this {
     this.wantsCount = options?.count === "exact";
     this.headOnly = !!options?.head;
+    this.serverOnly = options?.source === "server";
     return this;
   }
   returns<TNext = TData>(): FirestoreQuery<TNext> {
@@ -103,7 +109,7 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
     const userId = this.activeOwnerId();
     if (!userId) return { data: null, error: new Error("برای دسترسی به داده وارد شوید") };
 
-    const live = await liveRows(userId, this.table).catch(() => null);
+    const live = this.serverOnly ? null : await liveRows(userId, this.table).catch(() => null);
     if (this.activeOwnerId() !== userId) return { data: null, error: new Error("Account changed while reading.") };
     if (live) return this.shape(live.filter((row) => matches(row, this.filters)));
 
@@ -112,17 +118,18 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
     if (idFilter && typeof idFilter.value === "string") {
       try {
         const docRef = doc(db, "users", userId, this.table, idFilter.value);
-        const docSnap = await getDoc(docRef);
+        const docSnap = this.serverOnly ? await getDocFromServer(docRef) : await getDoc(docRef);
         if (this.activeOwnerId() !== userId) throw new Error("Account changed while reading.");
-        trackRead(1, this.table);
+        const fromCache = this.serverOnly ? false : docSnap.metadata.fromCache;
+        if (!fromCache) trackRead(1, this.table);
         if (!docSnap.exists()) {
-          return { data: [], error: null, count: this.wantsCount ? 0 : null };
+          return { data: [], error: null, count: this.wantsCount ? 0 : null, fromCache };
         }
         const row = { id: docSnap.id, ...docSnap.data() } as Row;
         if (!matches(row, this.filters)) {
-          return { data: [], error: null, count: this.wantsCount ? 0 : null };
+          return { data: [], error: null, count: this.wantsCount ? 0 : null, fromCache };
         }
-        return { data: [row], error: null, count: this.wantsCount ? 1 : null };
+        return { data: [row], error: null, count: this.wantsCount ? 1 : null, fromCache };
       } catch (cause) {
         return { data: null, error: cause instanceof Error ? cause : new Error("خطا در خواندن داده") };
       }
@@ -175,9 +182,9 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
       try {
         if (constraints.length > 0) {
           const q = fsQuery(colRef, ...constraints);
-          snapshot = await getDocs(q);
+          snapshot = this.serverOnly ? await getDocsFromServer(q) : await getDocs(q);
         } else {
-          snapshot = await getDocs(colRef);
+          snapshot = this.serverOnly ? await getDocsFromServer(colRef) : await getDocs(colRef);
         }
       } catch (queryErr) {
         // Only an invalid/index-blocked query may safely fall back to client filtering.
@@ -187,20 +194,20 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
         if (code !== "failed-precondition" && code !== "invalid-argument" && code !== "unimplemented") {
           throw queryErr;
         }
-        snapshot = await getDocs(colRef);
+        snapshot = this.serverOnly ? await getDocsFromServer(colRef) : await getDocs(colRef);
         hasClientOnlyFilter = true;
       }
 
       if (this.activeOwnerId() !== userId) throw new Error("Account changed while reading.");
       if (!snapshot.metadata?.fromCache) trackRead(Math.max(1, snapshot.docs.length), this.table);
       const rows = snapshot.docs.map((item) => ({ id: item.id, ...item.data() })) as Row[];
-      return this.shape(rows.filter((row) => matches(row, this.filters)));
+      return this.shape(rows.filter((row) => matches(row, this.filters)), this.serverOnly ? false : snapshot.metadata?.fromCache);
     } catch (cause) {
       return { data: null, error: cause instanceof Error ? cause : new Error("خطا در خواندن داده") };
     }
   }
 
-  private shape(input: Row[]): Result<Row[]> {
+  private shape(input: Row[], fromCache?: boolean): Result<Row[]> {
     let rows = input;
     if (this.sort) {
       rows = [...rows].sort((a, b) => {
@@ -211,7 +218,7 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
       });
     }
     if (this.maxRows !== null) rows = rows.slice(0, this.maxRows);
-    return { data: rows, error: null, count: this.wantsCount ? rows.length : null };
+    return { data: rows, error: null, count: this.wantsCount ? rows.length : null, fromCache };
   }
 
   async execute(): Promise<Result<TData>> {
@@ -283,6 +290,16 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
         if (currentUserId() !== userId) throw new Error("Account changed before saving.");
         if (this.table === "cycle_profiles" || this.table === "cycle_logs") {
           await writeCycleRecord(userId, this.table, row);
+        } else if (["tasks", "notes", "folders", "folder_columns"].includes(this.table)) {
+          const recordRef = doc(db, "users", userId, this.table, id);
+          await runTransaction(db, async (transaction) => {
+            const current = await transaction.get(recordRef);
+            const guardedPayload = current.exists() ? { ...(current.data() as Row), ...row } : row;
+            if (!await folderScopedWriteAllowed(transaction, userId, this.table as "tasks" | "notes" | "folders" | "folder_columns", guardedPayload, current)) {
+              throw new Error("این مورد یا فولدر مرتبط در حال حذف است یا دیگر وجود ندارد.");
+            }
+            transaction.set(recordRef, row, { merge: true });
+          });
         } else {
           await setDoc(doc(db, "users", userId, this.table, id), row, { merge: true });
         }
@@ -301,6 +318,7 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
       if (!userId) return { data: null, error: new Error("برای ذخیره وارد شوید") };
       const idFilter = this.filters.find((f) => f.field === "id" && f.operator === "eq");
       if (idFilter && typeof idFilter.value === "string" && this.filters.length === 1
+        && !["tasks", "notes", "folders", "folder_columns"].includes(this.table)
         && this.table !== "cycle_profiles" && this.table !== "cycle_logs") {
         try {
           const docRef = doc(db, "users", userId, this.table, idFilter.value);

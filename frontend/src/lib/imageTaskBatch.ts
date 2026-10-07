@@ -1,6 +1,7 @@
 import { auth, db, doc } from "@/lib/firebase";
 import { runTransaction } from "firebase/firestore";
 import { normalizeTaskWrite } from "@/lib/taskSchedule";
+import { folderScopedWriteAllowed } from "@/lib/folderWriteGuard";
 
 type DraftTask = { id: string; title: string; description: string | null; priority: string; due_date: string | null };
 type Draft = { tasks: DraftTask[]; saved: string[]; createdAt: string };
@@ -47,6 +48,9 @@ export async function saveImageTaskBatch(input: {
         const snapshot = await transaction.get(reference);
         assertAccount();
         if (snapshot.exists()) return false;
+        if (!await folderScopedWriteAllowed(transaction, userId, "tasks", { ...task, parent_id: taskId }, snapshot)) {
+          throw new Error("The parent task is being removed or no longer exists.");
+        }
         transaction.set(reference, { ...normalizeTaskWrite(task), user_id: userId, parent_id: taskId,
           created_at: draft.createdAt, updated_at: draft.createdAt, completed: false });
         return true;

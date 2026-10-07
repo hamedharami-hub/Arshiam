@@ -7,6 +7,22 @@ vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: "owner" } }) }
 const media = vi.hoisted(() => ({ upload: vi.fn() }));
 vi.mock("@/lib/uploadMedia", () => ({ uploadMediaFull: media.upload }));
 vi.mock("@/components/NoteEditorTabs", () => ({ NoteEditorTabs: ({ markdown, onChange }: { markdown: string; onChange: (value: string) => void }) => <textarea aria-label="Advanced content" value={markdown} onChange={event => onChange(event.target.value)} /> }));
+vi.mock("@/components/RichEditor", async () => {
+  const React = await import("react");
+  const RichEditor = React.forwardRef(function MockRichEditor(
+    { initialMarkdown = "", editorAriaLabel, onChange }: { initialMarkdown?: string; editorAriaLabel: string; onChange: (html: string, markdown: string) => void },
+    ref,
+  ) {
+    const [markdown, setMarkdown] = React.useState(initialMarkdown);
+    React.useImperativeHandle(ref, () => ({
+      getMarkdown: () => markdown,
+      setMarkdown,
+      insertText: (text: string) => setMarkdown((current) => current + text),
+    }), [markdown]);
+    return <textarea aria-label={editorAriaLabel} value={markdown} onChange={event => { setMarkdown(event.target.value); onChange(event.target.value, event.target.value); }} />;
+  });
+  return { RichEditor };
+});
 
 vi.mock("react-i18next", async (importOriginal) => ({
   ...await importOriginal<typeof import("react-i18next")>(),
@@ -33,7 +49,7 @@ describe("TaskDescriptionEditor", () => {
     const { rerender } = render(
       <TaskDescriptionEditor taskId="task-1" value={current} onChange={onChange} onSave={onSave} />,
     );
-    const editor = screen.getByRole("textbox", { name: "توضیحات" });
+    const editor = await screen.findByRole("textbox", { name: "توضیحات" });
     fireEvent.focus(editor);
     fireEvent.change(editor, { target: { value: "متن جدید و کامل" } });
     current = "متن جدید و کامل";
@@ -56,7 +72,8 @@ describe("TaskDescriptionEditor", () => {
   it("keeps the advanced editor draft open when saving fails", async () => {
     const onSave = vi.fn().mockRejectedValue(new Error("No durable save"));
     render(<TaskDescriptionEditor taskId="task" value="Original" onChange={vi.fn()} onSave={onSave} />);
-    fireEvent.focus(screen.getByRole("textbox", { name: "توضیحات" }));
+    fireEvent.click(screen.getByTestId("task-description-preview"));
+    fireEvent.focus(await screen.findByRole("textbox", { name: "توضیحات" }));
     fireEvent.click(screen.getByRole("button", { name: "ویرایشگر پیشرفته" }));
     fireEvent.change(screen.getByLabelText("Advanced content"), { target: { value: "**Unsaved rich draft**" } });
     fireEvent.click(screen.getByRole("button", { name: "ذخیره" }));

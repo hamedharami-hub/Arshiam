@@ -22,6 +22,8 @@ import {
 } from "@/features/tasks/taskCache";
 import type { Task } from "./taskTypes";
 import { prepareFirestoreBackupRecord } from "./backupRecord";
+import { makeNoteTaskLinkId } from "./noteTaskLinkTypes";
+import { folderScopedWriteAllowed } from "@/lib/folderWriteGuard";
 
 export interface AppUser {
   id: string;
@@ -92,7 +94,7 @@ async function writeNoteTaskLinkTransaction(
   missingEndpointIsNoop: boolean,
 ): Promise<NoteTaskLinkSaveOutcome> {
   if (!userId || auth.currentUser?.uid !== userId || link.user_id !== userId ||
-    !link.id || !link.note_id || !link.task_id) return "failed";
+    !link.id || !link.note_id || !link.task_id || link.id !== makeNoteTaskLinkId(link.note_id, link.task_id)) return "failed";
 
   const noteRef = doc(db, "users", userId, "notes", link.note_id);
   const taskRef = doc(db, "users", userId, "tasks", link.task_id);
@@ -179,6 +181,17 @@ export async function replayQueuedEntityWithOutcome(
       }
 
       if (!mutation.payload || (!snapshot.exists() && (mutation.op === "update" || mutation.expectedRevision !== undefined))) return "stale";
+      if (["tasks", "notes", "folders", "folder_columns"].includes(collectionName)) {
+        if (mutation.mutationId && snapshot.exists() && snapshot.data()._lastQueuedMutationId === mutation.mutationId) return "saved";
+        const guardPayload = snapshot.exists() ? { ...snapshot.data(), ...mutation.payload } : mutation.payload;
+        if (!await folderScopedWriteAllowed(
+          tx,
+          userId,
+          collectionName as "tasks" | "notes" | "folders" | "folder_columns",
+          guardPayload,
+          snapshot,
+        )) return "stale";
+      }
       if (snapshot.exists()) {
         const remote = snapshot.data();
         if (mutation.mutationId && remote._lastQueuedMutationId === mutation.mutationId) return "saved";
@@ -269,6 +282,37 @@ export async function saveEntityToFirestoreWithOutcome(
 
   try {
     const docRef = doc(db, "users", userId, collectionName, docId);
+    if (["tasks", "notes", "folders", "folder_columns"].includes(collectionName)) {
+      if (auth.currentUser?.uid !== userId) return "failed";
+      const guardedOutcome = await runTransaction(db, async (transaction) => {
+        const snapshot = await transaction.get(docRef);
+        const mergedData = snapshot.exists() ? { ...snapshot.data(), ...data } : data;
+        if (!await folderScopedWriteAllowed(
+          transaction,
+          userId,
+          collectionName as "tasks" | "notes" | "folders" | "folder_columns",
+          mergedData,
+          snapshot,
+        )) return "stale" as const;
+        if (snapshot.exists()) {
+          const remote = snapshot.data();
+          const remoteUpdatedAt = remote?.updated_at || remote?.updatedAt;
+          const localUpdatedAt = data.updated_at || data.updatedAt;
+          if (remoteUpdatedAt && localUpdatedAt && new Date(remoteUpdatedAt).getTime() > new Date(localUpdatedAt).getTime()) return "stale" as const;
+        }
+        if (auth.currentUser?.uid !== userId) return "failed" as const;
+        transaction.set(docRef, {
+          ...stripUndefinedDeep(data),
+          id: docId,
+          userId,
+          updatedAt: new Date().toISOString(),
+          _firestoreSyncAt: Date.now(),
+        }, { merge: true });
+        return "saved" as const;
+      });
+      if (guardedOutcome === "saved") trackWrite(1, collectionName);
+      return guardedOutcome;
+    }
     if (collectionName === "leitner_cards" && data._create_once === true) {
       if (auth.currentUser?.uid !== userId) return "failed";
       return await runTransaction(db, async transaction => {

@@ -1,8 +1,8 @@
 import { auth } from "@/lib/firebase";
 import { firebaseStore } from "@/lib/firebaseStore";
-import { cacheGet, cacheSet, canReplayForOwner, enqueueOp, getPendingOps } from "@/lib/offlineQueue";
+import { cacheGet, cacheSet, canReplayForOwner, enqueueOp, enqueueOps, getPendingOps } from "@/lib/offlineQueue";
 import { saveNoteTaskLinkWithOutcome, deleteEntityFromFirestore } from "@/lib/firestoreSync";
-import type { NoteTaskLink } from "./noteTaskLinkTypes";
+import { makeNoteTaskLinkId, type NoteTaskLink } from "./noteTaskLinkTypes";
 
 export type NoteTaskEndpoint = "note_id" | "task_id";
 
@@ -14,10 +14,7 @@ export function getNoteTaskLinksCacheKey(userId: string): string {
  * The relationship ID is an injective encoding of the note/task pair. Its
  * owner-scoped Firestore path makes retries idempotent without a random ID.
  */
-export function makeNoteTaskLinkId(noteId: string, taskId: string): string {
-  const encode = (value: string) => Array.from(new TextEncoder().encode(value), (byte) => byte.toString(16).padStart(2, "0")).join("");
-  return `note_${encode(noteId)}_task_${encode(taskId)}`;
-}
+export { makeNoteTaskLinkId } from "./noteTaskLinkTypes";
 
 const mutationTails = new Map<string, Promise<unknown>>();
 
@@ -57,21 +54,6 @@ async function updateCachedLink(userId: string, link: NoteTaskLink, exists: bool
   await cacheSet(key, next);
 }
 
-function hasPendingWriteForEndpoint(
-  operations: Awaited<ReturnType<typeof getPendingOps>>,
-  userId: string,
-  endpoint: NoteTaskEndpoint,
-  endpointId: string,
-): boolean {
-  return operations.some((operation) => {
-    if (!canReplayForOwner(operation, userId) || operation.op === "delete") return false;
-    const payload = operation.payload && typeof operation.payload === "object"
-      ? operation.payload as Record<string, unknown>
-      : {};
-    return (payload[endpoint] ?? operation.match?.[endpoint]) === endpointId;
-  });
-}
-
 function hasPendingEntityWrite(
   operations: Awaited<ReturnType<typeof getPendingOps>>,
   userId: string,
@@ -90,7 +72,8 @@ export async function getNoteTaskLinks(userId: string): Promise<NoteTaskLink[]> 
   if (!userId || auth.currentUser?.uid !== userId) return [];
   const key = getNoteTaskLinksCacheKey(userId);
   const cached = (await cacheGet<NoteTaskLink[]>(key)) || [];
-  if (typeof navigator !== "undefined" && !navigator.onLine) return cached;
+  if (auth.currentUser?.uid !== userId) return [];
+  if (typeof navigator !== "undefined" && !navigator.onLine) return auth.currentUser?.uid === userId ? cached : [];
 
   try {
     const result = await firebaseStore.from("note_task_links", userId)
@@ -99,6 +82,7 @@ export async function getNoteTaskLinks(userId: string): Promise<NoteTaskLink[]> 
     assertActiveOwner(userId);
     if (result.error || !Array.isArray(result.data)) return cached;
     const pending = await getPendingOps("note_task_links");
+    assertActiveOwner(userId);
     const rows = new Map((result.data as NoteTaskLink[]).map((link) => [link.id, link]));
     for (const operation of pending.filter((item) => canReplayForOwner(item, userId)).sort((a, b) => a.createdAt - b.createdAt)) {
       const payload = operation.payload && typeof operation.payload === "object"
@@ -116,9 +100,9 @@ export async function getNoteTaskLinks(userId: string): Promise<NoteTaskLink[]> 
     }
     const merged = Array.from(rows.values());
     await cacheSet(key, merged);
-    return merged;
+    return auth.currentUser?.uid === userId ? merged : [];
   } catch {
-    return cached;
+    return auth.currentUser?.uid === userId ? cached : [];
   }
 }
 
@@ -233,53 +217,91 @@ export async function deleteNoteTaskLinksFor(
   endpoint: NoteTaskEndpoint,
   endpointId: string,
 ): Promise<boolean> {
-  if (!userId || !endpointId || auth.currentUser?.uid !== userId) return false;
+  return deleteNoteTaskLinksForEndpoints(userId, { [endpoint]: [endpointId] });
+}
+
+/** Remove links for a task/note set with bounded indexed queries and durable sweeps. */
+export async function deleteNoteTaskLinksForEndpoints(
+  userId: string,
+  endpoints: Partial<Record<NoteTaskEndpoint, string[]>>,
+  options: { durableSweep?: boolean } = {},
+): Promise<boolean> {
+  if (!userId) return false;
+  const targets = {
+    note_id: Array.from(new Set((endpoints.note_id || []).filter(Boolean))),
+    task_id: Array.from(new Set((endpoints.task_id || []).filter(Boolean))),
+  };
+  const entries = (Object.entries(targets) as Array<[NoteTaskEndpoint, string[]]>).filter(([, ids]) => ids.length > 0);
+  if (entries.length === 0) return true;
+
   const key = getNoteTaskLinksCacheKey(userId);
-  const previous = (await cacheGet<NoteTaskLink[]>(key)) || [];
-  const next = previous.filter((link) => link[endpoint] !== endpointId);
   const offline = typeof navigator !== "undefined" && !navigator.onLine;
-  let mustQueue = offline;
+  let mustQueue = offline || auth.currentUser?.uid !== userId;
 
   if (!mustQueue) {
     try {
       const pending = await getPendingOps("note_task_links");
-      mustQueue = hasPendingWriteForEndpoint(pending, userId, endpoint, endpointId);
+      mustQueue = auth.currentUser?.uid !== userId || pending.some((operation) => {
+        if (!canReplayForOwner(operation, userId) || operation.op === "delete") return false;
+        const payload = operation.payload && typeof operation.payload === "object"
+          ? operation.payload as Partial<NoteTaskLink>
+          : {};
+        return (typeof payload.note_id === "string" && targets.note_id.includes(payload.note_id)) ||
+          (typeof payload.task_id === "string" && targets.task_id.includes(payload.task_id));
+      });
       if (!mustQueue) {
-        const result = await firebaseStore.from("note_task_links", userId)
-          .select("id,user_id,note_id,task_id")
-          .eq("user_id", userId)
-          .eq(endpoint, endpointId);
-        assertActiveOwner(userId);
-        if (result.error || !Array.isArray(result.data)) mustQueue = true;
-        else {
-          const links = result.data as NoteTaskLink[];
-          let allDeleted = true;
-          for (const link of links) {
-            assertActiveOwner(userId);
-            if (!await deleteEntityFromFirestore(userId, "note_task_links", link.id)) allDeleted = false;
-            assertActiveOwner(userId);
+        const links = new Map<string, NoteTaskLink>();
+        for (const [endpoint, ids] of entries) {
+          for (let index = 0; index < ids.length; index += 10) {
+            if (auth.currentUser?.uid !== userId) { mustQueue = true; break; }
+            const batch = ids.slice(index, index + 10);
+            const result = await firebaseStore.from("note_task_links", userId)
+              .select("id,user_id,note_id,task_id")
+              .eq("user_id", userId)
+              .in(endpoint, batch);
+            if (auth.currentUser?.uid !== userId || result.error || !Array.isArray(result.data)) {
+              mustQueue = true;
+              break;
+            }
+            for (const link of result.data as NoteTaskLink[]) {
+              if (link.id && link.user_id === userId && ids.includes(link[endpoint])) links.set(link.id, link);
+            }
           }
-          if (!allDeleted) mustQueue = true;
+          if (mustQueue) break;
+        }
+        if (!mustQueue) {
+          for (const link of links.values()) {
+            if (auth.currentUser?.uid !== userId || !await deleteEntityFromFirestore(userId, "note_task_links", link.id)) {
+              mustQueue = true;
+              break;
+            }
+          }
         }
       }
     } catch {
-      if (auth.currentUser?.uid !== userId) return false;
       mustQueue = true;
     }
   }
 
-  if (mustQueue) {
-    assertActiveOwner(userId);
-    const queued = await enqueueOp({
+  // Keep an owner-scoped sweep in the outbox for destructive cascades too. The
+  // direct delete above handles the current rows; the queued sweep closes the
+  // small race with a relationship created immediately before its endpoint is
+  // removed. Replaying it after endpoint removal is safe and idempotent.
+  if (mustQueue || options.durableSweep) {
+    const operations = entries.flatMap(([endpoint, ids]) => ids.map((id) => ({
       ownerId: userId,
       table: "note_task_links",
-      op: "delete",
-      match: { user_id: userId, [endpoint]: endpointId },
-    });
+      op: "delete" as const,
+      match: { user_id: userId, [endpoint]: id },
+    })));
+    let queued = false;
+    try { queued = await enqueueOps(operations); } catch { queued = false; }
     if (!queued) return false;
   }
-  assertActiveOwner(userId);
-  await cacheSet(key, next);
+
+  const cached = (await cacheGet<NoteTaskLink[]>(key)) || [];
+  await cacheSet(key, cached.filter((link) =>
+    !targets.note_id.includes(link.note_id) && !targets.task_id.includes(link.task_id)));
   return true;
 }
 

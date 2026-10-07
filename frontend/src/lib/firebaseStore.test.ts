@@ -22,6 +22,17 @@ vi.mock("@/lib/firebase", () => {
       const data = exists ? mockDocStore.get(path) : undefined;
       return {
         id: path.split("/").pop(),
+        metadata: { fromCache: false },
+        exists: () => exists,
+        data: () => (data ? { ...data } : undefined),
+      };
+    }),
+    getDocFromServer: vi.fn(async (path: string) => {
+      const exists = mockDocStore.has(path);
+      const data = exists ? mockDocStore.get(path) : undefined;
+      return {
+        id: path.split("/").pop(),
+        metadata: { fromCache: false },
         exists: () => exists,
         data: () => (data ? { ...data } : undefined),
       };
@@ -42,6 +53,16 @@ vi.mock("@/lib/firebase", () => {
         size: docs.length,
       };
     }),
+    getDocsFromServer: vi.fn(async (colOrQuery: any) => {
+      const colPath = typeof colOrQuery === "string" ? colOrQuery : colOrQuery.path;
+      const docs: Array<{ id: string; data: () => Record<string, any> }> = [];
+      for (const [key, val] of mockDocStore.entries()) {
+        const parts = key.split("/");
+        const docCol = parts.slice(0, -1).join("/");
+        if (docCol === colPath) docs.push({ id: parts[parts.length - 1], data: () => ({ ...val }) });
+      }
+      return { docs, empty: docs.length === 0, size: docs.length, metadata: { fromCache: false } };
+    }),
     setDoc: vi.fn(async (path: string, val: any, options?: { merge?: boolean }) => {
       const existing = mockDocStore.get(path) || {};
       mockDocStore.set(path, options?.merge ? { ...existing, ...val } : { ...val });
@@ -51,6 +72,20 @@ vi.mock("@/lib/firebase", () => {
       const current = mockDocStore.get(path)!;
       mockDocStore.set(path, { ...current, ...patch });
     }),
+    runTransaction: vi.fn(async (_db: unknown, callback: (transaction: any) => unknown) => callback({
+      get: async (path: string) => ({
+        exists: () => mockDocStore.has(path),
+        data: () => mockDocStore.get(path),
+      }),
+      set: async (path: string, value: Record<string, unknown>, options?: { merge?: boolean }) => {
+        const previous = mockDocStore.get(path) || {};
+        mockDocStore.set(path, options?.merge ? { ...previous, ...value } : { ...value });
+      },
+      update: async (path: string, value: Record<string, unknown>) => {
+        mockDocStore.set(path, { ...(mockDocStore.get(path) || {}), ...value });
+      },
+      delete: async (path: string) => { mockDocStore.delete(path); },
+    })),
     deleteDoc: vi.fn(async (path: string) => {
       mockDocStore.delete(path);
     }),
@@ -263,6 +298,31 @@ describe("firebaseStore adapter and query builder", () => {
     });
   });
 
+  describe("server-only reads", () => {
+    it("bypasses live and cached reads and marks the response server-backed", async () => {
+      mockDocStore.set("users/user_test_123/folders/folder-1", { id: "folder-1", parent_id: null });
+      const { data, fromCache } = await firebaseStore
+        .from("folders", "user_test_123")
+        .select("id,parent_id", { source: "server" })
+        .eq("id", "folder-1");
+
+      expect(data).toEqual([expect.objectContaining({ id: "folder-1" })]);
+      expect(fromCache).toBe(false);
+    });
+
+    it("fails closed when Firestore cannot satisfy a server-only read", async () => {
+      const { getDocsFromServer } = await import("@/lib/firebase");
+      vi.mocked(getDocsFromServer).mockRejectedValueOnce(new Error("offline"));
+
+      const result = await firebaseStore.from("folders", "user_test_123")
+        .select("id", { source: "server" })
+        .in("parent_id", ["folder-1"]);
+
+      expect(result.error?.message).toBe("offline");
+      expect(result.data).toBeNull();
+    });
+  });
+
   describe("sorting, pagination, and projection", () => {
     beforeEach(() => {
       for (let i = 1; i <= 5; i++) {
@@ -327,6 +387,14 @@ describe("firebaseStore adapter and query builder", () => {
       expect(res.data).toHaveLength(2);
       expect(mockDocStore.has("users/user_test_123/notes/note_1")).toBe(true);
       expect(mockDocStore.has("users/user_test_123/notes/note_2")).toBe(true);
+    });
+
+    it("refuses task creation through the adapter while its folder is being deleted", async () => {
+      mockDocStore.set("users/user_test_123/folders/locked-folder", { id: "locked-folder", _deleting: true });
+      const result = await firebaseStore.from("tasks").insert({ id: "blocked-task", folder_id: "locked-folder" });
+
+      expect(result.error?.message).toContain("در حال حذف");
+      expect(mockDocStore.has("users/user_test_123/tasks/blocked-task")).toBe(false);
     });
 
     it("upserts with onConflict resolution", async () => {

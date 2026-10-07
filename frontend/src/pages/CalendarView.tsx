@@ -32,6 +32,10 @@ type CalendarFolder = { id: string; name: string };
 type CalendarTag = { id: string; name: string };
 const ALL_FILTER = "__all__";
 const UNFILED_FILTER = "__unfiled__";
+const EMPTY_TASKS: CalendarTask[] = [];
+const EMPTY_TASK_TAGS: Record<string, string[]> = {};
+const EMPTY_FOLDERS: CalendarFolder[] = [];
+const EMPTY_TAGS: CalendarTag[] = [];
 
 export default function CalendarView() {
   const { user } = useAuth();
@@ -41,9 +45,11 @@ export default function CalendarView() {
   const [date, setDate] = useState(new Date());
   const [view, setView] = useState<ViewMode>("month");
   const [tasks, setTasks] = useState<CalendarTask[]>([]);
+  const [tasksOwnerId, setTasksOwnerId] = useState<string | null>(null);
   const [folders, setFolders] = useState<CalendarFolder[]>([]);
   const [tags, setTags] = useState<CalendarTag[]>([]);
   const [taskTags, setTaskTags] = useState<Record<string, string[]>>({});
+  const [metadataOwnerId, setMetadataOwnerId] = useState<string | null>(null);
   const [folderFilter, setFolderFilter] = useState(ALL_FILTER);
   const [tagFilter, setTagFilter] = useState(ALL_FILTER);
   const [statusFilter, setStatusFilter] = useState<CalendarFilterStatus>("all");
@@ -57,23 +63,29 @@ export default function CalendarView() {
   const [cycleLogs, setCycleLogs] = useState<CycleLog[]>([]);
   const [cycleOverlayEnabled, setCycleOverlayEnabled] = useState(true);
   const [detailDate, setDetailDate] = useState<Date | null>(null);
-  const visibleTasks = useMemo(() => filterTasksForVisibility(tasks, showCompletedTasks).filter((task) => {
+  const currentTasks = tasksOwnerId === user?.id ? tasks : EMPTY_TASKS;
+  const currentTaskTags = metadataOwnerId === user?.id ? taskTags : EMPTY_TASK_TAGS;
+  const currentFolders = metadataOwnerId === user?.id ? folders : EMPTY_FOLDERS;
+  const currentTags = metadataOwnerId === user?.id ? tags : EMPTY_TAGS;
+
+  const visibleTasks = useMemo(() => filterTasksForVisibility(currentTasks, showCompletedTasks).filter((task) => {
     if (folderFilter !== ALL_FILTER) {
       if (folderFilter === UNFILED_FILTER ? Boolean(task.folder_id) : task.folder_id !== folderFilter) return false;
     }
-    if (tagFilter !== ALL_FILTER && !(taskTags[task.id] || task.tag_ids || []).includes(tagFilter)) return false;
+    if (tagFilter !== ALL_FILTER && !(currentTaskTags[task.id] || task.tag_ids || []).includes(tagFilter)) return false;
     if (statusFilter === "done") return task.completed === true || task.status === "done";
     if (statusFilter === "todo" || statusFilter === "in_progress" || statusFilter === "waiting" || statusFilter === "wont_do") {
       return task.status === statusFilter;
     }
     return true;
-  }), [tasks, showCompletedTasks, folderFilter, tagFilter, statusFilter, taskTags]);
+  }), [currentTasks, showCompletedTasks, folderFilter, tagFilter, statusFilter, currentTaskTags]);
 
   const activeFilterCount = Number(folderFilter !== ALL_FILTER) + Number(tagFilter !== ALL_FILTER) + Number(statusFilter !== "all");
 
   // Load only this account's folder, tag, and task-tag metadata. Selection state
   // stays in this page while switching calendar views.
   useEffect(() => {
+    setMetadataOwnerId(user?.id || null);
     setFolders([]);
     setTags([]);
     setTaskTags({});
@@ -153,9 +165,13 @@ export default function CalendarView() {
   useEffect(() => {
     if (!user) {
       setTasks([]);
+      setTasksOwnerId(null);
       setHolidays([]);
       return;
     }
+    const ownerId = user.id;
+    setTasks([]);
+    setTasksOwnerId(ownerId);
     let active = true;
     let start: Date, end: Date;
     const ts = { ...getTimeSettings(), calendar: system };
@@ -167,8 +183,9 @@ export default function CalendarView() {
     const startTime = start.getTime();
     const endTime = end.getTime();
 
-    firebaseStore.from("tasks").select("*").eq("user_id", user.id)
+    firebaseStore.from("tasks").select("*").eq("user_id", ownerId)
       .then(({ data }) => {
+        if (!active) return;
         const matching: any[] = [];
         const seenIds = new Set<string>();
         for (const t of (data || []) as any[]) {
@@ -311,14 +328,14 @@ export default function CalendarView() {
                 <select aria-label={T("فیلتر فولدر", "Folder filter")} value={folderFilter} onChange={(event) => setFolderFilter(event.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm font-normal">
                   <option value={ALL_FILTER}>{T("همهٔ فولدرها", "All folders")}</option>
                   <option value={UNFILED_FILTER}>{T("بدون فولدر", "Unfiled")}</option>
-                  {folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
+                  {currentFolders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
                 </select>
               </label>
               <label className="block space-y-1 text-xs font-medium">
                 <span>{T("برچسب", "Tag")}</span>
                 <select aria-label={T("فیلتر برچسب", "Tag filter")} value={tagFilter} onChange={(event) => setTagFilter(event.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm font-normal">
                   <option value={ALL_FILTER}>{T("همهٔ برچسب‌ها", "All tags")}</option>
-                  {tags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
+                  {currentTags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
                 </select>
               </label>
               <label className="block space-y-1 text-xs font-medium">

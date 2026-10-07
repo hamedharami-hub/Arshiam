@@ -1,5 +1,6 @@
 import { useTaskPlanningLabel } from "./TaskPlanningPicker";
 import { TaskScheduleSheet } from "./TaskScheduleSheet";
+import { TaskDeadlineIndicator } from "./TaskDeadlineIndicator";
 import React, { memo, useMemo, useRef } from "react";
 import { isPathAllowed } from "@/lib/appModules";
 import {
@@ -443,6 +444,7 @@ const TaskListItemComponent = ({
                     {(t.recurrence_rule || (t.recurrence && t.recurrence !== "none")) && <Repeat className="h-3 w-3 text-violet-600" aria-label={T("تکراری", "Repeats")} />}
                   </button>
                 </TaskScheduleSheet>
+                <TaskDeadlineIndicator task={t} isEn={isEn} T={T} />
                 {effectiveProgress.total > 0 && (visibleSubs.length > 0 ? (
                   <button
                     type="button"

@@ -139,7 +139,7 @@ export default function DayDetailSheet({
               >
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ background: PRIORITY_COLOR[t.priority] || PRIORITY_COLOR.none }} />
                 <span className="truncate flex-1">{t.title}</span>
-                <DeadlineMarker deadlineDate={t.deadline_date} completed={t.completed} status={t.status} />
+                <DeadlineMarker deadlineDate={t.deadline_date} completed={t.completed} status={t.status} recurrence={t.recurrence} recurrence_rule={t.recurrence_rule} />
                 <span className="text-[10px] text-muted-foreground tabular-nums">
                   {toPersianDigits(String(t.due_date ? (parseTaskDueDate(t.due_date)?.getHours().toString().padStart(2, "0") ?? "--") : "--"))}
                   :{toPersianDigits(String(t.due_date ? (parseTaskDueDate(t.due_date)?.getMinutes().toString().padStart(2, "0") ?? "00") : "00"))}

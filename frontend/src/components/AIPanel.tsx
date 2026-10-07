@@ -605,14 +605,14 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
               <ListFilter className="h-3.5 w-3.5" />{T("ترتیب صندوق", "Inbox sort")}
             </Button>
           </div>
-          {taskContext?.ownerId === user?.id && (
+          {taskContext && user?.id && taskContext.ownerId === user.id && (
             <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border bg-accent/20 px-2.5 py-1.5 text-xs">
               <span>{T(`زمینهٔ فعال: ${taskContext.label}`, `Active context: ${taskContext.label}`)}</span>
               <Button type="button" size="sm" variant="ghost" className="h-6 px-2" aria-label={T("پاک‌کردن زمینه", "Clear context")}
                 onClick={() => setTaskContext(null)}><X className="h-3.5 w-3.5" /></Button>
             </div>
           )}
-          {sortProposal?.ownerId === user?.id && (
+          {sortProposal && user?.id && sortProposal.ownerId === user.id && (
             <Card className="mb-2 p-3 space-y-2" data-testid="ai-inbox-sort-preview">
               <p className="text-sm font-medium">{T("پیشنهاد ترتیب صندوق ورودی", "Inbox sort suggestion")}</p>
               <p className="text-xs">{T("اول:", "Primary:")} {T(SORT_LABELS[sortProposal.primary.key].fa, SORT_LABELS[sortProposal.primary.key].en)} · {sortProposal.primary.dir === "asc" ? T("صعودی", "ascending") : T("نزولی", "descending")}</p>

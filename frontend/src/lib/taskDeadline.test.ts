@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { isValidDeadlineDate, taskDeadlineStatus } from "./taskDeadline";
+import { isTaskClosed, isValidDeadlineDate, supportsTaskDeadline, taskDeadlineStatus } from "./taskDeadline";
 
 describe("task deadline date helpers", () => {
+  it("limits the initial deadline feature to active one-off tasks", () => {
+    expect(supportsTaskDeadline({ recurrence: "none" })).toBe(true);
+    expect(supportsTaskDeadline({})).toBe(true);
+    expect(supportsTaskDeadline({ recurrence: "weekly" })).toBe(false);
+    expect(supportsTaskDeadline({ recurrence_rule: { freq: "daily" } })).toBe(false);
+    expect(isTaskClosed({ completed: true })).toBe(true);
+    expect(isTaskClosed({ status: "done", completed: false })).toBe(true);
+    expect(isTaskClosed({ status: "wont_do", completed: false })).toBe(true);
+    expect(isTaskClosed({ status: "todo", completed: false })).toBe(false);
+  });
+
   it("validates real calendar dates without timezone conversion", () => {
     expect(isValidDeadlineDate("2024-02-29")).toBe(true);
     expect(isValidDeadlineDate("2026-02-29")).toBe(false);

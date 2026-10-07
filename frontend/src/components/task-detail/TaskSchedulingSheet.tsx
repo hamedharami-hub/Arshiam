@@ -12,12 +12,13 @@ import { toPersianDigits } from "@/lib/persianDigits";
 import type { Task } from "@/lib/taskTypes";
 import { taskWorkDate, workDatePatch } from "@/lib/taskDate";
 import { describeRule, type RecurrenceRule } from "@/lib/recurrence";
-import { readSchedule } from "@/lib/taskSchedule";
+import { dateTimeSchedule, readSchedule } from "@/lib/taskSchedule";
+import { TaskDeadlineControl } from "./TaskDeadlineControl";
 
 export interface TaskScheduleBodyProps {
   t: Task;
   canEdit: boolean;
-  save: (patch: Partial<Task>) => void;
+  save: (patch: Partial<Task>) => void | Promise<unknown>;
   /** Kept for API compatibility with the task header; the quick day buttons replace the old postpone chips. */
   postpone?: (days: number) => void;
   T: (fa: string, en: string) => string;
@@ -69,6 +70,8 @@ function ValueRow({ icon: Icon, value, placeholder, open, disabled, onClick, onC
 /** Icon-led "When" panel: quick days, a month calendar, then time / repeat / reminder rows. */
 export function TaskScheduleBody({ t, canEdit, save, T, isEn, onDone }: TaskScheduleBodyProps) {
   const [sub, setSub] = useState<SubPanel>(null);
+  const [invalidLocalTime, setInvalidLocalTime] = useState(false);
+  const [scheduleSaveError, setScheduleSaveError] = useState(false);
   const toggleSub = (key: Exclude<SubPanel, null>) => setSub((cur) => (cur === key ? null : key));
   const fa = !isEn;
   const num = (s: string) => (fa ? toPersianDigits(s) : s);
@@ -81,12 +84,11 @@ export function TaskScheduleBody({ t, canEdit, save, T, isEn, onDone }: TaskSche
     ? `${String(clockDate.getHours()).padStart(2, "0")}:${String(clockDate.getMinutes()).padStart(2, "0")}`
     : null;
 
-
   const compose = (ymd: string, hhmm: string | null) => {
-    if (!hhmm) return ymd;
-    const [y, m, d] = ymd.split("-").map(Number);
-    const [h, min] = hhmm.split(":").map(Number);
-    return new Date(y, m - 1, d, h, min).toISOString();
+    const schedule = dateTimeSchedule(ymd, hhmm);
+    if (schedule.kind === "datetime") return schedule.at;
+    if (schedule.kind === "day") return schedule.date;
+    throw new Error("A selected day must produce a day or datetime schedule");
   };
   const timeSaver = useRef<number | null>(null);
   const timeIntent = useRef(0);
@@ -108,15 +110,48 @@ export function TaskScheduleBody({ t, canEdit, save, T, isEn, onDone }: TaskSche
   useEffect(() => cancelPendingTime, [cancelPendingTime, t.id, workDay, workDate, canEdit]);
 
   // Choosing a day keeps the panel open so a time can follow; the check button closes it.
-  const pickDay = (ymd: string | null) => {
+  const pickDay = async (ymd: string | null) => {
     if (!canEdit) return;
     cancelPendingTime();
-    save(workDatePatch(t, ymd ? compose(ymd, timePart) : null));
-    if (!ymd) setSub(null);
+    let selectedDate: string | null;
+    let preservedDayAfterDstGap = false;
+    try {
+      selectedDate = ymd ? compose(ymd, timePart) : null;
+    } catch {
+      // Keep the selected day, but do not silently roll the previously chosen
+      // clock forward across a daylight-saving gap.
+      if (!ymd) return;
+      selectedDate = ymd;
+      preservedDayAfterDstGap = true;
+    }
+    const taskId = t.id;
+    setScheduleSaveError(false);
+    try {
+      const result = await save(workDatePatch(t, selectedDate));
+      if (result === "failed") throw new Error("Schedule save failed");
+      if (currentTarget.current.taskId !== taskId) return;
+      setInvalidLocalTime(preservedDayAfterDstGap);
+      if (preservedDayAfterDstGap) setSub("time");
+      else if (!ymd) setSub(null);
+    } catch {
+      // Do not claim the fallback day was saved when the write failed. Keep the
+      // time panel open so the user can retry the date or choose another time.
+      if (currentTarget.current.taskId !== taskId) return;
+      setScheduleSaveError(true);
+      if (preservedDayAfterDstGap) setSub("time");
+    }
   };
   const applyTime = (day: string, hhmm: string) => {
     if (!currentTarget.current.canEdit || !day) return;
-    saveRef.current(workDatePatch(currentTask.current, compose(day, hhmm)));
+    let selectedDate: string;
+    try {
+      selectedDate = compose(day, hhmm);
+    } catch {
+      setInvalidLocalTime(true);
+      return;
+    }
+    saveRef.current(workDatePatch(currentTask.current, selectedDate));
+    setInvalidLocalTime(false);
   };
   const flushPendingTime = () => {
     const pending = pendingTime.current;
@@ -200,6 +235,12 @@ export function TaskScheduleBody({ t, canEdit, save, T, isEn, onDone }: TaskSche
         {sub === "time" && workDay && (
           <div className="rounded-xl bg-muted/40 py-2" data-testid="schedule-time-body">
             <TimeWheel value={timePart || "09:00"} fa={fa} onChange={queueTime} />
+            {scheduleSaveError && <p role="alert" data-testid="schedule-save-error" className="px-3 pt-1 text-xs text-destructive">
+              {T("ذخیره نشد؛ دوباره تلاش کن.", "Could not save. Please try again.")}
+            </p>}
+            {invalidLocalTime && <p role="alert" data-testid="schedule-invalid-local-time" className="px-3 pt-1 text-xs text-destructive">
+              {T("این ساعت محلی در روز انتخاب‌شده وجود ندارد؛ ساعت دیگری انتخاب کن.", "This local time does not exist on the selected day. Choose another time.")}
+            </p>}
           </div>
         )}
 
@@ -253,7 +294,9 @@ export function TaskScheduleBody({ t, canEdit, save, T, isEn, onDone }: TaskSche
       </div>
 
       {/* Finish */}
-      <div className="flex justify-end">
+      <div className="flex items-start justify-end gap-1">
+        {/* A deadline is independent from the one operational schedule above. */}
+        <TaskDeadlineControl task={t} canEdit={canEdit} isEn={isEn} T={T} save={(patch) => save(patch)} />
         <IconTip label={T("تأیید", "Done")} onClick={() => { flushPendingTime(); onDone?.(); }} testid="schedule-done" className="h-9 w-12 when-icon-btn--solid">
           <Check className="h-5 w-5" strokeWidth={2} />
         </IconTip>

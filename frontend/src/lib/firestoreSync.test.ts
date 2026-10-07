@@ -1,14 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getDocMock, setDocMock, runTransactionMock, docMock } = vi.hoisted(() => ({
+const { getDocMock, setDocMock, runTransactionMock, docMock, activeUid } = vi.hoisted(() => ({
   getDocMock: vi.fn(),
   setDocMock: vi.fn(),
   runTransactionMock: vi.fn(),
   docMock: vi.fn((...args: unknown[]) => ({ path: args.join("/") })),
+  activeUid: { value: "user-sync-test" },
 }));
 
 vi.mock("./firebase", () => ({
-  auth: { currentUser: { uid: "user-sync-test" } },
+  auth: { get currentUser() { return { uid: activeUid.value }; } },
   db: {},
   collection: vi.fn(),
   doc: docMock,
@@ -56,6 +57,7 @@ import {
 } from "./firestoreSync";
 import { firebaseStore } from "./firebaseStore";
 import { cacheGet } from "./offlineDb";
+import { makeNoteTaskLinkId } from "./noteTaskLinkTypes";
 
 describe("Firestore stale-write protection", () => {
   afterEach(() => vi.clearAllMocks());
@@ -340,6 +342,21 @@ describe("queued Firestore revisions", () => {
     expect(set).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ userId: "user-sync-test" }), { merge: true });
   });
 
+  it("does not replay an offline task into a folder that is being deleted", async () => {
+    const set = vi.fn();
+    runTransactionMock.mockImplementation((_db, callback) => callback({
+      get: async (ref: { path: string }) => {
+        if (ref.path.endsWith("/folders/folder-locked")) return { exists: () => true, data: () => ({ _deleting: true }) };
+        return { exists: () => false, data: () => undefined };
+      },
+      set, delete: vi.fn(),
+    }));
+    await expect(replayQueuedEntityWithOutcome("user-sync-test", "tasks", "queued-task", {
+      op: "upsert", payload: { id: "queued-task", folder_id: "folder-locked" }, createdAt: 1,
+    })).resolves.toBe("stale");
+    expect(set).not.toHaveBeenCalled();
+  });
+
   it("keeps a legacy queued edit without a base revision for review", async () => {
     const set = vi.fn();
     runTransactionMock.mockImplementation((_db, callback) => callback({
@@ -354,8 +371,9 @@ describe("queued Firestore revisions", () => {
 });
 
 describe("owner-scoped note-task relationship transactions", () => {
+  const linkId = makeNoteTaskLinkId("note-1", "task-1");
   const link = {
-    id: "stable-link",
+    id: linkId,
     user_id: "user-sync-test",
     note_id: "note-1",
     task_id: "task-1",
@@ -366,7 +384,7 @@ describe("owner-scoped note-task relationship transactions", () => {
     const set = vi.fn();
     runTransactionMock.mockImplementation((_db, callback) => callback({
       get: async (ref: { path: string }) => ({
-        exists: () => !ref.path.endsWith("/note_task_links/stable-link"),
+        exists: () => !ref.path.endsWith(`/note_task_links/${linkId}`),
         data: () => undefined,
       }),
       set,
@@ -376,8 +394,8 @@ describe("owner-scoped note-task relationship transactions", () => {
     await expect(saveNoteTaskLinkWithOutcome("user-sync-test", link)).resolves.toBe("saved");
     expect(set).toHaveBeenCalledOnce();
     expect(set).toHaveBeenCalledWith(
-      expect.objectContaining({ path: expect.stringContaining("users/user-sync-test/note_task_links/stable-link") }),
-      expect.objectContaining({ id: "stable-link", user_id: "user-sync-test", note_id: "note-1", task_id: "task-1" }),
+      expect.objectContaining({ path: expect.stringContaining(`users/user-sync-test/note_task_links/${linkId}`) }),
+      expect.objectContaining({ id: linkId, user_id: "user-sync-test", note_id: "note-1", task_id: "task-1" }),
     );
   });
 
@@ -401,7 +419,7 @@ describe("owner-scoped note-task relationship transactions", () => {
     runTransactionMock.mockImplementation((_db, callback) => callback({
       get: async (ref: { path: string }) => ({
         exists: () => ref.path.endsWith("/notes/note-1") || ref.path.endsWith("/tasks/task-1") ||
-          ref.path.endsWith("/note_task_links/stable-link"),
+          ref.path.endsWith(`/note_task_links/${linkId}`),
         data: () => ({ user_id: "user-sync-test", note_id: "note-1", task_id: "task-1" }),
       }),
       set,
@@ -414,18 +432,38 @@ describe("owner-scoped note-task relationship transactions", () => {
     expect(set).not.toHaveBeenCalled();
     expect(runTransactionMock).toHaveBeenCalledTimes(callsBeforeForeignOwner);
   });
+
+  it("rejects alternate relationship IDs before opening a transaction", async () => {
+    runTransactionMock.mockClear();
+    await expect(saveNoteTaskLinkWithOutcome("user-sync-test", { ...link, id: "alternate-id" })).resolves.toBe("failed");
+    expect(runTransactionMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("Firestore backup accuracy", () => {
   beforeEach(() => {
+    activeUid.value = "user-sync-test";
     vi.mocked(cacheGet).mockReset();
     getDocMock.mockResolvedValue({ exists: () => false, data: () => undefined });
     setDocMock.mockResolvedValue(undefined);
+    runTransactionMock.mockReset().mockImplementation(async (_db, callback) => {
+      const pendingWrites: Promise<unknown>[] = [];
+      const outcome = await callback({
+        get: async () => ({ exists: () => false, data: () => undefined }),
+        set: (reference: unknown, value: unknown, options?: unknown) => {
+          pendingWrites.push(setDocMock(reference, value, options));
+        },
+        delete: vi.fn(),
+      });
+      await Promise.all(pendingWrites);
+      return outcome;
+    });
   });
 
   afterEach(() => vi.clearAllMocks());
 
   it("preserves backup fields, ownership, and source revision timestamps", async () => {
+    activeUid.value = "current-account";
     const task = {
       id: "task-1",
       user_id: "old-account",

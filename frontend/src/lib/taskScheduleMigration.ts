@@ -5,6 +5,7 @@
 import { deleteField, doc, runTransaction } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Task } from "@/lib/taskTypes";
+import { folderScopedWriteAllowed } from "@/lib/folderWriteGuard";
 import { fromLocalISO, getTimeSettings, periodFor, type Horizon } from "@/lib/timeHorizon";
 import type { CalendarSystem } from "@/lib/jalali";
 import { LEGACY_SCHEDULE_FIELDS, legacySchedule, scheduleMigrationPatch, SCHEDULE_VERSION, type TaskSchedule } from "@/lib/taskSchedule";
@@ -173,6 +174,7 @@ export async function applyTaskScheduleMigration(plan: ScheduleMigrationPlan): P
       const taskSnap = await tx.get(tRef);
       if (!taskSnap.exists()) return "conflict";
       const current = taskSnap.data() as Task;
+      if (!await folderScopedWriteAllowed(tx, plan.uid, "tasks", { ...current, ...plan.patch }, taskSnap)) return "conflict";
       const currentFingerprint = taskScheduleFingerprint(plan.uid, plan.taskId, current);
       if (currentFingerprint !== plan.fingerprint) return "conflict";
       const fresh = previewOne(plan.uid, current);
@@ -214,6 +216,7 @@ export async function rollbackTaskScheduleMigration(uid: string, id: string): Pr
       const taskSnap = await tx.get(tRef);
       if (!taskSnap.exists()) return "conflict";
       const current = taskSnap.data() as Task;
+      if (!await folderScopedWriteAllowed(tx, uid, "tasks", current as unknown as Record<string, unknown>, taskSnap)) return "conflict";
       if (taskScheduleFingerprint(uid, backup.task_id, current) !== backup.after_fingerprint) return "conflict";
       const restore = Object.fromEntries(Object.entries(backup.fields).map(([key, entry]) => [key, entry.present ? entry.value : deleteField()]));
       tx.update(tRef, restore);

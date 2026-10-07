@@ -1,16 +1,20 @@
 import { CalendarDays } from "lucide-react";
 import { useBilingual } from "@/hooks/useBilingual";
 import { deadlineCue } from "./deadlineCue";
+import { supportsTaskDeadline } from "@/lib/taskDeadline";
 
 export default function DeadlineMarker({
-  deadlineDate, completed, status,
+  deadlineDate, completed, status, recurrence, recurrence_rule,
 }: {
   deadlineDate?: string | null;
   completed?: boolean;
   status?: string;
+  recurrence?: string | null;
+  recurrence_rule?: unknown;
 }) {
-  const cue = deadlineCue(deadlineDate, { completed, status });
   const { T } = useBilingual();
+  if (!supportsTaskDeadline({ recurrence, recurrence_rule })) return null;
+  const cue = deadlineCue(deadlineDate, { completed, status });
   if (!cue) return null;
   const label = cue.state === "overdue"
     ? T("ددلاین گذشته", "Deadline overdue")

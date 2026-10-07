@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { Brain, FileText, Flame, ListTodo, CalendarDays } from "lucide-react";
 import { WindowsFluentBar } from "./WindowsFluentBar";
@@ -130,13 +130,13 @@ describe("MobileBottomBar", () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText("ذهن")).toBeDefined();
-    expect(screen.getByText("یادداشت‌ها")).toBeDefined();
-    expect(screen.getByText("امروز")).toBeDefined();
-    expect(screen.getByText("منو")).toBeDefined();
+    expect(screen.getByRole("button", { name: "ذهن" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "یادداشت‌ها" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "امروز" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "منو" })).toBeDefined();
 
     // Now switch to left position
-    setSidebarPosition("left");
+    act(() => setSidebarPosition("left"));
     rerender(
       <MemoryRouter initialEntries={["/app/today"]}>
         <SidebarProvider>
@@ -151,10 +151,9 @@ describe("MobileBottomBar", () => {
     );
 
     const nav = screen.getByRole("navigation", { name: "ناوبری پایین صفحه" });
-    expect(nav.getAttribute("data-sidebar-side")).toBe("left");
+    await waitFor(() => expect(nav.getAttribute("data-sidebar-side")).toBe("left"));
 
     // Clean up
-    setSidebarPosition("right");
+    act(() => setSidebarPosition("right"));
   });
 });
-

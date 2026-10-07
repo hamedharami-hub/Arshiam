@@ -8,6 +8,7 @@ import { buildTaskChildrenMap } from "@/features/tasks/taskTree";
 import { nextOccurrence, type RecurrenceRule } from "./recurrence";
 import { parseTaskDueDate, getLocalDateString } from "./taskDate";
 import { logTaskActivity } from "./taskActivity";
+import { folderScopedWriteAllowed } from "@/lib/folderWriteGuard";
 import type { Task } from "./taskTypes";
 import { isCustomRange, normalizeTaskWrite, readSchedule, schedulePatch, scheduleWorkDate, type TaskSchedule } from "./taskSchedule";
 import { addDaysLocal, fromLocalISO, getTimeSettings, periodFor, toLocalISO, type Period, type TimeSettings } from "./timeHorizon";
@@ -301,6 +302,18 @@ export async function advanceRecurringTask(
       // that must not prevent advancing the still-existing parent occurrence.
       if (!snapshots[0]?.exists()) throw new Error("Recurring task changed before it could be advanced");
       const currentParent = snapshots[0].data() as Partial<Task> | undefined;
+      for (let index = 0; index < taskRefs.length; index++) {
+        const currentSnapshot = snapshots[index];
+        if (!currentSnapshot?.exists()) continue;
+        const currentData = currentSnapshot.data() as Record<string, unknown>;
+        if (!await folderScopedWriteAllowed(
+          transaction,
+          userId,
+          "tasks",
+          { ...currentData, ...taskPatches[index] },
+          currentSnapshot,
+        )) throw new Error("Recurring task is being removed or its folder no longer exists.");
+      }
       if (currentParent && JSON.stringify(readSchedule(currentParent, settings)) !== JSON.stringify(schedule)) {
         throw new Error("Recurring task schedule changed before it could be advanced");
       }

@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   save: vi.fn(),
   deleteEntity: vi.fn(),
   enqueue: vi.fn(),
+  enqueueMany: vi.fn(),
+  afterRemoteRead: undefined as undefined | (() => void),
   firebaseFrom: vi.fn(),
 }));
 
@@ -26,6 +28,7 @@ vi.mock("@/lib/offlineQueue", () => ({
     return [op.ownerId, payload.user_id, op.match?.user_id].filter(Boolean).every((owner) => owner === userId);
   },
   enqueueOp: mocks.enqueue,
+  enqueueOps: mocks.enqueueMany,
   getPendingOps: vi.fn(async (table?: string) => mocks.pending.filter((item) => !table || item.table === table)),
 }));
 
@@ -45,6 +48,7 @@ describe("note-task relationship persistence", () => {
     mocks.cache.clear();
     mocks.pending = [];
     mocks.remoteLinks = [];
+    mocks.afterRemoteRead = undefined;
     mocks.auth.currentUser = { uid: "owner-a" };
     mocks.save.mockResolvedValue("saved");
     mocks.deleteEntity.mockResolvedValue(true);
@@ -52,12 +56,20 @@ describe("note-task relationship persistence", () => {
       mocks.pending.push({ ...operation, ownerId: operation.ownerId, createdAt: Date.now() });
       return true;
     });
+    mocks.enqueueMany.mockImplementation(async (operations: Array<Record<string, any>>) => {
+      mocks.pending.push(...operations.map((operation) => ({ ...operation, ownerId: operation.ownerId, createdAt: Date.now() })));
+      return true;
+    });
     mocks.firebaseFrom.mockImplementation(() => {
       const builder: any = {
         select: vi.fn(() => builder),
         eq: vi.fn(() => builder),
+        in: vi.fn(() => builder),
         delete: vi.fn(() => builder),
-        then: (resolve: (value: unknown) => unknown) => Promise.resolve({ data: mocks.remoteLinks, error: null }).then(resolve),
+        then: (resolve: (value: unknown) => unknown) => Promise.resolve({ data: mocks.remoteLinks, error: null }).then((value) => {
+          mocks.afterRemoteRead?.();
+          return resolve(value);
+        }),
       };
       return builder;
     });
@@ -116,6 +128,15 @@ describe("note-task relationship persistence", () => {
     expect(mocks.cache.get(getNoteTaskLinksCacheKey("owner-a"))).toEqual([]);
   });
 
+  it("never returns cached or remote links after the active account changes during a read", async () => {
+    const cached = [{ id: "cached", user_id: "owner-a", note_id: "n", task_id: "t" }];
+    mocks.cache.set(getNoteTaskLinksCacheKey("owner-a"), cached);
+    mocks.remoteLinks = cached;
+    mocks.afterRemoteRead = () => { mocks.auth.currentUser = { uid: "owner-b" }; };
+
+    await expect(getNoteTaskLinks("owner-a")).resolves.toEqual([]);
+  });
+
   it("does not queue a link after an online transaction confirms a missing endpoint", async () => {
     mocks.save.mockResolvedValue("missing-endpoint");
 
@@ -137,14 +158,14 @@ describe("note-task relationship persistence", () => {
     expect(await deleteNoteTaskLinksFor("owner-a", "note_id", "note-1")).toBe(true);
     expect(await deleteNoteTaskLinksFor("owner-a", "task_id", "task-1")).toBe(true);
 
-    expect(mocks.enqueue).toHaveBeenNthCalledWith(1, expect.objectContaining({
+    expect(mocks.enqueueMany).toHaveBeenNthCalledWith(1, [expect.objectContaining({
       ownerId: "owner-a", table: "note_task_links", op: "delete",
       match: { user_id: "owner-a", note_id: "note-1" },
-    }));
-    expect(mocks.enqueue).toHaveBeenNthCalledWith(2, expect.objectContaining({
+    })]);
+    expect(mocks.enqueueMany).toHaveBeenNthCalledWith(2, [expect.objectContaining({
       ownerId: "owner-a", table: "note_task_links", op: "delete",
       match: { user_id: "owner-a", task_id: "task-1" },
-    }));
+    })]);
     expect(mocks.cache.get(getNoteTaskLinksCacheKey("owner-a"))).toEqual([]);
     await expect(getNoteTaskLinks("owner-b")).resolves.toEqual([]);
   });
@@ -162,6 +183,23 @@ describe("note-task relationship persistence", () => {
     expect(mocks.deleteEntity).toHaveBeenNthCalledWith(1, "owner-a", "note_task_links", "note-link");
     expect(mocks.deleteEntity).toHaveBeenNthCalledWith(2, "owner-a", "note_task_links", "task-link");
     expect(mocks.enqueue).not.toHaveBeenCalled();
+    expect(mocks.enqueueMany).not.toHaveBeenCalled();
     expect(mocks.cache.get(getNoteTaskLinksCacheKey("owner-a"))).toEqual([]);
+  });
+
+  it("durably queues deduplicated cleanup sweeps for a folder cascade", async () => {
+    const { deleteNoteTaskLinksForEndpoints } = await import("./noteTaskLinkService");
+    mocks.remoteLinks = [{ id: "remote", user_id: "owner-a", note_id: "n-1", task_id: "t-1" }];
+
+    await expect(deleteNoteTaskLinksForEndpoints("owner-a", {
+      note_id: ["n-1", "n-1"], task_id: ["t-1", "t-2"],
+    }, { durableSweep: true })).resolves.toBe(true);
+
+    expect(mocks.enqueueMany).toHaveBeenCalledOnce();
+    expect(mocks.enqueueMany).toHaveBeenCalledWith([
+      expect.objectContaining({ ownerId: "owner-a", table: "note_task_links", op: "delete", match: { user_id: "owner-a", note_id: "n-1" } }),
+      expect.objectContaining({ ownerId: "owner-a", table: "note_task_links", op: "delete", match: { user_id: "owner-a", task_id: "t-1" } }),
+      expect.objectContaining({ ownerId: "owner-a", table: "note_task_links", op: "delete", match: { user_id: "owner-a", task_id: "t-2" } }),
+    ]);
   });
 });

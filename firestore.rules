@@ -11,6 +11,63 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function folderIsOpen(userId, folderId) {
+      return folderId == null || (folderId is string
+        && exists(/databases/$(database)/documents/users/$(userId)/folders/$(folderId))
+        && get(/databases/$(database)/documents/users/$(userId)/folders/$(folderId)).data.get('_deleting', false) != true);
+    }
+
+    function folderIsLocked(userId, folderId) {
+      return folderId is string
+        && exists(/databases/$(database)/documents/users/$(userId)/folders/$(folderId))
+        && get(/databases/$(database)/documents/users/$(userId)/folders/$(folderId)).data.get('_deleting', false) == true;
+    }
+
+    function taskIsOpen(userId, taskId) {
+      return taskId == null || (taskId is string
+        && exists(/databases/$(database)/documents/users/$(userId)/tasks/$(taskId))
+        && get(/databases/$(database)/documents/users/$(userId)/tasks/$(taskId)).data.get('_deleting', false) != true);
+    }
+
+    function deleteMarkersUnchanged() {
+      return request.resource.data.get('_deleting', false) == resource.data.get('_deleting', false)
+        && request.resource.data.get('_delete_lock', null) == resource.data.get('_delete_lock', null);
+    }
+
+    function hasNoDeleteMarker(data) {
+      return data.get('_deleting', false) != true && data.get('_delete_lock', null) == null;
+    }
+
+    function acquireDeleteLock() {
+      return resource.data.get('_deleting', false) != true
+        && request.resource.data.get('_deleting', false) == true
+        && request.resource.data.get('_delete_lock', null) is string
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['_deleting', '_delete_lock']);
+    }
+
+    function releaseDeleteLock() {
+      return resource.data.get('_deleting', false) == true
+        && resource.data.get('_delete_lock', null) is string
+        && request.resource.data.get('_deleting', false) == false
+        && request.resource.data.get('_delete_lock', null) == resource.data.get('_delete_lock', null)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['_deleting', '_delete_lock']);
+    }
+
+    function safeFolderDetach(userId, field) {
+      return request.resource.data.get(field, null) == null
+        && folderIsLocked(userId, resource.data.get(field, null))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          field, 'created_at', 'updated_at', 'updatedAt', '_firestoreSyncAt', 'id', 'user_id', 'userId'
+        ]);
+    }
+
+    function folderReferenceUpdateAllowed(userId, field) {
+      let oldFolder = resource.data.get(field, null);
+      let newFolder = request.resource.data.get(field, null);
+      return (folderIsOpen(userId, oldFolder) && folderIsOpen(userId, newFolder))
+        || (newFolder == null && safeFolderDetach(userId, field));
+    }
+
     // Health diagnostics are scoped to the authenticated user's private tree.
     match /_health/{docId} {
       allow read, write: if false;
@@ -92,6 +149,62 @@ service cloud.firestore {
         allow update: if false;
       }
 
+      // These collections use transaction-backed folder fences. Keep them out
+      // of the broad owner rule so stale clients cannot write through a delete.
+      match /tasks/{taskId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && hasNoDeleteMarker(request.resource.data)
+          && folderIsOpen(userId, request.resource.data.get('folder_id', null))
+          && taskIsOpen(userId, request.resource.data.get('parent_id', null));
+        allow update: if isOwner(userId) && (acquireDeleteLock() || releaseDeleteLock() || (
+          resource.data.get('_deleting', false) != true
+          && deleteMarkersUnchanged()
+          && folderReferenceUpdateAllowed(userId, 'folder_id')
+          && taskIsOpen(userId, resource.data.get('parent_id', null))
+          && taskIsOpen(userId, request.resource.data.get('parent_id', null))
+        ));
+      }
+
+      match /notes/{noteId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && hasNoDeleteMarker(request.resource.data)
+          && folderIsOpen(userId, request.resource.data.get('folder_id', null));
+        allow update: if isOwner(userId) && (acquireDeleteLock() || releaseDeleteLock() || (
+          resource.data.get('_deleting', false) != true
+          && deleteMarkersUnchanged()
+          && folderReferenceUpdateAllowed(userId, 'folder_id')
+        ));
+      }
+
+      match /folders/{folderId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && hasNoDeleteMarker(request.resource.data)
+          && folderIsOpen(userId, request.resource.data.get('parent_id', null));
+        allow update: if isOwner(userId) && (acquireDeleteLock() || releaseDeleteLock() || (
+          resource.data.get('_deleting', false) != true
+          && deleteMarkersUnchanged()
+          && folderReferenceUpdateAllowed(userId, 'parent_id')
+        ));
+        allow delete: if isOwner(userId)
+          && resource.data.get('_deleting', false) == true
+          && resource.data.get('_delete_lock', null) is string;
+      }
+
+      match /folder_columns/{columnId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && hasNoDeleteMarker(request.resource.data)
+          && folderIsOpen(userId, request.resource.data.get('folder_id', null));
+        allow update: if isOwner(userId)
+          && resource.data.get('_deleting', false) != true
+          && deleteMarkersUnchanged()
+          && folderIsOpen(userId, resource.data.get('folder_id', null))
+          && folderIsOpen(userId, request.resource.data.get('folder_id', null));
+      }
+
       // Matching allow expressions are ORed: a more specific false does not
       // override this grant. Keep server-managed collections out of it,
       // including every nested document beneath those collections.
@@ -112,6 +225,10 @@ service cloud.firestore {
             'cycle_logs',
             'cycle_profile_tombstones',
             'note_task_links',
+            'tasks',
+            'notes',
+            'folders',
+            'folder_columns',
             'module_access'
           ]);
       }

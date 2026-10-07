@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { deleteFolder } from "@/lib/firestoreDataService";
 import { cacheGet, cacheSet } from "@/lib/offlineDb";
+import { deleteNoteTaskLinksForEndpoints } from "@/lib/noteTaskLinkService";
+import { assertFolderContainerEmpty, assertFolderDeletePlanEmpty, assertNoPendingFolderWrites, collectFolderDeletePlan, deleteFolderContents, emptyFolderDeleteLockState, FolderDeleteError, markFolderDeleteLocks, releaseFolderDeleteLocks, sameFolderDeletePlan, type FolderDeleteLockState, type FolderDeleteResult } from "@/lib/folderDeletionService";
 
 type Mode = "move" | "delete-all";
 
@@ -25,44 +27,109 @@ export function FolderDeleteDialog({
 
   const run = async () => {
     setBusy(true);
+    let deletionLocks: FolderDeleteLockState | null = null;
     try {
+      const ownerId = user?.id;
+      if (!ownerId) throw new Error("برای حذف فولدر باید وارد حساب خودت باشی.");
+      let deletedFolderIds = [folderId];
       if (mode === "move") {
-        // Move tasks & notes & subfolders to root, with strict error checking
-        const { error: tErr } = await firebaseStore.from("tasks").update({ folder_id: null }).eq("folder_id", folderId);
+        const plan = await collectFolderDeletePlan(ownerId, folderId);
+        await assertNoPendingFolderWrites(ownerId, plan);
+        deletionLocks = emptyFolderDeleteLockState();
+        await markFolderDeleteLocks(ownerId, { folderIds: [folderId], taskIds: [], noteIds: [], columnIds: [] }, deletionLocks);
+
+        // Closing the source folder first prevents new content from appearing.
+        // The guarded update paths allow only a location-only move out of a
+        // closing folder, so existing contents can be preserved at the root.
+        const { error: tErr } = await firebaseStore.from("tasks", ownerId).update({ folder_id: null }).eq("folder_id", folderId);
         if (tErr) throw new Error("خطا در انتقال تسک‌ها: " + tErr.message);
 
-        const { error: nErr } = await firebaseStore.from("notes").update({ folder_id: null }).eq("folder_id", folderId);
+        const { error: nErr } = await firebaseStore.from("notes", ownerId).update({ folder_id: null }).eq("folder_id", folderId);
         if (nErr) throw new Error("خطا در انتقال نوت‌ها: " + nErr.message);
 
-        const { error: fErr } = await firebaseStore.from("folders").update({ parent_id: null }).eq("parent_id", folderId);
+        const { error: fErr } = await firebaseStore.from("folders", ownerId).update({ parent_id: null }).eq("parent_id", folderId);
         if (fErr) throw new Error("خطا در انتقال زیرپوشه‌ها: " + fErr.message);
 
         // folder_columns belong to this folder; delete them along with the folder
-        await firebaseStore.from("folder_columns").delete().eq("folder_id", folderId);
+        const { error: columnsError } = await firebaseStore.from("folder_columns", ownerId).delete().eq("folder_id", folderId);
+        if (columnsError) throw new Error("خطا در حذف ستون‌های فولدر: " + columnsError.message);
+
+        await assertFolderContainerEmpty(ownerId, folderId);
+        await assertNoPendingFolderWrites(ownerId, plan);
       } else {
-        // Delete tasks (cascade subtasks via parent_id), notes, columns, and subfolders recursively
-        await deleteCascade(folderId);
+        let plan = await collectFolderDeletePlan(ownerId, folderId);
+        await assertNoPendingFolderWrites(ownerId, plan);
+        deletionLocks = emptyFolderDeleteLockState();
+        await markFolderDeleteLocks(ownerId, plan, deletionLocks);
+        let stable = false;
+        for (let attempt = 0; attempt < 4; attempt++) {
+          const latest = await collectFolderDeletePlan(ownerId, folderId);
+          await markFolderDeleteLocks(ownerId, latest, deletionLocks);
+          stable = sameFolderDeletePlan(plan, latest);
+          // The deletion set is always the latest server-confirmed membership.
+          // Previously seen ids stay locked until stale members are released,
+          // but an item moved out of the tree is never added to the delete set.
+          plan = latest;
+          if (stable) break;
+        }
+        if (!stable) throw new Error("هم‌زمان دادهٔ تازه‌ای به فولدر اضافه شد؛ حذف متوقف شد. دوباره تلاش کن.");
+
+        const finalFolders = new Set(plan.folderIds);
+        const finalTasks = new Set(plan.taskIds);
+        const finalNotes = new Set(plan.noteIds);
+        const staleLocks: FolderDeleteLockState = {
+          operationId: deletionLocks.operationId,
+          folderIds: deletionLocks.folderIds.filter((id) => !finalFolders.has(id)),
+          taskIds: deletionLocks.taskIds.filter((id) => !finalTasks.has(id)),
+          noteIds: deletionLocks.noteIds.filter((id) => !finalNotes.has(id)),
+        };
+        if (staleLocks.folderIds.length || staleLocks.taskIds.length || staleLocks.noteIds.length) {
+          if (!await releaseFolderDeleteLocks(ownerId, staleLocks)) throw new Error("قفل مواردی که از فولدر خارج شده‌اند برداشته نشد؛ حذف متوقف شد.");
+          deletionLocks.folderIds = deletionLocks.folderIds.filter((id) => finalFolders.has(id));
+          deletionLocks.taskIds = deletionLocks.taskIds.filter((id) => finalTasks.has(id));
+          deletionLocks.noteIds = deletionLocks.noteIds.filter((id) => finalNotes.has(id));
+        }
+        deletedFolderIds = plan.folderIds;
+        let deletedContent: Pick<FolderDeleteResult, "deletedTaskIds" | "deletedNoteIds"> = { deletedTaskIds: [], deletedNoteIds: [] };
+        let deleteError: unknown;
+        try {
+          const result = await deleteFolderContents(ownerId, plan);
+          deletedContent = result;
+        } catch (error) {
+          deleteError = error;
+          if (error instanceof FolderDeleteError) deletedContent = error.result;
+        }
+        const swept = await deleteNoteTaskLinksForEndpoints(ownerId, {
+          task_id: deletedContent.deletedTaskIds,
+          note_id: deletedContent.deletedNoteIds,
+        }, { durableSweep: true }).catch(() => false);
+        if (!swept) throw new Error("بخشی از محتوا حذف شد، اما پاک‌سازی پیوندها در صف ذخیره نشد. فولدر باقی ماند؛ دوباره تلاش کن.");
+        if (deleteError) throw deleteError;
+        await assertFolderDeletePlanEmpty(ownerId, folderId);
+        await assertNoPendingFolderWrites(ownerId, plan);
       }
 
-      if (user?.id) {
-        await deleteFolder(user.id, folderId);
-      }
-      const { error } = await firebaseStore.from("folders").delete().eq("id", folderId);
-      if (error) throw error;
+      const deleted = await deleteFolder(ownerId, folderId);
+      if (!deleted) throw new Error("حذف فولدر از فضای ابری تأیید نشد.");
+      deletionLocks = null;
+      window.dispatchEvent(new Event("firebase-store-changed"));
 
-      if (user?.id) {
-        const cached = (await cacheGet<any[]>(`folders:all:${user.id}`)) || (await cacheGet<any[]>("folders")) || [];
-        const next = cached.filter((f) => f.id !== folderId);
-        await cacheSet(`folders:all:${user.id}`, next);
-        await cacheSet("folders", next);
-      }
+      const deletedIds = new Set(deletedFolderIds);
+      const cached = (await cacheGet<any[]>(`folders:all:${ownerId}`)) || [];
+      const next = cached.filter((f) => !deletedIds.has(f.id));
+      await cacheSet(`folders:all:${ownerId}`, next);
       window.dispatchEvent(new Event("arshnaz:tasks-updated"));
 
       toast.success(mode === "move" ? "فولدر حذف شد، محتوا منتقل شد" : "فولدر و محتوا حذف شد");
       onDone?.();
       onOpenChange(false);
     } catch (e: any) {
-      toast.error(e.message || "خطا در حذف");
+      let message = e.message || "خطا در حذف";
+      if (deletionLocks && user?.id) {
+        const unlocked = await releaseFolderDeleteLocks(user.id, deletionLocks);
+        if (!unlocked) message += " قفل موقت بعضی موارد برداشته نشد؛ دوباره حذف را اجرا کن یا اتصال را بررسی کن.";
+      }
+      toast.error(message);
     } finally {
       setBusy(false);
     }
@@ -106,25 +173,4 @@ export function FolderDeleteDialog({
       </AlertDialogContent>
     </AlertDialog>
   );
-}
-
-async function deleteCascade(folderId: string) {
-  // Recurse into subfolders
-  const { data: subs } = await firebaseStore.from("folders").select("id").eq("parent_id", folderId);
-  for (const s of subs || []) {
-    await deleteCascade((s as any).id);
-    await firebaseStore.from("folders").delete().eq("id", (s as any).id);
-  }
-  // Get task ids in this folder
-  const { data: tasks } = await firebaseStore.from("tasks").select("id").eq("folder_id", folderId);
-  const taskIds = (tasks || []).map((t: any) => t.id);
-  if (taskIds.length) {
-    // Delete subtasks (children referencing parent_id)
-    await firebaseStore.from("tasks").delete().in("parent_id", taskIds);
-    await firebaseStore.from("tasks").delete().in("id", taskIds);
-  }
-  // Notes belonging to folder
-  await firebaseStore.from("notes").delete().eq("folder_id", folderId);
-  // Kanban columns belonging to folder
-  await firebaseStore.from("folder_columns").delete().eq("folder_id", folderId);
 }

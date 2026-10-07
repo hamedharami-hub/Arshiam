@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TaskScheduleBody } from "./TaskSchedulingSheet";
 import { getLocalDateString } from "@/lib/taskDate";
@@ -12,7 +12,10 @@ vi.mock("@/components/RecurrenceEditor", () => ({
 }));
 vi.mock("@/components/InlineDatePicker", () => ({
   InlineDatePicker: ({ onSelect }: { onSelect: (ymd: string) => void }) => (
-    <button type="button" data-testid="inline-calendar-pick" onClick={() => onSelect("2026-05-01")}>day</button>
+    <div>
+      <button type="button" data-testid="inline-calendar-pick" onClick={() => onSelect("2026-05-01")}>day</button>
+      <button type="button" data-testid="inline-calendar-dst-gap" onClick={() => onSelect("2026-03-08")}>DST day</button>
+    </div>
   ),
 }));
 vi.mock("@/components/TimeWheel", () => ({
@@ -22,6 +25,7 @@ vi.mock("@/components/TimeWheel", () => ({
       <button type="button" data-testid="time-wheel-pick" onClick={() => onChange("08:30")}>wheel</button>
       <button type="button" data-testid="time-wheel-midnight" onClick={() => onChange("00:00")}>midnight</button>
       <button type="button" data-testid="time-wheel-last-minute" onClick={() => onChange("23:59")}>last minute</button>
+      <button type="button" data-testid="time-wheel-dst-gap" onClick={() => onChange("02:30")}>DST gap</button>
     </div>
   ),
 }));
@@ -57,6 +61,50 @@ describe("TaskScheduleBody — icon-led When panel", () => {
     for (const id of ["schedule-deadline", "schedule-bucket", "schedule-block", "schedule-estimate", "schedule-pick-date", "task-meta-plan"]) {
       expect(screen.queryByTestId(id)).toBeNull();
     }
+  });
+
+  it("keeps an optional deadline separate from the operational schedule", () => {
+    const save = vi.fn();
+    render(<TaskScheduleBody t={base} canEdit save={save} T={T} isEn={false} />);
+
+    fireEvent.click(screen.getByTestId("task-deadline-toggle"));
+    fireEvent.click(screen.getAllByTestId("inline-calendar-pick").at(-1)!);
+
+    expect(save).toHaveBeenCalledWith({ deadline_date: "2026-05-01" });
+    expect(save.mock.calls[0][0]).not.toHaveProperty("work_date");
+    expect(save.mock.calls[0][0]).not.toHaveProperty("recurrence");
+  });
+
+  it("clears only the optional deadline", () => {
+    const save = vi.fn();
+    const task = { ...scheduled("2026-05-01"), deadline_date: "2026-05-07" } as Task;
+    render(<TaskScheduleBody t={task} canEdit save={save} T={T} isEn={false} />);
+
+    fireEvent.click(screen.getByTestId("task-deadline-clear"));
+
+    expect(save).toHaveBeenCalledWith({ deadline_date: null });
+    expect(save.mock.calls[0][0]).not.toHaveProperty("work_date");
+  });
+
+  it("does not offer a deadline for recurring tasks", () => {
+    const recurring = { ...base, recurrence_rule: { freq: "daily", interval: 1 } } as Task;
+    render(<TaskScheduleBody t={recurring} canEdit save={vi.fn()} T={T} isEn={false} />);
+
+    expect(screen.queryByTestId("task-deadline-toggle")).toBeNull();
+  });
+
+  it("keeps the deadline editor open after a failed save and allows retry", async () => {
+    const save = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce("queued");
+    render(<TaskScheduleBody t={base} canEdit save={save} T={T} isEn={false} />);
+
+    fireEvent.click(screen.getByTestId("task-deadline-toggle"));
+    fireEvent.click(screen.getAllByTestId("inline-calendar-pick").at(-1)!);
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("ذخیره نشد"));
+    expect(screen.getByTestId("task-deadline-calendar")).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByTestId("inline-calendar-pick").at(-1)!);
+    await waitFor(() => expect(screen.queryByTestId("task-deadline-calendar")).toBeNull());
+    expect(save).toHaveBeenCalledTimes(2);
   });
 
   it("picking Today saves the day and keeps the panel open for an optional time", () => {
@@ -139,6 +187,76 @@ describe("TaskScheduleBody — icon-led When panel", () => {
 
     rerender(<TaskScheduleBody t={{ ...base, ...patch } as Task} canEdit save={save} T={T} isEn />);
     expect(screen.getByTestId("schedule-time")).toHaveTextContent(hhmm);
+  });
+
+  it("keeps an unavailable daylight-saving time as an editable error instead of silently shifting it", () => {
+    vi.useFakeTimers();
+    const originalTimezone = process.env.TZ;
+    process.env.TZ = "America/New_York";
+    try {
+      const save = vi.fn();
+      render(<TaskScheduleBody t={scheduled("2026-03-08")} canEdit save={save} T={T} isEn={false} />);
+      fireEvent.click(screen.getByTestId("schedule-time"));
+      fireEvent.click(screen.getByTestId("time-wheel-dst-gap"));
+      act(() => vi.advanceTimersByTime(120));
+
+      expect(save).not.toHaveBeenCalled();
+      expect(screen.getByTestId("schedule-invalid-local-time")).toBeInTheDocument();
+    } finally {
+      if (originalTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimezone;
+    }
+  });
+
+  it("keeps a chosen day and explains when its previous clock time cannot be preserved after saving", async () => {
+    const originalTimezone = process.env.TZ;
+    process.env.TZ = "America/New_York";
+    try {
+      const save = vi.fn();
+      render(<TaskScheduleBody t={scheduled("2026-03-07T07:30:00.000Z")} canEdit save={save} T={T} isEn={false} />);
+      fireEvent.click(screen.getByTestId("inline-calendar-dst-gap"));
+
+      expect(save).toHaveBeenCalledWith(expect.objectContaining({ work_date: "2026-03-08", schedule_v: 2 }));
+      await waitFor(() => expect(screen.getByTestId("schedule-invalid-local-time")).toBeInTheDocument());
+      expect(screen.getByTestId("schedule-time-body")).toBeInTheDocument();
+    } finally {
+      if (originalTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimezone;
+    }
+  });
+
+  it("does not show the daylight-saving guidance when saving the fallback day fails", async () => {
+    const originalTimezone = process.env.TZ;
+    process.env.TZ = "America/New_York";
+    try {
+      const save = vi.fn().mockResolvedValue("failed");
+      render(<TaskScheduleBody t={scheduled("2026-03-07T07:30:00.000Z")} canEdit save={save} T={T} isEn={false} />);
+      fireEvent.click(screen.getByTestId("inline-calendar-dst-gap"));
+
+      await waitFor(() => expect(screen.getByTestId("schedule-save-error")).toBeInTheDocument());
+      expect(screen.queryByTestId("schedule-invalid-local-time")).toBeNull();
+      expect(screen.getByTestId("schedule-time-body")).toBeInTheDocument();
+    } finally {
+      if (originalTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimezone;
+    }
+  });
+
+  it("handles a rejected fallback-day save without an unhandled error or false success", async () => {
+    const originalTimezone = process.env.TZ;
+    process.env.TZ = "America/New_York";
+    try {
+      const save = vi.fn().mockRejectedValue(new Error("offline"));
+      render(<TaskScheduleBody t={scheduled("2026-03-07T07:30:00.000Z")} canEdit save={save} T={T} isEn={false} />);
+      fireEvent.click(screen.getByTestId("inline-calendar-dst-gap"));
+
+      await waitFor(() => expect(screen.getByTestId("schedule-save-error")).toBeInTheDocument());
+      expect(screen.queryByTestId("schedule-invalid-local-time")).toBeNull();
+      expect(screen.getByTestId("schedule-time-body")).toBeInTheDocument();
+    } finally {
+      if (originalTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimezone;
+    }
   });
 
   it("a pending wheel write cannot undo clearing the whole schedule", () => {

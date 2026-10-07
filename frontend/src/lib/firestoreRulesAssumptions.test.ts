@@ -53,6 +53,18 @@ describe("Firestore Security Rules and Multi-Tenant Isolation Assumptions", () =
       expect(rulesContent).toMatch(/allow\s+update:\s*if\s+false;/);
       expect(rulesContent).toMatch(/'note_task_links'/);
     });
+
+    it("keeps folder-scoped collections out of the wildcard and applies folder locks explicitly", () => {
+      for (const collection of ["tasks", "notes", "folders", "folder_columns"]) {
+        expect(rulesContent).toMatch(new RegExp(`match \\/${collection}\\/\\{`));
+        expect(rulesContent).toMatch(new RegExp(`'${collection}'`));
+      }
+      expect(rulesContent).toMatch(/function\s+acquireDeleteLock\(\)/);
+      expect(rulesContent).toMatch(/function\s+releaseDeleteLock\(\)/);
+      expect(rulesContent).toMatch(/request\.resource\.data\.get\('_delete_lock', null\)\s*==\s*resource\.data\.get\('_delete_lock', null\)/);
+      expect(rulesContent).toMatch(/function\s+folderReferenceUpdateAllowed\(userId, field\)/);
+      expect(rulesContent).toMatch(/function\s+safeFolderDetach\(userId, field\)/);
+    });
   });
 
   describe("3. Role elevation and privilege escalation prevention", () => {

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { waitFor } from "@testing-library/react";
 import { createTaskCacheEnvelope, extractTasksFromCache } from "@/features/tasks/taskCache";
 import type { Task } from "./taskTypes";
 
@@ -187,12 +188,12 @@ describe("firestoreDataService task cache rollback", () => {
     const unsubscribe = subscribeTasks("user-1", tasks => updates.push(tasks));
     await Promise.resolve();
     receive({ metadata: { fromCache: true }, forEach: () => {} });
-    expect(updates.at(-1)).toEqual([baseTask]);
+    await waitFor(() => expect(updates.at(-1)).toEqual([baseTask]));
     receive({ metadata: { fromCache: false }, forEach: () => {} });
-    expect(updates.at(-1)).toEqual([]);
+    await waitFor(() => expect(updates.at(-1)).toEqual([]));
     unsubscribe();
     receive({ metadata: { fromCache: false }, forEach: () => {} });
-    expect(updates).toHaveLength(3);
+    expect(updates).toHaveLength(2);
     expect(stop).toHaveBeenCalled();
   });
 

@@ -252,7 +252,15 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
   };
 
   return (
-    <div className="group/desc relative flex w-full min-w-0 flex-col px-1" data-testid="task-description">
+    <div
+      className="group/desc relative flex w-full min-w-0 flex-col px-1"
+      data-testid="task-description"
+      onBlurCapture={(event) => {
+        const nextFocus = event.relatedTarget as Node | null;
+        if (!editing || readOnly || (nextFocus && event.currentTarget.contains(nextFocus))) return;
+        void finishEditing();
+      }}
+    >
       <input
         ref={fileRef} type="file" accept="image/*,application/pdf,audio/*,video/*,text/plain" className="hidden"
         data-testid="task-description-file-input"

@@ -5,6 +5,7 @@ import CalendarView from "./CalendarView";
 
 const taskReads: Array<{ resolve: (value: { data: unknown[] }) => void; userId?: string }> = [];
 const user = { id: "user-1" };
+let currentUser = user;
 const occasionSets: string[] = [];
 const metadata: Record<string, unknown[]> = {
   folders: [{ id: "folder-1", name: "Work", user_id: "user-1" }, { id: "folder-2", name: "Home", user_id: "user-1" }],
@@ -37,7 +38,7 @@ vi.mock("@/lib/firebaseStore", () => ({
     },
   },
 }));
-vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user }) }));
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: currentUser }) }));
 vi.mock("@/hooks/useBilingual", () => ({ useBilingual: () => ({ T: (_fa: string, en: string) => en, isEn: true }) }));
 vi.mock("@/lib/holidays", () => ({
   getHolidaysForRange: async () => [], getOccasionSets: () => occasionSets, setOccasionSets: vi.fn(), HOLIDAYS_EVENT: "holidays-changed",
@@ -51,7 +52,7 @@ vi.mock("@/components/calendar/DayDetailSheet", () => ({ default: () => null }))
 vi.mock("@/components/calendar/HolidayList", () => ({ HolidayList: () => null }));
 
 describe("Calendar task refresh", () => {
-  beforeEach(() => { taskReads.length = 0; localStorage.clear(); });
+  beforeEach(() => { taskReads.length = 0; currentUser = user; localStorage.clear(); });
 
   const todayTasks = () => {
     const today = new Date();
@@ -89,6 +90,22 @@ describe("Calendar task refresh", () => {
     await waitFor(() => expect(taskReads).toHaveLength(1));
     act(() => { window.dispatchEvent(new Event("firebase-store-changed")); });
     await waitFor(() => expect(taskReads).toHaveLength(2));
+  });
+
+  it("hides the prior account tasks while the next account is loading", async () => {
+    const view = render(<MemoryRouter><CalendarView /></MemoryRouter>);
+    await waitFor(() => expect(taskReads).toHaveLength(1));
+    act(() => resolveRead(0, [{ id: "account-one", user_id: "user-1", work_date: todayTasks()[0].work_date, schedule_v: 2 }]));
+    await waitFor(() => expect(screen.getByTestId("calendar-tasks")).toHaveTextContent("account-one"));
+
+    currentUser = { id: "user-2" };
+    view.rerender(<MemoryRouter><CalendarView /></MemoryRouter>);
+
+    expect(screen.getByTestId("calendar-tasks")).not.toHaveTextContent("account-one");
+    await waitFor(() => expect(taskReads).toHaveLength(2));
+    expect(taskReads[1].userId).toBe("user-2");
+    act(() => resolveRead(1, [{ id: "account-two", user_id: "user-2", work_date: todayTasks()[0].work_date, schedule_v: 2 }]));
+    await waitFor(() => expect(screen.getByTestId("calendar-tasks")).toHaveTextContent("account-two"));
   });
 
   it("filters by folder, tag, and status, then preserves filters when changing views", async () => {

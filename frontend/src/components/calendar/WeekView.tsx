@@ -36,7 +36,7 @@ function Slot({
         >
           <span className="inline-flex max-w-full items-center gap-1">
             <span className="truncate">{t.title}</span>
-            <DeadlineMarker deadlineDate={t.deadline_date} completed={t.completed} status={t.status} />
+            <DeadlineMarker deadlineDate={t.deadline_date} completed={t.completed} status={t.status} recurrence={t.recurrence} recurrence_rule={t.recurrence_rule} />
           </span>
         </div>
       ))}

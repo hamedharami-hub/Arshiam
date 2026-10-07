@@ -260,7 +260,7 @@ export function TaskMetaBar(props: TaskMetaBarProps) {
 
   // The When panel decides when it is done (choosing a day closes it; time, repeat and
   // reminder edits keep it open until the check button is pressed).
-  const schedulePanelSave = (patch: Partial<Task>) => { void save(patch); };
+  const schedulePanelSave = (patch: Partial<Task>) => save(patch);
   const postponeAndClose = (days: number) => { postpone(days); setPanel(null); };
 
   const panelBody = panel === "folder" ? folderPanel
