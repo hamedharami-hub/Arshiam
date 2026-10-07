@@ -22,3 +22,10 @@ My Next Task, Waiting + prerequisites, WIP soft limit, review actions, goal fini
 
 ## Phase 3 (Status: NOT STARTED)
 Review history snapshots, TaskAIPanel assistance, goal horizons in LifeArchitect UI.
+
+
+## Phase 4 — Optional task deadline (Status: APPROVED FOR FUTURE; NOT IMPLEMENTED)
+- Add an optional date-only `deadline_date` for one-off tasks with a genuine external cutoff. Keep it separate from the task's one operational schedule (`work_date` or `planning_*`).
+- Keep the interface quiet: no new page, tab, navigation item, permanent dashboard card, or default notification. Use one compact field in existing task details, a small calendar marker on the deadline day, and a row badge only when the deadline is within seven days or overdue.
+- Keep the old `deadline` field retired. Do not auto-restore values from `schedule_legacy`; preserve backups. Deadline status is separate from schedule-overdue status, and never reschedules or completes a task.
+- Update the shared task type/writers/readers and task/agent API validation; ensure reminders stay separate. Add tests for independent schedule/deadline edits, date-only timezone safety, overdue/completed states, same-day deduplication, bilingual UI, and no default notifications.
