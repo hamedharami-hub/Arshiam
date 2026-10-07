@@ -24,6 +24,7 @@ import { applyTaskOperations } from "./taskOperations";
 import { buildTaskChildrenMap, collectTaskDescendantIds } from "./taskTree";
 import { syncAndroidWidget } from "@/lib/androidWidget";
 import { getTaskKnowledgeCacheKey } from "@/lib/taskKnowledgeService";
+import { deleteNoteTaskLinksFor, removeNoteTaskLinksFromCache, type NoteTaskLink } from "@/lib/noteTaskLinkService";
 import { normalizeTaskPriority } from "@/lib/priority";
 
 const TASKS_CACHE_PREFIX = "tasks:all:";
@@ -190,6 +191,7 @@ export async function deleteTaskCascade(
     { ownerId: userId, table: "tasks", op: "delete" as const, match: { id }, expectedRevision: taskById.get(id)?.updated_at },
     { ownerId: userId, table: "task_tags", op: "delete" as const, match: { task_id: id } },
     { ownerId: userId, table: "task_knowledge_links", op: "delete" as const, match: { task_id: id } },
+    { ownerId: userId, table: "note_task_links", op: "delete" as const, match: { user_id: userId, task_id: id } },
   ]);
   const removeFromLatestLocalCache = async () => {
     // Caller holds this user's mutation lock, so queue order and cache order
@@ -207,6 +209,7 @@ export async function deleteTaskCascade(
     await Promise.all([
       cacheSet(taskCacheKey(userId), createTaskCacheEnvelope(next)),
       ...idsToDelete.map((id) => cacheSet(getTaskKnowledgeCacheKey(userId, id), [])),
+      removeNoteTaskLinksFromCache(userId, "task_id", idsToDelete),
     ]);
     return next;
   };
@@ -238,6 +241,7 @@ export async function deleteTaskCascade(
   }
 
   let linkedKnowledge: Array<{ id: string }>;
+  let linkedNoteTasks: Array<Pick<NoteTaskLink, "id" | "user_id" | "task_id" | "note_id">>;
   try {
     const result = await firebaseStore
       .from("task_knowledge_links")
@@ -248,6 +252,16 @@ export async function deleteTaskCascade(
       throw result.error || new Error("Task knowledge links could not be verified.");
     }
     linkedKnowledge = result.data as Array<{ id: string }>;
+
+    const noteTaskResult = await firebaseStore
+      .from("note_task_links")
+      .select("id,user_id,task_id,note_id")
+      .eq("user_id", userId)
+      .in("task_id", idsToDelete);
+    if (noteTaskResult.error || !Array.isArray(noteTaskResult.data)) {
+      throw noteTaskResult.error || new Error("Note-task links could not be verified.");
+    }
+    linkedNoteTasks = noteTaskResult.data as typeof linkedNoteTasks;
 
     // Local unsynced inserts must be ordered before a durable task-scoped
     // delete, otherwise they could be replayed later and resurrect the link.
@@ -265,6 +279,21 @@ export async function deleteTaskCascade(
       publishLocalRemoval(taskCache.get(userId) || []);
       return { success: true, deletedIds: idsToDelete };
     }
+
+    const pendingNoteTaskLinks = await getPendingOps("note_task_links");
+    const hasPendingNoteTaskLinkWrite = pendingNoteTaskLinks.some((operation) => {
+      if (!canReplayForOwner(operation, userId) || operation.op === "delete") return false;
+      const payload = operation.payload && typeof operation.payload === "object"
+        ? operation.payload as Record<string, unknown>
+        : {};
+      const taskId = payload.task_id ?? operation.match?.task_id;
+      return typeof taskId === "string" && idsToDelete.includes(taskId);
+    });
+    if (hasPendingNoteTaskLinkWrite) {
+      if (!await queueCascadeAndCommit()) return { success: false, deletedIds: [] };
+      publishLocalRemoval(taskCache.get(userId) || []);
+      return { success: true, deletedIds: idsToDelete };
+    }
   } catch (error) {
     console.warn("[TaskService] Could not verify task knowledge links; queuing the complete cascade:", error);
     if (!await queueCascadeAndCommit()) return { success: false, deletedIds: [] };
@@ -272,7 +301,7 @@ export async function deleteTaskCascade(
     return { success: true, deletedIds: idsToDelete };
   }
 
-  if (idsToDelete.length + linkedKnowledge.length > 500) {
+  if (idsToDelete.length + linkedKnowledge.length + linkedNoteTasks.length > 500) {
     if (!await queueCascadeAndCommit()) return { success: false, deletedIds: [] };
     publishLocalRemoval(taskCache.get(userId) || []);
     return { success: true, deletedIds: idsToDelete };
@@ -284,12 +313,23 @@ export async function deleteTaskCascade(
     for (const link of linkedKnowledge) {
       batch.delete(doc(db, "users", userId, "task_knowledge_links", link.id));
     }
+    for (const link of linkedNoteTasks) {
+      batch.delete(doc(db, "users", userId, "note_task_links", link.id));
+    }
     await batch.commit();
   } catch (error) {
     console.warn("[TaskService] Atomic Firestore cascade delete failed, enqueuing for sync:", error);
     if (!await queueCascadeAndCommit()) return { success: false, deletedIds: [] };
     publishLocalRemoval(taskCache.get(userId) || []);
     return { success: true, deletedIds: idsToDelete };
+  }
+
+  // Sweep again after deleting the endpoint. This closes the small window in
+  // which a cross-device link could commit after the initial query; new links
+  // are rejected by their transaction once the task document is gone.
+  for (const id of idsToDelete) {
+    const cleaned = await deleteNoteTaskLinksFor(userId, "task_id", id).catch(() => false);
+    if (!cleaned) console.warn("[TaskService] Note-task relationship cleanup remains pending.", id);
   }
 
   const tagCleanupOperations = deleteOperations.filter((operation) => operation.table === "task_tags");

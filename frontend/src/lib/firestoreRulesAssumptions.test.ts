@@ -43,6 +43,16 @@ describe("Firestore Security Rules and Multi-Tenant Isolation Assumptions", () =
     it("strictly blocks read and write to /_health/{docId}", () => {
       expect(rulesContent).toMatch(/match\s+\/_health\/\{docId\}\s*\{\s*allow\s+read,\s*write:\s*if\s+false;\s*\}/);
     });
+
+    it("restricts note-task relation writes to the same owner's existing note and task", () => {
+      expect(rulesContent).toMatch(/match\s+\/note_task_links\/\{linkId\}/);
+      expect(rulesContent).toMatch(/request\.resource\.data\.user_id\s*==\s*userId/);
+      expect(rulesContent).toMatch(/request\.resource\.data\.userId\s*==\s*userId/);
+      expect(rulesContent).toMatch(/existsAfter\([\s\S]*?\/notes\/\$\(request\.resource\.data\.note_id\)\)/);
+      expect(rulesContent).toMatch(/existsAfter\([\s\S]*?\/tasks\/\$\(request\.resource\.data\.task_id\)\)/);
+      expect(rulesContent).toMatch(/allow\s+update:\s*if\s+false;/);
+      expect(rulesContent).toMatch(/'note_task_links'/);
+    });
   });
 
   describe("3. Role elevation and privilege escalation prevention", () => {

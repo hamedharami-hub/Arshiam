@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   doc: vi.fn((...args: unknown[]) => args),
   syncAndroidWidget: vi.fn(),
   taskKnowledgeLinks: [] as Array<{ id: string; user_id: string; task_id: string }>,
+  noteTaskLinks: [] as Array<{ id: string; user_id: string; task_id: string; note_id: string }>,
   taskKnowledgeLinkReadError: false,
   getPendingOps: vi.fn().mockResolvedValue([]),
   subscribeTasks: vi.fn(),
@@ -40,7 +41,8 @@ vi.mock("@/lib/firebaseStore", () => ({
         eq: () => ({
           in: async () => ({
             data: mocks.taskKnowledgeLinkReadError ? null :
-              table === "task_knowledge_links" ? mocks.taskKnowledgeLinks : [],
+              table === "task_knowledge_links" ? mocks.taskKnowledgeLinks :
+                table === "note_task_links" ? mocks.noteTaskLinks : [],
             error: mocks.taskKnowledgeLinkReadError ? new Error("read failed") : null,
           }),
         }),
@@ -61,6 +63,10 @@ vi.mock("@/lib/firestoreDataService", () => ({
   upsertTask: vi.fn(),
 }));
 vi.mock("@/lib/androidWidget", () => ({ syncAndroidWidget: mocks.syncAndroidWidget }));
+vi.mock("@/lib/noteTaskLinkService", () => ({
+  deleteNoteTaskLinksFor: vi.fn().mockResolvedValue(true),
+  removeNoteTaskLinksFromCache: vi.fn().mockResolvedValue(undefined),
+}));
 
 import {
   applyPendingTaskOperations,
@@ -105,6 +111,7 @@ describe("taskService cascade deletion persistence", () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
     mocks.enqueueOps.mockResolvedValue(true);
     mocks.taskKnowledgeLinks = [];
+    mocks.noteTaskLinks = [];
     mocks.taskKnowledgeLinkReadError = false;
     mocks.getPendingOps.mockResolvedValue([]);
     mocks.syncAndroidWidget.mockResolvedValue(undefined);
@@ -129,9 +136,11 @@ describe("taskService cascade deletion persistence", () => {
       { ownerId: "task-owner", table: "tasks", op: "delete", match: { id: "root" }, expectedRevision: undefined },
       { ownerId: "task-owner", table: "task_tags", op: "delete", match: { task_id: "root" } },
       { ownerId: "task-owner", table: "task_knowledge_links", op: "delete", match: { task_id: "root" } },
+      { ownerId: "task-owner", table: "note_task_links", op: "delete", match: { user_id: "task-owner", task_id: "root" } },
       { ownerId: "task-owner", table: "tasks", op: "delete", match: { id: "child" }, expectedRevision: undefined },
       { ownerId: "task-owner", table: "task_tags", op: "delete", match: { task_id: "child" } },
       { ownerId: "task-owner", table: "task_knowledge_links", op: "delete", match: { task_id: "child" } },
+      { ownerId: "task-owner", table: "note_task_links", op: "delete", match: { user_id: "task-owner", task_id: "child" } },
     ]);
     expect(taskMemoryCache.get("task-owner")).toEqual(originalTasks);
     expect(mocks.cacheSet).not.toHaveBeenCalled();
@@ -249,14 +258,16 @@ describe("taskService cascade deletion persistence", () => {
   it("uses an atomic Firestore batch for the online task portion", async () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
     mocks.taskKnowledgeLinks = [{ id: "link-child", user_id: "task-owner", task_id: "child" }];
+    mocks.noteTaskLinks = [{ id: "note-link-child", user_id: "task-owner", task_id: "child", note_id: "note-1" }];
     const batch = { delete: vi.fn(), commit: vi.fn().mockResolvedValue(undefined) };
     mocks.writeBatch.mockReturnValue(batch);
 
     const result = await deleteTaskCascade("task-owner", "root", originalTasks);
 
     expect(result.success).toBe(true);
-    expect(batch.delete).toHaveBeenCalledTimes(3);
+    expect(batch.delete).toHaveBeenCalledTimes(4);
     expect(batch.delete).toHaveBeenCalledWith([{}, "users", "task-owner", "task_knowledge_links", "link-child"]);
+    expect(batch.delete).toHaveBeenCalledWith([{}, "users", "task-owner", "note_task_links", "note-link-child"]);
     expect(batch.commit).toHaveBeenCalledOnce();
     expect(mocks.enqueueOps).not.toHaveBeenCalled();
   });

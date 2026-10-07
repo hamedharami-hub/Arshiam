@@ -45,6 +45,7 @@ export type SupportedFirestoreCollection =
   | "leitner_cards"
   | "leitner_reviews"
   | "task_knowledge_links"
+  | "note_task_links"
   | "interactive_study_sessions"
   | "cycle_profiles"
   | "cycle_logs"
@@ -74,6 +75,84 @@ export interface SyncStats {
  * Includes conflict protection against overwriting newer remote documents.
  */
 export type FirestoreSaveOutcome = "saved" | "stale" | "failed";
+
+export type NoteTaskLinkSaveOutcome = FirestoreSaveOutcome | "missing-endpoint";
+
+type NoteTaskLinkRecord = {
+  id: string;
+  user_id: string;
+  note_id: string;
+  task_id: string;
+  created_at: string;
+};
+
+async function writeNoteTaskLinkTransaction(
+  userId: string,
+  link: NoteTaskLinkRecord,
+  missingEndpointIsNoop: boolean,
+): Promise<NoteTaskLinkSaveOutcome> {
+  if (!userId || auth.currentUser?.uid !== userId || link.user_id !== userId ||
+    !link.id || !link.note_id || !link.task_id) return "failed";
+
+  const noteRef = doc(db, "users", userId, "notes", link.note_id);
+  const taskRef = doc(db, "users", userId, "tasks", link.task_id);
+  const linkRef = doc(db, "users", userId, "note_task_links", link.id);
+  let didWrite = false;
+  try {
+    const outcome = await runTransaction(db, async (tx) => {
+      didWrite = false;
+      // Read every endpoint and the deterministic relationship document before
+      // writing. This both verifies owner-scoped existence and makes replay
+      // safe when a source was deleted while the device was offline.
+      const noteSnapshot = await tx.get(noteRef);
+      const taskSnapshot = await tx.get(taskRef);
+      const existing = await tx.get(linkRef);
+      if (auth.currentUser?.uid !== userId) return "failed" as const;
+      if (!noteSnapshot.exists() || !taskSnapshot.exists()) {
+        return missingEndpointIsNoop ? "saved" as const : "missing-endpoint" as const;
+      }
+      if (existing.exists()) {
+        const row = existing.data();
+        return row.user_id === userId && row.note_id === link.note_id && row.task_id === link.task_id
+          ? "saved" as const
+          : "failed" as const;
+      }
+      tx.set(linkRef, {
+        ...link,
+        id: link.id,
+        user_id: userId,
+        userId,
+        updatedAt: new Date().toISOString(),
+        _firestoreSyncAt: Date.now(),
+      });
+      didWrite = true;
+      return "saved" as const;
+    });
+    if (outcome === "saved" && didWrite) trackWrite(1, "note_task_links");
+    return outcome;
+  } catch (error) {
+    if (isQuotaError(error)) markQuotaExhausted();
+    throw error;
+  }
+}
+
+/** Owner-checked, idempotent relationship write used by the online path. */
+export function saveNoteTaskLinkWithOutcome(
+  userId: string,
+  link: NoteTaskLinkRecord,
+): Promise<NoteTaskLinkSaveOutcome> {
+  return writeNoteTaskLinkTransaction(userId, link, false);
+}
+
+/** Replay a stable queued link; a missing endpoint means the source was deleted. */
+export function replayQueuedNoteTaskLinkWithOutcome(
+  userId: string,
+  docId: string,
+  link: NoteTaskLinkRecord,
+): Promise<NoteTaskLinkSaveOutcome> {
+  if (docId !== link.id) return Promise.resolve("failed");
+  return writeNoteTaskLinkTransaction(userId, link, true);
+}
 
 /** Recheck a queued mutation against the server in the same transaction that writes it. */
 export async function replayQueuedEntityWithOutcome(

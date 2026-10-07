@@ -1,16 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getDocMock, setDocMock, runTransactionMock } = vi.hoisted(() => ({
+const { getDocMock, setDocMock, runTransactionMock, docMock } = vi.hoisted(() => ({
   getDocMock: vi.fn(),
   setDocMock: vi.fn(),
   runTransactionMock: vi.fn(),
+  docMock: vi.fn((...args: unknown[]) => ({ path: args.join("/") })),
 }));
 
 vi.mock("./firebase", () => ({
   auth: { currentUser: { uid: "user-sync-test" } },
   db: {},
   collection: vi.fn(),
-  doc: vi.fn(() => ({ path: "mock-doc" })),
+  doc: docMock,
   getDoc: getDocMock,
   getDocs: vi.fn(),
   setDoc: setDocMock,
@@ -50,6 +51,8 @@ import {
   saveEntityToFirestore,
   saveEntityToFirestoreWithOutcome,
   replayQueuedEntityWithOutcome,
+  saveNoteTaskLinkWithOutcome,
+  replayQueuedNoteTaskLinkWithOutcome,
 } from "./firestoreSync";
 import { firebaseStore } from "./firebaseStore";
 import { cacheGet } from "./offlineDb";
@@ -347,6 +350,69 @@ describe("queued Firestore revisions", () => {
       op: "upsert", payload: { id: "task-1", updated_at: "2030-09-25T11:00:00.000Z" }, createdAt: 1,
     })).toBe("stale");
     expect(set).not.toHaveBeenCalled();
+  });
+});
+
+describe("owner-scoped note-task relationship transactions", () => {
+  const link = {
+    id: "stable-link",
+    user_id: "user-sync-test",
+    note_id: "note-1",
+    task_id: "task-1",
+    created_at: "2026-10-07T10:00:00.000Z",
+  };
+
+  it("creates one deterministic relation only when both owner-scoped endpoints exist", async () => {
+    const set = vi.fn();
+    runTransactionMock.mockImplementation((_db, callback) => callback({
+      get: async (ref: { path: string }) => ({
+        exists: () => !ref.path.endsWith("/note_task_links/stable-link"),
+        data: () => undefined,
+      }),
+      set,
+      delete: vi.fn(),
+    }));
+
+    await expect(saveNoteTaskLinkWithOutcome("user-sync-test", link)).resolves.toBe("saved");
+    expect(set).toHaveBeenCalledOnce();
+    expect(set).toHaveBeenCalledWith(
+      expect.objectContaining({ path: expect.stringContaining("users/user-sync-test/note_task_links/stable-link") }),
+      expect.objectContaining({ id: "stable-link", user_id: "user-sync-test", note_id: "note-1", task_id: "task-1" }),
+    );
+  });
+
+  it("treats a missing endpoint on outbox replay as a consumed orphan, without writing", async () => {
+    const set = vi.fn();
+    runTransactionMock.mockImplementation((_db, callback) => callback({
+      get: async (ref: { path: string }) => ({
+        exists: () => !ref.path.endsWith("/notes/note-1"),
+        data: () => undefined,
+      }),
+      set,
+      delete: vi.fn(),
+    }));
+
+    await expect(replayQueuedNoteTaskLinkWithOutcome("user-sync-test", link.id, link)).resolves.toBe("saved");
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it("recognizes the same existing pair as idempotent and rejects a foreign account", async () => {
+    const set = vi.fn();
+    runTransactionMock.mockImplementation((_db, callback) => callback({
+      get: async (ref: { path: string }) => ({
+        exists: () => ref.path.endsWith("/notes/note-1") || ref.path.endsWith("/tasks/task-1") ||
+          ref.path.endsWith("/note_task_links/stable-link"),
+        data: () => ({ user_id: "user-sync-test", note_id: "note-1", task_id: "task-1" }),
+      }),
+      set,
+      delete: vi.fn(),
+    }));
+
+    await expect(saveNoteTaskLinkWithOutcome("user-sync-test", link)).resolves.toBe("saved");
+    const callsBeforeForeignOwner = runTransactionMock.mock.calls.length;
+    await expect(saveNoteTaskLinkWithOutcome("another-account", { ...link, user_id: "another-account" })).resolves.toBe("failed");
+    expect(set).not.toHaveBeenCalled();
+    expect(runTransactionMock).toHaveBeenCalledTimes(callsBeforeForeignOwner);
   });
 });
 

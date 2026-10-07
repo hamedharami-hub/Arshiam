@@ -199,7 +199,7 @@ function cacheKeyBelongsToUser(key: string, value: unknown, userId: string): boo
   if (owners.length) return owners.every(owner => owner === userId);
   if (key.endsWith(`:${userId}`) || key === userId) return true;
   const fixedPrefixes = [
-    "tasks_", "notes_", "folders_", "tags_", "habits_", "contacts_", "task_contacts_",
+    "tasks_", "notes_", "folders_", "tags_", "habits_", "contacts_", "task_contacts_", "note_task_links_",
     "firestore_sync_stats_", "arshnaz_mind_garden_v1_", "arshnaz_island_v1_",
     "arshnaz_page_bg_v1_", "arshnaz_kanban_goals_v3_", "arshnaz_kanban_goals_sync_",
   ];
@@ -392,9 +392,34 @@ async function replayItem(item: QueuedOp, userId: string): Promise<ReplayOutcome
       firestoreOutcome = legacyMutationConfirmed(item, response) ? "saved" : "failed";
     }
 
+    if (item.table === "note_task_links" && item.op === "delete" && !item.match?.id) {
+      const endpoint = typeof item.match?.note_id === "string" ? "note_id"
+        : typeof item.match?.task_id === "string" ? "task_id" : null;
+      const endpointId = endpoint ? item.match?.[endpoint] : null;
+      if (endpoint && typeof endpointId === "string" && endpointId) {
+        firestoreAttempted = true;
+        const response = await firebaseStore
+          .from("note_task_links", userId)
+          .delete()
+          .eq("user_id", userId)
+          .eq(endpoint, endpointId);
+        firestoreOutcome = legacyMutationConfirmed(item, response) ? "saved" : "failed";
+      }
+    }
+
+    if (item.table === "note_task_links" && item.op !== "delete") {
+      const payload = item.payload as Record<string, unknown> | undefined;
+      if (!payload || typeof payload.id !== "string" || typeof payload.user_id !== "string" ||
+        typeof payload.note_id !== "string" || typeof payload.task_id !== "string" ||
+        payload.user_id !== userId) return "failed";
+      const { replayQueuedNoteTaskLinkWithOutcome } = await import("./firestoreSync");
+      const outcome = await replayQueuedNoteTaskLinkWithOutcome(userId, payload.id, payload as any);
+      return outcome === "missing-endpoint" ? "failed" : outcome;
+    }
+
     const firestoreTables = [
       "tasks", "notes", "habits", "folders", "tags", "contacts", "task_contacts",
-      "knowledge_folders", "knowledge_documents", "knowledge_import_manifests", "leitner_cards", "leitner_reviews", "task_knowledge_links",
+      "knowledge_folders", "knowledge_documents", "knowledge_import_manifests", "leitner_cards", "leitner_reviews", "task_knowledge_links", "note_task_links",
       "interactive_study_sessions", "socratic_sessions", "pharmacy_practice",
     ];
     if (!firestoreAttempted && userId && firestoreTables.includes(item.table)) {

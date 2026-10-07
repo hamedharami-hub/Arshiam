@@ -20,6 +20,7 @@ vi.mock("@/lib/firestoreSync", () => ({
   saveEntityToFirestoreWithOutcome: vi.fn().mockResolvedValue("saved"),
   deleteEntityFromFirestore: vi.fn().mockResolvedValue(true),
   replayQueuedEntityWithOutcome: vi.fn().mockResolvedValue("saved"),
+  replayQueuedNoteTaskLinkWithOutcome: vi.fn().mockResolvedValue("saved"),
 }));
 
 describe("offline outbox ownership", () => {
@@ -83,6 +84,8 @@ describe("offline outbox persistence", () => {
     await enqueueOp({ ownerId: "account-b", table: "tasks", op: "upsert", payload: { id: "b", user_id: "account-b" } });
     await offlineDb.cacheSet("tasks:all:account-a", [{ id: "a" }]);
     await offlineDb.cacheSet("tasks:all:account-b", [{ id: "b" }]);
+    await offlineDb.cacheSet("note_task_links_account-a", [{ id: "link-a", user_id: "account-a" }]);
+    await offlineDb.cacheSet("note_task_links_account-b", [{ id: "link-b", user_id: "account-b" }]);
     localStorage.setItem("pomodoro_today_count_v2:account-a", "1");
     localStorage.setItem("pomodoro_today_count_v2:account-b", "2");
 
@@ -92,6 +95,8 @@ describe("offline outbox persistence", () => {
     expect(await getQueue()).not.toEqual(expect.arrayContaining([expect.objectContaining({ ownerId: "account-a" })]));
     await expect(offlineDb.cacheGet("tasks:all:account-a")).resolves.toBeUndefined();
     await expect(offlineDb.cacheGet("tasks:all:account-b")).resolves.toEqual([{ id: "b" }]);
+    await expect(offlineDb.cacheGet("note_task_links_account-a")).resolves.toBeUndefined();
+    await expect(offlineDb.cacheGet("note_task_links_account-b")).resolves.toEqual([{ id: "link-b", user_id: "account-b" }]);
     expect(localStorage.getItem("pomodoro_today_count_v2:account-a")).toBeNull();
     expect(localStorage.getItem("pomodoro_today_count_v2:account-b")).toBe("2");
   });
@@ -297,6 +302,62 @@ describe("offline outbox persistence", () => {
     expect(firebaseStore.from).toHaveBeenCalledWith("task_knowledge_links", "account-a");
     expect(deleteBuilder.eq).toHaveBeenCalledWith("user_id", "account-a");
     expect(deleteQuery.eq).toHaveBeenCalledWith("task_id", "task-removed");
+    expect(await getQueue()).toHaveLength(0);
+  });
+
+  it("replays a queued note-task link through the endpoint-validating transaction", async () => {
+    const { replayQueuedNoteTaskLinkWithOutcome } = await import("./firestoreSync");
+    vi.mocked(replayQueuedNoteTaskLinkWithOutcome).mockClear().mockResolvedValue("saved");
+    const link = {
+      id: "stable-link",
+      user_id: "account-a",
+      note_id: "note-a",
+      task_id: "task-a",
+      created_at: "2026-10-07T10:00:00.000Z",
+    };
+    await enqueueOp({ ownerId: "account-a", table: "note_task_links", op: "upsert", payload: link, match: { id: link.id } });
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+
+    expect(await flushQueue()).toEqual({ ok: 1, failed: 0 });
+    expect(replayQueuedNoteTaskLinkWithOutcome).toHaveBeenCalledWith("account-a", "stable-link", link);
+    expect(await getQueue()).toHaveLength(0);
+  });
+
+  it("keeps another account's queued note-task link untouched after an account switch", async () => {
+    const { replayQueuedNoteTaskLinkWithOutcome } = await import("./firestoreSync");
+    vi.mocked(replayQueuedNoteTaskLinkWithOutcome).mockClear();
+    await enqueueOp({
+      ownerId: "account-b",
+      table: "note_task_links",
+      op: "upsert",
+      payload: { id: "foreign-link", user_id: "account-b", note_id: "foreign-note", task_id: "foreign-task", created_at: "now" },
+    });
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+
+    expect(await flushQueue()).toEqual({ ok: 0, failed: 0 });
+    expect(replayQueuedNoteTaskLinkWithOutcome).not.toHaveBeenCalled();
+    expect(await getQueue()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ ownerId: "account-b", table: "note_task_links", payload: expect.objectContaining({ user_id: "account-b" }) }),
+    ]));
+  });
+
+  it("replays note and task relationship sweeps only under the owning account", async () => {
+    const deleteQuery = {
+      eq: vi.fn().mockReturnThis(),
+      then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
+        Promise.resolve({ data: [], error: null }).then(resolve),
+    };
+    const deleteBuilder = { eq: vi.fn(() => deleteQuery) };
+    vi.mocked(firebaseStore.from).mockReturnValue({ delete: () => deleteBuilder } as any);
+    await enqueueOp({ ownerId: "account-a", table: "note_task_links", op: "delete", match: { user_id: "account-a", note_id: "note-a" } });
+    await enqueueOp({ ownerId: "account-a", table: "note_task_links", op: "delete", match: { user_id: "account-a", task_id: "task-a" } });
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+
+    expect(await flushQueue()).toEqual({ ok: 2, failed: 0 });
+    expect(firebaseStore.from).toHaveBeenCalledWith("note_task_links", "account-a");
+    expect(deleteBuilder.eq).toHaveBeenCalledWith("user_id", "account-a");
+    expect(deleteQuery.eq).toHaveBeenCalledWith("note_id", "note-a");
+    expect(deleteQuery.eq).toHaveBeenCalledWith("task_id", "task-a");
     expect(await getQueue()).toHaveLength(0);
   });
 

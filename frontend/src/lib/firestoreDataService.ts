@@ -11,7 +11,8 @@ import {
   onSnapshot,
   runTransaction,
 } from "./firebase";
-import { cacheGet, cacheSet, enqueueOp, getPendingOps } from "./offlineQueue";
+import { cacheGet, cacheSet, enqueueOp, enqueueOps, getPendingOps } from "./offlineQueue";
+import { deleteNoteTaskLinksFor, removeNoteTaskLinksFromCache } from "./noteTaskLinkService";
 import {
   extractTasksFromCache,
   createTaskCacheEnvelope,
@@ -843,19 +844,35 @@ export async function deleteNote(userId: string, noteId: string): Promise<boolea
     const cached = (await cacheGet<NoteItem[]>(CACHE_KEYS.notes(userId))) || [];
     const next = cached.filter((n) => n.id !== noteId);
     await cacheSet(CACHE_KEYS.notes(userId), next);
+    // Delete the note first, then sweep its relation collection. New links are
+    // transactionally rejected once this endpoint no longer exists.
+    const linksCleaned = await deleteNoteTaskLinksFor(userId, "note_id", noteId);
+    if (!linksCleaned) console.warn("[FirestoreData] Note-task link cleanup remains pending:", noteId);
     return true;
   } catch (err) {
     if (err instanceof ConcurrentEditError) return false;
     console.warn("[FirestoreData] deleteNote error, queuing delete:", err);
     try {
-      const { enqueueOp } = await import("@/lib/offlineQueue");
-      const ok = await enqueueOp({
-        ownerId: userId,
-        table: "notes",
-        op: "delete",
-        match: { id: noteId },
-        expectedRevision,
-      });
+      const ok = await enqueueOps([
+        {
+          ownerId: userId,
+          table: "notes",
+          op: "delete",
+          match: { id: noteId },
+          expectedRevision,
+        },
+        {
+          ownerId: userId,
+          table: "note_task_links",
+          op: "delete",
+          match: { user_id: userId, note_id: noteId },
+        },
+      ]);
+      if (ok) {
+        const cached = (await cacheGet<NoteItem[]>(CACHE_KEYS.notes(userId))) || [];
+        await cacheSet(CACHE_KEYS.notes(userId), cached.filter((note) => note.id !== noteId));
+        await removeNoteTaskLinksFromCache(userId, "note_id", [noteId]);
+      }
       return ok;
     } catch {
       return false;

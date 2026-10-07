@@ -73,6 +73,25 @@ service cloud.firestore {
           && !existsAfter(/databases/$(database)/documents/users/$(userId)/cycle_profile_tombstones/$(request.resource.data.profile_id));
       }
 
+      // A note-task relation is valid only inside one owner's tree, with both
+      // endpoints present in that same tree. Deterministic IDs make updates
+      // unnecessary; deleting either endpoint triggers a scoped relation sweep.
+      match /note_task_links/{linkId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.id == linkId
+          && request.resource.data.user_id == userId
+          && request.resource.data.userId == userId
+          && request.resource.data.note_id is string
+          && request.resource.data.task_id is string
+          && existsAfter(/databases/$(database)/documents/users/$(userId)/notes/$(request.resource.data.note_id))
+          && existsAfter(/databases/$(database)/documents/users/$(userId)/tasks/$(request.resource.data.task_id))
+          && request.resource.data.keys().hasOnly([
+            'id', 'user_id', 'userId', 'note_id', 'task_id', 'created_at', 'updatedAt', '_firestoreSyncAt'
+          ]);
+        allow update: if false;
+      }
+
       // Matching allow expressions are ORed: a more specific false does not
       // override this grant. Keep server-managed collections out of it,
       // including every nested document beneath those collections.
@@ -92,6 +111,7 @@ service cloud.firestore {
             'cycle_profiles',
             'cycle_logs',
             'cycle_profile_tombstones',
+            'note_task_links',
             'module_access'
           ]);
       }

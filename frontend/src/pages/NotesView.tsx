@@ -96,7 +96,7 @@ type Note = {
 
 type FolderItem = { id: string; name: string; color?: string };
 type TagItem = { id: string; name: string; color?: string };
-type ActionItemDraft = { id: string; ownerId: string; createdAt: string; title: string; description: string };
+type ActionItemDraft = { id: string; ownerId: string; noteId: string; createdAt: string; title: string; description: string };
 
 export default function NotesView() {
   const { user } = useAuth();
@@ -373,7 +373,8 @@ export default function NotesView() {
       toast.error(T("ابتدا بخشی از متن را انتخاب کن", "Select some text first"));
       return;
     }
-    setActionItemDraft({ id: generateId(), ownerId: user.id, createdAt: new Date().toISOString(), ...suggestion });
+    if (!selected) return;
+    setActionItemDraft({ id: generateId(), ownerId: user.id, noteId: selected.id, createdAt: new Date().toISOString(), ...suggestion });
   };
 
   const createActionItem = async () => {

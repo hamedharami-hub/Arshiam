@@ -1,9 +1,11 @@
 import { persistTask, type TaskPersistenceStatus } from "@/lib/firestoreDataService";
+import { linkNoteToTask } from "@/lib/noteTaskLinkService";
 import type { Task } from "@/lib/taskTypes";
 
 export type NoteActionItemTaskDraft = {
   id: string;
   ownerId: string;
+  noteId: string;
   createdAt: string;
   title: string;
   description: string;
@@ -11,12 +13,12 @@ export type NoteActionItemTaskDraft = {
 
 /**
  * Persist an accepted note action item with its stable draft ID. Repeating the
- * write targets the same owner-scoped Firestore document, so retries cannot
- * create duplicate tasks. This deliberately does not mutate or link the note.
+ * write targets the same owner-scoped Firestore document and deterministic
+ * note-task relationship, so retries cannot create duplicates or edit the note.
  */
 export function persistNoteActionItem(draft: NoteActionItemTaskDraft): Promise<TaskPersistenceStatus> {
   const title = draft.title.trim();
-  if (!draft.id || !draft.ownerId || !title) return Promise.resolve("failed");
+  if (!draft.id || !draft.ownerId || !draft.noteId || !title) return Promise.resolve("failed");
 
   const task: Task = {
     id: draft.id,
@@ -34,5 +36,14 @@ export function persistNoteActionItem(draft: NoteActionItemTaskDraft): Promise<T
     created_at: draft.createdAt,
   };
 
-  return persistTask(draft.ownerId, task, { quietCompanion: true });
+  return persistTask(draft.ownerId, task, { quietCompanion: true }).then(async (taskStatus) => {
+    if (taskStatus === "failed") return "failed";
+    try {
+      const linkStatus = await linkNoteToTask(draft.ownerId, draft.noteId, draft.id);
+      return taskStatus === "queued" || linkStatus === "queued" ? "queued" : "saved";
+    } catch (error) {
+      console.warn("[NoteActionItem] Task exists but its note relationship is pending:", error);
+      return "failed";
+    }
+  });
 }

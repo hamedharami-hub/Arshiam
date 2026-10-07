@@ -1,18 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const persistTask = vi.hoisted(() => vi.fn());
+const linkNoteToTask = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/firestoreDataService", () => ({ persistTask }));
+vi.mock("@/lib/noteTaskLinkService", () => ({ linkNoteToTask }));
 
 import { persistNoteActionItem } from "./noteActionItemService";
 
 describe("note action item persistence", () => {
-  beforeEach(() => persistTask.mockReset());
+  beforeEach(() => {
+    persistTask.mockReset();
+    linkNoteToTask.mockReset();
+  });
 
-  it("keeps an accepted draft owner-scoped and uses the same task ID on retry", async () => {
+  it("keeps an accepted draft owner-scoped and uses the same task and relationship IDs on retry", async () => {
     persistTask.mockResolvedValue("saved");
+    linkNoteToTask.mockResolvedValue("saved");
     const draft = {
       id: "stable-task-id",
       ownerId: "note-owner",
+      noteId: "source-note-id",
       createdAt: "2026-10-07T10:00:00.000Z",
       title: "  Send the proposal  ",
       description: " Include the revised budget ",
@@ -32,10 +39,27 @@ describe("note action item persistence", () => {
     }), { quietCompanion: true });
     expect(persistTask.mock.calls[0][1].id).toBe(persistTask.mock.calls[1][1].id);
     expect(persistTask.mock.calls[0][1]).not.toHaveProperty("source_id");
+    expect(linkNoteToTask).toHaveBeenNthCalledWith(1, "note-owner", "source-note-id", "stable-task-id");
+    expect(linkNoteToTask.mock.calls[0]).toEqual(linkNoteToTask.mock.calls[1]);
   });
 
   it("does not write an empty task title", async () => {
-    expect(await persistNoteActionItem({ id: "draft", ownerId: "owner", createdAt: "now", title: "  ", description: "" })).toBe("failed");
+    expect(await persistNoteActionItem({ id: "draft", ownerId: "owner", noteId: "note", createdAt: "now", title: "  ", description: "" })).toBe("failed");
     expect(persistTask).not.toHaveBeenCalled();
+    expect(linkNoteToTask).not.toHaveBeenCalled();
+  });
+
+  it("keeps task retries idempotent when an offline relationship is queued", async () => {
+    persistTask.mockResolvedValue("saved");
+    linkNoteToTask.mockResolvedValue("queued");
+    const draft = { id: "stable-task-id", ownerId: "owner", noteId: "note", createdAt: "now", title: "Action", description: "" };
+
+    await expect(persistNoteActionItem(draft)).resolves.toBe("queued");
+    await expect(persistNoteActionItem(draft)).resolves.toBe("queued");
+
+    expect(persistTask).toHaveBeenCalledTimes(2);
+    expect(persistTask.mock.calls[0][1].id).toBe(persistTask.mock.calls[1][1].id);
+    expect(linkNoteToTask).toHaveBeenCalledTimes(2);
+    expect(linkNoteToTask).toHaveBeenNthCalledWith(1, "owner", "note", "stable-task-id");
   });
 });
