@@ -1,7 +1,7 @@
 import type { Task } from "@/lib/taskTypes";
 
 export const EDITABLE_TASK_FIELDS: (keyof Task)[] = [
-  "title", "description", "priority", "work_date", "due_date", "completed", "status", "folder_id",
+  "title", "description", "priority", "work_date", "due_date", "deadline_date", "completed", "status", "folder_id",
   "reminder_at", "reminder_plan", "recurrence", "recurrence_rule", "parent_id", "outcome_id", "pinned",
   "is_avoidance", "location", "bucket_kind",
   "bucket_calendar", "bucket_anchor",

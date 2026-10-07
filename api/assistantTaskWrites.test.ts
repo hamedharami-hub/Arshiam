@@ -71,4 +71,22 @@ describe("assistant task state route validation", () => {
     expect(res.statusCode).toBe(200);
     expect(mocks.stored.get("users/owner/tasks/task-one")).toMatchObject({ completed: true, status: "done" });
   });
+
+  it("persists and clears deadline_date without changing the schedule", async () => {
+    const create = response();
+    await collectionHandler({ method: "POST", body: { title: "Deadline task", work_date: "2026-10-08", deadline_date: "2026-10-31" } }, create);
+    expect(create.statusCode).toBe(201);
+    expect(create.body.data).toMatchObject({ user_id: "owner", work_date: "2026-10-08", deadline_date: "2026-10-31" });
+
+    mocks.stored.set("users/owner/tasks/task-one", { id: "task-one", title: "Original", work_date: "2026-10-05", schedule_v: 2, deadline_date: "2026-10-31" });
+    const update = response();
+    await detailHandler({ method: "PATCH", query: { id: "task-one" }, body: { deadline_date: null } }, update);
+    expect(update.statusCode).toBe(200);
+    expect(update.body.data).toMatchObject({ work_date: "2026-10-05", schedule_v: 2, deadline_date: null });
+
+    const invalid = response();
+    await detailHandler({ method: "PATCH", query: { id: "task-one" }, body: { deadline_date: "2026-02-30" } }, invalid);
+    expect(invalid.statusCode).toBe(400);
+    expect(mocks.stored.get("users/owner/tasks/task-one")).toMatchObject({ work_date: "2026-10-05", deadline_date: null });
+  });
 });

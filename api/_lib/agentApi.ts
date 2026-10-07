@@ -304,6 +304,7 @@ async function handleCreateTask(grant: AssistantGrant, body: any, req: any, res:
     priority: normalizeTaskPriority(body.priority),
     ...completion,
     ...(normalizeTaskScheduleInput(body, body.schedule_timezone) || scheduleWrite(null)),
+    ...(Object.prototype.hasOwnProperty.call(body, "deadline_date") ? { deadline_date: body.deadline_date } : {}),
     folder_id: body.folder_id || null,
     pinned: Boolean(body.pinned),
     recurrence: body.recurrence || "none",
@@ -347,6 +348,7 @@ async function handlePatchTask(grant: AssistantGrant, taskId: string, body: any,
     "folder_id",
     "pinned",
     "recurrence",
+    "deadline_date",
   ];
 
   const patch: Record<string, any> = {};

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compactTasksForAI, isTodayCommitment, normalizeTaskWrite, readSchedule, SCHEDULE_VERSION } from "./taskSchedule";
+import { compactTasksForAI, dateTimeSchedule, isTodayCommitment, normalizeTaskWrite, readSchedule, SCHEDULE_VERSION, schedulePatch } from "./taskSchedule";
 import { doesTaskMatchTimeFilters } from "./smartListService";
 import { mindGoalHorizon } from "./lifeArchitect";
 import { toLocalISO } from "./timeHorizon";
@@ -37,6 +37,33 @@ describe("normalizeTaskWrite (legacy writers → single schedule)", () => {
     const out = normalizeTaskWrite({ schedule_v: 2, start_at: null, deadline: null }) as Record<string, unknown>;
     expect(out.start_at).toBeNull();
     expect(out.deadline).toBeNull();
+  });
+
+  it("keeps the optional deadline date independent from every schedule patch", () => {
+    const task = { deadline_date: "2026-06-24", ...schedulePatch({ kind: "day", date: "2026-06-18" }) };
+    const cleared = { ...task, ...schedulePatch({ kind: "none" }) };
+    expect(cleared).toMatchObject({ deadline_date: "2026-06-24", work_date: null, planning_horizon: null });
+    expect(normalizeTaskWrite({ deadline_date: null, work_date: "2026-06-18" })).toMatchObject({ deadline_date: null, work_date: "2026-06-18" });
+    expect(() => normalizeTaskWrite({ deadline_date: "2026-02-30" })).toThrow(/deadline_date/);
+    expect(() => normalizeTaskWrite({ deadline_date: "2026-6-3" })).toThrow(/deadline_date/);
+  });
+
+  it("accepts only unambiguous date and instant values on new schedule writes", () => {
+    expect(normalizeTaskWrite({ work_date: "2026-06-18T10:30:00-07:00" }).work_date).toBe("2026-06-18T17:30:00.000Z");
+    expect(() => normalizeTaskWrite({ work_date: "2026-06-18T10:30:00" })).toThrow(/explicit offset/);
+    expect(() => dateTimeSchedule("2026-02-30", "10:00")).toThrow(/real/);
+    expect(() => dateTimeSchedule("2026-06-18", "25:00")).toThrow(/HH:MM/);
+  });
+
+  it("does not silently move a local clock time that falls inside a daylight-saving gap", () => {
+    const originalTimezone = process.env.TZ;
+    process.env.TZ = "America/New_York";
+    try {
+      expect(() => dateTimeSchedule("2026-03-08", "02:30")).toThrow(/does not exist/);
+    } finally {
+      if (originalTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimezone;
+    }
   });
 });
 

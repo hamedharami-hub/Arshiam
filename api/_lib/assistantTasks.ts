@@ -5,7 +5,7 @@ import { normalizeTaskPriority, normalizeTaskScheduleInput, scheduleWrite, strip
 
 // One schedule per task: `work_date` (day or instant). `due_date` is still accepted from older callers and
 // stored as work_date. Time block (start_at/end_at/estimated_minutes) is no longer part of the model.
-const allowedFields = ["title", "description", "priority", "status", "completed", "folder_id", "pinned"] as const;
+const allowedFields = ["title", "description", "priority", "status", "completed", "folder_id", "pinned", "deadline_date"] as const;
 const writeFields = new Set<string>(allowedFields);
 
 export function assistantTaskCollectionPath(grant: AssistantGrant) {
@@ -53,6 +53,7 @@ export async function createAssistantTask(grant: AssistantGrant, input: any) {
     id, user_id: grant.userId, title: input.title.trim(), description: input.description || null,
     ...completion, priority: normalizeTaskPriority(input.priority),
     ...(normalizeTaskScheduleInput(input, input.schedule_timezone) || scheduleWrite(null)),
+    ...(Object.prototype.hasOwnProperty.call(input, "deadline_date") ? { deadline_date: input.deadline_date } : {}),
     folder_id: input.folder_id || null, pinned: Boolean(input.pinned),
     created_at: now, updated_at: now, ...(externalRef ? { external_ref: externalRef } : {}),
   };

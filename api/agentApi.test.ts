@@ -608,6 +608,28 @@ describe("AI Agent API Endpoints (/api/v1/agent/*)", () => {
     expect(Array.from(testStore.tasks.values())).toHaveLength(1);
   });
 
+  it("validates an optional deadline date and includes it in idempotent task creation", async () => {
+    const key = "deadline_date_retry_20261007";
+    const body = { title: "Task with a separate deadline", work_date: "2026-10-08", deadline_date: "2026-10-31" };
+    const first = createMockReqRes({ method: "POST", url: "/api/v1/agent/tasks", token, headers: { "idempotency-key": key }, body });
+    await handleAgentRequest(first.req, first.res);
+    expect(first.res.statusCode).toBe(201);
+    const taskId = JSON.parse(first.res.body).data.id;
+    expect(testStore.tasks.get(taskId)).toMatchObject({ user_id: userId, work_date: "2026-10-08", deadline_date: "2026-10-31" });
+
+    resetIdempotencyCache();
+    const retry = createMockReqRes({ method: "POST", url: "/api/v1/agent/tasks", token, headers: { "idempotency-key": key }, body });
+    await handleAgentRequest(retry.req, retry.res);
+    expect(retry.res.statusCode).toBe(201);
+    expect(JSON.parse(retry.res.body).data.id).toBe(taskId);
+    expect(Array.from(testStore.tasks.values())).toHaveLength(1);
+
+    const invalid = createMockReqRes({ method: "POST", url: "/api/v1/agent/tasks", token, body: { title: "Invalid", deadline_date: "2026-02-30" } });
+    await handleAgentRequest(invalid.req, invalid.res);
+    expect(invalid.res.statusCode).toBe(400);
+    expect(Array.from(testStore.tasks.values())).toHaveLength(1);
+  });
+
   it("7. Rate limiting blocks excessive requests with 429", async () => {
     const limitedKey = "rate_limit_test_token";
 

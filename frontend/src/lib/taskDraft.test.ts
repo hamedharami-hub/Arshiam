@@ -29,4 +29,10 @@ describe("taskPatch", () => {
   it("returns an empty payload when nothing changed", () => {
     expect(taskPatch({ ...savedTask }, savedTask)).toEqual({});
   });
+
+  it("stores and clears an optional deadline through the offline edit draft", () => {
+    const withDeadline = { ...savedTask, deadline_date: "2026-10-31" };
+    expect(taskPatch(withDeadline, savedTask)).toEqual({ deadline_date: "2026-10-31" });
+    expect(taskPatch({ ...savedTask, deadline_date: null }, withDeadline)).toEqual({ deadline_date: null });
+  });
 });

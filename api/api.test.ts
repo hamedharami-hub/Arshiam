@@ -147,6 +147,41 @@ describe("canonical task schedule and priority API adapters", () => {
     expect(legacyTask.schedule_legacy.fields.start_at).toBe("2026-10-05T09:00:00Z");
   });
 
+  it("validates and stores optional deadline_date without coupling it to schedule or legacy deadline", async () => {
+    const originalFetch = global.fetch;
+    const captured: Array<{ method: string; body: any; url: string }> = [];
+    global.fetch = vi.fn().mockImplementation(async (url, init: any = {}) => {
+      captured.push({ method: init.method || "GET", body: init.body ? JSON.parse(init.body) : null, url });
+      if (init.method === "POST") return { ok: true, json: async () => ({ name: "users/u1/tasks/new-task", fields: encodeFirestoreFields({ id: "new-task", deadline_date: "2026-10-31", schedule_v: 2, work_date: null }) }) };
+      if (init.method === "PATCH") return { ok: true, json: async () => ({ name: "users/u1/tasks/task-1", fields: encodeFirestoreFields({ id: "task-1", deadline_date: null, schedule_v: 2, work_date: "2026-10-05" }) }) };
+      return { ok: true, json: async () => ({ name: "users/u1/tasks/task-1", fields: encodeFirestoreFields({ id: "task-1", title: "Original", deadline_date: "2026-10-31", schedule_v: 2, work_date: "2026-10-05" }) }) };
+    }) as any;
+    try {
+      await createUserTask({ userId: "u1" }, { id: "new-task", title: "Dated deadline", deadline_date: "2026-10-31", work_date: null });
+      const createData = decodeFirestoreFields(captured.find((call) => call.method === "POST")!.body.fields);
+      expect(createData).toMatchObject({ user_id: "u1", deadline_date: "2026-10-31", work_date: null, schedule_v: 2 });
+
+      captured.length = 0;
+      await updateUserTask({ userId: "u1" }, "task-1", { title: "Rename" });
+      const metadataPatch = decodeFirestoreFields(captured.find((call) => call.method === "PATCH")!.body.fields);
+      expect(metadataPatch).not.toHaveProperty("deadline_date");
+
+      captured.length = 0;
+      await updateUserTask({ userId: "u1" }, "task-1", { deadline_date: null });
+      const clearPatch = decodeFirestoreFields(captured.find((call) => call.method === "PATCH")!.body.fields);
+      expect(clearPatch).toMatchObject({ deadline_date: null });
+      expect(clearPatch).not.toHaveProperty("work_date");
+
+      captured.length = 0;
+      await expect(updateUserTask({ userId: "u1" }, "task-1", { deadline_date: "2026-02-30" })).rejects.toThrow(/deadline_date/);
+      expect(captured.filter((call) => call.method === "PATCH")).toHaveLength(0);
+      await expect(updateUserTask({ userId: "u1" }, "task-1", { deadline_date: "2026/10/31" })).rejects.toThrow(/deadline_date/);
+      expect(captured.filter((call) => call.method === "PATCH")).toHaveLength(0);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
   it("keeps metadata PATCHes schedule-neutral, clears the full schedule on work_date:null, and validates before write", async () => {
     const originalFetch = global.fetch;
     const captured: Array<{ method: string; body: any; url: string }> = [];

@@ -43,12 +43,27 @@ const REMOVED_FEATURE_FIELDS = ["start_at", "end_at", "estimated_minutes", "time
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const isHorizon = (h: unknown): h is Horizon => typeof h === "string" && (ALL_HORIZONS as string[]).includes(h);
-const validDay = (value: unknown): value is string => typeof value === "string" && DATE_ONLY.test(value) && toLocalISO(fromLocalISO(value)) === value;
+function validDay(value: unknown): value is string {
+  if (typeof value !== "string" || !DATE_ONLY.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  if (year < 1 || month < 1 || month > 12 || day < 1 || day > 31) return false;
+  const date = new Date(0);
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCFullYear(year, month - 1, day);
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+const EXPLICIT_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})$/i;
+function validExplicitInstant(value: unknown): value is string {
+  return typeof value === "string" && EXPLICIT_INSTANT.test(value) && validDay(value.slice(0, 10)) && !Number.isNaN(Date.parse(value));
+}
+function validTaskDate(value: unknown): value is string {
+  return validDay(value) || validExplicitInstant(value);
+}
 
 /** New writes preserve every explicit instant. Legacy all-day inference is opt-in. */
 export function scheduleFromDateValue(value: string | null | undefined, legacyAllDay = false): TaskSchedule {
   if (!value) return NO_SCHEDULE;
-  if (DATE_ONLY.test(value)) return { kind: "day", date: value };
+  if (DATE_ONLY.test(value)) return validDay(value) ? { kind: "day", date: value } : NO_SCHEDULE;
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return NO_SCHEDULE;
   const date = toLocalISO(d);
@@ -135,10 +150,15 @@ export const periodPatch = (period: Period | null, s?: TimeSettings) => schedule
 
 /** Combine a calendar day and an optional HH:MM in local time. DST-safe: built from local parts. */
 export function dateTimeSchedule(date: string, hhmm: string | null): TaskSchedule {
+  if (!validDay(date)) throw new Error("A real YYYY-MM-DD date is required");
   if (!hhmm) return { kind: "day", date };
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm)) throw new Error("Time must be a valid local HH:MM value");
   const [y, m, d] = date.split("-").map(Number);
   const [h, min] = hhmm.split(":").map(Number);
   const at = new Date(y, m - 1, d, h, min);
+  if (at.getFullYear() !== y || at.getMonth() !== m - 1 || at.getDate() !== d || at.getHours() !== h || at.getMinutes() !== min) {
+    throw new Error("The selected local time does not exist because of a clock change");
+  }
   return { kind: "datetime", date: toLocalISO(at), at: at.toISOString() };
 }
 
@@ -323,6 +343,9 @@ export function compactTasksForAI(tasks: Array<Partial<Task>>, s: TimeSettings =
 export function normalizeTaskWrite<T extends Record<string, unknown>>(row: T, s: TimeSettings = getTimeSettings()): T {
   if (!row || typeof row !== "object") return row;
   const out: Record<string, unknown> = { ...row };
+  if (out.deadline_date !== undefined && out.deadline_date !== null && !validDay(out.deadline_date)) {
+    throw new Error("deadline_date must be a real YYYY-MM-DD calendar date or null");
+  }
   for (const f of REMOVED_FEATURE_FIELDS) if (out[f] !== undefined && out[f] !== null) delete out[f];
   const hasDate = out.work_date !== undefined;
   const hasPeriod = out.planning_horizon !== undefined;
@@ -337,8 +360,8 @@ export function normalizeTaskWrite<T extends Record<string, unknown>>(row: T, s:
   else if (hasPeriod) canonical = NO_SCHEDULE;
   else if (out.schedule_v !== SCHEDULE_VERSION && out.due_date !== undefined) canonical = scheduleFromDateValue(out.due_date as string | null);
   const dateInput = hasDate ? out.work_date : !hasPeriod && out.schedule_v !== SCHEDULE_VERSION ? out.due_date : undefined;
-  if (dateInput !== undefined && dateInput !== null && (typeof dateInput !== "string" || !dateInput || (DATE_ONLY.test(dateInput) ? !validDay(dateInput) : Number.isNaN(new Date(dateInput).getTime())))) {
-    throw new Error("Invalid task date");
+  if (dateInput !== undefined && dateInput !== null && !validTaskDate(dateInput)) {
+    throw new Error("Task date must be a real YYYY-MM-DD day or an ISO 8601 instant with an explicit offset");
   }
   if (canonical) {
     const timezone = out.schedule_timezone;

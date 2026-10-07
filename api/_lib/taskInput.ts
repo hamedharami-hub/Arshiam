@@ -5,6 +5,16 @@ export class InvalidTaskInputError extends Error {
 
 const statuses = new Set(["todo", "in_progress", "waiting", "done", "wont_do"]);
 
+function isCalendarDate(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  if (year < 1 || month < 1 || month > 12 || day < 1 || day > 31) return false;
+  const date = new Date(0);
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCFullYear(year, month - 1, day);
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
 export function validateTaskInput(input: any): void {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     throw new InvalidTaskInputError("Task input must be an object.");
@@ -25,6 +35,9 @@ export function validateTaskInput(input: any): void {
   }
   if (input.folder_id !== undefined && input.folder_id !== null && typeof input.folder_id !== "string") {
     throw new InvalidTaskInputError("folder_id must be a string or null.");
+  }
+  if (input.deadline_date !== undefined && input.deadline_date !== null && !isCalendarDate(input.deadline_date)) {
+    throw new InvalidTaskInputError("deadline_date must be a real YYYY-MM-DD calendar date or null.");
   }
   if (input.completed !== undefined && input.status !== undefined && input.completed !== (input.status === "done")) {
     throw new InvalidTaskInputError("completed and status disagree.");

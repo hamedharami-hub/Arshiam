@@ -315,6 +315,7 @@ export async function createUserTask(
     // One schedule (schedule v2): the task's day/instant or planning period.
     // `due_date` is accepted only as a deprecated input alias.
     ...(normalizeTaskScheduleInput(taskInput, taskInput.schedule_timezone) || scheduleWrite(null)),
+    ...(Object.prototype.hasOwnProperty.call(taskInput, "deadline_date") ? { deadline_date: taskInput.deadline_date } : {}),
     folder_id: taskInput.folder_id || null,
     pinned: Boolean(taskInput.pinned),
     created_at: now,
@@ -358,7 +359,7 @@ export async function updateUserTask(
 
   const now = new Date().toISOString();
   const editableFields = new Set([
-    "title", "description", "completed", "priority", "status", "folder_id", "pinned",
+    "title", "description", "completed", "priority", "status", "folder_id", "pinned", "deadline_date",
     "work_date", "due_date", "due_at", "is_exact", "horizon", "period_start", "period_end",
     "bucket_kind", "bucket_anchor", "bucket_calendar", "schedule_v", "schedule_timezone",
     "planning_horizon", "planning_start", "planning_end", "planning_calendar",

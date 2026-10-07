@@ -30,6 +30,8 @@ export type Task = {
   description?: string | null;
   priority: Priority;
   due_date?: string | null;
+  /** Optional standalone deadline date (YYYY-MM-DD), independent from the work schedule. */
+  deadline_date?: string | null;
   /** The task's date (optionally with a time). Legacy tasks without it fall back to due_date. */
   work_date?: string | null;
   completed: boolean;
