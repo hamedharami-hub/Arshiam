@@ -3,6 +3,7 @@ import { callAI } from "./ai";
 import { saveAISettings, setAIPersonalizationOptedIn, clearAllStoredAIKeys, loadAISettings, type AIPerOpSettings } from "./aiSettings";
 import { normalizeGeminiModel } from "./geminiDirect";
 import { saveOfflineModelSettings } from "./offlineModels";
+import * as personalization from "./aiPersonalization";
 
 describe("callAI multi-provider support", () => {
   const originalFetch = global.fetch;
@@ -328,6 +329,26 @@ describe("callAI multi-provider support", () => {
       });
 
       await callAI("chat", "Hello", undefined, undefined, "en");
+      const systemText = capturedBody.systemInstruction?.parts?.[0]?.text || "";
+      expect(systemText).not.toContain("Personalization Profile Context");
+    });
+
+    it("can suppress global personalization for explicitly scoped task assistants", async () => {
+      saveAISettings({
+        default: { provider: "gemini", apiKey: "test-gemini-key", model: "gemini-2.5-flash" },
+        perOp: {},
+        personalizationOptIn: true,
+      });
+      const profileRead = vi.spyOn(personalization, "buildPersonalizationContext");
+      let capturedBody: any = null;
+      global.fetch = vi.fn().mockImplementation(async (_url, init: RequestInit) => {
+        capturedBody = JSON.parse(init.body as string);
+        return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: "Scoped response" }] } }] }) };
+      });
+
+      await callAI("chat", "Use only the selected tasks", "[{\"title\":\"Review report\"}]", undefined, "en", { skipPersonalization: true });
+
+      expect(profileRead).not.toHaveBeenCalled();
       const systemText = capturedBody.systemInstruction?.parts?.[0]?.text || "";
       expect(systemText).not.toContain("Personalization Profile Context");
     });

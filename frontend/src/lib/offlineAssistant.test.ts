@@ -11,6 +11,14 @@ describe("offline assistant", () => {
     expect(result?.data).toMatchObject({ priority: "none", source: "offline-deterministic" });
     expect(String(result?.data?.title)).toContain("دکتر");
   });
+  it("turns explicit text lines into draft tasks without inventing schedule or priority", () => {
+    const result = offlineAssistant("parse_task_list", "گزارش را بررسی کن\n- با سارا تماس بگیر", "fa");
+    expect(result?.data?.items).toEqual([
+      { source_text: "گزارش را بررسی کن", title: "گزارش را بررسی کن", description: "", priority: "none" },
+      { source_text: "با سارا تماس بگیر", title: "با سارا تماس بگیر", description: "", priority: "none" },
+    ]);
+    expect(JSON.stringify(result?.data)).not.toContain("work_date");
+  });
   it("flags an urgent bilingual task and produces reviewable subtasks", () => {
     expect(offlineAssistant("parse_task", "urgent: Finish Firebase setup", "en")?.data).toMatchObject({ priority: "high" });
     expect(offlineAssistant("parse_task", "این کار فوری و مهم است", "fa")?.data).toMatchObject({ priority: "high" });

@@ -13,6 +13,7 @@ export type ProviderConfig = {
 
 export type AIOperation =
   | "parse_task"
+  | "parse_task_list"
   | "breakdown"
   | "generate_note"
   | "summarize_note"
@@ -51,6 +52,7 @@ export const OPERATIONS: OperationMeta[] = [
   { key: "suggest",               labelFa: "پیشنهادهای موضوعی",               labelEn: "Topic suggestions",             descFa: "پیشنهاد چند تسک یا ایده پیرامون یک موضوع.",                  descEn: "Suggests several tasks/ideas around a topic.",                 usedInFa: "دستیار AI → تب پیشنهاد", usedInEn: "AI assistant → Suggest tab", group: "عمومی", groupEn: "General" },
   // Tasks
   { key: "parse_task",            labelFa: "تجزیه زبان طبیعی به تسک",       labelEn: "Natural-language → Task",      descFa: "تبدیل جمله به تسک ساختاریافته با تاریخ فقط در صورت ذکرشدن.", descEn: "Turn a sentence into a task and keep dates only when stated.", usedInFa: "دستیار AI → تب تسک", usedInEn: "AI assistant → Task tab", group: "تسک", groupEn: "Tasks" },
+  { key: "parse_task_list",       labelFa: "تبدیل متن یا گفتار به چند تسک", labelEn: "Text or speech to task drafts", descFa: "متن یا گفتار را به پیش‌نویس چند تسک تبدیل می‌کند؛ ذخیره فقط پس از بازبینی و تأیید شماست.", descEn: "Turns text or speech into editable task drafts; saves only after your review and confirmation.", usedInFa: "دستیار AI → تب تسک", usedInEn: "AI assistant → Task tab", group: "تسک", groupEn: "Tasks" },
   { key: "task_metadata_suggest", labelFa: "پیشنهاد گام بعدی و برنامه", labelEn: "Suggest next step and plan", descFa: "عنوان روشن‌تر، گام کوچک، اولویت و روز مناسب را پیشنهاد می‌دهد؛ اعمال فقط با انتخاب شماست.", descEn: "Suggests a clearer title, small step, priority, and day; changes apply only after you choose.", usedInFa: "جزئیات تسک → AI → پیشنهاد", usedInEn: "Task detail → AI → Suggest", group: "تسک", groupEn: "Tasks" },
   { key: "task_subtasks",         labelFa: "Subtaskهای هوشمند تسک",          labelEn: "Smart subtasks",                descFa: "پیشنهاد ۳-۷ زیرتسک با ترتیب منطقی.",                       descEn: "Suggests 3–7 ordered subtasks.",                               usedInFa: "جزئیات تسک → AI → مراحل", usedInEn: "Task detail → AI → Steps", group: "تسک", groupEn: "Tasks" },
   { key: "task_chat",             labelFa: "چت روی یک تسک",                  labelEn: "Chat on a task",                descFa: "گفتگو درباره یک تسک خاص.",                                  descEn: "Conversation focused on one task.",                            usedInFa: "جزئیات تسک → AI → چت", usedInEn: "Task detail → AI → Chat", group: "تسک", groupEn: "Tasks" },
@@ -76,6 +78,7 @@ export const OP_RECOMMENDED: Record<AIOperation, { provider: Provider; model: st
   article_rewrite:       { provider: "gemini", model: "gemini-3-flash-preview", whyFa: "بازنویسی متن", whyEn: "Article rewriting" },
   assessment_analysis:   { provider: "gemini", model: "gemini-3-flash-preview", whyFa: "تحلیل متن ارزیابی", whyEn: "Assessment explanation" },
   parse_task:            { provider: "gemini", model: "gemini-3-flash-preview",       whyFa: "سریع و دقیق برای استخراج ساختار",            whyEn: "Fast & accurate at structured extraction" },
+  parse_task_list:       { provider: "gemini", model: "gemini-3-flash-preview",       whyFa: "استخراج چند کار از متن یا گفتار",            whyEn: "Extract multiple tasks from text or speech" },
   breakdown:             { provider: "gemini", model: "gemini-3-flash-preview",                    whyFa: "استدلال مرحله‌ای بهتر",                       whyEn: "Better step-by-step reasoning" },
   task_subtasks:         { provider: "gemini", model: "gemini-3-flash-preview",                    whyFa: "تقسیم منطقی کار",                              whyEn: "Logical work breakdown" },
   task_metadata_suggest: { provider: "gemini", model: "gemini-3-flash-preview",         whyFa: "کار سبک، بسیار سریع",                          whyEn: "Lightweight & very fast" },

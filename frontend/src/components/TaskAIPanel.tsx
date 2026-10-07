@@ -88,6 +88,18 @@ export function TaskAIPanel({
   const [globalCtx, setGlobalCtx] = useState(false);
   const [loading, setLoading] = useState(false);
   const [aiLang, setAiLang] = useState<AILanguage>(getAILanguage());
+  const activeScopeRef = useRef("");
+  const activeUserIdRef = useRef<string | null>(null);
+  const activeTaskIdRef = useRef(task.id);
+  const requestIdRef = useRef(0);
+  activeScopeRef.current = `${open ? "open" : "closed"}:${user?.id || "anonymous"}:${task.id}`;
+  activeUserIdRef.current = user?.id || null;
+  activeTaskIdRef.current = task.id;
+
+  const beginRequest = () => ({ id: ++requestIdRef.current, scope: activeScopeRef.current, userId: user?.id || null, taskId: task.id });
+  const isCurrentRequest = (request: { id: number; scope: string; userId: string | null; taskId: string }) =>
+    request.id === requestIdRef.current && request.scope === activeScopeRef.current &&
+    request.userId === activeUserIdRef.current && request.taskId === activeTaskIdRef.current;
 
   // Subtasks
   const [subSugs, setSubSugs] = useState<string[]>([]);
@@ -106,36 +118,42 @@ export function TaskAIPanel({
   const [chatInput, setChatInput] = useState("");
 
   useEffect(() => {
-    if (!open) {
-      setSubSugs([]); setSubPicked({}); setQuestions([]); setAnswers({});
-      setMeta(null); setChat([]); setChatInput("");
-      subtaskIdsRef.current = [];
-      smallStepIdRef.current = null;
-    }
-  }, [open]);
+    requestIdRef.current += 1;
+    setLoading(false);
+    setGlobalCtx(false);
+    setSubSugs([]); setSubPicked({}); setQuestions([]); setAnswers({});
+    setMeta(null); setChat([]); setChatInput("");
+    subtaskIdsRef.current = [];
+    smallStepIdRef.current = null;
+  }, [open, user?.id, task.id]);
 
-  const buildContext = async (): Promise<string> => {
-    let ctx = `Current task:\nTitle: ${task.title}\nDescription: ${task.description || "(none)"}\nPriority: ${task.priority}\nDate: ${taskWorkDate(task) || "(none)"}\nRecurrence: ${describeRule(task.recurrence_rule || null, true)}`;
-    if (globalCtx && user) {
-      const [{ data: tasks }, { data: notes }] = await Promise.all([
-        firebaseStore.from("tasks").select("*").limit(40),
-        firebaseStore.from("notes").select("title").limit(20),
-      ]);
-      ctx += `\n\nAll tasks: ${JSON.stringify(compactTasksForAI(tasks || []))}`;
-      ctx += `\nAll notes: ${JSON.stringify(notes || [])}`;
+  const buildContext = async (request: ReturnType<typeof beginRequest>): Promise<string | null> => {
+    const taskSnapshot = task;
+    let ctx = `Current task:\nTitle: ${taskSnapshot.title}\nDescription: ${taskSnapshot.description || "(none)"}\nPriority: ${taskSnapshot.priority}\nDate: ${taskWorkDate(taskSnapshot) || "(none)"}\nRecurrence: ${describeRule(taskSnapshot.recurrence_rule || null, true)}`;
+    if (globalCtx && request.userId) {
+      const { data: rows, error } = await firebaseStore.from("tasks")
+        .select("id,title,priority,completed,work_date,due_date,schedule_v,planning_horizon,planning_start,planning_end,planning_calendar,schedule_timezone,user_id,source_type")
+        .eq("user_id", request.userId).limit(40);
+      if (error) throw error;
+      if (!isCurrentRequest(request)) return null;
+      const tasks = (rows || []).filter((row: Partial<Task>) => row.user_id === request.userId && !row.source_type && row.id !== taskSnapshot.id);
+      ctx += `\n\nOther selected work tasks (titles and schedule only): ${JSON.stringify(compactTasksForAI(tasks))}`;
     }
     return ctx;
   };
 
   // ====== Subtasks ======
   const genSubtasks = async (extra?: string) => {
+    const request = beginRequest();
     setLoading(true);
     try {
-      const ctx = await buildContext();
+      const ctx = await buildContext(request);
+      if (!ctx || !isCurrentRequest(request)) return;
       const promptInput = extra
         ? `Task: "${task.title}"\nClarifications:\n${extra}`
         : `Task: "${task.title}"`;
-      const r = await callAI("task_subtasks", promptInput, ctx, undefined, aiLang);
+      const r = await callAI("task_subtasks", promptInput, ctx, undefined, aiLang, { skipPersonalization: true });
+      if (!isCurrentRequest(request)) return;
       const d = r.data;
       if (d?.mode === "questions" && d.questions?.length) {
         setQuestions(d.questions);
@@ -148,8 +166,8 @@ export function TaskAIPanel({
         setSubPicked(Object.fromEntries(suggestions.map((_: string, i: number) => [i, true])));
         setQuestions([]);
       }
-    } catch (e: any) { toast.error(e.message); }
-    finally { setLoading(false); }
+    } catch (e: any) { if (isCurrentRequest(request)) toast.error(e.message); }
+    finally { if (isCurrentRequest(request)) setLoading(false); }
   };
 
   const submitAnswers = () => {
@@ -159,34 +177,45 @@ export function TaskAIPanel({
 
   const addPickedSubtasks = async () => {
     if (!user || applying) return;
+    const ownerId = user.id;
+    const taskId = task.id;
     const picked = subSugs.map((title, index) => ({ title, index })).filter(({ index }) => subPicked[index]);
     if (!picked.length) return toast.error(T("چیزی انتخاب نشده", "Nothing selected"));
-    // Create child tasks (each subtask is a real task with parent_id)
     setApplying(true);
     try {
-      const results = await Promise.all(picked.map(({ title, index }) => persistTask(user.id, {
-        // Keep one ID per proposal row so a partial failure can be retried safely.
-        id: subtaskIdsRef.current[index] || (subtaskIdsRef.current[index] = newSuggestedTaskId()),
-        user_id: user.id, title, parent_id: task.id, priority: "none", status: "todo", completed: false,
-      })));
+      const results: TaskPersistenceStatus[] = [];
+      for (const { title, index } of picked) {
+        if (activeUserIdRef.current !== ownerId || activeTaskIdRef.current !== taskId || !open) return;
+        results.push(await persistTask(ownerId, {
+          // Keep one ID per proposal row so a partial failure can be retried safely.
+          id: subtaskIdsRef.current[index] || (subtaskIdsRef.current[index] = newSuggestedTaskId()),
+          user_id: ownerId, title, parent_id: taskId, priority: "none", status: "todo", completed: false,
+        }));
+        if (activeUserIdRef.current !== ownerId || activeTaskIdRef.current !== taskId) return;
+      }
       if (results.some((result) => result === "failed")) throw new Error(T("برخی زیرتسک‌ها ذخیره نشدند", "Some subtasks could not be saved"));
       toast.success(results.some((result) => result === "queued")
         ? T(`${picked.length} زیرتسک برای همگام‌سازی صف شد`, `${picked.length} subtasks queued to sync`)
         : T(`${picked.length} زیرتسک اضافه شد ✨`, `${picked.length} subtasks added ✨`));
       setSubSugs([]); setSubPicked({});
       subtaskIdsRef.current = [];
-      onMetaApplied?.();
-    } catch (error: any) { toast.error(error?.message || T("ذخیره نشد", "Could not save")); }
+      if (activeUserIdRef.current === ownerId && activeTaskIdRef.current === taskId) onMetaApplied?.();
+    } catch (error: any) {
+      if (activeUserIdRef.current === ownerId && activeTaskIdRef.current === taskId) toast.error(error?.message || T("ذخیره نشد", "Could not save"));
+    }
     finally { setApplying(false); }
   };
 
   // ====== Metadata ======
   const suggestMeta = async () => {
+    const request = beginRequest();
     setLoading(true);
     try {
-      const ctx = await buildContext();
+      const ctx = await buildContext(request);
+      if (!ctx || !isCurrentRequest(request)) return;
       const r = await callAI("task_metadata_suggest",
-        `Title: ${task.title}\nDescription: ${task.description || ""}`, ctx, undefined, aiLang);
+        `Title: ${task.title}\nDescription: ${task.description || ""}`, ctx, undefined, aiLang, { skipPersonalization: true });
+      if (!isCurrentRequest(request)) return;
       const data = r.data || {};
       const intent = data.if_then && typeof data.if_then.if === "string" && typeof data.if_then.then === "string"
         ? { if: data.if_then.if.trim(), then: data.if_then.then.trim() }
@@ -215,12 +244,13 @@ export function TaskAIPanel({
       smallStepIdRef.current = typeof data.small_step === "string" && data.small_step.trim()
         ? newSuggestedTaskId()
         : null;
-    } catch (e: any) { toast.error(e.message); }
-    finally { setLoading(false); }
+    } catch (e: any) { if (isCurrentRequest(request)) toast.error(e.message); }
+    finally { if (isCurrentRequest(request)) setLoading(false); }
   };
 
   const applyMeta = async () => {
     if (!meta || applying) return;
+    const request = beginRequest();
     const patch: Partial<Task> = {};
     const title = meta.title?.trim();
     if (title && title !== task.title) patch.title = title;
@@ -236,62 +266,75 @@ export function TaskAIPanel({
     setApplying(true);
     try {
       const result = await onApplyPatch(patch);
+      if (!isCurrentRequest(request)) return;
       if (result === "failed") throw new Error(T("ذخیره انجام نشد", "The changes were not saved"));
       toast.success(result === "queued" ? T("برای همگام‌سازی صف شد", "Queued to sync") : T("اعمال شد ✨", "Applied ✨"));
       onMetaApplied?.();
       setMeta(null);
     } catch (error: any) {
-      toast.error(error?.message || T("ذخیره انجام نشد", "The changes were not saved"));
-    } finally { setApplying(false); }
+      if (isCurrentRequest(request)) toast.error(error?.message || T("ذخیره انجام نشد", "The changes were not saved"));
+    } finally { if (isCurrentRequest(request)) setApplying(false); }
   };
 
   const addSuggestedStep = async () => {
     if (!user || !meta?.small_step?.trim() || applying) return;
+    const request = beginRequest();
+    const ownerId = user.id;
     setApplying(true);
     try {
       const id = smallStepIdRef.current || (smallStepIdRef.current = newSuggestedTaskId());
-      const result = await persistTask(user.id, {
-        id, user_id: user.id, title: meta.small_step.trim(), description: null,
+      const result = await persistTask(ownerId, {
+        id, user_id: ownerId, title: meta.small_step.trim(), description: null,
         parent_id: task.id, priority: "none", status: "todo", completed: false,
       });
+      if (!isCurrentRequest(request)) return;
       if (result === "failed") throw new Error(T("زیرتسک ذخیره نشد", "The subtask was not saved"));
       toast.success(result === "queued" ? T("زیرتسک برای همگام‌سازی صف شد", "Subtask queued to sync") : T("گام بعدی اضافه شد", "Next step added"));
       onMetaApplied?.();
       smallStepIdRef.current = null;
       setMeta((current) => current ? { ...current, small_step: undefined } : null);
-    } catch (error: any) { toast.error(error?.message || T("ذخیره نشد", "Could not save")); }
-    finally { setApplying(false); }
+    } catch (error: any) { if (isCurrentRequest(request)) toast.error(error?.message || T("ذخیره نشد", "Could not save")); }
+    finally { if (isCurrentRequest(request)) setApplying(false); }
   };
 
   // ====== Note generation ======
   const genNote = async () => {
     if (!user) return;
+    const request = beginRequest();
+    const ownerId = user.id;
+    const taskId = task.id;
     setLoading(true);
     try {
-      const ctx = await buildContext();
-      const r = await callAI("generate_note", task.title, ctx, undefined, aiLang);
+      const ctx = await buildContext(request);
+      if (!ctx || !isCurrentRequest(request)) return;
+      const r = await callAI("generate_note", task.title, ctx, undefined, aiLang, { skipPersonalization: true });
+      if (!isCurrentRequest(request)) return;
       const { error } = await firebaseStore.from("notes").insert({
-        user_id: user.id, task_id: task.id, title: task.title, content: r.text,
+        user_id: ownerId, task_id: taskId, title: task.title, content: r.text,
       });
       if (error) throw error;
+      if (!isCurrentRequest(request)) return;
       toast.success(T("نوت برای این تسک ساخته شد ✨", "Note created for this task ✨"));
-    } catch (e: any) { toast.error(e.message); }
-    finally { setLoading(false); }
+    } catch (e: any) { if (isCurrentRequest(request)) toast.error(e.message); }
+    finally { if (isCurrentRequest(request)) setLoading(false); }
   };
 
   // ====== Chat ======
   const sendChat = async () => {
     if (!chatInput.trim()) return;
+    const request = beginRequest();
     const newMsg = { role: "user" as const, content: chatInput };
     setChat((c) => [...c, newMsg]);
     setChatInput("");
     setLoading(true);
     try {
-      const ctx = await buildContext();
-      const r = await callAI("task_chat", [...chat, newMsg], ctx, undefined, aiLang);
+      const ctx = await buildContext(request);
+      if (!ctx || !isCurrentRequest(request)) return;
+      const r = await callAI("task_chat", [...chat, newMsg], ctx, undefined, aiLang, { skipPersonalization: true });
+      if (!isCurrentRequest(request)) return;
       setChat((c) => [...c, { role: "assistant", content: r.text }]);
-    } catch (e: any) { toast.error(e.message); }
-    finally { setLoading(false); }
+    } catch (e: any) { if (isCurrentRequest(request)) toast.error(e.message); }
+    finally { if (isCurrentRequest(request)) setLoading(false); }
   };
 
   return (
@@ -306,10 +349,17 @@ export function TaskAIPanel({
         <div className="mt-3 space-y-2">
           <div className="flex items-center justify-between p-2 rounded-lg border bg-accent/20">
             <Label htmlFor="global-ctx" className="text-sm cursor-pointer flex-1">
-              🌐 {T("دسترسی به همه تسک‌ها و نوت‌های من", "Access all my tasks & notes")}
+              🌐 {T("افزودن عنوان و برنامهٔ کارهای عادی من به زمینه", "Include my regular task titles and schedules as context")}
             </Label>
-            <Switch id="global-ctx" checked={globalCtx} onCheckedChange={setGlobalCtx} />
+            <Switch id="global-ctx" checked={globalCtx} onCheckedChange={(checked) => {
+              requestIdRef.current += 1;
+              setLoading(false);
+              setGlobalCtx(checked);
+            }} />
           </div>
+          <p className="px-2 text-[11px] text-muted-foreground">
+            {T("فقط با انتخاب تو خوانده می‌شود؛ نوت‌ها، خاطرات روزانه و اطلاعات بخش ذهن وارد زمینه نمی‌شوند.", "Read only after your choice. Notes, diary entries, and Mind data are excluded.")}
+          </p>
           <div className="flex items-center justify-between p-2 rounded-lg border bg-accent/20">
             <span className="text-sm">{T("زبان پاسخ AI", "AI response language")}</span>
             <AILangToggle value={aiLang} onChange={setAiLang} />

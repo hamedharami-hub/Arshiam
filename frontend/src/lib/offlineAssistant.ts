@@ -374,6 +374,22 @@ export function offlineAssistant(
     return { offline: true, tier: 3, data, text: JSON.stringify(data) };
   }
 
+  if (mode === "parse_task_list") {
+    // Offline parsing stays deterministic: only explicit lines/bullets become drafts.
+    // It does not infer schedule, repeat, deadline, or priority.
+    const lines = raw.split(/\r?\n/)
+      .map((line) => line.trim().replace(/^(?:[-*•]+|\d+[.)])\s*/, ""))
+      .filter(Boolean)
+      .slice(0, 20);
+    const items = lines.map((source_text) => ({
+      source_text,
+      title: source_text,
+      description: "",
+      priority: "none",
+    }));
+    return { offline: true, tier: 3, data: { items, source: "offline-deterministic" }, text: JSON.stringify({ items }) };
+  }
+
   if (mode === "task_metadata_suggest") {
     const domain = detectDomain(raw);
     const reason = fa
@@ -497,4 +513,3 @@ export function offlineAssistant(
     text: responseText,
   };
 }
-

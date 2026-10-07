@@ -7,11 +7,12 @@ const mocks = vi.hoisted(() => ({
   persistTask: vi.fn(),
   success: vi.fn(),
   error: vi.fn(),
+  from: vi.fn(),
 }));
 
 vi.mock("@/lib/ai", () => ({ callAI: mocks.callAI, getAILanguage: () => "en" }));
 vi.mock("@/lib/firestoreDataService", () => ({ persistTask: mocks.persistTask }));
-vi.mock("@/lib/firebaseStore", () => ({ firebaseStore: { from: vi.fn() } }));
+vi.mock("@/lib/firebaseStore", () => ({ firebaseStore: { from: mocks.from } }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: "user-1" } }) }));
 vi.mock("@/components/PomodoroTimer", () => ({ default: () => null }));
 vi.mock("@/components/AILangToggle", () => ({ AILangToggle: () => null }));
@@ -34,6 +35,7 @@ describe("TaskAIPanel proposals", () => {
       work_date: "2026-10-08", schedule_reason: "The task text names this day.", reason: "The title was broad.",
     } });
     mocks.persistTask.mockReset().mockResolvedValue("saved");
+    mocks.from.mockReset();
     mocks.success.mockReset();
     mocks.error.mockReset();
   });
@@ -137,5 +139,51 @@ describe("TaskAIPanel proposals", () => {
     fireEvent.click(screen.getByRole("button", { name: "Apply suggestions" }));
     await waitFor(() => expect(onApplyPatch).toHaveBeenCalledTimes(1));
     expect(onApplyPatch.mock.calls[0][0]).toEqual({ title: "Prepare the weekly report" });
+  });
+
+  it("sends only explicitly opted-in, uid-scoped work task summaries and never queries notes", async () => {
+    const query = { select: vi.fn(), eq: vi.fn(), limit: vi.fn() };
+    query.select.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    query.limit.mockResolvedValue({ data: [
+      { id: "owned", user_id: "user-1", title: "Owned work", priority: "high", completed: false, status: "todo", work_date: "2026-10-08", schedule_v: 2 },
+      { id: "foreign", user_id: "user-2", title: "Foreign work", priority: "none", completed: false, status: "todo" },
+      { id: "mind", user_id: "user-1", title: "Sensitive mind item", priority: "none", completed: false, status: "todo", source_type: "cbt_thought" },
+    ], error: null });
+    mocks.from.mockReturnValue(query);
+    mocks.callAI.mockResolvedValue({ text: "Answer" });
+    render(<TaskAIPanel task={task} open onOpenChange={vi.fn()} onApplyPatch={vi.fn().mockResolvedValue("saved")} />);
+    fireEvent.click(screen.getByRole("switch"));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Chat" }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole("tab", { name: "Chat" }));
+    const chatInput = screen.getByPlaceholderText("Ask...");
+    fireEvent.change(chatInput, { target: { value: "What next?" } });
+    fireEvent.keyDown(chatInput, { key: "Enter" });
+
+    await screen.findByText("Answer");
+    expect(mocks.from).toHaveBeenCalledWith("tasks");
+    expect(query.eq).toHaveBeenCalledWith("user_id", "user-1");
+    const context = mocks.callAI.mock.calls.at(-1)?.[2] as string;
+    expect(context).toContain("Owned work");
+    expect(context).not.toContain("Foreign work");
+    expect(context).not.toContain("Sensitive mind item");
+    expect(mocks.from).not.toHaveBeenCalledWith("notes");
+  });
+
+  it("ignores a suggestion response after the selected task changes", async () => {
+    let resolveAI!: (result: unknown) => void;
+    mocks.callAI.mockImplementationOnce(() => new Promise((resolve) => { resolveAI = resolve; }));
+    const props = { open: true, onOpenChange: vi.fn(), onApplyPatch: vi.fn().mockResolvedValue("saved") };
+    const view = render(<TaskAIPanel task={task} {...props} />);
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Suggest" }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole("tab", { name: "Suggest" }));
+    fireEvent.click(screen.getByRole("button", { name: "Suggest" }));
+    await waitFor(() => expect(resolveAI).toBeTypeOf("function"));
+
+    view.rerender(<TaskAIPanel task={{ ...task, id: "task-2", title: "Different task" }} {...props} />);
+    resolveAI({ data: { title: "Stale title", priority: "high" } });
+
+    expect(screen.queryByText("Stale title")).not.toBeInTheDocument();
+    expect(props.onApplyPatch).not.toHaveBeenCalled();
   });
 });

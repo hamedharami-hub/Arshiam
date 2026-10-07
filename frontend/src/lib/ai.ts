@@ -36,7 +36,7 @@ export async function callAI(
   context?: string,
   action?: string,
   langOverride?: AILanguage,
-  opts?: { webSearch?: boolean; systemPromptOverride?: string; signal?: AbortSignal },
+  opts?: { webSearch?: boolean; systemPromptOverride?: string; signal?: AbortSignal; skipPersonalization?: boolean },
 ) {
   const lang = langOverride ?? getAILanguage();
   const settings = getAISettings(mode);
@@ -62,10 +62,10 @@ export async function callAI(
   const language = lang === "auto" ? undefined : lang;
 
   // Personalization: strictly opt-in to protect sensitive user profile and mental health notes
-  const personalization = await buildPersonalizationContext({
-    lang: language === "en" ? "en" : "fa",
-  });
-  const personalizationContext = personalization.contextText;
+  const personalization = opts?.skipPersonalization
+    ? null
+    : await buildPersonalizationContext({ lang: language === "en" ? "en" : "fa" });
+  const personalizationContext = personalization?.contextText || "";
 
   let systemPrompt = opts?.systemPromptOverride || GEMINI_SYSTEM_PROMPTS[mode] || GEMINI_SYSTEM_PROMPTS.chat;
   if (personalizationContext) {
