@@ -3,15 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { formatDate, toPersianDigits, type CalendarSystem } from "@/lib/jalali";
 import { isHoliday, dominantKind, HOLIDAY_TONE, type Holiday } from "@/lib/holidays";
 import { parseTaskDueDate } from "@/lib/taskDate";
-
-type Task = { id: string; title: string; due_date: string | null; priority: string };
+import type { CalendarTask } from "./CalendarTask";
+import DeadlineMarker from "./DeadlineMarker";
 
 export default function AgendaView({
   start, end, tasks, holidays, system,
 }: {
   start: Date;
   end: Date;
-  tasks: Task[];
+  tasks: CalendarTask[];
   holidays: Holiday[];
   system: CalendarSystem;
 }) {
@@ -60,6 +60,7 @@ export default function AgendaView({
                     {toPersianDigits(format(t._d, "HH:mm"))}
                   </span>
                   <span className="flex-1 truncate text-foreground/90">{t.title}</span>
+                  <DeadlineMarker deadlineDate={t.deadline_date} completed={t.completed} status={t.status} />
                 </button>
               ))}
             </div>

@@ -8,8 +8,8 @@ import { useTapGestures } from "@/lib/useTapGestures";
 import { usePinchZoom } from "@/lib/usePinchZoom";
 import { ZoomIn } from "lucide-react";
 import { parseTaskDueDate } from "@/lib/taskDate";
-
-type Task = { id: string; title: string; due_date: string | null; priority: string };
+import type { CalendarTask } from "./CalendarTask";
+import DeadlineMarker from "./DeadlineMarker";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const BASE_ROW = 36;
@@ -17,7 +17,7 @@ const BASE_ROW = 36;
 function Slot({
   d, h, slotTasks, onClick, onDouble, height,
 }: {
-  d: Date; h: number; slotTasks: Task[]; onClick: () => void; onDouble: () => void; height: number;
+  d: Date; h: number; slotTasks: CalendarTask[]; onClick: () => void; onDouble: () => void; height: number;
 }) {
   const navigate = useNavigate();
   const { handlers } = useTapGestures({ onSingleTap: onClick, onDoubleTap: onDouble });
@@ -34,7 +34,10 @@ function Slot({
           onClick={(e) => { e.stopPropagation(); navigate(`/app/tasks/${t.id}`); }}
           className="bg-muted text-foreground/80 text-[10px] truncate rounded-md px-2 py-1 mb-1 border border-border/60 cursor-pointer hover:bg-accent/60 transition"
         >
-          {t.title}
+          <span className="inline-flex max-w-full items-center gap-1">
+            <span className="truncate">{t.title}</span>
+            <DeadlineMarker deadlineDate={t.deadline_date} completed={t.completed} status={t.status} />
+          </span>
         </div>
       ))}
     </div>
@@ -45,7 +48,7 @@ export default function WeekView({
   date, tasks, holidays, system, onDayClick, onSlotClick,
 }: {
   date: Date;
-  tasks: Task[];
+  tasks: CalendarTask[];
   holidays: Holiday[];
   system: CalendarSystem;
   onDayClick: (d: Date) => void;

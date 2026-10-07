@@ -14,8 +14,8 @@ import { useNavigate } from "react-router-dom";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { toast } from "sonner";
 import { parseTaskDueDate, taskDueTimestamp } from "@/lib/taskDate";
-
-type Task = { id: string; title: string; due_date: string | null; priority: string };
+import type { CalendarTask } from "./CalendarTask";
+import DeadlineMarker from "./DeadlineMarker";
 
 const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2, none: 3 };
 const PRIORITY_COLOR: Record<string, string> = {
@@ -33,7 +33,7 @@ export default function DayDetailSheet({
   date: Date | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  tasks: Task[];
+  tasks: CalendarTask[];
   holidays: Holiday[];
   system: CalendarSystem;
   onTaskCreated?: () => void;
@@ -139,6 +139,7 @@ export default function DayDetailSheet({
               >
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ background: PRIORITY_COLOR[t.priority] || PRIORITY_COLOR.none }} />
                 <span className="truncate flex-1">{t.title}</span>
+                <DeadlineMarker deadlineDate={t.deadline_date} completed={t.completed} status={t.status} />
                 <span className="text-[10px] text-muted-foreground tabular-nums">
                   {toPersianDigits(String(t.due_date ? (parseTaskDueDate(t.due_date)?.getHours().toString().padStart(2, "0") ?? "--") : "--"))}
                   :{toPersianDigits(String(t.due_date ? (parseTaskDueDate(t.due_date)?.getMinutes().toString().padStart(2, "0") ?? "00") : "00"))}

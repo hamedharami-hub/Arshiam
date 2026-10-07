@@ -3,12 +3,13 @@ import { taskWorkDate } from "@/lib/taskDate";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, subDays } from "date-fns";
-import { ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle2, Filter, RotateCcw } from "lucide-react";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getCalendarSystem, setCalendarSystem, formatDate, type CalendarSystem } from "@/lib/jalali";
 import { getHolidaysForRange, getOccasionSets, setOccasionSets, HOLIDAYS_EVENT, type Holiday, type OccasionSet } from "@/lib/holidays";
 import { HolidayList } from "@/components/calendar/HolidayList";
@@ -23,8 +24,14 @@ import DayView from "@/components/calendar/DayView";
 import AgendaView from "@/components/calendar/AgendaView";
 import DayDetailSheet from "@/components/calendar/DayDetailSheet";
 import type { CycleProfile, CycleLog } from "@/lib/cycle";
+import type { CalendarTask } from "@/components/calendar/CalendarTask";
 
 type ViewMode = "month" | "week" | "day" | "agenda";
+type CalendarFilterStatus = "all" | "todo" | "in_progress" | "waiting" | "done" | "wont_do";
+type CalendarFolder = { id: string; name: string };
+type CalendarTag = { id: string; name: string };
+const ALL_FILTER = "__all__";
+const UNFILED_FILTER = "__unfiled__";
 
 export default function CalendarView() {
   const { user } = useAuth();
@@ -33,7 +40,14 @@ export default function CalendarView() {
   const showCompletedTasks = useShowCompletedTasks();
   const [date, setDate] = useState(new Date());
   const [view, setView] = useState<ViewMode>("month");
-  const [tasks, setTasks] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<CalendarTask[]>([]);
+  const [folders, setFolders] = useState<CalendarFolder[]>([]);
+  const [tags, setTags] = useState<CalendarTag[]>([]);
+  const [taskTags, setTaskTags] = useState<Record<string, string[]>>({});
+  const [folderFilter, setFolderFilter] = useState(ALL_FILTER);
+  const [tagFilter, setTagFilter] = useState(ALL_FILTER);
+  const [statusFilter, setStatusFilter] = useState<CalendarFilterStatus>("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [occasionSets, setSets] = useState<OccasionSet[]>(getOccasionSets);
   const [system, setSystem] = useState<CalendarSystem>(getCalendarSystem());
@@ -43,7 +57,63 @@ export default function CalendarView() {
   const [cycleLogs, setCycleLogs] = useState<CycleLog[]>([]);
   const [cycleOverlayEnabled, setCycleOverlayEnabled] = useState(true);
   const [detailDate, setDetailDate] = useState<Date | null>(null);
-  const visibleTasks = useMemo(() => filterTasksForVisibility(tasks, showCompletedTasks), [tasks, showCompletedTasks]);
+  const visibleTasks = useMemo(() => filterTasksForVisibility(tasks, showCompletedTasks).filter((task) => {
+    if (folderFilter !== ALL_FILTER) {
+      if (folderFilter === UNFILED_FILTER ? Boolean(task.folder_id) : task.folder_id !== folderFilter) return false;
+    }
+    if (tagFilter !== ALL_FILTER && !(taskTags[task.id] || task.tag_ids || []).includes(tagFilter)) return false;
+    if (statusFilter === "done") return task.completed === true || task.status === "done";
+    if (statusFilter === "todo" || statusFilter === "in_progress" || statusFilter === "waiting" || statusFilter === "wont_do") {
+      return task.status === statusFilter;
+    }
+    return true;
+  }), [tasks, showCompletedTasks, folderFilter, tagFilter, statusFilter, taskTags]);
+
+  const activeFilterCount = Number(folderFilter !== ALL_FILTER) + Number(tagFilter !== ALL_FILTER) + Number(statusFilter !== "all");
+
+  // Load only this account's folder, tag, and task-tag metadata. Selection state
+  // stays in this page while switching calendar views.
+  useEffect(() => {
+    setFolders([]);
+    setTags([]);
+    setTaskTags({});
+    setFolderFilter(ALL_FILTER);
+    setTagFilter(ALL_FILTER);
+    setStatusFilter("all");
+    if (!user?.id) {
+      return;
+    }
+    let active = true;
+    const loadMetadata = async () => {
+      const [folderResult, tagResult, taskTagResult] = await Promise.allSettled([
+        firebaseStore.from("folders").select("id,name").eq("user_id", user.id).order("name"),
+        firebaseStore.from("tags").select("id,name").eq("user_id", user.id).order("name"),
+        firebaseStore.from("task_tags").select("task_id,tag_id").eq("user_id", user.id),
+      ]);
+      if (!active) return;
+      if (folderResult.status === "fulfilled") setFolders((folderResult.value.data || []) as CalendarFolder[]);
+      if (tagResult.status === "fulfilled") setTags((tagResult.value.data || []) as CalendarTag[]);
+      if (taskTagResult.status === "fulfilled") {
+        const mapping: Record<string, string[]> = {};
+        for (const row of (taskTagResult.value.data || []) as { task_id: string; tag_id: string }[]) {
+          if (!row.task_id || !row.tag_id) continue;
+          (mapping[row.task_id] ||= []).push(row.tag_id);
+        }
+        setTaskTags(mapping);
+      }
+    };
+    void loadMetadata();
+    const refresh = () => { void loadMetadata(); };
+    window.addEventListener("tasks-changed", refresh);
+    window.addEventListener("task-tags-changed", refresh);
+    window.addEventListener("firebase-store-changed", refresh);
+    return () => {
+      active = false;
+      window.removeEventListener("tasks-changed", refresh);
+      window.removeEventListener("task-tags-changed", refresh);
+      window.removeEventListener("firebase-store-changed", refresh);
+    };
+  }, [user?.id]);
 
   // Load user cycle settings & active profile
   useEffect(() => {
@@ -97,7 +167,7 @@ export default function CalendarView() {
     const startTime = start.getTime();
     const endTime = end.getTime();
 
-    firebaseStore.from("tasks").select("*")
+    firebaseStore.from("tasks").select("*").eq("user_id", user.id)
       .then(({ data }) => {
         const matching: any[] = [];
         const seenIds = new Set<string>();
@@ -221,6 +291,54 @@ export default function CalendarView() {
             <CheckCircle2 className={`w-3.5 h-3.5 ${showCompletedTasks ? "text-success" : "text-muted-foreground"}`} />
             <span className="hidden sm:inline">{showCompletedTasks ? T("تکمیل‌شده‌ها", "Completed") : T("فقط بازها", "Open only")}</span>
           </Button>
+          <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                size="icon"
+                variant={activeFilterCount ? "secondary" : "outline"}
+                className="relative h-9 w-9 rounded-lg border border-border/60"
+                aria-label={T("فیلترهای تقویم", "Calendar filters")}
+                aria-expanded={filtersOpen}
+                data-testid="calendar-open-filters"
+              >
+                <Filter className="h-4 w-4" />
+                {activeFilterCount > 0 && <span className="absolute -top-1 -end-1 min-w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] leading-4 px-1">{activeFilterCount}</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align={isEn ? "end" : "start"} className="w-64 p-3 space-y-3" data-testid="calendar-filters">
+              <label className="block space-y-1 text-xs font-medium">
+                <span>{T("فولدر", "Folder")}</span>
+                <select aria-label={T("فیلتر فولدر", "Folder filter")} value={folderFilter} onChange={(event) => setFolderFilter(event.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm font-normal">
+                  <option value={ALL_FILTER}>{T("همهٔ فولدرها", "All folders")}</option>
+                  <option value={UNFILED_FILTER}>{T("بدون فولدر", "Unfiled")}</option>
+                  {folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
+                </select>
+              </label>
+              <label className="block space-y-1 text-xs font-medium">
+                <span>{T("برچسب", "Tag")}</span>
+                <select aria-label={T("فیلتر برچسب", "Tag filter")} value={tagFilter} onChange={(event) => setTagFilter(event.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm font-normal">
+                  <option value={ALL_FILTER}>{T("همهٔ برچسب‌ها", "All tags")}</option>
+                  {tags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
+                </select>
+              </label>
+              <label className="block space-y-1 text-xs font-medium">
+                <span>{T("وضعیت", "Status")}</span>
+                <select aria-label={T("فیلتر وضعیت", "Status filter")} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CalendarFilterStatus)} className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm font-normal">
+                  <option value="all">{T("همهٔ وضعیت‌ها", "All statuses")}</option>
+                  <option value="todo">{T("برای انجام", "To do")}</option>
+                  <option value="in_progress">{T("در حال انجام", "In progress")}</option>
+                  <option value="waiting">{T("در انتظار", "Waiting")}</option>
+                  <option value="done">{T("انجام‌شده", "Completed")}</option>
+                  <option value="wont_do">{T("انجام نمی‌شود", "Won't do")}</option>
+                </select>
+              </label>
+              {activeFilterCount > 0 && (
+                <Button type="button" size="sm" variant="ghost" className="h-8 w-full text-xs" onClick={() => { setFolderFilter(ALL_FILTER); setTagFilter(ALL_FILTER); setStatusFilter("all"); }}>
+                  <RotateCcw className="me-1.5 h-3.5 w-3.5" />{T("پاک‌کردن فیلترها", "Clear filters")}
+                </Button>
+              )}
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 

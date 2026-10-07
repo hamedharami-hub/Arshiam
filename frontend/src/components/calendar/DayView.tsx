@@ -6,14 +6,8 @@ import { useTapGestures } from "@/lib/useTapGestures";
 import { usePinchZoom } from "@/lib/usePinchZoom";
 import { ZoomIn } from "lucide-react";
 import { parseTaskDueDate } from "@/lib/taskDate";
-
-type Task = {
-  id: string;
-  title: string;
-  due_date: string | null;
-  priority: string;
-  description?: string | null;
-};
+import type { CalendarTask } from "./CalendarTask";
+import DeadlineMarker from "./DeadlineMarker";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const BASE_HEIGHT = 56;
@@ -21,7 +15,7 @@ const BASE_HEIGHT = 56;
 function HourSlot({
   date, h, slotDue, onSlotClick, onTaskClick, onQuickCreate, height,
 }: {
-  date: Date; h: number; slotDue: Task[]; height: number;
+  date: Date; h: number; slotDue: CalendarTask[]; height: number;
   onSlotClick?: (h: number) => void;
   onTaskClick?: (id: string) => void;
   onQuickCreate: (h: number) => void;
@@ -47,7 +41,10 @@ function HourSlot({
             onClick={(e) => { e.stopPropagation(); onTaskClick?.(t.id); }}
             className="bg-card text-foreground/80 text-xs rounded-md px-2 py-1 truncate border border-border/60 hover:border-primary/30 hover:bg-accent/30 transition"
           >
-            {t.title}
+            <span className="inline-flex max-w-full items-center gap-1">
+              <span className="truncate">{t.title}</span>
+              <DeadlineMarker deadlineDate={t.deadline_date} completed={t.completed} status={t.status} />
+            </span>
           </div>
         ))}
       </div>
@@ -59,7 +56,7 @@ export default function DayView({
   date, tasks, system, onSlotClick, onTaskClick,
 }: {
   date: Date;
-  tasks: Task[];
+  tasks: CalendarTask[];
   system: CalendarSystem;
   onSlotClick?: (hour: number) => void;
   onTaskClick?: (taskId: string) => void;
