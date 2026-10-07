@@ -29,3 +29,18 @@ Review history snapshots, TaskAIPanel assistance, goal horizons in LifeArchitect
 - Keep the interface quiet: no new page, tab, navigation item, permanent dashboard card, or default notification. Use one compact field in existing task details, a small calendar marker on the deadline day, and a row badge only when the deadline is within seven days or overdue.
 - Keep the old `deadline` field retired. Do not auto-restore values from `schedule_legacy`; preserve backups. Deadline status is separate from schedule-overdue status, and never reschedules or completes a task.
 - Update the shared task type/writers/readers and task/agent API validation; ensure reminders stay separate. Add tests for independent schedule/deadline edits, date-only timezone safety, overdue/completed states, same-day deduplication, bilingual UI, and no default notifications.
+
+
+## نقشهٔ راه ایده‌های پژوهش‌شده (آینده؛ تطبیق‌شده با کد فعلی)
+فازهای ۱ تا ۳ و آزمون E2E هستهٔ زمان‌بندی مقدم‌اند؛ فاز ۴ Deadline اختیاری و جداگانه در بالا ثبت شده است. ایده‌های این جدول فقط وارد نقشهٔ راه می‌شوند و هنوز مجوز اجرای کد نیستند.
+
+| موضوع | آنچه اکنون در کد هست | مسیر پیشنهادی |
+|---|---|---|
+| تقویم TickTick | ماه/هفته/روز/فهرست، شمسی/میلادی، تعطیلات و چرخه، ایجاد سریع تسک از روز؛ رویداد Agent فعلاً از مجموعهٔ تسک‌ها خوانده/ساخته می‌شود. | فیلترهای سبک و جابه‌جایی تسک در تقویم را بعد از تثبیت schedule بررسی کن؛ همگام‌سازی تقویم بیرونی دیرتر و با جلوگیری از نسخهٔ تکراری. |
+| صفحهٔ داخل تسک | جزئیات غنی، نوار فراداده و اقدام‌های جمع‌شونده، مرحله‌ها، چک‌لیست، نوت، پیوست، AI، تمرکز، سابقه و پیوندها از قبل وجود دارند. | فقط بازبینی ترتیب و وضوح همین بخش‌ها در موبایل؛ صفحهٔ جدید یا بازسازی جزئیات نساز. |
+| Notes و HTML | نوت مستقلِ پوشه/برچسب‌دار با ویرایشگر دیداری/Markdown/پیش‌نمایش و یادداشت‌های متصل به تسک وجود دارد. HTML ایمن برای سند آموزشی/Knowledge موجود است. | قالب نوت و تبدیل مورد تأییدشدهٔ Action Item به تسک را در همان بخش‌ها بررسی کن؛ HTML آزاد به تسک‌ها اضافه نشود. |
+| AI | پنل AI تسک، پیشنهاد زیرتسک/فراداده، ساخت نوت، چت، Pomodoro، تاریخ طبیعی و دیکتهٔ صوتی وجود دارند. | بعداً ورودی چندتسکی، پیشنهاد برنامهٔ روز/هفته و پرسش تقویم را به شکل پیش‌نویسِ قابل بازبینی اضافه کن؛ نوشتن خودکار ممنوع. |
+| Templates | قالب تک‌تسک در Quick Add و قالب‌های تخصصی Knowledge وجود دارند؛ قالب عمومی پروژه/چندتسکی و گالری قالب نوت دیده نشد. | ابتدا ذخیره/بازیابی قالب فعلی را کامل کن، سپس نمونه‌های قابل‌کپی پروژه و نوت را در مسیرهای فعلی بررسی کن. |
+| Focus To-Do | تایمر ۲۵/۵/۱۵ قابل تنظیم، اتصال به تسک، ثبت جلسه، آمار امروز/۷ روز و تاریخچهٔ صفحه‌بندی‌شده وجود دارد. | تخمین اختیاری تعداد جلسه و گزارش ماهانه را بعد از بررسی نیاز و مدل داده بررسی کن؛ مسدودسازی برنامه‌ها و ابزارهای سیستم‌عامل مرحلهٔ دیرتر است. |
+
+جزئیات وضعیت کد، نمونهٔ قالب‌ها، ترتیب اولویت و شروط حریم خصوصی در plan/plan.md آمده است.
