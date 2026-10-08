@@ -1,11 +1,10 @@
-import { TaskGroupHeader } from "@/components/tasks/TaskGroupHeader";
 import { useTaskListSort } from "@/lib/taskListSort";
 import { planOf } from "@/lib/planCascade";
 import { isTaskOverdue, isTaskMissedWorkDay } from "@/lib/taskPlanning";
 import { getTimeSettings, todayISO } from "@/lib/timeHorizon";
 import { filterAndSortTasks, DEFAULT_FILTERS } from "@/lib/smartListService";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { addDays, endOfDay, startOfDay } from "date-fns";
 import {
   ChevronDown, ChevronRight, CheckSquare, Columns2, CircleDot, X,
@@ -33,6 +32,7 @@ import { pushUndo } from "@/lib/undoStack";
 import { buildTaskChildrenMap, collectTaskDescendantIds, getTaskProgress, isStandaloneTaskForScope } from "@/features/tasks/taskTree";
 import { setShowCompletedTasks, useShowCompletedTasks } from "@/lib/completedTaskVisibility";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
+import { TaskGroupHeader } from "@/components/tasks/TaskGroupHeader";
 import { HeaderActionsPortal } from "@/components/HeaderActionsPortal";
 import { useResizableSplit } from "@/hooks/useResizableSplit";
 import { Button } from "@/components/ui/button";
@@ -696,6 +696,12 @@ export default function TodayDashboardView() {
               }}
               onCreated={() => load()}
             />
+          </div>
+
+          <div className="mb-3 flex">
+            <Link to="/app/recall" className="recall-launch" data-testid="start-recall">
+              {T("شروع مرور", "Start review")}
+            </Link>
           </div>
 
           {/* ۳. لیست تسک‌ها با خط زمان و ریتم فشرده هفتگی */}

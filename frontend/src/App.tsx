@@ -103,6 +103,7 @@ const KnowledgeBaseView = lazy(() => import("./pages/KnowledgeBaseView"));
 const InteractiveStudyView = lazy(() => import("./pages/InteractiveStudyView"));
 const KnowledgeMapView = lazy(() => import("./pages/KnowledgeMapView"));
 const ContinueLearningView = lazy(() => import("./pages/ContinueLearningView"));
+const RecallSessionView = lazy(() => import("./pages/RecallSessionView"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -351,6 +352,7 @@ const App = () => {
                       <Route path="knowledge-mindmap" element={<KnowledgeMapView />} />
                       <Route path="interactive-study" element={<InteractiveStudyView />} />
                       <Route path="continue" element={<ContinueLearningView />} />
+                      <Route path="recall" element={<RecallSessionView />} />
                       <Route path="stats" element={<StatsView />} />
                       <Route path="kanban" element={<Navigate to="/app/today" replace />} />
                       <Route path="planning" element={<PlanningView />} />

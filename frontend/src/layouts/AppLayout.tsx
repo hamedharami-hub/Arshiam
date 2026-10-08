@@ -115,7 +115,7 @@ export default function AppLayout() {
 
   return (
     <SidebarProvider defaultOpen={desktopDefaultOpen} side={sidebarPosition}>
-      <div className="min-h-screen flex w-full bg-background" dir="ltr">
+      <div className="app-shell min-h-screen flex w-full bg-background" dir="ltr">
         <AppSidebar className={isSidebarLeft ? "order-1" : "order-2"} />
         <div
           className={cn(
@@ -126,12 +126,12 @@ export default function AppLayout() {
         >
           {!isTaskPage && (
             <header
-              className="border-b border-border/60 flex items-center justify-between gap-2 px-3 lg:px-6 bg-background sticky top-0 z-10"
+              className="app-shell-header sticky top-0 z-10 flex items-center justify-between gap-3"
               data-testid="app-header"
-              style={{ paddingTop: "env(safe-area-inset-top)", minHeight: "calc(3rem + env(safe-area-inset-top))" }}
+              style={{ paddingTop: "env(safe-area-inset-top)" }}
             >
               <div className="flex items-center gap-1.5 min-w-0">
-                <SidebarTrigger className="size-10 md:hidden" data-testid="header-sidebar-trigger" />
+                <SidebarTrigger className="size-11 md:hidden" data-testid="header-sidebar-trigger" />
                 <HeaderBackButton />
                 <div id="app-header-title" className="min-w-0 flex items-center" />
               </div>
@@ -141,7 +141,7 @@ export default function AppLayout() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-10 w-10 shrink-0"
+                  className="h-11 w-11 shrink-0"
                   onClick={() => {
                     window.dispatchEvent(new CustomEvent("arshnaz:open-search"));
                   }}
@@ -152,7 +152,7 @@ export default function AppLayout() {
                   <Search className="w-4 h-4 text-muted-foreground" />
                 </Button>
                 <ThemeToggle />
-                <Button variant="ghost" size="icon" onClick={() => setAiOpen(true)} className="h-10 w-10 shrink-0" title="AI" aria-label="AI" data-testid="header-ai-button">
+                <Button variant="ghost" size="icon" onClick={() => setAiOpen(true)} className="h-11 w-11 shrink-0" title="AI" aria-label="AI" data-testid="header-ai-button">
                   <Sparkles className="w-4 h-4 text-primary" />
                 </Button>
               </div>
@@ -162,13 +162,16 @@ export default function AppLayout() {
             id="main-scroll"
             style={{ "--app-bottom-space": showMobileBottomBar ? "calc(var(--bottom-bar-height) + var(--bottom-bar-gap) + env(safe-area-inset-bottom, 0px))" : "0.5rem", backgroundColor: pageTint(pageBg.color, pageBg.isDefault ? 6 : 10), "--page-surface": pageTint(pageBg.color, pageBg.isDefault ? 6 : 10) || "hsl(var(--background))" } as CSSProperties}
             className={cn(
-              "flex-1 overflow-auto",
+              "app-shell-main flex-1 overflow-auto",
               showMobileBottomBar ? "pb-safe-bottom" : "pb-2"
             )}
           >
             <div
               key={loc.pathname}
-              className="animate-fade-in motion-reduce:animate-none w-full min-h-full"
+              className={cn(
+                "animate-fade-in motion-reduce:animate-none w-full min-h-full",
+                !isTaskPage && "app-shell-frame",
+              )}
             >
               <ModuleGatedOutlet />
             </div>

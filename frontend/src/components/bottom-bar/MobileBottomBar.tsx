@@ -94,7 +94,7 @@ export function MobileBottomBar({
       dir={dir}
       data-bottom-bar="true"
       data-sidebar-side={sidebarPosition}
-      className="isolate fixed z-40 transition-all duration-300 ease-out select-none inset-x-3 h-[var(--bottom-bar-height)] rounded-[1.45rem] border border-border/70 bg-background/80 dark:bg-card/75 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/70 dark:supports-[backdrop-filter]:bg-card/65 flex items-stretch shadow-[0_10px_34px_rgba(0,0,0,0.16)] dark:shadow-[0_12px_42px_rgba(0,0,0,0.68)]"
+      className="isolate fixed z-40 inset-x-3 flex h-[var(--bottom-bar-height)] select-none items-stretch rounded-full border border-border bg-card text-foreground shadow-[0_12px_30px_-18px_hsl(30_10%_10%/0.45)]"
       style={{
         bottom: "max(env(safe-area-inset-bottom, 0px), 0.625rem)",
         left: "max(env(safe-area-inset-left, 0px), 0.75rem)",
@@ -103,11 +103,6 @@ export function MobileBottomBar({
       }}
       aria-label={t("nav.bottomBar", "ناوبری پایین صفحه")}
     >
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[inherit]">
-        <span className="absolute -top-10 left-1/2 h-20 w-36 -translate-x-1/2 rounded-full opacity-20 blur-2xl" style={{ background: "hsl(var(--primary))" }} />
-        <span className="absolute inset-x-5 top-px h-px" style={{ backgroundImage: "linear-gradient(to right, transparent, hsl(var(--foreground) / 0.2), transparent)" }} />
-        <span className="absolute inset-x-8 bottom-px h-px" style={{ backgroundImage: "linear-gradient(to right, transparent, hsl(var(--primary) / 0.2), transparent)" }} />
-      </div>
 
       {/* 5 Symmetric, Balanced Slots: [Menu] [Tab 1] [Center +] [Tab 2] [Tab 3] */}
       {menuButton}

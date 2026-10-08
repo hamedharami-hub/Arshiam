@@ -52,8 +52,9 @@ function ContinueLearning({ userId }: { userId: string }) {
       {lastMissing
         ? <p role="status" data-testid="continue-last-missing" className="text-sm text-muted-foreground">{T("این مطلب دیگر وجود ندارد (حذف یا جابه‌جا شده). از کتابخانه مطلب دیگری باز کن.", "This page no longer exists (deleted or moved). Open another one from the library.")} <Link className="text-primary underline" to="/app/knowledge">{T("کتابخانه", "Library")}</Link></p>
         : <Link className="flex items-center gap-2 text-sm text-primary" to={`/app/knowledge?docId=${encodeURIComponent(lastStudy.docId)}`}><BookOpen className="h-4 w-4" aria-hidden="true" /><span dir="auto">{isEn ? lastStudy.titleEn || lastStudy.title : lastStudy.title}</span></Link>}</section>}
-    <nav className="flex flex-wrap gap-2" aria-label={T("دسترسی سریع", "Quick access")}>
-      <Button asChild variant="outline" size="sm"><Link to="/app/knowledge"><BookOpen className="me-2 h-4 w-4" aria-hidden="true" />{T("کتابخانه", "Library")}</Link></Button>
+    <nav className="flex flex-wrap items-center gap-2" aria-label={T("دسترسی سریع", "Quick access")}>
+      <Button asChild className="h-11 rounded-full px-5"><Link to="/app/recall" data-testid="continue-recall">{T("شروع مرور", "Start review")}</Link></Button>
+      <Button asChild variant="outline" className="h-11 rounded-full px-5"><Link to="/app/knowledge"><BookOpen className="me-2 h-4 w-4" aria-hidden="true" />{T("کتابخانه", "Library")}</Link></Button>
     </nav>
   </main>;
 }

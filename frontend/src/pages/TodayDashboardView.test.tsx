@@ -200,7 +200,7 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
       </MemoryRouter>,
     );
     await waitFor(() => expect(screen.getByTestId("location-probe")).toHaveTextContent(
-      "/app/knowledge?docId=doc-7",
+      "/app/recall?docId=doc-7",
     ));
     expect(mockSetAllTasks).not.toHaveBeenCalled();
   });

@@ -224,18 +224,18 @@ function resolveStudyTaskNavigation(task: Partial<Task>): StudyNavigation {
   }
 
   if (type === "leitner" || type === "leitner_folder") {
-    // Old review tasks retain their Knowledge source after the review module is retired.
+    // Review cards open the recall session. The lesson itself stays in Knowledge.
     const targetQuery = !id || id === "all" ? "" : type === "leitner_folder"
       ? `?folderId=${encodeURIComponent(id)}` : `?docId=${encodeURIComponent(id)}`;
     return {
       isStudyTask: true,
       isMindMap: false,
       isKnowledge: true,
-      navUrl: `/app/knowledge${targetQuery}`,
-      badgeLabelFa: "مطالعه",
-      badgeLabelEn: "Study",
-      actionTextFa: "باز کردن منبع مطالعه",
-      actionTextEn: "Open Study Source",
+      navUrl: `/app/recall${targetQuery}`,
+      badgeLabelFa: "مرور",
+      badgeLabelEn: "Review",
+      actionTextFa: "شروع مرور",
+      actionTextEn: "Start review",
     };
   }
 

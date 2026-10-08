@@ -5,7 +5,7 @@ describe("Knowledge navigation hierarchy", () => {
   it("preserves shared Knowledge learning without retired module entrypoints", () => {
     const knowledge = SECTIONS.find(section => section.id === "grow")?.items.find(item => item.label === "دانش");
     expect(knowledge?.children?.map(item => item.url)).toEqual([
-      "/app/knowledge", "/app/interactive-study", "/app/continue",
+      "/app/knowledge", "/app/recall", "/app/interactive-study", "/app/continue",
     ]);
     const urls = NAV_ITEMS.map(item => item.url).filter((url): url is string => Boolean(url));
     expect(urls).toContain("/app/knowledge");
